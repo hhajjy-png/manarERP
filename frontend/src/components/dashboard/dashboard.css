@@ -1,0 +1,668 @@
+/* ================================================================
+   Dashboard Dark Theme — Scoped entirely to .db-page
+   Zero impact on any other page, component, or global styles.
+   ================================================================ */
+
+.db-page {
+  /* Design tokens — live only inside this subtree */
+  --db-bg:     #0B1220;
+  --db-card:   #1F2937;
+  --db-inner:  rgba(255,255,255,0.035);
+  --db-blue:   #2563EB;
+  --db-green:  #10B981;
+  --db-amber:  #F59E0B;
+  --db-red:    #EF4444;
+  --db-text:   #F9FAFB;
+  --db-muted:  #9CA3AF;
+  --db-border: rgba(255,255,255,0.08);
+  --db-radius: 16px;
+  --db-shadow: 0 4px 24px rgba(0,0,0,0.4);
+
+  /* Bleed to edges — cancels the .content padding (32px) so the dark
+     background covers the full content area, not just an inner box. */
+  margin: -32px;
+  padding: 32px;
+  min-height: calc(100vh - 70px);
+  background: var(--db-bg);
+  color: var(--db-text);
+  font-family: 'Cairo', sans-serif;
+  direction: rtl;
+}
+
+@media (max-width: 900px) {
+  .db-page {
+    margin: -20px;
+    padding: 20px;
+  }
+}
+
+/* ---- Shimmer skeleton ---- */
+@keyframes db-shimmer {
+  0%   { background-position: -1200px 0; }
+  100% { background-position:  1200px 0; }
+}
+.db-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.10) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 1200px 100%;
+  animation: db-shimmer 1.5s infinite linear;
+  border-radius: 8px;
+  display: block;
+}
+
+/* ================================================================
+   PAGE HEADER
+   ================================================================ */
+.db-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 26px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.db-header h2 {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--db-text);
+  margin: 0;
+}
+.db-header-sub {
+  font-size: 13px;
+  color: var(--db-muted);
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+.db-date-chip {
+  font-size: 13px;
+  color: var(--db-muted);
+  font-weight: 600;
+  background: var(--db-card);
+  border: 1px solid var(--db-border);
+  border-radius: 10px;
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+
+/* ================================================================
+   ROW 1 — FINANCIAL KPI CARDS (4 columns)
+   ================================================================ */
+.db-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+@media (max-width: 1280px) { .db-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .db-kpi-grid { grid-template-columns: 1fr; } }
+
+.db-kpi {
+  position: relative;
+  background: rgba(31, 41, 55, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: var(--db-radius);
+  padding: 18px;
+  overflow: hidden;
+  box-shadow: var(--db-shadow);
+  transition: transform .22s ease, box-shadow .22s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.db-kpi:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 36px rgba(0,0,0,.55);
+}
+
+/* Subtle radial glow orb in the corner */
+.db-kpi::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: -24px;
+  top: -24px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  opacity: 0.09;
+  pointer-events: none;
+}
+.db-kpi.c-green::after { background: var(--db-green); }
+.db-kpi.c-red::after   { background: var(--db-red);   }
+.db-kpi.c-blue::after  { background: var(--db-blue);  }
+.db-kpi.c-amber::after { background: var(--db-amber); }
+
+.db-kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.db-kpi-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+  flex: none;
+}
+.db-kpi.c-green .db-kpi-icon { background: rgba(16,185,129,.14); }
+.db-kpi.c-red   .db-kpi-icon { background: rgba(239,68,68,.14);  }
+.db-kpi.c-blue  .db-kpi-icon { background: rgba(37,99,235,.14);  }
+.db-kpi.c-amber .db-kpi-icon { background: rgba(245,158,11,.14); }
+
+.db-kpi-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.db-kpi-badge.up   { background: rgba(16,185,129,.13); color: #10B981; }
+.db-kpi-badge.down { background: rgba(239,68,68,.13);  color: #EF4444; }
+
+.db-kpi-label { font-size: 11.5px; color: var(--db-muted); font-weight: 700; letter-spacing: 0.02em; }
+.db-kpi-val   { font-size: 22px;  font-weight: 800; color: var(--db-text); line-height: 1.1; margin-top: 2px; }
+.db-kpi-sub   { font-size: 11px;  color: var(--db-muted); font-weight: 600; margin-top: 2px; }
+
+/* ================================================================
+   ROW 2 — OPERATIONAL STATS (4 columns)
+   ================================================================ */
+.db-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 22px;
+}
+@media (max-width: 1280px) { .db-stats-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .db-stats-grid { grid-template-columns: repeat(2, 1fr); } }
+
+.db-stat {
+  background: var(--db-card);
+  border: 1px solid var(--db-border);
+  border-radius: var(--db-radius);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: var(--db-shadow);
+  transition: transform .22s ease;
+}
+.db-stat:hover { transform: translateY(-2px); }
+
+.db-stat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  flex: none;
+}
+.db-stat-label { font-size: 12.5px; color: var(--db-muted); font-weight: 600; }
+.db-stat-val   { font-size: 28px;   font-weight: 800; color: var(--db-text); line-height: 1.1; }
+.db-stat-sub   { font-size: 11.5px; color: var(--db-muted); font-weight: 600; margin-top: 3px; }
+
+/* ================================================================
+   LAYOUT ROWS (Main / Charts / Tables)
+   ================================================================ */
+.db-main-row,
+.db-charts-row,
+.db-tables-row {
+  display: grid;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.db-main-row   { grid-template-columns: 1.35fr 1fr; }
+.db-charts-row { grid-template-columns: 1.6fr 1fr;  }
+.db-tables-row { grid-template-columns: 1fr 1fr;    }
+
+@media (max-width: 1100px) {
+  .db-main-row,
+  .db-charts-row,
+  .db-tables-row { grid-template-columns: 1fr; }
+}
+
+/* ================================================================
+   GENERIC CARD SHELL
+   ================================================================ */
+.db-card {
+  background: rgba(31, 41, 55, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--db-radius);
+  box-shadow: var(--db-shadow);
+  overflow: visible;
+  transition: transform .22s ease, box-shadow .22s ease;
+}
+.db-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 44px rgba(0,0,0,0.55);
+}
+.db-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 15px 18px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.db-card-head h3 { font-size: 14.5px; font-weight: 800; color: var(--db-text); margin: 0; letter-spacing: 0.01em; }
+.db-card-head p  { font-size: 11.5px; color: var(--db-muted); font-weight: 600; margin: 3px 0 0; }
+.db-card-body { padding: 14px 18px 18px; }
+
+/* Scrollable body variant (for alert / contract lists) */
+.db-card-body.scrollable {
+  max-height: 260px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.10) transparent;
+}
+.db-card-body.scrollable::-webkit-scrollbar { width: 5px; }
+.db-card-body.scrollable::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 10px; }
+
+/* ================================================================
+   PILLS
+   ================================================================ */
+.db-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.db-pill::before {
+  content: '';
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  flex: none;
+}
+.db-pill.green  { background: rgba(16,185,129,.12); color: #10B981; }
+.db-pill.green::before  { background: #10B981; }
+.db-pill.amber  { background: rgba(245,158,11,.12); color: #F59E0B; }
+.db-pill.amber::before  { background: #F59E0B; }
+.db-pill.red    { background: rgba(239,68,68,.12);  color: #EF4444; }
+.db-pill.red::before    { background: #EF4444; }
+.db-pill.blue   { background: rgba(37,99,235,.12);  color: #60A5FA; }
+.db-pill.blue::before   { background: #60A5FA; }
+.db-pill.gray   { background: rgba(156,163,175,.12); color: #9CA3AF; }
+.db-pill.gray::before   { background: #9CA3AF; }
+
+/* ================================================================
+   CONTRACT PROGRESS CARDS
+   ================================================================ */
+.db-contract-list { display: flex; flex-direction: column; gap: 10px; }
+
+.db-contract-item {
+  background: var(--db-inner);
+  border: 1px solid var(--db-border);
+  border-radius: 12px;
+  padding: 13px 15px;
+  transition: background .2s;
+}
+.db-contract-item:hover { background: rgba(255,255,255,.055); }
+
+.db-contract-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.db-contract-name   { font-size: 13.5px; font-weight: 700; color: var(--db-text); line-height: 1.3; }
+.db-contract-client { font-size: 11.5px; color: var(--db-muted); font-weight: 600; margin-top: 2px; }
+
+.db-contract-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.db-contract-meta { font-size: 11.5px; color: var(--db-muted); font-weight: 600; }
+.db-contract-pct  { font-size: 12px;   font-weight: 800; }
+
+.db-progress {
+  height: 5px;
+  background: rgba(255,255,255,.07);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 9px;
+}
+.db-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width .7s ease;
+}
+.db-progress-bar.blue  { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+.db-progress-bar.green { background: linear-gradient(90deg, #10b981, #34d399); }
+.db-progress-bar.amber { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+.db-progress-bar.red   { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+/* ================================================================
+   ALERT ITEMS
+   ================================================================ */
+.db-alert-list  { display: flex; flex-direction: column; gap: 9px; }
+
+.db-alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  border: 1px solid var(--db-border);
+  background: var(--db-inner);
+  transition: background .2s;
+}
+.db-alert-item:hover { background: rgba(255,255,255,.055); }
+
+/* Priority left-border (RTL: inline-end = left) */
+.db-alert-item.priority-red   { border-inline-start: 3px solid #EF4444; }
+.db-alert-item.priority-amber { border-inline-start: 3px solid #F59E0B; }
+.db-alert-item.priority-blue  { border-inline-start: 3px solid #3B82F6; }
+
+.db-alert-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  flex: none;
+}
+.db-alert-item.priority-red   .db-alert-icon { background: rgba(239,68,68,.12);  }
+.db-alert-item.priority-amber .db-alert-icon { background: rgba(245,158,11,.12); }
+.db-alert-item.priority-blue  .db-alert-icon { background: rgba(59,130,246,.12); }
+
+.db-alert-title { font-size: 13px;  font-weight: 700; color: var(--db-text); line-height: 1.3; }
+.db-alert-desc  { font-size: 11.5px; font-weight: 600; margin-top: 2px; }
+.db-alert-item.priority-red   .db-alert-desc { color: #EF4444; }
+.db-alert-item.priority-amber .db-alert-desc { color: #F59E0B; }
+.db-alert-item.priority-blue  .db-alert-desc { color: #60A5FA; }
+
+/* ================================================================
+   TABLES
+   ================================================================ */
+.db-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+.db-table thead th {
+  text-align: start;
+  color: var(--db-muted);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--db-border);
+  white-space: nowrap;
+}
+.db-table tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--db-border);
+  font-weight: 600;
+  color: var(--db-text);
+  vertical-align: middle;
+}
+.db-table tbody tr:last-child td { border-bottom: none; }
+.db-table tbody tr:hover td      { background: rgba(255,255,255,.025); }
+.db-table-mono {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--db-muted);
+}
+
+/* ================================================================
+   EMPTY STATE
+   ================================================================ */
+.db-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+  gap: 10px;
+}
+.db-empty-icon { font-size: 30px; opacity: .35; }
+.db-empty-text { font-size: 13.5px; font-weight: 600; color: var(--db-muted); }
+
+/* ================================================================
+   CHART WRAPPERS
+   Charts are LTR-only (Recharts doesn't support RTL axis rendering).
+   Arabic content inside tooltips is set RTL via inline styles.
+   ================================================================ */
+.db-chart-wrap    { direction: ltr; height: 240px; }
+.db-chart-wrap-sm { direction: ltr; height: 220px; }
+
+/* Recharts text in dark mode */
+.db-chart-wrap    .recharts-text tspan,
+.db-chart-wrap-sm .recharts-text tspan {
+  fill: #9CA3AF;
+  font-family: 'Cairo', sans-serif;
+  font-size: 12px;
+}
+.db-chart-wrap .recharts-cartesian-grid-horizontal line,
+.db-chart-wrap .recharts-cartesian-grid-vertical   line {
+  stroke: rgba(255,255,255,0.055);
+}
+
+/* ================================================================
+   EXECUTIVE HEADER
+   ================================================================ */
+.db-exec-header {
+  margin-bottom: 18px;
+}
+.db-exec-greeting {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--db-text);
+  margin: 0 0 5px;
+  line-height: 1.2;
+}
+.db-exec-date {
+  font-size: 13px;
+  color: var(--db-muted);
+  font-weight: 600;
+  margin: 0 0 14px;
+}
+.db-exec-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.db-exec-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid;
+}
+.db-exec-chip.blue  { background: rgba(37,99,235,0.12);  color: #60A5FA; border-color: rgba(37,99,235,0.25); }
+.db-exec-chip.amber { background: rgba(245,158,11,0.12); color: #F59E0B; border-color: rgba(245,158,11,0.25); }
+.db-exec-chip.red   { background: rgba(239,68,68,0.12);  color: #EF4444; border-color: rgba(239,68,68,0.25); }
+.db-exec-chip.green { background: rgba(16,185,129,0.12); color: #10B981; border-color: rgba(16,185,129,0.25); }
+.db-exec-chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* ================================================================
+   QUICK ACTIONS ROW
+   ================================================================ */
+.db-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.db-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  border-radius: 24px;
+  font-size: 13.5px;
+  font-weight: 700;
+  font-family: 'Cairo', sans-serif;
+  cursor: pointer;
+  border: 1px solid;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+  white-space: nowrap;
+  background: var(--db-card);
+  color: var(--db-text);
+  border-color: var(--db-border);
+}
+.db-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+}
+.db-action-btn.primary {
+  background: rgba(37,99,235,0.15);
+  color: #60A5FA;
+  border-color: rgba(37,99,235,0.3);
+}
+.db-action-btn.primary:hover { background: rgba(37,99,235,0.25); }
+.db-action-btn.green {
+  background: rgba(16,185,129,0.12);
+  color: #10B981;
+  border-color: rgba(16,185,129,0.28);
+}
+.db-action-btn.green:hover { background: rgba(16,185,129,0.22); }
+.db-action-btn.purple {
+  background: rgba(139,92,246,0.12);
+  color: #A78BFA;
+  border-color: rgba(139,92,246,0.28);
+}
+.db-action-btn.purple:hover { background: rgba(139,92,246,0.22); }
+.db-action-btn.amber {
+  background: rgba(245,158,11,0.12);
+  color: #F59E0B;
+  border-color: rgba(245,158,11,0.28);
+}
+.db-action-btn.amber:hover { background: rgba(245,158,11,0.22); }
+
+/* ================================================================
+   KPI CARD — COLORED GRADIENT ACCENT STRIP AT TOP
+   ================================================================ */
+.db-kpi::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 16px 16px 0 0;
+  pointer-events: none;
+}
+.db-kpi.c-green::before { background: linear-gradient(90deg, #10b981, #34d399); }
+.db-kpi.c-red::before   { background: linear-gradient(90deg, #ef4444, #f87171); }
+.db-kpi.c-blue::before  { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+.db-kpi.c-amber::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+
+/* ================================================================
+   TABLE IMPROVEMENTS — ZEBRA ROWS
+   ================================================================ */
+.db-table tbody tr:nth-child(even) td {
+  background: rgba(255,255,255,0.015);
+}
+
+/* ================================================================
+   EXECUTIVE ALERT WIDGETS (4-column strip)
+   ================================================================ */
+.db-alert-widgets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+@media (max-width: 1100px) { .db-alert-widgets { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px)  { .db-alert-widgets { grid-template-columns: 1fr; } }
+
+.db-aw {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 13px 16px;
+  background: rgba(31, 41, 55, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--db-border);
+  border-radius: 14px;
+  border-inline-start-width: 4px;
+  border-inline-start-style: solid;
+  overflow: hidden;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.db-aw:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+}
+
+.db-aw.aw-critical { border-inline-start-color: #EF4444; background: rgba(239,68,68,0.07); }
+.db-aw.aw-warning  { border-inline-start-color: #F59E0B; background: rgba(245,158,11,0.07); }
+.db-aw.aw-safe     { border-inline-start-color: #10B981; background: rgba(16,185,129,0.07); }
+
+.db-aw-icon {
+  font-size: 20px;
+  width: 42px; height: 42px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.db-aw.aw-critical .db-aw-icon { background: rgba(239,68,68,0.13); }
+.db-aw.aw-warning  .db-aw-icon { background: rgba(245,158,11,0.13); }
+.db-aw.aw-safe     .db-aw-icon { background: rgba(16,185,129,0.13); }
+
+.db-aw-body { flex: 1; min-width: 0; }
+
+.db-aw-val {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 2px;
+}
+.db-aw.aw-critical .db-aw-val { color: #EF4444; }
+.db-aw.aw-warning  .db-aw-val { color: #F59E0B; }
+.db-aw.aw-safe     .db-aw-val { color: #10B981; }
+
+.db-aw-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--db-muted);
+}
+.db-aw-sub {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--db-muted);
+  margin-top: 2px;
+}
+
+.db-aw-tag {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  align-self: flex-start;
+  white-space: nowrap;
+}
+.db-aw.aw-critical .db-aw-tag { background: rgba(239,68,68,0.15); color: #EF4444; }
+.db-aw.aw-warning  .db-aw-tag { background: rgba(245,158,11,0.15); color: #F59E0B; }
+.db-aw.aw-safe     .db-aw-tag { background: rgba(16,185,129,0.15); color: #10B981; }

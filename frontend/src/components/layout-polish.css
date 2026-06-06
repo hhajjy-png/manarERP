@@ -1,0 +1,73 @@
+/* ================================================================
+   Layout Polish — targeted overrides for topbar + sidebar.
+   All selectors are more specific than theme.css equivalents,
+   so no !important is needed and cascade order doesn't matter.
+   Zero impact on page content, forms, tables, or modals.
+   ================================================================ */
+
+/* ---- Topbar: reduce height 70 → 49 px (−30 %) ---- */
+.app .topbar {
+  height: 49px;
+  padding: 0 22px;
+  gap: 16px;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.app .topbar .icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  font-size: 15px;
+}
+
+.app .topbar .avatar {
+  width: 34px;
+  height: 34px;
+  font-size: 15px;
+}
+
+.app .topbar .search input {
+  padding: 7px 38px 7px 14px;
+  font-size: 13.5px;
+}
+
+.app .topbar .user-info strong {
+  font-size: 13px;
+}
+
+.app .topbar .user-info small {
+  font-size: 11px;
+}
+
+/* ---- Sidebar: refined active item ---- */
+.sidebar .nav a.active {
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  color: #fff;
+  font-weight: 700;
+  border-inline-start: 3px solid rgba(255,255,255,0.65);
+  padding-inline-start: 11px;
+  box-shadow:
+    0 4px 20px rgba(37, 99, 235, 0.45),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+/* Remove the outward translateX on active so the indicator line stays flush */
+.sidebar .nav a.active:hover {
+  transform: none;
+  background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%);
+}
+
+/* Hover: subtle glass instead of solid primary-hover */
+.sidebar .nav a:not(.active):hover {
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+  transform: none;
+}
+
+/* ---- Compensate content min-height for shorter topbar ---- */
+.db-page {
+  min-height: calc(100vh - 49px);
+}

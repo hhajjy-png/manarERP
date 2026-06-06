@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { NAV } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useUI } from '../stores/uiStore';
+import './layout-polish.css';
 
 export default function Layout() {
   const { user, logout, hasPermission } = useAuth();
