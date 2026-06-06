@@ -1,7 +1,7 @@
 import { BaseRepository } from '../../shared/repositories/BaseRepository';
 import { prisma } from '../../config/database';
 
-class CustomersRepository extends BaseRepository<{ id: number }> {
+class CustomersRepository extends BaseRepository<{ id: number; code: string }> {
   protected readonly model = 'customer';
 
   /** عميل مع ملخص مشاريعه وفواتيره. */

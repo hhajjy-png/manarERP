@@ -10,7 +10,11 @@ const statusPill: Record<string, [string, string]> = {
   OVERDUE: ['متأخرة', 'red'], CANCELLED: ['ملغاة', 'gray'],
 };
 
-interface Item { description: string; quantity: number; unitPrice: number; }
+const invoiceTypes = ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت'] as const;
+const units = ['طن', 'درب', 'يومية'] as const;
+const invoicePrefix = 'MN-INV-2026-';
+
+interface Item { description: string; quantity: number; unit: string; unitPrice: number; }
 
 export default function Invoices() {
   const { hasPermission } = useAuth();
@@ -19,6 +23,7 @@ export default function Invoices() {
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [paying, setPaying] = useState<any | null>(null);
@@ -26,13 +31,13 @@ export default function Invoices() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/invoices', { params: { page, pageSize: 15 } });
+      const res = await api.get('/invoices', { params: { page, pageSize: 15, search: search || undefined } });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, search]);
   useEffect(() => { load(); }, [load]);
 
   async function cancel(id: number) {
@@ -41,8 +46,9 @@ export default function Invoices() {
   }
 
   const columns = [
-    { key: 'number', label: 'رقم الفاتورة', render: (r: Record<string, unknown>) => <strong style={{ fontFamily: 'monospace' }}>{String(r.number)}</strong> },
-    { key: 'direction', label: 'النوع', render: (r: Record<string, unknown>) => (r.direction === 'SALES' ? 'مبيعات' : 'مشتريات') },
+    { key: 'invoiceNumber', label: 'رقم الفاتورة', render: (r: Record<string, unknown>) => <strong style={{ fontFamily: 'monospace' }}>{String(r.invoiceNumber ?? r.number)}</strong> },
+    { key: 'invoiceType', label: 'نوع الفاتورة', render: (r: Record<string, unknown>) => String(r.invoiceType ?? '—') },
+    { key: 'direction', label: 'الاتجاه', render: (r: Record<string, unknown>) => (r.direction === 'SALES' ? 'مبيعات' : 'مشتريات') },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { key: 'party', label: 'الجهة', render: (r: any) => r.customer?.name ?? r.supplier?.name ?? '—' },
     { key: 'issueDate', label: 'التاريخ', render: (r: Record<string, unknown>) => dateText(r.issueDate) },
@@ -56,6 +62,14 @@ export default function Invoices() {
       <div className="page-head">
         <div><h2>الفواتير والمطالبات</h2><p>إصدار الفواتير ومتابعة التحصيل</p></div>
         {hasPermission('invoices.create') && <button className="btn" onClick={() => setCreating(true)}>＋ فاتورة جديدة</button>}
+      </div>
+      <div className="toolbar" style={{ marginBottom: 16 }}>
+        <input
+          placeholder="بحث برقم الفاتورة"
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          style={{ ...inp, maxWidth: 280 }}
+        />
       </div>
 
       <DataTable
@@ -84,11 +98,13 @@ export default function Invoices() {
 
 // ===== إنشاء فاتورة =====
 function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [invoiceNumberSuffix, setInvoiceNumberSuffix] = useState('');
   const [direction, setDirection] = useState('SALES');
+  const [invoiceType, setInvoiceType] = useState<(typeof invoiceTypes)[number]>('نقل اسفلت');
   const [partyId, setPartyId] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [parties, setParties] = useState<any[]>([]);
-  const [items, setItems] = useState<Item[]>([{ description: '', quantity: 1, unitPrice: 0 }]);
+  const [items, setItems] = useState<Item[]>([{ description: '', quantity: 1, unit: 'طن', unitPrice: 0 }]);
   const [discount, setDiscount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -102,21 +118,29 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     })();
   }, [direction]);
 
-  const subtotal = items.reduce((s, it) => s + Number(it.quantity) * Number(it.unitPrice), 0);
+  const lineTotal = (it: Item) => Number(it.quantity) * Number(it.unitPrice);
+  const subtotal = items.reduce((s, it) => s + lineTotal(it), 0);
   const total = Math.max(0, subtotal - Number(discount));
 
   function setItem(i: number, key: keyof Item, value: string) {
-    setItems((p) => p.map((it, idx) => (idx === i ? { ...it, [key]: key === 'description' ? value : Number(value) } : it)));
+    setItems((p) => p.map((it, idx) => (idx === i ? { ...it, [key]: key === 'description' || key === 'unit' ? value : Number(value) } : it)));
   }
 
   async function submit() {
     setError('');
+    const invoiceNumber = `${invoicePrefix}${invoiceNumberSuffix.trim()}`;
+    if (!invoiceNumberSuffix.trim()) { setError('رقم الفاتورة مطلوب'); return; }
     if (!partyId) { setError(direction === 'SALES' ? 'اختر العميل' : 'اختر المورّد'); return; }
     if (items.some((it) => !it.description)) { setError('أكمل وصف كل البنود'); return; }
+    if (items.some((it) => !it.unit)) { setError('اختر وحدة لكل بند'); return; }
+    if (items.some((it) => Number(it.quantity) <= 0)) { setError('الكمية يجب أن تكون أكبر من صفر'); return; }
+    if (items.some((it) => Number(it.unitPrice) < 0)) { setError('سعر الوحدة يجب ألا يكون سالبًا'); return; }
     setSaving(true);
     try {
       await api.post('/invoices', {
+        invoiceNumber,
         direction,
+        invoiceType,
         customerId: direction === 'SALES' ? Number(partyId) : undefined,
         supplierId: direction === 'PURCHASE' ? Number(partyId) : undefined,
         discount: Number(discount),
@@ -141,7 +165,25 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
         <div className="field">
+          <label>رقم الفاتورة *</label>
+          <div style={{ display: 'flex', alignItems: 'center', direction: 'ltr' }}>
+            <span style={{ ...inp, borderRadius: '10px 0 0 10px', borderInlineEnd: 0, background: 'var(--surface-2)', whiteSpace: 'nowrap' }}>{invoicePrefix}</span>
+            <input
+              value={invoiceNumberSuffix}
+              onChange={(e) => setInvoiceNumberSuffix(e.target.value)}
+              placeholder="001"
+              style={{ borderRadius: '0 10px 10px 0', direction: 'ltr' }}
+            />
+          </div>
+        </div>
+        <div className="field">
           <label>نوع الفاتورة</label>
+          <select value={invoiceType} onChange={(e) => setInvoiceType(e.target.value as (typeof invoiceTypes)[number])}>
+            {invoiceTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label>الاتجاه</label>
           <select value={direction} onChange={(e) => setDirection(e.target.value)}>
             <option value="SALES">مبيعات (عميل)</option>
             <option value="PURCHASE">مشتريات (مورّد)</option>
@@ -158,18 +200,42 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 
       <label style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, display: 'block', margin: '8px 0' }}>البنود</label>
       {items.map((it, i) => (
-        <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 8, marginBottom: 8 }}>
-          <input placeholder="الوصف" value={it.description} onChange={(e) => setItem(i, 'description', e.target.value)} style={inp} />
-          <input type="number" placeholder="الكمية" value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} style={inp} />
-          <input type="number" placeholder="سعر الوحدة" value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} style={inp} />
-          <button className="btn secondary sm" type="button" onClick={() => setItems((p) => p.filter((_, idx) => idx !== i))} disabled={items.length === 1}>✕</button>
+        <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center', width: '100%', overflow: 'hidden' }}>
+          <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <input placeholder="الوصف" value={it.description} onChange={(e) => setItem(i, 'description', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+          </div>
+          <div className="invoice-cell quantity-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <input type="number" min="0.001" step="0.001" placeholder="الكمية" value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+          </div>
+          <div className="invoice-cell unit-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <select value={it.unit} onChange={(e) => setItem(i, 'unit', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+              {units.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+            </select>
+          </div>
+          <div className="invoice-cell price-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <input type="number" min="0" step="0.001" placeholder="سعر الوحدة" value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+          </div>
+          <div className="invoice-cell total-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ ...inp, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default', width: '100%', boxSizing: 'border-box' }}>{money(lineTotal(it))}</div>
+          </div>
+          <div className="invoice-cell delete-cell" style={{ minWidth: 0 }}>
+            {items.length > 1 && (
+              <button
+                className="btn secondary sm"
+                type="button"
+                onClick={() => setItems((p) => p.filter((_, idx) => idx !== i))}
+              >
+                x
+              </button>
+            )}
+          </div>
         </div>
       ))}
-      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: '', quantity: 1, unitPrice: 0 }])}>＋ إضافة بند</button>
+      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: '', quantity: 1, unit: 'طن', unitPrice: 0 }])}>＋ إضافة بند</button>
 
       <div className="form-grid" style={{ marginTop: 16 }}>
         <div className="field"><label>الخصم (د.ك)</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
-        <div className="field"><label>الإجمالي</label><input value={money(total)} disabled /></div>
+        <div className="field"><label>الإجمالي</label><div style={{ ...inp, display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default' }}>{money(total)}</div></div>
       </div>
     </Modal>
   );
@@ -201,7 +267,7 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
   }
 
   return (
-    <Modal title={`تحصيل — ${invoice.number}`} onClose={onClose} footer={
+    <Modal title={`تحصيل — ${invoice.invoiceNumber ?? invoice.number}`} onClose={onClose} footer={
       <>
         <button className="btn" onClick={submit} disabled={saving}>{saving ? 'جارٍ…' : 'تسجيل الدفعة'}</button>
         <button className="btn secondary" onClick={onClose}>إلغاء</button>

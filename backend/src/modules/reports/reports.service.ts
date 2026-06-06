@@ -97,7 +97,7 @@ export class ReportsService {
       title: 'تقرير الفواتير',
       subtitle: `العدد: ${rows.length} — الإجمالي: ${total.toLocaleString('ar')} — المحصّل: ${paid.toLocaleString('ar')}`,
       columns: [
-        { header: 'الرقم', key: 'number', width: 18 },
+        { header: 'رقم الفاتورة', key: 'invoiceNumber', width: 22 },
         { header: 'النوع', key: 'direction', width: 12 },
         { header: 'الجهة', key: 'party', width: 28 },
         { header: 'التاريخ', key: 'date', width: 16 },
@@ -106,7 +106,7 @@ export class ReportsService {
         { header: 'الحالة', key: 'status', width: 14 },
       ],
       rows: rows.map((i) => ({
-        number: i.number, direction: i.direction === 'SALES' ? 'مبيعات' : 'مشتريات',
+        invoiceNumber: i.invoiceNumber, direction: i.direction === 'SALES' ? 'مبيعات' : 'مشتريات',
         party: i.customer?.name ?? i.supplier?.name ?? '', date: dateAr(i.issueDate),
         total: num(i.total), paid: num(i.paidAmount), status: i.status,
       })),

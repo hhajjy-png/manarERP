@@ -7,7 +7,7 @@ import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core
 import { transactionsService } from '../transactions/transactions.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
 
-type ItemInput = { description: string; quantity: number; unitPrice: number };
+type ItemInput = { description: string; quantity: number; unit: string; unitPrice: number };
 
 function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
@@ -48,13 +48,13 @@ export class InvoicesService {
   /** ترحيل القيد المحاسبي للفاتورة (داخل معاملة). */
   private async postJournal(
     client: Prisma.TransactionClient,
-    invoice: { id: number; number: string; direction: string; total: number; issueDate: Date },
+    invoice: { id: number; invoiceNumber: string; direction: string; total: number; issueDate: Date },
   ) {
     if (invoice.direction === 'SALES') {
       await transactionsService.postEntry(
         {
           date: invoice.issueDate,
-          description: `إيراد فاتورة مبيعات ${invoice.number}`,
+          description: `إيراد فاتورة مبيعات ${invoice.invoiceNumber}`,
           type: 'REVENUE',
           credit: invoice.total,
           account: 'إيرادات المبيعات',
@@ -67,7 +67,7 @@ export class InvoicesService {
       await transactionsService.postEntry(
         {
           date: invoice.issueDate,
-          description: `مصروف فاتورة مشتريات ${invoice.number}`,
+          description: `مصروف فاتورة مشتريات ${invoice.invoiceNumber}`,
           type: 'EXPENSE',
           debit: invoice.total,
           account: 'المشتريات',
@@ -79,15 +79,30 @@ export class InvoicesService {
     }
   }
 
-  async list(query: PaginationQuery & { direction?: string; status?: string; customerId?: string; supplierId?: string; contractId?: string }) {
+  async list(
+    query: PaginationQuery & {
+      direction?: string;
+      invoiceType?: string;
+      status?: string;
+      customerId?: string;
+      supplierId?: string;
+      contractId?: string;
+    },
+  ) {
     const pagination = getPagination(query);
     const where: Prisma.InvoiceWhereInput = {};
     if (query.direction) where.direction = query.direction;
+    if (query.invoiceType) where.invoiceType = query.invoiceType;
     if (query.status) where.status = query.status;
     if (query.customerId) where.customerId = Number(query.customerId);
     if (query.supplierId) where.supplierId = Number(query.supplierId);
     if (query.contractId) where.contractId = Number(query.contractId);
-    if (query.search) where.number = { contains: query.search };
+    if (query.search) {
+      where.OR = [
+        { invoiceNumber: { contains: query.search } },
+        { number: { contains: query.search } },
+      ];
+    }
 
     const [data, total] = await Promise.all([
       prisma.invoice.findMany({
@@ -110,17 +125,19 @@ export class InvoicesService {
 
   async create(input: CreateInvoiceInput, req: Request) {
     const { lines, subtotal, taxAmount, total } = computeTotals(input.items, input.taxRate, input.discount);
+    const invoiceNumber = input.invoiceNumber.trim();
 
     const invoice = await prisma.$transaction(async (tx) => {
-      const number = input.number ?? (await this.generateNumber(tx, input.direction));
-      if (input.number && (await tx.invoice.findUnique({ where: { number: input.number } }))) {
+      if (await tx.invoice.findUnique({ where: { invoiceNumber } })) {
         throw AppError.conflict('رقم الفاتورة مُستخدم من قبل');
       }
 
       const created = await tx.invoice.create({
         data: {
-          number,
+          number: invoiceNumber,
+          invoiceNumber,
           direction: input.direction,
+          invoiceType: input.invoiceType,
           customerId: input.customerId ?? null,
           supplierId: input.supplierId ?? null,
           contractId: input.contractId ?? null,
@@ -143,7 +160,7 @@ export class InvoicesService {
       return created;
     });
 
-    await recordAudit({ req, action: 'CREATE', module: 'invoices', entityId: invoice.id, newValue: { number: invoice.number, total } });
+    await recordAudit({ req, action: 'CREATE', module: 'invoices', entityId: invoice.id, newValue: { invoiceNumber: invoice.invoiceNumber, total } });
     return invoice;
   }
 
@@ -152,10 +169,16 @@ export class InvoicesService {
     if (!current) throw AppError.notFound('الفاتورة غير موجودة');
     if (current.status === 'CANCELLED') throw AppError.badRequest('لا يمكن تعديل فاتورة ملغاة');
 
-    const items = input.items ?? current.items.map((i) => ({ description: i.description, quantity: i.quantity, unitPrice: i.unitPrice }));
+    const items = input.items ?? current.items.map((i) => ({ description: i.description, quantity: i.quantity, unit: i.unit, unitPrice: i.unitPrice }));
     const taxRate = input.taxRate ?? current.taxRate;
     const discount = input.discount ?? current.discount;
+    const invoiceNumber = input.invoiceNumber?.trim();
     const { lines, subtotal, taxAmount, total } = computeTotals(items, taxRate, discount);
+
+    if (invoiceNumber && invoiceNumber !== current.invoiceNumber) {
+      const dup = await prisma.invoice.findUnique({ where: { invoiceNumber } });
+      if (dup && dup.id !== id) throw AppError.conflict('رقم الفاتورة مُستخدم من قبل');
+    }
 
     if (total < current.paidAmount) {
       throw AppError.badRequest('إجمالي الفاتورة الجديد أقل من المبلغ المسدّد بالفعل');
@@ -170,7 +193,10 @@ export class InvoicesService {
       const inv = await tx.invoice.update({
         where: { id },
         data: {
+          number: invoiceNumber ?? current.number,
+          invoiceNumber: invoiceNumber ?? current.invoiceNumber,
           contractId: input.contractId === undefined ? current.contractId : input.contractId,
+          invoiceType: input.invoiceType ?? current.invoiceType,
           issueDate: input.issueDate ?? current.issueDate,
           dueDate: input.dueDate ?? current.dueDate,
           taxRate,

@@ -1,17 +1,22 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
 
+const invoiceNumberSchema = z.string().trim().min(1, 'رقم الفاتورة مطلوب').regex(/^MN-INV-2026-[A-Za-z0-9]+$/, 'رقم الفاتورة يجب أن يبدأ بـ MN-INV-2026-');
+
 const itemSchema = z.object({
   description: z.string().min(1, 'وصف البند مطلوب'),
   quantity: z.coerce.number().positive('الكمية يجب أن تكون موجبة').default(1),
+  unit: z.enum(ENUMS.invoiceUnit).default('طن'),
   unitPrice: z.coerce.number().nonnegative('السعر يجب ألا يكون سالبًا').default(0),
 });
 
 export const createInvoiceSchema = z.object({
   body: z
     .object({
-      number: z.string().min(1).optional(), // يُولّد تلقائيًا إن لم يُرسل
+      invoiceNumber: invoiceNumberSchema,
+      number: z.string().min(1).optional(),
       direction: z.enum(ENUMS.invoiceDirection).default('SALES'),
+      invoiceType: z.enum(ENUMS.invoiceType).default('نقل اسفلت'),
       customerId: z.coerce.number().int().positive().optional(),
       supplierId: z.coerce.number().int().positive().optional(),
       contractId: z.coerce.number().int().positive().optional(),
@@ -30,7 +35,9 @@ export const createInvoiceSchema = z.object({
 
 export const updateInvoiceSchema = z.object({
   body: z.object({
+    invoiceNumber: invoiceNumberSchema.optional(),
     contractId: z.coerce.number().int().positive().nullable().optional(),
+    invoiceType: z.enum(ENUMS.invoiceType).optional(),
     issueDate: z.coerce.date().optional(),
     dueDate: z.coerce.date().optional(),
     taxRate: z.coerce.number().min(0).max(100).optional(),

@@ -454,7 +454,9 @@ model Supplier {
 model Invoice {
   id           Int      @id @default(autoincrement())
   number       String   @unique                          // رقم الفاتورة
+  invoiceNumber String @unique                           // الرقم اليدوي الكامل للفاتورة: MN-INV-2026-...
   direction    String   @default("SALES")                // SALES (عميل) | PURCHASE (مورّد)
+  invoiceType  String   @default("نقل اسفلت")            // نقل اسفلت | يومية عمل مالينج | يومية نقل اسفلت
   customerId   Int?
   supplierId   Int?
   contractId   Int?
@@ -492,6 +494,7 @@ model InvoiceItem {
   invoiceId   Int
   description String
   quantity    Float  @default(1)
+  unit        String @default("طن")                       // طن | درب | يومية
   unitPrice   Float  @default(0)
   total       Float  @default(0)
 

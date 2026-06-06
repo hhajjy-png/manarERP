@@ -62,6 +62,8 @@ export const ENUMS = {
   equipmentStatus: ['WORKING', 'NOT_WORKING'] as const,
   contractStatus: ['ACTIVE', 'EXPIRED', 'RENEWING', 'SUSPENDED'] as const,
   invoiceDirection: ['SALES', 'PURCHASE'] as const,
+  invoiceType: ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت'] as const,
+  invoiceUnit: ['طن', 'درب', 'يومية'] as const,
   invoiceStatus: ['UNPAID', 'PARTIAL', 'PAID', 'OVERDUE', 'CANCELLED'] as const,
   expenseCategory: [
     'FUEL',
