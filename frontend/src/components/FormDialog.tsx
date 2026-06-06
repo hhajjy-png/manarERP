@@ -1,0 +1,134 @@
+import { useEffect, useState } from 'react';
+import Modal from './Modal';
+import { api, errorMessage } from '../api/client';
+
+export interface FormField {
+  name: string;
+  label: string;
+  type?: 'text' | 'number' | 'date' | 'select' | 'textarea' | 'password';
+  options?: { value: string; label: string }[];
+  optionsEndpoint?: string; // يحمّل الخيارات من API: data => {value:id,label}
+  optionLabel?: string; // اسم الحقل المعروض من نتيجة الـ endpoint
+  required?: boolean;
+  half?: boolean;
+}
+
+interface Props {
+  title: string;
+  fields: FormField[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  initial?: any;
+  endpoint: string; // مثل /contracts
+  id?: number; // إن وُجد = تعديل
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function toInputDate(v: unknown): string {
+  if (!v) return '';
+  const d = new Date(v as string);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+
+export default function FormDialog({ title, fields, initial, endpoint, id, onClose, onSaved }: Props) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [values, setValues] = useState<any>(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const v: any = {};
+    for (const f of fields) {
+      const raw = initial?.[f.name];
+      v[f.name] = f.type === 'date' ? toInputDate(raw) : raw ?? '';
+    }
+    return v;
+  });
+  const [asyncOptions, setAsyncOptions] = useState<Record<string, { value: string; label: string }[]>>({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fields
+      .filter((f) => f.optionsEndpoint)
+      .forEach(async (f) => {
+        try {
+          const res = await api.get(f.optionsEndpoint!);
+          const list = res.data.data?.data ?? res.data.data ?? [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const opts = list.map((x: any) => ({ value: String(x.id), label: x[f.optionLabel ?? 'name'] ?? x.displayName ?? x.code }));
+          setAsyncOptions((p) => ({ ...p, [f.name]: opts }));
+        } catch {
+          // نتجاهل فشل تحميل الخيارات
+        }
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function set(name: string, value: string) {
+    setValues((p: Record<string, unknown>) => ({ ...p, [name]: value }));
+  }
+
+  async function submit() {
+    setError('');
+    // تحقق مبدئي من الحقول المطلوبة
+    for (const f of fields) {
+      if (f.required && !values[f.name]) {
+        setError(`الحقل «${f.label}» مطلوب`);
+        return;
+      }
+    }
+    // تنظيف القيم الفارغة الاختيارية
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: any = {};
+    for (const f of fields) {
+      const val = values[f.name];
+      if (val === '' || val === undefined || val === null) continue;
+      payload[f.name] = val;
+    }
+    setSaving(true);
+    try {
+      if (id) await api.put(`${endpoint}/${id}`, payload);
+      else await api.post(endpoint, payload);
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      title={title}
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn" onClick={submit} disabled={saving}>{saving ? 'جارٍ الحفظ…' : 'حفظ'}</button>
+          <button className="btn secondary" onClick={onClose}>إلغاء</button>
+        </>
+      }
+    >
+      {error && <div className="alert error">⚠️ {error}</div>}
+      <div className="form-grid">
+        {fields.map((f) => {
+          const opts = f.options ?? asyncOptions[f.name] ?? [];
+          return (
+            <div className="field" key={f.name} style={f.half === false ? { gridColumn: '1 / -1' } : undefined}>
+              <label>{f.label}{f.required ? ' *' : ''}</label>
+              {f.type === 'select' ? (
+                <select value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)}>
+                  <option value="">— اختر —</option>
+                  {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              ) : f.type === 'textarea' ? (
+                <textarea rows={3} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
+              ) : (
+                <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'password' ? 'password' : 'text'} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Modal>
+  );
+}

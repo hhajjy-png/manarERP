@@ -1,0 +1,39 @@
+{
+  "name": "manar-erp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "نظام إدارة أعمال شركة المنار — Electron + React + Express + Prisma + SQLite (الكويت)",
+  "author": "شركة المنار",
+  "main": "electron-dist/main.js",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "postinstall": "echo 'بعد التثبيت: npm run db:generate ثم npm run db:migrate ثم npm run db:seed'",
+    "db:generate": "npm --workspace backend run prisma:generate",
+    "db:migrate": "npm --workspace backend run prisma:migrate",
+    "db:seed": "npm --workspace backend run prisma:seed",
+    "electron:build": "tsc -p electron/tsconfig.json",
+    "dev:front": "npm --workspace frontend run dev",
+    "predev:electron": "npm run electron:build",
+    "dev:electron": "wait-on tcp:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .",
+    "dev": "concurrently -k -n FRONT,APP -c blue,green \"npm run dev:front\" \"npm run dev:electron\"",
+    "build:back": "npm --workspace backend run build",
+    "build:front": "npm --workspace frontend run build",
+    "dist": "npm run build:back && npm run build:front && npm run electron:build && electron-builder"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/node-cron": "^3.0.11",
+    "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
+    "typescript": "^5.5.0",
+    "wait-on": "^7.2.0"
+  },
+  "dependencies": {
+    "node-cron": "^3.0.3"
+  }
+}

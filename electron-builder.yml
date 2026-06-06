@@ -1,0 +1,46 @@
+appId: sa.almanar.erp
+productName: نظام المنار
+copyright: © شركة المنار
+
+directories:
+  output: release
+  buildResources: build
+
+# الملفات المضمّنة في التطبيق (الواجهة المبنية + كود Electron المترجم)
+files:
+  - electron-dist/**/*
+  - frontend/dist/**/*
+  - package.json
+
+# الخدمة الخلفية + Prisma تُوضع كموارد خارجية لتُشغّل كعملية Node
+extraResources:
+  - from: backend/dist
+    to: backend/dist
+  - from: backend/node_modules
+    to: backend/node_modules
+    filter:
+      - "**/*"
+  - from: backend/prisma
+    to: backend/prisma
+  - from: backend/package.json
+    to: backend/package.json
+  # قاعدة بيانات مبدئية مُهيّأة (أنشئها قبل البناء عبر prisma migrate + seed)
+  - from: backend/data/manar.db
+    to: backend/data/manar.db
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ManarSetup-${version}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: نظام المنار
+  installerLanguages:
+    - ar_SA

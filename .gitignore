@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+out/
+electron-dist/
+release/
+*.log
+data/
+!backend/prisma/migrations/
+.env
+*.local
+.DS_Store

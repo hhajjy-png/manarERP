@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>دليل تثبيت نظام المنار</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{ --accent:#3b82f6; --primary:#0f172a; --bg:#f8fafc; --surface:#fff; --text:#0f172a; --muted:#64748b; --border:#e2e8f0; --green:#10b981; --amber:#f59e0b; --red:#ef4444; }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'Cairo',sans-serif; background:var(--bg); color:var(--text); line-height:1.9; padding:40px 16px; }
+  .wrap{ max-width:860px; margin:0 auto; }
+  header{ text-align:center; margin-bottom:36px; }
+  header .logo{ width:64px; height:64px; border-radius:18px; background:var(--accent); color:#fff; display:grid; place-items:center; font-size:32px; font-weight:800; margin:0 auto 14px; box-shadow:0 8px 20px rgba(59,130,246,.4); }
+  header h1{ font-size:26px; font-weight:800; }
+  header p{ color:var(--muted); font-weight:600; margin-top:6px; }
+  .step{ background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:24px 26px; margin-bottom:18px; box-shadow:0 4px 6px -1px rgb(0 0 0 / .05); }
+  .step-head{ display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+  .num{ width:42px; height:42px; border-radius:12px; background:var(--accent); color:#fff; display:grid; place-items:center; font-weight:800; font-size:18px; flex:none; }
+  .step-head h2{ font-size:19px; font-weight:800; }
+  .step-head .once{ margin-inline-start:auto; font-size:12px; font-weight:700; color:var(--green); background:rgba(16,185,129,.12); padding:4px 12px; border-radius:999px; }
+  .step p{ margin-bottom:10px; }
+  ol, ul{ padding-inline-start:24px; margin:8px 0; }
+  li{ margin-bottom:6px; }
+  code.inline{ background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:2px 8px; font-family:Consolas,monospace; direction:ltr; display:inline-block; }
+  pre{ background:var(--primary); color:#e2e8f0; border-radius:12px; padding:14px 18px; overflow-x:auto; direction:ltr; text-align:left; font-family:Consolas,monospace; font-size:14px; margin:10px 0; }
+  pre .cmt{ color:#94a3b8; }
+  .note{ border-radius:12px; padding:12px 16px; font-weight:600; font-size:14px; margin:10px 0; display:flex; gap:10px; align-items:flex-start; }
+  .note.tip{ background:rgba(59,130,246,.1); border:1px solid rgba(59,130,246,.3); color:#1d4ed8; }
+  .note.warn{ background:rgba(245,158,11,.12); border:1px solid rgba(245,158,11,.4); color:#b45309; }
+  .ref{ background:var(--primary); color:#fff; border-radius:18px; padding:24px 26px; margin-top:24px; }
+  .ref h2{ font-size:18px; font-weight:800; margin-bottom:12px; }
+  .ref pre{ background:rgba(255,255,255,.08); color:#e2e8f0; }
+  .login-box{ background:rgba(16,185,129,.1); border:1px solid var(--green); border-radius:12px; padding:14px 18px; font-weight:700; }
+  .login-box code{ direction:ltr; display:inline-block; background:#fff; border:1px solid var(--border); border-radius:6px; padding:2px 10px; font-family:Consolas,monospace; }
+  footer{ text-align:center; color:var(--muted); font-size:13px; margin-top:30px; font-weight:600; }
+  .illus{ width:100%; height:auto; border:1px solid var(--border); border-radius:12px; margin:14px 0; display:block; background:#fff; box-shadow:0 2px 6px rgb(0 0 0 / .04); }
+  .cap{ text-align:center; color:var(--muted); font-size:12.5px; font-weight:600; margin:-6px 0 14px; }
+  @media print{ body{ background:#fff; padding:0; } .step,.ref{ box-shadow:none; break-inside:avoid; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">م</div>
+    <h1>دليل تثبيت نظام المنار</h1>
+    <p>نظام إدارة أعمال شركة المنار — تطبيق سطح مكتب لويندوز يعمل محليًا</p>
+  </header>
+
+  <div class="step">
+    <div class="step-head"><div class="num">1</div><h2>تثبيت Node.js</h2><span class="once">مرة واحدة</span></div>
+    <p>البرنامج يحتاج بيئة تشغيل اسمها Node.js.</p>
+    <ol>
+      <li>افتح المتصفح واذهب إلى موقع <code class="inline">nodejs.org</code></li>
+      <li>اضغط الزر الأخضر الذي يحمل كلمة <strong>LTS</strong> (الإصدار المستقر) — سيُنزّل ملف بامتداد <code class="inline">.msi</code></li>
+      <li>شغّل الملف واضغط <strong>Next</strong> في كل الخطوات ثم <strong>Install</strong> ثم <strong>Finish</strong></li>
+      <li>للتأكد: افتح <strong>PowerShell</strong> (من زر ابدأ) واكتب:</li>
+    </ol>
+    <svg class="illus" viewBox="0 0 600 230" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="600" height="230" rx="12" fill="#f1f5f9"/>
+      <rect x="20" y="18" width="560" height="194" rx="10" fill="#ffffff" stroke="#e2e8f0"/>
+      <rect x="20" y="18" width="560" height="38" rx="10" fill="#0f172a"/>
+      <circle cx="42" cy="37" r="5" fill="#ef4444"/><circle cx="60" cy="37" r="5" fill="#f59e0b"/><circle cx="78" cy="37" r="5" fill="#10b981"/>
+      <rect x="110" y="26" width="450" height="22" rx="11" fill="#1e293b"/>
+      <text x="125" y="41" font-family="Consolas,monospace" font-size="13" fill="#cbd5e1" direction="ltr">https://nodejs.org</text>
+      <text x="300" y="96" font-family="Cairo,sans-serif" font-size="18" font-weight="800" fill="#0f172a" text-anchor="middle">حمّل الإصدار المستقر</text>
+      <rect x="200" y="118" width="200" height="58" rx="12" fill="#10b981"/>
+      <text x="300" y="146" font-family="Cairo,sans-serif" font-size="17" font-weight="800" fill="#ffffff" text-anchor="middle">Download LTS</text>
+      <text x="300" y="166" font-family="Cairo,sans-serif" font-size="11" fill="#d1fae5" text-anchor="middle">الزر الأخضر الموصى به</text>
+      <text x="300" y="200" font-family="Cairo,sans-serif" font-size="12" fill="#64748b" text-anchor="middle">↑ اضغط هذا الزر لتنزيل ملف التثبيت</text>
+    </svg>
+    <div class="cap">الخطوة 1: صفحة nodejs.org — اضغط زر LTS الأخضر</div>
+    <pre>node -v</pre>
+    <div class="note tip">💡 إذا ظهر رقم مثل <code class="inline">v20.x.x</code> فالتثبيت نجح. لو ظهر خطأ، أعد تشغيل الكمبيوتر وجرّب مجددًا.</div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="num">2</div><h2>فتح موجّه الأوامر داخل مجلد المشروع</h2></div>
+    <ol>
+      <li>افتح <strong>مستكشف الملفات</strong> واذهب إلى مجلد المشروع:</li>
+    </ol>
+    <pre>C:\Users\hhajj\Claude\Projects\برنامج شركة المنار</pre>
+    <ol start="2">
+      <li>اضغط في <strong>شريط العنوان</strong> بالأعلى، امسح ما فيه، اكتب <code class="inline">powershell</code> ثم Enter</li>
+      <li>ستفتح نافذة PowerShell <strong>داخل المجلد مباشرة</strong></li>
+    </ol>
+    <svg class="illus" viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="600" height="200" rx="12" fill="#f1f5f9"/>
+      <rect x="20" y="18" width="560" height="164" rx="10" fill="#ffffff" stroke="#e2e8f0"/>
+      <text x="560" y="44" font-family="Cairo,sans-serif" font-size="13" font-weight="700" fill="#334155" text-anchor="end">مستكشف الملفات</text>
+      <text x="40" y="44" font-family="Consolas,monospace" font-size="14" fill="#94a3b8">✕  ◻  —</text>
+      <rect x="40" y="64" width="520" height="40" rx="8" fill="#fff" stroke="#3b82f6" stroke-width="2"/>
+      <text x="56" y="89" font-family="Consolas,monospace" font-size="15" fill="#0f172a" direction="ltr">powershell|</text>
+      <text x="548" y="135" font-family="Cairo,sans-serif" font-size="13" font-weight="700" fill="#1d4ed8" text-anchor="end">① اضغط شريط العنوان  ② امسح المسار واكتب powershell  ③ اضغط Enter</text>
+      <rect x="40" y="150" width="520" height="18" rx="4" fill="#eff6ff"/>
+      <text x="548" y="163" font-family="Cairo,sans-serif" font-size="11" fill="#64748b" text-anchor="end">المسار الأصلي للمجلد كان هنا قبل أن تكتب powershell</text>
+    </svg>
+    <div class="cap">الخطوة 2: اكتب powershell في شريط عنوان المجلد</div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="num">3</div><h2>تثبيت مكتبات المشروع</h2><span class="once">يحتاج إنترنت</span></div>
+    <p>في نافذة PowerShell اكتب:</p>
+    <pre>npm install</pre>
+    <svg class="illus" viewBox="0 0 600 210" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="600" height="210" rx="12" fill="#0c1322"/>
+      <rect x="0" y="0" width="600" height="32" rx="12" fill="#1e293b"/>
+      <text x="16" y="21" font-family="Consolas,monospace" font-size="13" fill="#cbd5e1" direction="ltr">Windows PowerShell</text>
+      <g font-family="Consolas,monospace" font-size="13.5" direction="ltr">
+        <text x="16" y="62" fill="#93c5fd">PS C:\...\برنامج شركة المنار&gt; <tspan fill="#e2e8f0">npm install</tspan></text>
+        <text x="16" y="88" fill="#94a3b8">⸨░░░░░░░░░⸩ ⠹ reify:react: timing ...</text>
+        <text x="16" y="112" fill="#94a3b8">added 412 packages in 3m</text>
+        <text x="16" y="138" fill="#fcd34d">npm warn deprecated ... (تحذيرات طبيعية تُتجاهَل)</text>
+        <text x="16" y="170" fill="#93c5fd">PS C:\...\برنامج شركة المنار&gt; <tspan fill="#e2e8f0">▮</tspan></text>
+      </g>
+      <text x="584" y="200" font-family="Cairo,sans-serif" font-size="11.5" fill="#64748b" text-anchor="end" direction="rtl">عودة السطر فارغًا = اكتمل التثبيت بنجاح</text>
+    </svg>
+    <div class="cap">الخطوة 3: تثبيت المكتبات داخل PowerShell</div>
+    <p>سيبدأ بتنزيل المكتبات (٣–٧ دقائق أول مرة). انتظر حتى يعود سطر الأوامر جاهزًا.</p>
+    <div class="note tip">💡 التحذيرات الصفراء (warnings) طبيعية وتُتجاهَل. المهم ألا يظهر <strong>error</strong> أحمر يوقف العملية.</div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="num">4</div><h2>تجهيز ملف الإعدادات</h2></div>
+    <p>انسخ ملف الإعدادات النموذجي:</p>
+    <pre>copy backend\.env.example backend\.env</pre>
+    <p>(مُستحسن) افتح الملف <code class="inline">backend\.env</code> بالمفكرة وغيّر السطر <code class="inline">JWT_SECRET</code> إلى نص طويل عشوائي، ثم احفظ وأغلق.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="num">5</div><h2>إنشاء قاعدة البيانات</h2><span class="once">مرة واحدة</span></div>
+    <p>نفّذ الأوامر التالية <strong>واحدًا تلو الآخر</strong>:</p>
+    <pre><span class="cmt"># يجهّز أدوات قاعدة البيانات (يحتاج إنترنت أول مرة فقط)</span>
+npm run db:generate
+
+<span class="cmt"># ينشئ الجداول — سيطلب اسمًا، اكتب: init</span>
+npm run db:migrate
+
+<span class="cmt"># يُدخل الأدوار والصلاحيات والمستخدم الافتراضي</span>
+npm run db:seed</pre>
+    <div class="note tip">💡 بعد هذه الخطوة تصبح قاعدة البيانات جاهزة في <code class="inline">backend\data\manar.db</code></div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="num">6</div><h2>تشغيل البرنامج</h2></div>
+    <pre>npm run dev</pre>
+    <p>انتظر ٢٠–٤٠ ثانية، ثم <strong>تفتح نافذة البرنامج تلقائيًا</strong> وتظهر شاشة الدخول. سجّل الدخول بـ:</p>
+    <svg class="illus" viewBox="0 0 600 250" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f172a"/><stop offset="1" stop-color="#1e293b"/></linearGradient></defs>
+      <rect x="0" y="0" width="600" height="250" rx="12" fill="url(#lg)"/>
+      <rect x="195" y="34" width="210" height="182" rx="18" fill="#ffffff"/>
+      <rect x="276" y="52" width="48" height="48" rx="13" fill="#3b82f6"/>
+      <text x="300" y="85" font-family="Cairo,sans-serif" font-size="26" font-weight="800" fill="#ffffff" text-anchor="middle">م</text>
+      <text x="300" y="120" font-family="Cairo,sans-serif" font-size="15" font-weight="800" fill="#0f172a" text-anchor="middle">نظام المنار</text>
+      <rect x="213" y="132" width="174" height="26" rx="7" fill="#f1f5f9" stroke="#e2e8f0"/>
+      <text x="379" y="149" font-family="Cairo,sans-serif" font-size="12" fill="#64748b" text-anchor="end">admin</text>
+      <rect x="213" y="164" width="174" height="26" rx="7" fill="#f1f5f9" stroke="#e2e8f0"/>
+      <text x="379" y="181" font-family="Consolas,monospace" font-size="12" fill="#64748b" text-anchor="end">••••••••</text>
+      <rect x="213" y="196" width="174" height="28" rx="8" fill="#3b82f6"/>
+      <text x="300" y="215" font-family="Cairo,sans-serif" font-size="13" font-weight="800" fill="#ffffff" text-anchor="middle">تسجيل الدخول</text>
+    </svg>
+    <div class="cap">الخطوة 6: شاشة الدخول — admin / Admin@123</div>
+    <div class="login-box">اسم المستخدم: <code>admin</code> &nbsp;•&nbsp; كلمة المرور: <code>Admin@123</code></div>
+    <div class="note warn">⚠️ لا تغلق نافذة PowerShell أثناء الاستخدام — هي التي تشغّل البرنامج. للإيقاف: أغلق نافذة البرنامج ثم اضغط <code class="inline">Ctrl + C</code> في PowerShell. وغيّر كلمة المرور الافتراضية فور أول دخول.</div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><div class="num">7</div><h2>(اختياري) إنشاء مُثبّت فعلي بأيقونة على سطح المكتب</h2></div>
+    <p>بعد الخطوة 5، نفّذ:</p>
+    <pre>npm run dist</pre>
+    <p>بعد انتهائه، اذهب إلى مجلد <code class="inline">release</code> وستجد ملف التثبيت:</p>
+    <pre>release\ManarSetup-1.0.0.exe</pre>
+    <svg class="illus" viewBox="0 0 600 210" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="600" height="210" rx="12" fill="#f1f5f9"/>
+      <rect x="20" y="18" width="350" height="174" rx="10" fill="#ffffff" stroke="#e2e8f0"/>
+      <text x="354" y="42" font-family="Cairo,sans-serif" font-size="12.5" font-weight="700" fill="#334155" text-anchor="end">مجلد release</text>
+      <rect x="40" y="64" width="310" height="40" rx="8" fill="#eff6ff" stroke="#3b82f6"/>
+      <rect x="52" y="74" width="20" height="20" rx="4" fill="#3b82f6"/>
+      <text x="338" y="89" font-family="Consolas,monospace" font-size="13" fill="#0f172a" text-anchor="end" direction="ltr">ManarSetup-1.0.0.exe</text>
+      <text x="338" y="128" font-family="Cairo,sans-serif" font-size="12" fill="#64748b" text-anchor="end">↑ انقر نقرًا مزدوجًا لتثبيت البرنامج</text>
+      <text x="338" y="150" font-family="Cairo,sans-serif" font-size="12" fill="#64748b" text-anchor="end">ثم Next … Install … Finish</text>
+      <line x1="395" y1="40" x2="395" y2="172" stroke="#cbd5e1" stroke-dasharray="4 4"/>
+      <rect x="455" y="50" width="56" height="48" rx="10" fill="#3b82f6"/>
+      <text x="483" y="82" font-family="Cairo,sans-serif" font-size="24" font-weight="800" fill="#ffffff" text-anchor="middle">م</text>
+      <text x="483" y="118" font-family="Cairo,sans-serif" font-size="12" font-weight="700" fill="#334155" text-anchor="middle">نظام المنار</text>
+      <text x="483" y="150" font-family="Cairo,sans-serif" font-size="11.5" fill="#64748b" text-anchor="middle">اختصار سطح المكتب</text>
+      <text x="483" y="170" font-family="Cairo,sans-serif" font-size="11.5" fill="#10b981" font-weight="700" text-anchor="middle">يفتح بنقرة مزدوجة</text>
+    </svg>
+    <div class="cap">الخطوة 7: ملف المثبّت واختصار سطح المكتب بعد التثبيت</div>
+    <p>شغّله واتبع خطوات التثبيت، وسيظهر اختصار «نظام المنار» على سطح المكتب. بعدها يفتح البرنامج بنقرة مزدوجة كأي برنامج عادي، ويحفظ بياناته على جهازك تلقائيًا.</p>
+  </div>
+
+  <div class="ref">
+    <h2>📋 ملخّص الأوامر (مرجع سريع)</h2>
+    <p style="font-weight:700; margin-bottom:6px;">أول مرة فقط:</p>
+    <pre>npm install
+copy backend\.env.example backend\.env
+npm run db:generate
+npm run db:migrate      <span class="cmt"># اكتب: init</span>
+npm run db:seed</pre>
+    <p style="font-weight:700; margin:12px 0 6px;">كل مرة بعد ذلك للتشغيل:</p>
+    <pre>npm run dev</pre>
+  </div>
+
+  <div class="note warn" style="margin-top:18px;">
+    ⚠️ الخطوات التي تحتاج <strong>إنترنت</strong> هي <code class="inline">npm install</code> و<code class="inline">npm run db:generate</code> فقط (أول مرة). بعدها يعمل البرنامج دون إنترنت نهائيًا.
+  </div>
+
+  <footer>شركة المنار لإنشاء وإصلاح الطرق — الكويت · دينار كويتي · بلا نظام ضريبي</footer>
+</div>
+</body>
+</html>

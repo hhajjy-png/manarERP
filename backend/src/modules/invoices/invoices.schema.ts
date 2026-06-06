@@ -1,0 +1,55 @@
+import { z } from 'zod';
+import { ENUMS } from '../../config/constants';
+
+const itemSchema = z.object({
+  description: z.string().min(1, 'وصف البند مطلوب'),
+  quantity: z.coerce.number().positive('الكمية يجب أن تكون موجبة').default(1),
+  unitPrice: z.coerce.number().nonnegative('السعر يجب ألا يكون سالبًا').default(0),
+});
+
+export const createInvoiceSchema = z.object({
+  body: z
+    .object({
+      number: z.string().min(1).optional(), // يُولّد تلقائيًا إن لم يُرسل
+      direction: z.enum(ENUMS.invoiceDirection).default('SALES'),
+      customerId: z.coerce.number().int().positive().optional(),
+      supplierId: z.coerce.number().int().positive().optional(),
+      contractId: z.coerce.number().int().positive().optional(),
+      issueDate: z.coerce.date().optional(),
+      dueDate: z.coerce.date().optional(),
+      taxRate: z.coerce.number().min(0).max(100).default(0),
+      discount: z.coerce.number().nonnegative().default(0),
+      notes: z.string().optional(),
+      items: z.array(itemSchema).min(1, 'يجب إضافة بند واحد على الأقل'),
+    })
+    .refine((d) => (d.direction === 'SALES' ? !!d.customerId : !!d.supplierId), {
+      message: 'فاتورة المبيعات تتطلب عميلًا وفاتورة المشتريات تتطلب مورّدًا',
+      path: ['customerId'],
+    }),
+});
+
+export const updateInvoiceSchema = z.object({
+  body: z.object({
+    contractId: z.coerce.number().int().positive().nullable().optional(),
+    issueDate: z.coerce.date().optional(),
+    dueDate: z.coerce.date().optional(),
+    taxRate: z.coerce.number().min(0).max(100).optional(),
+    discount: z.coerce.number().nonnegative().optional(),
+    notes: z.string().optional(),
+    items: z.array(itemSchema).min(1).optional(),
+  }),
+});
+
+export const addPaymentSchema = z.object({
+  body: z.object({
+    amount: z.coerce.number().positive('المبلغ يجب أن يكون موجبًا'),
+    method: z.enum(ENUMS.paymentMethod).default('CASH'),
+    date: z.coerce.date().optional(),
+    reference: z.string().optional(),
+    notes: z.string().optional(),
+  }),
+});
+
+export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>['body'];
+export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>['body'];
+export type AddPaymentInput = z.infer<typeof addPaymentSchema>['body'];

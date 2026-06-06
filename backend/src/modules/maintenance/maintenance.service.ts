@@ -1,0 +1,127 @@
+import { Request } from 'express';
+import { prisma } from '../../config/database';
+import { AppError } from '../../core/errors/AppError';
+import { recordAudit } from '../../core/middleware/audit';
+import {
+  CreateBreakdownInput,
+  CreateFuelInput,
+  CreateMaintenanceInput,
+  CreateSparePartInput,
+} from './maintenance.schema';
+
+async function assertEquipment(equipmentId: number) {
+  const eq = await prisma.equipment.findUnique({ where: { id: equipmentId }, select: { id: true } });
+  if (!eq) throw AppError.badRequest('المعدة المحددة غير موجودة');
+}
+
+export class MaintenanceService {
+  // ===== سجلات الصيانة =====
+  async listRecords(equipmentId?: number) {
+    return prisma.maintenanceRecord.findMany({
+      where: equipmentId ? { equipmentId } : undefined,
+      orderBy: { date: 'desc' },
+      include: { equipment: { select: { id: true, code: true, name: true } } },
+    });
+  }
+
+  async createRecord(input: CreateMaintenanceInput, req: Request) {
+    await assertEquipment(input.equipmentId);
+    const record = await prisma.$transaction(async (tx) => {
+      const r = await tx.maintenanceRecord.create({ data: input });
+      // إذا كانت الصيانة جارية، نحدّث حالة المعدة
+      if (input.status === 'IN_PROGRESS') {
+        await tx.equipment.update({ where: { id: input.equipmentId }, data: { status: 'NOT_WORKING' } });
+      } else if (input.status === 'COMPLETED') {
+        await tx.equipment.update({ where: { id: input.equipmentId }, data: { status: 'WORKING' } });
+      }
+      return r;
+    });
+    await recordAudit({ req, action: 'CREATE', module: 'maintenance', entityId: record.id, newValue: { equipmentId: input.equipmentId, cost: input.cost } });
+    return record;
+  }
+
+  /** تنبيهات الصيانة الدورية المستحقة خلال عدد أيام. */
+  async dueMaintenance(days = 30) {
+    const until = new Date();
+    until.setDate(until.getDate() + days);
+    return prisma.maintenanceRecord.findMany({
+      where: { nextDueDate: { not: null, lte: until } },
+      orderBy: { nextDueDate: 'asc' },
+      include: { equipment: { select: { id: true, code: true, name: true } } },
+    });
+  }
+
+  // ===== الوقود =====
+  async listFuel(equipmentId?: number) {
+    return prisma.fuelLog.findMany({
+      where: equipmentId ? { equipmentId } : undefined,
+      orderBy: { date: 'desc' },
+      include: { equipment: { select: { code: true, name: true } } },
+    });
+  }
+
+  async addFuel(input: CreateFuelInput, req: Request) {
+    await assertEquipment(input.equipmentId);
+    const log = await prisma.fuelLog.create({ data: input });
+    await recordAudit({ req, action: 'CREATE', module: 'maintenance', entityId: log.id, newValue: { fuel: input.liters } });
+    return log;
+  }
+
+  // ===== الأعطال =====
+  async listBreakdowns(equipmentId?: number, status?: string) {
+    return prisma.breakdown.findMany({
+      where: { equipmentId: equipmentId ?? undefined, status: status ?? undefined },
+      orderBy: { reportedAt: 'desc' },
+      include: { equipment: { select: { code: true, name: true } } },
+    });
+  }
+
+  async reportBreakdown(input: CreateBreakdownInput, req: Request) {
+    await assertEquipment(input.equipmentId);
+    const breakdown = await prisma.$transaction(async (tx) => {
+      const b = await tx.breakdown.create({ data: input });
+      // عطل حرج → نضع المعدة كمتعطّلة
+      if (input.severity === 'CRITICAL' || input.severity === 'HIGH') {
+        await tx.equipment.update({ where: { id: input.equipmentId }, data: { status: 'NOT_WORKING' } });
+      }
+      return b;
+    });
+    await recordAudit({ req, action: 'CREATE', module: 'maintenance', entityId: breakdown.id, newValue: { breakdown: input.severity } });
+    return breakdown;
+  }
+
+  async resolveBreakdown(id: number, req: Request) {
+    const breakdown = await prisma.breakdown.findUnique({ where: { id } });
+    if (!breakdown) throw AppError.notFound('العطل غير موجود');
+    const updated = await prisma.$transaction(async (tx) => {
+      const b = await tx.breakdown.update({ where: { id }, data: { status: 'RESOLVED', resolvedAt: new Date() } });
+      // إن لم تعد هناك أعطال مفتوحة نعيد المعدة للتشغيل
+      const openCount = await tx.breakdown.count({ where: { equipmentId: breakdown.equipmentId, status: 'OPEN' } });
+      if (openCount === 0) {
+        await tx.equipment.update({ where: { id: breakdown.equipmentId }, data: { status: 'WORKING' } });
+      }
+      return b;
+    });
+    await recordAudit({ req, action: 'UPDATE', module: 'maintenance', entityId: id, newValue: { resolved: true } });
+    return updated;
+  }
+
+  // ===== قطع الغيار =====
+  async listSpareParts(equipmentId?: number) {
+    return prisma.sparePartUsage.findMany({
+      where: equipmentId ? { equipmentId } : undefined,
+      orderBy: { date: 'desc' },
+      include: { equipment: { select: { code: true, name: true } } },
+    });
+  }
+
+  async addSparePart(input: CreateSparePartInput, req: Request) {
+    await assertEquipment(input.equipmentId);
+    const totalCost = Math.round(input.quantity * input.unitCost * 100) / 100;
+    const part = await prisma.sparePartUsage.create({ data: { ...input, totalCost } });
+    await recordAudit({ req, action: 'CREATE', module: 'maintenance', entityId: part.id, newValue: { part: input.partName } });
+    return part;
+  }
+}
+
+export const maintenanceService = new MaintenanceService();
