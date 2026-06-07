@@ -47,6 +47,7 @@ export const MODULES = [
   'audit',
   'backups',
   'settings',
+  'inventory',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
@@ -93,4 +94,5 @@ export const ENUMS = {
   paymentMethod: ['CASH', 'BANK', 'CHEQUE', 'TRANSFER'] as const,
   maintenanceType: ['PREVENTIVE', 'CORRECTIVE'] as const,
   backupType: ['MANUAL', 'AUTO', 'SCHEDULED'] as const,
+  materialUnit: ['طن', 'كيلو', 'لتر', 'قطعة', 'متر', 'كيس', 'برميل', 'صندوق'] as const,
 } as const;

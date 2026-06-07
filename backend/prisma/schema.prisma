@@ -816,6 +816,47 @@ model Setting {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+//  المستودع والمواد (Inventory)
+// ─────────────────────────────────────────────────────────────────────────
+
+model MaterialCategory {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  isActive    Boolean    @default(true)
+
+  materials Material[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("material_categories")
+}
+
+model Material {
+  id           Int    @id @default(autoincrement())
+  code         String @unique
+  name         String
+  categoryId   Int
+  unit         String // طن | كيلو | لتر | قطعة | متر | كيس | برميل | صندوق
+  unitCost     Float  @default(0)
+  currentStock Float  @default(0)
+  minimumStock Float  @default(0) // عتبة التنبيه عند انخفاض المخزون
+  isActive     Boolean @default(true)
+  notes        String?
+
+  category MaterialCategory @relation(fields: [categoryId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("materials")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 //  الرواتب — عمليات صرف الرواتب (Salary Payments)
 // ─────────────────────────────────────────────────────────────────────────
 

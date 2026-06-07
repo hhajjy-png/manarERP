@@ -52,6 +52,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   audit: ['read', 'export'],
   backups: ['read', 'create', 'update'],
   settings: ['read', 'update'],
+  inventory: ['read', 'create', 'update', 'delete', 'export'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -116,13 +117,16 @@ async function main() {
       'payroll.export',
       'payroll.pay',
       'payroll.payslip',
+      'inventory.read',
+      'inventory.export',
     ],
     PROJECT_MANAGER: [
       ...keysForModules(['contracts', 'reports']),
       ...readOnly(['dashboard', 'customers', 'equipment', 'invoices', 'expenses', 'suppliers']),
+      'inventory.read',
     ],
     EQUIPMENT_MANAGER: [
-      ...keysForModules(['equipment', 'maintenance', 'reports']),
+      ...keysForModules(['equipment', 'maintenance', 'reports', 'inventory']),
       ...readOnly(['dashboard', 'contracts', 'suppliers']),
     ],
     HR_MANAGER: [
