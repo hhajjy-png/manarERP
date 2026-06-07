@@ -2,6 +2,7 @@ import { ipcMain, dialog, BrowserWindow } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { getUserDataPaths, stopBackend } from '../services/backendLauncher';
+import { hasSessionPermission } from './session.ipc';
 
 function timestamp(): string {
   const now = new Date();
@@ -48,6 +49,10 @@ export function registerBackupIpc() {
   // ─── backup:create ──────────────────────────────────────────────────────────
   // يفتح حوار الحفظ هنا في العملية الرئيسية — لا يقبل مسارًا من الواجهة
   ipcMain.handle('backup:create', async () => {
+    if (!hasSessionPermission('backups.create')) {
+      return { success: false, error: 'ليست لديك صلاحية لإنشاء النسخ الاحتياطية' };
+    }
+
     const { dbPath } = getUserDataPaths();
 
     if (!fs.existsSync(dbPath)) {
@@ -90,6 +95,10 @@ export function registerBackupIpc() {
 
   // ─── backup:restore ─────────────────────────────────────────────────────────
   ipcMain.handle('backup:restore', async (_e, sourcePath: string) => {
+    if (!hasSessionPermission('backups.update')) {
+      return { success: false, error: 'ليست لديك صلاحية لتنفيذ استعادة قاعدة البيانات' };
+    }
+
     if (!sourcePath) return { success: false, error: 'لم يُحدَّد ملف الاستعادة' };
 
     // التحقق من الامتداد .db فقط

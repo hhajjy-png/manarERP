@@ -13,6 +13,7 @@ import Reports from './pages/Reports';
 import ReportPrint from './pages/ReportPrint';
 import Settings from './pages/Settings';
 import Backup from './pages/Backup';
+import Users from './pages/Users';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -38,7 +39,7 @@ export default function App() {
           <Route path="/employees" element={<ResourcePage moduleKey="employees" />} />
           <Route path="/suppliers" element={<ResourcePage moduleKey="suppliers" />} />
           <Route path="/expenses" element={<ResourcePage moduleKey="expenses" />} />
-          <Route path="/users" element={<ResourcePage moduleKey="users" />} />
+          <Route path="/users" element={<Users />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/salaries" element={<Salaries />} />
           <Route path="/accounting" element={<Accounting />} />

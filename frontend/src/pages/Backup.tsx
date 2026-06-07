@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { dateText } from '../config/modules';
+import { useAuth } from '../stores/authStore';
 
 const isElectron = typeof window !== 'undefined' && !!window.manar;
 
@@ -12,6 +13,10 @@ function fmt(bytes: number): string {
 }
 
 export default function Backup() {
+  const { hasPermission } = useAuth();
+  const canCreate = hasPermission('backups.create');
+  const canRestore = hasPermission('backups.update');
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,13 +147,23 @@ export default function Backup() {
       <div className="page-head">
         <div><h2>النسخ الاحتياطي والاستعادة</h2><p>نسخ تلقائي يومي + نسخ يدوي واستعادة كاملة</p></div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn secondary" onClick={toggleDbPath}>
-            {showDbPath ? '🔒 إخفاء المسار' : '📂 مسار قاعدة البيانات'}
-          </button>
-          <button className="btn secondary" onClick={exportDb} disabled={busy}>⤓ تصدير</button>
-          <button className="btn secondary" onClick={restoreFromFile} disabled={busy}>↩️ استعادة من ملف</button>
-          <button className="btn secondary" onClick={createBackupElectron} disabled={busy}>💾 نسخ مباشر</button>
-          <button className="btn" onClick={createBackupApi} disabled={busy}>💾 نسخة احتياطية الآن</button>
+          {isElectron && (
+            <button className="btn secondary" onClick={toggleDbPath}>
+              {showDbPath ? '🔒 إخفاء المسار' : '📂 مسار قاعدة البيانات'}
+            </button>
+          )}
+          {canCreate && isElectron && (
+            <button className="btn secondary" onClick={exportDb} disabled={busy}>⤓ تصدير</button>
+          )}
+          {canRestore && isElectron && (
+            <button className="btn secondary" onClick={restoreFromFile} disabled={busy}>↩️ استعادة من ملف</button>
+          )}
+          {canCreate && isElectron && (
+            <button className="btn secondary" onClick={createBackupElectron} disabled={busy}>💾 نسخ مباشر</button>
+          )}
+          {canCreate && (
+            <button className="btn" onClick={createBackupApi} disabled={busy}>💾 نسخة احتياطية الآن</button>
+          )}
         </div>
       </div>
 
@@ -209,8 +224,8 @@ export default function Backup() {
                   </td>
                   <td>{dateText(b.createdAt)}</td>
                   <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
-                    <button className="btn secondary sm" disabled={busy} onClick={() => restoreFromList(b.id, b.fileName)}>↩️ استعادة</button>{' '}
-                    <button className="btn danger sm" onClick={() => remove(b.id)}>حذف</button>
+                    {canRestore && <><button className="btn secondary sm" disabled={busy} onClick={() => restoreFromList(b.id, b.fileName)}>↩️ استعادة</button>{' '}</>}
+                    {canRestore && <button className="btn danger sm" onClick={() => remove(b.id)}>حذف</button>}
                   </td>
                 </tr>
               ))}

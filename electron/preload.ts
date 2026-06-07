@@ -56,6 +56,14 @@ const api = {
     sizeBytes: number;
     isDev: boolean;
   }> => ipcRenderer.invoke('backup:getDatabasePath'),
+
+  /** تحديث جلسة المستخدم في العملية الرئيسية (للتحقق من الصلاحيات في IPC). */
+  setSessionUser: (session: {
+    userId: number;
+    username: string;
+    roleName: string;
+    permissions: string[];
+  } | null): Promise<{ ok: boolean }> => ipcRenderer.invoke('session:setUser', session),
 };
 
 contextBridge.exposeInMainWorld('manar', api);

@@ -4,6 +4,7 @@ import { startBackend, stopBackend } from './services/backendLauncher';
 import { startBackupScheduler, stopBackupScheduler } from './services/backupScheduler';
 import { registerDialogIpc } from './ipc/dialog.ipc';
 import { registerBackupIpc } from './ipc/backup.ipc';
+import { registerSessionIpc } from './ipc/session.ipc';
 
 // منع تشغيل أكثر من نسخة من التطبيق في آن واحد
 const gotLock = app.requestSingleInstanceLock();
@@ -17,6 +18,7 @@ async function bootstrap() {
   try {
     registerDialogIpc();
     registerBackupIpc();
+    registerSessionIpc();
     await startBackend(); // تشغيل الخدمة الخلفية أولًا
     startBackupScheduler(); // ثم جدولة النسخ التلقائي
 

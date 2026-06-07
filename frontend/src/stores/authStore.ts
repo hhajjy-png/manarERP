@@ -1,6 +1,16 @@
 import { create } from 'zustand';
 import { api, getToken, setToken } from '../api/client';
 
+/** مزامنة الجلسة مع Electron Main Process (للتحقق من الصلاحيات في IPC). */
+function syncElectronSession(user: AuthUser | null) {
+  if (typeof window === 'undefined' || !window.manar?.setSessionUser) return;
+  window.manar.setSessionUser(
+    user
+      ? { userId: user.id, username: user.username, roleName: user.role.name, permissions: user.permissions }
+      : null,
+  );
+}
+
 export interface AuthUser {
   id: number;
   username: string;
@@ -32,6 +42,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       const { token, user } = res.data.data;
       setToken(token);
       set({ user });
+      syncElectronSession(user);
     } finally {
       set({ loading: false });
     }
@@ -45,6 +56,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
     setToken(null);
     set({ user: null });
+    syncElectronSession(null);
   },
 
   /** استعادة الجلسة عند فتح التطبيق إن وُجد رمز صالح. */
@@ -55,9 +67,12 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
     try {
       const res = await api.get('/auth/me');
-      set({ user: res.data.data });
+      const user = res.data.data as AuthUser;
+      set({ user });
+      syncElectronSession(user);
     } catch {
       setToken(null);
+      syncElectronSession(null);
     } finally {
       set({ initialized: true });
     }
