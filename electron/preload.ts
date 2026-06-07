@@ -24,6 +24,37 @@ const api = {
   /** معلومات التطبيق (الإصدار). */
   getAppInfo: (): Promise<{ version: string; platform: string }> =>
     ipcRenderer.invoke('app:info'),
+
+  // ─── Backup / Restore (Electron IPC مباشر — مستقل عن الخادم الخلفي) ────────
+
+  /** إنشاء نسخة احتياطية مباشرة من ملف قاعدة البيانات إلى المسار المحدد. */
+  backupCreate: (targetPath: string): Promise<{
+    success: boolean;
+    path?: string;
+    sizeBytes?: number;
+    error?: string;
+  }> => ipcRenderer.invoke('backup:create', targetPath),
+
+  /**
+   * استعادة قاعدة البيانات من ملف .db خارجي.
+   * ينشئ نسخة أمان تلقائية قبل الاستعادة ويوقف الخادم الخلفي.
+   */
+  backupRestore: (sourcePath: string): Promise<{
+    success: boolean;
+    requiresRestart?: boolean;
+    autoBackupPath?: string;
+    sizeBytes?: number;
+    error?: string;
+  }> => ipcRenderer.invoke('backup:restore', sourcePath),
+
+  /** إرجاع معلومات مسار قاعدة البيانات الحالية. */
+  getDbPath: (): Promise<{
+    dir: string;
+    backupDir: string;
+    exists: boolean;
+    sizeBytes: number;
+    isDev: boolean;
+  }> => ipcRenderer.invoke('backup:getDatabasePath'),
 };
 
 contextBridge.exposeInMainWorld('manar', api);
