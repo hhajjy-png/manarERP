@@ -55,7 +55,8 @@ const REPORT_TYPES: ReportType[] = [
   },
   {
     key: 'payroll', label: 'تقرير الرواتب', icon: '💵', group: 'الموارد البشرية',
-    filters: ['date', 'employee'],
+    filters: ['date', 'employee', 'status'],
+    statuses: [['DRAFT', 'DRAFT'], ['APPROVED', 'APPROVED'], ['PAID', 'PAID'], ['CANCELLED', 'CANCELLED']],
   },
   {
     key: 'attendance', label: 'تقرير الحضور', icon: '📅', group: 'الموارد البشرية',

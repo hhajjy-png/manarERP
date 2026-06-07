@@ -5,17 +5,70 @@ import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { transactionsService } from '../transactions/transactions.service';
-import { GeneratePayrollInput } from './payroll.schema';
+import {
+  ManualPayrollLineInput,
+  PayPayrollInput,
+  PayrollAdvanceInput,
+  PayrollPeriodInput,
+  RecurringAllowanceInput,
+  UpdatePayrollInput,
+} from './payroll.schema';
 
-function round2(n: number) {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
+const WORK_HOURS_PER_DAY = 8;
+const OVERTIME_MULTIPLIER = 1.25;
+
+type Tx = Prisma.TransactionClient;
+type PayrollLineDraft = {
+  employeeId: number;
+  type: string;
+  sourceType?: string;
+  sourceId?: number;
+  label: string;
+  amount: number;
+  quantity?: number;
+  rate?: number;
+  notes?: string;
+};
+
+type PayrollSnapshot = {
+  employeeId: number;
+  month: number;
+  year: number;
+  baseSalary: number;
+  snapshotBaseSalary: number;
+  regularWorkDays: number;
+  presentDays: number;
+  absentDays: number;
+  leaveDays: number;
+  lateDays: number;
+  regularHours: number;
+  actualHours: number;
+  overtimeHours: number;
+  overtimeRate: number;
+  overtimeAmount: number;
+  totalBonus: number;
+  totalAllowances: number;
+  totalDeductions: number;
+  totalAdvances: number;
+  grossSalary: number;
+  netSalary: number;
+  status: string;
+  notes?: string;
+  lines: PayrollLineDraft[];
+};
+
+function round3(n: number) {
+  return Math.round((Number(n || 0) + Number.EPSILON) * 1000) / 1000;
 }
 
-/** نطاق شهر معيّن [البداية، نهاية الشهر]. */
 function monthRange(month: number, year: number) {
   const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 0, 23, 59, 59);
-  return { start, end };
+  const end = new Date(year, month, 0, 23, 59, 59, 999);
+  return { start, end, days: end.getDate() };
+}
+
+function inPeriod(item: { startsAt?: Date | null; endsAt?: Date | null }, start: Date, end: Date) {
+  return (!item.startsAt || item.startsAt <= end) && (!item.endsAt || item.endsAt >= start);
 }
 
 export class PayrollService {
@@ -32,83 +85,417 @@ export class PayrollService {
         where,
         skip: pagination.skip,
         take: pagination.take,
-        orderBy: [{ year: 'desc' }, { month: 'desc' }],
-        include: { employee: { select: { code: true, fullName: true, department: true } } },
+        orderBy: [{ year: 'desc' }, { month: 'desc' }, { id: 'desc' }],
+        include: {
+          employee: { select: { id: true, code: true, fullName: true, department: true } },
+          lines: { orderBy: { id: 'asc' } },
+        },
       }),
       prisma.payroll.count({ where }),
     ]);
     return buildPaginatedResult(data, total, pagination);
   }
 
-  /** احتساب راتب موظف واحد لشهر/سنة (Upsert على employeeId+month+year). */
-  private async computeForEmployee(employeeId: number, month: number, year: number) {
-    const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
-    if (!employee) throw AppError.notFound('الموظف غير موجود');
+  async getById(id: number) {
+    const payroll = await prisma.payroll.findUnique({
+      where: { id },
+      include: {
+        employee: { select: { id: true, code: true, fullName: true, civilId: true, jobTitle: true, department: true } },
+        lines: { orderBy: { id: 'asc' } },
+      },
+    });
+    if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
+    return payroll;
+  }
 
-    const { start, end } = monthRange(month, year);
-    const [bonusAgg, dedAgg] = await Promise.all([
-      prisma.bonus.aggregate({ where: { employeeId, date: { gte: start, lte: end } }, _sum: { amount: true } }),
-      prisma.deduction.aggregate({ where: { employeeId, date: { gte: start, lte: end } }, _sum: { amount: true } }),
+  private async buildSnapshots(input: PayrollPeriodInput): Promise<PayrollSnapshot[]> {
+    const { start, end, days } = monthRange(input.month, input.year);
+    const employeeWhere: Prisma.EmployeeWhereInput = input.employeeId
+      ? { id: input.employeeId }
+      : { status: 'ACTIVE' };
+
+    const employees = await prisma.employee.findMany({ where: employeeWhere, orderBy: { code: 'asc' } });
+    if (input.employeeId && employees.length === 0) throw AppError.notFound('الموظف غير موجود');
+    if (employees.length === 0) return [];
+
+    const employeeIds = employees.map((e) => e.id);
+    const [attendance, bonuses, deductions, allowances, recurringDeductions, advances] = await Promise.all([
+      prisma.attendance.findMany({ where: { employeeId: { in: employeeIds }, date: { gte: start, lte: end } } }),
+      prisma.bonus.findMany({ where: { employeeId: { in: employeeIds }, date: { gte: start, lte: end } } }),
+      prisma.deduction.findMany({ where: { employeeId: { in: employeeIds }, date: { gte: start, lte: end } } }),
+      prisma.employeeAllowance.findMany({ where: { employeeId: { in: employeeIds }, isActive: true } }),
+      prisma.employeeRecurringDeduction.findMany({ where: { employeeId: { in: employeeIds }, isActive: true } }),
+      prisma.payrollAdvance.findMany({ where: { employeeId: { in: employeeIds }, status: 'OPEN', remainingAmount: { gt: 0 } } }),
     ]);
-    const totalBonus = round2(bonusAgg._sum.amount ?? 0);
-    const totalDeduction = round2(dedAgg._sum.amount ?? 0);
-    const baseSalary = employee.salary;
-    const netSalary = round2(baseSalary + totalBonus - totalDeduction);
 
-    return prisma.payroll.upsert({
-      where: { employeeId_month_year: { employeeId, month, year } },
-      update: { baseSalary, totalBonus, totalDeduction, netSalary, status: 'DRAFT' },
-      create: { employeeId, month, year, baseSalary, totalBonus, totalDeduction, netSalary, status: 'DRAFT' },
+    const byEmployee = <T extends { employeeId: number }>(rows: T[]) => {
+      const map = new Map<number, T[]>();
+      for (const row of rows) {
+        const list = map.get(row.employeeId) ?? [];
+        list.push(row);
+        map.set(row.employeeId, list);
+      }
+      return map;
+    };
+
+    const attendanceByEmployee = byEmployee(attendance);
+    const bonusByEmployee = byEmployee(bonuses);
+    const deductionByEmployee = byEmployee(deductions);
+    const allowanceByEmployee = byEmployee(allowances.filter((a) => inPeriod(a, start, end)));
+    const recurringDeductionByEmployee = byEmployee(recurringDeductions.filter((d) => inPeriod(d, start, end)));
+    const advanceByEmployee = byEmployee(advances);
+
+    return employees.map((employee) => {
+      const lines: PayrollLineDraft[] = [];
+      const baseSalary = round3(employee.salary);
+      lines.push({ employeeId: employee.id, type: 'BASE', sourceType: 'EMPLOYEE', sourceId: employee.id, label: 'Base salary', amount: baseSalary });
+
+      const empAttendance = attendanceByEmployee.get(employee.id) ?? [];
+      const presentDays = empAttendance.filter((a) => a.status === 'PRESENT').length;
+      const absentDays = empAttendance.filter((a) => a.status === 'ABSENT').length;
+      const leaveDays = empAttendance.filter((a) => a.status === 'LEAVE').length;
+      const lateDays = empAttendance.filter((a) => a.status === 'LATE').length;
+      const actualHours = round3(empAttendance.reduce((sum, a) => sum + Number(a.workHours ?? 0), 0));
+      const regularHours = round3(presentDays * WORK_HOURS_PER_DAY);
+      const overtimeHours = round3(Math.max(0, actualHours - regularHours));
+      const hourlyRate = days > 0 ? baseSalary / days / WORK_HOURS_PER_DAY : 0;
+      const overtimeRate = round3(hourlyRate * OVERTIME_MULTIPLIER);
+      const overtimeAmount = round3(overtimeHours * overtimeRate);
+      if (overtimeAmount > 0) {
+        lines.push({
+          employeeId: employee.id,
+          type: 'OVERTIME',
+          sourceType: 'ATTENDANCE',
+          label: 'Overtime',
+          amount: overtimeAmount,
+          quantity: overtimeHours,
+          rate: overtimeRate,
+        });
+      }
+
+      const absenceDeduction = round3((baseSalary / days) * absentDays);
+      if (absenceDeduction > 0) {
+        lines.push({
+          employeeId: employee.id,
+          type: 'ATTENDANCE',
+          sourceType: 'ATTENDANCE',
+          label: 'Absence deduction',
+          amount: -absenceDeduction,
+          quantity: absentDays,
+          rate: round3(baseSalary / days),
+        });
+      }
+
+      for (const allowance of allowanceByEmployee.get(employee.id) ?? []) {
+        lines.push({
+          employeeId: employee.id,
+          type: 'ALLOWANCE',
+          sourceType: 'RECURRING_ALLOWANCE',
+          sourceId: allowance.id,
+          label: allowance.name,
+          amount: round3(allowance.amount),
+          notes: allowance.notes ?? undefined,
+        });
+      }
+      for (const bonus of bonusByEmployee.get(employee.id) ?? []) {
+        lines.push({
+          employeeId: employee.id,
+          type: 'ALLOWANCE',
+          sourceType: 'BONUS',
+          sourceId: bonus.id,
+          label: bonus.reason || 'Bonus',
+          amount: round3(bonus.amount),
+        });
+      }
+      for (const deduction of recurringDeductionByEmployee.get(employee.id) ?? []) {
+        lines.push({
+          employeeId: employee.id,
+          type: 'DEDUCTION',
+          sourceType: 'RECURRING_DEDUCTION',
+          sourceId: deduction.id,
+          label: deduction.name,
+          amount: -round3(deduction.amount),
+          notes: deduction.notes ?? undefined,
+        });
+      }
+      for (const deduction of deductionByEmployee.get(employee.id) ?? []) {
+        lines.push({
+          employeeId: employee.id,
+          type: 'DEDUCTION',
+          sourceType: 'DEDUCTION',
+          sourceId: deduction.id,
+          label: deduction.reason || 'Deduction',
+          amount: -round3(deduction.amount),
+        });
+      }
+
+      let grossBeforeAdvances = round3(lines.reduce((sum, line) => sum + line.amount, 0));
+      for (const advance of advanceByEmployee.get(employee.id) ?? []) {
+        if (grossBeforeAdvances <= 0) break;
+        const applied = round3(Math.min(advance.remainingAmount, grossBeforeAdvances));
+        if (applied <= 0) continue;
+        lines.push({
+          employeeId: employee.id,
+          type: 'ADVANCE',
+          sourceType: 'ADVANCE',
+          sourceId: advance.id,
+          label: 'Advance deduction',
+          amount: -applied,
+        });
+        grossBeforeAdvances = round3(grossBeforeAdvances - applied);
+      }
+
+      const totalAllowances = round3(lines.filter((l) => l.type === 'ALLOWANCE').reduce((s, l) => s + l.amount, 0));
+      const totalBonus = totalAllowances;
+      const totalDeductions = round3(Math.abs(lines.filter((l) => l.type === 'DEDUCTION' || l.type === 'ATTENDANCE').reduce((s, l) => s + Math.min(0, l.amount), 0)));
+      const totalAdvances = round3(Math.abs(lines.filter((l) => l.type === 'ADVANCE').reduce((s, l) => s + Math.min(0, l.amount), 0)));
+      const grossSalary = round3(baseSalary + totalAllowances + overtimeAmount);
+      const netSalary = round3(lines.reduce((sum, line) => sum + line.amount, 0));
+
+      return {
+        employeeId: employee.id,
+        month: input.month,
+        year: input.year,
+        baseSalary,
+        snapshotBaseSalary: baseSalary,
+        regularWorkDays: days,
+        presentDays,
+        absentDays,
+        leaveDays,
+        lateDays,
+        regularHours,
+        actualHours,
+        overtimeHours,
+        overtimeRate,
+        overtimeAmount,
+        totalBonus,
+        totalAllowances,
+        totalDeductions,
+        totalAdvances,
+        grossSalary,
+        netSalary,
+        status: 'DRAFT',
+        notes: input.notes,
+        lines,
+      };
     });
   }
 
-  /** توليد كشف الرواتب لموظف أو لكل النشطين. */
-  async generate(input: GeneratePayrollInput, req: Request) {
-    let results;
-    if (input.employeeId) {
-      results = [await this.computeForEmployee(input.employeeId, input.month, input.year)];
-    } else {
-      const actives = await prisma.employee.findMany({ where: { status: 'ACTIVE' }, select: { id: true } });
-      results = [];
-      for (const e of actives) results.push(await this.computeForEmployee(e.id, input.month, input.year));
-    }
-    await recordAudit({ req, action: 'CREATE', module: 'payroll', newValue: { month: input.month, year: input.year, count: results.length } });
-    return { generated: results.length, items: results };
+  async preview(input: PayrollPeriodInput) {
+    const items = await this.buildSnapshots(input);
+    return { generated: items.length, items };
+  }
+
+  async generate(input: PayrollPeriodInput, req: Request) {
+    const snapshots = await this.buildSnapshots(input);
+    const result = await prisma.$transaction(async (tx) => {
+      const employeeIds = snapshots.map((s) => s.employeeId);
+      const existing = await tx.payroll.findMany({
+        where: { employeeId: { in: employeeIds }, month: input.month, year: input.year },
+      });
+      const locked = existing.find((p) => p.status !== 'DRAFT');
+      if (locked) throw AppError.badRequest('لا يمكن إعادة توليد كشف راتب معتمد أو مدفوع');
+
+      const items = [];
+      for (const snapshot of snapshots) {
+        const payrollData = {
+          baseSalary: snapshot.baseSalary,
+          snapshotBaseSalary: snapshot.snapshotBaseSalary,
+          regularWorkDays: snapshot.regularWorkDays,
+          presentDays: snapshot.presentDays,
+          absentDays: snapshot.absentDays,
+          leaveDays: snapshot.leaveDays,
+          lateDays: snapshot.lateDays,
+          regularHours: snapshot.regularHours,
+          actualHours: snapshot.actualHours,
+          overtimeHours: snapshot.overtimeHours,
+          overtimeRate: snapshot.overtimeRate,
+          overtimeAmount: snapshot.overtimeAmount,
+          totalBonus: snapshot.totalBonus,
+          totalAllowances: snapshot.totalAllowances,
+          totalDeduction: snapshot.totalDeductions,
+          totalDeductions: snapshot.totalDeductions,
+          totalAdvances: snapshot.totalAdvances,
+          grossSalary: snapshot.grossSalary,
+          netSalary: snapshot.netSalary,
+          status: 'DRAFT' as const,
+          notes: snapshot.notes,
+        };
+        const payroll = await tx.payroll.upsert({
+          where: { employeeId_month_year: { employeeId: snapshot.employeeId, month: snapshot.month, year: snapshot.year } },
+          update: payrollData,
+          create: { employeeId: snapshot.employeeId, month: snapshot.month, year: snapshot.year, ...payrollData },
+        });
+        await tx.payrollLine.deleteMany({ where: { payrollId: payroll.id } });
+        await tx.payrollLine.createMany({
+          data: snapshot.lines.map((line) => ({ ...line, payrollId: payroll.id })),
+        });
+        items.push(payroll);
+      }
+      return items;
+    });
+
+    await recordAudit({ req, action: 'CREATE', module: 'payroll', newValue: { month: input.month, year: input.year, count: result.length } });
+    return { generated: result.length, items: result };
+  }
+
+  async update(id: number, input: UpdatePayrollInput, req: Request) {
+    const updated = await prisma.$transaction(async (tx) => {
+      const payroll = await tx.payroll.findUnique({ where: { id } });
+      if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
+      if (payroll.status !== 'DRAFT') throw AppError.badRequest('يمكن تعديل كشوف الرواتب في حالة المسودة فقط');
+      return tx.payroll.update({ where: { id }, data: { notes: input.notes } });
+    });
+    await recordAudit({ req, action: 'UPDATE', module: 'payroll', entityId: id, newValue: input });
+    return updated;
+  }
+
+  async addManualLine(id: number, input: ManualPayrollLineInput, req: Request) {
+    const updated = await prisma.$transaction(async (tx) => {
+      const payroll = await tx.payroll.findUnique({ where: { id }, include: { lines: true } });
+      if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
+      if (payroll.status !== 'DRAFT') throw AppError.badRequest('يمكن تعديل بنود كشف الراتب في حالة المسودة فقط');
+      await tx.payrollLine.create({
+        data: {
+          payrollId: id,
+          employeeId: payroll.employeeId,
+          type: input.type,
+          sourceType: 'MANUAL',
+          label: input.label,
+          amount: input.type === 'DEDUCTION' ? -round3(input.amount) : round3(input.amount),
+          notes: input.notes,
+        },
+      });
+      return this.recalculatePayrollTotals(tx, id);
+    });
+    await recordAudit({ req, action: 'UPDATE', module: 'payroll', entityId: id, newValue: input });
+    return updated;
+  }
+
+  private async recalculatePayrollTotals(tx: Tx, payrollId: number) {
+    const payroll = await tx.payroll.findUnique({ where: { id: payrollId }, include: { lines: true } });
+    if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
+    const totalAllowances = round3(payroll.lines.filter((l) => l.type === 'ALLOWANCE').reduce((s, l) => s + l.amount, 0));
+    const overtimeAmount = round3(payroll.lines.filter((l) => l.type === 'OVERTIME').reduce((s, l) => s + l.amount, 0));
+    const totalDeductions = round3(Math.abs(payroll.lines.filter((l) => l.type === 'DEDUCTION' || l.type === 'ATTENDANCE').reduce((s, l) => s + Math.min(0, l.amount), 0)));
+    const totalAdvances = round3(Math.abs(payroll.lines.filter((l) => l.type === 'ADVANCE').reduce((s, l) => s + Math.min(0, l.amount), 0)));
+    const grossSalary = round3(payroll.snapshotBaseSalary + totalAllowances + overtimeAmount);
+    const netSalary = round3(payroll.lines.reduce((sum, line) => sum + line.amount, 0));
+    return tx.payroll.update({
+      where: { id: payrollId },
+      data: {
+        totalBonus: totalAllowances,
+        totalAllowances,
+        totalDeduction: totalDeductions,
+        totalDeductions,
+        totalAdvances,
+        overtimeAmount,
+        grossSalary,
+        netSalary,
+      },
+    });
   }
 
   async approve(id: number, req: Request) {
-    const payroll = await prisma.payroll.findUnique({ where: { id } });
-    if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
-    if (payroll.status === 'PAID') throw AppError.badRequest('الكشف مدفوع بالفعل');
-    const updated = await prisma.payroll.update({ where: { id }, data: { status: 'APPROVED' } });
+    const userId = req.user?.userId;
+    const updated = await prisma.$transaction(async (tx) => {
+      const payroll = await tx.payroll.findUnique({ where: { id } });
+      if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
+      if (payroll.status === 'PAID') throw AppError.badRequest('الكشف مدفوع بالفعل');
+      if (payroll.status === 'CANCELLED') throw AppError.badRequest('لا يمكن اعتماد كشف ملغى');
+      return tx.payroll.update({ where: { id }, data: { status: 'APPROVED', approvedAt: new Date(), approvedById: userId } });
+    });
     await recordAudit({ req, action: 'APPROVE', module: 'payroll', entityId: id });
     return updated;
   }
 
-  /** صرف الراتب + ترحيل قيد مصروف رواتب. */
-  async markPaid(id: number, req: Request) {
-    const payroll = await prisma.payroll.findUnique({ where: { id }, include: { employee: { select: { fullName: true } } } });
-    if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
-    if (payroll.status === 'PAID') throw AppError.badRequest('الكشف مدفوع بالفعل');
-
+  async cancel(id: number, req: Request) {
     const updated = await prisma.$transaction(async (tx) => {
-      const p = await tx.payroll.update({ where: { id }, data: { status: 'PAID', paidAt: new Date() } });
-      await transactionsService.postEntry(
+      const payroll = await tx.payroll.findUnique({ where: { id } });
+      if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
+      if (payroll.status === 'PAID') throw AppError.badRequest('لا يمكن إلغاء كشف راتب مدفوع');
+      if (!['DRAFT', 'APPROVED'].includes(payroll.status)) throw AppError.badRequest('لا يمكن إلغاء هذا الكشف');
+      return tx.payroll.update({ where: { id }, data: { status: 'CANCELLED' } });
+    });
+    await recordAudit({ req, action: 'CANCEL', module: 'payroll', entityId: id });
+    return updated;
+  }
+
+  async markPaid(id: number, input: PayPayrollInput, req: Request) {
+    const userId = req.user?.userId;
+    const updated = await prisma.$transaction(async (tx) => {
+      const payroll = await tx.payroll.findUnique({
+        where: { id },
+        include: { employee: { select: { fullName: true } }, lines: true },
+      });
+      if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
+      if (payroll.status !== 'APPROVED') throw AppError.badRequest('يجب اعتماد كشف الراتب قبل الصرف');
+      if (payroll.accountingTransactionId) throw AppError.badRequest('تم ترحيل القيد المحاسبي لهذا الكشف مسبقا');
+      const existingPosting = await tx.transaction.findFirst({ where: { referenceType: 'PAYROLL', referenceId: id } });
+      if (existingPosting) throw AppError.badRequest('يوجد قيد محاسبي مرتبط بهذا الكشف مسبقا');
+
+      const entry = await transactionsService.postEntry(
         {
           date: new Date(),
-          description: `راتب ${payroll.employee.fullName} — ${payroll.month}/${payroll.year}`,
+          description: `Payroll ${payroll.employee.fullName} - ${payroll.month}/${payroll.year}`,
           type: 'EXPENSE',
           debit: payroll.netSalary,
-          account: 'مصروفات - رواتب',
+          account: 'Payroll Expense',
           referenceType: 'PAYROLL',
           referenceId: id,
         },
         tx,
       );
-      return p;
+
+      for (const line of payroll.lines.filter((l) => l.type === 'ADVANCE' && l.sourceType === 'ADVANCE' && l.sourceId)) {
+        const advance = await tx.payrollAdvance.findUnique({ where: { id: line.sourceId! } });
+        if (!advance || advance.status !== 'OPEN') continue;
+        const remainingAmount = round3(Math.max(0, advance.remainingAmount - Math.abs(line.amount)));
+        await tx.payrollAdvance.update({
+          where: { id: advance.id },
+          data: { remainingAmount, status: remainingAmount <= 0 ? 'SETTLED' : 'OPEN' },
+        });
+      }
+
+      return tx.payroll.update({
+        where: { id },
+        data: {
+          status: 'PAID',
+          paidAt: new Date(),
+          paidById: userId,
+          paymentMethod: input.paymentMethod,
+          accountingPostedAt: new Date(),
+          accountingTransactionId: entry.id,
+        },
+      });
     });
-    await recordAudit({ req, action: 'PAYMENT', module: 'payroll', entityId: id, newValue: { net: payroll.netSalary } });
+    await recordAudit({ req, action: 'PAYMENT', module: 'payroll', entityId: id, newValue: { net: updated.netSalary } });
     return updated;
+  }
+
+  async createAllowance(input: RecurringAllowanceInput, req: Request) {
+    const item = await prisma.employeeAllowance.create({ data: input });
+    await recordAudit({ req, action: 'CREATE', module: 'payroll', entityId: item.id, newValue: input });
+    return item;
+  }
+
+  async createRecurringDeduction(input: RecurringAllowanceInput, req: Request) {
+    const item = await prisma.employeeRecurringDeduction.create({ data: input });
+    await recordAudit({ req, action: 'CREATE', module: 'payroll', entityId: item.id, newValue: input });
+    return item;
+  }
+
+  async createAdvance(input: PayrollAdvanceInput, req: Request) {
+    const amount = round3(input.amount);
+    const item = await prisma.payrollAdvance.create({
+      data: { ...input, amount, remainingAmount: amount, date: input.date ?? new Date() },
+    });
+    await recordAudit({ req, action: 'CREATE', module: 'payroll', entityId: item.id, newValue: input });
+    return item;
+  }
+
+  async payslip(id: number) {
+    return this.getById(id);
   }
 }
 

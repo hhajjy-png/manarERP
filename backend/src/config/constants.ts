@@ -52,7 +52,19 @@ export const MODULES = [
 export type ModuleName = (typeof MODULES)[number];
 
 /** الإجراءات الذرّية للصلاحيات. */
-export const ACTIONS = ['read', 'create', 'update', 'delete', 'approve', 'export'] as const;
+export const ACTIONS = [
+  'read',
+  'create',
+  'update',
+  'delete',
+  'approve',
+  'export',
+  'pay',
+  'generate',
+  'payslip',
+  'adjust',
+  'cancel',
+] as const;
 export type ActionName = (typeof ACTIONS)[number];
 
 /** القيم المسموحة للحقول النصية (تُفرض في طبقة Zod). */
@@ -77,7 +89,7 @@ export const ENUMS = {
   ] as const,
   expenseStatus: ['PENDING', 'APPROVED', 'REJECTED'] as const,
   transactionType: ['REVENUE', 'EXPENSE', 'TRANSFER', 'ADJUSTMENT'] as const,
-  payrollStatus: ['DRAFT', 'APPROVED', 'PAID'] as const,
+  payrollStatus: ['DRAFT', 'APPROVED', 'PAID', 'CANCELLED'] as const,
   paymentMethod: ['CASH', 'BANK', 'CHEQUE', 'TRANSFER'] as const,
   maintenanceType: ['PREVENTIVE', 'CORRECTIVE'] as const,
   backupType: ['MANUAL', 'AUTO', 'SCHEDULED'] as const,

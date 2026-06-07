@@ -7,6 +7,20 @@ import { requirePermission } from '../../core/middleware/rbac.middleware';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ok } from '../../core/utils/response';
 import { recordAudit } from '../../core/middleware/audit';
+import { AppError } from '../../core/errors/AppError';
+import { ROLES } from '../../config/constants';
+
+// Reports that require an additional module permission beyond reports.read / reports.export.
+const REPORT_EXTRA_PERMISSION: Record<string, string> = {
+  payroll: 'payroll.read',
+};
+
+function assertReportAccess(type: string, roleName: string, permissions: string[]): void {
+  const extra = REPORT_EXTRA_PERMISSION[type];
+  if (extra && roleName !== ROLES.SYSTEM_ADMIN && !permissions.includes(extra)) {
+    throw AppError.forbidden('ليست لديك صلاحية لعرض هذا التقرير');
+  }
+}
 
 const router = Router();
 router.use(authenticate);
@@ -16,7 +30,9 @@ router.get(
   '/:type/preview',
   requirePermission('reports.read'),
   asyncHandler(async (req, res) => {
-    const data = await reportsService.build(req.params.type, req.query);
+    const { type } = req.params;
+    assertReportAccess(type, req.user!.roleName, req.permissions ?? []);
+    const data = await reportsService.build(type, req.query);
     ok(res, data);
   }),
 );
@@ -27,6 +43,7 @@ router.get(
   requirePermission('reports.export'),
   asyncHandler(async (req, res) => {
     const { type } = req.params;
+    assertReportAccess(type, req.user!.roleName, req.permissions ?? []);
     const format = (req.query.format as string) === 'pdf' ? 'pdf' : 'excel';
     const data = await reportsService.build(type, req.query);
 

@@ -11,6 +11,7 @@ import Salaries from './pages/Salaries';
 import Accounting from './pages/Accounting';
 import Reports from './pages/Reports';
 import ReportPrint from './pages/ReportPrint';
+import PayrollPayslip from './pages/PayrollPayslip';
 import Settings from './pages/Settings';
 import Backup from './pages/Backup';
 import Users from './pages/Users';
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         {/* صفحة طباعة التقرير — خارج التخطيط لطباعة نظيفة بعربية سليمة */}
         <Route path="/print/:type" element={<ProtectedRoute><ReportPrint /></ProtectedRoute>} />
+        <Route path="/payroll/:id/payslip" element={<ProtectedRoute><PayrollPayslip /></ProtectedRoute>} />
         <Route
           element={
             <ProtectedRoute>

@@ -20,7 +20,7 @@ datasource db {
 model User {
   id           Int       @id @default(autoincrement())
   username     String    @unique
-  passwordHash String                                   // bcrypt
+  passwordHash String // bcrypt
   fullName     String
   email        String?   @unique
   phone        String?
@@ -47,10 +47,10 @@ model User {
 
 model Role {
   id          Int     @id @default(autoincrement())
-  name        String  @unique                          // SYSTEM_ADMIN, GENERAL_MANAGER, ACCOUNTANT...
-  displayName String                                   // الاسم العربي المعروض
+  name        String  @unique // SYSTEM_ADMIN, GENERAL_MANAGER, ACCOUNTANT...
+  displayName String // الاسم العربي المعروض
   description String?
-  isSystem    Boolean @default(false)                  // أدوار النظام لا تُحذف
+  isSystem    Boolean @default(false) // أدوار النظام لا تُحذف
 
   users           User[]
   rolePermissions RolePermission[]
@@ -62,10 +62,10 @@ model Role {
 }
 
 model Permission {
-  id          Int    @id @default(autoincrement())
-  key         String @unique                           // مثال: invoices.create, equipment.delete
-  module      String                                   // invoices, equipment, contracts...
-  action      String                                   // create, read, update, delete, approve
+  id          Int     @id @default(autoincrement())
+  key         String  @unique // مثال: invoices.create, equipment.delete
+  module      String // invoices, equipment, contracts...
+  action      String // create, read, update, delete, approve
   description String?
 
   rolePermissions RolePermission[]
@@ -93,17 +93,17 @@ model RolePermission {
 // ─────────────────────────────────────────────────────────────────────────
 
 model Customer {
-  id           Int     @id @default(autoincrement())
-  code         String  @unique                          // رقم العميل
-  name         String
-  type         String  @default("PRIVATE")              // GOVERNMENT | PRIVATE
-  category     String?                                  // تصنيف العميل
-  phone        String?
-  email        String?
-  address      String?
-  contactName  String?                                  // اسم المسؤول
-  notes        String?
-  isArchived   Boolean @default(false)
+  id          Int     @id @default(autoincrement())
+  code        String  @unique // رقم العميل
+  name        String
+  type        String  @default("PRIVATE") // GOVERNMENT | PRIVATE
+  category    String? // تصنيف العميل
+  phone       String?
+  email       String?
+  address     String?
+  contactName String? // اسم المسؤول
+  notes       String?
+  isArchived  Boolean @default(false)
 
   contracts Contract[]
   invoices  Invoice[]
@@ -122,40 +122,43 @@ model Customer {
 // ─────────────────────────────────────────────────────────────────────────
 
 model Employee {
-  id             Int       @id @default(autoincrement())
-  code           String    @unique                      // الرقم الوظيفي
-  fullName       String                                 // اسم الموظف (بالعربي)
-  fullNameEn     String?                                // اسم الموظف (بالإنجليزي)
-  civilId        String?                                // الرقم المدني
-  jobTitle       String?                                // المهنة
-  nationality    String?                                // الجنسية
-  passportNumber String?                                // رقم جواز السفر
-  passportExpiry DateTime?                              // تاريخ انتهاء جواز السفر
-  residencyExpiry DateTime?                             // تاريخ انتهاء الإقامة
-  licenseExpiry  DateTime?                              // تاريخ انتهاء رخصة القيادة
-  vehiclePlate   String?                                // رقم لوحة المركبة
-  vehicleLicenseExpiry DateTime?                        // تاريخ انتهاء رخصة المركبة
-  birthDate      DateTime?                              // تاريخ الميلاد
-  company        String?                                // الشركة
-  department     String?                                // القسم
-  salary         Float     @default(0)                  // الراتب الشهري
-  hireDate       DateTime?
-  phone          String?
-  email          String?
-  address        String?                                // العنوان
-  photoPath      String?                                // مسار صورة الموظف
-  status         String    @default("ACTIVE")           // ACTIVE | ON_LEAVE | TERMINATED
-  notes          String?
+  id                   Int       @id @default(autoincrement())
+  code                 String    @unique // الرقم الوظيفي
+  fullName             String // اسم الموظف (بالعربي)
+  fullNameEn           String? // اسم الموظف (بالإنجليزي)
+  civilId              String? // الرقم المدني
+  jobTitle             String? // المهنة
+  nationality          String? // الجنسية
+  passportNumber       String? // رقم جواز السفر
+  passportExpiry       DateTime? // تاريخ انتهاء جواز السفر
+  residencyExpiry      DateTime? // تاريخ انتهاء الإقامة
+  licenseExpiry        DateTime? // تاريخ انتهاء رخصة القيادة
+  vehiclePlate         String? // رقم لوحة المركبة
+  vehicleLicenseExpiry DateTime? // تاريخ انتهاء رخصة المركبة
+  birthDate            DateTime? // تاريخ الميلاد
+  company              String? // الشركة
+  department           String? // القسم
+  salary               Float     @default(0) // الراتب الشهري
+  hireDate             DateTime?
+  phone                String?
+  email                String?
+  address              String? // العنوان
+  photoPath            String? // مسار صورة الموظف
+  status               String    @default("ACTIVE") // ACTIVE | ON_LEAVE | TERMINATED
+  notes                String?
 
-  user             User?
-  attendance       Attendance[]
-  payrolls         Payroll[]
-  leaves           Leave[]
-  deductions       Deduction[]
-  bonuses          Bonus[]
-  performanceRevs  PerformanceReview[]
-  approvedExpenses Expense[]   @relation("ExpenseApprover")
-  managedContracts Contract[]  @relation("ContractManager")
+  user                User?
+  attendance          Attendance[]
+  payrolls            Payroll[]
+  recurringAllowances EmployeeAllowance[]
+  recurringDeductions EmployeeRecurringDeduction[]
+  advances            PayrollAdvance[]
+  leaves              Leave[]
+  deductions          Deduction[]
+  bonuses             Bonus[]
+  performanceRevs     PerformanceReview[]
+  approvedExpenses    Expense[]                    @relation("ExpenseApprover")
+  managedContracts    Contract[]                   @relation("ContractManager")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -175,7 +178,7 @@ model Attendance {
   date       DateTime
   checkIn    DateTime?
   checkOut   DateTime?
-  status     String    @default("PRESENT")              // PRESENT | ABSENT | LATE | LEAVE
+  status     String    @default("PRESENT") // PRESENT | ABSENT | LATE | LEAVE
   workHours  Float?
   notes      String?
 
@@ -189,13 +192,13 @@ model Attendance {
 }
 
 model Leave {
-  id         Int       @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   employeeId Int
-  type       String                                     // ANNUAL | SICK | UNPAID | EMERGENCY
+  type       String // ANNUAL | SICK | UNPAID | EMERGENCY
   startDate  DateTime
   endDate    DateTime
   days       Int
-  status     String    @default("PENDING")              // PENDING | APPROVED | REJECTED
+  status     String   @default("PENDING") // PENDING | APPROVED | REJECTED
   reason     String?
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -234,33 +237,143 @@ model Bonus {
 }
 
 model Payroll {
-  id            Int      @id @default(autoincrement())
-  employeeId    Int
-  month         Int                                     // 1-12
-  year          Int
-  baseSalary    Float
-  totalBonus    Float    @default(0)
-  totalDeduction Float   @default(0)
-  netSalary     Float
-  status        String   @default("DRAFT")              // DRAFT | APPROVED | PAID
-  paidAt        DateTime?
-  notes         String?
+  id                      Int       @id @default(autoincrement())
+  employeeId              Int
+  month                   Int // 1-12
+  year                    Int
+  baseSalary              Float
+  snapshotBaseSalary      Float     @default(0)
+  regularWorkDays         Int       @default(0)
+  presentDays             Int       @default(0)
+  absentDays              Int       @default(0)
+  leaveDays               Int       @default(0)
+  lateDays                Int       @default(0)
+  regularHours            Float     @default(0)
+  actualHours             Float     @default(0)
+  overtimeHours           Float     @default(0)
+  overtimeRate            Float     @default(0)
+  overtimeAmount          Float     @default(0)
+  totalBonus              Float     @default(0)
+  totalAllowances         Float     @default(0)
+  /// Deprecated: kept for backward compatibility. Use totalDeductions for new payroll calculations.
+  totalDeduction          Float     @default(0)
+  totalDeductions         Float     @default(0)
+  totalAdvances           Float     @default(0)
+  grossSalary             Float     @default(0)
+  netSalary               Float
+  status                  String    @default("DRAFT") // DRAFT | APPROVED | PAID | CANCELLED
+  approvedAt              DateTime?
+  approvedById            Int?
+  paidAt                  DateTime?
+  paidById                Int?
+  paymentMethod           String?
+  accountingPostedAt      DateTime?
+  accountingTransactionId Int?
+  notes                   String?
 
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  lines    PayrollLine[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([employeeId, month, year])
   @@index([year, month])
+  @@index([employeeId])
+  @@index([status])
+  @@index([accountingTransactionId])
   @@map("payroll")
+}
+
+model PayrollLine {
+  id         Int     @id @default(autoincrement())
+  payrollId  Int
+  employeeId Int
+  type       String // BASE | ALLOWANCE | DEDUCTION | ADVANCE | OVERTIME | ATTENDANCE
+  sourceType String? // EMPLOYEE | RECURRING_ALLOWANCE | RECURRING_DEDUCTION | ADVANCE | ATTENDANCE | MANUAL
+  sourceId   Int?
+  label      String
+  amount     Float   @default(0)
+  quantity   Float?
+  rate       Float?
+  notes      String?
+
+  payroll Payroll @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([payrollId])
+  @@index([employeeId])
+  @@index([type])
+  @@index([sourceType, sourceId])
+  @@map("payroll_lines")
+}
+
+model EmployeeAllowance {
+  id         Int       @id @default(autoincrement())
+  employeeId Int
+  name       String
+  amount     Float
+  isActive   Boolean   @default(true)
+  startsAt   DateTime?
+  endsAt     DateTime?
+  notes      String?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([isActive])
+  @@map("employee_allowances")
+}
+
+model EmployeeRecurringDeduction {
+  id         Int       @id @default(autoincrement())
+  employeeId Int
+  name       String
+  amount     Float
+  isActive   Boolean   @default(true)
+  startsAt   DateTime?
+  endsAt     DateTime?
+  notes      String?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([isActive])
+  @@map("employee_recurring_deductions")
+}
+
+model PayrollAdvance {
+  id              Int      @id @default(autoincrement())
+  employeeId      Int
+  amount          Float
+  remainingAmount Float
+  date            DateTime @default(now())
+  status          String   @default("OPEN") // OPEN | SETTLED | CANCELLED
+  notes           String?
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([date])
+  @@map("payroll_advances")
 }
 
 model PerformanceReview {
   id         Int      @id @default(autoincrement())
   employeeId Int
-  period     String                                     // مثال: 2026-Q1
-  score      Float                                      // 0-100
+  period     String // مثال: 2026-Q1
+  score      Float // 0-100
   reviewer   String?
   comments   String?
   date       DateTime @default(now())
@@ -277,14 +390,14 @@ model PerformanceReview {
 
 model Equipment {
   id                 Int       @id @default(autoincrement())
-  code               String    @unique                  // رقم المعدة
-  name               String?                             // اسم المعدة (اختياري)
-  type               String                              // قلاب | شيول | حفار | مدحلة | رصاصة | معدة خفيفة
-  ownerName          String?                             // اسم المالك
-  driverName         String?                             // اسم السائق
-  plateNumber        String?                             // رقم اللوحة
-  registrationExpiry DateTime?                           // تاريخ انتهاء دفتر المركبة
-  status             String    @default("WORKING")       // WORKING (تعمل) | NOT_WORKING (لا تعمل)
+  code               String    @unique // رقم المعدة
+  name               String? // اسم المعدة (اختياري)
+  type               String // قلاب | شيول | حفار | مدحلة | رصاصة | معدة خفيفة
+  ownerName          String? // اسم المالك
+  driverName         String? // اسم السائق
+  plateNumber        String? // رقم اللوحة
+  registrationExpiry DateTime? // تاريخ انتهاء دفتر المركبة
+  status             String    @default("WORKING") // WORKING (تعمل) | NOT_WORKING (لا تعمل)
   manufacturer       String?
   model              String?
   manufactureYear    Int?
@@ -310,15 +423,15 @@ model Equipment {
 }
 
 model MaintenanceRecord {
-  id            Int       @id @default(autoincrement())
-  equipmentId   Int
-  type          String                                  // PREVENTIVE | CORRECTIVE
-  description   String
-  cost          Float     @default(0)
-  performedBy   String?
-  date          DateTime
-  nextDueDate   DateTime?                               // موعد الصيانة الدورية القادمة
-  status        String    @default("COMPLETED")         // SCHEDULED | IN_PROGRESS | COMPLETED
+  id          Int       @id @default(autoincrement())
+  equipmentId Int
+  type        String // PREVENTIVE | CORRECTIVE
+  description String
+  cost        Float     @default(0)
+  performedBy String?
+  date        DateTime
+  nextDueDate DateTime? // موعد الصيانة الدورية القادمة
+  status      String    @default("COMPLETED") // SCHEDULED | IN_PROGRESS | COMPLETED
 
   equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
 
@@ -351,8 +464,8 @@ model Breakdown {
   description String
   reportedAt  DateTime  @default(now())
   resolvedAt  DateTime?
-  severity    String    @default("MEDIUM")              // LOW | MEDIUM | HIGH | CRITICAL
-  status      String    @default("OPEN")                // OPEN | RESOLVED
+  severity    String    @default("MEDIUM") // LOW | MEDIUM | HIGH | CRITICAL
+  status      String    @default("OPEN") // OPEN | RESOLVED
 
   equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
 
@@ -382,17 +495,17 @@ model SparePartUsage {
 
 model Contract {
   id                    Int       @id @default(autoincrement())
-  code                  String    @unique                 // رقم العقد
-  asphaltPlant          String                            // اسم مصنع الأسفلت
-  location              String?                           // مكان العقد
-  monthlyTransportValue Float     @default(0)             // قيمة نقل الأسفلت الشهري
+  code                  String    @unique // رقم العقد
+  asphaltPlant          String // اسم مصنع الأسفلت
+  location              String? // مكان العقد
+  monthlyTransportValue Float     @default(0) // قيمة نقل الأسفلت الشهري
   startDate             DateTime?
   endDate               DateTime?
-  status                String    @default("ACTIVE")      // ACTIVE | EXPIRED | RENEWING | SUSPENDED
+  status                String    @default("ACTIVE") // ACTIVE | EXPIRED | RENEWING | SUSPENDED
   notes                 String?
 
-  customerId Int?                                         // الجهة المتعاقدة (اختياري)
-  managerId  Int?                                         // المسؤول عن العقد
+  customerId Int? // الجهة المتعاقدة (اختياري)
+  managerId  Int? // المسؤول عن العقد
 
   customer  Customer?          @relation(fields: [customerId], references: [id])
   manager   Employee?          @relation("ContractManager", fields: [managerId], references: [id])
@@ -412,8 +525,8 @@ model ContractDocument {
   id         Int      @id @default(autoincrement())
   contractId Int
   title      String
-  filePath   String                                       // مسار الملف/الصورة
-  fileType   String?                                      // image | pdf | doc
+  filePath   String // مسار الملف/الصورة
+  fileType   String? // image | pdf | doc
   uploadedAt DateTime @default(now())
 
   contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
@@ -452,24 +565,24 @@ model Supplier {
 // ─────────────────────────────────────────────────────────────────────────
 
 model Invoice {
-  id           Int      @id @default(autoincrement())
-  number       String   @unique                          // رقم الفاتورة
-  invoiceNumber String @unique                           // الرقم اليدوي الكامل للفاتورة: MN-INV-2026-...
-  direction    String   @default("SALES")                // SALES (عميل) | PURCHASE (مورّد)
-  invoiceType  String   @default("نقل اسفلت")            // نقل اسفلت | يومية عمل مالينج | يومية نقل اسفلت
-  customerId   Int?
-  supplierId   Int?
-  contractId   Int?
-  issueDate    DateTime @default(now())
-  dueDate      DateTime?
-  subtotal     Float    @default(0)
-  taxRate      Float    @default(0)                       // نسبة الضريبة %
-  taxAmount    Float    @default(0)
-  discount     Float    @default(0)
-  total        Float    @default(0)
-  paidAmount   Float    @default(0)
-  status       String   @default("UNPAID")               // UNPAID | PARTIAL | PAID | OVERDUE | CANCELLED
-  notes        String?
+  id            Int       @id @default(autoincrement())
+  number        String    @unique // رقم الفاتورة
+  invoiceNumber String    @unique // الرقم اليدوي الكامل للفاتورة: MN-INV-2026-...
+  direction     String    @default("SALES") // SALES (عميل) | PURCHASE (مورّد)
+  invoiceType   String    @default("نقل اسفلت") // نقل اسفلت | يومية عمل مالينج | يومية نقل اسفلت
+  customerId    Int?
+  supplierId    Int?
+  contractId    Int?
+  issueDate     DateTime  @default(now())
+  dueDate       DateTime?
+  subtotal      Float     @default(0)
+  taxRate       Float     @default(0) // نسبة الضريبة %
+  taxAmount     Float     @default(0)
+  discount      Float     @default(0)
+  total         Float     @default(0)
+  paidAmount    Float     @default(0)
+  status        String    @default("UNPAID") // UNPAID | PARTIAL | PAID | OVERDUE | CANCELLED
+  notes         String?
 
   customer Customer?     @relation(fields: [customerId], references: [id])
   supplier Supplier?     @relation(fields: [supplierId], references: [id])
@@ -494,7 +607,7 @@ model InvoiceItem {
   invoiceId   Int
   description String
   quantity    Float  @default(1)
-  unit        String @default("طن")                       // طن | درب | يومية
+  unit        String @default("طن") // طن | درب | يومية
   unitPrice   Float  @default(0)
   total       Float  @default(0)
 
@@ -508,7 +621,7 @@ model Payment {
   id        Int      @id @default(autoincrement())
   invoiceId Int
   amount    Float
-  method    String   @default("CASH")                    // CASH | BANK | CHEQUE | TRANSFER
+  method    String   @default("CASH") // CASH | BANK | CHEQUE | TRANSFER
   date      DateTime @default(now())
   reference String?
   notes     String?
@@ -524,16 +637,16 @@ model Payment {
 // ─────────────────────────────────────────────────────────────────────────
 
 model Expense {
-  id           Int      @id @default(autoincrement())
-  code         String   @unique
-  category     String                                    // FUEL | SALARIES | MAINTENANCE | RENT | PURCHASES | EQUIPMENT | SERVICES | OTHER
+  id           Int       @id @default(autoincrement())
+  code         String    @unique
+  category     String // FUEL | SALARIES | MAINTENANCE | RENT | PURCHASES | EQUIPMENT | SERVICES | OTHER
   description  String
   amount       Float
-  date         DateTime @default(now())
+  date         DateTime  @default(now())
   contractId   Int?
   supplierId   Int?
-  documentPath String?                                   // مستند مرفق
-  status       String   @default("PENDING")              // PENDING | APPROVED | REJECTED
+  documentPath String? // مستند مرفق
+  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
   approvedById Int?
   approvedAt   DateTime?
 
@@ -556,16 +669,16 @@ model Expense {
 // ─────────────────────────────────────────────────────────────────────────
 
 model Transaction {
-  id          Int      @id @default(autoincrement())
-  entryNumber String   @unique                           // رقم القيد
-  date        DateTime @default(now())
-  description String
-  type        String                                     // REVENUE | EXPENSE | TRANSFER | ADJUSTMENT
-  debit       Float    @default(0)                        // مدين
-  credit      Float    @default(0)                        // دائن
-  account     String                                     // اسم/رمز الحساب
-  referenceType String?                                  // INVOICE | EXPENSE | PAYROLL | MANUAL
-  referenceId   Int?                                     // معرّف المستند المرتبط
+  id            Int      @id @default(autoincrement())
+  entryNumber   String   @unique // رقم القيد
+  date          DateTime @default(now())
+  description   String
+  type          String // REVENUE | EXPENSE | TRANSFER | ADJUSTMENT
+  debit         Float    @default(0) // مدين
+  credit        Float    @default(0) // دائن
+  account       String // اسم/رمز الحساب
+  referenceType String? // INVOICE | EXPENSE | PAYROLL | MANUAL
+  referenceId   Int? // معرّف المستند المرتبط
 
   createdAt DateTime @default(now())
 
@@ -581,15 +694,15 @@ model Transaction {
 // ─────────────────────────────────────────────────────────────────────────
 
 model AuditLog {
-  id         Int      @id @default(autoincrement())
-  userId     Int?
-  action     String                                      // CREATE | UPDATE | DELETE | LOGIN | LOGOUT | RESTORE...
-  module     String                                      // الوحدة المتأثرة
-  entityId   String?                                     // معرّف السجل المتأثر
-  oldValue   String?                                     // JSON للقيم قبل التغيير
-  newValue   String?                                     // JSON للقيم بعد التغيير
-  ipAddress  String?
-  createdAt  DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String // CREATE | UPDATE | DELETE | LOGIN | LOGOUT | RESTORE...
+  module    String // الوحدة المتأثرة
+  entityId  String? // معرّف السجل المتأثر
+  oldValue  String? // JSON للقيم قبل التغيير
+  newValue  String? // JSON للقيم بعد التغيير
+  ipAddress String?
+  createdAt DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id])
 
@@ -605,14 +718,14 @@ model AuditLog {
 // ─────────────────────────────────────────────────────────────────────────
 
 model Backup {
-  id        Int      @id @default(autoincrement())
-  fileName  String
-  filePath  String
-  sizeBytes Int      @default(0)
-  type      String   @default("MANUAL")                  // MANUAL | AUTO | SCHEDULED
-  status    String   @default("SUCCESS")                 // SUCCESS | FAILED
+  id          Int      @id @default(autoincrement())
+  fileName    String
+  filePath    String
+  sizeBytes   Int      @default(0)
+  type        String   @default("MANUAL") // MANUAL | AUTO | SCHEDULED
+  status      String   @default("SUCCESS") // SUCCESS | FAILED
   createdById Int?
-  createdAt DateTime @default(now())
+  createdAt   DateTime @default(now())
 
   createdBy User? @relation(fields: [createdById], references: [id])
 
@@ -627,12 +740,12 @@ model Backup {
 
 model Account {
   id            Int     @id @default(autoincrement())
-  code          String  @unique                           // رمز الحساب (مثل: 1100)
-  name          String                                    // اسم الحساب
-  type          String                                    // ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE
-  normalBalance String  @default("DEBIT")                 // DEBIT | CREDIT
+  code          String  @unique // رمز الحساب (مثل: 1100)
+  name          String // اسم الحساب
+  type          String // ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE
+  normalBalance String  @default("DEBIT") // DEBIT | CREDIT
   isActive      Boolean @default(true)
-  parentId      Int?                                      // الحساب الرئيسي (للتسلسل الهرمي)
+  parentId      Int? // الحساب الرئيسي (للتسلسل الهرمي)
   notes         String?
 
   parent       Account?           @relation("AccountHierarchy", fields: [parentId], references: [id])
@@ -653,12 +766,12 @@ model Account {
 
 model JournalEntry {
   id            Int      @id @default(autoincrement())
-  entryNumber   String   @unique                          // رقم القيد (JRN-2026-00001)
+  entryNumber   String   @unique // رقم القيد (JRN-2026-00001)
   date          DateTime @default(now())
   description   String
-  referenceType String?                                   // INVOICE | EXPENSE | PAYROLL | MANUAL
+  referenceType String? // INVOICE | EXPENSE | PAYROLL | MANUAL
   referenceId   Int?
-  status        String   @default("POSTED")               // DRAFT | POSTED | CANCELLED
+  status        String   @default("POSTED") // DRAFT | POSTED | CANCELLED
 
   lines JournalEntryLine[]
 
@@ -693,9 +806,9 @@ model JournalEntryLine {
 
 model Setting {
   id        Int      @id @default(autoincrement())
-  key       String   @unique                             // company.name, invoice.taxRate, backup.cron...
-  value     String                                       // مخزّنة كنص/JSON
-  group     String   @default("general")                 // general | company | finance | backup
+  key       String   @unique // company.name, invoice.taxRate, backup.cron...
+  value     String // مخزّنة كنص/JSON
+  group     String   @default("general") // general | company | finance | backup
   updatedAt DateTime @updatedAt
 
   @@index([group])
@@ -707,20 +820,20 @@ model Setting {
 // ─────────────────────────────────────────────────────────────────────────
 
 model SalaryPayment {
-  id                 Int      @id @default(autoincrement())
-  paymentDate        DateTime?                            // تاريخ الدفع
-  sourceMonth        String?                              // شهر الاستحقاق (مثل Jun-25)
-  transactionId      String   @unique                     // رقم العملية (مفتاح فريد)
-  beneficiaryAccount String?                              // رقم حساب المستفيد
-  beneficiaryName    String                               // اسم المستفيد
-  bankName           String?                              // البنك
-  amount             Float    @default(0)                 // المبلغ
-  currency           String   @default("KWD")             // العملة
-  paymentType        String?                              // نوع الدفع
-  status             String?                              // الحالة (PROCESSED ...)
-  errorDescription   String?                              // وصف الخطأ
-  civilId            String?                              // الرقم المدني
-  duplicateFlag      String?                              // علامة التكرار
+  id                 Int       @id @default(autoincrement())
+  paymentDate        DateTime? // تاريخ الدفع
+  sourceMonth        String? // شهر الاستحقاق (مثل Jun-25)
+  transactionId      String    @unique // رقم العملية (مفتاح فريد)
+  beneficiaryAccount String? // رقم حساب المستفيد
+  beneficiaryName    String // اسم المستفيد
+  bankName           String? // البنك
+  amount             Float     @default(0) // المبلغ
+  currency           String    @default("KWD") // العملة
+  paymentType        String? // نوع الدفع
+  status             String? // الحالة (PROCESSED ...)
+  errorDescription   String? // وصف الخطأ
+  civilId            String? // الرقم المدني
+  duplicateFlag      String? // علامة التكرار
 
   createdAt DateTime @default(now())
 
