@@ -95,7 +95,7 @@ export function startBackend(): Promise<void> {
     backendProcess = fork(entry, [], {
       cwd: backendCwd,
       env,
-      execArgv: isDev ? ['--import', 'tsx'] : [],
+      execArgv: isDev ? ['--import', 'tsx', '--watch', '--watch-preserve-output'] : [],
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
 

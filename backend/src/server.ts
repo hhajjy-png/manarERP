@@ -14,17 +14,32 @@ function startServer() {
     logger.info(`✔ الخدمة الخلفية تعمل على http://${env.HOST}:${env.PORT}`);
   });
 
-  // إيقاف نظيف
-  const shutdown = async (signal: string) => {
-    logger.info(`استلام ${signal} — إيقاف الخدمة...`);
-    server.close(async () => {
-      await disconnectDatabase();
+  const shutdown = (signal: string) => {
+    logger.info(`[Backend] استلام ${signal} — جارٍ الإغلاق النظيف...`);
+
+    // يمنع EADDRINUSE عند إعادة التشغيل السريعة في --watch mode
+    const timer = setTimeout(() => {
+      logger.warn('[Backend] انتهى وقت الإغلاق — خروج قسري');
+      process.exit(1);
+    }, 5_000);
+
+    server.close(async (err) => {
+      clearTimeout(timer);
+      if (err) {
+        logger.error('[Backend] خطأ أثناء إغلاق الخادم:', err);
+        process.exit(1);
+      }
+      try {
+        await disconnectDatabase();
+      } catch (dbErr) {
+        logger.error('[Backend] خطأ أثناء قطع الاتصال بقاعدة البيانات:', dbErr);
+      }
       process.exit(0);
     });
   };
 
-  process.on('SIGINT', () => void shutdown('SIGINT'));
-  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 
   return server;
 }
