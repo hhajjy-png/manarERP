@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import { api, getToken, setToken } from '../api/client';
 
+/** إرسال توكن الجلسة إلى Electron Main Process للتحقق منه عبر Backend مباشرة. */
+function syncElectronToken(token: string | null) {
+  if (typeof window === 'undefined' || !window.manar?.setSessionToken) return;
+  window.manar.setSessionToken(token);
+}
+
 export interface AuthUser {
   id: number;
   username: string;
@@ -32,6 +38,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       const { token, user } = res.data.data;
       setToken(token);
       set({ user });
+      syncElectronToken(token);
     } finally {
       set({ loading: false });
     }
@@ -45,6 +52,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
     setToken(null);
     set({ user: null });
+    syncElectronToken(null);
   },
 
   /** استعادة الجلسة عند فتح التطبيق إن وُجد رمز صالح. */
@@ -55,9 +63,12 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
     try {
       const res = await api.get('/auth/me');
-      set({ user: res.data.data });
+      const user = res.data.data as AuthUser;
+      set({ user });
+      syncElectronToken(getToken());
     } catch {
       setToken(null);
+      syncElectronToken(null);
     } finally {
       set({ initialized: true });
     }

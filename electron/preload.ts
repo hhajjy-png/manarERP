@@ -56,6 +56,10 @@ const api = {
     sizeBytes: number;
     isDev: boolean;
   }> => ipcRenderer.invoke('backup:getDatabasePath'),
+
+  /** إرسال توكن الجلسة إلى العملية الرئيسية للتحقق منه عبر Backend. */
+  setSessionToken: (token: string | null): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('session:setToken', token),
 };
 
 contextBridge.exposeInMainWorld('manar', api);

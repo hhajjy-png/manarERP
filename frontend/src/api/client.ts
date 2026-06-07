@@ -21,6 +21,8 @@ declare global {
       getDbPath: () => Promise<{
         dir: string; backupDir: string; exists: boolean; sizeBytes: number; isDev: boolean;
       }>;
+      // ─── Session IPC ────────────────────────────────────────────────────────────
+      setSessionToken: (token: string | null) => Promise<{ ok: boolean }>;
     };
   }
 }
