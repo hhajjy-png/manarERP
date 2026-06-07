@@ -1,5 +1,5 @@
 import { useEffect, useState, CSSProperties } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,14 +17,18 @@ function fmt(v: unknown): string {
 export default function ReportPrint() {
   const { type } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [rep, setRep] = useState<ReportData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const params: Record<string, string> = {};
+    searchParams.forEach((v, k) => { if (v) params[k] = v; });
+
     (async () => {
       try {
-        const r = await api.get(`/reports/${type}/preview`);
+        const r = await api.get(`/reports/${type}/preview`, { params });
         setRep(r.data.data);
       } catch (err) {
         setError(errorMessage(err));
@@ -32,7 +36,7 @@ export default function ReportPrint() {
         setLoading(false);
       }
     })();
-  }, [type]);
+  }, [type, searchParams]);
 
   // فتح حوار الطباعة تلقائيًا بعد جاهزية المحتوى
   useEffect(() => {
