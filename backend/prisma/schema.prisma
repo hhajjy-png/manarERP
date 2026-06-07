@@ -622,6 +622,72 @@ model Backup {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+//  دليل الحسابات (Chart of Accounts)
+// ─────────────────────────────────────────────────────────────────────────
+
+model Account {
+  id            Int     @id @default(autoincrement())
+  code          String  @unique                           // رمز الحساب (مثل: 1100)
+  name          String                                    // اسم الحساب
+  type          String                                    // ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE
+  normalBalance String  @default("DEBIT")                 // DEBIT | CREDIT
+  isActive      Boolean @default(true)
+  parentId      Int?                                      // الحساب الرئيسي (للتسلسل الهرمي)
+  notes         String?
+
+  parent       Account?           @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children     Account[]          @relation("AccountHierarchy")
+  journalLines JournalEntryLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([isActive])
+  @@map("accounts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  قيود اليومية بالقيد المزدوج (Journal Entries — Double Entry)
+// ─────────────────────────────────────────────────────────────────────────
+
+model JournalEntry {
+  id            Int      @id @default(autoincrement())
+  entryNumber   String   @unique                          // رقم القيد (JRN-2026-00001)
+  date          DateTime @default(now())
+  description   String
+  referenceType String?                                   // INVOICE | EXPENSE | PAYROLL | MANUAL
+  referenceId   Int?
+  status        String   @default("POSTED")               // DRAFT | POSTED | CANCELLED
+
+  lines JournalEntryLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([status])
+  @@index([referenceType, referenceId])
+  @@map("journal_entries")
+}
+
+model JournalEntryLine {
+  id             Int     @id @default(autoincrement())
+  journalEntryId Int
+  accountId      Int
+  description    String?
+  debit          Float   @default(0)
+  credit         Float   @default(0)
+
+  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account      Account      @relation(fields: [accountId], references: [id])
+
+  @@index([journalEntryId])
+  @@index([accountId])
+  @@map("journal_entry_lines")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 //  الإعدادات (Settings) — مخزن مفتاح/قيمة
 // ─────────────────────────────────────────────────────────────────────────
 
