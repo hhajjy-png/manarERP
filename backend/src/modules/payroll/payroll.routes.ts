@@ -4,14 +4,33 @@ import { authenticate } from '../../core/middleware/auth.middleware';
 import { requirePermission } from '../../core/middleware/rbac.middleware';
 import { validate } from '../../core/middleware/validate.middleware';
 import { asyncHandler } from '../../core/utils/asyncHandler';
-import { generatePayrollSchema } from './payroll.schema';
+import {
+  manualPayrollLineSchema,
+  payPayrollSchema,
+  payrollAdvanceSchema,
+  payrollPeriodSchema,
+  recurringAllowanceSchema,
+  recurringDeductionSchema,
+  updatePayrollSchema,
+} from './payroll.schema';
 
 const router = Router();
 router.use(authenticate);
 
 router.get('/', requirePermission('payroll.read'), asyncHandler(payrollController.list));
-router.post('/generate', requirePermission('payroll.create'), validate(generatePayrollSchema), asyncHandler(payrollController.generate));
+router.get('/:id', requirePermission('payroll.read'), asyncHandler(payrollController.getById));
+router.get('/:id/payslip', requirePermission('payroll.payslip', 'payroll.read'), asyncHandler(payrollController.payslip));
+
+router.post('/preview', requirePermission('payroll.generate', 'payroll.read'), validate(payrollPeriodSchema), asyncHandler(payrollController.preview));
+router.post('/generate', requirePermission('payroll.generate', 'payroll.create'), validate(payrollPeriodSchema), asyncHandler(payrollController.generate));
+router.post('/allowances', requirePermission('payroll.adjust'), validate(recurringAllowanceSchema), asyncHandler(payrollController.createAllowance));
+router.post('/recurring-deductions', requirePermission('payroll.adjust'), validate(recurringDeductionSchema), asyncHandler(payrollController.createRecurringDeduction));
+router.post('/advances', requirePermission('payroll.adjust'), validate(payrollAdvanceSchema), asyncHandler(payrollController.createAdvance));
+
+router.put('/:id', requirePermission('payroll.update'), validate(updatePayrollSchema), asyncHandler(payrollController.update));
+router.post('/:id/lines', requirePermission('payroll.adjust'), validate(manualPayrollLineSchema), asyncHandler(payrollController.addManualLine));
 router.patch('/:id/approve', requirePermission('payroll.approve'), asyncHandler(payrollController.approve));
-router.patch('/:id/pay', requirePermission('payroll.approve'), asyncHandler(payrollController.markPaid));
+router.patch('/:id/cancel', requirePermission('payroll.cancel'), asyncHandler(payrollController.cancel));
+router.patch('/:id/pay', requirePermission('payroll.pay'), validate(payPayrollSchema), asyncHandler(payrollController.markPaid));
 
 export default router;

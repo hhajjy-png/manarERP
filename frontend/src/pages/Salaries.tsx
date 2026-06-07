@@ -1,156 +1,332 @@
-import { useEffect, useState } from 'react';
-import { api } from '../api/client';
-import StatCard from '../components/StatCard';
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { api, errorMessage } from '../api/client';
 import DataTable, { PageMeta } from '../components/DataTable';
-import { money, dateText } from '../config/modules';
+import StatCard from '../components/StatCard';
+import { dateText, money } from '../config/modules';
+import { useAuth } from '../stores/authStore';
 
-interface SummaryEmp { name: string; civilId: string | null; values: number[]; monthsPaid: number; total: number; }
-interface Summary {
-  months: string[]; employees: SummaryEmp[]; monthTotals: number[];
-  monthCounts: number[]; grandTotal: number; employeeCount: number;
+type EmployeeOption = { id: number; fullName: string; code: string };
+type PayrollLine = { id: number; type: string; label: string; amount: number };
+type PayrollRow = {
+  id: number;
+  employee: { id: number; code: string; fullName: string; department?: string | null };
+  month: number;
+  year: number;
+  snapshotBaseSalary: number;
+  baseSalary: number;
+  grossSalary: number;
+  netSalary: number;
+  totalAllowances: number;
+  totalDeductions: number;
+  totalAdvances: number;
+  overtimeHours: number;
+  overtimeAmount: number;
+  status: string;
+  paidAt?: string | null;
+  lines: PayrollLine[];
+};
+type SalaryPaymentRow = {
+  id: number;
+  paymentDate?: string | null;
+  sourceMonth?: string | null;
+  transactionId: string;
+  beneficiaryName: string;
+  bankName?: string | null;
+  amount: number;
+  civilId?: string | null;
+  status?: string | null;
+};
+
+const now = new Date();
+const initialMonth = now.getMonth() + 1;
+const initialYear = now.getFullYear();
+
+function statusPill(status: string) {
+  const cls = status === 'PAID' ? 'green' : status === 'APPROVED' ? 'blue' : status === 'CANCELLED' ? 'red' : 'amber';
+  return <span className={`pill ${cls}`}>{status}</span>;
 }
 
-const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 3 });
-
 export default function Salaries() {
-  const [summary, setSummary] = useState<Summary | null>(null);
-  const [loading, setLoading] = useState(true);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [tx, setTx] = useState<any[]>([]);
+  const { hasPermission } = useAuth();
+  const [tab, setTab] = useState<'payroll' | 'history'>('payroll');
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [rows, setRows] = useState<PayrollRow[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [page, setPage] = useState(1);
-  const [query, setQuery] = useState('');
+  const [month, setMonth] = useState(initialMonth);
+  const [year, setYear] = useState(initialYear);
+  const [employeeId, setEmployeeId] = useState('');
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const [adjustPayrollId, setAdjustPayrollId] = useState('');
+  const [adjustType, setAdjustType] = useState<'ALLOWANCE' | 'DEDUCTION'>('ALLOWANCE');
+  const [adjustLabel, setAdjustLabel] = useState('');
+  const [adjustAmount, setAdjustAmount] = useState('');
+
+  const [inputEmployeeId, setInputEmployeeId] = useState('');
+  const [inputKind, setInputKind] = useState<'allowance' | 'deduction' | 'advance'>('allowance');
+  const [inputName, setInputName] = useState('');
+  const [inputAmount, setInputAmount] = useState('');
+
+  const [historyRows, setHistoryRows] = useState<SalaryPaymentRow[]>([]);
+  const [historyMeta, setHistoryMeta] = useState<PageMeta | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyQuery, setHistoryQuery] = useState('');
+
+  const [payingRowId, setPayingRowId] = useState<number | null>(null);
+  const [payMethod, setPayMethod] = useState('BANK');
+
+  const canGenerate = hasPermission('payroll.generate') || hasPermission('payroll.create');
+  const canApprove = hasPermission('payroll.approve');
+  const canPay = hasPermission('payroll.pay');
+  const canAdjust = hasPermission('payroll.adjust');
+  const canCancel = hasPermission('payroll.cancel');
+  const canPayslip = hasPermission('payroll.payslip') || hasPermission('payroll.read');
+
+  async function loadPayroll() {
+    const res = await api.get('/payroll', {
+      params: {
+        page,
+        pageSize: 12,
+        month,
+        year,
+        employeeId: employeeId || undefined,
+        status: status || undefined,
+      },
+    });
+    setRows(res.data.data.data ?? []);
+    setMeta(res.data.data.meta ?? null);
+  }
+
+  async function loadHistory() {
+    const res = await api.get('/salaries', { params: { page: historyPage, pageSize: 12, search: historyQuery } });
+    setHistoryRows(res.data.data.data ?? []);
+    setHistoryMeta(res.data.data.meta ?? null);
+  }
 
   useEffect(() => {
-    (async () => {
-      try {
-        const s = await api.get('/salaries/summary');
-        setSummary(s.data.data);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    api.get('/employees', { params: { pageSize: 500, status: 'ACTIVE' } })
+      .then((res) => setEmployees(res.data.data.data ?? []))
+      .catch(() => {});
   }, []);
 
-  // العمليات التفصيلية تُصفّى من الخادم باسم المستفيد
   useEffect(() => {
-    (async () => {
-      const r = await api.get('/salaries', { params: { page, pageSize: 12, search: query } });
-      setTx(r.data.data.data ?? []);
-      setMeta(r.data.data.meta ?? null);
-    })();
-  }, [page, query]);
+    loadPayroll().catch((e) => setError(errorMessage(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, month, year, employeeId, status]);
 
-  if (loading) return <div className="center-msg"><div className="spinner" />جارٍ تحميل الرواتب…</div>;
+  useEffect(() => {
+    if (tab === 'history') loadHistory().catch((e) => setError(errorMessage(e)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, historyPage, historyQuery]);
 
-  const empty = !summary || summary.employeeCount === 0;
+  const totals = useMemo(() => {
+    return rows.reduce((acc, row) => {
+      acc.gross += Number(row.grossSalary ?? 0);
+      acc.net += Number(row.netSalary ?? 0);
+      acc.count += 1;
+      if (row.status === 'PAID') acc.paid += 1;
+      return acc;
+    }, { gross: 0, net: 0, count: 0, paid: 0 });
+  }, [rows]);
 
-  // تصفية الملخص باسم الموظف (في المتصفّح) مع إعادة حساب الإجماليات للنتيجة المصفّاة
-  const q = query.trim().toLowerCase();
-  const months = summary?.months ?? [];
-  const allEmps = summary?.employees ?? [];
-  const emps = q ? allEmps.filter((e) => e.name.toLowerCase().includes(q)) : allEmps;
-  const monthTotals = months.map((_, i) => emps.reduce((s, e) => s + e.values[i], 0));
-  const monthCounts = months.map((_, i) => emps.reduce((s, e) => s + (e.values[i] > 0 ? 1 : 0), 0));
-  const grandTotal = emps.reduce((s, e) => s + e.total, 0);
-  const topMonthly = emps.length ? Math.max(0, ...emps.map((e) => Math.max(0, ...e.values))) : 0;
+  async function runAction(fn: () => Promise<void>) {
+    setBusy(true);
+    setError('');
+    setMessage('');
+    try {
+      await fn();
+      await loadPayroll();
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
-  const txColumns = [
-    { key: 'paymentDate', label: 'تاريخ الدفع', render: (r: Record<string, unknown>) => dateText(r.paymentDate) },
-    { key: 'sourceMonth', label: 'الشهر' },
-    { key: 'transactionId', label: 'رقم العملية', render: (r: Record<string, unknown>) => <span style={{ fontFamily: 'monospace' }}>{String(r.transactionId)}</span> },
-    { key: 'beneficiaryName', label: 'اسم المستفيد', render: (r: Record<string, unknown>) => <strong>{String(r.beneficiaryName)}</strong> },
-    { key: 'bankName', label: 'البنك' },
-    { key: 'amount', label: 'المبلغ', render: (r: Record<string, unknown>) => money(r.amount) },
-    { key: 'civilId', label: 'الرقم المدني', render: (r: Record<string, unknown>) => <span style={{ fontFamily: 'monospace' }}>{String(r.civilId ?? '—')}</span> },
-    { key: 'status', label: 'الحالة', render: (r: Record<string, unknown>) => <span className="pill green">{String(r.status ?? '—')}</span> },
+  async function generatePayroll() {
+    await runAction(async () => {
+      const res = await api.post('/payroll/generate', {
+        month,
+        year,
+        employeeId: employeeId ? Number(employeeId) : undefined,
+      });
+      setMessage(`Generated ${res.data.data.generated} payroll records.`);
+    });
+  }
+
+  async function addPayrollInput() {
+    if (!inputEmployeeId || !inputAmount || (inputKind !== 'advance' && !inputName.trim())) return;
+    await runAction(async () => {
+      const payload = {
+        employeeId: Number(inputEmployeeId),
+        name: inputName,
+        amount: Number(inputAmount),
+      };
+      if (inputKind === 'allowance') await api.post('/payroll/allowances', payload);
+      if (inputKind === 'deduction') await api.post('/payroll/recurring-deductions', payload);
+      if (inputKind === 'advance') await api.post('/payroll/advances', { employeeId: Number(inputEmployeeId), amount: Number(inputAmount), notes: inputName });
+      setInputName('');
+      setInputAmount('');
+      setMessage('Payroll input saved.');
+    });
+  }
+
+  async function addManualLine() {
+    if (!adjustPayrollId || !adjustLabel.trim() || !adjustAmount) return;
+    await runAction(async () => {
+      await api.post(`/payroll/${adjustPayrollId}/lines`, {
+        type: adjustType,
+        label: adjustLabel,
+        amount: Number(adjustAmount),
+      });
+      setAdjustLabel('');
+      setAdjustAmount('');
+      setMessage('Adjustment line added.');
+    });
+  }
+
+  const payrollColumns = [
+    { key: 'employee', label: 'Employee', render: (r: PayrollRow) => <strong>{r.employee?.fullName}</strong> },
+    { key: 'period', label: 'Period', render: (r: PayrollRow) => `${r.month}/${r.year}` },
+    { key: 'snapshotBaseSalary', label: 'Base', render: (r: PayrollRow) => money(r.snapshotBaseSalary ?? r.baseSalary) },
+    { key: 'grossSalary', label: 'Gross', render: (r: PayrollRow) => money(r.grossSalary) },
+    { key: 'totalDeductions', label: 'Deductions', render: (r: PayrollRow) => money(Number(r.totalDeductions ?? 0) + Number(r.totalAdvances ?? 0)) },
+    { key: 'overtime', label: 'Overtime', render: (r: PayrollRow) => `${Number(r.overtimeHours ?? 0).toFixed(3)}h / ${money(r.overtimeAmount)}` },
+    { key: 'netSalary', label: 'Net', render: (r: PayrollRow) => <strong>{money(r.netSalary)}</strong> },
+    { key: 'status', label: 'Status', render: (r: PayrollRow) => statusPill(r.status) },
+  ];
+
+  const historyColumns = [
+    { key: 'paymentDate', label: 'Payment date', render: (r: SalaryPaymentRow) => dateText(r.paymentDate) },
+    { key: 'sourceMonth', label: 'Source month' },
+    { key: 'transactionId', label: 'Transaction', render: (r: SalaryPaymentRow) => <span style={{ fontFamily: 'monospace' }}>{r.transactionId}</span> },
+    { key: 'beneficiaryName', label: 'Beneficiary', render: (r: SalaryPaymentRow) => <strong>{r.beneficiaryName}</strong> },
+    { key: 'bankName', label: 'Bank' },
+    { key: 'amount', label: 'Amount', render: (r: SalaryPaymentRow) => money(r.amount) },
+    { key: 'civilId', label: 'Civil ID', render: (r: SalaryPaymentRow) => <span style={{ fontFamily: 'monospace' }}>{r.civilId ?? '-'}</span> },
+    { key: 'status', label: 'Status', render: (r: SalaryPaymentRow) => <span className="pill green">{r.status ?? '-'}</span> },
   ];
 
   return (
     <div>
       <div className="page-head">
-        <div><h2>الرواتب</h2><p>ملخص الرواتب الشهري — دينار كويتي (KWD)</p></div>
-        <button className="btn secondary" onClick={() => window.print()}>🖨️ طباعة</button>
+        <div>
+          <h2>Payroll</h2>
+          <p>Monthly payroll generation, approvals, payment posting, payslips, and imported salary history.</p>
+        </div>
       </div>
 
-      {empty ? (
-        <div className="card panel" style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ fontSize: 56, marginBottom: 14 }}>💵</div>
-          <h3 style={{ fontSize: 20, marginBottom: 8 }}>لا توجد بيانات رواتب بعد</h3>
-          <p style={{ color: 'var(--text-muted)', maxWidth: 520, margin: '0 auto', fontWeight: 600 }}>
-            استورد ملف عمليات الرواتب من Excel عبر الأمر:
-          </p>
-          <pre style={{ direction: 'ltr', textAlign: 'left', background: 'var(--primary)', color: '#e2e8f0', borderRadius: 12, padding: '12px 16px', maxWidth: 560, margin: '14px auto', fontFamily: 'monospace', fontSize: 13 }}>
-            npm run import -- salaries "data\salary-report.xlsx"
-          </pre>
-        </div>
+      <div className="toolbar">
+        <button className={`btn ${tab === 'payroll' ? '' : 'secondary'}`} onClick={() => setTab('payroll')}>Payroll runs</button>
+        <button className={`btn ${tab === 'history' ? '' : 'secondary'}`} onClick={() => setTab('history')}>Imported history</button>
+      </div>
+
+      {error && <div className="alert error" style={{ marginBottom: 14 }}>{error}</div>}
+      {message && <div className="alert success" style={{ marginBottom: 14 }}>{message}</div>}
+
+      {tab === 'payroll' ? (
+        <>
+          <div className="toolbar">
+            <input type="number" min={1} max={12} value={month} onChange={(e) => { setMonth(Number(e.target.value)); setPage(1); }} style={{ width: 100 }} />
+            <input type="number" min={2000} max={2100} value={year} onChange={(e) => { setYear(Number(e.target.value)); setPage(1); }} style={{ width: 120 }} />
+            <select value={employeeId} onChange={(e) => { setEmployeeId(e.target.value); setPage(1); }}>
+              <option value="">All active employees</option>
+              {employees.map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
+            </select>
+            <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
+              <option value="">All statuses</option>
+              <option value="DRAFT">DRAFT</option>
+              <option value="APPROVED">APPROVED</option>
+              <option value="PAID">PAID</option>
+              <option value="CANCELLED">CANCELLED</option>
+            </select>
+            {canGenerate && <button className="btn" onClick={generatePayroll} disabled={busy}>Generate</button>}
+          </div>
+
+          <div className="stats" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+            <StatCard label="Payroll records" value={totals.count} icon="PR" color="var(--blue)" bg="var(--blue-light)" />
+            <StatCard label="Gross total" value={money(totals.gross)} icon="GR" color="var(--green)" bg="var(--green-light)" />
+            <StatCard label="Net total" value={money(totals.net)} icon="NT" color="var(--amber)" bg="var(--amber-light)" />
+            <StatCard label="Paid records" value={totals.paid} icon="PD" color="var(--green)" bg="var(--green-light)" />
+          </div>
+
+          {canAdjust && (
+            <div className="card" style={{ marginBottom: 18 }}>
+              <h3 style={{ marginBottom: 12 }}>Payroll inputs and adjustments</h3>
+              <div className="toolbar" style={{ marginBottom: 12 }}>
+                <select value={inputEmployeeId} onChange={(e) => setInputEmployeeId(e.target.value)}>
+                  <option value="">Employee</option>
+                  {employees.map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
+                </select>
+                <select value={inputKind} onChange={(e) => setInputKind(e.target.value as 'allowance' | 'deduction' | 'advance')}>
+                  <option value="allowance">Recurring allowance</option>
+                  <option value="deduction">Recurring deduction</option>
+                  <option value="advance">Advance</option>
+                </select>
+                <input placeholder={inputKind === 'advance' ? 'Notes' : 'Name'} value={inputName} onChange={(e) => setInputName(e.target.value)} />
+                <input type="number" step="0.001" placeholder="Amount" value={inputAmount} onChange={(e) => setInputAmount(e.target.value)} />
+                <button className="btn secondary" disabled={busy} onClick={addPayrollInput}>Save input</button>
+              </div>
+              <div className="toolbar">
+                <select value={adjustPayrollId} onChange={(e) => setAdjustPayrollId(e.target.value)}>
+                  <option value="">Draft payroll</option>
+                  {rows.filter((r) => r.status === 'DRAFT').map((r) => <option key={r.id} value={r.id}>{r.employee.fullName} - {r.month}/{r.year}</option>)}
+                </select>
+                <select value={adjustType} onChange={(e) => setAdjustType(e.target.value as 'ALLOWANCE' | 'DEDUCTION')}>
+                  <option value="ALLOWANCE">Manual allowance</option>
+                  <option value="DEDUCTION">Manual deduction</option>
+                </select>
+                <input placeholder="Label" value={adjustLabel} onChange={(e) => setAdjustLabel(e.target.value)} />
+                <input type="number" step="0.001" placeholder="Amount" value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} />
+                <button className="btn secondary" disabled={busy} onClick={addManualLine}>Add line</button>
+              </div>
+            </div>
+          )}
+
+          <DataTable
+            columns={payrollColumns}
+            rows={rows}
+            meta={meta}
+            onPage={setPage}
+            actions={(row: PayrollRow) => (
+              <>
+                {canPayslip && <Link className="btn secondary sm" to={`/payroll/${row.id}/payslip`}>Payslip</Link>}{' '}
+                {canApprove && row.status === 'DRAFT' && <button className="btn secondary sm" disabled={busy} onClick={() => runAction(() => api.patch(`/payroll/${row.id}/approve`))}>Approve</button>}{' '}
+                {canPay && row.status === 'APPROVED' && (
+                  payingRowId === row.id
+                    ? <>
+                        <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ fontSize: 12, padding: '2px 4px' }}>
+                          <option value="CASH">نقداً</option>
+                          <option value="BANK">تحويل بنكي</option>
+                          <option value="CHEQUE">شيك</option>
+                          <option value="TRANSFER">تحويل</option>
+                        </select>{' '}
+                        <button className="btn secondary sm" disabled={busy} onClick={() => { setPayingRowId(null); runAction(() => api.patch(`/payroll/${row.id}/pay`, { paymentMethod: payMethod })); }}>تأكيد</button>{' '}
+                        <button className="btn secondary sm" onClick={() => setPayingRowId(null)}>إلغاء</button>
+                      </>
+                    : <button className="btn secondary sm" disabled={busy} onClick={() => { setPayMethod('BANK'); setPayingRowId(row.id); }}>Pay</button>
+                )}{' '}
+                {canCancel && ['DRAFT', 'APPROVED'].includes(row.status) && <button className="btn secondary sm" disabled={busy} onClick={() => runAction(() => api.patch(`/payroll/${row.id}/cancel`))}>Cancel</button>}
+              </>
+            )}
+          />
+        </>
       ) : (
         <>
-          <div className="toolbar no-print">
+          <div className="toolbar">
             <input
-              placeholder="🔎 بحث / فلترة باسم الموظف…"
-              value={query}
-              onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+              placeholder="Search imported salary payments"
+              value={historyQuery}
+              onChange={(e) => { setHistoryQuery(e.target.value); setHistoryPage(1); }}
               style={{ flex: 1, minWidth: 260 }}
             />
-            {query && <button className="btn secondary" onClick={() => { setQuery(''); setPage(1); }}>مسح الفلتر</button>}
           </div>
-
-          <div className="stats" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-            <StatCard label={q ? 'إجمالي المصروف (مفلتر)' : 'إجمالي المصروف'} value={money(grandTotal)} icon="💵" color="var(--green)" bg="var(--green-light)" />
-            <StatCard label="عدد الموظفين" value={emps.length} icon="👷" color="var(--blue)" bg="var(--blue-light)" />
-            <StatCard label="عدد الأشهر" value={months.length} icon="📅" color="var(--amber)" bg="var(--amber-light)" />
-            <StatCard label="أعلى راتب شهري" value={money(topMonthly)} icon="📈" color="var(--green)" bg="var(--green-light)" />
-          </div>
-
-          <div className="card panel" style={{ padding: 0, marginBottom: 24 }}>
-            <div style={{ padding: '18px 24px 0' }}><h3>ملخص الرواتب الشهري</h3><div className="ph-sub">مجموع المصروف لكل موظف حسب الشهر{q ? ` — نتائج الفلتر: «${query}»` : ''}</div></div>
-            <div className="table-responsive">
-              <table>
-                <thead>
-                  <tr>
-                    <th>#</th><th>اسم الموظف</th>
-                    {months.map((m) => <th key={m} style={{ textAlign: 'center' }}>{m}</th>)}
-                    <th style={{ textAlign: 'center' }}>عدد الأشهر</th>
-                    <th style={{ textAlign: 'center' }}>إجمالي المستلم</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {emps.length === 0 ? (
-                    <tr><td colSpan={months.length + 4}><div className="center-msg">لا يوجد موظف بهذا الاسم</div></td></tr>
-                  ) : emps.map((e, idx) => (
-                    <tr key={e.name + idx}>
-                      <td style={{ color: 'var(--text-muted)' }}>{idx + 1}</td>
-                      <td><strong>{e.name}</strong></td>
-                      {e.values.map((v, i) => (
-                        <td key={i} style={{ textAlign: 'center', color: v === 0 ? 'var(--text-muted)' : 'var(--text)' }}>{fmt(v)}</td>
-                      ))}
-                      <td style={{ textAlign: 'center' }}><span className="pill blue">{e.monthsPaid}</span></td>
-                      <td style={{ textAlign: 'center', fontWeight: 800, color: 'var(--green)' }}>{fmt(e.total)}</td>
-                    </tr>
-                  ))}
-                  {emps.length > 0 && (
-                    <>
-                      <tr style={{ background: 'var(--surface-2)' }}>
-                        <td></td><td style={{ fontWeight: 800 }}>عدد الموظفين المستلمين</td>
-                        {monthCounts.map((c, i) => <td key={i} style={{ textAlign: 'center', fontWeight: 800, color: 'var(--blue)' }}>{c}</td>)}
-                        <td></td><td></td>
-                      </tr>
-                      <tr style={{ background: 'var(--primary)' }}>
-                        <td></td><td style={{ fontWeight: 800, color: '#fff' }}>إجمالي المبالغ (KWD)</td>
-                        {monthTotals.map((t, i) => <td key={i} style={{ textAlign: 'center', fontWeight: 800, color: '#fff' }}>{fmt(t)}</td>)}
-                        <td></td>
-                        <td style={{ textAlign: 'center', fontWeight: 800, color: '#fff' }}>{fmt(grandTotal)}</td>
-                      </tr>
-                    </>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <h3 style={{ marginBottom: 12 }}>العمليات التفصيلية{q ? ` — «${query}»` : ''}</h3>
-          <DataTable columns={txColumns} rows={tx} meta={meta} onPage={setPage} />
+          <DataTable columns={historyColumns} rows={historyRows} meta={historyMeta} onPage={setHistoryPage} />
         </>
       )}
     </div>

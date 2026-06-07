@@ -21,6 +21,8 @@ interface ReportQuery {
   employeeId?: string;
   status?: string;
   direction?: string;
+  month?: string;
+  year?: string;
 }
 
 /** يبني محتوى التقرير (أعمدة + صفوف) حسب النوع. التنسيق (PDF/Excel) منفصل. */
@@ -253,8 +255,11 @@ export class ReportsService {
 
   private async payroll(q: ReportQuery): Promise<ReportInput> {
     const where: Prisma.PayrollWhereInput = {};
-    if (q.from) where.year = new Date(q.from).getFullYear();
+    if (q.month) where.month = Number(q.month);
+    if (q.year) where.year = Number(q.year);
+    if (!q.year && q.from) where.year = new Date(q.from).getFullYear();
     if (q.employeeId) where.employeeId = Number(q.employeeId);
+    if (q.status) where.status = q.status;
     const rows = await prisma.payroll.findMany({
       where,
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
@@ -267,18 +272,18 @@ export class ReportsService {
       columns: [
         { header: 'الموظف', key: 'name', width: 30 },
         { header: 'الشهر', key: 'period', width: 14 },
-        { header: 'الأساسي', key: 'base', width: 16, numFmt: '#,##0.00' },
-        { header: 'مكافآت', key: 'bonus', width: 14, numFmt: '#,##0.00' },
-        { header: 'خصومات', key: 'ded', width: 14, numFmt: '#,##0.00' },
-        { header: 'الصافي', key: 'net', width: 16, numFmt: '#,##0.00' },
+        { header: 'الأساسي', key: 'base', width: 16, numFmt: '#,##0.000' },
+        { header: 'مكافآت', key: 'bonus', width: 14, numFmt: '#,##0.000' },
+        { header: 'خصومات', key: 'ded', width: 14, numFmt: '#,##0.000' },
+        { header: 'الصافي', key: 'net', width: 16, numFmt: '#,##0.000' },
         { header: 'الحالة', key: 'status', width: 14 },
       ],
       rows: rows.map((p) => ({
         name: p.employee.fullName,
         period: `${p.month}/${p.year}`,
-        base: num(p.baseSalary),
-        bonus: num(p.totalBonus),
-        ded: num(p.totalDeduction),
+        base: num(p.snapshotBaseSalary || p.baseSalary),
+        bonus: num(p.totalAllowances || p.totalBonus) + num(p.overtimeAmount),
+        ded: num(p.totalDeductions) + num(p.totalAdvances),
         net: num(p.netSalary),
         status: p.status,
       })),

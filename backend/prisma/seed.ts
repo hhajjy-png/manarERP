@@ -38,7 +38,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   customers: ['read', 'create', 'update', 'delete', 'export'],
   employees: ['read', 'create', 'update', 'delete', 'export'],
   attendance: ['read', 'create', 'update', 'delete', 'export'],
-  payroll: ['read', 'create', 'update', 'delete', 'approve', 'export'],
+  payroll: ['read', 'create', 'update', 'delete', 'approve', 'export', 'pay', 'generate', 'payslip', 'adjust', 'cancel'],
   equipment: ['read', 'create', 'update', 'delete', 'export'],
   maintenance: ['read', 'create', 'update', 'delete', 'export'],
   contracts: ['read', 'create', 'update', 'delete', 'export'],
@@ -61,6 +61,11 @@ const ACTION_AR: Record<string, string> = {
   delete: 'حذف',
   approve: 'اعتماد',
   export: 'تصدير',
+  pay: 'صرف',
+  generate: 'توليد',
+  payslip: 'قسيمة راتب',
+  adjust: 'تسوية',
+  cancel: 'إلغاء',
 };
 
 // مصفوفة صلاحيات كل دور (قائمة وحدات بصلاحية كاملة، أو مفاتيح محددة)
@@ -109,6 +114,8 @@ async function main() {
       ...keysForModules(['invoices', 'expenses', 'transactions', 'suppliers', 'reports', 'customers']),
       ...readOnly(['dashboard', 'contracts', 'employees', 'equipment', 'payroll', 'audit']),
       'payroll.export',
+      'payroll.pay',
+      'payroll.payslip',
     ],
     PROJECT_MANAGER: [
       ...keysForModules(['contracts', 'reports']),
@@ -134,13 +141,15 @@ async function main() {
     });
 
     const keys = [...new Set(rolePermissionMap[name] ?? [])];
-    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
-    await prisma.rolePermission.createMany({
-      data: keys
-        .map((k) => permByKey.get(k))
-        .filter((id): id is number => id != null)
-        .map((permissionId) => ({ roleId: role.id, permissionId })),
-    });
+    for (const key of keys) {
+      const permissionId = permByKey.get(key);
+      if (!permissionId) continue;
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: role.id, permissionId } },
+        update: {},
+        create: { roleId: role.id, permissionId },
+      });
+    }
     console.log(`  ✓ دور: ${displayName} (${keys.length} صلاحية)`);
   }
 
