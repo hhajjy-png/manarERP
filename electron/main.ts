@@ -3,6 +3,7 @@ import { createMainWindow } from './windows/mainWindow';
 import { startBackend, stopBackend } from './services/backendLauncher';
 import { startBackupScheduler, stopBackupScheduler } from './services/backupScheduler';
 import { registerDialogIpc } from './ipc/dialog.ipc';
+import { registerBackupIpc } from './ipc/backup.ipc';
 
 // منع تشغيل أكثر من نسخة من التطبيق في آن واحد
 const gotLock = app.requestSingleInstanceLock();
@@ -15,6 +16,7 @@ let mainWindow: BrowserWindow | null = null;
 async function bootstrap() {
   try {
     registerDialogIpc();
+    registerBackupIpc();
     await startBackend(); // تشغيل الخدمة الخلفية أولًا
     startBackupScheduler(); // ثم جدولة النسخ التلقائي
 
