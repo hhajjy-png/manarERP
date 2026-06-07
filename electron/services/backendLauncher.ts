@@ -35,10 +35,27 @@ export function getUserDataPaths() {
   // في الإنتاج: انسخ قاعدة البيانات المبدئية المُهيّأة عند أول تشغيل
   if (!isDev && !fs.existsSync(dbPath)) {
     const templateDb = path.join(backendCwd, 'data', 'manar.db');
-    if (fs.existsSync(templateDb)) fs.copyFileSync(templateDb, dbPath);
+    if (fs.existsSync(templateDb)) {
+      try {
+        fs.copyFileSync(templateDb, dbPath);
+        // eslint-disable-next-line no-console
+        console.log(`[DB] تم نسخ قاعدة البيانات المبدئية إلى: ${dbPath}`);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`[DB] فشل نسخ قاعدة البيانات المبدئية:`, err);
+      }
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(`[DB] لم يُعثر على قاعدة البيانات المبدئية في: ${templateDb}`);
+    }
   }
 
   return { isDev, backendCwd, dataDir, dbPath, backupDir };
+}
+
+/** تحويل المسار إلى صيغة URL مقبولة بـ SQLite (شرطات أمامية — مهم على Windows). */
+function toFileUrl(absPath: string): string {
+  return 'file:' + absPath.replace(/\\/g, '/');
 }
 
 /**
@@ -46,6 +63,16 @@ export function getUserDataPaths() {
  */
 export function startBackend(): Promise<void> {
   const { isDev, backendCwd, dataDir, dbPath, backupDir } = getUserDataPaths();
+
+  const databaseUrl = toFileUrl(dbPath);
+
+  // تسجيل واضح لمسار قاعدة البيانات المستخدمة
+  // eslint-disable-next-line no-console
+  console.log(`[DB] بيئة التشغيل: ${isDev ? 'تطوير' : 'إنتاج'}`);
+  // eslint-disable-next-line no-console
+  console.log(`[DB] مسار قاعدة البيانات: ${dbPath}`);
+  // eslint-disable-next-line no-console
+  console.log(`[DB] DATABASE_URL: ${databaseUrl}`);
 
   const entry = isDev
     ? path.join(backendCwd, 'src', 'server.ts')
@@ -56,7 +83,7 @@ export function startBackend(): Promise<void> {
     // مهم جدًا: يجعل ثنائي Electron يعمل كـ Node عند تشغيل العملية الفرعية
     ELECTRON_RUN_AS_NODE: '1',
     NODE_ENV: isDev ? 'development' : 'production',
-    DATABASE_URL: `file:${dbPath}`,
+    DATABASE_URL: databaseUrl,
     BACKUP_DIR: backupDir,
     DATA_DIR: dataDir,
     PORT: '48211',

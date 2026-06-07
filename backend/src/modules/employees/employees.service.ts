@@ -77,13 +77,20 @@ export class EmployeesService {
         ],
       },
       select: {
-        id: true, code: true, fullName: true, fullNameEn: true,
-        residencyExpiry: true, passportExpiry: true, licenseExpiry: true, vehicleLicenseExpiry: true,
+        id: true,
+        code: true,
+        fullName: true,
+        fullNameEn: true,
+        residencyExpiry: true,
+        passportExpiry: true,
+        licenseExpiry: true,
+        vehicleLicenseExpiry: true,
       },
     });
 
     const msDay = 86_400_000;
-    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
     const remaining = (d: Date | null) =>
       d ? Math.round((new Date(d).setHours(0, 0, 0, 0) - today.getTime()) / msDay) : null;
 
@@ -91,7 +98,8 @@ export class EmployeesService {
       const alerts: { document: string; expiry: Date; remainingDays: number }[] = [];
       const push = (doc: string, d: Date | null) => {
         const r = remaining(d);
-        if (d && r !== null && r <= days) alerts.push({ document: doc, expiry: d, remainingDays: r });
+        if (d && r !== null && r <= days)
+          alerts.push({ document: doc, expiry: d, remainingDays: r });
       };
       push('الإقامة', e.residencyExpiry);
       push('جواز السفر', e.passportExpiry);
@@ -108,9 +116,16 @@ export class EmployeesService {
   }
 
   async create(input: CreateEmployeeInput, req: Request) {
-    if (await repo.exists({ code: input.code })) throw AppError.conflict('الرقم الوظيفي مُستخدم من قبل');
+    if (await repo.exists({ code: input.code }))
+      throw AppError.conflict('الرقم الوظيفي مُستخدم من قبل');
     const employee = await repo.create({ ...input, email: input.email || null });
-    await recordAudit({ req, action: 'CREATE', module: 'employees', entityId: employee.id, newValue: { code: input.code } });
+    await recordAudit({
+      req,
+      action: 'CREATE',
+      module: 'employees',
+      entityId: employee.id,
+      newValue: { code: input.code },
+    });
     return employee;
   }
 
@@ -120,7 +135,14 @@ export class EmployeesService {
     const data = { ...input } as Record<string, unknown>;
     if (input.email !== undefined) data.email = input.email || null;
     const employee = await repo.update(id, data);
-    await recordAudit({ req, action: 'UPDATE', module: 'employees', entityId: id, oldValue: current, newValue: input });
+    await recordAudit({
+      req,
+      action: 'UPDATE',
+      module: 'employees',
+      entityId: id,
+      oldValue: current,
+      newValue: input,
+    });
     return employee;
   }
 
@@ -151,10 +173,21 @@ export class EmployeesService {
   /** تسجيل/تحديث حضور يوم (Upsert على employeeId+date). */
   async recordAttendance(input: AttendanceInput, req: Request) {
     const workHours = diffHours(input.checkIn, input.checkOut);
+
+    // تطبيع التاريخ إلى منتصف الليل UTC لضمان استقرار المفتاح الفريد employeeId_date
+    const normalizedDate = new Date(input.date);
+    normalizedDate.setUTCHours(0, 0, 0, 0);
+
     const att = await prisma.attendance.upsert({
-      where: { employeeId_date: { employeeId: input.employeeId, date: input.date } },
-      update: { checkIn: input.checkIn, checkOut: input.checkOut, status: input.status, workHours, notes: input.notes },
-      create: { ...input, workHours },
+      where: { employeeId_date: { employeeId: input.employeeId, date: normalizedDate } },
+      update: {
+        checkIn: input.checkIn,
+        checkOut: input.checkOut,
+        status: input.status,
+        workHours,
+        notes: input.notes,
+      },
+      create: { ...input, date: normalizedDate, workHours },
     });
     await recordAudit({ req, action: 'CREATE', module: 'attendance', entityId: att.id });
     return att;
@@ -172,7 +205,13 @@ export class EmployeesService {
   async requestLeave(input: LeaveInput, req: Request) {
     const days = diffDays(input.startDate, input.endDate);
     const leave = await prisma.leave.create({ data: { ...input, days, status: 'PENDING' } });
-    await recordAudit({ req, action: 'CREATE', module: 'employees', entityId: leave.id, newValue: { leave: input.type, days } });
+    await recordAudit({
+      req,
+      action: 'CREATE',
+      module: 'employees',
+      entityId: leave.id,
+      newValue: { leave: input.type, days },
+    });
     return leave;
   }
 
@@ -180,20 +219,37 @@ export class EmployeesService {
     const leave = await prisma.leave.findUnique({ where: { id } });
     if (!leave) throw AppError.notFound('طلب الإجازة غير موجود');
     const updated = await prisma.leave.update({ where: { id }, data: { status } });
-    await recordAudit({ req, action: status === 'APPROVED' ? 'APPROVE' : 'REJECT', module: 'employees', entityId: id });
+    await recordAudit({
+      req,
+      action: status === 'APPROVED' ? 'APPROVE' : 'REJECT',
+      module: 'employees',
+      entityId: id,
+    });
     return updated;
   }
 
   // ===== الخصومات والمكافآت =====
   async addDeduction(input: AdjustmentInput, req: Request) {
     const d = await prisma.deduction.create({ data: { ...input, date: input.date ?? new Date() } });
-    await recordAudit({ req, action: 'CREATE', module: 'employees', entityId: d.id, newValue: { deduction: input.amount } });
+    await recordAudit({
+      req,
+      action: 'CREATE',
+      module: 'employees',
+      entityId: d.id,
+      newValue: { deduction: input.amount },
+    });
     return d;
   }
 
   async addBonus(input: AdjustmentInput, req: Request) {
     const b = await prisma.bonus.create({ data: { ...input, date: input.date ?? new Date() } });
-    await recordAudit({ req, action: 'CREATE', module: 'employees', entityId: b.id, newValue: { bonus: input.amount } });
+    await recordAudit({
+      req,
+      action: 'CREATE',
+      module: 'employees',
+      entityId: b.id,
+      newValue: { bonus: input.amount },
+    });
     return b;
   }
 }
