@@ -27,13 +27,14 @@ const api = {
 
   // ─── Backup / Restore (Electron IPC مباشر — مستقل عن الخادم الخلفي) ────────
 
-  /** إنشاء نسخة احتياطية مباشرة من ملف قاعدة البيانات إلى المسار المحدد. */
-  backupCreate: (targetPath: string): Promise<{
+  /** إنشاء نسخة احتياطية — يفتح حوار الحفظ في العملية الرئيسية. */
+  backupCreate: (): Promise<{
     success: boolean;
+    canceled?: boolean;
     path?: string;
     sizeBytes?: number;
     error?: string;
-  }> => ipcRenderer.invoke('backup:create', targetPath),
+  }> => ipcRenderer.invoke('backup:create'),
 
   /**
    * استعادة قاعدة البيانات من ملف .db خارجي.

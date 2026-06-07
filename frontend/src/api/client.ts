@@ -11,8 +11,8 @@ declare global {
       printPage: () => Promise<void>;
       getAppInfo: () => Promise<{ version: string; platform: string }>;
       // ─── Backup / Restore IPC ────────────────────────────────────────────────
-      backupCreate: (targetPath: string) => Promise<{
-        success: boolean; path?: string; sizeBytes?: number; error?: string;
+      backupCreate: () => Promise<{
+        success: boolean; canceled?: boolean; path?: string; sizeBytes?: number; error?: string;
       }>;
       backupRestore: (sourcePath: string) => Promise<{
         success: boolean; requiresRestart?: boolean;

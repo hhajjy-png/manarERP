@@ -11,12 +11,6 @@ function fmt(bytes: number): string {
   return `${(bytes / 1048576).toFixed(2)} م.ب`;
 }
 
-function stamp(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
-}
-
 export default function Backup() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [list, setList] = useState<any[]>([]);
@@ -55,16 +49,12 @@ export default function Backup() {
   // ─── نسخة احتياطية مباشرة عبر Electron IPC ────────────────────────────────
   async function createBackupElectron() {
     if (!isElectron) { showMsg('هذه الميزة متاحة فقط في تطبيق سطح المكتب', 'warn'); return; }
-    const defaultName = `manar-backup-${stamp()}.db`;
-    const targetPath = await window.manar!.chooseSavePath(defaultName);
-    if (!targetPath) return;
-
     setBusy(true); setMsg(null);
-    const result = await window.manar!.backupCreate(targetPath);
+    const result = await window.manar!.backupCreate();
     setBusy(false);
     if (result.success) {
       showMsg(`تم حفظ النسخة الاحتياطية بنجاح ✓  (${fmt(result.sizeBytes ?? 0)})`);
-    } else {
+    } else if (!result.canceled) {
       showMsg(result.error ?? 'فشل إنشاء النسخة الاحتياطية', 'err');
     }
   }

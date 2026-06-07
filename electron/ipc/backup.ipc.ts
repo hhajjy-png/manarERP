@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { ipcMain, dialog, BrowserWindow } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { getUserDataPaths, stopBackend } from '../services/backendLauncher';
@@ -10,6 +10,20 @@ function timestamp(): string {
     `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}` +
     `-${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`
   );
+}
+
+/** تحقق من أن الملف قاعدة بيانات SQLite صالحة بفحص أول 16 بايت (magic header). */
+function validateSqliteDbFile(filePath: string): boolean {
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    const buf = Buffer.alloc(16);
+    fs.readSync(fd, buf, 0, 16, 0);
+    fs.closeSync(fd);
+    // SQLite magic: "SQLite format 3" + null byte (0x00)
+    return buf.toString('binary') === 'SQLite format 3\0';
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -32,19 +46,27 @@ export function registerBackupIpc() {
   });
 
   // ─── backup:create ──────────────────────────────────────────────────────────
-  ipcMain.handle('backup:create', async (_e, targetPath: string) => {
-    if (!targetPath) return { success: false, error: 'لم يُحدَّد مسار الحفظ' };
-    if (!targetPath.endsWith('.db')) return { success: false, error: 'يجب أن يكون الملف بصيغة .db' };
-
+  // يفتح حوار الحفظ هنا في العملية الرئيسية — لا يقبل مسارًا من الواجهة
+  ipcMain.handle('backup:create', async () => {
     const { dbPath } = getUserDataPaths();
 
     if (!fs.existsSync(dbPath)) {
       return { success: false, error: 'ملف قاعدة البيانات غير موجود' };
     }
 
-    if (fs.existsSync(targetPath)) {
-      return { success: false, error: 'يوجد ملف بهذا الاسم بالفعل — اختر اسمًا مختلفًا' };
+    const defaultName = `manar-backup-${timestamp()}.db`;
+    const win = BrowserWindow.getFocusedWindow();
+    const saveResult = await dialog.showSaveDialog(win!, {
+      title: 'حفظ نسخة احتياطية',
+      defaultPath: defaultName,
+      filters: [{ name: 'قاعدة بيانات', extensions: ['db'] }],
+    });
+
+    if (saveResult.canceled || !saveResult.filePath) {
+      return { success: false, canceled: true };
     }
+
+    const targetPath = saveResult.filePath;
 
     try {
       fs.mkdirSync(path.dirname(targetPath), { recursive: true });
@@ -84,6 +106,11 @@ export function registerBackupIpc() {
     const sourceSize = fs.statSync(sourcePath).size;
     if (sourceSize === 0) {
       return { success: false, error: 'ملف النسخة الاحتياطية فارغ — لا يمكن الاستعادة منه' };
+    }
+
+    // التحقق من أن الملف قاعدة بيانات SQLite صالحة (magic header)
+    if (!validateSqliteDbFile(sourcePath)) {
+      return { success: false, error: 'الملف المختار ليس قاعدة بيانات SQLite صالحة' };
     }
 
     const { dbPath, backupDir } = getUserDataPaths();
