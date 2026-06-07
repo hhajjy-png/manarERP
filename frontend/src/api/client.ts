@@ -22,9 +22,7 @@ declare global {
         dir: string; backupDir: string; exists: boolean; sizeBytes: number; isDev: boolean;
       }>;
       // ─── Session IPC ────────────────────────────────────────────────────────────
-      setSessionUser: (session: {
-        userId: number; username: string; roleName: string; permissions: string[];
-      } | null) => Promise<{ ok: boolean }>;
+      setSessionToken: (token: string | null) => Promise<{ ok: boolean }>;
     };
   }
 }
