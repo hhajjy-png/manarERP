@@ -239,29 +239,29 @@ export const MODULES: Record<string, ModuleConfig> = {
   },
 };
 
-// ترتيب القائمة الجانبية
+// ترتيب القائمة الجانبية — label/group values are i18n keys resolved in Layout.tsx
 export const NAV: { group: string; items: { key: string; label: string; icon: string; permission?: string }[] }[] = [
-  { group: '', items: [{ key: 'dashboard', label: 'لوحة التحكم', icon: '📊' }] },
-  { group: 'العمليات الأساسية', items: [
-    { key: 'contracts', label: 'إدارة العقود', icon: '📄', permission: 'contracts.read' },
-    { key: 'customers', label: 'العملاء والجهات', icon: '👥', permission: 'customers.read' },
-    { key: 'equipment', label: 'المعدات والآليات', icon: '🚜', permission: 'equipment.read' },
-    { key: 'employees', label: 'الموظفون والكوادر', icon: '👷', permission: 'employees.read' },
+  { group: '', items: [{ key: 'dashboard', label: 'nav.dashboard', icon: '📊' }] },
+  { group: 'nav.group.core', items: [
+    { key: 'contracts', label: 'nav.contracts', icon: '📄', permission: 'contracts.read' },
+    { key: 'customers', label: 'nav.customers', icon: '👥', permission: 'customers.read' },
+    { key: 'equipment', label: 'nav.equipment', icon: '🚜', permission: 'equipment.read' },
+    { key: 'employees', label: 'nav.employees', icon: '👷', permission: 'employees.read' },
   ] },
-  { group: 'الإدارة المالية', items: [
-    { key: 'invoices', label: 'الفواتير والمطالبات', icon: '🧾', permission: 'invoices.read' },
-    { key: 'expenses', label: 'المصروفات والتشغيل', icon: '💸', permission: 'expenses.read' },
-    { key: 'salaries', label: 'الرواتب', icon: '💵', permission: 'payroll.read' },
-    { key: 'suppliers', label: 'الموردون', icon: '📦', permission: 'suppliers.read' },
-    { key: 'accounting', label: 'القيود المحاسبية', icon: '📒', permission: 'transactions.read' },
+  { group: 'nav.group.financial', items: [
+    { key: 'invoices', label: 'nav.invoices', icon: '🧾', permission: 'invoices.read' },
+    { key: 'expenses', label: 'nav.expenses', icon: '💸', permission: 'expenses.read' },
+    { key: 'salaries', label: 'nav.salaries', icon: '💵', permission: 'payroll.read' },
+    { key: 'suppliers', label: 'nav.suppliers', icon: '📦', permission: 'suppliers.read' },
+    { key: 'accounting', label: 'nav.accounting', icon: '📒', permission: 'transactions.read' },
   ] },
-  { group: 'المستودع', items: [
-    { key: 'inventory', label: 'المخزون والمشتريات', icon: '🏭', permission: 'inventory.read' },
+  { group: 'nav.group.warehouse', items: [
+    { key: 'inventory', label: 'nav.inventory', icon: '🏭', permission: 'inventory.read' },
   ] },
-  { group: 'النظام', items: [
-    { key: 'reports', label: 'التقارير الشاملة', icon: '📈', permission: 'reports.read' },
-    { key: 'users', label: 'الصلاحيات والمستخدمين', icon: '🔐', permission: 'users.read' },
-    { key: 'backup', label: 'النسخ الاحتياطي', icon: '💾', permission: 'backups.read' },
-    { key: 'settings', label: 'إعدادات الشركة', icon: '⚙️', permission: 'settings.read' },
+  { group: 'nav.group.system', items: [
+    { key: 'reports', label: 'nav.reports', icon: '📈', permission: 'reports.read' },
+    { key: 'users', label: 'nav.users', icon: '🔐', permission: 'users.read' },
+    { key: 'backup', label: 'nav.backup', icon: '💾', permission: 'backups.read' },
+    { key: 'settings', label: 'nav.settings', icon: '⚙️', permission: 'settings.read' },
   ] },
 ];

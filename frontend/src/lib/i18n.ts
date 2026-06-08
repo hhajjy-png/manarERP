@@ -18,6 +18,12 @@ const DICT: Record<Lang, Record<string, string>> = {
     'action.cancel': 'إلغاء',
     'action.prev': 'السابق',
     'action.next': 'التالي',
+    'action.search': 'بحث',
+    'action.search_placeholder': 'بحث…',
+    'action.edit': 'تعديل',
+    'action.delete': 'حذف',
+    'action.approve': 'اعتماد ✔',
+    'action.reject': 'رفض',
 
     // messages
     'msg.loading': 'جارٍ التحميل…',
@@ -28,6 +34,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'msg.total': 'الإجمالي',
     'msg.required_field': 'الحقل «{field}» مطلوب',
     'msg.select_placeholder': '— اختر —',
+    'msg.confirm_delete': 'هل تريد حذف هذا السجل؟ ({id})',
+    'msg.alert_prefix': 'تنبيه ({count}):',
 
     // login page
     'page.login.title': 'نظام المنار',
@@ -45,22 +53,25 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.settings.saved': 'تم حفظ الإعدادات بنجاح ✓',
     'page.settings.language': 'لغة الواجهة',
 
-    // nav items (Phase 2 — not yet wired to modules.tsx)
+    // nav items — AR values match exact current NAV labels in modules.tsx
     'nav.dashboard': 'لوحة التحكم',
     'nav.contracts': 'إدارة العقود',
-    'nav.customers': 'العملاء',
-    'nav.equipment': 'الأسطول والمعدات',
-    'nav.employees': 'الموظفون',
+    'nav.customers': 'العملاء والجهات',
+    'nav.equipment': 'المعدات والآليات',
+    'nav.employees': 'الموظفون والكوادر',
     'nav.suppliers': 'الموردون',
-    'nav.expenses': 'المصروفات',
-    'nav.users': 'المستخدمون والأدوار',
-    'nav.invoices': 'الفواتير',
-    'nav.salaries': 'كشوف الرواتب',
-    'nav.accounting': 'المحاسبة والحسابات',
-    'nav.reports': 'التقارير',
-    'nav.settings': 'الإعدادات',
+    'nav.expenses': 'المصروفات والتشغيل',
+    'nav.invoices': 'الفواتير والمطالبات',
+    'nav.salaries': 'الرواتب',
+    'nav.accounting': 'القيود المحاسبية',
+    'nav.reports': 'التقارير الشاملة',
+    'nav.users': 'الصلاحيات والمستخدمين',
     'nav.backup': 'النسخ الاحتياطي',
+    'nav.settings': 'إعدادات الشركة',
     'nav.inventory': 'المخزون والمشتريات',
+
+    // nav group labels
+    'nav.group.core': 'العمليات الأساسية',
     'nav.group.financial': 'الإدارة المالية',
     'nav.group.warehouse': 'المستودع',
     'nav.group.system': 'النظام',
@@ -92,6 +103,12 @@ const DICT: Record<Lang, Record<string, string>> = {
     'action.cancel': 'Cancel',
     'action.prev': 'Previous',
     'action.next': 'Next',
+    'action.search': 'Search',
+    'action.search_placeholder': 'Search…',
+    'action.edit': 'Edit',
+    'action.delete': 'Delete',
+    'action.approve': 'Approve ✔',
+    'action.reject': 'Reject',
 
     // messages
     'msg.loading': 'Loading…',
@@ -102,6 +119,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'msg.total': 'Total',
     'msg.required_field': 'Field "{field}" is required',
     'msg.select_placeholder': '— Select —',
+    'msg.confirm_delete': 'Delete this record? ({id})',
+    'msg.alert_prefix': 'Alert ({count}):',
 
     // login page
     'page.login.title': 'Al-Manar System',
@@ -119,7 +138,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.settings.saved': 'Settings saved successfully ✓',
     'page.settings.language': 'Interface Language',
 
-    // nav items (Phase 2)
+    // nav items
     'nav.dashboard': 'Dashboard',
     'nav.contracts': 'Contracts',
     'nav.customers': 'Customers',
@@ -127,14 +146,17 @@ const DICT: Record<Lang, Record<string, string>> = {
     'nav.employees': 'Employees',
     'nav.suppliers': 'Suppliers',
     'nav.expenses': 'Expenses',
-    'nav.users': 'Users & Roles',
     'nav.invoices': 'Invoices',
     'nav.salaries': 'Payroll',
     'nav.accounting': 'Accounting',
     'nav.reports': 'Reports',
-    'nav.settings': 'Settings',
+    'nav.users': 'Users & Roles',
     'nav.backup': 'Backup',
+    'nav.settings': 'Settings',
     'nav.inventory': 'Inventory & Purchases',
+
+    // nav group labels
+    'nav.group.core': 'Core Operations',
     'nav.group.financial': 'Financial Management',
     'nav.group.warehouse': 'Warehouse',
     'nav.group.system': 'System',

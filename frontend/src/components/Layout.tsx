@@ -29,7 +29,7 @@ export default function Layout() {
             if (items.length === 0) return null;
             return (
               <div key={section.group || 'main'}>
-                {section.group && <div className="group">{section.group}</div>}
+                {section.group && <div className="group">{t(section.group)}</div>}
                 {items.map((it) => (
                   <NavLink
                     key={it.key}
@@ -37,7 +37,7 @@ export default function Layout() {
                     className={({ isActive }) => (isActive ? 'active' : '')}
                     onClick={closeSidebar}
                   >
-                    <span className="ic">{it.icon}</span> {it.label}
+                    <span className="ic">{it.icon}</span> {t(it.label)}
                   </NavLink>
                 ))}
               </div>

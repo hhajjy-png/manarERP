@@ -2,12 +2,14 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { MODULES } from '../config/modules';
 import { useAuth } from '../stores/authStore';
+import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
 import FormDialog from '../components/FormDialog';
 
 export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const cfg = MODULES[moduleKey];
   const { hasPermission } = useAuth();
+  const { t } = useT();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -73,7 +75,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function onDelete(row: any) {
-    if (!confirm(`هل تريد حذف هذا السجل؟ (${row.code ?? row.name ?? row.username ?? row.id})`)) return;
+    if (!confirm(t('msg.confirm_delete', { id: row.code ?? row.name ?? row.username ?? row.id }))) return;
     try {
       await api.delete(`${cfg.endpoint}/${row.id}`);
       load();
@@ -101,14 +103,14 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       {alerts.length > 0 && (
         <div className="alert warn">
           <span style={{ fontSize: 20 }}>⚠️</span>
-          <div>تنبيه ({alerts.length}): {alerts.slice(0, 8).join('  ·  ')}{alerts.length > 8 ? ' …' : ''}</div>
+          <div>{t('msg.alert_prefix', { count: alerts.length })} {alerts.slice(0, 8).join('  ·  ')}{alerts.length > 8 ? ' …' : ''}</div>
         </div>
       )}
       {error && <div className="alert error">⚠️ {error}</div>}
 
       <form className="toolbar" onSubmit={onSearch}>
-        <input placeholder="بحث…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, minWidth: 240 }} />
-        <button className="btn secondary" type="submit">بحث</button>
+        <input placeholder={t('action.search_placeholder')} value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, minWidth: 240 }} />
+        <button className="btn secondary" type="submit">{t('action.search')}</button>
       </form>
 
       <DataTable
@@ -121,12 +123,12 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           <>
             {cfg.canApprove && row.status === 'PENDING' && hasPermission('expenses.approve') && (
               <>
-                <button className="btn sm" onClick={() => onApprove(row.id, 'approve')}>اعتماد ✔</button>{' '}
-                <button className="btn secondary sm" onClick={() => onApprove(row.id, 'reject')}>رفض</button>{' '}
+                <button className="btn sm" onClick={() => onApprove(row.id, 'approve')}>{t('action.approve')}</button>{' '}
+                <button className="btn secondary sm" onClick={() => onApprove(row.id, 'reject')}>{t('action.reject')}</button>{' '}
               </>
             )}
-            {canUpdate && <button className="btn secondary sm" onClick={() => setEditing(row)}>تعديل</button>}{' '}
-            {canDelete && <button className="btn danger sm" onClick={() => onDelete(row)}>حذف</button>}
+            {canUpdate && <button className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>}{' '}
+            {canDelete && <button className="btn danger sm" onClick={() => onDelete(row)}>{t('action.delete')}</button>}
           </>
         )}
       />
@@ -142,7 +144,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       )}
       {editing && (
         <FormDialog
-          title={`تعديل — ${cfg.title}`}
+          title={`${t('action.edit')} — ${cfg.title}`}
           fields={cfg.fields}
           endpoint={cfg.endpoint}
           id={editing.id}
