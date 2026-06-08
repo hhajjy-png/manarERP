@@ -64,5 +64,15 @@ api.interceptors.response.use(
 export function errorMessage(err: unknown): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const e = err as any;
-  return e?.response?.data?.message ?? e?.message ?? 'حدث خطأ غير متوقع';
+  const data = e?.response?.data;
+  if (!data) return e?.message ?? 'حدث خطأ غير متوقع';
+  // When the backend returns Zod field errors, surface the first one
+  const details = data.details;
+  if (details && typeof details === 'object') {
+    const firstArr = Object.values(details as Record<string, string[]>).find(
+      (v) => Array.isArray(v) && v.length > 0,
+    ) as string[] | undefined;
+    if (firstArr) return `${data.message}: ${firstArr[0]}`;
+  }
+  return data.message ?? e?.message ?? 'حدث خطأ غير متوقع';
 }

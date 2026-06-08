@@ -7,10 +7,10 @@ export const createChequeSchema = z.object({
     beneficiaryName: z.string().min(1, 'اسم المستفيد مطلوب'),
     amount: z.coerce.number().positive('المبلغ يجب أن يكون موجبًا'),
     currency: z.string().min(1).default('KWD'),
-    description: z.string().optional(),
+    description: z.string().nullable().optional(),
     bankName: z.string().min(1, 'اسم البنك مطلوب'),
-    templateName: z.string().optional(),
-    notes: z.string().optional(),
+    templateName: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
   }),
 });
 
