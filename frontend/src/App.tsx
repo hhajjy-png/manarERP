@@ -15,6 +15,7 @@ import PayrollPayslip from './pages/PayrollPayslip';
 import Settings from './pages/Settings';
 import Backup from './pages/Backup';
 import Users from './pages/Users';
+import Inventory from './pages/Inventory';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/backup" element={<Backup />} />
+          <Route path="/inventory" element={<Inventory />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

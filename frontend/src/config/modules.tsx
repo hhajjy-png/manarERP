@@ -255,6 +255,9 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'suppliers', label: 'الموردون', icon: '📦', permission: 'suppliers.read' },
     { key: 'accounting', label: 'القيود المحاسبية', icon: '📒', permission: 'transactions.read' },
   ] },
+  { group: 'المستودع', items: [
+    { key: 'inventory', label: 'المخزون والمشتريات', icon: '🏭', permission: 'inventory.read' },
+  ] },
   { group: 'النظام', items: [
     { key: 'reports', label: 'التقارير الشاملة', icon: '📈', permission: 'reports.read' },
     { key: 'users', label: 'الصلاحيات والمستخدمين', icon: '🔐', permission: 'users.read' },
