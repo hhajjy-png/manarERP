@@ -7,8 +7,8 @@ import Modal from '../components/Modal';
 import { money, dateText } from '../config/modules';
 
 const statusPill: Record<string, [string, string]> = {
-  UNPAID: ['غير مدفوعة', 'red'], PARTIAL: ['جزئية', 'amber'], PAID: ['مدفوعة', 'green'],
-  OVERDUE: ['متأخرة', 'red'], CANCELLED: ['ملغاة', 'gray'],
+  UNPAID: ['inv.status.unpaid', 'red'], PARTIAL: ['inv.status.partial', 'amber'], PAID: ['inv.status.paid', 'green'],
+  OVERDUE: ['inv.status.overdue', 'red'], CANCELLED: ['inv.status.cancelled', 'gray'],
 };
 
 const invoiceTypes = ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت'] as const;
@@ -43,7 +43,7 @@ export default function Invoices() {
   useEffect(() => { load(); }, [load]);
 
   async function cancel(id: number) {
-    if (!confirm('إلغاء هذه الفاتورة؟')) return;
+    if (!confirm(t('confirm.cancel_invoice'))) return;
     try { await api.patch(`/invoices/${id}/cancel`); load(); } catch (e) { alert(errorMessage(e)); }
   }
 
@@ -56,7 +56,7 @@ export default function Invoices() {
     { key: 'issueDate', label: 'col.date', render: (r: Record<string, unknown>) => dateText(r.issueDate) },
     { key: 'total', label: 'col.inv.total', render: (r: Record<string, unknown>) => money(r.total) },
     { key: 'paidAmount', label: 'col.inv.paid', render: (r: Record<string, unknown>) => money(r.paidAmount) },
-    { key: 'status', label: 'col.status', render: (r: Record<string, unknown>) => { const [l, c] = statusPill[String(r.status)] ?? ['—', 'gray']; return <span className={`pill ${c}`}>{l}</span>; } },
+    { key: 'status', label: 'col.status', render: (r: Record<string, unknown>) => { const [key, c] = statusPill[String(r.status)] ?? ['—', 'gray']; return <span className={`pill ${c}`}>{t(key)}</span>; } },
   ];
 
   return (
@@ -100,6 +100,7 @@ export default function Invoices() {
 
 // ===== إنشاء فاتورة =====
 function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const { t } = useT();
   const [invoiceNumberSuffix, setInvoiceNumberSuffix] = useState('');
   const [direction, setDirection] = useState('SALES');
   const [invoiceType, setInvoiceType] = useState<(typeof invoiceTypes)[number]>('نقل اسفلت');
@@ -131,12 +132,12 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   async function submit() {
     setError('');
     const invoiceNumber = `${invoicePrefix}${invoiceNumberSuffix.trim()}`;
-    if (!invoiceNumberSuffix.trim()) { setError('رقم الفاتورة مطلوب'); return; }
-    if (!partyId) { setError(direction === 'SALES' ? 'اختر العميل' : 'اختر المورّد'); return; }
-    if (items.some((it) => !it.description)) { setError('أكمل وصف كل البنود'); return; }
-    if (items.some((it) => !it.unit)) { setError('اختر وحدة لكل بند'); return; }
-    if (items.some((it) => Number(it.quantity) <= 0)) { setError('الكمية يجب أن تكون أكبر من صفر'); return; }
-    if (items.some((it) => Number(it.unitPrice) < 0)) { setError('سعر الوحدة يجب ألا يكون سالبًا'); return; }
+    if (!invoiceNumberSuffix.trim()) { setError(t('error.inv_number_required')); return; }
+    if (!partyId) { setError(direction === 'SALES' ? t('error.select_customer') : t('error.select_supplier')); return; }
+    if (items.some((it) => !it.description)) { setError(t('error.item_desc_required')); return; }
+    if (items.some((it) => !it.unit)) { setError(t('error.select_unit')); return; }
+    if (items.some((it) => Number(it.quantity) <= 0)) { setError(t('error.qty_positive')); return; }
+    if (items.some((it) => Number(it.unitPrice) < 0)) { setError(t('error.price_negative')); return; }
     setSaving(true);
     try {
       await api.post('/invoices', {
@@ -158,16 +159,16 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   }
 
   return (
-    <Modal title="فاتورة جديدة" onClose={onClose} footer={
+    <Modal title={t('modal.new_invoice')} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving}>{saving ? 'جارٍ الحفظ…' : 'حفظ الفاتورة'}</button>
-        <button className="btn secondary" onClick={onClose}>إلغاء</button>
+        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('btn.save_invoice')}</button>
+        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
         <div className="field">
-          <label>رقم الفاتورة *</label>
+          <label>{t('col.inv.number')} *</label>
           <div style={{ display: 'flex', alignItems: 'center', direction: 'ltr' }}>
             <span style={{ ...inp, borderRadius: '10px 0 0 10px', borderInlineEnd: 0, background: 'var(--surface-2)', whiteSpace: 'nowrap' }}>{invoicePrefix}</span>
             <input
@@ -179,35 +180,35 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           </div>
         </div>
         <div className="field">
-          <label>نوع الفاتورة</label>
+          <label>{t('col.inv.type')}</label>
           <select value={invoiceType} onChange={(e) => setInvoiceType(e.target.value as (typeof invoiceTypes)[number])}>
             {invoiceTypes.map((type) => <option key={type} value={type}>{type}</option>)}
           </select>
         </div>
         <div className="field">
-          <label>الاتجاه</label>
+          <label>{t('col.inv.direction')}</label>
           <select value={direction} onChange={(e) => setDirection(e.target.value)}>
-            <option value="SALES">مبيعات (عميل)</option>
-            <option value="PURCHASE">مشتريات (مورّد)</option>
+            <option value="SALES">{t('opt.direction.sales_full')}</option>
+            <option value="PURCHASE">{t('opt.direction.purchase_full')}</option>
           </select>
         </div>
         <div className="field">
-          <label>{direction === 'SALES' ? 'العميل' : 'المورّد'} *</label>
+          <label>{direction === 'SALES' ? t('col.customer') : t('col.supplier')} *</label>
           <select value={partyId} onChange={(e) => setPartyId(e.target.value)}>
-            <option value="">— اختر —</option>
+            <option value="">{t('msg.select_placeholder')}</option>
             {parties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
       </div>
 
-      <label style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, display: 'block', margin: '8px 0' }}>البنود</label>
+      <label style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, display: 'block', margin: '8px 0' }}>{t('lbl.items')}</label>
       {items.map((it, i) => (
         <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center', width: '100%', overflow: 'hidden' }}>
           <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <input placeholder="الوصف" value={it.description} onChange={(e) => setItem(i, 'description', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+            <input placeholder={t('col.description')} value={it.description} onChange={(e) => setItem(i, 'description', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
           </div>
           <div className="invoice-cell quantity-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <input type="number" min="0.001" step="0.001" placeholder="الكمية" value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+            <input type="number" min="0.001" step="0.001" placeholder={t('ph.qty')} value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
           </div>
           <div className="invoice-cell unit-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
             <select value={it.unit} onChange={(e) => setItem(i, 'unit', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
@@ -215,7 +216,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
             </select>
           </div>
           <div className="invoice-cell price-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <input type="number" min="0" step="0.001" placeholder="سعر الوحدة" value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+            <input type="number" min="0" step="0.001" placeholder={t('ph.unit_price')} value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
           </div>
           <div className="invoice-cell total-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
             <div style={{ ...inp, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default', width: '100%', boxSizing: 'border-box' }}>{money(lineTotal(it))}</div>
@@ -227,17 +228,17 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                 type="button"
                 onClick={() => setItems((p) => p.filter((_, idx) => idx !== i))}
               >
-                x
+                ✕
               </button>
             )}
           </div>
         </div>
       ))}
-      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: '', quantity: 1, unit: 'طن', unitPrice: 0 }])}>＋ إضافة بند</button>
+      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: '', quantity: 1, unit: 'طن', unitPrice: 0 }])}>{t('btn.inv.add_material')}</button>
 
       <div className="form-grid" style={{ marginTop: 16 }}>
-        <div className="field"><label>الخصم (د.ك)</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
-        <div className="field"><label>الإجمالي</label><div style={{ ...inp, display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default' }}>{money(total)}</div></div>
+        <div className="field"><label>{t('field.inv.discount_kd')}</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
+        <div className="field"><label>{t('col.inv.total')}</label><div style={{ ...inp, display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default' }}>{money(total)}</div></div>
       </div>
     </Modal>
   );
@@ -248,6 +249,7 @@ const inp: React.CSSProperties = { padding: '10px 12px', border: '1px solid var(
 // ===== تسجيل دفعة =====
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () => void; onSaved: () => void }) {
+  const { t } = useT();
   const remaining = Number(invoice.total) - Number(invoice.paidAmount);
   const [amount, setAmount] = useState(remaining);
   const [method, setMethod] = useState('CASH');
@@ -269,20 +271,23 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
   }
 
   return (
-    <Modal title={`تحصيل — ${invoice.invoiceNumber ?? invoice.number}`} onClose={onClose} footer={
+    <Modal title={`${t('modal.collect_payment')} — ${invoice.invoiceNumber ?? invoice.number}`} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving}>{saving ? 'جارٍ…' : 'تسجيل الدفعة'}</button>
-        <button className="btn secondary" onClick={onClose}>إلغاء</button>
+        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('btn.record_payment')}</button>
+        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
-      <p style={{ marginBottom: 16, color: 'var(--text-muted)', fontWeight: 600 }}>المتبقي: {money(remaining)}</p>
+      <p style={{ marginBottom: 16, color: 'var(--text-muted)', fontWeight: 600 }}>{t('lbl.remaining')} {money(remaining)}</p>
       <div className="form-grid">
-        <div className="field"><label>المبلغ (د.ك)</label><input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></div>
+        <div className="field"><label>{t('field.amount_kd')}</label><input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></div>
         <div className="field">
-          <label>طريقة الدفع</label>
+          <label>{t('field.payment_method')}</label>
           <select value={method} onChange={(e) => setMethod(e.target.value)}>
-            <option value="CASH">نقدًا</option><option value="BANK">بنك</option><option value="CHEQUE">شيك</option><option value="TRANSFER">تحويل</option>
+            <option value="CASH">{t('opt.payment.cash')}</option>
+            <option value="BANK">{t('opt.payment.bank')}</option>
+            <option value="CHEQUE">{t('opt.payment.cheque')}</option>
+            <option value="TRANSFER">{t('opt.payment.transfer')}</option>
           </select>
         </div>
       </div>
