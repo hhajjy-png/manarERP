@@ -54,6 +54,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   settings: ['read', 'update'],
   inventory: ['read', 'create', 'update', 'delete', 'export', 'approve', 'cancel'],
   cheques: ['read', 'create', 'update', 'print', 'cancel'],
+  import: ['read', 'create'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -140,6 +141,8 @@ async function main() {
     HR_MANAGER: [
       ...keysForModules(['employees', 'attendance', 'payroll', 'reports']),
       ...readOnly(['dashboard']),
+      'import.read',
+      'import.create',
     ],
     STANDARD_USER: readOnly(['dashboard', 'customers', 'contracts', 'equipment']),
   };

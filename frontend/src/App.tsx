@@ -17,6 +17,7 @@ import Backup from './pages/Backup';
 import Users from './pages/Users';
 import Inventory from './pages/Inventory';
 import Cheques from './pages/Cheques';
+import DataImport from './pages/DataImport';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/backup" element={<Backup />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/cheques" element={<Cheques />} />
+          <Route path="/import" element={<DataImport />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
