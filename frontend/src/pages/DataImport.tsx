@@ -44,19 +44,28 @@ interface ColDef { key: string; labelAr: string; required: boolean }
 
 const COLUMN_GUIDE: Record<EntityType, ColDef[]> = {
   employees: [
-    { key: 'code',                  labelAr: 'الرقم الوظيفي',                        required: true  },
-    { key: 'fullName',              labelAr: 'الاسم بالعربي',                         required: true  },
-    { key: 'fullNameEn',            labelAr: 'الاسم بالإنجليزي',                      required: false },
-    { key: 'civilId',               labelAr: 'الرقم المدني',                          required: false },
-    { key: 'jobTitle',              labelAr: 'المهنة',                                required: false },
-    { key: 'nationality',           labelAr: 'الجنسية',                               required: false },
-    { key: 'department',            labelAr: 'القسم',                                 required: false },
-    { key: 'salary',                labelAr: 'الراتب الشهري (رقم)',                   required: false },
-    { key: 'hireDate',              labelAr: 'تاريخ التعيين (YYYY-MM-DD)',            required: false },
-    { key: 'phone',                 labelAr: 'الهاتف',                                required: false },
-    { key: 'email',                 labelAr: 'البريد الإلكتروني',                     required: false },
-    { key: 'status',                labelAr: 'الحالة: ACTIVE / ON_LEAVE / TERMINATED', required: false },
-    { key: 'notes',                 labelAr: 'ملاحظات',                               required: false },
+    { key: 'code',                  labelAr: 'الرقم الوظيفي',                           required: true  },
+    { key: 'fullName',              labelAr: 'الاسم بالعربي',                            required: true  },
+    { key: 'fullNameEn',            labelAr: 'الاسم بالإنجليزي',                         required: false },
+    { key: 'civilId',               labelAr: 'الرقم المدني',                             required: false },
+    { key: 'jobTitle',              labelAr: 'المهنة',                                   required: false },
+    { key: 'nationality',           labelAr: 'الجنسية',                                  required: false },
+    { key: 'passportNumber',        labelAr: 'رقم جواز السفر',                           required: false },
+    { key: 'passportExpiry',        labelAr: 'تاريخ انتهاء جواز السفر (YYYY-MM-DD)',     required: false },
+    { key: 'residencyExpiry',       labelAr: 'تاريخ انتهاء الإقامة (YYYY-MM-DD)',        required: false },
+    { key: 'licenseExpiry',         labelAr: 'تاريخ انتهاء رخصة القيادة (YYYY-MM-DD)',  required: false },
+    { key: 'vehiclePlate',          labelAr: 'رقم لوحة المركبة',                         required: false },
+    { key: 'vehicleLicenseExpiry',  labelAr: 'تاريخ انتهاء رخصة المركبة (YYYY-MM-DD)', required: false },
+    { key: 'birthDate',             labelAr: 'تاريخ الميلاد (YYYY-MM-DD)',               required: false },
+    { key: 'company',               labelAr: 'الشركة',                                   required: false },
+    { key: 'department',            labelAr: 'القسم',                                    required: false },
+    { key: 'salary',                labelAr: 'الراتب الشهري (رقم)',                      required: false },
+    { key: 'hireDate',              labelAr: 'تاريخ التعيين (YYYY-MM-DD)',               required: false },
+    { key: 'phone',                 labelAr: 'الهاتف',                                   required: false },
+    { key: 'email',                 labelAr: 'البريد الإلكتروني',                        required: false },
+    { key: 'address',               labelAr: 'العنوان',                                  required: false },
+    { key: 'status',                labelAr: 'حالة الموظف (ACTIVE / ON_LEAVE / TERMINATED)', required: false },
+    { key: 'notes',                 labelAr: 'ملاحظات',                                  required: false },
   ],
   customers: [
     { key: 'code',                  labelAr: 'رقم العميل',                            required: true  },
@@ -110,7 +119,14 @@ function statusPill(status: RowStatus) {
 
 function downloadTemplate(entityType: EntityType) {
   const cols = COLUMN_GUIDE[entityType];
-  const headerRow = cols.map((c) => c.key);
+  // Employees: Arabic labels as headers so the template round-trips through
+  // backend Arabic header normalization. Strip format hints in trailing parens
+  // (e.g. "(YYYY-MM-DD)", "(رقم)") so headers match ARABIC_HEADER_MAP exactly.
+  const headerRow = cols.map((c) =>
+    entityType === 'employees'
+      ? c.labelAr.replace(/\s*\(.*?\)\s*$/, '').trim()
+      : c.key,
+  );
   const ws = XLSX.utils.aoa_to_sheet([headerRow]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Data');
