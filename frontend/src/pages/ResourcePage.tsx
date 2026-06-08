@@ -96,8 +96,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   return (
     <div>
       <div className="page-head">
-        <div><h2>{cfg.title}</h2><p>{cfg.subtitle}</p></div>
-        {canCreate && <button className="btn" onClick={() => setCreating(true)}>＋ {cfg.createLabel}</button>}
+        <div><h2>{t(cfg.title)}</h2><p>{t(cfg.subtitle)}</p></div>
+        {canCreate && <button className="btn" onClick={() => setCreating(true)}>＋ {t(cfg.createLabel)}</button>}
       </div>
 
       {alerts.length > 0 && (
@@ -135,7 +135,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
 
       {creating && (
         <FormDialog
-          title={cfg.createLabel}
+          title={t(cfg.createLabel)}
           fields={cfg.fields}
           endpoint={cfg.endpoint}
           onClose={() => setCreating(false)}
@@ -144,7 +144,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       )}
       {editing && (
         <FormDialog
-          title={`${t('action.edit')} — ${cfg.title}`}
+          title={`${t('action.edit')} — ${t(cfg.title)}`}
           fields={cfg.fields}
           endpoint={cfg.endpoint}
           id={editing.id}

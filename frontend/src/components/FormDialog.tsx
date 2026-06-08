@@ -73,7 +73,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
     setError('');
     for (const f of fields) {
       if (f.required && !values[f.name]) {
-        setError(t('msg.required_field', { field: f.label }));
+        setError(t('msg.required_field', { field: t(f.label) }));
         return;
       }
     }
@@ -114,11 +114,11 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
           const opts = f.options ?? asyncOptions[f.name] ?? [];
           return (
             <div className="field" key={f.name} style={f.half === false ? { gridColumn: '1 / -1' } : undefined}>
-              <label>{f.label}{f.required ? ' *' : ''}</label>
+              <label>{t(f.label)}{f.required ? ' *' : ''}</label>
               {f.type === 'select' ? (
                 <select value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)}>
                   <option value="">{t('msg.select_placeholder')}</option>
-                  {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {opts.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
                 </select>
               ) : f.type === 'textarea' ? (
                 <textarea rows={3} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />

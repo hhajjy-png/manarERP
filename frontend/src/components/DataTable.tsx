@@ -36,7 +36,7 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
         <table>
           <thead>
             <tr>
-              {columns.map((c) => <th key={c.key}>{c.label}</th>)}
+              {columns.map((c) => <th key={c.key}>{t(c.label)}</th>)}
               {actions && <th></th>}
             </tr>
           </thead>

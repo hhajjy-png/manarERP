@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
+import { useT } from '../lib/i18n';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,7 @@ function fmt(v: unknown): string {
 export default function Reports() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
+  const { t } = useT();
   const canView = hasPermission('reports.read');
   const canExport = hasPermission('reports.export');
 
@@ -277,7 +279,7 @@ export default function Reports() {
         <div style={{ display: 'flex', gap: 8, marginRight: 'auto', alignItems: 'center', flexWrap: 'wrap' }}>
           {canView && (
             <button className="btn" onClick={loadPreview} disabled={loading} style={{ padding: '8px 18px' }}>
-              {loading ? '⏳ جارٍ التحميل…' : '🔍 عرض التقرير'}
+              {loading ? t('page.reports.loading') : t('page.reports.view')}
             </button>
           )}
           {canExport && preview && (
@@ -313,7 +315,7 @@ export default function Reports() {
           </thead>
           <tbody>
             {preview.rows.length === 0 ? (
-              <tr><td colSpan={preview.columns.length}><div className="center-msg">لا توجد بيانات</div></td></tr>
+              <tr><td colSpan={preview.columns.length}><div className="center-msg">{t('page.reports.no_data')}</div></td></tr>
             ) : (
               preview.rows.map((row, i) => (
                 <tr key={i}>
@@ -338,8 +340,8 @@ export default function Reports() {
     <div>
       <div className="page-head">
         <div>
-          <h2>مركز التقارير والتصدير</h2>
-          <p>معاينة وتصدير التقارير المالية والإدارية (Excel / PDF بعربية سليمة)</p>
+          <h2>{t('page.reports.title')}</h2>
+          <p>{t('page.reports.subtitle')}</p>
         </div>
       </div>
 
@@ -357,14 +359,14 @@ export default function Reports() {
 
           {loading && (
             <div className="card" style={{ padding: 40 }}>
-              <div className="center-msg"><div className="spinner" />جارٍ تجهيز التقرير…</div>
+              <div className="center-msg"><div className="spinner" />{t('page.reports.preparing')}</div>
             </div>
           )}
 
           {!loading && !preview && !error && (
             <div className="card" style={{ padding: 40 }}>
               <div className="center-msg" style={{ color: 'var(--text-muted)' }}>
-                اضبط الفلاتر المطلوبة ثم انقر <strong>عرض التقرير</strong>
+                {t('page.reports.empty')}
               </div>
             </div>
           )}

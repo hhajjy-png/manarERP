@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
 import StatCard from '../components/StatCard';
 import { dateText, money } from '../config/modules';
@@ -42,13 +43,9 @@ const now = new Date();
 const initialMonth = now.getMonth() + 1;
 const initialYear = now.getFullYear();
 
-function statusPill(status: string) {
-  const cls = status === 'PAID' ? 'green' : status === 'APPROVED' ? 'blue' : status === 'CANCELLED' ? 'red' : 'amber';
-  return <span className={`pill ${cls}`}>{status}</span>;
-}
-
 export default function Salaries() {
   const { hasPermission } = useAuth();
+  const { t } = useT();
   const [tab, setTab] = useState<'payroll' | 'history'>('payroll');
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [rows, setRows] = useState<PayrollRow[]>([]);
@@ -155,7 +152,7 @@ export default function Salaries() {
         year,
         employeeId: employeeId ? Number(employeeId) : undefined,
       });
-      setMessage(`Generated ${res.data.data.generated} payroll records.`);
+      setMessage(t('page.salaries.generated', { count: res.data.data.generated }));
     });
   }
 
@@ -172,7 +169,7 @@ export default function Salaries() {
       if (inputKind === 'advance') await api.post('/payroll/advances', { employeeId: Number(inputEmployeeId), amount: Number(inputAmount), notes: inputName });
       setInputName('');
       setInputAmount('');
-      setMessage('Payroll input saved.');
+      setMessage(t('page.salaries.input_saved'));
     });
   }
 
@@ -186,44 +183,50 @@ export default function Salaries() {
       });
       setAdjustLabel('');
       setAdjustAmount('');
-      setMessage('Adjustment line added.');
+      setMessage(t('page.salaries.line_added'));
     });
   }
 
   const payrollColumns = [
-    { key: 'employee', label: 'Employee', render: (r: PayrollRow) => <strong>{r.employee?.fullName}</strong> },
-    { key: 'period', label: 'Period', render: (r: PayrollRow) => `${r.month}/${r.year}` },
-    { key: 'snapshotBaseSalary', label: 'Base', render: (r: PayrollRow) => money(r.snapshotBaseSalary ?? r.baseSalary) },
-    { key: 'grossSalary', label: 'Gross', render: (r: PayrollRow) => money(r.grossSalary) },
-    { key: 'totalDeductions', label: 'Deductions', render: (r: PayrollRow) => money(Number(r.totalDeductions ?? 0) + Number(r.totalAdvances ?? 0)) },
-    { key: 'overtime', label: 'Overtime', render: (r: PayrollRow) => `${Number(r.overtimeHours ?? 0).toFixed(3)}h / ${money(r.overtimeAmount)}` },
-    { key: 'netSalary', label: 'Net', render: (r: PayrollRow) => <strong>{money(r.netSalary)}</strong> },
-    { key: 'status', label: 'Status', render: (r: PayrollRow) => statusPill(r.status) },
+    { key: 'employee', label: 'col.sal.employee', render: (r: PayrollRow) => <strong>{r.employee?.fullName}</strong> },
+    { key: 'period', label: 'col.sal.period', render: (r: PayrollRow) => `${r.month}/${r.year}` },
+    { key: 'snapshotBaseSalary', label: 'col.sal.base', render: (r: PayrollRow) => money(r.snapshotBaseSalary ?? r.baseSalary) },
+    { key: 'grossSalary', label: 'col.sal.gross', render: (r: PayrollRow) => money(r.grossSalary) },
+    { key: 'totalDeductions', label: 'col.sal.deductions', render: (r: PayrollRow) => money(Number(r.totalDeductions ?? 0) + Number(r.totalAdvances ?? 0)) },
+    { key: 'overtime', label: 'col.sal.overtime', render: (r: PayrollRow) => `${Number(r.overtimeHours ?? 0).toFixed(3)}h / ${money(r.overtimeAmount)}` },
+    { key: 'netSalary', label: 'col.sal.net', render: (r: PayrollRow) => <strong>{money(r.netSalary)}</strong> },
+    { key: 'status', label: 'col.status', render: (r: PayrollRow) => {
+      const cls = r.status === 'PAID' ? 'green' : r.status === 'APPROVED' ? 'blue' : r.status === 'CANCELLED' ? 'red' : 'amber';
+      return <span className={`pill ${cls}`}>{t('payroll.status.' + r.status.toLowerCase())}</span>;
+    }},
   ];
 
   const historyColumns = [
-    { key: 'paymentDate', label: 'Payment date', render: (r: SalaryPaymentRow) => dateText(r.paymentDate) },
-    { key: 'sourceMonth', label: 'Source month' },
-    { key: 'transactionId', label: 'Transaction', render: (r: SalaryPaymentRow) => <span style={{ fontFamily: 'monospace' }}>{r.transactionId}</span> },
-    { key: 'beneficiaryName', label: 'Beneficiary', render: (r: SalaryPaymentRow) => <strong>{r.beneficiaryName}</strong> },
-    { key: 'bankName', label: 'Bank' },
-    { key: 'amount', label: 'Amount', render: (r: SalaryPaymentRow) => money(r.amount) },
-    { key: 'civilId', label: 'Civil ID', render: (r: SalaryPaymentRow) => <span style={{ fontFamily: 'monospace' }}>{r.civilId ?? '-'}</span> },
-    { key: 'status', label: 'Status', render: (r: SalaryPaymentRow) => <span className="pill green">{r.status ?? '-'}</span> },
+    { key: 'paymentDate', label: 'col.sal.payment_date', render: (r: SalaryPaymentRow) => dateText(r.paymentDate) },
+    { key: 'sourceMonth', label: 'col.sal.source_month' },
+    { key: 'transactionId', label: 'col.sal.transaction', render: (r: SalaryPaymentRow) => <span style={{ fontFamily: 'monospace' }}>{r.transactionId}</span> },
+    { key: 'beneficiaryName', label: 'col.sal.beneficiary', render: (r: SalaryPaymentRow) => <strong>{r.beneficiaryName}</strong> },
+    { key: 'bankName', label: 'col.sal.bank' },
+    { key: 'amount', label: 'col.amount', render: (r: SalaryPaymentRow) => money(r.amount) },
+    { key: 'civilId', label: 'col.civil_id', render: (r: SalaryPaymentRow) => <span style={{ fontFamily: 'monospace' }}>{r.civilId ?? '-'}</span> },
+    { key: 'status', label: 'col.status', render: (r: SalaryPaymentRow) => {
+      const s = r.status ?? '-';
+      return <span className="pill green">{s !== '-' ? t('payroll.status.' + s.toLowerCase()) : s}</span>;
+    }},
   ];
 
   return (
     <div>
       <div className="page-head">
         <div>
-          <h2>Payroll</h2>
-          <p>Monthly payroll generation, approvals, payment posting, payslips, and imported salary history.</p>
+          <h2>{t('page.salaries.title')}</h2>
+          <p>{t('page.salaries.subtitle')}</p>
         </div>
       </div>
 
       <div className="toolbar">
-        <button className={`btn ${tab === 'payroll' ? '' : 'secondary'}`} onClick={() => setTab('payroll')}>Payroll runs</button>
-        <button className={`btn ${tab === 'history' ? '' : 'secondary'}`} onClick={() => setTab('history')}>Imported history</button>
+        <button className={`btn ${tab === 'payroll' ? '' : 'secondary'}`} onClick={() => setTab('payroll')}>{t('page.salaries.tab_payroll')}</button>
+        <button className={`btn ${tab === 'history' ? '' : 'secondary'}`} onClick={() => setTab('history')}>{t('page.salaries.tab_history')}</button>
       </div>
 
       {error && <div className="alert error" style={{ marginBottom: 14 }}>{error}</div>}
@@ -235,55 +238,55 @@ export default function Salaries() {
             <input type="number" min={1} max={12} value={month} onChange={(e) => { setMonth(Number(e.target.value)); setPage(1); }} style={{ width: 100 }} />
             <input type="number" min={2000} max={2100} value={year} onChange={(e) => { setYear(Number(e.target.value)); setPage(1); }} style={{ width: 120 }} />
             <select value={employeeId} onChange={(e) => { setEmployeeId(e.target.value); setPage(1); }}>
-              <option value="">All active employees</option>
+              <option value="">{t('page.salaries.all_employees')}</option>
               {employees.map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
             </select>
             <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
-              <option value="">All statuses</option>
-              <option value="DRAFT">DRAFT</option>
-              <option value="APPROVED">APPROVED</option>
-              <option value="PAID">PAID</option>
-              <option value="CANCELLED">CANCELLED</option>
+              <option value="">{t('page.salaries.all_statuses')}</option>
+              <option value="DRAFT">{t('payroll.status.draft')}</option>
+              <option value="APPROVED">{t('payroll.status.approved')}</option>
+              <option value="PAID">{t('payroll.status.paid')}</option>
+              <option value="CANCELLED">{t('payroll.status.cancelled')}</option>
             </select>
-            {canGenerate && <button className="btn" onClick={generatePayroll} disabled={busy}>Generate</button>}
+            {canGenerate && <button className="btn" onClick={generatePayroll} disabled={busy}>{t('page.salaries.generate')}</button>}
           </div>
 
           <div className="stats" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
-            <StatCard label="Payroll records" value={totals.count} icon="PR" color="var(--blue)" bg="var(--blue-light)" />
-            <StatCard label="Gross total" value={money(totals.gross)} icon="GR" color="var(--green)" bg="var(--green-light)" />
-            <StatCard label="Net total" value={money(totals.net)} icon="NT" color="var(--amber)" bg="var(--amber-light)" />
-            <StatCard label="Paid records" value={totals.paid} icon="PD" color="var(--green)" bg="var(--green-light)" />
+            <StatCard label={t('stat.payroll_records')} value={totals.count} icon="PR" color="var(--blue)" bg="var(--blue-light)" />
+            <StatCard label={t('stat.gross_total')} value={money(totals.gross)} icon="GR" color="var(--green)" bg="var(--green-light)" />
+            <StatCard label={t('stat.net_total')} value={money(totals.net)} icon="NT" color="var(--amber)" bg="var(--amber-light)" />
+            <StatCard label={t('stat.paid_records')} value={totals.paid} icon="PD" color="var(--green)" bg="var(--green-light)" />
           </div>
 
           {canAdjust && (
             <div className="card" style={{ marginBottom: 18 }}>
-              <h3 style={{ marginBottom: 12 }}>Payroll inputs and adjustments</h3>
+              <h3 style={{ marginBottom: 12 }}>{t('page.salaries.adjustments')}</h3>
               <div className="toolbar" style={{ marginBottom: 12 }}>
                 <select value={inputEmployeeId} onChange={(e) => setInputEmployeeId(e.target.value)}>
-                  <option value="">Employee</option>
+                  <option value="">{t('page.salaries.select_employee')}</option>
                   {employees.map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
                 </select>
                 <select value={inputKind} onChange={(e) => setInputKind(e.target.value as 'allowance' | 'deduction' | 'advance')}>
-                  <option value="allowance">Recurring allowance</option>
-                  <option value="deduction">Recurring deduction</option>
-                  <option value="advance">Advance</option>
+                  <option value="allowance">{t('page.salaries.recurring_allowance')}</option>
+                  <option value="deduction">{t('page.salaries.recurring_deduction')}</option>
+                  <option value="advance">{t('page.salaries.advance')}</option>
                 </select>
-                <input placeholder={inputKind === 'advance' ? 'Notes' : 'Name'} value={inputName} onChange={(e) => setInputName(e.target.value)} />
-                <input type="number" step="0.001" placeholder="Amount" value={inputAmount} onChange={(e) => setInputAmount(e.target.value)} />
-                <button className="btn secondary" disabled={busy} onClick={addPayrollInput}>Save input</button>
+                <input placeholder={inputKind === 'advance' ? t('page.salaries.notes_ph') : t('page.salaries.name_ph')} value={inputName} onChange={(e) => setInputName(e.target.value)} />
+                <input type="number" step="0.001" placeholder={t('page.salaries.amount_ph')} value={inputAmount} onChange={(e) => setInputAmount(e.target.value)} />
+                <button className="btn secondary" disabled={busy} onClick={addPayrollInput}>{t('page.salaries.save_input')}</button>
               </div>
               <div className="toolbar">
                 <select value={adjustPayrollId} onChange={(e) => setAdjustPayrollId(e.target.value)}>
-                  <option value="">Draft payroll</option>
+                  <option value="">{t('page.salaries.draft_payroll')}</option>
                   {rows.filter((r) => r.status === 'DRAFT').map((r) => <option key={r.id} value={r.id}>{r.employee.fullName} - {r.month}/{r.year}</option>)}
                 </select>
                 <select value={adjustType} onChange={(e) => setAdjustType(e.target.value as 'ALLOWANCE' | 'DEDUCTION')}>
-                  <option value="ALLOWANCE">Manual allowance</option>
-                  <option value="DEDUCTION">Manual deduction</option>
+                  <option value="ALLOWANCE">{t('page.salaries.manual_allowance')}</option>
+                  <option value="DEDUCTION">{t('page.salaries.manual_deduction')}</option>
                 </select>
-                <input placeholder="Label" value={adjustLabel} onChange={(e) => setAdjustLabel(e.target.value)} />
-                <input type="number" step="0.001" placeholder="Amount" value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} />
-                <button className="btn secondary" disabled={busy} onClick={addManualLine}>Add line</button>
+                <input placeholder={t('page.salaries.label_ph')} value={adjustLabel} onChange={(e) => setAdjustLabel(e.target.value)} />
+                <input type="number" step="0.001" placeholder={t('page.salaries.amount_ph')} value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} />
+                <button className="btn secondary" disabled={busy} onClick={addManualLine}>{t('page.salaries.add_line')}</button>
               </div>
             </div>
           )}
@@ -295,8 +298,8 @@ export default function Salaries() {
             onPage={setPage}
             actions={(row: PayrollRow) => (
               <>
-                {canPayslip && <Link className="btn secondary sm" to={`/payroll/${row.id}/payslip`}>Payslip</Link>}{' '}
-                {canApprove && row.status === 'DRAFT' && <button className="btn secondary sm" disabled={busy} onClick={() => runAction(() => api.patch(`/payroll/${row.id}/approve`))}>Approve</button>}{' '}
+                {canPayslip && <Link className="btn secondary sm" to={`/payroll/${row.id}/payslip`}>{t('page.salaries.payslip')}</Link>}{' '}
+                {canApprove && row.status === 'DRAFT' && <button className="btn secondary sm" disabled={busy} onClick={() => runAction(() => api.patch(`/payroll/${row.id}/approve`))}>{t('page.salaries.approve_btn')}</button>}{' '}
                 {canPay && row.status === 'APPROVED' && (
                   payingRowId === row.id
                     ? <>
@@ -306,12 +309,12 @@ export default function Salaries() {
                           <option value="CHEQUE">شيك</option>
                           <option value="TRANSFER">تحويل</option>
                         </select>{' '}
-                        <button className="btn secondary sm" disabled={busy} onClick={() => { setPayingRowId(null); runAction(() => api.patch(`/payroll/${row.id}/pay`, { paymentMethod: payMethod })); }}>تأكيد</button>{' '}
-                        <button className="btn secondary sm" onClick={() => setPayingRowId(null)}>إلغاء</button>
+                        <button className="btn secondary sm" disabled={busy} onClick={() => { setPayingRowId(null); runAction(() => api.patch(`/payroll/${row.id}/pay`, { paymentMethod: payMethod })); }}>{t('page.salaries.confirm')}</button>{' '}
+                        <button className="btn secondary sm" onClick={() => setPayingRowId(null)}>{t('action.cancel')}</button>
                       </>
-                    : <button className="btn secondary sm" disabled={busy} onClick={() => { setPayMethod('BANK'); setPayingRowId(row.id); }}>Pay</button>
+                    : <button className="btn secondary sm" disabled={busy} onClick={() => { setPayMethod('BANK'); setPayingRowId(row.id); }}>{t('page.salaries.pay_btn')}</button>
                 )}{' '}
-                {canCancel && ['DRAFT', 'APPROVED'].includes(row.status) && <button className="btn secondary sm" disabled={busy} onClick={() => runAction(() => api.patch(`/payroll/${row.id}/cancel`))}>Cancel</button>}
+                {canCancel && ['DRAFT', 'APPROVED'].includes(row.status) && <button className="btn secondary sm" disabled={busy} onClick={() => runAction(() => api.patch(`/payroll/${row.id}/cancel`))}>{t('page.salaries.cancel_btn')}</button>}
               </>
             )}
           />
@@ -320,7 +323,7 @@ export default function Salaries() {
         <>
           <div className="toolbar">
             <input
-              placeholder="Search imported salary payments"
+              placeholder={t('page.salaries.search_history')}
               value={historyQuery}
               onChange={(e) => { setHistoryQuery(e.target.value); setHistoryPage(1); }}
               style={{ flex: 1, minWidth: 260 }}

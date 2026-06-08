@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
+import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import { money, dateText } from '../config/modules';
@@ -18,6 +19,7 @@ interface Item { description: string; quantity: number; unit: string; unitPrice:
 
 export default function Invoices() {
   const { hasPermission } = useAuth();
+  const { t } = useT();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -46,26 +48,26 @@ export default function Invoices() {
   }
 
   const columns = [
-    { key: 'invoiceNumber', label: 'رقم الفاتورة', render: (r: Record<string, unknown>) => <strong style={{ fontFamily: 'monospace' }}>{String(r.invoiceNumber ?? r.number)}</strong> },
-    { key: 'invoiceType', label: 'نوع الفاتورة', render: (r: Record<string, unknown>) => String(r.invoiceType ?? '—') },
-    { key: 'direction', label: 'الاتجاه', render: (r: Record<string, unknown>) => (r.direction === 'SALES' ? 'مبيعات' : 'مشتريات') },
+    { key: 'invoiceNumber', label: 'col.inv.number', render: (r: Record<string, unknown>) => <strong style={{ fontFamily: 'monospace' }}>{String(r.invoiceNumber ?? r.number)}</strong> },
+    { key: 'invoiceType', label: 'col.inv.type', render: (r: Record<string, unknown>) => String(r.invoiceType ?? '—') },
+    { key: 'direction', label: 'col.inv.direction', render: (r: Record<string, unknown>) => (r.direction === 'SALES' ? 'مبيعات' : 'مشتريات') },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { key: 'party', label: 'الجهة', render: (r: any) => r.customer?.name ?? r.supplier?.name ?? '—' },
-    { key: 'issueDate', label: 'التاريخ', render: (r: Record<string, unknown>) => dateText(r.issueDate) },
-    { key: 'total', label: 'الإجمالي', render: (r: Record<string, unknown>) => money(r.total) },
-    { key: 'paidAmount', label: 'المسدّد', render: (r: Record<string, unknown>) => money(r.paidAmount) },
-    { key: 'status', label: 'الحالة', render: (r: Record<string, unknown>) => { const [l, c] = statusPill[String(r.status)] ?? ['—', 'gray']; return <span className={`pill ${c}`}>{l}</span>; } },
+    { key: 'party', label: 'col.inv.party', render: (r: any) => r.customer?.name ?? r.supplier?.name ?? '—' },
+    { key: 'issueDate', label: 'col.date', render: (r: Record<string, unknown>) => dateText(r.issueDate) },
+    { key: 'total', label: 'col.inv.total', render: (r: Record<string, unknown>) => money(r.total) },
+    { key: 'paidAmount', label: 'col.inv.paid', render: (r: Record<string, unknown>) => money(r.paidAmount) },
+    { key: 'status', label: 'col.status', render: (r: Record<string, unknown>) => { const [l, c] = statusPill[String(r.status)] ?? ['—', 'gray']; return <span className={`pill ${c}`}>{l}</span>; } },
   ];
 
   return (
     <div>
       <div className="page-head">
-        <div><h2>الفواتير والمطالبات</h2><p>إصدار الفواتير ومتابعة التحصيل</p></div>
-        {hasPermission('invoices.create') && <button className="btn" onClick={() => setCreating(true)}>＋ فاتورة جديدة</button>}
+        <div><h2>{t('page.invoices.title')}</h2><p>{t('page.invoices.subtitle')}</p></div>
+        {hasPermission('invoices.create') && <button className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>}
       </div>
       <div className="toolbar" style={{ marginBottom: 16 }}>
         <input
-          placeholder="بحث برقم الفاتورة"
+          placeholder={t('page.invoices.search')}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           style={{ ...inp, maxWidth: 280 }}
@@ -81,10 +83,10 @@ export default function Invoices() {
         actions={(row) => (
           <>
             {hasPermission('invoices.update') && row.status !== 'PAID' && row.status !== 'CANCELLED' && (
-              <button className="btn sm" onClick={() => setPaying(row)}>تحصيل</button>
+              <button className="btn sm" onClick={() => setPaying(row)}>{t('page.invoices.collect')}</button>
             )}{' '}
             {hasPermission('invoices.update') && row.status !== 'CANCELLED' && Number(row.paidAmount) === 0 && (
-              <button className="btn secondary sm" onClick={() => cancel(row.id)}>إلغاء</button>
+              <button className="btn secondary sm" onClick={() => cancel(row.id)}>{t('page.invoices.cancel_inv')}</button>
             )}
           </>
         )}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
+import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import StatCard from '../components/StatCard';
@@ -135,28 +136,29 @@ type Tab = 'balance' | 'materials' | 'categories' | 'purchase-orders' | 'goods-r
 interface LineItem { materialId: string; quantity: number; unitCost: number; }
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'balance', label: 'رصيد المخزون' },
-  { key: 'materials', label: 'المواد' },
-  { key: 'categories', label: 'التصنيفات' },
-  { key: 'purchase-orders', label: 'أوامر الشراء' },
-  { key: 'goods-receipts', label: 'سندات الاستلام' },
-  { key: 'material-issues', label: 'سندات الصرف' },
+  { key: 'balance', label: 'tab.inventory.balance' },
+  { key: 'materials', label: 'tab.inventory.materials' },
+  { key: 'categories', label: 'tab.inventory.categories' },
+  { key: 'purchase-orders', label: 'tab.inventory.purchase_orders' },
+  { key: 'goods-receipts', label: 'tab.inventory.goods_receipts' },
+  { key: 'material-issues', label: 'tab.inventory.material_issues' },
 ];
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Inventory() {
   const [tab, setTab] = useState<Tab>('balance');
+  const { t } = useT();
 
   return (
     <div>
       <div className="page-head">
-        <div><h2>المخزون والمشتريات</h2><p>إدارة المواد وحركة المخزون</p></div>
+        <div><h2>{t('page.inventory.title')}</h2><p>{t('page.inventory.subtitle')}</p></div>
       </div>
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
-        {TABS.map((t) => (
-          <button key={t.key} className={`btn${tab === t.key ? '' : ' secondary'} sm`} onClick={() => setTab(t.key)}>
-            {t.label}
+        {TABS.map((tabItem) => (
+          <button key={tabItem.key} className={`btn${tab === tabItem.key ? '' : ' secondary'} sm`} onClick={() => setTab(tabItem.key)}>
+            {t(tabItem.label)}
           </button>
         ))}
       </div>
