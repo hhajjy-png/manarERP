@@ -52,7 +52,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   audit: ['read', 'export'],
   backups: ['read', 'create', 'update'],
   settings: ['read', 'update'],
-  inventory: ['read', 'create', 'update', 'delete', 'export', 'approve'],
+  inventory: ['read', 'create', 'update', 'delete', 'export', 'approve', 'cancel'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -126,7 +126,13 @@ async function main() {
       'inventory.read',
     ],
     EQUIPMENT_MANAGER: [
-      ...keysForModules(['equipment', 'maintenance', 'reports', 'inventory']),
+      ...keysForModules(['equipment', 'maintenance', 'reports']),
+      'inventory.read',
+      'inventory.create',
+      'inventory.update',
+      'inventory.delete',
+      'inventory.approve',
+      'inventory.export',
       ...readOnly(['dashboard', 'contracts', 'suppliers']),
     ],
     HR_MANAGER: [

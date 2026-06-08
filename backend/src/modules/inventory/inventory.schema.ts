@@ -91,3 +91,31 @@ export const createGoodsReceiptSchema = z.object({
 });
 
 export type CreateGoodsReceiptInput = z.infer<typeof createGoodsReceiptSchema>['body'];
+
+// ── سندات الصرف ───────────────────────────────────────────────────────────
+
+const materialIssueItemSchema = z.object({
+  materialId: z.number().int().positive('المادة مطلوبة'),
+  quantity: z.number().positive('الكمية يجب أن تكون أكبر من صفر'),
+});
+
+export const createMaterialIssueSchema = z.object({
+  body: z.object({
+    contractId: z.number().int().positive().optional(),
+    date: z.string().optional(),
+    notes: z.string().nullable().optional(),
+    items: z.array(materialIssueItemSchema).min(1, 'يجب إضافة مادة واحدة على الأقل'),
+  }),
+});
+
+export const updateMaterialIssueSchema = z.object({
+  body: z.object({
+    contractId: z.number().int().positive().nullable().optional(),
+    date: z.string().optional(),
+    notes: z.string().nullable().optional(),
+    items: z.array(materialIssueItemSchema).min(1).optional(),
+  }),
+});
+
+export type CreateMaterialIssueInput = z.infer<typeof createMaterialIssueSchema>['body'];
+export type UpdateMaterialIssueInput = z.infer<typeof updateMaterialIssueSchema>['body'];

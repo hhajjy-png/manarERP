@@ -97,4 +97,5 @@ export const ENUMS = {
   materialUnit: ['طن', 'كيلو', 'لتر', 'قطعة', 'متر', 'كيس', 'برميل', 'صندوق'] as const,
   purchaseOrderStatus: ['DRAFT', 'SUBMITTED', 'RECEIVED', 'CANCELLED'] as const,
   goodsReceiptStatus: ['DRAFT', 'POSTED'] as const,
+  materialIssueStatus: ['DRAFT', 'POSTED', 'CANCELLED'] as const,
 } as const;

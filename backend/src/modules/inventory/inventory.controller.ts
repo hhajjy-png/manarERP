@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { categoriesService, materialsService, purchaseOrdersService, goodsReceiptsService } from './inventory.service';
+import { categoriesService, materialsService, purchaseOrdersService, goodsReceiptsService, materialIssuesService } from './inventory.service';
 import { ok, created } from '@core/utils/response';
 
 // ── تصنيفات المواد ────────────────────────────────────────────────────────
@@ -85,5 +85,31 @@ export const goodsReceiptsController = {
   },
   async remove(req: Request, res: Response) {
     ok(res, await goodsReceiptsService.remove(Number(req.params.id), req), 'تم الحذف');
+  },
+};
+
+// ── سندات الصرف ───────────────────────────────────────────────────────────
+
+export const materialIssuesController = {
+  async list(req: Request, res: Response) {
+    ok(res, await materialIssuesService.list(req.query));
+  },
+  async getById(req: Request, res: Response) {
+    ok(res, await materialIssuesService.getById(Number(req.params.id)));
+  },
+  async create(req: Request, res: Response) {
+    created(res, await materialIssuesService.create(req.body, req));
+  },
+  async update(req: Request, res: Response) {
+    ok(res, await materialIssuesService.update(Number(req.params.id), req.body, req), 'تم التحديث بنجاح');
+  },
+  async post(req: Request, res: Response) {
+    ok(res, await materialIssuesService.post(Number(req.params.id), req), 'تم الترحيل وخصم المخزون');
+  },
+  async cancel(req: Request, res: Response) {
+    ok(res, await materialIssuesService.cancel(Number(req.params.id), req), 'تم الإلغاء واستعادة المخزون');
+  },
+  async remove(req: Request, res: Response) {
+    ok(res, await materialIssuesService.remove(Number(req.params.id), req), 'تم الحذف');
   },
 };

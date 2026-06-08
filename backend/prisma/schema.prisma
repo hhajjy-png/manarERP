@@ -509,9 +509,10 @@ model Contract {
 
   customer  Customer?          @relation(fields: [customerId], references: [id])
   manager   Employee?          @relation("ContractManager", fields: [managerId], references: [id])
-  invoices  Invoice[]
-  expenses  Expense[]
-  documents ContractDocument[]
+  invoices       Invoice[]
+  expenses       Expense[]
+  documents      ContractDocument[]
+  materialIssues MaterialIssue[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -851,6 +852,7 @@ model Material {
   category           MaterialCategory    @relation(fields: [categoryId], references: [id])
   purchaseOrderItems PurchaseOrderItem[]
   goodsReceiptItems  GoodsReceiptItem[]
+  issueItems         MaterialIssueItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -939,6 +941,49 @@ model GoodsReceiptItem {
   @@index([goodsReceiptId])
   @@index([materialId])
   @@map("goods_receipt_items")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  سندات الصرف (Material Issues) — صرف مواد للمشاريع/العقود
+// ─────────────────────────────────────────────────────────────────────────
+
+model MaterialIssue {
+  id                      Int       @id @default(autoincrement())
+  number                  String    @unique // MI-2026-00001
+  contractId              Int?
+  date                    DateTime  @default(now())
+  status                  String    @default("DRAFT") // DRAFT | POSTED | CANCELLED
+  notes                   String?
+  totalCost               Float     @default(0)
+  accountingPostedAt      DateTime?
+  accountingTransactionId Int? // references Transaction.id — prevents double posting
+
+  contract Contract?         @relation(fields: [contractId], references: [id])
+  items    MaterialIssueItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([contractId])
+  @@index([status])
+  @@index([date])
+  @@map("material_issues")
+}
+
+model MaterialIssueItem {
+  id               Int   @id @default(autoincrement())
+  materialIssueId  Int
+  materialId       Int
+  quantity         Float
+  unitCostSnapshot Float @default(0) // WAC snapshot at time of posting
+  totalCost        Float @default(0)
+
+  materialIssue MaterialIssue @relation(fields: [materialIssueId], references: [id], onDelete: Cascade)
+  material      Material      @relation(fields: [materialId], references: [id])
+
+  @@index([materialIssueId])
+  @@index([materialId])
+  @@map("material_issue_items")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

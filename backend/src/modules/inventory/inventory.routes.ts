@@ -4,6 +4,7 @@ import {
   materialsController,
   purchaseOrdersController,
   goodsReceiptsController,
+  materialIssuesController,
 } from './inventory.controller';
 import { authenticate } from '@core/middleware/auth.middleware';
 import { requirePermission } from '@core/middleware/rbac.middleware';
@@ -17,6 +18,8 @@ import {
   createPurchaseOrderSchema,
   updatePurchaseOrderSchema,
   createGoodsReceiptSchema,
+  createMaterialIssueSchema,
+  updateMaterialIssueSchema,
 } from './inventory.schema';
 
 const router = Router();
@@ -55,5 +58,15 @@ router.get('/goods-receipts/:id', requirePermission('inventory.read'), asyncHand
 router.post('/goods-receipts', requirePermission('inventory.create'), validate(createGoodsReceiptSchema), asyncHandler(goodsReceiptsController.create));
 router.post('/goods-receipts/:id/post', requirePermission('inventory.approve'), asyncHandler(goodsReceiptsController.post));
 router.delete('/goods-receipts/:id', requirePermission('inventory.delete'), asyncHandler(goodsReceiptsController.remove));
+
+// ── سندات الصرف ───────────────────────────────────────────────────────────
+
+router.get('/material-issues', requirePermission('inventory.read'), asyncHandler(materialIssuesController.list));
+router.get('/material-issues/:id', requirePermission('inventory.read'), asyncHandler(materialIssuesController.getById));
+router.post('/material-issues', requirePermission('inventory.create'), validate(createMaterialIssueSchema), asyncHandler(materialIssuesController.create));
+router.put('/material-issues/:id', requirePermission('inventory.update'), validate(updateMaterialIssueSchema), asyncHandler(materialIssuesController.update));
+router.post('/material-issues/:id/post', requirePermission('inventory.approve'), asyncHandler(materialIssuesController.post));
+router.post('/material-issues/:id/cancel', requirePermission('inventory.cancel'), asyncHandler(materialIssuesController.cancel));
+router.delete('/material-issues/:id', requirePermission('inventory.delete'), asyncHandler(materialIssuesController.remove));
 
 export default router;
