@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { useT } from '../lib/i18n';
 
 export interface Column {
   key: string;
@@ -26,7 +27,9 @@ interface Props {
   emptyText?: string;
 }
 
-export default function DataTable({ columns, rows, loading, meta, onPage, actions, emptyText = 'لا توجد بيانات' }: Props) {
+export default function DataTable({ columns, rows, loading, meta, onPage, actions, emptyText }: Props) {
+  const { t } = useT();
+
   return (
     <div className="card panel" style={{ padding: 0 }}>
       <div className="table-responsive">
@@ -39,9 +42,9 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={columns.length + (actions ? 1 : 0)}><div className="center-msg"><div className="spinner" />جارٍ التحميل…</div></td></tr>
+              <tr><td colSpan={columns.length + (actions ? 1 : 0)}><div className="center-msg"><div className="spinner" />{t('msg.loading')}</div></td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={columns.length + (actions ? 1 : 0)}><div className="center-msg">{emptyText}</div></td></tr>
+              <tr><td colSpan={columns.length + (actions ? 1 : 0)}><div className="center-msg">{emptyText ?? t('msg.empty')}</div></td></tr>
             ) : (
               rows.map((row, i) => (
                 <tr key={row.id ?? i}>
@@ -57,11 +60,11 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
       {meta && meta.totalPages > 1 && (
         <div className="pagination">
           <span style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>
-            صفحة {meta.page} من {meta.totalPages} — الإجمالي {meta.total}
+            {t('msg.page')} {meta.page} {t('msg.of')} {meta.totalPages} — {t('msg.total')} {meta.total}
           </span>
           <div className="pg-btns">
-            <button className="btn secondary sm" disabled={meta.page <= 1} onClick={() => onPage?.(meta.page - 1)}>السابق</button>
-            <button className="btn secondary sm" disabled={meta.page >= meta.totalPages} onClick={() => onPage?.(meta.page + 1)}>التالي</button>
+            <button className="btn secondary sm" disabled={meta.page <= 1} onClick={() => onPage?.(meta.page - 1)}>{t('action.prev')}</button>
+            <button className="btn secondary sm" disabled={meta.page >= meta.totalPages} onClick={() => onPage?.(meta.page + 1)}>{t('action.next')}</button>
           </div>
         </div>
       )}

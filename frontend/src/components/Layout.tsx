@@ -2,11 +2,13 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { NAV } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useUI } from '../stores/uiStore';
+import { useT } from '../lib/i18n';
 import './layout-polish.css';
 
 export default function Layout() {
   const { user, logout, hasPermission } = useAuth();
-  const { theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar } = useUI();
+  const { theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar, lang, setLang } = useUI();
+  const { t } = useT();
   const navigate = useNavigate();
 
   async function onLogout() {
@@ -19,7 +21,7 @@ export default function Layout() {
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="brand">
           <div className="logo">م</div>
-          <div><h1>شركة المنار</h1><span>إدارة مقاولات الطرق</span></div>
+          <div><h1>شركة المنار</h1><span>{t('layout.tagline')}</span></div>
         </div>
         <nav className="nav">
           {NAV.map((section) => {
@@ -46,11 +48,19 @@ export default function Layout() {
 
       <div className="main">
         <header className="topbar">
-          <button className="icon-btn menu-toggle" onClick={toggleSidebar} aria-label="القائمة">☰</button>
-          <div className="search"><input placeholder="بحث في النظام…" /></div>
+          <button className="icon-btn menu-toggle" onClick={toggleSidebar} aria-label={t('layout.menu')}>☰</button>
+          <div className="search"><input placeholder={t('layout.search')} /></div>
           <div className="top-actions">
-            <button className="icon-btn" onClick={toggleTheme} title="تغيير المظهر">{theme === 'dark' ? '☀️' : '🌙'}</button>
-            <div className="user" onClick={onLogout} title="تسجيل الخروج">
+            <button className="icon-btn" onClick={toggleTheme} title={t('layout.toggle_theme')}>{theme === 'dark' ? '☀️' : '🌙'}</button>
+            <button
+              className="icon-btn"
+              onClick={() => setLang(lang === 'ar' ? 'en' : 'ar')}
+              title={t('layout.toggle_lang')}
+              style={{ fontWeight: 700, fontSize: 13, letterSpacing: 0.5 }}
+            >
+              {lang === 'ar' ? 'EN' : 'ع'}
+            </button>
+            <div className="user" onClick={onLogout} title={t('layout.logout')}>
               <div className="user-info">
                 <strong>{user?.fullName ?? 'مستخدم'}</strong>
                 <small>{user?.role.displayName}</small>

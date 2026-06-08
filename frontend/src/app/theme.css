@@ -162,3 +162,7 @@ tbody tr:last-child td { border-bottom: none; }
   .pill, .stat .si { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @page { margin: 1cm; }
 }
+
+html[dir="ltr"] .nav a:hover {
+  transform: translateX(4px);
+}

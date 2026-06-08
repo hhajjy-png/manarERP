@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
+import { useUI } from '../stores/uiStore';
+import { useT, type Lang } from '../lib/i18n';
 
 const FIELDS: { key: string; label: string; group: string }[] = [
   { key: 'company.name', label: 'اسم الشركة', group: 'company' },
@@ -12,6 +14,8 @@ const FIELDS: { key: string; label: string; group: string }[] = [
 ];
 
 export default function Settings() {
+  const { lang, setLang } = useUI();
+  const { t } = useT();
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,7 +42,7 @@ export default function Settings() {
     try {
       const settings = FIELDS.map((f) => ({ key: f.key, value: values[f.key] ?? '', group: f.group }));
       await api.put('/settings', { settings });
-      setMsg('تم حفظ الإعدادات بنجاح ✓');
+      setMsg(t('page.settings.saved'));
     } catch (err) {
       setMsg(errorMessage(err));
     } finally {
@@ -46,15 +50,28 @@ export default function Settings() {
     }
   }
 
-  if (loading) return <div className="center-msg"><div className="spinner" />جارٍ التحميل…</div>;
+  if (loading) return <div className="center-msg"><div className="spinner" />{t('msg.loading')}</div>;
 
   return (
     <div>
       <div className="page-head">
-        <div><h2>إعدادات الشركة</h2><p>بيانات الشركة والإعدادات المالية (لا يوجد نظام ضريبي — الكويت)</p></div>
-        <button className="btn" onClick={save} disabled={saving}>{saving ? 'جارٍ الحفظ…' : '💾 حفظ التغييرات'}</button>
+        <div><h2>{t('page.settings.title')}</h2><p>{t('page.settings.subtitle')}</p></div>
+        <button className="btn" onClick={save} disabled={saving}>{saving ? t('page.settings.saving') : t('page.settings.save')}</button>
       </div>
       {msg && <div className="alert warn">{msg}</div>}
+
+      <div className="card panel" style={{ marginBottom: 20 }}>
+        <div className="form-grid">
+          <div className="field">
+            <label>{t('page.settings.language')}</label>
+            <select value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
+              <option value="ar">العربية</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div className="card panel">
         <div className="form-grid">
           {FIELDS.map((f) => (

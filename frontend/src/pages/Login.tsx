@@ -2,9 +2,11 @@ import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
+import { useT } from '../lib/i18n';
 
 export default function Login() {
   const { login, loading } = useAuth();
+  const { t } = useT();
   const navigate = useNavigate();
   const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
@@ -25,22 +27,22 @@ export default function Login() {
     <div className="login-wrap">
       <form className="login-card" onSubmit={onSubmit}>
         <div className="logo">م</div>
-        <h2>نظام المنار</h2>
-        <p>إدارة أعمال شركة المنار للطرق — الكويت</p>
+        <h2>{t('page.login.title')}</h2>
+        <p>{t('page.login.tagline')}</p>
 
         {error && <div className="alert error">⚠️ {error}</div>}
 
         <div className="field">
-          <label>اسم المستخدم</label>
+          <label>{t('page.login.username')}</label>
           <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
         </div>
         <div className="field">
-          <label>كلمة المرور</label>
+          <label>{t('page.login.password')}</label>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
         </div>
 
         <button className="btn" type="submit" disabled={loading} style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}>
-          {loading ? 'جارٍ الدخول…' : 'تسجيل الدخول'}
+          {loading ? t('page.login.loading') : t('page.login.submit')}
         </button>
       </form>
     </div>

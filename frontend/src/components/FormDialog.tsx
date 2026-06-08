@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import { api, errorMessage } from '../api/client';
+import { useT } from '../lib/i18n';
 
 export interface FormField {
   name: string;
@@ -32,6 +33,7 @@ function toInputDate(v: unknown): string {
 }
 
 export default function FormDialog({ title, fields, initial, endpoint, id, onClose, onSaved }: Props) {
+  const { t } = useT();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [values, setValues] = useState<any>(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -69,14 +71,12 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
 
   async function submit() {
     setError('');
-    // تحقق مبدئي من الحقول المطلوبة
     for (const f of fields) {
       if (f.required && !values[f.name]) {
-        setError(`الحقل «${f.label}» مطلوب`);
+        setError(t('msg.required_field', { field: f.label }));
         return;
       }
     }
-    // تنظيف القيم الفارغة الاختيارية
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload: any = {};
     for (const f of fields) {
@@ -103,8 +103,8 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={submit} disabled={saving}>{saving ? 'جارٍ الحفظ…' : 'حفظ'}</button>
-          <button className="btn secondary" onClick={onClose}>إلغاء</button>
+          <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
+          <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
         </>
       }
     >
@@ -117,7 +117,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
               <label>{f.label}{f.required ? ' *' : ''}</label>
               {f.type === 'select' ? (
                 <select value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)}>
-                  <option value="">— اختر —</option>
+                  <option value="">{t('msg.select_placeholder')}</option>
                   {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               ) : f.type === 'textarea' ? (
