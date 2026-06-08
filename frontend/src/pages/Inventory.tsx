@@ -109,19 +109,19 @@ interface DetailRecord {
 const UNITS = ['طن', 'كيلو', 'لتر', 'قطعة', 'متر', 'كيس', 'برميل', 'صندوق'] as const;
 
 const poPill: Record<string, [string, string]> = {
-  DRAFT: ['مسوّد', 'gray'], SUBMITTED: ['مُرسَل', 'blue'],
-  RECEIVED: ['مستلَم', 'green'], CANCELLED: ['ملغي', 'red'],
+  DRAFT: ['inv.po.status.draft', 'gray'], SUBMITTED: ['inv.po.status.submitted', 'blue'],
+  RECEIVED: ['inv.po.status.received', 'green'], CANCELLED: ['inv.po.status.cancelled', 'red'],
 };
 const grPill: Record<string, [string, string]> = {
-  DRAFT: ['مسوّد', 'gray'], POSTED: ['مُرحَّل', 'green'],
+  DRAFT: ['inv.gr.status.draft', 'gray'], POSTED: ['inv.gr.status.posted', 'green'],
 };
 const miPill: Record<string, [string, string]> = {
-  DRAFT: ['مسوّد', 'gray'], POSTED: ['مُرحَّل', 'green'], CANCELLED: ['ملغي', 'red'],
+  DRAFT: ['inv.mi.status.draft', 'gray'], POSTED: ['inv.mi.status.posted', 'green'], CANCELLED: ['inv.mi.status.cancelled', 'red'],
 };
 
-function statusBadge(map: Record<string, [string, string]>, status: string) {
-  const [label, cls] = map[status] ?? [status, 'gray'];
-  return <span className={`pill ${cls}`}>{label}</span>;
+function statusBadge(map: Record<string, [string, string]>, status: string, t: (k: string) => string) {
+  const [key, cls] = map[status] ?? [status, 'gray'];
+  return <span className={`pill ${cls}`}>{t(key)}</span>;
 }
 
 const inp: React.CSSProperties = {
@@ -175,6 +175,7 @@ export default function Inventory() {
 // ── رصيد المخزون ──────────────────────────────────────────────────────────────
 
 function BalanceTab() {
+  const { t } = useT();
   const [materials, setMaterials] = useState<Material[]>([]);
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -197,27 +198,27 @@ function BalanceTab() {
   const activeCats = categories.filter((c) => c.isActive).length;
 
   const columns = [
-    { key: 'code',         label: 'الرمز',         render: (r: Material) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
-    { key: 'name',         label: 'المادة',         render: (r: Material) => <strong>{r.name}</strong> },
-    { key: 'unit',         label: 'الوحدة' },
-    { key: 'category',     label: 'التصنيف',        render: (r: Material) => r.category?.name ?? '—' },
-    { key: 'currentStock', label: 'المتوفر',        render: (r: Material) => <strong style={{ color: r.currentStock <= r.minimumStock ? '#ef4444' : 'inherit' }}>{r.currentStock}</strong> },
-    { key: 'minimumStock', label: 'الحد الأدنى' },
-    { key: 'unitCost',     label: 'تكلفة الوحدة',   render: (r: Material) => money(r.unitCost) },
-    { key: 'totalValue',   label: 'إجمالي القيمة',  render: (r: Material) => money(r.currentStock * r.unitCost) },
-    { key: 'stockStatus',  label: 'الحالة',         render: (r: Material) => r.currentStock <= r.minimumStock ? <span className="pill red">منخفض</span> : <span className="pill green">كافٍ</span> },
+    { key: 'code',         label: 'col.code',              render: (r: Material) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
+    { key: 'name',         label: 'col.inv.material',      render: (r: Material) => <strong>{r.name}</strong> },
+    { key: 'unit',         label: 'col.inv.unit' },
+    { key: 'category',     label: 'col.category',          render: (r: Material) => r.category?.name ?? '—' },
+    { key: 'currentStock', label: 'col.inv.current_stock', render: (r: Material) => <strong style={{ color: r.currentStock <= r.minimumStock ? '#ef4444' : 'inherit' }}>{r.currentStock}</strong> },
+    { key: 'minimumStock', label: 'col.inv.min_stock' },
+    { key: 'unitCost',     label: 'col.inv.unit_cost',     render: (r: Material) => money(r.unitCost) },
+    { key: 'totalValue',   label: 'col.inv.total_value',   render: (r: Material) => money(r.currentStock * r.unitCost) },
+    { key: 'stockStatus',  label: 'col.status',            render: (r: Material) => r.currentStock <= r.minimumStock ? <span className="pill red">{t('pill.low_stock')}</span> : <span className="pill green">{t('pill.adequate')}</span> },
   ];
 
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
-        <StatCard label="إجمالي المواد"   value={materials.length}  icon="📦" color="#3b82f6" bg="#dbeafe" />
-        <StatCard label="قيمة المخزون"    value={money(totalValue)} icon="💰" color="#10b981" bg="#d1fae5" />
-        <StatCard label="مواد منخفضة"     value={lowStock.length}   icon="⚠️" color="#f59e0b" bg="#fef3c7"
-          sub={lowStock.length > 0 ? 'تحتاج إعادة تموين' : undefined} dir={lowStock.length > 0 ? 'down' : ''} />
-        <StatCard label="تصنيفات نشطة"   value={activeCats}        icon="🏷️" color="#8b5cf6" bg="#ede9fe" />
+        <StatCard label={t('stat.inv.total_materials')} value={materials.length}  icon="📦" color="#3b82f6" bg="#dbeafe" />
+        <StatCard label={t('stat.inv.stock_value')}     value={money(totalValue)} icon="💰" color="#10b981" bg="#d1fae5" />
+        <StatCard label={t('stat.inv.low_stock')}       value={lowStock.length}   icon="⚠️" color="#f59e0b" bg="#fef3c7"
+          sub={lowStock.length > 0 ? t('stat.inv.needs_restock') : undefined} dir={lowStock.length > 0 ? 'down' : ''} />
+        <StatCard label={t('stat.inv.active_cats')}     value={activeCats}        icon="🏷️" color="#8b5cf6" bg="#ede9fe" />
       </div>
-      <DataTable columns={columns} rows={materials} loading={loading} emptyText="لا توجد مواد مسجّلة" />
+      <DataTable columns={columns} rows={materials} loading={loading} emptyText={t('empty.inv.materials_balance')} />
     </div>
   );
 }
@@ -225,6 +226,7 @@ function BalanceTab() {
 // ── التصنيفات ─────────────────────────────────────────────────────────────────
 
 function CategoriesTab() {
+  const { t } = useT();
   const { hasPermission } = useAuth();
   const [rows, setRows] = useState<MaterialCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,27 +242,27 @@ function CategoriesTab() {
   useEffect(() => { load(); }, [load]);
 
   async function remove(id: number) {
-    if (!confirm('حذف هذا التصنيف؟')) return;
+    if (!confirm(t('confirm.delete_category'))) return;
     try { await api.delete(`/inventory/categories/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
   }
 
   const columns = [
-    { key: 'name',        label: 'اسم التصنيف', render: (r: MaterialCategory) => <strong>{r.name}</strong> },
-    { key: 'description', label: 'الوصف',       render: (r: MaterialCategory) => r.description ?? '—' },
-    { key: '_count',      label: 'عدد المواد',  render: (r: MaterialCategory) => r._count?.materials ?? 0 },
-    { key: 'isActive',    label: 'الحالة',      render: (r: MaterialCategory) => r.isActive ? <span className="pill green">نشط</span> : <span className="pill gray">موقوف</span> },
+    { key: 'name',        label: 'col.inv.cat_name', render: (r: MaterialCategory) => <strong>{r.name}</strong> },
+    { key: 'description', label: 'col.description',  render: (r: MaterialCategory) => r.description ?? '—' },
+    { key: '_count',      label: 'col.inv.mat_count', render: (r: MaterialCategory) => r._count?.materials ?? 0 },
+    { key: 'isActive',    label: 'col.status',        render: (r: MaterialCategory) => r.isActive ? <span className="pill green">{t('pill.active')}</span> : <span className="pill gray">{t('pill.inactive')}</span> },
   ];
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        {hasPermission('inventory.create') && <button className="btn" onClick={() => setEditing({})}>＋ تصنيف جديد</button>}
+        {hasPermission('inventory.create') && <button className="btn" onClick={() => setEditing({})}>{t('btn.inv.new_category')}</button>}
       </div>
-      <DataTable columns={columns} rows={rows} loading={loading} emptyText="لا توجد تصنيفات"
+      <DataTable columns={columns} rows={rows} loading={loading} emptyText={t('empty.inv.categories')}
         actions={(row: MaterialCategory) => (
           <>
-            {hasPermission('inventory.update') && <button className="btn secondary sm" onClick={() => setEditing(row)}>تعديل</button>}{' '}
-            {hasPermission('inventory.delete') && <button className="btn secondary sm" onClick={() => remove(row.id)}>حذف</button>}
+            {hasPermission('inventory.update') && <button className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>}{' '}
+            {hasPermission('inventory.delete') && <button className="btn secondary sm" onClick={() => remove(row.id)}>{t('action.delete')}</button>}
           </>
         )}
       />
@@ -274,6 +276,7 @@ function CategoriesTab() {
 // ── المواد ────────────────────────────────────────────────────────────────────
 
 function MaterialsTab() {
+  const { t } = useT();
   const { hasPermission } = useAuth();
   const [rows, setRows] = useState<Material[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -293,33 +296,33 @@ function MaterialsTab() {
   useEffect(() => { load(); }, [load]);
 
   async function remove(id: number) {
-    if (!confirm('حذف هذه المادة؟')) return;
+    if (!confirm(t('confirm.delete_material'))) return;
     try { await api.delete(`/inventory/materials/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
   }
 
   const columns = [
-    { key: 'code',         label: 'الرمز',        render: (r: Material) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
-    { key: 'name',         label: 'المادة',        render: (r: Material) => <strong>{r.name}</strong> },
-    { key: 'category',     label: 'التصنيف',       render: (r: Material) => r.category?.name ?? '—' },
-    { key: 'unit',         label: 'الوحدة' },
-    { key: 'currentStock', label: 'المتوفر',       render: (r: Material) => <span style={{ fontWeight: 700, color: r.currentStock <= r.minimumStock ? '#ef4444' : 'inherit' }}>{r.currentStock}</span> },
-    { key: 'unitCost',     label: 'تكلفة/وحدة',   render: (r: Material) => money(r.unitCost) },
-    { key: 'isActive',     label: 'الحالة',        render: (r: Material) => r.isActive ? <span className="pill green">نشط</span> : <span className="pill gray">موقوف</span> },
+    { key: 'code',         label: 'col.code',              render: (r: Material) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
+    { key: 'name',         label: 'col.inv.material',      render: (r: Material) => <strong>{r.name}</strong> },
+    { key: 'category',     label: 'col.category',          render: (r: Material) => r.category?.name ?? '—' },
+    { key: 'unit',         label: 'col.inv.unit' },
+    { key: 'currentStock', label: 'col.inv.current_stock', render: (r: Material) => <span style={{ fontWeight: 700, color: r.currentStock <= r.minimumStock ? '#ef4444' : 'inherit' }}>{r.currentStock}</span> },
+    { key: 'unitCost',     label: 'col.inv.unit_cost',     render: (r: Material) => money(r.unitCost) },
+    { key: 'isActive',     label: 'col.status',            render: (r: Material) => r.isActive ? <span className="pill green">{t('pill.active')}</span> : <span className="pill gray">{t('pill.inactive')}</span> },
   ];
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 8 }}>
-        <input placeholder="بحث بالاسم أو الرمز…" value={search}
+        <input placeholder={t('ph.search_material')} value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           style={{ ...inp, maxWidth: 280 }} />
-        {hasPermission('inventory.create') && <button className="btn" onClick={() => setEditing({})}>＋ مادة جديدة</button>}
+        {hasPermission('inventory.create') && <button className="btn" onClick={() => setEditing({})}>{t('btn.inv.new_material')}</button>}
       </div>
-      <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText="لا توجد مواد"
+      <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.materials')}
         actions={(row: Material) => (
           <>
-            {hasPermission('inventory.update') && <button className="btn secondary sm" onClick={() => setEditing(row)}>تعديل</button>}{' '}
-            {hasPermission('inventory.delete') && <button className="btn secondary sm" onClick={() => remove(row.id)}>حذف</button>}
+            {hasPermission('inventory.update') && <button className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>}{' '}
+            {hasPermission('inventory.delete') && <button className="btn secondary sm" onClick={() => remove(row.id)}>{t('action.delete')}</button>}
           </>
         )}
       />
@@ -333,6 +336,7 @@ function MaterialsTab() {
 // ── أوامر الشراء ──────────────────────────────────────────────────────────────
 
 function PurchaseOrdersTab() {
+  const { t } = useT();
   const { hasPermission } = useAuth();
   const [rows, setRows] = useState<PurchaseOrder[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -358,50 +362,50 @@ function PurchaseOrdersTab() {
   }
 
   async function remove(id: number) {
-    if (!confirm('حذف أمر الشراء؟')) return;
+    if (!confirm(t('confirm.delete_po'))) return;
     try { await api.delete(`/inventory/purchase-orders/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
   }
 
   const columns = [
-    { key: 'number',       label: 'الرقم',          render: (r: PurchaseOrder) => <strong style={{ fontFamily: 'monospace' }}>{r.number}</strong> },
-    { key: 'supplier',     label: 'المورّد',         render: (r: PurchaseOrder) => r.supplier?.name ?? '—' },
-    { key: 'date',         label: 'التاريخ',         render: (r: PurchaseOrder) => dateText(r.date) },
-    { key: 'expectedDate', label: 'التاريخ المتوقع', render: (r: PurchaseOrder) => dateText(r.expectedDate) },
-    { key: 'status',       label: 'الحالة',          render: (r: PurchaseOrder) => statusBadge(poPill, r.status) },
-    { key: 'totalAmount',  label: 'الإجمالي',        render: (r: PurchaseOrder) => money(r.totalAmount) },
+    { key: 'number',       label: 'col.number',             render: (r: PurchaseOrder) => <strong style={{ fontFamily: 'monospace' }}>{r.number}</strong> },
+    { key: 'supplier',     label: 'col.supplier',           render: (r: PurchaseOrder) => r.supplier?.name ?? '—' },
+    { key: 'date',         label: 'col.date',               render: (r: PurchaseOrder) => dateText(r.date) },
+    { key: 'expectedDate', label: 'col.inv.expected_date',  render: (r: PurchaseOrder) => dateText(r.expectedDate) },
+    { key: 'status',       label: 'col.status',             render: (r: PurchaseOrder) => statusBadge(poPill, r.status, t) },
+    { key: 'totalAmount',  label: 'col.inv.total',          render: (r: PurchaseOrder) => money(r.totalAmount) },
   ];
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 8, flexWrap: 'wrap' }}>
         <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ ...inp, maxWidth: 180 }}>
-          <option value="">كل الحالات</option>
-          <option value="DRAFT">مسوّد</option>
-          <option value="SUBMITTED">مُرسَل</option>
-          <option value="RECEIVED">مستلَم</option>
-          <option value="CANCELLED">ملغي</option>
+          <option value="">{t('opt.all_statuses')}</option>
+          <option value="DRAFT">{t('inv.po.status.draft')}</option>
+          <option value="SUBMITTED">{t('inv.po.status.submitted')}</option>
+          <option value="RECEIVED">{t('inv.po.status.received')}</option>
+          <option value="CANCELLED">{t('inv.po.status.cancelled')}</option>
         </select>
-        {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>＋ أمر شراء</button>}
+        {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_po')}</button>}
       </div>
-      <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText="لا توجد أوامر شراء"
+      <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.po')}
         actions={(row: PurchaseOrder) => (
           <>
-            <button className="btn secondary sm" onClick={() => setDetailId(row.id)}>عرض</button>{' '}
+            <button className="btn secondary sm" onClick={() => setDetailId(row.id)}>{t('btn.inv.view')}</button>{' '}
             {hasPermission('inventory.update') && row.status === 'DRAFT' && (
-              <button className="btn sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/submit`, 'إرسال أمر الشراء للمورّد؟')}>إرسال</button>
+              <button className="btn sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/submit`, t('confirm.submit_po'))}>{t('btn.inv.submit_po')}</button>
             )}{' '}
             {hasPermission('inventory.update') && ['DRAFT', 'SUBMITTED'].includes(row.status) && (
-              <button className="btn secondary sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/cancel`, 'إلغاء أمر الشراء؟')}>إلغاء</button>
+              <button className="btn secondary sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/cancel`, t('confirm.cancel_po'))}>{t('action.cancel')}</button>
             )}{' '}
             {hasPermission('inventory.delete') && row.status === 'DRAFT' && (
-              <button className="btn secondary sm" onClick={() => remove(row.id)}>حذف</button>
+              <button className="btn secondary sm" onClick={() => remove(row.id)}>{t('action.delete')}</button>
             )}
           </>
         )}
       />
       {creating && <PurchaseOrderForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); load(); }} />}
       {detailId !== null && (
-        <DetailModal title="تفاصيل أمر الشراء" id={detailId} endpoint="/inventory/purchase-orders" onClose={() => setDetailId(null)} />
+        <DetailModal title={t('modal.inv.detail_po')} id={detailId} endpoint="/inventory/purchase-orders" onClose={() => setDetailId(null)} />
       )}
     </div>
   );
@@ -410,6 +414,7 @@ function PurchaseOrdersTab() {
 // ── سندات الاستلام ────────────────────────────────────────────────────────────
 
 function GoodsReceiptsTab() {
+  const { t } = useT();
   const { hasPermission } = useAuth();
   const [rows, setRows] = useState<GoodsReceipt[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -429,45 +434,45 @@ function GoodsReceiptsTab() {
   useEffect(() => { load(); }, [load]);
 
   async function post(id: number) {
-    if (!confirm('ترحيل سند الاستلام؟ سيتم تحديث المخزون وترحيل قيد محاسبي.')) return;
+    if (!confirm(t('confirm.post_gr'))) return;
     try { await api.post(`/inventory/goods-receipts/${id}/post`); load(); } catch (e) { alert(errorMessage(e)); }
   }
 
   async function remove(id: number) {
-    if (!confirm('حذف سند الاستلام؟')) return;
+    if (!confirm(t('confirm.delete_gr'))) return;
     try { await api.delete(`/inventory/goods-receipts/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
   }
 
   const columns = [
-    { key: 'number',        label: 'الرقم',      render: (r: GoodsReceipt) => <strong style={{ fontFamily: 'monospace' }}>{r.number}</strong> },
-    { key: 'supplier',      label: 'المورّد',     render: (r: GoodsReceipt) => r.supplier?.name ?? '—' },
-    { key: 'purchaseOrder', label: 'أمر الشراء', render: (r: GoodsReceipt) => r.purchaseOrder?.number ?? '—' },
-    { key: 'date',          label: 'التاريخ',     render: (r: GoodsReceipt) => dateText(r.date) },
-    { key: 'status',        label: 'الحالة',      render: (r: GoodsReceipt) => statusBadge(grPill, r.status) },
-    { key: 'totalCost',     label: 'الإجمالي',    render: (r: GoodsReceipt) => money(r.totalCost) },
+    { key: 'number',        label: 'col.number',    render: (r: GoodsReceipt) => <strong style={{ fontFamily: 'monospace' }}>{r.number}</strong> },
+    { key: 'supplier',      label: 'col.supplier',  render: (r: GoodsReceipt) => r.supplier?.name ?? '—' },
+    { key: 'purchaseOrder', label: 'col.inv.po_ref', render: (r: GoodsReceipt) => r.purchaseOrder?.number ?? '—' },
+    { key: 'date',          label: 'col.date',       render: (r: GoodsReceipt) => dateText(r.date) },
+    { key: 'status',        label: 'col.status',     render: (r: GoodsReceipt) => statusBadge(grPill, r.status, t) },
+    { key: 'totalCost',     label: 'col.inv.total',  render: (r: GoodsReceipt) => money(r.totalCost) },
   ];
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>＋ سند استلام</button>}
+        {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_gr')}</button>}
       </div>
-      <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText="لا توجد سندات استلام"
+      <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.gr')}
         actions={(row: GoodsReceipt) => (
           <>
-            <button className="btn secondary sm" onClick={() => setDetailId(row.id)}>عرض</button>{' '}
+            <button className="btn secondary sm" onClick={() => setDetailId(row.id)}>{t('btn.inv.view')}</button>{' '}
             {hasPermission('inventory.approve') && row.status === 'DRAFT' && (
-              <button className="btn sm" onClick={() => post(row.id)}>ترحيل</button>
+              <button className="btn sm" onClick={() => post(row.id)}>{t('btn.inv.post')}</button>
             )}{' '}
             {hasPermission('inventory.delete') && row.status === 'DRAFT' && (
-              <button className="btn secondary sm" onClick={() => remove(row.id)}>حذف</button>
+              <button className="btn secondary sm" onClick={() => remove(row.id)}>{t('action.delete')}</button>
             )}
           </>
         )}
       />
       {creating && <GoodsReceiptForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); load(); }} />}
       {detailId !== null && (
-        <DetailModal title="تفاصيل سند الاستلام" id={detailId} endpoint="/inventory/goods-receipts" onClose={() => setDetailId(null)} />
+        <DetailModal title={t('modal.inv.detail_gr')} id={detailId} endpoint="/inventory/goods-receipts" onClose={() => setDetailId(null)} />
       )}
     </div>
   );
@@ -476,6 +481,7 @@ function GoodsReceiptsTab() {
 // ── سندات الصرف ───────────────────────────────────────────────────────────────
 
 function MaterialIssuesTab() {
+  const { t } = useT();
   const { hasPermission } = useAuth();
   const [rows, setRows] = useState<MaterialIssue[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -497,54 +503,54 @@ function MaterialIssuesTab() {
   useEffect(() => { load(); }, [load]);
 
   async function post(id: number) {
-    if (!confirm('ترحيل سند الصرف؟ سيتم خصم المواد من المخزون وترحيل قيد محاسبي.')) return;
+    if (!confirm(t('confirm.post_mi'))) return;
     try { await api.post(`/inventory/material-issues/${id}/post`); load(); } catch (e) { alert(errorMessage(e)); }
   }
 
   async function cancel(id: number) {
-    if (!confirm('إلغاء سند الصرف؟ سيتم إعادة الكميات إلى المخزون وحذف القيد المحاسبي.')) return;
+    if (!confirm(t('confirm.cancel_mi'))) return;
     try { await api.post(`/inventory/material-issues/${id}/cancel`); load(); } catch (e) { alert(errorMessage(e)); }
   }
 
   async function remove(id: number) {
-    if (!confirm('حذف سند الصرف؟')) return;
+    if (!confirm(t('confirm.delete_mi'))) return;
     try { await api.delete(`/inventory/material-issues/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
   }
 
   const columns = [
-    { key: 'number',    label: 'الرقم',    render: (r: MaterialIssue) => <strong style={{ fontFamily: 'monospace' }}>{r.number}</strong> },
-    { key: 'contract',  label: 'العقد',    render: (r: MaterialIssue) => r.contract ? r.contract.code : '—' },
-    { key: 'date',      label: 'التاريخ',  render: (r: MaterialIssue) => dateText(r.date) },
-    { key: 'status',    label: 'الحالة',   render: (r: MaterialIssue) => statusBadge(miPill, r.status) },
-    { key: 'totalCost', label: 'الإجمالي', render: (r: MaterialIssue) => money(r.totalCost) },
+    { key: 'number',    label: 'col.number',   render: (r: MaterialIssue) => <strong style={{ fontFamily: 'monospace' }}>{r.number}</strong> },
+    { key: 'contract',  label: 'col.contract_no', render: (r: MaterialIssue) => r.contract ? r.contract.code : '—' },
+    { key: 'date',      label: 'col.date',     render: (r: MaterialIssue) => dateText(r.date) },
+    { key: 'status',    label: 'col.status',   render: (r: MaterialIssue) => statusBadge(miPill, r.status, t) },
+    { key: 'totalCost', label: 'col.inv.total', render: (r: MaterialIssue) => money(r.totalCost) },
   ];
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 8 }}>
         <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ ...inp, maxWidth: 180 }}>
-          <option value="">كل الحالات</option>
-          <option value="DRAFT">مسوّد</option>
-          <option value="POSTED">مُرحَّل</option>
-          <option value="CANCELLED">ملغي</option>
+          <option value="">{t('opt.all_statuses')}</option>
+          <option value="DRAFT">{t('inv.mi.status.draft')}</option>
+          <option value="POSTED">{t('inv.mi.status.posted')}</option>
+          <option value="CANCELLED">{t('inv.mi.status.cancelled')}</option>
         </select>
-        {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>＋ سند صرف</button>}
+        {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_mi')}</button>}
       </div>
-      <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText="لا توجد سندات صرف"
+      <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.mi')}
         actions={(row: MaterialIssue) => (
           <>
-            <button className="btn secondary sm" onClick={() => setDetailId(row.id)}>عرض</button>{' '}
+            <button className="btn secondary sm" onClick={() => setDetailId(row.id)}>{t('btn.inv.view')}</button>{' '}
             {hasPermission('inventory.approve') && row.status === 'DRAFT' && (
-              <button className="btn sm" onClick={() => post(row.id)}>ترحيل</button>
+              <button className="btn sm" onClick={() => post(row.id)}>{t('btn.inv.post')}</button>
             )}{' '}
             {hasPermission('inventory.cancel') && row.status === 'POSTED' && (
-              <button className="btn secondary sm" onClick={() => cancel(row.id)}>إلغاء</button>
+              <button className="btn secondary sm" onClick={() => cancel(row.id)}>{t('action.cancel')}</button>
             )}{' '}
             {hasPermission('inventory.update') && row.status === 'DRAFT' && (
-              <button className="btn secondary sm" onClick={() => setEditing(row)}>تعديل</button>
+              <button className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>
             )}{' '}
             {hasPermission('inventory.delete') && row.status === 'DRAFT' && (
-              <button className="btn secondary sm" onClick={() => remove(row.id)}>حذف</button>
+              <button className="btn secondary sm" onClick={() => remove(row.id)}>{t('action.delete')}</button>
             )}
           </>
         )}
@@ -552,7 +558,7 @@ function MaterialIssuesTab() {
       {creating && <MaterialIssueForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); load(); }} />}
       {editing !== null && <MaterialIssueForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
       {detailId !== null && (
-        <DetailModal title="تفاصيل سند الصرف" id={detailId} endpoint="/inventory/material-issues" onClose={() => setDetailId(null)} />
+        <DetailModal title={t('modal.inv.detail_mi')} id={detailId} endpoint="/inventory/material-issues" onClose={() => setDetailId(null)} />
       )}
     </div>
   );
@@ -568,6 +574,8 @@ function LineItemBuilder({
   materials: Material[];
   showCost: boolean;
 }) {
+  const { t } = useT();
+
   function updateItem(i: number, patch: Partial<LineItem>) {
     onChange(items.map((it, idx) => idx === i ? { ...it, ...patch } : it));
   }
@@ -582,14 +590,14 @@ function LineItemBuilder({
           gap: 6, marginBottom: 6, alignItems: 'center',
         }}>
           <select value={it.materialId} onChange={(e) => updateItem(i, { materialId: e.target.value })} style={inp}>
-            <option value="">— اختر مادة —</option>
+            <option value="">{t('ph.inv.select_material')}</option>
             {materials.map((m) => <option key={m.id} value={String(m.id)}>{m.name} ({m.unit})</option>)}
           </select>
-          <input type="number" min="0.001" step="0.001" placeholder="الكمية" value={it.quantity}
+          <input type="number" min="0.001" step="0.001" placeholder={t('ph.inv.qty')} value={it.quantity}
             onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })} style={inp} />
           {showCost && (
             <>
-              <input type="number" min="0" step="0.001" placeholder="التكلفة/وحدة" value={it.unitCost}
+              <input type="number" min="0" step="0.001" placeholder={t('ph.inv.unit_cost')} value={it.unitCost}
                 onChange={(e) => updateItem(i, { unitCost: Number(e.target.value) })} style={inp} />
               <div style={{ ...inp, background: 'var(--surface-2)', cursor: 'default' }}>
                 {money(it.quantity * it.unitCost)}
@@ -605,11 +613,11 @@ function LineItemBuilder({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
         <button className="btn secondary sm" type="button"
           onClick={() => onChange([...items, { materialId: '', quantity: 1, unitCost: 0 }])}>
-          ＋ إضافة مادة
+          {t('btn.inv.add_material')}
         </button>
         {showCost && (
           <span style={{ fontWeight: 700, color: 'var(--text-muted)' }}>
-            الإجمالي: {money(total)}
+            {t('lbl.inv.grand_total')} {money(total)}
           </span>
         )}
       </div>
@@ -620,6 +628,7 @@ function LineItemBuilder({
 // ── Shared: Detail Modal ──────────────────────────────────────────────────────
 
 function DetailModal({ title, id, endpoint, onClose }: { title: string; id: number; endpoint: string; onClose: () => void }) {
+  const { t } = useT();
   const [detail, setDetail] = useState<DetailRecord | null>(null);
 
   useEffect(() => {
@@ -631,17 +640,17 @@ function DetailModal({ title, id, endpoint, onClose }: { title: string; id: numb
   return (
     <Modal title={title} onClose={onClose}>
       {!detail ? (
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>جارٍ التحميل…</div>
+        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>{t('msg.loading')}</div>
       ) : (
         <div>
           {detail.notes && <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>{detail.notes}</p>}
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                <th style={{ textAlign: 'right', padding: '6px 8px' }}>المادة</th>
-                <th style={{ textAlign: 'right', padding: '6px 8px' }}>الكمية</th>
-                <th style={{ textAlign: 'right', padding: '6px 8px' }}>التكلفة/وحدة</th>
-                <th style={{ textAlign: 'right', padding: '6px 8px' }}>الإجمالي</th>
+                <th style={{ textAlign: 'right', padding: '6px 8px' }}>{t('col.inv.material')}</th>
+                <th style={{ textAlign: 'right', padding: '6px 8px' }}>{t('col.qty')}</th>
+                <th style={{ textAlign: 'right', padding: '6px 8px' }}>{t('col.inv.unit_cost_per')}</th>
+                <th style={{ textAlign: 'right', padding: '6px 8px' }}>{t('col.inv.total')}</th>
               </tr>
             </thead>
             <tbody>
@@ -658,7 +667,7 @@ function DetailModal({ title, id, endpoint, onClose }: { title: string; id: numb
             </tbody>
           </table>
           <div style={{ marginTop: 12, textAlign: 'left', fontWeight: 700 }}>
-            الإجمالي الكلي: {money(detail.totalCost ?? detail.totalAmount ?? 0)}
+            {t('lbl.inv.grand_total')} {money(detail.totalCost ?? detail.totalAmount ?? 0)}
           </div>
         </div>
       )}
@@ -669,6 +678,7 @@ function DetailModal({ title, id, endpoint, onClose }: { title: string; id: numb
 // ── Forms ─────────────────────────────────────────────────────────────────────
 
 function CategoryForm({ initial, onClose, onSaved }: { initial: Partial<MaterialCategory>; onClose: () => void; onSaved: () => void }) {
+  const { t } = useT();
   const isNew = !initial?.id;
   const [name, setName] = useState<string>(initial?.name ?? '');
   const [description, setDescription] = useState<string>(initial?.description ?? '');
@@ -678,7 +688,7 @@ function CategoryForm({ initial, onClose, onSaved }: { initial: Partial<Material
 
   async function submit() {
     setError('');
-    if (!name.trim()) { setError('اسم التصنيف مطلوب'); return; }
+    if (!name.trim()) { setError(t('error.cat_name_required')); return; }
     setSaving(true);
     try {
       const body = { name: name.trim(), description: description || null, isActive };
@@ -690,19 +700,19 @@ function CategoryForm({ initial, onClose, onSaved }: { initial: Partial<Material
   }
 
   return (
-    <Modal title={isNew ? 'تصنيف جديد' : 'تعديل التصنيف'} onClose={onClose} footer={
+    <Modal title={isNew ? t('modal.inv.new_category') : t('modal.inv.edit_category')} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving}>{saving ? 'جارٍ…' : 'حفظ'}</button>
-        <button className="btn secondary" onClick={onClose}>إلغاء</button>
+        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
+        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
-        <div className="field"><label>اسم التصنيف *</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div className="field"><label>الوصف</label><input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+        <div className="field"><label>{t('field.inv.cat_name')} *</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div className="field"><label>{t('col.description')}</label><input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
         <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input type="checkbox" id="cat-active" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-          <label htmlFor="cat-active">نشط</label>
+          <label htmlFor="cat-active">{t('field.inv.active_check')}</label>
         </div>
       </div>
     </Modal>
@@ -710,6 +720,7 @@ function CategoryForm({ initial, onClose, onSaved }: { initial: Partial<Material
 }
 
 function MaterialForm({ initial, onClose, onSaved }: { initial: Partial<Material>; onClose: () => void; onSaved: () => void }) {
+  const { t } = useT();
   const isNew = !initial?.id;
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
   const [code, setCode]               = useState<string>(initial?.code ?? '');
@@ -731,9 +742,9 @@ function MaterialForm({ initial, onClose, onSaved }: { initial: Partial<Material
 
   async function submit() {
     setError('');
-    if (isNew && !code.trim()) { setError('رمز المادة مطلوب'); return; }
-    if (!name.trim()) { setError('اسم المادة مطلوب'); return; }
-    if (!categoryId) { setError('التصنيف مطلوب'); return; }
+    if (isNew && !code.trim()) { setError(t('error.mat_code_required')); return; }
+    if (!name.trim()) { setError(t('error.mat_name_required')); return; }
+    if (!categoryId) { setError(t('error.category_required')); return; }
     setSaving(true);
     try {
       const body = {
@@ -750,35 +761,35 @@ function MaterialForm({ initial, onClose, onSaved }: { initial: Partial<Material
   }
 
   return (
-    <Modal title={isNew ? 'مادة جديدة' : 'تعديل المادة'} onClose={onClose} footer={
+    <Modal title={isNew ? t('modal.inv.new_material') : t('modal.inv.edit_material')} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving}>{saving ? 'جارٍ…' : 'حفظ'}</button>
-        <button className="btn secondary" onClick={onClose}>إلغاء</button>
+        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
+        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
-        {isNew && <div className="field"><label>رمز المادة *</label><input value={code} onChange={(e) => setCode(e.target.value)} /></div>}
-        <div className="field"><label>اسم المادة *</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
+        {isNew && <div className="field"><label>{t('field.inv.mat_code')} *</label><input value={code} onChange={(e) => setCode(e.target.value)} /></div>}
+        <div className="field"><label>{t('field.inv.mat_name')} *</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
         <div className="field">
-          <label>التصنيف *</label>
+          <label>{t('col.category')} *</label>
           <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">— اختر —</option>
+            <option value="">{t('msg.select_placeholder')}</option>
             {categories.map((c) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
           </select>
         </div>
         <div className="field">
-          <label>وحدة القياس</label>
+          <label>{t('field.inv.mat_unit')}</label>
           <select value={unit} onChange={(e) => setUnit(e.target.value)}>
             {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </div>
-        <div className="field"><label>تكلفة الوحدة (د.ك)</label><input type="number" min="0" step="0.001" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} /></div>
-        <div className="field"><label>الحد الأدنى للمخزون</label><input type="number" min="0" step="0.001" value={minimumStock} onChange={(e) => setMinimumStock(e.target.value)} /></div>
-        <div className="field" style={{ gridColumn: '1 / -1' }}><label>ملاحظات</label><input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+        <div className="field"><label>{t('field.inv.unit_cost_kd')}</label><input type="number" min="0" step="0.001" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} /></div>
+        <div className="field"><label>{t('field.inv.min_stock')}</label><input type="number" min="0" step="0.001" value={minimumStock} onChange={(e) => setMinimumStock(e.target.value)} /></div>
+        <div className="field" style={{ gridColumn: '1 / -1' }}><label>{t('field.notes')}</label><input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
         <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input type="checkbox" id="mat-active" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-          <label htmlFor="mat-active">نشط</label>
+          <label htmlFor="mat-active">{t('field.inv.active_check')}</label>
         </div>
       </div>
     </Modal>
@@ -786,6 +797,7 @@ function MaterialForm({ initial, onClose, onSaved }: { initial: Partial<Material
 }
 
 function PurchaseOrderForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const { t } = useT();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [supplierId, setSupplierId] = useState('');
@@ -808,9 +820,9 @@ function PurchaseOrderForm({ onClose, onSaved }: { onClose: () => void; onSaved:
 
   async function submit() {
     setError('');
-    if (!supplierId) { setError('المورّد مطلوب'); return; }
-    if (items.some((it) => !it.materialId)) { setError('اختر مادة لكل بند'); return; }
-    if (items.some((it) => it.quantity <= 0)) { setError('الكمية يجب أن تكون أكبر من صفر'); return; }
+    if (!supplierId) { setError(t('error.supplier_required')); return; }
+    if (items.some((it) => !it.materialId)) { setError(t('error.select_material')); return; }
+    if (items.some((it) => it.quantity <= 0)) { setError(t('error.qty_positive')); return; }
     setSaving(true);
     try {
       await api.post('/inventory/purchase-orders', {
@@ -824,32 +836,33 @@ function PurchaseOrderForm({ onClose, onSaved }: { onClose: () => void; onSaved:
   }
 
   return (
-    <Modal title="أمر شراء جديد" onClose={onClose} footer={
+    <Modal title={t('modal.inv.new_po')} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving}>{saving ? 'جارٍ…' : 'حفظ'}</button>
-        <button className="btn secondary" onClick={onClose}>إلغاء</button>
+        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
+        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
         <div className="field">
-          <label>المورّد *</label>
+          <label>{t('col.supplier')} *</label>
           <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-            <option value="">— اختر —</option>
+            <option value="">{t('msg.select_placeholder')}</option>
             {suppliers.map((s) => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
           </select>
         </div>
-        <div className="field"><label>تاريخ الأمر</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-        <div className="field"><label>تاريخ الاستلام المتوقع</label><input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} /></div>
-        <div className="field" style={{ gridColumn: '1 / -1' }}><label>ملاحظات</label><input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+        <div className="field"><label>{t('field.inv.po_date')}</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <div className="field"><label>{t('field.inv.expected_date')}</label><input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} /></div>
+        <div className="field" style={{ gridColumn: '1 / -1' }}><label>{t('field.notes')}</label><input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
       </div>
-      <div style={{ margin: '12px 0 6px', fontWeight: 700, fontSize: 13, color: 'var(--text-muted)' }}>البنود</div>
+      <div style={{ margin: '12px 0 6px', fontWeight: 700, fontSize: 13, color: 'var(--text-muted)' }}>{t('lbl.inv.items')}</div>
       <LineItemBuilder items={items} onChange={setItems} materials={materials} showCost />
     </Modal>
   );
 }
 
 function GoodsReceiptForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const { t } = useT();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -875,9 +888,9 @@ function GoodsReceiptForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
 
   async function submit() {
     setError('');
-    if (!supplierId) { setError('المورّد مطلوب'); return; }
-    if (items.some((it) => !it.materialId)) { setError('اختر مادة لكل بند'); return; }
-    if (items.some((it) => it.quantity <= 0)) { setError('الكمية يجب أن تكون أكبر من صفر'); return; }
+    if (!supplierId) { setError(t('error.supplier_required')); return; }
+    if (items.some((it) => !it.materialId)) { setError(t('error.select_material')); return; }
+    if (items.some((it) => it.quantity <= 0)) { setError(t('error.qty_positive')); return; }
     setSaving(true);
     try {
       await api.post('/inventory/goods-receipts', {
@@ -892,38 +905,39 @@ function GoodsReceiptForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
   }
 
   return (
-    <Modal title="سند استلام جديد" onClose={onClose} footer={
+    <Modal title={t('modal.inv.new_gr')} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving}>{saving ? 'جارٍ…' : 'حفظ'}</button>
-        <button className="btn secondary" onClick={onClose}>إلغاء</button>
+        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
+        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
         <div className="field">
-          <label>المورّد *</label>
+          <label>{t('col.supplier')} *</label>
           <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
-            <option value="">— اختر —</option>
+            <option value="">{t('msg.select_placeholder')}</option>
             {suppliers.map((s) => <option key={s.id} value={String(s.id)}>{s.name}</option>)}
           </select>
         </div>
         <div className="field">
-          <label>أمر الشراء (اختياري)</label>
+          <label>{t('field.inv.po_optional')}</label>
           <select value={purchaseOrderId} onChange={(e) => setPurchaseOrderId(e.target.value)}>
-            <option value="">— بدون أمر شراء —</option>
+            <option value="">— {t('opt.no_po')} —</option>
             {purchaseOrders.map((po) => <option key={po.id} value={String(po.id)}>{po.number}</option>)}
           </select>
         </div>
-        <div className="field"><label>التاريخ</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-        <div className="field" style={{ gridColumn: '1 / -1' }}><label>ملاحظات</label><input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+        <div className="field"><label>{t('col.date')}</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <div className="field" style={{ gridColumn: '1 / -1' }}><label>{t('field.notes')}</label><input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
       </div>
-      <div style={{ margin: '12px 0 6px', fontWeight: 700, fontSize: 13, color: 'var(--text-muted)' }}>البنود</div>
+      <div style={{ margin: '12px 0 6px', fontWeight: 700, fontSize: 13, color: 'var(--text-muted)' }}>{t('lbl.inv.items')}</div>
       <LineItemBuilder items={items} onChange={setItems} materials={materials} showCost />
     </Modal>
   );
 }
 
 function MaterialIssueForm({ initial, onClose, onSaved }: { initial?: Partial<MaterialIssue>; onClose: () => void; onSaved: () => void }) {
+  const { t } = useT();
   const isNew = !initial?.id;
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -960,8 +974,8 @@ function MaterialIssueForm({ initial, onClose, onSaved }: { initial?: Partial<Ma
 
   async function submit() {
     setError('');
-    if (items.some((it) => !it.materialId)) { setError('اختر مادة لكل بند'); return; }
-    if (items.some((it) => it.quantity <= 0)) { setError('الكمية يجب أن تكون أكبر من صفر'); return; }
+    if (items.some((it) => !it.materialId)) { setError(t('error.select_material')); return; }
+    if (items.some((it) => it.quantity <= 0)) { setError(t('error.qty_positive')); return; }
     setSaving(true);
     try {
       const body = {
@@ -977,27 +991,27 @@ function MaterialIssueForm({ initial, onClose, onSaved }: { initial?: Partial<Ma
   }
 
   return (
-    <Modal title={isNew ? 'سند صرف جديد' : 'تعديل سند الصرف'} onClose={onClose} footer={
+    <Modal title={isNew ? t('modal.inv.new_mi') : t('modal.inv.edit_mi')} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving}>{saving ? 'جارٍ…' : 'حفظ'}</button>
-        <button className="btn secondary" onClick={onClose}>إلغاء</button>
+        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
+        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
         <div className="field">
-          <label>العقد (اختياري)</label>
+          <label>{t('field.inv.contract_optional')}</label>
           <select value={contractId} onChange={(e) => setContractId(e.target.value)}>
-            <option value="">— بدون عقد —</option>
+            <option value="">— {t('opt.no_contract')} —</option>
             {contracts.map((c) => <option key={c.id} value={String(c.id)}>{c.code} — {c.asphaltPlant}</option>)}
           </select>
         </div>
-        <div className="field"><label>التاريخ</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-        <div className="field" style={{ gridColumn: '1 / -1' }}><label>ملاحظات</label><input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
+        <div className="field"><label>{t('col.date')}</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <div className="field" style={{ gridColumn: '1 / -1' }}><label>{t('field.notes')}</label><input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
       </div>
       <div style={{ margin: '12px 0 6px', fontWeight: 700, fontSize: 13, color: 'var(--text-muted)' }}>
-        البنود
-        <small style={{ fontWeight: 400, marginRight: 8 }}>التكلفة تُحسب تلقائيًا بسعر المتوسط المرجح عند الترحيل</small>
+        {t('lbl.inv.items')}
+        <small style={{ fontWeight: 400, marginRight: 8 }}>{t('lbl.inv.items_note')}</small>
       </div>
       <LineItemBuilder items={items} onChange={setItems} materials={materials} showCost={false} />
     </Modal>

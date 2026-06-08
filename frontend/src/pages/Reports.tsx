@@ -26,52 +26,52 @@ interface ReportType {
 
 const REPORT_TYPES: ReportType[] = [
   {
-    key: 'invoices', label: 'تقرير الفواتير', icon: '🧾', group: 'المالية',
+    key: 'invoices', label: 'report.type.invoices', icon: '🧾', group: 'report.group.financial',
     filters: ['date', 'customer', 'direction', 'status'],
-    statuses: [['UNPAID', 'غير مسدّدة'], ['PARTIAL', 'مدفوعة جزئيًا'], ['PAID', 'مسدّدة'], ['OVERDUE', 'متأخرة'], ['CANCELLED', 'ملغاة']],
+    statuses: [['UNPAID', 'inv.status.unpaid'], ['PARTIAL', 'inv.status.partial'], ['PAID', 'inv.status.paid'], ['OVERDUE', 'inv.status.overdue'], ['CANCELLED', 'inv.status.cancelled']],
   },
   {
-    key: 'expenses', label: 'تقرير المصروفات', icon: '💸', group: 'المالية',
+    key: 'expenses', label: 'report.type.expenses', icon: '💸', group: 'report.group.financial',
     filters: ['date', 'status'],
-    statuses: [['PENDING', 'معلّقة'], ['APPROVED', 'معتمدة'], ['REJECTED', 'مرفوضة']],
+    statuses: [['PENDING', 'status.pending'], ['APPROVED', 'status.approved'], ['REJECTED', 'status.rejected']],
   },
   {
-    key: 'profit-loss', label: 'الأرباح والخسائر', icon: '📈', group: 'المالية',
+    key: 'profit-loss', label: 'report.type.profit_loss', icon: '📈', group: 'report.group.financial',
     filters: ['date'],
   },
   {
-    key: 'contracts', label: 'تقرير العقود', icon: '📄', group: 'الأعمال',
+    key: 'contracts', label: 'report.type.contracts', icon: '📄', group: 'report.group.business',
     filters: ['customer', 'status'],
-    statuses: [['ACTIVE', 'ساري'], ['EXPIRED', 'منتهٍ'], ['RENEWING', 'قيد التجديد'], ['SUSPENDED', 'موقوف']],
+    statuses: [['ACTIVE', 'opt.contract.active'], ['EXPIRED', 'opt.contract.expired'], ['RENEWING', 'opt.contract.renewing'], ['SUSPENDED', 'opt.contract.suspended']],
   },
   {
-    key: 'customers', label: 'تقرير العملاء', icon: '👥', group: 'الأعمال',
+    key: 'customers', label: 'report.type.customers', icon: '👥', group: 'report.group.business',
     filters: ['status'],
-    statuses: [['GOVERNMENT', 'حكومي'], ['PRIVATE', 'خاص']],
+    statuses: [['GOVERNMENT', 'opt.customer.government'], ['PRIVATE', 'opt.customer.private']],
   },
   {
-    key: 'employees', label: 'تقرير الموظفين', icon: '👷', group: 'الموارد البشرية',
+    key: 'employees', label: 'report.type.employees', icon: '👷', group: 'report.group.hr',
     filters: ['status'],
-    statuses: [['ACTIVE', 'نشط'], ['ON_LEAVE', 'إجازة'], ['TERMINATED', 'منتهي الخدمة']],
+    statuses: [['ACTIVE', 'opt.emp.active'], ['ON_LEAVE', 'opt.emp.on_leave'], ['TERMINATED', 'opt.emp.terminated']],
   },
   {
-    key: 'payroll', label: 'تقرير الرواتب', icon: '💵', group: 'الموارد البشرية',
+    key: 'payroll', label: 'report.type.payroll', icon: '💵', group: 'report.group.hr',
     filters: ['date', 'employee', 'status'],
-    statuses: [['DRAFT', 'DRAFT'], ['APPROVED', 'APPROVED'], ['PAID', 'PAID'], ['CANCELLED', 'CANCELLED']],
+    statuses: [['DRAFT', 'payroll.status.draft'], ['APPROVED', 'payroll.status.approved'], ['PAID', 'payroll.status.paid'], ['CANCELLED', 'payroll.status.cancelled']],
   },
   {
-    key: 'attendance', label: 'تقرير الحضور', icon: '📅', group: 'الموارد البشرية',
+    key: 'attendance', label: 'report.type.attendance', icon: '📅', group: 'report.group.hr',
     filters: ['date', 'employee', 'status'],
-    statuses: [['PRESENT', 'حاضر'], ['ABSENT', 'غائب'], ['LATE', 'متأخر'], ['LEAVE', 'إجازة']],
+    statuses: [['PRESENT', 'att.present'], ['ABSENT', 'att.absent'], ['LATE', 'att.late'], ['LEAVE', 'att.leave']],
   },
   {
-    key: 'equipment', label: 'تقرير المعدّات', icon: '🚜', group: 'التشغيل',
+    key: 'equipment', label: 'report.type.equipment', icon: '🚜', group: 'report.group.operations',
     filters: ['status'],
-    statuses: [['WORKING', 'تعمل'], ['NOT_WORKING', 'لا تعمل']],
+    statuses: [['WORKING', 'opt.eq.working'], ['NOT_WORKING', 'opt.eq.not_working']],
   },
 ];
 
-const GROUPS = ['المالية', 'الأعمال', 'الموارد البشرية', 'التشغيل'];
+const GROUPS = ['report.group.financial', 'report.group.business', 'report.group.hr', 'report.group.operations'];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -106,7 +106,7 @@ export default function Reports() {
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [employees, setEmployees] = useState<EmployeeItem[]>([]);
 
-  const currentType = REPORT_TYPES.find((t) => t.key === selected)!;
+  const currentType = REPORT_TYPES.find((rt) => rt.key === selected)!;
 
   // Load dropdowns once
   useEffect(() => {
@@ -185,28 +185,28 @@ export default function Reports() {
   const sidebar = (
     <div className="card" style={{ width: 210, flexShrink: 0, padding: 0, overflow: 'hidden' }}>
       {GROUPS.map((group) => {
-        const types = REPORT_TYPES.filter((t) => t.group === group);
+        const types = REPORT_TYPES.filter((rt) => rt.group === group);
         return (
           <div key={group}>
             <div style={{ padding: '10px 14px 4px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>
-              {group}
+              {t(group)}
             </div>
-            {types.map((t) => (
+            {types.map((rt) => (
               <button
-                key={t.key}
-                onClick={() => setSelected(t.key)}
+                key={rt.key}
+                onClick={() => setSelected(rt.key)}
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                   padding: '10px 14px', border: 'none', cursor: 'pointer', textAlign: 'right',
-                  fontSize: 13, fontWeight: selected === t.key ? 700 : 400,
-                  background: selected === t.key ? 'var(--primary)' : 'transparent',
-                  color: selected === t.key ? '#fff' : 'var(--text)',
-                  borderLeft: selected === t.key ? '3px solid var(--primary-dark, #1d4e6f)' : '3px solid transparent',
+                  fontSize: 13, fontWeight: selected === rt.key ? 700 : 400,
+                  background: selected === rt.key ? 'var(--primary)' : 'transparent',
+                  color: selected === rt.key ? '#fff' : 'var(--text)',
+                  borderLeft: selected === rt.key ? '3px solid var(--primary-dark, #1d4e6f)' : '3px solid transparent',
                   transition: 'background 0.15s',
                 }}
               >
-                <span style={{ fontSize: 16 }}>{t.icon}</span>
-                <span>{t.label}</span>
+                <span style={{ fontSize: 16 }}>{rt.icon}</span>
+                <span>{t(rt.label)}</span>
               </button>
             ))}
           </div>
@@ -225,11 +225,11 @@ export default function Reports() {
         {f.includes('date') && (
           <>
             <div className="field" style={{ margin: 0, minWidth: 140 }}>
-              <label style={{ fontSize: 12 }}>من تاريخ</label>
+              <label style={{ fontSize: 12 }}>{t('filter.date_from')}</label>
               <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }} />
             </div>
             <div className="field" style={{ margin: 0, minWidth: 140 }}>
-              <label style={{ fontSize: 12 }}>إلى تاريخ</label>
+              <label style={{ fontSize: 12 }}>{t('filter.date_to')}</label>
               <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }} />
             </div>
           </>
@@ -237,9 +237,9 @@ export default function Reports() {
 
         {f.includes('customer') && customers.length > 0 && (
           <div className="field" style={{ margin: 0, minWidth: 180 }}>
-            <label style={{ fontSize: 12 }}>العميل</label>
+            <label style={{ fontSize: 12 }}>{t('filter.customer')}</label>
             <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
-              <option value="">— الكل —</option>
+              <option value="">{t('opt.all')}</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -247,9 +247,9 @@ export default function Reports() {
 
         {f.includes('employee') && employees.length > 0 && (
           <div className="field" style={{ margin: 0, minWidth: 180 }}>
-            <label style={{ fontSize: 12 }}>الموظف</label>
+            <label style={{ fontSize: 12 }}>{t('filter.employee')}</label>
             <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
-              <option value="">— الكل —</option>
+              <option value="">{t('opt.all')}</option>
               {employees.map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
             </select>
           </div>
@@ -257,21 +257,21 @@ export default function Reports() {
 
         {f.includes('direction') && (
           <div className="field" style={{ margin: 0, minWidth: 140 }}>
-            <label style={{ fontSize: 12 }}>الاتجاه</label>
+            <label style={{ fontSize: 12 }}>{t('filter.direction')}</label>
             <select value={direction} onChange={(e) => setDirection(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
-              <option value="">— الكل —</option>
-              <option value="SALES">مبيعات</option>
-              <option value="PURCHASE">مشتريات</option>
+              <option value="">{t('opt.all')}</option>
+              <option value="SALES">{t('opt.direction.sales')}</option>
+              <option value="PURCHASE">{t('opt.direction.purchase')}</option>
             </select>
           </div>
         )}
 
         {f.includes('status') && currentType.statuses && (
           <div className="field" style={{ margin: 0, minWidth: 160 }}>
-            <label style={{ fontSize: 12 }}>الحالة</label>
+            <label style={{ fontSize: 12 }}>{t('filter.status')}</label>
             <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
-              <option value="">— الكل —</option>
-              {currentType.statuses.map(([val, lbl]) => <option key={val} value={val}>{lbl}</option>)}
+              <option value="">{t('opt.all')}</option>
+              {currentType.statuses.map(([val, lbl]) => <option key={val} value={val}>{t(lbl)}</option>)}
             </select>
           </div>
         )}
@@ -350,7 +350,7 @@ export default function Reports() {
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ marginBottom: 8 }}>
-            <span style={{ fontSize: 18, fontWeight: 700 }}>{currentType.icon} {currentType.label}</span>
+            <span style={{ fontSize: 18, fontWeight: 700 }}>{currentType.icon} {t(currentType.label)}</span>
           </div>
 
           {filterBar}
