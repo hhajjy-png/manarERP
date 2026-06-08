@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { dateText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
+import { useT } from '../lib/i18n';
 
 const isElectron = typeof window !== 'undefined' && !!window.manar;
 
@@ -14,6 +15,7 @@ function fmt(bytes: number): string {
 
 export default function Backup() {
   const { hasPermission } = useAuth();
+  const { t } = useT();
   const canCreate = hasPermission('backups.create');
   const canRestore = hasPermission('backups.update');
 
@@ -35,56 +37,47 @@ export default function Backup() {
     try {
       const res = await api.get('/backups');
       setList(res.data.data ?? []);
-    } catch { /* الجدول قد يكون فارغًا */ } finally {
+    } catch { /* table may be empty */ } finally {
       setLoading(false);
     }
   }
   useEffect(() => { load(); }, []);
 
-  // ─── نسخة احتياطية عبر الخادم (HTTP API) ─────────────────────────────────
   async function createBackupApi() {
     setBusy(true); setMsg(null);
     try {
       await api.post('/backups');
-      showMsg('تم إنشاء النسخة الاحتياطية بنجاح ✓');
+      showMsg(t('msg.backup.created'));
       load();
     } catch (err) { showMsg(errorMessage(err), 'err'); } finally { setBusy(false); }
   }
 
-  // ─── نسخة احتياطية مباشرة عبر Electron IPC ────────────────────────────────
   async function createBackupElectron() {
-    if (!isElectron) { showMsg('هذه الميزة متاحة فقط في تطبيق سطح المكتب', 'warn'); return; }
+    if (!isElectron) { showMsg(t('msg.backup.desktop_only'), 'warn'); return; }
     setBusy(true); setMsg(null);
     const result = await window.manar!.backupCreate();
     setBusy(false);
     if (result.success) {
-      showMsg(`تم حفظ النسخة الاحتياطية بنجاح ✓  (${fmt(result.sizeBytes ?? 0)})`);
+      showMsg(t('msg.backup.direct_done', { size: fmt(result.sizeBytes ?? 0) }));
     } else if (!result.canceled) {
-      showMsg(result.error ?? 'فشل إنشاء النسخة الاحتياطية', 'err');
+      showMsg(result.error ?? t('msg.backup.create_fail'), 'err');
     }
   }
 
-  // ─── تصدير قاعدة البيانات ─────────────────────────────────────────────────
   async function exportDb() {
-    if (!isElectron) { showMsg('هذه الميزة متاحة فقط في تطبيق سطح المكتب', 'warn'); return; }
+    if (!isElectron) { showMsg(t('msg.backup.desktop_only'), 'warn'); return; }
     const targetPath = await window.manar!.chooseSavePath('manar-export.db');
     if (!targetPath) return;
-    try { await api.post('/backups/export', { path: targetPath }); showMsg('تم تصدير قاعدة البيانات ✓'); }
+    try { await api.post('/backups/export', { path: targetPath }); showMsg(t('msg.backup.export_done')); }
     catch (err) { showMsg(errorMessage(err), 'err'); }
   }
 
-  // ─── استعادة من قائمة النسخ (backend) ────────────────────────────────────
   async function restoreFromList(id: number, fileName: string) {
-    if (!confirm(
-      `⚠️ تحذير — استعادة النسخة الاحتياطية\n\n` +
-      `سيتم استبدال قاعدة البيانات الحالية بالنسخة: ${fileName}\n` +
-      `سيتم إنشاء نسخة تلقائية قبل الاستعادة.\n\n` +
-      `هل تريد المتابعة؟`
-    )) return;
+    if (!confirm(t('confirm.backup.restore_list', { fileName }))) return;
     setBusy(true); setMsg(null);
     try {
       await api.post(`/backups/${id}/restore`);
-      showMsg('تمت الاستعادة — يلزم إعادة تشغيل التطبيق', 'warn');
+      showMsg(t('msg.backup.restored_restart', { size: '' }).replace(' ()', ''), 'warn');
       if (isElectron) {
         await new Promise((r) => setTimeout(r, 2000));
         await window.manar!.restartApp();
@@ -92,21 +85,13 @@ export default function Backup() {
     } catch (err) { showMsg(errorMessage(err), 'err'); } finally { setBusy(false); }
   }
 
-  // ─── استعادة من ملف خارجي عبر Electron IPC ───────────────────────────────
   async function restoreFromFile() {
-    if (!isElectron) { showMsg('هذه الميزة متاحة فقط في تطبيق سطح المكتب', 'warn'); return; }
+    if (!isElectron) { showMsg(t('msg.backup.desktop_only'), 'warn'); return; }
 
     const sourcePath = await window.manar!.chooseBackupFile();
     if (!sourcePath) return;
 
-    const confirmed = confirm(
-      `⚠️ تحذير — استعادة قاعدة البيانات\n\n` +
-      `سيتم استبدال قاعدة البيانات الحالية بالملف:\n${sourcePath}\n\n` +
-      `سيتم إنشاء نسخة احتياطية تلقائية قبل الاستعادة.\n` +
-      `يجب إعادة تشغيل التطبيق بعد الاستعادة.\n\n` +
-      `هل تريد المتابعة؟`
-    );
-    if (!confirmed) return;
+    if (!confirm(t('confirm.backup.restore_file', { path: sourcePath }))) return;
 
     setBusy(true);
     setMsg(null);
@@ -114,29 +99,24 @@ export default function Backup() {
     setBusy(false);
 
     if (result.success) {
-      showMsg(
-        `تمت الاستعادة بنجاح ✓  (${fmt(result.sizeBytes ?? 0)}) — سيُعاد تشغيل التطبيق خلال ثوانٍ`,
-        'warn'
-      );
+      showMsg(t('msg.backup.restored_restart', { size: fmt(result.sizeBytes ?? 0) }), 'warn');
       await new Promise((r) => setTimeout(r, 3000));
       await window.manar!.restartApp();
     } else {
-      showMsg(result.error ?? 'فشل الاستعادة', 'err');
+      showMsg(result.error ?? t('msg.backup.restore_fail'), 'err');
     }
   }
 
-  // ─── عرض مسار قاعدة البيانات ─────────────────────────────────────────────
   async function toggleDbPath() {
-    if (!isElectron) { showMsg('هذه الميزة متاحة فقط في تطبيق سطح المكتب', 'warn'); return; }
+    if (!isElectron) { showMsg(t('msg.backup.desktop_only'), 'warn'); return; }
     if (showDbPath) { setShowDbPath(false); return; }
     const info = await window.manar!.getDbPath();
     setDbInfo(info);
     setShowDbPath(true);
   }
 
-  // ─── حذف نسخة ─────────────────────────────────────────────────────────────
   async function remove(id: number) {
-    if (!confirm('حذف هذه النسخة الاحتياطية؟')) return;
+    if (!confirm(t('confirm.backup.delete'))) return;
     try { await api.delete(`/backups/${id}`); load(); } catch (err) { showMsg(errorMessage(err), 'err'); }
   }
 
@@ -145,87 +125,85 @@ export default function Backup() {
   return (
     <div>
       <div className="page-head">
-        <div><h2>النسخ الاحتياطي والاستعادة</h2><p>نسخ تلقائي يومي + نسخ يدوي واستعادة كاملة</p></div>
+        <div><h2>{t('page.backup.title')}</h2><p>{t('page.backup.subtitle')}</p></div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {isElectron && (
             <button className="btn secondary" onClick={toggleDbPath}>
-              {showDbPath ? '🔒 إخفاء المسار' : '📂 مسار قاعدة البيانات'}
+              {showDbPath ? `🔒 ${t('btn.backup.toggle_path_hide')}` : `📂 ${t('btn.backup.toggle_path_show')}`}
             </button>
           )}
           {canCreate && isElectron && (
-            <button className="btn secondary" onClick={exportDb} disabled={busy}>⤓ تصدير</button>
+            <button className="btn secondary" onClick={exportDb} disabled={busy}>⤓ {t('btn.backup.export')}</button>
           )}
           {canRestore && isElectron && (
-            <button className="btn secondary" onClick={restoreFromFile} disabled={busy}>↩️ استعادة من ملف</button>
+            <button className="btn secondary" onClick={restoreFromFile} disabled={busy}>↩️ {t('btn.backup.restore_file')}</button>
           )}
           {canCreate && isElectron && (
-            <button className="btn secondary" onClick={createBackupElectron} disabled={busy}>💾 نسخ مباشر</button>
+            <button className="btn secondary" onClick={createBackupElectron} disabled={busy}>💾 {t('btn.backup.direct')}</button>
           )}
           {canCreate && (
-            <button className="btn" onClick={createBackupApi} disabled={busy}>💾 نسخة احتياطية الآن</button>
+            <button className="btn" onClick={createBackupApi} disabled={busy}>💾 {t('btn.backup.now')}</button>
           )}
         </div>
       </div>
 
       {msg && <div className={alertClass} style={{ marginBottom: 16 }}>{msg.text}</div>}
-      {busy && <div className="alert warn" style={{ marginBottom: 16 }}>⏳ جارٍ التنفيذ…</div>}
+      {busy && <div className="alert warn" style={{ marginBottom: 16 }}>⏳ {t('msg.backup.busy')}</div>}
 
-      {/* مسار قاعدة البيانات */}
       {showDbPath && dbInfo && (
         <div className="card panel" style={{ marginBottom: 16, background: 'var(--surface-2)' }}>
-          <h3 style={{ marginBottom: 12 }}>📂 معلومات قاعدة البيانات</h3>
+          <h3 style={{ marginBottom: 12 }}>📂 {t('section.backup.db_info')}</h3>
           <table style={{ width: '100%' }}>
             <tbody>
               <tr>
-                <td style={{ padding: '5px 0', color: 'var(--text-muted)', width: 160 }}>المجلد</td>
+                <td style={{ padding: '5px 0', color: 'var(--text-muted)', width: 160 }}>{t('col.backup.folder')}</td>
                 <td style={{ fontFamily: 'monospace', fontSize: 13, wordBreak: 'break-all' }}>{dbInfo.dir}</td>
               </tr>
               <tr>
-                <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>مجلد النسخ</td>
+                <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>{t('col.backup.backup_dir')}</td>
                 <td style={{ fontFamily: 'monospace', fontSize: 13, wordBreak: 'break-all' }}>{dbInfo.backupDir}</td>
               </tr>
               <tr>
-                <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>الحجم</td>
+                <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>{t('col.backup.size')}</td>
                 <td><strong>{fmt(dbInfo.sizeBytes)}</strong></td>
               </tr>
               <tr>
-                <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>الحالة</td>
-                <td><span className={`pill ${dbInfo.exists ? 'green' : 'red'}`}>{dbInfo.exists ? 'موجودة ✓' : 'غير موجودة ✗'}</span></td>
+                <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>{t('col.status')}</td>
+                <td><span className={`pill ${dbInfo.exists ? 'green' : 'red'}`}>{dbInfo.exists ? `${t('lbl.backup.db_exists')} ✓` : `${t('lbl.backup.db_missing')} ✗`}</span></td>
               </tr>
               <tr>
-                <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>البيئة</td>
-                <td><span className={`pill ${dbInfo.isDev ? 'amber' : 'blue'}`}>{dbInfo.isDev ? 'تطوير' : 'إنتاج'}</span></td>
+                <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>{t('field.acc.active_status')}</td>
+                <td><span className={`pill ${dbInfo.isDev ? 'amber' : 'blue'}`}>{dbInfo.isDev ? t('lbl.backup.dev_env') : t('lbl.backup.prod_env')}</span></td>
               </tr>
             </tbody>
           </table>
         </div>
       )}
 
-      {/* قائمة النسخ الاحتياطية */}
       <div className="card panel" style={{ padding: 0 }}>
         <div className="table-responsive">
           <table>
             <thead>
-              <tr><th>الملف</th><th>الحجم</th><th>النوع</th><th>التاريخ</th><th></th></tr>
+              <tr><th>{t('col.backup.file')}</th><th>{t('col.backup.size')}</th><th>{t('col.backup.type')}</th><th>{t('col.date')}</th><th></th></tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5}><div className="center-msg"><div className="spinner" />جارٍ التحميل…</div></td></tr>
+                <tr><td colSpan={5}><div className="center-msg"><div className="spinner" />{t('msg.loading')}</div></td></tr>
               ) : list.length === 0 ? (
-                <tr><td colSpan={5}><div className="center-msg">لا توجد نسخ مسجّلة في النظام بعد</div></td></tr>
+                <tr><td colSpan={5}><div className="center-msg">{t('msg.backup.no_records')}</div></td></tr>
               ) : list.map((b) => (
                 <tr key={b.id}>
                   <td style={{ fontFamily: 'monospace', fontSize: 13 }}><strong>{b.fileName}</strong></td>
                   <td>{fmt(b.sizeBytes)}</td>
                   <td>
                     <span className={`pill ${b.type === 'MANUAL' ? 'blue' : b.type === 'AUTO' ? 'gray' : 'amber'}`}>
-                      {b.type === 'MANUAL' ? 'يدوي' : b.type === 'AUTO' ? 'تلقائي' : 'مجدول'}
+                      {b.type === 'MANUAL' ? t('backup.type.manual') : b.type === 'AUTO' ? t('backup.type.auto') : t('backup.type.scheduled')}
                     </span>
                   </td>
                   <td>{dateText(b.createdAt)}</td>
                   <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
-                    {canRestore && <><button className="btn secondary sm" disabled={busy} onClick={() => restoreFromList(b.id, b.fileName)}>↩️ استعادة</button>{' '}</>}
-                    {canRestore && <button className="btn danger sm" onClick={() => remove(b.id)}>حذف</button>}
+                    {canRestore && <><button className="btn secondary sm" disabled={busy} onClick={() => restoreFromList(b.id, b.fileName)}>↩️ {t('btn.backup.restore')}</button>{' '}</>}
+                    {canRestore && <button className="btn danger sm" onClick={() => remove(b.id)}>{t('action.delete')}</button>}
                   </td>
                 </tr>
               ))}
@@ -234,11 +212,8 @@ export default function Backup() {
         </div>
       </div>
 
-      {/* توضيح الفرق بين أنواع النسخ */}
       <div className="card panel" style={{ marginTop: 16, background: 'var(--surface-2)', fontSize: 13, color: 'var(--text-muted)' }}>
-        <strong>ملاحظة:</strong> &ldquo;نسخ مباشر&rdquo; يحفظ الملف مباشرة إلى مكان تختاره — بدون تسجيل في قائمة النسخ.
-        &ldquo;نسخة احتياطية الآن&rdquo; تُسجّل في القائمة وتُحفظ في مجلد النسخ الداخلي.
-        عند &ldquo;استعادة من ملف&rdquo; يُنشأ تلقائيًا نسخة أمان في مجلد <strong>pre-restore</strong> قبل أي تغيير.
+        <strong>{t('note.backup.types')}</strong>
       </div>
     </div>
   );

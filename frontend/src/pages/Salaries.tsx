@@ -304,10 +304,10 @@ export default function Salaries() {
                   payingRowId === row.id
                     ? <>
                         <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} style={{ fontSize: 12, padding: '2px 4px' }}>
-                          <option value="CASH">نقداً</option>
-                          <option value="BANK">تحويل بنكي</option>
-                          <option value="CHEQUE">شيك</option>
-                          <option value="TRANSFER">تحويل</option>
+                          <option value="CASH">{t('opt.payment.cash')}</option>
+                          <option value="BANK">{t('opt.sal.payment.bank_transfer')}</option>
+                          <option value="CHEQUE">{t('opt.payment.cheque')}</option>
+                          <option value="TRANSFER">{t('opt.payment.transfer')}</option>
                         </select>{' '}
                         <button className="btn secondary sm" disabled={busy} onClick={() => { setPayingRowId(null); runAction(() => api.patch(`/payroll/${row.id}/pay`, { paymentMethod: payMethod })); }}>{t('page.salaries.confirm')}</button>{' '}
                         <button className="btn secondary sm" onClick={() => setPayingRowId(null)}>{t('action.cancel')}</button>
