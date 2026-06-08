@@ -1,5 +1,55 @@
 import { ENUMS } from '../../../config/constants';
 
+// ── Arabic header → English key mapping (employee import only) ────────────────
+
+const ARABIC_HEADER_MAP: Record<string, string> = {
+  'الرقم الوظيفي':             'code',
+  'كود الموظف':                'code',
+  'اسم الموظف':                'fullName',
+  'الاسم العربي':              'fullName',
+  'الاسم بالعربي':             'fullName',
+  'اسم الموظف بالإنجليزي':    'fullNameEn',
+  'الاسم بالإنجليزي':         'fullNameEn',
+  'الرقم المدني':              'civilId',
+  'المهنة':                    'jobTitle',
+  'الجنسية':                   'nationality',
+  'رقم جواز السفر':            'passportNumber',
+  'تاريخ انتهاء جواز السفر':  'passportExpiry',
+  'تاريخ انتهاء الإقامة':     'residencyExpiry',
+  'تاريخ انتهاء رخصة القيادة': 'licenseExpiry',
+  'رقم لوحة المركبة':         'vehiclePlate',
+  'تاريخ انتهاء رخصة المركبة': 'vehicleLicenseExpiry',
+  'تاريخ الميلاد':             'birthDate',
+  'الشركة':                    'company',
+  'القسم':                     'department',
+  'الراتب الشهري':             'salary',
+  'تاريخ التعيين':             'hireDate',
+  'الهاتف':                    'phone',
+  'البريد الإلكتروني':         'email',
+  'العنوان':                   'address',
+  'حالة الموظف':               'status',
+  'ملاحظات':                   'notes',
+};
+
+// Arabic keys are translated to English keys. If the English key is already
+// present in the row it takes precedence (English header files keep working).
+// Keys are trimmed first to tolerate Excel headers with leading/trailing spaces.
+function normalizeHeaders(row: Record<string, unknown>): Record<string, unknown> {
+  // First pass: rebuild with trimmed keys
+  const trimmed: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) {
+    trimmed[k.trim()] = v;
+  }
+  // Second pass: translate Arabic keys to English
+  const result: Record<string, unknown> = { ...trimmed };
+  for (const [arabicKey, englishKey] of Object.entries(ARABIC_HEADER_MAP)) {
+    if (arabicKey in trimmed && !(englishKey in trimmed)) {
+      result[englishKey] = trimmed[arabicKey];
+    }
+  }
+  return result;
+}
+
 export interface NormalizedEmployee {
   code: string;
   fullName: string;
@@ -57,18 +107,19 @@ export function validateEmployeeRow(row: Record<string, unknown>): {
   errors: string[];
   normalized: NormalizedEmployee | null;
 } {
+  const row_ = normalizeHeaders(row);
   const errors: string[] = [];
 
-  const code = str(row, 'code');
+  const code = str(row_, 'code');
   if (!code) errors.push('الرقم الوظيفي (code) مطلوب');
 
-  const fullName = str(row, 'fullName');
+  const fullName = str(row_, 'fullName');
   if (!fullName) errors.push('الاسم الكامل (fullName) مطلوب');
 
-  const rawEmail = str(row, 'email');
+  const rawEmail = str(row_, 'email');
   if (rawEmail && !isValidEmail(rawEmail)) errors.push('البريد الإلكتروني غير صحيح');
 
-  const rawStatus = str(row, 'status');
+  const rawStatus = str(row_, 'status');
   const status = (ENUMS.employeeStatus as readonly string[]).includes(rawStatus ?? '')
     ? (rawStatus as 'ACTIVE' | 'ON_LEAVE' | 'TERMINATED')
     : 'ACTIVE';
@@ -81,26 +132,26 @@ export function validateEmployeeRow(row: Record<string, unknown>): {
     normalized: {
       code: code!,
       fullName: fullName!,
-      fullNameEn: str(row, 'fullNameEn'),
-      civilId: str(row, 'civilId'),
-      jobTitle: str(row, 'jobTitle'),
-      nationality: str(row, 'nationality'),
-      passportNumber: str(row, 'passportNumber'),
-      passportExpiry: parseDate(row['passportExpiry']),
-      residencyExpiry: parseDate(row['residencyExpiry']),
-      licenseExpiry: parseDate(row['licenseExpiry']),
-      vehiclePlate: str(row, 'vehiclePlate'),
-      vehicleLicenseExpiry: parseDate(row['vehicleLicenseExpiry']),
-      birthDate: parseDate(row['birthDate']),
-      company: str(row, 'company'),
-      department: str(row, 'department'),
-      salary: parseNumber(row['salary']),
-      hireDate: parseDate(row['hireDate']),
-      phone: str(row, 'phone'),
+      fullNameEn: str(row_, 'fullNameEn'),
+      civilId: str(row_, 'civilId'),
+      jobTitle: str(row_, 'jobTitle'),
+      nationality: str(row_, 'nationality'),
+      passportNumber: str(row_, 'passportNumber'),
+      passportExpiry: parseDate(row_['passportExpiry']),
+      residencyExpiry: parseDate(row_['residencyExpiry']),
+      licenseExpiry: parseDate(row_['licenseExpiry']),
+      vehiclePlate: str(row_, 'vehiclePlate'),
+      vehicleLicenseExpiry: parseDate(row_['vehicleLicenseExpiry']),
+      birthDate: parseDate(row_['birthDate']),
+      company: str(row_, 'company'),
+      department: str(row_, 'department'),
+      salary: parseNumber(row_['salary']),
+      hireDate: parseDate(row_['hireDate']),
+      phone: str(row_, 'phone'),
       email: rawEmail || undefined,
-      address: str(row, 'address'),
+      address: str(row_, 'address'),
       status,
-      notes: str(row, 'notes'),
+      notes: str(row_, 'notes'),
     },
   };
 }
