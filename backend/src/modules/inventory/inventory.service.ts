@@ -4,12 +4,23 @@ import { prisma } from '@config/database';
 import { AppError } from '@core/errors/AppError';
 import { recordAudit } from '@core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '@core/utils/pagination';
+import { transactionsService } from '@modules/transactions/transactions.service';
 import {
   CreateCategoryInput,
   UpdateCategoryInput,
   CreateMaterialInput,
   UpdateMaterialInput,
+  CreatePurchaseOrderInput,
+  UpdatePurchaseOrderInput,
+  CreateGoodsReceiptInput,
 } from './inventory.schema';
+
+type DbClient = typeof prisma | Prisma.TransactionClient;
+
+// WAC precision: 6 decimal places to preserve accuracy before rounding for display
+function roundCost(n: number): number {
+  return Math.round((n + Number.EPSILON) * 1_000_000) / 1_000_000;
+}
 
 // ── تصنيفات المواد ────────────────────────────────────────────────────────
 
@@ -149,3 +160,337 @@ export class MaterialsService {
 }
 
 export const materialsService = new MaterialsService();
+
+// ── أوامر الشراء ──────────────────────────────────────────────────────────
+
+const PO_INCLUDE = {
+  supplier: { select: { id: true, name: true } },
+  items: { include: { material: { select: { id: true, code: true, name: true, unit: true } } } },
+} as const;
+
+export class PurchaseOrdersService {
+  private async generateNumber(client: DbClient = prisma): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `PO-${year}-`;
+    const count = await client.purchaseOrder.count({ where: { number: { startsWith: prefix } } });
+    return `${prefix}${String(count + 1).padStart(5, '0')}`;
+  }
+
+  async list(query: PaginationQuery & { supplierId?: string; status?: string }) {
+    const pagination = getPagination(query);
+    const where: Prisma.PurchaseOrderWhereInput = {};
+    if (query.supplierId) where.supplierId = Number(query.supplierId);
+    if (query.status) where.status = query.status;
+    if (query.search) where.number = { contains: query.search };
+    const [data, total] = await Promise.all([
+      prisma.purchaseOrder.findMany({
+        where,
+        skip: pagination.skip,
+        take: pagination.take,
+        orderBy: { date: 'desc' },
+        include: {
+          supplier: { select: { id: true, name: true } },
+          _count: { select: { items: true, receipts: true } },
+        },
+      }),
+      prisma.purchaseOrder.count({ where }),
+    ]);
+    return buildPaginatedResult(data, total, pagination);
+  }
+
+  async getById(id: number) {
+    const po = await prisma.purchaseOrder.findUnique({
+      where: { id },
+      include: { ...PO_INCLUDE, _count: { select: { receipts: true } } },
+    });
+    if (!po) throw AppError.notFound('أمر الشراء غير موجود');
+    return po;
+  }
+
+  async create(input: CreatePurchaseOrderInput, req: Request) {
+    const supplier = await prisma.supplier.findUnique({ where: { id: input.supplierId } });
+    if (!supplier) throw AppError.notFound('المورد غير موجود');
+    if (supplier.isArchived) throw AppError.badRequest('المورد مؤرشف');
+
+    const materialIds = [...new Set(input.items.map((i) => i.materialId))];
+    const materials = await prisma.material.findMany({ where: { id: { in: materialIds } } });
+    if (materials.length !== materialIds.length) throw AppError.badRequest('بعض المواد غير موجودة');
+
+    const totalAmount = input.items.reduce((sum, i) => sum + i.quantity * i.unitCost, 0);
+
+    const po = await prisma.$transaction(async (tx) => {
+      const number = await this.generateNumber(tx);
+      return tx.purchaseOrder.create({
+        data: {
+          number,
+          supplierId: input.supplierId,
+          date: input.date ? new Date(input.date) : new Date(),
+          expectedDate: input.expectedDate ? new Date(input.expectedDate) : null,
+          notes: input.notes ?? null,
+          totalAmount,
+          items: {
+            create: input.items.map((i) => ({
+              materialId: i.materialId,
+              quantity: i.quantity,
+              unitCost: i.unitCost,
+              totalCost: i.quantity * i.unitCost,
+            })),
+          },
+        },
+        include: PO_INCLUDE,
+      });
+    });
+
+    await recordAudit({ req, action: 'CREATE', module: 'inventory', entityId: String(po.id), newValue: { number: po.number, totalAmount } });
+    return po;
+  }
+
+  async update(id: number, input: UpdatePurchaseOrderInput, req: Request) {
+    const current = await this.getById(id);
+    if (current.status !== 'DRAFT') throw AppError.badRequest('لا يمكن تعديل أمر شراء غير مسوّد');
+
+    if (input.supplierId && input.supplierId !== current.supplierId) {
+      const supplier = await prisma.supplier.findUnique({ where: { id: input.supplierId } });
+      if (!supplier) throw AppError.notFound('المورد غير موجود');
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const newTotalAmount = input.items
+        ? input.items.reduce((sum, i) => sum + i.quantity * i.unitCost, 0)
+        : current.totalAmount;
+
+      if (input.items) {
+        const materialIds = [...new Set(input.items.map((i) => i.materialId))];
+        const mats = await tx.material.findMany({ where: { id: { in: materialIds } } });
+        if (mats.length !== materialIds.length) throw AppError.badRequest('بعض المواد غير موجودة');
+
+        await tx.purchaseOrderItem.deleteMany({ where: { purchaseOrderId: id } });
+        await tx.purchaseOrderItem.createMany({
+          data: input.items.map((i) => ({
+            purchaseOrderId: id,
+            materialId: i.materialId,
+            quantity: i.quantity,
+            unitCost: i.unitCost,
+            totalCost: i.quantity * i.unitCost,
+          })),
+        });
+      }
+
+      return tx.purchaseOrder.update({
+        where: { id },
+        data: {
+          supplierId: input.supplierId ?? current.supplierId,
+          date: input.date ? new Date(input.date) : current.date,
+          expectedDate: input.expectedDate ? new Date(input.expectedDate) : current.expectedDate,
+          notes: input.notes !== undefined ? input.notes : current.notes,
+          totalAmount: newTotalAmount,
+        },
+        include: PO_INCLUDE,
+      });
+    });
+
+    await recordAudit({ req, action: 'UPDATE', module: 'inventory', entityId: String(id), oldValue: { totalAmount: current.totalAmount }, newValue: input });
+    return updated;
+  }
+
+  async submit(id: number, req: Request) {
+    const current = await prisma.purchaseOrder.findUnique({ where: { id } });
+    if (!current) throw AppError.notFound('أمر الشراء غير موجود');
+    if (current.status !== 'DRAFT') throw AppError.badRequest('لا يمكن إرسال أمر شراء غير مسوّد');
+    const updated = await prisma.purchaseOrder.update({ where: { id }, data: { status: 'SUBMITTED' } });
+    await recordAudit({ req, action: 'UPDATE', module: 'inventory', entityId: String(id), newValue: { status: 'SUBMITTED' } });
+    return updated;
+  }
+
+  async cancel(id: number, req: Request) {
+    const current = await prisma.purchaseOrder.findUnique({ where: { id } });
+    if (!current) throw AppError.notFound('أمر الشراء غير موجود');
+    if (!['DRAFT', 'SUBMITTED'].includes(current.status)) throw AppError.badRequest('لا يمكن إلغاء هذا الأمر');
+    const updated = await prisma.purchaseOrder.update({ where: { id }, data: { status: 'CANCELLED' } });
+    await recordAudit({ req, action: 'UPDATE', module: 'inventory', entityId: String(id), newValue: { status: 'CANCELLED' } });
+    return updated;
+  }
+
+  async remove(id: number, req: Request) {
+    const current = await prisma.purchaseOrder.findUnique({ where: { id } });
+    if (!current) throw AppError.notFound('أمر الشراء غير موجود');
+    if (current.status !== 'DRAFT') throw AppError.conflict('لا يمكن حذف أمر شراء مُرسل — ألغِه أولًا');
+    await prisma.purchaseOrder.delete({ where: { id } });
+    await recordAudit({ req, action: 'DELETE', module: 'inventory', entityId: String(id) });
+    return { deleted: true };
+  }
+}
+
+export const purchaseOrdersService = new PurchaseOrdersService();
+
+// ── سندات الاستلام ────────────────────────────────────────────────────────
+
+const GR_INCLUDE = {
+  supplier: { select: { id: true, name: true } },
+  purchaseOrder: { select: { id: true, number: true } },
+  items: { include: { material: { select: { id: true, code: true, name: true, unit: true } } } },
+} as const;
+
+export class GoodsReceiptsService {
+  private async generateNumber(client: DbClient = prisma): Promise<string> {
+    const year = new Date().getFullYear();
+    const prefix = `GR-${year}-`;
+    const count = await client.goodsReceipt.count({ where: { number: { startsWith: prefix } } });
+    return `${prefix}${String(count + 1).padStart(5, '0')}`;
+  }
+
+  async list(query: PaginationQuery & { supplierId?: string; status?: string; purchaseOrderId?: string }) {
+    const pagination = getPagination(query);
+    const where: Prisma.GoodsReceiptWhereInput = {};
+    if (query.supplierId) where.supplierId = Number(query.supplierId);
+    if (query.status) where.status = query.status;
+    if (query.purchaseOrderId) where.purchaseOrderId = Number(query.purchaseOrderId);
+    if (query.search) where.number = { contains: query.search };
+    const [data, total] = await Promise.all([
+      prisma.goodsReceipt.findMany({
+        where,
+        skip: pagination.skip,
+        take: pagination.take,
+        orderBy: { date: 'desc' },
+        include: {
+          supplier: { select: { id: true, name: true } },
+          purchaseOrder: { select: { id: true, number: true } },
+          _count: { select: { items: true } },
+        },
+      }),
+      prisma.goodsReceipt.count({ where }),
+    ]);
+    return buildPaginatedResult(data, total, pagination);
+  }
+
+  async getById(id: number) {
+    const gr = await prisma.goodsReceipt.findUnique({ where: { id }, include: GR_INCLUDE });
+    if (!gr) throw AppError.notFound('سند الاستلام غير موجود');
+    return gr;
+  }
+
+  async create(input: CreateGoodsReceiptInput, req: Request) {
+    const supplier = await prisma.supplier.findUnique({ where: { id: input.supplierId } });
+    if (!supplier) throw AppError.notFound('المورد غير موجود');
+    if (supplier.isArchived) throw AppError.badRequest('المورد مؤرشف');
+
+    if (input.purchaseOrderId) {
+      const po = await prisma.purchaseOrder.findUnique({ where: { id: input.purchaseOrderId } });
+      if (!po) throw AppError.notFound('أمر الشراء غير موجود');
+      if (po.status === 'CANCELLED') throw AppError.badRequest('أمر الشراء ملغي');
+    }
+
+    const materialIds = [...new Set(input.items.map((i) => i.materialId))];
+    const materials = await prisma.material.findMany({ where: { id: { in: materialIds } } });
+    if (materials.length !== materialIds.length) throw AppError.badRequest('بعض المواد غير موجودة');
+
+    const totalCost = input.items.reduce((sum, i) => sum + i.quantity * i.unitCost, 0);
+
+    const receipt = await prisma.$transaction(async (tx) => {
+      const number = await this.generateNumber(tx);
+      return tx.goodsReceipt.create({
+        data: {
+          number,
+          supplierId: input.supplierId,
+          purchaseOrderId: input.purchaseOrderId ?? null,
+          date: input.date ? new Date(input.date) : new Date(),
+          notes: input.notes ?? null,
+          totalCost,
+          status: 'DRAFT',
+          items: {
+            create: input.items.map((i) => ({
+              materialId: i.materialId,
+              quantity: i.quantity,
+              unitCost: i.unitCost,
+              totalCost: i.quantity * i.unitCost,
+            })),
+          },
+        },
+        include: GR_INCLUDE,
+      });
+    });
+
+    await recordAudit({ req, action: 'CREATE', module: 'inventory', entityId: String(receipt.id), newValue: { number: receipt.number, totalCost } });
+    return receipt;
+  }
+
+  /**
+   * ترحيل سند الاستلام: تحديث المخزون بطريقة المتوسط المرجح (WAC)
+   * + ترحيل قيد محاسبي. محمي من الترحيل المزدوج بفحص accountingTransactionId.
+   */
+  async post(id: number, req: Request) {
+    const receipt = await prisma.goodsReceipt.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!receipt) throw AppError.notFound('سند الاستلام غير موجود');
+    if (receipt.status === 'POSTED') throw AppError.conflict('سند الاستلام مُرحَّل بالفعل');
+    if (receipt.accountingTransactionId) throw AppError.conflict('تم ترحيل القيد المحاسبي مسبقًا');
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // 1. WAC + stock update for each line item
+      for (const item of receipt.items) {
+        const material = await tx.material.findUnique({ where: { id: item.materialId } });
+        if (!material) throw AppError.notFound(`المادة ${item.materialId} غير موجودة`);
+
+        const safeCurrentStock = Math.max(0, material.currentStock);
+        const newQty = safeCurrentStock + item.quantity;
+        const newUnitCost = roundCost(
+          (safeCurrentStock * material.unitCost + item.quantity * item.unitCost) / newQty,
+        );
+
+        await tx.material.update({
+          where: { id: item.materialId },
+          data: { currentStock: newQty, unitCost: newUnitCost },
+        });
+      }
+
+      // 2. Post accounting entry: debit Inventory, credit Accounts Payable (Suppliers)
+      const entry = await transactionsService.postEntry(
+        {
+          date: receipt.date,
+          description: `استلام بضاعة ${receipt.number}`,
+          type: 'EXPENSE',
+          debit: receipt.totalCost,
+          account: 'مخزون - مواد',
+          referenceType: 'GOODS_RECEIPT',
+          referenceId: receipt.id,
+        },
+        tx,
+      );
+
+      // 3. Mark linked PO as received if applicable (updateMany silently skips if already received)
+      if (receipt.purchaseOrderId) {
+        await tx.purchaseOrder.updateMany({
+          where: { id: receipt.purchaseOrderId, status: { not: 'RECEIVED' } },
+          data: { status: 'RECEIVED' },
+        });
+      }
+
+      // 4. Mark receipt as posted with accounting reference
+      return tx.goodsReceipt.update({
+        where: { id },
+        data: {
+          status: 'POSTED',
+          accountingTransactionId: entry.id,
+          accountingPostedAt: new Date(),
+        },
+        include: GR_INCLUDE,
+      });
+    });
+
+    await recordAudit({ req, action: 'APPROVE', module: 'inventory', entityId: String(id), newValue: { status: 'POSTED', totalCost: receipt.totalCost } });
+    return updated;
+  }
+
+  async remove(id: number, req: Request) {
+    const receipt = await prisma.goodsReceipt.findUnique({ where: { id } });
+    if (!receipt) throw AppError.notFound('سند الاستلام غير موجود');
+    if (receipt.status === 'POSTED') throw AppError.conflict('لا يمكن حذف سند استلام مُرحَّل — يؤثر على المخزون والمحاسبة');
+    await prisma.goodsReceipt.delete({ where: { id } });
+    await recordAudit({ req, action: 'DELETE', module: 'inventory', entityId: String(id) });
+    return { deleted: true };
+  }
+}
+
+export const goodsReceiptsService = new GoodsReceiptsService();

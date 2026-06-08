@@ -40,3 +40,54 @@ export const updateMaterialSchema = z.object({
 
 export type CreateMaterialInput = z.infer<typeof createMaterialSchema>['body'];
 export type UpdateMaterialInput = z.infer<typeof updateMaterialSchema>['body'];
+
+// ── أوامر الشراء ──────────────────────────────────────────────────────────
+
+const purchaseOrderItemSchema = z.object({
+  materialId: z.number().int().positive('المادة مطلوبة'),
+  quantity: z.number().positive('الكمية يجب أن تكون أكبر من صفر'),
+  unitCost: z.number().min(0, 'التكلفة لا تكون سالبة').default(0),
+});
+
+export const createPurchaseOrderSchema = z.object({
+  body: z.object({
+    supplierId: z.number().int().positive('المورد مطلوب'),
+    date: z.string().optional(),
+    expectedDate: z.string().optional(),
+    notes: z.string().nullable().optional(),
+    items: z.array(purchaseOrderItemSchema).min(1, 'يجب إضافة مادة واحدة على الأقل'),
+  }),
+});
+
+export const updatePurchaseOrderSchema = z.object({
+  body: z.object({
+    supplierId: z.number().int().positive().optional(),
+    date: z.string().optional(),
+    expectedDate: z.string().optional(),
+    notes: z.string().nullable().optional(),
+    items: z.array(purchaseOrderItemSchema).min(1).optional(),
+  }),
+});
+
+export type CreatePurchaseOrderInput = z.infer<typeof createPurchaseOrderSchema>['body'];
+export type UpdatePurchaseOrderInput = z.infer<typeof updatePurchaseOrderSchema>['body'];
+
+// ── سندات الاستلام ────────────────────────────────────────────────────────
+
+const goodsReceiptItemSchema = z.object({
+  materialId: z.number().int().positive('المادة مطلوبة'),
+  quantity: z.number().positive('الكمية يجب أن تكون أكبر من صفر'),
+  unitCost: z.number().min(0, 'التكلفة لا تكون سالبة'),
+});
+
+export const createGoodsReceiptSchema = z.object({
+  body: z.object({
+    supplierId: z.number().int().positive('المورد مطلوب'),
+    purchaseOrderId: z.number().int().positive().optional(),
+    date: z.string().optional(),
+    notes: z.string().nullable().optional(),
+    items: z.array(goodsReceiptItemSchema).min(1, 'يجب إضافة مادة واحدة على الأقل'),
+  }),
+});
+
+export type CreateGoodsReceiptInput = z.infer<typeof createGoodsReceiptSchema>['body'];

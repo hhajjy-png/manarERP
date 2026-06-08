@@ -52,7 +52,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   audit: ['read', 'export'],
   backups: ['read', 'create', 'update'],
   settings: ['read', 'update'],
-  inventory: ['read', 'create', 'update', 'delete', 'export'],
+  inventory: ['read', 'create', 'update', 'delete', 'export', 'approve'],
 };
 
 const ACTION_AR: Record<string, string> = {

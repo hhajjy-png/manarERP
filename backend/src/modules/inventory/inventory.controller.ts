@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { categoriesService, materialsService } from './inventory.service';
+import { categoriesService, materialsService, purchaseOrdersService, goodsReceiptsService } from './inventory.service';
 import { ok, created } from '@core/utils/response';
 
 // ── تصنيفات المواد ────────────────────────────────────────────────────────
@@ -39,5 +39,51 @@ export const materialsController = {
   },
   async remove(req: Request, res: Response) {
     ok(res, await materialsService.remove(Number(req.params.id), req), 'تم الحذف');
+  },
+};
+
+// ── أوامر الشراء ──────────────────────────────────────────────────────────
+
+export const purchaseOrdersController = {
+  async list(req: Request, res: Response) {
+    ok(res, await purchaseOrdersService.list(req.query));
+  },
+  async getById(req: Request, res: Response) {
+    ok(res, await purchaseOrdersService.getById(Number(req.params.id)));
+  },
+  async create(req: Request, res: Response) {
+    created(res, await purchaseOrdersService.create(req.body, req));
+  },
+  async update(req: Request, res: Response) {
+    ok(res, await purchaseOrdersService.update(Number(req.params.id), req.body, req), 'تم التحديث بنجاح');
+  },
+  async submit(req: Request, res: Response) {
+    ok(res, await purchaseOrdersService.submit(Number(req.params.id), req), 'تم الإرسال بنجاح');
+  },
+  async cancel(req: Request, res: Response) {
+    ok(res, await purchaseOrdersService.cancel(Number(req.params.id), req), 'تم الإلغاء');
+  },
+  async remove(req: Request, res: Response) {
+    ok(res, await purchaseOrdersService.remove(Number(req.params.id), req), 'تم الحذف');
+  },
+};
+
+// ── سندات الاستلام ────────────────────────────────────────────────────────
+
+export const goodsReceiptsController = {
+  async list(req: Request, res: Response) {
+    ok(res, await goodsReceiptsService.list(req.query));
+  },
+  async getById(req: Request, res: Response) {
+    ok(res, await goodsReceiptsService.getById(Number(req.params.id)));
+  },
+  async create(req: Request, res: Response) {
+    created(res, await goodsReceiptsService.create(req.body, req));
+  },
+  async post(req: Request, res: Response) {
+    ok(res, await goodsReceiptsService.post(Number(req.params.id), req), 'تم الترحيل وتحديث المخزون');
+  },
+  async remove(req: Request, res: Response) {
+    ok(res, await goodsReceiptsService.remove(Number(req.params.id), req), 'تم الحذف');
   },
 };

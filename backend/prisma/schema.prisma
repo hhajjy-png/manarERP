@@ -550,8 +550,10 @@ model Supplier {
   notes       String?
   isArchived  Boolean @default(false)
 
-  invoices Invoice[]
-  expenses Expense[]
+  invoices       Invoice[]
+  expenses       Expense[]
+  purchaseOrders PurchaseOrder[]
+  goodsReceipts  GoodsReceipt[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -846,7 +848,9 @@ model Material {
   isActive     Boolean @default(true)
   notes        String?
 
-  category MaterialCategory @relation(fields: [categoryId], references: [id])
+  category           MaterialCategory    @relation(fields: [categoryId], references: [id])
+  purchaseOrderItems PurchaseOrderItem[]
+  goodsReceiptItems  GoodsReceiptItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -854,6 +858,87 @@ model Material {
   @@index([categoryId])
   @@index([isActive])
   @@map("materials")
+}
+
+model PurchaseOrder {
+  id           Int       @id @default(autoincrement())
+  number       String    @unique // PO-2026-00001
+  supplierId   Int
+  date         DateTime  @default(now())
+  expectedDate DateTime?
+  status       String    @default("DRAFT") // DRAFT | SUBMITTED | RECEIVED | CANCELLED
+  notes        String?
+  totalAmount  Float     @default(0)
+
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  items    PurchaseOrderItem[]
+  receipts GoodsReceipt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([supplierId])
+  @@index([status])
+  @@index([date])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              Int   @id @default(autoincrement())
+  purchaseOrderId Int
+  materialId      Int
+  quantity        Float
+  unitCost        Float @default(0)
+  totalCost       Float @default(0)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  material      Material      @relation(fields: [materialId], references: [id])
+
+  @@index([purchaseOrderId])
+  @@index([materialId])
+  @@map("purchase_order_items")
+}
+
+model GoodsReceipt {
+  id                      Int       @id @default(autoincrement())
+  number                  String    @unique // GR-2026-00001
+  purchaseOrderId         Int?
+  supplierId              Int
+  date                    DateTime  @default(now())
+  status                  String    @default("DRAFT") // DRAFT | POSTED
+  notes                   String?
+  totalCost               Float     @default(0)
+  accountingPostedAt      DateTime?
+  accountingTransactionId Int? // references Transaction.id — prevents double posting
+
+  purchaseOrder PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id])
+  supplier      Supplier         @relation(fields: [supplierId], references: [id])
+  items         GoodsReceiptItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([supplierId])
+  @@index([status])
+  @@index([date])
+  @@index([purchaseOrderId])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptItem {
+  id             Int   @id @default(autoincrement())
+  goodsReceiptId Int
+  materialId     Int
+  quantity       Float
+  unitCost       Float @default(0)
+  totalCost      Float @default(0)
+
+  goodsReceipt GoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  material     Material     @relation(fields: [materialId], references: [id])
+
+  @@index([goodsReceiptId])
+  @@index([materialId])
+  @@map("goods_receipt_items")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

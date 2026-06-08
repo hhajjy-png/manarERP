@@ -95,4 +95,6 @@ export const ENUMS = {
   maintenanceType: ['PREVENTIVE', 'CORRECTIVE'] as const,
   backupType: ['MANUAL', 'AUTO', 'SCHEDULED'] as const,
   materialUnit: ['طن', 'كيلو', 'لتر', 'قطعة', 'متر', 'كيس', 'برميل', 'صندوق'] as const,
+  purchaseOrderStatus: ['DRAFT', 'SUBMITTED', 'RECEIVED', 'CANCELLED'] as const,
+  goodsReceiptStatus: ['DRAFT', 'POSTED'] as const,
 } as const;
