@@ -1014,3 +1014,31 @@ model SalaryPayment {
   @@index([status])
   @@map("salary_payments")
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+//  الشيكات (Cheques)
+// ─────────────────────────────────────────────────────────────────────────
+
+model Cheque {
+  id              Int       @id @default(autoincrement())
+  chequeNumber    String    @unique
+  chequeDate      DateTime
+  beneficiaryName String
+  amount          Float
+  currency        String    @default("KWD")
+  description     String?
+  bankName        String
+  templateName    String?
+  status          String    @default("DRAFT") // DRAFT | PRINTED | CANCELLED
+  printedAt       DateTime?
+  cancelledAt     DateTime?
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([chequeDate])
+  @@index([beneficiaryName])
+  @@map("cheques")
+}

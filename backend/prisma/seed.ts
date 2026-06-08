@@ -53,6 +53,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   backups: ['read', 'create', 'update'],
   settings: ['read', 'update'],
   inventory: ['read', 'create', 'update', 'delete', 'export', 'approve', 'cancel'],
+  cheques: ['read', 'create', 'update', 'print', 'cancel'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -67,6 +68,7 @@ const ACTION_AR: Record<string, string> = {
   payslip: 'قسيمة راتب',
   adjust: 'تسوية',
   cancel: 'إلغاء',
+  print: 'طباعة',
 };
 
 // مصفوفة صلاحيات كل دور (قائمة وحدات بصلاحية كاملة، أو مفاتيح محددة)
@@ -112,7 +114,7 @@ async function main() {
     SYSTEM_ADMIN: allKeys,
     GENERAL_MANAGER: allKeys.filter((k) => !k.startsWith('users.') && k !== 'settings.update'),
     ACCOUNTANT: [
-      ...keysForModules(['invoices', 'expenses', 'transactions', 'suppliers', 'reports', 'customers']),
+      ...keysForModules(['invoices', 'expenses', 'transactions', 'suppliers', 'reports', 'customers', 'cheques']),
       ...readOnly(['dashboard', 'contracts', 'employees', 'equipment', 'payroll', 'audit']),
       'payroll.export',
       'payroll.pay',
