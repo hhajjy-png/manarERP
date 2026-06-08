@@ -281,4 +281,7 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'backup', label: 'nav.backup', icon: '💾', permission: 'backups.read' },
     { key: 'settings', label: 'nav.settings', icon: '⚙️', permission: 'settings.read' },
   ] },
+  { group: 'nav.group.tools', items: [
+    { key: 'import', label: 'nav.import', icon: '📥', permission: 'import.read' },
+  ] },
 ];
