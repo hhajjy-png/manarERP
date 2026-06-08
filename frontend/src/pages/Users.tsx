@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import Modal from '../components/Modal';
+import { useT } from '../lib/i18n';
 
 type UserRow = {
   id: number;
@@ -28,44 +29,29 @@ type Permission = {
   action: string;
 };
 
-const ACTION_AR: Record<string, string> = {
-  read: 'عرض', create: 'إضافة', update: 'تعديل', delete: 'حذف', approve: 'اعتماد', export: 'تصدير',
-};
-const MODULE_AR: Record<string, string> = {
-  dashboard: 'لوحة التحكم', customers: 'العملاء', employees: 'الموظفون',
-  attendance: 'الحضور', payroll: 'الرواتب', equipment: 'المعدات',
-  maintenance: 'الصيانة', contracts: 'العقود', invoices: 'الفواتير',
-  suppliers: 'الموردون', expenses: 'المصروفات', transactions: 'المعاملات',
-  reports: 'التقارير', users: 'المستخدمون', roles: 'الأدوار',
-  audit: 'سجل التدقيق', backups: 'النسخ الاحتياطي', settings: 'الإعدادات',
-};
-
 const EMPTY_FORM = { username: '', password: '', fullName: '', email: '', roleId: '' };
 
 export default function Users() {
   const { hasPermission } = useAuth();
+  const { t } = useT();
   const canCreate = hasPermission('users.create');
   const canUpdate = hasPermission('users.update');
 
   const [tab, setTab] = useState<'users' | 'roles'>('users');
 
-  // Users state
   const [users, setUsers] = useState<UserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
 
-  // Roles state
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [allPerms, setAllPerms] = useState<Record<string, Permission[]>>({});
   const [expandedRole, setExpandedRole] = useState<{ id: number; keys: string[] } | null>(null);
 
-  // Form state
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Message
   const [msg, setMsg] = useState<{ text: string; type: 'ok' | 'err' } | null>(null);
 
   function showMsg(text: string, type: 'ok' | 'err' = 'ok') {
@@ -96,7 +82,6 @@ export default function Users() {
 
   useEffect(() => { loadUsers(); loadRoles(); }, []);
 
-  // ─── Form helpers ────────────────────────────────────────────────────────────
   function openCreate() {
     setEditingUser(null);
     setForm({ ...EMPTY_FORM, roleId: roles[0]?.id.toString() ?? '' });
@@ -112,9 +97,9 @@ export default function Users() {
   }
 
   async function onSave() {
-    if (!form.fullName.trim()) { setFormError('الاسم الكامل مطلوب'); return; }
-    if (!form.roleId) { setFormError('الدور مطلوب'); return; }
-    if (!editingUser && !form.password) { setFormError('كلمة المرور مطلوبة للمستخدم الجديد'); return; }
+    if (!form.fullName.trim()) { setFormError(t('error.users.fullname_required')); return; }
+    if (!form.roleId) { setFormError(t('error.users.role_required')); return; }
+    if (!editingUser && !form.password) { setFormError(t('error.users.password_required')); return; }
 
     setSaving(true);
     setFormError('');
@@ -130,10 +115,10 @@ export default function Users() {
 
       if (editingUser) {
         await api.put(`/users/${editingUser.id}`, payload);
-        showMsg('تم تحديث المستخدم بنجاح');
+        showMsg(t('msg.users.updated'));
       } else {
         await api.post('/users', payload);
-        showMsg('تم إنشاء المستخدم بنجاح');
+        showMsg(t('msg.users.created'));
       }
       setShowForm(false);
       loadUsers();
@@ -147,12 +132,11 @@ export default function Users() {
   async function toggleActive(u: UserRow) {
     try {
       await api.put(`/users/${u.id}`, { isActive: !u.isActive });
-      showMsg(u.isActive ? 'تم تعطيل حساب المستخدم' : 'تم تفعيل حساب المستخدم');
+      showMsg(u.isActive ? t('msg.users.disabled') : t('msg.users.enabled'));
       loadUsers();
     } catch (err) { showMsg(errorMessage(err), 'err'); }
   }
 
-  // ─── Role expand ─────────────────────────────────────────────────────────────
   async function toggleRoleExpand(roleId: number) {
     if (expandedRole?.id === roleId) { setExpandedRole(null); return; }
     try {
@@ -165,11 +149,11 @@ export default function Users() {
     <div>
       <div className="page-head">
         <div>
-          <h2>المستخدمون والصلاحيات</h2>
-          <p>إدارة حسابات الدخول والأدوار وصلاحيات كل دور</p>
+          <h2>{t('page.users.title')}</h2>
+          <p>{t('page.users.subtitle')}</p>
         </div>
         {tab === 'users' && canCreate && (
-          <button className="btn" onClick={openCreate}>＋ مستخدم جديد</button>
+          <button className="btn" onClick={openCreate}>{t('btn.users.new_user')}</button>
         )}
       </div>
 
@@ -179,35 +163,33 @@ export default function Users() {
         </div>
       )}
 
-      {/* Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <button className={`btn ${tab === 'users' ? '' : 'secondary'}`} onClick={() => setTab('users')}>
-          👤 المستخدمون
+          👤 {t('tab.users.users')}
         </button>
         <button className={`btn ${tab === 'roles' ? '' : 'secondary'}`} onClick={() => setTab('roles')}>
-          🔑 الأدوار والصلاحيات
+          🔑 {t('tab.users.roles')}
         </button>
       </div>
 
-      {/* ─── Users Tab ──────────────────────────────────────────────────────────── */}
       {tab === 'users' && (
         <div className="card panel" style={{ padding: 0 }}>
           <div className="table-responsive">
             <table>
               <thead>
                 <tr>
-                  <th>اسم المستخدم</th>
-                  <th>الاسم الكامل</th>
-                  <th>الدور</th>
-                  <th>الحالة</th>
+                  <th>{t('col.users.username')}</th>
+                  <th>{t('col.users.fullname')}</th>
+                  <th>{t('col.users.role')}</th>
+                  <th>{t('col.users.status')}</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
                 {usersLoading ? (
-                  <tr><td colSpan={5}><div className="center-msg"><div className="spinner" />جارٍ التحميل…</div></td></tr>
+                  <tr><td colSpan={5}><div className="center-msg"><div className="spinner" />{t('msg.loading')}</div></td></tr>
                 ) : users.length === 0 ? (
-                  <tr><td colSpan={5}><div className="center-msg">لا يوجد مستخدمون</div></td></tr>
+                  <tr><td colSpan={5}><div className="center-msg">{t('empty.users')}</div></td></tr>
                 ) : users.map((u) => (
                   <tr key={u.id}>
                     <td><strong style={{ fontFamily: 'monospace' }}>{u.username}</strong></td>
@@ -215,12 +197,12 @@ export default function Users() {
                     <td><span className="pill blue">{u.role.displayName}</span></td>
                     <td>
                       {u.isActive
-                        ? <span className="pill green">نشط</span>
-                        : <span className="pill gray">موقوف</span>}
+                        ? <span className="pill green">{t('status.active')}</span>
+                        : <span className="pill gray">{t('status.suspended')}</span>}
                     </td>
                     <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
                       {canUpdate && (
-                        <button className="btn secondary sm" onClick={() => openEdit(u)}>تعديل</button>
+                        <button className="btn secondary sm" onClick={() => openEdit(u)}>{t('action.edit')}</button>
                       )}{' '}
                       {canUpdate && (
                         <button
@@ -228,7 +210,7 @@ export default function Users() {
                           style={u.isActive ? { color: 'var(--danger)' } : {}}
                           onClick={() => toggleActive(u)}
                         >
-                          {u.isActive ? 'تعطيل' : 'تفعيل'}
+                          {u.isActive ? t('btn.users.disable') : t('btn.users.enable')}
                         </button>
                       )}
                     </td>
@@ -240,7 +222,6 @@ export default function Users() {
         </div>
       )}
 
-      {/* ─── Roles Tab ──────────────────────────────────────────────────────────── */}
       {tab === 'roles' && (
         <div>
           {roles.map((role) => (
@@ -248,13 +229,13 @@ export default function Users() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <strong style={{ fontSize: 15 }}>{role.displayName}</strong>
-                  {role.isSystem && <span className="pill blue" style={{ fontSize: 11 }}>نظام</span>}
+                  {role.isSystem && <span className="pill blue" style={{ fontSize: 11 }}>{t('lbl.users.system_role')}</span>}
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                    {role._count.users} مستخدم · {role._count.rolePermissions} صلاحية
+                    {t('lbl.users.role_stats', { users: role._count.users, perms: role._count.rolePermissions })}
                   </span>
                 </div>
                 <button className="btn secondary sm" onClick={() => toggleRoleExpand(role.id)}>
-                  {expandedRole?.id === role.id ? '▲ إخفاء' : '▼ الصلاحيات'}
+                  {expandedRole?.id === role.id ? `▲ ${t('btn.users.hide_perms')}` : `▼ ${t('btn.users.show_perms')}`}
                 </button>
               </div>
 
@@ -265,7 +246,7 @@ export default function Users() {
                     return (
                       <div key={module} style={{ marginBottom: 14 }}>
                         <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-muted)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                          {MODULE_AR[module] ?? module}
+                          {t('perm.module.' + module)}
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
                           {perms.map((p) => {
@@ -276,7 +257,7 @@ export default function Users() {
                                 className={`pill ${granted ? 'green' : 'gray'}`}
                                 style={{ opacity: granted ? 1 : 0.35, fontSize: 12 }}
                               >
-                                {ACTION_AR[p.action] ?? p.action}
+                                {t('perm.action.' + p.action)}
                               </span>
                             );
                           })}
@@ -291,17 +272,16 @@ export default function Users() {
         </div>
       )}
 
-      {/* ─── Form Modal ─────────────────────────────────────────────────────────── */}
       {showForm && (
         <Modal
-          title={editingUser ? `تعديل: ${editingUser.username}` : 'مستخدم جديد'}
+          title={editingUser ? t('modal.users.edit_prefix') + editingUser.username : t('modal.users.new')}
           onClose={() => setShowForm(false)}
           footer={
             <>
               <button className="btn" onClick={onSave} disabled={saving}>
-                {saving ? 'جارٍ الحفظ…' : 'حفظ'}
+                {saving ? t('msg.saving') : t('action.save')}
               </button>
-              <button className="btn secondary" onClick={() => setShowForm(false)}>إلغاء</button>
+              <button className="btn secondary" onClick={() => setShowForm(false)}>{t('action.cancel')}</button>
             </>
           }
         >
@@ -309,17 +289,16 @@ export default function Users() {
           <div className="form-grid">
             {!editingUser && (
               <div className="field">
-                <label>اسم المستخدم *</label>
+                <label>{t('col.users.username')} *</label>
                 <input
                   value={form.username}
                   onChange={(e) => setForm({ ...form, username: e.target.value })}
-                  placeholder="مثال: ahmed.ali"
                   autoComplete="username"
                 />
               </div>
             )}
             <div className="field">
-              <label>{editingUser ? 'كلمة المرور الجديدة (اتركها فارغة للإبقاء)' : 'كلمة المرور *'}</label>
+              <label>{editingUser ? t('field.users.new_password_opt') : `${t('field.users.password')} *`}</label>
               <input
                 type="password"
                 value={form.password}
@@ -329,17 +308,17 @@ export default function Users() {
               />
             </div>
             <div className="field">
-              <label>الاسم الكامل *</label>
+              <label>{t('col.users.fullname')} *</label>
               <input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
             </div>
             <div className="field">
-              <label>البريد الإلكتروني</label>
+              <label>{t('field.email')}</label>
               <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div className="field" style={{ gridColumn: '1 / -1' }}>
-              <label>الدور *</label>
+              <label>{t('col.users.role')} *</label>
               <select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })}>
-                <option value="">— اختر دورًا —</option>
+                <option value="">{t('msg.select_placeholder')}</option>
                 {roles.map((r) => (
                   <option key={r.id} value={r.id}>{r.displayName}</option>
                 ))}
