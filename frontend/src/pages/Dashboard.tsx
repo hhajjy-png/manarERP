@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { money } from '../config/modules';
 import { useAuth } from '../stores/authStore';
+import { useT } from '../lib/i18n';
 
 import '../components/dashboard/dashboard.css';
 
@@ -20,25 +21,19 @@ import { KPISkeletons, StatsSkeletons, Skeleton, TableRowSkeletons } from '../co
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ApiAny = any;
 
-const INVOICE_STATUS_AR: Record<string, string> = {
-  UNPAID: 'غير مدفوعة', PARTIAL: 'مدفوعة جزئيًا', PAID: 'مسدّدة',
-  OVERDUE: 'متأخرة', CANCELLED: 'ملغاة',
-};
 const INVOICE_STATUS_COLOR: Record<string, string> = {
   UNPAID: '#EF4444', PARTIAL: '#F59E0B', PAID: '#10B981',
   OVERDUE: '#DC2626', CANCELLED: '#6B7280',
 };
 
-const CONTRACT_STATUS_AR: Record<string, [string, string]> = {
-  ACTIVE:    ['ساري',         'green'],
-  EXPIRED:   ['منتهٍ',        'gray'],
-  RENEWING:  ['قيد التجديد',  'amber'],
-  SUSPENDED: ['موقوف',        'red'],
+const CONTRACT_STATUS_CLS: Record<string, string> = {
+  ACTIVE: 'green', EXPIRED: 'gray', RENEWING: 'amber', SUSPENDED: 'red',
 };
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate  = useNavigate();
+  const { t }     = useT();
 
   const [loading,    setLoading]   = useState(true);
   const [error,      setError]     = useState('');
@@ -46,8 +41,8 @@ export default function Dashboard() {
   const [refreshAt,  setRefreshAt]  = useState<Date | null>(null);
 
   // ── State slices populated from /dashboard/executive ─────────────────────
-  const [exec,      setExec]      = useState<ApiAny>(null);   // kpis object
-  const [att,       setAtt]       = useState<ApiAny>({});     // attendance today
+  const [exec,      setExec]      = useState<ApiAny>(null);
+  const [att,       setAtt]       = useState<ApiAny>({});
   const [trend,     setTrend]     = useState<ApiAny[]>([]);
   const [cStatus,   setCStatus]   = useState<ApiAny[]>([]);
   const [iStatus,   setIStatus]   = useState<ApiAny[]>([]);
@@ -145,13 +140,13 @@ export default function Dashboard() {
       <div className="db-exec-header">
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h2 className="db-exec-greeting">مرحباً، {user?.fullName ?? 'مدير النظام'} 👋</h2>
+            <h2 className="db-exec-greeting">{t('page.dashboard.greeting', { name: user?.fullName ?? '—' })}</h2>
             <p className="db-exec-date">📅 {today}</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {refreshAt && !loading && (
               <span style={{ fontSize: 11, color: 'var(--db-muted)' }}>
-                آخر تحديث: {refreshAt.toLocaleTimeString('ar')}
+                {t('page.dashboard.last_update')} {refreshAt.toLocaleTimeString('ar')}
               </span>
             )}
             <button
@@ -160,7 +155,7 @@ export default function Dashboard() {
               disabled={loading}
               style={{ padding: '7px 14px', fontSize: 13 }}
             >
-              {loading ? '⏳' : '↻ تحديث'}
+              {loading ? '⏳' : t('page.dashboard.refresh')}
             </button>
           </div>
         </div>
@@ -168,15 +163,15 @@ export default function Dashboard() {
           <div className="db-exec-chips">
             <span className="db-exec-chip blue">
               <span className="db-exec-chip-dot" />
-              العقود السارية: {c.active ?? 0}
+              {t('page.dashboard.chip_contracts')} {c.active ?? 0}
             </span>
             <span className="db-exec-chip amber">
               <span className="db-exec-chip-dot" />
-              المعدات العاملة: {workingEquipment}
+              {t('page.dashboard.chip_equipment')} {workingEquipment}
             </span>
             <span className="db-exec-chip red">
               <span className="db-exec-chip-dot" />
-              الفواتير المستحقة: {inv.unpaid ?? 0}
+              {t('page.dashboard.chip_invoices')} {inv.unpaid ?? 0}
             </span>
           </div>
         )}
@@ -187,7 +182,7 @@ export default function Dashboard() {
         <div className="alert error" style={{ marginBottom: 20 }}>
           ⚠️ {error}
           <button className="btn secondary" style={{ marginRight: 12 }} onClick={() => setRefreshKey((k) => k + 1)}>
-            إعادة المحاولة
+            {t('page.dashboard.retry')}
           </button>
         </div>
       )}
@@ -196,10 +191,10 @@ export default function Dashboard() {
           QUICK ACTIONS
       ══════════════════════════════════════════════════ */}
       <div className="db-actions">
-        <button className="db-action-btn primary" onClick={() => navigate('/invoices')}>＋ فاتورة جديدة</button>
-        <button className="db-action-btn green"   onClick={() => navigate('/contracts')}>＋ عقد جديد</button>
-        <button className="db-action-btn purple"  onClick={() => navigate('/customers')}>＋ عميل جديد</button>
-        <button className="db-action-btn amber"   onClick={() => navigate('/expenses')}>＋ مصروف جديد</button>
+        <button className="db-action-btn primary" onClick={() => navigate('/invoices')}>{t('page.dashboard.new_invoice')}</button>
+        <button className="db-action-btn green"   onClick={() => navigate('/contracts')}>{t('page.dashboard.new_contract')}</button>
+        <button className="db-action-btn purple"  onClick={() => navigate('/customers')}>{t('page.dashboard.new_customer')}</button>
+        <button className="db-action-btn amber"   onClick={() => navigate('/expenses')}>{t('page.dashboard.new_expense')}</button>
       </div>
 
       {/* ══════════════════════════════════════════════════
@@ -207,15 +202,15 @@ export default function Dashboard() {
       ══════════════════════════════════════════════════ */}
       {loading ? <KPISkeletons /> : (
         <div className="db-kpi-grid">
-          <KPICard label="إجمالي الإيرادات"    value={money(f.totalRevenue)}  icon="💰" color="green" />
-          <KPICard label="إجمالي المصروفات"    value={money(f.totalExpense)}   icon="📉" color="red" />
-          <KPICard label="صافي الربح"           value={money(f.netProfit)}      icon="📈" color={profitPositive ? 'blue' : 'red'} />
+          <KPICard label={t('kpi.total_revenue')}    value={money(f.totalRevenue)}  icon="💰" color="green" />
+          <KPICard label={t('kpi.total_expenses')}   value={money(f.totalExpense)}   icon="📉" color="red" />
+          <KPICard label={t('kpi.net_profit')}       value={money(f.netProfit)}      icon="📈" color={profitPositive ? 'blue' : 'red'} />
           <KPICard
-            label="الفواتير غير المحصلة"
+            label={t('kpi.unpaid_invoices')}
             value={money(inv.unpaidAmount)}
             icon="🧾"
             color="amber"
-            sub={inv.unpaid ? `${inv.unpaid} فاتورة معلّقة` : undefined}
+            sub={inv.unpaid ? t('kpi.pending_sub', { count: inv.unpaid }) : undefined}
           />
         </div>
       )}
@@ -241,35 +236,35 @@ export default function Dashboard() {
             <div className="db-aw-icon">📋</div>
             <div className="db-aw-body">
               <div className="db-aw-val">{expiredContracts}</div>
-              <div className="db-aw-label">العقود المتأخرة</div>
+              <div className="db-aw-label">{t('page.dashboard.expired_contracts')}</div>
             </div>
-            <span className="db-aw-tag">عقد</span>
+            <span className="db-aw-tag">{t('page.dashboard.contract_unit')}</span>
           </div>
           <div className={`db-aw ${brokenEquipment > 0 ? 'aw-warning' : 'aw-safe'}`}>
             <div className="db-aw-icon">🚜</div>
             <div className="db-aw-body">
               <div className="db-aw-val">{brokenEquipment}</div>
-              <div className="db-aw-label">المعدات المعطلة</div>
+              <div className="db-aw-label">{t('page.dashboard.broken_equipment')}</div>
             </div>
-            <span className="db-aw-tag">معدة</span>
+            <span className="db-aw-tag">{t('page.dashboard.equipment_unit')}</span>
           </div>
           <div className={`db-aw ${duePayments > 0 ? 'aw-critical' : 'aw-safe'}`}>
             <div className="db-aw-icon">💳</div>
             <div className="db-aw-body">
               <div className="db-aw-val">{duePayments}</div>
-              <div className="db-aw-label">الدفعات المستحقة</div>
+              <div className="db-aw-label">{t('page.dashboard.due_payments')}</div>
               {(inv.unpaidAmount ?? 0) > 0 && <div className="db-aw-sub">{money(inv.unpaidAmount)}</div>}
             </div>
-            <span className="db-aw-tag">فاتورة</span>
+            <span className="db-aw-tag">{t('page.dashboard.invoice_unit')}</span>
           </div>
           <div className={`db-aw ${expiringContracts > 0 ? 'aw-warning' : 'aw-safe'}`}>
             <div className="db-aw-icon">⏰</div>
             <div className="db-aw-body">
               <div className="db-aw-val">{expiringContracts}</div>
-              <div className="db-aw-label">العقود المنتهية قريباً</div>
-              <div className="db-aw-sub">خلال 30 يوم</div>
+              <div className="db-aw-label">{t('page.dashboard.expiring_contracts')}</div>
+              <div className="db-aw-sub">{t('page.dashboard.within_30')}</div>
             </div>
-            <span className="db-aw-tag">عقد</span>
+            <span className="db-aw-tag">{t('page.dashboard.contract_unit')}</span>
           </div>
         </div>
       )}
@@ -279,43 +274,43 @@ export default function Dashboard() {
       ══════════════════════════════════════════════════ */}
       {loading ? <StatsSkeletons /> : (
         <div className="db-stats-grid">
-          <OpsCard label="العملاء المسجلون"  value={exec?.customers?.total ?? 0} icon="👥" iconBg="rgba(99,102,241,0.14)" />
+          <OpsCard label={t('stat.registered_customers')} value={exec?.customers?.total ?? 0} icon="👥" iconBg="rgba(99,102,241,0.14)" />
           <OpsCard
-            label="العقود السارية"
+            label={t('stat.active_contracts')}
             value={`${c.active ?? 0} / ${c.total ?? 0}`}
             icon="📄"
             iconBg="rgba(37,99,235,0.14)"
-            sub="من إجمالي العقود"
+            sub={t('stat.of_total_contracts')}
           />
           <OpsCard
-            label="إجمالي الفواتير"
+            label={t('stat.total_invoices')}
             value={inv.total ?? 0}
             icon="🧾"
             iconBg="rgba(245,158,11,0.14)"
-            sub={inv.unpaid ? `${inv.unpaid} غير مدفوعة` : 'جميعها مسدّدة'}
+            sub={inv.unpaid ? t('stat.unpaid', { count: inv.unpaid }) : t('stat.all_paid')}
           />
           <OpsCard
-            label="الموظفون النشطون"
+            label={t('stat.active_employees')}
             value={`${emp.active ?? 0} / ${emp.total ?? 0}`}
             icon="👷"
             iconBg="rgba(16,185,129,0.14)"
-            sub="من إجمالي الموظفين"
+            sub={t('stat.of_total_employees')}
           />
           <OpsCard
-            label="المعدات العاملة"
+            label={t('stat.working_equipment')}
             value={`${workingEquipment} / ${eq.total ?? 0}`}
             icon="🚜"
             iconBg="rgba(234,88,12,0.14)"
-            sub={brokenEquipment > 0 ? `${brokenEquipment} خارج الخدمة` : 'جميعها تعمل'}
+            sub={brokenEquipment > 0 ? t('stat.out_of_service', { count: brokenEquipment }) : t('stat.all_working')}
           />
           <OpsCard
-            label="حضور اليوم"
+            label={t('stat.today_attendance')}
             value={att.present ?? 0}
             icon="📅"
             iconBg="rgba(16,185,129,0.12)"
             sub={att.total > 0
-              ? `غائب: ${att.absent ?? 0} · متأخر: ${att.late ?? 0} · إجازة: ${att.leave ?? 0}`
-              : 'لا توجد سجلات اليوم'}
+              ? `${t('stat.absent_lbl')} ${att.absent ?? 0} · ${t('stat.late_lbl')} ${att.late ?? 0} · ${t('stat.leave_lbl')} ${att.leave ?? 0}`
+              : t('stat.no_attendance')}
           />
         </div>
       )}
@@ -327,11 +322,11 @@ export default function Dashboard() {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>آخر العقود</h3>
-              <p>أحدث 5 عقود في النظام</p>
+              <h3>{t('section.latest_contracts')}</h3>
+              <p>{t('section.latest_5')}</p>
             </div>
             {!loading && contracts.length > 0 && (
-              <span className="db-pill blue">{contracts.length} عقد</span>
+              <span className="db-pill blue">{contracts.length} {t('page.dashboard.contract_unit')}</span>
             )}
           </div>
           <div className="db-card-body scrollable">
@@ -341,8 +336,8 @@ export default function Dashboard() {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>التنبيهات العاجلة</h3>
-              <p>انتهاء الصلاحيات خلال 30 يوم</p>
+              <h3>{t('section.urgent_alerts')}</h3>
+              <p>{t('section.expiry_30')}</p>
             </div>
             {!loading && alerts.length > 0 && (
               <span className="db-pill red">{alerts.length}</span>
@@ -361,8 +356,8 @@ export default function Dashboard() {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>التدفق المالي</h3>
-              <p>الإيرادات والمصروفات — آخر 6 أشهر (د.ك)</p>
+              <h3>{t('section.revenue_flow')}</h3>
+              <p>{t('section.revenue_6m')}</p>
             </div>
           </div>
           <div className="db-card-body">
@@ -372,8 +367,8 @@ export default function Dashboard() {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>حالة العقود</h3>
-              <p>توزيع العقود حسب الحالة</p>
+              <h3>{t('section.contract_status')}</h3>
+              <p>{t('section.contract_dist')}</p>
             </div>
           </div>
           <div className="db-card-body">
@@ -391,7 +386,7 @@ export default function Dashboard() {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>حالة الفواتير</h3>
+              <h3>{t('section.invoice_status')}</h3>
               <p>توزيع {inv.total ?? 0} فاتورة حسب الحالة</p>
             </div>
           </div>
@@ -403,7 +398,7 @@ export default function Dashboard() {
             ) : iStatus.length === 0 ? (
               <div className="db-empty">
                 <div className="db-empty-icon">🧾</div>
-                <div className="db-empty-text">لا توجد فواتير</div>
+                <div className="db-empty-text">{t('empty.no_invoices')}</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -416,7 +411,7 @@ export default function Dashboard() {
                       <div key={s.status}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 13 }}>
                           <span style={{ color: 'var(--db-text)', fontWeight: 600 }}>
-                            {INVOICE_STATUS_AR[s.status] ?? s.status}
+                            {t('inv.status.' + s.status.toLowerCase())}
                           </span>
                           <span style={{ color: 'var(--db-muted)' }}>{s.count} ({pct}%)</span>
                         </div>
@@ -435,8 +430,8 @@ export default function Dashboard() {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>حضور اليوم</h3>
-              <p>سجلات الحضور والغياب لهذا اليوم</p>
+              <h3>{t('section.today_attendance')}</h3>
+              <p>{t('section.attendance_records')}</p>
             </div>
           </div>
           <div className="db-card-body">
@@ -447,15 +442,15 @@ export default function Dashboard() {
             ) : (att.total ?? 0) === 0 ? (
               <div className="db-empty">
                 <div className="db-empty-icon">📅</div>
-                <div className="db-empty-text">لا توجد سجلات حضور اليوم</div>
+                <div className="db-empty-text">{t('empty.no_attendance')}</div>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                 {[
-                  { label: 'حاضر',  val: att.present, color: '#10B981', icon: '✅' },
-                  { label: 'غائب',  val: att.absent,  color: '#EF4444', icon: '❌' },
-                  { label: 'متأخر', val: att.late,    color: '#F59E0B', icon: '⏰' },
-                  { label: 'إجازة', val: att.leave,   color: '#6B7280', icon: '🏖️' },
+                  { label: t('att.present'), val: att.present, color: '#10B981', icon: '✅' },
+                  { label: t('att.absent'),  val: att.absent,  color: '#EF4444', icon: '❌' },
+                  { label: t('att.late'),    val: att.late,    color: '#F59E0B', icon: '⏰' },
+                  { label: t('att.leave'),   val: att.leave,   color: '#6B7280', icon: '🏖️' },
                 ].map((item) => (
                   <div
                     key={item.label}
@@ -488,8 +483,8 @@ export default function Dashboard() {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>آخر الفواتير</h3>
-              <p>أحدث فواتير المطالبات والمشتريات</p>
+              <h3>{t('section.latest_invoices')}</h3>
+              <p>{t('section.latest_inv_sub')}</p>
             </div>
           </div>
           <LatestInvoicesTable invoices={invoices} loading={loading} />
@@ -497,8 +492,8 @@ export default function Dashboard() {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>آخر المصروفات</h3>
-              <p>أحدث مصروفات التشغيل</p>
+              <h3>{t('section.latest_expenses')}</h3>
+              <p>{t('section.latest_exp_sub')}</p>
             </div>
           </div>
           <LatestExpensesTable expenses={expenses} loading={loading} />
@@ -511,25 +506,25 @@ export default function Dashboard() {
       <div className="db-card" style={{ marginTop: 20 }}>
         <div className="db-card-head">
           <div>
-            <h3>آخر العقود المضافة</h3>
-            <p>أحدث 5 عقود في النظام</p>
+            <h3>{t('section.added_contracts')}</h3>
+            <p>{t('section.latest_5')}</p>
           </div>
           <button
             className="btn secondary"
             style={{ padding: '6px 14px', fontSize: 13 }}
             onClick={() => navigate('/contracts')}
           >
-            عرض الكل
+            {t('page.dashboard.view_all')}
           </button>
         </div>
         <table className="db-table">
           <thead>
             <tr>
-              <th>رقم العقد</th>
-              <th>مصنع الأسفلت</th>
-              <th>العميل</th>
-              <th>قيمة النقل الشهري</th>
-              <th>الحالة</th>
+              <th>{t('col.db.contract_no')}</th>
+              <th>{t('col.db.asphalt_plant')}</th>
+              <th>{t('col.db.customer')}</th>
+              <th>{t('col.db.monthly_value')}</th>
+              <th>{t('col.db.status')}</th>
             </tr>
           </thead>
           <tbody>
@@ -540,12 +535,13 @@ export default function Dashboard() {
                 <td colSpan={5}>
                   <div className="db-empty">
                     <div className="db-empty-icon">📄</div>
-                    <div className="db-empty-text">لا توجد عقود</div>
+                    <div className="db-empty-text">{t('empty.no_contracts')}</div>
                   </div>
                 </td>
               </tr>
             ) : contracts.map((ct: ApiAny, i: number) => {
-              const [statusLabel, statusCls] = CONTRACT_STATUS_AR[ct.status] ?? [ct.status, 'gray'];
+              const statusCls = CONTRACT_STATUS_CLS[ct.status] ?? 'gray';
+              const statusLabel = t('contract.status.' + ct.status.toLowerCase());
               return (
                 <tr key={i}>
                   <td><span className="db-table-mono">{ct.code}</span></td>
