@@ -48,6 +48,7 @@ export const MODULES = [
   'backups',
   'settings',
   'inventory',
+  'cheques',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
@@ -65,6 +66,7 @@ export const ACTIONS = [
   'payslip',
   'adjust',
   'cancel',
+  'print',
 ] as const;
 export type ActionName = (typeof ACTIONS)[number];
 
@@ -98,4 +100,5 @@ export const ENUMS = {
   purchaseOrderStatus: ['DRAFT', 'SUBMITTED', 'RECEIVED', 'CANCELLED'] as const,
   goodsReceiptStatus: ['DRAFT', 'POSTED'] as const,
   materialIssueStatus: ['DRAFT', 'POSTED', 'CANCELLED'] as const,
+  chequeStatus: ['DRAFT', 'PRINTED', 'CANCELLED'] as const,
 } as const;

@@ -267,6 +267,7 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
   { group: 'nav.group.financial', items: [
     { key: 'invoices', label: 'nav.invoices', icon: '🧾', permission: 'invoices.read' },
     { key: 'expenses', label: 'nav.expenses', icon: '💸', permission: 'expenses.read' },
+    { key: 'cheques', label: 'nav.cheques', icon: '🖊️', permission: 'cheques.read' },
     { key: 'salaries', label: 'nav.salaries', icon: '💵', permission: 'payroll.read' },
     { key: 'suppliers', label: 'nav.suppliers', icon: '📦', permission: 'suppliers.read' },
     { key: 'accounting', label: 'nav.accounting', icon: '📒', permission: 'transactions.read' },
