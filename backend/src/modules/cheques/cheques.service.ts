@@ -75,7 +75,14 @@ export class ChequesService {
       action: 'CREATE',
       module: 'cheques',
       entityId: cheque.id,
-      newValue: { chequeNumber: cheque.chequeNumber, amount: cheque.amount },
+      newValue: {
+        chequeNumber: cheque.chequeNumber,
+        beneficiaryName: cheque.beneficiaryName,
+        bankName: cheque.bankName,
+        amount: cheque.amount,
+        currency: cheque.currency,
+        chequeDate: cheque.chequeDate,
+      },
     });
     return cheque;
   }
