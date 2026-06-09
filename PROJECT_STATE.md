@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `6073785` — Merge feature/cheques-print-output-v1 into production |
-| **Stable tag** | `stable-cheques-print-output-v1` |
+| **HEAD** | `08cc8e3` — Merge feature/page-level-improvements-phase1 into production |
+| **Stable tag** | `stable-page-level-improvements-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,7 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Page-Level Improvements Phase 1 | `feature/page-level-improvements-phase1` | `stable-page-level-improvements-v1` | Frontend UX improvements: status/type filters on Customers, Employees, Equipment, Expenses; status+direction filters on Invoices; search+status filter on Cheques history; reset-filters button and row count on Reports; labeled actions column header in DataTable. No schema or backend changes. |
 | Cheques Print Output Phase | `feature/cheques-print-output-v1` | `stable-cheques-print-output-v1` | Gulf Bank cheque image background; 4 overlay fields (beneficiary, date, tafqeet, numeric amount); image hidden on print for real paper; pt font units; NaN-guarded tafqeet. Physical calibration deferred — blocked on real cheque paper dimensions. |
 | Cheques Improvements Phase 1+2 | `feature/cheques-improvements-v1` | `stable-cheques-improvements-v1` | Schema validation (enum currency, date bounds, chequeNumber format), enriched audit log, bank select (10 Kuwaiti banks), form field reorder, notes placeholder, dead code removal |
 | Alert Deduplication | `feature/alerts-dedup` | `stable-alerts-dedup-v1` | Remove vehicleLicenseExpiry from employee alerts; equipment.registrationExpiry is sole source |
@@ -277,4 +278,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-09 — Cheques Print Output Phase released; baseline advanced to `6073785`.*
+*Last updated: 2026-06-09 — Page-Level Improvements Phase 1 released; baseline advanced to `08cc8e3`.*
