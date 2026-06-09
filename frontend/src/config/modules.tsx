@@ -278,6 +278,7 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
   { group: 'nav.group.system', items: [
     { key: 'reports', label: 'nav.reports', icon: '📈', permission: 'reports.read' },
     { key: 'users', label: 'nav.users', icon: '🔐', permission: 'users.read' },
+    { key: 'audit', label: 'nav.audit', icon: '📋', permission: 'audit.read' },
     { key: 'backup', label: 'nav.backup', icon: '💾', permission: 'backups.read' },
     { key: 'settings', label: 'nav.settings', icon: '⚙️', permission: 'settings.read' },
   ] },
