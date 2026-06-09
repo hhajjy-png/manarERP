@@ -119,6 +119,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'col.location': 'مكان العقد',
     'col.monthly_value': 'قيمة النقل الشهري',
     'col.status': 'الحالة',
+    'col.actions': 'إجراءات',
     'col.customer_name': 'اسم العميل',
     'col.type': 'النوع',
     'col.phone': 'الهاتف',
@@ -379,6 +380,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.reports.empty': 'اضبط الفلاتر المطلوبة ثم انقر عرض التقرير',
     'page.reports.preparing': 'جارٍ تجهيز التقرير…',
     'page.reports.no_data': 'لا توجد بيانات',
+    'page.reports.results_count': 'نتيجة',
 
     // ── Phase 3: inventory page ───────────────────────────────────────────────
     'page.inventory.title': 'المخزون والمشتريات',
@@ -1002,6 +1004,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'col.location': 'Location',
     'col.monthly_value': 'Monthly Transport Value',
     'col.status': 'Status',
+    'col.actions': 'Actions',
     'col.customer_name': 'Customer Name',
     'col.type': 'Type',
     'col.phone': 'Phone',
@@ -1262,6 +1265,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.reports.empty': 'Set the required filters then click View Report',
     'page.reports.preparing': 'Preparing report…',
     'page.reports.no_data': 'No data',
+    'page.reports.results_count': 'result(s)',
 
     // ── Phase 3: inventory page ───────────────────────────────────────────────
     'page.inventory.title': 'Inventory & Purchases',

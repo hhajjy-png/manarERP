@@ -66,7 +66,8 @@ export interface ModuleConfig {
   columns: Column[];
   fields: FormField[];
   createLabel: string;
-  canApprove?: boolean; // مصروفات
+  canApprove?: boolean;
+  statusFilter?: { param: string; options: { value: string; labelKey: string }[] };
 }
 
 export const MODULES: Record<string, ModuleConfig> = {
@@ -101,6 +102,13 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'customers', endpoint: '/customers', label: 'العملاء والجهات',
     title: 'mod.customers.title', subtitle: 'mod.customers.subtitle',
     icon: '👥', group: 'العمليات الأساسية', createLabel: 'mod.customers.create',
+    statusFilter: {
+      param: 'type',
+      options: [
+        { value: 'GOVERNMENT', labelKey: 'opt.customer.government' },
+        { value: 'PRIVATE',    labelKey: 'opt.customer.private' },
+      ],
+    },
     columns: [
       { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
       { key: 'name', label: 'col.customer_name', render: (r) => <strong>{r.name}</strong> },
@@ -147,6 +155,13 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'equipment', endpoint: '/equipment', label: 'المعدات والآليات',
     title: 'mod.equipment.title', subtitle: 'mod.equipment.subtitle',
     icon: '🚜', group: 'العمليات الأساسية', createLabel: 'mod.equipment.create',
+    statusFilter: {
+      param: 'status',
+      options: [
+        { value: 'WORKING',     labelKey: 'opt.eq.working' },
+        { value: 'NOT_WORKING', labelKey: 'opt.eq.not_working' },
+      ],
+    },
     columns: [
       { key: 'code', label: 'col.equipment_no', render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.code}</strong> },
       { key: 'type', label: 'col.type' },
@@ -173,6 +188,14 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'employees', endpoint: '/employees', label: 'الموظفون والكوادر',
     title: 'mod.employees.title', subtitle: 'mod.employees.subtitle',
     icon: '👷', group: 'العمليات الأساسية', createLabel: 'mod.employees.create',
+    statusFilter: {
+      param: 'status',
+      options: [
+        { value: 'ACTIVE',     labelKey: 'opt.emp.active' },
+        { value: 'ON_LEAVE',   labelKey: 'opt.emp.on_leave' },
+        { value: 'TERMINATED', labelKey: 'opt.emp.terminated' },
+      ],
+    },
     columns: [
       { key: 'fullName', label: 'col.fullname_ar', render: (r) => <strong>{r.fullName}</strong> },
       { key: 'fullNameEn', label: 'col.fullname_en' },
@@ -216,6 +239,14 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'expenses', endpoint: '/expenses', label: 'المصروفات والتشغيل',
     title: 'mod.expenses.title', subtitle: 'mod.expenses.subtitle',
     icon: '💸', group: 'المالية', createLabel: 'mod.expenses.create', canApprove: true,
+    statusFilter: {
+      param: 'status',
+      options: [
+        { value: 'PENDING',  labelKey: 'status.pending' },
+        { value: 'APPROVED', labelKey: 'status.approved' },
+        { value: 'REJECTED', labelKey: 'status.rejected' },
+      ],
+    },
     columns: [
       { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
       { key: 'category', label: 'col.category', render: (r) => expenseCategoryAr[r.category] ?? r.category },

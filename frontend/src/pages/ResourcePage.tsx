@@ -17,6 +17,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
+  const [filterValue, setFilterValue] = useState('');
   const [error, setError] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
@@ -31,7 +32,14 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     setLoading(true);
     setError('');
     try {
-      const res = await api.get(cfg.endpoint, { params: { page, search: query, pageSize: 15 } });
+      const res = await api.get(cfg.endpoint, {
+        params: {
+          page,
+          search: query,
+          pageSize: 15,
+          ...(cfg.statusFilter && filterValue ? { [cfg.statusFilter.param]: filterValue } : {}),
+        },
+      });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } catch (err) {
@@ -39,9 +47,16 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     } finally {
       setLoading(false);
     }
-  }, [cfg.endpoint, page, query]);
+  }, [cfg.endpoint, page, query, filterValue, cfg.statusFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    setFilterValue('');
+    setSearch('');
+    setQuery('');
+    setPage(1);
+  }, [cfg.key]);
 
   // تنبيهات خاصة: دفاتر المركبات / مستندات الموظفين
   useEffect(() => {
@@ -109,8 +124,38 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       {error && <div className="alert error">⚠️ {error}</div>}
 
       <form className="toolbar" onSubmit={onSearch}>
-        <input placeholder={t('action.search_placeholder')} value={search} onChange={(e) => setSearch(e.target.value)} style={{ flex: 1, minWidth: 240 }} />
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: 240 }}>
+          <input
+            placeholder={t('action.search_placeholder')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ flex: 1, paddingInlineEnd: search ? 32 : undefined }}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => { setSearch(''); setQuery(''); setPage(1); }}
+              style={{ position: 'absolute', insetInlineEnd: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, lineHeight: 1 }}
+              title={t('action.reset_filters')}
+            >
+              ✕
+            </button>
+          )}
+        </div>
         <button className="btn secondary" type="submit">{t('action.search')}</button>
+        {cfg.statusFilter && (
+          <select
+            value={filterValue}
+            onChange={(e) => { setFilterValue(e.target.value); setPage(1); }}
+            title={t('filter.status')}
+            style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg)', color: 'var(--text)', fontSize: 14, cursor: 'pointer' }}
+          >
+            <option value="">{t('opt.all')}</option>
+            {cfg.statusFilter.options.map((o) => (
+              <option key={o.value} value={o.value}>{t(o.labelKey)}</option>
+            ))}
+          </select>
+        )}
       </form>
 
       <DataTable
