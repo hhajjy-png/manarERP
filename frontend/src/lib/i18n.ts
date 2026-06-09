@@ -815,7 +815,10 @@ const DICT: Record<Lang, Record<string, string>> = {
     'lbl.cheque.amount_label': 'مبلغ وقدره',
     'lbl.cheque.for': 'وذلك لقاء',
     'lbl.cheque.signature': 'التوقيع المفوّض',
+    'lbl.cheque.amount_words': 'المبلغ كتابةً',
     'btn.cheque.select': 'تحديد للعرض',
+    'error.cheque.already_printed': 'الشيك مطبوع بالفعل ولا يمكن إعادة طباعته',
+    'error.cheque.is_cancelled': 'لا يمكن طباعة شيك ملغي',
 
     // ── Data Import ───────────────────────────────────────────────────────────
     'nav.import': 'استيراد البيانات',
@@ -1665,7 +1668,10 @@ const DICT: Record<Lang, Record<string, string>> = {
     'lbl.cheque.amount_label': 'Amount',
     'lbl.cheque.for': 'For',
     'lbl.cheque.signature': 'Authorized Signature',
+    'lbl.cheque.amount_words': 'Amount in Words',
     'btn.cheque.select': 'Select to View',
+    'error.cheque.already_printed': 'This cheque has already been printed',
+    'error.cheque.is_cancelled': 'Cannot print a cancelled cheque',
 
     // ── Data Import ───────────────────────────────────────────────────────────
     'nav.import': 'Data Import',
