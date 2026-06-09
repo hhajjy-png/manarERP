@@ -134,6 +134,18 @@
   transform: translateY(-3px);
   box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55);
 }
+.db-kpi.c-green:hover {
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55), 0 0 24px rgba(16, 185, 129, 0.14);
+}
+.db-kpi.c-red:hover {
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55), 0 0 24px rgba(239, 68, 68, 0.14);
+}
+.db-kpi.c-blue:hover {
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55), 0 0 24px rgba(37, 99, 235, 0.14);
+}
+.db-kpi.c-amber:hover {
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55), 0 0 24px rgba(245, 158, 11, 0.14);
+}
 
 
 .db-kpi-top {
@@ -318,9 +330,11 @@
   gap: 8px;
   padding: 16px 20px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: var(--db-radius) var(--db-radius) 0 0;
 }
 .db-card-head h3 {
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 800;
   color: var(--db-text);
   margin: 0;
@@ -652,10 +666,19 @@
    EXECUTIVE HEADER
    ================================================================ */
 .db-exec-header {
+  background:
+    linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, transparent 55%),
+    rgba(31, 41, 55, 0.65);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: var(--db-radius);
+  padding: 24px 28px;
   margin-bottom: 24px;
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.35);
 }
 .db-exec-greeting {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 800;
   color: var(--db-text);
   margin: 0 0 8px;
@@ -718,6 +741,10 @@
   gap: 10px;
   margin-bottom: 20px;
   flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--db-radius);
+  padding: 12px 16px;
 }
 .db-action-btn {
   display: inline-flex;
@@ -1065,4 +1092,77 @@
 .db-aw-skel-body {
   flex: 1;
   min-width: 0;
+}
+
+/* ================================================================
+   HERO TWO-COLUMN LAYOUT
+   ================================================================ */
+.db-exec-hero-layout {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  align-items: start;
+}
+.db-exec-hero-actions {
+  border-inline-start: 1px solid rgba(255, 255, 255, 0.08);
+  padding-inline-start: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+@media (max-width: 1100px) {
+  .db-exec-hero-layout {
+    grid-template-columns: 1fr;
+  }
+  .db-exec-hero-actions {
+    border-inline-start: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-inline-start: 0;
+    padding-top: 16px;
+  }
+}
+.db-exec-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* Quick actions in hero panel — full-width single column */
+.db-exec-hero-actions .db-actions {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: 0;
+  border-radius: 0;
+  flex-direction: column;
+  gap: 8px;
+}
+.db-exec-hero-actions .db-action-btn {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+/* ================================================================
+   EXEC SECTION LABEL (inside hero panel)
+   ================================================================ */
+.db-exec-section-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--db-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ================================================================
+   SECTION LABELS (between row groups)
+   ================================================================ */
+.db-section-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--db-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 6px 0 12px;
+  border-inline-start: 3px solid var(--db-blue);
+  padding-inline-start: 10px;
 }
