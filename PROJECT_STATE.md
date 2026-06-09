@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `68026f4` — Merge feature/cheques-tafqeet-phase2 into production |
-| **Stable tag** | `stable-cheques-tafqeet-v1` |
+| **HEAD** | `c9d719e` — Merge feature/cheques-improvements-v1 into production |
+| **Stable tag** | `stable-cheques-improvements-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,9 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Cheques Improvements Phase 1+2 | `feature/cheques-improvements-v1` | `stable-cheques-improvements-v1` | Schema validation (enum currency, date bounds, chequeNumber format), enriched audit log, bank select (10 Kuwaiti banks), form field reorder, notes placeholder, dead code removal |
+| Alert Deduplication | `feature/alerts-dedup` | `stable-alerts-dedup-v1` | Remove vehicleLicenseExpiry from employee alerts; equipment.registrationExpiry is sole source |
+| Audit Log Viewer | `feature/audit-log-viewer` | — | Frontend viewer for AuditLog table |
 | Cheques Tafqeet Phase 2 | `feature/cheques-tafqeet-phase2` | `stable-cheques-tafqeet-v1` | Arabic amount-in-words (tafqeet) for KWD cheques |
 | Cheques Enhancement Phase 1 | `feature/cheques-enhancement-phase1` | `stable-cheques-enhancement-phase1-v1` | Print guards, status-machine refinements, audit logging |
 | Full Operational Data Reset | — (script-only) | — | 91 rows cleared, seed re-applied, 2026-06-09 |
@@ -56,15 +59,15 @@ Missing: a frontend viewer page so operators can browse the audit trail.
 - No backend changes required
 - Run `superpowers:brainstorming` before implementing
 
-### 2. Cheques Improvements
+### 2. Cheques Print Calibration (Phase 3 — deferred)
 
-The core cheques workflow is complete (print, tafqeet, status machine, audit).
-Remaining improvements are cosmetic and UX-level only — do not change business logic.
+Phase 1+2 complete. Only physical print alignment remains.
 
-- Print layout calibration (alignment, margins, field positioning)
-- Page-level UX polish (field ordering, form hints, print confirmation clarity)
-- Optional: bank name dropdown (no schema change — can be a frontend constant list)
-- Do NOT redesign the module — targeted fixes only
+- Add `@page { size: <W>mm <H>mm; margin: 0; }` to print CSS
+- Replace `maxWidth: 700` container with fixed paper-size dimensions
+- Convert field positions to `position: absolute` per bank cheque layout
+- **Blocked on**: access to actual bank cheque paper and layout measurements
+- Do NOT implement without real paper to test against
 
 ### 3. Small Operational Improvements
 
@@ -273,4 +276,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-09 — Cheques Tafqeet Phase 2 released; baseline advanced to `68026f4`.*
+*Last updated: 2026-06-09 — Cheques Improvements Phase 1+2 released; baseline advanced to `c9d719e`.*
