@@ -154,48 +154,67 @@ export default function Dashboard() {
   return (
     <div className="db-page">
       {/* ══════════════════════════════════════════════════
-          EXECUTIVE HEADER
+          EXECUTIVE HERO PANEL
       ══════════════════════════════════════════════════ */}
       <div className="db-exec-header">
-        <div className="db-exec-top">
-          <div>
+        <div className="db-exec-hero-layout">
+          {/* INFO: greeting, date, status chips, refresh */}
+          <div className="db-exec-hero-info">
             <h2 className="db-exec-greeting">
               {t('page.dashboard.greeting', { name: user?.fullName ?? '—' })}
             </h2>
             <p className="db-exec-date">📅 {today}</p>
-          </div>
-          <div className="db-exec-actions">
-            {refreshAt && !loading && (
-              <span className="db-refresh-time">
-                {t('page.dashboard.last_update')} {refreshAt.toLocaleTimeString('ar')}
-              </span>
+            {!loading && (
+              <div className="db-exec-chips">
+                <span className="db-exec-chip blue">
+                  <span className="db-exec-chip-dot" />
+                  {t('page.dashboard.chip_contracts')} {c.active ?? 0}
+                </span>
+                <span className="db-exec-chip amber">
+                  <span className="db-exec-chip-dot" />
+                  {t('page.dashboard.chip_equipment')} {workingEquipment}
+                </span>
+                <span className="db-exec-chip red">
+                  <span className="db-exec-chip-dot" />
+                  {t('page.dashboard.chip_invoices')} {inv.unpaid ?? 0}
+                </span>
+              </div>
             )}
-            <button
-              type="button"
-              className="btn secondary db-refresh-btn"
-              onClick={() => setRefreshKey((k) => k + 1)}
-              disabled={loading}
-            >
-              {loading ? '⏳' : t('page.dashboard.refresh')}
-            </button>
+            <div className="db-exec-meta">
+              {refreshAt && !loading && (
+                <span className="db-refresh-time">
+                  {t('page.dashboard.last_update')} {refreshAt.toLocaleTimeString('ar')}
+                </span>
+              )}
+              <button
+                type="button"
+                className="btn secondary db-refresh-btn"
+                onClick={() => setRefreshKey((k) => k + 1)}
+                disabled={loading}
+              >
+                {loading ? '⏳' : t('page.dashboard.refresh')}
+              </button>
+            </div>
+          </div>
+          {/* ACTIONS: section label + quick action buttons */}
+          <div className="db-exec-hero-actions">
+            <div className="db-exec-section-label">{t('section.quick_actions')}</div>
+            <div className="db-actions">
+              <button type="button" className="db-action-btn primary" onClick={() => navigate('/invoices')}>
+                {t('page.dashboard.new_invoice')}
+              </button>
+              <button type="button" className="db-action-btn green" onClick={() => navigate('/contracts')}>
+                {t('page.dashboard.new_contract')}
+              </button>
+              <button type="button" className="db-action-btn purple" onClick={() => navigate('/customers')}>
+                {t('page.dashboard.new_customer')}
+              </button>
+              <button type="button" className="db-action-btn amber" onClick={() => navigate('/expenses')}>
+                {t('page.dashboard.new_expense')}
+              </button>
+            </div>
           </div>
         </div>
-        {!loading && (
-          <div className="db-exec-chips">
-            <span className="db-exec-chip blue">
-              <span className="db-exec-chip-dot" />
-              {t('page.dashboard.chip_contracts')} {c.active ?? 0}
-            </span>
-            <span className="db-exec-chip amber">
-              <span className="db-exec-chip-dot" />
-              {t('page.dashboard.chip_equipment')} {workingEquipment}
-            </span>
-            <span className="db-exec-chip red">
-              <span className="db-exec-chip-dot" />
-              {t('page.dashboard.chip_invoices')} {inv.unpaid ?? 0}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* ── Error State ────────────────────────────────────────────────────── */}
@@ -213,26 +232,9 @@ export default function Dashboard() {
       )}
 
       {/* ══════════════════════════════════════════════════
-          QUICK ACTIONS
-      ══════════════════════════════════════════════════ */}
-      <div className="db-actions">
-        <button type="button" className="db-action-btn primary" onClick={() => navigate('/invoices')}>
-          {t('page.dashboard.new_invoice')}
-        </button>
-        <button type="button" className="db-action-btn green" onClick={() => navigate('/contracts')}>
-          {t('page.dashboard.new_contract')}
-        </button>
-        <button type="button" className="db-action-btn purple" onClick={() => navigate('/customers')}>
-          {t('page.dashboard.new_customer')}
-        </button>
-        <button type="button" className="db-action-btn amber" onClick={() => navigate('/expenses')}>
-          {t('page.dashboard.new_expense')}
-        </button>
-      </div>
-
-      {/* ══════════════════════════════════════════════════
           ROW 1 — FINANCIAL KPIs
       ══════════════════════════════════════════════════ */}
+      <div className="db-section-label">{t('section.financial_kpis')}</div>
       {loading ? (
         <KPISkeletons />
       ) : (
@@ -268,6 +270,7 @@ export default function Dashboard() {
       {/* ══════════════════════════════════════════════════
           EXECUTIVE ALERT WIDGETS
       ══════════════════════════════════════════════════ */}
+      <div className="db-section-label">{t('section.operation_alerts')}</div>
       {loading ? (
         <div className="db-alert-widgets">
           {[0, 1, 2, 3].map((i) => (
@@ -324,6 +327,7 @@ export default function Dashboard() {
       {/* ══════════════════════════════════════════════════
           ROW 2 — OPERATIONAL STATS (6 cards)
       ══════════════════════════════════════════════════ */}
+      <div className="db-section-label">{t('section.data_summary')}</div>
       {loading ? (
         <StatsSkeletons />
       ) : (
