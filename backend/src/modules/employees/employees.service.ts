@@ -12,6 +12,7 @@ import {
   LeaveInput,
   UpdateEmployeeInput,
 } from './employees.schema';
+import { buildDocumentAlerts } from './employees.alertBuilder';
 
 class EmployeesRepository extends BaseRepository<{ id: number }> {
   protected readonly model = 'employee';
@@ -62,6 +63,8 @@ export class EmployeesService {
   /**
    * المستندات الرسمية التي تنتهي خلال عدد أيام (افتراضيًا 30) أو منتهية:
    * الإقامة + جواز السفر + رخصة القيادة. للتنبيه في الواجهة.
+   * ملاحظة: رخصة المركبة (vehicleLicenseExpiry) مُستثناة عمدًا —
+   * انتهاء تسجيل المركبة يُتابَع من وحدة المعدات (equipment.registrationExpiry).
    */
   async expiringDocuments(days = 30) {
     const until = new Date();
@@ -73,7 +76,6 @@ export class EmployeesService {
           { residencyExpiry: { not: null, lte: until } },
           { passportExpiry: { not: null, lte: until } },
           { licenseExpiry: { not: null, lte: until } },
-          { vehicleLicenseExpiry: { not: null, lte: until } },
         ],
       },
       select: {
@@ -84,29 +86,16 @@ export class EmployeesService {
         residencyExpiry: true,
         passportExpiry: true,
         licenseExpiry: true,
-        vehicleLicenseExpiry: true,
       },
     });
 
-    const msDay = 86_400_000;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const remaining = (d: Date | null) =>
-      d ? Math.round((new Date(d).setHours(0, 0, 0, 0) - today.getTime()) / msDay) : null;
-
-    return employees.map((e) => {
-      const alerts: { document: string; expiry: Date; remainingDays: number }[] = [];
-      const push = (doc: string, d: Date | null) => {
-        const r = remaining(d);
-        if (d && r !== null && r <= days)
-          alerts.push({ document: doc, expiry: d, remainingDays: r });
-      };
-      push('الإقامة', e.residencyExpiry);
-      push('جواز السفر', e.passportExpiry);
-      push('رخصة القيادة', e.licenseExpiry);
-      push('رخصة المركبة', e.vehicleLicenseExpiry);
-      return { id: e.id, code: e.code, fullName: e.fullName, fullNameEn: e.fullNameEn, alerts };
-    });
+    return employees.map((e) => ({
+      id: e.id,
+      code: e.code,
+      fullName: e.fullName,
+      fullNameEn: e.fullNameEn,
+      alerts: buildDocumentAlerts(e, days),
+    }));
   }
 
   async getById(id: number) {
