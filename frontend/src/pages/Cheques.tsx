@@ -5,6 +5,7 @@ import { useT } from '../lib/i18n';
 import { tafqeetKWD } from '../lib/tafqeet';
 import DataTable, { PageMeta } from '../components/DataTable';
 import StatCard from '../components/StatCard';
+import gulfBankImg from '../assets/GulfBank_Personal_KW.jpg';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -96,7 +97,7 @@ function fmtAmount(v: number | string, currency = 'KWD'): string {
   );
 }
 
-// ── ChequePreview ─────────────────────────────────────────────────────────────
+// ── ChequePrintOutput ─────────────────────────────────────────────────────────
 
 interface PreviewData {
   chequeNumber: string;
@@ -108,145 +109,101 @@ interface PreviewData {
   bankName: string;
 }
 
-function ChequePreview({ data, t }: { data: PreviewData; t: (k: string) => string }) {
-  const amount = Number(data.amount ?? 0);
+function ChequePrintOutput({ data }: { data: PreviewData }) {
+  const raw = Number(data.amount ?? 0);
+  const amount = isNaN(raw) ? 0 : raw;
+  const d = new Date(data.chequeDate);
+  const chequeDate =
+    !data.chequeDate || isNaN(d.getTime())
+      ? ''
+      : `${String(d.getDate()).padStart(2, '0')} / ${String(d.getMonth() + 1).padStart(2, '0')} / ${d.getFullYear()}`;
 
   return (
     <div
       style={{
-        border: '2px solid #1d4e6f',
-        borderRadius: 8,
-        padding: '24px 28px',
-        background: 'linear-gradient(135deg, #f8fafc 0%, #e8f4f8 100%)',
-        fontFamily: "'Cairo', 'Tajawal', sans-serif",
-        direction: 'rtl',
-        minHeight: 200,
-        color: '#0f172a',
+        position: 'relative',
+        width: '100%',
+        aspectRatio: '700 / 272',
+        fontFamily: "'Cairo', 'Tajawal', Arial, sans-serif",
+        overflow: 'hidden',
       }}
     >
-      {/* Header: bank + cheque number */}
+      {/* Background image — hidden during printing so real cheque paper shows */}
+      <img
+        src={gulfBankImg}
+        className="cheque-bg-img"
+        alt=""
+        aria-hidden="true"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill' }}
+      />
+
+      {/* Beneficiary name */}
       <div
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: 10,
+          position: 'absolute',
+          top: '32%',
+          left: '22%',
+          width: '38%',
+          fontSize: '11pt',
+          fontWeight: 700,
+          color: '#000',
         }}
       >
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#1d4e6f' }}>
-          {data.bankName || '—'}
-        </div>
-        <div
-          style={{ fontSize: 12, color: '#475569', fontFamily: 'monospace', letterSpacing: 0.5 }}
-        >
-          {t('col.cheque.number')}: <strong>{data.chequeNumber || '—'}</strong>
-        </div>
+        {data.beneficiaryName}
       </div>
 
-      {/* Company */}
-      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 12 }}>
-        {t('lbl.cheque.company')}
-      </div>
-
-      {/* Date */}
+      {/* Date: DD / MM / YYYY */}
       <div
         style={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          marginBottom: 14,
-          fontSize: 13,
-          color: '#334155',
-        }}
-      >
-        {t('col.cheque.date')}:{' '}
-        <strong style={{ marginInlineStart: 6 }}>{fmtDate(data.chequeDate)}</strong>
-      </div>
-
-      {/* Beneficiary */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          gap: 8,
-          marginBottom: 14,
-          paddingBottom: 10,
-          borderBottom: '1px dashed #94a3b8',
-        }}
-      >
-        <span style={{ whiteSpace: 'nowrap', fontSize: 12, color: '#475569' }}>
-          {t('lbl.cheque.pay_to')}:
-        </span>
-        <span style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', flex: 1 }}>
-          {data.beneficiaryName || '—'}
-        </span>
-      </div>
-
-      {/* Amount box */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          marginBottom: 12,
-          padding: '10px 14px',
-          background: 'rgba(29, 78, 111, 0.07)',
-          borderRadius: 6,
-          border: '1px solid rgba(29, 78, 111, 0.15)',
-        }}
-      >
-        <span style={{ fontSize: 12, color: '#475569', whiteSpace: 'nowrap' }}>
-          {t('lbl.cheque.amount_label')}:
-        </span>
-        <span
-          style={{
-            fontSize: 22,
-            fontWeight: 800,
-            color: '#1d4e6f',
-            fontFamily: 'monospace',
-            letterSpacing: 0.5,
-          }}
-        >
-          {amount > 0 ? amount.toLocaleString('en-US', { minimumFractionDigits: 3 }) : '0.000'}
-        </span>
-        <span style={{ fontSize: 14, fontWeight: 600, color: '#1d4e6f' }}>{data.currency}</span>
-      </div>
-
-      {/* Amount in words */}
-      <div
-        style={{
-          fontSize: 13,
+          position: 'absolute',
+          top: '30%',
+          left: '67%',
+          width: '23%',
+          fontSize: '10pt',
           fontWeight: 600,
-          color: '#1d4e6f',
-          marginBottom: 12,
-          padding: '6px 12px',
-          background: 'rgba(29, 78, 111, 0.06)',
-          borderRadius: 4,
+          color: '#000',
           textAlign: 'center',
-          direction: 'rtl',
-          lineHeight: 1.7,
+          letterSpacing: 0.5,
         }}
       >
-        {amount > 0 && data.currency === 'KWD'
-          ? tafqeetKWD(amount)
-          : amount > 0
-          ? `${t('lbl.cheque.amount_words')}: ${fmtAmount(amount, data.currency)}`
-          : '—'}
+        {chequeDate}
       </div>
 
-      {/* Description */}
-      {data.description && (
-        <div style={{ fontSize: 13, color: '#475569', marginBottom: 12 }}>
-          <span>{t('lbl.cheque.for')}: </span>
-          <span style={{ color: '#0f172a' }}>{data.description}</span>
-        </div>
-      )}
+      {/* Amount in Arabic words (tafqeet) — Phase 3 will calibrate exact position */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '43%',
+          left: '2%',
+          width: '72%',
+          fontSize: '10pt',
+          fontWeight: 600,
+          color: '#000',
+          direction: 'rtl',
+          lineHeight: 1.55,
+        }}
+      >
+        {amount > 0 ? tafqeetKWD(amount) : ''}
+      </div>
 
-      {/* Signature line */}
-      <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 18 }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 160, borderBottom: '1px solid #334155', marginBottom: 4 }} />
-          <div style={{ fontSize: 11, color: '#64748b' }}>{t('lbl.cheque.signature')}</div>
-        </div>
+      {/* Numeric amount without currency label */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '45%',
+          left: '78%',
+          width: '18%',
+          fontSize: '11pt',
+          fontWeight: 700,
+          color: '#000',
+          textAlign: 'center',
+          fontFamily: 'monospace',
+          letterSpacing: 0.5,
+        }}
+      >
+        {amount > 0
+          ? amount.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+          : ''}
       </div>
     </div>
   );
@@ -501,9 +458,7 @@ export default function Cheques() {
     <div className="page">
       {/* Hidden print area — revealed only by @media print */}
       <div className="cheque-print-only" style={{ display: 'none' }}>
-        <div style={{ padding: 32, maxWidth: 700, margin: '0 auto' }}>
-          <ChequePreview data={previewData} t={t} />
-        </div>
+        <ChequePrintOutput data={previewData} />
       </div>
 
       {/* Inline print CSS */}
@@ -519,6 +474,7 @@ export default function Cheques() {
             z-index: 9999;
           }
           .cheque-print-only * { visibility: visible !important; }
+          .cheque-bg-img { display: none !important; }
         }
       `}</style>
 
@@ -664,7 +620,7 @@ export default function Cheques() {
             {printTarget && statusPill(printTarget.status, t)}
           </div>
 
-          <ChequePreview data={previewData} t={t} />
+          <ChequePrintOutput data={previewData} />
 
           <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button
