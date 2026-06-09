@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `c9d719e` — Merge feature/cheques-improvements-v1 into production |
-| **Stable tag** | `stable-cheques-improvements-v1` |
+| **HEAD** | `6073785` — Merge feature/cheques-print-output-v1 into production |
+| **Stable tag** | `stable-cheques-print-output-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,7 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Cheques Print Output Phase | `feature/cheques-print-output-v1` | `stable-cheques-print-output-v1` | Gulf Bank cheque image background; 4 overlay fields (beneficiary, date, tafqeet, numeric amount); image hidden on print for real paper; pt font units; NaN-guarded tafqeet. Physical calibration deferred — blocked on real cheque paper dimensions. |
 | Cheques Improvements Phase 1+2 | `feature/cheques-improvements-v1` | `stable-cheques-improvements-v1` | Schema validation (enum currency, date bounds, chequeNumber format), enriched audit log, bank select (10 Kuwaiti banks), form field reorder, notes placeholder, dead code removal |
 | Alert Deduplication | `feature/alerts-dedup` | `stable-alerts-dedup-v1` | Remove vehicleLicenseExpiry from employee alerts; equipment.registrationExpiry is sole source |
 | Audit Log Viewer | `feature/audit-log-viewer` | — | Frontend viewer for AuditLog table |
@@ -61,13 +62,13 @@ Missing: a frontend viewer page so operators can browse the audit trail.
 
 ### 2. Cheques Print Calibration (Phase 3 — deferred)
 
-Phase 1+2 complete. Only physical print alignment remains.
+Print output phase complete. Screen preview shows cheque image with 4 overlaid fields.
+Only physical paper calibration remains.
 
-- Add `@page { size: <W>mm <H>mm; margin: 0; }` to print CSS
-- Replace `maxWidth: 700` container with fixed paper-size dimensions
-- Convert field positions to `position: absolute` per bank cheque layout
-- **Blocked on**: access to actual bank cheque paper and layout measurements
-- Do NOT implement without real paper to test against
+- Add `@page { size: <W>mm <H>mm; margin: 0; }` with exact Gulf Bank cheque dimensions
+- Tune `top` / `left` / `width` percentages in `ChequePrintOutput` until text lands correctly on paper
+- **Blocked on**: access to actual bank cheque paper to measure and test against
+- Do NOT implement without real paper to verify alignment
 
 ### 3. Small Operational Improvements
 
@@ -276,4 +277,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-09 — Cheques Improvements Phase 1+2 released; baseline advanced to `c9d719e`.*
+*Last updated: 2026-06-09 — Cheques Print Output Phase released; baseline advanced to `6073785`.*
