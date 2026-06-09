@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { tafqeetKWD } from '../lib/tafqeet';
 import DataTable, { PageMeta } from '../components/DataTable';
 import StatCard from '../components/StatCard';
 
@@ -198,20 +199,26 @@ function ChequePreview({ data, t }: { data: PreviewData; t: (k: string) => strin
         <span style={{ fontSize: 14, fontWeight: 600, color: '#1d4e6f' }}>{data.currency}</span>
       </div>
 
-      {/* Amount in words — tafqeet placeholder (Phase 2) */}
+      {/* Amount in words */}
       <div
         style={{
-          fontSize: 12,
-          color: '#64748b',
-          fontStyle: 'italic',
+          fontSize: 13,
+          fontWeight: 600,
+          color: '#1d4e6f',
           marginBottom: 12,
-          padding: '5px 10px',
-          background: 'rgba(148, 163, 184, 0.08)',
+          padding: '6px 12px',
+          background: 'rgba(29, 78, 111, 0.06)',
           borderRadius: 4,
           textAlign: 'center',
+          direction: 'rtl',
+          lineHeight: 1.7,
         }}
       >
-        {amount > 0 ? `${t('lbl.cheque.amount_words')}: —` : '—'}
+        {amount > 0 && data.currency === 'KWD'
+          ? tafqeetKWD(amount)
+          : amount > 0
+          ? `${t('lbl.cheque.amount_words')}: ${fmtAmount(amount, data.currency)}`
+          : '—'}
       </div>
 
       {/* Description */}
@@ -458,6 +465,7 @@ export default function Cheques() {
       label: 'col.cheque.amount',
       render: (r: Cheque) => fmtAmount(r.amount, r.currency),
     },
+
     { key: 'bankName', label: 'col.cheque.bank' },
     { key: 'status', label: 'col.cheque.status', render: (r: Cheque) => statusPill(r.status, t) },
   ];
@@ -664,7 +672,14 @@ export default function Cheques() {
             )}
           </div>
           {!printTarget && (
-            <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+            <p
+              style={{
+                margin: '8px 0 0',
+                fontSize: 12,
+                color: 'var(--text-muted)',
+                textAlign: 'center',
+              }}
+            >
               {t('error.cheque.save_first')}
             </p>
           )}
