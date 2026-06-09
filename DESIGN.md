@@ -137,7 +137,7 @@ Font family: **Cairo** (Google Fonts, weights 400 / 500 / 600 / 700 / 800). Appl
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                          .topbar (70px)                         │
+│                          .topbar (49px)                         │
 ├──────────────────┬─────────────────────────────────────────────┤
 │                  │                                              │
 │  .sidebar        │  .content                                    │
@@ -162,23 +162,31 @@ z-index: 30;
 ```
 
 - Contains: brand block (logo + app name + sub-label) and `.nav` (scrollable nav list).
-- Active nav link: `background: var(--accent)`, `color: #fff`, `box-shadow: 0 4px 12px rgba(59,130,246,.3)`.
-- Hover: `background: var(--primary-hover)`, `transform: translateX(-4px)` in RTL.
+- Active nav link (production, via `layout-polish.css`): `background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%)`, `border-inline-start: 3px solid rgba(255,255,255,0.65)`, `padding-inline-start: 11px`, `box-shadow: 0 4px 20px rgba(37,99,235,0.45), inset 0 1px 0 rgba(255,255,255,0.15)`.
+- Hover (non-active): `background: rgba(255,255,255,0.07)` — glass effect, no transform (overrides the base `translateX` from theme.css).
 - Collapsed at `max-width: 900px` via `transform: translateX(100%)` (slides off-screen to the right in RTL). `.sidebar.open` restores it.
 
 ### 4.2 Topbar
 
+Base definition in `theme.css`, refined in production by `layout-polish.css`:
+
 ```css
-height: 70px;
+/* production values (layout-polish.css overrides) */
+height: 49px;
+padding: 0 22px;
+background: rgba(15, 23, 42, 0.96);   /* near-opaque dark — always dark regardless of theme */
+backdrop-filter: blur(10px);
+border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 position: sticky;
 top: 0;
 z-index: 20;
-background: var(--surface);
-border-bottom: 1px solid var(--border);
-padding: 0 28px;
 ```
 
+Icon buttons inside `.topbar` (`.icon-btn`): `width: 34px; height: 34px; border-radius: 9px`.
+
 Contains: optional search input, `.top-actions` (right-aligned in RTL: notifications, theme toggle, user avatar).
+
+> Note: The topbar is always dark (semi-transparent over `--primary` background), not theme-aware. Do not use `var(--surface)` or `var(--border)` for topbar colors.
 
 ### 4.3 Main Content Area
 
@@ -226,6 +234,47 @@ margin-inline-start: 260px;   /* RTL-safe offset matching sidebar width */
 | `max-width: 1000px` | Two-column chart grid collapses to one column |
 | `max-width: 900px` | Sidebar hides; hamburger button appears in topbar |
 | `max-width: 640px` | Two-column form grid collapses to one column |
+
+### 4.7 CSS Extension Layers
+
+`theme.css` is the ground truth, but two additional CSS files extend it in production. These are not overrides of a mistake — they are deliberate refinement and scoping layers.
+
+#### `layout-polish.css` — Shell Refinements
+
+Imported in `frontend/src/components/Layout.tsx`. Refines the topbar and sidebar shell without touching page content:
+
+- Topbar reduced to `49px` (from base `70px`) — more compact for data-entry workflows.
+- Topbar background changed to dark frosted glass (`rgba(15,23,42,0.96)` + `backdrop-filter: blur(10px)`) — consistent dark chrome regardless of theme.
+- Sidebar active nav: gradient + left border + box-shadow replacing the flat accent from `theme.css`.
+- Sidebar hover: glass `rgba(255,255,255,0.07)` without `transform` — no slide animation.
+- `.db-page { min-height: calc(100vh - 49px); }` — compensates for the shorter topbar on the dashboard page.
+
+**Rule:** Any future topbar or sidebar shell changes go here, not into `theme.css`.
+
+#### `dashboard.css` — Dashboard Extension Layer
+
+Imported in `frontend/src/components/dashboard/` components. Scoped entirely to `.db-page` — zero impact on other pages.
+
+The dashboard is intentionally always-dark (`--db-bg: #0B1220`) regardless of the global light/dark theme toggle. This is a deliberate product decision: the executive dashboard uses a dark analytics aesthetic.
+
+Token structure inside `.db-page {}`:
+
+| Token | Source | Reason |
+|-------|--------|--------|
+| `--db-bg` | `#0B1220` (hardcoded) | Dashboard-specific dark background |
+| `--db-card` | `#1F2937` (hardcoded) | Dashboard-specific card surface |
+| `--db-inner` | `rgba(255,255,255,0.035)` (hardcoded) | Dashboard-specific inner tint |
+| `--db-text` | `#F9FAFB` (hardcoded) | Always-dark bg — cannot use `var(--text)` (light mode = dark text) |
+| `--db-muted` | `#9CA3AF` (hardcoded) | Same reason as `--db-text` |
+| `--db-border` | `rgba(255,255,255,0.08)` (hardcoded) | Translucent white border for dark bg |
+| `--db-shadow` | `0 4px 24px rgba(0,0,0,0.4)` (hardcoded) | Deeper shadow for dark bg |
+| `--db-blue` | `var(--accent)` | Brand accent — same token as rest of app |
+| `--db-green` | `var(--green)` | Status green — same token |
+| `--db-amber` | `var(--amber)` | Status amber — same token |
+| `--db-red` | `var(--red)` | Status red — same token |
+| `--db-radius` | `var(--radius)` | Shared geometry — same token |
+
+**Rule:** Do not replace `.db-pill` with `.pill` — they are visually distinct. `.pill.green` uses opaque `#d1fae5` background (correct for light pages); `.db-pill.green` uses `rgba(16,185,129,0.12)` (correct for dark dashboard). The classes serve different contexts.
 
 ---
 
@@ -799,6 +848,8 @@ The following are explicitly out of scope for manarERP. Do not implement these.
 | File | Purpose |
 |------|---------|
 | `frontend/src/app/theme.css` | Live implementation of this design system — ground truth |
+| `frontend/src/components/layout-polish.css` | Shell refinements layer: topbar height/frosted-glass, sidebar active gradient, hover glass effect |
+| `frontend/src/components/dashboard/dashboard.css` | Dashboard extension layer: always-dark `--db-*` token system scoped to `.db-page` |
 | `frontend/src/config/modules.tsx` | Data-driven config that renders ResourcePage instances |
 | `frontend/src/components/DataTable.tsx` | Reusable data grid with search, sort, pagination |
 | `frontend/src/components/FormDialog.tsx` | Generic form modal builder |
