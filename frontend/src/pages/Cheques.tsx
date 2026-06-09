@@ -224,6 +224,8 @@ export default function Cheques() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
+  const [historySearch, setHistorySearch] = useState('');
+  const [historyStatus, setHistoryStatus] = useState('');
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPrintConfirm, setShowPrintConfirm] = useState(false);
@@ -238,7 +240,14 @@ export default function Cheques() {
     setLoading(true);
     try {
       const [listRes, statsRes] = await Promise.all([
-        api.get('/cheques', { params: { page: p, pageSize: 20 } }),
+        api.get('/cheques', {
+          params: {
+            page: p,
+            pageSize: 20,
+            search: historySearch || undefined,
+            status: historyStatus || undefined,
+          },
+        }),
         api.get('/cheques/stats'),
       ]);
       setCheques(listRes.data.data.data ?? []);
@@ -249,7 +258,7 @@ export default function Cheques() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [historySearch, historyStatus]);
 
   useEffect(() => {
     loadData(1);
@@ -823,6 +832,36 @@ export default function Cheques() {
           }}
         >
           {t('page.cheques.history')}
+        </div>
+        <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            className="form-input"
+            style={{ maxWidth: 240, padding: '6px 10px' }}
+            placeholder={t('action.search_placeholder')}
+            value={historySearch}
+            onChange={(e) => { setHistorySearch(e.target.value); setPage(1); }}
+          />
+          <select
+            className="form-input"
+            style={{ maxWidth: 160, padding: '6px 10px' }}
+            title={t('filter.status')}
+            value={historyStatus}
+            onChange={(e) => { setHistoryStatus(e.target.value); setPage(1); }}
+          >
+            <option value="">{t('opt.all')}</option>
+            <option value="DRAFT">{t('cheque.status.draft')}</option>
+            <option value="PRINTED">{t('cheque.status.printed')}</option>
+            <option value="CANCELLED">{t('cheque.status.cancelled')}</option>
+          </select>
+          {(historySearch || historyStatus) && (
+            <button
+              type="button"
+              className="btn secondary sm"
+              onClick={() => { setHistorySearch(''); setHistoryStatus(''); setPage(1); }}
+            >
+              {t('action.reset_filters')}
+            </button>
+          )}
         </div>
         <DataTable
           columns={columns}

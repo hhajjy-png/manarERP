@@ -26,6 +26,8 @@ export default function Invoices() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [directionFilter, setDirectionFilter] = useState('');
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [paying, setPaying] = useState<any | null>(null);
@@ -33,13 +35,21 @@ export default function Invoices() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/invoices', { params: { page, pageSize: 15, search: search || undefined } });
+      const res = await api.get('/invoices', {
+        params: {
+          page,
+          pageSize: 15,
+          search: search || undefined,
+          status: statusFilter || undefined,
+          direction: directionFilter || undefined,
+        },
+      });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, search, statusFilter, directionFilter]);
   useEffect(() => { load(); }, [load]);
 
   async function cancel(id: number) {
@@ -65,13 +75,45 @@ export default function Invoices() {
         <div><h2>{t('page.invoices.title')}</h2><p>{t('page.invoices.subtitle')}</p></div>
         {hasPermission('invoices.create') && <button className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>}
       </div>
-      <div className="toolbar" style={{ marginBottom: 16 }}>
+      <div className="toolbar" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <input
           placeholder={t('page.invoices.search')}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           style={{ ...inp, maxWidth: 280 }}
         />
+        <select
+          value={statusFilter}
+          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+          title={t('filter.status')}
+          style={{ ...inp, maxWidth: 180 }}
+        >
+          <option value="">{t('opt.all')}</option>
+          <option value="UNPAID">{t('inv.status.unpaid')}</option>
+          <option value="PARTIAL">{t('inv.status.partial')}</option>
+          <option value="PAID">{t('inv.status.paid')}</option>
+          <option value="OVERDUE">{t('inv.status.overdue')}</option>
+          <option value="CANCELLED">{t('inv.status.cancelled')}</option>
+        </select>
+        <select
+          value={directionFilter}
+          onChange={(e) => { setDirectionFilter(e.target.value); setPage(1); }}
+          title={t('filter.direction')}
+          style={{ ...inp, maxWidth: 180 }}
+        >
+          <option value="">{t('opt.all')}</option>
+          <option value="SALES">{t('opt.direction.sales')}</option>
+          <option value="PURCHASE">{t('opt.direction.purchase')}</option>
+        </select>
+        {(search || statusFilter || directionFilter) && (
+          <button
+            type="button"
+            className="btn secondary sm"
+            onClick={() => { setSearch(''); setStatusFilter(''); setDirectionFilter(''); setPage(1); }}
+          >
+            {t('action.reset_filters')}
+          </button>
+        )}
       </div>
 
       <DataTable

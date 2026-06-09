@@ -126,6 +126,13 @@ export default function Reports() {
     setPreview(null); setError('');
   }, [selected]);
 
+  function resetFilters() {
+    setFrom(''); setTo('');
+    setCustomerId(''); setEmployeeId('');
+    setStatus(''); setDirection('');
+    setPreview(null); setError('');
+  }
+
   function buildParams(): Record<string, string> {
     const p: Record<string, string> = {};
     if (from) p.from = from;
@@ -282,6 +289,11 @@ export default function Reports() {
               {loading ? t('page.reports.loading') : t('page.reports.view')}
             </button>
           )}
+          {(from || to || customerId || employeeId || status || direction) && (
+            <button type="button" className="btn secondary" onClick={resetFilters} style={{ padding: '8px 14px' }}>
+              {t('action.reset_filters')}
+            </button>
+          )}
           {canExport && preview && (
             <>
               <button className="btn secondary" onClick={downloadExcel} disabled={excelBusy} style={{ padding: '8px 16px' }}>
@@ -371,6 +383,11 @@ export default function Reports() {
             </div>
           )}
 
+          {!loading && preview && (
+            <div style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+              {preview.rows.length} {t('page.reports.results_count')}
+            </div>
+          )}
           {!loading && previewTable}
         </div>
       </div>
