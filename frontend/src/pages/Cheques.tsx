@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -17,7 +17,6 @@ interface Cheque {
   currency: string;
   description: string | null;
   bankName: string;
-  templateName: string | null;
   status: string;
   printedAt: string | null;
   cancelledAt: string | null;
@@ -58,6 +57,19 @@ function defaultForm(): FormState {
     notes: '',
   };
 }
+
+const KUWAITI_BANKS = [
+  'بنك الكويت الوطني',
+  'بيت التمويل الكويتي',
+  'بنك الخليج',
+  'البنك التجاري الكويتي',
+  'بنك برقان',
+  'بنك بوبيان',
+  'بنك وربة',
+  'البنك الأهلي الكويتي',
+  'البنك الأهلي المتحد',
+  'بنك الكويت الدولي',
+] as const;
 
 function statusPill(status: string, t: (k: string) => string) {
   const clsMap: Record<string, string> = { DRAFT: 'amber', PRINTED: 'green', CANCELLED: 'red' };
@@ -258,8 +270,6 @@ export default function Cheques() {
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPrintConfirm, setShowPrintConfirm] = useState(false);
-  const printAreaRef = useRef<HTMLDivElement>(null);
-
   const canCreate = hasPermission('cheques.create');
   const canUpdate = hasPermission('cheques.update');
   const canPrint = hasPermission('cheques.print');
@@ -490,7 +500,7 @@ export default function Cheques() {
   return (
     <div className="page">
       {/* Hidden print area — revealed only by @media print */}
-      <div ref={printAreaRef} className="cheque-print-only" style={{ display: 'none' }}>
+      <div className="cheque-print-only" style={{ display: 'none' }}>
         <div style={{ padding: 32, maxWidth: 700, margin: '0 auto' }}>
           <ChequePreview data={previewData} t={t} />
         </div>
@@ -709,46 +719,6 @@ export default function Cheques() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                {t('field.cheque.bank')} *
-              </label>
-              <input
-                className="form-input"
-                value={form.bankName}
-                onChange={(e) => field('bankName', e.target.value)}
-                placeholder={t('ph.cheque.bank')}
-                disabled={!!editId && !canUpdate}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                {t('field.cheque.number')} *
-              </label>
-              <input
-                className="form-input"
-                value={form.chequeNumber}
-                onChange={(e) => field('chequeNumber', e.target.value)}
-                placeholder={t('ph.cheque.number')}
-                style={{ fontFamily: 'monospace' }}
-                disabled={!!editId && !canUpdate}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                {t('field.cheque.date')} *
-              </label>
-              <input
-                className="form-input"
-                type="date"
-                value={form.chequeDate}
-                onChange={(e) => field('chequeDate', e.target.value)}
-                disabled={!!editId && !canUpdate}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
                 {t('field.cheque.beneficiary')} *
               </label>
               <input
@@ -772,6 +742,7 @@ export default function Cheques() {
                   step="0.001"
                   value={form.amount}
                   onChange={(e) => field('amount', e.target.value)}
+                  title={t('field.cheque.amount')}
                   style={{ fontFamily: 'monospace' }}
                   disabled={!!editId && !canUpdate}
                 />
@@ -784,6 +755,7 @@ export default function Cheques() {
                   className="form-input"
                   value={form.currency}
                   onChange={(e) => field('currency', e.target.value)}
+                  title={t('field.cheque.currency')}
                   disabled={!!editId && !canUpdate}
                 >
                   <option value="KWD">KWD</option>
@@ -792,6 +764,54 @@ export default function Cheques() {
                   <option value="AED">AED</option>
                 </select>
               </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                {t('field.cheque.date')} *
+              </label>
+              <input
+                className="form-input"
+                type="date"
+                value={form.chequeDate}
+                onChange={(e) => field('chequeDate', e.target.value)}
+                title={t('field.cheque.date')}
+                disabled={!!editId && !canUpdate}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                {t('field.cheque.number')} *
+              </label>
+              <input
+                className="form-input"
+                value={form.chequeNumber}
+                onChange={(e) => field('chequeNumber', e.target.value)}
+                placeholder={t('ph.cheque.number')}
+                style={{ fontFamily: 'monospace' }}
+                disabled={!!editId && !canUpdate}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                {t('field.cheque.bank')} *
+              </label>
+              <select
+                className="form-input"
+                value={form.bankName}
+                onChange={(e) => field('bankName', e.target.value)}
+                title={t('field.cheque.bank')}
+                disabled={!!editId && !canUpdate}
+              >
+                <option value="">— اختر البنك —</option>
+                {KUWAITI_BANKS.map((bank) => (
+                  <option key={bank} value={bank}>
+                    {bank}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -816,6 +836,7 @@ export default function Cheques() {
                 rows={2}
                 value={form.notes}
                 onChange={(e) => field('notes', e.target.value)}
+                placeholder={t('ph.cheque.notes')}
                 disabled={!!editId && !canUpdate}
                 style={{ resize: 'vertical' }}
               />
