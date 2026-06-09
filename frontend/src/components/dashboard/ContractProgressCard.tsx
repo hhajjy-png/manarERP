@@ -50,8 +50,8 @@ export default function ContractProgressList({ contracts, loading }: Props) {
         const hasProgress = c.startDate && c.endDate;
 
         const pctColor =
-          color === 'green' ? '#10B981' :
-          color === 'amber' ? '#F59E0B' : '#EF4444';
+          color === 'green' ? 'var(--db-green)' :
+          color === 'amber' ? 'var(--db-amber)' : 'var(--db-red)';
 
         return (
           <div key={i} className="db-contract-item">

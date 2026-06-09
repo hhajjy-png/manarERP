@@ -16,43 +16,57 @@ import RevenueChart from '../components/dashboard/RevenueChart';
 import ContractStatusChart from '../components/dashboard/ContractStatusChart';
 import LatestInvoicesTable from '../components/dashboard/LatestInvoicesTable';
 import LatestExpensesTable from '../components/dashboard/LatestExpensesTable';
-import { KPISkeletons, StatsSkeletons, Skeleton, TableRowSkeletons } from '../components/dashboard/Skeleton';
+import {
+  KPISkeletons,
+  StatsSkeletons,
+  Skeleton,
+  TableRowSkeletons,
+} from '../components/dashboard/Skeleton';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ApiAny = any;
 
 const INVOICE_STATUS_COLOR: Record<string, string> = {
-  UNPAID: '#EF4444', PARTIAL: '#F59E0B', PAID: '#10B981',
-  OVERDUE: '#DC2626', CANCELLED: '#6B7280',
+  UNPAID: '#EF4444',
+  PARTIAL: '#F59E0B',
+  PAID: '#10B981',
+  OVERDUE: '#DC2626',
+  CANCELLED: '#6B7280',
 };
 
 const CONTRACT_STATUS_CLS: Record<string, string> = {
-  ACTIVE: 'green', EXPIRED: 'gray', RENEWING: 'amber', SUSPENDED: 'red',
+  ACTIVE: 'green',
+  EXPIRED: 'gray',
+  RENEWING: 'amber',
+  SUSPENDED: 'red',
 };
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const navigate  = useNavigate();
-  const { t }     = useT();
+  const navigate = useNavigate();
+  const { t } = useT();
 
-  const [loading,    setLoading]   = useState(true);
-  const [error,      setError]     = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
-  const [refreshAt,  setRefreshAt]  = useState<Date | null>(null);
+  const [refreshAt, setRefreshAt] = useState<Date | null>(null);
 
   // ── State slices populated from /dashboard/executive ─────────────────────
-  const [exec,      setExec]      = useState<ApiAny>(null);
-  const [att,       setAtt]       = useState<ApiAny>({});
-  const [trend,     setTrend]     = useState<ApiAny[]>([]);
-  const [cStatus,   setCStatus]   = useState<ApiAny[]>([]);
-  const [iStatus,   setIStatus]   = useState<ApiAny[]>([]);
-  const [invoices,  setInvoices]  = useState<ApiAny[]>([]);
-  const [expenses,  setExpenses]  = useState<ApiAny[]>([]);
+  const [exec, setExec] = useState<ApiAny>(null);
+  const [att, setAtt] = useState<ApiAny>({});
+  const [trend, setTrend] = useState<ApiAny[]>([]);
+  const [cStatus, setCStatus] = useState<ApiAny[]>([]);
+  const [iStatus, setIStatus] = useState<ApiAny[]>([]);
+  const [invoices, setInvoices] = useState<ApiAny[]>([]);
+  const [expenses, setExpenses] = useState<ApiAny[]>([]);
   const [contracts, setContracts] = useState<ApiAny[]>([]);
-  const [alerts,    setAlerts]    = useState<DashAlert[]>([]);
+  const [alerts, setAlerts] = useState<DashAlert[]>([]);
 
   const today = new Date().toLocaleDateString('ar-KW', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
   });
 
   const load = useCallback(async () => {
@@ -63,7 +77,7 @@ export default function Dashboard() {
     try {
       const [execRes, equipRes, empsRes] = await Promise.all([
         api.get('/dashboard/executive'),
-        api.get('/equipment/expiring',           { params: { days: 30 } }),
+        api.get('/equipment/expiring', { params: { days: 30 } }),
         api.get('/employees/expiring-documents', { params: { days: 30 } }),
       ]);
 
@@ -81,19 +95,19 @@ export default function Dashboard() {
 
       // Build alerts from equipment + employee expiry endpoints
       const equipAlerts: DashAlert[] = (equipRes.data?.data || []).map((e: ApiAny) => ({
-        title:  `معدة: ${e.code}`,
-        desc:   `دفتر المركبة: ${e.registration?.remainingText ?? '—'}`,
+        title: `معدة: ${e.code}`,
+        desc: `دفتر المركبة: ${e.registration?.remainingText ?? '—'}`,
         status: (e.registration?.expired ? 'red' : 'amber') as DashAlert['status'],
-        icon:   '🚜',
+        icon: '🚜',
       }));
       const empAlerts: DashAlert[] = [];
       (empsRes.data?.data || []).forEach((e: ApiAny) => {
         (e.alerts ?? []).forEach((a: ApiAny) => {
           empAlerts.push({
-            title:  e.fullName,
-            desc:   `${a.document}: ${a.remainingDays < 0 ? 'منتهٍ' : `ينتهي خلال ${a.remainingDays} يوم`}`,
+            title: e.fullName,
+            desc: `${a.document}: ${a.remainingDays < 0 ? 'منتهٍ' : `ينتهي خلال ${a.remainingDays} يوم`}`,
             status: (a.remainingDays < 0 ? 'red' : 'amber') as DashAlert['status'],
-            icon:   '👷',
+            icon: '👷',
           });
         });
       });
@@ -105,55 +119,62 @@ export default function Dashboard() {
       if (!cancelled) setLoading(false);
     }
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // ── Derived values ────────────────────────────────────────────────────────
-  const f   = exec?.finance   ?? {};
-  const c   = exec?.contracts ?? {};
-  const eq  = exec?.equipment ?? {};
+  const f = exec?.finance ?? {};
+  const c = exec?.contracts ?? {};
+  const eq = exec?.equipment ?? {};
   const emp = exec?.employees ?? {};
-  const inv = exec?.invoices  ?? {};
+  const inv = exec?.invoices ?? {};
 
-  const workingEquipment  = eq.active ?? 0;
-  const brokenEquipment   = (eq.total ?? 0) - workingEquipment;
-  const profitPositive    = (f.netProfit ?? 0) >= 0;
+  const workingEquipment = eq.active ?? 0;
+  const brokenEquipment = (eq.total ?? 0) - workingEquipment;
+  const profitPositive = (f.netProfit ?? 0) >= 0;
 
-  const expiredContracts  = (cStatus as ApiAny[]).find((s: ApiAny) => s.status === 'EXPIRED')?.count ?? 0;
-  const duePayments       = inv.unpaid ?? 0;
+  const expiredContracts =
+    (cStatus as ApiAny[]).find((s: ApiAny) => s.status === 'EXPIRED')?.count ?? 0;
+  const duePayments = inv.unpaid ?? 0;
   const expiringContracts = contracts.filter((ct: ApiAny) => {
     if (!ct.endDate) return false;
     const daysLeft = (new Date(ct.endDate).getTime() - Date.now()) / 86_400_000;
     return daysLeft >= 0 && daysLeft <= 30;
   }).length;
 
-  const invStatusTotal = (iStatus as ApiAny[]).reduce((s: number, x: ApiAny) => s + x.count, 0) || 1;
+  const invStatusTotal =
+    (iStatus as ApiAny[]).reduce((s: number, x: ApiAny) => s + x.count, 0) || 1;
 
   return (
     <div className="db-page">
-
       {/* ══════════════════════════════════════════════════
           EXECUTIVE HEADER
       ══════════════════════════════════════════════════ */}
       <div className="db-exec-header">
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div className="db-exec-top">
           <div>
-            <h2 className="db-exec-greeting">{t('page.dashboard.greeting', { name: user?.fullName ?? '—' })}</h2>
+            <h2 className="db-exec-greeting">
+              {t('page.dashboard.greeting', { name: user?.fullName ?? '—' })}
+            </h2>
             <p className="db-exec-date">📅 {today}</p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="db-exec-actions">
             {refreshAt && !loading && (
-              <span style={{ fontSize: 11, color: 'var(--db-muted)' }}>
+              <span className="db-refresh-time">
                 {t('page.dashboard.last_update')} {refreshAt.toLocaleTimeString('ar')}
               </span>
             )}
             <button
-              className="btn secondary"
+              type="button"
+              className="btn secondary db-refresh-btn"
               onClick={() => setRefreshKey((k) => k + 1)}
               disabled={loading}
-              style={{ padding: '7px 14px', fontSize: 13 }}
             >
               {loading ? '⏳' : t('page.dashboard.refresh')}
             </button>
@@ -179,9 +200,13 @@ export default function Dashboard() {
 
       {/* ── Error State ────────────────────────────────────────────────────── */}
       {error && (
-        <div className="alert error" style={{ marginBottom: 20 }}>
+        <div className="alert error db-alert-error">
           ⚠️ {error}
-          <button className="btn secondary" style={{ marginRight: 12 }} onClick={() => setRefreshKey((k) => k + 1)}>
+          <button
+            type="button"
+            className="btn secondary db-retry-btn"
+            onClick={() => setRefreshKey((k) => k + 1)}
+          >
             {t('page.dashboard.retry')}
           </button>
         </div>
@@ -191,20 +216,45 @@ export default function Dashboard() {
           QUICK ACTIONS
       ══════════════════════════════════════════════════ */}
       <div className="db-actions">
-        <button className="db-action-btn primary" onClick={() => navigate('/invoices')}>{t('page.dashboard.new_invoice')}</button>
-        <button className="db-action-btn green"   onClick={() => navigate('/contracts')}>{t('page.dashboard.new_contract')}</button>
-        <button className="db-action-btn purple"  onClick={() => navigate('/customers')}>{t('page.dashboard.new_customer')}</button>
-        <button className="db-action-btn amber"   onClick={() => navigate('/expenses')}>{t('page.dashboard.new_expense')}</button>
+        <button type="button" className="db-action-btn primary" onClick={() => navigate('/invoices')}>
+          {t('page.dashboard.new_invoice')}
+        </button>
+        <button type="button" className="db-action-btn green" onClick={() => navigate('/contracts')}>
+          {t('page.dashboard.new_contract')}
+        </button>
+        <button type="button" className="db-action-btn purple" onClick={() => navigate('/customers')}>
+          {t('page.dashboard.new_customer')}
+        </button>
+        <button type="button" className="db-action-btn amber" onClick={() => navigate('/expenses')}>
+          {t('page.dashboard.new_expense')}
+        </button>
       </div>
 
       {/* ══════════════════════════════════════════════════
           ROW 1 — FINANCIAL KPIs
       ══════════════════════════════════════════════════ */}
-      {loading ? <KPISkeletons /> : (
+      {loading ? (
+        <KPISkeletons />
+      ) : (
         <div className="db-kpi-grid">
-          <KPICard label={t('kpi.total_revenue')}    value={money(f.totalRevenue)}  icon="💰" color="green" />
-          <KPICard label={t('kpi.total_expenses')}   value={money(f.totalExpense)}   icon="📉" color="red" />
-          <KPICard label={t('kpi.net_profit')}       value={money(f.netProfit)}      icon="📈" color={profitPositive ? 'blue' : 'red'} />
+          <KPICard
+            label={t('kpi.total_revenue')}
+            value={money(f.totalRevenue)}
+            icon="💰"
+            color="green"
+          />
+          <KPICard
+            label={t('kpi.total_expenses')}
+            value={money(f.totalExpense)}
+            icon="📉"
+            color="red"
+          />
+          <KPICard
+            label={t('kpi.net_profit')}
+            value={money(f.netProfit)}
+            icon="📈"
+            color={profitPositive ? 'blue' : 'red'}
+          />
           <KPICard
             label={t('kpi.unpaid_invoices')}
             value={money(inv.unpaidAmount)}
@@ -220,10 +270,10 @@ export default function Dashboard() {
       ══════════════════════════════════════════════════ */}
       {loading ? (
         <div className="db-alert-widgets">
-          {[0,1,2,3].map((i) => (
-            <div key={i} className="db-aw aw-safe" style={{ borderInlineStartColor: 'rgba(255,255,255,0.08)' }}>
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="db-aw db-aw-loading">
               <Skeleton height={42} width="42px" style={{ borderRadius: 11, flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
+              <div className="db-aw-skel-body">
                 <Skeleton height={22} width="45%" style={{ marginBottom: 6 }} />
                 <Skeleton height={11} width="65%" />
               </div>
@@ -253,7 +303,9 @@ export default function Dashboard() {
             <div className="db-aw-body">
               <div className="db-aw-val">{duePayments}</div>
               <div className="db-aw-label">{t('page.dashboard.due_payments')}</div>
-              {(inv.unpaidAmount ?? 0) > 0 && <div className="db-aw-sub">{money(inv.unpaidAmount)}</div>}
+              {(inv.unpaidAmount ?? 0) > 0 && (
+                <div className="db-aw-sub">{money(inv.unpaidAmount)}</div>
+              )}
             </div>
             <span className="db-aw-tag">{t('page.dashboard.invoice_unit')}</span>
           </div>
@@ -272,9 +324,16 @@ export default function Dashboard() {
       {/* ══════════════════════════════════════════════════
           ROW 2 — OPERATIONAL STATS (6 cards)
       ══════════════════════════════════════════════════ */}
-      {loading ? <StatsSkeletons /> : (
+      {loading ? (
+        <StatsSkeletons />
+      ) : (
         <div className="db-stats-grid">
-          <OpsCard label={t('stat.registered_customers')} value={exec?.customers?.total ?? 0} icon="👥" iconBg="rgba(99,102,241,0.14)" />
+          <OpsCard
+            label={t('stat.registered_customers')}
+            value={exec?.customers?.total ?? 0}
+            icon="👥"
+            iconBg="rgba(99,102,241,0.14)"
+          />
           <OpsCard
             label={t('stat.active_contracts')}
             value={`${c.active ?? 0} / ${c.total ?? 0}`}
@@ -301,16 +360,22 @@ export default function Dashboard() {
             value={`${workingEquipment} / ${eq.total ?? 0}`}
             icon="🚜"
             iconBg="rgba(234,88,12,0.14)"
-            sub={brokenEquipment > 0 ? t('stat.out_of_service', { count: brokenEquipment }) : t('stat.all_working')}
+            sub={
+              brokenEquipment > 0
+                ? t('stat.out_of_service', { count: brokenEquipment })
+                : t('stat.all_working')
+            }
           />
           <OpsCard
             label={t('stat.today_attendance')}
             value={att.present ?? 0}
             icon="📅"
             iconBg="rgba(16,185,129,0.12)"
-            sub={att.total > 0
-              ? `${t('stat.absent_lbl')} ${att.absent ?? 0} · ${t('stat.late_lbl')} ${att.late ?? 0} · ${t('stat.leave_lbl')} ${att.leave ?? 0}`
-              : t('stat.no_attendance')}
+            sub={
+              att.total > 0
+                ? `${t('stat.absent_lbl')} ${att.absent ?? 0} · ${t('stat.late_lbl')} ${att.late ?? 0} · ${t('stat.leave_lbl')} ${att.leave ?? 0}`
+                : t('stat.no_attendance')
+            }
           />
         </div>
       )}
@@ -326,7 +391,9 @@ export default function Dashboard() {
               <p>{t('section.latest_5')}</p>
             </div>
             {!loading && contracts.length > 0 && (
-              <span className="db-pill blue">{contracts.length} {t('page.dashboard.contract_unit')}</span>
+              <span className="db-pill blue">
+                {contracts.length} {t('page.dashboard.contract_unit')}
+              </span>
             )}
           </div>
           <div className="db-card-body scrollable">
@@ -339,9 +406,7 @@ export default function Dashboard() {
               <h3>{t('section.urgent_alerts')}</h3>
               <p>{t('section.expiry_30')}</p>
             </div>
-            {!loading && alerts.length > 0 && (
-              <span className="db-pill red">{alerts.length}</span>
-            )}
+            {!loading && alerts.length > 0 && <span className="db-pill red">{alerts.length}</span>}
           </div>
           <div className="db-card-body scrollable">
             <AlertPanel alerts={alerts} loading={loading} />
@@ -381,7 +446,6 @@ export default function Dashboard() {
           SECOND ROW — Invoice Status  |  Attendance Today
       ══════════════════════════════════════════════════ */}
       <div className="db-charts-row">
-
         {/* Invoice Status progress bars */}
         <div className="db-card">
           <div className="db-card-head">
@@ -392,8 +456,10 @@ export default function Dashboard() {
           </div>
           <div className="db-card-body">
             {loading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {[0,1,2,3,4].map((i) => <Skeleton key={i} height={36} style={{ borderRadius: 8 }} />)}
+              <div className="db-inv-rows">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} height={36} style={{ borderRadius: 8 }} />
+                ))}
               </div>
             ) : iStatus.length === 0 ? (
               <div className="db-empty">
@@ -401,22 +467,27 @@ export default function Dashboard() {
                 <div className="db-empty-text">{t('empty.no_invoices')}</div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="db-inv-rows">
                 {(iStatus as ApiAny[])
                   .sort((a: ApiAny, b: ApiAny) => b.count - a.count)
                   .map((s: ApiAny) => {
-                    const pct   = Math.round((s.count / invStatusTotal) * 100);
+                    const pct = Math.round((s.count / invStatusTotal) * 100);
                     const color = INVOICE_STATUS_COLOR[s.status] ?? '#6B7280';
                     return (
                       <div key={s.status}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 13 }}>
-                          <span style={{ color: 'var(--db-text)', fontWeight: 600 }}>
+                        <div className="db-inv-row-head">
+                          <span className="db-inv-row-label">
                             {t('inv.status.' + s.status.toLowerCase())}
                           </span>
-                          <span style={{ color: 'var(--db-muted)' }}>{s.count} ({pct}%)</span>
+                          <span className="db-inv-row-count">
+                            {s.count} ({pct}%)
+                          </span>
                         </div>
-                        <div style={{ height: 8, background: 'rgba(255,255,255,0.07)', borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.6s ease' }} />
+                        <div className="db-inv-track">
+                          <div
+                            className="db-inv-fill"
+                            style={{ width: `${pct}%`, background: color }}
+                          />
                         </div>
                       </div>
                     );
@@ -436,8 +507,10 @@ export default function Dashboard() {
           </div>
           <div className="db-card-body">
             {loading ? (
-              <div style={{ display: 'flex', gap: 12 }}>
-                {[0,1,2,3].map((i) => <Skeleton key={i} height={88} style={{ flex: 1, borderRadius: 12 }} />)}
+              <div className="db-att-grid">
+                {[0, 1, 2, 3].map((i) => (
+                  <Skeleton key={i} height={88} style={{ borderRadius: 12 }} />
+                ))}
               </div>
             ) : (att.total ?? 0) === 0 ? (
               <div className="db-empty">
@@ -445,27 +518,18 @@ export default function Dashboard() {
                 <div className="db-empty-text">{t('empty.no_attendance')}</div>
               </div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+              <div className="db-att-grid">
                 {[
-                  { label: t('att.present'), val: att.present, color: '#10B981', icon: '✅' },
-                  { label: t('att.absent'),  val: att.absent,  color: '#EF4444', icon: '❌' },
-                  { label: t('att.late'),    val: att.late,    color: '#F59E0B', icon: '⏰' },
-                  { label: t('att.leave'),   val: att.leave,   color: '#6B7280', icon: '🏖️' },
+                  { key: 'present', label: t('att.present'), val: att.present, icon: '✅' },
+                  { key: 'absent', label: t('att.absent'), val: att.absent, icon: '❌' },
+                  { key: 'late', label: t('att.late'), val: att.late, icon: '⏰' },
+                  { key: 'leave', label: t('att.leave'), val: att.leave, icon: '🏖️' },
                 ].map((item) => (
-                  <div
-                    key={item.label}
-                    style={{
-                      background: 'var(--db-inner)',
-                      borderRadius: 12,
-                      padding: '14px 16px',
-                      border: `1px solid ${item.color}22`,
-                      display: 'flex', alignItems: 'center', gap: 10,
-                    }}
-                  >
-                    <span style={{ fontSize: 22 }}>{item.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 22, fontWeight: 800, color: item.color, lineHeight: 1 }}>{item.val ?? 0}</div>
-                      <div style={{ fontSize: 12, color: 'var(--db-muted)', marginTop: 2 }}>{item.label}</div>
+                  <div key={item.key} className={`db-att-item ${item.key}`}>
+                    <span className="db-att-icon">{item.icon}</span>
+                    <div className="db-att-body">
+                      <div className="db-att-val">{item.val ?? 0}</div>
+                      <div className="db-att-label">{item.label}</div>
                     </div>
                   </div>
                 ))}
@@ -473,7 +537,6 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-
       </div>
 
       {/* ══════════════════════════════════════════════════
@@ -503,15 +566,15 @@ export default function Dashboard() {
       {/* ══════════════════════════════════════════════════
           LATEST CONTRACTS TABLE
       ══════════════════════════════════════════════════ */}
-      <div className="db-card" style={{ marginTop: 20 }}>
+      <div className="db-card db-card-top">
         <div className="db-card-head">
           <div>
             <h3>{t('section.added_contracts')}</h3>
             <p>{t('section.latest_5')}</p>
           </div>
           <button
-            className="btn secondary"
-            style={{ padding: '6px 14px', fontSize: 13 }}
+            type="button"
+            className="btn secondary db-card-btn"
             onClick={() => navigate('/contracts')}
           >
             {t('page.dashboard.view_all')}
@@ -539,23 +602,28 @@ export default function Dashboard() {
                   </div>
                 </td>
               </tr>
-            ) : contracts.map((ct: ApiAny, i: number) => {
-              const statusCls = CONTRACT_STATUS_CLS[ct.status] ?? 'gray';
-              const statusLabel = t('contract.status.' + ct.status.toLowerCase());
-              return (
-                <tr key={i}>
-                  <td><span className="db-table-mono">{ct.code}</span></td>
-                  <td style={{ fontWeight: 700 }}>{ct.asphaltPlant}</td>
-                  <td>{ct.customer?.name ?? '—'}</td>
-                  <td>{ct.monthlyTransportValue ? money(ct.monthlyTransportValue) : '—'}</td>
-                  <td><span className={`db-pill ${statusCls}`}>{statusLabel}</span></td>
-                </tr>
-              );
-            })}
+            ) : (
+              contracts.map((ct: ApiAny, i: number) => {
+                const statusCls = CONTRACT_STATUS_CLS[ct.status] ?? 'gray';
+                const statusLabel = t('contract.status.' + ct.status.toLowerCase());
+                return (
+                  <tr key={i}>
+                    <td>
+                      <span className="db-table-mono">{ct.code}</span>
+                    </td>
+                    <td className="db-table-strong">{ct.asphaltPlant}</td>
+                    <td>{ct.customer?.name ?? '—'}</td>
+                    <td>{ct.monthlyTransportValue ? money(ct.monthlyTransportValue) : '—'}</td>
+                    <td>
+                      <span className={`db-pill ${statusCls}`}>{statusLabel}</span>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
-
     </div>
   );
 }

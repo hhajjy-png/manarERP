@@ -49,9 +49,9 @@
 .db-skeleton {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 25%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.04) 75%
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.05) 75%
   );
   background-size: 1200px 100%;
   animation: db-shimmer 1.5s infinite linear;
@@ -120,7 +120,7 @@
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: var(--db-radius);
-  padding: 18px;
+  padding: 20px 22px;
   overflow: hidden;
   box-shadow: var(--db-shadow);
   transition:
@@ -128,37 +128,13 @@
     box-shadow 0.22s ease;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 .db-kpi:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 36px rgba(0, 0, 0, 0.55);
 }
 
-/* Subtle radial glow orb in the corner */
-.db-kpi::after {
-  content: '';
-  position: absolute;
-  inset-inline-end: -24px;
-  top: -24px;
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  opacity: 0.09;
-  pointer-events: none;
-}
-.db-kpi.c-green::after {
-  background: var(--db-green);
-}
-.db-kpi.c-red::after {
-  background: var(--db-red);
-}
-.db-kpi.c-blue::after {
-  background: var(--db-blue);
-}
-.db-kpi.c-amber::after {
-  background: var(--db-amber);
-}
 
 .db-kpi-top {
   display: flex;
@@ -166,12 +142,12 @@
   justify-content: space-between;
 }
 .db-kpi-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
-  font-size: 19px;
+  font-size: 20px;
   flex: none;
 }
 .db-kpi.c-green .db-kpi-icon {
@@ -206,17 +182,17 @@
 }
 
 .db-kpi-label {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--db-muted);
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 .db-kpi-val {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--db-text);
   line-height: 1.1;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 .db-kpi-sub {
   font-size: 11px;
@@ -261,21 +237,21 @@
 }
 
 .db-stat-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: grid;
   place-items: center;
-  font-size: 24px;
+  font-size: 22px;
   flex: none;
 }
 .db-stat-label {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--db-muted);
   font-weight: 600;
 }
 .db-stat-val {
-  font-size: 28px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--db-text);
   line-height: 1.1;
@@ -340,11 +316,11 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 15px 18px 12px;
+  padding: 16px 20px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .db-card-head h3 {
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 800;
   color: var(--db-text);
   margin: 0;
@@ -357,12 +333,12 @@
   margin: 3px 0 0;
 }
 .db-card-body {
-  padding: 14px 18px 18px;
+  padding: 16px 20px 20px;
 }
 
 /* Scrollable body variant (for alert / contract lists) */
 .db-card-body.scrollable {
-  max-height: 260px;
+  max-height: 280px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
@@ -633,12 +609,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 24px 20px;
+  padding: 32px 24px;
   gap: 10px;
 }
 .db-empty-icon {
-  font-size: 30px;
-  opacity: 0.35;
+  font-size: 32px;
+  opacity: 0.45;
 }
 .db-empty-text {
   font-size: 13.5px;
@@ -676,13 +652,13 @@
    EXECUTIVE HEADER
    ================================================================ */
 .db-exec-header {
-  margin-bottom: 18px;
+  margin-bottom: 24px;
 }
 .db-exec-greeting {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
   color: var(--db-text);
-  margin: 0 0 5px;
+  margin: 0 0 8px;
   line-height: 1.2;
 }
 .db-exec-date {
@@ -809,7 +785,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: 4px;
   border-radius: 16px 16px 0 0;
   pointer-events: none;
 }
@@ -913,7 +889,7 @@
 }
 
 .db-aw-val {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
   line-height: 1.1;
   margin-bottom: 2px;
@@ -959,4 +935,134 @@
 .db-aw.aw-safe .db-aw-tag {
   background: rgba(16, 185, 129, 0.15);
   color: var(--db-green);
+}
+
+/* ================================================================
+   EXEC HEADER LAYOUT HELPERS
+   ================================================================ */
+.db-exec-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.db-exec-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.db-refresh-time {
+  font-size: 11px;
+  color: var(--db-muted);
+  font-weight: 600;
+}
+.db-refresh-btn {
+  padding: 7px 14px !important;
+  font-size: 13px !important;
+}
+
+/* ================================================================
+   ATTENDANCE MINI CARDS
+   ================================================================ */
+.db-att-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.db-att-item {
+  background: var(--db-inner);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.db-att-item.present { border-color: rgba(16, 185, 129, 0.2); }
+.db-att-item.absent  { border-color: rgba(239, 68, 68, 0.2);  }
+.db-att-item.late    { border-color: rgba(245, 158, 11, 0.2); }
+.db-att-item.leave   { border-color: rgba(107, 114, 128, 0.2); }
+.db-att-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.db-att-body {
+  min-width: 0;
+}
+.db-att-val {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+.db-att-item.present .db-att-val { color: var(--db-green); }
+.db-att-item.absent  .db-att-val { color: var(--db-red);   }
+.db-att-item.late    .db-att-val { color: var(--db-amber); }
+.db-att-item.leave   .db-att-val { color: var(--db-muted); }
+.db-att-label {
+  font-size: 12px;
+  color: var(--db-muted);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ================================================================
+   INVOICE STATUS PROGRESS BARS
+   ================================================================ */
+.db-inv-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.db-inv-row-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+.db-inv-row-label {
+  color: var(--db-text);
+  font-weight: 600;
+}
+.db-inv-row-count {
+  color: var(--db-muted);
+}
+.db-inv-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.db-inv-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+/* ================================================================
+   MISC UTILITY
+   ================================================================ */
+.db-card-top {
+  margin-top: 20px;
+}
+.db-card-btn {
+  padding: 6px 14px !important;
+  font-size: 13px !important;
+}
+.db-table-strong {
+  font-weight: 700;
+}
+.db-alert-error {
+  margin-block-end: 20px;
+}
+.db-retry-btn {
+  margin-inline-end: 12px;
+}
+.db-aw-loading {
+  border-inline-start-color: var(--db-border);
+}
+.db-aw-skel-body {
+  flex: 1;
+  min-width: 0;
 }
