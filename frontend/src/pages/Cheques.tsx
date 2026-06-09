@@ -39,7 +39,6 @@ interface FormState {
   currency: string;
   description: string;
   bankName: string;
-  templateName: string;
   notes: string;
 }
 
@@ -55,7 +54,6 @@ function defaultForm(): FormState {
     currency: 'KWD',
     description: '',
     bankName: '',
-    templateName: '',
     notes: '',
   };
 }
@@ -200,6 +198,22 @@ function ChequePreview({ data, t }: { data: PreviewData; t: (k: string) => strin
         <span style={{ fontSize: 14, fontWeight: 600, color: '#1d4e6f' }}>{data.currency}</span>
       </div>
 
+      {/* Amount in words — tafqeet placeholder (Phase 2) */}
+      <div
+        style={{
+          fontSize: 12,
+          color: '#64748b',
+          fontStyle: 'italic',
+          marginBottom: 12,
+          padding: '5px 10px',
+          background: 'rgba(148, 163, 184, 0.08)',
+          borderRadius: 4,
+          textAlign: 'center',
+        }}
+      >
+        {amount > 0 ? `${t('lbl.cheque.amount_words')}: —` : '—'}
+      </div>
+
       {/* Description */}
       {data.description && (
         <div style={{ fontSize: 13, color: '#475569', marginBottom: 12 }}>
@@ -267,6 +281,12 @@ export default function Cheques() {
     loadData(1);
   }, [loadData]);
 
+  useEffect(() => {
+    if (!success) return;
+    const id = setTimeout(() => setSuccess(''), 3500);
+    return () => clearTimeout(id);
+  }, [success]);
+
   // ── Form handlers ─────────────────────────────────────────────────────────
 
   function field(name: keyof FormState, value: string) {
@@ -290,7 +310,6 @@ export default function Cheques() {
       currency: cheque.currency,
       description: cheque.description ?? '',
       bankName: cheque.bankName,
-      templateName: cheque.templateName ?? '',
       notes: cheque.notes ?? '',
     });
     setEditId(cheque.id);
@@ -328,7 +347,6 @@ export default function Cheques() {
         currency: form.currency.trim(),
         description: form.description.trim() || null,
         bankName: form.bankName.trim(),
-        templateName: form.templateName.trim() || null,
         notes: form.notes.trim() || null,
       };
 
@@ -457,7 +475,7 @@ export default function Cheques() {
     </div>
   );
 
-  const isPrintable = !!printTarget;
+  const isPrintable = !!printTarget && printTarget.status === 'DRAFT';
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -650,6 +668,16 @@ export default function Cheques() {
               {t('error.cheque.save_first')}
             </p>
           )}
+          {printTarget?.status === 'CANCELLED' && (
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: '#dc2626', textAlign: 'center' }}>
+              {t('error.cheque.is_cancelled')}
+            </p>
+          )}
+          {printTarget?.status === 'PRINTED' && (
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: '#64748b', textAlign: 'center' }}>
+              {t('error.cheque.already_printed')}
+            </p>
+          )}
         </div>
 
         {/* Right: input form */}
@@ -760,18 +788,6 @@ export default function Cheques() {
                 value={form.description}
                 onChange={(e) => field('description', e.target.value)}
                 placeholder={t('ph.cheque.description')}
-                disabled={!!editId && !canUpdate}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
-                {t('field.cheque.template')}
-              </label>
-              <input
-                className="form-input"
-                value={form.templateName}
-                onChange={(e) => field('templateName', e.target.value)}
                 disabled={!!editId && !canUpdate}
               />
             </div>

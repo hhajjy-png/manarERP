@@ -66,7 +66,6 @@ export class ChequesService {
         currency: input.currency ?? 'KWD',
         description: input.description ?? null,
         bankName: input.bankName,
-        templateName: input.templateName ?? null,
         notes: input.notes ?? null,
         status: 'DRAFT',
       },
@@ -102,7 +101,6 @@ export class ChequesService {
         currency: input.currency ?? current.currency,
         description: input.description === undefined ? current.description : (input.description ?? null),
         bankName: input.bankName ?? current.bankName,
-        templateName: input.templateName === undefined ? current.templateName : (input.templateName ?? null),
         notes: input.notes === undefined ? current.notes : (input.notes ?? null),
       },
     });
@@ -129,7 +127,7 @@ export class ChequesService {
     });
     await recordAudit({
       req,
-      action: 'UPDATE',
+      action: 'PRINT',
       module: 'cheques',
       entityId: id,
       newValue: { status: 'PRINTED' },

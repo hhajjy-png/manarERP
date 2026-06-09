@@ -9,7 +9,6 @@ export const createChequeSchema = z.object({
     currency: z.string().min(1).default('KWD'),
     description: z.string().nullable().optional(),
     bankName: z.string().min(1, 'اسم البنك مطلوب'),
-    templateName: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
   }),
 });
@@ -23,7 +22,6 @@ export const updateChequeSchema = z.object({
     currency: z.string().min(1).optional(),
     description: z.string().nullable().optional(),
     bankName: z.string().min(1).optional(),
-    templateName: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
   }),
 });
