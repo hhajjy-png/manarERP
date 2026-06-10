@@ -50,6 +50,7 @@ export const MODULES = [
   'inventory',
   'cheques',
   'import',
+  'prices',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];

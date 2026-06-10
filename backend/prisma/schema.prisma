@@ -1019,6 +1019,28 @@ model SalaryPayment {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+//  الأسعار الثابتة للمشاريع (Project Prices)
+// ─────────────────────────────────────────────────────────────────────────
+
+model ProjectPrice {
+  id               Int     @id @default(autoincrement())
+  asphaltPlant     String // مصنع الأسفلت
+  companyName      String // اسم الشركة
+  contractLocation String // مكان العقد
+  contractUnit     String // وحدة العقد: طن | درب | يومية
+  unitPrice        Float // سعر الوحدة (د.ك)
+  isArchived       Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isArchived])
+  @@index([asphaltPlant])
+  @@index([companyName])
+  @@map("project_prices")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 //  الشيكات (Cheques)
 // ─────────────────────────────────────────────────────────────────────────
 

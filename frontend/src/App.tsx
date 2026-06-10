@@ -20,6 +20,7 @@ import Cheques from './pages/Cheques';
 import DataImport from './pages/DataImport';
 import AuditLog from './pages/AuditLog';
 import Maintenance from './pages/Maintenance';
+import Prices from './pages/Prices';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="/import" element={<DataImport />} />
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/maintenance" element={<Maintenance />} />
+          <Route path="/prices" element={<Prices />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
