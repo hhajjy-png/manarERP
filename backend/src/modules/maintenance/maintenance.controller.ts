@@ -7,10 +7,23 @@ const eqId = (req: Request) => (req.query.equipmentId ? Number(req.query.equipme
 export const maintenanceController = {
   // سجلات الصيانة
   async listRecords(req: Request, res: Response) {
-    ok(res, await maintenanceService.listRecords(eqId(req)));
+    const { equipmentId, status, type, dateFrom, dateTo } = req.query as Record<string, string>;
+    ok(res, await maintenanceService.listRecords({
+      equipmentId: equipmentId ? Number(equipmentId) : undefined,
+      status:      status      || undefined,
+      type:        type        || undefined,
+      dateFrom:    dateFrom    ? new Date(dateFrom) : undefined,
+      dateTo:      dateTo      ? new Date(dateTo)   : undefined,
+    }));
   },
   async createRecord(req: Request, res: Response) {
     created(res, await maintenanceService.createRecord(req.body, req));
+  },
+  async updateRecord(req: Request, res: Response) {
+    ok(res, await maintenanceService.updateRecord(Number(req.params.id), req.body, req));
+  },
+  async deleteRecord(req: Request, res: Response) {
+    ok(res, await maintenanceService.deleteRecord(Number(req.params.id), req));
   },
   async due(req: Request, res: Response) {
     ok(res, await maintenanceService.dueMaintenance(req.query.days ? Number(req.query.days) : 30));
