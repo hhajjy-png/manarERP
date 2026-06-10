@@ -157,13 +157,64 @@ export default function Dashboard() {
           EXECUTIVE HERO PANEL
       ══════════════════════════════════════════════════ */}
       <div className="db-exec-header">
+        {/* Topbar: system tagline + refresh control */}
+        <div className="db-exec-topbar">
+          <span className="db-exec-system-label">{t('layout.tagline')}</span>
+          <div className="db-exec-topbar-end">
+            {refreshAt && !loading && (
+              <span className="db-refresh-time">
+                {t('page.dashboard.last_update')} {refreshAt.toLocaleTimeString('ar')}
+              </span>
+            )}
+            <button
+              type="button"
+              className="btn secondary db-refresh-btn"
+              onClick={() => setRefreshKey((k) => k + 1)}
+              disabled={loading}
+            >
+              {loading ? '⏳' : t('page.dashboard.refresh')}
+            </button>
+          </div>
+        </div>
+
         <div className="db-exec-hero-layout">
-          {/* INFO: greeting, date, status chips, refresh */}
+          {/* INFO: greeting, date, snapshot metrics, status chips */}
           <div className="db-exec-hero-info">
             <h2 className="db-exec-greeting">
               {t('page.dashboard.greeting', { name: user?.fullName ?? '—' })}
             </h2>
             <p className="db-exec-date">📅 {today}</p>
+
+            {/* Executive snapshot metrics strip */}
+            {loading ? (
+              <div className="db-exec-hero-metrics">
+                <Skeleton height={42} width="120px" style={{ borderRadius: 8 }} />
+                <Skeleton height={42} width="120px" style={{ borderRadius: 8 }} />
+                <Skeleton height={42} width="120px" style={{ borderRadius: 8 }} />
+              </div>
+            ) : exec ? (
+              <div className="db-exec-hero-metrics">
+                <div className="db-exec-hm-item">
+                  <span className="db-exec-hm-label">{t('kpi.total_revenue')}</span>
+                  <span className="db-exec-hm-val db-exec-hm-green">{money(f.totalRevenue)}</span>
+                </div>
+                <div className="db-exec-hm-sep" />
+                <div className="db-exec-hm-item">
+                  <span className="db-exec-hm-label">{t('kpi.net_profit')}</span>
+                  <span className={`db-exec-hm-val ${profitPositive ? 'db-exec-hm-green' : 'db-exec-hm-red'}`}>
+                    {money(f.netProfit)}
+                  </span>
+                </div>
+                <div className="db-exec-hm-sep" />
+                <div className="db-exec-hm-item">
+                  <span className="db-exec-hm-label">{t('kpi.unpaid_invoices')}</span>
+                  <span className={`db-exec-hm-val ${(inv.unpaidAmount ?? 0) > 0 ? 'db-exec-hm-amber' : 'db-exec-hm-green'}`}>
+                    {money(inv.unpaidAmount)}
+                  </span>
+                </div>
+              </div>
+            ) : null}
+
             {!loading && (
               <div className="db-exec-chips">
                 <span className="db-exec-chip blue">
@@ -180,22 +231,8 @@ export default function Dashboard() {
                 </span>
               </div>
             )}
-            <div className="db-exec-meta">
-              {refreshAt && !loading && (
-                <span className="db-refresh-time">
-                  {t('page.dashboard.last_update')} {refreshAt.toLocaleTimeString('ar')}
-                </span>
-              )}
-              <button
-                type="button"
-                className="btn secondary db-refresh-btn"
-                onClick={() => setRefreshKey((k) => k + 1)}
-                disabled={loading}
-              >
-                {loading ? '⏳' : t('page.dashboard.refresh')}
-              </button>
-            </div>
           </div>
+
           {/* ACTIONS: section label + quick action buttons */}
           <div className="db-exec-hero-actions">
             <div className="db-exec-section-label">{t('section.quick_actions')}</div>
