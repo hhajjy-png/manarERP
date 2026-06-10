@@ -17,7 +17,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="app">
+    <div className="app stitch-full-theme">
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="brand">
           <div className="logo">م</div>
@@ -37,7 +37,7 @@ export default function Layout() {
                     className={({ isActive }) => (isActive ? 'active' : '')}
                     onClick={closeSidebar}
                   >
-                    <span className="ic">{it.icon}</span> {t(it.label)}
+                    <span className="material-symbols-outlined ic">{it.icon}</span> {t(it.label)}
                   </NavLink>
                 ))}
               </div>
