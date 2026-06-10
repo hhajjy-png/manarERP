@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { validateJournalBalance } from './accounting.utils';
 
 export interface AccountInput {
   code: string;
@@ -100,14 +101,7 @@ export class AccountingService {
   }
 
   async createJournalEntry(input: JournalEntryInput, req: Request) {
-    const totalDebit = input.lines.reduce((s, l) => s + (l.debit ?? 0), 0);
-    const totalCredit = input.lines.reduce((s, l) => s + (l.credit ?? 0), 0);
-    if (Math.abs(totalDebit - totalCredit) > 0.001) {
-      throw new Error('القيد غير متوازن: إجمالي المدين لا يساوي إجمالي الدائن');
-    }
-    if (input.lines.length < 2) {
-      throw new Error('القيد يجب أن يحتوي على سطرين على الأقل');
-    }
+    validateJournalBalance(input.lines);
 
     const entryNumber = await this.generateJournalNumber();
     const entry = await prisma.journalEntry.create({

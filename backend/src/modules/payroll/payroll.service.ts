@@ -13,22 +13,16 @@ import {
   RecurringAllowanceInput,
   UpdatePayrollInput,
 } from './payroll.schema';
-
-const WORK_HOURS_PER_DAY = 8;
-const OVERTIME_MULTIPLIER = 1.25;
+import {
+  WORK_HOURS_PER_DAY,
+  OVERTIME_MULTIPLIER,
+  round3,
+  monthRange,
+  inPeriod,
+  PayrollLineDraft,
+} from './payroll.calc';
 
 type Tx = Prisma.TransactionClient;
-type PayrollLineDraft = {
-  employeeId: number;
-  type: string;
-  sourceType?: string;
-  sourceId?: number;
-  label: string;
-  amount: number;
-  quantity?: number;
-  rate?: number;
-  notes?: string;
-};
 
 type PayrollSnapshot = {
   employeeId: number;
@@ -56,20 +50,6 @@ type PayrollSnapshot = {
   notes?: string;
   lines: PayrollLineDraft[];
 };
-
-function round3(n: number) {
-  return Math.round((Number(n || 0) + Number.EPSILON) * 1000) / 1000;
-}
-
-function monthRange(month: number, year: number) {
-  const start = new Date(year, month - 1, 1);
-  const end = new Date(year, month, 0, 23, 59, 59, 999);
-  return { start, end, days: end.getDate() };
-}
-
-function inPeriod(item: { startsAt?: Date | null; endsAt?: Date | null }, start: Date, end: Date) {
-  return (!item.startsAt || item.startsAt <= end) && (!item.endsAt || item.endsAt >= start);
-}
 
 export class PayrollService {
   async list(query: PaginationQuery & { month?: string; year?: string; status?: string; employeeId?: string }) {
