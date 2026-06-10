@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `8875359` — Merge project prices Phase 1 and invoice custom fields into production |
-| **Stable tag** | `stable-project-prices-phase1-v1` |
+| **HEAD** | `f55c65e` — Merge feature/attendance-ui-completion into production |
+| **Stable tag** | `stable-attendance-ui-completion-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,9 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Attendance UI Completion | `feature/attendance-ui-completion` | `stable-attendance-ui-completion-v1` | Backend: `PATCH /employees/attendance/:id`, `DELETE /employees/attendance/:id`, status filter in `listAttendance`, audit log integration, `updateAttendanceSchema`. Frontend: `Attendance.tsx` page with KPI cards (total/present/absent/late), DataTable (8 cols), employee+status+date-range filters (server-side), client-side search, create/edit/details/delete modals, work-hours auto-calc from checkIn/checkOut. Sidebar entry `event_available`. Full Arabic/English i18n. Gemini: APPROVED WITH MINOR NOTES (pagination and inactive-employee filter recommended post-release). No Prisma migration — schema and permissions pre-existed. |
+| Maintenance Module Completion | `feature/maintenance-completion` | `stable-maintenance-completion-v1` | Backend: `PATCH /maintenance/records/:id`, `DELETE /maintenance/records/:id`, type/dateFrom/dateTo/status filters, `updateMaintenanceSchema`, CANCELLED status. Frontend: `Maintenance.tsx` rewritten with full CRUD modals (Create/Edit/Details/Delete), client-side search, equipment+type+status+date filters, equipment name shown alongside code. Replaced all `alert()` with inline errors. |
+| Test Coverage Foundation | `feature/test-coverage-foundation` | `stable-test-coverage-foundation-v1` | RED→GREEN→REFACTOR TDD cycle for payroll and accounting. Fixed 2 wrong test assertions (`tafqeet.test.ts`: 1.005 fils fix; `payroll.calc.test.ts`: deductions arg position fix). REFACTOR: `payroll.service.ts` imports from `payroll.calc.ts`; `accounting.service.ts` uses `validateJournalBalance`. 84/84 tests pass. |
 | Invoice Custom Type / Direction | `feature/prices-and-invoice-custom-fields` | `stable-project-prices-phase1-v1` | Custom free-text invoice types (نقل اسفلت / يومية / أخرى) and custom directions (SALES / PURCHASE / OTHER with free-text). i18n fix: direction column uses `t('opt.direction.sales')` / `t('opt.direction.purchase')` — hardcoded Arabic removed. |
 | Project Prices Phase 1 | `feature/prices-and-invoice-custom-fields` | `stable-project-prices-phase1-v1` | New `ProjectPrice` model + migration `20260610140000_add-project-prices`. Full backend module (routes/controller/service/schema). Frontend `Prices.tsx` page with CRUD + soft delete (`isArchived`). RBAC: `prices.read`, `prices.create`, `prices.update`, `prices.delete`. |
 | UI Adoption Phase 1 | `feature/ui-adoption-phase1` | `stable-ui-adoption-phase1-v1` | DESIGN.md created (814-line design system guide). Dashboard CSS: 5 `--db-*` color/radius vars migrated to global tokens (`var(--accent/green/amber/red/radius)`). ~35 hardcoded hex values replaced with `var(--db-*)` in pills, alerts, exec-chips, aw-widgets, kpi gradients. Topbar height corrected to 49px in dashboard. No schema or backend changes. |
@@ -56,22 +59,31 @@ Priority order based on value vs. effort for this local internal ERP.
 ### 1. Audit Log Viewer (frontend page)
 
 Backend fully implemented — `GET /api/audit` exists, all mutations are logged.
-Missing: a frontend viewer so operators can browse the audit trail.
+Missing: a dedicated frontend viewer (the `AuditLog.tsx` page was scaffolded but may need completion).
 
-- Add `frontend/src/pages/AuditLog.tsx` with filters (module, action, user, date range) and details modal
-- Register route in `App.tsx`, add nav entry in `modules.tsx` (gated by `audit.read`)
+- Filters: module, action, user, date range, entity ID
+- Details modal showing old/new value diff
+- Register route in `App.tsx`, add nav entry gated by `audit.read`
 - No backend changes required
-- Run `superpowers:brainstorming` before implementing
 
-### 2. Maintenance UI
+### 2. Attendance Pagination
 
-Backend maintenance module exists (`modules/maintenance/`) but frontend coverage is incomplete.
+Current `listAttendance` returns all records (up to `pageSize: 500`).
+As attendance data grows this will become slow.
 
-- Improve maintenance workflow consistency
-- Add missing UI elements for maintenance record management
-- Ensure equipment maintenance lifecycle is navigable from the frontend
+- Add `getPagination` + `buildPaginatedResult` to `listAttendance` (matches employees list pattern)
+- Update frontend `DataTable` `meta` prop + `onPage` handler in `Attendance.tsx`
+- No schema changes required
 
-### 3. API Rate Limiting (optional security hardening)
+### 3. Operational UX Improvements
+
+Small quality-of-life improvements across existing modules.
+
+- Historical attendance filtering: allow inactive/terminated employees in the employee dropdown
+- Improve empty-state messaging consistency across pages
+- Date format standardization in exports
+
+### 4. API Rate Limiting (optional security hardening)
 
 Lightweight measure to protect the local Express API from accidental or malicious request flooding.
 
@@ -207,10 +219,10 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Dashboard | `modules/dashboard/` | `Dashboard.tsx` | Complete |
 | Customers | `modules/customers/` | `ResourcePage` | Complete |
 | Employees | `modules/employees/` | `ResourcePage` | Complete |
-| Attendance | — | — | Schema only |
+| Attendance | `employees module` | `Attendance.tsx` | Production Ready — CRUD, KPI cards, filters, search, modals |
 | Payroll | `modules/payroll/` | `Salaries.tsx` | Complete |
 | Equipment | `modules/equipment/` | `ResourcePage` | Complete |
-| Maintenance | `modules/maintenance/` | — | Backend only — no frontend page |
+| Maintenance | `modules/maintenance/` | `Maintenance.tsx` | Production Ready — full CRUD, search, filters, details modal |
 | Contracts | `modules/contracts/` | `ResourcePage` | Complete |
 | Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields added |
 | Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete |
@@ -294,4 +306,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-10 — Project Prices Phase 1 + Invoice Custom Fields released; baseline advanced to `8875359`.*
+*Last updated: 2026-06-10 — Attendance UI Completion released; baseline advanced to `f55c65e` (`stable-attendance-ui-completion-v1`). Also documenting: Maintenance Module Completion (`stable-maintenance-completion-v1`) and Test Coverage Foundation (`stable-test-coverage-foundation-v1`) released earlier this session.*
