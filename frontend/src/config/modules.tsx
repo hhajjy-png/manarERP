@@ -291,10 +291,11 @@ export const MODULES: Record<string, ModuleConfig> = {
 export const NAV: { group: string; items: { key: string; label: string; icon: string; permission?: string }[] }[] = [
   { group: '', items: [{ key: 'dashboard', label: 'nav.dashboard', icon: 'dashboard' }] },
   { group: 'nav.group.core', items: [
-    { key: 'contracts', label: 'nav.contracts', icon: 'description', permission: 'contracts.read' },
-    { key: 'customers', label: 'nav.customers', icon: 'groups', permission: 'customers.read' },
-    { key: 'equipment', label: 'nav.equipment', icon: 'construction', permission: 'equipment.read' },
-    { key: 'employees', label: 'nav.employees', icon: 'badge', permission: 'employees.read' },
+    { key: 'contracts',    label: 'nav.contracts',    icon: 'description', permission: 'contracts.read' },
+    { key: 'customers',    label: 'nav.customers',    icon: 'groups',      permission: 'customers.read' },
+    { key: 'equipment',    label: 'nav.equipment',    icon: 'construction', permission: 'equipment.read' },
+    { key: 'maintenance',  label: 'nav.maintenance',  icon: 'build_circle', permission: 'maintenance.read' },
+    { key: 'employees',    label: 'nav.employees',    icon: 'badge',       permission: 'employees.read' },
   ] },
   { group: 'nav.group.financial', items: [
     { key: 'invoices', label: 'nav.invoices', icon: 'receipt_long', permission: 'invoices.read' },
