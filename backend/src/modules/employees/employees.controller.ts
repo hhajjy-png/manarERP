@@ -27,10 +27,21 @@ export const employeesController = {
   },
   // الحضور
   async listAttendance(req: Request, res: Response) {
-    ok(res, await employeesService.listAttendance(empId(req), req.query.from as string, req.query.to as string));
+    ok(res, await employeesService.listAttendance(
+      empId(req),
+      req.query.from as string,
+      req.query.to as string,
+      req.query.status as string | undefined,
+    ));
   },
   async recordAttendance(req: Request, res: Response) {
     created(res, await employeesService.recordAttendance(req.body, req));
+  },
+  async updateAttendance(req: Request, res: Response) {
+    ok(res, await employeesService.updateAttendance(Number(req.params.id), req.body, req));
+  },
+  async deleteAttendance(req: Request, res: Response) {
+    ok(res, await employeesService.deleteAttendance(Number(req.params.id), req));
   },
   // الإجازات
   async listLeaves(req: Request, res: Response) {

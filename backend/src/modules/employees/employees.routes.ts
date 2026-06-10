@@ -9,6 +9,7 @@ import {
   attendanceSchema,
   createEmployeeSchema,
   leaveSchema,
+  updateAttendanceSchema,
   updateEmployeeSchema,
 } from './employees.schema';
 
@@ -18,6 +19,8 @@ router.use(authenticate);
 // الحضور
 router.get('/attendance', requirePermission('attendance.read'), asyncHandler(employeesController.listAttendance));
 router.post('/attendance', requirePermission('attendance.create'), validate(attendanceSchema), asyncHandler(employeesController.recordAttendance));
+router.patch('/attendance/:id', requirePermission('attendance.update'), validate(updateAttendanceSchema), asyncHandler(employeesController.updateAttendance));
+router.delete('/attendance/:id', requirePermission('attendance.delete'), asyncHandler(employeesController.deleteAttendance));
 
 // الإجازات
 router.get('/leaves', requirePermission('employees.read'), asyncHandler(employeesController.listLeaves));

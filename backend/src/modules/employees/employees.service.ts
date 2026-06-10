@@ -10,6 +10,7 @@ import {
   AttendanceInput,
   CreateEmployeeInput,
   LeaveInput,
+  UpdateAttendanceInput,
   UpdateEmployeeInput,
 } from './employees.schema';
 import { buildDocumentAlerts } from './employees.alertBuilder';
@@ -144,9 +145,10 @@ export class EmployeesService {
   }
 
   // ===== الحضور والانصراف =====
-  async listAttendance(employeeId?: number, from?: string, to?: string) {
+  async listAttendance(employeeId?: number, from?: string, to?: string, status?: string) {
     const where: Prisma.AttendanceWhereInput = {};
     if (employeeId) where.employeeId = employeeId;
+    if (status) where.status = status;
     if (from || to) {
       where.date = {};
       if (from) where.date.gte = new Date(from);
@@ -155,7 +157,7 @@ export class EmployeesService {
     return prisma.attendance.findMany({
       where,
       orderBy: { date: 'desc' },
-      include: { employee: { select: { code: true, fullName: true } } },
+      include: { employee: { select: { id: true, code: true, fullName: true } } },
     });
   }
 
@@ -180,6 +182,26 @@ export class EmployeesService {
     });
     await recordAudit({ req, action: 'CREATE', module: 'attendance', entityId: att.id });
     return att;
+  }
+
+  async updateAttendance(id: number, input: UpdateAttendanceInput, req: Request) {
+    const old = await prisma.attendance.findUnique({ where: { id } });
+    if (!old) throw AppError.notFound('سجل الحضور غير موجود');
+    const workHours = diffHours(
+      input.checkIn ?? old.checkIn ?? undefined,
+      input.checkOut ?? old.checkOut ?? undefined,
+    );
+    const record = await prisma.attendance.update({ where: { id }, data: { ...input, workHours } });
+    await recordAudit({ req, action: 'UPDATE', module: 'attendance', entityId: id, oldValue: old, newValue: input });
+    return record;
+  }
+
+  async deleteAttendance(id: number, req: Request) {
+    const old = await prisma.attendance.findUnique({ where: { id } });
+    if (!old) throw AppError.notFound('سجل الحضور غير موجود');
+    await prisma.attendance.delete({ where: { id } });
+    await recordAudit({ req, action: 'DELETE', module: 'attendance', entityId: id, oldValue: old });
+    return { deleted: true };
   }
 
   // ===== الإجازات =====
