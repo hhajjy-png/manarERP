@@ -5,6 +5,7 @@ import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import { money, dateText } from '../config/modules';
+import { usePersistedState } from '../hooks/usePersistedState';
 
 const statusPill: Record<string, [string, string]> = {
   UNPAID: ['inv.status.unpaid', 'red'], PARTIAL: ['inv.status.partial', 'amber'], PAID: ['inv.status.paid', 'green'],
@@ -24,10 +25,10 @@ export default function Invoices() {
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [directionFilter, setDirectionFilter] = useState('');
+  const [page, setPage] = usePersistedState('inv:page', 1);
+  const [search, setSearch] = usePersistedState('inv:search', '');
+  const [statusFilter, setStatusFilter] = usePersistedState('inv:status', '');
+  const [directionFilter, setDirectionFilter] = usePersistedState('inv:direction', '');
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [paying, setPaying] = useState<any | null>(null);
@@ -118,6 +119,7 @@ export default function Invoices() {
             {t('action.reset_filters')}
           </button>
         )}
+        <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
       </div>
 
       <DataTable

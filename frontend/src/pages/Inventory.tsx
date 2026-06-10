@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { usePersistedState } from '../hooks/usePersistedState';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -147,7 +148,7 @@ const TABS: { key: Tab; label: string }[] = [
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Inventory() {
-  const [tab, setTab] = useState<Tab>('balance');
+  const [tab, setTab] = usePersistedState<Tab>('invt:tab', 'balance');
   const { t } = useT();
 
   return (
@@ -281,8 +282,8 @@ function MaterialsTab() {
   const [rows, setRows] = useState<Material[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
+  const [page, setPage] = usePersistedState('invt:mat:page', 1);
+  const [search, setSearch] = usePersistedState('invt:mat:search', '');
   const [editing, setEditing] = useState<Partial<Material> | null>(null);
 
   const load = useCallback(async () => {
@@ -316,6 +317,7 @@ function MaterialsTab() {
         <input placeholder={t('ph.search_material')} value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           style={{ ...inp, maxWidth: 280 }} />
+        <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setEditing({})}>{t('btn.inv.new_material')}</button>}
       </div>
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.materials')}
@@ -341,8 +343,8 @@ function PurchaseOrdersTab() {
   const [rows, setRows] = useState<PurchaseOrder[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = usePersistedState('invt:po:page', 1);
+  const [statusFilter, setStatusFilter] = usePersistedState('invt:po:filter', '');
   const [creating, setCreating] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
 
@@ -385,6 +387,7 @@ function PurchaseOrdersTab() {
           <option value="RECEIVED">{t('inv.po.status.received')}</option>
           <option value="CANCELLED">{t('inv.po.status.cancelled')}</option>
         </select>
+        <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_po')}</button>}
       </div>
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.po')}
@@ -419,7 +422,7 @@ function GoodsReceiptsTab() {
   const [rows, setRows] = useState<GoodsReceipt[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = usePersistedState('invt:gr:page', 1);
   const [creating, setCreating] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
 
@@ -454,7 +457,8 @@ function GoodsReceiptsTab() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16, gap: 8 }}>
+        <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_gr')}</button>}
       </div>
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.gr')}
@@ -486,8 +490,8 @@ function MaterialIssuesTab() {
   const [rows, setRows] = useState<MaterialIssue[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [page, setPage] = usePersistedState('invt:mi:page', 1);
+  const [statusFilter, setStatusFilter] = usePersistedState('invt:mi:filter', '');
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Partial<MaterialIssue> | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
@@ -534,6 +538,7 @@ function MaterialIssuesTab() {
           <option value="POSTED">{t('inv.mi.status.posted')}</option>
           <option value="CANCELLED">{t('inv.mi.status.cancelled')}</option>
         </select>
+        <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_mi')}</button>}
       </div>
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.mi')}

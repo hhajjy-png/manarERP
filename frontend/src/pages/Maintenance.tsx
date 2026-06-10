@@ -6,6 +6,7 @@ import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import StatCard from '../components/StatCard';
 import { money, dateText } from '../config/modules';
+import { usePersistedState } from '../hooks/usePersistedState';
 
 // ── Domain Types ──────────────────────────────────────────────────────────────
 
@@ -168,7 +169,7 @@ function SummaryKPIs() {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Maintenance() {
-  const [tab, setTab] = useState<Tab>('records');
+  const [tab, setTab] = usePersistedState<Tab>('maint:tab', 'records');
   const { t } = useT();
 
   return (
@@ -284,12 +285,12 @@ function RecordsTab() {
   const [error, setError] = useState('');
 
   // Filters
-  const [search, setSearch] = useState('');
-  const [filterEquip, setFilterEquip] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterType, setFilterType] = useState('');
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
+  const [search, setSearch] = usePersistedState('maint:records:search', '');
+  const [filterEquip, setFilterEquip] = usePersistedState('maint:records:equip', '');
+  const [filterStatus, setFilterStatus] = usePersistedState('maint:records:status', '');
+  const [filterType, setFilterType] = usePersistedState('maint:records:type', '');
+  const [filterDateFrom, setFilterDateFrom] = usePersistedState('maint:records:from', '');
+  const [filterDateTo, setFilterDateTo] = usePersistedState('maint:records:to', '');
 
   // Modals
   const [showCreate, setShowCreate] = useState(false);
@@ -480,6 +481,7 @@ function RecordsTab() {
         <input style={{ ...inp, width: 150 }} type="date" title={t('filter.date_from')} value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
         <input style={{ ...inp, width: 150 }} type="date" title={t('filter.date_to')}   value={filterDateTo}   onChange={(e) => setFilterDateTo(e.target.value)} />
         <div style={{ flex: 1 }} />
+        <button className="btn secondary sm" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('maintenance.create') && (
           <button className="btn sm" onClick={() => { setCreateForm(EMPTY_FORM); setFormError(''); setShowCreate(true); }}>{t('action.maint.add_record')}</button>
         )}
@@ -582,7 +584,7 @@ function FuelTab() {
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filterEquip, setFilterEquip] = useState('');
+  const [filterEquip, setFilterEquip] = usePersistedState('maint:fuel:equip', '');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ equipmentId: '', liters: '', cost: '', odometer: '', date: '', notes: '' });
@@ -657,6 +659,7 @@ function FuelTab() {
           {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
         </select>
         <div style={{ flex: 1 }} />
+        <button className="btn secondary sm" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('maintenance.create') && (
           <button className="btn sm" onClick={() => setShowCreate(true)}>{t('action.maint.add_fuel')}</button>
         )}
@@ -719,8 +722,8 @@ function BreakdownsTab() {
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filterEquip, setFilterEquip] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterEquip, setFilterEquip] = usePersistedState('maint:bd:equip', '');
+  const [filterStatus, setFilterStatus] = usePersistedState('maint:bd:status', '');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [resolving, setResolving] = useState<number | null>(null);
@@ -825,6 +828,7 @@ function BreakdownsTab() {
           <option value="RESOLVED">{t('opt.maint.breakdown_resolved')}</option>
         </select>
         <div style={{ flex: 1 }} />
+        <button className="btn secondary sm" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('maintenance.create') && (
           <button className="btn sm" onClick={() => setShowCreate(true)}>{t('action.maint.report_breakdown')}</button>
         )}
@@ -880,7 +884,7 @@ function SparePartsTab() {
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filterEquip, setFilterEquip] = useState('');
+  const [filterEquip, setFilterEquip] = usePersistedState('maint:spare:equip', '');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ equipmentId: '', partName: '', quantity: '', unitCost: '', date: '' });
@@ -953,6 +957,7 @@ function SparePartsTab() {
           {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
         </select>
         <div style={{ flex: 1 }} />
+        <button className="btn secondary sm" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('maintenance.create') && (
           <button className="btn sm" onClick={() => setShowCreate(true)}>{t('action.maint.add_spare_part')}</button>
         )}
