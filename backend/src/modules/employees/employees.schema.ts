@@ -55,6 +55,15 @@ export const leaveSchema = z.object({
   }),
 });
 
+export const updateAttendanceSchema = z.object({
+  body: z.object({
+    checkIn: z.coerce.date().optional(),
+    checkOut: z.coerce.date().optional(),
+    status: z.enum(['PRESENT', 'ABSENT', 'LATE', 'LEAVE']).optional(),
+    notes: z.string().optional(),
+  }),
+});
+
 export const adjustmentSchema = z.object({
   body: z.object({
     employeeId: z.coerce.number().int().positive(),
@@ -67,5 +76,6 @@ export const adjustmentSchema = z.object({
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>['body'];
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>['body'];
 export type AttendanceInput = z.infer<typeof attendanceSchema>['body'];
+export type UpdateAttendanceInput = z.infer<typeof updateAttendanceSchema>['body'];
 export type LeaveInput = z.infer<typeof leaveSchema>['body'];
 export type AdjustmentInput = z.infer<typeof adjustmentSchema>['body'];

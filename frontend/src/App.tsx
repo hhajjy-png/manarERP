@@ -21,6 +21,7 @@ import DataImport from './pages/DataImport';
 import AuditLog from './pages/AuditLog';
 import Maintenance from './pages/Maintenance';
 import Prices from './pages/Prices';
+import Attendance from './pages/Attendance';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/prices" element={<Prices />} />
+          <Route path="/attendance" element={<Attendance />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

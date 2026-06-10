@@ -303,6 +303,7 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'equipment',    label: 'nav.equipment',    icon: 'construction', permission: 'equipment.read' },
     { key: 'maintenance',  label: 'nav.maintenance',  icon: 'build_circle', permission: 'maintenance.read' },
     { key: 'employees',    label: 'nav.employees',    icon: 'badge',       permission: 'employees.read' },
+    { key: 'attendance',   label: 'nav.attendance',   icon: 'event_available', permission: 'attendance.read' },
   ] },
   { group: 'nav.group.financial', items: [
     { key: 'invoices', label: 'nav.invoices', icon: 'receipt_long', permission: 'invoices.read' },
