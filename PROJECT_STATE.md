@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `be46010` — Merge feature/ui-adoption-phase1 into production |
-| **Stable tag** | `stable-ui-adoption-phase1-v1` |
+| **HEAD** | `8875359` — Merge project prices Phase 1 and invoice custom fields into production |
+| **Stable tag** | `stable-project-prices-phase1-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,8 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Invoice Custom Type / Direction | `feature/prices-and-invoice-custom-fields` | `stable-project-prices-phase1-v1` | Custom free-text invoice types (نقل اسفلت / يومية / أخرى) and custom directions (SALES / PURCHASE / OTHER with free-text). i18n fix: direction column uses `t('opt.direction.sales')` / `t('opt.direction.purchase')` — hardcoded Arabic removed. |
+| Project Prices Phase 1 | `feature/prices-and-invoice-custom-fields` | `stable-project-prices-phase1-v1` | New `ProjectPrice` model + migration `20260610140000_add-project-prices`. Full backend module (routes/controller/service/schema). Frontend `Prices.tsx` page with CRUD + soft delete (`isArchived`). RBAC: `prices.read`, `prices.create`, `prices.update`, `prices.delete`. |
 | UI Adoption Phase 1 | `feature/ui-adoption-phase1` | `stable-ui-adoption-phase1-v1` | DESIGN.md created (814-line design system guide). Dashboard CSS: 5 `--db-*` color/radius vars migrated to global tokens (`var(--accent/green/amber/red/radius)`). ~35 hardcoded hex values replaced with `var(--db-*)` in pills, alerts, exec-chips, aw-widgets, kpi gradients. Topbar height corrected to 49px in dashboard. No schema or backend changes. |
 | Page-Level Improvements Phase 1 | `feature/page-level-improvements-phase1` | `stable-page-level-improvements-v1` | Frontend UX improvements: status/type filters on Customers, Employees, Equipment, Expenses; status+direction filters on Invoices; search+status filter on Cheques history; reset-filters button and row count on Reports; labeled actions column header in DataTable. No schema or backend changes. |
 | Cheques Print Output Phase | `feature/cheques-print-output-v1` | `stable-cheques-print-output-v1` | Gulf Bank cheque image background; 4 overlay fields (beneficiary, date, tafqeet, numeric amount); image hidden on print for real paper; pt font units; NaN-guarded tafqeet. Physical calibration deferred — blocked on real cheque paper dimensions. |
@@ -53,29 +55,29 @@ Priority order based on value vs. effort for this local internal ERP.
 
 ### 1. Audit Log Viewer (frontend page)
 
-The backend audit module is fully implemented — `GET /api/audit` exists, all mutations are logged.
-Missing: a frontend viewer page so operators can browse the audit trail.
+Backend fully implemented — `GET /api/audit` exists, all mutations are logged.
+Missing: a frontend viewer so operators can browse the audit trail.
 
-- Add `frontend/src/pages/AuditLog.tsx`
-- Register route in `App.tsx`
-- Add nav entry in `modules.tsx` under `nav.group.system` (gated by `audit.read`)
+- Add `frontend/src/pages/AuditLog.tsx` with filters (module, action, user, date range) and details modal
+- Register route in `App.tsx`, add nav entry in `modules.tsx` (gated by `audit.read`)
 - No backend changes required
 - Run `superpowers:brainstorming` before implementing
 
-### 2. Cheques Print Calibration (Phase 3 — deferred)
+### 2. Maintenance UI
 
-Print output phase complete. Screen preview shows cheque image with 4 overlaid fields.
-Only physical paper calibration remains.
+Backend maintenance module exists (`modules/maintenance/`) but frontend coverage is incomplete.
 
-- Add `@page { size: <W>mm <H>mm; margin: 0; }` with exact Gulf Bank cheque dimensions
-- Tune `top` / `left` / `width` percentages in `ChequePrintOutput` until text lands correctly on paper
-- **Blocked on**: access to actual bank cheque paper to measure and test against
-- Do NOT implement without real paper to verify alignment
+- Improve maintenance workflow consistency
+- Add missing UI elements for maintenance record management
+- Ensure equipment maintenance lifecycle is navigable from the frontend
 
-### 3. Small Operational Improvements
+### 3. API Rate Limiting (optional security hardening)
 
-Page-level polish on existing modules as issues are discovered during daily use.
-Examples: column widths, filter defaults, sort order, label clarity.
+Lightweight measure to protect the local Express API from accidental or malicious request flooding.
+
+- Express middleware (e.g., `express-rate-limit`) on sensitive endpoints
+- Low implementation cost, low risk
+- Not critical for offline-only desktop use but good hygiene
 
 ---
 
@@ -166,6 +168,18 @@ Examples:
 
 **Always choose the simplest maintainable solution.**
 
+### AI Model Routing Policy
+
+| Task Type | Model |
+|-----------|-------|
+| Routine implementation (CRUD, UI, fixes, i18n, builds) | Claude Sonnet 4.6 (default) |
+| Architecture decisions, large refactors, complex debugging | Claude Opus 4.8 (escalate only) |
+| Log summaries, doc extraction, quick searches | Claude Haiku 4.5 (utility only) |
+| Architecture / security audit | Gemini 3.1 Pro |
+| Project management / workflow | ChatGPT |
+
+Return to Sonnet 4.6 after any Opus escalation completes.
+
 ---
 
 ## Dev Port Policy
@@ -198,7 +212,8 @@ Examples:
 | Equipment | `modules/equipment/` | `ResourcePage` | Complete |
 | Maintenance | `modules/maintenance/` | — | Backend only — no frontend page |
 | Contracts | `modules/contracts/` | `ResourcePage` | Complete |
-| Invoices | `modules/invoices/` | `Invoices.tsx` | Complete |
+| Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields added |
+| Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete |
 | Suppliers | `modules/suppliers/` | `ResourcePage` | Complete |
 | Expenses | `modules/expenses/` | `ResourcePage` | Complete |
 | Transactions | `modules/transactions/` | `Accounting.tsx` | Complete |
@@ -279,4 +294,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-09 — UI Adoption Phase 1 released; baseline advanced to `be46010`.*
+*Last updated: 2026-06-10 — Project Prices Phase 1 + Invoice Custom Fields released; baseline advanced to `8875359`.*
