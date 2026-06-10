@@ -503,6 +503,9 @@ model Contract {
   endDate               DateTime?
   status                String    @default("ACTIVE") // ACTIVE | EXPIRED | RENEWING | SUSPENDED
   notes                 String?
+  unitName              String? // وحدة العقد (مثل: درب، طن، متر)
+  price                 Float?  // سعر الوحدة
+  companyName           String? // اسم الشركة المنفذة
 
   customerId Int? // الجهة المتعاقدة (اختياري)
   managerId  Int? // المسؤول عن العقد
