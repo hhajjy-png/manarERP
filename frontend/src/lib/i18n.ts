@@ -872,6 +872,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'perm.module.import': 'الاستيراد',
 
     'action.reset_filters': 'مسح التصفية',
+    'action.refresh': 'تحديث',
 
     // ── Audit Log Viewer ─────────────────────────────────────────────────────
     'nav.audit': 'سجل التدقيق',
@@ -1910,6 +1911,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'perm.module.import': 'Data Import',
 
     'action.reset_filters': 'Reset Filters',
+    'action.refresh': 'Refresh',
 
     // ── Audit Log Viewer ─────────────────────────────────────────────────────
     'nav.audit': 'Audit Log',

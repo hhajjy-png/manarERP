@@ -6,6 +6,7 @@ import DataTable from '../components/DataTable';
 import Modal from '../components/Modal';
 import StatCard from '../components/StatCard';
 import { dateText } from '../config/modules';
+import { usePersistedState } from '../hooks/usePersistedState';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -253,12 +254,12 @@ export default function Attendance() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Filters
-  const [search, setSearch] = useState('');
-  const [filterEmployee, setFilterEmployee] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
+  // Filters — persisted across navigation
+  const [search, setSearch] = usePersistedState('att:search', '');
+  const [filterEmployee, setFilterEmployee] = usePersistedState('att:employee', '');
+  const [filterStatus, setFilterStatus] = usePersistedState('att:status', '');
+  const [filterDateFrom, setFilterDateFrom] = usePersistedState('att:from', '');
+  const [filterDateTo, setFilterDateTo] = usePersistedState('att:to', '');
 
   // Modals
   const [showCreate, setShowCreate] = useState(false);
@@ -467,6 +468,7 @@ export default function Attendance() {
             {t('action.cancel')} ✕
           </button>
         )}
+        <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
       </div>
 
       {error && <div className="alert error" style={{ marginBottom: 12 }}>{error}</div>}

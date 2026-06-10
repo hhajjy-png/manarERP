@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api, getToken, setToken } from '../api/client';
+import { clearPersistedUIState } from '../hooks/usePersistedState';
 
 /** إرسال توكن الجلسة إلى Electron Main Process للتحقق منه عبر Backend مباشرة. */
 function syncElectronToken(token: string | null) {
@@ -50,6 +51,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     } catch {
       // نتجاهل أخطاء الخروج
     }
+    clearPersistedUIState();
     setToken(null);
     set({ user: null });
     syncElectronToken(null);

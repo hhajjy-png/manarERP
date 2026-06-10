@@ -5,6 +5,7 @@ import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
 import FormDialog from '../components/FormDialog';
+import { usePersistedState } from '../hooks/usePersistedState';
 
 export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const cfg = MODULES[moduleKey];
@@ -14,10 +15,10 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');
-  const [filterValue, setFilterValue] = useState('');
+  const [page, setPage] = usePersistedState(`rp:${cfg.key}:page`, 1);
+  const [search, setSearch] = usePersistedState(`rp:${cfg.key}:search`, '');
+  const [query, setQuery] = usePersistedState(`rp:${cfg.key}:query`, '');
+  const [filterValue, setFilterValue] = usePersistedState(`rp:${cfg.key}:filter`, '');
   const [error, setError] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
@@ -51,12 +52,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
 
   useEffect(() => { load(); }, [load]);
 
-  useEffect(() => {
-    setFilterValue('');
-    setSearch('');
-    setQuery('');
-    setPage(1);
-  }, [cfg.key]);
+  // State resets on module change are handled by usePersistedState key switching.
 
   // تنبيهات خاصة: دفاتر المركبات / مستندات الموظفين
   useEffect(() => {
@@ -156,6 +152,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
             ))}
           </select>
         )}
+        <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
       </form>
 
       <DataTable
