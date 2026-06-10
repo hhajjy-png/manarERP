@@ -70,10 +70,11 @@ function pill(label: string, cls: PillCls) {
   return <span className={`pill ${cls}`}>{label}</span>;
 }
 
-const maintenanceStatus: Record<string, [string, PillCls]> = {
-  SCHEDULED:   ['مجدولة',   'amber'],
+const maintenanceStatusMap: Record<string, [string, PillCls]> = {
+  SCHEDULED:   ['مجدولة',     'amber'],
   IN_PROGRESS: ['قيد التنفيذ', 'blue'],
-  COMPLETED:   ['مكتملة',   'green'],
+  COMPLETED:   ['مكتملة',     'green'],
+  CANCELLED:   ['ملغاة',      'gray'],
 };
 
 const maintenanceType: Record<string, string> = {
@@ -203,6 +204,77 @@ export default function Maintenance() {
 
 // ── سجلات الصيانة ─────────────────────────────────────────────────────────────
 
+const EMPTY_FORM = { equipmentId: '', type: 'PREVENTIVE', description: '', cost: '', performedBy: '', date: '', nextDueDate: '', status: 'COMPLETED' };
+
+function RecordForm({
+  id,
+  form,
+  setForm,
+  onSubmit,
+  saving,
+  equipmentList,
+  isEdit,
+}: {
+  id: string;
+  form: typeof EMPTY_FORM;
+  setForm: (f: typeof EMPTY_FORM) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  saving: boolean;
+  equipmentList: Equipment[];
+  isEdit: boolean;
+}) {
+  const { t } = useT();
+  return (
+    <form id={id} onSubmit={onSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      {!isEdit && (
+        <div style={{ gridColumn: '1/-1' }}>
+          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.equipment')} *</label>
+          <select style={inp} required value={form.equipmentId} onChange={(e) => setForm({ ...form, equipmentId: e.target.value })}>
+            <option value="">{t('field.select_equipment')}</option>
+            {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.name ? ` — ${eq.name}` : eq.type ? ` — ${eq.type}` : ''}</option>)}
+          </select>
+        </div>
+      )}
+      <div>
+        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.type')} *</label>
+        <select style={inp} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+          <option value="PREVENTIVE">{t('opt.maint.preventive')}</option>
+          <option value="CORRECTIVE">{t('opt.maint.corrective')}</option>
+        </select>
+      </div>
+      <div>
+        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.status')}</label>
+        <select style={inp} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+          <option value="SCHEDULED">{t('opt.maint.scheduled')}</option>
+          <option value="IN_PROGRESS">{t('opt.maint.in_progress')}</option>
+          <option value="COMPLETED">{t('opt.maint.completed')}</option>
+          <option value="CANCELLED">{t('opt.maint.cancelled')}</option>
+        </select>
+      </div>
+      <div style={{ gridColumn: '1/-1' }}>
+        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.description')} *</label>
+        <textarea style={{ ...inp, minHeight: 72, resize: 'vertical' }} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+      </div>
+      <div>
+        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.amount_kd')}</label>
+        <input style={inp} type="number" min="0" step="0.001" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
+      </div>
+      <div>
+        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.performed_by')}</label>
+        <input style={inp} value={form.performedBy} onChange={(e) => setForm({ ...form, performedBy: e.target.value })} />
+      </div>
+      <div>
+        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.date')}</label>
+        <input style={inp} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+      </div>
+      <div>
+        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.next_due')}</label>
+        <input style={inp} type="date" value={form.nextDueDate} onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })} />
+      </div>
+    </form>
+  );
+}
+
 function RecordsTab() {
   const { t } = useT();
   const { hasPermission } = useAuth();
@@ -210,28 +282,46 @@ function RecordsTab() {
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Filters
+  const [search, setSearch] = useState('');
   const [filterEquip, setFilterEquip] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterType, setFilterType] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+
+  // Modals
   const [showCreate, setShowCreate] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ equipmentId: '', type: 'PREVENTIVE', description: '', cost: '', performedBy: '', date: '', nextDueDate: '', status: 'COMPLETED' });
+  const [detailRecord, setDetailRecord] = useState<MaintenanceRecord | null>(null);
+  const [editRecord, setEditRecord] = useState<MaintenanceRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MaintenanceRecord | null>(null);
+
+  // Form state
+  const [createForm, setCreateForm] = useState(EMPTY_FORM);
+  const [editForm, setEditForm]     = useState(EMPTY_FORM);
+  const [saving, setSaving]         = useState(false);
+  const [deleting, setDeleting]     = useState(false);
+  const [formError, setFormError]   = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const params: Record<string, string> = { pageSize: '500' };
-      if (filterEquip) params.equipmentId = filterEquip;
+      const params: Record<string, string> = {};
+      if (filterEquip)    params.equipmentId = filterEquip;
+      if (filterStatus)   params.status      = filterStatus;
+      if (filterType)     params.type        = filterType;
+      if (filterDateFrom) params.dateFrom    = filterDateFrom;
+      if (filterDateTo)   params.dateTo      = filterDateTo;
       const res = await api.get('/maintenance/records', { params });
-      let data: MaintenanceRecord[] = res.data.data ?? [];
-      if (filterStatus) data = data.filter((r) => r.status === filterStatus);
-      setRows(data);
+      setRows(res.data.data ?? []);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [filterEquip, filterStatus]);
+  }, [filterEquip, filterStatus, filterType, filterDateFrom, filterDateTo]);
 
   useEffect(() => {
     load();
@@ -240,119 +330,243 @@ function RecordsTab() {
       .catch(() => {});
   }, [load]);
 
+  // Client-side text search (equipment code/name, description, performedBy)
+  const visible = search.trim()
+    ? rows.filter((r) => {
+        const q = search.trim().toLowerCase();
+        return (
+          (r.equipment?.code ?? '').toLowerCase().includes(q) ||
+          (r.equipment?.name ?? '').toLowerCase().includes(q) ||
+          r.description.toLowerCase().includes(q) ||
+          (r.performedBy ?? '').toLowerCase().includes(q)
+        );
+      })
+    : rows;
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setFormError('');
     try {
       const body: Record<string, unknown> = {
-        equipmentId: Number(form.equipmentId),
-        type: form.type,
-        description: form.description,
-        status: form.status,
+        equipmentId: Number(createForm.equipmentId),
+        type: createForm.type,
+        description: createForm.description,
+        status: createForm.status,
       };
-      if (form.cost)        body.cost = Number(form.cost);
-      if (form.performedBy) body.performedBy = form.performedBy;
-      if (form.date)        body.date = new Date(form.date).toISOString();
-      if (form.nextDueDate) body.nextDueDate = new Date(form.nextDueDate).toISOString();
+      if (createForm.cost)        body.cost = Number(createForm.cost);
+      if (createForm.performedBy) body.performedBy = createForm.performedBy;
+      if (createForm.date)        body.date = new Date(createForm.date).toISOString();
+      if (createForm.nextDueDate) body.nextDueDate = new Date(createForm.nextDueDate).toISOString();
       await api.post('/maintenance/records', body);
       setShowCreate(false);
-      setForm({ equipmentId: '', type: 'PREVENTIVE', description: '', cost: '', performedBy: '', date: '', nextDueDate: '', status: 'COMPLETED' });
+      setCreateForm(EMPTY_FORM);
       load();
     } catch (e) {
-      alert(errorMessage(e));
+      setFormError(errorMessage(e));
     } finally {
       setSaving(false);
     }
   }
 
+  function openEdit(r: MaintenanceRecord) {
+    setEditRecord(r);
+    setEditForm({
+      equipmentId: String(r.equipmentId),
+      type: r.type,
+      description: r.description,
+      cost: r.cost != null ? String(r.cost) : '',
+      performedBy: r.performedBy ?? '',
+      date: r.date ? r.date.slice(0, 10) : '',
+      nextDueDate: r.nextDueDate ? r.nextDueDate.slice(0, 10) : '',
+      status: r.status,
+    });
+    setFormError('');
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editRecord) return;
+    setSaving(true);
+    setFormError('');
+    try {
+      const body: Record<string, unknown> = {
+        type: editForm.type,
+        description: editForm.description,
+        status: editForm.status,
+      };
+      if (editForm.cost)        body.cost = Number(editForm.cost);
+      if (editForm.performedBy) body.performedBy = editForm.performedBy;
+      if (editForm.date)        body.date = new Date(editForm.date).toISOString();
+      body.nextDueDate = editForm.nextDueDate ? new Date(editForm.nextDueDate).toISOString() : null;
+      await api.patch(`/maintenance/records/${editRecord.id}`, body);
+      setEditRecord(null);
+      load();
+    } catch (e) {
+      setFormError(errorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/maintenance/records/${deleteTarget.id}`);
+      setDeleteTarget(null);
+      load();
+    } catch (e) {
+      setError(errorMessage(e));
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const columns = [
-    { key: 'equipment', label: 'col.equipment_no',    render: (r: MaintenanceRecord) => <strong style={{ fontFamily: 'monospace' }}>{r.equipment?.code ?? r.equipmentId}</strong> },
-    { key: 'type',      label: 'col.maint.type',      render: (r: MaintenanceRecord) => maintenanceType[r.type] ?? r.type },
-    { key: 'description', label: 'col.description',   render: (r: MaintenanceRecord) => <span style={{ maxWidth: 220, display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description}</span> },
-    { key: 'cost',      label: 'col.amount',           render: (r: MaintenanceRecord) => r.cost != null ? money(r.cost) : '—' },
-    { key: 'performedBy', label: 'col.maint.performed_by', render: (r: MaintenanceRecord) => r.performedBy ?? '—' },
-    { key: 'date',      label: 'col.date',             render: (r: MaintenanceRecord) => dateText(r.date) },
-    { key: 'nextDueDate', label: 'col.maint.next_due', render: (r: MaintenanceRecord) => r.nextDueDate ? dateText(r.nextDueDate) : '—' },
-    { key: 'status',    label: 'col.status',           render: (r: MaintenanceRecord) => statusBadge(maintenanceStatus, r.status) },
+    { key: 'equipment',   label: 'col.equipment_no',        render: (r: MaintenanceRecord) => (
+        <span>
+          <strong style={{ fontFamily: 'monospace' }}>{r.equipment?.code ?? r.equipmentId}</strong>
+          {r.equipment?.name ? <span style={{ color: 'var(--text-muted)', fontSize: 12, marginInlineStart: 6 }}>{r.equipment.name}</span> : null}
+        </span>
+      ) },
+    { key: 'type',        label: 'col.maint.type',           render: (r: MaintenanceRecord) => maintenanceType[r.type] ?? r.type },
+    { key: 'description', label: 'col.description',          render: (r: MaintenanceRecord) => <span style={{ maxWidth: 200, display: 'inline-block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description}</span> },
+    { key: 'cost',        label: 'col.amount',               render: (r: MaintenanceRecord) => r.cost != null ? money(r.cost) : '—' },
+    { key: 'performedBy', label: 'col.maint.performed_by',   render: (r: MaintenanceRecord) => r.performedBy ?? '—' },
+    { key: 'date',        label: 'col.date',                 render: (r: MaintenanceRecord) => dateText(r.date) },
+    { key: 'nextDueDate', label: 'col.maint.next_due',       render: (r: MaintenanceRecord) => r.nextDueDate ? dateText(r.nextDueDate) : '—' },
+    { key: 'status',      label: 'col.status',               render: (r: MaintenanceRecord) => statusBadge(maintenanceStatusMap, r.status) },
+    { key: 'actions',     label: 'col.actions',              render: (r: MaintenanceRecord) => (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn secondary sm" onClick={() => setDetailRecord(r)}>{t('action.maint.view_details')}</button>
+          {hasPermission('maintenance.update') && (
+            <button className="btn secondary sm" onClick={() => openEdit(r)}>{t('action.maint.edit')}</button>
+          )}
+          {hasPermission('maintenance.delete') && (
+            <button className="btn sm" style={{ background: 'var(--danger)', color: '#fff' }} onClick={() => setDeleteTarget(r)}>{t('action.maint.delete')}</button>
+          )}
+        </div>
+      ) },
   ];
 
   return (
     <div>
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
-        <select style={{ ...inp, width: 200 }} value={filterEquip} onChange={(e) => setFilterEquip(e.target.value)}>
+      {/* Filters + Search toolbar */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+        <input
+          style={{ ...inp, width: 200 }}
+          placeholder={t('search.placeholder')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select style={{ ...inp, width: 190 }} value={filterEquip} onChange={(e) => setFilterEquip(e.target.value)}>
           <option value="">{t('filter.all_equipment')}</option>
-          {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
+          {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.name ? ` — ${eq.name}` : eq.type ? ` — ${eq.type}` : ''}</option>)}
         </select>
-        <select style={{ ...inp, width: 180 }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+        <select style={{ ...inp, width: 150 }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+          <option value="">{t('filter.all_types')}</option>
+          <option value="PREVENTIVE">{t('opt.maint.preventive')}</option>
+          <option value="CORRECTIVE">{t('opt.maint.corrective')}</option>
+        </select>
+        <select style={{ ...inp, width: 160 }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
           <option value="">{t('filter.all_statuses')}</option>
           <option value="SCHEDULED">{t('opt.maint.scheduled')}</option>
           <option value="IN_PROGRESS">{t('opt.maint.in_progress')}</option>
           <option value="COMPLETED">{t('opt.maint.completed')}</option>
+          <option value="CANCELLED">{t('opt.maint.cancelled')}</option>
         </select>
+        <input style={{ ...inp, width: 150 }} type="date" title={t('filter.date_from')} value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+        <input style={{ ...inp, width: 150 }} type="date" title={t('filter.date_to')}   value={filterDateTo}   onChange={(e) => setFilterDateTo(e.target.value)} />
         <div style={{ flex: 1 }} />
         {hasPermission('maintenance.create') && (
-          <button className="btn sm" onClick={() => setShowCreate(true)}>{t('action.maint.add_record')}</button>
+          <button className="btn sm" onClick={() => { setCreateForm(EMPTY_FORM); setFormError(''); setShowCreate(true); }}>{t('action.maint.add_record')}</button>
         )}
       </div>
 
       {error && <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>}
 
-      <DataTable columns={columns} rows={rows} loading={loading} emptyText={t('empty.maint.records')} />
+      <DataTable columns={columns} rows={visible} loading={loading} emptyText={t('empty.maint.records')} />
 
+      {/* ── Create Modal ── */}
       {showCreate && (
         <Modal title={t('action.maint.add_record')} onClose={() => setShowCreate(false)}
           footer={
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn secondary sm" onClick={() => setShowCreate(false)}>{t('action.cancel')}</button>
-              <button className="btn sm" form="maint-record-form" type="submit" disabled={saving}>{saving ? '…' : t('action.save')}</button>
+              <button className="btn sm" form="maint-record-create" type="submit" disabled={saving}>{saving ? '…' : t('action.save')}</button>
             </div>
           }
         >
-          <form id="maint-record-form" onSubmit={handleCreate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          {formError && <p style={{ color: 'var(--danger)', marginBottom: 10, fontSize: 13 }}>{formError}</p>}
+          <RecordForm id="maint-record-create" form={createForm} setForm={setCreateForm} onSubmit={handleCreate} saving={saving} equipmentList={equipmentList} isEdit={false} />
+        </Modal>
+      )}
+
+      {/* ── Edit Modal ── */}
+      {editRecord && (
+        <Modal title={t('action.maint.edit')} onClose={() => setEditRecord(null)}
+          footer={
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn secondary sm" onClick={() => setEditRecord(null)}>{t('action.cancel')}</button>
+              <button className="btn sm" form="maint-record-edit" type="submit" disabled={saving}>{saving ? '…' : t('action.save')}</button>
+            </div>
+          }
+        >
+          {formError && <p style={{ color: 'var(--danger)', marginBottom: 10, fontSize: 13 }}>{formError}</p>}
+          <RecordForm id="maint-record-edit" form={editForm} setForm={setEditForm} onSubmit={handleEdit} saving={saving} equipmentList={equipmentList} isEdit />
+        </Modal>
+      )}
+
+      {/* ── Details Modal ── */}
+      {detailRecord && (
+        <Modal title={t('modal.maint.details_title')} onClose={() => setDetailRecord(null)}
+          footer={<div style={{ display: 'flex', justifyContent: 'flex-end' }}><button className="btn secondary sm" onClick={() => setDetailRecord(null)}>{t('action.cancel')}</button></div>}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px', fontSize: 14 }}>
+            {[
+              ['field.equipment',           detailRecord.equipment ? `${detailRecord.equipment.code}${detailRecord.equipment.name ? ' — ' + detailRecord.equipment.name : ''}` : String(detailRecord.equipmentId)],
+              ['field.maint.type',          maintenanceType[detailRecord.type] ?? detailRecord.type],
+              ['field.status',              statusBadge(maintenanceStatusMap, detailRecord.status)],
+              ['col.amount',                money(detailRecord.cost ?? 0)],
+              ['field.maint.performed_by',  detailRecord.performedBy ?? '—'],
+              ['field.date',                dateText(detailRecord.date)],
+              ['field.maint.next_due',      detailRecord.nextDueDate ? dateText(detailRecord.nextDueDate) : '—'],
+            ].map(([label, value]) => (
+              <div key={String(label)}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>{t(String(label))}</div>
+                <div style={{ fontWeight: 600 }}>{value}</div>
+              </div>
+            ))}
             <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.equipment')} *</label>
-              <select style={inp} required value={form.equipmentId} onChange={(e) => setForm({ ...form, equipmentId: e.target.value })}>
-                <option value="">{t('field.select_equipment')}</option>
-                {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
-              </select>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>{t('field.description')}</div>
+              <div style={{ whiteSpace: 'pre-wrap' }}>{detailRecord.description}</div>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.type')} *</label>
-              <select style={inp} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-                <option value="PREVENTIVE">{t('opt.maint.preventive')}</option>
-                <option value="CORRECTIVE">{t('opt.maint.corrective')}</option>
-              </select>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>{t('col.created_at')}</div>
+              <div>{dateText(detailRecord.createdAt)}</div>
             </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.status')}</label>
-              <select style={inp} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-                <option value="COMPLETED">{t('opt.maint.completed')}</option>
-                <option value="IN_PROGRESS">{t('opt.maint.in_progress')}</option>
-                <option value="SCHEDULED">{t('opt.maint.scheduled')}</option>
-              </select>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Delete Confirm Modal ── */}
+      {deleteTarget && (
+        <Modal title={t('action.maint.delete')} onClose={() => setDeleteTarget(null)}
+          footer={
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button className="btn secondary sm" onClick={() => setDeleteTarget(null)}>{t('action.cancel')}</button>
+              <button className="btn sm" style={{ background: 'var(--danger)', color: '#fff' }} onClick={handleDelete} disabled={deleting}>
+                {deleting ? '…' : t('action.maint.delete')}
+              </button>
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.description')} *</label>
-              <textarea style={{ ...inp, minHeight: 72, resize: 'vertical' }} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.amount_kd')}</label>
-              <input style={inp} type="number" min="0" step="0.001" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.performed_by')}</label>
-              <input style={inp} value={form.performedBy} onChange={(e) => setForm({ ...form, performedBy: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.date')}</label>
-              <input style={inp} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-            </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.next_due')}</label>
-              <input style={inp} type="date" value={form.nextDueDate} onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })} />
-            </div>
-          </form>
+          }
+        >
+          <p style={{ margin: 0 }}>{t('action.maint.confirm_delete')}</p>
+          <p style={{ margin: '8px 0 0', fontWeight: 600, color: 'var(--text-muted)', fontSize: 13 }}>
+            {deleteTarget.equipment?.code ?? deleteTarget.equipmentId} — {maintenanceType[deleteTarget.type] ?? deleteTarget.type} — {dateText(deleteTarget.date)}
+          </p>
         </Modal>
       )}
     </div>
@@ -412,7 +626,7 @@ function FuelTab() {
       setForm({ equipmentId: '', liters: '', cost: '', odometer: '', date: '', notes: '' });
       load();
     } catch (e) {
-      alert(errorMessage(e));
+      setError(errorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -548,7 +762,7 @@ function BreakdownsTab() {
       setForm({ equipmentId: '', description: '', severity: 'MEDIUM' });
       load();
     } catch (e) {
-      alert(errorMessage(e));
+      setError(errorMessage(e));
     } finally {
       setSaving(false);
     }
@@ -560,7 +774,7 @@ function BreakdownsTab() {
       await api.patch(`/maintenance/breakdowns/${id}/resolve`);
       load();
     } catch (e) {
-      alert(errorMessage(e));
+      setError(errorMessage(e));
     } finally {
       setResolving(null);
     }
@@ -709,7 +923,7 @@ function SparePartsTab() {
       setForm({ equipmentId: '', partName: '', quantity: '', unitCost: '', date: '' });
       load();
     } catch (e) {
-      alert(errorMessage(e));
+      setError(errorMessage(e));
     } finally {
       setSaving(false);
     }

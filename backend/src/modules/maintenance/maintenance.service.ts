@@ -7,6 +7,7 @@ import {
   CreateFuelInput,
   CreateMaintenanceInput,
   CreateSparePartInput,
+  UpdateMaintenanceInput,
 } from './maintenance.schema';
 
 async function assertEquipment(equipmentId: number) {
@@ -16,9 +17,19 @@ async function assertEquipment(equipmentId: number) {
 
 export class MaintenanceService {
   // ===== سجلات الصيانة =====
-  async listRecords(equipmentId?: number) {
+  async listRecords(filters: { equipmentId?: number; status?: string; type?: string; dateFrom?: Date; dateTo?: Date } = {}) {
+    const where: Record<string, unknown> = {};
+    if (filters.equipmentId) where.equipmentId = filters.equipmentId;
+    if (filters.status)      where.status = filters.status;
+    if (filters.type)        where.type = filters.type;
+    if (filters.dateFrom || filters.dateTo) {
+      where.date = {
+        ...(filters.dateFrom ? { gte: filters.dateFrom } : {}),
+        ...(filters.dateTo   ? { lte: filters.dateTo   } : {}),
+      };
+    }
     return prisma.maintenanceRecord.findMany({
-      where: equipmentId ? { equipmentId } : undefined,
+      where,
       orderBy: { date: 'desc' },
       include: { equipment: { select: { id: true, code: true, name: true } } },
     });
@@ -38,6 +49,22 @@ export class MaintenanceService {
     });
     await recordAudit({ req, action: 'CREATE', module: 'maintenance', entityId: record.id, newValue: { equipmentId: input.equipmentId, cost: input.cost } });
     return record;
+  }
+
+  async updateRecord(id: number, input: UpdateMaintenanceInput, req: Request) {
+    const old = await prisma.maintenanceRecord.findUnique({ where: { id } });
+    if (!old) throw AppError.notFound('سجل الصيانة غير موجود');
+    const record = await prisma.maintenanceRecord.update({ where: { id }, data: input });
+    await recordAudit({ req, action: 'UPDATE', module: 'maintenance', entityId: id, oldValue: old, newValue: input });
+    return record;
+  }
+
+  async deleteRecord(id: number, req: Request) {
+    const old = await prisma.maintenanceRecord.findUnique({ where: { id } });
+    if (!old) throw AppError.notFound('سجل الصيانة غير موجود');
+    await prisma.maintenanceRecord.delete({ where: { id } });
+    await recordAudit({ req, action: 'DELETE', module: 'maintenance', entityId: id, oldValue: old });
+    return { deleted: true };
   }
 
   /** تنبيهات الصيانة الدورية المستحقة خلال عدد أيام. */

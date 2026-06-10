@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
 
+const maintenanceStatus = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
+
 export const createMaintenanceSchema = z.object({
   body: z.object({
     equipmentId: z.coerce.number().int().positive('المعدة مطلوبة'),
@@ -10,7 +12,19 @@ export const createMaintenanceSchema = z.object({
     performedBy: z.string().optional(),
     date: z.coerce.date(),
     nextDueDate: z.coerce.date().optional(),
-    status: z.enum(['SCHEDULED', 'IN_PROGRESS', 'COMPLETED']).default('COMPLETED'),
+    status: z.enum(maintenanceStatus).default('COMPLETED'),
+  }),
+});
+
+export const updateMaintenanceSchema = z.object({
+  body: z.object({
+    type: z.enum(ENUMS.maintenanceType).optional(),
+    description: z.string().min(1).optional(),
+    cost: z.coerce.number().nonnegative().optional(),
+    performedBy: z.string().optional(),
+    date: z.coerce.date().optional(),
+    nextDueDate: z.coerce.date().nullable().optional(),
+    status: z.enum(maintenanceStatus).optional(),
   }),
 });
 
@@ -44,6 +58,7 @@ export const createSparePartSchema = z.object({
 });
 
 export type CreateMaintenanceInput = z.infer<typeof createMaintenanceSchema>['body'];
+export type UpdateMaintenanceInput = z.infer<typeof updateMaintenanceSchema>['body'];
 export type CreateFuelInput = z.infer<typeof createFuelSchema>['body'];
 export type CreateBreakdownInput = z.infer<typeof createBreakdownSchema>['body'];
 export type CreateSparePartInput = z.infer<typeof createSparePartSchema>['body'];

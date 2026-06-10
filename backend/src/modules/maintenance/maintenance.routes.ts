@@ -9,17 +9,22 @@ import {
   createFuelSchema,
   createMaintenanceSchema,
   createSparePartSchema,
+  updateMaintenanceSchema,
 } from './maintenance.schema';
 
 const router = Router();
 router.use(authenticate);
 
-const canRead = requirePermission('maintenance.read', 'equipment.read');
-const canWrite = requirePermission('maintenance.create', 'equipment.update');
+const canRead   = requirePermission('maintenance.read', 'equipment.read');
+const canWrite  = requirePermission('maintenance.create', 'equipment.update');
+const canUpdate = requirePermission('maintenance.update');
+const canDelete = requirePermission('maintenance.delete');
 
 // سجلات الصيانة + تنبيهات الصيانة الدورية
-router.get('/records', canRead, asyncHandler(maintenanceController.listRecords));
-router.post('/records', canWrite, validate(createMaintenanceSchema), asyncHandler(maintenanceController.createRecord));
+router.get('/records',     canRead,   asyncHandler(maintenanceController.listRecords));
+router.post('/records',    canWrite,  validate(createMaintenanceSchema),  asyncHandler(maintenanceController.createRecord));
+router.patch('/records/:id', canUpdate, validate(updateMaintenanceSchema), asyncHandler(maintenanceController.updateRecord));
+router.delete('/records/:id', canDelete, asyncHandler(maintenanceController.deleteRecord));
 router.get('/due', canRead, asyncHandler(maintenanceController.due));
 
 // الوقود
