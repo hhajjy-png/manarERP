@@ -1,0 +1,470 @@
+/* ================================================================
+   stitch-full.css — Stitch Full UI Theme Override Layer
+   Branch: feature/stitch-full-ui-rewrite (EXPERIMENT ONLY)
+
+   Activated by .stitch-full-theme class on .app
+   All overrides are scoped — removing this class reverts fully.
+
+   Dependencies:
+   - @fontsource/cairo (self-hosted, imported in main.tsx)
+   - material-symbols/outlined.css (self-hosted, imported in main.tsx)
+   - theme.css (must be imported after fonts)
+   No CDN. No external links. Fully offline-capable.
+   ================================================================ */
+
+/* ================================================================
+   MATERIAL SYMBOLS — Icon size & variation settings for nav
+   Font-family and base class are defined by material-symbols/outlined.css
+   ================================================================ */
+
+.stitch-full-theme .nav a .ic {
+  font-size: 20px;
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.stitch-full-theme .nav a.active .ic {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ================================================================
+   TOPBAR — Light glass (overrides layout-polish.css dark topbar)
+   ================================================================ */
+
+.stitch-full-theme .topbar {
+  height: 70px !important;
+  padding: 0 28px !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: 0 1px 0 var(--border);
+}
+
+html[data-theme="dark"] .stitch-full-theme .topbar {
+  background: rgba(15, 23, 42, 0.95) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.stitch-full-theme .topbar .icon-btn {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 10px !important;
+  font-size: 16px !important;
+}
+
+.stitch-full-theme .topbar .avatar {
+  width: 38px !important;
+  height: 38px !important;
+  font-size: 16px !important;
+}
+
+.stitch-full-theme .topbar .search input {
+  padding: 9px 40px 9px 14px !important;
+  font-size: 14px !important;
+}
+
+/* Compensate content for restored topbar height */
+.stitch-full-theme .db-page {
+  min-height: calc(100vh - 70px) !important;
+}
+
+/* ================================================================
+   SIDEBAR — Light surface (overrides dark navy)
+   ================================================================ */
+
+.stitch-full-theme .sidebar {
+  background: var(--surface) !important;
+  border-inline-end: 1px solid var(--border);
+  box-shadow: var(--shadow-sm) !important;
+}
+
+.stitch-full-theme .sidebar .brand {
+  border-bottom-color: var(--border) !important;
+}
+
+.stitch-full-theme .sidebar .brand h1 {
+  color: var(--text) !important;
+}
+
+.stitch-full-theme .sidebar .brand span {
+  color: var(--text-muted) !important;
+}
+
+.stitch-full-theme .sidebar .brand .logo {
+  background: var(--accent) !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+}
+
+.stitch-full-theme .sidebar .nav .group {
+  color: var(--text-muted) !important;
+}
+
+.stitch-full-theme .sidebar .nav a {
+  color: var(--text) !important;
+}
+
+.stitch-full-theme .sidebar .nav a:not(.active):hover {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  transform: translateX(-4px);
+}
+
+html[dir="ltr"] .stitch-full-theme .sidebar .nav a:not(.active):hover {
+  transform: translateX(4px);
+}
+
+.stitch-full-theme .sidebar .nav a.active {
+  background: rgba(59, 130, 246, 0.1) !important;
+  color: var(--accent) !important;
+  font-weight: 700 !important;
+  border-inline-end: 3px solid var(--accent) !important;
+  padding-inline-end: 11px !important;
+  box-shadow: none !important;
+  background: linear-gradient(
+    to inline-start,
+    rgba(59, 130, 246, 0.08),
+    rgba(59, 130, 246, 0.12)
+  ) !important;
+}
+
+.stitch-full-theme .sidebar .nav a.active .ic {
+  color: var(--accent);
+}
+
+.stitch-full-theme .sidebar .nav a.active:hover {
+  background: rgba(59, 130, 246, 0.14) !important;
+  transform: none !important;
+}
+
+/* scrollbar in light sidebar */
+.stitch-full-theme .sidebar .nav::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ================================================================
+   DASHBOARD — Light theme override (neutralizes .db-page dark vars)
+   ================================================================ */
+
+.stitch-full-theme .db-page {
+  --db-bg: var(--bg);
+  --db-card: var(--surface);
+  --db-inner: rgba(0, 0, 0, 0.03);
+  --db-text: var(--text);
+  --db-muted: var(--text-muted);
+  --db-border: var(--border);
+  --db-shadow: var(--shadow);
+
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+/* Skeleton shimmer — light variant */
+.stitch-full-theme .db-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    rgba(148, 163, 184, 0.25) 50%,
+    var(--surface-2) 75%
+  ) !important;
+  background-size: 1200px 100% !important;
+}
+
+/* Executive Header */
+.stitch-full-theme .db-exec-header {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-top: 3px solid var(--accent) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.stitch-full-theme .db-exec-greeting {
+  color: var(--text) !important;
+}
+
+.stitch-full-theme .db-exec-date {
+  color: var(--text-muted) !important;
+}
+
+.stitch-full-theme .db-exec-system-label {
+  color: var(--text-muted) !important;
+}
+
+.stitch-full-theme .db-exec-topbar {
+  border-bottom-color: var(--border) !important;
+}
+
+/* Hero Metrics strip */
+.stitch-full-theme .db-exec-hero-metrics {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
+
+.stitch-full-theme .db-exec-hm-label {
+  color: var(--text-muted) !important;
+}
+
+.stitch-full-theme .db-exec-hm-sep {
+  background: var(--border) !important;
+}
+
+/* Chips */
+.stitch-full-theme .db-exec-chip {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+/* KPI cards — actual class is .db-kpi (hardcoded rgba bg in dashboard.css) */
+.stitch-full-theme .db-kpi {
+  background: var(--surface) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.stitch-full-theme .db-kpi:hover {
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.stitch-full-theme .db-kpi-label {
+  color: var(--text-muted) !important;
+}
+
+.stitch-full-theme .db-kpi-val {
+  color: var(--text) !important;
+}
+
+.stitch-full-theme .db-kpi-sub {
+  color: var(--text-muted) !important;
+}
+
+/* Stat cards — actual class is .db-stat (uses var(--db-card), already overridden via token) */
+.stitch-full-theme .db-stat {
+  box-shadow: var(--shadow) !important;
+}
+
+.stitch-full-theme .db-stat-label {
+  color: var(--text-muted) !important;
+}
+
+.stitch-full-theme .db-stat-val {
+  color: var(--text) !important;
+}
+
+.stitch-full-theme .db-stat-sub {
+  color: var(--text-muted) !important;
+}
+
+/* Generic card shell — actual class is .db-card (hardcoded rgba bg in dashboard.css) */
+.stitch-full-theme .db-card {
+  background: var(--surface) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.stitch-full-theme .db-card:hover {
+  box-shadow: var(--shadow-lg) !important;
+}
+
+.stitch-full-theme .db-card-head {
+  background: var(--surface-2) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+.stitch-full-theme .db-card-head h3 {
+  color: var(--text) !important;
+}
+
+.stitch-full-theme .db-card-head p {
+  color: var(--text-muted) !important;
+}
+
+/* Alert widgets — actual class is .db-aw (hardcoded rgba bg in dashboard.css) */
+.stitch-full-theme .db-aw {
+  background: var(--surface) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border-color: var(--border) !important;
+}
+
+.stitch-full-theme .db-aw.aw-critical {
+  background: rgba(239, 68, 68, 0.06) !important;
+}
+
+.stitch-full-theme .db-aw.aw-warning {
+  background: rgba(245, 158, 11, 0.06) !important;
+}
+
+.stitch-full-theme .db-aw.aw-safe {
+  background: rgba(16, 185, 129, 0.06) !important;
+}
+
+/* Alert list items (uses var(--db-inner) — already overridden via token) */
+.stitch-full-theme .db-alert-item {
+  border-color: var(--border) !important;
+}
+
+.stitch-full-theme .db-alert-title {
+  color: var(--text) !important;
+}
+
+/* Quick actions bar (hardcoded transparent in dashboard.css) */
+.stitch-full-theme .db-actions {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+}
+
+/* Zebra rows and scrollbar in light mode */
+.stitch-full-theme .db-table tbody tr:nth-child(even) td {
+  background: rgba(0, 0, 0, 0.015) !important;
+}
+
+.stitch-full-theme .db-card-body.scrollable::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Tables inside dashboard */
+.stitch-full-theme .db-table-wrap {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.stitch-full-theme .db-table thead th {
+  background: var(--surface-2) !important;
+  color: var(--text-muted) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+.stitch-full-theme .db-table tbody td {
+  color: var(--text) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+.stitch-full-theme .db-table tbody tr:hover td {
+  background: var(--surface-hover) !important;
+}
+
+/* Dashboard header */
+.stitch-full-theme .db-header h2 {
+  color: var(--text) !important;
+}
+
+.stitch-full-theme .db-header-sub {
+  color: var(--text-muted) !important;
+}
+
+/* Operations cards */
+.stitch-full-theme .db-ops-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: var(--shadow) !important;
+}
+
+.stitch-full-theme .db-ops-label {
+  color: var(--text-muted) !important;
+}
+
+.stitch-full-theme .db-ops-value {
+  color: var(--text) !important;
+}
+
+/* Attendance cards */
+.stitch-full-theme .db-attendance-card {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* Quick action buttons */
+.stitch-full-theme .db-action-btn {
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+}
+
+.stitch-full-theme .db-action-btn:not(.primary):not(.green):not(.purple):not(.amber) {
+  background: var(--surface-2) !important;
+}
+
+/* Section labels */
+.stitch-full-theme .db-exec-section-label {
+  color: var(--text-muted) !important;
+}
+
+/* Refresh button */
+.stitch-full-theme .db-refresh-btn {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+.stitch-full-theme .db-refresh-time {
+  color: var(--text-muted) !important;
+}
+
+/* ================================================================
+   GLASS CARDS — Stitch "soft premium" effect on hovered cards
+   ================================================================ */
+
+.stitch-full-theme .card:hover {
+  box-shadow: var(--shadow-lg) !important;
+}
+
+/* ================================================================
+   CONTENT AREA — Ensure proper background in light mode
+   ================================================================ */
+
+.stitch-full-theme .content {
+  background: var(--bg);
+}
+
+/* ================================================================
+   DARK MODE CORRECTIONS
+   When dark mode + stitch-full-theme, revert sidebar to dark
+   (Stitch light sidebar is light-mode only)
+   ================================================================ */
+
+html[data-theme="dark"] .stitch-full-theme .sidebar {
+  background: var(--primary) !important;
+  border-inline-end: none !important;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.05) !important;
+}
+
+html[data-theme="dark"] .stitch-full-theme .sidebar .brand {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html[data-theme="dark"] .stitch-full-theme .sidebar .brand h1 {
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .stitch-full-theme .sidebar .brand span {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] .stitch-full-theme .sidebar .nav a {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .stitch-full-theme .sidebar .nav a:not(.active):hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .stitch-full-theme .sidebar .nav a.active {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-inline-end: none !important;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+}
+
+html[data-theme="dark"] .stitch-full-theme .sidebar .nav .group {
+  color: #64748b !important;
+}
+
+html[data-theme="dark"] .stitch-full-theme .sidebar .nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1) !important;
+}

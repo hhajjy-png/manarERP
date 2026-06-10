@@ -287,33 +287,34 @@ export const MODULES: Record<string, ModuleConfig> = {
 };
 
 // ترتيب القائمة الجانبية — label/group values are i18n keys resolved in Layout.tsx
+// icon values = Material Symbols Outlined names (rendered as <span class="material-symbols-outlined ic">)
 export const NAV: { group: string; items: { key: string; label: string; icon: string; permission?: string }[] }[] = [
-  { group: '', items: [{ key: 'dashboard', label: 'nav.dashboard', icon: '📊' }] },
+  { group: '', items: [{ key: 'dashboard', label: 'nav.dashboard', icon: 'dashboard' }] },
   { group: 'nav.group.core', items: [
-    { key: 'contracts', label: 'nav.contracts', icon: '📄', permission: 'contracts.read' },
-    { key: 'customers', label: 'nav.customers', icon: '👥', permission: 'customers.read' },
-    { key: 'equipment', label: 'nav.equipment', icon: '🚜', permission: 'equipment.read' },
-    { key: 'employees', label: 'nav.employees', icon: '👷', permission: 'employees.read' },
+    { key: 'contracts', label: 'nav.contracts', icon: 'description', permission: 'contracts.read' },
+    { key: 'customers', label: 'nav.customers', icon: 'groups', permission: 'customers.read' },
+    { key: 'equipment', label: 'nav.equipment', icon: 'construction', permission: 'equipment.read' },
+    { key: 'employees', label: 'nav.employees', icon: 'badge', permission: 'employees.read' },
   ] },
   { group: 'nav.group.financial', items: [
-    { key: 'invoices', label: 'nav.invoices', icon: '🧾', permission: 'invoices.read' },
-    { key: 'expenses', label: 'nav.expenses', icon: '💸', permission: 'expenses.read' },
-    { key: 'cheques', label: 'nav.cheques', icon: '🖊️', permission: 'cheques.read' },
-    { key: 'salaries', label: 'nav.salaries', icon: '💵', permission: 'payroll.read' },
-    { key: 'suppliers', label: 'nav.suppliers', icon: '📦', permission: 'suppliers.read' },
-    { key: 'accounting', label: 'nav.accounting', icon: '📒', permission: 'transactions.read' },
+    { key: 'invoices', label: 'nav.invoices', icon: 'receipt_long', permission: 'invoices.read' },
+    { key: 'expenses', label: 'nav.expenses', icon: 'payments', permission: 'expenses.read' },
+    { key: 'cheques', label: 'nav.cheques', icon: 'edit_note', permission: 'cheques.read' },
+    { key: 'salaries', label: 'nav.salaries', icon: 'account_balance_wallet', permission: 'payroll.read' },
+    { key: 'suppliers', label: 'nav.suppliers', icon: 'inventory_2', permission: 'suppliers.read' },
+    { key: 'accounting', label: 'nav.accounting', icon: 'account_balance', permission: 'transactions.read' },
   ] },
   { group: 'nav.group.warehouse', items: [
-    { key: 'inventory', label: 'nav.inventory', icon: '🏭', permission: 'inventory.read' },
+    { key: 'inventory', label: 'nav.inventory', icon: 'warehouse', permission: 'inventory.read' },
   ] },
   { group: 'nav.group.system', items: [
-    { key: 'reports', label: 'nav.reports', icon: '📈', permission: 'reports.read' },
-    { key: 'users', label: 'nav.users', icon: '🔐', permission: 'users.read' },
-    { key: 'audit', label: 'nav.audit', icon: '📋', permission: 'audit.read' },
-    { key: 'backup', label: 'nav.backup', icon: '💾', permission: 'backups.read' },
-    { key: 'settings', label: 'nav.settings', icon: '⚙️', permission: 'settings.read' },
+    { key: 'reports', label: 'nav.reports', icon: 'analytics', permission: 'reports.read' },
+    { key: 'users', label: 'nav.users', icon: 'manage_accounts', permission: 'users.read' },
+    { key: 'audit', label: 'nav.audit', icon: 'history', permission: 'audit.read' },
+    { key: 'backup', label: 'nav.backup', icon: 'backup', permission: 'backups.read' },
+    { key: 'settings', label: 'nav.settings', icon: 'settings', permission: 'settings.read' },
   ] },
   { group: 'nav.group.tools', items: [
-    { key: 'import', label: 'nav.import', icon: '📥', permission: 'import.read' },
+    { key: 'import', label: 'nav.import', icon: 'upload', permission: 'import.read' },
   ] },
 ];
