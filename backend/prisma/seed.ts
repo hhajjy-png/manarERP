@@ -55,6 +55,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   inventory: ['read', 'create', 'update', 'delete', 'export', 'approve', 'cancel'],
   cheques: ['read', 'create', 'update', 'print', 'cancel'],
   import: ['read', 'create'],
+  prices: ['read', 'create', 'update', 'delete'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -122,9 +123,10 @@ async function main() {
       'payroll.payslip',
       'inventory.read',
       'inventory.export',
+      'prices.read',
     ],
     PROJECT_MANAGER: [
-      ...keysForModules(['contracts', 'reports']),
+      ...keysForModules(['contracts', 'prices', 'reports']),
       ...readOnly(['dashboard', 'customers', 'equipment', 'invoices', 'expenses', 'suppliers']),
       'inventory.read',
     ],
@@ -144,7 +146,7 @@ async function main() {
       'import.read',
       'import.create',
     ],
-    STANDARD_USER: readOnly(['dashboard', 'customers', 'contracts', 'equipment']),
+    STANDARD_USER: readOnly(['dashboard', 'customers', 'contracts', 'equipment', 'prices']),
   };
 
   // 3) إنشاء الأدوار + ربط الصلاحيات

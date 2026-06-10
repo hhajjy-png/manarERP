@@ -15,8 +15,8 @@ export const createInvoiceSchema = z.object({
     .object({
       invoiceNumber: invoiceNumberSchema,
       number: z.string().min(1).optional(),
-      direction: z.enum(ENUMS.invoiceDirection).default('SALES'),
-      invoiceType: z.enum(ENUMS.invoiceType).default('نقل اسفلت'),
+      direction: z.string().min(1, 'الاتجاه مطلوب').default('SALES'),
+      invoiceType: z.string().min(1, 'نوع الفاتورة مطلوب').default('نقل اسفلت'),
       customerId: z.coerce.number().int().positive().optional(),
       supplierId: z.coerce.number().int().positive().optional(),
       contractId: z.coerce.number().int().positive().optional(),
@@ -27,17 +27,25 @@ export const createInvoiceSchema = z.object({
       notes: z.string().optional(),
       items: z.array(itemSchema).min(1, 'يجب إضافة بند واحد على الأقل'),
     })
-    .refine((d) => (d.direction === 'SALES' ? !!d.customerId : !!d.supplierId), {
-      message: 'فاتورة المبيعات تتطلب عميلًا وفاتورة المشتريات تتطلب مورّدًا',
-      path: ['customerId'],
-    }),
+    .refine(
+      (d) => {
+        if (d.direction === 'SALES') return !!d.customerId;
+        if (d.direction === 'PURCHASE') return !!d.supplierId;
+        // custom direction — requires either a customer or supplier
+        return !!d.customerId || !!d.supplierId;
+      },
+      {
+        message: 'فاتورة المبيعات تتطلب عميلًا، فاتورة المشتريات تتطلب مورّدًا، والاتجاه المخصص يتطلب أحدهما',
+        path: ['customerId'],
+      },
+    ),
 });
 
 export const updateInvoiceSchema = z.object({
   body: z.object({
     invoiceNumber: invoiceNumberSchema.optional(),
     contractId: z.coerce.number().int().positive().nullable().optional(),
-    invoiceType: z.enum(ENUMS.invoiceType).optional(),
+    invoiceType: z.string().min(1).optional(),
     issueDate: z.coerce.date().optional(),
     dueDate: z.coerce.date().optional(),
     taxRate: z.coerce.number().min(0).max(100).optional(),

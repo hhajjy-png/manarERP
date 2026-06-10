@@ -11,7 +11,7 @@ const statusPill: Record<string, [string, string]> = {
   OVERDUE: ['inv.status.overdue', 'red'], CANCELLED: ['inv.status.cancelled', 'gray'],
 };
 
-const invoiceTypes = ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت'] as const;
+const invoiceTypes = ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت', 'أخرى'] as const;
 const units = ['طن', 'درب', 'يومية'] as const;
 const invoicePrefix = 'MN-INV-2026-';
 
@@ -60,7 +60,11 @@ export default function Invoices() {
   const columns = [
     { key: 'invoiceNumber', label: 'col.inv.number', render: (r: Record<string, unknown>) => <strong style={{ fontFamily: 'monospace' }}>{String(r.invoiceNumber ?? r.number)}</strong> },
     { key: 'invoiceType', label: 'col.inv.type', render: (r: Record<string, unknown>) => String(r.invoiceType ?? '—') },
-    { key: 'direction', label: 'col.inv.direction', render: (r: Record<string, unknown>) => (r.direction === 'SALES' ? 'مبيعات' : 'مشتريات') },
+    { key: 'direction', label: 'col.inv.direction', render: (r: Record<string, unknown>) => {
+      if (r.direction === 'SALES') return t('opt.direction.sales');
+      if (r.direction === 'PURCHASE') return t('opt.direction.purchase');
+      return String(r.direction ?? '—');
+    } },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { key: 'party', label: 'col.inv.party', render: (r: any) => r.customer?.name ?? r.supplier?.name ?? '—' },
     { key: 'issueDate', label: 'col.date', render: (r: Record<string, unknown>) => dateText(r.issueDate) },
@@ -144,8 +148,12 @@ export default function Invoices() {
 function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
   const [invoiceNumberSuffix, setInvoiceNumberSuffix] = useState('');
-  const [direction, setDirection] = useState('SALES');
-  const [invoiceType, setInvoiceType] = useState<(typeof invoiceTypes)[number]>('نقل اسفلت');
+  const [directionChoice, setDirectionChoice] = useState('SALES'); // SALES | PURCHASE | OTHER
+  const [customDirection, setCustomDirection] = useState('');
+  const [invoiceTypeChoice, setInvoiceTypeChoice] = useState<(typeof invoiceTypes)[number]>('نقل اسفلت');
+  const [customInvoiceType, setCustomInvoiceType] = useState('');
+  // for custom direction: which party type to link
+  const [customPartyType, setCustomPartyType] = useState<'SALES' | 'PURCHASE'>('SALES');
   const [partyId, setPartyId] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [parties, setParties] = useState<any[]>([]);
@@ -154,14 +162,22 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // resolve the effective party source for fetching the list
+  const effectivePartySource = directionChoice === 'OTHER' ? customPartyType : directionChoice;
+
   useEffect(() => {
     (async () => {
-      const ep = direction === 'SALES' ? '/customers' : '/suppliers';
+      const ep = effectivePartySource === 'SALES' ? '/customers' : '/suppliers';
       const res = await api.get(ep, { params: { pageSize: 200 } });
       setParties(res.data.data.data ?? []);
       setPartyId('');
     })();
-  }, [direction]);
+  }, [effectivePartySource]);
+
+  // reset party when switching party type inside OTHER
+  useEffect(() => {
+    if (directionChoice === 'OTHER') setPartyId('');
+  }, [customPartyType, directionChoice]);
 
   const lineTotal = (it: Item) => Number(it.quantity) * Number(it.unitPrice);
   const subtotal = items.reduce((s, it) => s + lineTotal(it), 0);
@@ -175,19 +191,27 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     setError('');
     const invoiceNumber = `${invoicePrefix}${invoiceNumberSuffix.trim()}`;
     if (!invoiceNumberSuffix.trim()) { setError(t('error.inv_number_required')); return; }
-    if (!partyId) { setError(direction === 'SALES' ? t('error.select_customer') : t('error.select_supplier')); return; }
+
+    const resolvedDirection = directionChoice === 'OTHER' ? customDirection.trim() : directionChoice;
+    if (directionChoice === 'OTHER' && !customDirection.trim()) { setError(t('error.custom_direction_required')); return; }
+
+    const resolvedInvoiceType = invoiceTypeChoice === 'أخرى' ? customInvoiceType.trim() : invoiceTypeChoice;
+    if (invoiceTypeChoice === 'أخرى' && !customInvoiceType.trim()) { setError(t('error.custom_invoice_type_required')); return; }
+
+    if (!partyId) { setError(effectivePartySource === 'SALES' ? t('error.select_customer') : t('error.select_supplier')); return; }
     if (items.some((it) => !it.description)) { setError(t('error.item_desc_required')); return; }
     if (items.some((it) => !it.unit)) { setError(t('error.select_unit')); return; }
     if (items.some((it) => Number(it.quantity) <= 0)) { setError(t('error.qty_positive')); return; }
     if (items.some((it) => Number(it.unitPrice) < 0)) { setError(t('error.price_negative')); return; }
+
     setSaving(true);
     try {
       await api.post('/invoices', {
         invoiceNumber,
-        direction,
-        invoiceType,
-        customerId: direction === 'SALES' ? Number(partyId) : undefined,
-        supplierId: direction === 'PURCHASE' ? Number(partyId) : undefined,
+        direction: resolvedDirection,
+        invoiceType: resolvedInvoiceType,
+        customerId: effectivePartySource === 'SALES' ? Number(partyId) : undefined,
+        supplierId: effectivePartySource === 'PURCHASE' ? Number(partyId) : undefined,
         discount: Number(discount),
         items,
       });
@@ -223,19 +247,51 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         </div>
         <div className="field">
           <label>{t('col.inv.type')}</label>
-          <select value={invoiceType} onChange={(e) => setInvoiceType(e.target.value as (typeof invoiceTypes)[number])}>
+          <select value={invoiceTypeChoice} onChange={(e) => setInvoiceTypeChoice(e.target.value as (typeof invoiceTypes)[number])}>
             {invoiceTypes.map((type) => <option key={type} value={type}>{type}</option>)}
           </select>
         </div>
+        {invoiceTypeChoice === 'أخرى' && (
+          <div className="field">
+            <label>{t('field.inv.custom_type')} *</label>
+            <input
+              value={customInvoiceType}
+              onChange={(e) => setCustomInvoiceType(e.target.value)}
+              placeholder={t('ph.inv.custom_type')}
+              style={inp}
+            />
+          </div>
+        )}
         <div className="field">
           <label>{t('col.inv.direction')}</label>
-          <select value={direction} onChange={(e) => setDirection(e.target.value)}>
+          <select value={directionChoice} onChange={(e) => { setDirectionChoice(e.target.value); setPartyId(''); }}>
             <option value="SALES">{t('opt.direction.sales_full')}</option>
             <option value="PURCHASE">{t('opt.direction.purchase_full')}</option>
+            <option value="OTHER">{t('opt.direction.other')}</option>
           </select>
         </div>
+        {directionChoice === 'OTHER' && (
+          <>
+            <div className="field">
+              <label>{t('field.inv.custom_direction')} *</label>
+              <input
+                value={customDirection}
+                onChange={(e) => setCustomDirection(e.target.value)}
+                placeholder={t('ph.inv.custom_direction')}
+                style={inp}
+              />
+            </div>
+            <div className="field">
+              <label>{t('field.inv.party_type')}</label>
+              <select value={customPartyType} onChange={(e) => setCustomPartyType(e.target.value as 'SALES' | 'PURCHASE')} title={t('field.inv.party_type')}>
+                <option value="SALES">{t('opt.direction.sales_full')}</option>
+                <option value="PURCHASE">{t('opt.direction.purchase_full')}</option>
+              </select>
+            </div>
+          </>
+        )}
         <div className="field">
-          <label>{direction === 'SALES' ? t('col.customer') : t('col.supplier')} *</label>
+          <label>{effectivePartySource === 'SALES' ? t('col.customer') : t('col.supplier')} *</label>
           <select value={partyId} onChange={(e) => setPartyId(e.target.value)}>
             <option value="">{t('msg.select_placeholder')}</option>
             {parties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}

@@ -298,6 +298,7 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
   { group: '', items: [{ key: 'dashboard', label: 'nav.dashboard', icon: 'dashboard' }] },
   { group: 'nav.group.core', items: [
     { key: 'contracts',    label: 'nav.contracts',    icon: 'description', permission: 'contracts.read' },
+    { key: 'prices',       label: 'nav.prices',       icon: 'sell',        permission: 'prices.read' },
     { key: 'customers',    label: 'nav.customers',    icon: 'groups',      permission: 'customers.read' },
     { key: 'equipment',    label: 'nav.equipment',    icon: 'construction', permission: 'equipment.read' },
     { key: 'maintenance',  label: 'nav.maintenance',  icon: 'build_circle', permission: 'maintenance.read' },
