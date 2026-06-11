@@ -146,7 +146,7 @@ tbody tr:last-child td { border-bottom: none; }
 
 /* ── Alert Chips Strip (Phase 1D-B) ─────────────────────────────────── */
 .alert-chips-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
-.alert-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid; font-family: inherit; transition: var(--transition); text-align: start; }
+.alert-chip { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid; font-family: inherit; transition: background-color 0.2s, color 0.2s, border-color 0.2s; text-align: start; }
 .alert-chip.warn { background: var(--amber-light); border-color: var(--amber); color: var(--amber); }
 .alert-chip.warn:hover { background: var(--amber); color: #fff; }
 .alert-chip.error { background: var(--red-light); border-color: var(--red); color: var(--red); }

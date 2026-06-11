@@ -59,6 +59,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   // تنبيهات خاصة: دفاتر المركبات / مستندات الموظفين
   useEffect(() => {
     (async () => {
+      setAlerts([]);
       try {
         if (cfg.key === 'equipment') {
           const res = await api.get('/equipment/expiring', { params: { days: 30 } });
@@ -66,7 +67,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           const list = (res.data.data ?? []) as any[];
           setAlerts(list.map((e): AlertItem => {
             const r = e.registration;
-            const severity: 'warn' | 'error' = (r?.expired || (r?.remainingDays ?? 1) <= 7) ? 'error' : 'warn';
+            const severity: 'warn' | 'error' = (r?.remainingDays ?? Infinity) <= 7 ? 'error' : 'warn';
             return { id: e.id, code: e.code, label: `${e.code} — ${r?.remainingText ?? ''}`, severity };
           }));
         } else if (cfg.key === 'employees') {
@@ -128,8 +129,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
               className={`alert-chip ${item.severity}`}
               onClick={() => { setSearch(item.code); setQuery(item.code); setPage(1); }}
               title={item.label}
+              aria-label={item.label}
             >
-              <span>{item.severity === 'error' ? '🔴' : '⚠️'}</span>
+              <span aria-hidden="true">{item.severity === 'error' ? '🔴' : '⚠️'}</span>
               <span>{item.label}</span>
             </button>
           ))}

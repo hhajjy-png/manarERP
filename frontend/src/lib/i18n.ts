@@ -35,7 +35,6 @@ const DICT: Record<Lang, Record<string, string>> = {
     'msg.required_field': 'الحقل «{field}» مطلوب',
     'msg.select_placeholder': '— اختر —',
     'msg.confirm_delete': 'هل تريد حذف هذا السجل؟ ({id})',
-    'msg.alert_prefix': 'تنبيه ({count}):',
 
     // login page
     'page.login.title': 'نظام المنار',
@@ -1091,7 +1090,6 @@ const DICT: Record<Lang, Record<string, string>> = {
     'msg.required_field': 'Field "{field}" is required',
     'msg.select_placeholder': '— Select —',
     'msg.confirm_delete': 'Delete this record? ({id})',
-    'msg.alert_prefix': 'Alert ({count}):',
 
     // login page
     'page.login.title': 'Al-Manar System',
