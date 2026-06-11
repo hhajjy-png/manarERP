@@ -64,7 +64,7 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
         </table>
       </div>
 
-      {meta && (
+      {meta && meta.total > 0 && (
         <div className="pagination">
           <span style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>
             {meta.totalPages > 1
