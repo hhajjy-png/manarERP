@@ -47,3 +47,19 @@ export async function updatePrice(id: number, input: UpdatePriceInput) {
 export async function deletePrice(id: number) {
   return prisma.projectPrice.update({ where: { id }, data: { isArchived: true } });
 }
+
+export async function lookupPrice(params: {
+  asphaltPlant?: string;
+  companyName?: string;
+  contractUnit?: string;
+  contractLocation?: string;
+}) {
+  const where = {
+    isArchived: false,
+    ...(params.asphaltPlant ? { asphaltPlant: { contains: params.asphaltPlant } } : {}),
+    ...(params.companyName ? { companyName: { contains: params.companyName } } : {}),
+    ...(params.contractUnit ? { contractUnit: params.contractUnit } : {}),
+    ...(params.contractLocation ? { contractLocation: { contains: params.contractLocation } } : {}),
+  };
+  return prisma.projectPrice.findFirst({ where, orderBy: { createdAt: 'desc' } });
+}
