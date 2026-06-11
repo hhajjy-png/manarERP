@@ -3,6 +3,16 @@ import { ok, created, noContent } from '@core/utils/response';
 import { asyncHandler } from '@core/utils/asyncHandler';
 import * as service from './prices.service';
 
+export const lookup = asyncHandler(async (req: Request, res: Response) => {
+  const price = await service.lookupPrice({
+    asphaltPlant: req.query.asphaltPlant as string | undefined,
+    companyName: req.query.companyName as string | undefined,
+    contractUnit: req.query.contractUnit as string | undefined,
+    contractLocation: req.query.contractLocation as string | undefined,
+  });
+  ok(res, price ?? null);
+});
+
 export const list = asyncHandler(async (req: Request, res: Response) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
