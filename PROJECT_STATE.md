@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `9028530` — Merge feature/operational-ux-phase1b-a into production |
-| **Stable tag** | `stable-operational-ux-phase1b-a-v1` |
+| **HEAD** | `9076fab` — Merge project prices phase 2C |
+| **Stable tag** | `stable-project-prices-phase2c-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,11 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Project Prices Phase 2C | `feature/project-prices-phase2c` | `stable-project-prices-phase2c-v1` | Frontend-only. Invoice price picker now filters by current row's contract unit — only matching prices shown. Picker button hidden when no prices exist for that unit. Picker closes automatically on unit change (prevents ghost state). `contractLocation` added to picker rows; redundant `contractUnit` column removed. Prices page: `emptyText`, `isFiltered`, `onResetFilters` added to DataTable. 4 new i18n keys (AR+EN): `empty.prices`, `ph.prices.picker_btn`, `ph.prices.picker_list`, `msg.no_prices_for_unit`. No backend/schema changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
+| Operational Stabilization Phase 2 | `feature/operational-stabilization-phase2-i18n-audit` | `stable-operational-stabilization-phase2-v1` | Frontend-only. Hardcoded Arabic strings replaced with i18n keys across 4 pages: Settings field labels (7 labels → `t()` calls), Dashboard equipment/vehicle alert titles and expired/expiring text (3 keys with `{days}` interpolation), Dashboard invoice status subtitle (`{count}` interpolation), Reports print button label. 10 new i18n key pairs (AR+EN). No backend/schema changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
+| Operational Stabilization Phase 1 | `feature/operational-stabilization-phase1` | `stable-operational-stabilization-phase1-v1` | Frontend-only. Fixed missing i18n keys: `perm.module.inventory` and `perm.module.cheques` added to DICT. Fixed Attendance status badge rendering in EN mode (status values were Arabic-only, now resolved via t() keys). No backend/schema changes. Gemini: APPROVED. |
+| Project Prices Phase 2B | `feature/project-prices-phase2b` | `stable-project-prices-phase2b-v1` | Backend-only. `GET /prices/lookup?asphaltPlant=&companyName=&contractUnit=&contractLocation=` — finds first matching price. All params optional. Route registered before `/:id` to avoid conflict. Endpoint exists and is ready; frontend auto-lookup not yet wired (deferred to Phase 3). 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
+| Project Prices Phase 2A | `feature/project-prices-phase2a` | `stable-project-prices-phase2a-v1` | Frontend-only. Price picker added to each invoice item row in `CreateInvoice`. Loads all prices via `GET /prices?pageSize=200`. `openPickerIdx` tracks which row's picker is open. `applyPrice(i, p)` copies `unitPrice` and `contractUnit` to item. Clipping fix: `overflow: visible` + `position: relative` on price cell. No backend/schema changes. Gemini: APPROVED. |
 | Operational UX Phase 1B-A | `feature/operational-ux-phase1b-a` | `stable-operational-ux-phase1b-a-v1` | Frontend-only. Standardized empty states for all 9 surfaces: Contracts, Customers, Suppliers, Equipment, Employees, Expenses, Users (via `emptyText?` on `ModuleConfig`), Invoices, Attendance. Unsaved changes protection: `onBeforeClose?: () => boolean` guard on `Modal` shared component; `isDirty` + `canClose()` on `FormDialog` shared forms; `createGuardClose`/`editGuardClose` on Attendance create/edit modals (`useRef` snapshot, `EMPTY_FORM_JSON` hoisting). 9 i18n keys added (AR + EN). No backend/Prisma/RBAC changes. Frontend TS ✓, Backend TS ✓, Electron TS ✓, build:front ✓, build:back ✓, 101/101 tests. Gemini: APPROVED. |
 | Attendance Pagination | `feature/attendance-pagination` | `stable-attendance-pagination-v1` | Server-side pagination for `GET /employees/attendance`: skip/take/meta response, `groupBy`-based KPI stats (total/present/absent/late/leave) on full filtered dataset, server-side search over notes/employee fullName/employee code, DataTable meta/onPage integration, employee list fetch decoupled from paginated load. 17 unit tests added — suite now 101/101. Prisma validate ✓, Backend TS ✓, Frontend TS ✓, Electron TS ✓, build:back ✓, build:front ✓. Gemini: APPROVED WITH MINOR NOTES (optional search debounce deferred). |
 | Operational UX Phase 1A | `feature/operational-ux-phase1a` | `stable-operational-ux-phase1a-v1` | Frontend: new `usePersistedState` hook; persisted search, filter, page, and tab state across 11 modules (Customers, Suppliers, Contracts, Employees, Equipment, Expenses, Users, Invoices, Attendance, Maintenance, Inventory); refresh buttons on all affected pages; Arabic/English refresh translations. Security: `clearPersistedUIState()` called on logout to prevent cross-user filter/search leakage. Prisma validate ✓, Backend TS ✓, Frontend TS ✓, Electron TS ✓, build:back ✓, build:front ✓, 84/84 tests pass. Gemini: APPROVED. |
@@ -59,7 +64,19 @@
 
 Priority order based on value vs. effort for this local internal ERP.
 
-### 1. Attendance Search Debounce (optional, low priority)
+### 1. Project Prices Phase 3 — Smart Price Lookup (recommended next)
+
+Wire the existing `GET /prices/lookup` backend endpoint to the invoice item flow.
+
+- When user selects a contract unit on an invoice item row, call `/prices/lookup` with the contract unit
+- If exactly **one** match is returned, auto-fill `unitPrice` silently
+- If **zero or multiple** matches, leave price blank — picker button remains visible for manual selection
+- **Never overwrite** a price the user has already manually entered
+- No schema changes, no new permissions, no new endpoints — endpoint already exists
+
+Implementation scope: `Invoices.tsx` only (add `useEffect` or `onChange` handler on unit field).
+
+### 2. Attendance Search Debounce (optional, low priority)
 
 Gemini recommendation deferred post-release. Optional 300ms debounce on the Attendance search input to reduce API calls on fast typing.
 
@@ -225,7 +242,7 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Maintenance | `modules/maintenance/` | `Maintenance.tsx` | Production Ready — full CRUD, search, filters, details modal; persisted filter/search/page state; refresh action |
 | Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields; persisted search, filter, tab, page state; refresh action; standardized empty state |
-| Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete |
+| Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete; invoice picker filters by contract unit; picker hidden when no matching prices; `contractLocation` shown in picker; empty state + filter reset UX; backend `/prices/lookup` endpoint ready (Phase 3 wiring pending) |
 | Suppliers | `modules/suppliers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Expenses | `modules/expenses/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Transactions | `modules/transactions/` | `Accounting.tsx` | Complete |
@@ -306,4 +323,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-11 — Operational UX Phase 1B-A released; baseline advanced to `9028530` (`stable-operational-ux-phase1b-a-v1`). Delivered: standardized empty states for all 9 surfaces (7 ResourcePage modules + Invoices + Attendance); unsaved changes protection on Modal shared component, FormDialog shared forms, and Attendance create/edit modals. No backend/Prisma/RBAC changes. All validations passed, 101/101 tests green, Gemini APPROVED.*
+*Last updated: 2026-06-12 — Project Prices Phase 2C released; baseline advanced to `9076fab` (`stable-project-prices-phase2c-v1`). Also added to history: Project Prices Phase 2A (invoice picker), Phase 2B (lookup endpoint), Operational Stabilization Phase 1 (missing i18n keys), Operational Stabilization Phase 2 (hardcoded text audit across Settings/Dashboard/Reports). All validations passed, 101/101 tests green. Recommended next: Project Prices Phase 3 — smart auto-fill via existing `/prices/lookup` endpoint.*
