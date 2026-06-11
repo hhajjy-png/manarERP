@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -118,6 +118,7 @@ const EMPTY_FORM: FormData = {
   status: 'PRESENT',
   notes: '',
 };
+const EMPTY_FORM_JSON = JSON.stringify(EMPTY_FORM);
 
 function AttendanceForm({
   id,
@@ -279,6 +280,7 @@ export default function Attendance() {
   // Form state
   const [createForm, setCreateForm] = useState<FormData>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<FormData>(EMPTY_FORM);
+  const editInitialRef = useRef<FormData>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [formError, setFormError] = useState('');
@@ -341,14 +343,16 @@ export default function Attendance() {
 
   function openEdit(record: AttendanceRecord) {
     const dateStr = record.date ? new Date(record.date).toISOString().slice(0, 10) : '';
-    setEditForm({
+    const initialForm: FormData = {
       employeeId: String(record.employeeId),
       date: dateStr,
       checkIn:  record.checkIn  ? new Date(record.checkIn).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
       checkOut: record.checkOut ? new Date(record.checkOut).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
       status: record.status,
       notes: record.notes ?? '',
-    });
+    };
+    editInitialRef.current = initialForm;
+    setEditForm(initialForm);
     setEditRecord(record);
   }
 
@@ -427,6 +431,18 @@ export default function Attendance() {
     },
   ];
 
+  function createGuardClose() {
+    if (JSON.stringify(createForm) !== EMPTY_FORM_JSON && !confirm(t('msg.unsaved_changes'))) return;
+    setShowCreate(false);
+    setCreateForm(EMPTY_FORM);
+    setFormError('');
+  }
+
+  function editGuardClose() {
+    if (JSON.stringify(editForm) !== JSON.stringify(editInitialRef.current) && !confirm(t('msg.unsaved_changes'))) return;
+    setEditRecord(null);
+  }
+
   return (
     <div>
       <div className="page-head">
@@ -482,17 +498,18 @@ export default function Attendance() {
         loading={loading}
         meta={meta}
         onPage={setPage}
+        emptyText={t('empty.att.records')}
       />
 
       {/* Create Modal */}
       {showCreate && (
         <Modal
           title={t('modal.att.create_title')}
-          onClose={() => setShowCreate(false)}
+          onClose={createGuardClose}
           footer={
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               {formError && <span style={{ color: 'var(--red)', fontSize: 13, flex: 1 }}>{formError}</span>}
-              <button className="btn secondary" onClick={() => setShowCreate(false)}>{t('action.cancel')}</button>
+              <button className="btn secondary" onClick={createGuardClose}>{t('action.cancel')}</button>
               <button className="btn" form="att-create-form" type="submit" disabled={saving}>{t('action.save')}</button>
             </div>
           }
@@ -513,11 +530,11 @@ export default function Attendance() {
       {editRecord && (
         <Modal
           title={t('modal.att.edit_title')}
-          onClose={() => setEditRecord(null)}
+          onClose={editGuardClose}
           footer={
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               {formError && <span style={{ color: 'var(--red)', fontSize: 13, flex: 1 }}>{formError}</span>}
-              <button className="btn secondary" onClick={() => setEditRecord(null)}>{t('action.cancel')}</button>
+              <button className="btn secondary" onClick={editGuardClose}>{t('action.cancel')}</button>
               <button className="btn" form="att-edit-form" type="submit" disabled={saving}>{t('action.save')}</button>
             </div>
           }

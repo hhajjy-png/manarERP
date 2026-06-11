@@ -161,6 +161,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         loading={loading}
         meta={meta}
         onPage={setPage}
+        emptyText={cfg.emptyText ? t(cfg.emptyText) : undefined}
         actions={(row) => (
           <>
             {cfg.canApprove && row.status === 'PENDING' && hasPermission('expenses.approve') && (
