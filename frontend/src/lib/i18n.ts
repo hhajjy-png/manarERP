@@ -225,6 +225,10 @@ const DICT: Record<Lang, Record<string, string>> = {
     'field.password': 'كلمة المرور',
     'field.fullname': 'الاسم الكامل',
     'field.role': 'الدور',
+    'field.settings.country': 'الدولة',
+    'field.settings.currency_label': 'رمز العملة',
+    'field.settings.decimals': 'عدد الخانات العشرية',
+    'field.settings.backup_cron': 'موعد النسخ التلقائي (Cron)',
 
     // ── Phase 3: select options ────────────────────────────────────────────────
     'opt.contract.active': 'ساري',
@@ -301,6 +305,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'section.contract_status': 'حالة العقود',
     'section.contract_dist': 'توزيع العقود حسب الحالة',
     'section.invoice_status': 'حالة الفواتير',
+    'section.invoice_status_sub': 'توزيع {count} فاتورة حسب الحالة',
     'section.today_attendance': 'حضور اليوم',
     'section.latest_invoices': 'آخر الفواتير',
     'section.latest_expenses': 'آخر المصروفات',
@@ -321,6 +326,10 @@ const DICT: Record<Lang, Record<string, string>> = {
     'att.absent': 'غائب',
     'att.late': 'متأخر',
     'att.leave': 'إجازة',
+    'dash.alert.equipment': 'معدة',
+    'dash.alert.vehicle_book': 'دفتر المركبة',
+    'dash.alert.expired': 'منتهٍ',
+    'dash.alert.expires_in': 'ينتهي خلال {days} يوم',
     'empty.no_invoices': 'لا توجد فواتير',
     'empty.no_contracts': 'لا توجد عقود',
     'empty.no_attendance': 'لا توجد سجلات حضور اليوم',
@@ -391,6 +400,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.reports.preparing': 'جارٍ تجهيز التقرير…',
     'page.reports.no_data': 'لا توجد بيانات',
     'page.reports.results_count': 'نتيجة',
+    'btn.reports.print': 'PDF / طباعة',
 
     // ── Phase 3: inventory page ───────────────────────────────────────────────
     'page.inventory.title': 'المخزون والمشتريات',
@@ -1282,6 +1292,10 @@ const DICT: Record<Lang, Record<string, string>> = {
     'field.password': 'Password',
     'field.fullname': 'Full Name',
     'field.role': 'Role',
+    'field.settings.country': 'Country',
+    'field.settings.currency_label': 'Currency Symbol',
+    'field.settings.decimals': 'Decimal Places',
+    'field.settings.backup_cron': 'Auto Backup Schedule (Cron)',
 
     // ── Phase 3: select options ────────────────────────────────────────────────
     'opt.contract.active': 'Active',
@@ -1358,6 +1372,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'section.contract_status': 'Contract Status',
     'section.contract_dist': 'Contract distribution by status',
     'section.invoice_status': 'Invoice Status',
+    'section.invoice_status_sub': 'Distribution of {count} invoices by status',
     'section.today_attendance': "Today's Attendance",
     'section.latest_invoices': 'Latest Invoices',
     'section.latest_expenses': 'Latest Expenses',
@@ -1378,6 +1393,10 @@ const DICT: Record<Lang, Record<string, string>> = {
     'att.absent': 'Absent',
     'att.late': 'Late',
     'att.leave': 'Leave',
+    'dash.alert.equipment': 'Equipment',
+    'dash.alert.vehicle_book': 'Vehicle Registration',
+    'dash.alert.expired': 'Expired',
+    'dash.alert.expires_in': 'Expires in {days} days',
     'empty.no_invoices': 'No invoices',
     'empty.no_contracts': 'No contracts',
     'empty.no_attendance': 'No attendance records today',
@@ -1448,6 +1467,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.reports.preparing': 'Preparing report…',
     'page.reports.no_data': 'No data',
     'page.reports.results_count': 'result(s)',
+    'btn.reports.print': 'PDF / Print',
 
     // ── Phase 3: inventory page ───────────────────────────────────────────────
     'page.inventory.title': 'Inventory & Purchases',

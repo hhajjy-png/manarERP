@@ -95,8 +95,8 @@ export default function Dashboard() {
 
       // Build alerts from equipment + employee expiry endpoints
       const equipAlerts: DashAlert[] = (equipRes.data?.data || []).map((e: ApiAny) => ({
-        title: `معدة: ${e.code}`,
-        desc: `دفتر المركبة: ${e.registration?.remainingText ?? '—'}`,
+        title: `${t('dash.alert.equipment')}: ${e.code}`,
+        desc: `${t('dash.alert.vehicle_book')}: ${e.registration?.remainingText ?? '—'}`,
         status: (e.registration?.expired ? 'red' : 'amber') as DashAlert['status'],
         icon: '🚜',
       }));
@@ -105,7 +105,7 @@ export default function Dashboard() {
         (e.alerts ?? []).forEach((a: ApiAny) => {
           empAlerts.push({
             title: e.fullName,
-            desc: `${a.document}: ${a.remainingDays < 0 ? 'منتهٍ' : `ينتهي خلال ${a.remainingDays} يوم`}`,
+            desc: `${a.document}: ${a.remainingDays < 0 ? t('dash.alert.expired') : t('dash.alert.expires_in', { days: a.remainingDays })}`,
             status: (a.remainingDays < 0 ? 'red' : 'amber') as DashAlert['status'],
             icon: '👷',
           });
@@ -492,7 +492,7 @@ export default function Dashboard() {
           <div className="db-card-head">
             <div>
               <h3>{t('section.invoice_status')}</h3>
-              <p>توزيع {inv.total ?? 0} فاتورة حسب الحالة</p>
+              <p>{t('section.invoice_status_sub', { count: inv.total ?? 0 })}</p>
             </div>
           </div>
           <div className="db-card-body">

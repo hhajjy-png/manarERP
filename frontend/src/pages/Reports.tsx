@@ -300,7 +300,7 @@ export default function Reports() {
                 {excelBusy ? '⏳' : '⤓ Excel'}
               </button>
               <button className="btn secondary" onClick={openPrint} style={{ padding: '8px 16px' }}>
-                🖨️ PDF / طباعة
+                🖨️ {t('btn.reports.print')}
               </button>
             </>
           )}
