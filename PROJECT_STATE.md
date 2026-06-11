@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `cf05ae5` — Merge feature/operational-ux-phase1a into production |
-| **Stable tag** | `stable-operational-ux-phase1a-v1` |
+| **HEAD** | `90cab98` — Merge feature/attendance-pagination into production |
+| **Stable tag** | `stable-attendance-pagination-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,7 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Attendance Pagination | `feature/attendance-pagination` | `stable-attendance-pagination-v1` | Server-side pagination for `GET /employees/attendance`: skip/take/meta response, `groupBy`-based KPI stats (total/present/absent/late/leave) on full filtered dataset, server-side search over notes/employee fullName/employee code, DataTable meta/onPage integration, employee list fetch decoupled from paginated load. 17 unit tests added — suite now 101/101. Prisma validate ✓, Backend TS ✓, Frontend TS ✓, Electron TS ✓, build:back ✓, build:front ✓. Gemini: APPROVED WITH MINOR NOTES (optional search debounce deferred). |
 | Operational UX Phase 1A | `feature/operational-ux-phase1a` | `stable-operational-ux-phase1a-v1` | Frontend: new `usePersistedState` hook; persisted search, filter, page, and tab state across 11 modules (Customers, Suppliers, Contracts, Employees, Equipment, Expenses, Users, Invoices, Attendance, Maintenance, Inventory); refresh buttons on all affected pages; Arabic/English refresh translations. Security: `clearPersistedUIState()` called on logout to prevent cross-user filter/search leakage. Prisma validate ✓, Backend TS ✓, Frontend TS ✓, Electron TS ✓, build:back ✓, build:front ✓, 84/84 tests pass. Gemini: APPROVED. |
 | Attendance UI Completion | `feature/attendance-ui-completion` | `stable-attendance-ui-completion-v1` | Backend: `PATCH /employees/attendance/:id`, `DELETE /employees/attendance/:id`, status filter in `listAttendance`, audit log integration, `updateAttendanceSchema`. Frontend: `Attendance.tsx` page with KPI cards (total/present/absent/late), DataTable (8 cols), employee+status+date-range filters (server-side), client-side search, create/edit/details/delete modals, work-hours auto-calc from checkIn/checkOut. Sidebar entry `event_available`. Full Arabic/English i18n. Gemini: APPROVED WITH MINOR NOTES (pagination and inactive-employee filter recommended post-release). No Prisma migration — schema and permissions pre-existed. |
 | Maintenance Module Completion | `feature/maintenance-completion` | `stable-maintenance-completion-v1` | Backend: `PATCH /maintenance/records/:id`, `DELETE /maintenance/records/:id`, type/dateFrom/dateTo/status filters, `updateMaintenanceSchema`, CANCELLED status. Frontend: `Maintenance.tsx` rewritten with full CRUD modals (Create/Edit/Details/Delete), client-side search, equipment+type+status+date filters, equipment name shown alongside code. Replaced all `alert()` with inline errors. |
@@ -57,21 +58,19 @@
 
 Priority order based on value vs. effort for this local internal ERP.
 
-### 1. Attendance Pagination
-
-Current `listAttendance` returns all records (up to `pageSize: 500`).
-As attendance data grows this will become slow. Remaining Gemini recommendation from the Attendance UI release.
-
-- Add `getPagination` + `buildPaginatedResult` to `listAttendance` (matches employees list pattern)
-- Update frontend `DataTable` `meta` prop + `onPage` handler in `Attendance.tsx`
-- No schema changes required
-
-### 2. Operational UX Phase 1B
+### 1. Operational UX Phase 1B
 
 Follow-up quality-of-life improvements building on Phase 1A.
 
 - **Standardized Empty States** — consistent empty-state messaging and illustrations across all pages
 - **Unsaved Changes Protection** — warn before navigating away from a form with unsaved input
+
+### 2. Attendance Search Debounce (optional, low priority)
+
+Gemini recommendation deferred post-release. Optional 300ms debounce on the Attendance search input to reduce API calls on fast typing.
+
+- Add inline debounce to search `onChange` in `Attendance.tsx`
+- No backend changes required
 
 ### 3. API Rate Limiting (optional security hardening)
 
@@ -217,7 +216,7 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Dashboard | `modules/dashboard/` | `Dashboard.tsx` | Complete |
 | Customers | `modules/customers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action |
 | Employees | `modules/employees/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action |
-| Attendance | `employees module` | `Attendance.tsx` | Production Ready — CRUD, KPI cards, filters, search, modals; persisted filter/search/page state; refresh action |
+| Attendance | `employees module` | `Attendance.tsx` | Production Ready + Server-side Pagination — paginated attendance listing, filter-scoped KPI stats via groupBy, server-side search (notes/employee name/code); persisted filter/search/page state; refresh action |
 | Payroll | `modules/payroll/` | `Salaries.tsx` | Complete |
 | Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action |
 | Maintenance | `modules/maintenance/` | `Maintenance.tsx` | Production Ready — full CRUD, search, filters, details modal; persisted filter/search/page state; refresh action |
@@ -304,4 +303,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-11 — Operational UX Phase 1A released; baseline advanced to `cf05ae5` (`stable-operational-ux-phase1a-v1`). Delivered: `usePersistedState` hook, persisted search/filter/page/tab state across 11 modules, refresh buttons, `clearPersistedUIState()` on logout. All validations passed, 84/84 tests green, Gemini APPROVED.*
+*Last updated: 2026-06-11 — Attendance Pagination released; baseline advanced to `90cab98` (`stable-attendance-pagination-v1`). Delivered: server-side pagination for GET /employees/attendance, groupBy-based KPI stats, server-side search, DataTable meta/onPage integration, 17 unit tests added. All validations passed, 101/101 tests green, Gemini APPROVED WITH MINOR NOTES.*
