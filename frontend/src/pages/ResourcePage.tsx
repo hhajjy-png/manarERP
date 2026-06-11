@@ -167,6 +167,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         meta={meta}
         onPage={setPage}
         emptyText={cfg.emptyText ? t(cfg.emptyText) : undefined}
+        isFiltered={!!(query || filterValue)}
+        onResetFilters={() => { setSearch(''); setQuery(''); setFilterValue(''); setPage(1); }}
         emptyAction={canCreate ? (
           <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t(cfg.createLabel)}</button>
         ) : undefined}

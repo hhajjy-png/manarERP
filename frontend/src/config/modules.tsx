@@ -77,6 +77,15 @@ export const MODULES: Record<string, ModuleConfig> = {
     title: 'mod.contracts.title', subtitle: 'mod.contracts.subtitle',
     icon: '📄', group: 'العمليات الأساسية', createLabel: 'mod.contracts.create',
     emptyText: 'empty.contracts',
+    statusFilter: {
+      param: 'status',
+      options: [
+        { value: 'ACTIVE',    labelKey: 'opt.contract.active' },
+        { value: 'RENEWING',  labelKey: 'opt.contract.renewing' },
+        { value: 'EXPIRED',   labelKey: 'opt.contract.expired' },
+        { value: 'SUSPENDED', labelKey: 'opt.contract.suspended' },
+      ],
+    },
     columns: [
       { key: 'code', label: 'col.contract_no', render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.code}</strong> },
       { key: 'asphaltPlant', label: 'col.asphalt_plant' },
