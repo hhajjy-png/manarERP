@@ -118,9 +118,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         </div>
       )}
       {error && (
-        <div className="alert error" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="alert error" role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ flex: 1 }}>⚠️ {error}</span>
-          <button type="button" className="btn secondary sm" onClick={load}>↻ {t('action.refresh')}</button>
+          <button type="button" className="btn secondary sm" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         </div>
       )}
 

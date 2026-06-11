@@ -85,9 +85,9 @@ export default function Invoices() {
         {hasPermission('invoices.create') && <button className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>}
       </div>
       {loadError && (
-        <div className="alert error" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="alert error" role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ flex: 1 }}>⚠️ {loadError}</span>
-          <button type="button" className="btn secondary sm" onClick={load}>↻ {t('action.refresh')}</button>
+          <button type="button" className="btn secondary sm" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         </div>
       )}
       <div className="toolbar" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
