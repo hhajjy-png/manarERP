@@ -90,7 +90,7 @@ export default function Invoices() {
           <button type="button" className="btn secondary sm" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         </div>
       )}
-      <div className="toolbar" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+      <form className="toolbar" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }} onSubmit={(e) => e.preventDefault()}>
         <input
           placeholder={t('page.invoices.search')}
           value={search}
@@ -130,7 +130,7 @@ export default function Invoices() {
           </button>
         )}
         <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
-      </div>
+      </form>
 
       <DataTable
         columns={columns}
