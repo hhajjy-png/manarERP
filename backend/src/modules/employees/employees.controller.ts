@@ -27,12 +27,7 @@ export const employeesController = {
   },
   // الحضور
   async listAttendance(req: Request, res: Response) {
-    ok(res, await employeesService.listAttendance(
-      empId(req),
-      req.query.from as string,
-      req.query.to as string,
-      req.query.status as string | undefined,
-    ));
+    ok(res, await employeesService.listAttendance(req.query));
   },
   async recordAttendance(req: Request, res: Response) {
     created(res, await employeesService.recordAttendance(req.body, req));
