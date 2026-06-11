@@ -115,6 +115,9 @@ export default function Prices() {
         loading={loading}
         meta={meta}
         onPage={setPage}
+        emptyText={t('empty.prices')}
+        isFiltered={!!hasFilters}
+        onResetFilters={() => { setSearch(''); setFilterPlant(''); setFilterCompany(''); setFilterUnit(''); setPage(1); }}
         actions={(row) => (
           <>
             {hasPermission('prices.update') && (

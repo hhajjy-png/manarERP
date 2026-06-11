@@ -267,6 +267,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const total = Math.max(0, subtotal - Number(discount));
 
   function setItem(i: number, key: keyof Item, value: string | number) {
+    if (key === 'unit') setOpenPickerIdx(null);
     setItems((p) => p.map((it, idx) => (idx === i ? { ...it, [key]: key === 'description' || key === 'unit' ? value : Number(value) } : it)));
   }
 
@@ -404,42 +405,44 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           <div className="invoice-cell price-cell" style={{ minWidth: 0, overflow: 'visible', position: 'relative' }}>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               <input type="number" min="0" step="0.001" placeholder={t('ph.unit_price')} value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} style={{ ...inp, flex: 1, minWidth: 0, boxSizing: 'border-box' }} />
-              {prices.length > 0 && (
-                <button
-                  type="button"
-                  className="btn secondary sm"
-                  style={{ flexShrink: 0, padding: '0 8px', fontSize: 14 }}
-                  title="اختر سعرًا من القائمة"
-                  aria-label="اختيار سعر من قائمة الأسعار"
-                  aria-haspopup="listbox"
-                  aria-expanded={openPickerIdx === i ? 'true' : 'false'}
-                  onClick={(e) => { e.stopPropagation(); setOpenPickerIdx(openPickerIdx === i ? null : i); }}
-                >
-                  📋
-                </button>
-              )}
-            </div>
-            {openPickerIdx === i && (
-              <div
-                role="listbox"
-                aria-label="قائمة الأسعار"
-                onMouseDown={(e) => e.stopPropagation()}
-                style={{ position: 'absolute', top: '100%', insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 200, minWidth: 280, maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)', marginTop: 2 }}
-              >
-                {prices.map((p) => (
+              {(() => { const unitPrices = prices.filter((p) => p.contractUnit === it.unit); return unitPrices.length > 0 ? (
+                <>
                   <button
-                    key={p.id}
                     type="button"
-                    role="option"
-                    aria-selected="false"
-                    style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', lineHeight: 1.5 }}
-                    onClick={() => applyPrice(i, p)}
+                    className="btn secondary sm"
+                    style={{ flexShrink: 0, padding: '0 8px', fontSize: 14 }}
+                    title={t('ph.prices.picker_btn')}
+                    aria-label={t('ph.prices.picker_btn')}
+                    aria-haspopup="listbox"
+                    aria-expanded={openPickerIdx === i ? 'true' : 'false'}
+                    onClick={(e) => { e.stopPropagation(); setOpenPickerIdx(openPickerIdx === i ? null : i); }}
                   >
-                    <strong>{p.asphaltPlant ?? '—'}</strong>{p.companyName ? ` — ${p.companyName}` : ''}{' '}— {p.contractUnit} — <strong>{money(p.unitPrice)}</strong>
+                    📋
                   </button>
-                ))}
-              </div>
-            )}
+                  {openPickerIdx === i && (
+                    <div
+                      role="listbox"
+                      aria-label={t('ph.prices.picker_list')}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      style={{ position: 'absolute', top: '100%', insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 200, minWidth: 300, maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)', marginTop: 2 }}
+                    >
+                      {unitPrices.map((p) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          role="option"
+                          aria-selected="false"
+                          style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', lineHeight: 1.5 }}
+                          onClick={() => applyPrice(i, p)}
+                        >
+                          <strong>{p.asphaltPlant ?? '—'}</strong>{p.companyName ? ` — ${p.companyName}` : ''}{p.contractLocation ? ` — ${p.contractLocation}` : ''} — <strong>{money(p.unitPrice)}</strong>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : null; })()}
+            </div>
           </div>
           <div className="invoice-cell total-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
             <div style={{ ...inp, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default', width: '100%', boxSizing: 'border-box' }}>{money(lineTotal(it))}</div>
