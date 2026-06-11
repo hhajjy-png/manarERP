@@ -253,8 +253,13 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   useEffect(() => {
     if (openPickerIdx === null) return;
     function handleOutsideClick() { setOpenPickerIdx(null); }
+    function handleEscape(e: KeyboardEvent) { if (e.key === 'Escape') setOpenPickerIdx(null); }
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
   }, [openPickerIdx]);
 
   const lineTotal = (it: Item) => Number(it.quantity) * Number(it.unitPrice);
@@ -384,7 +389,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 
       <label style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, display: 'block', margin: '8px 0' }}>{t('lbl.items')}</label>
       {items.map((it, i) => (
-        <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center', width: '100%', overflow: 'hidden' }}>
+        <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center', width: '100%' }}>
           <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
             <input placeholder={t('col.description')} value={it.description} onChange={(e) => setItem(i, 'description', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
           </div>
@@ -405,6 +410,9 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                   className="btn secondary sm"
                   style={{ flexShrink: 0, padding: '0 8px', fontSize: 14 }}
                   title="اختر سعرًا من القائمة"
+                  aria-label="اختيار سعر من قائمة الأسعار"
+                  aria-haspopup="listbox"
+                  aria-expanded={openPickerIdx === i ? 'true' : 'false'}
                   onClick={(e) => { e.stopPropagation(); setOpenPickerIdx(openPickerIdx === i ? null : i); }}
                 >
                   📋
@@ -413,6 +421,8 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
             </div>
             {openPickerIdx === i && (
               <div
+                role="listbox"
+                aria-label="قائمة الأسعار"
                 onMouseDown={(e) => e.stopPropagation()}
                 style={{ position: 'absolute', top: '100%', insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 200, minWidth: 280, maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)', marginTop: 2 }}
               >
@@ -420,6 +430,8 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                   <button
                     key={p.id}
                     type="button"
+                    role="option"
+                    aria-selected="false"
                     style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', lineHeight: 1.5 }}
                     onClick={() => applyPrice(i, p)}
                   >
