@@ -18,6 +18,8 @@ const invoicePrefix = 'MN-INV-2026-';
 
 interface Item { description: string; quantity: number; unit: string; unitPrice: number; }
 
+interface InvStats { total: number; unpaid: number; unpaidAmount: number; }
+
 export default function Invoices() {
   const { hasPermission } = useAuth();
   const { t } = useT();
@@ -33,6 +35,16 @@ export default function Invoices() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [paying, setPaying] = useState<any | null>(null);
   const [loadError, setLoadError] = useState('');
+  const [stats, setStats] = useState<InvStats | null>(null);
+
+  const isFiltered = !!(search || statusFilter || directionFilter);
+
+  function resetFilters() {
+    setSearch('');
+    setStatusFilter('');
+    setDirectionFilter('');
+    setPage(1);
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -56,6 +68,13 @@ export default function Invoices() {
     }
   }, [page, search, statusFilter, directionFilter]);
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    api.get('/dashboard/executive').then((res) => {
+      const inv = res.data?.data?.kpis?.invoices;
+      if (inv) setStats({ total: inv.total ?? 0, unpaid: inv.unpaid ?? 0, unpaidAmount: inv.unpaidAmount ?? 0 });
+    }).catch(() => { /* stats are non-critical */ });
+  }, []);
 
   async function cancel(id: number) {
     if (!confirm(t('confirm.cancel_invoice'))) return;
@@ -84,6 +103,27 @@ export default function Invoices() {
         <div><h2>{t('page.invoices.title')}</h2><p>{t('page.invoices.subtitle')}</p></div>
         {hasPermission('invoices.create') && <button className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>}
       </div>
+
+      {stats && (
+        <div className="inv-stats-strip">
+          <div className="inv-stat-chip">
+            <span className="inv-stat-icon">📄</span>
+            <span className="inv-stat-label">{t('inv.stats.total')}</span>
+            <span className="inv-stat-value">{stats.total}</span>
+          </div>
+          <div className="inv-stat-chip red">
+            <span className="inv-stat-icon">🔴</span>
+            <span className="inv-stat-label">{t('inv.stats.unpaid')}</span>
+            <span className="inv-stat-value">{stats.unpaid}</span>
+          </div>
+          <div className="inv-stat-chip amber">
+            <span className="inv-stat-icon">💰</span>
+            <span className="inv-stat-label">{t('inv.stats.unpaid_amount')}</span>
+            <span className="inv-stat-value">{money(stats.unpaidAmount)}</span>
+          </div>
+        </div>
+      )}
+
       {loadError && (
         <div className="alert error" role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ flex: 1 }}>⚠️ {loadError}</span>
@@ -120,12 +160,8 @@ export default function Invoices() {
           <option value="SALES">{t('opt.direction.sales')}</option>
           <option value="PURCHASE">{t('opt.direction.purchase')}</option>
         </select>
-        {(search || statusFilter || directionFilter) && (
-          <button
-            type="button"
-            className="btn secondary sm"
-            onClick={() => { setSearch(''); setStatusFilter(''); setDirectionFilter(''); setPage(1); }}
-          >
+        {isFiltered && (
+          <button type="button" className="btn secondary sm" onClick={resetFilters}>
             {t('action.reset_filters')}
           </button>
         )}
@@ -139,6 +175,11 @@ export default function Invoices() {
         meta={meta}
         onPage={setPage}
         emptyText={t('empty.invoices')}
+        isFiltered={isFiltered}
+        onResetFilters={resetFilters}
+        emptyAction={hasPermission('invoices.create') ? (
+          <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>
+        ) : undefined}
         actions={(row) => (
           <>
             {hasPermission('invoices.update') && row.status !== 'PAID' && row.status !== 'CANCELLED' && (

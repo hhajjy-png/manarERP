@@ -1051,6 +1051,14 @@ const DICT: Record<Lang, Record<string, string>> = {
     'col.att.work_hours': 'ساعات العمل',
     'ph.att.search': 'بحث باسم الموظف أو ملاحظات…',
     'ph.att.select_employee': 'اختر موظفاً',
+
+    // ── Phase 1D-A: filter-aware empty state & invoice stats ─────────────────
+    'msg.empty_filtered': 'لا توجد نتائج مطابقة — جرّب تعديل الفلاتر أو البحث',
+    'action.reset_filters_inline': 'مسح الفلاتر',
+    'inv.stats.total': 'إجمالي الفواتير',
+    'inv.stats.unpaid': 'غير مسددة',
+    'inv.stats.unpaid_amount': 'قيمة غير المسدد',
+    'inv.stats.loading': 'جارٍ تحميل الإحصاء…',
   },
   en: {
     // layout
@@ -2099,6 +2107,14 @@ const DICT: Record<Lang, Record<string, string>> = {
     'col.att.work_hours': 'Work Hours',
     'ph.att.search': 'Search by employee name or notes…',
     'ph.att.select_employee': 'Select employee',
+
+    // ── Phase 1D-A: filter-aware empty state & invoice stats ─────────────────
+    'msg.empty_filtered': 'No matching results — try adjusting your filters or search',
+    'action.reset_filters_inline': 'Clear Filters',
+    'inv.stats.total': 'Total Invoices',
+    'inv.stats.unpaid': 'Unpaid',
+    'inv.stats.unpaid_amount': 'Outstanding Amount',
+    'inv.stats.loading': 'Loading statistics…',
   },
 };
 

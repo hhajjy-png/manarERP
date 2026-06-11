@@ -26,9 +26,11 @@ interface Props {
   actions?: (row: any) => ReactNode;
   emptyText?: string;
   emptyAction?: ReactNode;
+  isFiltered?: boolean;
+  onResetFilters?: () => void;
 }
 
-export default function DataTable({ columns, rows, loading, meta, onPage, actions, emptyText, emptyAction }: Props) {
+export default function DataTable({ columns, rows, loading, meta, onPage, actions, emptyText, emptyAction, isFiltered, onResetFilters }: Props) {
   const { t } = useT();
   const colSpan = columns.length + (actions ? 1 : 0);
 
@@ -48,8 +50,12 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
             ) : rows.length === 0 ? (
               <tr><td colSpan={colSpan}>
                 <div className="center-msg" style={{ flexDirection: 'column', gap: 12 }}>
-                  <span>{emptyText ?? t('msg.empty')}</span>
-                  {emptyAction}
+                  <span>{isFiltered ? t('msg.empty_filtered') : (emptyText ?? t('msg.empty'))}</span>
+                  {isFiltered && onResetFilters ? (
+                    <button type="button" className="btn secondary sm" onClick={onResetFilters}>
+                      {t('action.reset_filters_inline')}
+                    </button>
+                  ) : !isFiltered ? emptyAction : null}
                 </div>
               </td></tr>
             ) : (
