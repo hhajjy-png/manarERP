@@ -118,8 +118,9 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
     >
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
-        {fields.map((f) => {
+        {fields.map((f, i) => {
           const opts = f.options ?? asyncOptions[f.name] ?? [];
+          const autoFocus = i === 0 && f.type !== 'select';
           return (
             <div className="field" key={f.name} style={f.half === false ? { gridColumn: '1 / -1' } : undefined}>
               <label>{t(f.label)}{f.required ? ' *' : ''}</label>
@@ -129,9 +130,9 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
                   {opts.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
                 </select>
               ) : f.type === 'textarea' ? (
-                <textarea rows={3} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
+                <textarea rows={3} autoFocus={autoFocus} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
               ) : (
-                <input type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'password' ? 'password' : 'text'} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
+                <input autoFocus={autoFocus} type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'password' ? 'password' : 'text'} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
               )}
             </div>
           );

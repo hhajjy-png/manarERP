@@ -117,7 +117,12 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           <div>{t('msg.alert_prefix', { count: alerts.length })} {alerts.slice(0, 8).join('  ·  ')}{alerts.length > 8 ? ' …' : ''}</div>
         </div>
       )}
-      {error && <div className="alert error">⚠️ {error}</div>}
+      {error && (
+        <div className="alert error" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ flex: 1 }}>⚠️ {error}</span>
+          <button type="button" className="btn secondary sm" onClick={load}>↻ {t('action.refresh')}</button>
+        </div>
+      )}
 
       <form className="toolbar" onSubmit={onSearch}>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: 240 }}>

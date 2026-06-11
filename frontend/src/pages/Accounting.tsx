@@ -6,6 +6,7 @@ import DataTable, { PageMeta } from '../components/DataTable';
 import { money, dateText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { usePersistedState } from '../hooks/usePersistedState';
 
 type Tab = 'summary' | 'accounts' | 'journal' | 'payments';
 
@@ -27,7 +28,7 @@ const inp: React.CSSProperties = {
 };
 
 export default function Accounting() {
-  const [tab, setTab] = useState<Tab>('summary');
+  const [tab, setTab] = usePersistedState<Tab>('acc:tab', 'summary');
   const { hasPermission } = useAuth();
   const { t } = useT();
   const canCreate = hasPermission('transactions.create');
