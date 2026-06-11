@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `90cab98` — Merge feature/attendance-pagination into production |
-| **Stable tag** | `stable-attendance-pagination-v1` |
+| **HEAD** | `9028530` — Merge feature/operational-ux-phase1b-a into production |
+| **Stable tag** | `stable-operational-ux-phase1b-a-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,7 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Operational UX Phase 1B-A | `feature/operational-ux-phase1b-a` | `stable-operational-ux-phase1b-a-v1` | Frontend-only. Standardized empty states for all 9 surfaces: Contracts, Customers, Suppliers, Equipment, Employees, Expenses, Users (via `emptyText?` on `ModuleConfig`), Invoices, Attendance. Unsaved changes protection: `onBeforeClose?: () => boolean` guard on `Modal` shared component; `isDirty` + `canClose()` on `FormDialog` shared forms; `createGuardClose`/`editGuardClose` on Attendance create/edit modals (`useRef` snapshot, `EMPTY_FORM_JSON` hoisting). 9 i18n keys added (AR + EN). No backend/Prisma/RBAC changes. Frontend TS ✓, Backend TS ✓, Electron TS ✓, build:front ✓, build:back ✓, 101/101 tests. Gemini: APPROVED. |
 | Attendance Pagination | `feature/attendance-pagination` | `stable-attendance-pagination-v1` | Server-side pagination for `GET /employees/attendance`: skip/take/meta response, `groupBy`-based KPI stats (total/present/absent/late/leave) on full filtered dataset, server-side search over notes/employee fullName/employee code, DataTable meta/onPage integration, employee list fetch decoupled from paginated load. 17 unit tests added — suite now 101/101. Prisma validate ✓, Backend TS ✓, Frontend TS ✓, Electron TS ✓, build:back ✓, build:front ✓. Gemini: APPROVED WITH MINOR NOTES (optional search debounce deferred). |
 | Operational UX Phase 1A | `feature/operational-ux-phase1a` | `stable-operational-ux-phase1a-v1` | Frontend: new `usePersistedState` hook; persisted search, filter, page, and tab state across 11 modules (Customers, Suppliers, Contracts, Employees, Equipment, Expenses, Users, Invoices, Attendance, Maintenance, Inventory); refresh buttons on all affected pages; Arabic/English refresh translations. Security: `clearPersistedUIState()` called on logout to prevent cross-user filter/search leakage. Prisma validate ✓, Backend TS ✓, Frontend TS ✓, Electron TS ✓, build:back ✓, build:front ✓, 84/84 tests pass. Gemini: APPROVED. |
 | Attendance UI Completion | `feature/attendance-ui-completion` | `stable-attendance-ui-completion-v1` | Backend: `PATCH /employees/attendance/:id`, `DELETE /employees/attendance/:id`, status filter in `listAttendance`, audit log integration, `updateAttendanceSchema`. Frontend: `Attendance.tsx` page with KPI cards (total/present/absent/late), DataTable (8 cols), employee+status+date-range filters (server-side), client-side search, create/edit/details/delete modals, work-hours auto-calc from checkIn/checkOut. Sidebar entry `event_available`. Full Arabic/English i18n. Gemini: APPROVED WITH MINOR NOTES (pagination and inactive-employee filter recommended post-release). No Prisma migration — schema and permissions pre-existed. |
@@ -58,21 +59,14 @@
 
 Priority order based on value vs. effort for this local internal ERP.
 
-### 1. Operational UX Phase 1B
-
-Follow-up quality-of-life improvements building on Phase 1A.
-
-- **Standardized Empty States** — consistent empty-state messaging and illustrations across all pages
-- **Unsaved Changes Protection** — warn before navigating away from a form with unsaved input
-
-### 2. Attendance Search Debounce (optional, low priority)
+### 1. Attendance Search Debounce (optional, low priority)
 
 Gemini recommendation deferred post-release. Optional 300ms debounce on the Attendance search input to reduce API calls on fast typing.
 
 - Add inline debounce to search `onChange` in `Attendance.tsx`
 - No backend changes required
 
-### 3. API Rate Limiting (optional security hardening)
+### 2. API Rate Limiting (optional security hardening)
 
 Lightweight measure to protect the local Express API from accidental or malicious request flooding.
 
@@ -80,13 +74,22 @@ Lightweight measure to protect the local Express API from accidental or maliciou
 - Low implementation cost, low risk
 - Not critical for offline-only desktop use but good hygiene
 
-### 4. Small Page-Level UX Improvements
+### 3. Small Page-Level UX Improvements
 
 Incremental polish pass on individual pages as usage reveals friction points.
 
 - Date format standardization in exports
 - Historical attendance filtering: allow inactive/terminated employees in the employee dropdown
 - Any other minor UX gaps surfaced during daily use
+
+### 4. Operational UX Phase 1B-B (Inventory / Invoice dirty tracking)
+
+Remaining unsaved-changes surfaces deferred from Phase 1B-A.
+
+- Dirty tracking for CreateInvoice and AddPayment flows in `Invoices.tsx`
+- Dirty tracking for Inventory create/edit forms in `Inventory.tsx`
+- Dirty tracking for Maintenance create/edit forms in `Maintenance.tsx`
+- Consider custom confirm modal to replace `window.confirm` across all guards
 
 ---
 
@@ -214,21 +217,21 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 |--------|---------|--------------|--------|
 | Auth | `modules/auth/` | Login | Complete |
 | Dashboard | `modules/dashboard/` | `Dashboard.tsx` | Complete |
-| Customers | `modules/customers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action |
-| Employees | `modules/employees/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action |
-| Attendance | `employees module` | `Attendance.tsx` | Production Ready + Server-side Pagination — paginated attendance listing, filter-scoped KPI stats via groupBy, server-side search (notes/employee name/code); persisted filter/search/page state; refresh action |
+| Customers | `modules/customers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
+| Employees | `modules/employees/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
+| Attendance | `employees module` | `Attendance.tsx` | Production Ready + Server-side Pagination — paginated attendance listing, filter-scoped KPI stats via groupBy, server-side search (notes/employee name/code); persisted filter/search/page state; refresh action; unsaved changes protection (create + edit modals); standardized empty state |
 | Payroll | `modules/payroll/` | `Salaries.tsx` | Complete |
-| Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action |
+| Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Maintenance | `modules/maintenance/` | `Maintenance.tsx` | Production Ready — full CRUD, search, filters, details modal; persisted filter/search/page state; refresh action |
-| Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action |
-| Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields; persisted search, filter, tab, page state; refresh action |
+| Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
+| Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields; persisted search, filter, tab, page state; refresh action; standardized empty state |
 | Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete |
-| Suppliers | `modules/suppliers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action |
-| Expenses | `modules/expenses/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action |
+| Suppliers | `modules/suppliers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
+| Expenses | `modules/expenses/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Transactions | `modules/transactions/` | `Accounting.tsx` | Complete |
 | Accounting | `modules/accounting/` | `Accounting.tsx` | Complete |
 | Reports | `modules/reports/` | `Reports.tsx` | Complete |
-| Users | `modules/users/` | `Users.tsx` | Complete — persisted search, filter, page state; refresh action |
+| Users | `modules/users/` | `Users.tsx` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Roles | `modules/roles/` | `Users.tsx` | Complete |
 | Audit | `modules/audit/` | — | Backend complete — no frontend viewer yet |
 | Backups | `modules/backups/` | `Backup.tsx` | Complete |
@@ -261,7 +264,7 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 
 | Branch | Status | Notes |
 |--------|--------|-------|
-| *(none)* | — | All feature branches merged as of 2026-06-09 |
+| *(none)* | — | All feature branches merged as of 2026-06-11 |
 
 > Update this table when a new feature branch is opened.
 
@@ -303,4 +306,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-11 — Attendance Pagination released; baseline advanced to `90cab98` (`stable-attendance-pagination-v1`). Delivered: server-side pagination for GET /employees/attendance, groupBy-based KPI stats, server-side search, DataTable meta/onPage integration, 17 unit tests added. All validations passed, 101/101 tests green, Gemini APPROVED WITH MINOR NOTES.*
+*Last updated: 2026-06-11 — Operational UX Phase 1B-A released; baseline advanced to `9028530` (`stable-operational-ux-phase1b-a-v1`). Delivered: standardized empty states for all 9 surfaces (7 ResourcePage modules + Invoices + Attendance); unsaved changes protection on Modal shared component, FormDialog shared forms, and Attendance create/edit modals. No backend/Prisma/RBAC changes. All validations passed, 101/101 tests green, Gemini APPROVED.*
