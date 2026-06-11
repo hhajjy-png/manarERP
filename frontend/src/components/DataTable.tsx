@@ -25,14 +25,16 @@ interface Props {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   actions?: (row: any) => ReactNode;
   emptyText?: string;
+  emptyAction?: ReactNode;
 }
 
-export default function DataTable({ columns, rows, loading, meta, onPage, actions, emptyText }: Props) {
+export default function DataTable({ columns, rows, loading, meta, onPage, actions, emptyText, emptyAction }: Props) {
   const { t } = useT();
+  const colSpan = columns.length + (actions ? 1 : 0);
 
   return (
     <div className="card panel" style={{ padding: 0 }}>
-      <div className="table-responsive">
+      <div className="table-responsive" style={{ minHeight: 120 }}>
         <table>
           <thead>
             <tr>
@@ -42,9 +44,14 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={columns.length + (actions ? 1 : 0)}><div className="center-msg"><div className="spinner" />{t('msg.loading')}</div></td></tr>
+              <tr><td colSpan={colSpan}><div className="center-msg"><div className="spinner" />{t('msg.loading')}</div></td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={columns.length + (actions ? 1 : 0)}><div className="center-msg">{emptyText ?? t('msg.empty')}</div></td></tr>
+              <tr><td colSpan={colSpan}>
+                <div className="center-msg" style={{ flexDirection: 'column', gap: 12 }}>
+                  <span>{emptyText ?? t('msg.empty')}</span>
+                  {emptyAction}
+                </div>
+              </td></tr>
             ) : (
               rows.map((row, i) => (
                 <tr key={row.id ?? i}>
@@ -57,15 +64,20 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
         </table>
       </div>
 
-      {meta && meta.totalPages > 1 && (
+      {meta && meta.total > 0 && (
         <div className="pagination">
           <span style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>
-            {t('msg.page')} {meta.page} {t('msg.of')} {meta.totalPages} — {t('msg.total')} {meta.total}
+            {meta.totalPages > 1
+              ? <>{t('msg.page')} {meta.page} {t('msg.of')} {meta.totalPages} — {t('msg.total')} {meta.total}</>
+              : <>{t('msg.total')} {meta.total}</>
+            }
           </span>
-          <div className="pg-btns">
-            <button className="btn secondary sm" disabled={meta.page <= 1} onClick={() => onPage?.(meta.page - 1)}>{t('action.prev')}</button>
-            <button className="btn secondary sm" disabled={meta.page >= meta.totalPages} onClick={() => onPage?.(meta.page + 1)}>{t('action.next')}</button>
-          </div>
+          {meta.totalPages > 1 && (
+            <div className="pg-btns">
+              <button type="button" className="btn secondary sm" disabled={meta.page <= 1} onClick={() => onPage?.(meta.page - 1)}>{t('action.prev')}</button>
+              <button type="button" className="btn secondary sm" disabled={meta.page >= meta.totalPages} onClick={() => onPage?.(meta.page + 1)}>{t('action.next')}</button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -112,7 +112,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       </div>
 
       {alerts.length > 0 && (
-        <div className="alert warn">
+        <div className="alert warn" role="alert" aria-live="polite">
           <span style={{ fontSize: 20 }}>⚠️</span>
           <div>{t('msg.alert_prefix', { count: alerts.length })} {alerts.slice(0, 8).join('  ·  ')}{alerts.length > 8 ? ' …' : ''}</div>
         </div>
@@ -167,6 +167,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         meta={meta}
         onPage={setPage}
         emptyText={cfg.emptyText ? t(cfg.emptyText) : undefined}
+        emptyAction={canCreate ? (
+          <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t(cfg.createLabel)}</button>
+        ) : undefined}
         actions={(row) => (
           <>
             {cfg.canApprove && row.status === 'PENDING' && hasPermission('expenses.approve') && (
