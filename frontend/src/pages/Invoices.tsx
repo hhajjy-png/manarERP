@@ -128,6 +128,7 @@ export default function Invoices() {
         loading={loading}
         meta={meta}
         onPage={setPage}
+        emptyText={t('empty.invoices')}
         actions={(row) => (
           <>
             {hasPermission('invoices.update') && row.status !== 'PAID' && row.status !== 'CANCELLED' && (

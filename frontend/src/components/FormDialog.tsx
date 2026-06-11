@@ -44,6 +44,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
     }
     return v;
   });
+  const [initialValues] = useState(values);
   const [asyncOptions, setAsyncOptions] = useState<Record<string, { value: string; label: string }[]>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -64,6 +65,12 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const isDirty = JSON.stringify(values) !== JSON.stringify(initialValues);
+
+  function canClose() {
+    return !isDirty || confirm(t('msg.unsaved_changes'));
+  }
 
   function set(name: string, value: string) {
     setValues((p: Record<string, unknown>) => ({ ...p, [name]: value }));
@@ -101,10 +108,11 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
     <Modal
       title={title}
       onClose={onClose}
+      onBeforeClose={canClose}
       footer={
         <>
           <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
-          <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+          <button className="btn secondary" onClick={() => { if (canClose()) onClose(); }}>{t('action.cancel')}</button>
         </>
       }
     >

@@ -66,6 +66,7 @@ export interface ModuleConfig {
   columns: Column[];
   fields: FormField[];
   createLabel: string;
+  emptyText?: string;
   canApprove?: boolean;
   statusFilter?: { param: string; options: { value: string; labelKey: string }[] };
 }
@@ -75,6 +76,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'contracts', endpoint: '/contracts', label: 'إدارة العقود',
     title: 'mod.contracts.title', subtitle: 'mod.contracts.subtitle',
     icon: '📄', group: 'العمليات الأساسية', createLabel: 'mod.contracts.create',
+    emptyText: 'empty.contracts',
     columns: [
       { key: 'code', label: 'col.contract_no', render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.code}</strong> },
       { key: 'asphaltPlant', label: 'col.asphalt_plant' },
@@ -108,6 +110,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'customers', endpoint: '/customers', label: 'العملاء والجهات',
     title: 'mod.customers.title', subtitle: 'mod.customers.subtitle',
     icon: '👥', group: 'العمليات الأساسية', createLabel: 'mod.customers.create',
+    emptyText: 'empty.customers',
     statusFilter: {
       param: 'type',
       options: [
@@ -140,6 +143,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'suppliers', endpoint: '/suppliers', label: 'الموردون',
     title: 'mod.suppliers.title', subtitle: 'mod.suppliers.subtitle',
     icon: '📦', group: 'المالية', createLabel: 'mod.suppliers.create',
+    emptyText: 'empty.suppliers',
     columns: [
       { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
       { key: 'name', label: 'col.supplier_name', render: (r) => <strong>{r.name}</strong> },
@@ -161,6 +165,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'equipment', endpoint: '/equipment', label: 'المعدات والآليات',
     title: 'mod.equipment.title', subtitle: 'mod.equipment.subtitle',
     icon: '🚜', group: 'العمليات الأساسية', createLabel: 'mod.equipment.create',
+    emptyText: 'empty.equipment',
     statusFilter: {
       param: 'status',
       options: [
@@ -194,6 +199,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'employees', endpoint: '/employees', label: 'الموظفون والكوادر',
     title: 'mod.employees.title', subtitle: 'mod.employees.subtitle',
     icon: '👷', group: 'العمليات الأساسية', createLabel: 'mod.employees.create',
+    emptyText: 'empty.employees',
     statusFilter: {
       param: 'status',
       options: [
@@ -245,6 +251,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'expenses', endpoint: '/expenses', label: 'المصروفات والتشغيل',
     title: 'mod.expenses.title', subtitle: 'mod.expenses.subtitle',
     icon: '💸', group: 'المالية', createLabel: 'mod.expenses.create', canApprove: true,
+    emptyText: 'empty.expenses',
     statusFilter: {
       param: 'status',
       options: [
@@ -276,6 +283,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'users', endpoint: '/users', label: 'المستخدمون والصلاحيات',
     title: 'mod.users.title', subtitle: 'mod.users.subtitle',
     icon: '🔐', group: 'النظام', createLabel: 'mod.users.create',
+    emptyText: 'empty.users',
     columns: [
       { key: 'username', label: 'col.username', render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.username}</strong> },
       { key: 'fullName', label: 'col.fullname' },
