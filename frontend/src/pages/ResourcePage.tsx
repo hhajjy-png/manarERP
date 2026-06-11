@@ -7,6 +7,8 @@ import DataTable, { PageMeta } from '../components/DataTable';
 import FormDialog from '../components/FormDialog';
 import { usePersistedState } from '../hooks/usePersistedState';
 
+type AlertItem = { id: number; code: string; label: string; severity: 'warn' | 'error' };
+
 export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const cfg = MODULES[moduleKey];
   const { hasPermission } = useAuth();
@@ -23,7 +25,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
-  const [alerts, setAlerts] = useState<string[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
 
   const canCreate = hasPermission(`${cfg.key}.create`);
   const canUpdate = hasPermission(`${cfg.key}.update`);
@@ -62,15 +64,21 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           const res = await api.get('/equipment/expiring', { params: { days: 30 } });
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const list = (res.data.data ?? []) as any[];
-          setAlerts(list.map((e) => `${e.code} — ${e.registration?.remainingText ?? ''}`));
+          setAlerts(list.map((e): AlertItem => {
+            const r = e.registration;
+            const severity: 'warn' | 'error' = (r?.expired || (r?.remainingDays ?? 1) <= 7) ? 'error' : 'warn';
+            return { id: e.id, code: e.code, label: `${e.code} — ${r?.remainingText ?? ''}`, severity };
+          }));
         } else if (cfg.key === 'employees') {
           const res = await api.get('/employees/expiring-documents', { params: { days: 30 } });
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const list = (res.data.data ?? []) as any[];
-          const msgs: string[] = [];
-          list.forEach((e) => e.alerts?.forEach((a: { document: string; remainingDays: number }) =>
-            msgs.push(`${e.fullName} — ${a.document}: ${a.remainingDays < 0 ? 'منتهٍ' : a.remainingDays + ' يوم'}`)));
-          setAlerts(msgs);
+          const items: AlertItem[] = [];
+          list.forEach((e) => e.alerts?.forEach((a: { document: string; remainingDays: number }) => {
+            const severity: 'warn' | 'error' = a.remainingDays <= 7 ? 'error' : 'warn';
+            items.push({ id: e.id, code: e.code, label: `${e.fullName} — ${a.document}: ${a.remainingDays < 0 ? 'منتهٍ' : a.remainingDays + ' يوم'}`, severity });
+          }));
+          setAlerts(items);
         }
       } catch {
         // نتجاهل
@@ -112,9 +120,19 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       </div>
 
       {alerts.length > 0 && (
-        <div className="alert warn" role="alert" aria-live="polite">
-          <span style={{ fontSize: 20 }}>⚠️</span>
-          <div>{t('msg.alert_prefix', { count: alerts.length })} {alerts.slice(0, 8).join('  ·  ')}{alerts.length > 8 ? ' …' : ''}</div>
+        <div className="alert-chips-strip" role="alert" aria-live="polite">
+          {alerts.map((item, i) => (
+            <button
+              key={i}
+              type="button"
+              className={`alert-chip ${item.severity}`}
+              onClick={() => { setSearch(item.code); setQuery(item.code); setPage(1); }}
+              title={item.label}
+            >
+              <span>{item.severity === 'error' ? '🔴' : '⚠️'}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
         </div>
       )}
       {error && (
