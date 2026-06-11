@@ -54,7 +54,7 @@ function defaultForm(): FormState {
     amount: '',
     currency: 'KWD',
     description: '',
-    bankName: '',
+    bankName: 'بنك الخليج',
     notes: '',
   };
 }
@@ -99,6 +99,42 @@ function fmtAmount(v: number | string, currency = 'KWD'): string {
 
 // ── ChequePrintOutput ─────────────────────────────────────────────────────────
 
+const CHEQUE_CALIBRATION_MODE = false;
+
+// Page-level print position on A4 landscape (mm). Gulf Bank cheque feeds at centre of page.
+const CHEQUE_PAGE_OFFSET_X_MM: number = 0;
+const CHEQUE_PAGE_OFFSET_Y_MM: number = 40;
+
+const CAL: React.CSSProperties = CHEQUE_CALIBRATION_MODE
+  ? { border: '1px solid red', background: 'rgba(255,0,0,0.08)' }
+  : {};
+
+function CalTag({ name, top, left, width }: { name: string; top: string; left: string; width: string }) {
+  if (!CHEQUE_CALIBRATION_MODE) return null;
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        fontSize: '5.5pt',
+        fontFamily: 'monospace, monospace',
+        color: 'red',
+        background: 'rgba(255,255,255,0.9)',
+        padding: '1px 3px',
+        lineHeight: 1.3,
+        pointerEvents: 'none',
+        whiteSpace: 'nowrap',
+        zIndex: 10,
+      }}
+    >
+      {name}
+      <br />
+      t:{top} l:{left} w:{width}
+    </div>
+  );
+}
+
 interface PreviewData {
   chequeNumber: string;
   chequeDate: string;
@@ -119,6 +155,7 @@ function ChequePrintOutput({ data }: { data: PreviewData }) {
       : `${String(d.getDate()).padStart(2, '0')} / ${String(d.getMonth() + 1).padStart(2, '0')} / ${d.getFullYear()}`;
 
   return (
+    // Outer container: fixed clipping frame — no transform, layout footprint is stable
     <div
       style={{
         position: 'relative',
@@ -128,82 +165,93 @@ function ChequePrintOutput({ data }: { data: PreviewData }) {
         overflow: 'hidden',
       }}
     >
-      {/* Background image — hidden during printing so real cheque paper shows */}
-      <img
-        src={gulfBankImg}
-        className="cheque-bg-img"
-        alt=""
-        aria-hidden="true"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill' }}
-      />
+      <div style={{ position: 'absolute', inset: 0 }}>
+        {/* Background image — hidden during printing so real cheque paper shows */}
+        <img
+          src={gulfBankImg}
+          className="cheque-bg-img"
+          alt=""
+          aria-hidden="true"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill' }}
+        />
 
-      {/* Beneficiary name */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '32%',
-          left: '22%',
-          width: '38%',
-          fontSize: '11pt',
-          fontWeight: 700,
-          color: '#000',
-        }}
-      >
-        {data.beneficiaryName}
-      </div>
+        {/* Beneficiary name */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '29.8%',
+            left: '34.5%',
+            width: '38%',
+            fontSize: '11pt',
+            fontWeight: 600,
+            color: '#000',
+            lineHeight: 1.55,
+            ...CAL,
+          }}
+        >
+          <CalTag name="BENEFICIARY" top="29.8%" left="34.5%" width="38%" />
+          {data.beneficiaryName}
+        </div>
 
-      {/* Date: DD / MM / YYYY */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '30%',
-          left: '67%',
-          width: '23%',
-          fontSize: '10pt',
-          fontWeight: 600,
-          color: '#000',
-          textAlign: 'center',
-          letterSpacing: 0.5,
-        }}
-      >
-        {chequeDate}
-      </div>
+        {/* Date: DD / MM / YYYY */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '24.3%',
+            left: '79.1%',
+            width: '23%',
+            fontSize: '10pt',
+            fontWeight: 600,
+            color: '#000',
+            textAlign: 'center',
+            letterSpacing: 0.5,
+            ...CAL,
+          }}
+        >
+          <CalTag name="DATE" top="24.3%" left="79.1%" width="23%" />
+          {chequeDate}
+        </div>
 
-      {/* Amount in Arabic words (tafqeet) — Phase 3 will calibrate exact position */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '43%',
-          left: '2%',
-          width: '72%',
-          fontSize: '10pt',
-          fontWeight: 600,
-          color: '#000',
-          direction: 'rtl',
-          lineHeight: 1.55,
-        }}
-      >
-        {amount > 0 ? tafqeetKWD(amount) : ''}
-      </div>
+        {/* Amount in Arabic words (tafqeet) */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '39.1%',
+            left: '5.7%',
+            width: '72%',
+            fontSize: '10pt',
+            fontWeight: 600,
+            color: '#000',
+            direction: 'rtl',
+            lineHeight: 1.55,
+            ...CAL,
+          }}
+        >
+          <CalTag name="TAFQEET" top="39.1%" left="5.7%" width="72%" />
+          {amount > 0 ? tafqeetKWD(amount) : ''}
+        </div>
 
-      {/* Numeric amount without currency label */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '45%',
-          left: '78%',
-          width: '18%',
-          fontSize: '11pt',
-          fontWeight: 700,
-          color: '#000',
-          textAlign: 'center',
-          fontFamily: 'monospace',
-          letterSpacing: 0.5,
-        }}
-      >
-        {amount > 0
-          ? amount.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
-          : ''}
+        {/* Numeric amount without currency label */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '45.8%',
+            left: '82.4%',
+            width: '18%',
+            fontSize: '11pt',
+            fontWeight: 700,
+            color: '#000',
+            textAlign: 'center',
+            fontFamily: 'monospace',
+            letterSpacing: 0.5,
+            ...CAL,
+          }}
+        >
+          <CalTag name="NUMERIC" top="45.8%" left="82.4%" width="18%" />
+          {amount > 0
+            ? `#${amount.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}#`
+            : ''}
+        </div>
       </div>
     </div>
   );
@@ -467,11 +515,15 @@ export default function Cheques() {
     <div className="page">
       {/* Hidden print area — revealed only by @media print */}
       <div className="cheque-print-only" style={{ display: 'none' }}>
-        <ChequePrintOutput data={previewData} />
+        {/* Page-level offset: shifts the entire print block in physical mm on the A4 page */}
+        <div style={{ transform: `translate(${CHEQUE_PAGE_OFFSET_X_MM}mm, ${CHEQUE_PAGE_OFFSET_Y_MM}mm)` }}>
+          <ChequePrintOutput data={previewData} />
+        </div>
       </div>
 
-      {/* Inline print CSS */}
+      {/* Inline print CSS — scoped to this component via class selectors */}
       <style>{`
+        @page { size: A4 landscape; }
         @media print {
           body > * { visibility: hidden !important; }
           .cheque-print-only {
@@ -768,9 +820,8 @@ export default function Cheques() {
                 value={form.bankName}
                 onChange={(e) => field('bankName', e.target.value)}
                 title={t('field.cheque.bank')}
-                disabled={!!editId && !canUpdate}
+                disabled
               >
-                <option value="">— اختر البنك —</option>
                 {KUWAITI_BANKS.map((bank) => (
                   <option key={bank} value={bank}>
                     {bank}
