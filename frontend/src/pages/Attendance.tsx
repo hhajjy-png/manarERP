@@ -36,16 +36,16 @@ function pill(label: string, cls: PillCls) {
   return <span className={`pill ${cls}`}>{label}</span>;
 }
 
-const statusMap: Record<string, [string, PillCls]> = {
-  PRESENT: ['حاضر',   'green'],
-  ABSENT:  ['غائب',   'red'],
-  LATE:    ['متأخر',  'amber'],
-  LEAVE:   ['إجازة',  'blue'],
+const STATUS_KEYS: Record<string, [string, PillCls]> = {
+  PRESENT: ['att.present', 'green'],
+  ABSENT:  ['att.absent',  'red'],
+  LATE:    ['att.late',    'amber'],
+  LEAVE:   ['att.leave',   'blue'],
 };
 
-function statusBadge(val: string) {
-  const [label, cls] = statusMap[val] ?? [val, 'gray'];
-  return pill(label, cls);
+function statusBadge(val: string, t: (key: string) => string) {
+  const [key, cls] = STATUS_KEYS[val] ?? [val, 'gray'];
+  return pill(t(key), cls);
 }
 
 function timeText(iso?: string | null): string {
@@ -235,7 +235,7 @@ function DetailsModal({ record, onClose }: { record: AttendanceRecord; onClose: 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         {row(t('col.att.employee'),  record.employee ? `${record.employee.fullName} (${record.employee.code})` : record.employeeId)}
         {row(t('field.date'),        dateText(record.date))}
-        {row(t('field.status'),      statusBadge(record.status))}
+        {row(t('field.status'),      statusBadge(record.status, t))}
         {row(t('col.att.check_in'),  timeText(record.checkIn))}
         {row(t('col.att.check_out'), timeText(record.checkOut))}
         {row(t('col.att.work_hours'), record.workHours != null ? `${record.workHours} ساعة` : '—')}
@@ -410,7 +410,7 @@ export default function Attendance() {
       label: t('col.att.work_hours'),
       render: (r: AttendanceRecord) => r.workHours != null ? `${r.workHours} ساعة` : '—',
     },
-    { key: 'status', label: t('field.status'), render: (r: AttendanceRecord) => statusBadge(r.status) },
+    { key: 'status', label: t('field.status'), render: (r: AttendanceRecord) => statusBadge(r.status, t) },
     { key: 'notes', label: t('field.notes'), render: (r: AttendanceRecord) => r.notes ?? '—' },
     {
       key: '_actions',
