@@ -20,6 +20,15 @@ interface Item { description: string; quantity: number; unit: string; unitPrice:
 
 interface InvStats { total: number; unpaid: number; unpaidAmount: number; }
 
+type PriceOption = {
+  id: number;
+  asphaltPlant?: string | null;
+  companyName?: string | null;
+  contractLocation?: string | null;
+  contractUnit: string;
+  unitPrice: number;
+};
+
 export default function Invoices() {
   const { hasPermission } = useAuth();
   const { t } = useT();
@@ -215,6 +224,8 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const [discount, setDiscount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [prices, setPrices] = useState<PriceOption[]>([]);
+  const [openPickerIdx, setOpenPickerIdx] = useState<number | null>(null);
 
   // resolve the effective party source for fetching the list
   const effectivePartySource = directionChoice === 'OTHER' ? customPartyType : directionChoice;
@@ -233,12 +244,30 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     if (directionChoice === 'OTHER') setPartyId('');
   }, [customPartyType, directionChoice]);
 
+  useEffect(() => {
+    api.get('/prices', { params: { pageSize: 200 } })
+      .then((res) => setPrices(res.data?.data?.data ?? []))
+      .catch((e) => { console.warn('[CreateInvoice] prices fetch failed:', e); });
+  }, []);
+
+  useEffect(() => {
+    if (openPickerIdx === null) return;
+    function handleOutsideClick() { setOpenPickerIdx(null); }
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [openPickerIdx]);
+
   const lineTotal = (it: Item) => Number(it.quantity) * Number(it.unitPrice);
   const subtotal = items.reduce((s, it) => s + lineTotal(it), 0);
   const total = Math.max(0, subtotal - Number(discount));
 
-  function setItem(i: number, key: keyof Item, value: string) {
+  function setItem(i: number, key: keyof Item, value: string | number) {
     setItems((p) => p.map((it, idx) => (idx === i ? { ...it, [key]: key === 'description' || key === 'unit' ? value : Number(value) } : it)));
+  }
+
+  function applyPrice(i: number, price: PriceOption) {
+    setItems((p) => p.map((it, idx) => idx === i ? { ...it, unitPrice: price.unitPrice, unit: price.contractUnit } : it));
+    setOpenPickerIdx(null);
   }
 
   async function submit() {
@@ -367,8 +396,38 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               {units.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
             </select>
           </div>
-          <div className="invoice-cell price-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <input type="number" min="0" step="0.001" placeholder={t('ph.unit_price')} value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+          <div className="invoice-cell price-cell" style={{ minWidth: 0, overflow: 'visible', position: 'relative' }}>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <input type="number" min="0" step="0.001" placeholder={t('ph.unit_price')} value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} style={{ ...inp, flex: 1, minWidth: 0, boxSizing: 'border-box' }} />
+              {prices.length > 0 && (
+                <button
+                  type="button"
+                  className="btn secondary sm"
+                  style={{ flexShrink: 0, padding: '0 8px', fontSize: 14 }}
+                  title="اختر سعرًا من القائمة"
+                  onClick={(e) => { e.stopPropagation(); setOpenPickerIdx(openPickerIdx === i ? null : i); }}
+                >
+                  📋
+                </button>
+              )}
+            </div>
+            {openPickerIdx === i && (
+              <div
+                onMouseDown={(e) => e.stopPropagation()}
+                style={{ position: 'absolute', top: '100%', insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 200, minWidth: 280, maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)', marginTop: 2 }}
+              >
+                {prices.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', lineHeight: 1.5 }}
+                    onClick={() => applyPrice(i, p)}
+                  >
+                    <strong>{p.asphaltPlant ?? '—'}</strong>{p.companyName ? ` — ${p.companyName}` : ''}{' '}— {p.contractUnit} — <strong>{money(p.unitPrice)}</strong>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="invoice-cell total-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
             <div style={{ ...inp, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default', width: '100%', boxSizing: 'border-box' }}>{money(lineTotal(it))}</div>
@@ -378,7 +437,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               <button
                 className="btn secondary sm"
                 type="button"
-                onClick={() => setItems((p) => p.filter((_, idx) => idx !== i))}
+                onClick={() => { if (openPickerIdx === i) setOpenPickerIdx(null); setItems((p) => p.filter((_, idx) => idx !== i)); }}
               >
                 ✕
               </button>
