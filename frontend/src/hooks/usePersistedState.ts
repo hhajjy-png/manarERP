@@ -2,7 +2,7 @@ import { Dispatch, SetStateAction, useRef, useState } from 'react';
 
 // All prefixes used by usePersistedState across the app.
 // Update this list when adding persisted state to a new page.
-const UI_STATE_PREFIXES = ['rp:', 'inv:', 'att:', 'maint:', 'invt:'];
+const UI_STATE_PREFIXES = ['rp:', 'inv:', 'att:', 'maint:', 'invt:', 'sal:', 'acc:'];
 
 /** Remove all persisted UI state — call on logout to prevent cross-user state leaks. */
 export function clearPersistedUIState(): void {

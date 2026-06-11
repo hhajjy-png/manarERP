@@ -6,6 +6,7 @@ import DataTable, { PageMeta } from '../components/DataTable';
 import StatCard from '../components/StatCard';
 import { dateText, money } from '../config/modules';
 import { useAuth } from '../stores/authStore';
+import { usePersistedState } from '../hooks/usePersistedState';
 
 type EmployeeOption = { id: number; fullName: string; code: string };
 type PayrollLine = { id: number; type: string; label: string; amount: number };
@@ -46,15 +47,15 @@ const initialYear = now.getFullYear();
 export default function Salaries() {
   const { hasPermission } = useAuth();
   const { t } = useT();
-  const [tab, setTab] = useState<'payroll' | 'history'>('payroll');
+  const [tab, setTab] = usePersistedState<'payroll' | 'history'>('sal:tab', 'payroll');
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [rows, setRows] = useState<PayrollRow[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [page, setPage] = useState(1);
-  const [month, setMonth] = useState(initialMonth);
-  const [year, setYear] = useState(initialYear);
+  const [month, setMonth] = usePersistedState<number>('sal:month', initialMonth);
+  const [year, setYear] = usePersistedState<number>('sal:year', initialYear);
   const [employeeId, setEmployeeId] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = usePersistedState('sal:status', '');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');

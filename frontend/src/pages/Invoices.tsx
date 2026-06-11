@@ -32,9 +32,11 @@ export default function Invoices() {
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [paying, setPaying] = useState<any | null>(null);
+  const [loadError, setLoadError] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const res = await api.get('/invoices', {
         params: {
@@ -47,6 +49,8 @@ export default function Invoices() {
       });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
+    } catch (e) {
+      setLoadError(errorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -80,6 +84,12 @@ export default function Invoices() {
         <div><h2>{t('page.invoices.title')}</h2><p>{t('page.invoices.subtitle')}</p></div>
         {hasPermission('invoices.create') && <button className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>}
       </div>
+      {loadError && (
+        <div className="alert error" role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ flex: 1 }}>⚠️ {loadError}</span>
+          <button type="button" className="btn secondary sm" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
+        </div>
+      )}
       <div className="toolbar" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <input
           placeholder={t('page.invoices.search')}
