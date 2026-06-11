@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
-import DataTable from '../components/DataTable';
+import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import StatCard from '../components/StatCard';
 import { dateText } from '../config/modules';
@@ -77,18 +77,24 @@ const inp: React.CSSProperties = {
 
 // ── KPI strip ─────────────────────────────────────────────────────────────────
 
-function SummaryKPIs({ rows }: { rows: AttendanceRecord[] }) {
+interface AttendanceStats {
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+  leave: number;
+}
+
+const DEFAULT_STATS: AttendanceStats = { total: 0, present: 0, absent: 0, late: 0, leave: 0 };
+
+function SummaryKPIs({ stats }: { stats: AttendanceStats }) {
   const { t } = useT();
-  const total   = rows.length;
-  const present = rows.filter((r) => r.status === 'PRESENT').length;
-  const absent  = rows.filter((r) => r.status === 'ABSENT').length;
-  const late    = rows.filter((r) => r.status === 'LATE').length;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
-      <StatCard label={t('stat.att.total')}   value={total}   icon="📋" color="#3b82f6" bg="#dbeafe" />
-      <StatCard label={t('stat.att.present')} value={present} icon="✅" color="#10b981" bg="#d1fae5" />
-      <StatCard label={t('stat.att.absent')}  value={absent}  icon="❌" color="#ef4444" bg="#fee2e2" />
-      <StatCard label={t('stat.att.late')}    value={late}    icon="⏰" color="#f59e0b" bg="#fef3c7" />
+      <StatCard label={t('stat.att.total')}   value={stats.total}   icon="📋" color="#3b82f6" bg="#dbeafe" />
+      <StatCard label={t('stat.att.present')} value={stats.present} icon="✅" color="#10b981" bg="#d1fae5" />
+      <StatCard label={t('stat.att.absent')}  value={stats.absent}  icon="❌" color="#ef4444" bg="#fee2e2" />
+      <StatCard label={t('stat.att.late')}    value={stats.late}    icon="⏰" color="#f59e0b" bg="#fef3c7" />
     </div>
   );
 }
@@ -250,11 +256,14 @@ export default function Attendance() {
   const { hasPermission } = useAuth();
 
   const [rows, setRows] = useState<AttendanceRecord[]>([]);
+  const [meta, setMeta] = useState<PageMeta | null>(null);
+  const [stats, setStats] = useState<AttendanceStats>(DEFAULT_STATS);
   const [employeeList, setEmployeeList] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   // Filters — persisted across navigation
+  const [page, setPage] = usePersistedState<number>('att:page', 1);
   const [search, setSearch] = usePersistedState('att:search', '');
   const [filterEmployee, setFilterEmployee] = usePersistedState('att:employee', '');
   const [filterStatus, setFilterStatus] = usePersistedState('att:status', '');
@@ -278,38 +287,32 @@ export default function Attendance() {
     setLoading(true);
     setError('');
     try {
-      const params: Record<string, string> = { pageSize: '500' };
+      const params: Record<string, string | number> = { page, pageSize: 20 };
+      if (search)         params.search     = search;
       if (filterEmployee) params.employeeId = filterEmployee;
       if (filterStatus)   params.status     = filterStatus;
-      if (filterDateFrom) params.from        = filterDateFrom;
-      if (filterDateTo)   params.to          = filterDateTo;
+      if (filterDateFrom) params.from       = filterDateFrom;
+      if (filterDateTo)   params.to         = filterDateTo;
       const res = await api.get('/employees/attendance', { params });
-      setRows(res.data.data ?? []);
+      const result = res.data.data;
+      setRows(result.data ?? []);
+      setMeta(result.meta ?? null);
+      setStats(result.stats ?? DEFAULT_STATS);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [filterEmployee, filterStatus, filterDateFrom, filterDateTo]);
+  }, [page, search, filterEmployee, filterStatus, filterDateFrom, filterDateTo]);
+
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    load();
     api.get('/employees', { params: { pageSize: 500, status: 'ACTIVE' } })
       .then((r) => setEmployeeList(r.data.data?.data ?? []))
       .catch(() => {});
-  }, [load]);
+  }, []);
 
-  // Client-side text search on employee name/notes
-  const visible = search.trim()
-    ? rows.filter((r) => {
-        const q = search.trim().toLowerCase();
-        return (
-          (r.employee?.fullName ?? '').toLowerCase().includes(q) ||
-          (r.employee?.code ?? '').toLowerCase().includes(q) ||
-          (r.notes ?? '').toLowerCase().includes(q)
-        );
-      })
-    : rows;
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -438,7 +441,7 @@ export default function Attendance() {
         )}
       </div>
 
-      <SummaryKPIs rows={rows} />
+      <SummaryKPIs stats={stats} />
 
       {/* Filters */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
@@ -446,25 +449,25 @@ export default function Attendance() {
           style={{ ...inp, width: 240 }}
           placeholder={t('ph.att.search')}
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
-        <select style={{ ...inp, width: 200 }} value={filterEmployee} onChange={(e) => setFilterEmployee(e.target.value)}>
+        <select style={{ ...inp, width: 200 }} value={filterEmployee} onChange={(e) => { setFilterEmployee(e.target.value); setPage(1); }}>
           <option value="">{t('ph.att.select_employee')}</option>
           {employeeList.map((emp) => (
             <option key={emp.id} value={emp.id}>{emp.fullName} ({emp.code})</option>
           ))}
         </select>
-        <select style={{ ...inp, width: 160 }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+        <select style={{ ...inp, width: 160 }} value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
           <option value="">{t('opt.att.all_statuses')}</option>
           <option value="PRESENT">{t('opt.att.present')}</option>
           <option value="ABSENT">{t('opt.att.absent')}</option>
           <option value="LATE">{t('opt.att.late')}</option>
           <option value="LEAVE">{t('opt.att.leave')}</option>
         </select>
-        <input style={{ ...inp, width: 150 }} type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} title={t('filter.date_from')} />
-        <input style={{ ...inp, width: 150 }} type="date" value={filterDateTo}   onChange={(e) => setFilterDateTo(e.target.value)}   title={t('filter.date_to')} />
+        <input style={{ ...inp, width: 150 }} type="date" value={filterDateFrom} onChange={(e) => { setFilterDateFrom(e.target.value); setPage(1); }} title={t('filter.date_from')} />
+        <input style={{ ...inp, width: 150 }} type="date" value={filterDateTo}   onChange={(e) => { setFilterDateTo(e.target.value);   setPage(1); }} title={t('filter.date_to')} />
         {(search || filterEmployee || filterStatus || filterDateFrom || filterDateTo) && (
-          <button className="btn secondary sm" onClick={() => { setSearch(''); setFilterEmployee(''); setFilterStatus(''); setFilterDateFrom(''); setFilterDateTo(''); }}>
+          <button className="btn secondary sm" onClick={() => { setSearch(''); setFilterEmployee(''); setFilterStatus(''); setFilterDateFrom(''); setFilterDateTo(''); setPage(1); }}>
             {t('action.cancel')} ✕
           </button>
         )}
@@ -475,8 +478,10 @@ export default function Attendance() {
 
       <DataTable
         columns={columns}
-        rows={visible}
+        rows={rows}
         loading={loading}
+        meta={meta}
+        onPage={setPage}
       />
 
       {/* Create Modal */}

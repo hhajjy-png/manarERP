@@ -14,6 +14,7 @@ import {
   UpdateEmployeeInput,
 } from './employees.schema';
 import { buildDocumentAlerts } from './employees.alertBuilder';
+import { aggregateAttendanceStats, AttendanceFilters, buildAttendanceWhere } from './attendance.filters';
 
 class EmployeesRepository extends BaseRepository<{ id: number }> {
   protected readonly model = 'employee';
@@ -145,20 +146,21 @@ export class EmployeesService {
   }
 
   // ===== الحضور والانصراف =====
-  async listAttendance(employeeId?: number, from?: string, to?: string, status?: string) {
-    const where: Prisma.AttendanceWhereInput = {};
-    if (employeeId) where.employeeId = employeeId;
-    if (status) where.status = status;
-    if (from || to) {
-      where.date = {};
-      if (from) where.date.gte = new Date(from);
-      if (to) where.date.lte = new Date(to);
-    }
-    return prisma.attendance.findMany({
-      where,
-      orderBy: { date: 'desc' },
-      include: { employee: { select: { id: true, code: true, fullName: true } } },
-    });
+  async listAttendance(query: PaginationQuery & AttendanceFilters) {
+    const pagination = getPagination(query);
+    const where = buildAttendanceWhere(query);
+    const include = { employee: { select: { id: true, code: true, fullName: true } } };
+
+    const [data, statusCounts] = await Promise.all([
+      prisma.attendance.findMany({ where, skip: pagination.skip, take: pagination.take, orderBy: { date: 'desc' }, include }),
+      prisma.attendance.groupBy({ by: ['status'], where, _count: { status: true } }),
+    ]);
+    const total = statusCounts.reduce((sum, r) => sum + r._count.status, 0);
+
+    return {
+      ...buildPaginatedResult(data, total, pagination),
+      stats: aggregateAttendanceStats(statusCounts, total),
+    };
   }
 
   /** تسجيل/تحديث حضور يوم (Upsert على employeeId+date). */
