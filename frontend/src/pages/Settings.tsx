@@ -4,13 +4,13 @@ import { useUI } from '../stores/uiStore';
 import { useT, type Lang } from '../lib/i18n';
 
 const FIELDS: { key: string; label: string; group: string }[] = [
-  { key: 'company.name', label: 'اسم الشركة', group: 'company' },
-  { key: 'company.country', label: 'الدولة', group: 'company' },
-  { key: 'company.phone', label: 'الهاتف', group: 'company' },
-  { key: 'company.address', label: 'العنوان', group: 'company' },
-  { key: 'finance.currencyLabel', label: 'رمز العملة', group: 'finance' },
-  { key: 'finance.decimals', label: 'عدد الخانات العشرية', group: 'finance' },
-  { key: 'backup.cron', label: 'موعد النسخ التلقائي (Cron)', group: 'backup' },
+  { key: 'company.name', label: 'field.company_name', group: 'company' },
+  { key: 'company.country', label: 'field.settings.country', group: 'company' },
+  { key: 'company.phone', label: 'field.phone', group: 'company' },
+  { key: 'company.address', label: 'field.address', group: 'company' },
+  { key: 'finance.currencyLabel', label: 'field.settings.currency_label', group: 'finance' },
+  { key: 'finance.decimals', label: 'field.settings.decimals', group: 'finance' },
+  { key: 'backup.cron', label: 'field.settings.backup_cron', group: 'backup' },
 ];
 
 export default function Settings() {
@@ -76,7 +76,7 @@ export default function Settings() {
         <div className="form-grid">
           {FIELDS.map((f) => (
             <div className="field" key={f.key}>
-              <label>{f.label}</label>
+              <label>{t(f.label)}</label>
               <input value={values[f.key] ?? ''} onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))} />
             </div>
           ))}
