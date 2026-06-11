@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
-import { MODULES } from '../config/modules';
+import { MODULES, money } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
@@ -8,6 +8,8 @@ import FormDialog from '../components/FormDialog';
 import { usePersistedState } from '../hooks/usePersistedState';
 
 type AlertItem = { id: number; code: string; label: string; severity: 'warn' | 'error' };
+type ContractStats = { totalContracts: number; activeContracts: number; monthlyTransportTotal: number };
+type EquipmentStats = { total: number; byStatus: { status: string; count: number }[] };
 
 export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const cfg = MODULES[moduleKey];
@@ -26,6 +28,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [editing, setEditing] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [contractStats, setContractStats] = useState<ContractStats | null>(null);
+  const [equipmentStats, setEquipmentStats] = useState<EquipmentStats | null>(null);
 
   const canCreate = hasPermission(`${cfg.key}.create`);
   const canUpdate = hasPermission(`${cfg.key}.update`);
@@ -87,6 +91,22 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     })();
   }, [cfg.key]);
 
+  useEffect(() => {
+    setContractStats(null);
+    setEquipmentStats(null);
+    if (cfg.key === 'contracts') {
+      api.get('/contracts/summary').then((res) => {
+        const d = res.data?.data;
+        if (d) setContractStats({ totalContracts: d.totalContracts ?? 0, activeContracts: d.activeContracts ?? 0, monthlyTransportTotal: d.monthlyTransportTotal ?? 0 });
+      }).catch(() => {});
+    } else if (cfg.key === 'equipment') {
+      api.get('/equipment/summary').then((res) => {
+        const d = res.data?.data;
+        if (d) setEquipmentStats({ total: d.total ?? 0, byStatus: d.byStatus ?? [] });
+      }).catch(() => {});
+    }
+  }, [cfg.key]);
+
   function onSearch(e: FormEvent) {
     e.preventDefault();
     setPage(1);
@@ -120,6 +140,57 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         {canCreate && <button className="btn" onClick={() => setCreating(true)}>＋ {t(cfg.createLabel)}</button>}
       </div>
 
+      {cfg.key === 'contracts' && contractStats && (
+        <div className="inv-stats-strip">
+          <div className="inv-stat-chip">
+            <span className="inv-stat-icon">📄</span>
+            <span className="inv-stat-label">إجمالي العقود</span>
+            <span className="inv-stat-value">{contractStats.totalContracts}</span>
+          </div>
+          <div className="inv-stat-chip green">
+            <span className="inv-stat-icon">✅</span>
+            <span className="inv-stat-label">العقود الفعالة</span>
+            <span className="inv-stat-value">{contractStats.activeContracts}</span>
+          </div>
+          <div className="inv-stat-chip blue">
+            <span className="inv-stat-icon">💰</span>
+            <span className="inv-stat-label">قيمة النقل الشهري</span>
+            <span className="inv-stat-value">{money(contractStats.monthlyTransportTotal)}</span>
+          </div>
+        </div>
+      )}
+      {cfg.key === 'equipment' && equipmentStats && (
+        <div className="inv-stats-strip">
+          <div className="inv-stat-chip">
+            <span className="inv-stat-icon">🚜</span>
+            <span className="inv-stat-label">إجمالي المعدات</span>
+            <span className="inv-stat-value">{equipmentStats.total}</span>
+          </div>
+          {equipmentStats.byStatus.map((s) => (
+            <button
+              key={s.status}
+              type="button"
+              className={`inv-stat-chip ${s.status === 'WORKING' ? 'green' : 'red'} clickable`}
+              onClick={() => { setFilterValue(s.status); setPage(1); }}
+              title={`عرض المعدات التي ${s.status === 'WORKING' ? 'تعمل' : 'لا تعمل'}`}
+              aria-label={`تصفية: ${s.status === 'WORKING' ? 'تعمل' : 'لا تعمل'} (${s.count})`}
+            >
+              <span className="inv-stat-icon" aria-hidden="true">{s.status === 'WORKING' ? '✅' : '🔴'}</span>
+              <span className="inv-stat-label">{s.status === 'WORKING' ? 'تعمل' : 'لا تعمل'}</span>
+              <span className="inv-stat-value">{s.count}</span>
+            </button>
+          ))}
+          {equipmentStats.total > 0 && (
+            <div className="inv-stat-chip blue">
+              <span className="inv-stat-icon">📊</span>
+              <span className="inv-stat-label">نسبة التشغيل</span>
+              <span className="inv-stat-value">
+                {Math.round(((equipmentStats.byStatus.find((s) => s.status === 'WORKING')?.count ?? 0) / equipmentStats.total) * 100)}%
+              </span>
+            </div>
+          )}
+        </div>
+      )}
       {alerts.length > 0 && (
         <div className="alert-chips-strip" role="alert" aria-live="polite">
           {alerts.map((item, i) => (
