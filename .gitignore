@@ -11,3 +11,4 @@ data/
 *.local
 .DS_Store
 .claude/
+.playwright-mcp/
