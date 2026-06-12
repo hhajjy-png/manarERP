@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `5f71d5a` — docs: update development workflow v3 model routing |
-| **Stable tag** | `stable-contracts-price-binding-v1` |
+| **HEAD** | `442e057` — Merge equipment plate integration phase 1 |
+| **Stable tag** | `stable-equipment-plate-integration-phase1-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,7 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Equipment Plate Integration Phase 1 | `feature/equipment-plate-integration-phase1` | `stable-equipment-plate-integration-phase1-v1` | Frontend-only. Read-only Plate Number field auto-populated in all four Maintenance forms (Maintenance Records, Fuel Logs, Breakdowns, Spare Parts) when equipment is selected. `Equipment` interface updated to declare `plateNumber?: string`. All four form states, `onChange` handlers, and post-submit reset calls updated. Plate display is `readOnly tabIndex={-1}` with muted styling — not editable, not submitted to backend. No backend/schema/permission changes. Equipment API already returned `plateNumber` — no endpoint changes needed. Feature commit: `cd8d8ce`. Merge commit: `442e057`. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Development Workflow v3.0 | `production` (direct commit) | — | Documentation only. No code changes. Three workflow modes (Quick Fix, Feature, Major System), model routing policy (Sonnet default, Opus escalation, Gemini mandatory review, ChatGPT PM), Implementation Reference appendix restored: pre-implementation checklist, `/simplify` + `/code-review` + `/security-review` quality gates, Gemini report template (10 sections), merge verification commands, commit message format, tag and push rules, rollback procedure. CLAUDE.md updated with v3.0 workflow section and appendix reference. HEAD: `5f71d5a`. |
 | Contracts Price Binding | `feature/contracts-price-binding` | `stable-contracts-price-binding-v1` | Frontend-only. Linked Price selector added to Contracts page. Auto-fills `asphaltPlant`, `companyName`, `location`, `unitName`, `price` when user selects a price. Customer column added to Contracts DataTable. Existing field values remain editable after auto-fill. No backend/schema/permission changes. **Implementation detail:** `linkedPrice` selector sends the selected price record ID to the backend but is silently stripped by Zod (`contracts.schema.ts` does not declare `linkedPrice`). No `linkedPriceId` FK exists in `schema.prisma`. No migration required. Only the 5 auto-filled fields are actually persisted. |
 | Remove DataTable Sticky Header | `hotfix/remove-datatable-sticky-header` | `stable-remove-datatable-sticky-header-v1` | Frontend-only. Sticky column headers removed from `theme.css` — eliminates the first-row overlap issue introduced in DataTable Enhancement Phase 1. Zebra row stripes and hover styling preserved. |
@@ -84,7 +85,9 @@ Verified against production HEAD `5f71d5a`. Code evidence confirmed in `theme.cs
 | 4 | Invoice price picker UX clarification | **IMPLEMENTED** | Operational Feedback Phase 1 | `stable-operational-feedback-phase1-v1` |
 | 5 | First-row hidden in tables | **IMPLEMENTED** | Remove DataTable Sticky Header | `stable-remove-datatable-sticky-header-v1` |
 | 6 | White gap under table headers | **IMPLEMENTED** | Remove DataTable Sticky Header | `stable-remove-datatable-sticky-header-v1` |
-| 7 | Equipment ↔ Plate Number linked selectors | **OPEN** | — | — |
+| 7 | Equipment ↔ Plate Number linked selectors | **IMPLEMENTED** | Equipment Plate Integration Phase 1 | `stable-equipment-plate-integration-phase1-v1` |
+
+**Audit status: 7/7 IMPLEMENTED. All observations closed as of 2026-06-12.** Equipment ↔ Plate Number: merged `442e057`, released in `stable-equipment-plate-integration-phase1-v1`.
 
 **DataTable current state (confirmed):** No sticky headers. Zebra rows (`tbody tr:nth-child(even)`), rgba hover tokens, `box-shadow: inset 0 -2px` header border, and pagination `border-top` separator all present. Row-range indicator (`showing_range`) in pagination present. Filter label visible in ResourcePage toolbar.
 
@@ -92,42 +95,30 @@ Verified against production HEAD `5f71d5a`. Code evidence confirmed in `theme.cs
 
 ## Next Recommended Tasks
 
-### 1. Equipment Plate Integration Phase 1 (Next Recommended)
+### Recommended Next Phase: Real Usage Feedback Cycle
 
-Link Equipment and Plate Number selectors in operational forms. When a user selects an equipment record, the plate number should auto-populate in the same form row.
+The planned operational feedback backlog is fully implemented. The recommended next step is real-world usage before investing in further development.
 
-Scope:
-- Maintenance forms
-- Fuel logs
-- Breakdown forms
-- Spare Parts forms
+**Objectives:**
+- Use the system in real operations
+- Collect real-world workflow feedback
+- Identify usability friction that only surfaces under actual use
+- Record future enhancement opportunities
+- Avoid speculative feature development
 
-Implementation approach:
-- Prefer frontend-only: the equipment API response already includes `plateNumber` — use the same `onSelectRaw`-style auto-fill pattern proven in Contracts Price Binding
-- No schema changes unless the equipment endpoint does not return `plateNumber`
-- No backend changes unless proven necessary
-- `Maintenance.tsx` uses custom form rendering (not `FormDialog`/`ResourcePage`) — update that file directly
-
-### 2. Continued Operational Feedback Collection
-
-Continue observing daily use for friction points before investing in larger features.
-
-- Form simplification opportunities
-- Workflow refinements based on actual usage patterns
-- Any new friction points surfaced by real use
-
-### 3. Optional Contracts UX Improvements
-
-- Review advanced contract fields for simplification opportunities
-- Evaluate further customer visibility improvements
+**Optional future improvements (not scheduled):**
+- Contracts auto-fill visual consistency (distinguish auto-filled vs manually entered fields)
+- Additional dashboard refinements (KPI grid layout, period filter on trend chart)
+- Page-level UX polishing (column density, confirm dialog styling)
+- Reporting enhancements (date format standardization, export improvements)
 
 ---
 
 ## Open Operational Notes
 
-1. **Equipment ↔ Plate Number linked selectors** — **OPEN.** Not yet implemented. Apply to Maintenance, Fuel, Breakdowns, and Spare Parts forms. See Next Recommended Tasks §1.
-2. **Contract form simplification** — Optional. Review advanced contract fields for simplification opportunities.
-3. **Continue operational UX feedback collection** — Ongoing. Observe daily use and surface friction points.
+No active operational feedback items at this time.
+
+> All seven observations from the Operational Feedback Audit (2026-06-12) have been implemented and released to production. The project is currently in an operational stability and real-usage feedback phase.
 
 ---
 
@@ -260,7 +251,7 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Attendance | `employees module` | `Attendance.tsx` | Production Ready + Server-side Pagination — paginated attendance listing, filter-scoped KPI stats via groupBy, server-side search (notes/employee name/code); persisted filter/search/page state; refresh action; unsaved changes protection (create + edit modals); standardized empty state |
 | Payroll | `modules/payroll/` | `Salaries.tsx` | Complete |
 | Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n); separate Expiry Date and Remaining Duration columns |
-| Maintenance | `modules/maintenance/` | `Maintenance.tsx` | Production Ready — full CRUD, search, filters, details modal; persisted filter/search/page state; refresh action |
+| Maintenance | `modules/maintenance/` | `Maintenance.tsx` | Production Ready — full CRUD, search, filters, details modal; persisted filter/search/page state; refresh action; Equipment ↔ Plate Number auto-fill in all 4 forms (Records, Fuel, Breakdowns, Spare Parts) |
 | Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n); Customer column; Linked Price selector; auto-fill from Prices (asphaltPlant, companyName, location, unitName, price) |
 | Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields; persisted search, filter, tab, page state; refresh action; standardized empty state; dynamic year prefix on invoice number |
 | Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete; invoice picker filters by contract unit; auto-fill on unit select when exactly one match (`priceTouched` guards manual edits); picker as fallback for multiple matches; `contractLocation` shown in picker; empty state + filter reset UX. Backend: CRUD only (`list`, `create`, `update`, `delete`) — lookup endpoint removed |
@@ -344,4 +335,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-12 — Operational Feedback Audit completed; baseline advanced to `5f71d5a`. All 6 of 7 operational observations confirmed IMPLEMENTED in production (code-verified). One item remains OPEN: Equipment ↔ Plate Number linked selectors. Development Workflow v3.0 published: three modes (Quick Fix / Feature / Major System), model routing policy, Implementation Reference appendix. DataTable current state confirmed: no sticky headers, zebra rows and rgba hover tokens present. Contracts Price Binding implementation detail documented: `linkedPrice` is frontend-only helper — no FK in schema, only 5 auto-filled fields persisted. Recommended next: Equipment Plate Integration Phase 1.*
+*Last updated: 2026-06-12 — Equipment Plate Integration Phase 1 merged (`442e057`), tagged `stable-equipment-plate-integration-phase1-v1`, pushed to production. All seven observations from the Operational Feedback Audit are now IMPLEMENTED (7/7 closed). No open operational feedback items remain. Project is in operational stability and real-usage feedback phase. Next recommended: Real Usage Feedback Cycle — observe actual operations before planning further development.*
