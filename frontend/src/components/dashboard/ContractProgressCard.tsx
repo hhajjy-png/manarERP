@@ -1,5 +1,6 @@
 import { money } from '../../config/modules';
 import { ListSkeletons } from './Skeleton';
+import { useT } from '../../lib/i18n';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function calcProgress(c: any): number {
@@ -16,11 +17,11 @@ function progressColor(pct: number, status: string): string {
   return 'green';
 }
 
-const STATUS_MAP: Record<string, [string, string]> = {
-  ACTIVE:    ['ساري',        'green'],
-  EXPIRED:   ['منتهٍ',       'gray'],
-  RENEWING:  ['قيد التجديد', 'amber'],
-  SUSPENDED: ['موقوف',       'red'],
+const STATUS_COLOR: Record<string, string> = {
+  ACTIVE:    'green',
+  EXPIRED:   'gray',
+  RENEWING:  'amber',
+  SUSPENDED: 'red',
 };
 
 interface Props {
@@ -30,13 +31,14 @@ interface Props {
 }
 
 export default function ContractProgressList({ contracts, loading }: Props) {
+  const { t } = useT();
   if (loading) return <ListSkeletons count={4} />;
 
   if (!contracts.length) {
     return (
       <div className="db-empty">
         <div className="db-empty-icon">📄</div>
-        <div className="db-empty-text">لا توجد عقود نشطة</div>
+        <div className="db-empty-text">{t('empty.no_active_contracts')}</div>
       </div>
     );
   }
@@ -46,7 +48,8 @@ export default function ContractProgressList({ contracts, loading }: Props) {
       {contracts.map((c, i) => {
         const pct = calcProgress(c);
         const color = progressColor(pct, c.status);
-        const [statusLabel, statusCls] = STATUS_MAP[c.status] ?? [c.status, 'gray'];
+        const statusCls = STATUS_COLOR[c.status] ?? 'gray';
+        const statusLabel = t('contract.status.' + c.status.toLowerCase());
         const hasProgress = c.startDate && c.endDate;
 
         const pctColor =

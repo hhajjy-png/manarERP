@@ -1,10 +1,11 @@
 import { money, dateText, expenseCategoryAr } from '../../config/modules';
 import { TableRowSkeletons } from './Skeleton';
+import { useT } from '../../lib/i18n';
 
-const STATUS_PILL: Record<string, [string, string]> = {
-  PENDING:  ['معلّق',  'amber'],
-  APPROVED: ['معتمد',  'green'],
-  REJECTED: ['مرفوض', 'red'],
+const STATUS_COLOR: Record<string, string> = {
+  PENDING:  'amber',
+  APPROVED: 'green',
+  REJECTED: 'red',
 };
 
 interface Props {
@@ -14,15 +15,16 @@ interface Props {
 }
 
 export default function LatestExpensesTable({ expenses, loading }: Props) {
+  const { t } = useT();
   return (
     <table className="db-table">
       <thead>
         <tr>
-          <th>الوصف</th>
-          <th>المبلغ</th>
-          <th>الفئة</th>
-          <th>الحالة</th>
-          <th>التاريخ</th>
+          <th>{t('col.description')}</th>
+          <th>{t('col.amount')}</th>
+          <th>{t('col.category')}</th>
+          <th>{t('col.db.status')}</th>
+          <th>{t('col.date')}</th>
         </tr>
       </thead>
       <tbody>
@@ -33,13 +35,14 @@ export default function LatestExpensesTable({ expenses, loading }: Props) {
             <td colSpan={5}>
               <div className="db-empty">
                 <div className="db-empty-icon">💸</div>
-                <div className="db-empty-text">لا توجد مصروفات</div>
+                <div className="db-empty-text">{t('empty.expenses')}</div>
               </div>
             </td>
           </tr>
         ) : (
           expenses.map((exp, i) => {
-            const [statusLabel, statusCls] = STATUS_PILL[exp.status] ?? ['—', 'gray'];
+            const statusCls = STATUS_COLOR[exp.status] ?? 'gray';
+            const statusLabel = t('exp.status.' + exp.status.toLowerCase());
             return (
               <tr key={i}>
                 <td style={{ fontWeight: 700 }}>{exp.description ?? '—'}</td>
