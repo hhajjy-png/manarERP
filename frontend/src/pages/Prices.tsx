@@ -23,6 +23,7 @@ export default function Prices() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,6 +47,27 @@ export default function Prices() {
 
   useEffect(() => { load(); }, [load]);
 
+  async function exportExcel() {
+    if (!hasPermission('reports.export')) return;
+    setExportBusy(true);
+    try {
+      const res = await api.get('/reports/prices/export', {
+        params: { format: 'excel' },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'prices-export.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(errorMessage(e));
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   async function archiveRow(id: number) {
     if (!confirm(t('confirm.archive_price'))) return;
     try { await api.delete(`/prices/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
@@ -65,9 +87,16 @@ export default function Prices() {
     <div>
       <div className="page-head">
         <div><h2>{t('page.prices.title')}</h2><p>{t('page.prices.subtitle')}</p></div>
-        {hasPermission('prices.create') && (
-          <button className="btn" onClick={() => setCreating(true)}>＋ {t('page.prices.create')}</button>
-        )}
+        <>
+          {hasPermission('reports.export') && (
+            <button type="button" className="btn secondary" onClick={exportExcel} disabled={exportBusy}>
+              {exportBusy ? '...' : 'تصدير الكل Excel'}
+            </button>
+          )}
+          {hasPermission('prices.create') && (
+            <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('page.prices.create')}</button>
+          )}
+        </>
       </div>
 
       <div className="toolbar" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>

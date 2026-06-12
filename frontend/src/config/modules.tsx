@@ -56,6 +56,7 @@ export interface ModuleConfig {
   emptyText?: string;
   canApprove?: boolean;
   supportsArchive?: boolean;
+  supportsExport?: boolean;
   statusFilter?: { param: string; options: { value: string; labelKey: string }[] };
 }
 
@@ -64,7 +65,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'contracts', endpoint: '/contracts', label: 'إدارة العقود',
     title: 'mod.contracts.title', subtitle: 'mod.contracts.subtitle',
     icon: '📄', group: 'العمليات الأساسية', createLabel: 'mod.contracts.create',
-    emptyText: 'empty.contracts',
+    emptyText: 'empty.contracts', supportsExport: true,
     statusFilter: {
       param: 'status',
       options: [
@@ -125,7 +126,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'customers', endpoint: '/customers', label: 'العملاء والجهات',
     title: 'mod.customers.title', subtitle: 'mod.customers.subtitle',
     icon: '👥', group: 'العمليات الأساسية', createLabel: 'mod.customers.create',
-    emptyText: 'empty.customers', supportsArchive: true,
+    emptyText: 'empty.customers', supportsArchive: true, supportsExport: true,
     statusFilter: {
       param: 'type',
       options: [
@@ -158,7 +159,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'suppliers', endpoint: '/suppliers', label: 'الموردون',
     title: 'mod.suppliers.title', subtitle: 'mod.suppliers.subtitle',
     icon: '📦', group: 'المالية', createLabel: 'mod.suppliers.create',
-    emptyText: 'empty.suppliers', supportsArchive: true,
+    emptyText: 'empty.suppliers', supportsArchive: true, supportsExport: true,
     columns: [
       { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
       { key: 'name', label: 'col.supplier_name', render: (r) => <strong>{r.name}</strong> },
@@ -180,7 +181,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'equipment', endpoint: '/equipment', label: 'المعدات والآليات',
     title: 'mod.equipment.title', subtitle: 'mod.equipment.subtitle',
     icon: '🚜', group: 'العمليات الأساسية', createLabel: 'mod.equipment.create',
-    emptyText: 'empty.equipment',
+    emptyText: 'empty.equipment', supportsExport: true,
     statusFilter: {
       param: 'status',
       options: [
@@ -223,7 +224,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'employees', endpoint: '/employees', label: 'الموظفون والكوادر',
     title: 'mod.employees.title', subtitle: 'mod.employees.subtitle',
     icon: '👷', group: 'العمليات الأساسية', createLabel: 'mod.employees.create',
-    emptyText: 'empty.employees',
+    emptyText: 'empty.employees', supportsExport: true,
     statusFilter: {
       param: 'status',
       options: [

@@ -124,6 +124,8 @@ async function main() {
       'inventory.read',
       'inventory.export',
       'prices.read',
+      'import.read',
+      'import.create',
     ],
     PROJECT_MANAGER: [
       ...keysForModules(['contracts', 'prices', 'reports']),

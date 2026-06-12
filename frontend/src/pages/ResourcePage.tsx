@@ -36,6 +36,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const canCreate = hasPermission(`${cfg.key}.create`);
   const canUpdate = hasPermission(`${cfg.key}.update`);
   const canDelete = hasPermission(`${cfg.key}.delete`);
+  const canExport = cfg.supportsExport && hasPermission('reports.export');
+  const [exportBusy, setExportBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -113,6 +115,27 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     return () => { cancelled = true; };
   }, [cfg.key]);
 
+  async function exportExcel() {
+    if (!canExport) return;
+    setExportBusy(true);
+    try {
+      const res = await api.get(`/reports/${cfg.key}/export`, {
+        params: { format: 'excel' },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${cfg.key}-export.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(errorMessage(e));
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   function onSearch(e: FormEvent) {
     e.preventDefault();
     setPage(1);
@@ -162,7 +185,14 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     <div>
       <div className="page-head">
         <div><h2>{t(cfg.title)}</h2><p>{t(cfg.subtitle)}</p></div>
-        {canCreate && <button className="btn" onClick={() => setCreating(true)}>＋ {t(cfg.createLabel)}</button>}
+        <>
+          {canExport && (
+            <button type="button" className="btn secondary" onClick={exportExcel} disabled={exportBusy}>
+              {exportBusy ? '...' : 'تصدير الكل Excel'}
+            </button>
+          )}
+          {canCreate && <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t(cfg.createLabel)}</button>}
+        </>
       </div>
 
       {cfg.key === 'contracts' && contractStats && (

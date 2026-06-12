@@ -6,7 +6,7 @@ import { useT } from '../lib/i18n';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type EntityType = 'employees' | 'customers' | 'equipment';
+type EntityType = 'employees' | 'customers' | 'equipment' | 'suppliers' | 'prices';
 type ImportStep = 'idle' | 'file_loaded' | 'validating' | 'previewed' | 'executing' | 'done';
 type RowStatus = 'valid' | 'invalid' | 'duplicate';
 
@@ -93,12 +93,30 @@ const COLUMN_GUIDE: Record<EntityType, ColDef[]> = {
     { key: 'purchaseCost',          labelAr: 'تكلفة الشراء (رقم)',                    required: false },
     { key: 'notes',                 labelAr: 'ملاحظات',                               required: false },
   ],
+  suppliers: [
+    { key: 'code',                  labelAr: 'الكود',                                 required: true  },
+    { key: 'name',                  labelAr: 'الاسم',                                 required: true  },
+    { key: 'phone',                 labelAr: 'الهاتف',                                required: false },
+    { key: 'email',                 labelAr: 'البريد',                                required: false },
+    { key: 'address',               labelAr: 'العنوان',                               required: false },
+    { key: 'contactName',           labelAr: 'اسم المسؤول',                           required: false },
+    { key: 'notes',                 labelAr: 'ملاحظات',                               required: false },
+  ],
+  prices: [
+    { key: 'asphaltPlant',          labelAr: 'مصنع الأسفلت',                          required: true  },
+    { key: 'companyName',           labelAr: 'اسم الشركة',                            required: true  },
+    { key: 'contractLocation',      labelAr: 'مكان العقد',                            required: true  },
+    { key: 'contractUnit',          labelAr: 'وحدة العقد (طن / درب / يومية)',         required: true  },
+    { key: 'unitPrice',             labelAr: 'سعر الوحدة (رقم موجب)',                 required: true  },
+  ],
 };
 
 const ENTITY_LABELS: Record<EntityType, string> = {
   employees: 'الموظفون',
   customers: 'العملاء',
   equipment: 'المعدات',
+  suppliers: 'الموردون',
+  prices: 'أسعار المشاريع',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -246,7 +264,7 @@ export default function DataImport() {
 
       {/* Entity type selector */}
       <div style={{ marginBottom: 20, display: 'flex', gap: 8 }}>
-        {(['employees', 'customers', 'equipment'] as EntityType[]).map((type) => (
+        {(['employees', 'customers', 'equipment', 'suppliers', 'prices'] as EntityType[]).map((type) => (
           <button
             key={type}
             onClick={() => handleEntityChange(type)}
@@ -347,8 +365,11 @@ export default function DataImport() {
                   <tr style={{ background: 'var(--bg-header, var(--bg))', borderBottom: '2px solid var(--border)' }}>
                     <th style={thStyle}>{t('import.col.row')}</th>
                     <th style={thStyle}>{t('import.col.status')}</th>
-                    <th style={thStyle}>code</th>
-                    <th style={thStyle}>{entityType === 'customers' ? 'name' : 'fullName / type'}</th>
+                    <th style={thStyle}>{entityType === 'prices' ? 'مصنع الأسفلت' : 'code'}</th>
+                    <th style={thStyle}>
+                      {entityType === 'prices' ? 'الشركة / الوحدة' :
+                       (entityType === 'customers' || entityType === 'suppliers') ? 'name' : 'fullName / type'}
+                    </th>
                     <th style={thStyle}>{t('import.col.errors')}</th>
                   </tr>
                 </thead>
@@ -366,9 +387,15 @@ export default function DataImport() {
                     >
                       <td style={tdStyle}>{row.rowIndex + 1}</td>
                       <td style={tdStyle}>{statusPill(row.status)}</td>
-                      <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{String(row.data['code'] ?? '—')}</td>
+                      <td style={{ ...tdStyle, fontFamily: 'monospace' }}>
+                        {entityType === 'prices'
+                          ? String(row.data['asphaltPlant'] ?? row.data['مصنع الأسفلت'] ?? '—')
+                          : String(row.data['code'] ?? '—')}
+                      </td>
                       <td style={tdStyle}>
-                        {String(row.data['fullName'] ?? row.data['name'] ?? row.data['type'] ?? '—')}
+                        {entityType === 'prices'
+                          ? `${String(row.data['companyName'] ?? row.data['اسم الشركة'] ?? '—')} / ${String(row.data['contractUnit'] ?? row.data['وحدة العقد'] ?? '—')}`
+                          : String(row.data['fullName'] ?? row.data['name'] ?? row.data['type'] ?? '—')}
                       </td>
                       <td style={{ ...tdStyle, color: 'var(--danger, #dc2626)', fontSize: 12 }}>
                         {row.status === 'invalid' && row.errors?.join(' / ')}
