@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `442e057` — Merge equipment plate integration phase 1 |
-| **Stable tag** | `stable-equipment-plate-integration-phase1-v1` |
+| **HEAD** | `1037132` — Merge data import export expansion |
+| **Stable tag** | `stable-data-import-export-expansion-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,7 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Data Import / Export Expansion | `feature/data-import-export-expansion` | `stable-data-import-export-expansion-v1` | Full-stack. **Import:** Suppliers (code+name required; phone, email, address, contactName, notes optional; Arabic headers mapped; email validated; isArchived seeded false). Project Prices (all 5 fields required: asphaltPlant, companyName, contractLocation, contractUnit, unitPrice; unit enum طن/درب/يومية; positive float parser; 4-field composite dedup key `asphaltPlant\|companyName\|contractLocation\|contractUnit` per Gemini review). Import engine: generic `previewImport()` + `executeImport()`, backup-before-insert, atomic `$transaction`, max 1000 rows. `EntityType` extended to include `suppliers` and `prices`. ACCOUNTANT role now receives `import.read` + `import.create`. **Export:** `reports.service.ts` extended with `suppliers` (isArchived: false, order code asc, 7 columns) and `prices` (order asphaltPlant/companyName asc, 5 columns, KD numFmt). `supportsExport?: boolean` added to `ModuleConfig`. Export button "تصدير الكل Excel" added to ResourcePage (visible when `supportsExport && hasPermission('reports.export')`), enabled on Customers, Suppliers, Contracts, Equipment, Employees. Standalone export button added to `Prices.tsx`. Blob download pattern (`responseType: 'blob'`), no filter awareness (exports all records). No new endpoints, no new permissions, no schema changes. **Archive Override Phase 1a** (same release): When `DELETE` returns HTTP 409 (linked records), ResourcePage now shows a Modal offering Archive as alternative action. Calls `PATCH /:id/archive`. Gated on `cfg.supportsArchive && canUpdate`. Feature commits: `aa6ebe2` (suppliers import), `3b437f4` (prices import + Gemini composite key fix), `e7aa7d9` (excel export). Merge commit: `1037132`. 101/101 tests, all TS + builds clean. Archive Override merge: `79baeb5`. |
 | Equipment Plate Integration Phase 1 | `feature/equipment-plate-integration-phase1` | `stable-equipment-plate-integration-phase1-v1` | Frontend-only. Read-only Plate Number field auto-populated in all four Maintenance forms (Maintenance Records, Fuel Logs, Breakdowns, Spare Parts) when equipment is selected. `Equipment` interface updated to declare `plateNumber?: string`. All four form states, `onChange` handlers, and post-submit reset calls updated. Plate display is `readOnly tabIndex={-1}` with muted styling — not editable, not submitted to backend. No backend/schema/permission changes. Equipment API already returned `plateNumber` — no endpoint changes needed. Feature commit: `cd8d8ce`. Merge commit: `442e057`. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Development Workflow v3.0 | `production` (direct commit) | — | Documentation only. No code changes. Three workflow modes (Quick Fix, Feature, Major System), model routing policy (Sonnet default, Opus escalation, Gemini mandatory review, ChatGPT PM), Implementation Reference appendix restored: pre-implementation checklist, `/simplify` + `/code-review` + `/security-review` quality gates, Gemini report template (10 sections), merge verification commands, commit message format, tag and push rules, rollback procedure. CLAUDE.md updated with v3.0 workflow section and appendix reference. HEAD: `5f71d5a`. |
 | Contracts Price Binding | `feature/contracts-price-binding` | `stable-contracts-price-binding-v1` | Frontend-only. Linked Price selector added to Contracts page. Auto-fills `asphaltPlant`, `companyName`, `location`, `unitName`, `price` when user selects a price. Customer column added to Contracts DataTable. Existing field values remain editable after auto-fill. No backend/schema/permission changes. **Implementation detail:** `linkedPrice` selector sends the selected price record ID to the backend but is silently stripped by Zod (`contracts.schema.ts` does not declare `linkedPrice`). No `linkedPriceId` FK exists in `schema.prisma`. No migration required. Only the 5 auto-filled fields are actually persisted. |
@@ -97,20 +98,23 @@ Verified against production HEAD `5f71d5a`. Code evidence confirmed in `theme.cs
 
 ### Recommended Next Phase: Real Usage Feedback Cycle
 
-The planned operational feedback backlog is fully implemented. The recommended next step is real-world usage before investing in further development.
+The data import/export expansion is complete. The system now supports bulk import of all major entity types and Excel export for all operational modules. The recommended next step is real-world usage to identify friction before further development.
 
 **Objectives:**
-- Use the system in real operations
-- Collect real-world workflow feedback
-- Identify usability friction that only surfaces under actual use
-- Record future enhancement opportunities
+- Use import flow with real operational data (employees, customers, equipment, suppliers, prices)
+- Use export buttons to verify output format meets operational needs
+- Collect real-world workflow feedback under actual operations
+- Identify usability friction that only surfaces under real use
 - Avoid speculative feature development
 
 **Optional future improvements (not scheduled):**
+- Export with active filters (currently exports all records regardless of search/filter state)
+- Contracts import (deferred from Phase A by design constraint)
+- Invoices/payroll import (deliberately excluded — too sensitive for bulk import)
+- Date range filter on export buttons (API already supports `?from=&to=`)
 - Contracts auto-fill visual consistency (distinguish auto-filled vs manually entered fields)
 - Additional dashboard refinements (KPI grid layout, period filter on trend chart)
 - Page-level UX polishing (column density, confirm dialog styling)
-- Reporting enhancements (date format standardization, export improvements)
 
 ---
 
@@ -246,16 +250,16 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 |--------|---------|--------------|--------|
 | Auth | `modules/auth/` | Login | Complete |
 | Dashboard | `modules/dashboard/` | `Dashboard.tsx` | Complete — RBAC-gated quick action buttons (invoices/contracts/customers/expenses create); "View All" navigation buttons on Latest Invoices and Latest Expenses cards; all 6 dashboard sub-components i18n-compliant (V3A-Lite); all-time label on Revenue/Expenses/NetProfit KPI cards; weekend attendance empty state (Friday/Saturday) |
-| Customers | `modules/customers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
-| Employees | `modules/employees/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
+| Customers | `modules/customers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state. **Export:** "تصدير الكل Excel" button (`supportsExport: true`, requires `reports.export`). Archive Override: 409 on DELETE shows Archive modal. |
+| Employees | `modules/employees/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state. **Export:** "تصدير الكل Excel" button (`supportsExport: true`, requires `reports.export`). |
 | Attendance | `employees module` | `Attendance.tsx` | Production Ready + Server-side Pagination — paginated attendance listing, filter-scoped KPI stats via groupBy, server-side search (notes/employee name/code); persisted filter/search/page state; refresh action; unsaved changes protection (create + edit modals); standardized empty state |
 | Payroll | `modules/payroll/` | `Salaries.tsx` | Complete |
-| Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n); separate Expiry Date and Remaining Duration columns |
+| Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n); separate Expiry Date and Remaining Duration columns. **Export:** "تصدير الكل Excel" button (`supportsExport: true`, requires `reports.export`). |
 | Maintenance | `modules/maintenance/` | `Maintenance.tsx` | Production Ready — full CRUD, search, filters, details modal; persisted filter/search/page state; refresh action; Equipment ↔ Plate Number auto-fill in all 4 forms (Records, Fuel, Breakdowns, Spare Parts) |
-| Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n); Customer column; Linked Price selector; auto-fill from Prices (asphaltPlant, companyName, location, unitName, price) |
+| Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n); Customer column; Linked Price selector; auto-fill from Prices (asphaltPlant, companyName, location, unitName, price). **Export:** "تصدير الكل Excel" button (`supportsExport: true`, requires `reports.export`). |
 | Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields; persisted search, filter, tab, page state; refresh action; standardized empty state; dynamic year prefix on invoice number |
-| Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete; invoice picker filters by contract unit; auto-fill on unit select when exactly one match (`priceTouched` guards manual edits); picker as fallback for multiple matches; `contractLocation` shown in picker; empty state + filter reset UX. Backend: CRUD only (`list`, `create`, `update`, `delete`) — lookup endpoint removed |
-| Suppliers | `modules/suppliers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
+| Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete; invoice picker filters by contract unit; auto-fill on unit select when exactly one match (`priceTouched` guards manual edits); picker as fallback for multiple matches; `contractLocation` shown in picker; empty state + filter reset UX. Backend: CRUD only (`list`, `create`, `update`, `delete`) — lookup endpoint removed. **Export:** standalone "تصدير الكل Excel" button (requires `reports.export`). |
+| Suppliers | `modules/suppliers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state. **Export:** "تصدير الكل Excel" button (`supportsExport: true`, requires `reports.export`). Archive Override: 409 on DELETE shows Archive modal. |
 | Expenses | `modules/expenses/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; date field required; contract selector uses code (not plant name); approve/reject require confirmation |
 | Transactions | `modules/transactions/` | `Accounting.tsx` | Complete |
 | Accounting | `modules/accounting/` | `Accounting.tsx` | Complete |
@@ -267,7 +271,7 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Settings | `modules/settings/` | `Settings.tsx` | Complete |
 | Cheques | `modules/cheques/` | `Cheques.tsx` | Complete — tafqeet integrated |
 | Inventory | `modules/inventory/` | `Inventory.tsx` | Complete — persisted search, filter, page state; refresh action |
-| Data Import | `modules/import/` | `DataImport.tsx` | Complete — employees, customers, equipment |
+| Data Import | `modules/import/` | `DataImport.tsx` | Complete — employees, customers, equipment, suppliers, project prices. Project Prices dedup uses 4-field composite key (asphaltPlant\|companyName\|contractLocation\|contractUnit). ACCOUNTANT role has import.read + import.create. |
 
 ---
 
@@ -307,8 +311,8 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 |-------|------|---------|
 | users | 1 | admin / Admin@123 |
 | roles | 7 | SYSTEM_ADMIN, GENERAL_MANAGER, ACCOUNTANT, PROJECT_MANAGER, EQUIPMENT_MANAGER, HR_MANAGER, STANDARD_USER |
-| permissions | 93 | All module.action keys |
-| role_permissions | 285 | Full RBAC assignments |
+| permissions | 97 | All module.action keys |
+| role_permissions | 307 | Full RBAC assignments |
 | settings | 11 | Company name, tax rate, backup config, etc. |
 
 > **Default credentials:** `admin` / `Admin@123` — change on first login.
@@ -335,4 +339,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-12 — Equipment Plate Integration Phase 1 merged (`442e057`), tagged `stable-equipment-plate-integration-phase1-v1`, pushed to production. All seven observations from the Operational Feedback Audit are now IMPLEMENTED (7/7 closed). No open operational feedback items remain. Project is in operational stability and real-usage feedback phase. Next recommended: Real Usage Feedback Cycle — observe actual operations before planning further development.*
+*Last updated: 2026-06-12 — Data Import / Export Expansion merged (`1037132`), tagged `stable-data-import-export-expansion-v1`, pushed to production. Includes: Suppliers Import, Project Prices Import (4-field composite dedup key), Excel Export for 6 modules (Customers, Suppliers, Contracts, Equipment, Employees, Prices), Archive Override Phase 1a (409 → Archive modal on ResourcePage). ACCOUNTANT role now has import.read + import.create. 97 permissions, 307 role_permissions, 101/101 tests. Next recommended: Real Usage Feedback Cycle.*

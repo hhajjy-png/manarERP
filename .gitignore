@@ -12,3 +12,15 @@ data/
 .DS_Store
 .claude/
 .playwright-mcp/
+
+# UAT screenshots
+uat-*.png
+
+# Stitch design artifacts
+docs/superpowers/designs/stitch/
+
+# Gemini review drafts
+docs/GEMINI_REVIEW_*.md
+
+# Misplaced generated prototype
+frontend/src/pages/index.html
