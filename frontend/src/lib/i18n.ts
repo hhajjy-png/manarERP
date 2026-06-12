@@ -38,6 +38,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'msg.confirm_delete': 'هل تريد حذف هذا السجل؟ ({id})',
     'msg.confirm_approve': 'هل تريد اعتماد هذا المصروف؟',
     'msg.confirm_reject': 'هل تريد رفض هذا المصروف؟',
+    'msg.price_autofill': 'تم تعبئة بيانات العقد من سجل الأسعار المحدد',
 
     // login page
     'page.login.title': 'نظام المنار',
@@ -196,6 +197,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'field.contact_name': 'اسم المسؤول',
     'field.address': 'العنوان',
     'field.notes': 'ملاحظات',
+    'field.linked_price': 'السعر المرتبط',
     'field.supplier_code': 'رقم المورّد',
     'field.supplier_name': 'اسم المورّد',
     'field.equipment_no': 'رقم المعدة',
@@ -1138,6 +1140,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'msg.confirm_delete': 'Delete this record? ({id})',
     'msg.confirm_approve': 'Approve this expense?',
     'msg.confirm_reject': 'Reject this expense?',
+    'msg.price_autofill': 'Contract fields were populated from the selected price record',
 
     // login page
     'page.login.title': 'Al-Manar System',
@@ -1296,6 +1299,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'field.contact_name': 'Contact Name',
     'field.address': 'Address',
     'field.notes': 'Notes',
+    'field.linked_price': 'Linked Price',
     'field.supplier_code': 'Supplier Code',
     'field.supplier_name': 'Supplier Name',
     'field.equipment_no': 'Equipment No.',
