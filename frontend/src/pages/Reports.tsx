@@ -79,7 +79,7 @@ const GROUPS = ['report.group.financial', 'report.group.business', 'report.group
 
 function fmt(v: unknown): string {
   if (v == null || v === '') return '';
-  if (typeof v === 'number') return v.toLocaleString('en-US', { maximumFractionDigits: 3 });
+  if (typeof v === 'number') return v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
   return String(v);
 }
 
@@ -368,6 +368,12 @@ export default function Reports() {
           </div>
 
           {filterBar}
+
+          {['invoices', 'expenses', 'payroll'].includes(selected) && !from && !to && (
+            <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 6 }}>
+              ℹ️ {t('page.reports.date_range_hint')}
+            </div>
+          )}
 
           {error && <div className="alert error" style={{ marginBottom: 16 }}>{error}</div>}
 
