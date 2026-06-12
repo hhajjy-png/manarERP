@@ -16,7 +16,7 @@ const invoiceTypes = ['نقل اسفلت', 'يومية عمل مالينج', 'ي
 const units = ['طن', 'درب', 'يومية'] as const;
 const invoicePrefix = 'MN-INV-2026-';
 
-interface Item { description: string; quantity: number; unit: string; unitPrice: number; }
+interface Item { description: string; quantity: number; unit: string; unitPrice: number; priceTouched?: boolean; }
 
 interface InvStats { total: number; unpaid: number; unpaidAmount: number; }
 
@@ -267,12 +267,33 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const total = Math.max(0, subtotal - Number(discount));
 
   function setItem(i: number, key: keyof Item, value: string | number) {
-    if (key === 'unit') setOpenPickerIdx(null);
-    setItems((p) => p.map((it, idx) => (idx === i ? { ...it, [key]: key === 'description' || key === 'unit' ? value : Number(value) } : it)));
+    if (key === 'unit') {
+      const newUnit = String(value);
+      setOpenPickerIdx(null);
+      setItems((prev) =>
+        prev.map((it, idx) => {
+          if (idx !== i) return it;
+          const base = { ...it, unit: newUnit };
+          if (!it.priceTouched) {
+            const matches = prices.filter((p) => p.contractUnit === newUnit);
+            if (matches.length === 1) return { ...base, unitPrice: matches[0].unitPrice };
+          }
+          return base;
+        })
+      );
+      return;
+    }
+    setItems((prev) =>
+      prev.map((it, idx) => {
+        if (idx !== i) return it;
+        const priceTouched = key === 'unitPrice' ? true : it.priceTouched;
+        return { ...it, [key]: key === 'description' ? String(value) : Number(value), priceTouched };
+      })
+    );
   }
 
   function applyPrice(i: number, price: PriceOption) {
-    setItems((p) => p.map((it, idx) => idx === i ? { ...it, unitPrice: price.unitPrice, unit: price.contractUnit } : it));
+    setItems((p) => p.map((it, idx) => idx === i ? { ...it, unitPrice: price.unitPrice, unit: price.contractUnit, priceTouched: true } : it));
     setOpenPickerIdx(null);
   }
 
@@ -302,7 +323,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         customerId: effectivePartySource === 'SALES' ? Number(partyId) : undefined,
         supplierId: effectivePartySource === 'PURCHASE' ? Number(partyId) : undefined,
         discount: Number(discount),
-        items,
+        items: items.map((it) => ({ description: it.description, quantity: it.quantity, unit: it.unit, unitPrice: it.unitPrice })),
       });
       onSaved();
       onClose();
