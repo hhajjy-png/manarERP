@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `cbadd1d` — Merge prices lookup cleanup |
-| **Stable tag** | `stable-prices-lookup-cleanup-v1` |
+| **HEAD** | `dd25ff1` — Merge operational polish phase 1A |
+| **Stable tag** | `stable-operational-polish-phase1a-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,8 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Operational Polish Phase 1A | `feature/operational-polish-phase1a` | `stable-operational-polish-phase1a-v1` | Frontend-only. 6 UX quick wins from the Operational Polish Audit: (1) Dashboard quick action buttons gated by `hasPermission('<module>.create')` — users without create permissions no longer see inapplicable actions. (2) Expense `date` field marked `required: true` — expenses without accounting dates are blocked at form submit. (3) Expense contract selector now uses `optionLabel: 'code'` — contract codes (unique) prevent duplicate-label ambiguity vs. plant names. (4) ResourcePage contracts/equipment stats strip fully localized — 8 hardcoded Arabic strings replaced with `t('stat.rp.*')` calls; 9 new i18n key pairs (AR+EN). (5) Approve/reject expense actions now prompt `confirm()` before API call — prevents misclick approvals. (6) Customer report filter label changed from generic "status" to "نوع العميل" / "Customer Type" via optional `statusLabel` on `ReportType`; all other report types unaffected. 14 new i18n key pairs total. No backend/schema/permission changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
+| Operational Polish Hotfix 1 | `feature/operational-polish-invoice-year-prefix` | `stable-operational-polish-hotfix1-v1` | Frontend-only. One-line fix: `const invoicePrefix = 'MN-INV-2026-'` → `` `MN-INV-${new Date().getFullYear()}-` ``. Invoice number prefix was hardcoded to year 2026 — would have produced wrong prefixes on every January 1st rollover indefinitely. Now derives year from runtime clock. No backend/schema changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Prices Lookup Cleanup | `feature/prices-lookup-cleanup` | `stable-prices-lookup-cleanup-v1` | Backend-only refactor. Removed unused `GET /prices/lookup` endpoint — route, controller handler (`lookup`), service function (`lookupPrice`), and `lookupPriceSchema`. Zero frontend callers, zero test coverage, `findFirst` semantics were misleading (no uniqueness guarantee). Phase 3 auto-fill uses local price data instead. 38 lines removed, no functionality lost. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Project Prices Phase 3 | `feature/project-prices-phase3-smart-lookup` | `stable-project-prices-phase3-v1` | Frontend-only. Auto-fills `unitPrice` when user selects a contract unit and exactly one price exists for that unit in the loaded prices. Uses `priceTouched` flag (client-only, stripped from API payload) to detect manual edits — never overwrites a price the user has typed or picked manually. Uses local `prices` array instead of calling `GET /prices/lookup` per unit change (endpoint uses `findFirst` and cannot confirm uniqueness without a count; local data is already in memory). Picker remains visible as fallback when multiple prices match. No backend/schema/permission changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Project Prices Phase 2C | `feature/project-prices-phase2c` | `stable-project-prices-phase2c-v1` | Frontend-only. Invoice price picker now filters by current row's contract unit — only matching prices shown. Picker button hidden when no prices exist for that unit. Picker closes automatically on unit change (prevents ghost state). `contractLocation` added to picker rows; redundant `contractUnit` column removed. Prices page: `emptyText`, `isFiltered`, `onResetFilters` added to DataTable. 4 new i18n keys (AR+EN): `empty.prices`, `ph.prices.picker_btn`, `ph.prices.picker_list`, `msg.no_prices_for_unit`. No backend/schema changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
@@ -66,14 +68,16 @@
 
 Priority order based on value vs. effort for this local internal ERP.
 
-### 1. Operational Polish Audit (recommended next)
+### 1. Operational Polish Phase 1B (recommended next)
 
-Review the most frequently used pages for small, safe, high-impact UX improvements.
+Continue the polish audit with the remaining medium-effort improvements identified during the audit.
 
-- No redesign, no new modules, no architecture changes
-- Target: pages used daily (Invoices, Employees, Attendance, Contracts)
-- Look for: missing feedback states, confusing flows, friction in common operations
-- Implement only changes that are clearly safe and reversible
+- Reports number formatting: `fmt()` in Reports.tsx uses `en-US` locale — should match `ar-KW` style used elsewhere
+- Report date-range guidance: warn or prompt when generating open-ended reports (invoices/expenses/payroll) without a date filter
+- ResourcePage status filter visibility: the status `<select>` has only a `title` tooltip — add visible label or placeholder
+- Employee table column density: 13 columns is very wide; consider hiding low-traffic columns or adding a condensed view
+- Dashboard "View All" links: `LatestInvoicesTable` and `LatestExpensesTable` lack navigation links; only the contracts table has "عرض الكل"
+- DataTable row-range indicator: pagination shows "page X of Y — total Z" but not "showing rows N–M of Z"
 
 ### 2. Attendance Search Debounce (optional, low priority)
 
@@ -232,21 +236,21 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Module | Backend | Frontend Page | Status |
 |--------|---------|--------------|--------|
 | Auth | `modules/auth/` | Login | Complete |
-| Dashboard | `modules/dashboard/` | `Dashboard.tsx` | Complete |
+| Dashboard | `modules/dashboard/` | `Dashboard.tsx` | Complete — RBAC-gated quick action buttons (invoices/contracts/customers/expenses create) |
 | Customers | `modules/customers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Employees | `modules/employees/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Attendance | `employees module` | `Attendance.tsx` | Production Ready + Server-side Pagination — paginated attendance listing, filter-scoped KPI stats via groupBy, server-side search (notes/employee name/code); persisted filter/search/page state; refresh action; unsaved changes protection (create + edit modals); standardized empty state |
 | Payroll | `modules/payroll/` | `Salaries.tsx` | Complete |
-| Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
+| Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n) |
 | Maintenance | `modules/maintenance/` | `Maintenance.tsx` | Production Ready — full CRUD, search, filters, details modal; persisted filter/search/page state; refresh action |
-| Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
-| Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields; persisted search, filter, tab, page state; refresh action; standardized empty state |
+| Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n) |
+| Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields; persisted search, filter, tab, page state; refresh action; standardized empty state; dynamic year prefix on invoice number |
 | Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete; invoice picker filters by contract unit; auto-fill on unit select when exactly one match (`priceTouched` guards manual edits); picker as fallback for multiple matches; `contractLocation` shown in picker; empty state + filter reset UX. Backend: CRUD only (`list`, `create`, `update`, `delete`) — lookup endpoint removed |
 | Suppliers | `modules/suppliers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
-| Expenses | `modules/expenses/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
+| Expenses | `modules/expenses/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; date field required; contract selector uses code (not plant name); approve/reject require confirmation |
 | Transactions | `modules/transactions/` | `Accounting.tsx` | Complete |
 | Accounting | `modules/accounting/` | `Accounting.tsx` | Complete |
-| Reports | `modules/reports/` | `Reports.tsx` | Complete |
+| Reports | `modules/reports/` | `Reports.tsx` | Complete — customer report filter correctly labeled as "نوع العميل" / "Customer Type" (not generic status) |
 | Users | `modules/users/` | `Users.tsx` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Roles | `modules/roles/` | `Users.tsx` | Complete |
 | Audit | `modules/audit/` | — | Backend complete — no frontend viewer yet |
@@ -322,4 +326,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-12 — Prices Lookup Cleanup released; baseline advanced to `cbadd1d` (`stable-prices-lookup-cleanup-v1`). Removed unused `GET /prices/lookup` endpoint (route + controller + service + schema, 38 lines). Dead code confirmed: zero frontend callers, zero tests, misleading `findFirst` semantics. All validations passed, 101/101 tests green. Recommended next: Operational Polish Audit.*
+*Last updated: 2026-06-12 — Operational Polish Phase 1A released; baseline advanced to `dd25ff1` (`stable-operational-polish-phase1a-v1`). Hotfix 1 (dynamic invoice year prefix) + Phase 1A (6 UX quick wins: RBAC quick actions, expense date required, contract code selector, stats strip i18n, approve/reject confirmation, customer type filter label). 14 new i18n key pairs. All validations passed, 101/101 tests green. Recommended next: Operational Polish Phase 1B.*
