@@ -445,8 +445,11 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                       role="listbox"
                       aria-label={t('ph.prices.picker_list')}
                       onMouseDown={(e) => e.stopPropagation()}
-                      style={{ position: 'absolute', top: '100%', insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 200, minWidth: 300, maxHeight: 220, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)', marginTop: 2 }}
+                      style={{ position: 'absolute', top: '100%', insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 200, minWidth: 300, maxHeight: 260, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)', marginTop: 2 }}
                     >
+                      <div style={{ padding: '6px 12px', fontSize: 12, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', fontWeight: 700, userSelect: 'none' }}>
+                        {t('ph.prices.picker_unit')}: {it.unit}
+                      </div>
                       {unitPrices.map((p) => (
                         <button
                           key={p.id}

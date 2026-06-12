@@ -34,19 +34,6 @@ const employeeStatus = mapPill({ ACTIVE: ['نشط', 'green'], ON_LEAVE: ['إجا
 const expenseStatus = mapPill({ PENDING: ['معلّق', 'amber'], APPROVED: ['معتمد', 'green'], REJECTED: ['مرفوض', 'red'] });
 const customerType = mapPill({ GOVERNMENT: ['حكومي', 'blue'], PRIVATE: ['خاص', 'gray'] });
 
-// عرض المدة الباقية لدفتر المركبة (يأتي محسوبًا من الخادم في row.registration)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function regCell(row: any): ReactNode {
-  const r = row.registration;
-  if (!r || !r.expiry) return '—';
-  const cls: PillCls = r.expired ? 'red' : r.expiringSoon ? 'amber' : 'green';
-  return (
-    <span>
-      {dateText(r.expiry)}{'  '}
-      <span className={`pill ${cls}`} style={{ marginInlineStart: 6 }}>{(r.expired || r.expiringSoon) ? '⚠ ' : ''}{r.remainingText}</span>
-    </span>
-  );
-}
 
 // ==== تعريف تصنيفات المصروفات (مرفوع للأعلى لتجنب الخطأ) ====
 export const expenseCategoryAr: Record<string, string> = {
@@ -188,7 +175,16 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'ownerName', label: 'col.owner_name' },
       { key: 'driverName', label: 'col.driver_name', render: (r) => <strong>{r.driverName ?? '—'}</strong> },
       { key: 'plateNumber', label: 'col.plate_number', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.plateNumber ?? '—'}</span> },
-      { key: 'registration', label: 'col.registration', render: regCell },
+      { key: 'regExpiry', label: 'col.reg_expiry', render: (r) => {
+        const reg = r.registration;
+        return reg?.expiry ? dateText(reg.expiry) : '—';
+      }},
+      { key: 'regRemaining', label: 'col.reg_remaining', render: (r) => {
+        const reg = r.registration;
+        if (!reg?.expiry) return '—';
+        const cls: PillCls = reg.expired ? 'red' : reg.expiringSoon ? 'amber' : 'green';
+        return pill((reg.expired || reg.expiringSoon ? '⚠ ' : '') + reg.remainingText, cls);
+      }},
       { key: 'status', label: 'col.status', render: (r) => equipmentStatus(r.status) },
     ],
     fields: [
