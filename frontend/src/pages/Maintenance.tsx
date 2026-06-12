@@ -15,6 +15,7 @@ interface Equipment {
   code: string;
   name?: string;
   type?: string;
+  plateNumber?: string;
 }
 
 interface MaintenanceRecord {
@@ -205,7 +206,7 @@ export default function Maintenance() {
 
 // ── سجلات الصيانة ─────────────────────────────────────────────────────────────
 
-const EMPTY_FORM = { equipmentId: '', type: 'PREVENTIVE', description: '', cost: '', performedBy: '', date: '', nextDueDate: '', status: 'COMPLETED' };
+const EMPTY_FORM = { equipmentId: '', plateNumber: '', type: 'PREVENTIVE', description: '', cost: '', performedBy: '', date: '', nextDueDate: '', status: 'COMPLETED' };
 
 function RecordForm({
   id,
@@ -228,13 +229,22 @@ function RecordForm({
   return (
     <form id={id} onSubmit={onSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
       {!isEdit && (
-        <div style={{ gridColumn: '1/-1' }}>
-          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.equipment')} *</label>
-          <select style={inp} required value={form.equipmentId} onChange={(e) => setForm({ ...form, equipmentId: e.target.value })}>
-            <option value="">{t('field.select_equipment')}</option>
-            {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.name ? ` — ${eq.name}` : eq.type ? ` — ${eq.type}` : ''}</option>)}
-          </select>
-        </div>
+        <>
+          <div style={{ gridColumn: '1/-1' }}>
+            <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.equipment')} *</label>
+            <select style={inp} required value={form.equipmentId} onChange={(e) => {
+              const eq = equipmentList.find((x) => String(x.id) === e.target.value);
+              setForm({ ...form, equipmentId: e.target.value, plateNumber: eq?.plateNumber ?? '' });
+            }}>
+              <option value="">{t('field.select_equipment')}</option>
+              {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.name ? ` — ${eq.name}` : eq.type ? ` — ${eq.type}` : ''}</option>)}
+            </select>
+          </div>
+          <div style={{ gridColumn: '1/-1' }}>
+            <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.plate_number')}</label>
+            <input style={{ ...inp, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
+          </div>
+        </>
       )}
       <div>
         <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.type')} *</label>
@@ -374,6 +384,7 @@ function RecordsTab() {
     setEditRecord(r);
     setEditForm({
       equipmentId: String(r.equipmentId),
+      plateNumber: '',
       type: r.type,
       description: r.description,
       cost: r.cost != null ? String(r.cost) : '',
@@ -587,7 +598,7 @@ function FuelTab() {
   const [filterEquip, setFilterEquip] = usePersistedState('maint:fuel:equip', '');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ equipmentId: '', liters: '', cost: '', odometer: '', date: '', notes: '' });
+  const [form, setForm] = useState({ equipmentId: '', plateNumber: '', liters: '', cost: '', odometer: '', date: '', notes: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -625,7 +636,7 @@ function FuelTab() {
       if (form.notes)    body.notes = form.notes;
       await api.post('/maintenance/fuel', body);
       setShowCreate(false);
-      setForm({ equipmentId: '', liters: '', cost: '', odometer: '', date: '', notes: '' });
+      setForm({ equipmentId: '', plateNumber: '', liters: '', cost: '', odometer: '', date: '', notes: '' });
       load();
     } catch (e) {
       setError(errorMessage(e));
@@ -681,10 +692,17 @@ function FuelTab() {
           <form id="maint-fuel-form" onSubmit={handleCreate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.equipment')} *</label>
-              <select style={inp} required value={form.equipmentId} onChange={(e) => setForm({ ...form, equipmentId: e.target.value })}>
+              <select style={inp} required value={form.equipmentId} onChange={(e) => {
+                const eq = equipmentList.find((x) => String(x.id) === e.target.value);
+                setForm({ ...form, equipmentId: e.target.value, plateNumber: eq?.plateNumber ?? '' });
+              }}>
                 <option value="">{t('field.select_equipment')}</option>
                 {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
               </select>
+            </div>
+            <div style={{ gridColumn: '1/-1' }}>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.plate_number')}</label>
+              <input style={{ ...inp, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.liters')} *</label>
@@ -727,7 +745,7 @@ function BreakdownsTab() {
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
   const [resolving, setResolving] = useState<number | null>(null);
-  const [form, setForm] = useState({ equipmentId: '', description: '', severity: 'MEDIUM' });
+  const [form, setForm] = useState({ equipmentId: '', plateNumber: '', description: '', severity: 'MEDIUM' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -762,7 +780,7 @@ function BreakdownsTab() {
         severity: form.severity,
       });
       setShowCreate(false);
-      setForm({ equipmentId: '', description: '', severity: 'MEDIUM' });
+      setForm({ equipmentId: '', plateNumber: '', description: '', severity: 'MEDIUM' });
       load();
     } catch (e) {
       setError(errorMessage(e));
@@ -850,10 +868,17 @@ function BreakdownsTab() {
           <form id="maint-breakdown-form" onSubmit={handleCreate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.equipment')} *</label>
-              <select style={inp} required value={form.equipmentId} onChange={(e) => setForm({ ...form, equipmentId: e.target.value })}>
+              <select style={inp} required value={form.equipmentId} onChange={(e) => {
+                const eq = equipmentList.find((x) => String(x.id) === e.target.value);
+                setForm({ ...form, equipmentId: e.target.value, plateNumber: eq?.plateNumber ?? '' });
+              }}>
                 <option value="">{t('field.select_equipment')}</option>
                 {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
               </select>
+            </div>
+            <div style={{ gridColumn: '1/-1' }}>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.plate_number')}</label>
+              <input style={{ ...inp, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
             </div>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.description')} *</label>
@@ -887,7 +912,7 @@ function SparePartsTab() {
   const [filterEquip, setFilterEquip] = usePersistedState('maint:spare:equip', '');
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ equipmentId: '', partName: '', quantity: '', unitCost: '', date: '' });
+  const [form, setForm] = useState({ equipmentId: '', plateNumber: '', partName: '', quantity: '', unitCost: '', date: '' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -924,7 +949,7 @@ function SparePartsTab() {
       if (form.date) body.date = new Date(form.date).toISOString();
       await api.post('/maintenance/spare-parts', body);
       setShowCreate(false);
-      setForm({ equipmentId: '', partName: '', quantity: '', unitCost: '', date: '' });
+      setForm({ equipmentId: '', plateNumber: '', partName: '', quantity: '', unitCost: '', date: '' });
       load();
     } catch (e) {
       setError(errorMessage(e));
@@ -979,10 +1004,17 @@ function SparePartsTab() {
           <form id="maint-spare-form" onSubmit={handleCreate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.equipment')} *</label>
-              <select style={inp} required value={form.equipmentId} onChange={(e) => setForm({ ...form, equipmentId: e.target.value })}>
+              <select style={inp} required value={form.equipmentId} onChange={(e) => {
+                const eq = equipmentList.find((x) => String(x.id) === e.target.value);
+                setForm({ ...form, equipmentId: e.target.value, plateNumber: eq?.plateNumber ?? '' });
+              }}>
                 <option value="">{t('field.select_equipment')}</option>
                 {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
               </select>
+            </div>
+            <div style={{ gridColumn: '1/-1' }}>
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.plate_number')}</label>
+              <input style={{ ...inp, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
             </div>
             <div style={{ gridColumn: '1/-1' }}>
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.part_name')} *</label>
