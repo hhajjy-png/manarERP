@@ -1,12 +1,13 @@
 import { money, dateText } from '../../config/modules';
 import { TableRowSkeletons } from './Skeleton';
+import { useT } from '../../lib/i18n';
 
-const STATUS_PILL: Record<string, [string, string]> = {
-  UNPAID:    ['غير مدفوعة', 'red'],
-  PARTIAL:   ['جزئية',      'amber'],
-  PAID:      ['مدفوعة',     'green'],
-  OVERDUE:   ['متأخرة',     'red'],
-  CANCELLED: ['ملغاة',      'gray'],
+const STATUS_COLOR: Record<string, string> = {
+  UNPAID:    'red',
+  PARTIAL:   'amber',
+  PAID:      'green',
+  OVERDUE:   'red',
+  CANCELLED: 'gray',
 };
 
 interface Props {
@@ -16,15 +17,16 @@ interface Props {
 }
 
 export default function LatestInvoicesTable({ invoices, loading }: Props) {
+  const { t } = useT();
   return (
     <table className="db-table">
       <thead>
         <tr>
-          <th>رقم الفاتورة</th>
-          <th>الجهة</th>
-          <th>الإجمالي</th>
-          <th>الحالة</th>
-          <th>التاريخ</th>
+          <th>{t('col.inv.number')}</th>
+          <th>{t('col.inv.party')}</th>
+          <th>{t('col.inv.total')}</th>
+          <th>{t('col.db.status')}</th>
+          <th>{t('col.date')}</th>
         </tr>
       </thead>
       <tbody>
@@ -35,13 +37,14 @@ export default function LatestInvoicesTable({ invoices, loading }: Props) {
             <td colSpan={5}>
               <div className="db-empty">
                 <div className="db-empty-icon">🧾</div>
-                <div className="db-empty-text">لا توجد فواتير</div>
+                <div className="db-empty-text">{t('empty.no_invoices')}</div>
               </div>
             </td>
           </tr>
         ) : (
           invoices.map((inv, i) => {
-            const [statusLabel, statusCls] = STATUS_PILL[inv.status] ?? ['—', 'gray'];
+            const statusCls = STATUS_COLOR[inv.status] ?? 'gray';
+            const statusLabel = t('inv.status.' + inv.status.toLowerCase());
             const party = inv.customer?.name ?? inv.supplier?.name ?? '—';
             return (
               <tr key={i}>

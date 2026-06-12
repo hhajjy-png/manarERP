@@ -3,6 +3,7 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { Skeleton } from './Skeleton';
+import { useT } from '../../lib/i18n';
 
 interface TrendPoint { label: string; revenue: number; expense: number; }
 interface Props { data: TrendPoint[]; loading: boolean; }
@@ -16,9 +17,11 @@ interface CustomTooltipProps {
   active?: boolean;
   payload?: TooltipEntry[];
   label?: string;
+  revenueLabel?: string;
+  expensesLabel?: string;
 }
 
-function DarkTooltip({ active, payload, label }: CustomTooltipProps) {
+function DarkTooltip({ active, payload, label, revenueLabel = '', expensesLabel = '' }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
@@ -37,7 +40,7 @@ function DarkTooltip({ active, payload, label }: CustomTooltipProps) {
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '5px 0' }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.fill, flexShrink: 0 }} />
           <p style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 700 }}>
-            {p.dataKey === 'revenue' ? 'إيرادات' : 'مصروفات'}:{' '}
+            {p.dataKey === 'revenue' ? revenueLabel : expensesLabel}:{' '}
             <span style={{ color: p.fill }}>{Number(p.value).toLocaleString('en-US')} د.ك</span>
           </p>
         </div>
@@ -46,22 +49,18 @@ function DarkTooltip({ active, payload, label }: CustomTooltipProps) {
   );
 }
 
-function legendFormatter(value: string) {
-  return (
-    <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: 'Cairo, sans-serif', fontWeight: 700 }}>
-      {value === 'revenue' ? 'إيرادات' : 'مصروفات'}
-    </span>
-  );
-}
-
 export default function RevenueChart({ data, loading }: Props) {
+  const { t } = useT();
+  const revenueLabel = t('dash.lbl.revenue');
+  const expensesLabel = t('dash.lbl.expenses');
+
   if (loading) return <Skeleton height={240} style={{ borderRadius: 12 }} />;
 
   if (!data.length) {
     return (
       <div className="db-empty">
         <div className="db-empty-icon">📊</div>
-        <div className="db-empty-text">لا توجد بيانات مالية</div>
+        <div className="db-empty-text">{t('empty.no_financial_data')}</div>
       </div>
     );
   }
@@ -94,8 +93,12 @@ export default function RevenueChart({ data, loading }: Props) {
             width={72}
             tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
           />
-          <Tooltip content={<DarkTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-          <Legend formatter={legendFormatter} />
+          <Tooltip content={<DarkTooltip revenueLabel={revenueLabel} expensesLabel={expensesLabel} />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+          <Legend formatter={(value: string) => (
+            <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: 'Cairo, sans-serif', fontWeight: 700 }}>
+              {value === 'revenue' ? revenueLabel : expensesLabel}
+            </span>
+          )} />
           <Bar dataKey="revenue" fill="url(#gradRevenue)" radius={[6, 6, 0, 0]} maxBarSize={36} />
           <Bar dataKey="expense" fill="url(#gradExpense)" radius={[6, 6, 0, 0]} maxBarSize={36} />
         </BarChart>

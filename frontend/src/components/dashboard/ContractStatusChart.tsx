@@ -2,6 +2,7 @@ import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { Skeleton } from './Skeleton';
+import { useT } from '../../lib/i18n';
 
 interface StatusPoint { status: string; count: number; }
 interface Props { data: StatusPoint[]; loading: boolean; }
@@ -13,51 +14,19 @@ const COLORS: Record<string, string> = {
   SUSPENDED: '#EF4444',
 };
 
-const LABELS: Record<string, string> = {
-  ACTIVE:    'سارية',
-  EXPIRED:   'منتهية',
-  RENEWING:  'قيد التجديد',
-  SUSPENDED: 'موقوفة',
-};
-
 interface PieEntry { name?: string; value?: number; fill?: string; }
-interface CustomTooltipProps { active?: boolean; payload?: PieEntry[]; }
-
-function DarkTooltip({ active, payload }: CustomTooltipProps) {
-  if (!active || !payload?.length) return null;
-  const p = payload[0];
-  return (
-    <div style={{
-      background: '#1a2535',
-      border: '1px solid rgba(255,255,255,0.10)',
-      borderRadius: 10,
-      padding: '10px 14px',
-      fontFamily: 'Cairo, sans-serif',
-      direction: 'rtl',
-    }}>
-      <p style={{ color: p.fill ?? '#fff', fontSize: 13, fontWeight: 700 }}>
-        {LABELS[p.name ?? ''] ?? p.name}: {p.value} عقد
-      </p>
-    </div>
-  );
-}
-
-function legendFormatter(value: string) {
-  return (
-    <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: 'Cairo, sans-serif', fontWeight: 700 }}>
-      {LABELS[value] ?? value}
-    </span>
-  );
-}
 
 export default function ContractStatusChart({ data, loading }: Props) {
+  const { t } = useT();
+  const contractUnit = t('page.dashboard.contract_unit');
+
   if (loading) return <Skeleton height={248} style={{ borderRadius: 12 }} />;
 
   if (!data.length) {
     return (
       <div className="db-empty">
         <div className="db-empty-icon">🥧</div>
-        <div className="db-empty-text">لا توجد بيانات</div>
+        <div className="db-empty-text">{t('msg.empty')}</div>
       </div>
     );
   }
@@ -86,8 +55,29 @@ export default function ContractStatusChart({ data, loading }: Props) {
               <Cell key={i} fill={entry.fill} stroke="transparent" />
             ))}
           </Pie>
-          <Tooltip content={<DarkTooltip />} />
-          <Legend formatter={legendFormatter} />
+          <Tooltip content={({ active, payload }) => {
+            if (!active || !payload?.length) return null;
+            const p = payload[0] as unknown as PieEntry;
+            return (
+              <div style={{
+                background: '#1a2535',
+                border: '1px solid rgba(255,255,255,0.10)',
+                borderRadius: 10,
+                padding: '10px 14px',
+                fontFamily: 'Cairo, sans-serif',
+                direction: 'rtl',
+              }}>
+                <p style={{ color: p.fill ?? '#fff', fontSize: 13, fontWeight: 700 }}>
+                  {t('contract.status.' + (p.name ?? '').toLowerCase())}: {p.value} {contractUnit}
+                </p>
+              </div>
+            );
+          }} />
+          <Legend formatter={(value: string) => (
+            <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: 'Cairo, sans-serif', fontWeight: 700 }}>
+              {t('contract.status.' + value.toLowerCase())}
+            </span>
+          )} />
         </PieChart>
       </ResponsiveContainer>
     </div>

@@ -1,4 +1,5 @@
 import { Skeleton } from './Skeleton';
+import { useT } from '../../lib/i18n';
 
 export interface DashAlert {
   title: string;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function AlertPanel({ alerts, loading }: Props) {
+  const { t } = useT();
   if (loading) {
     return (
       <div className="db-alert-list">
@@ -33,7 +35,7 @@ export default function AlertPanel({ alerts, loading }: Props) {
     return (
       <div className="db-empty">
         <div className="db-empty-icon">✅</div>
-        <div className="db-empty-text">لا توجد تنبيهات عاجلة</div>
+        <div className="db-empty-text">{t('empty.no_alerts')}</div>
       </div>
     );
   }

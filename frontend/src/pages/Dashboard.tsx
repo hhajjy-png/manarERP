@@ -139,6 +139,9 @@ export default function Dashboard() {
   const brokenEquipment = (eq.total ?? 0) - workingEquipment;
   const profitPositive = (f.netProfit ?? 0) >= 0;
 
+  // Kuwait weekend: Friday (5) and Saturday (6)
+  const isWeekend = (() => { const d = new Date().getDay(); return d === 5 || d === 6; })();
+
   const expiredContracts =
     (cStatus as ApiAny[]).find((s: ApiAny) => s.status === 'EXPIRED')?.count ?? 0;
   const duePayments = inv.unpaid ?? 0;
@@ -289,18 +292,21 @@ export default function Dashboard() {
             value={money(f.totalRevenue)}
             icon="💰"
             color="green"
+            sub={t('kpi.all_time')}
           />
           <KPICard
             label={t('kpi.total_expenses')}
             value={money(f.totalExpense)}
             icon="📉"
             color="red"
+            sub={t('kpi.all_time')}
           />
           <KPICard
             label={t('kpi.net_profit')}
             value={money(f.netProfit)}
             icon="📈"
             color={profitPositive ? 'blue' : 'red'}
+            sub={t('kpi.all_time')}
           />
           <KPICard
             label={t('kpi.unpaid_invoices')}
@@ -563,8 +569,8 @@ export default function Dashboard() {
               </div>
             ) : (att.total ?? 0) === 0 ? (
               <div className="db-empty">
-                <div className="db-empty-icon">📅</div>
-                <div className="db-empty-text">{t('empty.no_attendance')}</div>
+                <div className="db-empty-icon">{isWeekend ? '🏖️' : '📅'}</div>
+                <div className="db-empty-text">{isWeekend ? t('att.weekend') : t('empty.no_attendance')}</div>
               </div>
             ) : (
               <div className="db-att-grid">

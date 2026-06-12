@@ -1088,6 +1088,18 @@ const DICT: Record<Lang, Record<string, string>> = {
     'inv.stats.unpaid': 'غير مسددة',
     'inv.stats.unpaid_amount': 'قيمة غير المسدد',
     'inv.stats.loading': 'جارٍ تحميل الإحصاء…',
+
+    // ── Dashboard V3A: sub-component i18n ─────────────────────────────────────
+    'empty.no_alerts': 'لا توجد تنبيهات عاجلة',
+    'empty.no_active_contracts': 'لا توجد عقود نشطة',
+    'empty.no_financial_data': 'لا توجد بيانات مالية',
+    'exp.status.pending': 'معلّق',
+    'exp.status.approved': 'معتمد',
+    'exp.status.rejected': 'مرفوض',
+    'dash.lbl.revenue': 'إيرادات',
+    'dash.lbl.expenses': 'مصروفات',
+    'kpi.all_time': 'منذ التأسيس',
+    'att.weekend': 'إجازة أسبوعية',
   },
   en: {
     // layout
@@ -2173,6 +2185,18 @@ const DICT: Record<Lang, Record<string, string>> = {
     'inv.stats.unpaid': 'Unpaid',
     'inv.stats.unpaid_amount': 'Outstanding Amount',
     'inv.stats.loading': 'Loading statistics…',
+
+    // ── Dashboard V3A: sub-component i18n ─────────────────────────────────────
+    'empty.no_alerts': 'No urgent alerts',
+    'empty.no_active_contracts': 'No active contracts',
+    'empty.no_financial_data': 'No financial data',
+    'exp.status.pending': 'Pending',
+    'exp.status.approved': 'Approved',
+    'exp.status.rejected': 'Rejected',
+    'dash.lbl.revenue': 'Revenue',
+    'dash.lbl.expenses': 'Expenses',
+    'kpi.all_time': 'All time',
+    'att.weekend': 'Weekend',
   },
 };
 
