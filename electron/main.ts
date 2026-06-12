@@ -5,6 +5,7 @@ import { startBackupScheduler, stopBackupScheduler } from './services/backupSche
 import { registerDialogIpc } from './ipc/dialog.ipc';
 import { registerBackupIpc } from './ipc/backup.ipc';
 import { registerSessionIpc } from './ipc/session.ipc';
+import { registerContextMenuIpc } from './ipc/contextMenu.ipc';
 
 // منع تشغيل أكثر من نسخة من التطبيق في آن واحد
 const gotLock = app.requestSingleInstanceLock();
@@ -23,6 +24,7 @@ async function bootstrap() {
     startBackupScheduler(); // ثم جدولة النسخ التلقائي
 
     mainWindow = createMainWindow();
+    registerContextMenuIpc(mainWindow);
 
     // قائمة عربية مبسّطة
     Menu.setApplicationMenu(
