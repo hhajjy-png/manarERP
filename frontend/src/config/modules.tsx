@@ -55,6 +55,7 @@ export interface ModuleConfig {
   createLabel: string;
   emptyText?: string;
   canApprove?: boolean;
+  supportsArchive?: boolean;
   statusFilter?: { param: string; options: { value: string; labelKey: string }[] };
 }
 
@@ -124,7 +125,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'customers', endpoint: '/customers', label: 'العملاء والجهات',
     title: 'mod.customers.title', subtitle: 'mod.customers.subtitle',
     icon: '👥', group: 'العمليات الأساسية', createLabel: 'mod.customers.create',
-    emptyText: 'empty.customers',
+    emptyText: 'empty.customers', supportsArchive: true,
     statusFilter: {
       param: 'type',
       options: [
@@ -157,7 +158,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'suppliers', endpoint: '/suppliers', label: 'الموردون',
     title: 'mod.suppliers.title', subtitle: 'mod.suppliers.subtitle',
     icon: '📦', group: 'المالية', createLabel: 'mod.suppliers.create',
-    emptyText: 'empty.suppliers',
+    emptyText: 'empty.suppliers', supportsArchive: true,
     columns: [
       { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
       { key: 'name', label: 'col.supplier_name', render: (r) => <strong>{r.name}</strong> },
