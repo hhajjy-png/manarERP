@@ -42,7 +42,7 @@ const CONTRACT_STATUS_CLS: Record<string, string> = {
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const navigate = useNavigate();
   const { t } = useT();
 
@@ -237,18 +237,26 @@ export default function Dashboard() {
           <div className="db-exec-hero-actions">
             <div className="db-exec-section-label">{t('section.quick_actions')}</div>
             <div className="db-actions">
-              <button type="button" className="db-action-btn primary" onClick={() => navigate('/invoices')}>
-                {t('page.dashboard.new_invoice')}
-              </button>
-              <button type="button" className="db-action-btn green" onClick={() => navigate('/contracts')}>
-                {t('page.dashboard.new_contract')}
-              </button>
-              <button type="button" className="db-action-btn purple" onClick={() => navigate('/customers')}>
-                {t('page.dashboard.new_customer')}
-              </button>
-              <button type="button" className="db-action-btn amber" onClick={() => navigate('/expenses')}>
-                {t('page.dashboard.new_expense')}
-              </button>
+              {hasPermission('invoices.create') && (
+                <button type="button" className="db-action-btn primary" onClick={() => navigate('/invoices')}>
+                  {t('page.dashboard.new_invoice')}
+                </button>
+              )}
+              {hasPermission('contracts.create') && (
+                <button type="button" className="db-action-btn green" onClick={() => navigate('/contracts')}>
+                  {t('page.dashboard.new_contract')}
+                </button>
+              )}
+              {hasPermission('customers.create') && (
+                <button type="button" className="db-action-btn purple" onClick={() => navigate('/customers')}>
+                  {t('page.dashboard.new_customer')}
+                </button>
+              )}
+              {hasPermission('expenses.create') && (
+                <button type="button" className="db-action-btn amber" onClick={() => navigate('/expenses')}>
+                  {t('page.dashboard.new_expense')}
+                </button>
+              )}
             </div>
           </div>
         </div>

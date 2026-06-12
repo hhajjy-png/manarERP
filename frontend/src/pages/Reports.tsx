@@ -22,6 +22,7 @@ interface ReportType {
   group: string;
   filters: FilterKey[];
   statuses?: [string, string][];
+  statusLabel?: string;
 }
 
 const REPORT_TYPES: ReportType[] = [
@@ -48,6 +49,7 @@ const REPORT_TYPES: ReportType[] = [
     key: 'customers', label: 'report.type.customers', icon: '👥', group: 'report.group.business',
     filters: ['status'],
     statuses: [['GOVERNMENT', 'opt.customer.government'], ['PRIVATE', 'opt.customer.private']],
+    statusLabel: 'filter.customer_type',
   },
   {
     key: 'employees', label: 'report.type.employees', icon: '👷', group: 'report.group.hr',
@@ -275,7 +277,7 @@ export default function Reports() {
 
         {f.includes('status') && currentType.statuses && (
           <div className="field" style={{ margin: 0, minWidth: 160 }}>
-            <label style={{ fontSize: 12 }}>{t('filter.status')}</label>
+            <label style={{ fontSize: 12 }}>{t(currentType.statusLabel ?? 'filter.status')}</label>
             <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
               <option value="">{t('opt.all')}</option>
               {currentType.statuses.map(([val, lbl]) => <option key={val} value={val}>{t(lbl)}</option>)}
