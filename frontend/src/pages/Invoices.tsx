@@ -14,7 +14,7 @@ const statusPill: Record<string, [string, string]> = {
 
 const invoiceTypes = ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت', 'أخرى'] as const;
 const units = ['طن', 'درب', 'يومية'] as const;
-const invoicePrefix = 'MN-INV-2026-';
+const invoicePrefix = `MN-INV-${new Date().getFullYear()}-`;
 
 interface Item { description: string; quantity: number; unit: string; unitPrice: number; priceTouched?: boolean; }
 
