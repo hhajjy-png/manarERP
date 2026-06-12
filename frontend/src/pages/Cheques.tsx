@@ -540,9 +540,9 @@ export default function Cheques() {
       `}</style>
 
       {/* Page header */}
-      <div className="page-header no-print">
+      <div className="page-head no-print">
         <div>
-          <h1>{t('page.cheques.title')}</h1>
+          <h2>{t('page.cheques.title')}</h2>
           <p>{t('page.cheques.subtitle')}</p>
         </div>
         {canCreate && (

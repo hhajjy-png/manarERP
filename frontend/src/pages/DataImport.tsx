@@ -240,10 +240,8 @@ export default function DataImport() {
 
   return (
     <div style={{ padding: '24px 32px', maxWidth: 1100 }}>
-      {/* Header */}
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700 }}>{t('page.import.title')}</h2>
-        <p style={{ margin: '4px 0 0', color: 'var(--text-muted)', fontSize: 14 }}>{t('page.import.subtitle')}</p>
+      <div className="page-head">
+        <div><h2>{t('page.import.title')}</h2><p>{t('page.import.subtitle')}</p></div>
       </div>
 
       {/* Entity type selector */}
