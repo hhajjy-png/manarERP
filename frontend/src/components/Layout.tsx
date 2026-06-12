@@ -3,6 +3,7 @@ import { NAV } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useUI } from '../stores/uiStore';
 import { useT } from '../lib/i18n';
+import almanarLogo from '../assets/almanar-logo.png';
 import './layout-polish.css';
 
 export default function Layout() {
@@ -20,8 +21,7 @@ export default function Layout() {
     <div className="app stitch-full-theme">
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="brand">
-          <div className="logo">م</div>
-          <div><h1>شركة المنار</h1><span>{t('layout.tagline')}</span></div>
+          <img src={almanarLogo} alt="شركة المنار" className="brand-logo" />
         </div>
         <nav className="nav">
           {NAV.map((section) => {

@@ -84,17 +84,12 @@ html[data-theme="dark"] .stitch-full-theme .topbar {
   border-bottom-color: var(--border) !important;
 }
 
-.stitch-full-theme .sidebar .brand h1 {
-  color: var(--text) !important;
-}
-
-.stitch-full-theme .sidebar .brand span {
-  color: var(--text-muted) !important;
-}
-
-.stitch-full-theme .sidebar .brand .logo {
-  background: var(--accent) !important;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3) !important;
+.stitch-full-theme .sidebar .brand-logo {
+  width: 100%;
+  max-width: 190px;
+  height: auto;
+  max-height: 90px;
+  object-fit: contain;
 }
 
 .stitch-full-theme .sidebar .nav .group {
