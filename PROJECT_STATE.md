@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `04c9fb5` — Merge executive dashboard V3A lite |
-| **Stable tag** | `stable-executive-dashboard-v3a-lite-v1` |
+| **HEAD** | `5f71d5a` — docs: update development workflow v3 model routing |
+| **Stable tag** | `stable-contracts-price-binding-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,9 +24,13 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Development Workflow v3.0 | `production` (direct commit) | — | Documentation only. No code changes. Three workflow modes (Quick Fix, Feature, Major System), model routing policy (Sonnet default, Opus escalation, Gemini mandatory review, ChatGPT PM), Implementation Reference appendix restored: pre-implementation checklist, `/simplify` + `/code-review` + `/security-review` quality gates, Gemini report template (10 sections), merge verification commands, commit message format, tag and push rules, rollback procedure. CLAUDE.md updated with v3.0 workflow section and appendix reference. HEAD: `5f71d5a`. |
+| Contracts Price Binding | `feature/contracts-price-binding` | `stable-contracts-price-binding-v1` | Frontend-only. Linked Price selector added to Contracts page. Auto-fills `asphaltPlant`, `companyName`, `location`, `unitName`, `price` when user selects a price. Customer column added to Contracts DataTable. Existing field values remain editable after auto-fill. No backend/schema/permission changes. **Implementation detail:** `linkedPrice` selector sends the selected price record ID to the backend but is silently stripped by Zod (`contracts.schema.ts` does not declare `linkedPrice`). No `linkedPriceId` FK exists in `schema.prisma`. No migration required. Only the 5 auto-filled fields are actually persisted. |
+| Remove DataTable Sticky Header | `hotfix/remove-datatable-sticky-header` | `stable-remove-datatable-sticky-header-v1` | Frontend-only. Sticky column headers removed from `theme.css` — eliminates the first-row overlap issue introduced in DataTable Enhancement Phase 1. Zebra row stripes and hover styling preserved. |
+| Operational Feedback Phase 1 | `feature/operational-feedback-phase1` | `stable-operational-feedback-phase1-v1` | Frontend-only. Equipment registration expiry split into two columns: Expiry Date and Remaining Duration. Invoice price picker UX clarification. DataTable first-row visibility fixes. Miscellaneous operational feedback improvements. |
 | Executive Dashboard V3A-Lite | `feature/executive-dashboard-v3-planning` | `stable-executive-dashboard-v3a-lite-v1` | Frontend-only. Dashboard sub-components are now fully i18n-compliant: AlertPanel, ContractProgressCard, ContractStatusChart, LatestExpensesTable, LatestInvoicesTable, RevenueChart. 25 hardcoded Arabic strings removed; 10 new i18n key pairs added (AR+EN). `STATUS_MAP`/`STATUS_PILL` tuples refactored to `STATUS_COLOR` maps — labels now via `t('contract.status.*')`, `t('inv.status.*')`, `t('exp.status.*')`. All-time label `منذ التأسيس / All time` added as `sub` prop to Revenue, Expenses, Net Profit KPI cards (excluded from Unpaid Invoices which shows current outstanding). Weekend attendance empty state: if `today.getDay() === 5 || 6` (Kuwait Friday/Saturday) and `att.total === 0`, shows 🏖️ + `t('att.weekend')` instead of generic empty state. No backend/API/schema/permission changes. KPI grid replacement deferred. Period filter deferred. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Page Headers Standardization | `feature/ui-page-headers-standardization` | `stable-ui-page-headers-standardization-v1` | Frontend-only. Standardized page header markup across 2 non-ResourcePage pages: `Cheques.tsx` (`page-header` → `page-head` class, `<h1>` → `<h2>`); `DataImport.tsx` (inline styles replaced with `page-head` class + standard `<h2>`/`<p>` structure). Consistent with ResourcePage and other page headers. No i18n, no backend changes. |
-| DataTable Enhancement Phase 1 | `feature/ui-datatables-enhancement-phase1` | `stable-ui-datatables-enhancement-phase1-v1` | Frontend-only. `theme.css` global table improvements: sticky column headers (`position: sticky; top: 49px` — accounts for 49px topbar height); alternating row stripes (`tbody tr:nth-child(even) td { background: var(--surface-2) }`); hover highlight updated to rgba tokens (light: `rgba(59,130,246,0.06)`, dark: `rgba(255,255,255,0.07)`); row hover `transition: background 0.15s ease`; header border changed to `2px` with `background: var(--surface-2)`; pagination `border-top` separator added; tighter cell padding (12px top/bottom for headers, 14px for rows). No i18n, no backend changes. |
+| DataTable Enhancement Phase 1 | `feature/ui-datatables-enhancement-phase1` | `stable-ui-datatables-enhancement-phase1-v1` | Frontend-only. `theme.css` global table improvements: sticky column headers (`position: sticky; top: 49px` — accounts for 49px topbar height); alternating row stripes (`tbody tr:nth-child(even) td { background: var(--surface-2) }`); hover highlight updated to rgba tokens (light: `rgba(59,130,246,0.06)`, dark: `rgba(255,255,255,0.07)`); row hover `transition: background 0.15s ease`; header border changed to `2px` with `background: var(--surface-2)`; pagination `border-top` separator added; tighter cell padding (12px top/bottom for headers, 14px for rows). No i18n, no backend changes. **Note:** sticky headers were removed in `stable-remove-datatable-sticky-header-v1` and are not present in current production. Zebra rows, rgba hover tokens, and pagination border-top separator remain. |
 | Operational Polish Phase 1B | `feature/operational-polish-phase1b` | `stable-operational-polish-phase1b-v1` | Frontend-only. 5 UX consistency improvements: (1) DataTable row-range indicator in pagination — `عرض {from}–{to} من {total}` replaces total-only display on multi-page views; 2 new i18n key pairs (`msg.showing_range`, `page.reports.date_range_hint`). (2) Reports `fmt()` number formatting — added `minimumFractionDigits: 0` to match `money()` options exactly. (3) Reports date-range guidance — soft informational hint for invoices, expenses, payroll report types when no date range is set; non-blocking. (4) ResourcePage visible status filter label — bare `<select>` now shows `فلترة:` label instead of tooltip-only, consistent with toolbar conventions. (5) Dashboard "View All" links — Latest Invoices and Latest Expenses cards now have navigation buttons (→ `/invoices`, → `/expenses`), gated on `!loading && items.length > 0`, consistent with existing Contracts card. No backend/schema/permission changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Operational Polish Phase 1A | `feature/operational-polish-phase1a` | `stable-operational-polish-phase1a-v1` | Frontend-only. 6 UX quick wins from the Operational Polish Audit: (1) Dashboard quick action buttons gated by `hasPermission('<module>.create')` — users without create permissions no longer see inapplicable actions. (2) Expense `date` field marked `required: true` — expenses without accounting dates are blocked at form submit. (3) Expense contract selector now uses `optionLabel: 'code'` — contract codes (unique) prevent duplicate-label ambiguity vs. plant names. (4) ResourcePage contracts/equipment stats strip fully localized — 8 hardcoded Arabic strings replaced with `t('stat.rp.*')` calls; 9 new i18n key pairs (AR+EN). (5) Approve/reject expense actions now prompt `confirm()` before API call — prevents misclick approvals. (6) Customer report filter label changed from generic "status" to "نوع العميل" / "Customer Type" via optional `statusLabel` on `ReportType`; all other report types unaffected. 14 new i18n key pairs total. No backend/schema/permission changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Operational Polish Hotfix 1 | `feature/operational-polish-invoice-year-prefix` | `stable-operational-polish-hotfix1-v1` | Frontend-only. One-line fix: `const invoicePrefix = 'MN-INV-2026-'` → `` `MN-INV-${new Date().getFullYear()}-` ``. Invoice number prefix was hardcoded to year 2026 — would have produced wrong prefixes on every January 1st rollover indefinitely. Now derives year from runtime clock. No backend/schema changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
@@ -68,58 +72,62 @@
 
 ---
 
+## Operational Feedback Audit — 2026-06-12
+
+Verified against production HEAD `5f71d5a`. Code evidence confirmed in `theme.css`, `modules.tsx`, `FormDialog.tsx`, `Invoices.tsx`, `Dashboard.tsx`, `Reports.tsx`, `DataTable.tsx`, `ResourcePage.tsx`.
+
+| # | Observation | Status | Released In | Stable Tag |
+|---|---|---|---|---|
+| 1 | Equipment registration expiry split into Expiry Date + Remaining Duration | **IMPLEMENTED** | Operational Feedback Phase 1 | `stable-operational-feedback-phase1-v1` |
+| 2 | Contract form auto-fill from Prices | **IMPLEMENTED** | Contracts Price Binding | `stable-contracts-price-binding-v1` |
+| 3 | Customer visibility in Contracts table | **IMPLEMENTED** | Contracts Price Binding | `stable-contracts-price-binding-v1` |
+| 4 | Invoice price picker UX clarification | **IMPLEMENTED** | Operational Feedback Phase 1 | `stable-operational-feedback-phase1-v1` |
+| 5 | First-row hidden in tables | **IMPLEMENTED** | Remove DataTable Sticky Header | `stable-remove-datatable-sticky-header-v1` |
+| 6 | White gap under table headers | **IMPLEMENTED** | Remove DataTable Sticky Header | `stable-remove-datatable-sticky-header-v1` |
+| 7 | Equipment ↔ Plate Number linked selectors | **OPEN** | — | — |
+
+**DataTable current state (confirmed):** No sticky headers. Zebra rows (`tbody tr:nth-child(even)`), rgba hover tokens, `box-shadow: inset 0 -2px` header border, and pagination `border-top` separator all present. Row-range indicator (`showing_range`) in pagination present. Filter label visible in ResourcePage toolbar.
+
+---
+
 ## Next Recommended Tasks
 
-Priority order based on value vs. effort for this local internal ERP.
+### 1. Equipment Plate Integration Phase 1 (Next Recommended)
 
-### 1. Pause for real usage feedback (recommended next)
+Link Equipment and Plate Number selectors in operational forms. When a user selects an equipment record, the plate number should auto-populate in the same form row.
 
-Executive Dashboard V3A-Lite completed the planned frontend polish pass. The natural next decision point is:
+Scope:
+- Maintenance forms
+- Fuel logs
+- Breakdown forms
+- Spare Parts forms
 
-- **Option A: Pause for operational usage** — deploy to real users and let friction points surface organically before investing in more UI work. Several recent features (sticky headers, striped rows, i18n compliance, weekend attendance) benefit from real-world validation before proceeding.
-- **Option B: Executive Dashboard V3B planning only** — design-only session for the deferred items (KPI grid replacement, period filter/date range selector for trend chart). Do not implement until V3A feedback is collected.
-- **Option C: Operational Polish Phase 2** — tackle remaining medium-effort audit items (employee table column density, custom confirm modal to replace `window.confirm` across all guards, dirty tracking for Invoices/Inventory/Maintenance forms)
+Implementation approach:
+- Prefer frontend-only: the equipment API response already includes `plateNumber` — use the same `onSelectRaw`-style auto-fill pattern proven in Contracts Price Binding
+- No schema changes unless the equipment endpoint does not return `plateNumber`
+- No backend changes unless proven necessary
+- `Maintenance.tsx` uses custom form rendering (not `FormDialog`/`ResourcePage`) — update that file directly
 
-Remaining medium-effort audit candidates (Operational Polish Phase 2):
-- Employee table column density: 13 columns is very wide; consider hiding low-traffic columns or adding a condensed view
-- Custom confirm modal: replace all `window.confirm()` usage with a styled in-app dialog
-- Dirty tracking for Invoices/Inventory/Maintenance create/edit flows (deferred from Operational UX Phase 1B-A)
+### 2. Continued Operational Feedback Collection
 
-Executive Dashboard V3B deferred items:
-- KPI grid replacement (4-card grid → summary strip or compact layout)
-- Period filter / date range selector on trend chart (requires backend changes to `/dashboard/executive`)
+Continue observing daily use for friction points before investing in larger features.
 
-### 2. Attendance Search Debounce (optional, low priority)
+- Form simplification opportunities
+- Workflow refinements based on actual usage patterns
+- Any new friction points surfaced by real use
 
-Gemini recommendation deferred post-release. Optional 300ms debounce on the Attendance search input to reduce API calls on fast typing.
+### 3. Optional Contracts UX Improvements
 
-- Add inline debounce to search `onChange` in `Attendance.tsx`
-- No backend changes required
+- Review advanced contract fields for simplification opportunities
+- Evaluate further customer visibility improvements
 
-### 2. API Rate Limiting (optional security hardening)
+---
 
-Lightweight measure to protect the local Express API from accidental or malicious request flooding.
+## Open Operational Notes
 
-- Express middleware (e.g., `express-rate-limit`) on sensitive endpoints
-- Low implementation cost, low risk
-- Not critical for offline-only desktop use but good hygiene
-
-### 3. Small Page-Level UX Improvements
-
-Incremental polish pass on individual pages as usage reveals friction points.
-
-- Date format standardization in exports
-- Historical attendance filtering: allow inactive/terminated employees in the employee dropdown
-- Any other minor UX gaps surfaced during daily use
-
-### 4. Operational UX Phase 1B-B (Inventory / Invoice dirty tracking)
-
-Remaining unsaved-changes surfaces deferred from Phase 1B-A.
-
-- Dirty tracking for CreateInvoice and AddPayment flows in `Invoices.tsx`
-- Dirty tracking for Inventory create/edit forms in `Inventory.tsx`
-- Dirty tracking for Maintenance create/edit forms in `Maintenance.tsx`
-- Consider custom confirm modal to replace `window.confirm` across all guards
+1. **Equipment ↔ Plate Number linked selectors** — **OPEN.** Not yet implemented. Apply to Maintenance, Fuel, Breakdowns, and Spare Parts forms. See Next Recommended Tasks §1.
+2. **Contract form simplification** — Optional. Review advanced contract fields for simplification opportunities.
+3. **Continue operational UX feedback collection** — Ongoing. Observe daily use and surface friction points.
 
 ---
 
@@ -251,9 +259,9 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Employees | `modules/employees/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Attendance | `employees module` | `Attendance.tsx` | Production Ready + Server-side Pagination — paginated attendance listing, filter-scoped KPI stats via groupBy, server-side search (notes/employee name/code); persisted filter/search/page state; refresh action; unsaved changes protection (create + edit modals); standardized empty state |
 | Payroll | `modules/payroll/` | `Salaries.tsx` | Complete |
-| Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n) |
+| Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n); separate Expiry Date and Remaining Duration columns |
 | Maintenance | `modules/maintenance/` | `Maintenance.tsx` | Production Ready — full CRUD, search, filters, details modal; persisted filter/search/page state; refresh action |
-| Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n) |
+| Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n); Customer column; Linked Price selector; auto-fill from Prices (asphaltPlant, companyName, location, unitName, price) |
 | Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields; persisted search, filter, tab, page state; refresh action; standardized empty state; dynamic year prefix on invoice number |
 | Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete; invoice picker filters by contract unit; auto-fill on unit select when exactly one match (`priceTouched` guards manual edits); picker as fallback for multiple matches; `contractLocation` shown in picker; empty state + filter reset UX. Backend: CRUD only (`list`, `create`, `update`, `delete`) — lookup endpoint removed |
 | Suppliers | `modules/suppliers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
@@ -294,7 +302,7 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 
 | Branch | Status | Notes |
 |--------|--------|-------|
-| *(none)* | — | All feature branches merged as of 2026-06-11 |
+| *(none)* | — | All feature branches merged as of 2026-06-12 |
 
 > Update this table when a new feature branch is opened.
 
@@ -336,4 +344,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-12 — Executive Dashboard V3A-Lite released; baseline advanced to `04c9fb5` (`stable-executive-dashboard-v3a-lite-v1`). Three features since previous baseline: (1) DataTable Enhancement Phase 1 — sticky headers, alternating row stripes, rgba hover tokens, pagination border separator; (2) Page Headers Standardization — Cheques + DataImport pages aligned to `page-head` class; (3) Executive Dashboard V3A-Lite — 6 dashboard sub-components i18n-compliant, 25 hardcoded Arabic strings removed, 10 new i18n key pairs, all-time label on financial KPI cards, Kuwait weekend attendance empty state. No backend/schema changes across all three. 101/101 tests, all TS + builds clean. Recommended next: pause for real usage feedback, or Executive Dashboard V3B planning only.*
+*Last updated: 2026-06-12 — Operational Feedback Audit completed; baseline advanced to `5f71d5a`. All 6 of 7 operational observations confirmed IMPLEMENTED in production (code-verified). One item remains OPEN: Equipment ↔ Plate Number linked selectors. Development Workflow v3.0 published: three modes (Quick Fix / Feature / Major System), model routing policy, Implementation Reference appendix. DataTable current state confirmed: no sticky headers, zebra rows and rgba hover tokens present. Contracts Price Binding implementation detail documented: `linkedPrice` is frontend-only helper — no FK in schema, only 5 auto-filled fields persisted. Recommended next: Equipment Plate Integration Phase 1.*
