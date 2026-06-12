@@ -47,6 +47,10 @@ export class ReportsService {
         return this.attendance(query);
       case 'profit-loss':
         return this.profitLoss(query);
+      case 'suppliers':
+        return this.suppliers(query);
+      case 'prices':
+        return this.prices(query);
       default:
         throw AppError.badRequest('نوع تقرير غير معروف');
     }
@@ -332,6 +336,59 @@ export class ReportsService {
         hours: a.workHours != null ? Number(a.workHours).toFixed(1) : '',
         status: statusAr[a.status] ?? a.status,
         notes: a.notes ?? '',
+      })),
+    };
+  }
+
+  private async suppliers(_q: ReportQuery): Promise<ReportInput> {
+    const rows = await prisma.supplier.findMany({
+      where: { isArchived: false },
+      orderBy: { code: 'asc' },
+    });
+    return {
+      title: 'تقرير الموردين',
+      subtitle: `إجمالي الموردين: ${rows.length}`,
+      columns: [
+        { header: 'الرقم', key: 'code', width: 14 },
+        { header: 'الاسم', key: 'name', width: 34 },
+        { header: 'الهاتف', key: 'phone', width: 18 },
+        { header: 'البريد الإلكتروني', key: 'email', width: 28 },
+        { header: 'العنوان', key: 'address', width: 28 },
+        { header: 'المسؤول', key: 'contactName', width: 22 },
+        { header: 'ملاحظات', key: 'notes', width: 30 },
+      ],
+      rows: rows.map((s) => ({
+        code: s.code,
+        name: s.name,
+        phone: s.phone ?? '',
+        email: s.email ?? '',
+        address: s.address ?? '',
+        contactName: s.contactName ?? '',
+        notes: s.notes ?? '',
+      })),
+    };
+  }
+
+  private async prices(_q: ReportQuery): Promise<ReportInput> {
+    const rows = await prisma.projectPrice.findMany({
+      orderBy: [{ asphaltPlant: 'asc' }, { companyName: 'asc' }],
+    });
+    return {
+      title: 'تقرير أسعار المشاريع',
+      subtitle: `إجمالي الأسعار: ${rows.length}`,
+      columns: [
+        { header: 'مصنع الأسفلت', key: 'asphaltPlant', width: 28 },
+        { header: 'اسم الشركة', key: 'companyName', width: 28 },
+        { header: 'مكان العقد', key: 'contractLocation', width: 24 },
+        { header: 'وحدة العقد', key: 'contractUnit', width: 14 },
+        { header: 'سعر الوحدة', key: 'unitPrice', width: 16, numFmt: '#,##0.000' },
+      ],
+      rows: rows.map((p) => ({
+        asphaltPlant: p.asphaltPlant,
+        companyName: p.companyName,
+        contractLocation: p.contractLocation,
+        contractUnit: p.contractUnit,
+        unitPrice: num(p.unitPrice),
       })),
     };
   }
