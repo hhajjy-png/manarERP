@@ -598,6 +598,11 @@ export default function Dashboard() {
               <h3>{t('section.latest_invoices')}</h3>
               <p>{t('section.latest_inv_sub')}</p>
             </div>
+            {!loading && invoices.length > 0 && (
+              <button type="button" className="btn secondary db-card-btn" onClick={() => navigate('/invoices')}>
+                {t('page.dashboard.view_all')}
+              </button>
+            )}
           </div>
           <LatestInvoicesTable invoices={invoices} loading={loading} />
         </div>
@@ -607,6 +612,11 @@ export default function Dashboard() {
               <h3>{t('section.latest_expenses')}</h3>
               <p>{t('section.latest_exp_sub')}</p>
             </div>
+            {!loading && expenses.length > 0 && (
+              <button type="button" className="btn secondary db-card-btn" onClick={() => navigate('/expenses')}>
+                {t('page.dashboard.view_all')}
+              </button>
+            )}
           </div>
           <LatestExpensesTable expenses={expenses} loading={loading} />
         </div>

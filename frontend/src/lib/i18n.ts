@@ -32,6 +32,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'msg.page': 'صفحة',
     'msg.of': 'من',
     'msg.total': 'الإجمالي',
+    'msg.showing_range': 'عرض {from}–{to} من {total}',
     'msg.required_field': 'الحقل «{field}» مطلوب',
     'msg.select_placeholder': '— اختر —',
     'msg.confirm_delete': 'هل تريد حذف هذا السجل؟ ({id})',
@@ -411,6 +412,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.reports.preparing': 'جارٍ تجهيز التقرير…',
     'page.reports.no_data': 'لا توجد بيانات',
     'page.reports.results_count': 'نتيجة',
+    'page.reports.date_range_hint': 'يُنصح بتحديد نطاق تاريخي للحصول على نتائج أدق',
     'btn.reports.print': 'PDF / طباعة',
 
     // ── Phase 3: inventory page ───────────────────────────────────────────────
@@ -1115,6 +1117,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'msg.page': 'Page',
     'msg.of': 'of',
     'msg.total': 'Total',
+    'msg.showing_range': 'Showing {from}–{to} of {total}',
     'msg.required_field': 'Field "{field}" is required',
     'msg.select_placeholder': '— Select —',
     'msg.confirm_delete': 'Delete this record? ({id})',
@@ -1494,6 +1497,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.reports.preparing': 'Preparing report…',
     'page.reports.no_data': 'No data',
     'page.reports.results_count': 'result(s)',
+    'page.reports.date_range_hint': 'Tip: set a date range for cleaner, faster results',
     'btn.reports.print': 'PDF / Print',
 
     // ── Phase 3: inventory page ───────────────────────────────────────────────

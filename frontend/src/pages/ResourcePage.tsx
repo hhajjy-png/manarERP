@@ -241,17 +241,20 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         </div>
         <button className="btn secondary" type="submit">{t('action.search')}</button>
         {cfg.statusFilter && (
-          <select
-            value={filterValue}
-            onChange={(e) => { setFilterValue(e.target.value); setPage(1); }}
-            title={t('filter.status')}
-            style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg)', color: 'var(--text)', fontSize: 14, cursor: 'pointer' }}
-          >
-            <option value="">{t('opt.all')}</option>
-            {cfg.statusFilter.options.map((o) => (
-              <option key={o.value} value={o.value}>{t(o.labelKey)}</option>
-            ))}
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('filter.status')}:</span>
+            <select
+              value={filterValue}
+              onChange={(e) => { setFilterValue(e.target.value); setPage(1); }}
+              title={t('filter.status')}
+              style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg)', color: 'var(--text)', fontSize: 14, cursor: 'pointer' }}
+            >
+              <option value="">{t('opt.all')}</option>
+              {cfg.statusFilter.options.map((o) => (
+                <option key={o.value} value={o.value}>{t(o.labelKey)}</option>
+              ))}
+            </select>
+          </div>
         )}
         <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
       </form>

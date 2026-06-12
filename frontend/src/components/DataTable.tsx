@@ -74,7 +74,7 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
         <div className="pagination">
           <span style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: 13 }}>
             {meta.totalPages > 1
-              ? <>{t('msg.page')} {meta.page} {t('msg.of')} {meta.totalPages} — {t('msg.total')} {meta.total}</>
+              ? <>{t('msg.showing_range', { from: String((meta.page - 1) * meta.pageSize + 1), to: String(Math.min(meta.page * meta.pageSize, meta.total)), total: String(meta.total) })} — {t('msg.page')} {meta.page} {t('msg.of')} {meta.totalPages}</>
               : <>{t('msg.total')} {meta.total}</>
             }
           </span>
