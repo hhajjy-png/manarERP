@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `6ff01ea` — Merge operational polish phase 1B |
-| **Stable tag** | `stable-operational-polish-phase1b-v1` |
+| **HEAD** | `04c9fb5` — Merge executive dashboard V3A lite |
+| **Stable tag** | `stable-executive-dashboard-v3a-lite-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,9 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Executive Dashboard V3A-Lite | `feature/executive-dashboard-v3-planning` | `stable-executive-dashboard-v3a-lite-v1` | Frontend-only. Dashboard sub-components are now fully i18n-compliant: AlertPanel, ContractProgressCard, ContractStatusChart, LatestExpensesTable, LatestInvoicesTable, RevenueChart. 25 hardcoded Arabic strings removed; 10 new i18n key pairs added (AR+EN). `STATUS_MAP`/`STATUS_PILL` tuples refactored to `STATUS_COLOR` maps — labels now via `t('contract.status.*')`, `t('inv.status.*')`, `t('exp.status.*')`. All-time label `منذ التأسيس / All time` added as `sub` prop to Revenue, Expenses, Net Profit KPI cards (excluded from Unpaid Invoices which shows current outstanding). Weekend attendance empty state: if `today.getDay() === 5 || 6` (Kuwait Friday/Saturday) and `att.total === 0`, shows 🏖️ + `t('att.weekend')` instead of generic empty state. No backend/API/schema/permission changes. KPI grid replacement deferred. Period filter deferred. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
+| Page Headers Standardization | `feature/ui-page-headers-standardization` | `stable-ui-page-headers-standardization-v1` | Frontend-only. Standardized page header markup across 2 non-ResourcePage pages: `Cheques.tsx` (`page-header` → `page-head` class, `<h1>` → `<h2>`); `DataImport.tsx` (inline styles replaced with `page-head` class + standard `<h2>`/`<p>` structure). Consistent with ResourcePage and other page headers. No i18n, no backend changes. |
+| DataTable Enhancement Phase 1 | `feature/ui-datatables-enhancement-phase1` | `stable-ui-datatables-enhancement-phase1-v1` | Frontend-only. `theme.css` global table improvements: sticky column headers (`position: sticky; top: 49px` — accounts for 49px topbar height); alternating row stripes (`tbody tr:nth-child(even) td { background: var(--surface-2) }`); hover highlight updated to rgba tokens (light: `rgba(59,130,246,0.06)`, dark: `rgba(255,255,255,0.07)`); row hover `transition: background 0.15s ease`; header border changed to `2px` with `background: var(--surface-2)`; pagination `border-top` separator added; tighter cell padding (12px top/bottom for headers, 14px for rows). No i18n, no backend changes. |
 | Operational Polish Phase 1B | `feature/operational-polish-phase1b` | `stable-operational-polish-phase1b-v1` | Frontend-only. 5 UX consistency improvements: (1) DataTable row-range indicator in pagination — `عرض {from}–{to} من {total}` replaces total-only display on multi-page views; 2 new i18n key pairs (`msg.showing_range`, `page.reports.date_range_hint`). (2) Reports `fmt()` number formatting — added `minimumFractionDigits: 0` to match `money()` options exactly. (3) Reports date-range guidance — soft informational hint for invoices, expenses, payroll report types when no date range is set; non-blocking. (4) ResourcePage visible status filter label — bare `<select>` now shows `فلترة:` label instead of tooltip-only, consistent with toolbar conventions. (5) Dashboard "View All" links — Latest Invoices and Latest Expenses cards now have navigation buttons (→ `/invoices`, → `/expenses`), gated on `!loading && items.length > 0`, consistent with existing Contracts card. No backend/schema/permission changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Operational Polish Phase 1A | `feature/operational-polish-phase1a` | `stable-operational-polish-phase1a-v1` | Frontend-only. 6 UX quick wins from the Operational Polish Audit: (1) Dashboard quick action buttons gated by `hasPermission('<module>.create')` — users without create permissions no longer see inapplicable actions. (2) Expense `date` field marked `required: true` — expenses without accounting dates are blocked at form submit. (3) Expense contract selector now uses `optionLabel: 'code'` — contract codes (unique) prevent duplicate-label ambiguity vs. plant names. (4) ResourcePage contracts/equipment stats strip fully localized — 8 hardcoded Arabic strings replaced with `t('stat.rp.*')` calls; 9 new i18n key pairs (AR+EN). (5) Approve/reject expense actions now prompt `confirm()` before API call — prevents misclick approvals. (6) Customer report filter label changed from generic "status" to "نوع العميل" / "Customer Type" via optional `statusLabel` on `ReportType`; all other report types unaffected. 14 new i18n key pairs total. No backend/schema/permission changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Operational Polish Hotfix 1 | `feature/operational-polish-invoice-year-prefix` | `stable-operational-polish-hotfix1-v1` | Frontend-only. One-line fix: `const invoicePrefix = 'MN-INV-2026-'` → `` `MN-INV-${new Date().getFullYear()}-` ``. Invoice number prefix was hardcoded to year 2026 — would have produced wrong prefixes on every January 1st rollover indefinitely. Now derives year from runtime clock. No backend/schema changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
@@ -69,17 +72,22 @@
 
 Priority order based on value vs. effort for this local internal ERP.
 
-### 1. Operational Polish Phase 2 — or pause for real usage feedback (recommended next)
+### 1. Pause for real usage feedback (recommended next)
 
-Phase 1A + 1B addressed all quick-win and consistency items from the original audit. The natural next decision point is:
+Executive Dashboard V3A-Lite completed the planned frontend polish pass. The natural next decision point is:
 
-- **Option A: Continue with Phase 2** — tackle the remaining medium-effort audit items (employee table column density, custom confirm modal to replace `window.confirm` across all guards, dirty tracking for Invoices/Inventory/Maintenance forms)
-- **Option B: Pause for operational usage** — deploy to real users and let friction points surface organically before investing in more polish
+- **Option A: Pause for operational usage** — deploy to real users and let friction points surface organically before investing in more UI work. Several recent features (sticky headers, striped rows, i18n compliance, weekend attendance) benefit from real-world validation before proceeding.
+- **Option B: Executive Dashboard V3B planning only** — design-only session for the deferred items (KPI grid replacement, period filter/date range selector for trend chart). Do not implement until V3A feedback is collected.
+- **Option C: Operational Polish Phase 2** — tackle remaining medium-effort audit items (employee table column density, custom confirm modal to replace `window.confirm` across all guards, dirty tracking for Invoices/Inventory/Maintenance forms)
 
-Remaining medium-effort audit candidates:
+Remaining medium-effort audit candidates (Operational Polish Phase 2):
 - Employee table column density: 13 columns is very wide; consider hiding low-traffic columns or adding a condensed view
 - Custom confirm modal: replace all `window.confirm()` usage with a styled in-app dialog
 - Dirty tracking for Invoices/Inventory/Maintenance create/edit flows (deferred from Operational UX Phase 1B-A)
+
+Executive Dashboard V3B deferred items:
+- KPI grid replacement (4-card grid → summary strip or compact layout)
+- Period filter / date range selector on trend chart (requires backend changes to `/dashboard/executive`)
 
 ### 2. Attendance Search Debounce (optional, low priority)
 
@@ -238,7 +246,7 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Module | Backend | Frontend Page | Status |
 |--------|---------|--------------|--------|
 | Auth | `modules/auth/` | Login | Complete |
-| Dashboard | `modules/dashboard/` | `Dashboard.tsx` | Complete — RBAC-gated quick action buttons (invoices/contracts/customers/expenses create); "View All" navigation buttons on Latest Invoices and Latest Expenses cards |
+| Dashboard | `modules/dashboard/` | `Dashboard.tsx` | Complete — RBAC-gated quick action buttons (invoices/contracts/customers/expenses create); "View All" navigation buttons on Latest Invoices and Latest Expenses cards; all 6 dashboard sub-components i18n-compliant (V3A-Lite); all-time label on Revenue/Expenses/NetProfit KPI cards; weekend attendance empty state (Friday/Saturday) |
 | Customers | `modules/customers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Employees | `modules/employees/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Attendance | `employees module` | `Attendance.tsx` | Production Ready + Server-side Pagination — paginated attendance listing, filter-scoped KPI stats via groupBy, server-side search (notes/employee name/code); persisted filter/search/page state; refresh action; unsaved changes protection (create + edit modals); standardized empty state |
@@ -328,4 +336,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-12 — Operational Polish Phase 1B released; baseline advanced to `6ff01ea` (`stable-operational-polish-phase1b-v1`). Phase 1B (5 UX consistency improvements: DataTable row-range pagination, Reports number formatting, Reports date-range hint, ResourcePage visible filter label, Dashboard View All links). 2 new i18n key pairs. All validations passed, 101/101 tests green. Recommended next: Operational Polish Phase 2 or pause for operational usage feedback.*
+*Last updated: 2026-06-12 — Executive Dashboard V3A-Lite released; baseline advanced to `04c9fb5` (`stable-executive-dashboard-v3a-lite-v1`). Three features since previous baseline: (1) DataTable Enhancement Phase 1 — sticky headers, alternating row stripes, rgba hover tokens, pagination border separator; (2) Page Headers Standardization — Cheques + DataImport pages aligned to `page-head` class; (3) Executive Dashboard V3A-Lite — 6 dashboard sub-components i18n-compliant, 25 hardcoded Arabic strings removed, 10 new i18n key pairs, all-time label on financial KPI cards, Kuwait weekend attendance empty state. No backend/schema changes across all three. 101/101 tests, all TS + builds clean. Recommended next: pause for real usage feedback, or Executive Dashboard V3B planning only.*
