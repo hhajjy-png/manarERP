@@ -129,6 +129,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   }
 
   async function onApprove(id: number, action: 'approve' | 'reject') {
+    if (!confirm(t(action === 'approve' ? 'msg.confirm_approve' : 'msg.confirm_reject'))) return;
     try {
       await api.patch(`${cfg.endpoint}/${id}/${action}`);
       load();
@@ -148,17 +149,17 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         <div className="inv-stats-strip">
           <div className="inv-stat-chip">
             <span className="inv-stat-icon">📄</span>
-            <span className="inv-stat-label">إجمالي العقود</span>
+            <span className="inv-stat-label">{t('stat.rp.contracts.total')}</span>
             <span className="inv-stat-value">{contractStats.totalContracts}</span>
           </div>
           <div className="inv-stat-chip green">
             <span className="inv-stat-icon">✅</span>
-            <span className="inv-stat-label">العقود الفعالة</span>
+            <span className="inv-stat-label">{t('stat.rp.contracts.active')}</span>
             <span className="inv-stat-value">{contractStats.activeContracts}</span>
           </div>
           <div className="inv-stat-chip blue">
             <span className="inv-stat-icon">💰</span>
-            <span className="inv-stat-label">قيمة النقل الشهري</span>
+            <span className="inv-stat-label">{t('stat.rp.contracts.monthly_value')}</span>
             <span className="inv-stat-value">{money(contractStats.monthlyTransportTotal)}</span>
           </div>
         </div>
@@ -167,7 +168,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         <div className="inv-stats-strip">
           <div className="inv-stat-chip">
             <span className="inv-stat-icon">🚜</span>
-            <span className="inv-stat-label">إجمالي المعدات</span>
+            <span className="inv-stat-label">{t('stat.rp.equipment.total')}</span>
             <span className="inv-stat-value">{equipmentStats.total}</span>
           </div>
           {equipmentStats.byStatus.map((s) => (
@@ -176,18 +177,18 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
               type="button"
               className={`inv-stat-chip ${s.status === 'WORKING' ? 'green' : 'red'} clickable`}
               onClick={() => { setFilterValue(s.status); setPage(1); }}
-              title={`عرض المعدات التي ${s.status === 'WORKING' ? 'تعمل' : 'لا تعمل'}`}
-              aria-label={`تصفية: ${s.status === 'WORKING' ? 'تعمل' : 'لا تعمل'} (${s.count})`}
+              title={t(s.status === 'WORKING' ? 'stat.rp.equipment.show_working' : 'stat.rp.equipment.show_not_working')}
+              aria-label={`${t('filter.status')}: ${t(s.status === 'WORKING' ? 'stat.rp.equipment.working' : 'stat.rp.equipment.not_working')} (${s.count})`}
             >
               <span className="inv-stat-icon" aria-hidden="true">{s.status === 'WORKING' ? '✅' : '🔴'}</span>
-              <span className="inv-stat-label">{s.status === 'WORKING' ? 'تعمل' : 'لا تعمل'}</span>
+              <span className="inv-stat-label">{t(s.status === 'WORKING' ? 'stat.rp.equipment.working' : 'stat.rp.equipment.not_working')}</span>
               <span className="inv-stat-value">{s.count}</span>
             </button>
           ))}
           {equipmentStats.total > 0 && (
             <div className="inv-stat-chip blue">
               <span className="inv-stat-icon">📊</span>
-              <span className="inv-stat-label">نسبة التشغيل</span>
+              <span className="inv-stat-label">{t('stat.rp.equipment.uptime')}</span>
               <span className="inv-stat-value">
                 {Math.round(((equipmentStats.byStatus.find((s) => s.status === 'WORKING')?.count ?? 0) / equipmentStats.total) * 100)}%
               </span>
