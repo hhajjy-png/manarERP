@@ -55,7 +55,24 @@ function withRegistration(e: any) {
   return { ...e, registration: registrationInfo(e.registrationExpiry ?? null) };
 }
 
+interface ChildCounts {
+  maintenanceRecords: number;
+  fuelLogs: number;
+  breakdowns: number;
+  spareParts: number;
+}
+
 export class EquipmentService {
+  private async getChildCounts(id: number): Promise<ChildCounts> {
+    const [maintenanceRecords, fuelLogs, breakdowns, spareParts] = await Promise.all([
+      prisma.maintenanceRecord.count({ where: { equipmentId: id } }),
+      prisma.fuelLog.count({ where: { equipmentId: id } }),
+      prisma.breakdown.count({ where: { equipmentId: id } }),
+      prisma.sparePartUsage.count({ where: { equipmentId: id } }),
+    ]);
+    return { maintenanceRecords, fuelLogs, breakdowns, spareParts };
+  }
+
   async list(query: PaginationQuery & { type?: string; status?: string }) {
     const pagination = getPagination(query);
     const where: Prisma.EquipmentWhereInput = {};
@@ -114,9 +131,41 @@ export class EquipmentService {
 
   async remove(id: number, req: Request) {
     if (!(await repo.findById(id))) throw AppError.notFound('المعدة غير موجودة');
-    await repo.delete(id); // السجلات التابعة تُحذف تلقائيًا (Cascade)
+    const counts = await this.getChildCounts(id);
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    if (total > 0) throw AppError.conflict('لا يمكن حذف المعدة لوجود سجلات مرتبطة بها. استخدم الحذف الإجباري.');
+    await repo.delete(id);
     await recordAudit({ req, action: 'DELETE', module: 'equipment', entityId: id });
     return { deleted: true };
+  }
+
+  async forceRemovePreview(id: number) {
+    const equipment = await repo.findById(id);
+    if (!equipment) throw AppError.notFound('المعدة غير موجودة');
+    const childCounts = await this.getChildCounts(id);
+    const totalChildRecords = Object.values(childCounts).reduce((a, b) => a + b, 0);
+    return { equipment, childCounts, totalChildRecords };
+  }
+
+  async forceRemove(id: number, req: Request) {
+    const equipment = await repo.findFull(id);
+    if (!equipment) throw AppError.notFound('المعدة غير موجودة');
+    const childCounts = await this.getChildCounts(id);
+    const totalChildRecords = Object.values(childCounts).reduce((a, b) => a + b, 0);
+    await prisma.$transaction([prisma.equipment.delete({ where: { id } })]);
+    await recordAudit({
+      req,
+      action: 'DELETE',
+      module: 'equipment',
+      entityId: id,
+      oldValue: {
+        forceDelete: true,
+        deletedEntity: { code: equipment.code, name: equipment.name },
+        childCounts,
+        totalChildRecords,
+      },
+    });
+    return { deleted: true, impact: { childCounts, totalChildRecords } };
   }
 }
 

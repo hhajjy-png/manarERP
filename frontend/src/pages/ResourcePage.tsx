@@ -6,6 +6,7 @@ import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
 import FormDialog from '../components/FormDialog';
 import Modal from '../components/Modal';
+import ForceDeleteEquipmentModal from '../components/ForceDeleteEquipmentModal';
 import { usePersistedState } from '../hooks/usePersistedState';
 
 type AlertItem = { id: number; code: string; label: string; severity: 'warn' | 'error' };
@@ -14,7 +15,8 @@ type EquipmentStats = { total: number; byStatus: { status: string; count: number
 
 export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const cfg = MODULES[moduleKey];
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
   const { t } = useT();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
@@ -32,6 +34,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [contractStats, setContractStats] = useState<ContractStats | null>(null);
   const [equipmentStats, setEquipmentStats] = useState<EquipmentStats | null>(null);
   const [archiveCandidate, setArchiveCandidate] = useState<{ id: number; label: string } | null>(null);
+  const [forceDeleteCandidate, setForceDeleteCandidate] = useState<{ id: number; code: string } | null>(null);
 
   const canCreate = hasPermission(`${cfg.key}.create`);
   const canUpdate = hasPermission(`${cfg.key}.update`);
@@ -151,7 +154,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const status = (err as any)?.response?.status;
-      if (status === 409 && cfg.supportsArchive && canUpdate) {
+      if (status === 409 && cfg.key === 'equipment' && isSystemAdmin) {
+        setForceDeleteCandidate({ id: row.id, code: row.code });
+      } else if (status === 409 && cfg.supportsArchive && canUpdate) {
         setArchiveCandidate({ id: row.id, label: row.name ?? row.code ?? String(row.id) });
       } else {
         alert(errorMessage(err));
@@ -370,6 +375,14 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           <p>لا يمكن حذف هذا السجل لأنه مرتبط ببيانات أخرى.</p>
           <p>يمكنك أرشفته بدلاً من حذفه — سيختفي من القوائم ويبقى في قاعدة البيانات.</p>
         </Modal>
+      )}
+
+      {forceDeleteCandidate && (
+        <ForceDeleteEquipmentModal
+          equipmentId={forceDeleteCandidate.id}
+          onClose={() => setForceDeleteCandidate(null)}
+          onDeleted={() => { setForceDeleteCandidate(null); load(); }}
+        />
       )}
     </div>
   );
