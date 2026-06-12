@@ -10,6 +10,10 @@ export interface FormField {
   options?: { value: string; label: string }[];
   optionsEndpoint?: string; // يحمّل الخيارات من API: data => {value:id,label}
   optionLabel?: string; // اسم الحقل المعروض من نتيجة الـ endpoint
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  optionLabelFn?: (x: any) => string; // دالة مخصصة لبناء نص الخيار
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onSelectRaw?: (raw: any) => Record<string, string>; // تعبئة حقول أخرى عند الاختيار
   required?: boolean;
   half?: boolean;
 }
@@ -45,9 +49,10 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
     return v;
   });
   const [initialValues] = useState(values);
-  const [asyncOptions, setAsyncOptions] = useState<Record<string, { value: string; label: string }[]>>({});
+  const [asyncOptions, setAsyncOptions] = useState<Record<string, { value: string; label: string; raw: unknown }[]>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [helperMsg, setHelperMsg] = useState('');
 
   useEffect(() => {
     fields
@@ -57,7 +62,11 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
           const res = await api.get(f.optionsEndpoint!);
           const list = res.data.data?.data ?? res.data.data ?? [];
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const opts = list.map((x: any) => ({ value: String(x.id), label: x[f.optionLabel ?? 'name'] ?? x.displayName ?? x.code }));
+          const opts = list.map((x: any) => ({
+            value: String(x.id),
+            label: f.optionLabelFn ? f.optionLabelFn(x) : (x[f.optionLabel ?? 'name'] ?? x.displayName ?? x.code),
+            raw: x,
+          }));
           setAsyncOptions((p) => ({ ...p, [f.name]: opts }));
         } catch {
           // نتجاهل فشل تحميل الخيارات
@@ -117,6 +126,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
       }
     >
       {error && <div className="alert error">⚠️ {error}</div>}
+      {helperMsg && <div className="alert info">✓ {helperMsg}</div>}
       <div className="form-grid">
         {fields.map((f, i) => {
           const opts = f.options ?? asyncOptions[f.name] ?? [];
@@ -125,7 +135,19 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
             <div className="field" key={f.name} style={f.half === false ? { gridColumn: '1 / -1' } : undefined}>
               <label>{t(f.label)}{f.required ? ' *' : ''}</label>
               {f.type === 'select' ? (
-                <select value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)}>
+                <select value={values[f.name] ?? ''} onChange={(e) => {
+                  const newVal = e.target.value;
+                  if (f.onSelectRaw && newVal) {
+                    const rawOpt = asyncOptions[f.name]?.find((o) => o.value === newVal);
+                    if (rawOpt) {
+                      const updates = f.onSelectRaw(rawOpt.raw);
+                      setValues((p: Record<string, unknown>) => ({ ...p, [f.name]: newVal, ...updates }));
+                      setHelperMsg(t('msg.price_autofill'));
+                      return;
+                    }
+                  }
+                  set(f.name, newVal);
+                }}>
                   <option value="">{t('msg.select_placeholder')}</option>
                   {opts.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
                 </select>

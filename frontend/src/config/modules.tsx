@@ -75,6 +75,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     },
     columns: [
       { key: 'code', label: 'col.contract_no', render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.code}</strong> },
+      { key: 'customerName', label: 'col.customer', render: (r) => r.customer?.name ?? '—' },
       { key: 'asphaltPlant', label: 'col.asphalt_plant' },
       { key: 'companyName', label: 'col.company_name' },
       { key: 'location', label: 'col.location' },
@@ -84,6 +85,23 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'status', label: 'col.status', render: (r) => contractStatus(r.status) },
     ],
     fields: [
+      {
+        name: 'linkedPrice',
+        label: 'field.linked_price',
+        type: 'select',
+        optionsEndpoint: '/prices?pageSize=100',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        optionLabelFn: (x: any) => `${x.asphaltPlant} — ${x.companyName} — ${x.contractLocation} — ${x.contractUnit} — ${x.unitPrice} د.ك`,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onSelectRaw: (raw: any) => ({
+          asphaltPlant: raw.asphaltPlant ?? '',
+          companyName: raw.companyName ?? '',
+          location: raw.contractLocation ?? '',
+          unitName: raw.contractUnit ?? '',
+          price: String(raw.unitPrice ?? ''),
+        }),
+        half: false,
+      },
       { name: 'code', label: 'field.contract_no', required: true },
       { name: 'asphaltPlant', label: 'field.asphalt_plant_name', required: true },
       { name: 'companyName', label: 'field.company_name' },
