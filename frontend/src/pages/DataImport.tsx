@@ -6,7 +6,7 @@ import { useT } from '../lib/i18n';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type EntityType = 'employees' | 'customers' | 'equipment';
+type EntityType = 'employees' | 'customers' | 'equipment' | 'suppliers';
 type ImportStep = 'idle' | 'file_loaded' | 'validating' | 'previewed' | 'executing' | 'done';
 type RowStatus = 'valid' | 'invalid' | 'duplicate';
 
@@ -93,12 +93,22 @@ const COLUMN_GUIDE: Record<EntityType, ColDef[]> = {
     { key: 'purchaseCost',          labelAr: 'تكلفة الشراء (رقم)',                    required: false },
     { key: 'notes',                 labelAr: 'ملاحظات',                               required: false },
   ],
+  suppliers: [
+    { key: 'code',                  labelAr: 'الكود',                                 required: true  },
+    { key: 'name',                  labelAr: 'الاسم',                                 required: true  },
+    { key: 'phone',                 labelAr: 'الهاتف',                                required: false },
+    { key: 'email',                 labelAr: 'البريد',                                required: false },
+    { key: 'address',               labelAr: 'العنوان',                               required: false },
+    { key: 'contactName',           labelAr: 'اسم المسؤول',                           required: false },
+    { key: 'notes',                 labelAr: 'ملاحظات',                               required: false },
+  ],
 };
 
 const ENTITY_LABELS: Record<EntityType, string> = {
   employees: 'الموظفون',
   customers: 'العملاء',
   equipment: 'المعدات',
+  suppliers: 'الموردون',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -246,7 +256,7 @@ export default function DataImport() {
 
       {/* Entity type selector */}
       <div style={{ marginBottom: 20, display: 'flex', gap: 8 }}>
-        {(['employees', 'customers', 'equipment'] as EntityType[]).map((type) => (
+        {(['employees', 'customers', 'equipment', 'suppliers'] as EntityType[]).map((type) => (
           <button
             key={type}
             onClick={() => handleEntityChange(type)}
@@ -348,7 +358,7 @@ export default function DataImport() {
                     <th style={thStyle}>{t('import.col.row')}</th>
                     <th style={thStyle}>{t('import.col.status')}</th>
                     <th style={thStyle}>code</th>
-                    <th style={thStyle}>{entityType === 'customers' ? 'name' : 'fullName / type'}</th>
+                    <th style={thStyle}>{(entityType === 'customers' || entityType === 'suppliers') ? 'name' : 'fullName / type'}</th>
                     <th style={thStyle}>{t('import.col.errors')}</th>
                   </tr>
                 </thead>

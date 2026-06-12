@@ -6,6 +6,7 @@ import { AppError } from '../../core/errors/AppError';
 import { validateEmployeeRow } from './validators/employees';
 import { validateCustomerRow } from './validators/customers';
 import { validateEquipmentRow } from './validators/equipment';
+import { validateSupplierRow } from './validators/suppliers';
 import type { EntityType, ExecuteSummary, PreviewSummary, RowResult } from './import.types';
 
 // ── per-entity helpers ────────────────────────────────────────────────────────
@@ -19,6 +20,10 @@ async function loadExistingCodes(entityType: EntityType): Promise<Set<string>> {
     const rows = await prisma.customer.findMany({ select: { code: true } });
     return new Set(rows.map((r) => r.code));
   }
+  if (entityType === 'suppliers') {
+    const rows = await prisma.supplier.findMany({ select: { code: true } });
+    return new Set(rows.map((r) => r.code));
+  }
   const rows = await prisma.equipment.findMany({ select: { code: true } });
   return new Set(rows.map((r) => r.code));
 }
@@ -29,6 +34,7 @@ function validateRow(
 ): { valid: boolean; errors: string[]; normalized: unknown } {
   if (entityType === 'employees') return validateEmployeeRow(row);
   if (entityType === 'customers') return validateCustomerRow(row);
+  if (entityType === 'suppliers') return validateSupplierRow(row);
   return validateEquipmentRow(row);
 }
 
@@ -132,6 +138,13 @@ export async function executeImport(
         const { normalized } = validateCustomerRow(result.data);
         if (!normalized) continue;
         await tx.customer.create({ data: normalized });
+        imported++;
+      }
+    } else if (entityType === 'suppliers') {
+      for (const result of validResults) {
+        const { normalized } = validateSupplierRow(result.data);
+        if (!normalized) continue;
+        await tx.supplier.create({ data: normalized });
         imported++;
       }
     } else {
