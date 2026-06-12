@@ -22,14 +22,5 @@ export const updatePriceSchema = z.object({
   }),
 });
 
-export const lookupPriceSchema = z.object({
-  query: z.object({
-    asphaltPlant: z.string().min(1).optional(),
-    companyName: z.string().min(1).optional(),
-    contractUnit: z.enum(ENUMS.invoiceUnit).optional(),
-    contractLocation: z.string().min(1).optional(),
-  }),
-});
-
 export type CreatePriceInput = z.infer<typeof createPriceSchema>['body'];
 export type UpdatePriceInput = z.infer<typeof updatePriceSchema>['body'];
