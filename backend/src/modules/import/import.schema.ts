@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const IMPORT_MAX_ROWS = 1000;
 
-const entityTypeSchema = z.enum(['employees', 'customers', 'equipment', 'suppliers']);
+const entityTypeSchema = z.enum(['employees', 'customers', 'equipment', 'suppliers', 'prices']);
 
 const rawRowSchema = z.record(z.string(), z.unknown());
 

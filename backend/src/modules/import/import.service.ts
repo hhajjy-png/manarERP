@@ -7,6 +7,7 @@ import { validateEmployeeRow } from './validators/employees';
 import { validateCustomerRow } from './validators/customers';
 import { validateEquipmentRow } from './validators/equipment';
 import { validateSupplierRow } from './validators/suppliers';
+import { validatePriceRow, priceCompositeKey } from './validators/prices';
 import type { EntityType, ExecuteSummary, PreviewSummary, RowResult } from './import.types';
 
 // ── per-entity helpers ────────────────────────────────────────────────────────
@@ -24,6 +25,12 @@ async function loadExistingCodes(entityType: EntityType): Promise<Set<string>> {
     const rows = await prisma.supplier.findMany({ select: { code: true } });
     return new Set(rows.map((r) => r.code));
   }
+  if (entityType === 'prices') {
+    const rows = await prisma.projectPrice.findMany({
+      select: { asphaltPlant: true, companyName: true, contractLocation: true, contractUnit: true },
+    });
+    return new Set(rows.map((r) => priceCompositeKey(r.asphaltPlant, r.companyName, r.contractLocation, r.contractUnit)));
+  }
   const rows = await prisma.equipment.findMany({ select: { code: true } });
   return new Set(rows.map((r) => r.code));
 }
@@ -35,7 +42,21 @@ function validateRow(
   if (entityType === 'employees') return validateEmployeeRow(row);
   if (entityType === 'customers') return validateCustomerRow(row);
   if (entityType === 'suppliers') return validateSupplierRow(row);
+  if (entityType === 'prices') return validatePriceRow(row);
   return validateEquipmentRow(row);
+}
+
+// Prices use a composite key (asphaltPlant|companyName|contractLocation|contractUnit); all others use `code`.
+function getEntityKey(entityType: EntityType, normalized: Record<string, unknown>): string {
+  if (entityType === 'prices') {
+    return priceCompositeKey(
+      String(normalized['asphaltPlant'] ?? '').trim(),
+      String(normalized['companyName'] ?? '').trim(),
+      String(normalized['contractLocation'] ?? '').trim(),
+      String(normalized['contractUnit'] ?? '').trim(),
+    );
+  }
+  return String(normalized['code']).trim();
 }
 
 // ── core logic ────────────────────────────────────────────────────────────────
@@ -58,18 +79,19 @@ function buildPreviewRows(
     }
 
     const normalized = result.normalized as Record<string, unknown>;
-    const code = String(normalized['code']).trim();
+    const key = getEntityKey(entityType, normalized);
+    const duplicateKeyLabel = entityType === 'prices' ? 'مصنع|شركة|مكان|وحدة' : 'code';
 
-    if (seenInBatch.has(code) || existingCodes.has(code)) {
+    if (seenInBatch.has(key) || existingCodes.has(key)) {
       results.push({
         rowIndex: i,
         status: 'duplicate',
         data: row,
-        duplicateKey: 'code',
-        duplicateValue: code,
+        duplicateKey: duplicateKeyLabel,
+        duplicateValue: key,
       });
     } else {
-      seenInBatch.add(code);
+      seenInBatch.add(key);
       results.push({ rowIndex: i, status: 'valid', data: row });
     }
   }
@@ -145,6 +167,13 @@ export async function executeImport(
         const { normalized } = validateSupplierRow(result.data);
         if (!normalized) continue;
         await tx.supplier.create({ data: normalized });
+        imported++;
+      }
+    } else if (entityType === 'prices') {
+      for (const result of validResults) {
+        const { normalized } = validatePriceRow(result.data);
+        if (!normalized) continue;
+        await tx.projectPrice.create({ data: normalized });
         imported++;
       }
     } else {

@@ -1,4 +1,4 @@
-export type EntityType = 'employees' | 'customers' | 'equipment' | 'suppliers';
+export type EntityType = 'employees' | 'customers' | 'equipment' | 'suppliers' | 'prices';
 
 export type RowStatus = 'valid' | 'invalid' | 'duplicate';
 
