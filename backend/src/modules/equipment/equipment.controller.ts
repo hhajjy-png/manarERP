@@ -25,4 +25,10 @@ export const equipmentController = {
   async remove(req: Request, res: Response) {
     ok(res, await equipmentService.remove(Number(req.params.id), req), 'تم الحذف');
   },
+  async forceRemovePreview(req: Request, res: Response) {
+    ok(res, await equipmentService.forceRemovePreview(Number(req.params.id)));
+  },
+  async forceRemove(req: Request, res: Response) {
+    ok(res, await equipmentService.forceRemove(Number(req.params.id), req), 'تم الحذف الإجباري بنجاح');
+  },
 };
