@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `dd25ff1` — Merge operational polish phase 1A |
-| **Stable tag** | `stable-operational-polish-phase1a-v1` |
+| **HEAD** | `6ff01ea` — Merge operational polish phase 1B |
+| **Stable tag** | `stable-operational-polish-phase1b-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,7 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Operational Polish Phase 1B | `feature/operational-polish-phase1b` | `stable-operational-polish-phase1b-v1` | Frontend-only. 5 UX consistency improvements: (1) DataTable row-range indicator in pagination — `عرض {from}–{to} من {total}` replaces total-only display on multi-page views; 2 new i18n key pairs (`msg.showing_range`, `page.reports.date_range_hint`). (2) Reports `fmt()` number formatting — added `minimumFractionDigits: 0` to match `money()` options exactly. (3) Reports date-range guidance — soft informational hint for invoices, expenses, payroll report types when no date range is set; non-blocking. (4) ResourcePage visible status filter label — bare `<select>` now shows `فلترة:` label instead of tooltip-only, consistent with toolbar conventions. (5) Dashboard "View All" links — Latest Invoices and Latest Expenses cards now have navigation buttons (→ `/invoices`, → `/expenses`), gated on `!loading && items.length > 0`, consistent with existing Contracts card. No backend/schema/permission changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Operational Polish Phase 1A | `feature/operational-polish-phase1a` | `stable-operational-polish-phase1a-v1` | Frontend-only. 6 UX quick wins from the Operational Polish Audit: (1) Dashboard quick action buttons gated by `hasPermission('<module>.create')` — users without create permissions no longer see inapplicable actions. (2) Expense `date` field marked `required: true` — expenses without accounting dates are blocked at form submit. (3) Expense contract selector now uses `optionLabel: 'code'` — contract codes (unique) prevent duplicate-label ambiguity vs. plant names. (4) ResourcePage contracts/equipment stats strip fully localized — 8 hardcoded Arabic strings replaced with `t('stat.rp.*')` calls; 9 new i18n key pairs (AR+EN). (5) Approve/reject expense actions now prompt `confirm()` before API call — prevents misclick approvals. (6) Customer report filter label changed from generic "status" to "نوع العميل" / "Customer Type" via optional `statusLabel` on `ReportType`; all other report types unaffected. 14 new i18n key pairs total. No backend/schema/permission changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Operational Polish Hotfix 1 | `feature/operational-polish-invoice-year-prefix` | `stable-operational-polish-hotfix1-v1` | Frontend-only. One-line fix: `const invoicePrefix = 'MN-INV-2026-'` → `` `MN-INV-${new Date().getFullYear()}-` ``. Invoice number prefix was hardcoded to year 2026 — would have produced wrong prefixes on every January 1st rollover indefinitely. Now derives year from runtime clock. No backend/schema changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Prices Lookup Cleanup | `feature/prices-lookup-cleanup` | `stable-prices-lookup-cleanup-v1` | Backend-only refactor. Removed unused `GET /prices/lookup` endpoint — route, controller handler (`lookup`), service function (`lookupPrice`), and `lookupPriceSchema`. Zero frontend callers, zero test coverage, `findFirst` semantics were misleading (no uniqueness guarantee). Phase 3 auto-fill uses local price data instead. 38 lines removed, no functionality lost. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
@@ -68,16 +69,17 @@
 
 Priority order based on value vs. effort for this local internal ERP.
 
-### 1. Operational Polish Phase 1B (recommended next)
+### 1. Operational Polish Phase 2 — or pause for real usage feedback (recommended next)
 
-Continue the polish audit with the remaining medium-effort improvements identified during the audit.
+Phase 1A + 1B addressed all quick-win and consistency items from the original audit. The natural next decision point is:
 
-- Reports number formatting: `fmt()` in Reports.tsx uses `en-US` locale — should match `ar-KW` style used elsewhere
-- Report date-range guidance: warn or prompt when generating open-ended reports (invoices/expenses/payroll) without a date filter
-- ResourcePage status filter visibility: the status `<select>` has only a `title` tooltip — add visible label or placeholder
+- **Option A: Continue with Phase 2** — tackle the remaining medium-effort audit items (employee table column density, custom confirm modal to replace `window.confirm` across all guards, dirty tracking for Invoices/Inventory/Maintenance forms)
+- **Option B: Pause for operational usage** — deploy to real users and let friction points surface organically before investing in more polish
+
+Remaining medium-effort audit candidates:
 - Employee table column density: 13 columns is very wide; consider hiding low-traffic columns or adding a condensed view
-- Dashboard "View All" links: `LatestInvoicesTable` and `LatestExpensesTable` lack navigation links; only the contracts table has "عرض الكل"
-- DataTable row-range indicator: pagination shows "page X of Y — total Z" but not "showing rows N–M of Z"
+- Custom confirm modal: replace all `window.confirm()` usage with a styled in-app dialog
+- Dirty tracking for Invoices/Inventory/Maintenance create/edit flows (deferred from Operational UX Phase 1B-A)
 
 ### 2. Attendance Search Debounce (optional, low priority)
 
@@ -236,7 +238,7 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Module | Backend | Frontend Page | Status |
 |--------|---------|--------------|--------|
 | Auth | `modules/auth/` | Login | Complete |
-| Dashboard | `modules/dashboard/` | `Dashboard.tsx` | Complete — RBAC-gated quick action buttons (invoices/contracts/customers/expenses create) |
+| Dashboard | `modules/dashboard/` | `Dashboard.tsx` | Complete — RBAC-gated quick action buttons (invoices/contracts/customers/expenses create); "View All" navigation buttons on Latest Invoices and Latest Expenses cards |
 | Customers | `modules/customers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Employees | `modules/employees/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Attendance | `employees module` | `Attendance.tsx` | Production Ready + Server-side Pagination — paginated attendance listing, filter-scoped KPI stats via groupBy, server-side search (notes/employee name/code); persisted filter/search/page state; refresh action; unsaved changes protection (create + edit modals); standardized empty state |
@@ -250,7 +252,7 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Expenses | `modules/expenses/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; date field required; contract selector uses code (not plant name); approve/reject require confirmation |
 | Transactions | `modules/transactions/` | `Accounting.tsx` | Complete |
 | Accounting | `modules/accounting/` | `Accounting.tsx` | Complete |
-| Reports | `modules/reports/` | `Reports.tsx` | Complete — customer report filter correctly labeled as "نوع العميل" / "Customer Type" (not generic status) |
+| Reports | `modules/reports/` | `Reports.tsx` | Complete — customer report filter correctly labeled as "نوع العميل" / "Customer Type" (not generic status); `fmt()` uses `minimumFractionDigits: 0` matching `money()` exactly; date-range hint shown for invoices/expenses/payroll when no date range is set |
 | Users | `modules/users/` | `Users.tsx` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Roles | `modules/roles/` | `Users.tsx` | Complete |
 | Audit | `modules/audit/` | — | Backend complete — no frontend viewer yet |
@@ -326,4 +328,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-12 — Operational Polish Phase 1A released; baseline advanced to `dd25ff1` (`stable-operational-polish-phase1a-v1`). Hotfix 1 (dynamic invoice year prefix) + Phase 1A (6 UX quick wins: RBAC quick actions, expense date required, contract code selector, stats strip i18n, approve/reject confirmation, customer type filter label). 14 new i18n key pairs. All validations passed, 101/101 tests green. Recommended next: Operational Polish Phase 1B.*
+*Last updated: 2026-06-12 — Operational Polish Phase 1B released; baseline advanced to `6ff01ea` (`stable-operational-polish-phase1b-v1`). Phase 1B (5 UX consistency improvements: DataTable row-range pagination, Reports number formatting, Reports date-range hint, ResourcePage visible filter label, Dashboard View All links). 2 new i18n key pairs. All validations passed, 101/101 tests green. Recommended next: Operational Polish Phase 2 or pause for operational usage feedback.*
