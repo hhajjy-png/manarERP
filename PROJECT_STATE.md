@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `f33de19` — Merge project prices phase 3 smart lookup |
-| **Stable tag** | `stable-project-prices-phase3-v1` |
+| **HEAD** | `cbadd1d` — Merge prices lookup cleanup |
+| **Stable tag** | `stable-prices-lookup-cleanup-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,7 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Prices Lookup Cleanup | `feature/prices-lookup-cleanup` | `stable-prices-lookup-cleanup-v1` | Backend-only refactor. Removed unused `GET /prices/lookup` endpoint — route, controller handler (`lookup`), service function (`lookupPrice`), and `lookupPriceSchema`. Zero frontend callers, zero test coverage, `findFirst` semantics were misleading (no uniqueness guarantee). Phase 3 auto-fill uses local price data instead. 38 lines removed, no functionality lost. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Project Prices Phase 3 | `feature/project-prices-phase3-smart-lookup` | `stable-project-prices-phase3-v1` | Frontend-only. Auto-fills `unitPrice` when user selects a contract unit and exactly one price exists for that unit in the loaded prices. Uses `priceTouched` flag (client-only, stripped from API payload) to detect manual edits — never overwrites a price the user has typed or picked manually. Uses local `prices` array instead of calling `GET /prices/lookup` per unit change (endpoint uses `findFirst` and cannot confirm uniqueness without a count; local data is already in memory). Picker remains visible as fallback when multiple prices match. No backend/schema/permission changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Project Prices Phase 2C | `feature/project-prices-phase2c` | `stable-project-prices-phase2c-v1` | Frontend-only. Invoice price picker now filters by current row's contract unit — only matching prices shown. Picker button hidden when no prices exist for that unit. Picker closes automatically on unit change (prevents ghost state). `contractLocation` added to picker rows; redundant `contractUnit` column removed. Prices page: `emptyText`, `isFiltered`, `onResetFilters` added to DataTable. 4 new i18n keys (AR+EN): `empty.prices`, `ph.prices.picker_btn`, `ph.prices.picker_list`, `msg.no_prices_for_unit`. No backend/schema changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Operational Stabilization Phase 2 | `feature/operational-stabilization-phase2-i18n-audit` | `stable-operational-stabilization-phase2-v1` | Frontend-only. Hardcoded Arabic strings replaced with i18n keys across 4 pages: Settings field labels (7 labels → `t()` calls), Dashboard equipment/vehicle alert titles and expired/expiring text (3 keys with `{days}` interpolation), Dashboard invoice status subtitle (`{count}` interpolation), Reports print button label. 10 new i18n key pairs (AR+EN). No backend/schema changes. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
@@ -65,15 +66,14 @@
 
 Priority order based on value vs. effort for this local internal ERP.
 
-### 1. Evaluate `/prices/lookup` Endpoint (low priority)
+### 1. Operational Polish Audit (recommended next)
 
-Phase 3 auto-fill uses local prices data because `GET /prices/lookup` uses `findFirst` and cannot confirm uniqueness. Three options:
+Review the most frequently used pages for small, safe, high-impact UX improvements.
 
-- **Keep as-is** — endpoint is useful for external integrations or future barcode/form flows
-- **Improve** — add `count` field to response so callers can distinguish "exactly one" from "first of many"
-- **Deprecate** — remove if no non-frontend use case emerges
-
-No urgency. Leave until a concrete use case arises.
+- No redesign, no new modules, no architecture changes
+- Target: pages used daily (Invoices, Employees, Attendance, Contracts)
+- Look for: missing feedback states, confusing flows, friction in common operations
+- Implement only changes that are clearly safe and reversible
 
 ### 2. Attendance Search Debounce (optional, low priority)
 
@@ -241,7 +241,7 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Maintenance | `modules/maintenance/` | `Maintenance.tsx` | Production Ready — full CRUD, search, filters, details modal; persisted filter/search/page state; refresh action |
 | Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields; persisted search, filter, tab, page state; refresh action; standardized empty state |
-| Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete; invoice picker filters by contract unit; auto-fill on unit select when exactly one match (`priceTouched` guards manual edits); picker as fallback for multiple matches; `contractLocation` shown in picker; empty state + filter reset UX |
+| Prices | `modules/prices/` | `Prices.tsx` | Complete — project unit prices with soft delete; invoice picker filters by contract unit; auto-fill on unit select when exactly one match (`priceTouched` guards manual edits); picker as fallback for multiple matches; `contractLocation` shown in picker; empty state + filter reset UX. Backend: CRUD only (`list`, `create`, `update`, `delete`) — lookup endpoint removed |
 | Suppliers | `modules/suppliers/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Expenses | `modules/expenses/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state |
 | Transactions | `modules/transactions/` | `Accounting.tsx` | Complete |
@@ -322,4 +322,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-12 — Project Prices Phase 3 released; baseline advanced to `f33de19` (`stable-project-prices-phase3-v1`). Delivered: smart auto-fill of invoice unit price when exactly one price matches selected contract unit; `priceTouched` flag prevents overwriting manual entries; picker retained as fallback for multiple matches. No backend/schema changes. All validations passed, 101/101 tests green.*
+*Last updated: 2026-06-12 — Prices Lookup Cleanup released; baseline advanced to `cbadd1d` (`stable-prices-lookup-cleanup-v1`). Removed unused `GET /prices/lookup` endpoint (route + controller + service + schema, 38 lines). Dead code confirmed: zero frontend callers, zero tests, misleading `findFirst` semantics. All validations passed, 101/101 tests green. Recommended next: Operational Polish Audit.*
