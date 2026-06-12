@@ -235,29 +235,50 @@ Backend always binds to `127.0.0.1:48211` (localhost only, not exposed to networ
 
 ---
 
-## Development Workflow (Mandatory — 15 Steps)
+## Model Routing Policy
 
-> Full details: `docs/development-workflow.md`
+| Task | Model |
+|------|-------|
+| Daily development — CRUD, UI, forms, tables, i18n, reports, CSS, bug fixes, docs | Claude Sonnet 4.6 (default) |
+| Architecture decisions, large refactors, payroll/accounting/inventory redesign, Prisma schema redesign, security-sensitive features, performance investigations | Claude Opus 4.8 (escalate only) |
+| Architecture review, security review, regression risk, UX review, final merge approval | Gemini (mandatory before every production merge) |
+| Workflow management, prioritization, feature planning, operational feedback triage, roadmap | ChatGPT |
 
+Return to Sonnet 4.6 after any Opus escalation completes. Do NOT use Opus for CSS, i18n, forms, tables, reports tweaks, or small bug fixes.
+
+---
+
+## Development Workflow (v3.0 — Three Modes)
+
+> Full policy: `docs/development-workflow.md`
+> Tactical commands, review templates, merge verification, and rollback procedures: `docs/development-workflow.md` — Appendix Implementation Reference.
+
+Choose the mode based on scope. Do not skip or reorder steps within a mode.
+
+**Quick Fix** — CSS, labels, i18n, table columns, minor UX:
 ```
-Step 1:  Pull latest production
-Step 2:  Create git checkpoint tag
-Step 3:  Create feature branch
-Step 4:  Implement feature
-Step 5:  Run build and validation
-Step 6:  Run /simplify
-Step 7:  Run /code-review
-Step 8:  Run /security-review
-Step 9:  Prepare Gemini review report
-Step 10: Commit
-Step 11: Merge using --no-ff
-Step 12: Verify merge result
-Step 13: Push production
-Step 14: Create stable tag
-Step 15: Update project baseline
+1. Implement  2. Validate  3. Gemini review  4. Commit  5. Merge  6. Tag  7. Update PROJECT_STATE
 ```
 
-**Do not skip or reorder steps.**
+**Feature** — new pages, modules, integrations, enhancements:
+```
+1. Checkpoint tag  2. Feature branch  3. Implement  4. Validate  5. Gemini review
+6. Fix findings    7. Commit          8. Merge --no-ff  9. Final validation
+10. Stable tag    11. Push           12. Update PROJECT_STATE
+```
+
+**Major System** — payroll, accounting, inventory redesign, large schema changes:
+```
+1. ChatGPT planning       2. Sonnet audit            3. Escalate to Opus if warranted
+4. Implement              5. Full validation          6. Gemini architecture review
+7. Gemini security review 8. Commit                  9. Merge
+10. Stable tag            11. Update PROJECT_STATE
+```
+
+**Mode requirements:**
+- **Quick Fix**: still requires a feature branch unless the user explicitly says otherwise. "Merge" means `--no-ff` per the Git Safety Rules below.
+- **Feature**: checkpoint tag + feature branch + Gemini review + merge `--no-ff` + stable tag are all mandatory. Run `/simplify` → `/code-review` → `/security-review` before Gemini (Appendix §B).
+- **Major System**: Opus escalation must be considered at Step 3; Gemini architecture review and Gemini security review are both required before commit.
 
 ---
 
