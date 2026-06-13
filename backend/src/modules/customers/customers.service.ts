@@ -1,5 +1,6 @@
 import { Request } from 'express';
 import { Prisma } from '@prisma/client';
+import { prisma } from '../../config/database';
 import { customersRepository } from './customers.repository';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
@@ -9,6 +10,15 @@ import { CreateCustomerInput, UpdateCustomerInput } from './customers.schema';
 interface CustomerQuery extends PaginationQuery {
   type?: string;
   archived?: string;
+}
+
+interface ChildCounts {
+  contracts: number;
+  directInvoices: number;
+  contractInvoices: number;
+  expenses: number;
+  contractDocuments: number;
+  materialIssues: number;
 }
 
 export class CustomersService {
@@ -85,6 +95,118 @@ export class CustomersService {
     await customersRepository.delete(id);
     await recordAudit({ req, action: 'DELETE', module: 'customers', entityId: id, oldValue: customer });
     return { deleted: true };
+  }
+
+  private async getChildCounts(id: number): Promise<ChildCounts> {
+    const contractRows = await prisma.contract.findMany({
+      where: { customerId: id },
+      select: { id: true },
+    });
+    const contractIds = contractRows.map((c) => c.id);
+
+    const [contracts, directInvoices, contractInvoices, expenses, contractDocuments, materialIssues] =
+      await Promise.all([
+        prisma.contract.count({ where: { customerId: id } }),
+        prisma.invoice.count({ where: { customerId: id } }),
+        contractIds.length > 0
+          ? prisma.invoice.count({ where: { contractId: { in: contractIds } } })
+          : Promise.resolve(0),
+        contractIds.length > 0
+          ? prisma.expense.count({ where: { contractId: { in: contractIds } } })
+          : Promise.resolve(0),
+        contractIds.length > 0
+          ? prisma.contractDocument.count({ where: { contractId: { in: contractIds } } })
+          : Promise.resolve(0),
+        contractIds.length > 0
+          ? prisma.materialIssue.count({ where: { contractId: { in: contractIds } } })
+          : Promise.resolve(0),
+      ]);
+
+    return { contracts, directInvoices, contractInvoices, expenses, contractDocuments, materialIssues };
+  }
+
+  async forceRemovePreview(id: number) {
+    const customer = await prisma.customer.findUnique({ where: { id } });
+    if (!customer) throw AppError.notFound('العميل غير موجود');
+    const childCounts = await this.getChildCounts(id);
+    const totalChildRecords = Object.values(childCounts).reduce((a, b) => a + b, 0);
+    const invoiceTotal = childCounts.directInvoices + childCounts.contractInvoices;
+
+    const willBeDeleted = ['customer'];
+    if (childCounts.contracts > 0) willBeDeleted.push('contracts');
+    if (childCounts.contractDocuments > 0) willBeDeleted.push('contractDocuments');
+
+    const willBeNullified: string[] = [];
+    if (childCounts.expenses > 0) willBeNullified.push('expenses.contractId');
+    if (childCounts.materialIssues > 0) willBeNullified.push('materialIssues.contractId');
+
+    return {
+      customer,
+      childCounts,
+      totalChildRecords,
+      willBeDeleted,
+      willBeNullified,
+      ...(invoiceTotal > 0
+        ? { blockedReason: `لا يمكن حذف عميل لديه فواتير مسجلة (${invoiceTotal} فاتورة). استخدم الأرشفة بدلاً من ذلك.` }
+        : {}),
+    };
+  }
+
+  async forceRemove(id: number, req: Request) {
+    const customer = await prisma.customer.findUnique({ where: { id } });
+    if (!customer) throw AppError.notFound('العميل غير موجود');
+
+    const childCounts = await this.getChildCounts(id);
+    const invoiceTotal = childCounts.directInvoices + childCounts.contractInvoices;
+    if (invoiceTotal > 0) {
+      throw AppError.conflict('لا يمكن حذف عميل لديه فواتير مسجلة — استخدم الأرشفة بدلاً من ذلك');
+    }
+
+    const totalChildRecords = Object.values(childCounts).reduce((a, b) => a + b, 0);
+
+    const willBeDeleted = ['customer'];
+    if (childCounts.contracts > 0) willBeDeleted.push('contracts');
+    if (childCounts.contractDocuments > 0) willBeDeleted.push('contractDocuments');
+
+    const willBeNullified: string[] = [];
+    if (childCounts.expenses > 0) willBeNullified.push('expenses.contractId');
+    if (childCounts.materialIssues > 0) willBeNullified.push('materialIssues.contractId');
+
+    const contractRows = await prisma.contract.findMany({
+      where: { customerId: id },
+      select: { id: true },
+    });
+    const contractIds = contractRows.map((c) => c.id);
+
+    await prisma.$transaction(async (tx) => {
+      if (contractIds.length > 0) {
+        await tx.expense.updateMany({ where: { contractId: { in: contractIds } }, data: { contractId: null } });
+        await tx.materialIssue.updateMany({ where: { contractId: { in: contractIds } }, data: { contractId: null } });
+        await tx.contract.deleteMany({ where: { customerId: id } });
+      }
+      await tx.customer.delete({ where: { id } });
+    });
+
+    await recordAudit({
+      req,
+      action: 'DELETE',
+      module: 'customers',
+      entityId: id,
+      oldValue: {
+        forceDelete: true,
+        deletedEntity: {
+          id: customer.id,
+          code: customer.code,
+          name: customer.name,
+        },
+        childCounts,
+        totalChildRecords,
+        willBeDeleted,
+        willBeNullified,
+      },
+    });
+
+    return { deleted: true, impact: { childCounts, totalChildRecords } };
   }
 }
 
