@@ -1105,6 +1105,14 @@ const DICT: Record<Lang, Record<string, string>> = {
     'dash.lbl.expenses': 'مصروفات',
     'kpi.all_time': 'منذ التأسيس',
     'att.weekend': 'إجازة أسبوعية',
+
+    // ── Forms & Templates ─────────────────────────────────────────────────────
+    'nav.forms': 'النماذج الإدارية',
+    'nav.group.admin_ops': 'الشؤون الإدارية',
+    'page.forms.title': 'النماذج الإدارية',
+    'page.forms.subtitle': 'طباعة النماذج والشهادات الرسمية للموظفين',
+    'page.salary_cert.loading': 'جارٍ تجهيز شهادة الراتب…',
+    'page.salary_cert.error': 'تعذّر تحميل بيانات الشهادة',
   },
   en: {
     // layout
@@ -2207,6 +2215,14 @@ const DICT: Record<Lang, Record<string, string>> = {
     'dash.lbl.expenses': 'Expenses',
     'kpi.all_time': 'All time',
     'att.weekend': 'Weekend',
+
+    // ── Forms & Templates ─────────────────────────────────────────────────────
+    'nav.forms': 'Admin Forms',
+    'nav.group.admin_ops': 'Administration',
+    'page.forms.title': 'Admin Forms',
+    'page.forms.subtitle': 'Print official certificates and forms for employees',
+    'page.salary_cert.loading': 'Preparing salary certificate…',
+    'page.salary_cert.error': 'Failed to load certificate data',
   },
 };
 

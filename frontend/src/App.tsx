@@ -22,6 +22,8 @@ import AuditLog from './pages/AuditLog';
 import Maintenance from './pages/Maintenance';
 import Prices from './pages/Prices';
 import Attendance from './pages/Attendance';
+import Forms from './pages/Forms';
+import SalaryCertificate from './pages/SalaryCertificate';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -34,6 +36,7 @@ export default function App() {
         {/* صفحة طباعة التقرير — خارج التخطيط لطباعة نظيفة بعربية سليمة */}
         <Route path="/print/:type" element={<ProtectedRoute><ReportPrint /></ProtectedRoute>} />
         <Route path="/payroll/:id/payslip" element={<ProtectedRoute><PayrollPayslip /></ProtectedRoute>} />
+        <Route path="/forms/salary-certificate/:employeeId" element={<ProtectedRoute><SalaryCertificate /></ProtectedRoute>} />
         <Route
           element={
             <ProtectedRoute>
@@ -62,6 +65,7 @@ export default function App() {
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/prices" element={<Prices />} />
           <Route path="/attendance" element={<Attendance />} />
+          <Route path="/forms" element={<Forms />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

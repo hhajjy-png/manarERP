@@ -338,6 +338,9 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'employees',    label: 'nav.employees',    icon: 'badge',       permission: 'employees.read' },
     { key: 'attendance',   label: 'nav.attendance',   icon: 'event_available', permission: 'attendance.read' },
   ] },
+  { group: 'nav.group.admin_ops', items: [
+    { key: 'forms', label: 'nav.forms', icon: 'article', permission: 'forms.read' },
+  ] },
   { group: 'nav.group.financial', items: [
     { key: 'invoices', label: 'nav.invoices', icon: 'receipt_long', permission: 'invoices.read' },
     { key: 'expenses', label: 'nav.expenses', icon: 'payments', permission: 'expenses.read' },

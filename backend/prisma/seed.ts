@@ -56,6 +56,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   cheques: ['read', 'create', 'update', 'print', 'cancel'],
   import: ['read', 'create'],
   prices: ['read', 'create', 'update', 'delete'],
+  forms: ['read', 'create', 'print'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -118,6 +119,8 @@ async function main() {
     ACCOUNTANT: [
       ...keysForModules(['invoices', 'expenses', 'transactions', 'suppliers', 'reports', 'customers', 'cheques']),
       ...readOnly(['dashboard', 'contracts', 'employees', 'equipment', 'payroll', 'audit']),
+      'forms.read',
+      'forms.print',
       'payroll.export',
       'payroll.pay',
       'payroll.payslip',
@@ -131,6 +134,7 @@ async function main() {
       ...keysForModules(['contracts', 'prices', 'reports']),
       ...readOnly(['dashboard', 'customers', 'equipment', 'invoices', 'expenses', 'suppliers']),
       'inventory.read',
+      'forms.read',
     ],
     EQUIPMENT_MANAGER: [
       ...keysForModules(['equipment', 'maintenance', 'reports']),
@@ -141,9 +145,10 @@ async function main() {
       'inventory.approve',
       'inventory.export',
       ...readOnly(['dashboard', 'contracts', 'suppliers']),
+      'forms.read',
     ],
     HR_MANAGER: [
-      ...keysForModules(['employees', 'attendance', 'payroll', 'reports']),
+      ...keysForModules(['employees', 'attendance', 'payroll', 'reports', 'forms']),
       ...readOnly(['dashboard']),
       'import.read',
       'import.create',
