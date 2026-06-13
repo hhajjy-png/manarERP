@@ -1,4 +1,7 @@
+import { Request } from 'express';
 import { prisma } from '@config/database';
+import { AppError } from '@core/errors/AppError';
+import { recordAudit } from '@core/middleware/audit';
 import type { CreatePriceInput, UpdatePriceInput } from './prices.schema';
 
 export async function listPrices(params: {
@@ -46,4 +49,50 @@ export async function updatePrice(id: number, input: UpdatePriceInput) {
 
 export async function deletePrice(id: number) {
   return prisma.projectPrice.update({ where: { id }, data: { isArchived: true } });
+}
+
+export async function forceRemovePreview(id: number) {
+  const price = await prisma.projectPrice.findUnique({ where: { id } });
+  if (!price) throw AppError.notFound('السعر غير موجود');
+  return {
+    price,
+    childCounts: {},
+    totalChildRecords: 0,
+    willBeDeleted: ['projectPrice'],
+    willBeNullified: [],
+  };
+}
+
+export async function forceRemove(id: number, req: Request) {
+  const price = await prisma.projectPrice.findUnique({ where: { id } });
+  if (!price) throw AppError.notFound('السعر غير موجود');
+
+  await prisma.$transaction(async (tx) => {
+    await tx.projectPrice.delete({ where: { id } });
+  });
+
+  await recordAudit({
+    req,
+    action: 'DELETE',
+    module: 'prices',
+    entityId: id,
+    oldValue: {
+      forceDelete: true,
+      deletedEntity: {
+        id: price.id,
+        asphaltPlant: price.asphaltPlant,
+        companyName: price.companyName,
+        contractLocation: price.contractLocation,
+        contractUnit: price.contractUnit,
+        unitPrice: price.unitPrice,
+        isArchived: price.isArchived,
+      },
+      childCounts: {},
+      totalChildRecords: 0,
+      willBeDeleted: ['projectPrice'],
+      willBeNullified: [],
+    },
+  });
+
+  return { deleted: true, impact: { childCounts: {}, totalChildRecords: 0 } };
 }

@@ -33,3 +33,11 @@ export const remove = asyncHandler(async (req: Request, res: Response) => {
   await service.deletePrice(id);
   noContent(res);
 });
+
+export const forceRemovePreview = asyncHandler(async (req: Request, res: Response) => {
+  ok(res, await service.forceRemovePreview(Number(req.params.id)));
+});
+
+export const forceRemove = asyncHandler(async (req: Request, res: Response) => {
+  ok(res, await service.forceRemove(Number(req.params.id), req), 'تم الحذف النهائي بنجاح');
+});
