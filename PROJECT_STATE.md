@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `1037132` — Merge data import export expansion |
-| **Stable tag** | `stable-data-import-export-expansion-v1` |
+| **HEAD** | `907301d` — Merge equipment force delete phase 1a |
+| **Stable tag** | `stable-equipment-force-delete-phase1a-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
 | **DB path (dev)** | `backend/data/manar.db` |
@@ -24,6 +24,7 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Equipment Force Delete Phase 1A | `feature/equipment-force-delete-phase1a` | `stable-equipment-force-delete-phase1a-v1` | Full-stack. Equipment only. SYSTEM_ADMIN only. Normal `DELETE /equipment/:id` now guarded — returns HTTP 409 when child records exist (maintenance records, fuel logs, breakdowns, spare parts). Force delete via `DELETE /equipment/:id/force` (requires `requireRole(ROLES.SYSTEM_ADMIN)`). `GET /equipment/:id/force` returns read-only impact preview: equipment snapshot + per-table child counts + `totalChildRecords` (no mutation). Frontend: `ResourcePage.onDelete` catches 409 for equipment + SYSTEM_ADMIN → opens `ForceDeleteEquipmentModal`. Modal fetches dryRun preview on mount, displays non-zero child counts by table, requires typing exact equipment code to unlock delete button; Enter-key shortcut when code matches. Audit log uses standard `action: 'DELETE'` with `oldValue: { forceDelete: true, deletedEntity: { code, name }, childCounts, totalChildRecords }` — no new action constants, no new permissions. All 4 child tables have `onDelete: Cascade` confirmed in schema — no migration needed. No schema changes. No new permissions. Force delete intentionally excluded from: Customers, Contracts, Suppliers, Employees. Feature commit: `d23d684`. Merge commit: `907301d`. 101/101 tests, all TS + builds clean. Gemini: APPROVED (after route + audit + UI fixes). |
 | Data Import / Export Expansion | `feature/data-import-export-expansion` | `stable-data-import-export-expansion-v1` | Full-stack. **Import:** Suppliers (code+name required; phone, email, address, contactName, notes optional; Arabic headers mapped; email validated; isArchived seeded false). Project Prices (all 5 fields required: asphaltPlant, companyName, contractLocation, contractUnit, unitPrice; unit enum طن/درب/يومية; positive float parser; 4-field composite dedup key `asphaltPlant\|companyName\|contractLocation\|contractUnit` per Gemini review). Import engine: generic `previewImport()` + `executeImport()`, backup-before-insert, atomic `$transaction`, max 1000 rows. `EntityType` extended to include `suppliers` and `prices`. ACCOUNTANT role now receives `import.read` + `import.create`. **Export:** `reports.service.ts` extended with `suppliers` (isArchived: false, order code asc, 7 columns) and `prices` (order asphaltPlant/companyName asc, 5 columns, KD numFmt). `supportsExport?: boolean` added to `ModuleConfig`. Export button "تصدير الكل Excel" added to ResourcePage (visible when `supportsExport && hasPermission('reports.export')`), enabled on Customers, Suppliers, Contracts, Equipment, Employees. Standalone export button added to `Prices.tsx`. Blob download pattern (`responseType: 'blob'`), no filter awareness (exports all records). No new endpoints, no new permissions, no schema changes. **Archive Override Phase 1a** (same release): When `DELETE` returns HTTP 409 (linked records), ResourcePage now shows a Modal offering Archive as alternative action. Calls `PATCH /:id/archive`. Gated on `cfg.supportsArchive && canUpdate`. Feature commits: `aa6ebe2` (suppliers import), `3b437f4` (prices import + Gemini composite key fix), `e7aa7d9` (excel export). Merge commit: `1037132`. 101/101 tests, all TS + builds clean. Archive Override merge: `79baeb5`. |
 | Equipment Plate Integration Phase 1 | `feature/equipment-plate-integration-phase1` | `stable-equipment-plate-integration-phase1-v1` | Frontend-only. Read-only Plate Number field auto-populated in all four Maintenance forms (Maintenance Records, Fuel Logs, Breakdowns, Spare Parts) when equipment is selected. `Equipment` interface updated to declare `plateNumber?: string`. All four form states, `onChange` handlers, and post-submit reset calls updated. Plate display is `readOnly tabIndex={-1}` with muted styling — not editable, not submitted to backend. No backend/schema/permission changes. Equipment API already returned `plateNumber` — no endpoint changes needed. Feature commit: `cd8d8ce`. Merge commit: `442e057`. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
 | Development Workflow v3.0 | `production` (direct commit) | — | Documentation only. No code changes. Three workflow modes (Quick Fix, Feature, Major System), model routing policy (Sonnet default, Opus escalation, Gemini mandatory review, ChatGPT PM), Implementation Reference appendix restored: pre-implementation checklist, `/simplify` + `/code-review` + `/security-review` quality gates, Gemini report template (10 sections), merge verification commands, commit message format, tag and push rules, rollback procedure. CLAUDE.md updated with v3.0 workflow section and appendix reference. HEAD: `5f71d5a`. |
@@ -98,23 +99,23 @@ Verified against production HEAD `5f71d5a`. Code evidence confirmed in `theme.cs
 
 ### Recommended Next Phase: Real Usage Feedback Cycle
 
-The data import/export expansion is complete. The system now supports bulk import of all major entity types and Excel export for all operational modules. The recommended next step is real-world usage to identify friction before further development.
+The Equipment Force Delete Phase 1A is complete. The system now covers the full delete safety lifecycle for Equipment: guarded normal delete → impact preview → typed confirmation → cascading force delete → audit trail. The recommended next step is real-world usage before further development.
 
 **Objectives:**
-- Use import flow with real operational data (employees, customers, equipment, suppliers, prices)
-- Use export buttons to verify output format meets operational needs
-- Collect real-world workflow feedback under actual operations
-- Identify usability friction that only surfaces under real use
+- Use the system under real operational conditions to surface friction
+- Verify export output format meets operational needs
+- Collect real-world workflow feedback before building new features
 - Avoid speculative feature development
 
-**Optional future improvements (not scheduled):**
+**Optional future improvements (not scheduled, defer until confirmed need):**
+- **Forms & Templates module** — printable PDF forms for equipment/maintenance; no confirmed need yet
+- **Auto Backup** — scheduled automatic backups via node-cron; current manual backup flow may be sufficient
+- **Financial Safety Test Suite** — deeper unit tests for accounting/payroll edge cases
+- **Force Delete expansion** — Customers, Contracts, Suppliers, Employees excluded by design; only add if real usage confirms the need
 - Export with active filters (currently exports all records regardless of search/filter state)
 - Contracts import (deferred from Phase A by design constraint)
 - Invoices/payroll import (deliberately excluded — too sensitive for bulk import)
-- Date range filter on export buttons (API already supports `?from=&to=`)
-- Contracts auto-fill visual consistency (distinguish auto-filled vs manually entered fields)
 - Additional dashboard refinements (KPI grid layout, period filter on trend chart)
-- Page-level UX polishing (column density, confirm dialog styling)
 
 ---
 
@@ -123,6 +124,17 @@ The data import/export expansion is complete. The system now supports bulk impor
 No active operational feedback items at this time.
 
 > All seven observations from the Operational Feedback Audit (2026-06-12) have been implemented and released to production. The project is currently in an operational stability and real-usage feedback phase.
+
+### Force Delete Scope (Phase 1A)
+
+Force delete is intentionally scoped to **Equipment only**. The following modules are explicitly excluded and must not receive force delete without a confirmed operational need:
+
+- **Customers** — linked to contracts and invoices; safe delete path TBD
+- **Contracts** — linked to invoices, expenses, and prices; financial impact too broad
+- **Suppliers** — linked to expenses and purchase orders; deferral by design
+- **Employees** — linked to payroll, attendance, and leave records; HR sensitivity
+
+Force delete expansion to other modules is **deferred until real usage confirms the need**.
 
 ---
 
@@ -254,7 +266,7 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 | Employees | `modules/employees/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state. **Export:** "تصدير الكل Excel" button (`supportsExport: true`, requires `reports.export`). |
 | Attendance | `employees module` | `Attendance.tsx` | Production Ready + Server-side Pagination — paginated attendance listing, filter-scoped KPI stats via groupBy, server-side search (notes/employee name/code); persisted filter/search/page state; refresh action; unsaved changes protection (create + edit modals); standardized empty state |
 | Payroll | `modules/payroll/` | `Salaries.tsx` | Complete |
-| Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n); separate Expiry Date and Remaining Duration columns. **Export:** "تصدير الكل Excel" button (`supportsExport: true`, requires `reports.export`). |
+| Equipment | `modules/equipment/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n); separate Expiry Date and Remaining Duration columns. **Export:** "تصدير الكل Excel" button (`supportsExport: true`, requires `reports.export`). **Force Delete (SYSTEM_ADMIN only):** normal delete guarded when child records exist (returns 409); `GET /equipment/:id/force` returns dryRun impact preview (child counts: MaintenanceRecord, FuelLog, Breakdown, SparePartUsage + total); `DELETE /equipment/:id/force` force-deletes with cascade; 409 on normal delete auto-opens force delete modal for SYSTEM_ADMIN; confirmation requires typing exact equipment code; audit log on every force delete (`action: DELETE`, `forceDelete: true` in oldValue). |
 | Maintenance | `modules/maintenance/` | `Maintenance.tsx` | Production Ready — full CRUD, search, filters, details modal; persisted filter/search/page state; refresh action; Equipment ↔ Plate Number auto-fill in all 4 forms (Records, Fuel, Breakdowns, Spare Parts) |
 | Contracts | `modules/contracts/` | `ResourcePage` | Complete — persisted search, filter, page state; refresh action; standardized empty state; stats strip fully localized (i18n); Customer column; Linked Price selector; auto-fill from Prices (asphaltPlant, companyName, location, unitName, price). **Export:** "تصدير الكل Excel" button (`supportsExport: true`, requires `reports.export`). |
 | Invoices | `modules/invoices/` | `Invoices.tsx` | Complete — custom type/direction fields; persisted search, filter, tab, page state; refresh action; standardized empty state; dynamic year prefix on invoice number |
@@ -339,4 +351,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-12 — Data Import / Export Expansion merged (`1037132`), tagged `stable-data-import-export-expansion-v1`, pushed to production. Includes: Suppliers Import, Project Prices Import (4-field composite dedup key), Excel Export for 6 modules (Customers, Suppliers, Contracts, Equipment, Employees, Prices), Archive Override Phase 1a (409 → Archive modal on ResourcePage). ACCOUNTANT role now has import.read + import.create. 97 permissions, 307 role_permissions, 101/101 tests. Next recommended: Real Usage Feedback Cycle.*
+*Last updated: 2026-06-13 — Equipment Force Delete Phase 1A merged (`907301d`), tagged `stable-equipment-force-delete-phase1a-v1`, pushed to production. Normal delete guarded on Equipment (409 when child records exist). SYSTEM_ADMIN force delete via `GET /equipment/:id/force` (dryRun preview) + `DELETE /equipment/:id/force` (cascade). Typed code confirmation in modal. Audit log: `action: DELETE` + `forceDelete: true` in oldValue. No schema changes, no new permissions. Force delete scoped to Equipment only — Customers/Contracts/Suppliers/Employees excluded by design. 101/101 tests, all TS + builds clean. Next recommended: Real Usage Feedback Cycle.*
