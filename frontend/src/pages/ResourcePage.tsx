@@ -9,6 +9,7 @@ import Modal from '../components/Modal';
 import ForceDeleteEquipmentModal from '../components/ForceDeleteEquipmentModal';
 import ForceDeleteCustomerModal from '../components/ForceDeleteCustomerModal';
 import ForceDeleteSupplierModal from '../components/ForceDeleteSupplierModal';
+import ForceDeleteContractModal from '../components/ForceDeleteContractModal';
 import { usePersistedState } from '../hooks/usePersistedState';
 
 type AlertItem = { id: number; code: string; label: string; severity: 'warn' | 'error' };
@@ -39,6 +40,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [forceDeleteCandidate, setForceDeleteCandidate] = useState<{ id: number; code: string } | null>(null);
   const [forceDeleteCustomerCandidate, setForceDeleteCustomerCandidate] = useState<{ id: number; code: string } | null>(null);
   const [forceDeleteSupplierCandidate, setForceDeleteSupplierCandidate] = useState<{ id: number; code: string } | null>(null);
+  const [forceDeleteContractCandidate, setForceDeleteContractCandidate] = useState<{ id: number; code: string } | null>(null);
 
   const canCreate = hasPermission(`${cfg.key}.create`);
   const canUpdate = hasPermission(`${cfg.key}.update`);
@@ -164,6 +166,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         setForceDeleteCustomerCandidate({ id: row.id, code: row.code });
       } else if (status === 409 && cfg.key === 'suppliers' && isSystemAdmin) {
         setForceDeleteSupplierCandidate({ id: row.id, code: row.code });
+      } else if (status === 409 && cfg.key === 'contracts' && isSystemAdmin) {
+        setForceDeleteContractCandidate({ id: row.id, code: row.code });
       } else if (status === 409 && cfg.supportsArchive && canUpdate) {
         setArchiveCandidate({ id: row.id, label: row.name ?? row.code ?? String(row.id) });
       } else {
@@ -406,6 +410,14 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           supplierId={forceDeleteSupplierCandidate.id}
           onClose={() => setForceDeleteSupplierCandidate(null)}
           onDeleted={() => { setForceDeleteSupplierCandidate(null); load(); }}
+        />
+      )}
+
+      {forceDeleteContractCandidate && (
+        <ForceDeleteContractModal
+          contractId={forceDeleteContractCandidate.id}
+          onClose={() => setForceDeleteContractCandidate(null)}
+          onDeleted={() => { setForceDeleteContractCandidate(null); load(); }}
         />
       )}
     </div>

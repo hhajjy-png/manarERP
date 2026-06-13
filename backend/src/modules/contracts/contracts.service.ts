@@ -12,6 +12,13 @@ interface ContractQuery extends PaginationQuery {
   customerId?: string;
 }
 
+interface ChildCounts {
+  invoices: number;
+  expenses: number;
+  materialIssues: number;
+  contractDocuments: number;
+}
+
 export class ContractsService {
   async list(query: ContractQuery) {
     const pagination = getPagination(query);
@@ -87,6 +94,92 @@ export class ContractsService {
     await contractsRepository.delete(id);
     await recordAudit({ req, action: 'DELETE', module: 'contracts', entityId: id, oldValue: contract });
     return { deleted: true };
+  }
+
+  private async getChildCounts(id: number): Promise<ChildCounts> {
+    const [invoices, expenses, materialIssues, contractDocuments] = await Promise.all([
+      prisma.invoice.count({ where: { contractId: id } }),
+      prisma.expense.count({ where: { contractId: id } }),
+      prisma.materialIssue.count({ where: { contractId: id } }),
+      prisma.contractDocument.count({ where: { contractId: id } }),
+    ]);
+    return { invoices, expenses, materialIssues, contractDocuments };
+  }
+
+  async forceRemovePreview(id: number) {
+    const contract = await prisma.contract.findUnique({ where: { id } });
+    if (!contract) throw AppError.notFound('العقد غير موجود');
+
+    const childCounts = await this.getChildCounts(id);
+    const totalChildRecords = Object.values(childCounts).reduce((a, b) => a + b, 0);
+
+    const willBeDeleted = ['contract'];
+    if (childCounts.contractDocuments > 0) willBeDeleted.push('contractDocuments');
+
+    const willBeNullified: string[] = [];
+    if (childCounts.expenses > 0) willBeNullified.push('expenses.contractId');
+    if (childCounts.materialIssues > 0) willBeNullified.push('materialIssues.contractId');
+
+    let blockedReason: string | undefined;
+    if (childCounts.invoices > 0) {
+      blockedReason = `لا يمكن حذف عقد لديه فواتير مسجلة (${childCounts.invoices} ${childCounts.invoices === 1 ? 'فاتورة' : 'فواتير'}) — عدّل حالة العقد بدلاً من ذلك`;
+    }
+
+    return {
+      contract,
+      childCounts,
+      totalChildRecords,
+      willBeDeleted,
+      willBeNullified,
+      ...(blockedReason ? { blockedReason } : {}),
+    };
+  }
+
+  async forceRemove(id: number, req: Request) {
+    const contract = await prisma.contract.findUnique({ where: { id } });
+    if (!contract) throw AppError.notFound('العقد غير موجود');
+
+    const childCounts = await this.getChildCounts(id);
+
+    if (childCounts.invoices > 0) {
+      throw AppError.conflict('لا يمكن حذف عقد لديه فواتير مسجلة — عدّل حالة العقد بدلاً من ذلك');
+    }
+
+    const totalChildRecords = Object.values(childCounts).reduce((a, b) => a + b, 0);
+
+    const willBeDeleted = ['contract'];
+    if (childCounts.contractDocuments > 0) willBeDeleted.push('contractDocuments');
+
+    const willBeNullified: string[] = [];
+    if (childCounts.expenses > 0) willBeNullified.push('expenses.contractId');
+    if (childCounts.materialIssues > 0) willBeNullified.push('materialIssues.contractId');
+
+    await prisma.$transaction(async (tx) => {
+      if (childCounts.expenses > 0) {
+        await tx.expense.updateMany({ where: { contractId: id }, data: { contractId: null } });
+      }
+      if (childCounts.materialIssues > 0) {
+        await tx.materialIssue.updateMany({ where: { contractId: id }, data: { contractId: null } });
+      }
+      await tx.contract.delete({ where: { id } });
+    });
+
+    await recordAudit({
+      req,
+      action: 'DELETE',
+      module: 'contracts',
+      entityId: id,
+      oldValue: {
+        forceDelete: true,
+        deletedEntity: { id: contract.id, code: contract.code, asphaltPlant: contract.asphaltPlant, status: contract.status },
+        childCounts,
+        totalChildRecords,
+        willBeDeleted,
+        willBeNullified,
+      },
+    });
+
+    return { deleted: true, impact: { childCounts, totalChildRecords } };
   }
 }
 

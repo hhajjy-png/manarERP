@@ -21,4 +21,10 @@ export const contractsController = {
   async remove(req: Request, res: Response) {
     ok(res, await contractsService.remove(Number(req.params.id), req), 'تم الحذف');
   },
+  async forceRemovePreview(req: Request, res: Response) {
+    ok(res, await contractsService.forceRemovePreview(Number(req.params.id)));
+  },
+  async forceRemove(req: Request, res: Response) {
+    ok(res, await contractsService.forceRemove(Number(req.params.id), req), 'تم الحذف الإجباري بنجاح');
+  },
 };
