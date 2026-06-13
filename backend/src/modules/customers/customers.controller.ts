@@ -24,4 +24,10 @@ export const customersController = {
   async remove(req: Request, res: Response) {
     ok(res, await customersService.remove(Number(req.params.id), req), 'تم الحذف');
   },
+  async forceRemovePreview(req: Request, res: Response) {
+    ok(res, await customersService.forceRemovePreview(Number(req.params.id)));
+  },
+  async forceRemove(req: Request, res: Response) {
+    ok(res, await customersService.forceRemove(Number(req.params.id), req), 'تم الحذف الإجباري بنجاح');
+  },
 };
