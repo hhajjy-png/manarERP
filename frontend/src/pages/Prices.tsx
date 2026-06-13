@@ -5,11 +5,13 @@ import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import { money } from '../config/modules';
+import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
 
 const contractUnits = ['طن', 'درب', 'يومية'] as const;
 
 export default function Prices() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
   const { t } = useT();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
@@ -24,6 +26,7 @@ export default function Prices() {
   const [editing, setEditing] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
+  const [forceDeleteCandidate, setForceDeleteCandidate] = useState<{ id: number; asphaltPlant: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -154,6 +157,9 @@ export default function Prices() {
             )}{' '}
             {hasPermission('prices.delete') && (
               <button className="btn secondary sm" onClick={() => archiveRow(row.id)}>{t('action.delete')}</button>
+            )}{' '}
+            {isSystemAdmin && (
+              <button type="button" className="btn danger sm" onClick={() => setForceDeleteCandidate({ id: row.id, asphaltPlant: row.asphaltPlant })}>حذف نهائي</button>
             )}
           </>
         )}
@@ -161,6 +167,14 @@ export default function Prices() {
 
       {creating && <PriceForm onClose={() => setCreating(false)} onSaved={load} />}
       {editing && <PriceForm price={editing} onClose={() => setEditing(null)} onSaved={load} />}
+
+      {forceDeleteCandidate && (
+        <ForceDeleteProjectPriceModal
+          priceId={forceDeleteCandidate.id}
+          onClose={() => setForceDeleteCandidate(null)}
+          onDeleted={() => { setForceDeleteCandidate(null); load(); }}
+        />
+      )}
     </div>
   );
 }
