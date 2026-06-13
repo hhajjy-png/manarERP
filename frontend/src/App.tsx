@@ -24,6 +24,13 @@ import Prices from './pages/Prices';
 import Attendance from './pages/Attendance';
 import Forms from './pages/Forms';
 import SalaryCertificate from './pages/SalaryCertificate';
+import ToWhomItMayConcern from './pages/ToWhomItMayConcern';
+import LeaveRequest from './pages/LeaveRequest';
+import ReturnToWork from './pages/ReturnToWork';
+import SalaryAdvance from './pages/SalaryAdvance';
+import Resignation from './pages/Resignation';
+import EmployeeWarning from './pages/EmployeeWarning';
+import PerformanceEvaluation from './pages/PerformanceEvaluation';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -37,6 +44,13 @@ export default function App() {
         <Route path="/print/:type" element={<ProtectedRoute><ReportPrint /></ProtectedRoute>} />
         <Route path="/payroll/:id/payslip" element={<ProtectedRoute><PayrollPayslip /></ProtectedRoute>} />
         <Route path="/forms/salary-certificate/:employeeId" element={<ProtectedRoute><SalaryCertificate /></ProtectedRoute>} />
+        <Route path="/forms/to-whom-it-may-concern/:employeeId" element={<ProtectedRoute><ToWhomItMayConcern /></ProtectedRoute>} />
+        <Route path="/forms/leave-request/:employeeId" element={<ProtectedRoute><LeaveRequest /></ProtectedRoute>} />
+        <Route path="/forms/return-to-work/:employeeId" element={<ProtectedRoute><ReturnToWork /></ProtectedRoute>} />
+        <Route path="/forms/salary-advance/:employeeId" element={<ProtectedRoute><SalaryAdvance /></ProtectedRoute>} />
+        <Route path="/forms/resignation/:employeeId" element={<ProtectedRoute><Resignation /></ProtectedRoute>} />
+        <Route path="/forms/employee-warning/:employeeId" element={<ProtectedRoute><EmployeeWarning /></ProtectedRoute>} />
+        <Route path="/forms/performance-evaluation/:employeeId" element={<ProtectedRoute><PerformanceEvaluation /></ProtectedRoute>} />
         <Route
           element={
             <ProtectedRoute>
