@@ -4,13 +4,13 @@ import { api, errorMessage } from '../api/client';
 import { getPrintMode } from '../forms/shared/printMode';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
-import SalaryCertificateTemplate from '../forms/SalaryCertificateTemplate';
+import ReturnToWorkTemplate from '../forms/ReturnToWorkTemplate';
 
-export default function SalaryCertificate() {
+export default function ReturnToWork() {
   const { employeeId } = useParams<{ employeeId: string }>();
   const { search } = useLocation();
   const printMode = getPrintMode(search);
-  const formNumber = useMemo(() => generateFormNumber('salary-certificate'), []);
+  const formNumber = useMemo(() => generateFormNumber('return-to-work'), []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
@@ -18,7 +18,7 @@ export default function SalaryCertificate() {
   useEffect(() => {
     if (!employeeId) return;
     api
-      .get(`/forms/salary-certificate/${employeeId}`)
+      .get(`/forms/return-to-work/${employeeId}`)
       .then((res) => setData(res.data.data))
       .catch((e) => setError(errorMessage(e)));
   }, [employeeId]);
@@ -27,7 +27,7 @@ export default function SalaryCertificate() {
     if (!data) return;
     api
       .post('/forms/print-log', {
-        formType: 'salary-certificate',
+        formType: 'return-to-work',
         formNumber,
         employeeId: Number(employeeId),
         employeeName: data.employee.fullName,
@@ -37,13 +37,12 @@ export default function SalaryCertificate() {
       .catch(() => {});
   }, [data, formNumber, employeeId, printMode]);
 
-  if (error)
-    return <div className="center-msg">تعذّر تحميل بيانات الشهادة: {error}</div>;
+  if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!data)
     return (
       <div className="center-msg">
         <div className="spinner" />
-        جارٍ تجهيز الشهادة…
+        جارٍ التحميل…
       </div>
     );
 
@@ -51,20 +50,17 @@ export default function SalaryCertificate() {
     <FormLayout
       ready
       formNumber={formNumber}
-      title="شـهـادة راتـب"
+      title="إشعار العودة إلى العمل"
       printMode={printMode}
       qrData={{
-        formType: 'salary-certificate',
+        formType: 'return-to-work',
         formNumber,
         employeeId: Number(employeeId),
         employeeName: data.employee.fullName,
         issueDate: new Date().toISOString(),
       }}
     >
-      <SalaryCertificateTemplate
-        employee={data.employee}
-        latestPayroll={data.latestPayroll}
-      />
+      <ReturnToWorkTemplate employee={data.employee} latestLeave={data.latestLeave} />
     </FormLayout>
   );
 }
