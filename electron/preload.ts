@@ -60,6 +60,10 @@ const api = {
   /** إرسال توكن الجلسة إلى العملية الرئيسية للتحقق منه عبر Backend. */
   setSessionToken: (token: string | null): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('session:setToken', token),
+
+  /** إعادة قراءة إعدادات النسخ التلقائي وتطبيقها على الجدولة. */
+  backupReconfigure: (): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('backup:reconfigure'),
 };
 
 contextBridge.exposeInMainWorld('manar', api);

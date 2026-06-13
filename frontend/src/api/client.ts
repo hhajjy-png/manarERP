@@ -23,6 +23,8 @@ declare global {
       }>;
       // ─── Session IPC ────────────────────────────────────────────────────────────
       setSessionToken: (token: string | null) => Promise<{ ok: boolean }>;
+      // ─── Scheduler IPC ──────────────────────────────────────────────────────────
+      backupReconfigure: () => Promise<{ ok: boolean }>;
     };
   }
 }

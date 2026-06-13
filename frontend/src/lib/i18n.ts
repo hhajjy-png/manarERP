@@ -236,6 +236,9 @@ const DICT: Record<Lang, Record<string, string>> = {
     'field.settings.currency_label': 'رمز العملة',
     'field.settings.decimals': 'عدد الخانات العشرية',
     'field.settings.backup_cron': 'موعد النسخ التلقائي (Cron)',
+    'field.settings.backup_auto_enabled': 'تفعيل النسخ التلقائي اليومي',
+    'field.settings.backup_auto_time': 'وقت النسخ التلقائي (HH:MM)',
+    'field.settings.backup_auto_retention': 'عدد النسخ التلقائية المحتفظ بها',
 
     // ── Phase 3: select options ────────────────────────────────────────────────
     'opt.contract.active': 'ساري',
@@ -1346,6 +1349,9 @@ const DICT: Record<Lang, Record<string, string>> = {
     'field.settings.currency_label': 'Currency Symbol',
     'field.settings.decimals': 'Decimal Places',
     'field.settings.backup_cron': 'Auto Backup Schedule (Cron)',
+    'field.settings.backup_auto_enabled': 'Enable Daily Auto Backup',
+    'field.settings.backup_auto_time': 'Auto Backup Time (HH:MM)',
+    'field.settings.backup_auto_retention': 'Auto Backups to Keep',
 
     // ── Phase 3: select options ────────────────────────────────────────────────
     'opt.contract.active': 'Active',

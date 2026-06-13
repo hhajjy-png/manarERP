@@ -29,6 +29,7 @@ import chequesRoutes from './modules/cheques/cheques.routes';
 import importRoutes from './modules/import/import.routes';
 import pricesRoutes from './modules/prices/prices.routes';
 import formsRoutes from './modules/forms/forms.routes';
+import internalRoutes from './modules/backups/internal.routes';
 
 /**
  * إنشاء تطبيق Express وتهيئة الـ Middlewares والمسارات.
@@ -74,6 +75,7 @@ export function createApp(): Application {
   app.use('/api/import', importRoutes);
   app.use('/api/prices', pricesRoutes);
   app.use('/api/forms', formsRoutes);
+  app.use('/api/internal', internalRoutes);
 
   // معالجة المسارات غير الموجودة + الأخطاء (يجب أن تكون في النهاية)
   app.use(notFoundHandler);

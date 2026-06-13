@@ -2,6 +2,7 @@ import { ipcMain, dialog, BrowserWindow } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { getUserDataPaths, stopBackend } from '../services/backendLauncher';
+import { reconfigureBackupScheduler } from '../services/backupScheduler';
 import { hasSessionPermission } from './session.ipc';
 
 function timestamp(): string {
@@ -186,6 +187,19 @@ export function registerBackupIpc() {
         console.error('[backup:restore] فشل التراجع:', rollbackErr);
       }
       return { success: false, error: `فشل استبدال قاعدة البيانات: ${String(err)}` };
+    }
+  });
+
+  // ─── backup:reconfigure ─────────────────────────────────────────────────────
+  // تُستدعى من الواجهة بعد تغيير إعدادات النسخ التلقائي لإعادة تشغيل الجدولة.
+  ipcMain.handle('backup:reconfigure', async () => {
+    try {
+      await reconfigureBackupScheduler();
+      return { ok: true };
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[backup:reconfigure] خطأ:', err);
+      return { ok: false };
     }
   });
 }
