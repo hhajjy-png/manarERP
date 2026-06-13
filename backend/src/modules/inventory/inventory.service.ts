@@ -16,13 +16,9 @@ import {
   CreateMaterialIssueInput,
   UpdateMaterialIssueInput,
 } from './inventory.schema';
+import { roundCost, calcWAC, sufficientStock } from './inventory.calc';
 
 type DbClient = typeof prisma | Prisma.TransactionClient;
-
-// WAC precision: 6 decimal places to preserve accuracy before rounding for display
-function roundCost(n: number): number {
-  return Math.round((n + Number.EPSILON) * 1_000_000) / 1_000_000;
-}
 
 // ── تصنيفات المواد ────────────────────────────────────────────────────────
 
@@ -437,9 +433,7 @@ export class GoodsReceiptsService {
 
         const safeCurrentStock = Math.max(0, material.currentStock);
         const newQty = safeCurrentStock + item.quantity;
-        const newUnitCost = roundCost(
-          (safeCurrentStock * material.unitCost + item.quantity * item.unitCost) / newQty,
-        );
+        const newUnitCost = calcWAC(material.currentStock, material.unitCost, item.quantity, item.unitCost);
 
         await tx.material.update({
           where: { id: item.materialId },
@@ -646,7 +640,7 @@ export class MaterialIssuesService {
       for (const item of issue.items) {
         const material = await tx.material.findUnique({ where: { id: item.materialId } });
         if (!material) throw AppError.notFound(`المادة ${item.materialId} غير موجودة`);
-        if (material.currentStock < item.quantity) {
+        if (!sufficientStock(material.currentStock, item.quantity)) {
           throw AppError.badRequest(
             `المخزون غير كافٍ للمادة: ${material.name} (متوفر: ${material.currentStock}، مطلوب: ${item.quantity})`,
           );

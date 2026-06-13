@@ -6,28 +6,7 @@ import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { transactionsService } from '../transactions/transactions.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
-
-type ItemInput = { description: string; quantity: number; unit: string; unitPrice: number };
-
-function round2(n: number): number {
-  return Math.round((n + Number.EPSILON) * 100) / 100;
-}
-
-/** حساب المجاميع من البنود والضريبة والخصم. */
-function computeTotals(items: ItemInput[], taxRate: number, discount: number) {
-  const lines = items.map((it) => ({ ...it, total: round2(it.quantity * it.unitPrice) }));
-  const subtotal = round2(lines.reduce((s, l) => s + l.total, 0));
-  const taxable = Math.max(0, subtotal - discount);
-  const taxAmount = round2((taxable * taxRate) / 100);
-  const total = round2(taxable + taxAmount);
-  return { lines, subtotal, taxAmount, total };
-}
-
-function nextStatus(total: number, paid: number): string {
-  if (paid <= 0) return 'UNPAID';
-  if (paid >= total) return 'PAID';
-  return 'PARTIAL';
-}
+import { round3, computeTotals, nextStatus, overpaymentExceeds } from './invoices.calc';
 
 const FULL_INCLUDE = {
   items: true,
@@ -225,8 +204,8 @@ export class InvoicesService {
     if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');
     if (invoice.status === 'CANCELLED') throw AppError.badRequest('لا يمكن تحصيل فاتورة ملغاة');
 
-    const newPaid = round2(invoice.paidAmount + input.amount);
-    if (newPaid > invoice.total + 0.001) {
+    const newPaid = round3(invoice.paidAmount + input.amount);
+    if (overpaymentExceeds(invoice.total, newPaid)) {
       throw AppError.badRequest('المبلغ يتجاوز المتبقي على الفاتورة');
     }
 
