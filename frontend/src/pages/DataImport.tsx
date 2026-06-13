@@ -3,10 +3,10 @@ import * as XLSX from 'xlsx';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { IMPORT_ENTITIES, IMPORT_ENTITY_MAP } from '../config/importEntities';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type EntityType = 'employees' | 'customers' | 'equipment' | 'suppliers' | 'prices';
 type ImportStep = 'idle' | 'file_loaded' | 'validating' | 'previewed' | 'executing' | 'done';
 type RowStatus = 'valid' | 'invalid' | 'duplicate';
 
@@ -20,7 +20,7 @@ interface RowResult {
 }
 
 interface PreviewSummary {
-  entityType: EntityType;
+  entityType: string;
   totalRows: number;
   validRows: number;
   invalidRows: number;
@@ -29,7 +29,7 @@ interface PreviewSummary {
 }
 
 interface ExecuteSummary {
-  entityType: EntityType;
+  entityType: string;
   totalRows: number;
   imported: number;
   invalidRows: number;
@@ -37,87 +37,6 @@ interface ExecuteSummary {
   backupId: number;
   backupFileName: string;
 }
-
-// ── Column guide ──────────────────────────────────────────────────────────────
-
-interface ColDef { key: string; labelAr: string; required: boolean }
-
-const COLUMN_GUIDE: Record<EntityType, ColDef[]> = {
-  employees: [
-    { key: 'code',                  labelAr: 'الرقم الوظيفي',                           required: true  },
-    { key: 'fullName',              labelAr: 'الاسم بالعربي',                            required: true  },
-    { key: 'fullNameEn',            labelAr: 'الاسم بالإنجليزي',                         required: false },
-    { key: 'civilId',               labelAr: 'الرقم المدني',                             required: false },
-    { key: 'jobTitle',              labelAr: 'المهنة',                                   required: false },
-    { key: 'nationality',           labelAr: 'الجنسية',                                  required: false },
-    { key: 'passportNumber',        labelAr: 'رقم جواز السفر',                           required: false },
-    { key: 'passportExpiry',        labelAr: 'تاريخ انتهاء جواز السفر (YYYY-MM-DD)',     required: false },
-    { key: 'residencyExpiry',       labelAr: 'تاريخ انتهاء الإقامة (YYYY-MM-DD)',        required: false },
-    { key: 'licenseExpiry',         labelAr: 'تاريخ انتهاء رخصة القيادة (YYYY-MM-DD)',  required: false },
-    { key: 'vehiclePlate',          labelAr: 'رقم لوحة المركبة',                         required: false },
-    { key: 'vehicleLicenseExpiry',  labelAr: 'تاريخ انتهاء رخصة المركبة (YYYY-MM-DD)', required: false },
-    { key: 'birthDate',             labelAr: 'تاريخ الميلاد (YYYY-MM-DD)',               required: false },
-    { key: 'company',               labelAr: 'الشركة',                                   required: false },
-    { key: 'department',            labelAr: 'القسم',                                    required: false },
-    { key: 'salary',                labelAr: 'الراتب الشهري (رقم)',                      required: false },
-    { key: 'hireDate',              labelAr: 'تاريخ التعيين (YYYY-MM-DD)',               required: false },
-    { key: 'phone',                 labelAr: 'الهاتف',                                   required: false },
-    { key: 'email',                 labelAr: 'البريد الإلكتروني',                        required: false },
-    { key: 'address',               labelAr: 'العنوان',                                  required: false },
-    { key: 'status',                labelAr: 'حالة الموظف (ACTIVE / ON_LEAVE / TERMINATED)', required: false },
-    { key: 'notes',                 labelAr: 'ملاحظات',                                  required: false },
-  ],
-  customers: [
-    { key: 'code',                  labelAr: 'رقم العميل',                            required: true  },
-    { key: 'name',                  labelAr: 'اسم العميل',                            required: true  },
-    { key: 'type',                  labelAr: 'النوع: GOVERNMENT / PRIVATE',           required: false },
-    { key: 'category',              labelAr: 'التصنيف',                               required: false },
-    { key: 'phone',                 labelAr: 'الهاتف',                                required: false },
-    { key: 'email',                 labelAr: 'البريد الإلكتروني',                     required: false },
-    { key: 'address',               labelAr: 'العنوان',                               required: false },
-    { key: 'contactName',           labelAr: 'مسؤول التواصل',                         required: false },
-    { key: 'notes',                 labelAr: 'ملاحظات',                               required: false },
-  ],
-  equipment: [
-    { key: 'code',                  labelAr: 'رقم المعدة',                            required: true  },
-    { key: 'type',                  labelAr: 'نوع المعدة (قلاب / شيول / حفار...)',    required: true  },
-    { key: 'ownerName',             labelAr: 'اسم المالك',                            required: false },
-    { key: 'driverName',            labelAr: 'اسم السائق',                            required: false },
-    { key: 'plateNumber',           labelAr: 'رقم اللوحة',                            required: false },
-    { key: 'registrationExpiry',    labelAr: 'انتهاء دفتر المركبة (YYYY-MM-DD)',      required: false },
-    { key: 'status',                labelAr: 'الحالة: WORKING / NOT_WORKING',         required: false },
-    { key: 'manufacturer',          labelAr: 'الشركة المصنعة',                        required: false },
-    { key: 'model',                 labelAr: 'الموديل',                               required: false },
-    { key: 'manufactureYear',       labelAr: 'سنة الصنع (رقم)',                       required: false },
-    { key: 'operatingHours',        labelAr: 'ساعات التشغيل (رقم)',                   required: false },
-    { key: 'purchaseCost',          labelAr: 'تكلفة الشراء (رقم)',                    required: false },
-    { key: 'notes',                 labelAr: 'ملاحظات',                               required: false },
-  ],
-  suppliers: [
-    { key: 'code',                  labelAr: 'الكود',                                 required: true  },
-    { key: 'name',                  labelAr: 'الاسم',                                 required: true  },
-    { key: 'phone',                 labelAr: 'الهاتف',                                required: false },
-    { key: 'email',                 labelAr: 'البريد',                                required: false },
-    { key: 'address',               labelAr: 'العنوان',                               required: false },
-    { key: 'contactName',           labelAr: 'اسم المسؤول',                           required: false },
-    { key: 'notes',                 labelAr: 'ملاحظات',                               required: false },
-  ],
-  prices: [
-    { key: 'asphaltPlant',          labelAr: 'مصنع الأسفلت',                          required: true  },
-    { key: 'companyName',           labelAr: 'اسم الشركة',                            required: true  },
-    { key: 'contractLocation',      labelAr: 'مكان العقد',                            required: true  },
-    { key: 'contractUnit',          labelAr: 'وحدة العقد (طن / درب / يومية)',         required: true  },
-    { key: 'unitPrice',             labelAr: 'سعر الوحدة (رقم موجب)',                 required: true  },
-  ],
-};
-
-const ENTITY_LABELS: Record<EntityType, string> = {
-  employees: 'الموظفون',
-  customers: 'العملاء',
-  equipment: 'المعدات',
-  suppliers: 'الموردون',
-  prices: 'أسعار المشاريع',
-};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -135,20 +54,18 @@ function statusPill(status: RowStatus) {
   );
 }
 
-function downloadTemplate(entityType: EntityType) {
-  const cols = COLUMN_GUIDE[entityType];
-  // Employees: Arabic labels as headers so the template round-trips through
-  // backend Arabic header normalization. Strip format hints in trailing parens
-  // (e.g. "(YYYY-MM-DD)", "(رقم)") so headers match ARABIC_HEADER_MAP exactly.
-  const headerRow = cols.map((c) =>
-    entityType === 'employees'
+function downloadTemplate(entityKey: string) {
+  const cfg = IMPORT_ENTITY_MAP[entityKey];
+  if (!cfg) return;
+  const headerRow = cfg.columns.map((c) =>
+    cfg.useArabicTemplateHeaders
       ? c.labelAr.replace(/\s*\(.*?\)\s*$/, '').trim()
       : c.key,
   );
   const ws = XLSX.utils.aoa_to_sheet([headerRow]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Data');
-  XLSX.writeFile(wb, `template-${entityType}.xlsx`);
+  XLSX.writeFile(wb, `template-${entityKey}.xlsx`);
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -157,7 +74,7 @@ export default function DataImport() {
   const { hasPermission } = useAuth();
   const { t } = useT();
 
-  const [entityType, setEntityType] = useState<EntityType>('employees');
+  const [entityKey, setEntityKey] = useState(IMPORT_ENTITIES[0].key);
   const [step, setStep] = useState<ImportStep>('idle');
   const [fileName, setFileName] = useState('');
   const [rawRows, setRawRows] = useState<Record<string, unknown>[]>([]);
@@ -175,9 +92,9 @@ export default function DataImport() {
     );
   }
 
-  function handleEntityChange(type: EntityType) {
-    if (type === entityType) return;
-    setEntityType(type);
+  function handleEntityChange(key: string) {
+    if (key === entityKey) return;
+    setEntityKey(key);
     setStep('idle');
     setFileName('');
     setRawRows([]);
@@ -218,7 +135,7 @@ export default function DataImport() {
     setError(null);
     setStep('validating');
     try {
-      const res = await api.post<{ data: PreviewSummary }>('/import/preview', { entityType, rows: rawRows });
+      const res = await api.post<{ data: PreviewSummary }>('/import/preview', { entityType: entityKey, rows: rawRows });
       setPreview(res.data.data);
       setStep('previewed');
     } catch (err) {
@@ -232,7 +149,7 @@ export default function DataImport() {
     setError(null);
     setStep('executing');
     try {
-      const res = await api.post<{ data: ExecuteSummary }>('/import/execute', { entityType, rows: rawRows });
+      const res = await api.post<{ data: ExecuteSummary }>('/import/execute', { entityType: entityKey, rows: rawRows });
       setResult(res.data.data);
       setStep('done');
     } catch (err) {
@@ -252,9 +169,10 @@ export default function DataImport() {
   }
 
   const isLoading = step === 'validating' || step === 'executing';
-  const guide = COLUMN_GUIDE[entityType];
-  const requiredCols = guide.filter((c) => c.required);
-  const optionalCols = guide.filter((c) => !c.required);
+  const cfg = IMPORT_ENTITY_MAP[entityKey];
+  if (!cfg) return null;
+  const requiredCols = cfg.columns.filter((c) => c.required);
+  const optionalCols = cfg.columns.filter((c) => !c.required);
 
   return (
     <div style={{ padding: '24px 32px', maxWidth: 1100 }}>
@@ -264,23 +182,23 @@ export default function DataImport() {
 
       {/* Entity type selector */}
       <div style={{ marginBottom: 20, display: 'flex', gap: 8 }}>
-        {(['employees', 'customers', 'equipment', 'suppliers', 'prices'] as EntityType[]).map((type) => (
+        {IMPORT_ENTITIES.map((entity) => (
           <button
-            key={type}
-            onClick={() => handleEntityChange(type)}
+            key={entity.key}
+            onClick={() => handleEntityChange(entity.key)}
             disabled={isLoading}
             style={{
               padding: '8px 20px',
               borderRadius: 6,
-              border: entityType === type ? '2px solid var(--primary, #1d4ed8)' : '1px solid var(--border)',
-              background: entityType === type ? 'var(--primary, #1d4ed8)' : 'var(--bg-card)',
-              color: entityType === type ? '#fff' : 'var(--text)',
-              fontWeight: entityType === type ? 700 : 400,
+              border: entityKey === entity.key ? '2px solid var(--primary, #1d4ed8)' : '1px solid var(--border)',
+              background: entityKey === entity.key ? 'var(--primary, #1d4ed8)' : 'var(--bg-card)',
+              color: entityKey === entity.key ? '#fff' : 'var(--text)',
+              fontWeight: entityKey === entity.key ? 700 : 400,
               cursor: isLoading ? 'not-allowed' : 'pointer',
               fontSize: 14,
             }}
           >
-            {ENTITY_LABELS[type]}
+            {entity.labelAr}
           </button>
         ))}
       </div>
@@ -307,7 +225,7 @@ export default function DataImport() {
                   📂 {t('import.btn.choose_file')}
                 </button>
                 <button
-                  onClick={() => downloadTemplate(entityType)}
+                  onClick={() => downloadTemplate(entityKey)}
                   disabled={isLoading}
                   style={btnStyle('ghost', isLoading)}
                 >
@@ -365,11 +283,8 @@ export default function DataImport() {
                   <tr style={{ background: 'var(--bg-header, var(--bg))', borderBottom: '2px solid var(--border)' }}>
                     <th style={thStyle}>{t('import.col.row')}</th>
                     <th style={thStyle}>{t('import.col.status')}</th>
-                    <th style={thStyle}>{entityType === 'prices' ? 'مصنع الأسفلت' : 'code'}</th>
-                    <th style={thStyle}>
-                      {entityType === 'prices' ? 'الشركة / الوحدة' :
-                       (entityType === 'customers' || entityType === 'suppliers') ? 'name' : 'fullName / type'}
-                    </th>
+                    <th style={thStyle}>{cfg.previewPrimaryHeader}</th>
+                    <th style={thStyle}>{cfg.previewSecondaryHeader}</th>
                     <th style={thStyle}>{t('import.col.errors')}</th>
                   </tr>
                 </thead>
@@ -388,14 +303,10 @@ export default function DataImport() {
                       <td style={tdStyle}>{row.rowIndex + 1}</td>
                       <td style={tdStyle}>{statusPill(row.status)}</td>
                       <td style={{ ...tdStyle, fontFamily: 'monospace' }}>
-                        {entityType === 'prices'
-                          ? String(row.data['asphaltPlant'] ?? row.data['مصنع الأسفلت'] ?? '—')
-                          : String(row.data['code'] ?? '—')}
+                        {cfg.previewPrimary(row.data)}
                       </td>
                       <td style={tdStyle}>
-                        {entityType === 'prices'
-                          ? `${String(row.data['companyName'] ?? row.data['اسم الشركة'] ?? '—')} / ${String(row.data['contractUnit'] ?? row.data['وحدة العقد'] ?? '—')}`
-                          : String(row.data['fullName'] ?? row.data['name'] ?? row.data['type'] ?? '—')}
+                        {cfg.previewSecondary(row.data)}
                       </td>
                       <td style={{ ...tdStyle, color: 'var(--danger, #dc2626)', fontSize: 12 }}>
                         {row.status === 'invalid' && row.errors?.join(' / ')}
@@ -430,7 +341,7 @@ export default function DataImport() {
 
         {/* Right: column guide */}
         <div style={{ background: 'var(--bg-card)', borderRadius: 8, padding: 16, border: '1px solid var(--border)', fontSize: 13 }}>
-          <p style={{ margin: '0 0 8px', fontWeight: 700 }}>{ENTITY_LABELS[entityType]} — {t('import.required_cols')}</p>
+          <p style={{ margin: '0 0 8px', fontWeight: 700 }}>{cfg.labelAr} — {t('import.required_cols')}</p>
           <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--text-muted)' }}>{t('import.col_hint')}</p>
           <div style={{ marginBottom: 14 }}>
             {requiredCols.map((c) => (
