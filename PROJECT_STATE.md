@@ -10,13 +10,14 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `e90298e` — feat(forms): add salary certificate printing |
-| **Stable tag** | `stable-forms-phase1a-salary-certificate-v1` |
+| **HEAD** | `1270f0c` — docs: update PROJECT_STATE after Forms Phase 1A |
+| **Stable tag** | `stable-full-operational-reset-v1` |
 | **Remote sync** | `origin/production` — up to date |
-| **DB state** | Operational reset completed 2026-06-09 — clean slate, seed data only |
+| **DB state** | Full operational reset completed 2026-06-13 — all business data cleared, system config and COA preserved |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
-| **DB backup (pre-reset)** | `backend/data/backups/manar_RESET_BACKUP_20260609_040414.db` |
+| **DB backup (pre-reset)** | `backend/data/backups/manar_PRE_FULL_RESET_20260613_051931.db` |
+| **DB backup (post-reset)** | `backend/data/backups/manar_POST_FULL_RESET_2026-06-13_02-22-38.db` |
 
 ---
 
@@ -24,6 +25,7 @@
 
 | Feature | Branch | Stable Tag | Notes |
 |---------|--------|-----------|-------|
+| Full Operational Reset | `production` (script-based) | `stable-full-operational-reset-v1` | Database-only operation — no code changes, no schema changes, no migrations. Executed via `scripts/full-operational-reset.ts` (one-time script, left uncommitted). **Pre-reset backup:** `manar_PRE_FULL_RESET_20260613_051931.db` (820 KB). **Post-reset backup:** `manar_POST_FULL_RESET_2026-06-13_02-22-38.db` (820 KB). **Cleared (24 tables, all confirmed at 0 rows):** customers, contracts, contract_documents, invoices, invoice_items, payments, expenses, employees, attendance, leaves, deductions, bonuses, payroll, payroll_lines, employee_allowances, employee_recurring_deductions, payroll_advances, performance_reviews, salary_payments, equipment (+ maintenance_records, fuel_logs, breakdowns, spare_part_usage via CASCADE), suppliers, project_prices, cheques, materials, material_categories, purchase_orders, purchase_order_items, goods_receipts, goods_receipt_items, material_issues, material_issue_items, transactions, journal_entries, journal_entry_lines. **Preserved (8 tables):** users (2 rows), roles (7), permissions (100), role_permissions (320), settings (11), audit_logs, backups, accounts. **Pre-step:** `users.employeeId` nullified for all linked users before employee delete (FK safety — User.employeeId → Employee with no onDelete). **Audit log entry inserted:** `action: FULL_OPERATIONAL_RESET`, `module: system`, full scope + backup names + before/after counts. **Validation:** 101/101 tests ✓, backend tsc ✓, frontend tsc ✓, electron tsc ✓, build:back ✓, build:front ✓. |
 | Forms Module Phase 1A — Salary Certificate | `production` (direct) | `stable-forms-phase1a-salary-certificate-v1` | Full-stack. Salary certificate print form only. **Backend:** New `modules/forms/` module — `forms.routes.ts`, `forms.controller.ts`, `forms.service.ts`. `GET /forms/salary-certificate/:employeeId` returns `{ employee, latestPayroll }` — two Prisma queries, no new models, reads from existing `Employee` + `Payroll` tables. Registered as `/api/forms` in `app.ts`. `'forms'` added to MODULES in `constants.ts`. **Permissions:** 3 new keys: `forms.read`, `forms.print`, `forms.create`. Seeded in `seed.ts` via `MODULE_ACTIONS`; HR_MANAGER gets all 3; ACCOUNTANT gets `forms.read` + `forms.print`; PROJECT_MANAGER + EQUIPMENT_MANAGER get `forms.read`; SYSTEM_ADMIN + GENERAL_MANAGER inherit all via `allKeys`. Total permissions: 97 → **100**. **Frontend:** `Forms.tsx` hub page — loads active employees via `GET /employees?pageSize=500&status=ACTIVE`, single "شهادة راتب" card with `<select>` + print button that navigates to `/forms/salary-certificate/:employeeId`. `SalaryCertificate.tsx` print page (239 lines) follows `PayrollPayslip.tsx` pattern exactly: `useParams`, fetch on mount, `setTimeout(() => window.print(), 500)` on data load, `.no-print` toolbar, RTL Arabic layout with company header ("م" badge + full legal name), "شـهـادة راتـب" title, opening certification paragraph, employee table (name AR/EN, code, civil ID, job title, department, nationality, hire date), salary table (monthly salary KWD 3dp in green bold, latest net salary with period label, currency), closing legal disclaimer, Arabic long-format issue date, 2-column signature block. Inline `CSSProperties` objects intentional for print isolation — same pattern as PayrollPayslip.tsx and ReportPrint.tsx. **Routing:** `SalaryCertificate` registered OUTSIDE `<Layout>` wrapper at `/forms/salary-certificate/:employeeId` for clean full-page print. **Navigation:** New "الشؤون الإدارية" sidebar group added (between core and financial groups) with `nav.forms` → `/forms`. **i18n:** 8 new key pairs (AR+EN) for nav group, forms page title/subtitle, loading/error states. **No schema changes. No migration.** Browser print chosen over PDFKit — `pdf.service.ts` has an existing comment warning about broken Arabic character joining (حروف متصلة); Chromium/Cairo renders Arabic natively. Feature commit: `e90298e`. db:seed: 100 permissions, all 7 roles. All TS ✓, build:back ✓, build:front ✓, Electron TS ✓. Gemini: APPROVED (minor typography fix applied: "شـهـادة رات ب" → "شـهـادة راتـب"). |
 | Dynamic Import Tabs Phase 1 | `feature/dynamic-import-tabs-phase1` | `stable-dynamic-import-tabs-phase1-v1` | Frontend-only refactor. Created `frontend/src/config/importEntities.ts` — single source of truth for all import entity metadata. `IMPORT_ENTITIES` array holds one `ImportEntityConfig` object per entity: `key`, `labelAr`, `columns` (column guide + template headers), `useArabicTemplateHeaders` (true for employees only — preserves Arabic header round-trip through backend `ARABIC_HEADER_MAP`), `previewPrimaryHeader`, `previewSecondaryHeader`, `previewPrimary()`, `previewSecondary()`. `IMPORT_ENTITY_MAP` provides O(1) key lookup. `DataImport.tsx` reduced by 90 lines (485 → 395): `COLUMN_GUIDE` record, `ENTITY_LABELS` record, inline `EntityType` union, entity selector array literal, `downloadTemplate` employees branch, and preview table header + cell ternary chains all removed and replaced with config lookups. Added `if (!cfg) return null;` safety guard (Gemini recommendation). Behavior parity confirmed: all 5 entities (employees, customers, equipment, suppliers, prices) behave identically before and after. No backend changes, no API changes, no permission changes, no schema changes. Adding a future import entity now requires one config object in `importEntities.ts` — selector, column guide, template download, and preview table update automatically. Feature commit: `767d368`. Merge commit: `8fe073e`. Frontend tsc ✓, build:front ✓. Gemini: APPROVED. |
 | Customer Force Delete Phase 1B | `feature/customer-force-delete-phase1b` | `stable-customer-force-delete-phase1b-v1` | Full-stack. Customers only. SYSTEM_ADMIN only. `GET /customers/:id/force` returns read-only impact preview: customer snapshot + child counts (contracts, directInvoices, contractInvoices, expenses, contractDocuments, materialIssues + totalChildRecords) + `blockedReason` when invoice gate is triggered (no mutation). `DELETE /customers/:id/force` executes force delete inside interactive `prisma.$transaction`. **Invoice Gate:** force delete blocked when `directInvoices > 0` OR `contractInvoices > 0` — financial records are inviolable; archive remains the recommended path. **Deletion flow (gate passed):** nullify `expenses.contractId`, nullify `materialIssues.contractId`, delete contracts (cascades `ContractDocuments` via `onDelete: Cascade`), delete customer. No `onDelete` action on customer's Invoice/Expense/MaterialIssue relations — gate prevents any FK violation. Frontend: `ForceDeleteCustomerModal` fetches preview on mount; shows child count breakdown, `willBeDeleted`/`willBeNullified` summary; renders `blockedReason` hard-block banner (no confirm input shown) when invoice gate fires; requires typing exact customer code to unlock confirm button; Enter-key shortcut when code matches. `ResourcePage.onDelete` 409 handler checks `customers + SYSTEM_ADMIN` before `supportsArchive` — non-admin users still get archive modal. Audit log: `action: 'DELETE'`, `oldValue: { forceDelete: true, deletedEntity: { id, code, name }, childCounts, totalChildRecords, willBeDeleted, willBeNullified }`. No schema changes. No new permissions. Explicitly deferred: Suppliers, Contracts standalone, Employees. Feature commit: `93099f3`. Merge commit: `9f8f3c0`. 101/101 tests, all TS + builds clean. Gemini: APPROVED. |
@@ -100,27 +102,77 @@ Verified against production HEAD `5f71d5a`. Code evidence confirmed in `theme.cs
 
 ## Next Recommended Tasks
 
-### Recommended Next Phase: Forms Phase 1B + Real Usage Feedback
+### Immediate Priority: Re-Import Operational Data
 
-Forms Module Phase 1A (salary certificate) is released. The salary certificate provides immediate value as a printable document. The recommended path is Forms Phase 1B (Leave Request + Salary Advance printouts) followed by continued real-world usage feedback.
+The system is on a clean baseline. Re-enter production data in dependency order to avoid FK issues.
 
-**Forms Phase 1B — Leave Request & Salary Advance Print Views:**
-- `Leave` and `PayrollAdvance` models already exist in schema — no new DB models needed
-- Add `GET /forms/leave-request/:leaveId` and `GET /forms/salary-advance/:advanceId` to `forms.service.ts`
-- Add corresponding print pages: `LeaveRequest.tsx` and `SalaryAdvanceRequest.tsx` (follow `SalaryCertificate.tsx` pattern)
-- Add cards to `Forms.tsx` hub page with appropriate selectors
-- No schema changes, no new permissions (reuse `forms.read` + `forms.print`)
+**Step 1 — Re-import Employees**
+Use Data Import (`/import`) with the employees Excel template. Required fields: code, fullName, salary. Optional: civilId, jobTitle, department, nationality, hireDate, phone, email. Arabic header round-trip is supported.
+
+**Step 2 — Re-import Suppliers**
+Use Data Import (`/import`) with the suppliers Excel template. Required fields: code, name. Optional: phone, email, address, contactName, notes.
+
+**Step 3 — Re-import Project Prices**
+Use Data Import (`/import`) with the project prices Excel template. Required fields: asphaltPlant, companyName, contractLocation, contractUnit, unitPrice. Dedup key: 4-field composite (asphaltPlant|companyName|contractLocation|contractUnit).
+
+**Step 4 — Re-import Customers**
+Use Data Import (`/import`) with the customers Excel template. Required fields: code, name. Optional: type, phone, email, address.
+
+**Step 5 — Re-import Equipment**
+Use Data Import (`/import`) with the equipment Excel template. Required fields: code, type. Optional: name, plateNumber, ownerName, driverName, registrationExpiry, status.
+
+**Step 6 — Create Contracts**
+Enter contracts manually via the Contracts page. Link to customers and project prices as needed. Use the Contracts Price Binding feature (auto-fills asphaltPlant, companyName, location, unitName, price from the selected price record).
+
+**Step 7 — Begin Production Data Entry**
+With master data in place, begin normal operations: invoices, expenses, payroll cycles, attendance, maintenance records.
 
 **Optional future improvements (not scheduled, defer until confirmed need):**
-- **Auto Backup** — scheduled automatic backups via node-cron; current manual backup flow may be sufficient
-- **Financial Safety Test Suite** — deeper unit tests for accounting/payroll edge cases; covers invoice gate and transaction rollback paths
-- **Data Import Phase 3** — add new import entities (contracts, expenses, etc.) using the config-driven frontend; each requires one `ImportEntityConfig` object + backend validator + service branch
-- **Mobile Companion App** — read-only dashboard and approval workflows on mobile; no confirmed need yet
+- **Forms Phase 1B** — Leave Request + Salary Advance print views; `Leave` and `PayrollAdvance` models exist, no new DB needed
+- **Auto Backup** — node-cron scheduled backups; current manual flow may be sufficient
+- **Financial Safety Test Suite** — deeper unit tests for accounting/payroll edge cases
+- **Data Import Phase 3** — additional import entities (contracts, expenses) using the config-driven frontend
+- **Mobile Companion App** — read-only dashboard + approval workflows; no confirmed need yet
 - **Force Delete expansion** — Suppliers, Contracts, Employees excluded by design; only add if real usage confirms the need
-- Export with active filters (currently exports all records regardless of search/filter state)
-- Contracts import (deferred from Phase A by design constraint)
-- Invoices/payroll import (deliberately excluded — too sensitive for bulk import)
+- Export with active filters (currently exports all records regardless of filter state)
 - Additional dashboard refinements (KPI grid layout, period filter on trend chart)
+
+---
+
+## Clean Operational Baseline — 2026-06-13
+
+Full operational reset executed. The system is in a clean state ready for production data entry.
+
+### System Configuration — Preserved
+
+| Table | Rows | State |
+|-------|------|-------|
+| users | 2 | ✓ Preserved — admin + secondary user |
+| roles | 7 | ✓ Preserved — all 7 roles intact |
+| permissions | 100 | ✓ Preserved — all module.action keys |
+| role_permissions | 320 | ✓ Preserved — full RBAC assignments |
+| settings | 11 | ✓ Preserved — company name, currency, backup config |
+| audit_logs | 64 | ✓ Preserved — history + reset event logged |
+| backups | 2 | ✓ Preserved — backup event log intact |
+| accounts | 0 | ✓ Preserved — chart of accounts (currently unpopulated) |
+
+### Operational Records — Reset to Zero
+
+| Module | Table | Rows After Reset |
+|--------|-------|-----------------|
+| Customers | customers | 0 |
+| Contracts | contracts | 0 |
+| Invoices | invoices | 0 |
+| Expenses | expenses | 0 |
+| Employees | employees | 0 |
+| Equipment | equipment | 0 |
+| Payroll | payroll | 0 |
+| Cheques | cheques | 0 |
+| Project Prices | project_prices | 0 |
+| Suppliers | suppliers | 0 |
+| All child/dependent tables | — | 0 |
+
+All system features remain fully available. Forms module, import/export, reports, dashboard, and all RBAC functionality operate normally. The dashboard will show zeroed KPIs until operational data is re-entered.
 
 ---
 
@@ -128,7 +180,7 @@ Forms Module Phase 1A (salary certificate) is released. The salary certificate p
 
 No active operational feedback items at this time.
 
-> All seven observations from the Operational Feedback Audit (2026-06-12) have been implemented and released to production. The project is currently in an operational stability and real-usage feedback phase.
+> All seven observations from the Operational Feedback Audit (2026-06-12) have been implemented and released to production. Full operational data reset completed 2026-06-13. The system is now in a clean production-ready state.
 
 ### Force Delete Scope (Phase 1A + 1B)
 
@@ -269,6 +321,8 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 
 ## Module Inventory
 
+> **Current DB state (2026-06-13):** The platform is running with a clean operational dataset after a full reset. All modules are fully functional. All operational tables contain 0 rows. Re-import employees, suppliers, project prices, customers, and equipment to begin production data entry.
+
 | Module | Backend | Frontend Page | Status |
 |--------|---------|--------------|--------|
 | Auth | `modules/auth/` | Login | Complete |
@@ -329,14 +383,14 @@ Return to Sonnet 4.6 after any Opus escalation completes.
 
 ## Seed Data (Post-Reset State)
 
-After the 2026-06-09 operational reset, the database contains only seed data:
+After the 2026-06-13 full operational reset, the database contains only seed/config data:
 
 | Table | Rows | Content |
 |-------|------|---------|
-| users | 1 | admin / Admin@123 |
+| users | 2 | admin / Admin@123 + secondary user |
 | roles | 7 | SYSTEM_ADMIN, GENERAL_MANAGER, ACCOUNTANT, PROJECT_MANAGER, EQUIPMENT_MANAGER, HR_MANAGER, STANDARD_USER |
-| permissions | 100 | All module.action keys (97 + forms.read, forms.print, forms.create) |
-| role_permissions | 307 | Full RBAC assignments |
+| permissions | 100 | All module.action keys (97 base + forms.read, forms.print, forms.create) |
+| role_permissions | 320 | Full RBAC assignments (307 base + Forms Phase 1A role assignments) |
 | settings | 11 | Company name, tax rate, backup config, etc. |
 
 > **Default credentials:** `admin` / `Admin@123` — change on first login.
@@ -363,4 +417,4 @@ After the 2026-06-09 operational reset, the database contains only seed data:
 
 ---
 
-*Last updated: 2026-06-13 — Forms Module Phase 1A (salary certificate) released. Commit `e90298e`, tag `stable-forms-phase1a-salary-certificate-v1`, pushed to production. New `modules/forms/` backend module + `Forms.tsx` hub page + `SalaryCertificate.tsx` print page. Browser-print workflow (not PDFKit — Arabic rendering). 3 new permissions (forms.read, forms.print, forms.create), total 97 → 100. New "الشؤون الإدارية" sidebar group. No schema changes. All TS ✓, all builds ✓. Gemini: APPROVED. Next recommended: Forms Phase 1B (Leave Request + Salary Advance prints).*
+*Last updated: 2026-06-13 — Full operational reset executed via `scripts/full-operational-reset.ts`. All 24 operational tables cleared to 0 rows in a single Prisma `$transaction`. 8 system/config tables preserved intact (users, roles, permissions, role_permissions, settings, audit_logs, backups, accounts). Pre-reset backup: `manar_PRE_FULL_RESET_20260613_051931.db`. Post-reset backup: `manar_POST_FULL_RESET_2026-06-13_02-22-38.db`. 101/101 tests ✓, all TS + builds ✓. Tag: `stable-full-operational-reset-v1`. Next: re-import employees → suppliers → project prices → customers → equipment → contracts → begin production data entry.*
