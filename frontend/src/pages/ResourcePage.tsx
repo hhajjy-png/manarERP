@@ -8,6 +8,7 @@ import FormDialog from '../components/FormDialog';
 import Modal from '../components/Modal';
 import ForceDeleteEquipmentModal from '../components/ForceDeleteEquipmentModal';
 import ForceDeleteCustomerModal from '../components/ForceDeleteCustomerModal';
+import ForceDeleteSupplierModal from '../components/ForceDeleteSupplierModal';
 import { usePersistedState } from '../hooks/usePersistedState';
 
 type AlertItem = { id: number; code: string; label: string; severity: 'warn' | 'error' };
@@ -37,6 +38,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [archiveCandidate, setArchiveCandidate] = useState<{ id: number; label: string } | null>(null);
   const [forceDeleteCandidate, setForceDeleteCandidate] = useState<{ id: number; code: string } | null>(null);
   const [forceDeleteCustomerCandidate, setForceDeleteCustomerCandidate] = useState<{ id: number; code: string } | null>(null);
+  const [forceDeleteSupplierCandidate, setForceDeleteSupplierCandidate] = useState<{ id: number; code: string } | null>(null);
 
   const canCreate = hasPermission(`${cfg.key}.create`);
   const canUpdate = hasPermission(`${cfg.key}.update`);
@@ -160,6 +162,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         setForceDeleteCandidate({ id: row.id, code: row.code });
       } else if (status === 409 && cfg.key === 'customers' && isSystemAdmin) {
         setForceDeleteCustomerCandidate({ id: row.id, code: row.code });
+      } else if (status === 409 && cfg.key === 'suppliers' && isSystemAdmin) {
+        setForceDeleteSupplierCandidate({ id: row.id, code: row.code });
       } else if (status === 409 && cfg.supportsArchive && canUpdate) {
         setArchiveCandidate({ id: row.id, label: row.name ?? row.code ?? String(row.id) });
       } else {
@@ -394,6 +398,14 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           customerId={forceDeleteCustomerCandidate.id}
           onClose={() => setForceDeleteCustomerCandidate(null)}
           onDeleted={() => { setForceDeleteCustomerCandidate(null); load(); }}
+        />
+      )}
+
+      {forceDeleteSupplierCandidate && (
+        <ForceDeleteSupplierModal
+          supplierId={forceDeleteSupplierCandidate.id}
+          onClose={() => setForceDeleteSupplierCandidate(null)}
+          onDeleted={() => { setForceDeleteSupplierCandidate(null); load(); }}
         />
       )}
     </div>
