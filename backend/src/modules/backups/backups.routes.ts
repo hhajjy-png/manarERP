@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { prisma } from '../../config/database';
 import { backupService } from '../../shared/services/backup.service';
 import { authenticate } from '../../core/middleware/auth.middleware';
 import { requirePermission } from '../../core/middleware/rbac.middleware';
@@ -11,6 +12,19 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', requirePermission('backups.read'), asyncHandler(async (_req, res) => ok(res, await backupService.list())));
+
+// آخر نسخة احتياطية تلقائية — للعرض في لوحة التحكم
+router.get(
+  '/last-auto',
+  requirePermission('backups.read'),
+  asyncHandler(async (_req, res) => {
+    const last = await prisma.backup.findFirst({
+      where: { type: 'AUTO', status: 'SUCCESS' },
+      orderBy: { createdAt: 'desc' },
+    });
+    ok(res, last);
+  }),
+);
 
 router.post(
   '/',

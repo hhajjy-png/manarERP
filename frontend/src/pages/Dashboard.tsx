@@ -22,6 +22,7 @@ import {
   Skeleton,
   TableRowSkeletons,
 } from '../components/dashboard/Skeleton';
+import LastAutoBackupCard from '../components/dashboard/LastAutoBackupCard';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ApiAny = any;
@@ -432,6 +433,7 @@ export default function Dashboard() {
                 : t('stat.no_attendance')
             }
           />
+          <LastAutoBackupCard />
         </div>
       )}
 

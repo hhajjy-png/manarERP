@@ -103,6 +103,37 @@ export class BackupService {
     await prisma.backup.delete({ where: { id: backupId } });
     return { deleted: true };
   }
+
+  /**
+   * حذف النسخ التلقائية القديمة (AUTO) ما يزيد عن عدد `keep`.
+   * يحذف الملف من القرص + السجل من قاعدة البيانات.
+   * لا يمسّ النسخ اليدوية أو نسخ ما قبل الاستعادة.
+   */
+  async pruneAutoBackups(keep: number): Promise<string[]> {
+    const autoBackups = await prisma.backup.findMany({
+      where: { type: 'AUTO' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (autoBackups.length <= keep) return [];
+
+    const toDelete = autoBackups.slice(keep);
+    const deletedFiles: string[] = [];
+
+    for (const b of toDelete) {
+      try {
+        if (fs.existsSync(b.filePath)) {
+          fs.unlinkSync(b.filePath);
+          deletedFiles.push(b.fileName);
+        }
+      } catch {
+        // تجاهل أخطاء حذف الملف — لا تزال تُزال من السجل
+      }
+      await prisma.backup.delete({ where: { id: b.id } });
+    }
+
+    return deletedFiles;
+  }
 }
 
 export const backupService = new BackupService();

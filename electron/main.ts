@@ -1,11 +1,14 @@
 import { app, BrowserWindow, Menu } from 'electron';
+import { randomUUID } from 'crypto';
 import { createMainWindow } from './windows/mainWindow';
 import { startBackend, stopBackend } from './services/backendLauncher';
-import { startBackupScheduler, stopBackupScheduler } from './services/backupScheduler';
+import { startBackupScheduler, stopBackupScheduler, runCatchupIfNeeded } from './services/backupScheduler';
 import { registerDialogIpc } from './ipc/dialog.ipc';
 import { registerBackupIpc } from './ipc/backup.ipc';
 import { registerSessionIpc } from './ipc/session.ipc';
 import { registerContextMenuIpc } from './ipc/contextMenu.ipc';
+
+const INTERNAL_SECRET = randomUUID();
 
 // منع تشغيل أكثر من نسخة من التطبيق في آن واحد
 const gotLock = app.requestSingleInstanceLock();
@@ -20,8 +23,9 @@ async function bootstrap() {
     registerDialogIpc();
     registerBackupIpc();
     registerSessionIpc();
-    await startBackend(); // تشغيل الخدمة الخلفية أولًا
-    startBackupScheduler(); // ثم جدولة النسخ التلقائي
+    await startBackend(INTERNAL_SECRET); // تشغيل الخدمة الخلفية أولًا
+    await startBackupScheduler(INTERNAL_SECRET); // ثم جدولة النسخ التلقائي
+    runCatchupIfNeeded(INTERNAL_SECRET).catch(console.error); // نسخة تعويضية إذا فات وقت الجدولة
 
     mainWindow = createMainWindow();
     registerContextMenuIpc(mainWindow);

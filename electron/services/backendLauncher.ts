@@ -61,7 +61,7 @@ function toFileUrl(absPath: string): string {
 /**
  * تشغيل الخدمة الخلفية (Express) كعملية فرعية مع تمرير متغيرات البيئة.
  */
-export function startBackend(): Promise<void> {
+export function startBackend(internalSecret = ''): Promise<void> {
   const { isDev, backendCwd, dataDir, dbPath, backupDir } = getUserDataPaths();
 
   const databaseUrl = toFileUrl(dbPath);
@@ -89,6 +89,7 @@ export function startBackend(): Promise<void> {
     PORT: '48211',
     HOST: '127.0.0.1',
     JWT_SECRET: process.env.JWT_SECRET || 'manar-local-secret-change-me',
+    INTERNAL_SECRET: internalSecret,
   };
 
   return new Promise((resolve, reject) => {

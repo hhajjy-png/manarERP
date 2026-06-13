@@ -16,6 +16,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default('12h'),
   BACKUP_DIR: z.string().default('./data/backups'),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  INTERNAL_SECRET: z.string().optional().default(''),
 });
 
 const parsed = envSchema.safeParse(process.env);
