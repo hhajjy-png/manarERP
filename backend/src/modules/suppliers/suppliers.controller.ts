@@ -24,4 +24,10 @@ export const suppliersController = {
   async remove(req: Request, res: Response) {
     ok(res, await suppliersService.remove(Number(req.params.id), req), 'تم الحذف');
   },
+  async forceRemovePreview(req: Request, res: Response) {
+    ok(res, await suppliersService.forceRemovePreview(Number(req.params.id)));
+  },
+  async forceRemove(req: Request, res: Response) {
+    ok(res, await suppliersService.forceRemove(Number(req.params.id), req), 'تم الحذف الإجباري بنجاح');
+  },
 };

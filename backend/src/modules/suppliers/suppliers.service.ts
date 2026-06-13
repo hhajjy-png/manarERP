@@ -18,6 +18,15 @@ class SuppliersRepository extends BaseRepository<{ id: number }> {
 }
 const repo = new SuppliersRepository();
 
+interface ChildCounts {
+  invoices: number;
+  expenses: number;
+  purchaseOrdersActive: number;
+  purchaseOrdersCancelled: number;
+  goodsReceiptsPosted: number;
+  goodsReceiptsDraft: number;
+}
+
 export class SuppliersService {
   async list(query: PaginationQuery & { archived?: string }) {
     const pagination = getPagination(query);
@@ -74,6 +83,108 @@ export class SuppliersService {
     await repo.delete(id);
     await recordAudit({ req, action: 'DELETE', module: 'suppliers', entityId: id });
     return { deleted: true };
+  }
+
+  private async getChildCounts(id: number): Promise<ChildCounts> {
+    const [invoices, expenses, purchaseOrdersActive, purchaseOrdersCancelled, goodsReceiptsPosted, goodsReceiptsDraft] =
+      await Promise.all([
+        prisma.invoice.count({ where: { supplierId: id } }),
+        prisma.expense.count({ where: { supplierId: id } }),
+        prisma.purchaseOrder.count({ where: { supplierId: id, status: { not: 'CANCELLED' } } }),
+        prisma.purchaseOrder.count({ where: { supplierId: id, status: 'CANCELLED' } }),
+        prisma.goodsReceipt.count({ where: { supplierId: id, status: 'POSTED' } }),
+        prisma.goodsReceipt.count({ where: { supplierId: id, status: 'DRAFT' } }),
+      ]);
+    return { invoices, expenses, purchaseOrdersActive, purchaseOrdersCancelled, goodsReceiptsPosted, goodsReceiptsDraft };
+  }
+
+  async forceRemovePreview(id: number) {
+    const supplier = await prisma.supplier.findUnique({ where: { id } });
+    if (!supplier) throw AppError.notFound('المورّد غير موجود');
+
+    const childCounts = await this.getChildCounts(id);
+    const totalChildRecords = Object.values(childCounts).reduce((a, b) => a + b, 0);
+
+    const willBeDeleted = ['supplier'];
+    if (childCounts.purchaseOrdersCancelled > 0) willBeDeleted.push('purchaseOrdersCancelled');
+    if (childCounts.goodsReceiptsDraft > 0) willBeDeleted.push('goodsReceiptsDraft');
+
+    const willBeNullified: string[] = [];
+    if (childCounts.expenses > 0) willBeNullified.push('expenses.supplierId');
+
+    let blockedReason: string | undefined;
+    if (childCounts.invoices > 0) {
+      blockedReason = `لا يمكن حذف مورّد لديه فواتير مسجلة (${childCounts.invoices} فاتورة) — استخدم الأرشفة بدلاً من ذلك`;
+    } else if (childCounts.goodsReceiptsPosted > 0) {
+      blockedReason = `لا يمكن حذف مورّد لديه إيصالات استلام محاسبية مسجلة (${childCounts.goodsReceiptsPosted} إيصال) — استخدم الأرشفة بدلاً من ذلك`;
+    } else if (childCounts.purchaseOrdersActive > 0) {
+      blockedReason = `لا يمكن حذف مورّد لديه أوامر شراء نشطة (${childCounts.purchaseOrdersActive} أمر) — يرجى إلغاؤها أولاً`;
+    }
+
+    return {
+      supplier,
+      childCounts,
+      totalChildRecords,
+      willBeDeleted,
+      willBeNullified,
+      ...(blockedReason ? { blockedReason } : {}),
+    };
+  }
+
+  async forceRemove(id: number, req: Request) {
+    const supplier = await prisma.supplier.findUnique({ where: { id } });
+    if (!supplier) throw AppError.notFound('المورّد غير موجود');
+
+    const childCounts = await this.getChildCounts(id);
+
+    if (childCounts.invoices > 0) {
+      throw AppError.conflict('لا يمكن حذف مورّد لديه فواتير مسجلة — استخدم الأرشفة بدلاً من ذلك');
+    }
+    if (childCounts.goodsReceiptsPosted > 0) {
+      throw AppError.conflict('لا يمكن حذف مورّد لديه إيصالات استلام محاسبية مسجلة — استخدم الأرشفة بدلاً من ذلك');
+    }
+    if (childCounts.purchaseOrdersActive > 0) {
+      throw AppError.conflict('لا يمكن حذف مورّد لديه أوامر شراء نشطة — يرجى إلغاؤها أولاً');
+    }
+
+    const totalChildRecords = Object.values(childCounts).reduce((a, b) => a + b, 0);
+
+    const willBeDeleted = ['supplier'];
+    if (childCounts.purchaseOrdersCancelled > 0) willBeDeleted.push('purchaseOrdersCancelled');
+    if (childCounts.goodsReceiptsDraft > 0) willBeDeleted.push('goodsReceiptsDraft');
+
+    const willBeNullified: string[] = [];
+    if (childCounts.expenses > 0) willBeNullified.push('expenses.supplierId');
+
+    await prisma.$transaction(async (tx) => {
+      if (childCounts.expenses > 0) {
+        await tx.expense.updateMany({ where: { supplierId: id }, data: { supplierId: null } });
+      }
+      if (childCounts.purchaseOrdersCancelled > 0) {
+        await tx.purchaseOrder.deleteMany({ where: { supplierId: id, status: 'CANCELLED' } });
+      }
+      if (childCounts.goodsReceiptsDraft > 0) {
+        await tx.goodsReceipt.deleteMany({ where: { supplierId: id, status: 'DRAFT' } });
+      }
+      await tx.supplier.delete({ where: { id } });
+    });
+
+    await recordAudit({
+      req,
+      action: 'DELETE',
+      module: 'suppliers',
+      entityId: id,
+      oldValue: {
+        forceDelete: true,
+        deletedEntity: { id: supplier.id, code: supplier.code, name: supplier.name },
+        childCounts,
+        totalChildRecords,
+        willBeDeleted,
+        willBeNullified,
+      },
+    });
+
+    return { deleted: true, impact: { childCounts, totalChildRecords } };
   }
 }
 
