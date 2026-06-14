@@ -14,7 +14,9 @@ const statusPill: Record<string, [string, string]> = {
 
 const invoiceTypes = ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت', 'أخرى'] as const;
 const units = ['طن', 'درب', 'يومية'] as const;
-const invoicePrefix = `MN-INV-${new Date().getFullYear()}-`;
+const INVOICE_PREFIXES = ['MN-INV-2024', 'MN-INV-2025', 'MN-INV-2026', 'MN-INV-2027', 'MN-INV-2028'] as const;
+const _currentYear = new Date().getFullYear();
+const DEFAULT_INVOICE_PREFIX = INVOICE_PREFIXES.find((p) => p.endsWith(String(_currentYear))) ?? 'MN-INV-2026';
 
 interface Item { description: string; quantity: number; unit: string; unitPrice: number; priceTouched?: boolean; }
 
@@ -210,6 +212,7 @@ export default function Invoices() {
 // ===== إنشاء فاتورة =====
 function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
+  const [selectedPrefix, setSelectedPrefix] = useState<string>(DEFAULT_INVOICE_PREFIX);
   const [invoiceNumberSuffix, setInvoiceNumberSuffix] = useState('');
   const [directionChoice, setDirectionChoice] = useState('SALES'); // SALES | PURCHASE | OTHER
   const [customDirection, setCustomDirection] = useState('');
@@ -299,8 +302,8 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 
   async function submit() {
     setError('');
-    const invoiceNumber = `${invoicePrefix}${invoiceNumberSuffix.trim()}`;
     if (!invoiceNumberSuffix.trim()) { setError(t('error.inv_number_required')); return; }
+    const invoiceNumber = `${selectedPrefix}-${invoiceNumberSuffix.trim()}`;
 
     const resolvedDirection = directionChoice === 'OTHER' ? customDirection.trim() : directionChoice;
     if (directionChoice === 'OTHER' && !customDirection.trim()) { setError(t('error.custom_direction_required')); return; }
@@ -346,12 +349,19 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         <div className="field">
           <label>{t('col.inv.number')} *</label>
           <div style={{ display: 'flex', alignItems: 'center', direction: 'ltr' }}>
-            <span style={{ ...inp, borderRadius: '10px 0 0 10px', borderInlineEnd: 0, background: 'var(--surface-2)', whiteSpace: 'nowrap' }}>{invoicePrefix}</span>
+            <select
+              value={selectedPrefix}
+              onChange={(e) => setSelectedPrefix(e.target.value)}
+              title={t('col.inv.number')}
+              style={{ ...inp, borderRadius: '10px 0 0 10px', borderInlineEnd: 0, background: 'var(--surface-2)', whiteSpace: 'nowrap' }}
+            >
+              {INVOICE_PREFIXES.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
             <input
               value={invoiceNumberSuffix}
               onChange={(e) => setInvoiceNumberSuffix(e.target.value)}
               placeholder="001"
-              style={{ borderRadius: '0 10px 10px 0', direction: 'ltr' }}
+              style={{ ...inp, borderRadius: '0 10px 10px 0', borderInlineStart: 0, direction: 'ltr' }}
             />
           </div>
         </div>

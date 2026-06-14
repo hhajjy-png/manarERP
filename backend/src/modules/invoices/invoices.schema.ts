@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
 
-const invoiceNumberSchema = z.string().trim().min(1, 'رقم الفاتورة مطلوب').regex(/^MN-INV-2026-[A-Za-z0-9]+$/, 'رقم الفاتورة يجب أن يبدأ بـ MN-INV-2026-');
+const invoiceNumberSchema = z.string().trim().min(1, 'رقم الفاتورة مطلوب').regex(/^MN-INV-\d{4}-[A-Za-z0-9]+$/, 'صيغة رقم الفاتورة غير صحيحة — المطلوب: MN-INV-YYYY-XXXX');
 
 const itemSchema = z.object({
   description: z.string().min(1, 'وصف البند مطلوب'),
