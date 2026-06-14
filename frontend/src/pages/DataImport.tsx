@@ -109,6 +109,27 @@ export default function DataImport() {
     if (!file) return;
     setError(null);
 
+    // Guard 1: file size — prevent memory exhaustion from crafted/huge files
+    const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
+    if (file.size > MAX_FILE_BYTES) {
+      setError(`حجم الملف كبير جداً (${(file.size / 1048576).toFixed(1)} م.ب) — الحد الأقصى 10 م.ب`);
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
+
+    // Guard 2: extension + MIME — reject non-Excel files early
+    const VALID_EXTENSIONS = ['.xlsx', '.xls'];
+    const VALID_MIMES = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel',                                           // .xls
+    ];
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!VALID_EXTENSIONS.includes(ext) || (file.type && !VALID_MIMES.includes(file.type))) {
+      setError('نوع الملف غير مدعوم — الرجاء اختيار ملف Excel بصيغة .xlsx أو .xls فقط');
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
