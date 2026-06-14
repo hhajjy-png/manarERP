@@ -126,7 +126,7 @@ export const IMPORT_ENTITIES: ImportEntityConfig[] = [
       { key: 'asphaltPlant',     labelAr: 'مصنع الأسفلت',                      required: true },
       { key: 'companyName',      labelAr: 'اسم الشركة',                         required: true },
       { key: 'contractLocation', labelAr: 'مكان العقد',                         required: true },
-      { key: 'contractUnit',     labelAr: 'وحدة العقد (طن / درب / يومية)',      required: true },
+      { key: 'contractUnit',     labelAr: 'وحدة العقد (طن / درب / يومية / مقطوعية)',      required: true },
       { key: 'unitPrice',        labelAr: 'سعر الوحدة (رقم موجب)',              required: true },
     ],
   },

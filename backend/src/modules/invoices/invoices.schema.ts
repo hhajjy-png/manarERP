@@ -6,7 +6,7 @@ const invoiceNumberSchema = z.string().trim().min(1, 'رقم الفاتورة م
 const itemSchema = z.object({
   description: z.string().min(1, 'وصف البند مطلوب'),
   quantity: z.coerce.number().positive('الكمية يجب أن تكون موجبة').default(1),
-  unit: z.enum(ENUMS.invoiceUnit).default('طن'),
+  unit: z.string().trim().min(1, 'الوحدة مطلوبة').default('طن'),
   unitPrice: z.coerce.number().nonnegative('السعر يجب ألا يكون سالبًا').default(0),
 });
 

@@ -7,7 +7,7 @@ import Modal from '../components/Modal';
 import { money } from '../config/modules';
 import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
 
-const contractUnits = ['طن', 'درب', 'يومية'] as const;
+const contractUnits = ['طن', 'درب', 'يومية', 'مقطوعية'] as const;
 
 export default function Prices() {
   const { hasPermission, user } = useAuth();
@@ -188,7 +188,7 @@ function PriceForm({ price, onClose, onSaved }: { price?: any; onClose: () => vo
   const [asphaltPlant, setAsphaltPlant] = useState(price?.asphaltPlant ?? '');
   const [companyName, setCompanyName] = useState(price?.companyName ?? '');
   const [contractLocation, setContractLocation] = useState(price?.contractLocation ?? '');
-  const [contractUnit, setContractUnit] = useState<(typeof contractUnits)[number]>(price?.contractUnit ?? 'طن');
+  const [contractUnit, setContractUnit] = useState<(typeof contractUnits)[number]>((price?.contractUnit ?? 'طن') as (typeof contractUnits)[number]);
   const [unitPrice, setUnitPrice] = useState<number>(price?.unitPrice ?? 0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
