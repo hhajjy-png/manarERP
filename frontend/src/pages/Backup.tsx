@@ -19,6 +19,11 @@ export default function Backup() {
   const canCreate = hasPermission('backups.create');
   const canRestore = hasPermission('backups.update');
 
+  type AutoStatus = { lastRunAt: string | null; lastStatus: 'SUCCESS' | 'FAILED' | 'NEVER'; lastError: string; backupDir: string };
+  type AutoSettings = { enabled: boolean; time: string; retentionCount: number };
+
+  const canSettings = hasPermission('settings.update');
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,6 +31,9 @@ export default function Backup() {
   const [msg, setMsg] = useState<{ text: string; type: 'ok' | 'err' | 'warn' } | null>(null);
   const [dbInfo, setDbInfo] = useState<{ dir: string; backupDir: string; exists: boolean; sizeBytes: number; isDev: boolean } | null>(null);
   const [showDbPath, setShowDbPath] = useState(false);
+  const [autoStatus, setAutoStatus] = useState<AutoStatus | null>(null);
+  const [settingsDraft, setSettingsDraft] = useState<AutoSettings>({ enabled: true, time: '22:00', retentionCount: 30 });
+  const [settingsBusy, setSettingsBusy] = useState(false);
 
   function showMsg(text: string, type: 'ok' | 'err' | 'warn' = 'ok') {
     setMsg({ text, type });
@@ -35,13 +43,31 @@ export default function Backup() {
   async function load() {
     setLoading(true);
     try {
-      const res = await api.get('/backups');
-      setList(res.data.data ?? []);
+      const [listRes, statusRes, settingsRes] = await Promise.all([
+        api.get('/backups'),
+        api.get('/backups/auto-status').catch(() => null),
+        api.get('/backups/settings').catch(() => null),
+      ]);
+      setList(listRes.data.data ?? []);
+      if (statusRes) setAutoStatus(statusRes.data.data);
+      if (settingsRes) setSettingsDraft(settingsRes.data.data);
     } catch { /* table may be empty */ } finally {
       setLoading(false);
     }
   }
   useEffect(() => { load(); }, []);
+
+  async function saveSettings() {
+    setSettingsBusy(true);
+    try {
+      await api.put('/backups/settings', settingsDraft);
+      if (isElectron) await window.manar!.backupReconfigure();
+      showMsg(t('msg.backup.settings_saved'));
+      // Reload status to reflect enabled/disabled immediately
+      const statusRes = await api.get('/backups/auto-status').catch(() => null);
+      if (statusRes) setAutoStatus(statusRes.data.data);
+    } catch (err) { showMsg(errorMessage(err), 'err'); } finally { setSettingsBusy(false); }
+  }
 
   async function createBackupApi() {
     setBusy(true); setMsg(null);
@@ -179,6 +205,100 @@ export default function Backup() {
           </table>
         </div>
       )}
+
+      {autoStatus && (
+        <div className="card panel" style={{ marginBottom: 16, background: 'var(--surface-2)' }}>
+          <h3 style={{ marginBottom: 12 }}>🕐 {t('section.backup.auto_status')}</h3>
+          <table style={{ width: '100%' }}>
+            <tbody>
+              <tr>
+                <td style={{ padding: '5px 0', color: 'var(--text-muted)', width: 180 }}>{t('lbl.backup.last_status')}</td>
+                <td>
+                  <span className={`pill ${autoStatus.lastStatus === 'SUCCESS' ? 'green' : autoStatus.lastStatus === 'FAILED' ? 'red' : 'gray'}`}>
+                    {autoStatus.lastStatus === 'SUCCESS'
+                      ? t('backup.status.success')
+                      : autoStatus.lastStatus === 'FAILED'
+                        ? t('backup.status.failed')
+                        : t('backup.status.never')}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>{t('lbl.backup.last_run')}</td>
+                <td>{autoStatus.lastRunAt ? dateText(autoStatus.lastRunAt) : '—'}</td>
+              </tr>
+              {autoStatus.lastStatus === 'FAILED' && autoStatus.lastError && (
+                <tr>
+                  <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>{t('lbl.backup.last_error')}</td>
+                  <td style={{ color: 'var(--color-danger)', fontSize: 13 }}>{autoStatus.lastError}</td>
+                </tr>
+              )}
+              <tr>
+                <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>{t('lbl.backup.backup_dir_path')}</td>
+                <td style={{ fontFamily: 'monospace', fontSize: 13, wordBreak: 'break-all' }}>{autoStatus.backupDir}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="card panel" style={{ marginBottom: 16, background: 'var(--surface-2)' }}>
+        <h3 style={{ marginBottom: 12 }}>⚙️ {t('section.backup.auto_settings')}</h3>
+        <table style={{ width: '100%' }}>
+          <tbody>
+            <tr>
+              <td style={{ padding: '7px 0', color: 'var(--text-muted)', width: 200 }}>{t('lbl.backup.auto_enabled')}</td>
+              <td>
+                <input
+                  type="checkbox"
+                  title={t('lbl.backup.auto_enabled')}
+                  checked={settingsDraft.enabled}
+                  disabled={!canSettings || settingsBusy}
+                  onChange={(e) => setSettingsDraft((s) => ({ ...s, enabled: e.target.checked }))}
+                />
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: '7px 0', color: 'var(--text-muted)' }}>{t('lbl.backup.auto_time')}</td>
+              <td>
+                <input
+                  type="time"
+                  title={t('lbl.backup.auto_time')}
+                  value={settingsDraft.time}
+                  disabled={!canSettings || settingsBusy}
+                  onChange={(e) => setSettingsDraft((s) => ({ ...s, time: e.target.value }))}
+                  style={{ width: 120 }}
+                />
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: '7px 0', color: 'var(--text-muted)' }}>{t('lbl.backup.auto_retention')}</td>
+              <td>
+                <input
+                  type="number"
+                  title={t('lbl.backup.auto_retention')}
+                  min={1}
+                  max={365}
+                  value={settingsDraft.retentionCount}
+                  disabled={!canSettings || settingsBusy}
+                  onChange={(e) => setSettingsDraft((s) => ({ ...s, retentionCount: Math.max(1, Math.min(365, parseInt(e.target.value, 10) || 1)) }))}
+                  style={{ width: 80 }}
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        {canSettings && (
+          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="btn" onClick={saveSettings} disabled={settingsBusy}>
+              {settingsBusy ? `⏳ ${t('msg.loading')}` : t('btn.backup.save_settings')}
+            </button>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              {isElectron ? t('note.backup.reconfigure') : t('note.backup.reconfigure_web')}
+            </span>
+          </div>
+        )}
+      </div>
 
       <div className="card panel" style={{ padding: 0 }}>
         <div className="table-responsive">
