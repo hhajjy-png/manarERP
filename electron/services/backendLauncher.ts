@@ -2,6 +2,7 @@ import { app } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fork, ChildProcess } from 'child_process';
+import { randomBytes } from 'crypto';
 
 let backendProcess: ChildProcess | null = null;
 
@@ -59,6 +60,48 @@ function toFileUrl(absPath: string): string {
 }
 
 /**
+ * يُعيد سر JWT الخاص بهذه النسخة المثبّتة.
+ *
+ * الأولوية:
+ *   1. process.env.JWT_SECRET — إذا عُيِّن صراحةً (تطوير مستقل، CI).
+ *   2. dataDir/security.json   — إعادة استخدام السر المولَّد مسبقًا.
+ *   3. توليد سر جديد وحفظه   — عند أول تشغيل أو إذا كان الملف تالفًا.
+ *
+ * السر لا يُسجَّل ولا يُكشف للواجهة الأمامية.
+ * إذا كان الملف تالفًا، يُولَّد سر جديد وتصبح الجلسات الحالية غير صالحة.
+ */
+const isValidJwtSecret = (value: unknown): value is string =>
+  typeof value === 'string' && /^[a-f0-9]{128}$/i.test(value);
+
+function getOrCreateJwtSecret(dataDir: string): string {
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
+  }
+
+  const securityPath = path.join(dataDir, 'security.json');
+
+  if (fs.existsSync(securityPath)) {
+    try {
+      const raw = fs.readFileSync(securityPath, 'utf8');
+      const config = JSON.parse(raw) as { jwtSecret?: unknown };
+      if (isValidJwtSecret(config.jwtSecret)) {
+        return config.jwtSecret;
+      }
+    } catch {
+      // الملف تالف — يُولَّد سر جديد؛ الجلسات الحالية تصبح غير صالحة.
+    }
+  }
+
+  const jwtSecret = randomBytes(64).toString('hex');
+  fs.mkdirSync(path.dirname(securityPath), { recursive: true });
+  fs.writeFileSync(securityPath, JSON.stringify({ jwtSecret }, null, 2), {
+    mode: 0o600,
+    encoding: 'utf8',
+  });
+  return jwtSecret;
+}
+
+/**
  * تشغيل الخدمة الخلفية (Express) كعملية فرعية مع تمرير متغيرات البيئة.
  */
 export function startBackend(internalSecret = ''): Promise<void> {
@@ -88,7 +131,7 @@ export function startBackend(internalSecret = ''): Promise<void> {
     DATA_DIR: dataDir,
     PORT: '48211',
     HOST: '127.0.0.1',
-    JWT_SECRET: process.env.JWT_SECRET || 'manar-local-secret-change-me',
+    JWT_SECRET: getOrCreateJwtSecret(dataDir),
     INTERNAL_SECRET: internalSecret,
   };
 
