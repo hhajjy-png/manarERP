@@ -35,13 +35,27 @@ export default function FormLayout({
     <>
       <style>{`
         @media print {
-          @page { size: A4; margin: 10mm; }
-          body { background: white !important; }
+          @page { size: A4; margin: 0; }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
           .no-print { display: none !important; }
+          .form-page {
+            width: 210mm !important;
+            height: 297mm !important;
+            padding: 10mm 12mm !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            max-width: none !important;
+          }
         }
       `}</style>
 
       <div
+        className="form-page"
         style={{
           padding: '18px 32px',
           fontFamily: "'Cairo', 'Tajawal', Arial, sans-serif",
