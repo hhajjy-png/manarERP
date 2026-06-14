@@ -13,7 +13,16 @@ const statusPill: Record<string, [string, string]> = {
 };
 
 const invoiceTypes = ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت', 'أخرى'] as const;
-const units = ['طن', 'درب', 'يومية'] as const;
+const STANDARD_UNITS = ['طن', 'درب', 'يومية', 'مقطوعية'] as const;
+type StandardUnit = (typeof STANDARD_UNITS)[number];
+const UNIT_OTHER = 'أخرى';
+
+function unitSelectValue(unit: string): string {
+  return (STANDARD_UNITS as readonly string[]).includes(unit) ? unit : UNIT_OTHER;
+}
+function isCustomUnit(unit: string): boolean {
+  return !(STANDARD_UNITS as readonly string[]).includes(unit);
+}
 const invoicePrefix = `MN-INV-${new Date().getFullYear()}-`;
 
 interface Item { description: string; quantity: number; unit: string; unitPrice: number; priceTouched?: boolean; }
@@ -270,6 +279,16 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     if (key === 'unit') {
       const newUnit = String(value);
       setOpenPickerIdx(null);
+      if (newUnit === UNIT_OTHER) {
+        // user switched dropdown to أخرى — keep existing custom text or clear to blank
+        setItems((prev) =>
+          prev.map((it, idx) => {
+            if (idx !== i) return it;
+            return { ...it, unit: isCustomUnit(it.unit) ? it.unit : '' };
+          })
+        );
+        return;
+      }
       setItems((prev) =>
         prev.map((it, idx) => {
           if (idx !== i) return it;
@@ -419,9 +438,23 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
             <input type="number" min="0.001" step="0.001" placeholder={t('ph.qty')} value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
           </div>
           <div className="invoice-cell unit-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <select value={it.unit} onChange={(e) => setItem(i, 'unit', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-              {units.map((unit) => <option key={unit} value={unit}>{unit}</option>)}
+            <select
+              value={unitSelectValue(it.unit)}
+              onChange={(e) => setItem(i, 'unit', e.target.value)}
+              title="الوحدة"
+              style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }}
+            >
+              {(STANDARD_UNITS as readonly string[]).map((u) => <option key={u} value={u}>{u}</option>)}
+              <option value={UNIT_OTHER}>{UNIT_OTHER}</option>
             </select>
+            {unitSelectValue(it.unit) === UNIT_OTHER && (
+              <input
+                value={it.unit}
+                onChange={(e) => setItem(i, 'unit', e.target.value)}
+                placeholder="اكتب الوحدة"
+                style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box', marginTop: 4 }}
+              />
+            )}
           </div>
           <div className="invoice-cell price-cell" style={{ minWidth: 0, overflow: 'visible', position: 'relative' }}>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
