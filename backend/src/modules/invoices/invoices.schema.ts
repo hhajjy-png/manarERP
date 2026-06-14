@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
 
-const invoiceNumberSchema = z.string().trim().min(1, 'رقم الفاتورة مطلوب').regex(/^MN-INV-2026-[A-Za-z0-9]+$/, 'رقم الفاتورة يجب أن يبدأ بـ MN-INV-2026-');
+const invoiceNumberSchema = z.string().trim().min(1, 'رقم الفاتورة مطلوب').regex(/^MN-INV-\d{4}-[A-Za-z0-9]+$/, 'رقم الفاتورة يجب أن يبدأ بـ MN-INV-YYYY-');
 
 const itemSchema = z.object({
   description: z.string().min(1, 'وصف البند مطلوب'),
@@ -22,6 +22,8 @@ export const createInvoiceSchema = z.object({
       contractId: z.coerce.number().int().positive().optional(),
       issueDate: z.coerce.date().optional(),
       dueDate: z.coerce.date().optional(),
+      billingMonth: z.coerce.number().int().min(1).max(12).optional(),
+      billingYear: z.coerce.number().int().min(2020).max(2099).optional(),
       taxRate: z.coerce.number().min(0).max(100).default(0),
       discount: z.coerce.number().nonnegative().default(0),
       notes: z.string().optional(),
@@ -48,6 +50,8 @@ export const updateInvoiceSchema = z.object({
     invoiceType: z.string().min(1).optional(),
     issueDate: z.coerce.date().optional(),
     dueDate: z.coerce.date().optional(),
+    billingMonth: z.coerce.number().int().min(1).max(12).optional(),
+    billingYear: z.coerce.number().int().min(2020).max(2099).optional(),
     taxRate: z.coerce.number().min(0).max(100).optional(),
     discount: z.coerce.number().nonnegative().optional(),
     notes: z.string().optional(),

@@ -589,6 +589,8 @@ model Invoice {
   paidAmount    Float     @default(0)
   status        String    @default("UNPAID") // UNPAID | PARTIAL | PAID | OVERDUE | CANCELLED
   notes         String?
+  billingMonth  Int?      // شهر الحساب (1-12)
+  billingYear   Int?      // سنة الحساب (مثال: 2026)
 
   customer Customer?     @relation(fields: [customerId], references: [id])
   supplier Supplier?     @relation(fields: [supplierId], references: [id])

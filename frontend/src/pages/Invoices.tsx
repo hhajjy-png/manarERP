@@ -23,7 +23,18 @@ function unitSelectValue(unit: string): string {
 function isCustomUnit(unit: string): boolean {
   return !(STANDARD_UNITS as readonly string[]).includes(unit);
 }
-const invoicePrefix = `MN-INV-${new Date().getFullYear()}-`;
+const INVOICE_YEAR_OPTIONS = [2024, 2025, 2026, 2027, 2028] as const;
+const DEFAULT_INVOICE_YEAR = String(new Date().getFullYear());
+
+const ARABIC_MONTHS = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+] as const;
+
+function billingYearOptions(): number[] {
+  const y = new Date().getFullYear();
+  return [y - 2, y - 1, y, y + 1, y + 2];
+}
 
 interface Item { description: string; quantity: number; unit: string; unitPrice: number; priceTouched?: boolean; }
 
@@ -219,7 +230,11 @@ export default function Invoices() {
 // ===== إنشاء فاتورة =====
 function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
+  const [invoiceYear, setInvoiceYear] = useState<string>(DEFAULT_INVOICE_YEAR);
   const [invoiceNumberSuffix, setInvoiceNumberSuffix] = useState('');
+  const [issueDate, setIssueDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [billingMonth, setBillingMonth] = useState<number>(new Date().getMonth() + 1);
+  const [billingYear, setBillingYear] = useState<number>(new Date().getFullYear());
   const [directionChoice, setDirectionChoice] = useState('SALES'); // SALES | PURCHASE | OTHER
   const [customDirection, setCustomDirection] = useState('');
   const [invoiceTypeChoice, setInvoiceTypeChoice] = useState<(typeof invoiceTypes)[number]>('نقل اسفلت');
@@ -318,7 +333,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 
   async function submit() {
     setError('');
-    const invoiceNumber = `${invoicePrefix}${invoiceNumberSuffix.trim()}`;
+    const invoiceNumber = `MN-INV-${invoiceYear}-${invoiceNumberSuffix.trim()}`;
     if (!invoiceNumberSuffix.trim()) { setError(t('error.inv_number_required')); return; }
 
     const resolvedDirection = directionChoice === 'OTHER' ? customDirection.trim() : directionChoice;
@@ -341,6 +356,9 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         invoiceType: resolvedInvoiceType,
         customerId: effectivePartySource === 'SALES' ? Number(partyId) : undefined,
         supplierId: effectivePartySource === 'PURCHASE' ? Number(partyId) : undefined,
+        issueDate: issueDate || undefined,
+        billingMonth,
+        billingYear,
         discount: Number(discount),
         items: items.map((it) => ({ description: it.description, quantity: it.quantity, unit: it.unit, unitPrice: it.unitPrice })),
       });
@@ -365,13 +383,57 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         <div className="field">
           <label>{t('col.inv.number')} *</label>
           <div style={{ display: 'flex', alignItems: 'center', direction: 'ltr' }}>
-            <span style={{ ...inp, borderRadius: '10px 0 0 10px', borderInlineEnd: 0, background: 'var(--surface-2)', whiteSpace: 'nowrap' }}>{invoicePrefix}</span>
+            <select
+              value={invoiceYear}
+              onChange={(e) => setInvoiceYear(e.target.value)}
+              title={t('col.inv.number')}
+              style={{ ...inp, borderRadius: '10px 0 0 10px', borderInlineEnd: 0, background: 'var(--surface-2)', whiteSpace: 'nowrap' }}
+            >
+              {INVOICE_YEAR_OPTIONS.map((y) => (
+                <option key={y} value={String(y)}>MN-INV-{y}</option>
+              ))}
+            </select>
             <input
               value={invoiceNumberSuffix}
               onChange={(e) => setInvoiceNumberSuffix(e.target.value)}
               placeholder="001"
               style={{ borderRadius: '0 10px 10px 0', direction: 'ltr' }}
             />
+          </div>
+        </div>
+        <div className="field">
+          <label>تاريخ الفاتورة</label>
+          <input
+            type="date"
+            value={issueDate}
+            onChange={(e) => setIssueDate(e.target.value)}
+            title="تاريخ الفاتورة"
+            style={inp}
+          />
+        </div>
+        <div className="field">
+          <label>حساب شهر</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select
+              value={billingMonth}
+              onChange={(e) => setBillingMonth(Number(e.target.value))}
+              title="شهر الحساب"
+              style={{ ...inp, flex: 1 }}
+            >
+              {ARABIC_MONTHS.map((name, idx) => (
+                <option key={idx + 1} value={idx + 1}>{name}</option>
+              ))}
+            </select>
+            <select
+              value={billingYear}
+              onChange={(e) => setBillingYear(Number(e.target.value))}
+              title="سنة الحساب"
+              style={{ ...inp, width: 90 }}
+            >
+              {billingYearOptions().map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="field">
