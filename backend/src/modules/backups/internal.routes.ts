@@ -53,37 +53,89 @@ router.get('/last-auto-time', asyncHandler(async (_req, res) => {
 
 // POST /api/internal/trigger-auto-backup
 // Called by Electron scheduler to run a WAL-safe auto backup entirely inside the backend.
-// backupService.create() performs PRAGMA wal_checkpoint(FULL) before copying.
+// Persists lastRunAt/lastStatus/lastError to the Setting table after every attempt.
+// Always returns HTTP 200 so the Electron process gets a clean response even on failure.
+// Response body includes { status: 'SUCCESS'|'FAILED'|'SKIPPED', error, lastRunAt } for observability.
 router.post('/trigger-auto-backup', asyncHandler(async (_req, res) => {
+  // If auto backup is disabled, skip without touching status or creating FAILED entries.
+  const enabledRow = await prisma.setting.findUnique({ where: { key: 'backup.auto.enabled' } });
+  if (enabledRow?.value === 'false') {
+    return ok(res, { status: 'SKIPPED', reason: 'disabled', backup: null, pruned: [], error: null, lastRunAt: null });
+  }
+
+  const now = new Date().toISOString();
+
   const retentionRow = await prisma.setting.findUnique({ where: { key: 'backup.auto.retention' } });
   const retention = Math.max(1, parseInt(retentionRow?.value ?? '30', 10) || 30);
 
-  const backup = await backupService.create('AUTO');
-
-  await prisma.auditLog.create({
-    data: {
-      userId: null,
-      action: 'AUTO_BACKUP',
-      module: 'system',
-      entityId: String(backup.id),
-      newValue: JSON.stringify({ fileName: backup.fileName, fileSize: backup.sizeBytes, retentionCount: retention }),
-    },
-  });
-
-  const pruned = await backupService.pruneAutoBackups(retention);
-
-  if (pruned.length > 0) {
-    await prisma.auditLog.create({
-      data: {
-        userId: null,
-        action: 'AUTO_BACKUP_CLEANUP',
-        module: 'system',
-        newValue: JSON.stringify({ deletedFiles: pruned }),
-      },
+  // Upsert a single status setting key — reduces repetition in both branches.
+  async function setStatus(key: string, value: string) {
+    await prisma.setting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value, group: 'backup' },
     });
   }
 
-  ok(res, { backup, pruned });
+  let backup = null;
+  let pruned: string[] = [];
+  let errorMsg: string | null = null;
+
+  try {
+    backup = await backupService.create('AUTO');
+
+    // Persist SUCCESS status.
+    await setStatus('backup.auto.lastRunAt', now);
+    await setStatus('backup.auto.lastStatus', 'SUCCESS');
+    await setStatus('backup.auto.lastError', '');
+
+    await prisma.auditLog.create({
+      data: {
+        userId: null,
+        action: 'AUTO_BACKUP',
+        module: 'system',
+        entityId: String(backup.id),
+        newValue: JSON.stringify({ fileName: backup.fileName, fileSize: backup.sizeBytes, retentionCount: retention }),
+      },
+    });
+
+    pruned = await backupService.pruneAutoBackups(retention);
+
+    if (pruned.length > 0) {
+      await prisma.auditLog.create({
+        data: {
+          userId: null,
+          action: 'AUTO_BACKUP_CLEANUP',
+          module: 'system',
+          newValue: JSON.stringify({ deletedFiles: pruned }),
+        },
+      });
+    }
+  } catch (err) {
+    errorMsg = err instanceof Error ? err.message : 'فشل النسخ التلقائي';
+
+    // Persist FAILED status — use individual catches so one failure doesn't block the rest.
+    await setStatus('backup.auto.lastRunAt', now).catch(() => {});
+    await setStatus('backup.auto.lastStatus', 'FAILED').catch(() => {});
+    await setStatus('backup.auto.lastError', errorMsg).catch(() => {});
+
+    await prisma.auditLog.create({
+      data: {
+        userId: null,
+        action: 'AUTO_BACKUP',
+        module: 'system',
+        newValue: JSON.stringify({ error: errorMsg }),
+      },
+    }).catch(() => {});
+  }
+
+  ok(res, {
+    status: errorMsg ? 'FAILED' : 'SUCCESS',
+    backup,
+    pruned,
+    error: errorMsg,
+    lastRunAt: now,
+  });
 }));
 
 export default router;

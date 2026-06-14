@@ -38,7 +38,6 @@ export default function FormLayout({
           @page { size: A4; margin: 10mm; }
           body { background: white !important; }
           .no-print { display: none !important; }
-          * { page-break-inside: avoid; }
         }
       `}</style>
 
