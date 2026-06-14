@@ -9,6 +9,7 @@ data/
 !backend/prisma/migrations/
 .env
 *.local
+**/security.json
 .DS_Store
 .claude/
 .playwright-mcp/
