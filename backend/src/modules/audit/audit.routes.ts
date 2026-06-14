@@ -10,7 +10,7 @@ import { buildPaginatedResult, getPagination } from '../../core/utils/pagination
 const router = Router();
 router.use(authenticate);
 
-/** عرض سجل التدقيق مع تصفية بالوحدة/الإجراء/المستخدم/التاريخ. */
+/** عرض سجل التدقيق مع تصفية بالوحدة/الإجراء/المستخدم/التاريخ/البحث. */
 router.get(
   '/',
   requirePermission('audit.read'),
@@ -18,6 +18,7 @@ router.get(
     const q = req.query as Record<string, string>;
     const pagination = getPagination(q);
     const where: Prisma.AuditLogWhereInput = {};
+
     if (q.module) where.module = q.module;
     if (q.action) where.action = q.action;
     if (q.userId) where.userId = Number(q.userId);
@@ -25,6 +26,13 @@ router.get(
       where.createdAt = {};
       if (q.from) where.createdAt.gte = new Date(q.from);
       if (q.to) where.createdAt.lte = new Date(q.to);
+    }
+    if (q.search) {
+      where.OR = [
+        { entityId: { contains: q.search } },
+        { user: { username: { contains: q.search } } },
+        { user: { fullName: { contains: q.search } } },
+      ];
     }
 
     const [data, total] = await Promise.all([
