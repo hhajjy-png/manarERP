@@ -10,9 +10,9 @@ export const tableRow: CSSProperties = {
 };
 
 export const tableCell: CSSProperties = {
-  padding: '8px 14px',
+  padding: '6px 14px',
   fontSize: 13,
-  lineHeight: 1.6,
+  lineHeight: 1.5,
 };
 
 export const labelCell: CSSProperties = {
@@ -47,7 +47,8 @@ export const tableWrapper: CSSProperties = {
   border: '1px solid #e2e8f0',
   borderRadius: 8,
   overflow: 'hidden',
-  marginBottom: 20,
+  marginBottom: 12,
+  pageBreakInside: 'avoid',
   WebkitPrintColorAdjust: 'exact',
   printColorAdjust: 'exact',
 };

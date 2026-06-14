@@ -11,8 +11,9 @@ export default function ApprovalSection() {
   return (
     <div
       style={{
-        marginTop: 36,
-        paddingTop: 20,
+        marginTop: 16,
+        paddingTop: 10,
+        pageBreakInside: 'avoid',
         borderTop: '1px solid #e2e8f0',
         WebkitPrintColorAdjust: 'exact',
         printColorAdjust: 'exact',
