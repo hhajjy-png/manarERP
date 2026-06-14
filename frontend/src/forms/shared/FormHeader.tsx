@@ -14,9 +14,9 @@ export default function FormHeader({ printMode }: { printMode: PrintMode }) {
     <div
       style={{
         textAlign: 'center',
-        marginBottom: 28,
+        marginBottom: 14,
         borderBottom: '3px solid #1d4e6f',
-        paddingBottom: 18,
+        paddingBottom: 10,
         WebkitPrintColorAdjust: 'exact',
         printColorAdjust: 'exact',
         ...style,
@@ -26,7 +26,7 @@ export default function FormHeader({ printMode }: { printMode: PrintMode }) {
         src={almanarLogo}
         alt="شركة المنار"
         style={{
-          height: 64,
+          height: 50,
           marginBottom: 8,
           WebkitPrintColorAdjust: 'exact',
           printColorAdjust: 'exact',

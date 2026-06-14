@@ -12,8 +12,8 @@ export default function FormFooter({ printMode }: { printMode: PrintMode }) {
   return (
     <div
       style={{
-        marginTop: 32,
-        paddingTop: 14,
+        marginTop: 10,
+        paddingTop: 10,
         borderTop: '2px solid #1d4e6f',
         textAlign: 'center',
         fontSize: 11,

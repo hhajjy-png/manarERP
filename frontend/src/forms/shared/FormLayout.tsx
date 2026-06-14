@@ -35,21 +35,21 @@ export default function FormLayout({
     <>
       <style>{`
         @media print {
-          @page { size: A4; margin: 15mm; }
+          @page { size: A4; margin: 10mm; }
           body { background: white !important; }
           .no-print { display: none !important; }
+          * { page-break-inside: avoid; }
         }
       `}</style>
 
       <div
         style={{
-          padding: 40,
+          padding: '18px 32px',
           fontFamily: "'Cairo', 'Tajawal', Arial, sans-serif",
           maxWidth: 820,
           margin: '0 auto',
           color: '#0f172a',
           background: '#fff',
-          minHeight: '100vh',
           direction: 'rtl',
         }}
       >
@@ -74,7 +74,7 @@ export default function FormLayout({
         <FormHeader printMode={printMode} />
 
         {/* Form number + title */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{ textAlign: 'center', marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, direction: 'ltr' }}>
             {formNumber}
           </div>
@@ -108,7 +108,7 @@ export default function FormLayout({
         {/* QR code — always visible in both modes */}
         <div
           style={{
-            marginTop: 32,
+            marginTop: 14,
             display: 'flex',
             justifyContent: 'flex-start',
           }}
