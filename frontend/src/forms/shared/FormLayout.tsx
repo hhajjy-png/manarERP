@@ -2,8 +2,8 @@ import { ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PrintMode } from './printMode';
 import FormHeader from './FormHeader';
-import FormFooter from './FormFooter';
 import FormQRCode, { QRData } from './FormQRCode';
+import ApprovalSection from './ApprovalSection';
 
 interface FormLayoutProps {
   children: ReactNode;
@@ -118,19 +118,26 @@ export default function FormLayout({
         {/* Form-specific content */}
         {children}
 
-        {/* QR code — always visible in both modes */}
+        {/* Bottom row: Approval (right/start in RTL) | QR (left/end in RTL) */}
         <div
           style={{
             marginTop: 14,
+            paddingTop: 10,
+            borderTop: '1px solid #e2e8f0',
             display: 'flex',
-            justifyContent: 'flex-start',
+            alignItems: 'flex-start',
+            gap: 20,
+            WebkitPrintColorAdjust: 'exact',
+            printColorAdjust: 'exact',
           }}
         >
-          <FormQRCode data={qrData} size={80} />
+          <div style={{ flex: 1 }}>
+            <ApprovalSection />
+          </div>
+          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <FormQRCode data={qrData} size={80} />
+          </div>
         </div>
-
-        {/* Company footer — hidden in letterhead mode (space preserved) */}
-        <FormFooter printMode={printMode} />
       </div>
     </>
   );

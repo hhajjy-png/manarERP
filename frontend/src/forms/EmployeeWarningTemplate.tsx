@@ -1,4 +1,3 @@
-import ApprovalSection from './shared/ApprovalSection';
 import {
   tableRow,
   labelCell,
@@ -105,7 +104,6 @@ export default function EmployeeWarningTemplate({ employee: emp }: Props) {
         </div>
       </div>
 
-      <ApprovalSection />
     </>
   );
 }

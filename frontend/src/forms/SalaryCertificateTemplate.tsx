@@ -1,4 +1,3 @@
-import ApprovalSection from './shared/ApprovalSection';
 import {
   COMPANY_NAME,
   tableRow,
@@ -120,7 +119,6 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
         <strong>تاريخ الإصدار:</strong> {issueDateStr()}
       </div>
 
-      <ApprovalSection />
     </>
   );
 }
