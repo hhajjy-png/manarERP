@@ -24,4 +24,10 @@ export const invoicesController = {
   async remove(req: Request, res: Response) {
     ok(res, await invoicesService.remove(Number(req.params.id), req), 'تم الحذف');
   },
+  async forceRemovePreview(req: Request, res: Response) {
+    ok(res, await invoicesService.forceRemovePreview(Number(req.params.id)));
+  },
+  async forceRemove(req: Request, res: Response) {
+    ok(res, await invoicesService.forceRemove(Number(req.params.id), req.body.confirmation as string, req), 'تم الحذف الإجباري بنجاح');
+  },
 };

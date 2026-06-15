@@ -262,6 +262,89 @@ export class InvoicesService {
     return updated;
   }
 
+  async forceRemovePreview(id: number) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id },
+      include: { _count: { select: { items: true, payments: true } } },
+    });
+    if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');
+
+    const transactionsCount = await prisma.transaction.count({
+      where: { referenceType: 'INVOICE', referenceId: id },
+    });
+
+    const willBeDeleted: string[] = ['invoice'];
+    if (invoice._count.items > 0) willBeDeleted.push(`${invoice._count.items} بند`);
+    if (invoice._count.payments > 0) willBeDeleted.push(`${invoice._count.payments} دفعة`);
+    if (transactionsCount > 0) willBeDeleted.push(`${transactionsCount} قيد محاسبي`);
+
+    const warnings: string[] = [];
+    if (invoice.paidAmount > 0) warnings.push('هذه الفاتورة تحتوي على مدفوعات وسيتم حذف سجل المدفوعات نهائياً');
+    if (transactionsCount === 0) warnings.push('لا توجد قيود محاسبية مرتبطة بهذه الفاتورة (فاتورة مستوردة)');
+    if (invoice.contractId) warnings.push('هذه الفاتورة مرتبطة بعقد');
+
+    return {
+      id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      direction: invoice.direction,
+      status: invoice.status,
+      total: invoice.total,
+      paidAmount: invoice.paidAmount,
+      itemsCount: invoice._count.items,
+      paymentsCount: invoice._count.payments,
+      transactionsCount,
+      accountingImpact: {
+        revenueReduced: invoice.direction === 'SALES' ? invoice.total : 0,
+        expenseReduced: invoice.direction === 'PURCHASE' ? invoice.total : 0,
+        journalEntriesToDelete: transactionsCount,
+      },
+      willBeDeleted,
+      warnings,
+    };
+  }
+
+  async forceRemove(id: number, confirmation: string, req: Request) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id },
+      include: { _count: { select: { items: true, payments: true } } },
+    });
+    if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');
+
+    if (confirmation !== invoice.invoiceNumber) {
+      throw AppError.badRequest('يجب كتابة رقم الفاتورة بشكل مطابق للتأكيد');
+    }
+
+    const transactionsCount = await prisma.transaction.count({
+      where: { referenceType: 'INVOICE', referenceId: id },
+    });
+
+    await prisma.$transaction(async (tx) => {
+      await transactionsService.clearByReference('INVOICE', id, tx);
+      await tx.invoice.delete({ where: { id } }); // البنود والمدفوعات تُحذف تلقائيًا (Cascade)
+    });
+
+    await recordAudit({
+      req,
+      action: 'DELETE',
+      module: 'invoices',
+      entityId: id,
+      newValue: {
+        forceDelete: true,
+        invoiceNumber: invoice.invoiceNumber,
+        direction: invoice.direction,
+        status: invoice.status,
+        total: invoice.total,
+        paidAmount: invoice.paidAmount,
+        hadPayments: invoice._count.payments > 0,
+        paymentsCount: invoice._count.payments,
+        itemsCount: invoice._count.items,
+        transactionsCleared: transactionsCount,
+      },
+    });
+
+    return { deleted: true };
+  }
+
   async remove(id: number, req: Request) {
     const invoice = await prisma.invoice.findUnique({ where: { id }, include: { payments: true } });
     if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');
