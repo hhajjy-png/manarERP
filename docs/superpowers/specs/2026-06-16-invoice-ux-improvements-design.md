@@ -22,6 +22,8 @@ Link `ProjectPrice` to `Customer` via optional foreign key. In invoice forms (SA
 
 ### Schema Change (backend/prisma/schema.prisma)
 
+**Strategy:** `customerId` is nullable in the DB (existing rows have no customer yet), but required in Zod validation for new/updated records. Existing prices are mapped manually by the admin via the updated Prices page — no programmatic data migration.
+
 Add to `ProjectPrice`:
 ```prisma
 customerId Int?
@@ -41,7 +43,9 @@ Migration name: `add-customer-to-project-price`
 ### Backend
 
 **prices.schema.ts:**
-- Add `customerId: z.number().int().positive().optional().nullable()` to create and update Zod schemas
+- Create schema: `customerId: z.number().int().positive()` — **required**, not optional
+- Update schema: `customerId: z.number().int().positive()` — **required**, not optional
+- Query schema: add optional `customerId` filter for list endpoint
 
 **prices.service.ts:**
 - Add `customerId?: number` to `listPrices` params
@@ -72,11 +76,15 @@ Migration name: `add-customer-to-project-price`
 - When customer changes or party source is not SALES: `setPrices([])`
 
 **"No prices" message:**
-- When `effectivePartySource === 'SALES'` AND `partyId` is set AND `prices.length === 0`: show a small muted note near the items header: `"لا توجد أسعار معرفة لهذا العميل"`
+- When `effectivePartySource === 'SALES'` AND `partyId` is set AND `prices.length === 0`: show a small muted note above the items grid: `"لا توجد أسعار معرفة لهذا العميل"`
+
+**No fallback:**
+- If customer has no prices → price picker is hidden; no fallback to showing all prices
+- For PURCHASE invoices: prices array stays empty → no picker buttons shown
+- When `partyId` is empty (no customer selected): prices array stays empty
 
 **Existing behavior preserved:**
 - Price picker per line still filters by `contractUnit === it.unit` (unchanged)
-- For PURCHASE invoices: prices array is empty → no picker buttons shown
 
 ---
 
@@ -86,7 +94,7 @@ Migration name: `add-customer-to-project-price`
 - **Preview button** (`btn.inv.preview` → navigate to `/invoices/${row.id}/preview`)
 - **Regular Delete button** (`setDeleting(row)` flow)
 
-The `DeleteInvoiceConfirm` component and `deleting` state remain in the file (used by other flows), but are no longer triggered from the main table.
+Remove the `deleting` state variable, the `{deleting && <DeleteInvoiceConfirm .../>}` render, and the `DeleteInvoiceConfirm` function — they will be dead code once the button is removed.
 
 ### Keep:
 - Print button
