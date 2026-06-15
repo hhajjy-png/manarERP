@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { formatDateTime } from '../../lib/date';
 
 interface BackupRecord {
   id: number;
@@ -31,12 +32,8 @@ export default function LastAutoBackupCard() {
   if (!loading && record === null) {
     value = 'لا توجد نسخة احتياطية';
   } else if (!loading && record) {
-    value = new Date(record.createdAt).toLocaleDateString('ar-KW', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-    sub = `${new Date(record.createdAt).toLocaleTimeString('ar-KW', { hour: '2-digit', minute: '2-digit' })} · ${formatSize(record.sizeBytes)}`;
+    value = formatDateTime(record.createdAt);
+    sub = formatSize(record.sizeBytes);
   }
 
   return (

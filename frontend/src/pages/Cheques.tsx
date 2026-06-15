@@ -3,6 +3,7 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { tafqeetKWD } from '../lib/tafqeet';
+import { formatDate } from '../lib/date';
 import DataTable, { PageMeta } from '../components/DataTable';
 import StatCard from '../components/StatCard';
 import gulfBankImg from '../assets/GulfBank_Personal_KW.jpg';
@@ -473,7 +474,7 @@ export default function Cheques() {
   // ── Table columns ──────────────────────────────────────────────────────────
 
   const columns = [
-    { key: 'chequeDate', label: 'col.cheque.date', render: (r: Cheque) => fmtDate(r.chequeDate) },
+    { key: 'chequeDate', label: 'col.cheque.date', render: (r: Cheque) => formatDate(r.chequeDate) },
     {
       key: 'chequeNumber',
       label: 'col.cheque.number',

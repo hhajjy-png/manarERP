@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { Column } from '../components/DataTable';
 import { FormField } from '../components/FormDialog';
+import { formatDate } from '../lib/date';
 
 // ===== أدوات عرض =====
 export function money(v: unknown): string {
@@ -9,9 +10,7 @@ export function money(v: unknown): string {
 }
 
 export function dateText(v: unknown): string {
-  if (!v) return '—';
-  const d = new Date(v as string);
-  return isNaN(d.getTime()) ? '—' : d.toISOString().slice(0, 10);
+  return formatDate(v);
 }
 
 type PillCls = 'green' | 'amber' | 'red' | 'blue' | 'gray';
