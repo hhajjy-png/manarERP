@@ -3,6 +3,7 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useUI } from '../stores/uiStore';
 import { useT } from '../lib/i18n';
+import { formatDateTime, formatDateTimeWithSeconds } from '../lib/date';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -56,21 +57,11 @@ const ACTION_PILL: Record<string, PillCls> = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmtDatetime(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleString('ar-KW', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  });
+  return formatDateTime(iso);
 }
 
 function fmtDatetimeFull(iso: string): string {
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleString('ar-KW', {
-    year: 'numeric', month: 'long', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  });
+  return formatDateTimeWithSeconds(iso);
 }
 
 function formatJson(raw: string | null): string {

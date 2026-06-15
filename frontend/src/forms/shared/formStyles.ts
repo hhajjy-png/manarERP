@@ -58,11 +58,11 @@ export function fmtDate(v: string | Date | null | undefined): string {
   const d = new Date(v as string);
   return isNaN(d.getTime())
     ? '—'
-    : d.toLocaleDateString('ar-KW', { year: 'numeric', month: 'long', day: 'numeric' });
+    : d.toLocaleDateString('ar-KW-u-nu-latn', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 export function issueDateStr(): string {
-  return new Date().toLocaleDateString('ar-KW', {
+  return new Date().toLocaleDateString('ar-KW-u-nu-latn', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

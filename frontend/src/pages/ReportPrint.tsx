@@ -1,6 +1,7 @@
 import { useEffect, useState, CSSProperties } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import { formatDate } from '../lib/date';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string }[]; rows: any[]; totalsRow?: any };
@@ -62,7 +63,7 @@ export default function ReportPrint() {
       </div>
       {rep.subtitle && <p style={{ textAlign: 'center', color: '#64748b', fontWeight: 600, margin: '2px 0' }}>{rep.subtitle}</p>}
       <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: 12, marginBottom: 18 }}>
-        شركة المنار · تاريخ التقرير: {new Date().toLocaleDateString('en-CA')}
+        شركة المنار · تاريخ التقرير: {formatDate(new Date())}
       </p>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
