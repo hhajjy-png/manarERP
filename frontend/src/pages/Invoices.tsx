@@ -299,10 +299,14 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   }, [customPartyType, directionChoice]);
 
   useEffect(() => {
-    api.get('/prices', { params: { pageSize: 200 } })
+    if (effectivePartySource !== 'SALES' || !partyId) {
+      setPrices([]);
+      return;
+    }
+    api.get('/prices', { params: { pageSize: 200, customerId: partyId } })
       .then((res) => setPrices(res.data?.data?.data ?? []))
       .catch((e) => { console.warn('[CreateInvoice] prices fetch failed:', e); });
-  }, []);
+  }, [partyId, effectivePartySource]);
 
   useEffect(() => {
     if (openPickerIdx === null) return;
@@ -527,6 +531,11 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         ))}
         <div />
       </div>
+      {effectivePartySource === 'SALES' && partyId && prices.length === 0 && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
+          لا توجد أسعار معرفة لهذا العميل
+        </p>
+      )}
       {items.map((it, i) => (
         <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center', width: '100%' }}>
           <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
@@ -723,11 +732,15 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   }, [openPickerIdx]);
 
   useEffect(() => {
-    api.get('/prices', { params: { pageSize: 200 } })
+    if (effectivePartySource !== 'SALES' || !partyId) {
+      setPrices([]);
+      return;
+    }
+    api.get('/prices', { params: { pageSize: 200, customerId: partyId } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((res: any) => setPrices(res.data?.data?.data ?? []))
       .catch((e: unknown) => { console.warn('[EditInvoice] prices fetch failed:', e); });
-  }, []);
+  }, [partyId, effectivePartySource]);
 
   const lineTotal = (it: Item) => Number(it.quantity) * Number(it.unitPrice);
   const subtotal = items.reduce((s, it) => s + lineTotal(it), 0);
@@ -909,6 +922,11 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
         ))}
         <div />
       </div>
+      {effectivePartySource === 'SALES' && partyId && prices.length === 0 && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
+          لا توجد أسعار معرفة لهذا العميل
+        </p>
+      )}
       {items.map((it, i) => (
         <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center', width: '100%' }}>
           <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
