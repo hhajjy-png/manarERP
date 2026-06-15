@@ -5,6 +5,7 @@ import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
+import ForceDeleteInvoiceModal from '../components/ForceDeleteInvoiceModal';
 import { money, dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
 
@@ -57,7 +58,8 @@ type PriceOption = {
 };
 
 export default function Invoices() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
   const { t } = useT();
   const navigate = useNavigate();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -75,6 +77,7 @@ export default function Invoices() {
   const [editing, setEditing] = useState<any | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [deleting, setDeleting] = useState<any | null>(null);
+  const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState('');
   const [stats, setStats] = useState<InvStats | null>(null);
 
@@ -240,6 +243,9 @@ export default function Invoices() {
             )}{' '}
             {hasPermission('invoices.delete') && Number(row.paidAmount) === 0 && (row.status === 'UNPAID' || row.status === 'OVERDUE' || row.status === 'CANCELLED') && (
               <button type="button" className="btn danger sm" onClick={() => setDeleting(row)}>{t('action.delete')}</button>
+            )}{' '}
+            {isSystemAdmin && (
+              <button type="button" className="btn danger sm" onClick={() => setForceDeleteId(row.id as number)}>حذف نهائي</button>
             )}
           </>
         )}
@@ -249,6 +255,13 @@ export default function Invoices() {
       {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={load} />}
       {deleting && <DeleteInvoiceConfirm invoice={deleting} onClose={() => setDeleting(null)} onDeleted={load} />}
       {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={load} />}
+      {forceDeleteId !== null && (
+        <ForceDeleteInvoiceModal
+          invoiceId={forceDeleteId}
+          onClose={() => setForceDeleteId(null)}
+          onDeleted={() => { setForceDeleteId(null); load(); }}
+        />
+      )}
     </div>
   );
 }

@@ -72,6 +72,13 @@ export const addPaymentSchema = z.object({
   }),
 });
 
+export const forceDeleteInvoiceSchema = z.object({
+  body: z.object({
+    confirmation: z.string().min(1, 'التأكيد مطلوب'),
+  }),
+});
+
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>['body'];
 export type UpdateInvoiceInput = z.infer<typeof updateInvoiceSchema>['body'];
 export type AddPaymentInput = z.infer<typeof addPaymentSchema>['body'];
+export type ForceDeleteInvoiceInput = z.infer<typeof forceDeleteInvoiceSchema>['body'];
