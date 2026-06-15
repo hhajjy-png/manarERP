@@ -6,6 +6,7 @@ import * as service from './prices.service';
 export const list = asyncHandler(async (req: Request, res: Response) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const pageSize = Math.min(100, Math.max(1, Number(req.query.pageSize) || 20));
+  const customerId = req.query.customerId ? Number(req.query.customerId) : undefined;
   const result = await service.listPrices({
     page,
     pageSize,
@@ -13,6 +14,7 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
     asphaltPlant: req.query.asphaltPlant as string | undefined,
     companyName: req.query.companyName as string | undefined,
     contractUnit: req.query.contractUnit as string | undefined,
+    customerId,
   });
   ok(res, result);
 });
