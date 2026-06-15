@@ -1,4 +1,3 @@
-import ApprovalSection from './shared/ApprovalSection';
 import {
   COMPANY_NAME,
   tableRow,
@@ -97,7 +96,6 @@ export default function ToWhomItMayConcernTemplate({ employee: emp, latestPayrol
         <strong>تاريخ الإصدار:</strong> {issueDateStr()}
       </div>
 
-      <ApprovalSection />
     </>
   );
 }

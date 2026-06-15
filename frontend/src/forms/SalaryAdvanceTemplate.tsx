@@ -1,4 +1,3 @@
-import ApprovalSection from './shared/ApprovalSection';
 import {
   tableRow,
   labelCell,
@@ -101,7 +100,6 @@ export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance }: 
         <strong>تاريخ الطلب:</strong> {issueDateStr()}
       </div>
 
-      <ApprovalSection />
     </>
   );
 }

@@ -1,4 +1,3 @@
-import ApprovalSection from './shared/ApprovalSection';
 import {
   tableRow,
   labelCell,
@@ -111,7 +110,6 @@ export default function LeaveRequestTemplate({ employee: emp, latestLeave }: Pro
         <strong>تاريخ تقديم الطلب:</strong> {issueDateStr()}
       </div>
 
-      <ApprovalSection />
     </>
   );
 }

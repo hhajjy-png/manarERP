@@ -1,4 +1,3 @@
-import ApprovalSection from './shared/ApprovalSection';
 import {
   tableRow,
   labelCell,
@@ -106,7 +105,6 @@ export default function ReturnToWorkTemplate({ employee: emp, latestLeave }: Pro
         <strong>تاريخ الإشعار:</strong> {issueDateStr()}
       </div>
 
-      <ApprovalSection />
     </>
   );
 }

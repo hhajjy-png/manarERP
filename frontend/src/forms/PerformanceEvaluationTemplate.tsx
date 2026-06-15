@@ -1,4 +1,3 @@
-import ApprovalSection from './shared/ApprovalSection';
 import {
   tableRow,
   labelCell,
@@ -172,7 +171,6 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
         )}
       </div>
 
-      <ApprovalSection />
     </>
   );
 }

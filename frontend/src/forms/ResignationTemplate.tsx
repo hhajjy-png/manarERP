@@ -1,4 +1,3 @@
-import ApprovalSection from './shared/ApprovalSection';
 import {
   tableRow,
   labelCell,
@@ -87,7 +86,6 @@ export default function ResignationTemplate({ employee: emp }: Props) {
         <strong>توقيع الموظف:</strong> <span style={blankLine} />
       </div>
 
-      <ApprovalSection />
     </>
   );
 }
