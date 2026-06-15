@@ -10,8 +10,10 @@ import { validateSupplierRow } from './validators/suppliers';
 import { validatePriceRow, priceCompositeKey } from './validators/prices';
 import { validateContractRow } from './validators/contracts';
 import { validateExpenseRow } from './validators/expenses';
+import { validateInvoiceRow } from './validators/invoices';
 import type { ContractFKMaps } from './validators/contracts';
 import type { ExpenseFKMaps } from './validators/expenses';
+import type { InvoiceFKMaps } from './validators/invoices';
 import type { EntityType, ExecuteSummary, PreviewSummary, RowResult } from './import.types';
 
 // ── FK resolver ───────────────────────────────────────────────────────────────
@@ -58,6 +60,14 @@ async function loadFKMaps(entityType: EntityType): Promise<FKMaps> {
     ]);
     return { contractCodeToId, supplierCodeToId };
   }
+  if (entityType === 'invoices') {
+    const [customerCodeToId, supplierCodeToId, contractCodeToId] = await Promise.all([
+      loadCodeToIdMap('customers'),
+      loadCodeToIdMap('suppliers'),
+      loadCodeToIdMap('contracts'),
+    ]);
+    return { customerCodeToId, supplierCodeToId, contractCodeToId };
+  }
   return {};
 }
 
@@ -90,6 +100,10 @@ async function loadExistingCodes(entityType: EntityType): Promise<Set<string>> {
     const rows = await prisma.expense.findMany({ select: { code: true } });
     return new Set(rows.map((r) => r.code));
   }
+  if (entityType === 'invoices') {
+    const rows = await prisma.invoice.findMany({ select: { invoiceNumber: true } });
+    return new Set(rows.map((r) => r.invoiceNumber));
+  }
   const rows = await prisma.equipment.findMany({ select: { code: true } });
   return new Set(rows.map((r) => r.code));
 }
@@ -117,10 +131,18 @@ function validateRow(
     };
     return validateExpenseRow(row, maps);
   }
+  if (entityType === 'invoices') {
+    const maps: InvoiceFKMaps = {
+      customerCodeToId: fkMaps.customerCodeToId ?? new Map(),
+      supplierCodeToId: fkMaps.supplierCodeToId ?? new Map(),
+      contractCodeToId: fkMaps.contractCodeToId ?? new Map(),
+    };
+    return validateInvoiceRow(row, maps);
+  }
   return validateEquipmentRow(row);
 }
 
-// Prices use a composite key (asphaltPlant|companyName|contractLocation|contractUnit); all others use `code`.
+// Prices use a composite key; invoices use invoiceNumber; all others use `code`.
 function getEntityKey(entityType: EntityType, normalized: Record<string, unknown>): string {
   if (entityType === 'prices') {
     return priceCompositeKey(
@@ -130,6 +152,7 @@ function getEntityKey(entityType: EntityType, normalized: Record<string, unknown
       String(normalized['contractUnit'] ?? '').trim(),
     );
   }
+  if (entityType === 'invoices') return String(normalized['invoiceNumber'] ?? '').trim();
   return String(normalized['code']).trim();
 }
 
@@ -155,7 +178,10 @@ function buildPreviewRows(
 
     const normalized = result.normalized as Record<string, unknown>;
     const key = getEntityKey(entityType, normalized);
-    const duplicateKeyLabel = entityType === 'prices' ? 'مصنع|شركة|مكان|وحدة' : 'code';
+    const duplicateKeyLabel =
+    entityType === 'prices' ? 'مصنع|شركة|مكان|وحدة' :
+    entityType === 'invoices' ? 'invoiceNumber' :
+    'code';
 
     if (seenInBatch.has(key) || existingCodes.has(key)) {
       results.push({
@@ -278,6 +304,20 @@ export async function executeImport(
         const { normalized } = validateExpenseRow(result.data, expenseMaps);
         if (!normalized) continue;
         await tx.expense.create({ data: normalized });
+        imported++;
+      }
+    } else if (entityType === 'invoices') {
+      const invoiceMaps: InvoiceFKMaps = {
+        customerCodeToId: fkMaps.customerCodeToId ?? new Map(),
+        supplierCodeToId: fkMaps.supplierCodeToId ?? new Map(),
+        contractCodeToId: fkMaps.contractCodeToId ?? new Map(),
+      };
+      for (const result of validResults) {
+        const { normalized } = validateInvoiceRow(result.data, invoiceMaps);
+        if (!normalized) continue;
+        // Import-specific path: create invoice without postJournal to avoid
+        // double-counting accounting entries for historically imported data.
+        await tx.invoice.create({ data: normalized });
         imported++;
       }
     } else {
