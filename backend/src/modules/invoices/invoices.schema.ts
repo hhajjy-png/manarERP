@@ -46,6 +46,9 @@ export const createInvoiceSchema = z.object({
 export const updateInvoiceSchema = z.object({
   body: z.object({
     invoiceNumber: invoiceNumberSchema.optional(),
+    direction: z.string().min(1).optional(),
+    customerId: z.coerce.number().int().positive().nullable().optional(),
+    supplierId: z.coerce.number().int().positive().nullable().optional(),
     contractId: z.coerce.number().int().positive().nullable().optional(),
     invoiceType: z.string().min(1).optional(),
     issueDate: z.coerce.date().optional(),

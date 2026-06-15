@@ -150,6 +150,15 @@ export class InvoicesService {
     if (!current) throw AppError.notFound('الفاتورة غير موجودة');
     if (current.status === 'CANCELLED') throw AppError.badRequest('لا يمكن تعديل فاتورة ملغاة');
 
+    if (current.paidAmount > 0) {
+      const directionChanged = input.direction !== undefined && input.direction !== current.direction;
+      const customerChanged = input.customerId !== undefined && input.customerId !== current.customerId;
+      const supplierChanged = input.supplierId !== undefined && input.supplierId !== current.supplierId;
+      if (directionChanged || customerChanged || supplierChanged) {
+        throw AppError.badRequest('لا يمكن تغيير الجهة أو الاتجاه بعد تسجيل مدفوعات على الفاتورة');
+      }
+    }
+
     const items = input.items ?? current.items.map((i) => ({ description: i.description, quantity: i.quantity, unit: i.unit, unitPrice: i.unitPrice }));
     const taxRate = input.taxRate ?? current.taxRate;
     const discount = input.discount ?? current.discount;
@@ -176,6 +185,9 @@ export class InvoicesService {
         data: {
           number: invoiceNumber ?? current.number,
           invoiceNumber: invoiceNumber ?? current.invoiceNumber,
+          direction: input.direction ?? current.direction,
+          customerId: input.customerId !== undefined ? input.customerId : current.customerId,
+          supplierId: input.supplierId !== undefined ? input.supplierId : current.supplierId,
           contractId: input.contractId === undefined ? current.contractId : input.contractId,
           invoiceType: input.invoiceType ?? current.invoiceType,
           issueDate: input.issueDate ?? current.issueDate,

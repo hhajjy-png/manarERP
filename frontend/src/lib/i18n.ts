@@ -434,6 +434,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // ── Phase 4: invoice sub-components ──────────────────────────────────────
     'modal.new_invoice': 'فاتورة جديدة',
+    'modal.edit_invoice': 'تعديل الفاتورة',
     'btn.save_invoice': 'حفظ الفاتورة',
     'modal.collect_payment': 'تحصيل',
     'btn.record_payment': 'تسجيل الدفعة',
@@ -508,6 +509,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // ── Phase 4: confirm dialogs ──────────────────────────────────────────────
     'confirm.cancel_invoice': 'إلغاء هذه الفاتورة؟',
+    'confirm.delete_invoice': 'هل أنت متأكد من حذف هذه الفاتورة؟ لا يمكن التراجع عن هذا الإجراء.',
     'confirm.delete_category': 'حذف هذا التصنيف؟',
     'confirm.delete_material': 'حذف هذه المادة؟',
     'confirm.delete_po': 'حذف أمر الشراء؟',
@@ -1577,6 +1579,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // ── Phase 4: invoice sub-components ──────────────────────────────────────
     'modal.new_invoice': 'New Invoice',
+    'modal.edit_invoice': 'Edit Invoice',
     'btn.save_invoice': 'Save Invoice',
     'modal.collect_payment': 'Collect Payment',
     'btn.record_payment': 'Record Payment',
@@ -1651,6 +1654,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // ── Phase 4: confirm dialogs ──────────────────────────────────────────────
     'confirm.cancel_invoice': 'Cancel this invoice?',
+    'confirm.delete_invoice': 'Are you sure you want to delete this invoice? This action cannot be undone.',
     'confirm.delete_category': 'Delete this category?',
     'confirm.delete_material': 'Delete this material?',
     'confirm.delete_po': 'Delete this purchase order?',
