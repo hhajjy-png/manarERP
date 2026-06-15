@@ -10,19 +10,6 @@ const ARABIC_MONTHS = [
   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
 ];
 
-const STATUS_BG: Record<string, { bg: string; color: string }> = {
-  UNPAID:    { bg: '#fee2e2', color: '#dc2626' },
-  PARTIAL:   { bg: '#fef9c3', color: '#b45309' },
-  PAID:      { bg: '#dcfce7', color: '#16a34a' },
-  OVERDUE:   { bg: '#fee2e2', color: '#dc2626' },
-  CANCELLED: { bg: '#f3f4f6', color: '#6b7280' },
-};
-
-const STATUS_KEY: Record<string, string> = {
-  UNPAID: 'inv.status.unpaid', PARTIAL: 'inv.status.partial', PAID: 'inv.status.paid',
-  OVERDUE: 'inv.status.overdue', CANCELLED: 'inv.status.cancelled',
-};
-
 const PAY_METHOD_AR: Record<string, string> = {
   CASH: 'نقدًا', BANK: 'بنك', CHEQUE: 'شيك', TRANSFER: 'تحويل',
 };
@@ -129,7 +116,6 @@ export default function InvoicePreview() {
   const canCollect = data.status !== 'PAID' && data.status !== 'CANCELLED';
   const canCancel = data.status !== 'CANCELLED' && Number(data.paidAmount) === 0;
 
-  const statusStyle = STATUS_BG[data.status] ?? { bg: '#f3f4f6', color: '#374151' };
   const partyName = data.customer?.name ?? data.supplier?.name ?? '—';
   const billingPeriod = data.billingMonth && data.billingYear
     ? `${ARABIC_MONTHS[data.billingMonth - 1]} ${data.billingYear}`
@@ -243,26 +229,6 @@ export default function InvoicePreview() {
           </div>
         </div>
       )}
-
-      {/* ── Page Header ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, borderBottom: '3px solid #1d4e6f', paddingBottom: 16 }}>
-        <div>
-          <h1 style={{ fontSize: 22, color: '#1d4e6f', margin: 0, fontWeight: 800 }}>
-            {t('page.invoice_preview.title')}
-          </h1>
-          <p style={{ margin: '4px 0 0', fontSize: 15, fontFamily: 'monospace', fontWeight: 700 }}>
-            {data.invoiceNumber ?? data.number}
-          </p>
-        </div>
-        <span style={{
-          background: statusStyle.bg, color: statusStyle.color,
-          borderRadius: 20, padding: '5px 16px', fontWeight: 800, fontSize: 13,
-          border: `1px solid ${statusStyle.color}`,
-          WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact',
-        }}>
-          {t(STATUS_KEY[data.status] ?? data.status)}
-        </span>
-      </div>
 
       {/* ── Section 1: Invoice Details ── */}
       <div style={secTitle}>{t('page.invoice_preview.section.header')}</div>
@@ -388,12 +354,6 @@ export default function InvoicePreview() {
         </>
       )}
 
-      {/* ── Section 6: System Information ── */}
-      <div style={{ ...secTitle, marginTop: 28 }}>{t('page.invoice_preview.section.system')}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 24px' }}>
-        <div style={fRow}><span style={{ ...fLbl, fontSize: 12 }}>{t('col.created_at')}</span><span style={{ fontSize: 12, fontWeight: 600 }}>{dateText(data.createdAt)}</span></div>
-        <div style={fRow}><span style={{ ...fLbl, fontSize: 12 }}>{t('lbl.inv.updated_at')}</span><span style={{ fontSize: 12, fontWeight: 600 }}>{dateText(data.updatedAt)}</span></div>
-      </div>
     </div>
     </>
   );
