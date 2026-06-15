@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -36,6 +36,12 @@ function billingYearOptions(): number[] {
   return [y - 2, y - 1, y, y + 1, y + 2];
 }
 
+function parseInvoiceNumber(invNum: string): { year: string; suffix: string } {
+  const match = invNum.match(/^MN-INV-(\d{4})-(.+)$/);
+  if (match) return { year: match[1], suffix: match[2] };
+  return { year: DEFAULT_INVOICE_YEAR, suffix: invNum };
+}
+
 interface Item { description: string; quantity: number; unit: string; unitPrice: number; priceTouched?: boolean; }
 
 interface InvStats { total: number; unpaid: number; unpaidAmount: number; }
@@ -63,6 +69,10 @@ export default function Invoices() {
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [paying, setPaying] = useState<any | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [editing, setEditing] = useState<any | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [deleting, setDeleting] = useState<any | null>(null);
   const [loadError, setLoadError] = useState('');
   const [stats, setStats] = useState<InvStats | null>(null);
 
@@ -211,17 +221,25 @@ export default function Invoices() {
         ) : undefined}
         actions={(row) => (
           <>
+            {hasPermission('invoices.update') && (row.status === 'UNPAID' || (row.status === 'OVERDUE' && Number(row.paidAmount) === 0)) && (
+              <button type="button" className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>
+            )}{' '}
             {hasPermission('invoices.update') && row.status !== 'PAID' && row.status !== 'CANCELLED' && (
               <button className="btn sm" onClick={() => setPaying(row)}>{t('page.invoices.collect')}</button>
             )}{' '}
             {hasPermission('invoices.update') && row.status !== 'CANCELLED' && Number(row.paidAmount) === 0 && (
               <button className="btn secondary sm" onClick={() => cancel(row.id)}>{t('page.invoices.cancel_inv')}</button>
+            )}{' '}
+            {hasPermission('invoices.delete') && Number(row.paidAmount) === 0 && (row.status === 'UNPAID' || row.status === 'OVERDUE' || row.status === 'CANCELLED') && (
+              <button type="button" className="btn danger sm" onClick={() => setDeleting(row)}>{t('action.delete')}</button>
             )}
           </>
         )}
       />
 
       {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={load} />}
+      {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={load} />}
+      {deleting && <DeleteInvoiceConfirm invoice={deleting} onClose={() => setDeleting(null)} onDeleted={load} />}
       {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={load} />}
     </div>
   );
@@ -590,6 +608,376 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 }
 
 const inp: React.CSSProperties = { padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, fontSize: 14, outline: 'none' };
+
+// ===== تعديل فاتورة =====
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () => void; onSaved: () => void }) {
+  const { t } = useT();
+  const parsed = parseInvoiceNumber(invoice.invoiceNumber ?? '');
+  const [invoiceYear, setInvoiceYear] = useState<string>(parsed.year);
+  const [invoiceNumberSuffix, setInvoiceNumberSuffix] = useState(parsed.suffix);
+  const [issueDate, setIssueDate] = useState<string>(
+    invoice.issueDate ? String(invoice.issueDate).slice(0, 10) : new Date().toISOString().slice(0, 10)
+  );
+  const [billingMonth, setBillingMonth] = useState<number>(Number(invoice.billingMonth) || (new Date().getMonth() + 1));
+  const [billingYear, setBillingYear] = useState<number>(Number(invoice.billingYear) || new Date().getFullYear());
+
+  const [directionChoice, setDirectionChoice] = useState<string>(
+    invoice.direction === 'SALES' || invoice.direction === 'PURCHASE' ? invoice.direction : 'OTHER'
+  );
+  const [customDirection, setCustomDirection] = useState<string>(
+    invoice.direction !== 'SALES' && invoice.direction !== 'PURCHASE' ? (invoice.direction ?? '') : ''
+  );
+
+  const standardInvTypes = invoiceTypes.slice(0, -1) as readonly string[];
+  const isStandardType = standardInvTypes.includes(invoice.invoiceType ?? '');
+  const [invoiceTypeChoice, setInvoiceTypeChoice] = useState<(typeof invoiceTypes)[number]>(
+    isStandardType ? (invoice.invoiceType as (typeof invoiceTypes)[number]) : 'أخرى'
+  );
+  const [customInvoiceType, setCustomInvoiceType] = useState<string>(isStandardType ? '' : (invoice.invoiceType ?? ''));
+
+  const [customPartyType, setCustomPartyType] = useState<'SALES' | 'PURCHASE'>(
+    invoice.supplierId ? 'PURCHASE' : 'SALES'
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [partyId, setPartyId] = useState<string>(String((invoice as any).customerId ?? (invoice as any).supplierId ?? ''));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [parties, setParties] = useState<any[]>([]);
+
+  const [items, setItems] = useState<Item[]>([{ description: '', quantity: 1, unit: 'طن', unitPrice: 0 }]);
+  const [discount, setDiscount] = useState<number>(Number(invoice.discount) || 0);
+  const [notes, setNotes] = useState<string>(invoice.notes ?? '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [prices, setPrices] = useState<PriceOption[]>([]);
+  const [openPickerIdx, setOpenPickerIdx] = useState<number | null>(null);
+  const [loadingData, setLoadingData] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  const effectivePartySource = directionChoice === 'OTHER' ? customPartyType : directionChoice;
+  const firstPartyLoad = useRef(true);
+  const firstPartyTypeCheck = useRef(true);
+
+  // Load full invoice data (items, notes)
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    api.get(`/invoices/${invoice.id as number}`).then((res: any) => {
+      const inv = res.data.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setItems(inv.items.map((it: any) => ({
+        description: it.description, quantity: it.quantity, unit: it.unit, unitPrice: it.unitPrice,
+      })));
+      setDiscount(Number(inv.discount));
+      setNotes(inv.notes ?? '');
+      if (inv.issueDate) setIssueDate(String(inv.issueDate).slice(0, 10));
+      if (inv.billingMonth) setBillingMonth(Number(inv.billingMonth));
+      if (inv.billingYear) setBillingYear(Number(inv.billingYear));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }).catch((e: any) => { setLoadError(errorMessage(e)); }).finally(() => { setLoadingData(false); });
+  }, [invoice.id]);
+
+  // Load party list; skip party reset on first load
+  useEffect(() => {
+    (async () => {
+      const ep = effectivePartySource === 'SALES' ? '/customers' : '/suppliers';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const res = await api.get(ep, { params: { pageSize: 200 } }) as any;
+      setParties(res.data.data.data ?? []);
+      if (!firstPartyLoad.current) setPartyId('');
+      firstPartyLoad.current = false;
+    })();
+  }, [effectivePartySource]);
+
+  // Reset party when switching party type inside OTHER (skip on initial render)
+  useEffect(() => {
+    if (firstPartyTypeCheck.current) { firstPartyTypeCheck.current = false; return; }
+    if (directionChoice === 'OTHER') setPartyId('');
+  }, [customPartyType, directionChoice]);
+
+  // Price picker outside-click handler
+  useEffect(() => {
+    if (openPickerIdx === null) return;
+    function handleOutsideClick() { setOpenPickerIdx(null); }
+    function handleEscape(e: KeyboardEvent) { if (e.key === 'Escape') setOpenPickerIdx(null); }
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => { document.removeEventListener('mousedown', handleOutsideClick); document.removeEventListener('keydown', handleEscape); };
+  }, [openPickerIdx]);
+
+  useEffect(() => {
+    api.get('/prices', { params: { pageSize: 200 } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((res: any) => setPrices(res.data?.data?.data ?? []))
+      .catch((e: unknown) => { console.warn('[EditInvoice] prices fetch failed:', e); });
+  }, []);
+
+  const lineTotal = (it: Item) => Number(it.quantity) * Number(it.unitPrice);
+  const subtotal = items.reduce((s, it) => s + lineTotal(it), 0);
+  const total = Math.max(0, subtotal - Number(discount));
+
+  function setItem(i: number, key: keyof Item, value: string | number) {
+    if (key === 'unit') {
+      const newUnit = String(value);
+      setOpenPickerIdx(null);
+      if (newUnit === UNIT_OTHER) {
+        setItems((prev) => prev.map((it, idx) => idx !== i ? it : { ...it, unit: isCustomUnit(it.unit) ? it.unit : '' }));
+        return;
+      }
+      setItems((prev) => prev.map((it, idx) => {
+        if (idx !== i) return it;
+        const base = { ...it, unit: newUnit };
+        if (!it.priceTouched) {
+          const matches = prices.filter((p) => p.contractUnit === newUnit);
+          if (matches.length === 1) return { ...base, unitPrice: matches[0].unitPrice };
+        }
+        return base;
+      }));
+      return;
+    }
+    setItems((prev) => prev.map((it, idx) => {
+      if (idx !== i) return it;
+      const priceTouched = key === 'unitPrice' ? true : it.priceTouched;
+      return { ...it, [key]: key === 'description' ? String(value) : Number(value), priceTouched };
+    }));
+  }
+
+  function applyPrice(i: number, price: PriceOption) {
+    setItems((p) => p.map((it, idx) => idx === i ? { ...it, unitPrice: price.unitPrice, unit: price.contractUnit, priceTouched: true } : it));
+    setOpenPickerIdx(null);
+  }
+
+  async function submit() {
+    setError('');
+    const invoiceNumber = `MN-INV-${invoiceYear}-${invoiceNumberSuffix.trim()}`;
+    if (!invoiceNumberSuffix.trim()) { setError(t('error.inv_number_required')); return; }
+    const resolvedDirection = directionChoice === 'OTHER' ? customDirection.trim() : directionChoice;
+    if (directionChoice === 'OTHER' && !customDirection.trim()) { setError(t('error.custom_direction_required')); return; }
+    const resolvedInvoiceType = invoiceTypeChoice === 'أخرى' ? customInvoiceType.trim() : invoiceTypeChoice;
+    if (invoiceTypeChoice === 'أخرى' && !customInvoiceType.trim()) { setError(t('error.custom_invoice_type_required')); return; }
+    if (!partyId) { setError(effectivePartySource === 'SALES' ? t('error.select_customer') : t('error.select_supplier')); return; }
+    if (items.some((it) => !it.description)) { setError(t('error.item_desc_required')); return; }
+    if (items.some((it) => !it.unit)) { setError(t('error.select_unit')); return; }
+    if (items.some((it) => Number(it.quantity) <= 0)) { setError(t('error.qty_positive')); return; }
+    if (items.some((it) => Number(it.unitPrice) < 0)) { setError(t('error.price_negative')); return; }
+    setSaving(true);
+    try {
+      await api.put(`/invoices/${invoice.id as number}`, {
+        invoiceNumber,
+        direction: resolvedDirection,
+        invoiceType: resolvedInvoiceType,
+        customerId: effectivePartySource === 'SALES' ? Number(partyId) : null,
+        supplierId: effectivePartySource === 'PURCHASE' ? Number(partyId) : null,
+        issueDate: issueDate || undefined,
+        billingMonth,
+        billingYear,
+        discount: Number(discount),
+        notes: notes.trim() || undefined,
+        items: items.map((it) => ({ description: it.description, quantity: it.quantity, unit: it.unit, unitPrice: it.unitPrice })),
+      });
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loadingData) return (
+    <Modal title={t('modal.edit_invoice')} onClose={onClose} footer={<button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>}>
+      <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>{t('msg.loading')}</div>
+    </Modal>
+  );
+
+  if (loadError) return (
+    <Modal title={t('modal.edit_invoice')} onClose={onClose} footer={<button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>}>
+      <div className="alert error">⚠️ {loadError}</div>
+    </Modal>
+  );
+
+  return (
+    <Modal title={`${t('modal.edit_invoice')} — ${String(invoice.invoiceNumber ?? invoice.number)}`} onClose={onClose} footer={
+      <>
+        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
+        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+      </>
+    }>
+      {error && <div className="alert error">⚠️ {error}</div>}
+      <div className="form-grid">
+        <div className="field">
+          <label>{t('col.inv.number')} *</label>
+          <div style={{ display: 'flex', alignItems: 'center', direction: 'ltr' }}>
+            <select
+              value={invoiceYear}
+              onChange={(e) => setInvoiceYear(e.target.value)}
+              title={t('col.inv.number')}
+              style={{ ...inp, borderRadius: '10px 0 0 10px', borderInlineEnd: 0, background: 'var(--surface-2)', whiteSpace: 'nowrap' }}
+            >
+              {INVOICE_YEAR_OPTIONS.map((y) => (
+                <option key={y} value={String(y)}>MN-INV-{y}</option>
+              ))}
+            </select>
+            <input
+              value={invoiceNumberSuffix}
+              onChange={(e) => setInvoiceNumberSuffix(e.target.value)}
+              placeholder="001"
+              style={{ borderRadius: '0 10px 10px 0', direction: 'ltr' }}
+            />
+          </div>
+        </div>
+        <div className="field">
+          <label>تاريخ الفاتورة</label>
+          <input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} title="تاريخ الفاتورة" style={inp} />
+        </div>
+        <div className="field">
+          <label>حساب شهر</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} title="شهر الحساب" style={{ ...inp, flex: 1 }}>
+              {ARABIC_MONTHS.map((name, idx) => <option key={idx + 1} value={idx + 1}>{name}</option>)}
+            </select>
+            <select value={billingYear} onChange={(e) => setBillingYear(Number(e.target.value))} title="سنة الحساب" style={{ ...inp, width: 90 }}>
+              {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="field">
+          <label>{t('col.inv.type')}</label>
+          <select value={invoiceTypeChoice} onChange={(e) => setInvoiceTypeChoice(e.target.value as (typeof invoiceTypes)[number])}>
+            {invoiceTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+          </select>
+        </div>
+        {invoiceTypeChoice === 'أخرى' && (
+          <div className="field">
+            <label>{t('field.inv.custom_type')} *</label>
+            <input value={customInvoiceType} onChange={(e) => setCustomInvoiceType(e.target.value)} placeholder={t('ph.inv.custom_type')} style={inp} />
+          </div>
+        )}
+        <div className="field">
+          <label>{t('col.inv.direction')}</label>
+          <select value={directionChoice} onChange={(e) => setDirectionChoice(e.target.value)}>
+            <option value="SALES">{t('opt.direction.sales_full')}</option>
+            <option value="PURCHASE">{t('opt.direction.purchase_full')}</option>
+            <option value="OTHER">{t('opt.direction.other')}</option>
+          </select>
+        </div>
+        {directionChoice === 'OTHER' && (
+          <>
+            <div className="field">
+              <label>{t('field.inv.custom_direction')} *</label>
+              <input value={customDirection} onChange={(e) => setCustomDirection(e.target.value)} placeholder={t('ph.inv.custom_direction')} style={inp} />
+            </div>
+            <div className="field">
+              <label>{t('field.inv.party_type')}</label>
+              <select value={customPartyType} onChange={(e) => setCustomPartyType(e.target.value as 'SALES' | 'PURCHASE')} title={t('field.inv.party_type')}>
+                <option value="SALES">{t('opt.direction.sales_full')}</option>
+                <option value="PURCHASE">{t('opt.direction.purchase_full')}</option>
+              </select>
+            </div>
+          </>
+        )}
+        <div className="field">
+          <label>{effectivePartySource === 'SALES' ? t('col.customer') : t('col.supplier')} *</label>
+          <select value={partyId} onChange={(e) => setPartyId(e.target.value)}>
+            <option value="">{t('msg.select_placeholder')}</option>
+            {parties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <label style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, display: 'block', margin: '8px 0' }}>{t('lbl.items')}</label>
+      {items.map((it, i) => (
+        <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center', width: '100%' }}>
+          <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <input placeholder={t('col.description')} value={it.description} onChange={(e) => setItem(i, 'description', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+          </div>
+          <div className="invoice-cell quantity-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <input type="number" min="0.001" step="0.001" placeholder={t('ph.qty')} value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+          </div>
+          <div className="invoice-cell unit-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <select value={unitSelectValue(it.unit)} onChange={(e) => setItem(i, 'unit', e.target.value)} title="الوحدة" style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+              {(STANDARD_UNITS as readonly string[]).map((u) => <option key={u} value={u}>{u}</option>)}
+              <option value={UNIT_OTHER}>{UNIT_OTHER}</option>
+            </select>
+            {unitSelectValue(it.unit) === UNIT_OTHER && (
+              <input value={it.unit} onChange={(e) => setItem(i, 'unit', e.target.value)} placeholder="اكتب الوحدة" style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box', marginTop: 4 }} />
+            )}
+          </div>
+          <div className="invoice-cell price-cell" style={{ minWidth: 0, overflow: 'visible', position: 'relative' }}>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <input type="number" min="0" step="0.001" placeholder={t('ph.unit_price')} value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} style={{ ...inp, flex: 1, minWidth: 0, boxSizing: 'border-box' }} />
+              {(() => { const unitPrices = prices.filter((p) => p.contractUnit === it.unit); return unitPrices.length > 0 ? (
+                <>
+                  <button type="button" className="btn secondary sm" style={{ flexShrink: 0, padding: '0 8px', fontSize: 14 }} title={t('ph.prices.picker_btn')} aria-label={t('ph.prices.picker_btn')} aria-haspopup="listbox" aria-expanded={openPickerIdx === i ? 'true' : 'false'} onClick={(e) => { e.stopPropagation(); setOpenPickerIdx(openPickerIdx === i ? null : i); }}>📋</button>
+                  {openPickerIdx === i && (
+                    <div role="listbox" aria-label={t('ph.prices.picker_list')} onMouseDown={(e) => e.stopPropagation()} style={{ position: 'absolute', top: '100%', insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 200, minWidth: 300, maxHeight: 260, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)', marginTop: 2 }}>
+                      <div style={{ padding: '6px 12px', fontSize: 12, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', fontWeight: 700, userSelect: 'none' }}>{t('ph.prices.picker_unit')}: {it.unit}</div>
+                      {unitPrices.map((p) => (
+                        <button key={p.id} type="button" role="option" aria-selected="false" style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', lineHeight: 1.5 }} onClick={() => applyPrice(i, p)}>
+                          <strong>{p.asphaltPlant ?? '—'}</strong>{p.companyName ? ` — ${p.companyName}` : ''}{p.contractLocation ? ` — ${p.contractLocation}` : ''} — <strong>{money(p.unitPrice)}</strong>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : null; })()}
+            </div>
+          </div>
+          <div className="invoice-cell total-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
+            <div style={{ ...inp, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default', width: '100%', boxSizing: 'border-box' }}>{money(lineTotal(it))}</div>
+          </div>
+          <div className="invoice-cell delete-cell" style={{ minWidth: 0 }}>
+            {items.length > 1 && (
+              <button className="btn secondary sm" type="button" onClick={() => { if (openPickerIdx === i) setOpenPickerIdx(null); setItems((p) => p.filter((_, idx) => idx !== i)); }}>✕</button>
+            )}
+          </div>
+        </div>
+      ))}
+      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: '', quantity: 1, unit: 'طن', unitPrice: 0 }])}>{t('btn.inv.add_material')}</button>
+
+      <div className="form-grid" style={{ marginTop: 16 }}>
+        <div className="field"><label>{t('field.inv.discount_kd')}</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
+        <div className="field"><label>{t('col.inv.total')}</label><div style={{ ...inp, display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default' }}>{money(total)}</div></div>
+        <div className="field" style={{ gridColumn: '1 / -1' }}>
+          <label>{t('field.notes')}</label>
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ ...inp, width: '100%', boxSizing: 'border-box', resize: 'vertical' }} placeholder={t('field.notes')} />
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ===== تأكيد حذف الفاتورة =====
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function DeleteInvoiceConfirm({ invoice, onClose, onDeleted }: { invoice: any; onClose: () => void; onDeleted: () => void }) {
+  const { t } = useT();
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await api.delete(`/invoices/${invoice.id as number}`);
+      onDeleted();
+      onClose();
+    } catch (e: unknown) {
+      setError(errorMessage(e));
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <Modal title={t('action.delete')} onClose={onClose} footer={
+      <>
+        <button className="btn danger" onClick={handleDelete} disabled={deleting}>{deleting ? t('msg.saving') : t('action.delete')}</button>
+        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+      </>
+    }>
+      {error && <div className="alert error">⚠️ {error}</div>}
+      <p style={{ fontWeight: 600, marginBottom: 8 }}>{t('confirm.delete_invoice')}</p>
+      <p style={{ color: 'var(--text-muted)', fontSize: 14, fontFamily: 'monospace' }}>{String(invoice.invoiceNumber ?? invoice.number)}</p>
+    </Modal>
+  );
+}
 
 // ===== تسجيل دفعة =====
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
