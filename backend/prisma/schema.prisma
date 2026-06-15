@@ -105,8 +105,9 @@ model Customer {
   notes       String?
   isArchived  Boolean @default(false)
 
-  contracts Contract[]
-  invoices  Invoice[]
+  contracts     Contract[]
+  invoices      Invoice[]
+  projectPrices ProjectPrice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1032,6 +1033,8 @@ model ProjectPrice {
   contractUnit     String // وحدة العقد: طن | درب | يومية
   unitPrice        Float // سعر الوحدة (د.ك)
   isArchived       Boolean @default(false)
+  customerId       Int?
+  customer         Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1039,6 +1042,7 @@ model ProjectPrice {
   @@index([isArchived])
   @@index([asphaltPlant])
   @@index([companyName])
+  @@index([customerId])
   @@map("project_prices")
 }
 

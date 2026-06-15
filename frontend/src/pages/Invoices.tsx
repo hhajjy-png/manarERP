@@ -75,8 +75,6 @@ export default function Invoices() {
   const [paying, setPaying] = useState<any | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [deleting, setDeleting] = useState<any | null>(null);
   const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState('');
   const [stats, setStats] = useState<InvStats | null>(null);
@@ -227,9 +225,6 @@ export default function Invoices() {
         actions={(row) => (
           <>
             {hasPermission('invoices.read') && (
-              <button type="button" className="btn secondary sm" onClick={() => navigate(`/invoices/${row.id}/preview`)}>{t('btn.inv.preview')}</button>
-            )}{' '}
-            {hasPermission('invoices.read') && (
               <button type="button" className="btn secondary sm" onClick={() => navigate(`/invoices/${row.id}/preview?print=1`)}>{t('btn.inv.print_invoice')}</button>
             )}{' '}
             {hasPermission('invoices.update') && (row.status === 'UNPAID' || (row.status === 'OVERDUE' && Number(row.paidAmount) === 0)) && (
@@ -241,11 +236,8 @@ export default function Invoices() {
             {hasPermission('invoices.update') && row.status !== 'CANCELLED' && Number(row.paidAmount) === 0 && (
               <button className="btn secondary sm" onClick={() => cancel(row.id)}>{t('page.invoices.cancel_inv')}</button>
             )}{' '}
-            {hasPermission('invoices.delete') && Number(row.paidAmount) === 0 && (row.status === 'UNPAID' || row.status === 'OVERDUE' || row.status === 'CANCELLED') && (
-              <button type="button" className="btn danger sm" onClick={() => setDeleting(row)}>{t('action.delete')}</button>
-            )}{' '}
             {isSystemAdmin && (
-              <button type="button" className="btn danger sm" onClick={() => setForceDeleteId(row.id as number)}>حذف نهائي</button>
+              <button type="button" className="btn danger sm" title="حذف نهائي" style={{ padding: '4px 8px', lineHeight: 1 }} onClick={() => setForceDeleteId(row.id as number)}>🗑️</button>
             )}
           </>
         )}
@@ -253,7 +245,6 @@ export default function Invoices() {
 
       {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={load} />}
       {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={load} />}
-      {deleting && <DeleteInvoiceConfirm invoice={deleting} onClose={() => setDeleting(null)} onDeleted={load} />}
       {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={load} />}
       {forceDeleteId !== null && (
         <ForceDeleteInvoiceModal
@@ -283,12 +274,13 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const [partyId, setPartyId] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [parties, setParties] = useState<any[]>([]);
-  const [items, setItems] = useState<Item[]>([{ description: '', quantity: 1, unit: 'طن', unitPrice: 0 }]);
+  const [items, setItems] = useState<Item[]>([{ description: '', quantity: 1, unit: 'درب', unitPrice: 0 }]);
   const [discount, setDiscount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [prices, setPrices] = useState<PriceOption[]>([]);
   const [openPickerIdx, setOpenPickerIdx] = useState<number | null>(null);
+  const prevPartyIdRef = useRef('');
 
   // resolve the effective party source for fetching the list
   const effectivePartySource = directionChoice === 'OTHER' ? customPartyType : directionChoice;
@@ -308,10 +300,19 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   }, [customPartyType, directionChoice]);
 
   useEffect(() => {
-    api.get('/prices', { params: { pageSize: 200 } })
+    if (partyId && partyId !== prevPartyIdRef.current && prevPartyIdRef.current !== '') {
+      setItems((prev) => prev.map((it) => it.priceTouched ? { ...it, unitPrice: 0, priceTouched: false } : it));
+    }
+    prevPartyIdRef.current = partyId;
+
+    if (effectivePartySource !== 'SALES' || !partyId) {
+      setPrices([]);
+      return;
+    }
+    api.get('/prices', { params: { pageSize: 200, customerId: partyId } })
       .then((res) => setPrices(res.data?.data?.data ?? []))
       .catch((e) => { console.warn('[CreateInvoice] prices fetch failed:', e); });
-  }, []);
+  }, [partyId, effectivePartySource]);
 
   useEffect(() => {
     if (openPickerIdx === null) return;
@@ -530,6 +531,17 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
       </div>
 
       <label style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, display: 'block', margin: '8px 0' }}>{t('lbl.items')}</label>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 4, padding: '0 2px' }}>
+        {['البنود', 'الكمية', 'الوحدة', 'السعر', 'الإجمالي'].map((h) => (
+          <div key={h} style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>{h}</div>
+        ))}
+        <div />
+      </div>
+      {effectivePartySource === 'SALES' && partyId && prices.length === 0 && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
+          لا توجد أسعار معرفة لهذا العميل
+        </p>
+      )}
       {items.map((it, i) => (
         <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center', width: '100%' }}>
           <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
@@ -618,7 +630,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           </div>
         </div>
       ))}
-      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: '', quantity: 1, unit: 'طن', unitPrice: 0 }])}>{t('btn.inv.add_material')}</button>
+      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: '', quantity: 1, unit: 'درب', unitPrice: 0 }])}>{t('btn.inv.add_material')}</button>
 
       <div className="form-grid" style={{ marginTop: 16 }}>
         <div className="field"><label>{t('field.inv.discount_kd')}</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
@@ -665,7 +677,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [parties, setParties] = useState<any[]>([]);
 
-  const [items, setItems] = useState<Item[]>([{ description: '', quantity: 1, unit: 'طن', unitPrice: 0 }]);
+  const [items, setItems] = useState<Item[]>([{ description: '', quantity: 1, unit: 'درب', unitPrice: 0 }]);
   const [discount, setDiscount] = useState<number>(Number(invoice.discount) || 0);
   const [notes, setNotes] = useState<string>(invoice.notes ?? '');
   const [saving, setSaving] = useState(false);
@@ -678,6 +690,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   const effectivePartySource = directionChoice === 'OTHER' ? customPartyType : directionChoice;
   const firstPartyLoad = useRef(true);
   const firstPartyTypeCheck = useRef(true);
+  const prevPartyIdRef = useRef(partyId); // initialized to current partyId to avoid reset on mount
 
   // Load full invoice data (items, notes)
   useEffect(() => {
@@ -726,11 +739,20 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   }, [openPickerIdx]);
 
   useEffect(() => {
-    api.get('/prices', { params: { pageSize: 200 } })
+    if (partyId && partyId !== prevPartyIdRef.current) {
+      setItems((prev) => prev.map((it) => it.priceTouched ? { ...it, unitPrice: 0, priceTouched: false } : it));
+    }
+    prevPartyIdRef.current = partyId;
+
+    if (effectivePartySource !== 'SALES' || !partyId) {
+      setPrices([]);
+      return;
+    }
+    api.get('/prices', { params: { pageSize: 200, customerId: partyId } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((res: any) => setPrices(res.data?.data?.data ?? []))
       .catch((e: unknown) => { console.warn('[EditInvoice] prices fetch failed:', e); });
-  }, []);
+  }, [partyId, effectivePartySource]);
 
   const lineTotal = (it: Item) => Number(it.quantity) * Number(it.unitPrice);
   const subtotal = items.reduce((s, it) => s + lineTotal(it), 0);
@@ -906,6 +928,17 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
       </div>
 
       <label style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, display: 'block', margin: '8px 0' }}>{t('lbl.items')}</label>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 4, padding: '0 2px' }}>
+        {['البنود', 'الكمية', 'الوحدة', 'السعر', 'الإجمالي'].map((h) => (
+          <div key={h} style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>{h}</div>
+        ))}
+        <div />
+      </div>
+      {effectivePartySource === 'SALES' && partyId && prices.length === 0 && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
+          لا توجد أسعار معرفة لهذا العميل
+        </p>
+      )}
       {items.map((it, i) => (
         <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center', width: '100%' }}>
           <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
@@ -953,7 +986,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
           </div>
         </div>
       ))}
-      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: '', quantity: 1, unit: 'طن', unitPrice: 0 }])}>{t('btn.inv.add_material')}</button>
+      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: '', quantity: 1, unit: 'درب', unitPrice: 0 }])}>{t('btn.inv.add_material')}</button>
 
       <div className="form-grid" style={{ marginTop: 16 }}>
         <div className="field"><label>{t('field.inv.discount_kd')}</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
@@ -963,39 +996,6 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ ...inp, width: '100%', boxSizing: 'border-box', resize: 'vertical' }} placeholder={t('field.notes')} />
         </div>
       </div>
-    </Modal>
-  );
-}
-
-// ===== تأكيد حذف الفاتورة =====
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function DeleteInvoiceConfirm({ invoice, onClose, onDeleted }: { invoice: any; onClose: () => void; onDeleted: () => void }) {
-  const { t } = useT();
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState('');
-
-  async function handleDelete() {
-    setDeleting(true);
-    try {
-      await api.delete(`/invoices/${invoice.id as number}`);
-      onDeleted();
-      onClose();
-    } catch (e: unknown) {
-      setError(errorMessage(e));
-      setDeleting(false);
-    }
-  }
-
-  return (
-    <Modal title={t('action.delete')} onClose={onClose} footer={
-      <>
-        <button className="btn danger" onClick={handleDelete} disabled={deleting}>{deleting ? t('msg.saving') : t('action.delete')}</button>
-        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
-      </>
-    }>
-      {error && <div className="alert error">⚠️ {error}</div>}
-      <p style={{ fontWeight: 600, marginBottom: 8 }}>{t('confirm.delete_invoice')}</p>
-      <p style={{ color: 'var(--text-muted)', fontSize: 14, fontFamily: 'monospace' }}>{String(invoice.invoiceNumber ?? invoice.number)}</p>
     </Modal>
   );
 }

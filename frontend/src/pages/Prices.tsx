@@ -22,11 +22,20 @@ export default function Prices() {
   const [filterPlant, setFilterPlant] = useState('');
   const [filterCompany, setFilterCompany] = useState('');
   const [filterUnit, setFilterUnit] = useState('');
+  const [filterCustomer, setFilterCustomer] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [customers, setCustomers] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [forceDeleteCandidate, setForceDeleteCandidate] = useState<{ id: number; asphaltPlant: string } | null>(null);
+
+  useEffect(() => {
+    api.get('/customers', { params: { pageSize: 200 } })
+      .then((res) => setCustomers(res.data.data.data ?? []))
+      .catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,6 +48,7 @@ export default function Prices() {
           asphaltPlant: filterPlant || undefined,
           companyName: filterCompany || undefined,
           contractUnit: filterUnit || undefined,
+          customerId: filterCustomer || undefined,
         },
       });
       setRows(res.data.data.data ?? []);
@@ -46,7 +56,7 @@ export default function Prices() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, filterPlant, filterCompany, filterUnit]);
+  }, [page, search, filterPlant, filterCompany, filterUnit, filterCustomer]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -77,6 +87,10 @@ export default function Prices() {
   }
 
   const columns = [
+    { key: 'customer', label: 'العميل', render: (r: Record<string, unknown>) => {
+      const c = r.customer as { name: string } | null | undefined;
+      return c?.name ?? <span style={{ color: 'var(--text-muted)' }}>—</span>;
+    }},
     { key: 'asphaltPlant', label: 'col.prices.plant', render: (r: Record<string, unknown>) => <strong>{String(r.asphaltPlant)}</strong> },
     { key: 'companyName', label: 'col.prices.company' },
     { key: 'contractLocation', label: 'col.prices.location' },
@@ -84,7 +98,11 @@ export default function Prices() {
     { key: 'unitPrice', label: 'col.prices.unit_price', render: (r: Record<string, unknown>) => money(r.unitPrice) },
   ];
 
-  const hasFilters = search || filterPlant || filterCompany || filterUnit;
+  function resetFilters() {
+    setSearch(''); setFilterPlant(''); setFilterCompany(''); setFilterUnit(''); setFilterCustomer(''); setPage(1);
+  }
+
+  const hasFilters = search || filterPlant || filterCompany || filterUnit || filterCustomer;
 
   return (
     <div>
@@ -109,6 +127,15 @@ export default function Prices() {
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           style={inp}
         />
+        <select
+          value={filterCustomer}
+          onChange={(e) => { setFilterCustomer(e.target.value); setPage(1); }}
+          title="العميل"
+          style={{ ...inp, maxWidth: 200 }}
+        >
+          <option value="">كل العملاء</option>
+          {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
         <input
           placeholder={t('filter.prices.plant')}
           value={filterPlant}
@@ -131,11 +158,7 @@ export default function Prices() {
           {contractUnits.map((u) => <option key={u} value={u}>{u}</option>)}
         </select>
         {hasFilters && (
-          <button
-            type="button"
-            className="btn secondary sm"
-            onClick={() => { setSearch(''); setFilterPlant(''); setFilterCompany(''); setFilterUnit(''); setPage(1); }}
-          >
+          <button type="button" className="btn secondary sm" onClick={resetFilters}>
             {t('action.reset_filters')}
           </button>
         )}
@@ -149,7 +172,7 @@ export default function Prices() {
         onPage={setPage}
         emptyText={t('empty.prices')}
         isFiltered={!!hasFilters}
-        onResetFilters={() => { setSearch(''); setFilterPlant(''); setFilterCompany(''); setFilterUnit(''); setPage(1); }}
+        onResetFilters={resetFilters}
         actions={(row) => (
           <>
             {hasPermission('prices.update') && (
@@ -165,8 +188,8 @@ export default function Prices() {
         )}
       />
 
-      {creating && <PriceForm onClose={() => setCreating(false)} onSaved={load} />}
-      {editing && <PriceForm price={editing} onClose={() => setEditing(null)} onSaved={load} />}
+      {creating && <PriceForm customers={customers} onClose={() => setCreating(false)} onSaved={load} />}
+      {editing && <PriceForm customers={customers} price={editing} onClose={() => setEditing(null)} onSaved={load} />}
 
       {forceDeleteCandidate && (
         <ForceDeleteProjectPriceModal
@@ -181,15 +204,16 @@ export default function Prices() {
 
 // ===== نموذج إنشاء / تعديل سعر =====
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function PriceForm({ price, onClose, onSaved }: { price?: any; onClose: () => void; onSaved: () => void }) {
+function PriceForm({ price, customers, onClose, onSaved }: { price?: any; customers: any[]; onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
   const isEdit = !!price;
 
   const [asphaltPlant, setAsphaltPlant] = useState(price?.asphaltPlant ?? '');
   const [companyName, setCompanyName] = useState(price?.companyName ?? '');
   const [contractLocation, setContractLocation] = useState(price?.contractLocation ?? '');
-  const [contractUnit, setContractUnit] = useState<(typeof contractUnits)[number]>((price?.contractUnit ?? 'طن') as (typeof contractUnits)[number]);
+  const [contractUnit, setContractUnit] = useState<(typeof contractUnits)[number]>((price?.contractUnit ?? 'درب') as (typeof contractUnits)[number]);
   const [unitPrice, setUnitPrice] = useState<number>(price?.unitPrice ?? 0);
+  const [customerId, setCustomerId] = useState<number | ''>(price?.customerId ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -199,10 +223,18 @@ function PriceForm({ price, onClose, onSaved }: { price?: any; onClose: () => vo
     if (!companyName.trim()) { setError(t('error.prices.company_required')); return; }
     if (!contractLocation.trim()) { setError(t('error.prices.location_required')); return; }
     if (unitPrice < 0) { setError(t('error.price_negative')); return; }
+    if (!isEdit && !customerId) { setError('يجب اختيار عميل'); return; }
 
     setSaving(true);
     try {
-      const payload = { asphaltPlant: asphaltPlant.trim(), companyName: companyName.trim(), contractLocation: contractLocation.trim(), contractUnit, unitPrice };
+      const payload = {
+        asphaltPlant: asphaltPlant.trim(),
+        companyName: companyName.trim(),
+        contractLocation: contractLocation.trim(),
+        contractUnit,
+        unitPrice,
+        ...(customerId !== '' ? { customerId: Number(customerId) } : {}),
+      };
       if (isEdit) {
         await api.patch(`/prices/${price.id}`, payload);
       } else {
@@ -230,6 +262,17 @@ function PriceForm({ price, onClose, onSaved }: { price?: any; onClose: () => vo
     >
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
+        <div className="field">
+          <label>العميل {!isEdit && '*'}</label>
+          <select
+            value={customerId}
+            onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : '')}
+            title="العميل"
+          >
+            <option value="">— اختر عميل —</option>
+            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </div>
         <div className="field">
           <label>{t('col.prices.plant')} *</label>
           <input value={asphaltPlant} onChange={(e) => setAsphaltPlant(e.target.value)} placeholder={t('ph.prices.plant')} style={inp} />

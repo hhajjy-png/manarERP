@@ -4,6 +4,8 @@ import { AppError } from '@core/errors/AppError';
 import { recordAudit } from '@core/middleware/audit';
 import type { CreatePriceInput, UpdatePriceInput } from './prices.schema';
 
+const customerSelect = { select: { id: true, name: true } } as const;
+
 export async function listPrices(params: {
   page: number;
   pageSize: number;
@@ -11,8 +13,9 @@ export async function listPrices(params: {
   asphaltPlant?: string;
   companyName?: string;
   contractUnit?: string;
+  customerId?: number;
 }) {
-  const { page, pageSize, search, asphaltPlant, companyName, contractUnit } = params;
+  const { page, pageSize, search, asphaltPlant, companyName, contractUnit, customerId } = params;
   const skip = (page - 1) * pageSize;
 
   const where = {
@@ -20,6 +23,7 @@ export async function listPrices(params: {
     ...(asphaltPlant ? { asphaltPlant: { contains: asphaltPlant } } : {}),
     ...(companyName ? { companyName: { contains: companyName } } : {}),
     ...(contractUnit ? { contractUnit } : {}),
+    ...(customerId ? { OR: [{ customerId }, { customerId: null }] } : {}),
     ...(search
       ? {
           OR: [
@@ -32,7 +36,13 @@ export async function listPrices(params: {
   };
 
   const [data, total] = await Promise.all([
-    prisma.projectPrice.findMany({ where, skip, take: pageSize, orderBy: { createdAt: 'desc' } }),
+    prisma.projectPrice.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: 'desc' },
+      include: { customer: customerSelect },
+    }),
     prisma.projectPrice.count({ where }),
   ]);
 
@@ -40,11 +50,18 @@ export async function listPrices(params: {
 }
 
 export async function createPrice(input: CreatePriceInput) {
-  return prisma.projectPrice.create({ data: input });
+  return prisma.projectPrice.create({
+    data: input,
+    include: { customer: customerSelect },
+  });
 }
 
 export async function updatePrice(id: number, input: UpdatePriceInput) {
-  return prisma.projectPrice.update({ where: { id }, data: input });
+  return prisma.projectPrice.update({
+    where: { id },
+    data: input,
+    include: { customer: customerSelect },
+  });
 }
 
 export async function deletePrice(id: number) {
