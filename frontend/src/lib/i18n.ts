@@ -460,6 +460,26 @@ const DICT: Record<Lang, Record<string, string>> = {
     'col.customer': 'العميل',
     'col.supplier': 'المورّد',
 
+    // ── Invoice Preview Page ──────────────────────────────────────────────────
+    'btn.inv.preview': 'معاينة',
+    'btn.inv.print_invoice': 'طباعة',
+    'btn.inv.back': 'رجوع',
+    'page.invoice_preview.title': 'معاينة الفاتورة',
+    'page.invoice_preview.section.header': 'بيانات الفاتورة',
+    'page.invoice_preview.section.party': 'الجهة والعقد',
+    'page.invoice_preview.section.financial': 'الملخص المالي',
+    'page.invoice_preview.section.system': 'معلومات النظام',
+    'lbl.inv.issue_date': 'تاريخ الفاتورة',
+    'lbl.inv.billing_period': 'حساب شهر',
+    'lbl.inv.due_date': 'تاريخ الاستحقاق',
+    'lbl.inv.subtotal': 'الإجمالي الفرعي',
+    'lbl.inv.tax': 'الضريبة',
+    'lbl.inv.remaining_amount': 'المتبقي',
+    'lbl.inv.unit_price': 'سعر الوحدة',
+    'lbl.inv.payment_history': 'سجل المدفوعات',
+    'lbl.inv.updated_at': 'آخر تعديل',
+    'field.inv.reference': 'المرجع',
+
     // ── Phase 4: inventory status pills ──────────────────────────────────────
     'inv.po.status.draft': 'مسوّد',
     'inv.po.status.submitted': 'مُرسَل',
@@ -1604,6 +1624,26 @@ const DICT: Record<Lang, Record<string, string>> = {
     'ph.unit_price': 'Unit Price',
     'col.customer': 'Customer',
     'col.supplier': 'Supplier',
+
+    // ── Invoice Preview Page ──────────────────────────────────────────────────
+    'btn.inv.preview': 'Preview',
+    'btn.inv.print_invoice': 'Print',
+    'btn.inv.back': 'Back',
+    'page.invoice_preview.title': 'Invoice Preview',
+    'page.invoice_preview.section.header': 'Invoice Details',
+    'page.invoice_preview.section.party': 'Party & Contract',
+    'page.invoice_preview.section.financial': 'Financial Summary',
+    'page.invoice_preview.section.system': 'System Information',
+    'lbl.inv.issue_date': 'Issue Date',
+    'lbl.inv.billing_period': 'Billing Period',
+    'lbl.inv.due_date': 'Due Date',
+    'lbl.inv.subtotal': 'Subtotal',
+    'lbl.inv.tax': 'Tax',
+    'lbl.inv.remaining_amount': 'Remaining',
+    'lbl.inv.unit_price': 'Unit Price',
+    'lbl.inv.payment_history': 'Payment History',
+    'lbl.inv.updated_at': 'Last Updated',
+    'field.inv.reference': 'Reference',
 
     // ── Phase 4: inventory status pills ──────────────────────────────────────
     'inv.po.status.draft': 'Draft',

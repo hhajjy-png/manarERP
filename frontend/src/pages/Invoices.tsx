@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -58,6 +59,7 @@ type PriceOption = {
 export default function Invoices() {
   const { hasPermission } = useAuth();
   const { t } = useT();
+  const navigate = useNavigate();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -221,6 +223,12 @@ export default function Invoices() {
         ) : undefined}
         actions={(row) => (
           <>
+            {hasPermission('invoices.read') && (
+              <button type="button" className="btn secondary sm" onClick={() => navigate(`/invoices/${row.id}/preview`)}>{t('btn.inv.preview')}</button>
+            )}{' '}
+            {hasPermission('invoices.read') && (
+              <button type="button" className="btn secondary sm" onClick={() => navigate(`/invoices/${row.id}/preview?print=1`)}>{t('btn.inv.print_invoice')}</button>
+            )}{' '}
             {hasPermission('invoices.update') && (row.status === 'UNPAID' || (row.status === 'OVERDUE' && Number(row.paidAmount) === 0)) && (
               <button type="button" className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>
             )}{' '}

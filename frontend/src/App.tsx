@@ -23,6 +23,7 @@ import Maintenance from './pages/Maintenance';
 import Prices from './pages/Prices';
 import Attendance from './pages/Attendance';
 import Forms from './pages/Forms';
+import InvoicePreview from './pages/InvoicePreview';
 import SalaryCertificate from './pages/SalaryCertificate';
 import ToWhomItMayConcern from './pages/ToWhomItMayConcern';
 import LeaveRequest from './pages/LeaveRequest';
@@ -43,6 +44,7 @@ export default function App() {
         {/* صفحة طباعة التقرير — خارج التخطيط لطباعة نظيفة بعربية سليمة */}
         <Route path="/print/:type" element={<ProtectedRoute><ReportPrint /></ProtectedRoute>} />
         <Route path="/payroll/:id/payslip" element={<ProtectedRoute><PayrollPayslip /></ProtectedRoute>} />
+        <Route path="/invoices/:id/preview" element={<ProtectedRoute><InvoicePreview /></ProtectedRoute>} />
         <Route path="/forms/salary-certificate/:employeeId" element={<ProtectedRoute><SalaryCertificate /></ProtectedRoute>} />
         <Route path="/forms/to-whom-it-may-concern/:employeeId" element={<ProtectedRoute><ToWhomItMayConcern /></ProtectedRoute>} />
         <Route path="/forms/leave-request/:employeeId" element={<ProtectedRoute><LeaveRequest /></ProtectedRoute>} />
