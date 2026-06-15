@@ -168,16 +168,17 @@ export default function InvoicePreview() {
   return (
     <>
       <style>{`
+        @media screen { .inv-wrap { min-height: 100vh; } }
         @media print {
           @page { size: A4; margin: 10mm; }
           body { background: white !important; }
           .no-print { display: none !important; }
         }
       `}</style>
-    <div style={{
+    <div className="inv-wrap" style={{
       padding: '24px 32px', fontFamily: "'Cairo', sans-serif",
       maxWidth: 900, margin: '0 auto', color: '#0f172a',
-      background: '#fff', minHeight: '100vh', direction: 'rtl',
+      background: '#fff', direction: 'rtl',
     }}>
 
       {/* ── Toolbar (hidden on print) ── */}
