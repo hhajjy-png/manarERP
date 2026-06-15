@@ -23,7 +23,7 @@ export async function listPrices(params: {
     ...(asphaltPlant ? { asphaltPlant: { contains: asphaltPlant } } : {}),
     ...(companyName ? { companyName: { contains: companyName } } : {}),
     ...(contractUnit ? { contractUnit } : {}),
-    ...(customerId ? { customerId } : {}),
+    ...(customerId ? { OR: [{ customerId }, { customerId: null }] } : {}),
     ...(search
       ? {
           OR: [

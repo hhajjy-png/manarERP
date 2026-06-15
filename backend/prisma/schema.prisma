@@ -1034,7 +1034,7 @@ model ProjectPrice {
   unitPrice        Float // سعر الوحدة (د.ك)
   isArchived       Boolean @default(false)
   customerId       Int?
-  customer         Customer? @relation(fields: [customerId], references: [id])
+  customer         Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

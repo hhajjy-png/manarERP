@@ -280,6 +280,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const [error, setError] = useState('');
   const [prices, setPrices] = useState<PriceOption[]>([]);
   const [openPickerIdx, setOpenPickerIdx] = useState<number | null>(null);
+  const prevPartyIdRef = useRef('');
 
   // resolve the effective party source for fetching the list
   const effectivePartySource = directionChoice === 'OTHER' ? customPartyType : directionChoice;
@@ -299,6 +300,11 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   }, [customPartyType, directionChoice]);
 
   useEffect(() => {
+    if (partyId && partyId !== prevPartyIdRef.current && prevPartyIdRef.current !== '') {
+      setItems((prev) => prev.map((it) => it.priceTouched ? { ...it, unitPrice: 0, priceTouched: false } : it));
+    }
+    prevPartyIdRef.current = partyId;
+
     if (effectivePartySource !== 'SALES' || !partyId) {
       setPrices([]);
       return;
@@ -684,6 +690,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   const effectivePartySource = directionChoice === 'OTHER' ? customPartyType : directionChoice;
   const firstPartyLoad = useRef(true);
   const firstPartyTypeCheck = useRef(true);
+  const prevPartyIdRef = useRef(partyId); // initialized to current partyId to avoid reset on mount
 
   // Load full invoice data (items, notes)
   useEffect(() => {
@@ -732,6 +739,11 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   }, [openPickerIdx]);
 
   useEffect(() => {
+    if (partyId && partyId !== prevPartyIdRef.current) {
+      setItems((prev) => prev.map((it) => it.priceTouched ? { ...it, unitPrice: 0, priceTouched: false } : it));
+    }
+    prevPartyIdRef.current = partyId;
+
     if (effectivePartySource !== 'SALES' || !partyId) {
       setPrices([]);
       return;
