@@ -8,6 +8,8 @@ import Modal from '../components/Modal';
 import ForceDeleteInvoiceModal from '../components/ForceDeleteInvoiceModal';
 import { money, dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { searchLocations } from '../constants/kuwaitLocations';
+import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription, parseDescription } from '../utils/invoiceDescription';
 
 const statusPill: Record<string, [string, string]> = {
   UNPAID: ['inv.status.unpaid', 'red'], PARTIAL: ['inv.status.partial', 'amber'], PAID: ['inv.status.paid', 'green'],
@@ -15,7 +17,7 @@ const statusPill: Record<string, [string, string]> = {
 };
 
 const invoiceTypes = ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت', 'أخرى'] as const;
-const STANDARD_UNITS = ['طن', 'درب', 'يومية', 'مقطوعية'] as const;
+const STANDARD_UNITS = ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'] as const;
 type StandardUnit = (typeof STANDARD_UNITS)[number];
 const UNIT_OTHER = 'أخرى';
 
@@ -44,7 +46,7 @@ function parseInvoiceNumber(invNum: string): { year: string; suffix: string } {
   return { year: DEFAULT_INVOICE_YEAR, suffix: invNum };
 }
 
-interface Item { description: string; quantity: number; unit: string; unitPrice: number; priceTouched?: boolean; }
+interface Item { description: string; quantity: number; unit: string; unitPrice: number; priceTouched?: boolean; workType?: string; location?: string; }
 
 interface InvStats { total: number; unpaid: number; unpaidAmount: number; }
 
@@ -70,6 +72,11 @@ export default function Invoices() {
   const [search, setSearch] = usePersistedState('inv:search', '');
   const [statusFilter, setStatusFilter] = usePersistedState('inv:status', '');
   const [directionFilter, setDirectionFilter] = usePersistedState('inv:direction', '');
+  const [customerFilter, setCustomerFilter] = usePersistedState('inv:customer', '');
+  const [monthFilter, setMonthFilter] = usePersistedState('inv:month', '');
+  const [yearFilter, setYearFilter] = usePersistedState('inv:year', '');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [customers, setCustomers] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [paying, setPaying] = useState<any | null>(null);
@@ -79,12 +86,15 @@ export default function Invoices() {
   const [loadError, setLoadError] = useState('');
   const [stats, setStats] = useState<InvStats | null>(null);
 
-  const isFiltered = !!(search || statusFilter || directionFilter);
+  const isFiltered = !!(search || statusFilter || directionFilter || customerFilter || monthFilter || yearFilter);
 
   function resetFilters() {
     setSearch('');
     setStatusFilter('');
     setDirectionFilter('');
+    setCustomerFilter('');
+    setMonthFilter('');
+    setYearFilter('');
     setPage(1);
   }
 
@@ -99,6 +109,9 @@ export default function Invoices() {
           search: search || undefined,
           status: statusFilter || undefined,
           direction: directionFilter || undefined,
+          customerId: customerFilter || undefined,
+          billingMonth: monthFilter || undefined,
+          billingYear: yearFilter || undefined,
         },
       });
       setRows(res.data.data.data ?? []);
@@ -108,7 +121,7 @@ export default function Invoices() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter, directionFilter]);
+  }, [page, search, statusFilter, directionFilter, customerFilter, monthFilter, yearFilter]);
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -116,6 +129,12 @@ export default function Invoices() {
       const inv = res.data?.data?.kpis?.invoices;
       if (inv) setStats({ total: inv.total ?? 0, unpaid: inv.unpaid ?? 0, unpaidAmount: inv.unpaidAmount ?? 0 });
     }).catch(() => { /* stats are non-critical */ });
+  }, []);
+
+  useEffect(() => {
+    api.get('/customers', { params: { pageSize: 300 } })
+      .then((r) => setCustomers(r.data?.data?.data ?? []))
+      .catch(() => {});
   }, []);
 
   async function cancel(id: number) {
@@ -202,6 +221,33 @@ export default function Invoices() {
           <option value="SALES">{t('opt.direction.sales')}</option>
           <option value="PURCHASE">{t('opt.direction.purchase')}</option>
         </select>
+        <select
+          value={customerFilter}
+          onChange={(e) => { setCustomerFilter(e.target.value); setPage(1); }}
+          title="الجهة"
+          style={{ ...inp, maxWidth: 200 }}
+        >
+          <option value="">الجهة — الكل</option>
+          {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select
+          value={monthFilter}
+          onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }}
+          title="شهر الفوترة"
+          style={{ ...inp, maxWidth: 140 }}
+        >
+          <option value="">الشهر — الكل</option>
+          {ARABIC_MONTHS.map((name, idx) => <option key={idx + 1} value={idx + 1}>{name}</option>)}
+        </select>
+        <select
+          value={yearFilter}
+          onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
+          title="سنة الفوترة"
+          style={{ ...inp, maxWidth: 100 }}
+        >
+          <option value="">السنة — الكل</option>
+          {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
         {isFiltered && (
           <button type="button" className="btn secondary sm" onClick={resetFilters}>
             {t('action.reset_filters')}
@@ -274,7 +320,8 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const [partyId, setPartyId] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [parties, setParties] = useState<any[]>([]);
-  const [items, setItems] = useState<Item[]>([{ description: '', quantity: 1, unit: 'درب', unitPrice: 0 }]);
+  const [items, setItems] = useState<Item[]>([{ description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }]);
+  const [deliveryDate, setDeliveryDate] = useState('');
   const [discount, setDiscount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -331,12 +378,20 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const subtotal = items.reduce((s, it) => s + lineTotal(it), 0);
   const total = Math.max(0, subtotal - Number(discount));
 
-  function setItem(i: number, key: keyof Item, value: string | number) {
+  function setItem(i: number, key: keyof Item | 'workType' | 'location', value: string | number) {
+    if (key === 'workType' || key === 'location') {
+      setItems((prev) => prev.map((it, idx) => {
+        if (idx !== i) return it;
+        const newWorkType = key === 'workType' ? String(value) : (it.workType ?? DEFAULT_WORK_TYPE);
+        const newLocation = key === 'location' ? String(value) : (it.location ?? '');
+        return { ...it, workType: newWorkType, location: newLocation, description: composeDescription(newWorkType, newLocation) };
+      }));
+      return;
+    }
     if (key === 'unit') {
       const newUnit = String(value);
       setOpenPickerIdx(null);
       if (newUnit === UNIT_OTHER) {
-        // user switched dropdown to أخرى — keep existing custom text or clear to blank
         setItems((prev) =>
           prev.map((it, idx) => {
             if (idx !== i) return it;
@@ -400,6 +455,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         customerId: effectivePartySource === 'SALES' ? Number(partyId) : undefined,
         supplierId: effectivePartySource === 'PURCHASE' ? Number(partyId) : undefined,
         issueDate: issueDate || undefined,
+        deliveryDate: deliveryDate || null,
         billingMonth,
         billingYear,
         discount: Number(discount),
@@ -450,8 +506,26 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           <input
             type="date"
             value={issueDate}
-            onChange={(e) => setIssueDate(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setIssueDate(v);
+              if (v) {
+                const d = new Date(v);
+                setBillingMonth(d.getMonth() + 1);
+                setBillingYear(d.getFullYear());
+              }
+            }}
             title="تاريخ الفاتورة"
+            style={inp}
+          />
+        </div>
+        <div className="field">
+          <label>تاريخ التسليم</label>
+          <input
+            type="date"
+            value={deliveryDate}
+            onChange={(e) => setDeliveryDate(e.target.value)}
+            title="تاريخ تسليم الفاتورة"
             style={inp}
           />
         </div>
@@ -547,9 +621,17 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         </p>
       )}
       {items.map((it, i) => (
-        <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center', width: '100%' }}>
-          <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <input placeholder={t('col.description')} value={it.description} onChange={(e) => setItem(i, 'description', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+        <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'start', width: '100%' }}>
+          <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'visible' }}>
+            <select
+              value={it.workType ?? DEFAULT_WORK_TYPE}
+              onChange={(e) => setItem(i, 'workType', e.target.value)}
+              title="نوع العمل"
+              style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box', marginBottom: 4 }}
+            >
+              {(WORK_TYPES as readonly string[]).map((wt) => <option key={wt} value={wt}>{wt}</option>)}
+            </select>
+            <LocationAutocomplete value={it.location ?? ''} onChange={(v) => setItem(i, 'location', v)} />
           </div>
           <div className="invoice-cell quantity-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
             <input type="number" min="0.001" step="0.001" placeholder={t('ph.qty')} value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
@@ -634,7 +716,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           </div>
         </div>
       ))}
-      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: '', quantity: 1, unit: 'درب', unitPrice: 0 }])}>{t('btn.inv.add_material')}</button>
+      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }])}>{t('btn.inv.add_material')}</button>
 
       <div className="form-grid" style={{ marginTop: 16 }}>
         <div className="field"><label>{t('field.inv.discount_kd')}</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
@@ -645,6 +727,56 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 }
 
 const inp: React.CSSProperties = { padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, fontSize: 14, outline: 'none' };
+
+// ===== Creatable autocomplete للمنطقة / الموقع =====
+// يقبل نصاً حراً أو اختياراً من القائمة — القيمة المُدخلة تبقى دائماً.
+function LocationAutocomplete({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [suggestions, setSuggestions] = useState<{ name: string }[]>([]);
+  const [open, setOpen] = useState(false);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    onChange(v);
+    const found = searchLocations(v);
+    setSuggestions(found);
+    setOpen(found.length > 0);
+  }
+
+  function pick(name: string) {
+    onChange(name);
+    setSuggestions([]);
+    setOpen(false);
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input
+        placeholder="المنطقة / الموقع"
+        value={value}
+        onChange={handleChange}
+        onFocus={() => { if (value.trim().length >= 2 && suggestions.length > 0) setOpen(true); }}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
+        style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }}
+        autoComplete="off"
+      />
+      {open && suggestions.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', insetInlineEnd: 0, insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 300, maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)' }}>
+          {suggestions.map((loc) => (
+            <button
+              key={loc.name}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); pick(loc.name); }}
+              style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)' }}
+            >
+              {loc.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ===== تعديل فاتورة =====
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -681,7 +813,10 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [parties, setParties] = useState<any[]>([]);
 
-  const [items, setItems] = useState<Item[]>([{ description: '', quantity: 1, unit: 'درب', unitPrice: 0 }]);
+  const [items, setItems] = useState<Item[]>([{ description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }]);
+  const [deliveryDate, setDeliveryDate] = useState<string>(
+    invoice.deliveryDate ? String(invoice.deliveryDate).slice(0, 10) : ''
+  );
   const [discount, setDiscount] = useState<number>(Number(invoice.discount) || 0);
   const [notes, setNotes] = useState<string>(invoice.notes ?? '');
   const [saving, setSaving] = useState(false);
@@ -703,14 +838,16 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
     api.get(`/invoices/${invoice.id as number}`).then((res: any) => {
       const inv = res.data.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      setItems(inv.items.map((it: any) => ({
-        description: it.description, quantity: it.quantity, unit: it.unit, unitPrice: it.unitPrice,
-      })));
+      setItems(inv.items.map((it: any) => {
+        const { workType, location } = parseDescription(it.description ?? '');
+        return { description: it.description, quantity: it.quantity, unit: it.unit, unitPrice: it.unitPrice, workType, location };
+      }));
       setDiscount(Number(inv.discount));
       setNotes(inv.notes ?? '');
       if (inv.issueDate) setIssueDate(String(inv.issueDate).slice(0, 10));
       if (inv.billingMonth) setBillingMonth(Number(inv.billingMonth));
       if (inv.billingYear) setBillingYear(Number(inv.billingYear));
+      if (inv.deliveryDate) setDeliveryDate(String(inv.deliveryDate).slice(0, 10));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }).catch((e: any) => { setLoadError(errorMessage(e)); }).finally(() => { setLoadingData(false); });
   }, [invoice.id]);
@@ -763,7 +900,16 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   const subtotal = items.reduce((s, it) => s + lineTotal(it), 0);
   const total = Math.max(0, subtotal - Number(discount));
 
-  function setItem(i: number, key: keyof Item, value: string | number) {
+  function setItem(i: number, key: keyof Item | 'workType' | 'location', value: string | number) {
+    if (key === 'workType' || key === 'location') {
+      setItems((prev) => prev.map((it, idx) => {
+        if (idx !== i) return it;
+        const newWorkType = key === 'workType' ? String(value) : (it.workType ?? DEFAULT_WORK_TYPE);
+        const newLocation = key === 'location' ? String(value) : (it.location ?? '');
+        return { ...it, workType: newWorkType, location: newLocation, description: composeDescription(newWorkType, newLocation) };
+      }));
+      return;
+    }
     if (key === 'unit') {
       const newUnit = String(value);
       setOpenPickerIdx(null);
@@ -818,6 +964,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
         customerId: effectivePartySource === 'SALES' ? Number(partyId) : null,
         supplierId: effectivePartySource === 'PURCHASE' ? Number(partyId) : null,
         issueDate: issueDate || undefined,
+        deliveryDate: deliveryDate || null,
         billingMonth,
         billingYear,
         discount: Number(discount),
@@ -878,7 +1025,19 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
         </div>
         <div className="field">
           <label>تاريخ الفاتورة</label>
-          <input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} title="تاريخ الفاتورة" style={inp} />
+          <input type="date" value={issueDate} onChange={(e) => {
+            const v = e.target.value;
+            setIssueDate(v);
+            if (v) {
+              const d = new Date(v);
+              setBillingMonth(d.getMonth() + 1);
+              setBillingYear(d.getFullYear());
+            }
+          }} title="تاريخ الفاتورة" style={inp} />
+        </div>
+        <div className="field">
+          <label>تاريخ التسليم</label>
+          <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} title="تاريخ تسليم الفاتورة" style={inp} />
         </div>
         <div className="field">
           <label>حساب شهر</label>
@@ -948,9 +1107,17 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
         </p>
       )}
       {items.map((it, i) => (
-        <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'center', width: '100%' }}>
-          <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <input placeholder={t('col.description')} value={it.description} onChange={(e) => setItem(i, 'description', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+        <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'start', width: '100%' }}>
+          <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'visible' }}>
+            <select
+              value={it.workType ?? DEFAULT_WORK_TYPE}
+              onChange={(e) => setItem(i, 'workType', e.target.value)}
+              title="نوع العمل"
+              style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box', marginBottom: 4 }}
+            >
+              {(WORK_TYPES as readonly string[]).map((wt) => <option key={wt} value={wt}>{wt}</option>)}
+            </select>
+            <LocationAutocomplete value={it.location ?? ''} onChange={(v) => setItem(i, 'location', v)} />
           </div>
           <div className="invoice-cell quantity-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
             <input type="number" min="0.001" step="0.001" placeholder={t('ph.qty')} value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
@@ -994,7 +1161,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
           </div>
         </div>
       ))}
-      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: '', quantity: 1, unit: 'درب', unitPrice: 0 }])}>{t('btn.inv.add_material')}</button>
+      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }])}>{t('btn.inv.add_material')}</button>
 
       <div className="form-grid" style={{ marginTop: 16 }}>
         <div className="field"><label>{t('field.inv.discount_kd')}</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>

@@ -592,6 +592,7 @@ model Invoice {
   notes         String?
   billingMonth  Int?      // شهر الحساب (1-12)
   billingYear   Int?      // سنة الحساب (مثال: 2026)
+  deliveryDate  DateTime? // تاريخ تسليم الفاتورة (متابعة داخلية — لا يظهر في الطباعة)
 
   customer Customer?     @relation(fields: [customerId], references: [id])
   supplier Supplier?     @relation(fields: [supplierId], references: [id])

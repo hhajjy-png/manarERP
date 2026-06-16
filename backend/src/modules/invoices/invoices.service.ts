@@ -85,6 +85,8 @@ export class InvoicesService {
       customerId?: string;
       supplierId?: string;
       contractId?: string;
+      billingMonth?: string;
+      billingYear?: string;
     },
   ) {
     const pagination = getPagination(query);
@@ -95,6 +97,8 @@ export class InvoicesService {
     if (query.customerId) where.customerId = Number(query.customerId);
     if (query.supplierId) where.supplierId = Number(query.supplierId);
     if (query.contractId) where.contractId = Number(query.contractId);
+    if (query.billingMonth) where.billingMonth = Number(query.billingMonth);
+    if (query.billingYear) where.billingYear = Number(query.billingYear);
     if (query.search) {
       where.OR = [
         { invoiceNumber: { contains: query.search } },
@@ -160,6 +164,7 @@ export class InvoicesService {
               contractId: input.contractId ?? null,
               issueDate: input.issueDate ?? new Date(),
               dueDate: input.dueDate ?? null,
+              deliveryDate: input.deliveryDate ?? null,
               billingMonth: input.billingMonth ?? null,
               billingYear: input.billingYear ?? null,
               subtotal,
@@ -256,6 +261,7 @@ export class InvoicesService {
           invoiceType: input.invoiceType ?? current.invoiceType,
           issueDate: input.issueDate ?? current.issueDate,
           dueDate: input.dueDate ?? current.dueDate,
+          deliveryDate: input.deliveryDate !== undefined ? input.deliveryDate : current.deliveryDate,
           billingMonth: input.billingMonth !== undefined ? input.billingMonth : current.billingMonth,
           billingYear: input.billingYear !== undefined ? input.billingYear : current.billingYear,
           taxRate,
