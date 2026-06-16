@@ -156,21 +156,16 @@ export default function Invoices() {
       });
       const all = res.data.data.data ?? [];
       const dirLabel = (d: string) => d === 'SALES' ? 'نقليات عميل' : d === 'PURCHASE' ? 'مشتريات مورد' : d;
-      const statusLabel: Record<string, string> = {
-        UNPAID: 'غير مسددة', PARTIAL: 'مسددة جزئياً', PAID: 'مسددة', OVERDUE: 'متأخرة', CANCELLED: 'ملغية',
-      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const wsData = all.map((r: any) => ({
         'رقم الفاتورة': r.invoiceNumber ?? r.number,
         'نوع الفاتورة': r.invoiceType ?? '',
         'الاتجاه': dirLabel(r.direction ?? ''),
         'الطرف': r.customer?.name ?? r.supplier?.name ?? '',
-        'تاريخ الفاتورة': r.issueDate ? String(r.issueDate).slice(0, 10) : '',
         'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : '',
         'الإجمالي': Number(r.total),
         'المسدد': Number(r.paidAmount),
         'المتبقي': Number(r.total) - Number(r.paidAmount),
-        'الحالة': statusLabel[r.status] ?? r.status,
         'ملاحظات': r.notes ?? '',
       }));
       const wb = XLSX.utils.book_new();

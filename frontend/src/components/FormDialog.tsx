@@ -16,6 +16,7 @@ export interface FormField {
   onSelectRaw?: (raw: any) => Record<string, string>; // تعبئة حقول أخرى عند الاختيار
   required?: boolean;
   half?: boolean;
+  defaultValue?: string;
 }
 
 interface Props {
@@ -44,7 +45,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
     const v: any = {};
     for (const f of fields) {
       const raw = initial?.[f.name];
-      v[f.name] = f.type === 'date' ? toInputDate(raw) : raw ?? '';
+      v[f.name] = f.type === 'date' ? toInputDate(raw) : raw ?? f.defaultValue ?? '';
     }
     return v;
   });

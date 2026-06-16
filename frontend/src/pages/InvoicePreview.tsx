@@ -245,7 +245,7 @@ export default function InvoicePreview() {
       </div>
 
       {/* ── Section 2: Party & Contract ── */}
-      <div style={secTitle}>{t('page.invoice_preview.section.party')}</div>
+      <div style={secTitle}>{data.contract ? t('page.invoice_preview.section.party') : 'الجهة'}</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 24px' }}>
         <div style={fRow}>
           <span style={fLbl}>{data.customer ? t('col.customer') : t('col.supplier')}</span>
@@ -321,7 +321,7 @@ export default function InvoicePreview() {
       </div>
 
       {/* ── Print-only: Signature lines ── */}
-      <div className="print-only" style={{ marginTop: 48, display: 'flex', justifyContent: 'space-around' }}>
+      <div className="print-only" style={{ marginTop: 24, display: 'flex', justifyContent: 'space-around' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 48 }}>المسؤول</div>
           <div style={{ borderTop: '1px solid #0f172a', width: 160 }} />
