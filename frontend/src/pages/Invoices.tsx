@@ -8,7 +8,8 @@ import Modal from '../components/Modal';
 import ForceDeleteInvoiceModal from '../components/ForceDeleteInvoiceModal';
 import { money, dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
-import { searchLocations } from '../constants/kuwaitLocations';
+import { CategoryGroup } from '../constants/kuwaitLocations';
+import { addRecentLocation, computeDropdown } from '../utils/recentLocations';
 import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription, parseDescription } from '../utils/invoiceDescription';
 
 const statusPill: Record<string, [string, string]> = {
@@ -730,23 +731,41 @@ const inp: React.CSSProperties = { padding: '10px 12px', border: '1px solid var(
 
 // ===== Creatable autocomplete للمنطقة / الموقع =====
 // يقبل نصاً حراً أو اختياراً من القائمة — القيمة المُدخلة تبقى دائماً.
+// يعرض "آخر المواقع استخداماً" أعلى القائمة، ثم نتائج الكتالوج مصنّفة.
 function LocationAutocomplete({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [suggestions, setSuggestions] = useState<{ name: string }[]>([]);
+  const [recentMatches, setRecentMatches] = useState<string[]>([]);
+  const [groups, setGroups] = useState<CategoryGroup[]>([]);
   const [open, setOpen] = useState(false);
+
+  function refresh(query: string) {
+    const { recentMatches: rm, catalogGroups } = computeDropdown(query);
+    setRecentMatches(rm);
+    setGroups(catalogGroups);
+    setOpen(rm.length > 0 || catalogGroups.length > 0);
+  }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
     onChange(v);
-    const found = searchLocations(v);
-    setSuggestions(found);
-    setOpen(found.length > 0);
+    refresh(v);
   }
 
   function pick(name: string) {
     onChange(name);
-    setSuggestions([]);
+    addRecentLocation(name);
+    setRecentMatches([]);
+    setGroups([]);
     setOpen(false);
   }
+
+  function handleBlur() {
+    setTimeout(() => {
+      setOpen(false);
+      if (value.trim()) addRecentLocation(value.trim());
+    }, 120);
+  }
+
+  const hasContent = recentMatches.length > 0 || groups.some((g) => g.items.length > 0);
 
   return (
     <div style={{ position: 'relative' }}>
@@ -754,23 +773,47 @@ function LocationAutocomplete({ value, onChange }: { value: string; onChange: (v
         placeholder="المنطقة / الموقع"
         value={value}
         onChange={handleChange}
-        onFocus={() => { if (value.trim().length >= 2 && suggestions.length > 0) setOpen(true); }}
-        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        onFocus={() => refresh(value)}
+        onBlur={handleBlur}
         onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
         style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }}
         autoComplete="off"
       />
-      {open && suggestions.length > 0 && (
-        <div style={{ position: 'absolute', top: '100%', insetInlineEnd: 0, insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 300, maxHeight: 200, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)' }}>
-          {suggestions.map((loc) => (
-            <button
-              key={loc.name}
-              type="button"
-              onMouseDown={(e) => { e.preventDefault(); pick(loc.name); }}
-              style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)' }}
-            >
-              {loc.name}
-            </button>
+      {open && hasContent && (
+        <div style={{ position: 'absolute', top: '100%', insetInlineEnd: 0, insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 300, maxHeight: 240, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)' }}>
+          {recentMatches.length > 0 && (
+            <div>
+              <div style={{ padding: '4px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted, #888)', background: 'var(--bg-subtle, var(--bg))', borderBottom: '1px solid var(--border)', letterSpacing: 0.5 }}>
+                آخر المواقع استخداماً
+              </div>
+              {recentMatches.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); pick(name); }}
+                  style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 16px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)' }}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
+          {groups.map((group) => (
+            <div key={group.category}>
+              <div style={{ padding: '4px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted, #888)', background: 'var(--bg-subtle, var(--bg))', borderBottom: '1px solid var(--border)', letterSpacing: 0.5 }}>
+                {group.label}
+              </div>
+              {group.items.map((loc) => (
+                <button
+                  key={loc.name}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); pick(loc.name); }}
+                  style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 16px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)' }}
+                >
+                  {loc.name}
+                </button>
+              ))}
+            </div>
           ))}
         </div>
       )}
