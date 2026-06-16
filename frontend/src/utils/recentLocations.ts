@@ -1,6 +1,7 @@
 import { searchLocationsGrouped, CategoryGroup } from '../constants/kuwaitLocations';
 
 export const RECENT_KEY = 'manarERP.recentInvoiceLocations';
+export const USAGE_COUNTS_KEY = 'manarERP.locationUsageCounts';
 export const MAX_RECENT = 20;
 
 export function getRecentLocations(): string[] {
@@ -15,9 +16,40 @@ export function getRecentLocations(): string[] {
   }
 }
 
+function getUsageCounts(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(USAGE_COUNTS_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null) return {};
+    return parsed as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+function incrementUsageCount(location: string): void {
+  const counts = getUsageCounts();
+  counts[location] = (counts[location] ?? 0) + 1;
+  try {
+    localStorage.setItem(USAGE_COUNTS_KEY, JSON.stringify(counts));
+  } catch {
+    // localStorage unavailable — ignore
+  }
+}
+
+export function getTopLocations(n = 5): string[] {
+  const counts = getUsageCounts();
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([loc]) => loc);
+}
+
 export function addRecentLocation(location: string): void {
   const trimmed = location.trim();
   if (!trimmed) return;
+  incrementUsageCount(trimmed);
   const current = getRecentLocations().filter((r) => r !== trimmed);
   const updated = [trimmed, ...current].slice(0, MAX_RECENT);
   try {
@@ -28,15 +60,17 @@ export function addRecentLocation(location: string): void {
 }
 
 export interface DropdownContent {
+  topLocations: string[];
   recentMatches: string[];
   catalogGroups: CategoryGroup[];
 }
 
 export function computeDropdown(query: string): DropdownContent {
   const allRecent = getRecentLocations();
+  const top = getTopLocations(5);
 
   if (!query || query.trim().length < 2) {
-    return { recentMatches: allRecent, catalogGroups: [] };
+    return { topLocations: top, recentMatches: allRecent, catalogGroups: [] };
   }
 
   const q = query.trim().toLowerCase();
@@ -48,5 +82,5 @@ export function computeDropdown(query: string): DropdownContent {
     .map((g) => ({ ...g, items: g.items.filter((item) => !recentNameSet.has(item.name.toLowerCase())) }))
     .filter((g) => g.items.length > 0);
 
-  return { recentMatches: matchingRecent, catalogGroups: dedupedGroups };
+  return { topLocations: [], recentMatches: matchingRecent, catalogGroups: dedupedGroups };
 }

@@ -154,11 +154,12 @@ export default function InvoicePreview() {
   return (
     <>
       <style>{`
-        @media screen { .inv-wrap { min-height: 100vh; } }
+        @media screen { .inv-wrap { min-height: 100vh; } .print-only { display: none; } }
         @media print {
           @page { size: A4; margin: 10mm; }
           body { background: white !important; }
           .no-print { display: none !important; }
+          .print-only { display: block !important; }
         }
       `}</style>
     <div className="inv-wrap" style={{
@@ -305,15 +306,29 @@ export default function InvoicePreview() {
           <span style={{ color: '#1d4e6f' }}>{t('lbl.inv.grand_total')}</span>
           <span style={{ color: '#1d4e6f' }}>{money(data.total)}</span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
-          <span style={fLbl}>{t('col.inv.paid')}</span>
-          <span style={{ ...fVal, color: '#16a34a' }}>{money(data.paidAmount)}</span>
+        <div className="no-print">
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
+            <span style={fLbl}>{t('col.inv.paid')}</span>
+            <span style={{ ...fVal, color: '#16a34a' }}>{money(data.paidAmount)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', fontSize: 14, fontWeight: 800 }}>
+            <span style={{ ...fLbl, fontSize: 14, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>
+              {t('lbl.inv.remaining_amount')}
+            </span>
+            <span style={{ fontWeight: 800, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</span>
+          </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', fontSize: 14, fontWeight: 800 }}>
-          <span style={{ ...fLbl, fontSize: 14, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>
-            {t('lbl.inv.remaining_amount')}
-          </span>
-          <span style={{ fontWeight: 800, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</span>
+      </div>
+
+      {/* ── Print-only: Signature lines ── */}
+      <div className="print-only" style={{ marginTop: 48, display: 'flex', justifyContent: 'space-around' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 48 }}>المسؤول</div>
+          <div style={{ borderTop: '1px solid #0f172a', width: 160 }} />
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 48 }}>المحاسبة</div>
+          <div style={{ borderTop: '1px solid #0f172a', width: 160 }} />
         </div>
       </div>
 

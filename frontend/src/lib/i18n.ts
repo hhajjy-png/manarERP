@@ -607,8 +607,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'filter.direction': 'الاتجاه',
     'filter.status': 'الحالة',
     'filter.customer_type': 'نوع العميل',
-    'opt.direction.sales': 'مبيعات',
-    'opt.direction.purchase': 'مشتريات',
+    'opt.direction.sales': 'نقليات عميل',
+    'opt.direction.purchase': 'مشتريات مورد',
     'report.type.invoices': 'تقرير الفواتير',
     'report.type.expenses': 'تقرير المصروفات',
     'report.type.profit_loss': 'الأرباح والخسائر',
@@ -1148,6 +1148,13 @@ const DICT: Record<Lang, Record<string, string>> = {
     'inv.stats.unpaid': 'غير مسددة',
     'inv.stats.unpaid_amount': 'قيمة غير المسدد',
     'inv.stats.loading': 'جارٍ تحميل الإحصاء…',
+    'inv.stats.count': 'عدد الفواتير',
+    'inv.stats.total_sales': 'إجمالي المبالغ',
+    'inv.stats.collected': 'إجمالي المحصل',
+    'inv.stats.remaining': 'إجمالي المتبقي',
+    'inv.stats.average': 'متوسط الفاتورة',
+    'inv.monthly_report': 'التقرير الشهري',
+    'inv.monthly_report.period': 'الفترة',
 
     // ── Dashboard V3A: sub-component i18n ─────────────────────────────────────
     'empty.no_alerts': 'لا توجد تنبيهات عاجلة',
@@ -2313,6 +2320,13 @@ const DICT: Record<Lang, Record<string, string>> = {
     'inv.stats.unpaid': 'Unpaid',
     'inv.stats.unpaid_amount': 'Outstanding Amount',
     'inv.stats.loading': 'Loading statistics…',
+    'inv.stats.count': 'Invoice Count',
+    'inv.stats.total_sales': 'Total Amount',
+    'inv.stats.collected': 'Total Collected',
+    'inv.stats.remaining': 'Total Remaining',
+    'inv.stats.average': 'Average Invoice',
+    'inv.monthly_report': 'Monthly Report',
+    'inv.monthly_report.period': 'Period',
 
     // ── Dashboard V3A: sub-component i18n ─────────────────────────────────────
     'empty.no_alerts': 'No urgent alerts',

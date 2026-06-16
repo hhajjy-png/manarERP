@@ -11,6 +11,8 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', requirePermission('invoices.read'), asyncHandler(invoicesController.list));
+router.get('/stats', requirePermission('invoices.read'), asyncHandler(invoicesController.getStats));
+router.get('/monthly-report', requirePermission('invoices.read'), asyncHandler(invoicesController.getMonthlyReport));
 router.get('/:id/force', requireRole(ROLES.SYSTEM_ADMIN), asyncHandler(invoicesController.forceRemovePreview));
 router.get('/:id', requirePermission('invoices.read'), asyncHandler(invoicesController.getById));
 router.post('/', requirePermission('invoices.create'), validate(createInvoiceSchema), asyncHandler(invoicesController.create));

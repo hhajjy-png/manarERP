@@ -119,6 +119,86 @@ export class InvoicesService {
     return buildPaginatedResult(data, total, pagination);
   }
 
+  async stats(query: {
+    direction?: string;
+    status?: string;
+    customerId?: string;
+    billingMonth?: string;
+    billingYear?: string;
+    search?: string;
+  }) {
+    const where: Prisma.InvoiceWhereInput = {};
+    if (query.direction) where.direction = query.direction;
+    if (query.status) where.status = query.status;
+    if (query.customerId) where.customerId = Number(query.customerId);
+    if (query.billingMonth) where.billingMonth = Number(query.billingMonth);
+    if (query.billingYear) where.billingYear = Number(query.billingYear);
+    if (query.search) {
+      where.OR = [
+        { invoiceNumber: { contains: query.search } },
+        { number: { contains: query.search } },
+      ];
+    }
+
+    const [count, agg] = await Promise.all([
+      prisma.invoice.count({ where }),
+      prisma.invoice.aggregate({ where, _sum: { total: true, paidAmount: true } }),
+    ]);
+
+    const totalSales = Number(agg._sum.total ?? 0);
+    const totalCollected = Number(agg._sum.paidAmount ?? 0);
+
+    return {
+      count,
+      totalSales,
+      totalCollected,
+      totalRemaining: totalSales - totalCollected,
+      average: count > 0 ? totalSales / count : 0,
+    };
+  }
+
+  async monthlyReport(query: {
+    direction?: string;
+    status?: string;
+    customerId?: string;
+    billingYear?: string;
+  }) {
+    const where: Prisma.InvoiceWhereInput = {};
+    if (query.direction) where.direction = query.direction;
+    if (query.status) where.status = query.status;
+    if (query.customerId) where.customerId = Number(query.customerId);
+    if (query.billingYear) where.billingYear = Number(query.billingYear);
+
+    const invoices = await prisma.invoice.findMany({
+      where,
+      select: { billingMonth: true, billingYear: true, total: true, paidAmount: true },
+    });
+
+    const groups = new Map<string, { count: number; totalSales: number; totalCollected: number }>();
+    for (const inv of invoices) {
+      const key = `${inv.billingYear ?? 0}-${String(inv.billingMonth ?? 0).padStart(2, '0')}`;
+      const g = groups.get(key) ?? { count: 0, totalSales: 0, totalCollected: 0 };
+      g.count++;
+      g.totalSales += Number(inv.total);
+      g.totalCollected += Number(inv.paidAmount);
+      groups.set(key, g);
+    }
+
+    return Array.from(groups.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([key, g]) => {
+        const [year, month] = key.split('-');
+        return {
+          year: Number(year) || null,
+          month: Number(month) || null,
+          count: g.count,
+          totalSales: g.totalSales,
+          totalCollected: g.totalCollected,
+          totalRemaining: g.totalSales - g.totalCollected,
+        };
+      });
+  }
+
   async getById(id: number) {
     const invoice = await prisma.invoice.findUnique({ where: { id }, include: FULL_INCLUDE });
     if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -49,7 +50,8 @@ function parseInvoiceNumber(invNum: string): { year: string; suffix: string } {
 
 interface Item { description: string; quantity: number; unit: string; unitPrice: number; priceTouched?: boolean; workType?: string; location?: string; }
 
-interface InvStats { total: number; unpaid: number; unpaidAmount: number; }
+interface InvStats { count: number; totalSales: number; totalCollected: number; totalRemaining: number; average: number; }
+interface MonthlyRow { year: number | null; month: number | null; count: number; totalSales: number; totalCollected: number; totalRemaining: number; }
 
 type PriceOption = {
   id: number;
@@ -86,6 +88,8 @@ export default function Invoices() {
   const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState('');
   const [stats, setStats] = useState<InvStats | null>(null);
+  const [showMonthlyReport, setShowMonthlyReport] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   const isFiltered = !!(search || statusFilter || directionFilter || customerFilter || monthFilter || yearFilter);
 
@@ -102,19 +106,16 @@ export default function Invoices() {
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError('');
+    const filterParams = {
+      search: search || undefined,
+      status: statusFilter || undefined,
+      direction: directionFilter || undefined,
+      customerId: customerFilter || undefined,
+      billingMonth: monthFilter || undefined,
+      billingYear: yearFilter || undefined,
+    };
     try {
-      const res = await api.get('/invoices', {
-        params: {
-          page,
-          pageSize: 15,
-          search: search || undefined,
-          status: statusFilter || undefined,
-          direction: directionFilter || undefined,
-          customerId: customerFilter || undefined,
-          billingMonth: monthFilter || undefined,
-          billingYear: yearFilter || undefined,
-        },
-      });
+      const res = await api.get('/invoices', { params: { page, pageSize: 15, ...filterParams } });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } catch (e) {
@@ -122,15 +123,11 @@ export default function Invoices() {
     } finally {
       setLoading(false);
     }
+    api.get('/invoices/stats', { params: filterParams })
+      .then((r) => setStats(r.data.data ?? null))
+      .catch(() => { /* stats are non-critical */ });
   }, [page, search, statusFilter, directionFilter, customerFilter, monthFilter, yearFilter]);
   useEffect(() => { load(); }, [load]);
-
-  useEffect(() => {
-    api.get('/dashboard/executive').then((res) => {
-      const inv = res.data?.data?.kpis?.invoices;
-      if (inv) setStats({ total: inv.total ?? 0, unpaid: inv.unpaid ?? 0, unpaidAmount: inv.unpaidAmount ?? 0 });
-    }).catch(() => { /* stats are non-critical */ });
-  }, []);
 
   useEffect(() => {
     api.get('/customers', { params: { pageSize: 300 } })
@@ -141,6 +138,57 @@ export default function Invoices() {
   async function cancel(id: number) {
     if (!confirm(t('confirm.cancel_invoice'))) return;
     try { await api.patch(`/invoices/${id}/cancel`); load(); } catch (e) { alert(errorMessage(e)); }
+  }
+
+  async function exportExcel() {
+    setExportingExcel(true);
+    try {
+      const res = await api.get('/invoices', {
+        params: {
+          pageSize: 9999, page: 1,
+          search: search || undefined,
+          status: statusFilter || undefined,
+          direction: directionFilter || undefined,
+          customerId: customerFilter || undefined,
+          billingMonth: monthFilter || undefined,
+          billingYear: yearFilter || undefined,
+        },
+      });
+      const all = res.data.data.data ?? [];
+      const dirLabel = (d: string) => d === 'SALES' ? 'نقليات عميل' : d === 'PURCHASE' ? 'مشتريات مورد' : d;
+      const statusLabel: Record<string, string> = {
+        UNPAID: 'غير مسددة', PARTIAL: 'مسددة جزئياً', PAID: 'مسددة', OVERDUE: 'متأخرة', CANCELLED: 'ملغية',
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const wsData = all.map((r: any) => ({
+        'رقم الفاتورة': r.invoiceNumber ?? r.number,
+        'نوع الفاتورة': r.invoiceType ?? '',
+        'الاتجاه': dirLabel(r.direction ?? ''),
+        'الطرف': r.customer?.name ?? r.supplier?.name ?? '',
+        'تاريخ الفاتورة': r.issueDate ? String(r.issueDate).slice(0, 10) : '',
+        'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : '',
+        'الإجمالي': Number(r.total),
+        'المسدد': Number(r.paidAmount),
+        'المتبقي': Number(r.total) - Number(r.paidAmount),
+        'الحالة': statusLabel[r.status] ?? r.status,
+        'ملاحظات': r.notes ?? '',
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb, ws, 'الفواتير');
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoices_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(errorMessage(e));
+    } finally {
+      setExportingExcel(false);
+    }
   }
 
   const columns = [
@@ -170,21 +218,44 @@ export default function Invoices() {
         <div className="inv-stats-strip">
           <div className="inv-stat-chip">
             <span className="inv-stat-icon">📄</span>
-            <span className="inv-stat-label">{t('inv.stats.total')}</span>
-            <span className="inv-stat-value">{stats.total}</span>
+            <span className="inv-stat-label">{t('inv.stats.count')}</span>
+            <span className="inv-stat-value">{stats.count}</span>
+          </div>
+          <div className="inv-stat-chip blue">
+            <span className="inv-stat-icon">💼</span>
+            <span className="inv-stat-label">{t('inv.stats.total_sales')}</span>
+            <span className="inv-stat-value">{money(stats.totalSales)}</span>
+          </div>
+          <div className="inv-stat-chip green">
+            <span className="inv-stat-icon">✅</span>
+            <span className="inv-stat-label">{t('inv.stats.collected')}</span>
+            <span className="inv-stat-value">{money(stats.totalCollected)}</span>
           </div>
           <div className="inv-stat-chip red">
             <span className="inv-stat-icon">🔴</span>
-            <span className="inv-stat-label">{t('inv.stats.unpaid')}</span>
-            <span className="inv-stat-value">{stats.unpaid}</span>
+            <span className="inv-stat-label">{t('inv.stats.remaining')}</span>
+            <span className="inv-stat-value">{money(stats.totalRemaining)}</span>
           </div>
           <div className="inv-stat-chip amber">
-            <span className="inv-stat-icon">💰</span>
-            <span className="inv-stat-label">{t('inv.stats.unpaid_amount')}</span>
-            <span className="inv-stat-value">{money(stats.unpaidAmount)}</span>
+            <span className="inv-stat-icon">📊</span>
+            <span className="inv-stat-label">{t('inv.stats.average')}</span>
+            <span className="inv-stat-value">{money(stats.average)}</span>
           </div>
         </div>
       )}
+
+      {customerFilter && stats && (() => {
+        const customer = customers.find((c) => String(c.id) === customerFilter);
+        return customer ? (
+          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 16px', marginBottom: 12, display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap', fontSize: 13 }}>
+            <strong style={{ color: 'var(--text)' }}>📊 {customer.name}</strong>
+            <span style={{ color: 'var(--text-muted)' }}>{stats.count} فاتورة</span>
+            <span>إجمالي: <strong>{money(stats.totalSales)}</strong></span>
+            <span>محصل: <strong style={{ color: '#16a34a' }}>{money(stats.totalCollected)}</strong></span>
+            <span>متبقي: <strong style={{ color: stats.totalRemaining > 0 ? '#dc2626' : '#16a34a' }}>{money(stats.totalRemaining)}</strong></span>
+          </div>
+        ) : null;
+      })()}
 
       {loadError && (
         <div className="alert error" role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -255,6 +326,12 @@ export default function Invoices() {
           </button>
         )}
         <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
+        <button type="button" className="btn secondary sm" onClick={exportExcel} disabled={exportingExcel}>
+          {exportingExcel ? '⏳' : '⬇'} Excel
+        </button>
+        <button type="button" className="btn secondary sm" onClick={() => setShowMonthlyReport(true)}>
+          📅 {t('inv.monthly_report')}
+        </button>
       </form>
 
       <DataTable
@@ -293,6 +370,17 @@ export default function Invoices() {
       {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={load} />}
       {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={load} />}
       {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={load} />}
+      {showMonthlyReport && (
+        <MonthlyReportModal
+          filters={{
+            direction: directionFilter || undefined,
+            status: statusFilter || undefined,
+            customerId: customerFilter || undefined,
+            billingYear: yearFilter || undefined,
+          }}
+          onClose={() => setShowMonthlyReport(false)}
+        />
+      )}
       {forceDeleteId !== null && (
         <ForceDeleteInvoiceModal
           invoiceId={forceDeleteId}
@@ -733,15 +821,17 @@ const inp: React.CSSProperties = { padding: '10px 12px', border: '1px solid var(
 // يقبل نصاً حراً أو اختياراً من القائمة — القيمة المُدخلة تبقى دائماً.
 // يعرض "آخر المواقع استخداماً" أعلى القائمة، ثم نتائج الكتالوج مصنّفة.
 function LocationAutocomplete({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [topLocations, setTopLocations] = useState<string[]>([]);
   const [recentMatches, setRecentMatches] = useState<string[]>([]);
   const [groups, setGroups] = useState<CategoryGroup[]>([]);
   const [open, setOpen] = useState(false);
 
   function refresh(query: string) {
-    const { recentMatches: rm, catalogGroups } = computeDropdown(query);
+    const { topLocations: tl, recentMatches: rm, catalogGroups } = computeDropdown(query);
+    setTopLocations(tl);
     setRecentMatches(rm);
     setGroups(catalogGroups);
-    setOpen(rm.length > 0 || catalogGroups.length > 0);
+    setOpen(tl.length > 0 || rm.length > 0 || catalogGroups.length > 0);
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -765,7 +855,9 @@ function LocationAutocomplete({ value, onChange }: { value: string; onChange: (v
     }, 120);
   }
 
-  const hasContent = recentMatches.length > 0 || groups.some((g) => g.items.length > 0);
+  const topSet = new Set(topLocations);
+  const filteredRecent = recentMatches.filter((r) => !topSet.has(r));
+  const hasContent = topLocations.length > 0 || filteredRecent.length > 0 || groups.some((g) => g.items.length > 0);
 
   return (
     <div style={{ position: 'relative' }}>
@@ -781,12 +873,29 @@ function LocationAutocomplete({ value, onChange }: { value: string; onChange: (v
       />
       {open && hasContent && (
         <div style={{ position: 'absolute', top: '100%', insetInlineEnd: 0, insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 300, maxHeight: 240, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)' }}>
-          {recentMatches.length > 0 && (
+          {topLocations.length > 0 && (
+            <div>
+              <div style={{ padding: '4px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted, #888)', background: 'var(--bg-subtle, var(--bg))', borderBottom: '1px solid var(--border)', letterSpacing: 0.5 }}>
+                ⭐ الأكثر استخداماً
+              </div>
+              {topLocations.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); pick(name); }}
+                  style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 16px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)' }}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
+          {filteredRecent.length > 0 && (
             <div>
               <div style={{ padding: '4px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted, #888)', background: 'var(--bg-subtle, var(--bg))', borderBottom: '1px solid var(--border)', letterSpacing: 0.5 }}>
                 آخر المواقع استخداماً
               </div>
-              {recentMatches.map((name) => (
+              {filteredRecent.map((name) => (
                 <button
                   key={name}
                   type="button"
@@ -1214,6 +1323,95 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ ...inp, width: '100%', boxSizing: 'border-box', resize: 'vertical' }} placeholder={t('field.notes')} />
         </div>
       </div>
+    </Modal>
+  );
+}
+
+// ===== التقرير الشهري =====
+function MonthlyReportModal({
+  filters,
+  onClose,
+}: {
+  filters: { direction?: string; status?: string; customerId?: string; billingYear?: string };
+  onClose: () => void;
+}) {
+  const { t } = useT();
+  const [rows, setRows] = useState<MonthlyRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get('/invoices/monthly-report', { params: filters })
+      .then((res) => setRows(res.data.data ?? []))
+      .catch((e) => setError(errorMessage(e)))
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function exportMonthlyExcel() {
+    const wsData = rows.map((r) => ({
+      'الفترة': r.month && r.year ? `${ARABIC_MONTHS[r.month - 1]} ${r.year}` : '—',
+      'عدد الفواتير': r.count,
+      'إجمالي المبالغ': r.totalSales,
+      'إجمالي المحصل': r.totalCollected,
+      'إجمالي المتبقي': r.totalRemaining,
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb, ws, 'التقرير الشهري');
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `monthly-report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  const thStyle: React.CSSProperties = { padding: '8px 12px', borderBottom: '2px solid var(--border)', textAlign: 'start', background: 'var(--surface-2)', fontWeight: 700, fontSize: 13 };
+  const tdStyle: React.CSSProperties = { padding: '7px 12px', borderBottom: '1px solid var(--border)', fontSize: 13 };
+
+  return (
+    <Modal title={t('inv.monthly_report')} onClose={onClose} footer={
+      <>
+        {rows.length > 0 && <button type="button" className="btn secondary sm" onClick={exportMonthlyExcel}>⬇ Excel</button>}
+        <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+      </>
+    }>
+      {loading && <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}>{t('msg.loading')}</div>}
+      {error && <div className="alert error">⚠️ {error}</div>}
+      {!loading && !error && rows.length === 0 && (
+        <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 16 }}>{t('msg.empty')}</p>
+      )}
+      {rows.length > 0 && (
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>{t('inv.monthly_report.period')}</th>
+                <th style={{ ...thStyle, textAlign: 'end' }}>عدد</th>
+                <th style={{ ...thStyle, textAlign: 'end' }}>إجمالي</th>
+                <th style={{ ...thStyle, textAlign: 'end' }}>محصل</th>
+                <th style={{ ...thStyle, textAlign: 'end' }}>متبقي</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, idx) => (
+                <tr key={idx}>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}>
+                    {r.month && r.year ? `${ARABIC_MONTHS[r.month - 1]} ${r.year}` : '—'}
+                  </td>
+                  <td style={{ ...tdStyle, textAlign: 'end' }}>{r.count}</td>
+                  <td style={{ ...tdStyle, textAlign: 'end', fontWeight: 700 }}>{money(r.totalSales)}</td>
+                  <td style={{ ...tdStyle, textAlign: 'end', color: '#16a34a', fontWeight: 700 }}>{money(r.totalCollected)}</td>
+                  <td style={{ ...tdStyle, textAlign: 'end', color: r.totalRemaining > 0 ? '#dc2626' : '#16a34a', fontWeight: 700 }}>{money(r.totalRemaining)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </Modal>
   );
 }

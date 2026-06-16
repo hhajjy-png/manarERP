@@ -6,6 +6,12 @@ export const invoicesController = {
   async list(req: Request, res: Response) {
     ok(res, await invoicesService.list(req.query));
   },
+  async getStats(req: Request, res: Response) {
+    ok(res, await invoicesService.stats(req.query));
+  },
+  async getMonthlyReport(req: Request, res: Response) {
+    ok(res, await invoicesService.monthlyReport(req.query));
+  },
   async getById(req: Request, res: Response) {
     ok(res, await invoicesService.getById(Number(req.params.id)));
   },
