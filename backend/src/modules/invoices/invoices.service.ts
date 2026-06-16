@@ -7,6 +7,7 @@ import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core
 import { transactionsService } from '../transactions/transactions.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
 import { round3, computeTotals, nextStatus, overpaymentExceeds } from './invoices.calc';
+import { postInvoiceToGL, postPaymentToGL, reverseInvoiceFromGL, repostInvoiceToGL } from './invoices.accounting';
 
 const FULL_INCLUDE = {
   items: true,
@@ -138,6 +139,8 @@ export class InvoicesService {
       });
 
       await this.postJournal(tx, created);
+      // ترحيل قيد اليومية المزدوج لدليل الحسابات (Phase 1 — فواتير المبيعات)
+      await postInvoiceToGL(tx, created.id);
       return created;
     });
 
@@ -177,7 +180,7 @@ export class InvoicesService {
     const updated = await prisma.$transaction(async (tx) => {
       // إعادة بناء البنود
       await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
-      // إعادة ترحيل القيد
+      // إعادة ترحيل القيد (النظام القديم: حذف القيد المفرد)
       await transactionsService.clearByReference('INVOICE', id, tx);
 
       const inv = await tx.invoice.update({
@@ -207,6 +210,8 @@ export class InvoicesService {
       });
 
       await this.postJournal(tx, inv);
+      // النظام المزدوج: إعادة ترحيل قيد اليومية بالقيمة الجديدة
+      await repostInvoiceToGL(tx, id);
       return inv;
     });
 
@@ -226,7 +231,7 @@ export class InvoicesService {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      await tx.payment.create({
+      const payment = await tx.payment.create({
         data: {
           invoiceId: id,
           amount: input.amount,
@@ -236,6 +241,8 @@ export class InvoicesService {
           notes: input.notes ?? null,
         },
       });
+      // ترحيل قيد اليومية المزدوج للتحصيل (Phase 1 — تحصيلات فواتير المبيعات)
+      await postPaymentToGL(tx, payment.id);
       return tx.invoice.update({
         where: { id },
         data: { paidAmount: newPaid, status: nextStatus(invoice.total, newPaid) },
@@ -255,6 +262,8 @@ export class InvoicesService {
 
     const updated = await prisma.$transaction(async (tx) => {
       await transactionsService.clearByReference('INVOICE', id, tx);
+      // النظام المزدوج: عكس قيد اليومية بدلًا من حذفه (للحفاظ على أثر التدقيق)
+      await reverseInvoiceFromGL(tx, id);
       return tx.invoice.update({ where: { id }, data: { status: 'CANCELLED' }, include: FULL_INCLUDE });
     });
 
@@ -320,6 +329,8 @@ export class InvoicesService {
 
     await prisma.$transaction(async (tx) => {
       await transactionsService.clearByReference('INVOICE', id, tx);
+      // النظام المزدوج: حذف قيود اليومية المرتبطة بالفاتورة ومدفوعاتها (لا FK يربطها)
+      await this.clearGLForInvoice(tx, id);
       await tx.invoice.delete({ where: { id } }); // البنود والمدفوعات تُحذف تلقائيًا (Cascade)
     });
 
@@ -352,11 +363,30 @@ export class InvoicesService {
 
     await prisma.$transaction(async (tx) => {
       await transactionsService.clearByReference('INVOICE', id, tx);
+      // النظام المزدوج: حذف قيود اليومية المرتبطة بالفاتورة (لا FK يربطها)
+      await this.clearGLForInvoice(tx, id);
       await tx.invoice.delete({ where: { id } }); // البنود تُحذف تلقائيًا (Cascade)
     });
 
     await recordAudit({ req, action: 'DELETE', module: 'invoices', entityId: id });
     return { deleted: true };
+  }
+
+  /**
+   * حذف جميع قيود اليومية المزدوجة المرتبطة بفاتورة عند الحذف النهائي.
+   * يشمل قيد الفاتورة وقيد العكس وقيود التحصيل لمدفوعاتها (لا FK تلقائي).
+   */
+  private async clearGLForInvoice(tx: Prisma.TransactionClient, invoiceId: number) {
+    const payments = await tx.payment.findMany({ where: { invoiceId }, select: { id: true } });
+    const paymentIds = payments.map((p) => p.id);
+    await tx.journalEntry.deleteMany({
+      where: {
+        OR: [
+          { referenceType: { in: ['INVOICE', 'INVOICE_REVERSAL'] }, referenceId: invoiceId },
+          ...(paymentIds.length > 0 ? [{ referenceType: 'PAYMENT', referenceId: { in: paymentIds } }] : []),
+        ],
+      },
+    });
   }
 }
 
