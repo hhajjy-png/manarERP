@@ -87,12 +87,19 @@ describe('Invoice GL Posting (double-entry)', () => {
     expect(rev.debit).toBe(0);
   });
 
-  it('throws a clear error for a PURCHASE invoice and posts nothing', async () => {
+  it('purchase invoice is created but GL posting is skipped', async () => {
+    mockTx.journalEntry.findFirst.mockResolvedValue(null);
     mockTx.invoice.findUnique.mockResolvedValue({
-      id: 3, direction: 'PURCHASE', status: 'UNPAID', total: 800, invoiceNumber: 'PINV-2026-00001', issueDate: new Date(),
+      id: 2,
+      direction: 'PURCHASE',
+      totalAmount: 500,
+      issueDate: new Date(),
     });
 
-    await expect(postInvoiceToGL(mockTx as any, 3)).rejects.toThrow('فواتير المشتريات');
+    // Should NOT throw — purchase invoices skip GL posting silently
+    await expect(postInvoiceToGL(mockTx as any, 2)).resolves.toBeUndefined();
+
+    // Must NOT create any journal entry
     expect(mockTx.journalEntry.create).not.toHaveBeenCalled();
   });
 

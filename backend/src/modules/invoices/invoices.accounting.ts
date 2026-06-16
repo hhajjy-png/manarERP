@@ -71,9 +71,9 @@ export async function postInvoiceToGL(tx: Tx, invoiceId: number): Promise<void> 
   const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
   if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');
 
-  // فواتير المشتريات لا تدعم الترحيل المحاسبي التلقائي في هذه المرحلة
   if (invoice.direction === 'PURCHASE') {
-    throw new AppError('فواتير المشتريات لا تدعم الترحيل المحاسبي التلقائي في هذه المرحلة', 400);
+    console.warn(`[GL] PURCHASE_INVOICE_GL_POSTING_SKIPPED invoiceId=${invoiceId} — purchase GL posting not yet implemented`);
+    return; // invoice created successfully, GL posting deferred to future phase
   }
 
   // Phase 1: نُرحّل فواتير المبيعات فقط (أي اتجاه آخر يُتجاهل بصمت)
