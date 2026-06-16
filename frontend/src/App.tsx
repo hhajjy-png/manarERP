@@ -23,6 +23,7 @@ import Maintenance from './pages/Maintenance';
 import Prices from './pages/Prices';
 import Attendance from './pages/Attendance';
 import Forms from './pages/Forms';
+import Expenses from './pages/Expenses';
 import InvoicePreview from './pages/InvoicePreview';
 import SalaryCertificate from './pages/SalaryCertificate';
 import ToWhomItMayConcern from './pages/ToWhomItMayConcern';
@@ -66,7 +67,7 @@ export default function App() {
           <Route path="/equipment" element={<ResourcePage moduleKey="equipment" />} />
           <Route path="/employees" element={<ResourcePage moduleKey="employees" />} />
           <Route path="/suppliers" element={<ResourcePage moduleKey="suppliers" />} />
-          <Route path="/expenses" element={<ResourcePage moduleKey="expenses" />} />
+          <Route path="/expenses" element={<Expenses />} />
           <Route path="/users" element={<Users />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/salaries" element={<Salaries />} />
