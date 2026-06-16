@@ -107,8 +107,8 @@ export class EmployeesService {
   }
 
   async create(input: CreateEmployeeInput, req: Request) {
-    if (await repo.exists({ code: input.code }))
-      throw AppError.conflict('الرقم الوظيفي مُستخدم من قبل');
+    const conflictEmployee = await prisma.employee.findUnique({ where: { code: input.code }, select: { fullName: true } });
+    if (conflictEmployee) throw AppError.conflict(`الرقم الوظيفي «${input.code}» مستخدم بالفعل للموظف: ${conflictEmployee.fullName}`);
     const employee = await repo.create({ ...input, email: input.email || null });
     await recordAudit({
       req,

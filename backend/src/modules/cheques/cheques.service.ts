@@ -55,7 +55,7 @@ export class ChequesService {
 
   async create(input: CreateChequeInput, req: Request) {
     const existing = await prisma.cheque.findUnique({ where: { chequeNumber: input.chequeNumber } });
-    if (existing) throw AppError.conflict('رقم الشيك مستخدم بالفعل');
+    if (existing) throw AppError.conflict(`رقم الشيك «${input.chequeNumber}» مستخدم بالفعل (المستفيد: ${existing.beneficiaryName}، التاريخ: ${String(existing.chequeDate).slice(0, 10)})`);
 
     const cheque = await prisma.cheque.create({
       data: {
@@ -95,7 +95,7 @@ export class ChequesService {
 
     if (input.chequeNumber && input.chequeNumber !== current.chequeNumber) {
       const dup = await prisma.cheque.findUnique({ where: { chequeNumber: input.chequeNumber } });
-      if (dup) throw AppError.conflict('رقم الشيك مستخدم بالفعل');
+      if (dup) throw AppError.conflict(`رقم الشيك «${input.chequeNumber}» مستخدم بالفعل (المستفيد: ${dup.beneficiaryName}، التاريخ: ${String(dup.chequeDate).slice(0, 10)})`);
     }
 
     const cheque = await prisma.cheque.update({

@@ -65,8 +65,9 @@ export class ContractsService {
   }
 
   async create(input: CreateContractInput, req: Request) {
-    if (await contractsRepository.exists({ code: input.code })) {
-      throw AppError.conflict('رقم العقد مُستخدم من قبل');
+    const conflictContract = await prisma.contract.findUnique({ where: { code: input.code }, select: { asphaltPlant: true } });
+    if (conflictContract) {
+      throw AppError.conflict(`رقم العقد «${input.code}» مستخدم بالفعل (مصنع الأسفلت: ${conflictContract.asphaltPlant})`);
     }
     await this.assertCustomerExists(input.customerId);
 

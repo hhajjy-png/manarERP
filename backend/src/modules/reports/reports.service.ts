@@ -5,6 +5,7 @@ import { ReportInput } from '../../shared/services/reportEngine/excel.service';
 
 const num = (n: number | null | undefined) => Number(n ?? 0);
 const dateAr = (d: Date | null) => (d ? new Date(d).toLocaleDateString('ar') : '');
+const ARABIC_MONTHS_RPT = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
 function dateWhere(from?: string, to?: string, field = 'date'): Record<string, unknown> {
   if (!from && !to) return {};
@@ -136,28 +137,31 @@ export class ReportsService {
     });
     const total = rows.reduce((s, i) => s + num(i.total), 0);
     const paid = rows.reduce((s, i) => s + num(i.paidAmount), 0);
+    const remaining = total - paid;
     return {
       title: 'تقرير الفواتير',
-      subtitle: `العدد: ${rows.length} — الإجمالي: ${total.toLocaleString('ar')} — المحصّل: ${paid.toLocaleString('ar')}`,
+      subtitle: `العدد: ${rows.length} — الإجمالي: ${total.toLocaleString('ar')} — المحصّل: ${paid.toLocaleString('ar')} — المتبقي: ${remaining.toLocaleString('ar')}`,
       columns: [
         { header: 'رقم الفاتورة', key: 'invoiceNumber', width: 22 },
-        { header: 'النوع', key: 'direction', width: 12 },
+        { header: 'الاتجاه', key: 'direction', width: 16 },
         { header: 'الجهة', key: 'party', width: 28 },
-        { header: 'التاريخ', key: 'date', width: 16 },
-        { header: 'الإجمالي', key: 'total', width: 16, numFmt: '#,##0.00' },
-        { header: 'المسدّد', key: 'paid', width: 16, numFmt: '#,##0.00' },
-        { header: 'الحالة', key: 'status', width: 14 },
+        { header: 'شهر الحساب', key: 'billingPeriod', width: 18 },
+        { header: 'الإجمالي', key: 'total', width: 16, numFmt: '#,##0.000' },
+        { header: 'المسدّد', key: 'paid', width: 16, numFmt: '#,##0.000' },
+        { header: 'المتبقي', key: 'remaining', width: 16, numFmt: '#,##0.000' },
       ],
       rows: rows.map((i) => ({
         invoiceNumber: i.invoiceNumber,
-        direction: i.direction === 'SALES' ? 'مبيعات' : 'مشتريات',
+        direction: i.direction === 'SALES' ? 'نقليات عميل' : i.direction === 'PURCHASE' ? 'مشتريات مورد' : i.direction,
         party: i.customer?.name ?? i.supplier?.name ?? '',
-        date: dateAr(i.issueDate),
+        billingPeriod: i.billingMonth && i.billingYear
+          ? `${ARABIC_MONTHS_RPT[(i.billingMonth as number) - 1]} ${i.billingYear}`
+          : dateAr(i.issueDate),
         total: num(i.total),
         paid: num(i.paidAmount),
-        status: i.status,
+        remaining: num(i.total) - num(i.paidAmount),
       })),
-      totalsRow: { party: 'الإجمالي', total, paid },
+      totalsRow: { party: 'الإجمالي', total, paid, remaining },
     };
   }
 

@@ -115,7 +115,8 @@ export class EquipmentService {
   }
 
   async create(input: CreateEquipmentInput, req: Request) {
-    if (await repo.exists({ code: input.code })) throw AppError.conflict('رقم المعدة مُستخدم من قبل');
+    const conflictEquip = await prisma.equipment.findUnique({ where: { code: input.code }, select: { plateNumber: true } });
+    if (conflictEquip) throw AppError.conflict(`رقم المعدة «${input.code}» مستخدم بالفعل${conflictEquip.plateNumber ? ` (لوحة: ${conflictEquip.plateNumber})` : ''}`);
     const equipment = await repo.create(input);
     await recordAudit({ req, action: 'CREATE', module: 'equipment', entityId: equipment.id, newValue: { code: input.code } });
     return equipment;

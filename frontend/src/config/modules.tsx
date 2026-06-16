@@ -143,7 +143,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     fields: [
       { name: 'code', label: 'field.customer_code', required: true },
       { name: 'name', label: 'field.customer_name', required: true },
-      { name: 'type', label: 'field.type', type: 'select', options: [
+      { name: 'type', label: 'field.type', type: 'select', defaultValue: 'PRIVATE', options: [
         { value: 'GOVERNMENT', label: 'opt.customer.government' },
         { value: 'PRIVATE', label: 'opt.customer.private' }] },
       { name: 'phone', label: 'field.phone' },
