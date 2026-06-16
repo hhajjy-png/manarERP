@@ -281,6 +281,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const [prices, setPrices] = useState<PriceOption[]>([]);
   const [openPickerIdx, setOpenPickerIdx] = useState<number | null>(null);
   const prevPartyIdRef = useRef('');
+  const submittingRef = useRef(false);
 
   // resolve the effective party source for fetching the list
   const effectivePartySource = directionChoice === 'OTHER' ? customPartyType : directionChoice;
@@ -372,21 +373,23 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   }
 
   async function submit() {
+    if (submittingRef.current) return; // حارس مزامن ضد النقر المزدوج قبل إعادة رسم React
+    submittingRef.current = true;
     setError('');
     const invoiceNumber = `MN-INV-${invoiceYear}-${invoiceNumberSuffix.trim()}`;
-    if (!invoiceNumberSuffix.trim()) { setError(t('error.inv_number_required')); return; }
+    if (!invoiceNumberSuffix.trim()) { submittingRef.current = false; setError(t('error.inv_number_required')); return; }
 
     const resolvedDirection = directionChoice === 'OTHER' ? customDirection.trim() : directionChoice;
-    if (directionChoice === 'OTHER' && !customDirection.trim()) { setError(t('error.custom_direction_required')); return; }
+    if (directionChoice === 'OTHER' && !customDirection.trim()) { submittingRef.current = false; setError(t('error.custom_direction_required')); return; }
 
     const resolvedInvoiceType = invoiceTypeChoice === 'أخرى' ? customInvoiceType.trim() : invoiceTypeChoice;
-    if (invoiceTypeChoice === 'أخرى' && !customInvoiceType.trim()) { setError(t('error.custom_invoice_type_required')); return; }
+    if (invoiceTypeChoice === 'أخرى' && !customInvoiceType.trim()) { submittingRef.current = false; setError(t('error.custom_invoice_type_required')); return; }
 
-    if (!partyId) { setError(effectivePartySource === 'SALES' ? t('error.select_customer') : t('error.select_supplier')); return; }
-    if (items.some((it) => !it.description)) { setError(t('error.item_desc_required')); return; }
-    if (items.some((it) => !it.unit)) { setError(t('error.select_unit')); return; }
-    if (items.some((it) => Number(it.quantity) <= 0)) { setError(t('error.qty_positive')); return; }
-    if (items.some((it) => Number(it.unitPrice) < 0)) { setError(t('error.price_negative')); return; }
+    if (!partyId) { submittingRef.current = false; setError(effectivePartySource === 'SALES' ? t('error.select_customer') : t('error.select_supplier')); return; }
+    if (items.some((it) => !it.description)) { submittingRef.current = false; setError(t('error.item_desc_required')); return; }
+    if (items.some((it) => !it.unit)) { submittingRef.current = false; setError(t('error.select_unit')); return; }
+    if (items.some((it) => Number(it.quantity) <= 0)) { submittingRef.current = false; setError(t('error.qty_positive')); return; }
+    if (items.some((it) => Number(it.unitPrice) < 0)) { submittingRef.current = false; setError(t('error.price_negative')); return; }
 
     setSaving(true);
     try {
@@ -407,6 +410,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     } catch (err) {
       setError(errorMessage(err));
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   }
@@ -685,6 +689,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   const [prices, setPrices] = useState<PriceOption[]>([]);
   const [openPickerIdx, setOpenPickerIdx] = useState<number | null>(null);
   const [loadingData, setLoadingData] = useState(true);
+  const submittingRef = useRef(false);
   const [loadError, setLoadError] = useState('');
 
   const effectivePartySource = directionChoice === 'OTHER' ? customPartyType : directionChoice;
@@ -790,18 +795,20 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   }
 
   async function submit() {
+    if (submittingRef.current) return; // حارس مزامن ضد النقر المزدوج قبل إعادة رسم React
+    submittingRef.current = true;
     setError('');
     const invoiceNumber = `MN-INV-${invoiceYear}-${invoiceNumberSuffix.trim()}`;
-    if (!invoiceNumberSuffix.trim()) { setError(t('error.inv_number_required')); return; }
+    if (!invoiceNumberSuffix.trim()) { submittingRef.current = false; setError(t('error.inv_number_required')); return; }
     const resolvedDirection = directionChoice === 'OTHER' ? customDirection.trim() : directionChoice;
-    if (directionChoice === 'OTHER' && !customDirection.trim()) { setError(t('error.custom_direction_required')); return; }
+    if (directionChoice === 'OTHER' && !customDirection.trim()) { submittingRef.current = false; setError(t('error.custom_direction_required')); return; }
     const resolvedInvoiceType = invoiceTypeChoice === 'أخرى' ? customInvoiceType.trim() : invoiceTypeChoice;
-    if (invoiceTypeChoice === 'أخرى' && !customInvoiceType.trim()) { setError(t('error.custom_invoice_type_required')); return; }
-    if (!partyId) { setError(effectivePartySource === 'SALES' ? t('error.select_customer') : t('error.select_supplier')); return; }
-    if (items.some((it) => !it.description)) { setError(t('error.item_desc_required')); return; }
-    if (items.some((it) => !it.unit)) { setError(t('error.select_unit')); return; }
-    if (items.some((it) => Number(it.quantity) <= 0)) { setError(t('error.qty_positive')); return; }
-    if (items.some((it) => Number(it.unitPrice) < 0)) { setError(t('error.price_negative')); return; }
+    if (invoiceTypeChoice === 'أخرى' && !customInvoiceType.trim()) { submittingRef.current = false; setError(t('error.custom_invoice_type_required')); return; }
+    if (!partyId) { submittingRef.current = false; setError(effectivePartySource === 'SALES' ? t('error.select_customer') : t('error.select_supplier')); return; }
+    if (items.some((it) => !it.description)) { submittingRef.current = false; setError(t('error.item_desc_required')); return; }
+    if (items.some((it) => !it.unit)) { submittingRef.current = false; setError(t('error.select_unit')); return; }
+    if (items.some((it) => Number(it.quantity) <= 0)) { submittingRef.current = false; setError(t('error.qty_positive')); return; }
+    if (items.some((it) => Number(it.unitPrice) < 0)) { submittingRef.current = false; setError(t('error.price_negative')); return; }
     setSaving(true);
     try {
       await api.put(`/invoices/${invoice.id as number}`, {
@@ -822,6 +829,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
     } catch (err) {
       setError(errorMessage(err));
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   }

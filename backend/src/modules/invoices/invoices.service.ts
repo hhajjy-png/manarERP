@@ -9,6 +9,20 @@ import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoi
 import { round3, computeTotals, nextStatus, overpaymentExceeds } from './invoices.calc';
 import { postInvoiceToGL, postPaymentToGL, reverseInvoiceFromGL, repostInvoiceToGL } from './invoices.accounting';
 
+/**
+ * يُميّز خطأ P2002 على حقل entryNumber في journal_entries عن بقية أخطاء التعارض.
+ * يُستخدم لإعادة المحاولة عند تعارض ترقيم القيود المحاسبية (race condition على رقم تسلسلي)
+ * دون إعادة المحاولة على تعارض رقم الفاتورة أو أي حقل آخر.
+ */
+export function isEntryNumberCollision(err: unknown): boolean {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (err.code !== 'P2002') return false;
+  const target = err.meta?.target;
+  if (!target) return false;
+  const t = Array.isArray(target) ? target.join(',') : String(target);
+  return t.includes('entryNumber') && !t.includes('invoiceNumber');
+}
+
 const FULL_INCLUDE = {
   items: true,
   payments: { orderBy: { date: 'desc' as const } },
@@ -107,59 +121,73 @@ export class InvoicesService {
     const { lines, subtotal, taxAmount, total } = computeTotals(input.items, input.taxRate, input.discount);
     const invoiceNumber = input.invoiceNumber.trim();
 
-    const invoice = await prisma.$transaction(async (tx) => {
-      const existing = await tx.invoice.findUnique({
-        where: { invoiceNumber },
-        select: { invoiceNumber: true, issueDate: true, status: true, customer: { select: { name: true } }, supplier: { select: { name: true } } },
-      });
-      if (existing) {
-        throw AppError.conflict('رقم الفاتورة مُستخدم من قبل', {
-          code: 'DUPLICATE_INVOICE_NUMBER',
-          field: 'invoiceNumber',
-          value: invoiceNumber,
-          conflictingRecord: {
-            invoiceNumber: existing.invoiceNumber,
-            partyName: existing.customer?.name ?? existing.supplier?.name ?? null,
-            issueDate: existing.issueDate,
-            status: existing.status,
-          },
+    // تُعاد المحاولة حتى مرتين عند تعارض entryNumber فقط (race condition على رقم القيد).
+    // أي خطأ آخر (تعارض invoiceNumber، AppError، إلخ) يُرمى مباشرةً دون إعادة محاولة.
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const invoice = await prisma.$transaction(async (tx) => {
+          const existing = await tx.invoice.findUnique({
+            where: { invoiceNumber },
+            select: { invoiceNumber: true, issueDate: true, status: true, customer: { select: { name: true } }, supplier: { select: { name: true } } },
+          });
+          if (existing) {
+            throw AppError.conflict('رقم الفاتورة مُستخدم من قبل', {
+              code: 'DUPLICATE_INVOICE_NUMBER',
+              field: 'invoiceNumber',
+              value: invoiceNumber,
+              conflictingRecord: {
+                invoiceNumber: existing.invoiceNumber,
+                partyName: existing.customer?.name ?? existing.supplier?.name ?? null,
+                issueDate: existing.issueDate,
+                status: existing.status,
+              },
+            });
+          }
+
+          const created = await tx.invoice.create({
+            data: {
+              number: invoiceNumber,
+              invoiceNumber,
+              direction: input.direction,
+              invoiceType: input.invoiceType,
+              customerId: input.customerId ?? null,
+              supplierId: input.supplierId ?? null,
+              contractId: input.contractId ?? null,
+              issueDate: input.issueDate ?? new Date(),
+              dueDate: input.dueDate ?? null,
+              billingMonth: input.billingMonth ?? null,
+              billingYear: input.billingYear ?? null,
+              subtotal,
+              taxRate: input.taxRate,
+              taxAmount,
+              discount: input.discount,
+              total,
+              paidAmount: 0,
+              status: 'UNPAID',
+              notes: input.notes ?? null,
+              items: { create: lines },
+            },
+            include: FULL_INCLUDE,
+          });
+
+          await this.postJournal(tx, created);
+          await postInvoiceToGL(tx, created.id);
+          return created;
         });
+
+        await recordAudit({ req, action: 'CREATE', module: 'invoices', entityId: invoice.id, newValue: { invoiceNumber: invoice.invoiceNumber, total } });
+        return invoice;
+      } catch (err) {
+        if (attempt < 2 && isEntryNumberCollision(err)) {
+          console.warn(`[GL] entryNumber collision on attempt ${attempt + 1} — retrying`);
+          lastErr = err;
+          continue;
+        }
+        throw err;
       }
-
-      const created = await tx.invoice.create({
-        data: {
-          number: invoiceNumber,
-          invoiceNumber,
-          direction: input.direction,
-          invoiceType: input.invoiceType,
-          customerId: input.customerId ?? null,
-          supplierId: input.supplierId ?? null,
-          contractId: input.contractId ?? null,
-          issueDate: input.issueDate ?? new Date(),
-          dueDate: input.dueDate ?? null,
-          billingMonth: input.billingMonth ?? null,
-          billingYear: input.billingYear ?? null,
-          subtotal,
-          taxRate: input.taxRate,
-          taxAmount,
-          discount: input.discount,
-          total,
-          paidAmount: 0,
-          status: 'UNPAID',
-          notes: input.notes ?? null,
-          items: { create: lines },
-        },
-        include: FULL_INCLUDE,
-      });
-
-      await this.postJournal(tx, created);
-      // ترحيل قيد اليومية المزدوج لدليل الحسابات (Phase 1 — فواتير المبيعات)
-      await postInvoiceToGL(tx, created.id);
-      return created;
-    });
-
-    await recordAudit({ req, action: 'CREATE', module: 'invoices', entityId: invoice.id, newValue: { invoiceNumber: invoice.invoiceNumber, total } });
-    return invoice;
+    }
+    throw lastErr!; // يُصل هنا فقط إذا استُنفدت المحاولات الثلاث على تعارض entryNumber
   }
 
   async update(id: number, input: UpdateInvoiceInput, req: Request) {

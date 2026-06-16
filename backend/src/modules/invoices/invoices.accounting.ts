@@ -25,7 +25,7 @@ async function generateEntryNumber(tx: Tx): Promise<string> {
   const prefix = `JRN-${year}-`;
   const last = await tx.journalEntry.findFirst({
     where: { entryNumber: { startsWith: prefix } },
-    orderBy: { entryNumber: 'desc' },
+    orderBy: { id: 'desc' },
     select: { entryNumber: true },
   });
   const lastSeq = last ? parseInt(last.entryNumber.slice(prefix.length), 10) : 0;

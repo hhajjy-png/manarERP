@@ -36,7 +36,7 @@ export class AccountingService {
     const prefix = `JRN-${year}-`;
     const last = await prisma.journalEntry.findFirst({
       where: { entryNumber: { startsWith: prefix } },
-      orderBy: { entryNumber: 'desc' },
+      orderBy: { id: 'desc' },
       select: { entryNumber: true },
     });
     const lastSeq = last ? parseInt(last.entryNumber.slice(prefix.length), 10) : 0;
@@ -120,7 +120,7 @@ export class AccountingService {
       const prefix = `JRN-${year}-`;
       const last = await tx.journalEntry.findFirst({
         where: { entryNumber: { startsWith: prefix } },
-        orderBy: { entryNumber: 'desc' },
+        orderBy: { id: 'desc' },
         select: { entryNumber: true },
       });
       const lastSeq = last ? parseInt(last.entryNumber.slice(prefix.length), 10) : 0;
