@@ -36,6 +36,14 @@ export const remove = asyncHandler(async (req: Request, res: Response) => {
   noContent(res);
 });
 
+export const stats = asyncHandler(async (_req: Request, res: Response) => {
+  ok(res, await service.getPricesStats());
+});
+
+export const usageReport = asyncHandler(async (_req: Request, res: Response) => {
+  ok(res, await service.getPricesUsageReport());
+});
+
 export const forceRemovePreview = asyncHandler(async (req: Request, res: Response) => {
   ok(res, await service.forceRemovePreview(Number(req.params.id)));
 });

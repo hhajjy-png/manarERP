@@ -2,12 +2,39 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { formatDate } from '../lib/date';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import { money } from '../config/modules';
 import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
 
 const contractUnits = ['طن', 'درب', 'يومية', 'مقطوعية'] as const;
+
+interface PricesStats {
+  count: number;
+  customerCount: number;
+  lastUpdatedAt: string | null;
+}
+
+interface UsageRow {
+  id: number;
+  asphaltPlant: string;
+  companyName: string;
+  contractLocation: string;
+  contractUnit: string;
+  unitPrice: number;
+  customer: { id: number; name: string } | null;
+  usageCount: number;
+  totalQuantity: number;
+  totalAmount: number;
+}
+
+interface UsageReport {
+  report: UsageRow[];
+  hasDirectTracking: boolean;
+  note: string;
+  phase2Requirement: string;
+}
 
 export default function Prices() {
   const { hasPermission, user } = useAuth();
@@ -31,11 +58,24 @@ export default function Prices() {
   const [exportBusy, setExportBusy] = useState(false);
   const [forceDeleteCandidate, setForceDeleteCandidate] = useState<{ id: number; asphaltPlant: string } | null>(null);
 
+  const [stats, setStats] = useState<PricesStats | null>(null);
+  const [usageReport, setUsageReport] = useState<UsageReport | null>(null);
+  const [showUsage, setShowUsage] = useState(false);
+  const [usageLoading, setUsageLoading] = useState(false);
+
   useEffect(() => {
     api.get('/customers', { params: { pageSize: 200 } })
       .then((res) => setCustomers(res.data.data.data ?? []))
       .catch(() => {});
   }, []);
+
+  const loadStats = useCallback(() => {
+    api.get('/prices/stats')
+      .then((res) => setStats(res.data.data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { loadStats(); }, [loadStats]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,6 +100,19 @@ export default function Prices() {
 
   useEffect(() => { load(); }, [load]);
 
+  async function loadUsageReport() {
+    setUsageLoading(true);
+    try {
+      const res = await api.get('/prices/usage-report');
+      setUsageReport(res.data.data);
+      setShowUsage(true);
+    } catch (e) {
+      alert(errorMessage(e));
+    } finally {
+      setUsageLoading(false);
+    }
+  }
+
   async function exportExcel() {
     if (!hasPermission('reports.export')) return;
     setExportBusy(true);
@@ -71,7 +124,7 @@ export default function Prices() {
       const url = URL.createObjectURL(res.data as Blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'prices-export.xlsx';
+      a.download = 'agreements-export.xlsx';
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -83,7 +136,7 @@ export default function Prices() {
 
   async function archiveRow(id: number) {
     if (!confirm(t('confirm.archive_price'))) return;
-    try { await api.delete(`/prices/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
+    try { await api.delete(`/prices/${id}`); load(); loadStats(); } catch (e) { alert(errorMessage(e)); }
   }
 
   const columns = [
@@ -108,7 +161,10 @@ export default function Prices() {
     <div>
       <div className="page-head">
         <div><h2>{t('page.prices.title')}</h2><p>{t('page.prices.subtitle')}</p></div>
-        <>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="button" className="btn secondary" onClick={loadUsageReport} disabled={usageLoading}>
+            {usageLoading ? '...' : t('agreements.usage.title')}
+          </button>
           {hasPermission('reports.export') && (
             <button type="button" className="btn secondary" onClick={exportExcel} disabled={exportBusy}>
               {exportBusy ? '...' : 'تصدير الكل Excel'}
@@ -117,8 +173,21 @@ export default function Prices() {
           {hasPermission('prices.create') && (
             <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('page.prices.create')}</button>
           )}
-        </>
+        </div>
       </div>
+
+      {/* ── Stats Dashboard ─────────────────────────────────────────────────── */}
+      {stats && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+          <StatCard label={t('agreements.stats.count')} value={stats.count} color="var(--accent)" />
+          <StatCard label={t('agreements.stats.customers')} value={stats.customerCount} color="var(--green)" />
+          <StatCard
+            label={t('agreements.stats.last_updated')}
+            value={stats.lastUpdatedAt ? formatDate(stats.lastUpdatedAt) : '—'}
+            color="var(--amber)"
+          />
+        </div>
+      )}
 
       <div className="toolbar" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
         <input
@@ -188,21 +257,89 @@ export default function Prices() {
         )}
       />
 
-      {creating && <PriceForm customers={customers} onClose={() => setCreating(false)} onSaved={load} />}
-      {editing && <PriceForm customers={customers} price={editing} onClose={() => setEditing(null)} onSaved={load} />}
+      {creating && <PriceForm customers={customers} onClose={() => setCreating(false)} onSaved={() => { load(); loadStats(); }} />}
+      {editing && <PriceForm customers={customers} price={editing} onClose={() => setEditing(null)} onSaved={() => { load(); loadStats(); }} />}
 
       {forceDeleteCandidate && (
         <ForceDeleteProjectPriceModal
           priceId={forceDeleteCandidate.id}
           onClose={() => setForceDeleteCandidate(null)}
-          onDeleted={() => { setForceDeleteCandidate(null); load(); }}
+          onDeleted={() => { setForceDeleteCandidate(null); load(); loadStats(); }}
         />
+      )}
+
+      {/* ── Usage Report Modal ──────────────────────────────────────────────── */}
+      {showUsage && usageReport && (
+        <Modal
+          title={t('agreements.usage.title')}
+          onClose={() => setShowUsage(false)}
+          footer={<button className="btn secondary" onClick={() => setShowUsage(false)}>{t('action.close')}</button>}
+        >
+          <div style={{ marginBottom: 12, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 8, fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            <div>⚠️ {t('agreements.usage.note')}</div>
+            {!usageReport.hasDirectTracking && (
+              <div style={{ marginTop: 6 }}>📋 {t('agreements.usage.phase2')}</div>
+            )}
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'right' }}>
+                <th style={th}>{t('agreements.usage.col.agreement')}</th>
+                <th style={th}>{t('agreements.usage.col.customer')}</th>
+                <th style={th}>{t('agreements.usage.col.unit')}</th>
+                <th style={th}>{t('agreements.usage.col.price')}</th>
+                <th style={{ ...th, textAlign: 'center' }}>{t('agreements.usage.col.count')}</th>
+                <th style={{ ...th, textAlign: 'center' }}>{t('agreements.usage.col.qty')}</th>
+                <th style={th}>{t('agreements.usage.col.amount')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {usageReport.report.map((row) => (
+                <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={td}>
+                    <div style={{ fontWeight: 600 }}>{row.asphaltPlant}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{row.contractLocation}</div>
+                  </td>
+                  <td style={td}>{row.customer?.name ?? <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                  <td style={td}>{row.contractUnit}</td>
+                  <td style={td}>{money(row.unitPrice)}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>
+                    <span style={{
+                      display: 'inline-block', minWidth: 28, textAlign: 'center',
+                      background: row.usageCount > 0 ? 'var(--accent)' : 'var(--surface-2)',
+                      color: row.usageCount > 0 ? '#fff' : 'var(--text-muted)',
+                      borderRadius: 99, padding: '2px 8px', fontWeight: 700, fontSize: 12,
+                    }}>
+                      {row.usageCount}
+                    </span>
+                  </td>
+                  <td style={{ ...td, textAlign: 'center' }}>{row.usageCount > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
+                  <td style={td}>{row.usageCount > 0 ? money(row.totalAmount) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Modal>
       )}
     </div>
   );
 }
 
-// ===== نموذج إنشاء / تعديل سعر =====
+// ── Stats Card ──────────────────────────────────────────────────────────────
+function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
+  return (
+    <div style={{
+      flex: '1 1 160px', minWidth: 140,
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+      padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 4,
+    }}>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.3 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color }}>{value}</div>
+    </div>
+  );
+}
+
+// ── نموذج إنشاء / تعديل اتفاقية ────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function PriceForm({ price, customers, onClose, onSaved }: { price?: any; customers: any[]; onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
@@ -309,3 +446,5 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
 }
 
 const inp: React.CSSProperties = { padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, fontSize: 14, outline: 'none' };
+const th: React.CSSProperties = { padding: '8px 10px', fontWeight: 700, fontSize: 12, color: 'var(--text-muted)' };
+const td: React.CSSProperties = { padding: '10px 10px', verticalAlign: 'top' };
