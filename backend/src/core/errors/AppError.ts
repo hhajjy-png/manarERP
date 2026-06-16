@@ -28,8 +28,8 @@ export class AppError extends Error {
   static notFound(msg = 'السجل غير موجود') {
     return new AppError(msg, 404);
   }
-  static conflict(msg: string) {
-    return new AppError(msg, 409);
+  static conflict(msg: string, details?: unknown) {
+    return new AppError(msg, 409, details);
   }
   static internal(msg = 'حدث خطأ داخلي في النظام') {
     return new AppError(msg, 500);
