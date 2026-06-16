@@ -787,6 +787,7 @@ model JournalEntry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([referenceType, referenceId]) // حماية على مستوى قاعدة البيانات ضد الترحيل المزدوج (SQLite يعامل NULL كقيم متمايزة)
   @@index([date])
   @@index([status])
   @@index([referenceType, referenceId])

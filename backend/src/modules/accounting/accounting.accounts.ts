@@ -58,6 +58,17 @@ export async function ensureSystemAccounts(client: Client = prisma): Promise<voi
     });
   }
   accountCache = null; // إبطال الذاكرة المؤقتة بعد التعديل
+
+  // تحقق دفاعي: لا تسمح بأي ترحيل إذا بقي أي حساب نظام مفقودًا
+  const existing = await client.account.findMany({ select: { code: true } });
+  const existingCodes = new Set(existing.map((a) => a.code));
+  const missing = Object.values(SYSTEM_ACCOUNT_CODES).filter((code) => !existingCodes.has(code));
+  if (missing.length > 0) {
+    throw new AppError(
+      `حسابات النظام غير مكتملة. الحسابات المفقودة: ${missing.join(', ')}. يرجى تشغيل seed.`,
+      500,
+    );
+  }
 }
 
 /**

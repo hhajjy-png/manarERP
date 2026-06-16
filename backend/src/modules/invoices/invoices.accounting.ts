@@ -12,6 +12,9 @@ type Tx = Prisma.TransactionClient;
 
 const round3 = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000;
 
+/** سطر قيد يومية. */
+type JournalLine = { accountId: number; debit: number; credit: number; description: string };
+
 /** توليد رقم قيد يومية فريد بصيغة JRN-<السنة>-<تسلسل> داخل المعاملة. */
 async function generateEntryNumber(tx: Tx): Promise<string> {
   const year = new Date().getFullYear();
@@ -21,16 +24,59 @@ async function generateEntryNumber(tx: Tx): Promise<string> {
 }
 
 /**
+ * ينشئ قيد يومية مزدوجًا بعد التحقق من توازنه (إجمالي المدين = إجمالي الدائن).
+ * يرمي خطأً قبل الكتابة إذا كان القيد غير متوازن — حماية أخيرة ضد قيود فاسدة.
+ * يستخدم دقّة 3 منازل عشرية (الدينار الكويتي) في المقارنة.
+ */
+export async function createBalancedJournalEntry(
+  tx: Tx,
+  data: {
+    date: Date;
+    description: string;
+    referenceType: string;
+    referenceId: number;
+    lines: JournalLine[];
+  },
+): Promise<void> {
+  const totalDebit = round3(data.lines.reduce((s, l) => s + l.debit, 0));
+  const totalCredit = round3(data.lines.reduce((s, l) => s + l.credit, 0));
+
+  if (Math.abs(totalDebit - totalCredit) > 0.001) {
+    throw new AppError(
+      `قيد محاسبي غير متوازن: المدين ${totalDebit} ≠ الدائن ${totalCredit}`,
+      500,
+    );
+  }
+
+  await tx.journalEntry.create({
+    data: {
+      entryNumber: await generateEntryNumber(tx),
+      date: data.date,
+      description: data.description,
+      referenceType: data.referenceType,
+      referenceId: data.referenceId,
+      status: 'POSTED',
+      lines: { create: data.lines },
+    },
+  });
+}
+
+/**
  * ترحيل قيد يومية مزدوج لفاتورة مبيعات:
  *   من ح/ ذمم العملاء (مدين) إلى ح/ إيرادات المبيعات (دائن).
- * فواتير المشتريات (PURCHASE) لا تُرحَّل هنا في Phase 1.
- * محمي من الترحيل المزدوج عبر (referenceType='INVOICE', referenceId).
+ * فواتير المشتريات (PURCHASE) محظورة من الترحيل التلقائي في Phase 1 (تُرمى بخطأ واضح).
+ * محمي من الترحيل المزدوج عبر (referenceType='INVOICE', referenceId) كوديًا وعلى مستوى قاعدة البيانات.
  */
 export async function postInvoiceToGL(tx: Tx, invoiceId: number): Promise<void> {
   const invoice = await tx.invoice.findUnique({ where: { id: invoiceId } });
   if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');
 
-  // Phase 1: نُرحّل فواتير المبيعات فقط
+  // فواتير المشتريات لا تدعم الترحيل المحاسبي التلقائي في هذه المرحلة
+  if (invoice.direction === 'PURCHASE') {
+    throw new AppError('فواتير المشتريات لا تدعم الترحيل المحاسبي التلقائي في هذه المرحلة', 400);
+  }
+
+  // Phase 1: نُرحّل فواتير المبيعات فقط (أي اتجاه آخر يُتجاهل بصمت)
   if (invoice.direction !== 'SALES') return;
 
   // لا تُرحّل فاتورة ملغاة أو بإجمالي صفري
@@ -38,7 +84,7 @@ export async function postInvoiceToGL(tx: Tx, invoiceId: number): Promise<void> 
   const amount = round3(invoice.total);
   if (amount <= 0) return;
 
-  // حارس الترحيل المزدوج
+  // حارس الترحيل المزدوج (مستوى الكود)
   const existing = await tx.journalEntry.findFirst({
     where: { referenceType: 'INVOICE', referenceId: invoiceId },
   });
@@ -49,21 +95,15 @@ export async function postInvoiceToGL(tx: Tx, invoiceId: number): Promise<void> 
   const arId = requireAccount(accounts, SYSTEM_ACCOUNT_CODES.ACCOUNTS_RECEIVABLE);
   const revenueId = requireAccount(accounts, SYSTEM_ACCOUNT_CODES.SALES_REVENUE);
 
-  await tx.journalEntry.create({
-    data: {
-      entryNumber: await generateEntryNumber(tx),
-      date: invoice.issueDate ?? new Date(),
-      description: `قيد فاتورة مبيعات ${invoice.invoiceNumber}`,
-      referenceType: 'INVOICE',
-      referenceId: invoiceId,
-      status: 'POSTED',
-      lines: {
-        create: [
-          { accountId: arId, debit: amount, credit: 0, description: `مديونية العميل — فاتورة ${invoice.invoiceNumber}` },
-          { accountId: revenueId, debit: 0, credit: amount, description: `إيرادات مبيعات — فاتورة ${invoice.invoiceNumber}` },
-        ],
-      },
-    },
+  await createBalancedJournalEntry(tx, {
+    date: invoice.issueDate ?? new Date(),
+    description: `قيد فاتورة مبيعات ${invoice.invoiceNumber}`,
+    referenceType: 'INVOICE',
+    referenceId: invoiceId,
+    lines: [
+      { accountId: arId, debit: amount, credit: 0, description: `مديونية العميل — فاتورة ${invoice.invoiceNumber}` },
+      { accountId: revenueId, debit: 0, credit: amount, description: `إيرادات مبيعات — فاتورة ${invoice.invoiceNumber}` },
+    ],
   });
 }
 
@@ -101,21 +141,15 @@ export async function postPaymentToGL(tx: Tx, paymentId: number): Promise<void> 
   const arId = requireAccount(accounts, SYSTEM_ACCOUNT_CODES.ACCOUNTS_RECEIVABLE);
   const ref = payment.invoice?.invoiceNumber ?? `#${paymentId}`;
 
-  await tx.journalEntry.create({
-    data: {
-      entryNumber: await generateEntryNumber(tx),
-      date: payment.date ?? new Date(),
-      description: `قيد تحصيل دفعة — فاتورة ${ref}`,
-      referenceType: 'PAYMENT',
-      referenceId: paymentId,
-      status: 'POSTED',
-      lines: {
-        create: [
-          { accountId: cashId, debit: amount, credit: 0, description: `تحصيل نقدي/بنكي — فاتورة ${ref}` },
-          { accountId: arId, debit: 0, credit: amount, description: `تسوية مديونية العميل — فاتورة ${ref}` },
-        ],
-      },
-    },
+  await createBalancedJournalEntry(tx, {
+    date: payment.date ?? new Date(),
+    description: `قيد تحصيل دفعة — فاتورة ${ref}`,
+    referenceType: 'PAYMENT',
+    referenceId: paymentId,
+    lines: [
+      { accountId: cashId, debit: amount, credit: 0, description: `تحصيل نقدي/بنكي — فاتورة ${ref}` },
+      { accountId: arId, debit: 0, credit: amount, description: `تسوية مديونية العميل — فاتورة ${ref}` },
+    ],
   });
 }
 
@@ -148,22 +182,16 @@ export async function reverseInvoiceFromGL(tx: Tx, invoiceId: number): Promise<v
   });
   if (existingReversal) return;
 
-  await tx.journalEntry.create({
-    data: {
-      entryNumber: await generateEntryNumber(tx),
-      date: new Date(),
-      description: `عكس قيد فاتورة مبيعات #${invoiceId}`,
-      referenceType: 'INVOICE_REVERSAL',
-      referenceId: invoiceId,
-      status: 'POSTED',
-      lines: {
-        create: original.lines.map((line) => ({
-          accountId: line.accountId,
-          debit: line.credit, // مقلوب
-          credit: line.debit, // مقلوب
-          description: `عكس: ${line.description ?? ''}`.trim(),
-        })),
-      },
-    },
+  await createBalancedJournalEntry(tx, {
+    date: new Date(),
+    description: `عكس قيد فاتورة مبيعات #${invoiceId}`,
+    referenceType: 'INVOICE_REVERSAL',
+    referenceId: invoiceId,
+    lines: original.lines.map((line) => ({
+      accountId: line.accountId,
+      debit: line.credit, // مقلوب
+      credit: line.debit, // مقلوب
+      description: `عكس: ${line.description ?? ''}`.trim(),
+    })),
   });
 }

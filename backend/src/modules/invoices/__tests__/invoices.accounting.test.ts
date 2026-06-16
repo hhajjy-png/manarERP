@@ -3,18 +3,24 @@ import {
   postInvoiceToGL,
   postPaymentToGL,
   reverseInvoiceFromGL,
+  createBalancedJournalEntry,
 } from '../invoices.accounting';
 import {
   SYSTEM_ACCOUNT_CODES,
   clearAccountCache,
 } from '../../accounting/accounting.accounts';
 
-// Account ids returned by the mocked chart of accounts
+// Account ids returned by the mocked chart of accounts.
+// Must include ALL system codes so ensureSystemAccounts() completeness check passes.
 const ACCOUNT_ROWS = [
   { id: 10, code: SYSTEM_ACCOUNT_CODES.ACCOUNTS_RECEIVABLE },
   { id: 20, code: SYSTEM_ACCOUNT_CODES.SALES_REVENUE },
   { id: 30, code: SYSTEM_ACCOUNT_CODES.CASH },
   { id: 40, code: SYSTEM_ACCOUNT_CODES.BANK },
+  { id: 50, code: SYSTEM_ACCOUNT_CODES.INVENTORY },
+  { id: 60, code: SYSTEM_ACCOUNT_CODES.ACCOUNTS_PAYABLE },
+  { id: 70, code: SYSTEM_ACCOUNT_CODES.PURCHASES },
+  { id: 80, code: SYSTEM_ACCOUNT_CODES.PAYROLL_EXPENSE },
 ];
 
 const mockTx = {
@@ -81,13 +87,28 @@ describe('Invoice GL Posting (double-entry)', () => {
     expect(rev.debit).toBe(0);
   });
 
-  it('does not post a PURCHASE invoice in Phase 1', async () => {
+  it('throws a clear error for a PURCHASE invoice and posts nothing', async () => {
     mockTx.invoice.findUnique.mockResolvedValue({
       id: 3, direction: 'PURCHASE', status: 'UNPAID', total: 800, invoiceNumber: 'PINV-2026-00001', issueDate: new Date(),
     });
 
-    await postInvoiceToGL(mockTx as any, 3);
+    await expect(postInvoiceToGL(mockTx as any, 3)).rejects.toThrow('فواتير المشتريات');
+    expect(mockTx.journalEntry.create).not.toHaveBeenCalled();
+  });
 
+  it('rejects an unbalanced journal entry and writes nothing', async () => {
+    await expect(
+      createBalancedJournalEntry(mockTx as any, {
+        date: new Date(),
+        description: 'test',
+        referenceType: 'INVOICE',
+        referenceId: 99,
+        lines: [
+          { accountId: 1, debit: 100, credit: 0, description: '' },
+          { accountId: 2, debit: 0, credit: 50, description: '' }, // 50 ≠ 100
+        ],
+      }),
+    ).rejects.toThrow('غير متوازن');
     expect(mockTx.journalEntry.create).not.toHaveBeenCalled();
   });
 
