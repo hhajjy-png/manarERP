@@ -34,6 +34,16 @@ describe('isEntryNumberCollision — تمييز تعارض entryNumber عن با
     expect(isEntryNumberCollision(makeP2002(['referenceType', 'referenceId']))).toBe(false);
   });
 
+  it('يُرجع false عند P2002 على transactions_entryNumber_key (نظام قديم — لا retry)', () => {
+    // السبب الجذري للخلل الإنتاجي: transactions_entryNumber_key يحتوي "entryNumber"
+    // لكنه من جدول transactions وليس journal_entries → يجب ألا يُعيد retry.
+    expect(isEntryNumberCollision(makeP2002('transactions_entryNumber_key'))).toBe(false);
+  });
+
+  it('يُرجع true عند P2002 على journal_entries_entryNumber_key (النظام الجديد — يستحق retry)', () => {
+    expect(isEntryNumberCollision(makeP2002('journal_entries_entryNumber_key'))).toBe(true);
+  });
+
   it('يُرجع false عند خطأ P2025 (ليس P2002)', () => {
     const err = new Prisma.PrismaClientKnownRequestError(
       'Record not found',

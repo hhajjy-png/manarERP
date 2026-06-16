@@ -23,8 +23,15 @@ export class TransactionsService {
   async generateEntryNumber(client: Client = prisma): Promise<string> {
     const year = new Date().getFullYear();
     const prefix = `JE-${year}-`;
-    const count = await client.transaction.count({ where: { entryNumber: { startsWith: prefix } } });
-    return `${prefix}${String(count + 1).padStart(5, '0')}`;
+    // استخدام id desc بدلاً من COUNT لتجنّب التعارض عند وجود فجوات في التسلسل (حذف أو استيراد).
+    const last = await client.transaction.findFirst({
+      where: { entryNumber: { startsWith: prefix } },
+      orderBy: { id: 'desc' },
+      select: { entryNumber: true },
+    });
+    const lastSeq = last ? parseInt(last.entryNumber.slice(prefix.length), 10) : 0;
+    const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
+    return `${prefix}${String(nextSeq).padStart(5, '0')}`;
   }
 
   /**

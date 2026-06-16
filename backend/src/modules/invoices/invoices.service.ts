@@ -20,7 +20,11 @@ export function isEntryNumberCollision(err: unknown): boolean {
   const target = err.meta?.target;
   if (!target) return false;
   const t = Array.isArray(target) ? target.join(',') : String(target);
-  return t.includes('entryNumber') && !t.includes('invoiceNumber');
+  // يُعيد true فقط عند تعارض entryNumber في journal_entries (النظام الجديد).
+  // transactions_entryNumber_key (النظام القديم) لا يستحق retry — مشكلته في generateEntryNumber.
+  if (t.includes('invoiceNumber')) return false;
+  if (t.includes('transactions')) return false;
+  return t.includes('entryNumber');
 }
 
 const FULL_INCLUDE = {
