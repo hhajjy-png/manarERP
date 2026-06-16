@@ -15,6 +15,12 @@ const CATEGORY_AR: Record<string, string> = {
   PURCHASES: 'مشتريات',
   EQUIPMENT: 'معدات',
   SERVICES: 'خدمات',
+  EQUIPMENT_RENT: 'إيجار معدات',
+  TRUCK_RENT: 'إيجار شاحنات',
+  HASSAN: 'مصروف عن طريق حسن',
+  GHANEM: 'مصروف عن طريق غانم',
+  NATHEER: 'مصروف عن طريق نظير',
+  HAROON: 'مصروف عن طريق هارون',
   OTHER: 'أخرى',
 };
 
@@ -32,12 +38,15 @@ export class ExpensesService {
     return `${prefix}${String(count + 1).padStart(5, '0')}`;
   }
 
-  async list(query: PaginationQuery & { category?: string; status?: string; contractId?: string; from?: string; to?: string }) {
+  async list(query: PaginationQuery & { category?: string; status?: string; contractId?: string; supplierId?: string; billingMonth?: string; billingYear?: string; from?: string; to?: string }) {
     const pagination = getPagination(query);
     const where: Prisma.ExpenseWhereInput = {};
     if (query.category) where.category = query.category;
     if (query.status) where.status = query.status;
     if (query.contractId) where.contractId = Number(query.contractId);
+    if (query.supplierId) where.supplierId = Number(query.supplierId);
+    if (query.billingMonth) where.billingMonth = Number(query.billingMonth);
+    if (query.billingYear) where.billingYear = Number(query.billingYear);
     if (query.from || query.to) {
       where.date = {};
       if (query.from) where.date.gte = new Date(query.from);
@@ -67,6 +76,9 @@ export class ExpensesService {
         description: input.description,
         amount: input.amount,
         date: input.date ?? new Date(),
+        billingMonth: input.billingMonth ?? null,
+        billingYear: input.billingYear ?? null,
+        notes: input.notes ?? null,
         contractId: input.contractId ?? null,
         supplierId: input.supplierId ?? null,
         documentPath: input.documentPath ?? null,
@@ -90,6 +102,9 @@ export class ExpensesService {
         description: input.description ?? current.description,
         amount: input.amount ?? current.amount,
         date: input.date ?? current.date,
+        billingMonth: input.billingMonth !== undefined ? input.billingMonth : current.billingMonth,
+        billingYear: input.billingYear !== undefined ? input.billingYear : current.billingYear,
+        notes: input.notes !== undefined ? input.notes : current.notes,
         contractId: input.contractId === undefined ? current.contractId : input.contractId,
         supplierId: input.supplierId === undefined ? current.supplierId : input.supplierId,
         documentPath: input.documentPath ?? current.documentPath,
@@ -152,6 +167,41 @@ export class ExpensesService {
     await prisma.expense.delete({ where: { id } });
     await recordAudit({ req, action: 'DELETE', module: 'expenses', entityId: id });
     return { deleted: true };
+  }
+
+  async stats(query: { category?: string; status?: string; supplierId?: string; billingMonth?: string; billingYear?: string; from?: string; to?: string }) {
+    const where: Prisma.ExpenseWhereInput = {};
+    if (query.category) where.category = query.category;
+    if (query.status) where.status = query.status;
+    if (query.supplierId) where.supplierId = Number(query.supplierId);
+    if (query.billingMonth) where.billingMonth = Number(query.billingMonth);
+    if (query.billingYear) where.billingYear = Number(query.billingYear);
+    if (query.from || query.to) {
+      where.date = {};
+      if (query.from) (where.date as Record<string, Date>).gte = new Date(query.from);
+      if (query.to) (where.date as Record<string, Date>).lte = new Date(query.to);
+    }
+
+    const rows = await prisma.expense.findMany({
+      where,
+      select: { amount: true, category: true, supplier: { select: { name: true } } },
+    });
+
+    const count = rows.length;
+    const total = rows.reduce((s, r) => s + Number(r.amount), 0);
+
+    const byCategory: Record<string, number> = {};
+    for (const r of rows) {
+      byCategory[r.category] = (byCategory[r.category] ?? 0) + Number(r.amount);
+    }
+
+    const bySupplier: Record<string, number> = {};
+    for (const r of rows) {
+      const label = r.supplier?.name ?? 'غير محدد';
+      bySupplier[label] = (bySupplier[label] ?? 0) + Number(r.amount);
+    }
+
+    return { count, total, byCategory, bySupplier };
   }
 }
 

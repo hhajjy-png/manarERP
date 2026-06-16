@@ -24,4 +24,7 @@ export const expensesController = {
   async remove(req: Request, res: Response) {
     ok(res, await expensesService.remove(Number(req.params.id), req), 'تم الحذف');
   },
+  async stats(req: Request, res: Response) {
+    ok(res, await expensesService.stats(req.query as Record<string, string>));
+  },
 };

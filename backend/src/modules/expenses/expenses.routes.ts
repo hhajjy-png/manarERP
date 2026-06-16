@@ -10,6 +10,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', requirePermission('expenses.read'), asyncHandler(expensesController.list));
+router.get('/stats', requirePermission('expenses.read'), asyncHandler(expensesController.stats));
 router.get('/:id', requirePermission('expenses.read'), asyncHandler(expensesController.getById));
 router.post('/', requirePermission('expenses.create'), validate(createExpenseSchema), asyncHandler(expensesController.create));
 router.put('/:id', requirePermission('expenses.update'), validate(updateExpenseSchema), asyncHandler(expensesController.update));

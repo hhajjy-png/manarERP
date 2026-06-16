@@ -649,10 +649,13 @@ model Payment {
 model Expense {
   id           Int       @id @default(autoincrement())
   code         String    @unique
-  category     String // FUEL | SALARIES | MAINTENANCE | RENT | PURCHASES | EQUIPMENT | SERVICES | OTHER
+  category     String // FUEL | SALARIES | MAINTENANCE | RENT | PURCHASES | EQUIPMENT | SERVICES | EQUIPMENT_RENT | TRUCK_RENT | HASSAN | GHANEM | NATHEER | HAROON | OTHER
   description  String
   amount       Float
   date         DateTime  @default(now())
+  billingMonth Int?      // شهر الحساب (1-12)
+  billingYear  Int?      // سنة الحساب
+  notes        String?   // ملاحظات حرة
   contractId   Int?
   supplierId   Int?
   documentPath String? // مستند مرفق
@@ -671,6 +674,8 @@ model Expense {
   @@index([status])
   @@index([contractId])
   @@index([date])
+  @@index([billingMonth, billingYear])
+  @@index([supplierId])
   @@map("expenses")
 }
 
