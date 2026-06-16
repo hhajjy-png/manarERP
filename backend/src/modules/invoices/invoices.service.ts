@@ -108,8 +108,22 @@ export class InvoicesService {
     const invoiceNumber = input.invoiceNumber.trim();
 
     const invoice = await prisma.$transaction(async (tx) => {
-      if (await tx.invoice.findUnique({ where: { invoiceNumber } })) {
-        throw AppError.conflict('رقم الفاتورة مُستخدم من قبل');
+      const existing = await tx.invoice.findUnique({
+        where: { invoiceNumber },
+        select: { invoiceNumber: true, issueDate: true, status: true, customer: { select: { name: true } }, supplier: { select: { name: true } } },
+      });
+      if (existing) {
+        throw AppError.conflict('رقم الفاتورة مُستخدم من قبل', {
+          code: 'DUPLICATE_INVOICE_NUMBER',
+          field: 'invoiceNumber',
+          value: invoiceNumber,
+          conflictingRecord: {
+            invoiceNumber: existing.invoiceNumber,
+            partyName: existing.customer?.name ?? existing.supplier?.name ?? null,
+            issueDate: existing.issueDate,
+            status: existing.status,
+          },
+        });
       }
 
       const created = await tx.invoice.create({
@@ -169,8 +183,23 @@ export class InvoicesService {
     const { lines, subtotal, taxAmount, total } = computeTotals(items, taxRate, discount);
 
     if (invoiceNumber && invoiceNumber !== current.invoiceNumber) {
-      const dup = await prisma.invoice.findUnique({ where: { invoiceNumber } });
-      if (dup && dup.id !== id) throw AppError.conflict('رقم الفاتورة مُستخدم من قبل');
+      const dup = await prisma.invoice.findUnique({
+        where: { invoiceNumber },
+        select: { id: true, invoiceNumber: true, issueDate: true, status: true, customer: { select: { name: true } }, supplier: { select: { name: true } } },
+      });
+      if (dup && dup.id !== id) {
+        throw AppError.conflict('رقم الفاتورة مُستخدم من قبل', {
+          code: 'DUPLICATE_INVOICE_NUMBER',
+          field: 'invoiceNumber',
+          value: invoiceNumber,
+          conflictingRecord: {
+            invoiceNumber: dup.invoiceNumber,
+            partyName: dup.customer?.name ?? dup.supplier?.name ?? null,
+            issueDate: dup.issueDate,
+            status: dup.status,
+          },
+        });
+      }
     }
 
     if (total < current.paidAmount) {

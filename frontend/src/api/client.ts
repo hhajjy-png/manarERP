@@ -62,19 +62,40 @@ api.interceptors.response.use(
   },
 );
 
+const STATUS_LABELS: Record<string, string> = {
+  UNPAID: 'غير مدفوعة', PARTIAL: 'مدفوعة جزئياً', PAID: 'مدفوعة',
+  OVERDUE: 'متأخرة', CANCELLED: 'ملغاة',
+};
+
 /** استخراج رسالة الخطأ العربية الموحّدة من الخادم. */
 export function errorMessage(err: unknown): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const e = err as any;
   const data = e?.response?.data;
   if (!data) return e?.message ?? 'حدث خطأ غير متوقع';
-  // When the backend returns Zod field errors, surface the first one
+
   const details = data.details;
-  if (details && typeof details === 'object') {
+
+  // رسالة تفصيلية لتعارض رقم الفاتورة
+  if (details && typeof details === 'object' && details.code === 'DUPLICATE_INVOICE_NUMBER') {
+    const rec = details.conflictingRecord;
+    const lines = [`رقم الفاتورة مستخدم مسبقاً: ${details.value ?? ''}`];
+    if (rec?.partyName) lines.push(`الجهة: ${rec.partyName}`);
+    if (rec?.issueDate) {
+      const d = new Date(rec.issueDate as string);
+      if (!isNaN(d.getTime())) lines.push(`التاريخ: ${d.toLocaleDateString('ar-KW')}`);
+    }
+    if (rec?.status) lines.push(`الحالة: ${STATUS_LABELS[rec.status as string] ?? rec.status}`);
+    return lines.join('\n');
+  }
+
+  // أخطاء حقول Zod — نعرض أول خطأ
+  if (details && typeof details === 'object' && !details.code) {
     const firstArr = Object.values(details as Record<string, string[]>).find(
       (v) => Array.isArray(v) && v.length > 0,
     ) as string[] | undefined;
     if (firstArr) return `${data.message}: ${firstArr[0]}`;
   }
+
   return data.message ?? e?.message ?? 'حدث خطأ غير متوقع';
 }

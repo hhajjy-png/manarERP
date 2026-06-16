@@ -1,4 +1,5 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
+import { useDraggable } from '../hooks/useDraggable';
 
 interface Props {
   title: string;
@@ -9,6 +10,13 @@ interface Props {
 }
 
 export default function Modal({ title, onClose, onBeforeClose, children, footer }: Props) {
+  const { containerRef, onHeaderMouseDown, resetPosition } = useDraggable();
+
+  // إعادة الموقع لمركزه في كل مرة يُفتح فيها الـ Modal من جديد
+  useEffect(() => {
+    resetPosition();
+  }, [resetPosition]);
+
   function handleClose() {
     if (onBeforeClose && !onBeforeClose()) return;
     onClose();
@@ -16,8 +24,15 @@ export default function Modal({ title, onClose, onBeforeClose, children, footer 
 
   return (
     <div className="modal-overlay" onMouseDown={handleClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head">
+      <div
+        ref={containerRef}
+        className="modal"
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div
+          className="modal-head"
+          onMouseDown={onHeaderMouseDown}
+        >
           <h3>{title}</h3>
           <button className="icon-btn" onClick={handleClose} aria-label="إغلاق">✕</button>
         </div>
