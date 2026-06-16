@@ -49,8 +49,8 @@ export class CustomersService {
   }
 
   async create(input: CreateCustomerInput, req: Request) {
-    const exists = await customersRepository.exists({ code: input.code });
-    if (exists) throw AppError.conflict('رقم العميل مُستخدم من قبل');
+    const conflict = await prisma.customer.findUnique({ where: { code: input.code } });
+    if (conflict) throw AppError.conflict(`رقم العميل «${input.code}» مستخدم بالفعل للعميل: ${conflict.name}`);
 
     const customer = await customersRepository.create({
       ...input,
@@ -65,8 +65,8 @@ export class CustomersService {
     if (!current) throw AppError.notFound('العميل غير موجود');
 
     if (input.code && input.code !== (current as { code: string }).code) {
-      const dup = await customersRepository.exists({ code: input.code });
-      if (dup) throw AppError.conflict('رقم العميل مُستخدم من قبل');
+      const conflict = await prisma.customer.findUnique({ where: { code: input.code } });
+      if (conflict) throw AppError.conflict(`رقم العميل «${input.code}» مستخدم بالفعل للعميل: ${conflict.name}`);
     }
 
     const data = { ...input };
