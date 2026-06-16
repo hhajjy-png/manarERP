@@ -15,12 +15,22 @@ const round3 = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000;
 /** سطر قيد يومية. */
 type JournalLine = { accountId: number; debit: number; credit: number; description: string };
 
-/** توليد رقم قيد يومية فريد بصيغة JRN-<السنة>-<تسلسل> داخل المعاملة. */
+/**
+ * توليد رقم قيد يومية فريد بصيغة JRN-<السنة>-<تسلسل> داخل المعاملة.
+ * يستخدم أقصى رقم موجود (MAX) بدلاً من العدد (COUNT) لتجنّب التعارض
+ * عند حذف قيود وسطية وإعادة الترحيل (repost).
+ */
 async function generateEntryNumber(tx: Tx): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `JRN-${year}-`;
-  const count = await tx.journalEntry.count({ where: { entryNumber: { startsWith: prefix } } });
-  return `${prefix}${String(count + 1).padStart(5, '0')}`;
+  const last = await tx.journalEntry.findFirst({
+    where: { entryNumber: { startsWith: prefix } },
+    orderBy: { entryNumber: 'desc' },
+    select: { entryNumber: true },
+  });
+  const lastSeq = last ? parseInt(last.entryNumber.slice(prefix.length), 10) : 0;
+  const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
+  return `${prefix}${String(nextSeq).padStart(5, '0')}`;
 }
 
 /**
