@@ -3,8 +3,10 @@ import {
   getRecentLocations,
   addRecentLocation,
   computeDropdown,
+  getTopLocations,
   MAX_RECENT,
   RECENT_KEY,
+  USAGE_COUNTS_KEY,
 } from '../utils/recentLocations';
 
 // Vitest runs in Node — localStorage doesn't exist. Provide a minimal in-memory mock.
@@ -186,5 +188,62 @@ describe('computeDropdown — search query', () => {
     addRecentLocation('بيان');
     const { recentMatches } = computeDropdown('السالمية');
     expect(recentMatches).not.toContain('بيان');
+  });
+});
+
+// ─── getTopLocations / usage ranking ─────────────────────────────────────────
+
+describe('getTopLocations', () => {
+  it('returns empty array when no usage recorded', () => {
+    expect(getTopLocations()).toEqual([]);
+  });
+
+  it('returns locations sorted by usage count (most used first)', () => {
+    addRecentLocation('السالمية');
+    addRecentLocation('السالمية');
+    addRecentLocation('الجابرية');
+    const top = getTopLocations(2);
+    expect(top[0]).toBe('السالمية');
+    expect(top[1]).toBe('الجابرية');
+  });
+
+  it('respects n limit', () => {
+    for (let i = 0; i < 10; i++) addRecentLocation(`موقع ${i}`);
+    expect(getTopLocations(3).length).toBe(3);
+  });
+
+  it('addRecentLocation increments usage count each call', () => {
+    addRecentLocation('الفروانية');
+    addRecentLocation('الفروانية');
+    addRecentLocation('الجهراء');
+    expect(getTopLocations(1)[0]).toBe('الفروانية');
+  });
+
+  it('USAGE_COUNTS_KEY is a distinct key from RECENT_KEY', () => {
+    expect(USAGE_COUNTS_KEY).not.toBe(RECENT_KEY);
+  });
+});
+
+describe('computeDropdown — topLocations', () => {
+  it('returns top locations in browse mode (empty query)', () => {
+    addRecentLocation('السالمية');
+    addRecentLocation('السالمية');
+    addRecentLocation('الجابرية');
+    const { topLocations } = computeDropdown('');
+    expect(topLocations[0]).toBe('السالمية');
+    expect(topLocations.length).toBeGreaterThan(0);
+  });
+
+  it('returns empty topLocations in search mode (query >= 2 chars)', () => {
+    addRecentLocation('السالمية');
+    addRecentLocation('السالمية');
+    const { topLocations } = computeDropdown('السالمية');
+    expect(topLocations).toEqual([]);
+  });
+
+  it('topLocations is a field on DropdownContent', () => {
+    const result = computeDropdown('');
+    expect(result).toHaveProperty('topLocations');
+    expect(Array.isArray(result.topLocations)).toBe(true);
   });
 });
