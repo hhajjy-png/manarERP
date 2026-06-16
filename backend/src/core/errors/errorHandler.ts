@@ -37,8 +37,22 @@ export function errorHandler(
     // أخطاء Prisma الشائعة
     if (err.code === 'P2002') {
       statusCode = 409;
-      message = 'القيمة مُستخدمة من قبل (تكرار غير مسموح)';
-      details = err.meta?.target;
+      const target = (err.meta?.target as string[] | undefined) ?? [];
+      // تحديد نوع التعارض بدقة لتسهيل التشخيص
+      if (target.includes('invoiceNumber') || target.includes('number')) {
+        message = 'رقم الفاتورة مُستخدم من قبل';
+        details = { code: 'DUPLICATE_INVOICE_NUMBER', fields: target };
+      } else if (target.includes('entryNumber')) {
+        message = 'رقم قيد اليومية مُستخدم من قبل — يرجى المحاولة مرة أخرى';
+        details = { code: 'DUPLICATE_ENTRY_NUMBER', fields: target };
+      } else if (target.includes('referenceType') && target.includes('referenceId')) {
+        message = 'قيد محاسبي موجود مسبقاً لهذا المستند (ترحيل مزدوج)';
+        details = { code: 'DUPLICATE_JOURNAL_ENTRY', fields: target };
+      } else {
+        message = `تعارض في البيانات — الحقل: ${target.join(', ') || 'غير محدد'}`;
+        details = { code: 'DUPLICATE_VALUE', fields: target };
+      }
+      logger.warn('P2002 unique constraint violation', { target, model: err.meta?.modelName });
     } else if (err.code === 'P2025') {
       statusCode = 404;
       message = 'السجل غير موجود';

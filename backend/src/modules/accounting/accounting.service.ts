@@ -26,11 +26,22 @@ export interface JournalEntryInput {
 // ─── Accounts ────────────────────────────────────────────────────────────────
 
 export class AccountingService {
+  /**
+   * يولّد رقم قيد يومية فريدًا بصيغة JRN-<السنة>-<تسلسل>.
+   * يستخدم أقصى رقم موجود (MAX على entryNumber) بدلاً من COUNT
+   * لتجنّب التعارض عند حذف قيود وسطية وإعادة الترحيل.
+   */
   async generateJournalNumber(): Promise<string> {
     const year = new Date().getFullYear();
     const prefix = `JRN-${year}-`;
-    const count = await prisma.journalEntry.count({ where: { entryNumber: { startsWith: prefix } } });
-    return `${prefix}${String(count + 1).padStart(5, '0')}`;
+    const last = await prisma.journalEntry.findFirst({
+      where: { entryNumber: { startsWith: prefix } },
+      orderBy: { entryNumber: 'desc' },
+      select: { entryNumber: true },
+    });
+    const lastSeq = last ? parseInt(last.entryNumber.slice(prefix.length), 10) : 0;
+    const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
+    return `${prefix}${String(nextSeq).padStart(5, '0')}`;
   }
 
   // Chart of Accounts
@@ -103,26 +114,40 @@ export class AccountingService {
   async createJournalEntry(input: JournalEntryInput, req: Request) {
     validateJournalBalance(input.lines);
 
-    const entryNumber = await this.generateJournalNumber();
-    const entry = await prisma.journalEntry.create({
-      data: {
-        entryNumber,
-        date: input.date ?? new Date(),
-        description: input.description,
-        referenceType: input.referenceType ?? 'MANUAL',
-        referenceId: input.referenceId ?? null,
-        status: 'POSTED',
-        lines: {
-          create: input.lines.map((l) => ({
-            accountId: l.accountId,
-            description: l.description ?? null,
-            debit: l.debit ?? 0,
-            credit: l.credit ?? 0,
-          })),
+    const entry = await prisma.$transaction(async (tx) => {
+      // توليد الرقم داخل المعاملة لضمان عدم التعارض مع قيود متزامنة
+      const year = new Date().getFullYear();
+      const prefix = `JRN-${year}-`;
+      const last = await tx.journalEntry.findFirst({
+        where: { entryNumber: { startsWith: prefix } },
+        orderBy: { entryNumber: 'desc' },
+        select: { entryNumber: true },
+      });
+      const lastSeq = last ? parseInt(last.entryNumber.slice(prefix.length), 10) : 0;
+      const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
+      const entryNumber = `${prefix}${String(nextSeq).padStart(5, '0')}`;
+
+      return tx.journalEntry.create({
+        data: {
+          entryNumber,
+          date: input.date ?? new Date(),
+          description: input.description,
+          referenceType: input.referenceType ?? 'MANUAL',
+          referenceId: input.referenceId ?? null,
+          status: 'POSTED',
+          lines: {
+            create: input.lines.map((l) => ({
+              accountId: l.accountId,
+              description: l.description ?? null,
+              debit: l.debit ?? 0,
+              credit: l.credit ?? 0,
+            })),
+          },
         },
-      },
-      include: { lines: { include: { account: true } } },
+        include: { lines: { include: { account: true } } },
+      });
     });
+
     await recordAudit({ req, action: 'CREATE', module: 'accounting', entityId: entry.id, newValue: input });
     return entry;
   }

@@ -89,6 +89,16 @@ export function errorMessage(err: unknown): string {
     return lines.join('\n');
   }
 
+  // تعارض رقم قيد اليومية (entryNumber)
+  if (details && typeof details === 'object' && details.code === 'DUPLICATE_ENTRY_NUMBER') {
+    return 'حدث تعارض في ترقيم القيود المحاسبية — يرجى المحاولة مرة أخرى';
+  }
+
+  // ترحيل مزدوج للقيد المحاسبي
+  if (details && typeof details === 'object' && details.code === 'DUPLICATE_JOURNAL_ENTRY') {
+    return data.message ?? 'قيد محاسبي موجود مسبقاً لهذا المستند';
+  }
+
   // أخطاء حقول Zod — نعرض أول خطأ
   if (details && typeof details === 'object' && !details.code) {
     const firstArr = Object.values(details as Record<string, string[]>).find(
