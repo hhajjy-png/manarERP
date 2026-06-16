@@ -9,6 +9,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { SYSTEM_ACCOUNTS } from '../src/modules/accounting/accounting.accounts';
 
 const prisma = new PrismaClient();
 
@@ -212,6 +213,16 @@ async function main() {
     await prisma.setting.upsert({ where: { key: s.key }, update: {}, create: s });
   }
   console.log(`  ✓ ${settings.length} إعداد`);
+
+  // 6) دليل الحسابات الأساسي (Chart of Accounts) — مطلوب لترحيل القيد المزدوج
+  for (const acc of SYSTEM_ACCOUNTS) {
+    await prisma.account.upsert({
+      where: { code: acc.code },
+      update: {},
+      create: { code: acc.code, name: acc.name, type: acc.type, normalBalance: acc.normalBalance, isActive: true },
+    });
+  }
+  console.log(`  ✓ ${SYSTEM_ACCOUNTS.length} حساب في دليل الحسابات`);
 
   console.log('✅ اكتملت البيانات الأولية.');
 }
