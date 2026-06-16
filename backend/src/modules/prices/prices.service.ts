@@ -68,6 +68,68 @@ export async function deletePrice(id: number) {
   return prisma.projectPrice.update({ where: { id }, data: { isArchived: true } });
 }
 
+export async function getPricesStats() {
+  const [count, groupedCustomers, latest] = await Promise.all([
+    prisma.projectPrice.count({ where: { isArchived: false } }),
+    prisma.projectPrice.groupBy({
+      by: ['customerId'],
+      where: { isArchived: false, customerId: { not: null } },
+    }),
+    prisma.projectPrice.findFirst({
+      where: { isArchived: false },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true },
+    }),
+  ]);
+  return {
+    count,
+    customerCount: groupedCustomers.length,
+    lastUpdatedAt: latest?.updatedAt ?? null,
+  };
+}
+
+export async function getPricesUsageReport() {
+  const TOLERANCE = 0.001;
+
+  const [prices, items] = await Promise.all([
+    prisma.projectPrice.findMany({
+      where: { isArchived: false },
+      include: { customer: customerSelect },
+      orderBy: { asphaltPlant: 'asc' },
+    }),
+    prisma.invoiceItem.findMany({
+      select: { unit: true, unitPrice: true, quantity: true, total: true },
+    }),
+  ]);
+
+  const report = prices.map((price) => {
+    const matches = items.filter(
+      (item) =>
+        item.unit === price.contractUnit &&
+        Math.abs(item.unitPrice - price.unitPrice) < TOLERANCE,
+    );
+    return {
+      id: price.id,
+      asphaltPlant: price.asphaltPlant,
+      companyName: price.companyName,
+      contractLocation: price.contractLocation,
+      contractUnit: price.contractUnit,
+      unitPrice: price.unitPrice,
+      customer: price.customer,
+      usageCount: matches.length,
+      totalQuantity: matches.reduce((s, m) => s + m.quantity, 0),
+      totalAmount: matches.reduce((s, m) => s + m.total, 0),
+    };
+  });
+
+  return {
+    report,
+    hasDirectTracking: false,
+    note: 'الاستخدام محسوب بالتطابق التقريبي (وحدة + سعر). لا يوجد FK مباشر من بنود الفاتورة إلى الاتفاقيات.',
+    phase2Requirement: 'لقياس الاستخدام بدقة في Phase 2 يجب إضافة حقل priceId في جدول invoice_items.',
+  };
+}
+
 export async function forceRemovePreview(id: number) {
   const price = await prisma.projectPrice.findUnique({ where: { id } });
   if (!price) throw AppError.notFound('السعر غير موجود');

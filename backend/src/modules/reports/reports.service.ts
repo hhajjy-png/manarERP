@@ -378,8 +378,8 @@ export class ReportsService {
       orderBy: [{ asphaltPlant: 'asc' }, { companyName: 'asc' }],
     });
     return {
-      title: 'تقرير أسعار المشاريع',
-      subtitle: `إجمالي الأسعار: ${rows.length}`,
+      title: 'تقرير اتفاقيات الأسعار',
+      subtitle: `إجمالي الاتفاقيات: ${rows.length}`,
       columns: [
         { header: 'مصنع الأسفلت', key: 'asphaltPlant', width: 28 },
         { header: 'اسم الشركة', key: 'companyName', width: 28 },
