@@ -114,6 +114,7 @@ model Customer {
 
   @@index([type])
   @@index([isArchived])
+  @@index([isArchived, type])
   @@index([name])
   @@map("customers")
 }
