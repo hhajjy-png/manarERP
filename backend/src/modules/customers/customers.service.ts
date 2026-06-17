@@ -97,7 +97,7 @@ export class CustomersService {
     return { deleted: true };
   }
 
-  private async getChildCounts(id: number): Promise<ChildCounts> {
+  private async getChildCounts(id: number): Promise<ChildCounts & { contractIds: number[] }> {
     const contractRows = await prisma.contract.findMany({
       where: { customerId: id },
       select: { id: true },
@@ -122,13 +122,13 @@ export class CustomersService {
           : Promise.resolve(0),
       ]);
 
-    return { contracts, directInvoices, contractInvoices, expenses, contractDocuments, materialIssues };
+    return { contracts, directInvoices, contractInvoices, expenses, contractDocuments, materialIssues, contractIds };
   }
 
   async forceRemovePreview(id: number) {
     const customer = await prisma.customer.findUnique({ where: { id } });
     if (!customer) throw AppError.notFound('العميل غير موجود');
-    const childCounts = await this.getChildCounts(id);
+    const { contractIds: _contractIds, ...childCounts } = await this.getChildCounts(id);
     const totalChildRecords = Object.values(childCounts).reduce((a, b) => a + b, 0);
     const invoiceTotal = childCounts.directInvoices + childCounts.contractInvoices;
 
@@ -156,7 +156,7 @@ export class CustomersService {
     const customer = await prisma.customer.findUnique({ where: { id } });
     if (!customer) throw AppError.notFound('العميل غير موجود');
 
-    const childCounts = await this.getChildCounts(id);
+    const { contractIds, ...childCounts } = await this.getChildCounts(id);
     const invoiceTotal = childCounts.directInvoices + childCounts.contractInvoices;
     if (invoiceTotal > 0) {
       throw AppError.conflict('لا يمكن حذف عميل لديه فواتير مسجلة — استخدم الأرشفة بدلاً من ذلك');
@@ -171,12 +171,6 @@ export class CustomersService {
     const willBeNullified: string[] = [];
     if (childCounts.expenses > 0) willBeNullified.push('expenses.contractId');
     if (childCounts.materialIssues > 0) willBeNullified.push('materialIssues.contractId');
-
-    const contractRows = await prisma.contract.findMany({
-      where: { customerId: id },
-      select: { id: true },
-    });
-    const contractIds = contractRows.map((c) => c.id);
 
     await prisma.$transaction(async (tx) => {
       if (contractIds.length > 0) {
