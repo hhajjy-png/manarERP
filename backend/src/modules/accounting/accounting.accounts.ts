@@ -19,6 +19,7 @@ export const SYSTEM_ACCOUNT_CODES = {
   SALES_REVENUE: '4000', // إيرادات المبيعات
   PURCHASES: '5000', // المشتريات
   PAYROLL_EXPENSE: '5100', // مصروف الرواتب
+  GENERAL_EXPENSE: '5200', // مصروفات عامة (Phase B — expense GL posting)
 } as const;
 
 export type SystemAccountCode = (typeof SYSTEM_ACCOUNT_CODES)[keyof typeof SYSTEM_ACCOUNT_CODES];
@@ -41,6 +42,7 @@ export const SYSTEM_ACCOUNTS: {
   { code: SYSTEM_ACCOUNT_CODES.SALES_REVENUE, name: 'إيرادات المبيعات', type: 'REVENUE', normalBalance: 'CREDIT' },
   { code: SYSTEM_ACCOUNT_CODES.PURCHASES, name: 'المشتريات', type: 'EXPENSE', normalBalance: 'DEBIT' },
   { code: SYSTEM_ACCOUNT_CODES.PAYROLL_EXPENSE, name: 'مصروف الرواتب', type: 'EXPENSE', normalBalance: 'DEBIT' },
+  { code: SYSTEM_ACCOUNT_CODES.GENERAL_EXPENSE, name: 'مصروفات عامة', type: 'EXPENSE', normalBalance: 'DEBIT' },
 ];
 
 let accountCache: Map<string, number> | null = null;

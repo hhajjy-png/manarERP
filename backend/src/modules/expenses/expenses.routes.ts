@@ -16,6 +16,7 @@ router.post('/', requirePermission('expenses.create'), validate(createExpenseSch
 router.put('/:id', requirePermission('expenses.update'), validate(updateExpenseSchema), asyncHandler(expensesController.update));
 router.patch('/:id/approve', requirePermission('expenses.approve'), asyncHandler(expensesController.approve));
 router.patch('/:id/reject', requirePermission('expenses.approve'), asyncHandler(expensesController.reject));
+router.patch('/:id/cancel', requirePermission('expenses.approve'), asyncHandler(expensesController.cancelApproval));
 router.delete('/:id', requirePermission('expenses.delete'), asyncHandler(expensesController.remove));
 
 export default router;

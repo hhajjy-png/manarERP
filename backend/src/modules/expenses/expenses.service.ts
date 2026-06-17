@@ -5,6 +5,7 @@ import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { transactionsService } from '../transactions/transactions.service';
+import { postExpenseToGL, reverseExpenseFromGL } from './expenses.accounting';
 import { CreateExpenseInput, UpdateExpenseInput } from './expenses.schema';
 
 const CATEGORY_AR: Record<string, string> = {
@@ -142,6 +143,8 @@ export class ExpensesService {
         },
         tx,
       );
+      // ترحيل قيد مزدوج إلى GL (Phase B) — بالتوازي مع Legacy Transaction
+      await postExpenseToGL(tx, exp.id);
       return exp;
     });
 
@@ -152,10 +155,36 @@ export class ExpensesService {
   async reject(id: number, req: Request) {
     const expense = await prisma.expense.findUnique({ where: { id } });
     if (!expense) throw AppError.notFound('المصروف غير موجود');
-    if (expense.status === 'APPROVED') throw AppError.badRequest('لا يمكن رفض مصروف معتمد');
+    if (expense.status === 'APPROVED') throw AppError.badRequest('لا يمكن رفض مصروف معتمد — استخدم إلغاء الاعتماد');
 
     const updated = await prisma.expense.update({ where: { id }, data: { status: 'REJECTED' }, include: FULL_INCLUDE });
     await recordAudit({ req, action: 'REJECT', module: 'expenses', entityId: id });
+    return updated;
+  }
+
+  /** إلغاء اعتماد مصروف مُرحَّل: ينشئ قيد عكسي في GL ويُعيد الحالة إلى REJECTED. */
+  async cancelApproval(id: number, req: Request) {
+    const expense = await prisma.expense.findUnique({ where: { id } });
+    if (!expense) throw AppError.notFound('المصروف غير موجود');
+    if (expense.status !== 'APPROVED') throw AppError.badRequest('لا يمكن إلغاء اعتماد مصروف غير معتمد');
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await reverseExpenseFromGL(tx, id);
+      return tx.expense.update({
+        where: { id },
+        data: { status: 'REJECTED' },
+        include: FULL_INCLUDE,
+      });
+    });
+
+    await recordAudit({
+      req,
+      action: 'CANCEL_APPROVAL',
+      module: 'expenses',
+      entityId: id,
+      oldValue: { amount: expense.amount, status: 'APPROVED' },
+      newValue: { status: 'REJECTED' },
+    });
     return updated;
   }
 
