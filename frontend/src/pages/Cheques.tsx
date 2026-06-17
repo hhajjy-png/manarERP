@@ -497,11 +497,11 @@ export default function Cheques() {
 
   const tableActions = (row: Cheque) => (
     <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' }}>
-      <button className="btn sm secondary" onClick={() => loadChequeIntoForm(row)}>
+      <button type="button" className="btn secondary sm" onClick={() => loadChequeIntoForm(row)}>
         {t('btn.cheque.select')}
       </button>
       {canCancel && row.status === 'DRAFT' && (
-        <button className="btn sm danger" onClick={() => handleCancel(row)}>
+        <button type="button" className="btn danger sm" onClick={() => handleCancel(row)}>
           {t('page.cheques.cancel_cheque')}
         </button>
       )}
@@ -547,7 +547,7 @@ export default function Cheques() {
           <p>{t('page.cheques.subtitle')}</p>
         </div>
         {canCreate && (
-          <button className="btn" onClick={resetForm}>
+          <button type="button" className="btn" onClick={resetForm}>
             {t('page.cheques.new')}
           </button>
         )}
@@ -557,35 +557,13 @@ export default function Cheques() {
       {formError && (
         <div className="alert error no-print" style={{ marginBottom: 12 }}>
           {formError}
-          <button
-            onClick={() => setFormError('')}
-            style={{
-              marginInlineStart: 12,
-              cursor: 'pointer',
-              background: 'none',
-              border: 'none',
-              fontSize: 16,
-            }}
-          >
-            ✕
-          </button>
+          <button type="button" className="alert-close-btn" onClick={() => setFormError('')}>✕</button>
         </div>
       )}
       {success && (
         <div className="alert success no-print" style={{ marginBottom: 12 }}>
           {success}
-          <button
-            onClick={() => setSuccess('')}
-            style={{
-              marginInlineStart: 12,
-              cursor: 'pointer',
-              background: 'none',
-              border: 'none',
-              fontSize: 16,
-            }}
-          >
-            ✕
-          </button>
+          <button type="button" className="alert-close-btn" onClick={() => setSuccess('')}>✕</button>
         </div>
       )}
 

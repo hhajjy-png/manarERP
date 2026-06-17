@@ -213,13 +213,13 @@ export default function Prices() {
       <div className="page-head">
         <div><h2>{t('page.prices.title')}</h2><p>{t('page.prices.subtitle')}</p></div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" className="btn secondary" onClick={loadUsageReport} disabled={usageLoading}>
-            {usageLoading ? '...' : t('agreements.usage.title')}
-          </button>
-          {hasPermission('reports.export') && <ExportExcelButton onExport={exportExcel} busy={exportBusy} />}
           {hasPermission('prices.create') && (
             <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('page.prices.create')}</button>
           )}
+          {hasPermission('reports.export') && <ExportExcelButton onExport={exportExcel} busy={exportBusy} />}
+          <button type="button" className="btn secondary" onClick={loadUsageReport} disabled={usageLoading}>
+            {usageLoading ? 'جاري...' : t('agreements.usage.title')}
+          </button>
         </div>
       </div>
 

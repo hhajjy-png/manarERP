@@ -255,8 +255,8 @@ export default function Salaries() {
       </div>
 
       <div className="toolbar">
-        <button className={`btn ${tab === 'payroll' ? '' : 'secondary'}`} onClick={() => setTab('payroll')}>{t('page.salaries.tab_payroll')}</button>
-        <button className={`btn ${tab === 'history' ? '' : 'secondary'}`} onClick={() => setTab('history')}>{t('page.salaries.tab_history')}</button>
+        <button type="button" className={`btn ${tab === 'payroll' ? '' : 'secondary'}`} onClick={() => setTab('payroll')}>{t('page.salaries.tab_payroll')}</button>
+        <button type="button" className={`btn ${tab === 'history' ? '' : 'secondary'}`} onClick={() => setTab('history')}>{t('page.salaries.tab_history')}</button>
       </div>
 
       {error && <div className="alert error" style={{ marginBottom: 14 }}>{error}</div>}
@@ -278,7 +278,7 @@ export default function Salaries() {
               <option value="PAID">{t('payroll.status.paid')}</option>
               <option value="CANCELLED">{t('payroll.status.cancelled')}</option>
             </select>
-            {canGenerate && <button className="btn" onClick={generatePayroll} disabled={busy}>{t('page.salaries.generate')}</button>}
+            {canGenerate && <button type="button" className="btn" onClick={generatePayroll} disabled={busy}>{t('page.salaries.generate')}</button>}
             {canExport && <ExportExcelButton onExport={downloadPayrollExcel} busy={excelBusy} />}
             {canImport && (
               <button type="button" className="btn secondary" onClick={() => navigate('/import')} disabled={busy}>
@@ -309,7 +309,7 @@ export default function Salaries() {
                 </select>
                 <input placeholder={inputKind === 'advance' ? t('page.salaries.notes_ph') : t('page.salaries.name_ph')} value={inputName} onChange={(e) => setInputName(e.target.value)} />
                 <input type="number" step="0.001" placeholder={t('page.salaries.amount_ph')} value={inputAmount} onChange={(e) => setInputAmount(e.target.value)} />
-                <button className="btn secondary" disabled={busy} onClick={addPayrollInput}>{t('page.salaries.save_input')}</button>
+                <button type="button" className="btn secondary" disabled={busy} onClick={addPayrollInput}>{t('page.salaries.save_input')}</button>
               </div>
               <div className="toolbar">
                 <select value={adjustPayrollId} onChange={(e) => setAdjustPayrollId(e.target.value)}>
@@ -322,7 +322,7 @@ export default function Salaries() {
                 </select>
                 <input placeholder={t('page.salaries.label_ph')} value={adjustLabel} onChange={(e) => setAdjustLabel(e.target.value)} />
                 <input type="number" step="0.001" placeholder={t('page.salaries.amount_ph')} value={adjustAmount} onChange={(e) => setAdjustAmount(e.target.value)} />
-                <button className="btn secondary" disabled={busy} onClick={addManualLine}>{t('page.salaries.add_line')}</button>
+                <button type="button" className="btn secondary" disabled={busy} onClick={addManualLine}>{t('page.salaries.add_line')}</button>
               </div>
             </div>
           )}
@@ -335,7 +335,7 @@ export default function Salaries() {
             actions={(row: PayrollRow) => (
               <>
                 {canPayslip && <Link className="btn secondary sm" to={`/payroll/${row.id}/payslip`}>{t('page.salaries.payslip')}</Link>}{' '}
-                {canApprove && row.status === 'DRAFT' && <button className="btn secondary sm" disabled={busy} onClick={() => runAction(() => api.patch(`/payroll/${row.id}/approve`))}>{t('page.salaries.approve_btn')}</button>}{' '}
+                {canApprove && row.status === 'DRAFT' && <button type="button" className="btn secondary sm" disabled={busy} onClick={() => runAction(() => api.patch(`/payroll/${row.id}/approve`))}>{t('page.salaries.approve_btn')}</button>}{' '}
                 {canPay && row.status === 'APPROVED' && (
                   payingRowId === row.id
                     ? <>
@@ -345,12 +345,12 @@ export default function Salaries() {
                           <option value="CHEQUE">{t('opt.payment.cheque')}</option>
                           <option value="TRANSFER">{t('opt.payment.transfer')}</option>
                         </select>{' '}
-                        <button className="btn secondary sm" disabled={busy} onClick={() => { setPayingRowId(null); runAction(() => api.patch(`/payroll/${row.id}/pay`, { paymentMethod: payMethod })); }}>{t('page.salaries.confirm')}</button>{' '}
-                        <button className="btn secondary sm" onClick={() => setPayingRowId(null)}>{t('action.cancel')}</button>
+                        <button type="button" className="btn secondary sm" disabled={busy} onClick={() => { setPayingRowId(null); runAction(() => api.patch(`/payroll/${row.id}/pay`, { paymentMethod: payMethod })); }}>{t('page.salaries.confirm')}</button>{' '}
+                        <button type="button" className="btn secondary sm" onClick={() => setPayingRowId(null)}>{t('action.cancel')}</button>
                       </>
-                    : <button className="btn secondary sm" disabled={busy} onClick={() => { setPayMethod('BANK'); setPayingRowId(row.id); }}>{t('page.salaries.pay_btn')}</button>
+                    : <button type="button" className="btn secondary sm" disabled={busy} onClick={() => { setPayMethod('BANK'); setPayingRowId(row.id); }}>{t('page.salaries.pay_btn')}</button>
                 )}{' '}
-                {canCancel && ['DRAFT', 'APPROVED'].includes(row.status) && <button className="btn secondary sm" disabled={busy} onClick={() => runAction(() => api.patch(`/payroll/${row.id}/cancel`))}>{t('page.salaries.cancel_btn')}</button>}
+                {canCancel && ['DRAFT', 'APPROVED'].includes(row.status) && <button type="button" className="btn secondary sm" disabled={busy} onClick={() => runAction(() => api.patch(`/payroll/${row.id}/cancel`))}>{t('page.salaries.cancel_btn')}</button>}
               </>
             )}
           />

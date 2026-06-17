@@ -200,8 +200,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       <div className="page-head">
         <div><h2>{t(cfg.title)}</h2><p>{t(cfg.subtitle)}</p></div>
         <>
-          {canExport && <ExportExcelButton onExport={exportExcel} busy={exportBusy} />}
           {canCreate && <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t(cfg.createLabel)}</button>}
+          {canExport && <ExportExcelButton onExport={exportExcel} busy={exportBusy} />}
         </>
       </div>
 
