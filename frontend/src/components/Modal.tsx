@@ -7,9 +7,10 @@ interface Props {
   onBeforeClose?: () => boolean;
   children: ReactNode;
   footer?: ReactNode;
+  className?: string;
 }
 
-export default function Modal({ title, onClose, onBeforeClose, children, footer }: Props) {
+export default function Modal({ title, onClose, onBeforeClose, children, footer, className }: Props) {
   const { containerRef, onHeaderMouseDown, resetPosition } = useDraggable();
 
   // إعادة الموقع لمركزه في كل مرة يُفتح فيها الـ Modal من جديد
@@ -23,7 +24,7 @@ export default function Modal({ title, onClose, onBeforeClose, children, footer 
   }
 
   return (
-    <div className="modal-overlay" onMouseDown={handleClose}>
+    <div className={`modal-overlay${className ? ` ${className}` : ''}`} onMouseDown={handleClose}>
       <div
         ref={containerRef}
         className="modal"

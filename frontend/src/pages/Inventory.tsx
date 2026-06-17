@@ -309,7 +309,7 @@ function MaterialsTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 8 }}>
-        <input placeholder={t('ph.search_material')} value={search}
+        <input className="line-input" placeholder={t('ph.search_material')} value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           style={{ maxWidth: 280 }} />
         <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
@@ -375,7 +375,7 @@ function PurchaseOrdersTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 8, flexWrap: 'wrap' }}>
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
+        <select className="line-input" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
           <option value="">{t('opt.all_statuses')}</option>
           <option value="DRAFT">{t('inv.po.status.draft')}</option>
           <option value="SUBMITTED">{t('inv.po.status.submitted')}</option>
@@ -527,7 +527,7 @@ function MaterialIssuesTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 8 }}>
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
+        <select className="line-input" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
           <option value="">{t('opt.all_statuses')}</option>
           <option value="DRAFT">{t('inv.mi.status.draft')}</option>
           <option value="POSTED">{t('inv.mi.status.posted')}</option>

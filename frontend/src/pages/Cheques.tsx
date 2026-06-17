@@ -573,6 +573,7 @@ export default function Cheques() {
         <Modal
           title={t('page.cheques.mark_printed')}
           onClose={() => setShowPrintConfirm(false)}
+          className="no-print"
           footer={
             <>
               {canPrint && (
