@@ -292,7 +292,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
             <button
               type="button"
               onClick={() => { setSearch(''); setQuery(''); setPage(1); }}
-              style={{ position: 'absolute', insetInlineEnd: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, lineHeight: 1 }}
+              className="toolbar-clear-btn"
               title={t('action.reset_filters')}
             >
               ✕
@@ -301,20 +301,16 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         </div>
         <button className="btn secondary" type="submit">{t('action.search')}</button>
         {cfg.statusFilter && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>{t('filter.status')}:</span>
-            <select
-              value={filterValue}
-              onChange={(e) => { setFilterValue(e.target.value); setPage(1); }}
-              title={t('filter.status')}
-              style={{ padding: '8px 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--bg)', color: 'var(--text)', fontSize: 14, cursor: 'pointer' }}
-            >
-              <option value="">{t('opt.all')}</option>
-              {cfg.statusFilter.options.map((o) => (
-                <option key={o.value} value={o.value}>{t(o.labelKey)}</option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={filterValue}
+            onChange={(e) => { setFilterValue(e.target.value); setPage(1); }}
+            title={t('filter.status')}
+          >
+            <option value="">{t('opt.all')}</option>
+            {cfg.statusFilter.options.map((o) => (
+              <option key={o.value} value={o.value}>{t(o.labelKey)}</option>
+            ))}
+          </select>
         )}
         <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
       </form>
@@ -335,12 +331,12 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           <>
             {cfg.canApprove && row.status === 'PENDING' && hasPermission('expenses.approve') && (
               <>
-                <button className="btn sm" onClick={() => onApprove(row.id, 'approve')}>{t('action.approve')}</button>{' '}
-                <button className="btn secondary sm" onClick={() => onApprove(row.id, 'reject')}>{t('action.reject')}</button>{' '}
+                <button type="button" className="btn sm" onClick={() => onApprove(row.id, 'approve')}>{t('action.approve')}</button>{' '}
+                <button type="button" className="btn secondary sm" onClick={() => onApprove(row.id, 'reject')}>{t('action.reject')}</button>{' '}
               </>
             )}
-            {canUpdate && <button className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>}{' '}
-            {canDelete && <button className="btn danger sm" onClick={() => onDelete(row)}>{t('action.delete')}</button>}
+            {canUpdate && <button type="button" className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>}{' '}
+            {canDelete && <button type="button" className="btn danger sm" onClick={() => onDelete(row)}>{t('action.delete')}</button>}
           </>
         )}
       />

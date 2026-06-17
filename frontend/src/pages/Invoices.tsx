@@ -203,7 +203,7 @@ export default function Invoices() {
     <div>
       <div className="page-head">
         <div><h2>{t('page.invoices.title')}</h2><p>{t('page.invoices.subtitle')}</p></div>
-        {hasPermission('invoices.create') && <button className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>}
+        {hasPermission('invoices.create') && <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>}
       </div>
 
       {stats && (
@@ -255,18 +255,18 @@ export default function Invoices() {
           <button type="button" className="btn secondary sm" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         </div>
       )}
-      <form className="toolbar" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }} onSubmit={(e) => e.preventDefault()}>
+      <form className="toolbar" onSubmit={(e) => e.preventDefault()}>
         <input
           placeholder={t('page.invoices.search')}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={{ ...inp, maxWidth: 280 }}
+          style={{ maxWidth: 280 }}
         />
         <select
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           title={t('filter.status')}
-          style={{ ...inp, maxWidth: 180 }}
+          style={{ maxWidth: 180 }}
         >
           <option value="">{t('opt.all')}</option>
           <option value="UNPAID">{t('inv.status.unpaid')}</option>
@@ -279,7 +279,7 @@ export default function Invoices() {
           value={directionFilter}
           onChange={(e) => { setDirectionFilter(e.target.value); setPage(1); }}
           title={t('filter.direction')}
-          style={{ ...inp, maxWidth: 180 }}
+          style={{ maxWidth: 180 }}
         >
           <option value="">{t('opt.all')}</option>
           <option value="SALES">{t('opt.direction.sales')}</option>
@@ -289,7 +289,7 @@ export default function Invoices() {
           value={customerFilter}
           onChange={(e) => { setCustomerFilter(e.target.value); setPage(1); }}
           title="الجهة"
-          style={{ ...inp, maxWidth: 200 }}
+          style={{ maxWidth: 200 }}
         >
           <option value="">الجهة — الكل</option>
           {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -298,7 +298,7 @@ export default function Invoices() {
           value={monthFilter}
           onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }}
           title="شهر الفوترة"
-          style={{ ...inp, maxWidth: 140 }}
+          style={{ maxWidth: 140 }}
         >
           <option value="">الشهر — الكل</option>
           {ARABIC_MONTHS.map((name, idx) => <option key={idx + 1} value={idx + 1}>{name}</option>)}
@@ -307,7 +307,7 @@ export default function Invoices() {
           value={yearFilter}
           onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
           title="سنة الفوترة"
-          style={{ ...inp, maxWidth: 100 }}
+          style={{ maxWidth: 100 }}
         >
           <option value="">السنة — الكل</option>
           {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
@@ -556,8 +556,8 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   return (
     <Modal title={t('modal.new_invoice')} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('btn.save_invoice')}</button>
-        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+        <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('btn.save_invoice')}</button>
+        <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
@@ -1134,13 +1134,13 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   }
 
   if (loadingData) return (
-    <Modal title={t('modal.edit_invoice')} onClose={onClose} footer={<button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>}>
+    <Modal title={t('modal.edit_invoice')} onClose={onClose} footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>}>
       <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>{t('msg.loading')}</div>
     </Modal>
   );
 
   if (loadError) return (
-    <Modal title={t('modal.edit_invoice')} onClose={onClose} footer={<button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>}>
+    <Modal title={t('modal.edit_invoice')} onClose={onClose} footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>}>
       <div className="alert error">⚠️ {loadError}</div>
     </Modal>
   );
@@ -1148,8 +1148,8 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   return (
     <Modal title={`${t('modal.edit_invoice')} — ${String(invoice.invoiceNumber ?? invoice.number)}`} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
-        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+        <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
+        <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
@@ -1438,8 +1438,8 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
   return (
     <Modal title={`${t('modal.collect_payment')} — ${invoice.invoiceNumber ?? invoice.number}`} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('btn.record_payment')}</button>
-        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+        <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('btn.record_payment')}</button>
+        <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}

@@ -279,10 +279,10 @@ export default function Users() {
           onClose={() => setShowForm(false)}
           footer={
             <>
-              <button className="btn" onClick={onSave} disabled={saving}>
+              <button type="button" className="btn" onClick={onSave} disabled={saving}>
                 {saving ? t('msg.saving') : t('action.save')}
               </button>
-              <button className="btn secondary" onClick={() => setShowForm(false)}>{t('action.cancel')}</button>
+              <button type="button" className="btn secondary" onClick={() => setShowForm(false)}>{t('action.cancel')}</button>
             </>
           }
         >

@@ -39,11 +39,11 @@ function billingYearOptions(): number[] {
 }
 
 const STATUS_PILL: Record<string, [string, string]> = {
-  PENDING:  ['معلّق',        'amber'],
-  APPROVED: ['معتمد',        'green'],
-  REJECTED: ['مرفوض',        'red'],
-  REVERSED: ['مُلغى الاعتماد', 'gray'],
-  CANCELLED:['ملغى',         'gray'],
+  PENDING:  ['exp.status.pending',   'amber'],
+  APPROVED: ['exp.status.approved',  'green'],
+  REJECTED: ['exp.status.rejected',  'red'],
+  REVERSED: ['exp.status.reversed',  'gray'],
+  CANCELLED:['exp.status.cancelled', 'gray'],
 };
 const STATUS_AR: Record<string, string> = {
   PENDING: 'معلّق', APPROVED: 'معتمد', REJECTED: 'مرفوض', REVERSED: 'مُلغى الاعتماد', CANCELLED: 'ملغى',
@@ -193,8 +193,8 @@ export default function Expenses() {
       key: 'status', label: 'col.status',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       render: (r: any) => {
-        const [lbl, c] = STATUS_PILL[r.status as string] ?? ['—', 'gray'];
-        return <span className={`pill ${c}`}>{lbl}</span>;
+        const [key, c] = STATUS_PILL[r.status as string] ?? ['—', 'gray'];
+        return <span className={`pill ${c}`}>{t(key)}</span>;
       },
     },
   ];
@@ -207,7 +207,7 @@ export default function Expenses() {
           <p>{t('mod.expenses.subtitle')}</p>
         </div>
         {hasPermission('expenses.create') && (
-          <button className="btn" onClick={() => setCreating(true)}>＋ {t('mod.expenses.create')}</button>
+          <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('mod.expenses.create')}</button>
         )}
       </div>
 
@@ -245,35 +245,35 @@ export default function Expenses() {
       )}
 
       {/* ── Filters ── */}
-      <form className="toolbar" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }} onSubmit={(e) => e.preventDefault()}>
+      <form className="toolbar" onSubmit={(e) => e.preventDefault()}>
         <input
           placeholder="بحث في الوصف…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={{ ...INP, maxWidth: 240 }}
+          style={{ maxWidth: 240 }}
         />
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ ...INP, maxWidth: 180 }}>
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
           <option value="">الحالة — الكل</option>
-          <option value="PENDING">معلّق</option>
-          <option value="APPROVED">معتمد</option>
-          <option value="REJECTED">مرفوض</option>
-          <option value="REVERSED">مُلغى الاعتماد</option>
-          <option value="CANCELLED">ملغى</option>
+          <option value="PENDING">{t('exp.status.pending')}</option>
+          <option value="APPROVED">{t('exp.status.approved')}</option>
+          <option value="REJECTED">{t('exp.status.rejected')}</option>
+          <option value="REVERSED">{t('exp.status.reversed')}</option>
+          <option value="CANCELLED">{t('exp.status.cancelled')}</option>
         </select>
-        <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }} style={{ ...INP, maxWidth: 220 }}>
+        <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }} style={{ maxWidth: 220 }}>
           <option value="">التصنيف — الكل</option>
           {EXPENSE_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
         </select>
-        <select value={supplierFilter} onChange={(e) => { setSupplierFilter(e.target.value); setPage(1); }} style={{ ...INP, maxWidth: 180 }}>
+        <select value={supplierFilter} onChange={(e) => { setSupplierFilter(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
           <option value="">المورد — الكل</option>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <select value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }} style={{ ...INP, maxWidth: 130 }}>
+        <select value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }} style={{ maxWidth: 130 }}>
           <option value="">الشهر — الكل</option>
           {ARABIC_MONTHS.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
         </select>
-        <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }} style={{ ...INP, maxWidth: 100 }}>
+        <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }} style={{ maxWidth: 100 }}>
           <option value="">السنة — الكل</option>
           {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
@@ -396,8 +396,8 @@ function ExpenseForm({
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
-          <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+          <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
+          <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
         </>
       }
     >

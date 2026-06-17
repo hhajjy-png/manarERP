@@ -584,11 +584,11 @@ export default function Cheques() {
               className="modal-foot"
               style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}
             >
-              <button className="btn secondary" onClick={() => setShowPrintConfirm(false)}>
+              <button type="button" className="btn secondary" onClick={() => setShowPrintConfirm(false)}>
                 {t('action.cancel')}
               </button>
               {canPrint && (
-                <button className="btn" onClick={handleMarkPrinted}>
+                <button type="button" className="btn" onClick={handleMarkPrinted}>
                   {t('page.cheques.mark_printed')}
                 </button>
               )}
@@ -672,7 +672,7 @@ export default function Cheques() {
               🖨️ {t('page.cheques.print')}
             </button>
             {canCancel && printTarget && printTarget.status === 'DRAFT' && (
-              <button className="btn danger" onClick={() => handleCancel(printTarget)}>
+              <button type="button" className="btn danger" onClick={() => handleCancel(printTarget)}>
                 {t('page.cheques.cancel_cheque')}
               </button>
             )}
@@ -839,11 +839,11 @@ export default function Cheques() {
 
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
               {(canCreate && !editId) || (editId && canUpdate) ? (
-                <button className="btn" onClick={handleSave} disabled={saving} style={{ flex: 1 }}>
+                <button type="button" className="btn" onClick={handleSave} disabled={saving} style={{ flex: 1 }}>
                   {saving ? t('msg.saving') : t('page.cheques.save')}
                 </button>
               ) : null}
-              <button className="btn secondary" onClick={resetForm}>
+              <button type="button" className="btn secondary" onClick={resetForm}>
                 {t('page.cheques.reset')}
               </button>
             </div>

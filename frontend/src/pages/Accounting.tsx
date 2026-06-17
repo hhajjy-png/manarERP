@@ -179,13 +179,13 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input placeholder={t('ph.acc.search_account')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ ...inp, maxWidth: 240 }} />
-        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }} style={{ ...inp }}>
+      <div className="toolbar">
+        <input placeholder={t('ph.acc.search_account')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ maxWidth: 240 }} />
+        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}>
           <option value="">{t('opt.acc.all_types')}</option>
           {Object.entries(accountTypeKey).map(([v, k]) => <option key={v} value={v}>{t(k)}</option>)}
         </select>
-        {canCreate && <button className="btn" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(true)}>{t('btn.acc.new_account')}</button>}
+        {canCreate && <button type="button" className="btn" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(true)}>{t('btn.acc.new_account')}</button>}
       </div>
 
       <DataTable
@@ -196,8 +196,8 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
         onPage={setPage}
         actions={(row) => (
           <>
-            <button className="btn sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>{' '}
-            <button className="btn secondary sm" onClick={() => deleteAccount(row.id)}>{t('action.delete')}</button>
+            <button type="button" className="btn sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>{' '}
+            <button type="button" className="btn secondary sm" onClick={() => deleteAccount(row.id)}>{t('action.delete')}</button>
           </>
         )}
       />
@@ -242,8 +242,8 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
   return (
     <Modal title={isEdit ? t('modal.acc.edit_account') : t('modal.acc.new_account')} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
-        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+        <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
+        <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
@@ -318,9 +318,9 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
-        <input placeholder={t('ph.acc.search_journal')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ ...inp, maxWidth: 280 }} />
-        {canCreate && <button className="btn" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(true)}>{t('btn.acc.new_entry')}</button>}
+      <div className="toolbar">
+        <input placeholder={t('ph.acc.search_journal')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ maxWidth: 280 }} />
+        {canCreate && <button type="button" className="btn" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(true)}>{t('btn.acc.new_entry')}</button>}
       </div>
 
       <DataTable
@@ -331,9 +331,9 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
         onPage={setPage}
         actions={(row) => (
           <>
-            <button className="btn sm" onClick={() => setExpanded(row)}>{t('action.view')}</button>{' '}
+            <button type="button" className="btn sm" onClick={() => setExpanded(row)}>{t('action.view')}</button>{' '}
             {row.status === 'POSTED' && row.referenceType === 'MANUAL' && (
-              <button className="btn secondary sm" onClick={() => cancelEntry(row.id)}>{t('action.cancel')}</button>
+              <button type="button" className="btn secondary sm" onClick={() => cancelEntry(row.id)}>{t('action.cancel')}</button>
             )}
           </>
         )}
@@ -351,7 +351,7 @@ function JournalEntryDetails({ entry, onClose }: { entry: any; onClose: () => vo
   const totalDebit = (entry.lines ?? []).reduce((s: number, l: { debit: number }) => s + l.debit, 0);
   const totalCredit = (entry.lines ?? []).reduce((s: number, l: { credit: number }) => s + l.credit, 0);
   return (
-    <Modal title={`${t('col.acc.entry_number')}: ${entry.entryNumber}`} onClose={onClose} footer={<button className="btn secondary" onClick={onClose}>{t('action.close')}</button>}>
+    <Modal title={`${t('col.acc.entry_number')}: ${entry.entryNumber}`} onClose={onClose} footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.close')}</button>}>
       <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>{dateText(entry.date)} — {entry.description}</p>
       <div className="table-responsive">
         <table>
@@ -430,8 +430,8 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
   return (
     <Modal title={t('modal.acc.new_entry')} onClose={onClose} footer={
       <>
-        <button className="btn" onClick={submit} disabled={saving || !balanced}>{saving ? t('msg.saving') : t('btn.acc.post_entry')}</button>
-        <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+        <button type="button" className="btn" onClick={submit} disabled={saving || !balanced}>{saving ? t('msg.saving') : t('btn.acc.post_entry')}</button>
+        <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
@@ -458,11 +458,11 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
             <input type="number" min="0" step="0.001" value={l.debit} onChange={(e) => setLine(i, 'debit', e.target.value)} style={{ ...inp, fontSize: 13, direction: 'ltr' }} placeholder="0" />
             <input type="number" min="0" step="0.001" value={l.credit} onChange={(e) => setLine(i, 'credit', e.target.value)} style={{ ...inp, fontSize: 13, direction: 'ltr' }} placeholder="0" />
             {lines.length > 2
-              ? <button className="btn secondary sm" onClick={() => setLines((p) => p.filter((_, idx) => idx !== i))}>×</button>
+              ? <button type="button" className="btn secondary sm" onClick={() => setLines((p) => p.filter((_, idx) => idx !== i))}>×</button>
               : <span />}
           </div>
         ))}
-        <button className="btn secondary sm" style={{ marginTop: 4 }} onClick={() => setLines((p) => [...p, { accountId: '', description: '', debit: '', credit: '' }])}>{t('btn.acc.add_line')}</button>
+        <button type="button" className="btn secondary sm" style={{ marginTop: 4 }} onClick={() => setLines((p) => [...p, { accountId: '', description: '', debit: '', credit: '' }])}>{t('btn.acc.add_line')}</button>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 24, marginTop: 12, padding: '8px 0', borderTop: '1px solid var(--border)' }}>
@@ -514,8 +514,8 @@ function PaymentsTab() {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
-        <select value={methodFilter} onChange={(e) => { setMethodFilter(e.target.value); setPage(1); }} style={{ ...inp }}>
+      <div className="toolbar">
+        <select value={methodFilter} onChange={(e) => { setMethodFilter(e.target.value); setPage(1); }}>
           <option value="">{t('opt.acc.all_methods')}</option>
           {Object.entries(paymentMethodKey).map(([v, k]) => <option key={v} value={v}>{t(k)}</option>)}
         </select>
