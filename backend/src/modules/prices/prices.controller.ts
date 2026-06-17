@@ -44,6 +44,10 @@ export const usageReport = asyncHandler(async (_req: Request, res: Response) => 
   ok(res, await service.getPricesUsageReport());
 });
 
+export const usageByCompany = asyncHandler(async (_req: Request, res: Response) => {
+  ok(res, await service.getPricesUsageByCompany());
+});
+
 export const forceRemovePreview = asyncHandler(async (req: Request, res: Response) => {
   ok(res, await service.forceRemovePreview(Number(req.params.id)));
 });

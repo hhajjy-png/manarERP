@@ -89,8 +89,6 @@ export async function getPricesStats() {
 }
 
 export async function getPricesUsageReport() {
-  const TOLERANCE = 0.001;
-
   const [prices, items] = await Promise.all([
     prisma.projectPrice.findMany({
       where: { isArchived: false },
@@ -98,16 +96,23 @@ export async function getPricesUsageReport() {
       orderBy: { asphaltPlant: 'asc' },
     }),
     prisma.invoiceItem.findMany({
-      select: { unit: true, unitPrice: true, quantity: true, total: true },
+      where: { priceId: { not: null } },
+      select: { priceId: true, quantity: true, total: true },
     }),
   ]);
 
+  const byPriceId = new Map<number, { count: number; totalQty: number; totalAmt: number }>();
+  for (const item of items) {
+    if (item.priceId == null) continue;
+    const g = byPriceId.get(item.priceId) ?? { count: 0, totalQty: 0, totalAmt: 0 };
+    g.count++;
+    g.totalQty += item.quantity;
+    g.totalAmt += item.total;
+    byPriceId.set(item.priceId, g);
+  }
+
   const report = prices.map((price) => {
-    const matches = items.filter(
-      (item) =>
-        item.unit === price.contractUnit &&
-        Math.abs(item.unitPrice - price.unitPrice) < TOLERANCE,
-    );
+    const g = byPriceId.get(price.id) ?? { count: 0, totalQty: 0, totalAmt: 0 };
     return {
       id: price.id,
       asphaltPlant: price.asphaltPlant,
@@ -116,35 +121,86 @@ export async function getPricesUsageReport() {
       contractUnit: price.contractUnit,
       unitPrice: price.unitPrice,
       customer: price.customer,
-      usageCount: matches.length,
-      totalQuantity: matches.reduce((s, m) => s + m.quantity, 0),
-      totalAmount: matches.reduce((s, m) => s + m.total, 0),
+      usageCount: g.count,
+      totalQuantity: g.totalQty,
+      totalAmount: g.totalAmt,
     };
   });
 
   return {
     report,
-    hasDirectTracking: false,
-    note: 'الاستخدام محسوب بالتطابق التقريبي (وحدة + سعر). لا يوجد FK مباشر من بنود الفاتورة إلى الاتفاقيات.',
-    phase2Requirement: 'لقياس الاستخدام بدقة في Phase 2 يجب إضافة حقل priceId في جدول invoice_items.',
+    hasDirectTracking: true,
+    note: 'الاستخدام مبني على priceId المخزون مباشرةً في بند الفاتورة. الفواتير القديمة (priceId = null) غير مشمولة في الأرقام.',
   };
+}
+
+export async function getPricesUsageByCompany() {
+  const items = await prisma.invoiceItem.findMany({
+    where: { priceId: { not: null } },
+    select: {
+      priceId: true,
+      quantity: true,
+      total: true,
+      price: { select: { companyName: true } },
+    },
+  });
+
+  const byCompany = new Map<
+    string,
+    { priceIds: Set<number>; usageCount: number; totalQty: number; totalAmt: number }
+  >();
+
+  for (const item of items) {
+    if (!item.price || item.priceId == null) continue;
+    const company = item.price.companyName;
+    const g = byCompany.get(company) ?? { priceIds: new Set(), usageCount: 0, totalQty: 0, totalAmt: 0 };
+    g.priceIds.add(item.priceId);
+    g.usageCount++;
+    g.totalQty += item.quantity;
+    g.totalAmt += item.total;
+    byCompany.set(company, g);
+  }
+
+  return Array.from(byCompany.entries())
+    .map(([companyName, g]) => ({
+      companyName,
+      agreementCount: g.priceIds.size,
+      usageCount: g.usageCount,
+      totalQuantity: g.totalQty,
+      totalAmount: g.totalAmt,
+    }))
+    .sort((a, b) => b.totalAmount - a.totalAmount);
 }
 
 export async function forceRemovePreview(id: number) {
   const price = await prisma.projectPrice.findUnique({ where: { id } });
   if (!price) throw AppError.notFound('السعر غير موجود');
+
+  const invoiceItemCount = await prisma.invoiceItem.count({ where: { priceId: id } });
+
   return {
     price,
-    childCounts: {},
-    totalChildRecords: 0,
+    childCounts: { invoiceItems: invoiceItemCount },
+    totalChildRecords: invoiceItemCount,
     willBeDeleted: ['projectPrice'],
     willBeNullified: [],
+    blocked: invoiceItemCount > 0,
+    blockReason: invoiceItemCount > 0
+      ? `لا يمكن حذف هذا السعر — مرتبط بـ ${invoiceItemCount} بند فاتورة. أرشف السعر بدلاً من الحذف.`
+      : null,
   };
 }
 
 export async function forceRemove(id: number, req: Request) {
   const price = await prisma.projectPrice.findUnique({ where: { id } });
   if (!price) throw AppError.notFound('السعر غير موجود');
+
+  const invoiceItemCount = await prisma.invoiceItem.count({ where: { priceId: id } });
+  if (invoiceItemCount > 0) {
+    throw AppError.conflict(
+      `لا يمكن حذف هذا السعر — مرتبط بـ ${invoiceItemCount} بند فاتورة. أرشف السعر بدلاً من الحذف.`,
+    );
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.projectPrice.delete({ where: { id } });
@@ -166,12 +222,12 @@ export async function forceRemove(id: number, req: Request) {
         unitPrice: price.unitPrice,
         isArchived: price.isArchived,
       },
-      childCounts: {},
+      childCounts: { invoiceItems: 0 },
       totalChildRecords: 0,
       willBeDeleted: ['projectPrice'],
       willBeNullified: [],
     },
   });
 
-  return { deleted: true, impact: { childCounts: {}, totalChildRecords: 0 } };
+  return { deleted: true, impact: { childCounts: { invoiceItems: 0 }, totalChildRecords: 0 } };
 }

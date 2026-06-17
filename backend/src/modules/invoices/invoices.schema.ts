@@ -8,6 +8,7 @@ const itemSchema = z.object({
   quantity: z.coerce.number().positive('الكمية يجب أن تكون موجبة').default(1),
   unit: z.string().trim().min(1, 'الوحدة مطلوبة').default('طن'),
   unitPrice: z.coerce.number().nonnegative('السعر يجب ألا يكون سالبًا').default(0),
+  priceId: z.coerce.number().int().positive().optional().nullable(),
 });
 
 export const createInvoiceSchema = z.object({

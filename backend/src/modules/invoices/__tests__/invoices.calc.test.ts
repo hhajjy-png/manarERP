@@ -268,3 +268,19 @@ describe('overpaymentExceeds', () => {
     expect(overpaymentExceeds(125.750, 125.752)).toBe(true);
   });
 });
+
+// ── priceId passthrough ──────────────────────────────────────────────────────
+
+describe('priceId passthrough in computeTotals', () => {
+  it('passes priceId through to computed lines', () => {
+    const items = [{ description: 'نقل أسفلت', quantity: 2, unit: 'طن', unitPrice: 10, priceId: 5 }];
+    const { lines } = computeTotals(items, 0, 0);
+    expect(lines[0].priceId).toBe(5);
+  });
+
+  it('handles missing priceId gracefully (undefined)', () => {
+    const items = [{ description: 'نقل أسفلت', quantity: 1, unit: 'طن', unitPrice: 10 }];
+    const { lines } = computeTotals(items, 0, 0);
+    expect(lines[0].priceId).toBeUndefined();
+  });
+});

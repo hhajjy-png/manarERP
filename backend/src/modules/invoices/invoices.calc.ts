@@ -1,6 +1,12 @@
 // Pure financial calculation functions for invoices — no Prisma, no side-effects.
 
-export type InvoiceItemInput = { description: string; quantity: number; unit: string; unitPrice: number };
+export type InvoiceItemInput = {
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  priceId?: number | null;
+};
 
 export function round3(n: number): number {
   return Math.round((n + Number.EPSILON) * 1000) / 1000;

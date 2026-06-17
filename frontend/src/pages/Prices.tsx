@@ -33,7 +33,14 @@ interface UsageReport {
   report: UsageRow[];
   hasDirectTracking: boolean;
   note: string;
-  phase2Requirement: string;
+}
+
+interface CompanyUsageRow {
+  companyName: string;
+  agreementCount: number;
+  usageCount: number;
+  totalQuantity: number;
+  totalAmount: number;
 }
 
 export default function Prices() {
@@ -62,6 +69,9 @@ export default function Prices() {
   const [usageReport, setUsageReport] = useState<UsageReport | null>(null);
   const [showUsage, setShowUsage] = useState(false);
   const [usageLoading, setUsageLoading] = useState(false);
+  const [companyUsage, setCompanyUsage] = useState<CompanyUsageRow[]>([]);
+  const [companyUsageLoading, setCompanyUsageLoading] = useState(false);
+  const [groupByCompany, setGroupByCompany] = useState(false);
 
   useEffect(() => {
     api.get('/customers', { params: { pageSize: 200 } })
@@ -103,7 +113,7 @@ export default function Prices() {
   async function loadUsageReport() {
     setUsageLoading(true);
     try {
-      const res = await api.get('/prices/usage-report');
+      const res = await api.get('/prices/usage');
       setUsageReport(res.data.data);
       setShowUsage(true);
     } catch (e) {
@@ -112,6 +122,18 @@ export default function Prices() {
       setUsageLoading(false);
     }
   }
+
+  const loadCompanyUsage = useCallback(async () => {
+    setCompanyUsageLoading(true);
+    try {
+      const res = await api.get('/prices/usage/by-company');
+      setCompanyUsage(res.data.data ?? []);
+    } catch {
+      // silent
+    } finally {
+      setCompanyUsageLoading(false);
+    }
+  }, []);
 
   async function exportExcel() {
     if (!hasPermission('reports.export')) return;
@@ -272,53 +294,114 @@ export default function Prices() {
       {showUsage && usageReport && (
         <Modal
           title={t('agreements.usage.title')}
-          onClose={() => setShowUsage(false)}
-          footer={<button className="btn secondary" onClick={() => setShowUsage(false)}>{t('action.close')}</button>}
+          onClose={() => { setShowUsage(false); setGroupByCompany(false); }}
+          footer={<button className="btn secondary" onClick={() => { setShowUsage(false); setGroupByCompany(false); }}>{t('action.close')}</button>}
         >
           <div style={{ marginBottom: 12, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 8, fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
             <div>⚠️ {t('agreements.usage.note')}</div>
-            {!usageReport.hasDirectTracking && (
-              <div style={{ marginTop: 6 }}>📋 {t('agreements.usage.phase2')}</div>
+            {usageReport.hasDirectTracking && (
+              <div style={{ marginTop: 6, color: 'var(--green)', fontWeight: 600 }}>يعتمد هذا التقرير على الفواتير المنشأة بعد تفعيل تتبع اتفاقيات الأسعار.</div>
             )}
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'right' }}>
-                <th style={th}>{t('agreements.usage.col.agreement')}</th>
-                <th style={th}>{t('agreements.usage.col.customer')}</th>
-                <th style={th}>{t('agreements.usage.col.unit')}</th>
-                <th style={th}>{t('agreements.usage.col.price')}</th>
-                <th style={{ ...th, textAlign: 'center' }}>{t('agreements.usage.col.count')}</th>
-                <th style={{ ...th, textAlign: 'center' }}>{t('agreements.usage.col.qty')}</th>
-                <th style={th}>{t('agreements.usage.col.amount')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {usageReport.report.map((row) => (
-                <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                  <td style={td}>
-                    <div style={{ fontWeight: 600 }}>{row.asphaltPlant}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{row.contractLocation}</div>
-                  </td>
-                  <td style={td}>{row.customer?.name ?? <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
-                  <td style={td}>{row.contractUnit}</td>
-                  <td style={td}>{money(row.unitPrice)}</td>
-                  <td style={{ ...td, textAlign: 'center' }}>
-                    <span style={{
-                      display: 'inline-block', minWidth: 28, textAlign: 'center',
-                      background: row.usageCount > 0 ? 'var(--accent)' : 'var(--surface-2)',
-                      color: row.usageCount > 0 ? '#fff' : 'var(--text-muted)',
-                      borderRadius: 99, padding: '2px 8px', fontWeight: 700, fontSize: 12,
-                    }}>
-                      {row.usageCount}
-                    </span>
-                  </td>
-                  <td style={{ ...td, textAlign: 'center' }}>{row.usageCount > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
-                  <td style={td}>{row.usageCount > 0 ? money(row.totalAmount) : '—'}</td>
+
+          {/* ── View Toggle ─────────────────────────────────────────────────── */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button
+              type="button"
+              className={groupByCompany ? 'btn secondary sm' : 'btn sm'}
+              onClick={() => setGroupByCompany(false)}
+            >
+              تفصيل الاتفاقيات
+            </button>
+            <button
+              type="button"
+              className={groupByCompany ? 'btn sm' : 'btn secondary sm'}
+              onClick={() => { setGroupByCompany(true); loadCompanyUsage(); }}
+            >
+              تجميع حسب الشركة
+            </button>
+          </div>
+
+          {/* ── Detail View ─────────────────────────────────────────────────── */}
+          {!groupByCompany && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'right' }}>
+                  <th style={th}>{t('agreements.usage.col.agreement')}</th>
+                  <th style={th}>{t('agreements.usage.col.customer')}</th>
+                  <th style={th}>{t('agreements.usage.col.unit')}</th>
+                  <th style={th}>{t('agreements.usage.col.price')}</th>
+                  <th style={{ ...th, textAlign: 'center' }}>{t('agreements.usage.col.count')}</th>
+                  <th style={{ ...th, textAlign: 'center' }}>{t('agreements.usage.col.qty')}</th>
+                  <th style={th}>{t('agreements.usage.col.amount')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {usageReport.report.map((row) => (
+                  <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={td}>
+                      <div style={{ fontWeight: 600 }}>{row.asphaltPlant}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{row.contractLocation}</div>
+                    </td>
+                    <td style={td}>{row.customer?.name ?? <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                    <td style={td}>{row.contractUnit}</td>
+                    <td style={td}>{money(row.unitPrice)}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      <span style={{
+                        display: 'inline-block', minWidth: 28, textAlign: 'center',
+                        background: row.usageCount > 0 ? 'var(--accent)' : 'var(--surface-2)',
+                        color: row.usageCount > 0 ? '#fff' : 'var(--text-muted)',
+                        borderRadius: 99, padding: '2px 8px', fontWeight: 700, fontSize: 12,
+                      }}>
+                        {row.usageCount}
+                      </span>
+                    </td>
+                    <td style={{ ...td, textAlign: 'center' }}>{row.usageCount > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
+                    <td style={td}>{row.usageCount > 0 ? money(row.totalAmount) : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {/* ── Company Group View ──────────────────────────────────────────── */}
+          {groupByCompany && (
+            companyUsageLoading
+              ? <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>...</div>
+              : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'right' }}>
+                      <th style={th}>الشركة</th>
+                      <th style={{ ...th, textAlign: 'center' }}>عدد الاتفاقيات</th>
+                      <th style={{ ...th, textAlign: 'center' }}>مرات الاستخدام</th>
+                      <th style={{ ...th, textAlign: 'center' }}>إجمالي الكمية</th>
+                      <th style={th}>إجمالي الإيرادات</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {companyUsage.map((row) => (
+                      <tr key={row.companyName} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ ...td, fontWeight: 600 }}>{row.companyName}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>{row.agreementCount}</td>
+                        <td style={{ ...td, textAlign: 'center' }}>
+                          <span style={{
+                            display: 'inline-block', minWidth: 28, textAlign: 'center',
+                            background: row.usageCount > 0 ? 'var(--accent)' : 'var(--surface-2)',
+                            color: row.usageCount > 0 ? '#fff' : 'var(--text-muted)',
+                            borderRadius: 99, padding: '2px 8px', fontWeight: 700, fontSize: 12,
+                          }}>
+                            {row.usageCount}
+                          </span>
+                        </td>
+                        <td style={{ ...td, textAlign: 'center' }}>{row.totalQuantity > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
+                        <td style={td}>{row.totalAmount > 0 ? money(row.totalAmount) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )
+          )}
         </Modal>
       )}
     </div>
