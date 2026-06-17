@@ -620,10 +620,13 @@ model InvoiceItem {
   unit        String @default("طن") // طن | درب | يومية
   unitPrice   Float  @default(0)
   total       Float  @default(0)
+  priceId     Int?   // FK to project_prices (nullable — snapshot-based)
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  price   ProjectPrice? @relation(fields: [priceId], references: [id], onDelete: SetNull)
 
   @@index([invoiceId])
+  @@index([priceId])
   @@map("invoice_items")
 }
 
@@ -1042,6 +1045,7 @@ model ProjectPrice {
   isArchived       Boolean @default(false)
   customerId       Int?
   customer         Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  invoiceItems     InvoiceItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
