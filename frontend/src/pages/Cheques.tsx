@@ -5,6 +5,7 @@ import { useT } from '../lib/i18n';
 import { tafqeetKWD } from '../lib/tafqeet';
 import { formatDate } from '../lib/date';
 import DataTable, { PageMeta } from '../components/DataTable';
+import Modal from '../components/Modal';
 import StatCard from '../components/StatCard';
 import gulfBankImg from '../assets/GulfBank_Personal_KW.jpg';
 
@@ -569,18 +570,11 @@ export default function Cheques() {
 
       {/* Mark-as-printed confirmation modal */}
       {showPrintConfirm && printTarget && (
-        <div className="modal-overlay no-print" onMouseDown={() => setShowPrintConfirm(false)}>
-          <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="modal-head">
-              <h3>{t('page.cheques.mark_printed')}</h3>
-              <button className="icon-btn" onClick={() => setShowPrintConfirm(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <p style={{ margin: 0 }}>{t('page.cheques.confirm_printed')}</p>
-            </div>
-            <div className="modal-foot">
+        <Modal
+          title={t('page.cheques.mark_printed')}
+          onClose={() => setShowPrintConfirm(false)}
+          footer={
+            <>
               {canPrint && (
                 <button type="button" className="btn" onClick={handleMarkPrinted}>
                   {t('page.cheques.mark_printed')}
@@ -589,9 +583,11 @@ export default function Cheques() {
               <button type="button" className="btn secondary" onClick={() => setShowPrintConfirm(false)}>
                 {t('action.cancel')}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <p style={{ margin: 0 }}>{t('page.cheques.confirm_printed')}</p>
+        </Modal>
       )}
 
       {/* Stats row */}

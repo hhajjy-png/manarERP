@@ -267,6 +267,7 @@ export default function Backup() {
                   value={settingsDraft.time}
                   disabled={!canSettings || settingsBusy}
                   onChange={(e) => setSettingsDraft((s) => ({ ...s, time: e.target.value }))}
+                  style={{ width: 120 }}
                 />
               </td>
             </tr>
@@ -281,6 +282,7 @@ export default function Backup() {
                   value={settingsDraft.retentionCount}
                   disabled={!canSettings || settingsBusy}
                   onChange={(e) => setSettingsDraft((s) => ({ ...s, retentionCount: Math.max(1, Math.min(365, parseInt(e.target.value, 10) || 1)) }))}
+                  style={{ width: 80 }}
                 />
               </td>
             </tr>
