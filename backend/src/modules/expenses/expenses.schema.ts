@@ -12,7 +12,8 @@ export const createExpenseSchema = z.object({
     billingYear: z.coerce.number().int().min(2020).max(2100).optional(),
     notes: z.string().optional(),
     contractId: z.coerce.number().int().positive().optional(),
-    supplierId: z.coerce.number().int().positive().optional(),
+    supplierId: z.coerce.number().int().positive().optional().nullable(),
+    supplierName: z.string().max(200).optional().nullable(), // مورد حر (خارج قائمة الموردين)
     documentPath: z.string().optional(),
     paymentMethod: z.enum(ENUMS.expensePaymentMethod).optional(),
   }),

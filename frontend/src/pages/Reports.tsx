@@ -13,7 +13,7 @@ type EmployeeItem = { id: number; fullName: string };
 
 // ─── Report Definitions ───────────────────────────────────────────────────────
 
-type FilterKey = 'date' | 'customer' | 'employee' | 'status' | 'direction';
+type FilterKey = 'date' | 'customer' | 'employee' | 'status' | 'direction' | 'billingMonth' | 'billingYear' | 'company' | 'workType';
 
 interface ReportType {
   key: string;
@@ -71,9 +71,37 @@ const REPORT_TYPES: ReportType[] = [
     filters: ['status'],
     statuses: [['WORKING', 'opt.eq.working'], ['NOT_WORKING', 'opt.eq.not_working']],
   },
+  {
+    key: 'expenses-by-company', label: 'تقرير المصروفات حسب الشركة', icon: '🏗️', group: 'report.group.operational',
+    filters: ['date', 'billingMonth', 'billingYear', 'company', 'status'],
+    statuses: [['PENDING', 'status.pending'], ['APPROVED', 'status.approved'], ['REJECTED', 'status.rejected']],
+  },
+  {
+    key: 'invoices-by-customer', label: 'تقرير الفواتير حسب العميل', icon: '📊', group: 'report.group.operational',
+    filters: ['date', 'billingMonth', 'billingYear', 'customer', 'direction', 'status'],
+    statuses: [['UNPAID', 'inv.status.unpaid'], ['PARTIAL', 'inv.status.partial'], ['PAID', 'inv.status.paid'], ['OVERDUE', 'inv.status.overdue']],
+  },
+  {
+    key: 'prices-usage', label: 'تقرير استخدام الاتفاقيات', icon: '🤝', group: 'report.group.operational',
+    filters: ['customer', 'company', 'workType'],
+  },
 ];
 
-const GROUPS = ['report.group.financial', 'report.group.business', 'report.group.hr', 'report.group.operations'];
+const GROUPS = ['report.group.financial', 'report.group.business', 'report.group.hr', 'report.group.operations', 'report.group.operational'];
+
+const ARABIC_MONTHS = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+];
+
+const CONTRACT_UNITS = ['طن', 'درب', 'يومية', 'مقطوعية'];
+
+const COMPANY_GROUPS = [
+  { value: 'HASSAN', label: 'مصروف عن طريق حسن' },
+  { value: 'GHANEM', label: 'مصروف عن طريق غانم' },
+  { value: 'NATHEER', label: 'مصروف عن طريق نظير' },
+  { value: 'HAROON', label: 'مصروف عن طريق هارون' },
+];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -99,6 +127,10 @@ export default function Reports() {
   const [employeeId, setEmployeeId] = useState('');
   const [status, setStatus] = useState('');
   const [direction, setDirection] = useState('');
+  const [billingMonth, setBillingMonth] = useState('');
+  const [billingYear, setBillingYear] = useState('');
+  const [company, setCompany] = useState('');
+  const [workType, setWorkType] = useState('');
 
   const [preview, setPreview] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -125,6 +157,8 @@ export default function Reports() {
     setFrom(''); setTo('');
     setCustomerId(''); setEmployeeId('');
     setStatus(''); setDirection('');
+    setBillingMonth(''); setBillingYear('');
+    setCompany(''); setWorkType('');
     setPreview(null); setError('');
   }, [selected]);
 
@@ -132,6 +166,8 @@ export default function Reports() {
     setFrom(''); setTo('');
     setCustomerId(''); setEmployeeId('');
     setStatus(''); setDirection('');
+    setBillingMonth(''); setBillingYear('');
+    setCompany(''); setWorkType('');
     setPreview(null); setError('');
   }
 
@@ -143,6 +179,10 @@ export default function Reports() {
     if (employeeId) p.employeeId = employeeId;
     if (status) p.status = status;
     if (direction) p.direction = direction;
+    if (billingMonth) p.billingMonth = billingMonth;
+    if (billingYear) p.billingYear = billingYear;
+    if (company) p.company = company;
+    if (workType) p.workType = workType;
     return p;
   }
 
@@ -160,7 +200,7 @@ export default function Reports() {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, from, to, customerId, employeeId, status, direction, canView]);
+  }, [selected, from, to, customerId, employeeId, status, direction, billingMonth, billingYear, company, workType, canView]);
 
   async function downloadExcel() {
     if (!canExport) return;
@@ -285,13 +325,55 @@ export default function Reports() {
           </div>
         )}
 
+        {f.includes('billingMonth') && (
+          <div className="field" style={{ margin: 0, minWidth: 130 }}>
+            <label style={{ fontSize: 12 }}>شهر الحساب</label>
+            <select value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+              <option value="">الكل</option>
+              {ARABIC_MONTHS.map((name, i) => <option key={i + 1} value={i + 1}>{name}</option>)}
+            </select>
+          </div>
+        )}
+
+        {f.includes('billingYear') && (
+          <div className="field" style={{ margin: 0, minWidth: 100 }}>
+            <label style={{ fontSize: 12 }}>السنة</label>
+            <select value={billingYear} onChange={(e) => setBillingYear(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+              <option value="">الكل</option>
+              {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {f.includes('company') && (
+          <div className="field" style={{ margin: 0, minWidth: 180 }}>
+            <label style={{ fontSize: 12 }}>الشركة / المسؤول</label>
+            <select value={company} onChange={(e) => setCompany(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+              <option value="">الكل</option>
+              {COMPANY_GROUPS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+            </select>
+          </div>
+        )}
+
+        {f.includes('workType') && (
+          <div className="field" style={{ margin: 0, minWidth: 140 }}>
+            <label style={{ fontSize: 12 }}>نوع العمل</label>
+            <select value={workType} onChange={(e) => setWorkType(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+              <option value="">الكل</option>
+              {CONTRACT_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+            </select>
+          </div>
+        )}
+
         <div style={{ display: 'flex', gap: 8, marginRight: 'auto', alignItems: 'center', flexWrap: 'wrap' }}>
           {canView && (
             <button className="btn" onClick={loadPreview} disabled={loading} style={{ padding: '8px 18px' }}>
               {loading ? t('page.reports.loading') : t('page.reports.view')}
             </button>
           )}
-          {(from || to || customerId || employeeId || status || direction) && (
+          {(from || to || customerId || employeeId || status || direction || billingMonth || billingYear || company || workType) && (
             <button type="button" className="btn secondary" onClick={resetFilters} style={{ padding: '8px 14px' }}>
               {t('action.reset_filters')}
             </button>

@@ -18,4 +18,7 @@ router.get('/activity', canRead, asyncHandler(async (req, res) => ok(res, await 
 /** لوحة التحكم التنفيذية — جميع KPIs والرسوم والقوائم في استدعاء واحد. */
 router.get('/executive', canRead, asyncHandler(async (_req, res) => ok(res, await dashboardService.executive())));
 
+/** ملخص العمليات المعلّقة — pending expenses, draft payroll, unprinted cheques, etc. */
+router.get('/operational', canRead, asyncHandler(async (_req, res) => ok(res, await dashboardService.operationalSummary())));
+
 export default router;

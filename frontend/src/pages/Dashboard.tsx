@@ -62,6 +62,7 @@ export default function Dashboard() {
   const [expenses, setExpenses] = useState<ApiAny[]>([]);
   const [contracts, setContracts] = useState<ApiAny[]>([]);
   const [alerts, setAlerts] = useState<DashAlert[]>([]);
+  const [ops, setOps] = useState<ApiAny>(null);
 
   const today = new Date().toLocaleDateString('ar-KW', {
     weekday: 'long',
@@ -76,10 +77,11 @@ export default function Dashboard() {
     let cancelled = false;
 
     try {
-      const [execRes, equipRes, empsRes] = await Promise.all([
+      const [execRes, equipRes, empsRes, opsRes] = await Promise.all([
         api.get('/dashboard/executive'),
         api.get('/equipment/expiring', { params: { days: 30 } }),
         api.get('/employees/expiring-documents', { params: { days: 30 } }),
+        api.get('/dashboard/operational'),
       ]);
 
       if (cancelled) return;
@@ -113,6 +115,7 @@ export default function Dashboard() {
         });
       });
       setAlerts([...equipAlerts, ...empAlerts]);
+      setOps(opsRes.data?.data ?? null);
       setRefreshAt(new Date());
     } catch (e) {
       if (!cancelled) setError(errorMessage(e));
@@ -374,6 +377,70 @@ export default function Dashboard() {
             <span className="db-aw-tag">{t('page.dashboard.contract_unit')}</span>
           </div>
         </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════
+          OPERATIONAL PENDING SUMMARY
+      ══════════════════════════════════════════════════ */}
+      {!loading && ops && (ops.pendingExpensesCount > 0 || ops.draftPayrollCount > 0 || ops.unprintedChequesCount > 0 || ops.outstandingInvoicesCount > 0 || ops.expiringAgreementsCount > 0) && (
+        <>
+          <div className="db-section-label">عمليات معلّقة تستحق المراجعة</div>
+          <div className="db-alert-widgets">
+            {ops.pendingExpensesCount > 0 && (
+              <div className="db-aw aw-warning" onClick={() => navigate('/expenses')}>
+                <div className="db-aw-icon">🧾</div>
+                <div className="db-aw-body">
+                  <div className="db-aw-val">{ops.pendingExpensesCount}</div>
+                  <div className="db-aw-label">مصاريف معلّقة</div>
+                  <div className="db-aw-sub">{money(ops.pendingExpensesTotal)}</div>
+                </div>
+                <span className="db-aw-tag">مصروف</span>
+              </div>
+            )}
+            {ops.draftPayrollCount > 0 && (
+              <div className="db-aw aw-warning" onClick={() => navigate('/payroll')}>
+                <div className="db-aw-icon">💼</div>
+                <div className="db-aw-body">
+                  <div className="db-aw-val">{ops.draftPayrollCount}</div>
+                  <div className="db-aw-label">مسيرات مسودة</div>
+                </div>
+                <span className="db-aw-tag">راتب</span>
+              </div>
+            )}
+            {ops.unprintedChequesCount > 0 && (
+              <div className="db-aw aw-warning" onClick={() => navigate('/cheques')}>
+                <div className="db-aw-icon">🖨️</div>
+                <div className="db-aw-body">
+                  <div className="db-aw-val">{ops.unprintedChequesCount}</div>
+                  <div className="db-aw-label">شيكات غير مطبوعة</div>
+                </div>
+                <span className="db-aw-tag">شيك</span>
+              </div>
+            )}
+            {ops.outstandingInvoicesCount > 0 && (
+              <div className="db-aw aw-critical" onClick={() => navigate('/invoices')}>
+                <div className="db-aw-icon">📄</div>
+                <div className="db-aw-body">
+                  <div className="db-aw-val">{ops.outstandingInvoicesCount}</div>
+                  <div className="db-aw-label">فواتير مستحقة</div>
+                  <div className="db-aw-sub">{money(ops.outstandingInvoicesTotal)}</div>
+                </div>
+                <span className="db-aw-tag">فاتورة</span>
+              </div>
+            )}
+            {ops.expiringAgreementsCount > 0 && (
+              <div className="db-aw aw-warning" onClick={() => navigate('/prices')}>
+                <div className="db-aw-icon">⏰</div>
+                <div className="db-aw-body">
+                  <div className="db-aw-val">{ops.expiringAgreementsCount}</div>
+                  <div className="db-aw-label">اتفاقيات تنتهي قريبًا</div>
+                  <div className="db-aw-sub">خلال 30 يومًا</div>
+                </div>
+                <span className="db-aw-tag">اتفاقية</span>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {/* ══════════════════════════════════════════════════

@@ -43,6 +43,30 @@ interface CompanyUsageRow {
   totalAmount: number;
 }
 
+interface AgreementsDashboard {
+  totalAgreements: number;
+  unusedCount: number;
+  expiringCount: number;
+  unused: AgreementRow[];
+  expiring: AgreementRow[];
+  top5: AgreementRow[];
+  least5: AgreementRow[];
+}
+
+interface AgreementRow {
+  id: number;
+  asphaltPlant: string;
+  companyName: string;
+  contractLocation: string;
+  contractUnit: string;
+  unitPrice: number;
+  validUntil: string | null;
+  customer: { id: number; name: string } | null;
+  usageCount: number;
+  totalQuantity: number;
+  totalAmount: number;
+}
+
 export default function Prices() {
   const { hasPermission, user } = useAuth();
   const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
@@ -72,6 +96,8 @@ export default function Prices() {
   const [companyUsage, setCompanyUsage] = useState<CompanyUsageRow[]>([]);
   const [companyUsageLoading, setCompanyUsageLoading] = useState(false);
   const [groupByCompany, setGroupByCompany] = useState(false);
+  const [agreementsDashboard, setAgreementsDashboard] = useState<AgreementsDashboard | null>(null);
+  const [dashboardTab, setDashboardTab] = useState<'unused' | 'expiring' | 'top5' | 'least5'>('unused');
 
   useEffect(() => {
     api.get('/customers', { params: { pageSize: 200 } })
@@ -86,6 +112,12 @@ export default function Prices() {
   }, []);
 
   useEffect(() => { loadStats(); }, [loadStats]);
+
+  useEffect(() => {
+    api.get('/prices/agreements-dashboard')
+      .then((res) => setAgreementsDashboard(res.data.data ?? null))
+      .catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -208,6 +240,34 @@ export default function Prices() {
             value={stats.lastUpdatedAt ? formatDate(stats.lastUpdatedAt) : '—'}
             color="var(--amber)"
           />
+        </div>
+      )}
+
+      {/* ── Agreements Dashboard Panel ──────────────────────────────────────── */}
+      {agreementsDashboard && (
+        <div style={{ marginBottom: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontWeight: 700, fontSize: 14, marginLeft: 8 }}>لوحة الاتفاقيات</span>
+            {(['unused', 'expiring', 'top5', 'least5'] as const).map((tab) => {
+              const labels: Record<string, string> = {
+                unused: `غير مستخدمة (${agreementsDashboard.unusedCount})`,
+                expiring: `تنتهي قريبًا (${agreementsDashboard.expiringCount})`,
+                top5: 'الأعلى استخدامًا',
+                least5: 'الأقل استخدامًا',
+              };
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  className={dashboardTab === tab ? 'btn sm' : 'btn secondary sm'}
+                  onClick={() => setDashboardTab(tab)}
+                >
+                  {labels[tab]}
+                </button>
+              );
+            })}
+          </div>
+          <AgreementMiniTable rows={agreementsDashboard[dashboardTab]} />
         </div>
       )}
 
@@ -434,6 +494,9 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
   const [contractUnit, setContractUnit] = useState<(typeof contractUnits)[number]>((price?.contractUnit ?? 'درب') as (typeof contractUnits)[number]);
   const [unitPrice, setUnitPrice] = useState<number>(price?.unitPrice ?? 0);
   const [customerId, setCustomerId] = useState<number | ''>(price?.customerId ?? '');
+  const [validUntil, setValidUntil] = useState<string>(
+    price?.validUntil ? String(price.validUntil).slice(0, 10) : ''
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -453,6 +516,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
         contractLocation: contractLocation.trim(),
         contractUnit,
         unitPrice,
+        validUntil: validUntil || null,
         ...(customerId !== '' ? { customerId: Number(customerId) } : {}),
       };
       if (isEdit) {
@@ -523,8 +587,55 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
             style={inp}
           />
         </div>
+        <div className="field">
+          <label>صالح حتى (تاريخ انتهاء الاتفاقية)</label>
+          <input
+            type="date"
+            value={validUntil}
+            onChange={(e) => setValidUntil(e.target.value)}
+            title="تاريخ انتهاء الاتفاقية"
+            style={inp}
+          />
+        </div>
       </div>
     </Modal>
+  );
+}
+
+// ── Mini table for agreements dashboard panel ───────────────────────────────
+function AgreementMiniTable({ rows }: { rows: AgreementRow[] }) {
+  if (!rows.length) return <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>لا توجد بيانات</div>;
+  return (
+    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+      <thead>
+        <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'right' }}>
+          <th style={th}>المصنع</th>
+          <th style={th}>الشركة</th>
+          <th style={th}>العميل</th>
+          <th style={th}>السعر</th>
+          <th style={{ ...th, textAlign: 'center' }}>الاستخدام</th>
+          <th style={th}>إجمالي الفاتورة</th>
+          <th style={th}>صالح حتى</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
+            <td style={td}><strong>{r.asphaltPlant}</strong></td>
+            <td style={td}>{r.companyName}</td>
+            <td style={td}>{r.customer?.name ?? '—'}</td>
+            <td style={td}>{money(r.unitPrice)}</td>
+            <td style={{ ...td, textAlign: 'center' }}>{r.usageCount}</td>
+            <td style={td}>{r.totalAmount > 0 ? money(r.totalAmount) : '—'}</td>
+            <td style={td}>
+              {r.validUntil
+                ? <span style={{ color: 'var(--amber)', fontWeight: 600 }}>{String(r.validUntil).slice(0, 10)}</span>
+                : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 

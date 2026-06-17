@@ -9,6 +9,7 @@ export const createPriceSchema = z.object({
     contractUnit: z.enum(ENUMS.invoiceUnit, { errorMap: () => ({ message: 'وحدة العقد غير صحيحة' }) }),
     unitPrice: z.coerce.number().nonnegative('السعر يجب ألا يكون سالبًا'),
     customerId: z.number().int().positive('يجب اختيار عميل'),
+    validUntil: z.coerce.date().optional().nullable(),
   }),
 });
 
@@ -21,6 +22,7 @@ export const updatePriceSchema = z.object({
     unitPrice: z.coerce.number().nonnegative().optional(),
     isArchived: z.boolean().optional(),
     customerId: z.number().int().positive().optional(),
+    validUntil: z.coerce.date().optional().nullable(),
   }),
 });
 

@@ -226,6 +226,46 @@ export class DashboardService {
       latestContracts,
     };
   }
+
+  /** ملخص العمليات المعلّقة — للشريط التحذيري في لوحة التحكم. */
+  async operationalSummary() {
+    const now = new Date();
+    const in30Days = new Date(now);
+    in30Days.setDate(in30Days.getDate() + 30);
+
+    const [
+      pendingExpensesAgg,
+      draftPayrollCount,
+      unprintedChequesCount,
+      outstandingInvoicesAgg,
+      expiringAgreementsCount,
+    ] = await Promise.all([
+      prisma.expense.aggregate({ where: { status: 'PENDING' }, _count: { _all: true }, _sum: { amount: true } }),
+      prisma.payroll.count({ where: { status: 'DRAFT' } }),
+      prisma.cheque.count({ where: { status: 'DRAFT' } }),
+      prisma.invoice.aggregate({
+        where: { direction: 'SALES', status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
+        _count: { _all: true },
+        _sum: { total: true, paidAmount: true },
+      }),
+      prisma.projectPrice.count({
+        where: { isArchived: false, validUntil: { gte: now, lte: in30Days } },
+      }),
+    ]);
+
+    const outstandingTotal =
+      (outstandingInvoicesAgg._sum.total ?? 0) - (outstandingInvoicesAgg._sum.paidAmount ?? 0);
+
+    return {
+      pendingExpensesCount: pendingExpensesAgg._count._all,
+      pendingExpensesTotal: pendingExpensesAgg._sum.amount ?? 0,
+      draftPayrollCount,
+      unprintedChequesCount,
+      outstandingInvoicesCount: outstandingInvoicesAgg._count._all,
+      outstandingInvoicesTotal: outstandingTotal,
+      expiringAgreementsCount,
+    };
+  }
 }
 
 export const dashboardService = new DashboardService();

@@ -82,6 +82,7 @@ export class ExpensesService {
         notes: input.notes ?? null,
         contractId: input.contractId ?? null,
         supplierId: input.supplierId ?? null,
+        supplierName: input.supplierName ?? null,
         documentPath: input.documentPath ?? null,
         paymentMethod: input.paymentMethod ?? 'CASH',
         status: 'PENDING',
@@ -111,6 +112,7 @@ export class ExpensesService {
         notes: input.notes !== undefined ? input.notes : current.notes,
         contractId: input.contractId === undefined ? current.contractId : input.contractId,
         supplierId: input.supplierId === undefined ? current.supplierId : input.supplierId,
+        supplierName: input.supplierName !== undefined ? (input.supplierName ?? null) : (current as Record<string, unknown>)['supplierName'] as string | null ?? null,
         documentPath: input.documentPath ?? current.documentPath,
         paymentMethod: input.paymentMethod ?? current.paymentMethod,
       },
@@ -233,24 +235,40 @@ export class ExpensesService {
 
     const rows = await prisma.expense.findMany({
       where,
-      select: { amount: true, category: true, supplier: { select: { name: true } } },
+      select: {
+        amount: true,
+        category: true,
+        supplier: { select: { name: true } },
+        supplierName: true,
+        status: true,
+      },
     });
 
     const count = rows.length;
     const total = rows.reduce((s, r) => s + Number(r.amount), 0);
+    const pendingTotal = rows.filter((r) => r.status === 'PENDING').reduce((s, r) => s + Number(r.amount), 0);
+    const pendingCount = rows.filter((r) => r.status === 'PENDING').length;
 
     const byCategory: Record<string, number> = {};
     for (const r of rows) {
       byCategory[r.category] = (byCategory[r.category] ?? 0) + Number(r.amount);
     }
 
+    // Group by "person" (HASSAN/GHANEM/NATHEER/HAROON) vs "operations"
+    const PERSON_CATS = new Set(['HASSAN', 'GHANEM', 'NATHEER', 'HAROON']);
+    const byCompanyGroup: Record<string, number> = {};
+    for (const r of rows) {
+      const group = PERSON_CATS.has(r.category) ? CATEGORY_AR[r.category] ?? r.category : 'عمليات';
+      byCompanyGroup[group] = (byCompanyGroup[group] ?? 0) + Number(r.amount);
+    }
+
     const bySupplier: Record<string, number> = {};
     for (const r of rows) {
-      const label = r.supplier?.name ?? 'غير محدد';
+      const label = r.supplier?.name ?? (r as Record<string, unknown>)['supplierName'] as string | null ?? 'غير محدد';
       bySupplier[label] = (bySupplier[label] ?? 0) + Number(r.amount);
     }
 
-    return { count, total, byCategory, bySupplier };
+    return { count, total, pendingCount, pendingTotal, byCategory, byCompanyGroup, bySupplier };
   }
 }
 

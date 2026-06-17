@@ -48,6 +48,10 @@ export const usageByCompany = asyncHandler(async (_req: Request, res: Response) 
   ok(res, await service.getPricesUsageByCompany());
 });
 
+export const agreementsDashboard = asyncHandler(async (_req: Request, res: Response) => {
+  ok(res, await service.getAgreementsDashboard());
+});
+
 export const forceRemovePreview = asyncHandler(async (req: Request, res: Response) => {
   ok(res, await service.forceRemovePreview(Number(req.params.id)));
 });

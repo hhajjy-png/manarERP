@@ -140,7 +140,7 @@ export default function Expenses() {
         'الرقم': r.code,
         'التصنيف': CAT_LABEL[r.category] ?? r.category,
         'الوصف': r.description,
-        'المورد': r.supplier?.name ?? '',
+        'المورد': r.supplier?.name ?? r.supplierName ?? '',
         'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : (r.date ? String(r.date).slice(0, 10) : ''),
         'المبلغ (د.ك)': Number(r.amount),
         'الحالة': STATUS_AR[r.status] ?? r.status,
@@ -178,7 +178,7 @@ export default function Expenses() {
     {
       key: 'supplier', label: 'field.supplier',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      render: (r: any) => r.supplier?.name ?? '—',
+      render: (r: any) => r.supplier?.name ?? r.supplierName ?? '—',
     },
     {
       key: 'billing', label: 'lbl.inv.billing_period',
@@ -225,6 +225,18 @@ export default function Expenses() {
             <span className="inv-stat-label">إجمالي المصروفات</span>
             <span className="inv-stat-value">{money(stats.total)}</span>
           </div>
+          {stats.pendingCount > 0 && (
+            <div className="inv-stat-chip amber">
+              <span className="inv-stat-label">معلّق</span>
+              <span className="inv-stat-value">{money(stats.pendingTotal)}</span>
+            </div>
+          )}
+          {stats.byCompanyGroup && Object.entries(stats.byCompanyGroup as Record<string, number>).map(([grp, amt]) => (
+            <div key={grp} className="inv-stat-chip">
+              <span className="inv-stat-label">{grp}</span>
+              <span className="inv-stat-value">{money(amt)}</span>
+            </div>
+          ))}
         </div>
       )}
 
@@ -337,7 +349,12 @@ function ExpenseForm({
   const [billingMonth, setBillingMonth] = useState<number>(Number(expense?.billingMonth) || (now.getMonth() + 1));
   const [billingYear, setBillingYear] = useState<number>(Number(expense?.billingYear) || now.getFullYear());
   const [notes, setNotes] = useState<string>(String(expense?.notes ?? ''));
-  const [supplierId, setSupplierId] = useState<string>(expense?.supplierId ? String(expense.supplierId) : '');
+  const [supplierId, setSupplierId] = useState<string>(() => {
+    if (expense?.supplierId) return String(expense.supplierId);
+    if (expense?.supplierName) return 'OTHER';
+    return '';
+  });
+  const [supplierName, setSupplierName] = useState<string>(String(expense?.supplierName ?? ''));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -355,7 +372,8 @@ function ExpenseForm({
       billingMonth,
       billingYear,
       notes: notes.trim() || undefined,
-      supplierId: supplierId ? Number(supplierId) : undefined,
+      supplierId: supplierId && supplierId !== 'OTHER' ? Number(supplierId) : null,
+      supplierName: supplierId === 'OTHER' ? supplierName.trim() || null : null,
     };
     try {
       if (isEdit) {
@@ -442,11 +460,23 @@ function ExpenseForm({
         <div className="field">
           <label>{t('field.supplier')}</label>
           <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} style={INP}>
-            <option value="">— اختر مورداً —</option>
+            <option value="">— بدون مورد —</option>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {(suppliers as any[]).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            <option value="OTHER">مورد آخر (غير مسجّل)…</option>
           </select>
         </div>
+        {supplierId === 'OTHER' && (
+          <div className="field">
+            <label>اسم المورد</label>
+            <input
+              value={supplierName}
+              onChange={(e) => setSupplierName(e.target.value)}
+              placeholder="اكتب اسم المورد"
+              style={{ ...INP, width: '100%', boxSizing: 'border-box' }}
+            />
+          </div>
+        )}
         <div className="field" style={{ gridColumn: '1 / -1' }}>
           <label>{t('field.notes')}</label>
           <textarea

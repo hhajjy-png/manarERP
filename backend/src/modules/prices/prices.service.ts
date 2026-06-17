@@ -172,6 +172,65 @@ export async function getPricesUsageByCompany() {
     .sort((a, b) => b.totalAmount - a.totalAmount);
 }
 
+export async function getAgreementsDashboard() {
+  const now = new Date();
+  const in30Days = new Date(now);
+  in30Days.setDate(in30Days.getDate() + 30);
+
+  const [allPrices, usageItems] = await Promise.all([
+    prisma.projectPrice.findMany({
+      where: { isArchived: false },
+      select: {
+        id: true, asphaltPlant: true, companyName: true, contractLocation: true,
+        contractUnit: true, unitPrice: true, validUntil: true,
+        customer: customerSelect,
+      },
+      orderBy: { asphaltPlant: 'asc' },
+    }),
+    prisma.invoiceItem.findMany({
+      where: { priceId: { not: null } },
+      select: { priceId: true, quantity: true, total: true },
+    }),
+  ]);
+
+  const byPriceId = new Map<number, { count: number; totalQty: number; totalAmt: number }>();
+  for (const item of usageItems) {
+    if (item.priceId == null) continue;
+    const g = byPriceId.get(item.priceId) ?? { count: 0, totalQty: 0, totalAmt: 0 };
+    g.count++;
+    g.totalQty += item.quantity;
+    g.totalAmt += item.total;
+    byPriceId.set(item.priceId, g);
+  }
+
+  const enriched = allPrices.map((p) => {
+    const g = byPriceId.get(p.id) ?? { count: 0, totalQty: 0, totalAmt: 0 };
+    return { ...p, usageCount: g.count, totalQuantity: g.totalQty, totalAmount: g.totalAmt };
+  });
+
+  const unused = enriched.filter((p) => p.usageCount === 0);
+  const expiring = enriched.filter((p) => {
+    if (!p.validUntil) return false;
+    const v = new Date(p.validUntil);
+    return v >= now && v <= in30Days;
+  });
+  const top5 = [...enriched].sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 5);
+  const least5 = [...enriched]
+    .filter((p) => p.usageCount > 0)
+    .sort((a, b) => a.totalAmount - b.totalAmount)
+    .slice(0, 5);
+
+  return {
+    totalAgreements: allPrices.length,
+    unusedCount: unused.length,
+    expiringCount: expiring.length,
+    unused,
+    expiring,
+    top5,
+    least5,
+  };
+}
+
 export async function forceRemovePreview(id: number) {
   const price = await prisma.projectPrice.findUnique({ where: { id } });
   if (!price) throw AppError.notFound('السعر غير موجود');

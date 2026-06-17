@@ -660,8 +660,9 @@ model Expense {
   billingMonth Int?      // شهر الحساب (1-12)
   billingYear  Int?      // سنة الحساب
   notes        String?   // ملاحظات حرة
-  contractId   Int?
-  supplierId   Int?
+  contractId    Int?
+  supplierId    Int?
+  supplierName  String?   // اسم مورد حر (عند عدم وجوده في قائمة الموردين)
   documentPath  String? // مستند مرفق
   paymentMethod String  @default("CASH") // CASH | BANK | ACCOUNTS_PAYABLE
   status        String  @default("PENDING") // PENDING | APPROVED | REJECTED | REVERSED | CANCELLED
@@ -1044,6 +1045,7 @@ model ProjectPrice {
   contractLocation String // مكان العقد
   contractUnit     String // وحدة العقد: طن | درب | يومية
   unitPrice        Float // سعر الوحدة (د.ك)
+  validUntil       DateTime? // تاريخ انتهاء الاتفاقية (للتنبيه عند الاقتراب من الانتهاء)
   isArchived       Boolean @default(false)
   customerId       Int?
   customer         Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)

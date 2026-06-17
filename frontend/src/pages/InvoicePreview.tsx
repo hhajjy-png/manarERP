@@ -320,18 +320,6 @@ export default function InvoicePreview() {
         </div>
       </div>
 
-      {/* ── Print-only: Signature lines ── */}
-      <div className="print-only" style={{ marginTop: 24, display: 'flex', justifyContent: 'space-around' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 48 }}>المسؤول</div>
-          <div style={{ borderTop: '1px solid #0f172a', width: 160 }} />
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 48 }}>المحاسبة</div>
-          <div style={{ borderTop: '1px solid #0f172a', width: 160 }} />
-        </div>
-      </div>
-
       {/* ── Section 5: Payment History ── */}
       {data.payments.length > 0 && (
         <>
@@ -368,6 +356,23 @@ export default function InvoicePreview() {
           </p>
         </>
       )}
+
+      {/* ── Signature Area ── */}
+      <div style={{ marginTop: 40, display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+        {([
+          { label: 'التوقيع والختم', sub: data.customer?.name ?? data.supplier?.name ?? 'الجهة المستلمة' },
+          { label: 'ممثل الشركة', sub: 'شركة المنار الدولية' },
+          { label: 'المحاسب', sub: '' },
+        ] as { label: string; sub: string }[]).map(({ label, sub }) => (
+          <div key={label} style={{ flex: 1, textAlign: 'center', minWidth: 140 }}>
+            <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 4 }}>{label}</div>
+            {sub && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{sub}</div>}
+            <div style={{ height: 52 }} />
+            <div style={{ borderTop: '1px solid #64748b' }} />
+            <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>التوقيع / Signature</div>
+          </div>
+        ))}
+      </div>
 
     </div>
     </>

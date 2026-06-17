@@ -630,6 +630,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'report.group.business': 'الأعمال',
     'report.group.hr': 'الموارد البشرية',
     'report.group.operations': 'التشغيل',
+    'report.group.operational': 'التشغيلية',
 
     // ── Phase 5: common additions ────────────────────────────────────────────
     'action.view': 'تفاصيل',
@@ -1823,6 +1824,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'report.group.business': 'Business',
     'report.group.hr': 'Human Resources',
     'report.group.operations': 'Operations',
+    'report.group.operational': 'Operational',
 
     // ── Phase 5: common additions ────────────────────────────────────────────
     'action.view': 'Details',
