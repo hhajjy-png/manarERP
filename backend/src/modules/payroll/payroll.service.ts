@@ -5,6 +5,7 @@ import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { transactionsService } from '../transactions/transactions.service';
+import { postPayrollToGL } from './payroll.accounting';
 import {
   ManualPayrollLineInput,
   PayPayrollInput,
@@ -437,7 +438,7 @@ export class PayrollService {
         });
       }
 
-      return tx.payroll.update({
+      const paidRecord = await tx.payroll.update({
         where: { id },
         data: {
           status: 'PAID',
@@ -448,6 +449,11 @@ export class PayrollService {
           accountingTransactionId: entry.id,
         },
       });
+
+      // النظام المزدوج: ترحيل قيد يومية GL بعد تحديث paymentMethod
+      await postPayrollToGL(tx, id);
+
+      return paidRecord;
     });
     await recordAudit({ req, action: 'PAYMENT', module: 'payroll', entityId: id, newValue: { net: updated.netSalary } });
     return updated;

@@ -593,6 +593,7 @@ model Invoice {
   billingMonth  Int?      // شهر الحساب (1-12)
   billingYear   Int?      // سنة الحساب (مثال: 2026)
   deliveryDate  DateTime? // تاريخ تسليم الفاتورة (متابعة داخلية — لا يظهر في الطباعة)
+  paymentMethod String?   // GL routing: CASH | BANK | ACCOUNTS_PAYABLE — فواتير المشتريات فقط
 
   customer Customer?     @relation(fields: [customerId], references: [id])
   supplier Supplier?     @relation(fields: [supplierId], references: [id])

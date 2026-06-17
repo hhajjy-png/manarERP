@@ -16,10 +16,11 @@ export const SYSTEM_ACCOUNT_CODES = {
   ACCOUNTS_RECEIVABLE: '1100', // ذمم العملاء (مدينون)
   INVENTORY: '1200', // المخزون
   ACCOUNTS_PAYABLE: '2000', // ذمم الموردين (دائنون)
+  SALARIES_PAYABLE: '2100', // رواتب مستحقة الدفع (ذمم للموظفين)
   SALES_REVENUE: '4000', // إيرادات المبيعات
-  PURCHASES: '5000', // المشتريات
+  PURCHASES: '5000', // المشتريات (فواتير الموردين)
   PAYROLL_EXPENSE: '5100', // مصروف الرواتب
-  GENERAL_EXPENSE: '5200', // مصروفات عامة (Phase B — expense GL posting)
+  GENERAL_EXPENSE: '5200', // مصروفات عامة
 } as const;
 
 export type SystemAccountCode = (typeof SYSTEM_ACCOUNT_CODES)[keyof typeof SYSTEM_ACCOUNT_CODES];
@@ -39,6 +40,7 @@ export const SYSTEM_ACCOUNTS: {
   { code: SYSTEM_ACCOUNT_CODES.ACCOUNTS_RECEIVABLE, name: 'ذمم العملاء', type: 'ASSET', normalBalance: 'DEBIT' },
   { code: SYSTEM_ACCOUNT_CODES.INVENTORY, name: 'المخزون', type: 'ASSET', normalBalance: 'DEBIT' },
   { code: SYSTEM_ACCOUNT_CODES.ACCOUNTS_PAYABLE, name: 'ذمم الموردين', type: 'LIABILITY', normalBalance: 'CREDIT' },
+  { code: SYSTEM_ACCOUNT_CODES.SALARIES_PAYABLE, name: 'رواتب مستحقة الدفع', type: 'LIABILITY', normalBalance: 'CREDIT' },
   { code: SYSTEM_ACCOUNT_CODES.SALES_REVENUE, name: 'إيرادات المبيعات', type: 'REVENUE', normalBalance: 'CREDIT' },
   { code: SYSTEM_ACCOUNT_CODES.PURCHASES, name: 'المشتريات', type: 'EXPENSE', normalBalance: 'DEBIT' },
   { code: SYSTEM_ACCOUNT_CODES.PAYROLL_EXPENSE, name: 'مصروف الرواتب', type: 'EXPENSE', normalBalance: 'DEBIT' },

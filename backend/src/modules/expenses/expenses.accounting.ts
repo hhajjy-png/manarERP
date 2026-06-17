@@ -6,66 +6,20 @@ import {
   getSystemAccounts,
   requireAccount,
 } from '../accounting/accounting.accounts';
+import {
+  createBalancedJournal,
+  reverseGL,
+  round3,
+  GL_REFERENCE_TYPES,
+} from '../../shared/services/gl.service';
 
 type Tx = Prisma.TransactionClient;
 
-const round3 = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000;
-
-type JournalLine = { accountId: number; debit: number; credit: number; description: string };
-
 /**
- * توليد رقم قيد يومية فريد بصيغة JRN-<السنة>-<تسلسل> داخل المعاملة.
- * يستخدم أقصى id (MAX) بدلاً من COUNT لتجنّب التعارض عند حذف قيود وسطية.
+ * Re-export createBalancedJournal under the legacy name for backward compatibility
+ * with tests and any callers that import directly from this file.
  */
-async function generateEntryNumber(tx: Tx): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `JRN-${year}-`;
-  const last = await tx.journalEntry.findFirst({
-    where: { entryNumber: { startsWith: prefix } },
-    orderBy: { id: 'desc' },
-    select: { entryNumber: true },
-  });
-  const lastSeq = last ? parseInt(last.entryNumber.slice(prefix.length), 10) : 0;
-  const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
-  return `${prefix}${String(nextSeq).padStart(5, '0')}`;
-}
-
-/**
- * ينشئ قيد يومية مزدوجًا بعد التحقق من توازنه (إجمالي المدين = إجمالي الدائن).
- * يرمي خطأً قبل الكتابة إذا كان القيد غير متوازن.
- */
-export async function createBalancedJournalEntry(
-  tx: Tx,
-  data: {
-    date: Date;
-    description: string;
-    referenceType: string;
-    referenceId: number;
-    lines: JournalLine[];
-  },
-): Promise<void> {
-  const totalDebit = round3(data.lines.reduce((s, l) => s + l.debit, 0));
-  const totalCredit = round3(data.lines.reduce((s, l) => s + l.credit, 0));
-
-  if (Math.abs(totalDebit - totalCredit) > 0.001) {
-    throw new AppError(
-      `قيد محاسبي غير متوازن: المدين ${totalDebit} ≠ الدائن ${totalCredit}`,
-      500,
-    );
-  }
-
-  await tx.journalEntry.create({
-    data: {
-      entryNumber: await generateEntryNumber(tx),
-      date: data.date,
-      description: data.description,
-      referenceType: data.referenceType,
-      referenceId: data.referenceId,
-      status: 'POSTED',
-      lines: { create: data.lines },
-    },
-  });
-}
+export { createBalancedJournal as createBalancedJournalEntry } from '../../shared/services/gl.service';
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   CASH: 'صرف نقدي',
@@ -94,7 +48,7 @@ export async function postExpenseToGL(tx: Tx, expenseId: number): Promise<void> 
 
   // حارس الترحيل المزدوج (مستوى الكود — قبل DB)
   const existing = await tx.journalEntry.findFirst({
-    where: { referenceType: 'EXPENSE', referenceId: expenseId },
+    where: { referenceType: GL_REFERENCE_TYPES.EXPENSE, referenceId: expenseId },
   });
   if (existing) return;
 
@@ -110,10 +64,10 @@ export async function postExpenseToGL(tx: Tx, expenseId: number): Promise<void> 
   const creditAccId = requireAccount(accounts, creditCode);
   const creditLabel = PAYMENT_METHOD_LABELS[paymentMethod] ?? 'صرف نقدي';
 
-  await createBalancedJournalEntry(tx, {
+  await createBalancedJournal(tx, {
     date: expense.date,
     description: `مصروف: ${expense.description}`,
-    referenceType: 'EXPENSE',
+    referenceType: GL_REFERENCE_TYPES.EXPENSE,
     referenceId: expenseId,
     lines: [
       { accountId: expenseAccId, debit: amount, credit: 0, description: `مصروف عام — ${expense.description}` },
@@ -123,33 +77,11 @@ export async function postExpenseToGL(tx: Tx, expenseId: number): Promise<void> 
 }
 
 /**
- * عكس القيد المحاسبي لمصروف مُلغى اعتماده.
+ * عكس القيد المحاسبي لمصروف مُعكوس (REVERSED).
  * - لا يحذف القيد الأصلي (حفاظ على أثر التدقيق).
  * - يُنشئ قيدًا عكسيًا متوازنًا (EXPENSE_REVERSAL).
- * - محمي من تكرار العكس عبر حارس (referenceType='EXPENSE_REVERSAL', referenceId).
+ * - محمي من تكرار العكس.
  */
 export async function reverseExpenseFromGL(tx: Tx, expenseId: number): Promise<void> {
-  const original = await tx.journalEntry.findFirst({
-    where: { referenceType: 'EXPENSE', referenceId: expenseId, status: 'POSTED' },
-    include: { lines: true },
-  });
-  if (!original) return; // لم يُرحَّل في GL — لا شيء للعكس
-
-  const existingReversal = await tx.journalEntry.findFirst({
-    where: { referenceType: 'EXPENSE_REVERSAL', referenceId: expenseId },
-  });
-  if (existingReversal) return; // العكس موجود بالفعل
-
-  await createBalancedJournalEntry(tx, {
-    date: new Date(),
-    description: `عكس قيد مصروف #${expenseId}`,
-    referenceType: 'EXPENSE_REVERSAL',
-    referenceId: expenseId,
-    lines: original.lines.map((line) => ({
-      accountId: line.accountId,
-      debit: line.credit,  // مقلوب
-      credit: line.debit,  // مقلوب
-      description: `عكس: ${line.description ?? ''}`.trim(),
-    })),
-  });
+  await reverseGL(tx, GL_REFERENCE_TYPES.EXPENSE, expenseId, GL_REFERENCE_TYPES.EXPENSE_REVERSAL);
 }

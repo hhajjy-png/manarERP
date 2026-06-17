@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
 
+// GL payment method for purchase invoice routing (Part 2 — Phase D)
+const glPaymentMethod = z.enum(ENUMS.glPaymentMethod).optional();
+
 const invoiceNumberSchema = z.string().trim().min(1, 'رقم الفاتورة مطلوب').regex(/^MN-INV-\d{4}-[A-Za-z0-9]+$/, 'رقم الفاتورة يجب أن يبدأ بـ MN-INV-YYYY-');
 
 const itemSchema = z.object({
@@ -29,6 +32,7 @@ export const createInvoiceSchema = z.object({
       taxRate: z.coerce.number().min(0).max(100).default(0),
       discount: z.coerce.number().nonnegative().default(0),
       notes: z.string().optional(),
+      paymentMethod: glPaymentMethod, // GL routing for PURCHASE invoices
       items: z.array(itemSchema).min(1, 'يجب إضافة بند واحد على الأقل'),
     })
     .refine(
@@ -61,6 +65,7 @@ export const updateInvoiceSchema = z.object({
     taxRate: z.coerce.number().min(0).max(100).optional(),
     discount: z.coerce.number().nonnegative().optional(),
     notes: z.string().optional(),
+    paymentMethod: glPaymentMethod, // GL routing for PURCHASE invoices
     items: z.array(itemSchema).min(1).optional(),
   }),
 });

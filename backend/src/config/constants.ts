@@ -100,10 +100,14 @@ export const ENUMS = {
     'OTHER',
   ] as const,
   expenseStatus: ['PENDING', 'APPROVED', 'REJECTED', 'REVERSED', 'CANCELLED'] as const,
-  expensePaymentMethod: ['CASH', 'BANK', 'ACCOUNTS_PAYABLE'] as const,
+  // Unified GL payment method: used for GL routing in Expenses, Payroll, Purchase Invoices.
+  // CASH → Cr Cashbox (1000), BANK → Cr Bank (1010), ACCOUNTS_PAYABLE → Cr liability per module
+  // (Expenses: AP 2000, Payroll: Salaries Payable 2100)
+  glPaymentMethod: ['CASH', 'BANK', 'ACCOUNTS_PAYABLE'] as const,
+  expensePaymentMethod: ['CASH', 'BANK', 'ACCOUNTS_PAYABLE'] as const, // alias for backward compat
   transactionType: ['REVENUE', 'EXPENSE', 'TRANSFER', 'ADJUSTMENT'] as const,
   payrollStatus: ['DRAFT', 'APPROVED', 'PAID', 'CANCELLED'] as const,
-  paymentMethod: ['CASH', 'BANK', 'CHEQUE', 'TRANSFER'] as const,
+  paymentMethod: ['CASH', 'BANK', 'CHEQUE', 'TRANSFER'] as const, // legacy — used for invoice Payment.method
   maintenanceType: ['PREVENTIVE', 'CORRECTIVE'] as const,
   backupType: ['MANUAL', 'AUTO', 'SCHEDULED'] as const,
   materialUnit: ['طن', 'كيلو', 'لتر', 'قطعة', 'متر', 'كيس', 'برميل', 'صندوق'] as const,

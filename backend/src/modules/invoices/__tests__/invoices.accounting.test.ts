@@ -19,6 +19,7 @@ const ACCOUNT_ROWS = [
   { id: 40, code: SYSTEM_ACCOUNT_CODES.BANK },
   { id: 50, code: SYSTEM_ACCOUNT_CODES.INVENTORY },
   { id: 60, code: SYSTEM_ACCOUNT_CODES.ACCOUNTS_PAYABLE },
+  { id: 65, code: SYSTEM_ACCOUNT_CODES.SALARIES_PAYABLE },
   { id: 70, code: SYSTEM_ACCOUNT_CODES.PURCHASES },
   { id: 80, code: SYSTEM_ACCOUNT_CODES.PAYROLL_EXPENSE },
   { id: 90, code: SYSTEM_ACCOUNT_CODES.GENERAL_EXPENSE },
@@ -88,20 +89,25 @@ describe('Invoice GL Posting (double-entry)', () => {
     expect(rev.debit).toBe(0);
   });
 
-  it('purchase invoice is created but GL posting is skipped', async () => {
+  it('purchase invoice now posts to GL (Phase D — no longer skipped)', async () => {
     mockTx.journalEntry.findFirst.mockResolvedValue(null);
     mockTx.invoice.findUnique.mockResolvedValue({
       id: 2,
+      invoiceNumber: 'INV-2026-00002',
       direction: 'PURCHASE',
-      totalAmount: 500,
+      status: 'ACTIVE',
+      total: 500,
+      paymentMethod: 'ACCOUNTS_PAYABLE',
       issueDate: new Date(),
     });
 
-    // Should NOT throw — purchase invoices skip GL posting silently
     await expect(postInvoiceToGL(mockTx as any, 2)).resolves.toBeUndefined();
 
-    // Must NOT create any journal entry
-    expect(mockTx.journalEntry.create).not.toHaveBeenCalled();
+    // PURCHASE invoices now create a GL entry (Dr PURCHASES, Cr AP)
+    expect(mockTx.journalEntry.create).toHaveBeenCalledOnce();
+    const data = mockTx.journalEntry.create.mock.calls[0][0].data;
+    expect(data.referenceType).toBe('PURCHASE_INVOICE');
+    expect(data.status).toBe('POSTED');
   });
 
   it('rejects an unbalanced journal entry and writes nothing', async () => {

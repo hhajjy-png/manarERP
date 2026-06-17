@@ -7,7 +7,7 @@ import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core
 import { transactionsService } from '../transactions/transactions.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
 import { round3, computeTotals, nextStatus, overpaymentExceeds } from './invoices.calc';
-import { postInvoiceToGL, postPaymentToGL, reverseInvoiceFromGL, repostInvoiceToGL } from './invoices.accounting';
+import { postInvoiceToGL, postPaymentToGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
 
 /**
  * يُميّز خطأ P2002 على حقل entryNumber في journal_entries عن بقية أخطاء التعارض.
@@ -247,6 +247,7 @@ export class InvoicesService {
               deliveryDate: input.deliveryDate ?? null,
               billingMonth: input.billingMonth ?? null,
               billingYear: input.billingYear ?? null,
+              paymentMethod: input.paymentMethod ?? null,
               subtotal,
               taxRate: input.taxRate,
               taxAmount,
@@ -350,6 +351,7 @@ export class InvoicesService {
           deliveryDate: input.deliveryDate !== undefined ? input.deliveryDate : current.deliveryDate,
           billingMonth: input.billingMonth !== undefined ? input.billingMonth : current.billingMonth,
           billingYear: input.billingYear !== undefined ? input.billingYear : current.billingYear,
+          paymentMethod: input.paymentMethod !== undefined ? input.paymentMethod : (current as Record<string, unknown>)['paymentMethod'] as string ?? null,
           taxRate,
           discount,
           subtotal,
@@ -417,6 +419,7 @@ export class InvoicesService {
       await transactionsService.clearByReference('INVOICE', id, tx);
       // النظام المزدوج: عكس قيد اليومية بدلًا من حذفه (للحفاظ على أثر التدقيق)
       await reverseInvoiceFromGL(tx, id);
+      await reversePurchaseInvoiceGL(tx, id);
       return tx.invoice.update({ where: { id }, data: { status: 'CANCELLED' }, include: FULL_INCLUDE });
     });
 
@@ -535,7 +538,7 @@ export class InvoicesService {
     await tx.journalEntry.deleteMany({
       where: {
         OR: [
-          { referenceType: { in: ['INVOICE', 'INVOICE_REVERSAL'] }, referenceId: invoiceId },
+          { referenceType: { in: ['INVOICE', 'INVOICE_REVERSAL', 'PURCHASE_INVOICE', 'PURCHASE_INVOICE_REVERSAL'] }, referenceId: invoiceId },
           ...(paymentIds.length > 0 ? [{ referenceType: 'PAYMENT', referenceId: { in: paymentIds } }] : []),
         ],
       },

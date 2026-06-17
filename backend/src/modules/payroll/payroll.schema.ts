@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ENUMS } from '../../config/constants';
 
 const money = z.coerce.number().min(0);
 
@@ -19,7 +20,8 @@ export const updatePayrollSchema = z.object({
 
 export const payPayrollSchema = z.object({
   body: z.object({
-    paymentMethod: z.enum(['CASH', 'BANK', 'CHEQUE', 'TRANSFER']).default('BANK'),
+    // Unified GL payment method — determines credit account in GL journal entry
+    paymentMethod: z.enum(ENUMS.glPaymentMethod).default('BANK'),
   }),
 });
 
