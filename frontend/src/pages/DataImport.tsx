@@ -279,6 +279,13 @@ export default function DataImport() {
             </div>
           )}
 
+          {/* Payroll import notice: status is always coerced to DRAFT */}
+          {entityKey === 'payroll' && step !== 'done' && (
+            <div style={{ background: 'var(--warning-bg, #fefce8)', border: '1px solid var(--warning, #ca8a04)', borderRadius: 6, padding: '10px 14px', marginBottom: 16, color: '#78350f', fontSize: 13 }}>
+              ملاحظة: جميع الرواتب المستوردة تُنشأ بحالة (مسودة DRAFT)، بغض النظر عن الحالة الموجودة داخل ملف Excel، ويجب اعتمادها من داخل النظام.
+            </div>
+          )}
+
           {/* Error */}
           {error && (
             <div style={{ background: 'var(--danger-bg, #fef2f2)', border: '1px solid var(--danger, #dc2626)', borderRadius: 6, padding: '10px 14px', marginBottom: 16, color: 'var(--danger, #dc2626)', fontSize: 14 }}>

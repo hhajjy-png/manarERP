@@ -223,6 +223,72 @@ describe('Expense GL Reversal', () => {
   });
 });
 
+describe('Expense GL Posting — paymentMethod routing (T3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearAccountCache();
+    mockTx.journalEntry.findFirst.mockResolvedValue(null);
+    mockTx.journalEntry.count.mockResolvedValue(0);
+    mockTx.journalEntry.create.mockResolvedValue({ id: 1, lines: [] });
+    mockTx.account.upsert.mockResolvedValue({});
+    mockTx.account.findMany.mockResolvedValue(ACCOUNT_ROWS);
+  });
+
+  it('credits CASH (1000) when paymentMethod is CASH (default)', async () => {
+    mockTx.expense.findUnique.mockResolvedValue({ ...baseExpense, paymentMethod: 'CASH' });
+
+    await postExpenseToGL(mockTx as any, 1);
+
+    const call = mockTx.journalEntry.create.mock.calls[0][0];
+    const { lines } = lineTotals(call);
+    const cashLine = lines.find((l: any) => l.accountId === 30)!; // CASH id=30
+    expect(cashLine.credit).toBeCloseTo(250.500, 3);
+    expect(cashLine.debit).toBe(0);
+  });
+
+  it('credits BANK (1010, id=40) when paymentMethod is BANK', async () => {
+    mockTx.expense.findUnique.mockResolvedValue({ ...baseExpense, paymentMethod: 'BANK' });
+
+    await postExpenseToGL(mockTx as any, 1);
+
+    const call = mockTx.journalEntry.create.mock.calls[0][0];
+    const { lines, totalDebit, totalCredit } = lineTotals(call);
+    const bankLine = lines.find((l: any) => l.accountId === 40)!; // BANK id=40
+    expect(bankLine).toBeDefined();
+    expect(bankLine.credit).toBeCloseTo(250.500, 3);
+    expect(bankLine.debit).toBe(0);
+    // Entry remains balanced
+    expect(totalDebit).toBeCloseTo(totalCredit, 3);
+  });
+
+  it('credits ACCOUNTS_PAYABLE (2000, id=60) when paymentMethod is ACCOUNTS_PAYABLE', async () => {
+    mockTx.expense.findUnique.mockResolvedValue({ ...baseExpense, paymentMethod: 'ACCOUNTS_PAYABLE' });
+
+    await postExpenseToGL(mockTx as any, 1);
+
+    const call = mockTx.journalEntry.create.mock.calls[0][0];
+    const { lines, totalDebit, totalCredit } = lineTotals(call);
+    const apLine = lines.find((l: any) => l.accountId === 60)!; // ACCOUNTS_PAYABLE id=60
+    expect(apLine).toBeDefined();
+    expect(apLine.credit).toBeCloseTo(250.500, 3);
+    expect(apLine.debit).toBe(0);
+    // Entry remains balanced
+    expect(totalDebit).toBeCloseTo(totalCredit, 3);
+  });
+
+  it('defaults to CASH when paymentMethod is absent (undefined)', async () => {
+    // baseExpense has no paymentMethod field — mimics pre-migration rows
+    mockTx.expense.findUnique.mockResolvedValue({ ...baseExpense });
+
+    await postExpenseToGL(mockTx as any, 1);
+
+    const call = mockTx.journalEntry.create.mock.calls[0][0];
+    const { lines } = lineTotals(call);
+    const cashLine = lines.find((l: any) => l.accountId === 30)!;
+    expect(cashLine.credit).toBeCloseTo(250.500, 3);
+  });
+});
+
 describe('Existing systems unchanged', () => {
   beforeEach(() => {
     vi.clearAllMocks();

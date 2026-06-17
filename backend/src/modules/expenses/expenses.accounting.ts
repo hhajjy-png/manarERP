@@ -67,13 +67,19 @@ export async function createBalancedJournalEntry(
   });
 }
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  CASH: 'صرف نقدي',
+  BANK: 'تحويل بنكي',
+  ACCOUNTS_PAYABLE: 'ذمم مورد',
+};
+
 /**
  * ترحيل قيد يومية مزدوج لمصروف معتمد:
  *   من ح/ مصروفات عامة (5200) — مدين
- *   إلى ح/ الصندوق (1000) — دائن
- *
- * Phase B: الترحيل دائمًا على الصندوق لأن نموذج المصروف لا يحتوي حقل طريقة الدفع.
- * مستقبلاً: يمكن إضافة paymentMethod لتوجيه الترحيل إلى الصندوق أو البنك.
+ *   إلى ح/ يُحدَّد بناءً على paymentMethod:
+ *     CASH           → الصندوق (1000)
+ *     BANK           → البنك (1010)
+ *     ACCOUNTS_PAYABLE → ذمم الموردين (2000)
  *
  * محمي من الترحيل المزدوج عبر:
  * - حارس كودي: findFirst({ referenceType:'EXPENSE', referenceId })
@@ -95,7 +101,14 @@ export async function postExpenseToGL(tx: Tx, expenseId: number): Promise<void> 
   await ensureSystemAccounts(tx);
   const accounts = await getSystemAccounts(tx);
   const expenseAccId = requireAccount(accounts, SYSTEM_ACCOUNT_CODES.GENERAL_EXPENSE);
-  const cashAccId = requireAccount(accounts, SYSTEM_ACCOUNT_CODES.CASH);
+
+  const paymentMethod = (expense as Record<string, unknown>)['paymentMethod'] as string ?? 'CASH';
+  const creditCode =
+    paymentMethod === 'BANK'             ? SYSTEM_ACCOUNT_CODES.BANK :
+    paymentMethod === 'ACCOUNTS_PAYABLE' ? SYSTEM_ACCOUNT_CODES.ACCOUNTS_PAYABLE :
+    SYSTEM_ACCOUNT_CODES.CASH;
+  const creditAccId = requireAccount(accounts, creditCode);
+  const creditLabel = PAYMENT_METHOD_LABELS[paymentMethod] ?? 'صرف نقدي';
 
   await createBalancedJournalEntry(tx, {
     date: expense.date,
@@ -104,7 +117,7 @@ export async function postExpenseToGL(tx: Tx, expenseId: number): Promise<void> 
     referenceId: expenseId,
     lines: [
       { accountId: expenseAccId, debit: amount, credit: 0, description: `مصروف عام — ${expense.description}` },
-      { accountId: cashAccId, debit: 0, credit: amount, description: `صرف نقدي — ${expense.code}` },
+      { accountId: creditAccId, debit: 0, credit: amount, description: `${creditLabel} — ${expense.code}` },
     ],
   });
 }

@@ -130,7 +130,7 @@ export class DashboardService {
           where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
           _sum: { total: true, paidAmount: true },
         }),
-        prisma.expense.aggregate({ _count: { _all: true }, _sum: { amount: true } }),
+        prisma.expense.aggregate({ where: { status: 'APPROVED' }, _count: { _all: true }, _sum: { amount: true } }),
         prisma.employee.count(),
         prisma.employee.count({ where: { status: 'ACTIVE' } }),
         prisma.equipment.count(),

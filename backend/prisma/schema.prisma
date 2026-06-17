@@ -661,10 +661,11 @@ model Expense {
   notes        String?   // ملاحظات حرة
   contractId   Int?
   supplierId   Int?
-  documentPath String? // مستند مرفق
-  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
-  approvedById Int?
-  approvedAt   DateTime?
+  documentPath  String? // مستند مرفق
+  paymentMethod String  @default("CASH") // CASH | BANK | ACCOUNTS_PAYABLE
+  status        String  @default("PENDING") // PENDING | APPROVED | REJECTED | REVERSED | CANCELLED
+  approvedById  Int?
+  approvedAt    DateTime?
 
   contract   Contract? @relation(fields: [contractId], references: [id])
   supplier   Supplier? @relation(fields: [supplierId], references: [id])

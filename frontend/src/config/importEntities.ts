@@ -202,6 +202,29 @@ export const IMPORT_ENTITIES: ImportEntityConfig[] = [
       { key: 'notes',         labelAr: 'ملاحظات — اختياري',                                                                     required: false },
     ],
   },
+  {
+    key: 'payroll',
+    labelAr: 'كشوف الرواتب',
+    useArabicTemplateHeaders: false,
+    previewPrimaryHeader: 'employeeCode',
+    previewSecondaryHeader: 'شهر / سنة',
+    previewPrimary:   (row) => String(row['employeeCode'] ?? '—'),
+    previewSecondary: (row) => `${String(row['month'] ?? '—')} / ${String(row['year'] ?? '—')}`,
+    columns: [
+      { key: 'employeeCode',    labelAr: 'رمز الموظف',                                               required: true  },
+      { key: 'month',           labelAr: 'الشهر (1–12)',                                              required: true  },
+      { key: 'year',            labelAr: 'السنة (مثال: 2026)',                                        required: true  },
+      { key: 'baseSalary',      labelAr: 'الراتب الأساسي (د.ك — رقم غير سالب)',                      required: true  },
+      { key: 'totalAllowances', labelAr: 'إجمالي البدلات (د.ك) — افتراضي: 0',                        required: false },
+      { key: 'overtimeAmount',  labelAr: 'مبلغ الإضافي (د.ك) — افتراضي: 0',                         required: false },
+      { key: 'totalDeductions', labelAr: 'إجمالي الخصومات (د.ك) — افتراضي: 0',                      required: false },
+      { key: 'totalAdvances',   labelAr: 'إجمالي السلف (د.ك) — افتراضي: 0',                         required: false },
+      { key: 'grossSalary',     labelAr: 'الإجمالي (د.ك) — اختياري، يُحسب تلقائياً إن لم يُدخل',   required: false },
+      { key: 'netSalary',       labelAr: 'الصافي (د.ك) — اختياري، يُحسب تلقائياً إن لم يُدخل',     required: false },
+      { key: 'paymentMethod',   labelAr: 'طريقة الدفع (CASH / BANK / CHEQUE / TRANSFER) — اختياري', required: false },
+      { key: 'notes',           labelAr: 'ملاحظات — اختياري',                                        required: false },
+    ],
+  },
 ];
 
 export const IMPORT_ENTITY_MAP: Record<string, ImportEntityConfig> = Object.fromEntries(

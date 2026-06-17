@@ -14,6 +14,7 @@ export const createExpenseSchema = z.object({
     contractId: z.coerce.number().int().positive().optional(),
     supplierId: z.coerce.number().int().positive().optional(),
     documentPath: z.string().optional(),
+    paymentMethod: z.enum(ENUMS.expensePaymentMethod).optional(),
   }),
 });
 

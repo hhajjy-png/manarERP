@@ -83,6 +83,7 @@ export class ExpensesService {
         contractId: input.contractId ?? null,
         supplierId: input.supplierId ?? null,
         documentPath: input.documentPath ?? null,
+        paymentMethod: input.paymentMethod ?? 'CASH',
         status: 'PENDING',
       },
       include: FULL_INCLUDE,
@@ -95,6 +96,8 @@ export class ExpensesService {
     const current = await prisma.expense.findUnique({ where: { id } });
     if (!current) throw AppError.notFound('المصروف غير موجود');
     if (current.status === 'APPROVED') throw AppError.badRequest('لا يمكن تعديل مصروف معتمد');
+    if (current.status === 'REVERSED') throw AppError.badRequest('لا يمكن تعديل مصروف معكوس');
+    if (current.status === 'CANCELLED') throw AppError.badRequest('لا يمكن تعديل مصروف ملغى');
 
     const expense = await prisma.expense.update({
       where: { id },
@@ -109,6 +112,7 @@ export class ExpensesService {
         contractId: input.contractId === undefined ? current.contractId : input.contractId,
         supplierId: input.supplierId === undefined ? current.supplierId : input.supplierId,
         documentPath: input.documentPath ?? current.documentPath,
+        paymentMethod: input.paymentMethod ?? current.paymentMethod,
       },
       include: FULL_INCLUDE,
     });
@@ -162,7 +166,7 @@ export class ExpensesService {
     return updated;
   }
 
-  /** إلغاء اعتماد مصروف مُرحَّل: ينشئ قيد عكسي في GL ويُعيد الحالة إلى REJECTED. */
+  /** إلغاء اعتماد مصروف مُرحَّل: ينشئ قيد عكسي في GL ويُعيد الحالة إلى REVERSED. */
   async cancelApproval(id: number, req: Request) {
     const expense = await prisma.expense.findUnique({ where: { id } });
     if (!expense) throw AppError.notFound('المصروف غير موجود');
@@ -172,7 +176,7 @@ export class ExpensesService {
       await reverseExpenseFromGL(tx, id);
       return tx.expense.update({
         where: { id },
-        data: { status: 'REJECTED' },
+        data: { status: 'REVERSED' },
         include: FULL_INCLUDE,
       });
     });
@@ -183,8 +187,23 @@ export class ExpensesService {
       module: 'expenses',
       entityId: id,
       oldValue: { amount: expense.amount, status: 'APPROVED' },
-      newValue: { status: 'REJECTED' },
+      newValue: { status: 'REVERSED' },
     });
+    return updated;
+  }
+
+  /** إلغاء إداري لمصروف معلّق (PENDING → CANCELLED) — بدون ترحيل GL. */
+  async cancel(id: number, req: Request) {
+    const expense = await prisma.expense.findUnique({ where: { id } });
+    if (!expense) throw AppError.notFound('المصروف غير موجود');
+    if (expense.status !== 'PENDING') throw AppError.badRequest('يمكن إلغاء المصاريف المعلّقة فقط');
+
+    const updated = await prisma.expense.update({
+      where: { id },
+      data: { status: 'CANCELLED' },
+      include: FULL_INCLUDE,
+    });
+    await recordAudit({ req, action: 'CANCEL', module: 'expenses', entityId: id, newValue: { status: 'CANCELLED' } });
     return updated;
   }
 
@@ -192,6 +211,7 @@ export class ExpensesService {
     const expense = await prisma.expense.findUnique({ where: { id } });
     if (!expense) throw AppError.notFound('المصروف غير موجود');
     if (expense.status === 'APPROVED') throw AppError.conflict('لا يمكن حذف مصروف معتمد — ارفض اعتماده أولًا');
+    if (expense.status === 'REVERSED') throw AppError.conflict('لا يمكن حذف مصروف معكوس — يحتوي على قيد محاسبي');
 
     await prisma.expense.delete({ where: { id } });
     await recordAudit({ req, action: 'DELETE', module: 'expenses', entityId: id });

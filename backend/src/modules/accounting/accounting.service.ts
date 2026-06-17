@@ -192,6 +192,21 @@ export class AccountingService {
     if (to) dateFilter.lte = new Date(to);
     const hasDateFilter = from || to;
 
+    // DATA-SOURCE RULE (Option A — safe, explicit):
+    // Business metrics (revenue, expenses, netProfit) come from the canonical tables:
+    //   - Revenue  → Invoice (SALES, not CANCELLED)
+    //   - Expenses → Expense (APPROVED only)
+    //   - Payments → Payment
+    //
+    // The GL JournalEntry figures are INFORMATIONAL only (manual adjustments visible to
+    // the accountant). Auto-generated entries that mirror Invoice / Expense / Payment
+    // events are EXCLUDED from the journal totals to prevent double-counting.
+    // DO NOT add journalEntry lines to netProfit without first removing the corresponding
+    // Invoice / Expense / Payment source figures.
+    //
+    // Auto-generated referenceType values excluded from GL informational totals:
+    const AUTO_REFERENCE_TYPES = ['EXPENSE', 'EXPENSE_REVERSAL', 'INVOICE', 'PAYMENT'];
+
     const [invoiceRevenue, expenseTotal, paymentTotal, journalTotals] = await Promise.all([
       prisma.invoice.aggregate({
         where: { direction: 'SALES', status: { not: 'CANCELLED' }, ...(hasDateFilter ? { issueDate: dateFilter } : {}) },
@@ -205,8 +220,15 @@ export class AccountingService {
         where: { ...(hasDateFilter ? { date: dateFilter } : {}) },
         _sum: { amount: true },
       }),
+      // Exclude auto-generated GL entries (EXPENSE / EXPENSE_REVERSAL / INVOICE / PAYMENT)
+      // — those events are already counted via their canonical tables above.
+      // Only MANUAL (and other custom) entries appear here.
       prisma.journalEntry.findMany({
-        where: { status: 'POSTED', ...(hasDateFilter ? { date: dateFilter } : {}) },
+        where: {
+          status: 'POSTED',
+          referenceType: { notIn: AUTO_REFERENCE_TYPES },
+          ...(hasDateFilter ? { date: dateFilter } : {}),
+        },
         include: { lines: { select: { debit: true, credit: true } } },
       }),
     ]);

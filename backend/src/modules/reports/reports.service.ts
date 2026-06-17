@@ -271,31 +271,43 @@ export class ReportsService {
     const rows = await prisma.payroll.findMany({
       where,
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
-      include: { employee: { select: { fullName: true } } },
+      include: { employee: { select: { fullName: true, code: true } } },
     });
     const totalNet = rows.reduce((s, p) => s + num(p.netSalary), 0);
     return {
       title: 'تقرير الرواتب',
       subtitle: `عدد الكشوف: ${rows.length} — إجمالي الصافي: ${totalNet.toLocaleString('ar')}`,
       columns: [
+        { header: 'رمز الموظف', key: 'employeeCode', width: 14 },
         { header: 'الموظف', key: 'name', width: 30 },
-        { header: 'الشهر', key: 'period', width: 14 },
-        { header: 'الأساسي', key: 'base', width: 16, numFmt: '#,##0.000' },
-        { header: 'مكافآت', key: 'bonus', width: 14, numFmt: '#,##0.000' },
-        { header: 'خصومات', key: 'ded', width: 14, numFmt: '#,##0.000' },
-        { header: 'الصافي', key: 'net', width: 16, numFmt: '#,##0.000' },
+        { header: 'الشهر', key: 'month', width: 8 },
+        { header: 'السنة', key: 'year', width: 8 },
+        { header: 'الأساسي', key: 'baseSalary', width: 16, numFmt: '#,##0.000' },
+        { header: 'بدلات', key: 'totalAllowances', width: 14, numFmt: '#,##0.000' },
+        { header: 'إضافي', key: 'overtimeAmount', width: 14, numFmt: '#,##0.000' },
+        { header: 'خصومات', key: 'totalDeductions', width: 14, numFmt: '#,##0.000' },
+        { header: 'سلف', key: 'totalAdvances', width: 14, numFmt: '#,##0.000' },
+        { header: 'الإجمالي', key: 'grossSalary', width: 16, numFmt: '#,##0.000' },
+        { header: 'الصافي', key: 'netSalary', width: 16, numFmt: '#,##0.000' },
         { header: 'الحالة', key: 'status', width: 14 },
+        { header: 'ملاحظات', key: 'notes', width: 24 },
       ],
       rows: rows.map((p) => ({
+        employeeCode: p.employee.code,
         name: p.employee.fullName,
-        period: `${p.month}/${p.year}`,
-        base: num(p.snapshotBaseSalary || p.baseSalary),
-        bonus: num(p.totalAllowances || p.totalBonus) + num(p.overtimeAmount),
-        ded: num(p.totalDeductions) + num(p.totalAdvances),
-        net: num(p.netSalary),
+        month: p.month,
+        year: p.year,
+        baseSalary: num(p.snapshotBaseSalary || p.baseSalary),
+        totalAllowances: num(p.totalAllowances || p.totalBonus),
+        overtimeAmount: num(p.overtimeAmount),
+        totalDeductions: num(p.totalDeductions),
+        totalAdvances: num(p.totalAdvances),
+        grossSalary: num(p.grossSalary),
+        netSalary: num(p.netSalary),
         status: p.status,
+        notes: p.notes ?? '',
       })),
-      totalsRow: { name: 'الإجمالي', net: totalNet },
+      totalsRow: { employeeCode: '', name: 'الإجمالي', netSalary: totalNet },
     };
   }
 
@@ -398,6 +410,10 @@ export class ReportsService {
   }
 
   private async profitLoss(q: ReportQuery): Promise<ReportInput> {
+    // DATA-SOURCE RULE: P&L reads from Legacy Transactions ONLY.
+    // JournalEntry (GL) entries for the same events fire in parallel (Phase B) but must
+    // NOT be added here — doing so would double-count every expense and invoice.
+    // If P&L is ever migrated to GL-only, remove the Transaction queries at the same time.
     const where: Prisma.TransactionWhereInput = {
       ...dateWhere(q.from, q.to) as Prisma.TransactionWhereInput,
     };

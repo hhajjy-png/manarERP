@@ -24,6 +24,9 @@ export const expensesController = {
   async cancelApproval(req: Request, res: Response) {
     ok(res, await expensesService.cancelApproval(Number(req.params.id), req), 'تم إلغاء اعتماد المصروف');
   },
+  async cancel(req: Request, res: Response) {
+    ok(res, await expensesService.cancel(Number(req.params.id), req), 'تم إلغاء المصروف');
+  },
   async remove(req: Request, res: Response) {
     ok(res, await expensesService.remove(Number(req.params.id), req), 'تم الحذف');
   },

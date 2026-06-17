@@ -11,9 +11,11 @@ import { validatePriceRow, priceCompositeKey } from './validators/prices';
 import { validateContractRow } from './validators/contracts';
 import { validateExpenseRow } from './validators/expenses';
 import { validateInvoiceRow } from './validators/invoices';
+import { validatePayrollRow } from './validators/payroll';
 import type { ContractFKMaps } from './validators/contracts';
 import type { ExpenseFKMaps } from './validators/expenses';
 import type { InvoiceFKMaps } from './validators/invoices';
+import type { PayrollFKMaps } from './validators/payroll';
 import type { EntityType, ExecuteSummary, PreviewSummary, RowResult } from './import.types';
 
 // ── FK resolver ───────────────────────────────────────────────────────────────
@@ -23,10 +25,12 @@ interface FKMaps {
   supplierCodeToId?: Map<string, number>;
   contractCodeToId?: Map<string, number>;
   employeeCodeToId?: Map<string, number>;
+  // payroll uses employeeCodeToId (all employees, not just ACTIVE)
+  payrollEmployeeCodeToId?: Map<string, number>;
 }
 
 async function loadCodeToIdMap(
-  entity: 'customers' | 'suppliers' | 'contracts' | 'employees',
+  entity: 'customers' | 'suppliers' | 'contracts' | 'employees' | 'allEmployees',
 ): Promise<Map<string, number>> {
   if (entity === 'customers') {
     const rows = await prisma.customer.findMany({ where: { isArchived: false }, select: { code: true, id: true } });
@@ -38,6 +42,11 @@ async function loadCodeToIdMap(
   }
   if (entity === 'employees') {
     const rows = await prisma.employee.findMany({ where: { status: 'ACTIVE' }, select: { code: true, id: true } });
+    return new Map(rows.map((r) => [r.code, r.id]));
+  }
+  if (entity === 'allEmployees') {
+    // payroll import accepts all employees (including terminated) for historical data
+    const rows = await prisma.employee.findMany({ select: { code: true, id: true } });
     return new Map(rows.map((r) => [r.code, r.id]));
   }
   // contracts — no cancelled status exists; resolve all
@@ -67,6 +76,10 @@ async function loadFKMaps(entityType: EntityType): Promise<FKMaps> {
       loadCodeToIdMap('contracts'),
     ]);
     return { customerCodeToId, supplierCodeToId, contractCodeToId };
+  }
+  if (entityType === 'payroll') {
+    const payrollEmployeeCodeToId = await loadCodeToIdMap('allEmployees');
+    return { payrollEmployeeCodeToId };
   }
   return {};
 }
@@ -104,6 +117,12 @@ async function loadExistingCodes(entityType: EntityType): Promise<Set<string>> {
     const rows = await prisma.invoice.findMany({ select: { invoiceNumber: true } });
     return new Set(rows.map((r) => r.invoiceNumber));
   }
+  if (entityType === 'payroll') {
+    const rows = await prisma.payroll.findMany({ select: { employeeId: true, month: true, year: true } });
+    // dedup key must match payrollCompositeKey — but we need employee.code not employeeId
+    // We store raw employeeId-based keys here for a secondary guard; primary guard is employee code via FK map
+    return new Set(rows.map((r) => `${r.employeeId}|${r.month}|${r.year}`));
+  }
   const rows = await prisma.equipment.findMany({ select: { code: true } });
   return new Set(rows.map((r) => r.code));
 }
@@ -139,10 +158,16 @@ function validateRow(
     };
     return validateInvoiceRow(row, maps);
   }
+  if (entityType === 'payroll') {
+    const maps: PayrollFKMaps = {
+      employeeCodeToId: fkMaps.payrollEmployeeCodeToId ?? new Map(),
+    };
+    return validatePayrollRow(row, maps);
+  }
   return validateEquipmentRow(row);
 }
 
-// Prices use a composite key; invoices use invoiceNumber; all others use `code`.
+// Prices use a 4-part composite key; invoices use invoiceNumber; payroll uses employeeId|month|year; all others use `code`.
 function getEntityKey(entityType: EntityType, normalized: Record<string, unknown>): string {
   if (entityType === 'prices') {
     return priceCompositeKey(
@@ -153,6 +178,7 @@ function getEntityKey(entityType: EntityType, normalized: Record<string, unknown
     );
   }
   if (entityType === 'invoices') return String(normalized['invoiceNumber'] ?? '').trim();
+  if (entityType === 'payroll') return `${normalized['employeeId']}|${normalized['month']}|${normalized['year']}`;
   return String(normalized['code']).trim();
 }
 
@@ -181,6 +207,7 @@ function buildPreviewRows(
     const duplicateKeyLabel =
     entityType === 'prices' ? 'مصنع|شركة|مكان|وحدة' :
     entityType === 'invoices' ? 'invoiceNumber' :
+    entityType === 'payroll' ? 'موظف|شهر|سنة' :
     'code';
 
     if (seenInBatch.has(key) || existingCodes.has(key)) {
@@ -262,6 +289,9 @@ export async function executeImport(
     contractCodeToId: fkMaps.contractCodeToId ?? new Map(),
     supplierCodeToId: fkMaps.supplierCodeToId ?? new Map(),
   };
+  const payrollMaps: PayrollFKMaps = {
+    employeeCodeToId: fkMaps.payrollEmployeeCodeToId ?? new Map(),
+  };
 
   await prisma.$transaction(async (tx) => {
     if (entityType === 'employees') {
@@ -318,6 +348,13 @@ export async function executeImport(
         // Import-specific path: create invoice without postJournal to avoid
         // double-counting accounting entries for historically imported data.
         await tx.invoice.create({ data: normalized });
+        imported++;
+      }
+    } else if (entityType === 'payroll') {
+      for (const result of validResults) {
+        const { normalized } = validatePayrollRow(result.data, payrollMaps);
+        if (!normalized) continue;
+        await tx.payroll.create({ data: normalized });
         imported++;
       }
     } else {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
@@ -47,6 +47,7 @@ const initialYear = now.getFullYear();
 export default function Salaries() {
   const { hasPermission } = useAuth();
   const { t } = useT();
+  const navigate = useNavigate();
   const [tab, setTab] = usePersistedState<'payroll' | 'history'>('sal:tab', 'payroll');
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [rows, setRows] = useState<PayrollRow[]>([]);
@@ -77,6 +78,7 @@ export default function Salaries() {
 
   const [payingRowId, setPayingRowId] = useState<number | null>(null);
   const [payMethod, setPayMethod] = useState('BANK');
+  const [excelBusy, setExcelBusy] = useState(false);
 
   const canGenerate = hasPermission('payroll.generate') || hasPermission('payroll.create');
   const canApprove = hasPermission('payroll.approve');
@@ -84,6 +86,8 @@ export default function Salaries() {
   const canAdjust = hasPermission('payroll.adjust');
   const canCancel = hasPermission('payroll.cancel');
   const canPayslip = hasPermission('payroll.payslip') || hasPermission('payroll.read');
+  const canExport = hasPermission('reports.export') || hasPermission('payroll.read');
+  const canImport = hasPermission('import.create');
 
   async function loadPayroll() {
     const res = await api.get('/payroll', {
@@ -188,6 +192,34 @@ export default function Salaries() {
     });
   }
 
+  async function downloadPayrollExcel() {
+    if (!canExport || excelBusy) return;
+    setExcelBusy(true);
+    setError('');
+    try {
+      const res = await api.get('/reports/payroll/export', {
+        params: {
+          month,
+          year,
+          employeeId: employeeId || undefined,
+          status: status || undefined,
+          format: 'excel',
+        },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `payroll-${month}-${year}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setExcelBusy(false);
+    }
+  }
+
   const payrollColumns = [
     { key: 'employee', label: 'col.sal.employee', render: (r: PayrollRow) => <strong>{r.employee?.fullName}</strong> },
     { key: 'period', label: 'col.sal.period', render: (r: PayrollRow) => `${r.month}/${r.year}` },
@@ -250,6 +282,16 @@ export default function Salaries() {
               <option value="CANCELLED">{t('payroll.status.cancelled')}</option>
             </select>
             {canGenerate && <button className="btn" onClick={generatePayroll} disabled={busy}>{t('page.salaries.generate')}</button>}
+            {canExport && (
+              <button type="button" className="btn secondary" onClick={downloadPayrollExcel} disabled={excelBusy}>
+                {excelBusy ? t('msg.loading') : '⬇ ' + t('page.salaries.export_excel')}
+              </button>
+            )}
+            {canImport && (
+              <button type="button" className="btn secondary" onClick={() => navigate('/import')} disabled={busy}>
+                ⬆ {t('page.salaries.import_excel')}
+              </button>
+            )}
           </div>
 
           <div className="stats" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
