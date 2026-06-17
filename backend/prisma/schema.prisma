@@ -679,6 +679,7 @@ model Expense {
 
   @@index([category])
   @@index([status])
+  @@index([status, date])
   @@index([contractId])
   @@index([date])
   @@index([billingMonth, billingYear])

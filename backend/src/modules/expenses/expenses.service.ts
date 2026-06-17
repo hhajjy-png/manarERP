@@ -53,7 +53,13 @@ export class ExpensesService {
       if (query.from) where.date.gte = new Date(query.from);
       if (query.to) where.date.lte = new Date(query.to);
     }
-    if (query.search) where.description = { contains: query.search };
+    if (query.search) {
+      where.OR = [
+        { description: { contains: query.search } },
+        { code: { contains: query.search } },
+        { supplierName: { contains: query.search } },
+      ];
+    }
 
     const [data, total] = await Promise.all([
       prisma.expense.findMany({ where, skip: pagination.skip, take: pagination.take, orderBy: { date: 'desc' }, include: FULL_INCLUDE }),
@@ -112,7 +118,7 @@ export class ExpensesService {
         notes: input.notes !== undefined ? input.notes : current.notes,
         contractId: input.contractId === undefined ? current.contractId : input.contractId,
         supplierId: input.supplierId === undefined ? current.supplierId : input.supplierId,
-        supplierName: input.supplierName !== undefined ? (input.supplierName ?? null) : (current as Record<string, unknown>)['supplierName'] as string | null ?? null,
+        supplierName: input.supplierName !== undefined ? (input.supplierName ?? null) : (current.supplierName ?? null),
         documentPath: input.documentPath ?? current.documentPath,
         paymentMethod: input.paymentMethod ?? current.paymentMethod,
       },
@@ -246,8 +252,9 @@ export class ExpensesService {
 
     const count = rows.length;
     const total = rows.reduce((s, r) => s + Number(r.amount), 0);
-    const pendingTotal = rows.filter((r) => r.status === 'PENDING').reduce((s, r) => s + Number(r.amount), 0);
-    const pendingCount = rows.filter((r) => r.status === 'PENDING').length;
+    const pendingRows = rows.filter((r) => r.status === 'PENDING');
+    const pendingCount = pendingRows.length;
+    const pendingTotal = pendingRows.reduce((s, r) => s + Number(r.amount), 0);
 
     const byCategory: Record<string, number> = {};
     for (const r of rows) {
