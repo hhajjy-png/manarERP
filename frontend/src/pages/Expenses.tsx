@@ -49,10 +49,6 @@ const STATUS_AR: Record<string, string> = {
   PENDING: 'معلّق', APPROVED: 'معتمد', REJECTED: 'مرفوض', REVERSED: 'مُلغى الاعتماد', CANCELLED: 'ملغى',
 };
 
-const INP: React.CSSProperties = {
-  padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10,
-  background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, fontSize: 14,
-};
 
 export default function Expenses() {
   const { hasPermission } = useAuth();
@@ -405,7 +401,7 @@ function ExpenseForm({
       <div className="form-grid">
         <div className="field">
           <label>التصنيف *</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value)} style={INP}>
+          <select value={category} onChange={(e) => setCategory(e.target.value)}>
             {EXPENSE_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
@@ -415,7 +411,6 @@ function ExpenseForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="وصف المصروف"
-            style={{ ...INP, width: '100%', boxSizing: 'border-box' }}
           />
         </div>
         <div className="field">
@@ -427,7 +422,6 @@ function ExpenseForm({
             placeholder="0.000"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            style={INP}
           />
         </div>
         <div className="field">
@@ -444,23 +438,22 @@ function ExpenseForm({
                 setBillingYear(d.getFullYear());
               }
             }}
-            style={INP}
           />
         </div>
         <div className="field">
           <label>شهر الحساب</label>
           <div style={{ display: 'flex', gap: 8 }}>
-            <select value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} style={{ ...INP, flex: 1 }}>
+            <select value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} style={{ flex: 1 }}>
               {ARABIC_MONTHS.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
             </select>
-            <select value={billingYear} onChange={(e) => setBillingYear(Number(e.target.value))} style={{ ...INP, width: 90 }}>
+            <select value={billingYear} onChange={(e) => setBillingYear(Number(e.target.value))} style={{ width: 90 }}>
               {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
         </div>
         <div className="field">
           <label>{t('field.supplier')}</label>
-          <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} style={INP}>
+          <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
             <option value="">— بدون مورد —</option>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {(suppliers as any[]).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -474,13 +467,12 @@ function ExpenseForm({
               value={supplierName}
               onChange={(e) => setSupplierName(e.target.value)}
               placeholder="اكتب اسم المورد"
-              style={{ ...INP, width: '100%', boxSizing: 'border-box' }}
             />
           </div>
         )}
         <div className="field">
           <label>طريقة الدفع</label>
-          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} title="طريقة الدفع" style={INP}>
+          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} title="طريقة الدفع">
             <option value="CASH">نقداً</option>
             <option value="BANK">تحويل بنكي</option>
             <option value="ACCOUNTS_PAYABLE">ذمم الموردين</option>
@@ -492,7 +484,7 @@ function ExpenseForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
-            style={{ ...INP, width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
+            style={{ resize: 'vertical' }}
             placeholder="ملاحظات (اختياري)"
           />
         </div>
