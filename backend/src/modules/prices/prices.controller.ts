@@ -52,6 +52,15 @@ export const agreementsDashboard = asyncHandler(async (_req: Request, res: Respo
   ok(res, await service.getAgreementsDashboard());
 });
 
+export const forInvoice = asyncHandler(async (req: Request, res: Response) => {
+  const customerId = Number(req.query.customerId);
+  if (!customerId || !Number.isInteger(customerId) || customerId <= 0) {
+    ok(res, []);
+    return;
+  }
+  ok(res, await service.getPricesForCustomer(customerId));
+});
+
 export const forceRemovePreview = asyncHandler(async (req: Request, res: Response) => {
   ok(res, await service.forceRemovePreview(Number(req.params.id)));
 });

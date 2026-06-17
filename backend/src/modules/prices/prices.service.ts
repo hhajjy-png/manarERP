@@ -231,6 +231,21 @@ export async function getAgreementsDashboard() {
   };
 }
 
+export async function getPricesForCustomer(customerId: number) {
+  return prisma.projectPrice.findMany({
+    where: { customerId, isArchived: false },
+    select: {
+      id: true,
+      asphaltPlant: true,
+      companyName: true,
+      contractLocation: true,
+      contractUnit: true,
+      unitPrice: true,
+    },
+    orderBy: [{ asphaltPlant: 'asc' }, { contractUnit: 'asc' }],
+  });
+}
+
 export async function forceRemovePreview(id: number) {
   const price = await prisma.projectPrice.findUnique({ where: { id } });
   if (!price) throw AppError.notFound('السعر غير موجود');

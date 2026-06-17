@@ -16,6 +16,7 @@ router.get('/stats', requirePermission('prices.read'), ctrl.stats);
 router.get('/usage-report', requirePermission('prices.read'), ctrl.usageReport);
 router.get('/usage/by-company', requirePermission('prices.read'), ctrl.usageByCompany);
 router.get('/agreements-dashboard', requirePermission('prices.read'), ctrl.agreementsDashboard);
+router.get('/for-invoice', requirePermission('prices.read'), ctrl.forInvoice);
 router.get('/:id/force', requireRole(ROLES.SYSTEM_ADMIN), ctrl.forceRemovePreview);
 router.patch('/:id', requirePermission('prices.update'), validate(updatePriceSchema), ctrl.update);
 router.delete('/:id/force', requireRole(ROLES.SYSTEM_ADMIN), ctrl.forceRemove);

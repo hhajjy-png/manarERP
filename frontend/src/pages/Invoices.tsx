@@ -433,7 +433,10 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 
   useEffect(() => {
     if (partyId && partyId !== prevPartyIdRef.current && prevPartyIdRef.current !== '') {
-      setItems((prev) => prev.map((it) => it.priceTouched ? { ...it, unitPrice: 0, priceTouched: false } : it));
+      // Reset all unit prices — not just picker-selected (priceTouched) ones.
+      // Auto-filled prices (single-unit match) also have priceTouched=false but are
+      // customer-specific and must be cleared when the customer changes.
+      setItems((prev) => prev.map((it) => ({ ...it, unitPrice: 0, priceTouched: false })));
     }
     prevPartyIdRef.current = partyId;
 
@@ -441,8 +444,8 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
       setPrices([]);
       return;
     }
-    api.get('/prices', { params: { pageSize: 200, customerId: partyId } })
-      .then((res) => setPrices(res.data?.data?.data ?? []))
+    api.get('/prices/for-invoice', { params: { customerId: partyId } })
+      .then((res) => setPrices(res.data?.data ?? []))
       .catch((e) => { console.warn('[CreateInvoice] prices fetch failed:', e); });
   }, [partyId, effectivePartySource]);
 
@@ -699,9 +702,14 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         ))}
         <div />
       </div>
+      {effectivePartySource === 'SALES' && !partyId && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
+          اختر العميل أولاً لعرض اتفاقيات أسعاره
+        </p>
+      )}
       {effectivePartySource === 'SALES' && partyId && prices.length === 0 && (
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
-          لا توجد أسعار معرفة لهذا العميل
+          لا توجد اتفاقيات أسعار مسجّلة لهذا العميل
         </p>
       )}
       {items.map((it, i) => (
@@ -1029,7 +1037,9 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
 
   useEffect(() => {
     if (partyId && partyId !== prevPartyIdRef.current) {
-      setItems((prev) => prev.map((it) => it.priceTouched ? { ...it, unitPrice: 0, priceTouched: false } : it));
+      // Reset all unit prices on customer change — covers both picker-selected
+      // and auto-filled prices (which have priceTouched=false but are customer-specific).
+      setItems((prev) => prev.map((it) => ({ ...it, unitPrice: 0, priceTouched: false })));
     }
     prevPartyIdRef.current = partyId;
 
@@ -1037,9 +1047,9 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
       setPrices([]);
       return;
     }
-    api.get('/prices', { params: { pageSize: 200, customerId: partyId } })
+    api.get('/prices/for-invoice', { params: { customerId: partyId } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .then((res: any) => setPrices(res.data?.data?.data ?? []))
+      .then((res: any) => setPrices(res.data?.data ?? []))
       .catch((e: unknown) => { console.warn('[EditInvoice] prices fetch failed:', e); });
   }, [partyId, effectivePartySource]);
 
@@ -1248,9 +1258,14 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
         ))}
         <div />
       </div>
+      {effectivePartySource === 'SALES' && !partyId && (
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
+          اختر العميل أولاً لعرض اتفاقيات أسعاره
+        </p>
+      )}
       {effectivePartySource === 'SALES' && partyId && prices.length === 0 && (
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
-          لا توجد أسعار معرفة لهذا العميل
+          لا توجد اتفاقيات أسعار مسجّلة لهذا العميل
         </p>
       )}
       {items.map((it, i) => (
