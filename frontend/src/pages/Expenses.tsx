@@ -39,11 +39,15 @@ function billingYearOptions(): number[] {
 }
 
 const STATUS_PILL: Record<string, [string, string]> = {
-  PENDING: ['معلّق', 'amber'],
-  APPROVED: ['معتمد', 'green'],
-  REJECTED: ['مرفوض', 'red'],
+  PENDING:  ['معلّق',        'amber'],
+  APPROVED: ['معتمد',        'green'],
+  REJECTED: ['مرفوض',        'red'],
+  REVERSED: ['مُلغى الاعتماد', 'gray'],
+  CANCELLED:['ملغى',         'gray'],
 };
-const STATUS_AR: Record<string, string> = { PENDING: 'معلّق', APPROVED: 'معتمد', REJECTED: 'مرفوض' };
+const STATUS_AR: Record<string, string> = {
+  PENDING: 'معلّق', APPROVED: 'معتمد', REJECTED: 'مرفوض', REVERSED: 'مُلغى الاعتماد', CANCELLED: 'ملغى',
+};
 
 const INP: React.CSSProperties = {
   padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10,
@@ -248,11 +252,13 @@ export default function Expenses() {
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           style={{ ...INP, maxWidth: 240 }}
         />
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ ...INP, maxWidth: 160 }}>
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ ...INP, maxWidth: 180 }}>
           <option value="">الحالة — الكل</option>
           <option value="PENDING">معلّق</option>
           <option value="APPROVED">معتمد</option>
           <option value="REJECTED">مرفوض</option>
+          <option value="REVERSED">مُلغى الاعتماد</option>
+          <option value="CANCELLED">ملغى</option>
         </select>
         <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }} style={{ ...INP, maxWidth: 220 }}>
           <option value="">التصنيف — الكل</option>
@@ -333,13 +339,14 @@ function ExpenseForm({
 
   const [category, setCategory] = useState<string>(String(expense?.category ?? 'FUEL'));
   const [description, setDescription] = useState<string>(String(expense?.description ?? ''));
-  const [amount, setAmount] = useState<number>(Number(expense?.amount) || 0);
+  const [amount, setAmount] = useState<string>(expense?.amount ? String(expense.amount) : '');
   const [date, setDate] = useState<string>(
     expense?.date ? String(expense.date).slice(0, 10) : now.toISOString().slice(0, 10)
   );
   const [billingMonth, setBillingMonth] = useState<number>(Number(expense?.billingMonth) || (now.getMonth() + 1));
   const [billingYear, setBillingYear] = useState<number>(Number(expense?.billingYear) || now.getFullYear());
   const [notes, setNotes] = useState<string>(String(expense?.notes ?? ''));
+  const [paymentMethod, setPaymentMethod] = useState<string>(String(expense?.paymentMethod ?? 'CASH'));
   const [supplierId, setSupplierId] = useState<string>(() => {
     if (expense?.supplierId) return String(expense.supplierId);
     if (expense?.supplierName) return 'OTHER';
@@ -352,19 +359,21 @@ function ExpenseForm({
   async function submit() {
     setError('');
     if (!description.trim()) { setError('الوصف مطلوب'); return; }
-    if (!amount || amount <= 0) { setError('المبلغ يجب أن يكون موجبًا'); return; }
+    const amountNum = Number(amount);
+    if (!amount || isNaN(amountNum) || amountNum <= 0) { setError('المبلغ يجب أن يكون موجبًا'); return; }
 
     setSaving(true);
     const payload: Record<string, unknown> = {
       category,
       description: description.trim(),
-      amount,
+      amount: amountNum,
       date: date || undefined,
       billingMonth,
       billingYear,
       notes: notes.trim() || undefined,
       supplierId: supplierId && supplierId !== 'OTHER' ? Number(supplierId) : null,
       supplierName: supplierId === 'OTHER' ? supplierName.trim() || null : null,
+      paymentMethod,
     };
     try {
       if (isEdit) {
@@ -415,8 +424,9 @@ function ExpenseForm({
             type="number"
             min="0.001"
             step="0.001"
+            placeholder="0.000"
             value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
+            onChange={(e) => setAmount(e.target.value)}
             style={INP}
           />
         </div>
@@ -468,6 +478,14 @@ function ExpenseForm({
             />
           </div>
         )}
+        <div className="field">
+          <label>طريقة الدفع</label>
+          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} title="طريقة الدفع" style={INP}>
+            <option value="CASH">نقداً</option>
+            <option value="BANK">تحويل بنكي</option>
+            <option value="ACCOUNTS_PAYABLE">ذمم الموردين</option>
+          </select>
+        </div>
         <div className="field" style={{ gridColumn: '1 / -1' }}>
           <label>{t('field.notes')}</label>
           <textarea

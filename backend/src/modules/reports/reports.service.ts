@@ -166,6 +166,18 @@ export class ReportsService {
   }
 
   private async expenses(q: ReportQuery): Promise<ReportInput> {
+    const CATEGORY_AR: Record<string, string> = {
+      FUEL: 'وقود', SALARIES: 'رواتب', MAINTENANCE: 'صيانة', RENT: 'إيجارات',
+      PURCHASES: 'مشتريات', EQUIPMENT: 'معدات', SERVICES: 'خدمات',
+      EQUIPMENT_RENT: 'إيجار معدات', TRUCK_RENT: 'إيجار شاحنات',
+      HASSAN: 'مصروف عن طريق حسن', GHANEM: 'مصروف عن طريق غانم',
+      NATHEER: 'مصروف عن طريق نظير', HAROON: 'مصروف عن طريق هارون',
+      OTHER: 'أخرى',
+    };
+    const STATUS_AR: Record<string, string> = {
+      PENDING: 'معلّق', APPROVED: 'معتمد', REJECTED: 'مرفوض',
+      REVERSED: 'مُلغى الاعتماد', CANCELLED: 'ملغى',
+    };
     const where: Prisma.ExpenseWhereInput = {
       ...dateWhere(q.from, q.to) as Prisma.ExpenseWhereInput,
     };
@@ -173,7 +185,10 @@ export class ReportsService {
     const rows = await prisma.expense.findMany({
       where,
       orderBy: { date: 'desc' },
-      include: { contract: { select: { asphaltPlant: true } } },
+      include: {
+        contract: { select: { asphaltPlant: true } },
+        supplier: { select: { name: true } },
+      },
     });
     const total = rows.reduce((s, e) => s + num(e.amount), 0);
     return {
@@ -181,21 +196,23 @@ export class ReportsService {
       subtitle: `العدد: ${rows.length} — الإجمالي: ${total.toLocaleString('ar')}`,
       columns: [
         { header: 'الرقم', key: 'code', width: 16 },
-        { header: 'التصنيف', key: 'category', width: 16 },
+        { header: 'التصنيف', key: 'category', width: 18 },
         { header: 'الوصف', key: 'description', width: 32 },
+        { header: 'المورد', key: 'supplier', width: 22 },
         { header: 'العقد', key: 'contract', width: 22 },
-        { header: 'المبلغ', key: 'amount', width: 16, numFmt: '#,##0.00' },
+        { header: 'المبلغ', key: 'amount', width: 16, numFmt: '#,##0.000' },
         { header: 'التاريخ', key: 'date', width: 16 },
-        { header: 'الحالة', key: 'status', width: 14 },
+        { header: 'الحالة', key: 'status', width: 16 },
       ],
       rows: rows.map((e) => ({
         code: e.code,
-        category: e.category,
+        category: CATEGORY_AR[e.category] ?? e.category,
         description: e.description,
+        supplier: e.supplier?.name ?? (e.supplierName ?? ''),
         contract: e.contract?.asphaltPlant ?? '',
         amount: num(e.amount),
         date: dateAr(e.date),
-        status: e.status,
+        status: STATUS_AR[e.status] ?? e.status,
       })),
       totalsRow: { description: 'الإجمالي', amount: total },
     };
