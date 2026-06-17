@@ -293,7 +293,13 @@ export class InvoicesService {
       }
     }
 
-    const items = input.items ?? current.items.map((i) => ({ description: i.description, quantity: i.quantity, unit: i.unit, unitPrice: i.unitPrice }));
+    const items = input.items ?? current.items.map((i) => ({
+      description: i.description,
+      quantity: i.quantity,
+      unit: i.unit,
+      unitPrice: i.unitPrice,
+      priceId: i.priceId ?? null,
+    }));
     const taxRate = input.taxRate ?? current.taxRate;
     const discount = input.discount ?? current.discount;
     const invoiceNumber = input.invoiceNumber?.trim();
