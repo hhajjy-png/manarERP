@@ -227,6 +227,8 @@ function CategoriesTab() {
   const [rows, setRows] = useState<MaterialCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<MaterialCategory> | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -239,7 +241,9 @@ function CategoriesTab() {
 
   async function remove(id: number) {
     if (!confirm(t('confirm.delete_category'))) return;
-    try { await api.delete(`/inventory/categories/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return;
+    setBusy(true);
+    try { await api.delete(`/inventory/categories/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -254,11 +258,12 @@ function CategoriesTab() {
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setEditing({})}>{t('btn.inv.new_category')}</button>}
       </div>
+      {error && <div className="alert error">⚠️ {error}</div>}
       <DataTable columns={columns} rows={rows} loading={loading} emptyText={t('empty.inv.categories')}
         actions={(row: MaterialCategory) => (
           <>
             {hasPermission('inventory.update') && <button className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>}{' '}
-            {hasPermission('inventory.delete') && <button className="btn secondary sm" onClick={() => remove(row.id)}>{t('action.delete')}</button>}
+            {hasPermission('inventory.delete') && <button className="btn secondary sm" onClick={() => remove(row.id)} disabled={busy}>{t('action.delete')}</button>}
           </>
         )}
       />
@@ -280,6 +285,8 @@ function MaterialsTab() {
   const [page, setPage] = usePersistedState('invt:mat:page', 1);
   const [search, setSearch] = usePersistedState('invt:mat:search', '');
   const [editing, setEditing] = useState<Partial<Material> | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -293,7 +300,9 @@ function MaterialsTab() {
 
   async function remove(id: number) {
     if (!confirm(t('confirm.delete_material'))) return;
-    try { await api.delete(`/inventory/materials/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return;
+    setBusy(true);
+    try { await api.delete(`/inventory/materials/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -315,11 +324,12 @@ function MaterialsTab() {
         <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setEditing({})}>{t('btn.inv.new_material')}</button>}
       </div>
+      {error && <div className="alert error">⚠️ {error}</div>}
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.materials')}
         actions={(row: Material) => (
           <>
             {hasPermission('inventory.update') && <button className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>}{' '}
-            {hasPermission('inventory.delete') && <button className="btn secondary sm" onClick={() => remove(row.id)}>{t('action.delete')}</button>}
+            {hasPermission('inventory.delete') && <button className="btn secondary sm" onClick={() => remove(row.id)} disabled={busy}>{t('action.delete')}</button>}
           </>
         )}
       />
@@ -342,6 +352,8 @@ function PurchaseOrdersTab() {
   const [statusFilter, setStatusFilter] = usePersistedState('invt:po:filter', '');
   const [creating, setCreating] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -355,12 +367,16 @@ function PurchaseOrdersTab() {
 
   async function doPost(endpoint: string, confirmMsg: string) {
     if (!confirm(confirmMsg)) return;
-    try { await api.post(endpoint); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return;
+    setBusy(true);
+    try { await api.post(endpoint); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   async function remove(id: number) {
     if (!confirm(t('confirm.delete_po'))) return;
-    try { await api.delete(`/inventory/purchase-orders/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return;
+    setBusy(true);
+    try { await api.delete(`/inventory/purchase-orders/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -385,18 +401,19 @@ function PurchaseOrdersTab() {
         <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_po')}</button>}
       </div>
+      {error && <div className="alert error">⚠️ {error}</div>}
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.po')}
         actions={(row: PurchaseOrder) => (
           <>
             <button className="btn secondary sm" onClick={() => setDetailId(row.id)}>{t('btn.inv.view')}</button>{' '}
             {hasPermission('inventory.update') && row.status === 'DRAFT' && (
-              <button className="btn sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/submit`, t('confirm.submit_po'))}>{t('btn.inv.submit_po')}</button>
+              <button className="btn sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/submit`, t('confirm.submit_po'))} disabled={busy}>{t('btn.inv.submit_po')}</button>
             )}{' '}
             {hasPermission('inventory.update') && ['DRAFT', 'SUBMITTED'].includes(row.status) && (
-              <button className="btn secondary sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/cancel`, t('confirm.cancel_po'))}>{t('action.cancel')}</button>
+              <button className="btn secondary sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/cancel`, t('confirm.cancel_po'))} disabled={busy}>{t('action.cancel')}</button>
             )}{' '}
             {hasPermission('inventory.delete') && row.status === 'DRAFT' && (
-              <button className="btn secondary sm" onClick={() => remove(row.id)}>{t('action.delete')}</button>
+              <button className="btn secondary sm" onClick={() => remove(row.id)} disabled={busy}>{t('action.delete')}</button>
             )}
           </>
         )}
@@ -420,6 +437,8 @@ function GoodsReceiptsTab() {
   const [page, setPage] = usePersistedState('invt:gr:page', 1);
   const [creating, setCreating] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -433,12 +452,16 @@ function GoodsReceiptsTab() {
 
   async function post(id: number) {
     if (!confirm(t('confirm.post_gr'))) return;
-    try { await api.post(`/inventory/goods-receipts/${id}/post`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return;
+    setBusy(true);
+    try { await api.post(`/inventory/goods-receipts/${id}/post`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   async function remove(id: number) {
     if (!confirm(t('confirm.delete_gr'))) return;
-    try { await api.delete(`/inventory/goods-receipts/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return;
+    setBusy(true);
+    try { await api.delete(`/inventory/goods-receipts/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -456,15 +479,16 @@ function GoodsReceiptsTab() {
         <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_gr')}</button>}
       </div>
+      {error && <div className="alert error">⚠️ {error}</div>}
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.gr')}
         actions={(row: GoodsReceipt) => (
           <>
             <button className="btn secondary sm" onClick={() => setDetailId(row.id)}>{t('btn.inv.view')}</button>{' '}
             {hasPermission('inventory.approve') && row.status === 'DRAFT' && (
-              <button className="btn sm" onClick={() => post(row.id)}>{t('btn.inv.post')}</button>
+              <button className="btn sm" onClick={() => post(row.id)} disabled={busy}>{t('btn.inv.post')}</button>
             )}{' '}
             {hasPermission('inventory.delete') && row.status === 'DRAFT' && (
-              <button className="btn secondary sm" onClick={() => remove(row.id)}>{t('action.delete')}</button>
+              <button className="btn secondary sm" onClick={() => remove(row.id)} disabled={busy}>{t('action.delete')}</button>
             )}
           </>
         )}
@@ -490,6 +514,8 @@ function MaterialIssuesTab() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Partial<MaterialIssue> | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -503,17 +529,20 @@ function MaterialIssuesTab() {
 
   async function post(id: number) {
     if (!confirm(t('confirm.post_mi'))) return;
-    try { await api.post(`/inventory/material-issues/${id}/post`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return; setBusy(true);
+    try { await api.post(`/inventory/material-issues/${id}/post`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   async function cancel(id: number) {
     if (!confirm(t('confirm.cancel_mi'))) return;
-    try { await api.post(`/inventory/material-issues/${id}/cancel`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return; setBusy(true);
+    try { await api.post(`/inventory/material-issues/${id}/cancel`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   async function remove(id: number) {
     if (!confirm(t('confirm.delete_mi'))) return;
-    try { await api.delete(`/inventory/material-issues/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return; setBusy(true);
+    try { await api.delete(`/inventory/material-issues/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -536,21 +565,22 @@ function MaterialIssuesTab() {
         <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_mi')}</button>}
       </div>
+      {error && <div className="alert error">⚠️ {error}</div>}
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.mi')}
         actions={(row: MaterialIssue) => (
           <>
             <button className="btn secondary sm" onClick={() => setDetailId(row.id)}>{t('btn.inv.view')}</button>{' '}
             {hasPermission('inventory.approve') && row.status === 'DRAFT' && (
-              <button className="btn sm" onClick={() => post(row.id)}>{t('btn.inv.post')}</button>
+              <button className="btn sm" onClick={() => post(row.id)} disabled={busy}>{t('btn.inv.post')}</button>
             )}{' '}
             {hasPermission('inventory.cancel') && row.status === 'POSTED' && (
-              <button className="btn secondary sm" onClick={() => cancel(row.id)}>{t('action.cancel')}</button>
+              <button className="btn secondary sm" onClick={() => cancel(row.id)} disabled={busy}>{t('action.cancel')}</button>
             )}{' '}
             {hasPermission('inventory.update') && row.status === 'DRAFT' && (
               <button className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>
             )}{' '}
             {hasPermission('inventory.delete') && row.status === 'DRAFT' && (
-              <button className="btn secondary sm" onClick={() => remove(row.id)}>{t('action.delete')}</button>
+              <button className="btn secondary sm" onClick={() => remove(row.id)} disabled={busy}>{t('action.delete')}</button>
             )}
           </>
         )}

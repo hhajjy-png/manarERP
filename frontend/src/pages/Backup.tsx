@@ -143,7 +143,8 @@ export default function Backup() {
 
   async function remove(id: number) {
     if (!confirm(t('confirm.backup.delete'))) return;
-    try { await api.delete(`/backups/${id}`); load(); } catch (err) { showMsg(errorMessage(err), 'err'); }
+    if (busy) return; setBusy(true);
+    try { await api.delete(`/backups/${id}`); load(); } catch (err) { showMsg(errorMessage(err), 'err'); } finally { setBusy(false); }
   }
 
   const alertClass = msg?.type === 'ok' ? 'alert ok' : msg?.type === 'warn' ? 'alert warn' : 'alert error';
@@ -323,7 +324,7 @@ export default function Backup() {
                   <td>{dateText(b.createdAt)}</td>
                   <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
                     {canRestore && <><button className="btn secondary sm" disabled={busy} onClick={() => restoreFromList(b.id, b.fileName)}>↩️ {t('btn.backup.restore')}</button>{' '}</>}
-                    {canRestore && <button className="btn danger sm" onClick={() => remove(b.id)}>{t('action.delete')}</button>}
+                    {canRestore && <button className="btn danger sm" onClick={() => remove(b.id)} disabled={busy}>{t('action.delete')}</button>}
                   </td>
                 </tr>
               ))}

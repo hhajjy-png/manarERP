@@ -90,6 +90,8 @@ export default function Prices() {
   const [creating, setCreating] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [forceDeleteCandidate, setForceDeleteCandidate] = useState<{ id: number; asphaltPlant: string } | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const [stats, setStats] = useState<PricesStats | null>(null);
   const [usageReport, setUsageReport] = useState<UsageReport | null>(null);
@@ -151,7 +153,7 @@ export default function Prices() {
       setUsageReport(res.data.data);
       setShowUsage(true);
     } catch (e) {
-      alert(errorMessage(e));
+      setError(errorMessage(e));
     } finally {
       setUsageLoading(false);
     }
@@ -179,7 +181,7 @@ export default function Prices() {
       });
       downloadBlob(res.data as Blob, 'agreements-export.xlsx');
     } catch (e) {
-      alert(errorMessage(e));
+      setError(errorMessage(e));
     } finally {
       setExportBusy(false);
     }
@@ -187,7 +189,8 @@ export default function Prices() {
 
   async function archiveRow(id: number) {
     if (!confirm(t('confirm.archive_price'))) return;
-    try { await api.delete(`/prices/${id}`); load(); loadStats(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return; setBusy(true);
+    try { await api.delete(`/prices/${id}`); load(); loadStats(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -222,6 +225,8 @@ export default function Prices() {
           </button>
         </div>
       </div>
+
+      {error && <div className="alert error">⚠️ {error}</div>}
 
       {/* ── Stats Dashboard ─────────────────────────────────────────────────── */}
       {stats && (
@@ -322,7 +327,7 @@ export default function Prices() {
               <button className="btn sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>
             )}{' '}
             {hasPermission('prices.delete') && (
-              <button className="btn secondary sm" onClick={() => archiveRow(row.id)}>{t('action.delete')}</button>
+              <button className="btn secondary sm" onClick={() => archiveRow(row.id)} disabled={busy}>{t('action.delete')}</button>
             )}{' '}
             {isSystemAdmin && (
               <button type="button" className="btn danger sm" onClick={() => setForceDeleteCandidate({ id: row.id, asphaltPlant: row.asphaltPlant })}>حذف نهائي</button>

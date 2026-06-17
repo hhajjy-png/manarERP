@@ -136,7 +136,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       });
       downloadBlob(res.data as Blob, `${cfg.key}-export.xlsx`);
     } catch (e) {
-      alert(errorMessage(e));
+      setError(errorMessage(e));
     } finally {
       setExportBusy(false);
     }
@@ -168,30 +168,40 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       } else if (status === 409 && cfg.supportsArchive && canUpdate) {
         setArchiveCandidate({ id: row.id, label: row.name ?? row.code ?? String(row.id) });
       } else {
-        alert(errorMessage(err));
+        setError(errorMessage(err));
       }
     }
   }
 
+  const [busy, setBusy] = useState(false);
+
   async function onConfirmArchive() {
     if (!archiveCandidate) return;
+    if (busy) return;
+    setBusy(true);
     try {
       await api.patch(`${cfg.endpoint}/${archiveCandidate.id}/archive`);
       setArchiveCandidate(null);
       load();
     } catch (err) {
-      alert(errorMessage(err));
+      setError(errorMessage(err));
       setArchiveCandidate(null);
+    } finally {
+      setBusy(false);
     }
   }
 
   async function onApprove(id: number, action: 'approve' | 'reject') {
     if (!confirm(t(action === 'approve' ? 'msg.confirm_approve' : 'msg.confirm_reject'))) return;
+    if (busy) return;
+    setBusy(true);
     try {
       await api.patch(`${cfg.endpoint}/${id}/${action}`);
       load();
     } catch (err) {
-      alert(errorMessage(err));
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -331,8 +341,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           <>
             {cfg.canApprove && row.status === 'PENDING' && hasPermission('expenses.approve') && (
               <>
-                <button type="button" className="btn sm" onClick={() => onApprove(row.id, 'approve')}>{t('action.approve')}</button>{' '}
-                <button type="button" className="btn secondary sm" onClick={() => onApprove(row.id, 'reject')}>{t('action.reject')}</button>{' '}
+                <button type="button" className="btn sm" onClick={() => onApprove(row.id, 'approve')} disabled={busy}>{t('action.approve')}</button>{' '}
+                <button type="button" className="btn secondary sm" onClick={() => onApprove(row.id, 'reject')} disabled={busy}>{t('action.reject')}</button>{' '}
               </>
             )}
             {canUpdate && <button type="button" className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>}{' '}
@@ -369,7 +379,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           footer={
             <>
               <button type="button" className="btn secondary" onClick={() => setArchiveCandidate(null)}>إلغاء</button>
-              <button type="button" className="btn" onClick={onConfirmArchive}>أرشفة</button>
+              <button type="button" className="btn" onClick={onConfirmArchive} disabled={busy}>أرشفة</button>
             </>
           }
         >

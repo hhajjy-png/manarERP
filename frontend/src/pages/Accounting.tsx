@@ -143,6 +143,8 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -160,7 +162,9 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
 
   async function deleteAccount(id: number) {
     if (!confirm(t('confirm.delete_account'))) return;
-    try { await api.delete(`/accounting/accounts/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return;
+    setBusy(true);
+    try { await api.delete(`/accounting/accounts/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -184,6 +188,8 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
         {canCreate && <button type="button" className="btn" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(true)}>{t('btn.acc.new_account')}</button>}
       </div>
 
+      {error && <div className="alert error">⚠️ {error}</div>}
+
       <DataTable
         columns={columns}
         rows={rows}
@@ -193,7 +199,7 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
         actions={(row) => (
           <>
             <button type="button" className="btn sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>{' '}
-            <button type="button" className="btn secondary sm" onClick={() => deleteAccount(row.id)}>{t('action.delete')}</button>
+            <button type="button" className="btn secondary sm" onClick={() => deleteAccount(row.id)} disabled={busy}>{t('action.delete')}</button>
           </>
         )}
       />
@@ -285,6 +291,8 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [expanded, setExpanded] = useState<any | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -300,7 +308,9 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
 
   async function cancelEntry(id: number) {
     if (!confirm(t('confirm.cancel_entry'))) return;
-    try { await api.patch(`/accounting/journal/${id}/cancel`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return;
+    setBusy(true);
+    try { await api.patch(`/accounting/journal/${id}/cancel`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -319,6 +329,8 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
         {canCreate && <button type="button" className="btn" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(true)}>{t('btn.acc.new_entry')}</button>}
       </div>
 
+      {error && <div className="alert error">⚠️ {error}</div>}
+
       <DataTable
         columns={columns}
         rows={rows}
@@ -329,7 +341,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
           <>
             <button type="button" className="btn sm" onClick={() => setExpanded(row)}>{t('action.view')}</button>{' '}
             {row.status === 'POSTED' && row.referenceType === 'MANUAL' && (
-              <button type="button" className="btn secondary sm" onClick={() => cancelEntry(row.id)}>{t('action.cancel')}</button>
+              <button type="button" className="btn secondary sm" onClick={() => cancelEntry(row.id)} disabled={busy}>{t('action.cancel')}</button>
             )}
           </>
         )}

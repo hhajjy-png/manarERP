@@ -74,6 +74,8 @@ export default function Expenses() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
   const [exportingExcel, setExportingExcel] = useState(false);
+  const [error, setError] = useState('');
+  const [actionBusy, setActionBusy] = useState(false);
 
   const isFiltered = !!(search || statusFilter || categoryFilter || supplierFilter || monthFilter || yearFilter);
 
@@ -117,17 +119,23 @@ export default function Expenses() {
 
   async function approve(id: number) {
     if (!confirm(t('msg.confirm_approve'))) return;
-    try { await api.patch(`/expenses/${id}/approve`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (actionBusy) return;
+    setActionBusy(true);
+    try { await api.patch(`/expenses/${id}/approve`); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
   }
 
   async function reject(id: number) {
     if (!confirm(t('msg.confirm_reject'))) return;
-    try { await api.patch(`/expenses/${id}/reject`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (actionBusy) return;
+    setActionBusy(true);
+    try { await api.patch(`/expenses/${id}/reject`); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
   }
 
   async function remove(id: number) {
     if (!confirm('هل أنت متأكد من حذف هذا المصروف؟')) return;
-    try { await api.delete(`/expenses/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (actionBusy) return;
+    setActionBusy(true);
+    try { await api.delete(`/expenses/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
   }
 
   async function exportExcel() {
@@ -148,7 +156,7 @@ export default function Expenses() {
         'ملاحظات': r.notes ?? '',
       }));
       downloadXlsx(wsData, 'المصروفات', `expenses_${new Date().toISOString().slice(0, 10)}.xlsx`);
-    } catch (e) { alert(errorMessage(e)); }
+    } catch (e) { setError(errorMessage(e)); }
     finally { setExportingExcel(false); }
   }
 
@@ -239,6 +247,7 @@ export default function Expenses() {
           <button type="button" className="btn secondary sm" onClick={load} disabled={loading}>↻ تحديث</button>
         </div>
       )}
+      {error && <div className="alert error">⚠️ {error}</div>}
 
       {/* ── Filters ── */}
       <form className="toolbar" onSubmit={(e) => e.preventDefault()}>
@@ -299,13 +308,13 @@ export default function Expenses() {
               <button type="button" className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>
             )}{' '}
             {hasPermission('expenses.approve') && row.status === 'PENDING' && (
-              <button type="button" className="btn sm" onClick={() => approve(row.id)}>{t('action.approve')}</button>
+              <button type="button" className="btn sm" onClick={() => approve(row.id)} disabled={actionBusy}>{t('action.approve')}</button>
             )}{' '}
             {hasPermission('expenses.approve') && row.status === 'PENDING' && (
-              <button type="button" className="btn secondary sm" onClick={() => reject(row.id)}>{t('action.reject')}</button>
+              <button type="button" className="btn secondary sm" onClick={() => reject(row.id)} disabled={actionBusy}>{t('action.reject')}</button>
             )}{' '}
             {hasPermission('expenses.delete') && row.status !== 'APPROVED' && (
-              <button type="button" className="btn danger sm" onClick={() => remove(row.id)}>{t('action.delete')}</button>
+              <button type="button" className="btn danger sm" onClick={() => remove(row.id)} disabled={actionBusy}>{t('action.delete')}</button>
             )}
           </>
         )}

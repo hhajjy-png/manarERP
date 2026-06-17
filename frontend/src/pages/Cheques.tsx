@@ -279,6 +279,7 @@ export default function Cheques() {
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPrintConfirm, setShowPrintConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
   const canCreate = hasPermission('cheques.create');
   const canUpdate = hasPermission('cheques.update');
   const canPrint = hasPermission('cheques.print');
@@ -420,6 +421,7 @@ export default function Cheques() {
       setShowPrintConfirm(false);
       return;
     }
+    if (busy) return; setBusy(true);
     try {
       await api.post(`/cheques/${printTarget.id}/mark-printed`);
       setSuccess(t('msg.cheque.printed'));
@@ -430,6 +432,8 @@ export default function Cheques() {
     } catch (e) {
       setFormError(errorMessage(e));
       setShowPrintConfirm(false);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -437,6 +441,7 @@ export default function Cheques() {
 
   async function handleCancel(cheque: Cheque) {
     if (!window.confirm(t('page.cheques.confirm_cancel'))) return;
+    if (busy) return; setBusy(true);
     try {
       await api.post(`/cheques/${cheque.id}/cancel`);
       setSuccess(t('msg.cheque.cancelled'));
@@ -447,6 +452,8 @@ export default function Cheques() {
       await loadData(page);
     } catch (e) {
       setFormError(errorMessage(e));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -502,7 +509,7 @@ export default function Cheques() {
         {t('btn.cheque.select')}
       </button>
       {canCancel && row.status === 'DRAFT' && (
-        <button type="button" className="btn danger sm" onClick={() => handleCancel(row)}>
+        <button type="button" className="btn danger sm" onClick={() => handleCancel(row)} disabled={busy}>
           {t('page.cheques.cancel_cheque')}
         </button>
       )}
@@ -577,7 +584,7 @@ export default function Cheques() {
           footer={
             <>
               {canPrint && (
-                <button type="button" className="btn" onClick={handleMarkPrinted}>
+                <button type="button" className="btn" onClick={handleMarkPrinted} disabled={busy}>
                   {t('page.cheques.mark_printed')}
                 </button>
               )}
@@ -666,7 +673,7 @@ export default function Cheques() {
               🖨️ {t('page.cheques.print')}
             </button>
             {canCancel && printTarget && printTarget.status === 'DRAFT' && (
-              <button type="button" className="btn danger" onClick={() => handleCancel(printTarget)}>
+              <button type="button" className="btn danger" onClick={() => handleCancel(printTarget)} disabled={busy}>
                 {t('page.cheques.cancel_cheque')}
               </button>
             )}

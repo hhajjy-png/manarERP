@@ -51,6 +51,7 @@ export default function Users() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const [msg, setMsg] = useState<{ text: string; type: 'ok' | 'err' } | null>(null);
 
@@ -130,11 +131,12 @@ export default function Users() {
   }
 
   async function toggleActive(u: UserRow) {
+    if (busy) return; setBusy(true);
     try {
       await api.put(`/users/${u.id}`, { isActive: !u.isActive });
       showMsg(u.isActive ? t('msg.users.disabled') : t('msg.users.enabled'));
       loadUsers();
-    } catch (err) { showMsg(errorMessage(err), 'err'); }
+    } catch (err) { showMsg(errorMessage(err), 'err'); } finally { setBusy(false); }
   }
 
   async function toggleRoleExpand(roleId: number) {
@@ -210,6 +212,7 @@ export default function Users() {
                           className={`btn ${u.isActive ? 'secondary' : ''} sm`}
                           style={u.isActive ? { color: 'var(--danger)' } : {}}
                           onClick={() => toggleActive(u)}
+                          disabled={busy}
                         >
                           {u.isActive ? t('btn.users.disable') : t('btn.users.enable')}
                         </button>

@@ -136,9 +136,13 @@ export default function Invoices() {
       .catch(() => {});
   }, []);
 
+  const [cancelBusy, setCancelBusy] = useState(false);
+
   async function cancel(id: number) {
     if (!confirm(t('confirm.cancel_invoice'))) return;
-    try { await api.patch(`/invoices/${id}/cancel`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (cancelBusy) return;
+    setCancelBusy(true);
+    try { await api.patch(`/invoices/${id}/cancel`); load(); } catch (e) { setLoadError(errorMessage(e)); } finally { setCancelBusy(false); }
   }
 
   async function exportExcel() {
@@ -177,7 +181,7 @@ export default function Invoices() {
       }));
       downloadXlsx(wsData, 'الفواتير', `invoices_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (e) {
-      alert(errorMessage(e));
+      setLoadError(errorMessage(e));
     } finally {
       setExportingExcel(false);
     }
@@ -348,7 +352,7 @@ export default function Invoices() {
               <button type="button" className="btn sm" onClick={() => setPaying(row)}>{t('page.invoices.collect')}</button>
             )}{' '}
             {hasPermission('invoices.update') && row.status !== 'CANCELLED' && Number(row.paidAmount) === 0 && (
-              <button type="button" className="btn secondary sm" onClick={() => cancel(row.id)}>{t('page.invoices.cancel_inv')}</button>
+              <button type="button" className="btn secondary sm" onClick={() => cancel(row.id)} disabled={cancelBusy}>{t('page.invoices.cancel_inv')}</button>
             )}{' '}
             {isSystemAdmin && (
               <button type="button" className="btn danger sm" title="حذف نهائي" onClick={() => setForceDeleteId(row.id as number)}>🗑️</button>
