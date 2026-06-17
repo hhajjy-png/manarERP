@@ -17,6 +17,7 @@ export interface FormField {
   required?: boolean;
   half?: boolean;
   defaultValue?: string;
+  placeholder?: string;
 }
 
 interface Props {
@@ -153,9 +154,9 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
                   {opts.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
                 </select>
               ) : f.type === 'textarea' ? (
-                <textarea rows={3} autoFocus={autoFocus} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
+                <textarea rows={3} autoFocus={autoFocus} placeholder={f.placeholder} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
               ) : (
-                <input autoFocus={autoFocus} type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'password' ? 'password' : 'text'} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
+                <input autoFocus={autoFocus} type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'password' ? 'password' : 'text'} placeholder={f.placeholder} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
               )}
             </div>
           );
