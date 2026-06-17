@@ -61,19 +61,6 @@ function calcWorkHours(checkIn?: string | null, checkOut?: string | null): numbe
   return Math.max(0, Math.round(h * 100) / 100);
 }
 
-const inp: React.CSSProperties = {
-  padding: '10px 12px',
-  border: '1px solid var(--border)',
-  borderRadius: 10,
-  background: 'var(--bg)',
-  color: 'var(--text)',
-  fontFamily: 'inherit',
-  fontWeight: 600,
-  fontSize: 14,
-  outline: 'none',
-  width: '100%',
-  boxSizing: 'border-box',
-};
 
 // ── KPI strip ─────────────────────────────────────────────────────────────────
 
@@ -147,11 +134,9 @@ function AttendanceForm({
   return (
     <form id={id} onSubmit={onSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
       {!isEdit && (
-        <div style={{ gridColumn: '1/-1' }}>
-          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>
-            {t('field.att.employee')} *
-          </label>
-          <select style={inp} required value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
+        <div className="field" style={{ gridColumn: '1/-1' }}>
+          <label>{t('field.att.employee')} *</label>
+          <select required value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
             <option value="">{t('ph.att.select_employee')}</option>
             {employeeList.map((emp) => (
               <option key={emp.id} value={emp.id}>{emp.fullName} ({emp.code})</option>
@@ -160,18 +145,14 @@ function AttendanceForm({
         </div>
       )}
 
-      <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>
-          {t('field.date')} *
-        </label>
-        <input style={inp} type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={isEdit} />
+      <div className="field">
+        <label>{t('field.date')} *</label>
+        <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={isEdit} />
       </div>
 
-      <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>
-          {t('field.status')}
-        </label>
-        <select style={inp} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+      <div className="field">
+        <label>{t('field.status')}</label>
+        <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
           <option value="PRESENT">{t('opt.att.present')}</option>
           <option value="ABSENT">{t('opt.att.absent')}</option>
           <option value="LATE">{t('opt.att.late')}</option>
@@ -179,37 +160,29 @@ function AttendanceForm({
         </select>
       </div>
 
-      <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>
-          {t('field.att.check_in')}
-        </label>
-        <input style={inp} type="time" value={form.checkIn} onChange={(e) => setForm({ ...form, checkIn: e.target.value })} />
+      <div className="field">
+        <label>{t('field.att.check_in')}</label>
+        <input type="time" value={form.checkIn} onChange={(e) => setForm({ ...form, checkIn: e.target.value })} />
       </div>
 
-      <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>
-          {t('field.att.check_out')}
-        </label>
-        <input style={inp} type="time" value={form.checkOut} onChange={(e) => setForm({ ...form, checkOut: e.target.value })} />
+      <div className="field">
+        <label>{t('field.att.check_out')}</label>
+        <input type="time" value={form.checkOut} onChange={(e) => setForm({ ...form, checkOut: e.target.value })} />
       </div>
 
       {(form.checkIn && form.checkOut) && (
-        <div style={{ gridColumn: '1/-1' }}>
-          <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>
-            {t('field.att.work_hours')}
-          </label>
-          <div style={{ ...inp, background: 'var(--bg-secondary)', color: 'var(--text-muted)', cursor: 'default' }}>
+        <div className="field" style={{ gridColumn: '1/-1' }}>
+          <label>{t('field.att.work_hours')}</label>
+          <div style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default', fontWeight: 600, fontSize: 14 }}>
             {computedHours != null ? `${computedHours} ساعة` : '—'}
           </div>
         </div>
       )}
 
-      <div style={{ gridColumn: '1/-1' }}>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>
-          {t('field.notes')}
-        </label>
+      <div className="field" style={{ gridColumn: '1/-1' }}>
+        <label>{t('field.notes')}</label>
         <textarea
-          style={{ ...inp, minHeight: 64, resize: 'vertical' }}
+          style={{ minHeight: 64, resize: 'vertical' }}
           value={form.notes}
           onChange={(e) => setForm({ ...form, notes: e.target.value })}
         />
@@ -462,26 +435,27 @@ export default function Attendance() {
       {/* Filters */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         <input
-          style={{ ...inp, width: 240 }}
+          className="line-input"
+          style={{ width: 240 }}
           placeholder={t('ph.att.search')}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
-        <select style={{ ...inp, width: 200 }} value={filterEmployee} onChange={(e) => { setFilterEmployee(e.target.value); setPage(1); }}>
+        <select className="line-input" style={{ width: 200 }} value={filterEmployee} onChange={(e) => { setFilterEmployee(e.target.value); setPage(1); }}>
           <option value="">{t('ph.att.select_employee')}</option>
           {employeeList.map((emp) => (
             <option key={emp.id} value={emp.id}>{emp.fullName} ({emp.code})</option>
           ))}
         </select>
-        <select style={{ ...inp, width: 160 }} value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
+        <select className="line-input" style={{ width: 160 }} value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
           <option value="">{t('opt.att.all_statuses')}</option>
           <option value="PRESENT">{t('opt.att.present')}</option>
           <option value="ABSENT">{t('opt.att.absent')}</option>
           <option value="LATE">{t('opt.att.late')}</option>
           <option value="LEAVE">{t('opt.att.leave')}</option>
         </select>
-        <input style={{ ...inp, width: 150 }} type="date" value={filterDateFrom} onChange={(e) => { setFilterDateFrom(e.target.value); setPage(1); }} title={t('filter.date_from')} />
-        <input style={{ ...inp, width: 150 }} type="date" value={filterDateTo}   onChange={(e) => { setFilterDateTo(e.target.value);   setPage(1); }} title={t('filter.date_to')} />
+        <input className="line-input" style={{ width: 150 }} type="date" value={filterDateFrom} onChange={(e) => { setFilterDateFrom(e.target.value); setPage(1); }} title={t('filter.date_from')} />
+        <input className="line-input" style={{ width: 150 }} type="date" value={filterDateTo}   onChange={(e) => { setFilterDateTo(e.target.value);   setPage(1); }} title={t('filter.date_to')} />
         {(search || filterEmployee || filterStatus || filterDateFrom || filterDateTo) && (
           <button className="btn secondary sm" onClick={() => { setSearch(''); setFilterEmployee(''); setFilterStatus(''); setFilterDateFrom(''); setFilterDateTo(''); setPage(1); }}>
             {t('action.cancel')} ✕
@@ -507,13 +481,13 @@ export default function Attendance() {
           title={t('modal.att.create_title')}
           onClose={createGuardClose}
           footer={
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              {formError && <span style={{ color: 'var(--red)', fontSize: 13, flex: 1 }}>{formError}</span>}
-              <button className="btn secondary" onClick={createGuardClose}>{t('action.cancel')}</button>
+            <>
               <button className="btn" form="att-create-form" type="submit" disabled={saving}>{t('action.save')}</button>
-            </div>
+              <button className="btn secondary" onClick={createGuardClose}>{t('action.cancel')}</button>
+            </>
           }
         >
+          {formError && <div className="alert error">⚠️ {formError}</div>}
           <AttendanceForm
             id="att-create-form"
             form={createForm}
@@ -532,13 +506,13 @@ export default function Attendance() {
           title={t('modal.att.edit_title')}
           onClose={editGuardClose}
           footer={
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              {formError && <span style={{ color: 'var(--red)', fontSize: 13, flex: 1 }}>{formError}</span>}
-              <button className="btn secondary" onClick={editGuardClose}>{t('action.cancel')}</button>
+            <>
               <button className="btn" form="att-edit-form" type="submit" disabled={saving}>{t('action.save')}</button>
-            </div>
+              <button className="btn secondary" onClick={editGuardClose}>{t('action.cancel')}</button>
+            </>
           }
         >
+          {formError && <div className="alert error">⚠️ {formError}</div>}
           <AttendanceForm
             id="att-edit-form"
             form={editForm}
