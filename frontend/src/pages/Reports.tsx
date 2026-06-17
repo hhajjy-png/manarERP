@@ -366,19 +366,19 @@ export default function Reports() {
 
         <div style={{ display: 'flex', gap: 8, marginRight: 'auto', alignItems: 'center', flexWrap: 'wrap' }}>
           {canView && (
-            <button className="btn" onClick={loadPreview} disabled={loading} style={{ padding: '8px 18px' }}>
+            <button type="button" className="btn" onClick={loadPreview} disabled={loading}>
               {loading ? t('page.reports.loading') : t('page.reports.view')}
             </button>
           )}
           {(from || to || customerId || employeeId || status || direction || billingMonth || billingYear || company || workType) && (
-            <button type="button" className="btn secondary" onClick={resetFilters} style={{ padding: '8px 14px' }}>
+            <button type="button" className="btn secondary" onClick={resetFilters}>
               {t('action.reset_filters')}
             </button>
           )}
           {canExport && preview && (
             <>
               <ExportExcelButton onExport={downloadExcel} busy={excelBusy} />
-              <button className="btn secondary" onClick={openPrint} style={{ padding: '8px 16px' }}>
+              <button type="button" className="btn secondary" onClick={openPrint}>
                 🖨️ {t('btn.reports.print')}
               </button>
             </>

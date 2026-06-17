@@ -11,7 +11,7 @@ export default function ExportExcelButton({ onExport, busy }: Props) {
       onClick={onExport}
       disabled={busy}
     >
-      {busy ? '...' : '⬇ تصدير Excel'}
+      {busy ? 'جاري...' : '⬇ تصدير Excel'}
     </button>
   );
 }

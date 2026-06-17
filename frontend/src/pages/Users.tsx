@@ -153,7 +153,7 @@ export default function Users() {
           <p>{t('page.users.subtitle')}</p>
         </div>
         {tab === 'users' && canCreate && (
-          <button className="btn" onClick={openCreate}>{t('btn.users.new_user')}</button>
+          <button type="button" className="btn" onClick={openCreate}>{t('btn.users.new_user')}</button>
         )}
       </div>
 
@@ -164,10 +164,10 @@ export default function Users() {
       )}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <button className={`btn ${tab === 'users' ? '' : 'secondary'}`} onClick={() => setTab('users')}>
+        <button type="button" className={`btn ${tab === 'users' ? '' : 'secondary'}`} onClick={() => setTab('users')}>
           👤 {t('tab.users.users')}
         </button>
-        <button className={`btn ${tab === 'roles' ? '' : 'secondary'}`} onClick={() => setTab('roles')}>
+        <button type="button" className={`btn ${tab === 'roles' ? '' : 'secondary'}`} onClick={() => setTab('roles')}>
           🔑 {t('tab.users.roles')}
         </button>
       </div>
@@ -202,10 +202,11 @@ export default function Users() {
                     </td>
                     <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
                       {canUpdate && (
-                        <button className="btn secondary sm" onClick={() => openEdit(u)}>{t('action.edit')}</button>
+                        <button type="button" className="btn secondary sm" onClick={() => openEdit(u)}>{t('action.edit')}</button>
                       )}{' '}
                       {canUpdate && (
                         <button
+                          type="button"
                           className={`btn ${u.isActive ? 'secondary' : ''} sm`}
                           style={u.isActive ? { color: 'var(--danger)' } : {}}
                           onClick={() => toggleActive(u)}
@@ -234,7 +235,7 @@ export default function Users() {
                     {t('lbl.users.role_stats', { users: role._count.users, perms: role._count.rolePermissions })}
                   </span>
                 </div>
-                <button className="btn secondary sm" onClick={() => toggleRoleExpand(role.id)}>
+                <button type="button" className="btn secondary sm" onClick={() => toggleRoleExpand(role.id)}>
                   {expandedRole?.id === role.id ? `▲ ${t('btn.users.hide_perms')}` : `▼ ${t('btn.users.show_perms')}`}
                 </button>
               </div>

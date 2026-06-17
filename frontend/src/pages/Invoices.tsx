@@ -345,13 +345,13 @@ export default function Invoices() {
               <button type="button" className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>
             )}{' '}
             {hasPermission('invoices.update') && row.status !== 'PAID' && row.status !== 'CANCELLED' && (
-              <button className="btn sm" onClick={() => setPaying(row)}>{t('page.invoices.collect')}</button>
+              <button type="button" className="btn sm" onClick={() => setPaying(row)}>{t('page.invoices.collect')}</button>
             )}{' '}
             {hasPermission('invoices.update') && row.status !== 'CANCELLED' && Number(row.paidAmount) === 0 && (
-              <button className="btn secondary sm" onClick={() => cancel(row.id)}>{t('page.invoices.cancel_inv')}</button>
+              <button type="button" className="btn secondary sm" onClick={() => cancel(row.id)}>{t('page.invoices.cancel_inv')}</button>
             )}{' '}
             {isSystemAdmin && (
-              <button type="button" className="btn danger sm" title="حذف نهائي" style={{ padding: '4px 8px', lineHeight: 1 }} onClick={() => setForceDeleteId(row.id as number)}>🗑️</button>
+              <button type="button" className="btn danger sm" title="حذف نهائي" onClick={() => setForceDeleteId(row.id as number)}>🗑️</button>
             )}
           </>
         )}
