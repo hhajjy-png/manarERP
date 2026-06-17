@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import * as XLSX from 'xlsx';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -7,6 +6,8 @@ import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import { money, dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
+import ExportExcelButton from '../components/ExportExcelButton';
+import { downloadXlsx } from '../utils/exportUtils';
 
 const ARABIC_MONTHS = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
@@ -146,15 +147,7 @@ export default function Expenses() {
         'الحالة': STATUS_AR[r.status] ?? r.status,
         'ملاحظات': r.notes ?? '',
       }));
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(wsData);
-      XLSX.utils.book_append_sheet(wb, ws, 'المصروفات');
-      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `expenses_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      a.click(); URL.revokeObjectURL(url);
+      downloadXlsx(wsData, 'المصروفات', `expenses_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (e) { alert(errorMessage(e)); }
     finally { setExportingExcel(false); }
   }
@@ -282,9 +275,7 @@ export default function Expenses() {
           <button type="button" className="btn secondary sm" onClick={resetFilters}>{t('action.reset_filters')}</button>
         )}
         <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
-        <button type="button" className="btn secondary sm" onClick={exportExcel} disabled={exportingExcel}>
-          {exportingExcel ? '⏳' : '⬇'} Excel
-        </button>
+        <ExportExcelButton onExport={exportExcel} busy={exportingExcel} />
       </form>
 
       <DataTable
