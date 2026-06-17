@@ -300,7 +300,7 @@ export default function Prices() {
           <div style={{ marginBottom: 12, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 8, fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
             <div>⚠️ {t('agreements.usage.note')}</div>
             {usageReport.hasDirectTracking && (
-              <div style={{ marginTop: 6, color: 'var(--green)', fontWeight: 600 }}>✓ تتبع مباشر — مبني على priceId</div>
+              <div style={{ marginTop: 6, color: 'var(--green)', fontWeight: 600 }}>يعتمد هذا التقرير على الفواتير المنشأة بعد تفعيل تتبع اتفاقيات الأسعار.</div>
             )}
           </div>
 

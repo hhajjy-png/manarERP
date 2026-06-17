@@ -620,10 +620,10 @@ model InvoiceItem {
   unit        String @default("طن") // طن | درب | يومية
   unitPrice   Float  @default(0)
   total       Float  @default(0)
-  priceId     Int?   // FK to project_prices (nullable — snapshot-based)
+  priceId     Int?   // FK to project_prices (nullable — immutable snapshot, set at creation)
 
   invoice Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  price   ProjectPrice? @relation(fields: [priceId], references: [id], onDelete: SetNull)
+  price   ProjectPrice? @relation(fields: [priceId], references: [id], onDelete: Restrict)
 
   @@index([invoiceId])
   @@index([priceId])

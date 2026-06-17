@@ -175,18 +175,32 @@ export async function getPricesUsageByCompany() {
 export async function forceRemovePreview(id: number) {
   const price = await prisma.projectPrice.findUnique({ where: { id } });
   if (!price) throw AppError.notFound('السعر غير موجود');
+
+  const invoiceItemCount = await prisma.invoiceItem.count({ where: { priceId: id } });
+
   return {
     price,
-    childCounts: {},
-    totalChildRecords: 0,
+    childCounts: { invoiceItems: invoiceItemCount },
+    totalChildRecords: invoiceItemCount,
     willBeDeleted: ['projectPrice'],
     willBeNullified: [],
+    blocked: invoiceItemCount > 0,
+    blockReason: invoiceItemCount > 0
+      ? `لا يمكن حذف هذا السعر — مرتبط بـ ${invoiceItemCount} بند فاتورة. أرشف السعر بدلاً من الحذف.`
+      : null,
   };
 }
 
 export async function forceRemove(id: number, req: Request) {
   const price = await prisma.projectPrice.findUnique({ where: { id } });
   if (!price) throw AppError.notFound('السعر غير موجود');
+
+  const invoiceItemCount = await prisma.invoiceItem.count({ where: { priceId: id } });
+  if (invoiceItemCount > 0) {
+    throw AppError.conflict(
+      `لا يمكن حذف هذا السعر — مرتبط بـ ${invoiceItemCount} بند فاتورة. أرشف السعر بدلاً من الحذف.`,
+    );
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.projectPrice.delete({ where: { id } });
@@ -208,12 +222,12 @@ export async function forceRemove(id: number, req: Request) {
         unitPrice: price.unitPrice,
         isArchived: price.isArchived,
       },
-      childCounts: {},
+      childCounts: { invoiceItems: 0 },
       totalChildRecords: 0,
       willBeDeleted: ['projectPrice'],
       willBeNullified: [],
     },
   });
 
-  return { deleted: true, impact: { childCounts: {}, totalChildRecords: 0 } };
+  return { deleted: true, impact: { childCounts: { invoiceItems: 0 }, totalChildRecords: 0 } };
 }
