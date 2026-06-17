@@ -62,7 +62,7 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
               rows.map((row, i) => (
                 <tr key={row.id ?? i}>
                   {columns.map((c) => <td key={c.key}>{c.render ? c.render(row) : (row[c.key] ?? '—')}</td>)}
-                  {actions && <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>{actions(row)}</td>}
+                  {actions && <td style={{ textAlign: 'start', whiteSpace: 'nowrap' }}>{actions(row)}</td>}
                 </tr>
               ))
             )}
