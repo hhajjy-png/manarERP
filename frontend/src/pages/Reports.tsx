@@ -271,20 +271,20 @@ export default function Reports() {
         {f.includes('date') && (
           <>
             <div className="field" style={{ margin: 0, minWidth: 140 }}>
-              <label style={{ fontSize: 12 }}>{t('filter.date_from')}</label>
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }} />
+              <label>{t('filter.date_from')}</label>
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
             </div>
             <div className="field" style={{ margin: 0, minWidth: 140 }}>
-              <label style={{ fontSize: 12 }}>{t('filter.date_to')}</label>
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }} />
+              <label>{t('filter.date_to')}</label>
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
           </>
         )}
 
         {f.includes('customer') && customers.length > 0 && (
           <div className="field" style={{ margin: 0, minWidth: 180 }}>
-            <label style={{ fontSize: 12 }}>{t('filter.customer')}</label>
-            <select value={customerId} onChange={(e) => setCustomerId(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+            <label>{t('filter.customer')}</label>
+            <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
               <option value="">{t('opt.all')}</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
@@ -293,8 +293,8 @@ export default function Reports() {
 
         {f.includes('employee') && employees.length > 0 && (
           <div className="field" style={{ margin: 0, minWidth: 180 }}>
-            <label style={{ fontSize: 12 }}>{t('filter.employee')}</label>
-            <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+            <label>{t('filter.employee')}</label>
+            <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
               <option value="">{t('opt.all')}</option>
               {employees.map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
             </select>
@@ -303,8 +303,8 @@ export default function Reports() {
 
         {f.includes('direction') && (
           <div className="field" style={{ margin: 0, minWidth: 140 }}>
-            <label style={{ fontSize: 12 }}>{t('filter.direction')}</label>
-            <select value={direction} onChange={(e) => setDirection(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+            <label>{t('filter.direction')}</label>
+            <select value={direction} onChange={(e) => setDirection(e.target.value)}>
               <option value="">{t('opt.all')}</option>
               <option value="SALES">{t('opt.direction.sales')}</option>
               <option value="PURCHASE">{t('opt.direction.purchase')}</option>
@@ -314,8 +314,8 @@ export default function Reports() {
 
         {f.includes('status') && currentType.statuses && (
           <div className="field" style={{ margin: 0, minWidth: 160 }}>
-            <label style={{ fontSize: 12 }}>{t(currentType.statusLabel ?? 'filter.status')}</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+            <label>{t(currentType.statusLabel ?? 'filter.status')}</label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">{t('opt.all')}</option>
               {currentType.statuses.map(([val, lbl]) => <option key={val} value={val}>{t(lbl)}</option>)}
             </select>
@@ -324,8 +324,8 @@ export default function Reports() {
 
         {f.includes('billingMonth') && (
           <div className="field" style={{ margin: 0, minWidth: 130 }}>
-            <label style={{ fontSize: 12 }}>شهر الحساب</label>
-            <select value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+            <label>شهر الحساب</label>
+            <select value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)}>
               <option value="">الكل</option>
               {ARABIC_MONTHS.map((name, i) => <option key={i + 1} value={i + 1}>{name}</option>)}
             </select>
@@ -334,8 +334,8 @@ export default function Reports() {
 
         {f.includes('billingYear') && (
           <div className="field" style={{ margin: 0, minWidth: 100 }}>
-            <label style={{ fontSize: 12 }}>السنة</label>
-            <select value={billingYear} onChange={(e) => setBillingYear(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+            <label>السنة</label>
+            <select value={billingYear} onChange={(e) => setBillingYear(e.target.value)}>
               <option value="">الكل</option>
               {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map((y) => (
                 <option key={y} value={y}>{y}</option>
@@ -346,8 +346,8 @@ export default function Reports() {
 
         {f.includes('company') && (
           <div className="field" style={{ margin: 0, minWidth: 180 }}>
-            <label style={{ fontSize: 12 }}>الشركة / المسؤول</label>
-            <select value={company} onChange={(e) => setCompany(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+            <label>الشركة / المسؤول</label>
+            <select value={company} onChange={(e) => setCompany(e.target.value)}>
               <option value="">الكل</option>
               {COMPANY_GROUPS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
             </select>
@@ -356,8 +356,8 @@ export default function Reports() {
 
         {f.includes('workType') && (
           <div className="field" style={{ margin: 0, minWidth: 140 }}>
-            <label style={{ fontSize: 12 }}>نوع العمل</label>
-            <select value={workType} onChange={(e) => setWorkType(e.target.value)} style={{ padding: '6px 10px', fontSize: 13 }}>
+            <label>نوع العمل</label>
+            <select value={workType} onChange={(e) => setWorkType(e.target.value)}>
               <option value="">الكل</option>
               {CONTRACT_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>

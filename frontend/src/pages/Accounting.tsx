@@ -22,10 +22,6 @@ const paymentMethodKey: Record<string, string> = {
   CASH: 'opt.payment.cash', BANK: 'opt.payment.bank', CHEQUE: 'opt.payment.cheque', TRANSFER: 'opt.payment.transfer',
 };
 
-const inp: React.CSSProperties = {
-  padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10,
-  background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, fontSize: 14, outline: 'none',
-};
 
 export default function Accounting() {
   const [tab, setTab] = usePersistedState<Tab>('acc:tab', 'summary');
@@ -450,13 +446,13 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
         </div>
         {lines.map((l, i) => (
           <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr auto', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-            <select value={l.accountId} onChange={(e) => setLine(i, 'accountId', e.target.value)} style={{ ...inp, fontSize: 13 }}>
+            <select value={l.accountId} onChange={(e) => setLine(i, 'accountId', e.target.value)} className="line-input" style={{ fontSize: 13 }}>
               <option value="">{t('msg.select_placeholder')}</option>
               {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
             </select>
-            <input value={l.description} onChange={(e) => setLine(i, 'description', e.target.value)} style={{ ...inp, fontSize: 13 }} placeholder={t('ph.acc.line_desc')} />
-            <input type="number" min="0" step="0.001" value={l.debit} onChange={(e) => setLine(i, 'debit', e.target.value)} style={{ ...inp, fontSize: 13, direction: 'ltr' }} placeholder="0" />
-            <input type="number" min="0" step="0.001" value={l.credit} onChange={(e) => setLine(i, 'credit', e.target.value)} style={{ ...inp, fontSize: 13, direction: 'ltr' }} placeholder="0" />
+            <input value={l.description} onChange={(e) => setLine(i, 'description', e.target.value)} className="line-input" style={{ fontSize: 13 }} placeholder={t('ph.acc.line_desc')} />
+            <input type="number" min="0" step="0.001" value={l.debit} onChange={(e) => setLine(i, 'debit', e.target.value)} className="line-input" style={{ fontSize: 13, direction: 'ltr' }} placeholder="0" />
+            <input type="number" min="0" step="0.001" value={l.credit} onChange={(e) => setLine(i, 'credit', e.target.value)} className="line-input" style={{ fontSize: 13, direction: 'ltr' }} placeholder="0" />
             {lines.length > 2
               ? <button type="button" className="btn secondary sm" onClick={() => setLines((p) => p.filter((_, idx) => idx !== i))}>×</button>
               : <span />}

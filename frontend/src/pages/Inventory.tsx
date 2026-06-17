@@ -125,11 +125,6 @@ function statusBadge(map: Record<string, [string, string]>, status: string, t: (
   return <span className={`pill ${cls}`}>{t(key)}</span>;
 }
 
-const inp: React.CSSProperties = {
-  padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10,
-  background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit',
-  fontWeight: 600, fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box',
-};
 
 // ── Tab Types ─────────────────────────────────────────────────────────────────
 
@@ -316,7 +311,7 @@ function MaterialsTab() {
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 8 }}>
         <input placeholder={t('ph.search_material')} value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={{ ...inp, maxWidth: 280 }} />
+          style={{ maxWidth: 280 }} />
         <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setEditing({})}>{t('btn.inv.new_material')}</button>}
       </div>
@@ -380,7 +375,7 @@ function PurchaseOrdersTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 8, flexWrap: 'wrap' }}>
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ ...inp, maxWidth: 180 }}>
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
           <option value="">{t('opt.all_statuses')}</option>
           <option value="DRAFT">{t('inv.po.status.draft')}</option>
           <option value="SUBMITTED">{t('inv.po.status.submitted')}</option>
@@ -532,7 +527,7 @@ function MaterialIssuesTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 8 }}>
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ ...inp, maxWidth: 180 }}>
+        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
           <option value="">{t('opt.all_statuses')}</option>
           <option value="DRAFT">{t('inv.mi.status.draft')}</option>
           <option value="POSTED">{t('inv.mi.status.posted')}</option>
@@ -594,17 +589,17 @@ function LineItemBuilder({
           gridTemplateColumns: showCost ? '2fr 1fr 1fr 1fr auto' : '3fr 1fr auto',
           gap: 6, marginBottom: 6, alignItems: 'center',
         }}>
-          <select value={it.materialId} onChange={(e) => updateItem(i, { materialId: e.target.value })} style={inp}>
+          <select value={it.materialId} onChange={(e) => updateItem(i, { materialId: e.target.value })} className="line-input">
             <option value="">{t('ph.inv.select_material')}</option>
             {materials.map((m) => <option key={m.id} value={String(m.id)}>{m.name} ({m.unit})</option>)}
           </select>
           <input type="number" min="0.001" step="0.001" placeholder={t('ph.inv.qty')} value={it.quantity}
-            onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })} style={inp} />
+            onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })} className="line-input" />
           {showCost && (
             <>
               <input type="number" min="0" step="0.001" placeholder={t('ph.inv.unit_cost')} value={it.unitCost}
-                onChange={(e) => updateItem(i, { unitCost: Number(e.target.value) })} style={inp} />
-              <div style={{ ...inp, background: 'var(--surface-2)', cursor: 'default' }}>
+                onChange={(e) => updateItem(i, { unitCost: Number(e.target.value) })} className="line-input" />
+              <div className="line-input" style={{ background: 'var(--surface-2)', cursor: 'default' }}>
                 {money(it.quantity * it.unitCost)}
               </div>
             </>
@@ -643,7 +638,7 @@ function DetailModal({ title, id, endpoint, onClose }: { title: string; id: numb
   }, [endpoint, id]);
 
   return (
-    <Modal title={title} onClose={onClose}>
+    <Modal title={title} onClose={onClose} footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.close')}</button>}>
       {!detail ? (
         <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 24 }}>{t('msg.loading')}</div>
       ) : (
