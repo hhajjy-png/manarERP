@@ -11,6 +11,8 @@ import ForceDeleteCustomerModal from '../components/ForceDeleteCustomerModal';
 import ForceDeleteSupplierModal from '../components/ForceDeleteSupplierModal';
 import ForceDeleteContractModal from '../components/ForceDeleteContractModal';
 import { usePersistedState } from '../hooks/usePersistedState';
+import ExportExcelButton from '../components/ExportExcelButton';
+import { downloadBlob } from '../utils/exportUtils';
 
 type AlertItem = { id: number; code: string; label: string; severity: 'warn' | 'error' };
 type ContractStats = { totalContracts: number; activeContracts: number; monthlyTransportTotal: number };
@@ -132,12 +134,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         params: { format: 'excel' },
         responseType: 'blob',
       });
-      const url = URL.createObjectURL(res.data as Blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${cfg.key}-export.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(res.data as Blob, `${cfg.key}-export.xlsx`);
     } catch (e) {
       alert(errorMessage(e));
     } finally {
@@ -203,11 +200,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       <div className="page-head">
         <div><h2>{t(cfg.title)}</h2><p>{t(cfg.subtitle)}</p></div>
         <>
-          {canExport && (
-            <button type="button" className="btn secondary" onClick={exportExcel} disabled={exportBusy}>
-              {exportBusy ? '...' : 'تصدير الكل Excel'}
-            </button>
-          )}
+          {canExport && <ExportExcelButton onExport={exportExcel} busy={exportBusy} />}
           {canCreate && <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t(cfg.createLabel)}</button>}
         </>
       </div>

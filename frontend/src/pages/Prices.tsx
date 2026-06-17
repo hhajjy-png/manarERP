@@ -7,6 +7,8 @@ import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import { money } from '../config/modules';
 import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
+import ExportExcelButton from '../components/ExportExcelButton';
+import { downloadBlob } from '../utils/exportUtils';
 
 const contractUnits = ['طن', 'درب', 'يومية', 'مقطوعية'] as const;
 
@@ -175,12 +177,7 @@ export default function Prices() {
         params: { format: 'excel' },
         responseType: 'blob',
       });
-      const url = URL.createObjectURL(res.data as Blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'agreements-export.xlsx';
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(res.data as Blob, 'agreements-export.xlsx');
     } catch (e) {
       alert(errorMessage(e));
     } finally {
@@ -219,11 +216,7 @@ export default function Prices() {
           <button type="button" className="btn secondary" onClick={loadUsageReport} disabled={usageLoading}>
             {usageLoading ? '...' : t('agreements.usage.title')}
           </button>
-          {hasPermission('reports.export') && (
-            <button type="button" className="btn secondary" onClick={exportExcel} disabled={exportBusy}>
-              {exportBusy ? '...' : 'تصدير الكل Excel'}
-            </button>
-          )}
+          {hasPermission('reports.export') && <ExportExcelButton onExport={exportExcel} busy={exportBusy} />}
           {hasPermission('prices.create') && (
             <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('page.prices.create')}</button>
           )}

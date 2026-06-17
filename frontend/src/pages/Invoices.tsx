@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import * as XLSX from 'xlsx';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -12,6 +11,8 @@ import { usePersistedState } from '../hooks/usePersistedState';
 import { CategoryGroup } from '../constants/kuwaitLocations';
 import { addRecentLocation, computeDropdown } from '../utils/recentLocations';
 import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription, parseDescription } from '../utils/invoiceDescription';
+import ExportExcelButton from '../components/ExportExcelButton';
+import { downloadXlsx } from '../utils/exportUtils';
 
 const statusPill: Record<string, [string, string]> = {
   UNPAID: ['inv.status.unpaid', 'red'], PARTIAL: ['inv.status.partial', 'amber'], PAID: ['inv.status.paid', 'green'],
@@ -156,29 +157,25 @@ export default function Invoices() {
       });
       const all = res.data.data.data ?? [];
       const dirLabel = (d: string) => d === 'SALES' ? 'نقليات عميل' : d === 'PURCHASE' ? 'مشتريات مورد' : d;
+      const statusAr: Record<string, string> = {
+        UNPAID: 'غير مسدد', PARTIAL: 'مسدد جزئياً', PAID: 'مسدد',
+        OVERDUE: 'متأخر', CANCELLED: 'ملغي',
+      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const wsData = all.map((r: any) => ({
         'رقم الفاتورة': r.invoiceNumber ?? r.number,
         'نوع الفاتورة': r.invoiceType ?? '',
         'الاتجاه': dirLabel(r.direction ?? ''),
         'الطرف': r.customer?.name ?? r.supplier?.name ?? '',
+        'تاريخ الإصدار': r.issueDate ? String(r.issueDate).slice(0, 10) : '',
         'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : '',
         'الإجمالي': Number(r.total),
         'المسدد': Number(r.paidAmount),
         'المتبقي': Number(r.total) - Number(r.paidAmount),
+        'الحالة': statusAr[r.status] ?? r.status,
         'ملاحظات': r.notes ?? '',
       }));
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(wsData);
-      XLSX.utils.book_append_sheet(wb, ws, 'الفواتير');
-      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `invoices_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadXlsx(wsData, 'الفواتير', `invoices_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (e) {
       alert(errorMessage(e));
     } finally {
@@ -321,9 +318,7 @@ export default function Invoices() {
           </button>
         )}
         <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
-        <button type="button" className="btn secondary sm" onClick={exportExcel} disabled={exportingExcel}>
-          {exportingExcel ? '⏳' : '⬇'} Excel
-        </button>
+        <ExportExcelButton onExport={exportExcel} busy={exportingExcel} />
         <button type="button" className="btn secondary sm" onClick={() => setShowMonthlyReport(true)}>
           📅 {t('inv.monthly_report')}
         </button>
@@ -1366,17 +1361,7 @@ function MonthlyReportModal({
       'إجمالي المحصل': r.totalCollected,
       'إجمالي المتبقي': r.totalRemaining,
     }));
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(wsData);
-    XLSX.utils.book_append_sheet(wb, ws, 'التقرير الشهري');
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `monthly-report_${new Date().toISOString().slice(0, 10)}.xlsx`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadXlsx(wsData, 'التقرير الشهري', `monthly-report_${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
   const thStyle: React.CSSProperties = { padding: '8px 12px', borderBottom: '2px solid var(--border)', textAlign: 'start', background: 'var(--surface-2)', fontWeight: 700, fontSize: 13 };
@@ -1385,7 +1370,7 @@ function MonthlyReportModal({
   return (
     <Modal title={t('inv.monthly_report')} onClose={onClose} footer={
       <>
-        {rows.length > 0 && <button type="button" className="btn secondary sm" onClick={exportMonthlyExcel}>⬇ Excel</button>}
+        {rows.length > 0 && <ExportExcelButton onExport={exportMonthlyExcel} busy={false} />}
         <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>

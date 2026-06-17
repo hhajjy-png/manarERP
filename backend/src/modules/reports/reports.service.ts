@@ -387,12 +387,15 @@ export class ReportsService {
 
   private async prices(_q: ReportQuery): Promise<ReportInput> {
     const rows = await prisma.projectPrice.findMany({
+      where: { isArchived: false },
       orderBy: [{ asphaltPlant: 'asc' }, { companyName: 'asc' }],
+      include: { customer: { select: { name: true } } },
     });
     return {
       title: 'تقرير اتفاقيات الأسعار',
       subtitle: `إجمالي الاتفاقيات: ${rows.length}`,
       columns: [
+        { header: 'العميل', key: 'customer', width: 26 },
         { header: 'مصنع الأسفلت', key: 'asphaltPlant', width: 28 },
         { header: 'اسم الشركة', key: 'companyName', width: 28 },
         { header: 'مكان العقد', key: 'contractLocation', width: 24 },
@@ -400,6 +403,7 @@ export class ReportsService {
         { header: 'سعر الوحدة', key: 'unitPrice', width: 16, numFmt: '#,##0.000' },
       ],
       rows: rows.map((p) => ({
+        customer: p.customer?.name ?? '',
         asphaltPlant: p.asphaltPlant,
         companyName: p.companyName,
         contractLocation: p.contractLocation,

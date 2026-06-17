@@ -7,6 +7,8 @@ import StatCard from '../components/StatCard';
 import { dateText, money } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { usePersistedState } from '../hooks/usePersistedState';
+import ExportExcelButton from '../components/ExportExcelButton';
+import { downloadBlob } from '../utils/exportUtils';
 
 type EmployeeOption = { id: number; fullName: string; code: string };
 type PayrollLine = { id: number; type: string; label: string; amount: number };
@@ -207,12 +209,7 @@ export default function Salaries() {
         },
         responseType: 'blob',
       });
-      const url = URL.createObjectURL(res.data as Blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `payroll-${month}-${year}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(res.data as Blob, `payroll-${month}-${year}.xlsx`);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -282,11 +279,7 @@ export default function Salaries() {
               <option value="CANCELLED">{t('payroll.status.cancelled')}</option>
             </select>
             {canGenerate && <button className="btn" onClick={generatePayroll} disabled={busy}>{t('page.salaries.generate')}</button>}
-            {canExport && (
-              <button type="button" className="btn secondary" onClick={downloadPayrollExcel} disabled={excelBusy}>
-                {excelBusy ? t('msg.loading') : '⬇ ' + t('page.salaries.export_excel')}
-              </button>
-            )}
+            {canExport && <ExportExcelButton onExport={downloadPayrollExcel} busy={excelBusy} />}
             {canImport && (
               <button type="button" className="btn secondary" onClick={() => navigate('/import')} disabled={busy}>
                 ⬆ {t('page.salaries.import_excel')}

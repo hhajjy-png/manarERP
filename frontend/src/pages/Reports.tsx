@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import ExportExcelButton from '../components/ExportExcelButton';
+import { downloadBlob } from '../utils/exportUtils';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 
@@ -210,12 +212,7 @@ export default function Reports() {
         params: { ...buildParams(), format: 'excel' },
         responseType: 'blob',
       });
-      const url = URL.createObjectURL(res.data as Blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `report-${selected}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(res.data as Blob, `report-${selected}.xlsx`);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -380,9 +377,7 @@ export default function Reports() {
           )}
           {canExport && preview && (
             <>
-              <button className="btn secondary" onClick={downloadExcel} disabled={excelBusy} style={{ padding: '8px 16px' }}>
-                {excelBusy ? '⏳' : '⤓ Excel'}
-              </button>
+              <ExportExcelButton onExport={downloadExcel} busy={excelBusy} />
               <button className="btn secondary" onClick={openPrint} style={{ padding: '8px 16px' }}>
                 🖨️ {t('btn.reports.print')}
               </button>
