@@ -31,6 +31,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [msgType, setMsgType] = useState<'ok' | 'error'>('ok');
 
   useEffect(() => {
     (async () => {
@@ -55,8 +56,10 @@ export default function Settings() {
       await api.put('/settings', { settings });
       await window.manar?.backupReconfigure?.();
       setMsg(t('page.settings.saved'));
+      setMsgType('ok');
     } catch (err) {
       setMsg(errorMessage(err));
+      setMsgType('error');
     } finally {
       setSaving(false);
     }
@@ -70,7 +73,7 @@ export default function Settings() {
         <div><h2>{t('page.settings.title')}</h2><p>{t('page.settings.subtitle')}</p></div>
         <button className="btn" onClick={save} disabled={saving}>{saving ? t('page.settings.saving') : t('page.settings.save')}</button>
       </div>
-      {msg && <div className="alert warn">{msg}</div>}
+      {msg && <div className={`alert ${msgType}`}>{msgType === 'error' ? `⚠️ ${msg}` : msg}</div>}
 
       <div className="card panel" style={{ marginBottom: 20 }}>
         <div className="form-grid">
