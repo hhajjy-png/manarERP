@@ -569,7 +569,8 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               value={invoiceYear}
               onChange={(e) => setInvoiceYear(e.target.value)}
               title={t('col.inv.number')}
-              style={{ ...inp, borderRadius: '10px 0 0 10px', borderInlineEnd: 0, background: 'var(--surface-2)', whiteSpace: 'nowrap' }}
+              className="line-input"
+              style={{ borderRadius: '10px 0 0 10px', borderInlineEnd: 0, background: 'var(--surface-2)', whiteSpace: 'nowrap' }}
             >
               {INVOICE_YEAR_OPTIONS.map((y) => (
                 <option key={y} value={String(y)}>MN-INV-{y}</option>
@@ -579,6 +580,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               value={invoiceNumberSuffix}
               onChange={(e) => setInvoiceNumberSuffix(e.target.value)}
               placeholder="001"
+              className="line-input"
               style={{ borderRadius: '0 10px 10px 0', direction: 'ltr' }}
             />
           </div>
@@ -598,7 +600,6 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               }
             }}
             title="تاريخ الفاتورة"
-            style={inp}
           />
         </div>
         <div className="field">
@@ -608,7 +609,6 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
             value={deliveryDate}
             onChange={(e) => setDeliveryDate(e.target.value)}
             title="تاريخ تسليم الفاتورة"
-            style={inp}
           />
         </div>
         <div className="field">
@@ -618,7 +618,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               value={billingMonth}
               onChange={(e) => setBillingMonth(Number(e.target.value))}
               title="شهر الحساب"
-              style={{ ...inp, flex: 1 }}
+              style={{ flex: 1 }}
             >
               {ARABIC_MONTHS.map((name, idx) => (
                 <option key={idx + 1} value={idx + 1}>{name}</option>
@@ -628,7 +628,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               value={billingYear}
               onChange={(e) => setBillingYear(Number(e.target.value))}
               title="سنة الحساب"
-              style={{ ...inp, width: 90 }}
+              style={{ width: 90 }}
             >
               {billingYearOptions().map((y) => (
                 <option key={y} value={y}>{y}</option>
@@ -649,7 +649,6 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               value={customInvoiceType}
               onChange={(e) => setCustomInvoiceType(e.target.value)}
               placeholder={t('ph.inv.custom_type')}
-              style={inp}
             />
           </div>
         )}
@@ -669,7 +668,6 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                 value={customDirection}
                 onChange={(e) => setCustomDirection(e.target.value)}
                 placeholder={t('ph.inv.custom_direction')}
-                style={inp}
               />
             </div>
             <div className="field">
@@ -714,21 +712,23 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
               value={it.workType ?? DEFAULT_WORK_TYPE}
               onChange={(e) => setItem(i, 'workType', e.target.value)}
               title="نوع العمل"
-              style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box', marginBottom: 4 }}
+              className="line-input"
+              style={{ width: '100%', minWidth: 0, boxSizing: 'border-box', marginBottom: 4 }}
             >
               {(WORK_TYPES as readonly string[]).map((wt) => <option key={wt} value={wt}>{wt}</option>)}
             </select>
             <LocationAutocomplete value={it.location ?? ''} onChange={(v) => setItem(i, 'location', v)} />
           </div>
           <div className="invoice-cell quantity-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <input type="number" min="0.001" step="0.001" placeholder={t('ph.qty')} value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+            <input type="number" min="0.001" step="0.001" placeholder={t('ph.qty')} value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} className="line-input" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
           </div>
           <div className="invoice-cell unit-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
             <select
               value={unitSelectValue(it.unit)}
               onChange={(e) => setItem(i, 'unit', e.target.value)}
               title="الوحدة"
-              style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }}
+              className="line-input"
+              style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
             >
               {(STANDARD_UNITS as readonly string[]).map((u) => <option key={u} value={u}>{u}</option>)}
               <option value={UNIT_OTHER}>{UNIT_OTHER}</option>
@@ -738,13 +738,14 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                 value={it.unit}
                 onChange={(e) => setItem(i, 'unit', e.target.value)}
                 placeholder="اكتب الوحدة"
-                style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box', marginTop: 4 }}
+                className="line-input"
+                style={{ width: '100%', minWidth: 0, boxSizing: 'border-box', marginTop: 4 }}
               />
             )}
           </div>
           <div className="invoice-cell price-cell" style={{ minWidth: 0, overflow: 'visible', position: 'relative' }}>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <input type="number" min="0" step="0.001" placeholder={t('ph.unit_price')} value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} style={{ ...inp, flex: 1, minWidth: 0, boxSizing: 'border-box' }} />
+              <input type="number" min="0" step="0.001" placeholder={t('ph.unit_price')} value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} className="line-input" style={{ flex: 1, minWidth: 0, boxSizing: 'border-box' }} />
               {(() => { const unitPrices = prices.filter((p) => p.contractUnit === it.unit); return unitPrices.length > 0 ? (
                 <>
                   <button
@@ -788,7 +789,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
             </div>
           </div>
           <div className="invoice-cell total-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <div style={{ ...inp, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default', width: '100%', boxSizing: 'border-box' }}>{money(lineTotal(it))}</div>
+            <div className="line-input" style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default', width: '100%', boxSizing: 'border-box' }}>{money(lineTotal(it))}</div>
           </div>
           <div className="invoice-cell delete-cell" style={{ minWidth: 0 }}>
             {items.length > 1 && (
@@ -807,13 +808,12 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 
       <div className="form-grid" style={{ marginTop: 16 }}>
         <div className="field"><label>{t('field.inv.discount_kd')}</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
-        <div className="field"><label>{t('col.inv.total')}</label><div style={{ ...inp, display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default' }}>{money(total)}</div></div>
+        <div className="field"><label>{t('col.inv.total')}</label><div className="line-input" style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default' }}>{money(total)}</div></div>
       </div>
     </Modal>
   );
 }
 
-const inp: React.CSSProperties = { padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, fontSize: 14, outline: 'none' };
 
 // ===== Creatable autocomplete للمنطقة / الموقع =====
 // يقبل نصاً حراً أو اختياراً من القائمة — القيمة المُدخلة تبقى دائماً.
@@ -866,7 +866,8 @@ function LocationAutocomplete({ value, onChange }: { value: string; onChange: (v
         onFocus={() => refresh(value)}
         onBlur={handleBlur}
         onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
-        style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }}
+        className="line-input"
+        style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
         autoComplete="off"
       />
       {open && hasContent && (
@@ -1161,7 +1162,8 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
               value={invoiceYear}
               onChange={(e) => setInvoiceYear(e.target.value)}
               title={t('col.inv.number')}
-              style={{ ...inp, borderRadius: '10px 0 0 10px', borderInlineEnd: 0, background: 'var(--surface-2)', whiteSpace: 'nowrap' }}
+              className="line-input"
+              style={{ borderRadius: '10px 0 0 10px', borderInlineEnd: 0, background: 'var(--surface-2)', whiteSpace: 'nowrap' }}
             >
               {INVOICE_YEAR_OPTIONS.map((y) => (
                 <option key={y} value={String(y)}>MN-INV-{y}</option>
@@ -1171,6 +1173,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
               value={invoiceNumberSuffix}
               onChange={(e) => setInvoiceNumberSuffix(e.target.value)}
               placeholder="001"
+              className="line-input"
               style={{ borderRadius: '0 10px 10px 0', direction: 'ltr' }}
             />
           </div>
@@ -1185,19 +1188,19 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
               setBillingMonth(d.getMonth() + 1);
               setBillingYear(d.getFullYear());
             }
-          }} title="تاريخ الفاتورة" style={inp} />
+          }} title="تاريخ الفاتورة" />
         </div>
         <div className="field">
           <label>تاريخ التسليم</label>
-          <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} title="تاريخ تسليم الفاتورة" style={inp} />
+          <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} title="تاريخ تسليم الفاتورة" />
         </div>
         <div className="field">
           <label>حساب شهر</label>
           <div style={{ display: 'flex', gap: 8 }}>
-            <select value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} title="شهر الحساب" style={{ ...inp, flex: 1 }}>
+            <select value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} title="شهر الحساب" style={{ flex: 1 }}>
               {ARABIC_MONTHS.map((name, idx) => <option key={idx + 1} value={idx + 1}>{name}</option>)}
             </select>
-            <select value={billingYear} onChange={(e) => setBillingYear(Number(e.target.value))} title="سنة الحساب" style={{ ...inp, width: 90 }}>
+            <select value={billingYear} onChange={(e) => setBillingYear(Number(e.target.value))} title="سنة الحساب" style={{ width: 90 }}>
               {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
@@ -1211,7 +1214,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
         {invoiceTypeChoice === 'أخرى' && (
           <div className="field">
             <label>{t('field.inv.custom_type')} *</label>
-            <input value={customInvoiceType} onChange={(e) => setCustomInvoiceType(e.target.value)} placeholder={t('ph.inv.custom_type')} style={inp} />
+            <input value={customInvoiceType} onChange={(e) => setCustomInvoiceType(e.target.value)} placeholder={t('ph.inv.custom_type')} />
           </div>
         )}
         <div className="field">
@@ -1226,7 +1229,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
           <>
             <div className="field">
               <label>{t('field.inv.custom_direction')} *</label>
-              <input value={customDirection} onChange={(e) => setCustomDirection(e.target.value)} placeholder={t('ph.inv.custom_direction')} style={inp} />
+              <input value={customDirection} onChange={(e) => setCustomDirection(e.target.value)} placeholder={t('ph.inv.custom_direction')} />
             </div>
             <div className="field">
               <label>{t('field.inv.party_type')}</label>
@@ -1270,27 +1273,28 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
               value={it.workType ?? DEFAULT_WORK_TYPE}
               onChange={(e) => setItem(i, 'workType', e.target.value)}
               title="نوع العمل"
-              style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box', marginBottom: 4 }}
+              className="line-input"
+              style={{ width: '100%', minWidth: 0, boxSizing: 'border-box', marginBottom: 4 }}
             >
               {(WORK_TYPES as readonly string[]).map((wt) => <option key={wt} value={wt}>{wt}</option>)}
             </select>
             <LocationAutocomplete value={it.location ?? ''} onChange={(v) => setItem(i, 'location', v)} />
           </div>
           <div className="invoice-cell quantity-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <input type="number" min="0.001" step="0.001" placeholder={t('ph.qty')} value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
+            <input type="number" min="0.001" step="0.001" placeholder={t('ph.qty')} value={it.quantity} onChange={(e) => setItem(i, 'quantity', e.target.value)} className="line-input" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }} />
           </div>
           <div className="invoice-cell unit-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <select value={unitSelectValue(it.unit)} onChange={(e) => setItem(i, 'unit', e.target.value)} title="الوحدة" style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+            <select value={unitSelectValue(it.unit)} onChange={(e) => setItem(i, 'unit', e.target.value)} title="الوحدة" className="line-input" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
               {(STANDARD_UNITS as readonly string[]).map((u) => <option key={u} value={u}>{u}</option>)}
               <option value={UNIT_OTHER}>{UNIT_OTHER}</option>
             </select>
             {unitSelectValue(it.unit) === UNIT_OTHER && (
-              <input value={it.unit} onChange={(e) => setItem(i, 'unit', e.target.value)} placeholder="اكتب الوحدة" style={{ ...inp, width: '100%', minWidth: 0, boxSizing: 'border-box', marginTop: 4 }} />
+              <input value={it.unit} onChange={(e) => setItem(i, 'unit', e.target.value)} placeholder="اكتب الوحدة" className="line-input" style={{ width: '100%', minWidth: 0, boxSizing: 'border-box', marginTop: 4 }} />
             )}
           </div>
           <div className="invoice-cell price-cell" style={{ minWidth: 0, overflow: 'visible', position: 'relative' }}>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <input type="number" min="0" step="0.001" placeholder={t('ph.unit_price')} value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} style={{ ...inp, flex: 1, minWidth: 0, boxSizing: 'border-box' }} />
+              <input type="number" min="0" step="0.001" placeholder={t('ph.unit_price')} value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} className="line-input" style={{ flex: 1, minWidth: 0, boxSizing: 'border-box' }} />
               {(() => { const unitPrices = prices.filter((p) => p.contractUnit === it.unit); return unitPrices.length > 0 ? (
                 <>
                   <button type="button" className="btn secondary sm" style={{ flexShrink: 0, padding: '0 8px', fontSize: 14 }} title={t('ph.prices.picker_btn')} aria-label={t('ph.prices.picker_btn')} aria-haspopup="listbox" aria-expanded={openPickerIdx === i ? 'true' : 'false'} onClick={(e) => { e.stopPropagation(); setOpenPickerIdx(openPickerIdx === i ? null : i); }}>📋</button>
@@ -1309,7 +1313,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
             </div>
           </div>
           <div className="invoice-cell total-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <div style={{ ...inp, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default', width: '100%', boxSizing: 'border-box' }}>{money(lineTotal(it))}</div>
+            <div className="line-input" style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default', width: '100%', boxSizing: 'border-box' }}>{money(lineTotal(it))}</div>
           </div>
           <div className="invoice-cell delete-cell" style={{ minWidth: 0 }}>
             {items.length > 1 && (
@@ -1322,10 +1326,10 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
 
       <div className="form-grid" style={{ marginTop: 16 }}>
         <div className="field"><label>{t('field.inv.discount_kd')}</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
-        <div className="field"><label>{t('col.inv.total')}</label><div style={{ ...inp, display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default' }}>{money(total)}</div></div>
+        <div className="field"><label>{t('col.inv.total')}</label><div className="line-input" style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default' }}>{money(total)}</div></div>
         <div className="field" style={{ gridColumn: '1 / -1' }}>
           <label>{t('field.notes')}</label>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ ...inp, width: '100%', boxSizing: 'border-box', resize: 'vertical' }} placeholder={t('field.notes')} />
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ resize: 'vertical' }} placeholder={t('field.notes')} />
         </div>
       </div>
     </Modal>

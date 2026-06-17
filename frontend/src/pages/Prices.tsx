@@ -269,13 +269,12 @@ export default function Prices() {
           placeholder={t('page.prices.search')}
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={inp}
         />
         <select
           value={filterCustomer}
           onChange={(e) => { setFilterCustomer(e.target.value); setPage(1); }}
           title="العميل"
-          style={{ ...inp, maxWidth: 200 }}
+          style={{ maxWidth: 200 }}
         >
           <option value="">كل العملاء</option>
           {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -284,19 +283,19 @@ export default function Prices() {
           placeholder={t('filter.prices.plant')}
           value={filterPlant}
           onChange={(e) => { setFilterPlant(e.target.value); setPage(1); }}
-          style={{ ...inp, maxWidth: 200 }}
+          style={{ maxWidth: 200 }}
         />
         <input
           placeholder={t('filter.prices.company')}
           value={filterCompany}
           onChange={(e) => { setFilterCompany(e.target.value); setPage(1); }}
-          style={{ ...inp, maxWidth: 200 }}
+          style={{ maxWidth: 200 }}
         />
         <select
           value={filterUnit}
           onChange={(e) => { setFilterUnit(e.target.value); setPage(1); }}
           title={t('filter.prices.unit')}
-          style={{ ...inp, maxWidth: 150 }}
+          style={{ maxWidth: 150 }}
         >
           <option value="">{t('opt.all')}</option>
           {contractUnits.map((u) => <option key={u} value={u}>{u}</option>)}
@@ -540,7 +539,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
         <div className="field">
-          <label>العميل {!isEdit && '*'}</label>
+          <label>العميل {!isEdit ? ' *' : ''}</label>
           <select
             value={customerId}
             onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : '')}
@@ -552,15 +551,15 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
         </div>
         <div className="field">
           <label>{t('col.prices.plant')} *</label>
-          <input value={asphaltPlant} onChange={(e) => setAsphaltPlant(e.target.value)} placeholder={t('ph.prices.plant')} style={inp} />
+          <input value={asphaltPlant} onChange={(e) => setAsphaltPlant(e.target.value)} placeholder={t('ph.prices.plant')} />
         </div>
         <div className="field">
           <label>{t('col.prices.company')} *</label>
-          <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder={t('ph.prices.company')} style={inp} />
+          <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder={t('ph.prices.company')} />
         </div>
         <div className="field">
           <label>{t('col.prices.location')} *</label>
-          <input value={contractLocation} onChange={(e) => setContractLocation(e.target.value)} placeholder={t('ph.prices.location')} style={inp} />
+          <input value={contractLocation} onChange={(e) => setContractLocation(e.target.value)} placeholder={t('ph.prices.location')} />
         </div>
         <div className="field">
           <label>{t('col.prices.unit')}</label>
@@ -577,7 +576,6 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
             value={unitPrice}
             onChange={(e) => setUnitPrice(Number(e.target.value))}
             placeholder="0.000"
-            style={inp}
           />
         </div>
         <div className="field">
@@ -587,7 +585,6 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
             value={validUntil}
             onChange={(e) => setValidUntil(e.target.value)}
             title="تاريخ انتهاء الاتفاقية"
-            style={inp}
           />
         </div>
       </div>
@@ -632,6 +629,5 @@ function AgreementMiniTable({ rows }: { rows: AgreementRow[] }) {
   );
 }
 
-const inp: React.CSSProperties = { padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', fontWeight: 600, fontSize: 14, outline: 'none' };
 const th: React.CSSProperties = { padding: '8px 10px', fontWeight: 700, fontSize: 12, color: 'var(--text-muted)' };
 const td: React.CSSProperties = { padding: '10px 10px', verticalAlign: 'top' };

@@ -5,6 +5,7 @@ import { useT } from '../lib/i18n';
 import { tafqeetKWD } from '../lib/tafqeet';
 import { formatDate } from '../lib/date';
 import DataTable, { PageMeta } from '../components/DataTable';
+import Modal from '../components/Modal';
 import StatCard from '../components/StatCard';
 import gulfBankImg from '../assets/GulfBank_Personal_KW.jpg';
 
@@ -569,32 +570,25 @@ export default function Cheques() {
 
       {/* Mark-as-printed confirmation modal */}
       {showPrintConfirm && printTarget && (
-        <div className="modal-overlay no-print" onMouseDown={() => setShowPrintConfirm(false)}>
-          <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="modal-head">
-              <h3>{t('page.cheques.mark_printed')}</h3>
-              <button className="icon-btn" onClick={() => setShowPrintConfirm(false)}>
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <p style={{ margin: 0 }}>{t('page.cheques.confirm_printed')}</p>
-            </div>
-            <div
-              className="modal-foot"
-              style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}
-            >
-              <button type="button" className="btn secondary" onClick={() => setShowPrintConfirm(false)}>
-                {t('action.cancel')}
-              </button>
+        <Modal
+          title={t('page.cheques.mark_printed')}
+          onClose={() => setShowPrintConfirm(false)}
+          className="no-print"
+          footer={
+            <>
               {canPrint && (
                 <button type="button" className="btn" onClick={handleMarkPrinted}>
                   {t('page.cheques.mark_printed')}
                 </button>
               )}
-            </div>
-          </div>
-        </div>
+              <button type="button" className="btn secondary" onClick={() => setShowPrintConfirm(false)}>
+                {t('action.cancel')}
+              </button>
+            </>
+          }
+        >
+          <p style={{ margin: 0 }}>{t('page.cheques.confirm_printed')}</p>
+        </Modal>
       )}
 
       {/* Stats row */}
@@ -714,11 +708,11 @@ export default function Cheques() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>
                 {t('field.cheque.beneficiary')} *
               </label>
               <input
-                className="form-input"
+                className="line-input"
                 value={form.beneficiaryName}
                 onChange={(e) => field('beneficiaryName', e.target.value)}
                 placeholder={t('ph.cheque.beneficiary')}
@@ -728,11 +722,11 @@ export default function Cheques() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>
                   {t('field.cheque.amount')} *
                 </label>
                 <input
-                  className="form-input"
+                  className="line-input"
                   type="number"
                   min="0"
                   step="0.001"
@@ -744,11 +738,11 @@ export default function Cheques() {
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+                <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>
                   {t('field.cheque.currency')} *
                 </label>
                 <select
-                  className="form-input"
+                  className="line-input"
                   value={form.currency}
                   onChange={(e) => field('currency', e.target.value)}
                   title={t('field.cheque.currency')}
@@ -763,11 +757,11 @@ export default function Cheques() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>
                 {t('field.cheque.date')} *
               </label>
               <input
-                className="form-input"
+                className="line-input"
                 type="date"
                 value={form.chequeDate}
                 onChange={(e) => field('chequeDate', e.target.value)}
@@ -777,11 +771,11 @@ export default function Cheques() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>
                 {t('field.cheque.number')} *
               </label>
               <input
-                className="form-input"
+                className="line-input"
                 value={form.chequeNumber}
                 onChange={(e) => field('chequeNumber', e.target.value)}
                 placeholder={t('ph.cheque.number')}
@@ -791,11 +785,11 @@ export default function Cheques() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>
                 {t('field.cheque.bank')} *
               </label>
               <select
-                className="form-input"
+                className="line-input"
                 value={form.bankName}
                 onChange={(e) => field('bankName', e.target.value)}
                 title={t('field.cheque.bank')}
@@ -810,11 +804,11 @@ export default function Cheques() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>
                 {t('field.cheque.description')}
               </label>
               <input
-                className="form-input"
+                className="line-input"
                 value={form.description}
                 onChange={(e) => field('description', e.target.value)}
                 placeholder={t('ph.cheque.description')}
@@ -823,11 +817,11 @@ export default function Cheques() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 4 }}>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 4 }}>
                 {t('field.cheque.notes')}
               </label>
               <textarea
-                className="form-input"
+                className="line-input"
                 rows={2}
                 value={form.notes}
                 onChange={(e) => field('notes', e.target.value)}
@@ -865,14 +859,14 @@ export default function Cheques() {
         </div>
         <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <input
-            className="form-input"
+            className="line-input"
             style={{ maxWidth: 240, padding: '6px 10px' }}
             placeholder={t('action.search_placeholder')}
             value={historySearch}
             onChange={(e) => { setHistorySearch(e.target.value); setPage(1); }}
           />
           <select
-            className="form-input"
+            className="line-input"
             style={{ maxWidth: 160, padding: '6px 10px' }}
             title={t('filter.status')}
             value={historyStatus}

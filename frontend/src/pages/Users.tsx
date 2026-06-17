@@ -286,7 +286,7 @@ export default function Users() {
             </>
           }
         >
-          {formError && <div className="alert error" style={{ marginBottom: 12 }}>⚠️ {formError}</div>}
+          {formError && <div className="alert error">⚠️ {formError}</div>}
           <div className="form-grid">
             {!editingUser && (
               <div className="field">
