@@ -11,6 +11,17 @@ export interface AnalyticsFilters {
   payrollMonth?: number;
   payrollYear?: number;
   employeeId?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  amountFrom?: number;
+  amountTo?: number;
+  transactionId?: string;
+  civilId?: string;
+  bankAccount?: string;
+  status?: string;
+  search?: string;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
 }
 
 export interface EmployeeMatch {
@@ -29,6 +40,10 @@ export interface MonthRow {
   totalAmount: number;
   count: number;
   varianceFromPrev: number | null;
+  employeeCount?: number;
+  avg?: number;
+  highest?: number;
+  lowest?: number;
 }
 
 export interface GlobalAnalytics {
@@ -36,7 +51,15 @@ export interface GlobalAnalytics {
   totalPayments: number;
   uniqueEmployees: number;
   months: MonthRow[];
-  topEmployees: { civilId: string | null; beneficiaryName: string; totalAmount: number; count: number }[];
+  topEmployees: {
+    civilId: string | null;
+    beneficiaryName: string;
+    totalAmount: number;
+    count: number;
+    avgAmount: number;
+    latestPaymentDate: string | null;
+    employeeId: number | null;
+  }[];
   latestImport: LatestImport | null;
 }
 
@@ -65,6 +88,11 @@ export interface EmployeeDetailResult {
     lastPayment: string | null;
     avgMonthlyAmount: number;
     salaryChangeCount: number;
+    highestPayment: number;
+    lowestPayment: number;
+    distinctMonths: number;
+    salaryChangeAmount: number;
+    salaryChangePercent: number;
   };
   monthlyHistory: MonthRow[];
 }
@@ -84,6 +112,15 @@ export interface TransactionRow {
   createdAt: string;
 }
 
+interface RawGroupRow {
+  sourceMonth: string | null;
+  _sum: { amount: number | null };
+  _count: { id: number };
+  _avg?: { amount: number | null } | null;
+  _min?: { amount: number | null } | null;
+  _max?: { amount: number | null } | null;
+}
+
 function buildWhereClause(filters: AnalyticsFilters, extraCivilIds?: string[], extraAccounts?: string[]) {
   const conditions: object[] = [];
 
@@ -92,6 +129,35 @@ function buildWhereClause(filters: AnalyticsFilters, extraCivilIds?: string[], e
   } else if (filters.payrollYear) {
     const yearSuffix = `-${String(filters.payrollYear).slice(2)}`;
     conditions.push({ sourceMonth: { endsWith: yearSuffix } });
+  }
+
+  if (filters.dateFrom || filters.dateTo) {
+    const dateCond: Record<string, Date> = {};
+    if (filters.dateFrom) dateCond.gte = new Date(filters.dateFrom);
+    if (filters.dateTo) dateCond.lte = new Date(filters.dateTo);
+    conditions.push({ paymentDate: dateCond });
+  }
+
+  if (filters.amountFrom !== undefined || filters.amountTo !== undefined) {
+    const amtCond: Record<string, number> = {};
+    if (filters.amountFrom !== undefined) amtCond.gte = filters.amountFrom;
+    if (filters.amountTo !== undefined) amtCond.lte = filters.amountTo;
+    conditions.push({ amount: amtCond });
+  }
+
+  if (filters.transactionId) conditions.push({ transactionId: { contains: filters.transactionId } });
+  if (filters.civilId) conditions.push({ civilId: { contains: filters.civilId } });
+  if (filters.bankAccount) conditions.push({ beneficiaryAccount: { contains: filters.bankAccount } });
+  if (filters.status) conditions.push({ status: filters.status });
+
+  if (filters.search) {
+    conditions.push({
+      OR: [
+        { beneficiaryName: { contains: filters.search } },
+        { transactionId: { contains: filters.search } },
+        { civilId: { contains: filters.search } },
+      ],
+    });
   }
 
   if (extraCivilIds !== undefined || extraAccounts !== undefined) {
@@ -140,7 +206,7 @@ function parseSourceMonth(sm: string): { year: number; month: number } {
   return { year, month };
 }
 
-function buildMonthRows(rawGroups: { sourceMonth: string | null; _sum: { amount: number | null }; _count: { id: number } }[]): MonthRow[] {
+function buildMonthRows(rawGroups: RawGroupRow[], empCounts?: Map<string, number>): MonthRow[] {
   const rows = rawGroups
     .filter((g) => g.sourceMonth)
     .map((g) => {
@@ -152,6 +218,10 @@ function buildMonthRows(rawGroups: { sourceMonth: string | null; _sum: { amount:
         totalAmount: round3(g._sum.amount ?? 0),
         count: g._count.id,
         varianceFromPrev: null as number | null,
+        avg: g._avg?.amount != null ? round3(g._avg.amount) : undefined,
+        highest: g._max?.amount != null ? round3(g._max.amount) : undefined,
+        lowest: g._min?.amount != null ? round3(g._min.amount) : undefined,
+        employeeCount: empCounts?.get(g.sourceMonth!) ?? undefined,
       };
     })
     .sort((a, b) => a.year * 12 + a.month - (b.year * 12 + b.month));
@@ -162,6 +232,9 @@ function buildMonthRows(rawGroups: { sourceMonth: string | null; _sum: { amount:
   return rows;
 }
 
+const ALLOWED_SORT = ['paymentDate', 'amount', 'beneficiaryName', 'sourceMonth'] as const;
+type SortField = typeof ALLOWED_SORT[number];
+
 class BankAnalyticsService {
   async getAnalytics(filters: AnalyticsFilters): Promise<GlobalAnalytics> {
     let empMatch: EmployeeMatch | null = null;
@@ -171,13 +244,16 @@ class BankAnalyticsService {
       ? buildWhereClause(filters, empMatch.matchedCivilIds, empMatch.matchedAccounts)
       : buildWhereClause(filters);
 
-    const [agg, monthGroups, topEmpGroups] = await Promise.all([
+    const [agg, monthGroups, topEmpGroups, allForUnique] = await Promise.all([
       prisma.salaryPayment.aggregate({ where, _sum: { amount: true }, _count: { id: true } }),
       prisma.salaryPayment.groupBy({
         by: ['sourceMonth'],
         where,
         _sum: { amount: true },
         _count: { id: true },
+        _avg: { amount: true },
+        _min: { amount: true },
+        _max: { amount: true },
         orderBy: { sourceMonth: 'asc' },
       }),
       prisma.salaryPayment.groupBy({
@@ -185,19 +261,37 @@ class BankAnalyticsService {
         where,
         _sum: { amount: true },
         _count: { id: true },
+        _avg: { amount: true },
+        _max: { paymentDate: true },
         orderBy: { _sum: { amount: 'desc' } },
         take: 10,
       }),
+      prisma.salaryPayment.findMany({
+        where,
+        select: { sourceMonth: true, civilId: true, beneficiaryAccount: true },
+      }),
     ]);
 
-    const uniqueResult = await prisma.salaryPayment.findMany({
-      where,
-      select: { civilId: true, beneficiaryAccount: true },
-      distinct: ['civilId', 'beneficiaryAccount'],
-    });
-    const uniqueEmployees = new Set(
-      uniqueResult.map((r) => r.civilId?.trim() || r.beneficiaryAccount?.trim() || '').filter(Boolean),
-    ).size;
+    const globalIdSet = new Set<string>();
+    const monthEmpSets = new Map<string, Set<string>>();
+    for (const r of allForUnique) {
+      const id = r.civilId?.trim() || r.beneficiaryAccount?.trim() || '';
+      if (id) {
+        globalIdSet.add(id);
+        if (r.sourceMonth) {
+          if (!monthEmpSets.has(r.sourceMonth)) monthEmpSets.set(r.sourceMonth, new Set());
+          monthEmpSets.get(r.sourceMonth)!.add(id);
+        }
+      }
+    }
+    const uniqueEmployees = globalIdSet.size;
+    const monthEmpCounts = new Map(Array.from(monthEmpSets, ([k, s]) => [k, s.size]));
+
+    const topCivilIds = topEmpGroups.map((g) => g.civilId).filter(Boolean) as string[];
+    const topEmpLookup = topCivilIds.length > 0
+      ? await prisma.employee.findMany({ where: { civilId: { in: topCivilIds } }, select: { id: true, civilId: true } })
+      : [];
+    const empIdByCivilId = new Map(topEmpLookup.map((e) => [e.civilId, e.id]));
 
     const latestPayment = await prisma.salaryPayment.findFirst({
       orderBy: { createdAt: 'desc' },
@@ -217,12 +311,15 @@ class BankAnalyticsService {
       totalAmount: round3(agg._sum.amount ?? 0),
       totalPayments: agg._count.id,
       uniqueEmployees,
-      months: buildMonthRows(monthGroups),
+      months: buildMonthRows(monthGroups as RawGroupRow[], monthEmpCounts),
       topEmployees: topEmpGroups.map((g) => ({
         civilId: g.civilId,
         beneficiaryName: g.beneficiaryName,
         totalAmount: round3(g._sum.amount ?? 0),
         count: g._count.id,
+        avgAmount: round3(g._avg?.amount ?? 0),
+        latestPaymentDate: g._max?.paymentDate?.toISOString() ?? null,
+        employeeId: g.civilId ? (empIdByCivilId.get(g.civilId) ?? null) : null,
       })),
       latestImport,
     };
@@ -245,14 +342,17 @@ class BankAnalyticsService {
         where,
         _sum: { amount: true },
         _count: { id: true },
-        _min: { paymentDate: true },
-        _max: { paymentDate: true },
+        _min: { paymentDate: true, amount: true },
+        _max: { paymentDate: true, amount: true },
       }),
       prisma.salaryPayment.groupBy({
         by: ['sourceMonth'],
         where,
         _sum: { amount: true },
         _count: { id: true },
+        _avg: { amount: true },
+        _min: { amount: true },
+        _max: { amount: true },
         orderBy: { sourceMonth: 'asc' },
       }),
       prisma.salaryPayment.findMany({ where, select: { sourceMonth: true, amount: true }, orderBy: { paymentDate: 'asc' } }),
@@ -268,7 +368,11 @@ class BankAnalyticsService {
       if (Math.abs(sortedAmounts[i] - sortedAmounts[i - 1]) > 0.001) salaryChangeCount++;
     }
 
-    const totalMonths = distinctMonthAmounts.size;
+    const firstAmt = sortedAmounts[0] ?? 0;
+    const lastAmt = sortedAmounts[sortedAmounts.length - 1] ?? 0;
+    const salaryChangeAmount = round3(lastAmt - firstAmt);
+    const salaryChangePercent = firstAmt > 0 ? round3(((lastAmt - firstAmt) / firstAmt) * 100) : 0;
+    const distinctMonths = distinctMonthAmounts.size;
     const totalAmt = round3(aggResult._sum.amount ?? 0);
 
     return {
@@ -278,10 +382,15 @@ class BankAnalyticsService {
         totalAmount: totalAmt,
         firstPayment: aggResult._min.paymentDate?.toISOString() ?? null,
         lastPayment: aggResult._max.paymentDate?.toISOString() ?? null,
-        avgMonthlyAmount: totalMonths > 0 ? round3(totalAmt / totalMonths) : 0,
+        avgMonthlyAmount: distinctMonths > 0 ? round3(totalAmt / distinctMonths) : 0,
         salaryChangeCount,
+        highestPayment: round3(aggResult._max.amount ?? 0),
+        lowestPayment: round3(aggResult._min.amount ?? 0),
+        distinctMonths,
+        salaryChangeAmount,
+        salaryChangePercent,
       },
-      monthlyHistory: buildMonthRows(monthGroups),
+      monthlyHistory: buildMonthRows(monthGroups as RawGroupRow[]),
     };
   }
 
@@ -298,8 +407,15 @@ class BankAnalyticsService {
     const civilIdSet = new Set(empMatch?.matchedCivilIds ?? []);
     const accountSet = new Set(empMatch?.matchedAccounts ?? []);
 
+    const sortField: SortField = ALLOWED_SORT.includes(filters.sortBy as SortField)
+      ? (filters.sortBy as SortField)
+      : 'paymentDate';
+    const dir: 'asc' | 'desc' = filters.sortDir === 'asc' ? 'asc' : 'desc';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const orderBy: any[] = [{ [sortField]: dir }, { createdAt: 'desc' }];
+
     const [rows, total] = await Promise.all([
-      prisma.salaryPayment.findMany({ where, orderBy: [{ paymentDate: 'desc' }, { createdAt: 'desc' }], skip: pagination.skip, take: pagination.take }),
+      prisma.salaryPayment.findMany({ where, orderBy, skip: pagination.skip, take: pagination.take }),
       prisma.salaryPayment.count({ where }),
     ]);
 

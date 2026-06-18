@@ -69,10 +69,22 @@ router.get(
   '/bank-payments/transactions',
   canImportRead,
   asyncHandler(async (req, res) => {
+    const q = req.query as Record<string, string | undefined>;
     const filters = {
-      payrollMonth: req.query.payrollMonth ? Number(req.query.payrollMonth) : undefined,
-      payrollYear: req.query.payrollYear ? Number(req.query.payrollYear) : undefined,
-      employeeId: req.query.employeeId ? Number(req.query.employeeId) : undefined,
+      payrollMonth: q.payrollMonth ? Number(q.payrollMonth) : undefined,
+      payrollYear: q.payrollYear ? Number(q.payrollYear) : undefined,
+      employeeId: q.employeeId ? Number(q.employeeId) : undefined,
+      dateFrom: q.dateFrom,
+      dateTo: q.dateTo,
+      amountFrom: q.amountFrom ? Number(q.amountFrom) : undefined,
+      amountTo: q.amountTo ? Number(q.amountTo) : undefined,
+      transactionId: q.transactionId,
+      civilId: q.civilId,
+      bankAccount: q.bankAccount,
+      status: q.status,
+      search: q.search,
+      sortBy: q.sortBy,
+      sortDir: (q.sortDir === 'asc' || q.sortDir === 'desc') ? q.sortDir as 'asc' | 'desc' : undefined,
     };
     ok(res, await bankAnalyticsService.getTransactions(filters, req.query as Record<string, unknown>));
   }),

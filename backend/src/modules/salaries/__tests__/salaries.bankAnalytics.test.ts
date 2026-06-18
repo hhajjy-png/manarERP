@@ -107,3 +107,155 @@ describe('bankAnalyticsService.searchEmployees', () => {
     );
   });
 });
+
+describe('bankAnalyticsService.getTransactions — Phase 2 filters', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const mockPayment = {
+    id: 1, transactionId: 'TXN001', sourceMonth: 'Mar-25',
+    paymentDate: new Date('2025-03-15'), beneficiaryAccount: 'ACC001',
+    beneficiaryName: 'أحمد علي', amount: 500, currency: 'KWD',
+    status: 'PROCESSED', civilId: '111', createdAt: new Date(),
+    bankName: null, paymentType: null, errorDescription: null, duplicateFlag: null,
+  };
+
+  it('sorts by amount desc by default', async () => {
+    vi.mocked(prisma.employee.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([mockPayment]);
+    vi.mocked(prisma.salaryPayment.count).mockResolvedValue(1);
+
+    await bankAnalyticsService.getTransactions({ sortBy: 'amount', sortDir: 'desc' }, { page: '1', pageSize: '25' });
+
+    expect(prisma.salaryPayment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: expect.arrayContaining([{ amount: 'desc' }]),
+      }),
+    );
+  });
+
+  it('sorts by beneficiaryName asc when specified', async () => {
+    vi.mocked(prisma.employee.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.salaryPayment.count).mockResolvedValue(0);
+
+    await bankAnalyticsService.getTransactions({ sortBy: 'beneficiaryName', sortDir: 'asc' }, { page: '1', pageSize: '25' });
+
+    expect(prisma.salaryPayment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: expect.arrayContaining([{ beneficiaryName: 'asc' }]),
+      }),
+    );
+  });
+
+  it('falls back to paymentDate sort for disallowed sortBy values', async () => {
+    vi.mocked(prisma.employee.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.salaryPayment.count).mockResolvedValue(0);
+
+    await bankAnalyticsService.getTransactions({ sortBy: '__proto__', sortDir: 'asc' }, { page: '1', pageSize: '25' });
+
+    expect(prisma.salaryPayment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: expect.arrayContaining([{ paymentDate: 'asc' }]),
+      }),
+    );
+  });
+
+  it('applies amount range filter (amountFrom and amountTo)', async () => {
+    vi.mocked(prisma.employee.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.salaryPayment.count).mockResolvedValue(0);
+
+    await bankAnalyticsService.getTransactions(
+      { amountFrom: 100, amountTo: 900 },
+      { page: '1', pageSize: '25' },
+    );
+
+    expect(prisma.salaryPayment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([{ amount: { gte: 100, lte: 900 } }]),
+        }),
+      }),
+    );
+  });
+
+  it('applies date range filter (dateFrom and dateTo)', async () => {
+    vi.mocked(prisma.employee.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.salaryPayment.count).mockResolvedValue(0);
+
+    await bankAnalyticsService.getTransactions(
+      { dateFrom: '2025-01-01', dateTo: '2025-03-31' },
+      { page: '1', pageSize: '25' },
+    );
+
+    expect(prisma.salaryPayment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            { paymentDate: { gte: new Date('2025-01-01'), lte: new Date('2025-03-31') } },
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it('applies search text filter across beneficiaryName, transactionId, civilId', async () => {
+    vi.mocked(prisma.employee.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.salaryPayment.count).mockResolvedValue(0);
+
+    await bankAnalyticsService.getTransactions(
+      { search: 'أحمد' },
+      { page: '1', pageSize: '25' },
+    );
+
+    expect(prisma.salaryPayment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            {
+              OR: expect.arrayContaining([
+                { beneficiaryName: { contains: 'أحمد' } },
+                { transactionId: { contains: 'أحمد' } },
+                { civilId: { contains: 'أحمد' } },
+              ]),
+            },
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it('applies month+year filter via sourceMonth exact match', async () => {
+    vi.mocked(prisma.employee.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.salaryPayment.count).mockResolvedValue(0);
+
+    await bankAnalyticsService.getTransactions(
+      { payrollMonth: 3, payrollYear: 2025 },
+      { page: '1', pageSize: '25' },
+    );
+
+    expect(prisma.salaryPayment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([{ sourceMonth: 'Mar-25' }]),
+        }),
+      }),
+    );
+  });
+
+  it('respects pageSize via pagination', async () => {
+    vi.mocked(prisma.employee.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.salaryPayment.count).mockResolvedValue(0);
+
+    await bankAnalyticsService.getTransactions({}, { page: '2', pageSize: '50' });
+
+    expect(prisma.salaryPayment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ skip: 50, take: 50 }),
+    );
+  });
+});
