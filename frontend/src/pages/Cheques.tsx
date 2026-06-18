@@ -569,7 +569,7 @@ export default function Cheques() {
         </div>
       )}
       {success && (
-        <div className="alert success no-print" style={{ marginBottom: 12 }}>
+        <div className="alert ok no-print" style={{ marginBottom: 12 }}>
           {success}
           <button type="button" className="alert-close-btn" onClick={() => setSuccess('')}>✕</button>
         </div>

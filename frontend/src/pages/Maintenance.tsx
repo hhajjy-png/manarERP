@@ -485,7 +485,7 @@ function RecordsTab() {
         )}
       </div>
 
-      {error && <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>}
+      {error && <div className="alert error">⚠️ {error}</div>}
 
       <DataTable columns={columns} rows={visible} loading={loading} emptyText={t('empty.maint.records')} />
 
@@ -499,7 +499,7 @@ function RecordsTab() {
             </div>
           }
         >
-          {formError && <p style={{ color: 'var(--danger)', marginBottom: 10, fontSize: 13 }}>{formError}</p>}
+          {formError && <div className="alert error">⚠️ {formError}</div>}
           <RecordForm id="maint-record-create" form={createForm} setForm={setCreateForm} onSubmit={handleCreate} saving={saving} equipmentList={equipmentList} isEdit={false} />
         </Modal>
       )}
@@ -514,7 +514,7 @@ function RecordsTab() {
             </div>
           }
         >
-          {formError && <p style={{ color: 'var(--danger)', marginBottom: 10, fontSize: 13 }}>{formError}</p>}
+          {formError && <div className="alert error">⚠️ {formError}</div>}
           <RecordForm id="maint-record-edit" form={editForm} setForm={setEditForm} onSubmit={handleEdit} saving={saving} equipmentList={equipmentList} isEdit />
         </Modal>
       )}
@@ -663,7 +663,7 @@ function FuelTab() {
         )}
       </div>
 
-      {error && <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>}
+      {error && <div className="alert error">⚠️ {error}</div>}
 
       <DataTable columns={columns} rows={rows} loading={loading} emptyText={t('empty.maint.fuel')} />
 
@@ -839,7 +839,7 @@ function BreakdownsTab() {
         )}
       </div>
 
-      {error && <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>}
+      {error && <div className="alert error">⚠️ {error}</div>}
 
       <DataTable columns={columns} rows={rows} loading={loading} emptyText={t('empty.maint.breakdowns')} />
 
@@ -975,7 +975,7 @@ function SparePartsTab() {
         )}
       </div>
 
-      {error && <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>}
+      {error && <div className="alert error">⚠️ {error}</div>}
 
       <DataTable columns={columns} rows={rows} loading={loading} emptyText={t('empty.maint.spare_parts')} />
 
