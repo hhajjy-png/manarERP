@@ -191,8 +191,23 @@ export default function Invoices() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { key: 'party', label: 'col.inv.party', render: (r: any) => r.customer?.name ?? r.supplier?.name ?? '—' },
     { key: 'issueDate', label: 'col.date', render: (r: Record<string, unknown>) => dateText(r.issueDate) },
+    {
+      key: 'billingPeriod',
+      label: 'شهر الفوترة',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      render: (row: any) =>
+        row.billingMonth && row.billingYear
+          ? `${ARABIC_MONTHS[row.billingMonth - 1]} ${row.billingYear}`
+          : '—',
+    },
     { key: 'total', label: 'col.inv.total', render: (r: Record<string, unknown>) => money(r.total) },
     { key: 'paidAmount', label: 'col.inv.paid', render: (r: Record<string, unknown>) => money(r.paidAmount) },
+    {
+      key: 'remaining',
+      label: 'المتبقي',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      render: (row: any) => money(Math.max(0, row.total - (row.paidAmount ?? 0))),
+    },
     { key: 'status', label: 'col.status', render: (r: Record<string, unknown>) => { const [key, c] = statusPill[String(r.status)] ?? ['—', 'gray']; return <span className={`pill ${c}`}>{t(key)}</span>; } },
   ];
 
@@ -1428,12 +1443,37 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
   const [method, setMethod] = useState('CASH');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [chequeNumber, setChequeNumber] = useState('');
+  const [recipientName, setRecipientName] = useState('');
+  const [transferDate, setTransferDate] = useState('');
+  const [transferNumber, setTransferNumber] = useState('');
+
+  function handleMethodChange(newMethod: string) {
+    setMethod(newMethod);
+    setChequeNumber('');
+    setRecipientName('');
+    setTransferDate('');
+    setTransferNumber('');
+  }
 
   async function submit() {
     setError('');
+    if (Number(amount) <= 0) { setError('المبلغ يجب أن يكون أكبر من صفر'); return; }
+    if (Number(amount) > remaining) { setError('المبلغ المدخل أكبر من المتبقي للفاتورة'); return; }
+    if (method === 'CHEQUE' && !chequeNumber.trim()) { setError('رقم الشيك مطلوب'); return; }
+    if (method === 'CASH' && !recipientName.trim()) { setError('اسم المستلم مطلوب'); return; }
+    if (method === 'TRANSFER' && !transferDate) { setError('تاريخ الحوالة مطلوب'); return; }
+    if (method === 'TRANSFER' && !transferNumber.trim()) { setError('رقم التحويل مطلوب'); return; }
+    if (saving) return;
     setSaving(true);
     try {
-      await api.post(`/invoices/${invoice.id}/payments`, { amount: Number(amount), method });
+      await api.post(`/invoices/${invoice.id}/payments`, {
+        amount: Number(amount),
+        method,
+        ...(method === 'CHEQUE'   && { reference: chequeNumber }),
+        ...(method === 'CASH'     && { notes: recipientName }),
+        ...(method === 'TRANSFER' && { reference: transferNumber, date: transferDate }),
+      });
       onSaved();
       onClose();
     } catch (err) {
@@ -1456,7 +1496,7 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
         <div className="field"><label>{t('field.amount_kd')}</label><input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></div>
         <div className="field">
           <label>{t('field.payment_method')}</label>
-          <select value={method} onChange={(e) => setMethod(e.target.value)}>
+          <select value={method} onChange={(e) => handleMethodChange(e.target.value)}>
             <option value="CASH">{t('opt.payment.cash')}</option>
             <option value="BANK">{t('opt.payment.bank')}</option>
             <option value="CHEQUE">{t('opt.payment.cheque')}</option>
@@ -1464,6 +1504,30 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
           </select>
         </div>
       </div>
+      {method === 'CHEQUE' && (
+        <div className="field">
+          <label>رقم الشيك *</label>
+          <input className="line-input" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} autoFocus={false} />
+        </div>
+      )}
+      {method === 'CASH' && (
+        <div className="field">
+          <label>اسم المستلم *</label>
+          <input className="line-input" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
+        </div>
+      )}
+      {method === 'TRANSFER' && (
+        <>
+          <div className="field">
+            <label>تاريخ الحوالة *</label>
+            <input type="date" className="line-input" value={transferDate} onChange={(e) => setTransferDate(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>رقم التحويل *</label>
+            <input className="line-input" value={transferNumber} onChange={(e) => setTransferNumber(e.target.value)} />
+          </div>
+        </>
+      )}
     </Modal>
   );
 }

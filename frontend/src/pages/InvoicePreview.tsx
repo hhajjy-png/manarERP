@@ -34,20 +34,20 @@ type FullInvoice = {
   updatedAt: string;
   customer?: { id: number; name: string } | null;
   supplier?: { id: number; name: string } | null;
-  contract?: { id: number; asphaltPlant: string } | null;
+  contract?: { id: number; code?: string; asphaltPlant: string } | null;
   items: InvItem[];
   payments: Payment[];
 };
 
 const th: CSSProperties = {
-  border: '1px solid #cbd5e1', padding: '8px 12px', background: '#1d4e6f', color: '#fff',
+  border: '1px solid #cbd5e1', padding: '6px 10px', background: '#1d4e6f', color: '#fff',
   textAlign: 'start', fontWeight: 700, fontSize: 13,
   WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact',
 };
-const td: CSSProperties = { border: '1px solid #e2e8f0', padding: '7px 12px', fontSize: 13 };
+const td: CSSProperties = { border: '1px solid #e2e8f0', padding: '5px 10px', fontSize: 13 };
 const secTitle: CSSProperties = {
   fontSize: 14, fontWeight: 800, color: '#1d4e6f',
-  borderBottom: '2px solid #1d4e6f', paddingBottom: 6, marginBottom: 12, marginTop: 22,
+  borderBottom: '2px solid #1d4e6f', paddingBottom: 6, marginBottom: 12, marginTop: 14,
 };
 const fRow: CSSProperties = { display: 'flex', gap: 8, marginBottom: 8, fontSize: 13 };
 const fLbl: CSSProperties = { color: '#64748b', fontWeight: 600, minWidth: 130 };
@@ -159,7 +159,7 @@ export default function InvoicePreview() {
         }
       `}</style>
     <div className="inv-wrap" style={{
-      padding: '24px 32px', fontFamily: "'Cairo', sans-serif",
+      padding: '16px 24px', fontFamily: "'Cairo', sans-serif",
       maxWidth: 900, margin: '0 auto', color: '#0f172a',
       background: '#fff', direction: 'rtl',
     }}>
@@ -248,10 +248,18 @@ export default function InvoicePreview() {
           <span style={fVal}>{partyName}</span>
         </div>
         {data.contract && (
-          <div style={fRow}>
-            <span style={fLbl}>{t('field.linked_contract')}</span>
-            <span style={fVal}>{data.contract.asphaltPlant}</span>
-          </div>
+          <>
+            {data.contract.code && (
+              <div style={fRow}>
+                <span style={fLbl}>رقم العقد</span>
+                <span style={fVal}>{data.contract.code}</span>
+              </div>
+            )}
+            <div style={fRow}>
+              <span style={fLbl}>{t('field.linked_contract')}</span>
+              <span style={fVal}>{data.contract.asphaltPlant}</span>
+            </div>
+          </>
         )}
       </div>
 
@@ -354,16 +362,16 @@ export default function InvoicePreview() {
       )}
 
       {/* ── Signature Area ── */}
-      <div style={{ marginTop: 40, display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+      <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', gap: 16, pageBreakInside: 'avoid' }}>
         {([
           { label: 'التوقيع والختم', sub: data.customer?.name ?? data.supplier?.name ?? 'الجهة المستلمة' },
-          { label: 'ممثل الشركة', sub: 'شركة المنار الدولية' },
-          { label: 'المحاسب', sub: '' },
+          { label: 'المسؤول', sub: 'شركة المنار الدولية' },
+          { label: 'المحاسبة', sub: '' },
         ] as { label: string; sub: string }[]).map(({ label, sub }) => (
           <div key={label} style={{ flex: 1, textAlign: 'center', minWidth: 140 }}>
             <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 4 }}>{label}</div>
             {sub && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{sub}</div>}
-            <div style={{ height: 52 }} />
+            <div style={{ height: 40 }} />
             <div style={{ borderTop: '1px solid #64748b' }} />
             <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 4 }}>التوقيع / Signature</div>
           </div>

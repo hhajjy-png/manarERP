@@ -7,7 +7,7 @@ import { formatDate } from '../lib/date';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import StatCard from '../components/StatCard';
-import gulfBankImg from '../assets/GulfBank_Personal_KW.jpg';
+import gulfBankImg from '../assets/cheakv1.png';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
