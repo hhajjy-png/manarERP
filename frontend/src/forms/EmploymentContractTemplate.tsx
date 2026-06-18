@@ -79,6 +79,7 @@ const en: React.CSSProperties = {
   textAlign: 'left',
   borderRight: '1px solid #9ca3af',
   whiteSpace: 'pre-line',
+  verticalAlign: 'top',
 };
 
 const ar: React.CSSProperties = {
@@ -86,6 +87,7 @@ const ar: React.CSSProperties = {
   direction: 'rtl',
   textAlign: 'right',
   whiteSpace: 'pre-line',
+  verticalAlign: 'top',
 };
 
 const bold: React.CSSProperties = { fontWeight: 700, color: '#1d4e6f' };
