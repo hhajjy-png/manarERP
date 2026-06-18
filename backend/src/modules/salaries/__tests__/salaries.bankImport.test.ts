@@ -277,6 +277,31 @@ describe('parseMonthColumn', () => {
     expect(parseMonthColumn(null)).toBeNull();
     expect(parseMonthColumn(undefined)).toBeNull();
   });
+
+  // XLSX with cellDates:true returns Date objects for date-formatted cells (e.g. "MMM-YY")
+  it('parses Date object for Mar-25 (XLSX cellDates output)', () => {
+    expect(parseMonthColumn(new Date(2025, 2, 1))).toEqual({ month: 3, year: 2025 });
+  });
+
+  it('parses Date object for Apr-25', () => {
+    expect(parseMonthColumn(new Date(2025, 3, 1))).toEqual({ month: 4, year: 2025 });
+  });
+
+  it('parses Date object for Jun-25', () => {
+    expect(parseMonthColumn(new Date(2025, 5, 1))).toEqual({ month: 6, year: 2025 });
+  });
+
+  it('parses Date object for Dec-26', () => {
+    expect(parseMonthColumn(new Date(2026, 11, 1))).toEqual({ month: 12, year: 2026 });
+  });
+
+  it('returns null for an invalid Date object', () => {
+    expect(parseMonthColumn(new Date('invalid'))).toBeNull();
+  });
+
+  it('returns null for a Date with year below 2000', () => {
+    expect(parseMonthColumn(new Date(1999, 0, 1))).toBeNull();
+  });
 });
 
 // ── All_Transactions workbook format ─────────────────────────────────────────
@@ -311,6 +336,54 @@ describe('All_Transactions workbook format', () => {
     const result = await salariesBankImportService.preview(rows);
     expect(result.duplicate).toBe(2);
     expect(result.canExecute).toBe(false);
+  });
+});
+
+// ── All_Transactions with Date-derived month (XLSX cellDates:true path) ───────
+
+describe('All_Transactions — Date-derived payrollMonth/payrollYear', () => {
+  beforeEach(() => {
+    vi.mocked(prisma.employee.findMany).mockResolvedValue(EMPLOYEE_LIST as any);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+  });
+
+  it('accepts rows where payrollMonth/Year were extracted from a Date object', async () => {
+    // Simulates frontend parseMonthColumn(new Date(2025, 2, 1)) → { month: 3, year: 2025 }
+    const row = baseRow({ _sheetName: 'All_Transactions', payrollMonth: 3, payrollYear: 2025 });
+    const result = await salariesBankImportService.preview([row]);
+    expect(result.rows[0].payrollMonth).toBe(3);
+    expect(result.rows[0].payrollYear).toBe(2025);
+    expect(result.rows[0].isValid).toBe(true);
+    expect(result.canExecute).toBe(true);
+  });
+
+  it('rejects rows where payrollMonth is 0 (Date parse failed)', async () => {
+    const row = baseRow({ _sheetName: 'All_Transactions', payrollMonth: 0, payrollYear: 2025 });
+    const result = await salariesBankImportService.preview([row]);
+    expect(result.rows[0].isValid).toBe(false);
+    expect(result.rows[0].errors.some((e) => e.includes('شهر الرواتب'))).toBe(true);
+    expect(result.canExecute).toBe(false);
+  });
+
+  it('rejects rows where payrollYear is 0 (Date parse failed)', async () => {
+    const row = baseRow({ _sheetName: 'All_Transactions', payrollMonth: 3, payrollYear: 0 });
+    const result = await salariesBankImportService.preview([row]);
+    expect(result.rows[0].isValid).toBe(false);
+    expect(result.rows[0].errors.some((e) => e.includes('سنة الرواتب'))).toBe(true);
+    expect(result.canExecute).toBe(false);
+  });
+
+  it('handles multiple months (Mar, Apr, May, Jun) in same All_Transactions import', async () => {
+    const rows = [
+      baseRow({ _sheetName: 'All_Transactions', transactionId: 'TXN-M03', payrollMonth: 3, payrollYear: 2025, _rowIndex: 0 }),
+      baseRow({ _sheetName: 'All_Transactions', transactionId: 'TXN-M04', payrollMonth: 4, payrollYear: 2025, _rowIndex: 1, civilId: undefined, beneficiaryAccount: '9876543210', beneficiaryName: 'سارة خالد' }),
+    ];
+    const result = await salariesBankImportService.preview(rows);
+    expect(result.totalRows).toBe(2);
+    expect(result.matched).toBe(2);
+    expect(result.rows[0].payrollMonth).toBe(3);
+    expect(result.rows[1].payrollMonth).toBe(4);
+    expect(result.canExecute).toBe(true);
   });
 });
 
