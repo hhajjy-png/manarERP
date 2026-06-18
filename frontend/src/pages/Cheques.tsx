@@ -13,6 +13,7 @@ import {
   DEFAULT_TEMPLATE,
   cloneDefaultTemplate,
   fmtChequeAmount,
+  settingKey,
   templateFromSettings,
 } from '../utils/chequeTemplate';
 import type { ChequeTemplate } from '../utils/chequeTemplate';
@@ -209,6 +210,7 @@ export default function Cheques() {
   const [showCalibrator, setShowCalibrator] = useState(false);
   const [allTemplates, setAllTemplates] = useState<Record<string, ChequeTemplate>>({});
   const [busy, setBusy] = useState(false);
+  const [restoringDefault, setRestoringDefault] = useState(false);
   const canCreate = hasPermission('cheques.create');
   const canUpdate = hasPermission('cheques.update');
   const canPrint = hasPermission('cheques.print');
@@ -406,6 +408,25 @@ export default function Cheques() {
     }
   }
 
+  // ── Restore default template for current bank ─────────────────────────────
+
+  async function handleRestoreDefault() {
+    if (!window.confirm(`استعادة الإحداثيات الافتراضية لبنك "${form.bankName}"؟ سيُحذف القالب المحفوظ.`)) return;
+    if (restoringDefault) return;
+    setRestoringDefault(true);
+    try {
+      await api.put('/settings', {
+        settings: [{ key: settingKey(form.bankName), value: JSON.stringify(DEFAULT_TEMPLATE), group: 'cheque' }],
+      });
+      setAllTemplates((prev) => ({ ...prev, [form.bankName]: cloneDefaultTemplate() }));
+      setSuccess(`تم استعادة الإعدادات الافتراضية لبنك ${form.bankName}`);
+    } catch (e) {
+      setFormError(errorMessage(e));
+    } finally {
+      setRestoringDefault(false);
+    }
+  }
+
   // ── Preview data: from printTarget (saved cheque) or live form ────────────
 
   const previewData: PreviewData = printTarget
@@ -531,11 +552,6 @@ export default function Cheques() {
           <p>{t('page.cheques.subtitle')}</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {canCalibrate && (
-            <button type="button" className="btn secondary" onClick={() => setShowCalibrator(true)}>
-              معايرة الطباعة
-            </button>
-          )}
           {canCreate && (
             <button type="button" className="btn" onClick={resetForm}>
               {t('page.cheques.new')}
@@ -646,15 +662,30 @@ export default function Cheques() {
 
           <ChequePrintOutput data={previewData} template={currentTemplate} />
 
-          <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               className="btn"
-              style={{ flex: 1, fontSize: 15, padding: '10px 0' }}
+              style={{ flex: 1, minWidth: 120, fontSize: 15, padding: '10px 0' }}
               onClick={handlePrint}
               disabled={!isPrintable}
             >
               🖨️ {t('page.cheques.print')}
             </button>
+            {canCalibrate && (
+              <button type="button" className="btn secondary" onClick={() => setShowCalibrator(true)}>
+                ⚙ معايرة الطباعة
+              </button>
+            )}
+            {canCalibrate && (
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={handleRestoreDefault}
+                disabled={restoringDefault}
+              >
+                {restoringDefault ? '...' : '↺ استعادة الافتراضي'}
+              </button>
+            )}
             {canCancel && printTarget && printTarget.status === 'DRAFT' && (
               <button type="button" className="btn danger" onClick={() => handleCancel(printTarget)} disabled={busy}>
                 {t('page.cheques.cancel_cheque')}
