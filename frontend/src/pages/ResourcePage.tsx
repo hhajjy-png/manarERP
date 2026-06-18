@@ -153,6 +153,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function onDelete(row: any) {
     if (!confirm(t('msg.confirm_delete', { id: row.code ?? row.name ?? row.username ?? row.id }))) return;
+    if (busy) return;
+    setBusy(true);
     try {
       await api.delete(`${cfg.endpoint}/${row.id}`);
       showMsg('تم الحذف بنجاح');
@@ -173,6 +175,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       } else {
         setError(errorMessage(err));
       }
+    } finally {
+      setBusy(false);
     }
   }
 
