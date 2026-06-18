@@ -146,6 +146,7 @@ model Employee {
   email                String?
   address              String? // العنوان
   photoPath            String? // مسار صورة الموظف
+  bankAccount          String? // رقم الحساب البنكي (للتطابق في استيراد الرواتب)
   status               String    @default("ACTIVE") // ACTIVE | ON_LEAVE | TERMINATED
   notes                String?
 
@@ -168,6 +169,7 @@ model Employee {
   @@index([department])
   @@index([status])
   @@index([civilId])
+  @@index([bankAccount])
   @@index([residencyExpiry])
   @@index([passportExpiry])
   @@index([licenseExpiry])

@@ -23,6 +23,7 @@ export const createEmployeeSchema = z.object({
     phone: z.string().optional(),
     email: z.string().email('بريد غير صحيح').optional().or(z.literal('')),
     address: z.string().optional(), // العنوان
+    bankAccount: z.string().optional(), // رقم الحساب البنكي
     photoPath: z.string().optional(),
     status: z.enum(ENUMS.employeeStatus).default('ACTIVE'),
     notes: z.string().optional(),
