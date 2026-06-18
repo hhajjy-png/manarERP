@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { salariesService } from './salaries.service';
 import { salariesBankImportService } from './salaries.bankImport.service';
+import { bankAnalyticsService } from './salaries.bankAnalytics.service';
 import { authenticate } from '../../core/middleware/auth.middleware';
 import { requirePermission } from '../../core/middleware/rbac.middleware';
 import { asyncHandler } from '../../core/utils/asyncHandler';
@@ -26,6 +27,71 @@ router.post(
   '/bank-import/execute',
   canImportCreate,
   asyncHandler(async (req, res) => ok(res, await salariesBankImportService.execute(req.body.rows, req))),
+);
+
+router.get(
+  '/bank-payments/analytics',
+  canImportRead,
+  asyncHandler(async (req, res) => {
+    const filters = {
+      payrollMonth: req.query.payrollMonth ? Number(req.query.payrollMonth) : undefined,
+      payrollYear: req.query.payrollYear ? Number(req.query.payrollYear) : undefined,
+      employeeId: req.query.employeeId ? Number(req.query.employeeId) : undefined,
+    };
+    ok(res, await bankAnalyticsService.getAnalytics(filters));
+  }),
+);
+
+router.get(
+  '/bank-payments/employees/search',
+  canImportRead,
+  asyncHandler(async (req, res) => {
+    const q = String(req.query.q ?? '');
+    ok(res, await bankAnalyticsService.searchEmployees(q));
+  }),
+);
+
+router.get(
+  '/bank-payments/employee/:employeeId',
+  canImportRead,
+  asyncHandler(async (req, res) => {
+    const employeeId = Number(req.params.employeeId);
+    const filters = {
+      payrollMonth: req.query.payrollMonth ? Number(req.query.payrollMonth) : undefined,
+      payrollYear: req.query.payrollYear ? Number(req.query.payrollYear) : undefined,
+      employeeId,
+    };
+    ok(res, await bankAnalyticsService.getEmployeeDetail(employeeId, filters));
+  }),
+);
+
+router.get(
+  '/bank-payments/transactions',
+  canImportRead,
+  asyncHandler(async (req, res) => {
+    const filters = {
+      payrollMonth: req.query.payrollMonth ? Number(req.query.payrollMonth) : undefined,
+      payrollYear: req.query.payrollYear ? Number(req.query.payrollYear) : undefined,
+      employeeId: req.query.employeeId ? Number(req.query.employeeId) : undefined,
+    };
+    ok(res, await bankAnalyticsService.getTransactions(filters, req.query as Record<string, unknown>));
+  }),
+);
+
+router.get(
+  '/bank-payments/export',
+  canImportRead,
+  asyncHandler(async (req, res) => {
+    const filters = {
+      payrollMonth: req.query.payrollMonth ? Number(req.query.payrollMonth) : undefined,
+      payrollYear: req.query.payrollYear ? Number(req.query.payrollYear) : undefined,
+      employeeId: req.query.employeeId ? Number(req.query.employeeId) : undefined,
+    };
+    const buffer = await bankAnalyticsService.exportAnalytics(filters);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="bank-analytics.xlsx"');
+    res.send(buffer);
+  }),
 );
 
 export default router;
