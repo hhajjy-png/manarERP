@@ -298,6 +298,7 @@ export default function Users() {
                   value={form.username}
                   onChange={(e) => setForm({ ...form, username: e.target.value })}
                   autoComplete="username"
+                  autoFocus
                 />
               </div>
             )}
@@ -309,6 +310,7 @@ export default function Users() {
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
                 placeholder="••••••••"
                 autoComplete="new-password"
+                autoFocus={!!editingUser}
               />
             </div>
             <div className="field">

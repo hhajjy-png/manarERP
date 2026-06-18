@@ -253,7 +253,7 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
-        <div className="field"><label>{t('field.acc.code')} *</label><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="1100" style={{ direction: 'ltr' }} /></div>
+        <div className="field"><label>{t('field.acc.code')} *</label><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="1100" style={{ direction: 'ltr' }} autoFocus /></div>
         <div className="field"><label>{t('field.acc.name')} *</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
         <div className="field">
           <label>{t('field.acc.type')}</label>
@@ -450,7 +450,7 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
-        <div className="field"><label>{t('field.acc.desc')} *</label><input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+        <div className="field"><label>{t('field.acc.desc')} *</label><input value={description} onChange={(e) => setDescription(e.target.value)} autoFocus /></div>
         <div className="field"><label>{t('col.date')}</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
       </div>
 

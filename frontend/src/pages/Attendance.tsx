@@ -147,7 +147,7 @@ function AttendanceForm({
 
       <div className="field">
         <label>{t('field.date')} *</label>
-        <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={isEdit} />
+        <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={isEdit} autoFocus={!isEdit} />
       </div>
 
       <div className="field">

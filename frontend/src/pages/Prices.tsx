@@ -559,7 +559,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
         </div>
         <div className="field">
           <label>{t('col.prices.plant')} *</label>
-          <input value={asphaltPlant} onChange={(e) => setAsphaltPlant(e.target.value)} placeholder={t('ph.prices.plant')} />
+          <input value={asphaltPlant} onChange={(e) => setAsphaltPlant(e.target.value)} placeholder={t('ph.prices.plant')} autoFocus />
         </div>
         <div className="field">
           <label>{t('col.prices.company')} *</label>
