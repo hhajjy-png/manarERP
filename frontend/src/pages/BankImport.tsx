@@ -108,7 +108,16 @@ function parseSheetName(name: string): { month: number; year: number } | null {
 }
 
 // Format B: Month column value "Mar-25" → { month: 3, year: 2025 }
+// Also handles Date objects: XLSX with cellDates:true parses date-formatted cells
+// (e.g. a cell formatted as "MMM-YY") as Date objects rather than strings.
 function parseMonthColumn(value: unknown): { month: number; year: number } | null {
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return null;
+    const month = value.getMonth() + 1;
+    const year = value.getFullYear();
+    if (year < 2000 || year > 2100) return null;
+    return { month, year };
+  }
   if (typeof value !== 'string' || !value.trim()) return null;
   const cleaned = value.trim().toLowerCase();
   const match = cleaned.match(/^([a-z]+)-(\d{2})$/);
