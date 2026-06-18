@@ -84,6 +84,19 @@ export function parseSheetMonth(sheetName: string): { month: number; year: numbe
   return { month, year };
 }
 
+// Parses the Month column in All_Transactions sheet: "Mar-25" → { month: 3, year: 2025 }
+export function parseMonthColumn(value: unknown): { month: number; year: number } | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const cleaned = value.trim().toLowerCase();
+  const match = cleaned.match(/^([a-z]+)-(\d{2})$/);
+  if (!match) return null;
+  const month = MONTH_NAMES[match[1]];
+  if (!month) return null;
+  const year = 2000 + parseInt(match[2], 10);
+  if (year > 2100) return null;
+  return { month, year };
+}
+
 export function formatSourceMonth(month: number, year: number): string {
   const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return `${names[month - 1]}-${String(year).slice(2)}`;

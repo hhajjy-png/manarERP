@@ -95,6 +95,7 @@ const MONTH_MAP: Record<string, number> = {
   dec: 12, december: 12,
 };
 
+// Format A: sheet named "mar-2025" → { month: 3, year: 2025 }
 function parseSheetName(name: string): { month: number; year: number } | null {
   const clean = name.trim().toLowerCase();
   const match = clean.match(/^([a-z]+)[-\s](\d{4})$/);
@@ -106,12 +107,24 @@ function parseSheetName(name: string): { month: number; year: number } | null {
   return { month, year };
 }
 
+// Format B: Month column value "Mar-25" → { month: 3, year: 2025 }
+function parseMonthColumn(value: unknown): { month: number; year: number } | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const cleaned = value.trim().toLowerCase();
+  const match = cleaned.match(/^([a-z]+)-(\d{2})$/);
+  if (!match) return null;
+  const month = MONTH_MAP[match[1]];
+  if (!month) return null;
+  const year = 2000 + parseInt(match[2], 10);
+  if (year > 2100) return null;
+  return { month, year };
+}
+
 function parseDate(v: unknown): string {
   if (!v) return '';
   if (v instanceof Date) return isNaN(v.getTime()) ? '' : v.toISOString();
   const s = String(v).trim();
   if (!s) return '';
-  // Try standard ISO / JS parsing
   let d = new Date(s);
   if (!isNaN(d.getTime())) return d.toISOString();
   // Try DD/MM/YYYY
@@ -123,45 +136,80 @@ function parseDate(v: unknown): string {
   return s;
 }
 
+function buildInputRow(
+  r: Record<string, unknown>,
+  rowIndex: number,
+  sheetName: string,
+  payrollMonth: number,
+  payrollYear: number,
+): BankImportInputRow {
+  return {
+    transactionId: String(r['transaction id'] ?? '').trim(),
+    beneficiaryAccount: String(r['beneficiary account number'] ?? '').trim(),
+    beneficiaryName: String(r['beneficiary account name'] ?? '').trim(),
+    amount: parseFloat(String(r['payment amount'] ?? '0')) || 0,
+    currency: String(r['currency'] ?? '').trim().toUpperCase(),
+    paymentType: String(r['payment type'] ?? '').trim(),
+    status: String(r['status'] ?? '').trim().toUpperCase(),
+    paymentDate: parseDate(r['payment date']),
+    errorDescription: String(r['error description'] ?? '').trim() || undefined,
+    civilId: String(r['civil id'] ?? '').trim() || undefined,
+    payrollMonth,
+    payrollYear,
+    _sheetName: sheetName,
+    _rowIndex: rowIndex,
+  };
+}
+
+function parseSheetRows(
+  workbook: XLSX.WorkBook,
+  sheetName: string,
+  payrollMonth: number,
+  payrollYear: number,
+): BankImportInputRow[] {
+  const ws = workbook.Sheets[sheetName];
+  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+  const out: BankImportInputRow[] = [];
+  for (let i = 0; i < rawRows.length; i++) {
+    const r = normalizeRow(rawRows[i]);
+    const txId = String(r['transaction id'] ?? '').trim();
+    if (!txId || txId === '- -') continue;
+    out.push(buildInputRow(r, i, sheetName, payrollMonth, payrollYear));
+  }
+  return out;
+}
+
 function parseRows(workbook: XLSX.WorkBook): { rows: BankImportInputRow[]; skippedSheets: string[] } {
-  const rows: BankImportInputRow[] = [];
-  const skippedSheets: string[] = [];
+  // Priority 1: sheets with monthly names (e.g. "mar-2025")
+  const monthlySheets = workbook.SheetNames.filter((n) => parseSheetName(n) !== null);
 
-  for (const sheetName of workbook.SheetNames) {
-    const parsed = parseSheetName(sheetName);
-    if (!parsed) {
-      skippedSheets.push(sheetName);
-      continue;
+  if (monthlySheets.length > 0) {
+    const rows: BankImportInputRow[] = [];
+    for (const sheetName of monthlySheets) {
+      const { month, year } = parseSheetName(sheetName)!;
+      rows.push(...parseSheetRows(workbook, sheetName, month, year));
     }
-    const ws = workbook.Sheets[sheetName];
-    const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+    const skippedSheets = workbook.SheetNames.filter((n) => !monthlySheets.includes(n));
+    return { rows, skippedSheets };
+  }
 
+  // Priority 2: All_Transactions sheet with a Month column
+  const allTxName = workbook.SheetNames.find((n) => n.trim().toLowerCase() === 'all_transactions');
+  if (allTxName) {
+    const ws = workbook.Sheets[allTxName];
+    const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+    const rows: BankImportInputRow[] = [];
     for (let i = 0; i < rawRows.length; i++) {
       const r = normalizeRow(rawRows[i]);
       const txId = String(r['transaction id'] ?? '').trim();
-      // Skip blank rows and total rows (Transaction ID is blank or "- -")
       if (!txId || txId === '- -') continue;
-
-      rows.push({
-        transactionId: txId,
-        beneficiaryAccount: String(r['beneficiary account number'] ?? '').trim(),
-        beneficiaryName: String(r['beneficiary account name'] ?? '').trim(),
-        amount: parseFloat(String(r['payment amount'] ?? '0')) || 0,
-        currency: String(r['currency'] ?? '').trim().toUpperCase(),
-        paymentType: String(r['payment type'] ?? '').trim(),
-        status: String(r['status'] ?? '').trim().toUpperCase(),
-        paymentDate: parseDate(r['payment date']),
-        errorDescription: String(r['error description'] ?? '').trim() || undefined,
-        civilId: String(r['civil id'] ?? '').trim() || undefined,
-        payrollMonth: parsed.month,
-        payrollYear: parsed.year,
-        _sheetName: sheetName,
-        _rowIndex: i,
-      });
+      const parsed = parseMonthColumn(r['month']);
+      rows.push(buildInputRow(r, i, allTxName, parsed?.month ?? 0, parsed?.year ?? 0));
     }
+    return { rows, skippedSheets: [] };
   }
 
-  return { rows, skippedSheets };
+  return { rows: [], skippedSheets: workbook.SheetNames };
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -245,7 +293,7 @@ export default function BankImport() {
         if (wb.SheetNames.length === 0) { setError('الملف فارغ'); return; }
 
         const { rows: parsed, skippedSheets: skipped } = parseRows(wb);
-        if (parsed.length === 0) { setError('لم يتم العثور على صفوف قابلة للاستيراد. تأكد أن أسماء الأوراق بصيغة "mar-2025"'); return; }
+        if (parsed.length === 0) { setError('لم يتم العثور على صفوف قابلة للاستيراد. تأكد أن أسماء الأوراق بصيغة "mar-2025" أو أن الملف يحتوي على ورقة "All_Transactions"'); return; }
 
         setRows(parsed);
         setSkippedSheets(skipped);
@@ -347,15 +395,24 @@ export default function BankImport() {
       {/* Format hint */}
       {step === 'idle' && (
         <div style={{ background: 'var(--bg-card)', borderRadius: 8, padding: 16, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
-          <strong>تنسيق الملف المطلوب:</strong> ملف Excel يحتوي على أوراق باسم مثل <code>mar-2025</code> أو <code>april-2026</code>.
-          كل ورقة تمثل شهر استحقاق الراتب وتحتوي على الأعمدة:
-          <code style={{ margin: '0 4px' }}>Transaction ID</code>
-          <code style={{ margin: '0 4px' }}>Civil ID</code>
-          <code style={{ margin: '0 4px' }}>Beneficiary Account Number</code>
-          <code style={{ margin: '0 4px' }}>Payment Amount</code>
-          <code style={{ margin: '0 4px' }}>Payment Date</code>
-          <code style={{ margin: '0 4px' }}>Currency</code>
-          <code style={{ margin: '0 4px' }}>status</code>
+          <strong>التنسيقات المدعومة:</strong>
+          <div style={{ marginTop: 8 }}>
+            <strong>تنسيق أ — أوراق شهرية:</strong> ملف Excel يحتوي على أوراق باسم مثل <code>mar-2025</code> أو <code>april-2026</code>.
+            كل ورقة تمثل شهر استحقاق الراتب.
+          </div>
+          <div style={{ marginTop: 6 }}>
+            <strong>تنسيق ب — ورقة شاملة:</strong> ملف Excel يحتوي على ورقة واحدة باسم <code>All_Transactions</code> مع عمود <code>Month</code> بصيغة مثل <code>Mar-25</code>.
+          </div>
+          <div style={{ marginTop: 8 }}>
+            الأعمدة المطلوبة:
+            <code style={{ margin: '0 4px' }}>Transaction ID</code>
+            <code style={{ margin: '0 4px' }}>Civil ID</code>
+            <code style={{ margin: '0 4px' }}>Beneficiary Account Number</code>
+            <code style={{ margin: '0 4px' }}>Payment Amount</code>
+            <code style={{ margin: '0 4px' }}>Payment Date</code>
+            <code style={{ margin: '0 4px' }}>Currency</code>
+            <code style={{ margin: '0 4px' }}>status</code>
+          </div>
         </div>
       )}
 

@@ -13,6 +13,7 @@ import { prisma } from '../../../config/database';
 import {
   salariesBankImportService,
   parseSheetMonth,
+  parseMonthColumn,
   formatSourceMonth,
   BankImportInputRow,
 } from '../salaries.bankImport.service';
@@ -222,5 +223,143 @@ describe('salariesBankImportService.execute', () => {
   it('blocks execute when already-imported transactionId is in payload', async () => {
     vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([{ transactionId: 'TXN-001' }] as any);
     await expect(salariesBankImportService.execute([baseRow()], mockReq)).rejects.toThrow();
+  });
+});
+
+// ── parseMonthColumn ──────────────────────────────────────────────────────────
+
+describe('parseMonthColumn', () => {
+  it('parses Mar-25', () => {
+    expect(parseMonthColumn('Mar-25')).toEqual({ month: 3, year: 2025 });
+  });
+
+  it('parses Apr-25', () => {
+    expect(parseMonthColumn('Apr-25')).toEqual({ month: 4, year: 2025 });
+  });
+
+  it('parses Jun-25', () => {
+    expect(parseMonthColumn('Jun-25')).toEqual({ month: 6, year: 2025 });
+  });
+
+  it('parses Dec-26', () => {
+    expect(parseMonthColumn('Dec-26')).toEqual({ month: 12, year: 2026 });
+  });
+
+  it('is case-insensitive (MAR-25)', () => {
+    expect(parseMonthColumn('MAR-25')).toEqual({ month: 3, year: 2025 });
+  });
+
+  it('accepts full month name (April-25)', () => {
+    expect(parseMonthColumn('April-25')).toEqual({ month: 4, year: 2025 });
+  });
+
+  it('trims surrounding whitespace', () => {
+    expect(parseMonthColumn('  May-25  ')).toEqual({ month: 5, year: 2025 });
+  });
+
+  it('returns null for empty string', () => {
+    expect(parseMonthColumn('')).toBeNull();
+  });
+
+  it('returns null for 4-digit year (Mar-2025)', () => {
+    expect(parseMonthColumn('Mar-2025')).toBeNull();
+  });
+
+  it('returns null for missing year (Mar-)', () => {
+    expect(parseMonthColumn('Mar-')).toBeNull();
+  });
+
+  it('returns null for unrecognised month name (Xyz-25)', () => {
+    expect(parseMonthColumn('Xyz-25')).toBeNull();
+  });
+
+  it('returns null for null / undefined', () => {
+    expect(parseMonthColumn(null)).toBeNull();
+    expect(parseMonthColumn(undefined)).toBeNull();
+  });
+});
+
+// ── All_Transactions workbook format ─────────────────────────────────────────
+
+describe('All_Transactions workbook format', () => {
+  beforeEach(() => {
+    vi.mocked(prisma.employee.findMany).mockResolvedValue(EMPLOYEE_LIST as any);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+  });
+
+  it('preview processes rows sourced from All_Transactions sheet', async () => {
+    const row = baseRow({ _sheetName: 'All_Transactions', payrollMonth: 3, payrollYear: 2025 });
+    const result = await salariesBankImportService.preview([row]);
+    expect(result.totalRows).toBe(1);
+    expect(result.matched).toBe(1);
+    expect(result.canExecute).toBe(true);
+    expect(result.rows[0].sheetName).toBe('All_Transactions');
+  });
+
+  it('bankAccount fallback works for All_Transactions rows', async () => {
+    const row = baseRow({ _sheetName: 'All_Transactions', civilId: undefined });
+    const result = await salariesBankImportService.preview([row]);
+    expect(result.matched).toBe(1);
+    expect(result.rows[0].matchMethod).toBe('bankAccount');
+  });
+
+  it('duplicate transactionId detection works across All_Transactions rows', async () => {
+    const rows = [
+      baseRow({ _sheetName: 'All_Transactions', _rowIndex: 0 }),
+      baseRow({ _sheetName: 'All_Transactions', _rowIndex: 1 }),
+    ];
+    const result = await salariesBankImportService.preview(rows);
+    expect(result.duplicate).toBe(2);
+    expect(result.canExecute).toBe(false);
+  });
+});
+
+// ── mixed workbook (monthly sheets take priority) ─────────────────────────────
+
+describe('mixed workbook — monthly sheets take priority over All_Transactions', () => {
+  beforeEach(() => {
+    vi.mocked(prisma.employee.findMany).mockResolvedValue(EMPLOYEE_LIST as any);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+  });
+
+  it('backend processes rows from both origins identically (frontend sends only monthly rows in a mixed workbook)', async () => {
+    // In a mixed workbook the frontend sends ONLY monthly rows (priority 1).
+    // This verifies the service is agnostic to _sheetName and processes both correctly.
+    const monthlyRow = baseRow({ _sheetName: 'mar-2025', transactionId: 'TXN-M01' });
+    const allTxRow = baseRow({
+      _sheetName: 'All_Transactions',
+      transactionId: 'TXN-A01',
+      payrollMonth: 4,
+      payrollYear: 2025,
+      _rowIndex: 1,
+    });
+    const result = await salariesBankImportService.preview([monthlyRow, allTxRow]);
+    expect(result.totalRows).toBe(2);
+    expect(result.matched).toBe(2);
+    expect(result.canExecute).toBe(true);
+  });
+});
+
+// ── invalid Month column values ───────────────────────────────────────────────
+
+describe('invalid Month column values (All_Transactions format)', () => {
+  beforeEach(() => {
+    vi.mocked(prisma.employee.findMany).mockResolvedValue(EMPLOYEE_LIST as any);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+  });
+
+  it('marks row invalid when payrollMonth is 0 (parseMonthColumn failed on bad Month value)', async () => {
+    const row = baseRow({ payrollMonth: 0 });
+    const result = await salariesBankImportService.preview([row]);
+    expect(result.rows[0].isValid).toBe(false);
+    expect(result.rows[0].errors.some((e) => e.includes('شهر الرواتب'))).toBe(true);
+    expect(result.canExecute).toBe(false);
+  });
+
+  it('marks row invalid when payrollYear is 0 (parseMonthColumn failed on bad Month value)', async () => {
+    const row = baseRow({ payrollYear: 0 });
+    const result = await salariesBankImportService.preview([row]);
+    expect(result.rows[0].isValid).toBe(false);
+    expect(result.rows[0].errors.some((e) => e.includes('سنة الرواتب'))).toBe(true);
   });
 });
