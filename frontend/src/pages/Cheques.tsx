@@ -7,7 +7,15 @@ import { formatDate } from '../lib/date';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import StatCard from '../components/StatCard';
+import ChequeCalibrator from '../components/ChequeCalibrator';
 import gulfBankImg from '../assets/cheakv1.png';
+import {
+  DEFAULT_TEMPLATE,
+  cloneDefaultTemplate,
+  fmtChequeAmount,
+  templateFromSettings,
+} from '../utils/chequeTemplate';
+import type { ChequeTemplate } from '../utils/chequeTemplate';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -101,41 +109,9 @@ function fmtAmount(v: number | string, currency = 'KWD'): string {
 
 // ── ChequePrintOutput ─────────────────────────────────────────────────────────
 
-const CHEQUE_CALIBRATION_MODE = false;
-
-// Page-level print position on A4 landscape (mm). Gulf Bank cheque feeds at centre of page.
+// Page-level print position on A4 landscape (mm). Cheque feeds at centre of page.
 const CHEQUE_PAGE_OFFSET_X_MM: number = 0;
 const CHEQUE_PAGE_OFFSET_Y_MM: number = 40;
-
-const CAL: React.CSSProperties = CHEQUE_CALIBRATION_MODE
-  ? { border: '1px solid red', background: 'rgba(255,0,0,0.08)' }
-  : {};
-
-function CalTag({ name, top, left, width }: { name: string; top: string; left: string; width: string }) {
-  if (!CHEQUE_CALIBRATION_MODE) return null;
-  return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        fontSize: '5.5pt',
-        fontFamily: 'monospace, monospace',
-        color: 'red',
-        background: 'rgba(255,255,255,0.9)',
-        padding: '1px 3px',
-        lineHeight: 1.3,
-        pointerEvents: 'none',
-        whiteSpace: 'nowrap',
-        zIndex: 10,
-      }}
-    >
-      {name}
-      <br />
-      t:{top} l:{left} w:{width}
-    </div>
-  );
-}
 
 interface PreviewData {
   chequeNumber: string;
@@ -147,7 +123,7 @@ interface PreviewData {
   bankName: string;
 }
 
-function ChequePrintOutput({ data }: { data: PreviewData }) {
+function ChequePrintOutput({ data, template }: { data: PreviewData; template: ChequeTemplate }) {
   const raw = Number(data.amount ?? 0);
   const amount = isNaN(raw) ? 0 : raw;
   const d = new Date(data.chequeDate);
@@ -156,8 +132,25 @@ function ChequePrintOutput({ data }: { data: PreviewData }) {
       ? ''
       : `${String(d.getDate()).padStart(2, '0')} / ${String(d.getMonth() + 1).padStart(2, '0')} / ${d.getFullYear()}`;
 
+  function fieldStyle(key: keyof ChequeTemplate): React.CSSProperties {
+    const cfg = template[key];
+    return {
+      position: 'absolute',
+      top: `${cfg.top}%`,
+      left: `${cfg.left}%`,
+      width: `${cfg.width}%`,
+      fontSize: `${cfg.fontSize}pt`,
+      fontFamily: cfg.fontFamily === 'monospace' ? 'monospace, monospace' : `'${cfg.fontFamily}', Arial, sans-serif`,
+      fontWeight: cfg.fontWeight,
+      fontStyle: cfg.fontStyle,
+      textAlign: cfg.textAlign,
+      color: cfg.color,
+      lineHeight: 1.55,
+      boxSizing: 'border-box',
+    };
+  }
+
   return (
-    // Outer container: fixed clipping frame — no transform, layout footprint is stable
     <div
       style={{
         position: 'relative',
@@ -177,82 +170,16 @@ function ChequePrintOutput({ data }: { data: PreviewData }) {
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill' }}
         />
 
-        {/* Beneficiary name */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '29.8%',
-            left: '34.5%',
-            width: '38%',
-            fontSize: '11pt',
-            fontWeight: 600,
-            color: '#000',
-            lineHeight: 1.55,
-            ...CAL,
-          }}
-        >
-          <CalTag name="BENEFICIARY" top="29.8%" left="34.5%" width="38%" />
-          {data.beneficiaryName}
-        </div>
+        <div style={fieldStyle('beneficiary')}>{data.beneficiaryName}</div>
 
-        {/* Date: DD / MM / YYYY */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '24.3%',
-            left: '79.1%',
-            width: '23%',
-            fontSize: '10pt',
-            fontWeight: 600,
-            color: '#000',
-            textAlign: 'center',
-            letterSpacing: 0.5,
-            ...CAL,
-          }}
-        >
-          <CalTag name="DATE" top="24.3%" left="79.1%" width="23%" />
-          {chequeDate}
-        </div>
+        <div style={{ ...fieldStyle('date'), letterSpacing: 0.5 }}>{chequeDate}</div>
 
-        {/* Amount in Arabic words (tafqeet) */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '39.1%',
-            left: '5.7%',
-            width: '72%',
-            fontSize: '10pt',
-            fontWeight: 600,
-            color: '#000',
-            direction: 'rtl',
-            lineHeight: 1.55,
-            ...CAL,
-          }}
-        >
-          <CalTag name="TAFQEET" top="39.1%" left="5.7%" width="72%" />
+        <div style={{ ...fieldStyle('tafqeet'), direction: 'rtl' }}>
           {amount > 0 ? tafqeetKWD(amount) : ''}
         </div>
 
-        {/* Numeric amount without currency label */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '45.8%',
-            left: '82.4%',
-            width: '18%',
-            fontSize: '11pt',
-            fontWeight: 700,
-            color: '#000',
-            textAlign: 'center',
-            fontFamily: 'monospace',
-            letterSpacing: 0.5,
-            ...CAL,
-          }}
-        >
-          <CalTag name="NUMERIC" top="45.8%" left="82.4%" width="18%" />
-          {amount > 0
-            ? `#${amount.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}#`
-            : ''}
+        <div style={{ ...fieldStyle('numeric'), letterSpacing: 0.5 }}>
+          {amount > 0 ? fmtChequeAmount(amount) : ''}
         </div>
       </div>
     </div>
@@ -279,11 +206,14 @@ export default function Cheques() {
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
   const [showPrintConfirm, setShowPrintConfirm] = useState(false);
+  const [showCalibrator, setShowCalibrator] = useState(false);
+  const [allTemplates, setAllTemplates] = useState<Record<string, ChequeTemplate>>({});
   const [busy, setBusy] = useState(false);
   const canCreate = hasPermission('cheques.create');
   const canUpdate = hasPermission('cheques.update');
   const canPrint = hasPermission('cheques.print');
   const canCancel = hasPermission('cheques.cancel');
+  const canCalibrate = hasPermission('settings.update');
 
   // ── Data loading ────────────────────────────────────────────────────────────
 
@@ -320,6 +250,25 @@ export default function Cheques() {
     const id = setTimeout(() => setSuccess(''), 3500);
     return () => clearTimeout(id);
   }, [success]);
+
+  // ── Load cheque templates from Settings on mount ───────────────────────────
+
+  useEffect(() => {
+    api.get('/settings').then((res) => {
+      const settings: { key: string; value: string }[] = res.data?.data?.settings ?? [];
+      const result: Record<string, ChequeTemplate> = {};
+      for (const bank of KUWAITI_BANKS) {
+        result[bank] = templateFromSettings(settings, bank);
+      }
+      setAllTemplates(result);
+    }).catch(() => {
+      const result: Record<string, ChequeTemplate> = {};
+      for (const bank of KUWAITI_BANKS) result[bank] = cloneDefaultTemplate();
+      setAllTemplates(result);
+    });
+  }, []);
+
+  const currentTemplate: ChequeTemplate = allTemplates[form.bankName] ?? DEFAULT_TEMPLATE;
 
   // ── Form handlers ─────────────────────────────────────────────────────────
 
@@ -520,13 +469,40 @@ export default function Cheques() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  function handleCalibSaved(bank: string, template: ChequeTemplate) {
+    setAllTemplates((prev) => ({ ...prev, [bank]: template }));
+  }
+
+  const calibPreviewData = {
+    beneficiaryName: printTarget?.beneficiaryName ?? 'شركة المنار الدولية',
+    chequeDate: (() => {
+      const src = printTarget?.chequeDate ?? new Date().toISOString();
+      const d = new Date(src);
+      return isNaN(d.getTime()) ? '18 / 06 / 2026' : `${String(d.getDate()).padStart(2, '0')} / ${String(d.getMonth() + 1).padStart(2, '0')} / ${d.getFullYear()}`;
+    })(),
+    tafqeetText: printTarget ? tafqeetKWD(Number(printTarget.amount)) : 'خمسة آلاف دينار كويتي لا غير',
+    numericText: printTarget ? fmtChequeAmount(Number(printTarget.amount)) : '#5,000#',
+  };
+
   return (
     <div className="page">
+      {/* Calibration overlay — fullscreen, shown on demand */}
+      {showCalibrator && (
+        <ChequeCalibrator
+          banks={KUWAITI_BANKS}
+          initialBank={form.bankName}
+          loadedTemplates={allTemplates}
+          previewData={calibPreviewData}
+          onSaved={handleCalibSaved}
+          onClose={() => setShowCalibrator(false)}
+        />
+      )}
+
       {/* Hidden print area — revealed only by @media print */}
       <div className="cheque-print-only" style={{ display: 'none' }}>
         {/* Page-level offset: shifts the entire print block in physical mm on the A4 page */}
         <div style={{ transform: `translate(${CHEQUE_PAGE_OFFSET_X_MM}mm, ${CHEQUE_PAGE_OFFSET_Y_MM}mm)` }}>
-          <ChequePrintOutput data={previewData} />
+          <ChequePrintOutput data={previewData} template={currentTemplate} />
         </div>
       </div>
 
@@ -554,11 +530,18 @@ export default function Cheques() {
           <h2>{t('page.cheques.title')}</h2>
           <p>{t('page.cheques.subtitle')}</p>
         </div>
-        {canCreate && (
-          <button type="button" className="btn" onClick={resetForm}>
-            {t('page.cheques.new')}
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {canCalibrate && (
+            <button type="button" className="btn secondary" onClick={() => setShowCalibrator(true)}>
+              معايرة الطباعة
+            </button>
+          )}
+          {canCreate && (
+            <button type="button" className="btn" onClick={resetForm}>
+              {t('page.cheques.new')}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Alerts */}
@@ -661,7 +644,7 @@ export default function Cheques() {
             {printTarget && statusPill(printTarget.status, t)}
           </div>
 
-          <ChequePrintOutput data={previewData} />
+          <ChequePrintOutput data={previewData} template={currentTemplate} />
 
           <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button
