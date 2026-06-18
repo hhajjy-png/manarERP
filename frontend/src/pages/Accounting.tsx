@@ -143,6 +143,10 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -160,7 +164,9 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
 
   async function deleteAccount(id: number) {
     if (!confirm(t('confirm.delete_account'))) return;
-    try { await api.delete(`/accounting/accounts/${id}`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return;
+    setBusy(true);
+    try { await api.delete(`/accounting/accounts/${id}`); showMsg('تم حذف الحساب بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -184,6 +190,9 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
         {canCreate && <button type="button" className="btn" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(true)}>{t('btn.acc.new_account')}</button>}
       </div>
 
+      {error && <div className="alert error">⚠️ {error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
+
       <DataTable
         columns={columns}
         rows={rows}
@@ -193,13 +202,13 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
         actions={(row) => (
           <>
             <button type="button" className="btn sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>{' '}
-            <button type="button" className="btn secondary sm" onClick={() => deleteAccount(row.id)}>{t('action.delete')}</button>
+            <button type="button" className="btn secondary sm" onClick={() => deleteAccount(row.id)} disabled={busy}>{t('action.delete')}</button>
           </>
         )}
       />
 
-      {creating && <AccountForm onClose={() => setCreating(false)} onSaved={load} />}
-      {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSaved={load} />}
+      {creating && <AccountForm onClose={() => setCreating(false)} onSaved={() => { showMsg('تم حفظ الحساب بنجاح'); load(); }} />}
+      {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم حفظ الحساب بنجاح'); load(); }} />}
     </div>
   );
 }
@@ -244,7 +253,7 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
-        <div className="field"><label>{t('field.acc.code')} *</label><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="1100" style={{ direction: 'ltr' }} /></div>
+        <div className="field"><label>{t('field.acc.code')} *</label><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="1100" style={{ direction: 'ltr' }} autoFocus /></div>
         <div className="field"><label>{t('field.acc.name')} *</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
         <div className="field">
           <label>{t('field.acc.type')}</label>
@@ -285,6 +294,10 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [expanded, setExpanded] = useState<any | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -300,7 +313,9 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
 
   async function cancelEntry(id: number) {
     if (!confirm(t('confirm.cancel_entry'))) return;
-    try { await api.patch(`/accounting/journal/${id}/cancel`); load(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return;
+    setBusy(true);
+    try { await api.patch(`/accounting/journal/${id}/cancel`); showMsg('تم إلغاء القيد بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -319,6 +334,9 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
         {canCreate && <button type="button" className="btn" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(true)}>{t('btn.acc.new_entry')}</button>}
       </div>
 
+      {error && <div className="alert error">⚠️ {error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
+
       <DataTable
         columns={columns}
         rows={rows}
@@ -329,13 +347,13 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
           <>
             <button type="button" className="btn sm" onClick={() => setExpanded(row)}>{t('action.view')}</button>{' '}
             {row.status === 'POSTED' && row.referenceType === 'MANUAL' && (
-              <button type="button" className="btn secondary sm" onClick={() => cancelEntry(row.id)}>{t('action.cancel')}</button>
+              <button type="button" className="btn secondary sm" onClick={() => cancelEntry(row.id)} disabled={busy}>{t('action.cancel')}</button>
             )}
           </>
         )}
       />
 
-      {creating && <JournalEntryForm onClose={() => setCreating(false)} onSaved={load} />}
+      {creating && <JournalEntryForm onClose={() => setCreating(false)} onSaved={() => { showMsg('تم ترحيل القيد بنجاح'); load(); }} />}
       {expanded && <JournalEntryDetails entry={expanded} onClose={() => setExpanded(null)} />}
     </div>
   );
@@ -432,7 +450,7 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
       <div className="form-grid">
-        <div className="field"><label>{t('field.acc.desc')} *</label><input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+        <div className="field"><label>{t('field.acc.desc')} *</label><input value={description} onChange={(e) => setDescription(e.target.value)} autoFocus /></div>
         <div className="field"><label>{t('col.date')}</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
       </div>
 

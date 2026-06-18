@@ -49,6 +49,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const canDelete = hasPermission(`${cfg.key}.delete`);
   const canExport = cfg.supportsExport && hasPermission('reports.export');
   const [exportBusy, setExportBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,13 +117,13 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         if (cancelled) return;
         const d = res.data?.data;
         if (d) setContractStats({ totalContracts: d.totalContracts ?? 0, activeContracts: d.activeContracts ?? 0, monthlyTransportTotal: d.monthlyTransportTotal ?? 0 });
-      }).catch((e) => { console.warn('[ResourcePage] contracts summary fetch failed:', e); });
+      }).catch(() => {});
     } else if (cfg.key === 'equipment') {
       api.get('/equipment/summary').then((res) => {
         if (cancelled) return;
         const d = res.data?.data;
         if (d) setEquipmentStats({ total: d.total ?? 0, byStatus: d.byStatus ?? [] });
-      }).catch((e) => { console.warn('[ResourcePage] equipment summary fetch failed:', e); });
+      }).catch(() => {});
     }
     return () => { cancelled = true; };
   }, [cfg.key]);
@@ -136,7 +138,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       });
       downloadBlob(res.data as Blob, `${cfg.key}-export.xlsx`);
     } catch (e) {
-      alert(errorMessage(e));
+      setError(errorMessage(e));
     } finally {
       setExportBusy(false);
     }
@@ -151,8 +153,11 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function onDelete(row: any) {
     if (!confirm(t('msg.confirm_delete', { id: row.code ?? row.name ?? row.username ?? row.id }))) return;
+    if (busy) return;
+    setBusy(true);
     try {
       await api.delete(`${cfg.endpoint}/${row.id}`);
+      showMsg('تم الحذف بنجاح');
       load();
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -168,30 +173,44 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       } else if (status === 409 && cfg.supportsArchive && canUpdate) {
         setArchiveCandidate({ id: row.id, label: row.name ?? row.code ?? String(row.id) });
       } else {
-        alert(errorMessage(err));
+        setError(errorMessage(err));
       }
+    } finally {
+      setBusy(false);
     }
   }
 
+  const [busy, setBusy] = useState(false);
+
   async function onConfirmArchive() {
     if (!archiveCandidate) return;
+    if (busy) return;
+    setBusy(true);
     try {
       await api.patch(`${cfg.endpoint}/${archiveCandidate.id}/archive`);
       setArchiveCandidate(null);
+      showMsg('تم الأرشفة بنجاح');
       load();
     } catch (err) {
-      alert(errorMessage(err));
+      setError(errorMessage(err));
       setArchiveCandidate(null);
+    } finally {
+      setBusy(false);
     }
   }
 
   async function onApprove(id: number, action: 'approve' | 'reject') {
     if (!confirm(t(action === 'approve' ? 'msg.confirm_approve' : 'msg.confirm_reject'))) return;
+    if (busy) return;
+    setBusy(true);
     try {
       await api.patch(`${cfg.endpoint}/${id}/${action}`);
+      showMsg(action === 'approve' ? 'تمت الموافقة بنجاح' : 'تم الرفض');
       load();
     } catch (err) {
-      alert(errorMessage(err));
+      setError(errorMessage(err));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -315,6 +334,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
       </form>
 
+      {msg && <div className="alert ok">{msg}</div>}
+
       <DataTable
         columns={cfg.columns}
         rows={rows}
@@ -331,8 +352,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           <>
             {cfg.canApprove && row.status === 'PENDING' && hasPermission('expenses.approve') && (
               <>
-                <button type="button" className="btn sm" onClick={() => onApprove(row.id, 'approve')}>{t('action.approve')}</button>{' '}
-                <button type="button" className="btn secondary sm" onClick={() => onApprove(row.id, 'reject')}>{t('action.reject')}</button>{' '}
+                <button type="button" className="btn sm" onClick={() => onApprove(row.id, 'approve')} disabled={busy}>{t('action.approve')}</button>{' '}
+                <button type="button" className="btn secondary sm" onClick={() => onApprove(row.id, 'reject')} disabled={busy}>{t('action.reject')}</button>{' '}
               </>
             )}
             {canUpdate && <button type="button" className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>}{' '}
@@ -347,7 +368,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           fields={cfg.fields}
           endpoint={cfg.endpoint}
           onClose={() => setCreating(false)}
-          onSaved={load}
+          onSaved={() => { showMsg('تم الحفظ بنجاح'); load(); }}
         />
       )}
       {editing && (
@@ -358,7 +379,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           id={editing.id}
           initial={editing}
           onClose={() => setEditing(null)}
-          onSaved={load}
+          onSaved={() => { showMsg('تم الحفظ بنجاح'); load(); }}
         />
       )}
 
@@ -369,7 +390,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           footer={
             <>
               <button type="button" className="btn secondary" onClick={() => setArchiveCandidate(null)}>إلغاء</button>
-              <button type="button" className="btn" onClick={onConfirmArchive}>أرشفة</button>
+              <button type="button" className="btn" onClick={onConfirmArchive} disabled={busy}>أرشفة</button>
             </>
           }
         >

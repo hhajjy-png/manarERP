@@ -4,11 +4,7 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { money, dateText } from '../config/modules';
 import { useT } from '../lib/i18n';
-
-const ARABIC_MONTHS = [
-  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
-];
+import { ARABIC_MONTHS } from '../utils/dateUtils';
 
 const PAY_METHOD_AR: Record<string, string> = {
   CASH: 'نقدًا', BANK: 'بنك', CHEQUE: 'شيك', TRANSFER: 'تحويل',

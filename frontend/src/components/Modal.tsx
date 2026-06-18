@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useCallback, useEffect } from 'react';
 import { useDraggable } from '../hooks/useDraggable';
 
 interface Props {
@@ -18,10 +18,19 @@ export default function Modal({ title, onClose, onBeforeClose, children, footer,
     resetPosition();
   }, [resetPosition]);
 
-  function handleClose() {
+  const handleClose = useCallback(() => {
     if (onBeforeClose && !onBeforeClose()) return;
     onClose();
-  }
+  }, [onBeforeClose, onClose]);
+
+  // إغلاق الـ Modal بضغط Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleClose]);
 
   return (
     <div className={`modal-overlay${className ? ` ${className}` : ''}`} onMouseDown={handleClose}>

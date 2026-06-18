@@ -90,6 +90,10 @@ export default function Prices() {
   const [creating, setCreating] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [forceDeleteCandidate, setForceDeleteCandidate] = useState<{ id: number; asphaltPlant: string } | null>(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const [stats, setStats] = useState<PricesStats | null>(null);
   const [usageReport, setUsageReport] = useState<UsageReport | null>(null);
@@ -151,7 +155,7 @@ export default function Prices() {
       setUsageReport(res.data.data);
       setShowUsage(true);
     } catch (e) {
-      alert(errorMessage(e));
+      setError(errorMessage(e));
     } finally {
       setUsageLoading(false);
     }
@@ -179,7 +183,7 @@ export default function Prices() {
       });
       downloadBlob(res.data as Blob, 'agreements-export.xlsx');
     } catch (e) {
-      alert(errorMessage(e));
+      setError(errorMessage(e));
     } finally {
       setExportBusy(false);
     }
@@ -187,7 +191,8 @@ export default function Prices() {
 
   async function archiveRow(id: number) {
     if (!confirm(t('confirm.archive_price'))) return;
-    try { await api.delete(`/prices/${id}`); load(); loadStats(); } catch (e) { alert(errorMessage(e)); }
+    if (busy) return; setBusy(true);
+    try { await api.delete(`/prices/${id}`); showMsg('تم الأرشفة بنجاح'); load(); loadStats(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -222,6 +227,9 @@ export default function Prices() {
           </button>
         </div>
       </div>
+
+      {error && <div className="alert error">⚠️ {error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
 
       {/* ── Stats Dashboard ─────────────────────────────────────────────────── */}
       {stats && (
@@ -322,7 +330,7 @@ export default function Prices() {
               <button className="btn sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>
             )}{' '}
             {hasPermission('prices.delete') && (
-              <button className="btn secondary sm" onClick={() => archiveRow(row.id)}>{t('action.delete')}</button>
+              <button className="btn secondary sm" onClick={() => archiveRow(row.id)} disabled={busy}>{t('action.delete')}</button>
             )}{' '}
             {isSystemAdmin && (
               <button type="button" className="btn danger sm" onClick={() => setForceDeleteCandidate({ id: row.id, asphaltPlant: row.asphaltPlant })}>حذف نهائي</button>
@@ -331,8 +339,8 @@ export default function Prices() {
         )}
       />
 
-      {creating && <PriceForm customers={customers} onClose={() => setCreating(false)} onSaved={() => { load(); loadStats(); }} />}
-      {editing && <PriceForm customers={customers} price={editing} onClose={() => setEditing(null)} onSaved={() => { load(); loadStats(); }} />}
+      {creating && <PriceForm customers={customers} onClose={() => setCreating(false)} onSaved={() => { showMsg('تم حفظ السعر بنجاح'); load(); loadStats(); }} />}
+      {editing && <PriceForm customers={customers} price={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم حفظ السعر بنجاح'); load(); loadStats(); }} />}
 
       {forceDeleteCandidate && (
         <ForceDeleteProjectPriceModal
@@ -551,7 +559,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
         </div>
         <div className="field">
           <label>{t('col.prices.plant')} *</label>
-          <input value={asphaltPlant} onChange={(e) => setAsphaltPlant(e.target.value)} placeholder={t('ph.prices.plant')} />
+          <input value={asphaltPlant} onChange={(e) => setAsphaltPlant(e.target.value)} placeholder={t('ph.prices.plant')} autoFocus />
         </div>
         <div className="field">
           <label>{t('col.prices.company')} *</label>

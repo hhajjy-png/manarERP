@@ -147,7 +147,7 @@ function AttendanceForm({
 
       <div className="field">
         <label>{t('field.date')} *</label>
-        <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={isEdit} />
+        <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={isEdit} autoFocus={!isEdit} />
       </div>
 
       <div className="field">
@@ -257,6 +257,8 @@ export default function Attendance() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [formError, setFormError] = useState('');
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -306,6 +308,7 @@ export default function Attendance() {
       });
       setShowCreate(false);
       setCreateForm(EMPTY_FORM);
+      showMsg('تم التسجيل بنجاح');
       load();
     } catch (e) {
       setFormError(errorMessage(e));
@@ -345,6 +348,7 @@ export default function Attendance() {
         notes: editForm.notes || undefined,
       });
       setEditRecord(null);
+      showMsg('تم الحفظ بنجاح');
       load();
     } catch (e) {
       setFormError(errorMessage(e));
@@ -359,6 +363,7 @@ export default function Attendance() {
     try {
       await api.delete(`/employees/attendance/${deleteTarget.id}`);
       setDeleteTarget(null);
+      showMsg('تم الحذف بنجاح');
       load();
     } catch (e) {
       setError(errorMessage(e));
@@ -464,7 +469,8 @@ export default function Attendance() {
         <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
       </div>
 
-      {error && <div className="alert error" style={{ marginBottom: 12 }}>{error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
+      {error && <div className="alert error" style={{ marginBottom: 12 }}>⚠️ {error}</div>}
 
       <DataTable
         columns={columns}
