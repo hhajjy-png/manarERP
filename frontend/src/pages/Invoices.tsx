@@ -191,8 +191,23 @@ export default function Invoices() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { key: 'party', label: 'col.inv.party', render: (r: any) => r.customer?.name ?? r.supplier?.name ?? '—' },
     { key: 'issueDate', label: 'col.date', render: (r: Record<string, unknown>) => dateText(r.issueDate) },
+    {
+      key: 'billingPeriod',
+      label: 'شهر الفوترة',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      render: (row: any) =>
+        row.billingMonth && row.billingYear
+          ? `${ARABIC_MONTHS[row.billingMonth - 1]} ${row.billingYear}`
+          : '—',
+    },
     { key: 'total', label: 'col.inv.total', render: (r: Record<string, unknown>) => money(r.total) },
     { key: 'paidAmount', label: 'col.inv.paid', render: (r: Record<string, unknown>) => money(r.paidAmount) },
+    {
+      key: 'remaining',
+      label: 'المتبقي',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      render: (row: any) => money(Math.max(0, row.total - (row.paidAmount ?? 0))),
+    },
     { key: 'status', label: 'col.status', render: (r: Record<string, unknown>) => { const [key, c] = statusPill[String(r.status)] ?? ['—', 'gray']; return <span className={`pill ${c}`}>{t(key)}</span>; } },
   ];
 
