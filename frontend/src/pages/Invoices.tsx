@@ -1458,6 +1458,8 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
 
   async function submit() {
     setError('');
+    if (Number(amount) <= 0) { setError('المبلغ يجب أن يكون أكبر من صفر'); return; }
+    if (Number(amount) > remaining) { setError('المبلغ المدخل أكبر من المتبقي للفاتورة'); return; }
     if (method === 'CHEQUE' && !chequeNumber.trim()) { setError('رقم الشيك مطلوب'); return; }
     if (method === 'CASH' && !recipientName.trim()) { setError('اسم المستلم مطلوب'); return; }
     if (method === 'TRANSFER' && !transferDate) { setError('تاريخ الحوالة مطلوب'); return; }

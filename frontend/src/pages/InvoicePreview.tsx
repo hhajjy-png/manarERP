@@ -362,7 +362,7 @@ export default function InvoicePreview() {
       )}
 
       {/* ── Signature Area ── */}
-      <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+      <div style={{ marginTop: 20, display: 'flex', justifyContent: 'space-between', gap: 16, pageBreakInside: 'avoid' }}>
         {([
           { label: 'التوقيع والختم', sub: data.customer?.name ?? data.supplier?.name ?? 'الجهة المستلمة' },
           { label: 'المسؤول', sub: 'شركة المنار الدولية' },
