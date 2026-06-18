@@ -212,22 +212,24 @@ export default function Forms() {
               {card.description}
             </p>
 
-            {/* Print mode selector */}
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 6, color: 'var(--text-muted)' }}>
-                وضع الطباعة
-              </label>
-              <select
-                title="وضع الطباعة"
-                style={{ ...sel, fontSize: 12 }}
-                value={printModes[card.key]}
-                onChange={(e) => setMode(card.key, e.target.value as PrintMode)}
-              >
-                {(Object.entries(PRINT_MODE_LABELS) as [PrintMode, string][]).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
-            </div>
+            {/* Print mode selector — not applicable for employment contract (has own dialog) */}
+            {card.key !== 'employment-contract' && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 6, color: 'var(--text-muted)' }}>
+                  وضع الطباعة
+                </label>
+                <select
+                  title="وضع الطباعة"
+                  style={{ ...sel, fontSize: 12 }}
+                  value={printModes[card.key]}
+                  onChange={(e) => setMode(card.key, e.target.value as PrintMode)}
+                >
+                  {(Object.entries(PRINT_MODE_LABELS) as [PrintMode, string][]).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Print button */}
             <button

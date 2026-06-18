@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { generateFormNumber } from '../forms/shared/formNumber';
@@ -140,6 +140,8 @@ export default function EmploymentContract() {
   const [fetchError, setFetchError] = useState('');
   const [showTemplate, setShowTemplate] = useState(false);
 
+  const hasLogged = useRef(false);
+
   const [params, setParams] = useState<ContractParams>({
     issueDate: todayISO(),
     startDate: todayISO(),
@@ -160,7 +162,8 @@ export default function EmploymentContract() {
   }, [employeeId]);
 
   useEffect(() => {
-    if (!employee || !showTemplate) return;
+    if (!employee || !showTemplate || hasLogged.current) return;
+    hasLogged.current = true;
     api
       .post('/forms/print-log', {
         formType: 'employment-contract',
