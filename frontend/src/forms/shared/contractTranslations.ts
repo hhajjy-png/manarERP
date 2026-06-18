@@ -46,11 +46,11 @@ const JOB_TITLE_EN: Record<string, string> = {
 };
 
 export function getNationalityEn(ar: string | null | undefined): string {
-  if (!ar) return '';
+  if (!ar) return '—';
   return NATIONALITY_EN[ar.trim()] ?? ar;
 }
 
 export function getJobTitleEn(ar: string | null | undefined): string {
-  if (!ar) return '';
+  if (!ar) return '—';
   return JOB_TITLE_EN[ar.trim()] ?? ar;
 }
