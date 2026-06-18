@@ -864,7 +864,12 @@ function LocationAutocomplete({ value, onChange }: { value: string; onChange: (v
         onChange={handleChange}
         onFocus={() => refresh(value)}
         onBlur={handleBlur}
-        onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            setOpen(false);
+            e.stopPropagation();
+          }
+        }}
         className="line-input"
         style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
         autoComplete="off"
