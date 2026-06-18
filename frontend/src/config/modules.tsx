@@ -263,6 +263,7 @@ export const MODULES: Record<string, ModuleConfig> = {
       { name: 'birthDate', label: 'field.birth_date', type: 'date' },
       { name: 'company', label: 'field.company' },
       { name: 'address', label: 'field.address' },
+      { name: 'bankAccount', label: 'field.bank_account' },
       { name: 'salary', label: 'field.salary_kd', type: 'number' },
       { name: 'status', label: 'field.status', type: 'select', options: [
         { value: 'ACTIVE', label: 'opt.emp.active' },
@@ -345,6 +346,7 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'expenses', label: 'nav.expenses', icon: 'payments', permission: 'expenses.read' },
     { key: 'cheques', label: 'nav.cheques', icon: 'edit_note', permission: 'cheques.read' },
     { key: 'salaries', label: 'nav.salaries', icon: 'account_balance_wallet', permission: 'payroll.read' },
+    { key: 'payroll/bank-import', label: 'nav.bank_import', icon: 'file_upload', permission: 'import.read' },
     { key: 'suppliers', label: 'nav.suppliers', icon: 'inventory_2', permission: 'suppliers.read' },
     { key: 'accounting', label: 'nav.accounting', icon: 'account_balance', permission: 'transactions.read' },
   ] },
