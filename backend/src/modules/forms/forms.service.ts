@@ -63,6 +63,12 @@ export class FormsService {
     return { employee, latestReview };
   }
 
+  async getEmploymentContractData(employeeId: number) {
+    const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+    if (!employee) throw AppError.notFound('الموظف غير موجود');
+    return { employee };
+  }
+
   async logFormPrint(
     req: Request,
     data: {

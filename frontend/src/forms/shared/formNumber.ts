@@ -7,6 +7,7 @@ const PREFIXES: Record<string, string> = {
   resignation: 'RES',
   'employee-warning': 'WRN',
   'performance-evaluation': 'EVA',
+  'employment-contract': 'EMP',
 };
 
 export function generateFormNumber(formType: string): string {
