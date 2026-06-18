@@ -101,20 +101,6 @@ function statusBadge(map: Record<string, [string, PillCls]>, val: string) {
   return pill(label, cls);
 }
 
-const inp: React.CSSProperties = {
-  padding: '10px 12px',
-  border: '1px solid var(--border)',
-  borderRadius: 10,
-  background: 'var(--bg)',
-  color: 'var(--text)',
-  fontFamily: 'inherit',
-  fontWeight: 600,
-  fontSize: 14,
-  outline: 'none',
-  width: '100%',
-  boxSizing: 'border-box',
-};
-
 // ── Tab Types ─────────────────────────────────────────────────────────────────
 
 type Tab = 'records' | 'fuel' | 'breakdowns' | 'spare-parts';
@@ -230,9 +216,9 @@ function RecordForm({
     <form id={id} onSubmit={onSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
       {!isEdit && (
         <>
-          <div style={{ gridColumn: '1/-1' }}>
-            <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.equipment')} *</label>
-            <select style={inp} required value={form.equipmentId} onChange={(e) => {
+          <div className="field" style={{ gridColumn: '1/-1' }}>
+            <label>{t('field.equipment')} *</label>
+            <select className="line-input" required value={form.equipmentId} onChange={(e) => {
               const eq = equipmentList.find((x) => String(x.id) === e.target.value);
               setForm({ ...form, equipmentId: e.target.value, plateNumber: eq?.plateNumber ?? '' });
             }}>
@@ -240,47 +226,47 @@ function RecordForm({
               {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.name ? ` — ${eq.name}` : eq.type ? ` — ${eq.type}` : ''}</option>)}
             </select>
           </div>
-          <div style={{ gridColumn: '1/-1' }}>
-            <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.plate_number')}</label>
-            <input style={{ ...inp, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
+          <div className="field" style={{ gridColumn: '1/-1' }}>
+            <label>{t('field.plate_number')}</label>
+            <input className="line-input" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
           </div>
         </>
       )}
-      <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.type')} *</label>
-        <select style={inp} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+      <div className="field">
+        <label>{t('field.maint.type')} *</label>
+        <select className="line-input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
           <option value="PREVENTIVE">{t('opt.maint.preventive')}</option>
           <option value="CORRECTIVE">{t('opt.maint.corrective')}</option>
         </select>
       </div>
-      <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.status')}</label>
-        <select style={inp} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+      <div className="field">
+        <label>{t('field.status')}</label>
+        <select className="line-input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
           <option value="SCHEDULED">{t('opt.maint.scheduled')}</option>
           <option value="IN_PROGRESS">{t('opt.maint.in_progress')}</option>
           <option value="COMPLETED">{t('opt.maint.completed')}</option>
           <option value="CANCELLED">{t('opt.maint.cancelled')}</option>
         </select>
       </div>
-      <div style={{ gridColumn: '1/-1' }}>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.description')} *</label>
-        <textarea style={{ ...inp, minHeight: 72, resize: 'vertical' }} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+      <div className="field" style={{ gridColumn: '1/-1' }}>
+        <label>{t('field.description')} *</label>
+        <textarea className="line-input" style={{ minHeight: 72, resize: 'vertical' }} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
       </div>
-      <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.amount_kd')}</label>
-        <input style={inp} type="number" min="0" step="0.001" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
+      <div className="field">
+        <label>{t('field.amount_kd')}</label>
+        <input className="line-input" type="number" min="0" step="0.001" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
       </div>
-      <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.performed_by')}</label>
-        <input style={inp} value={form.performedBy} onChange={(e) => setForm({ ...form, performedBy: e.target.value })} />
+      <div className="field">
+        <label>{t('field.maint.performed_by')}</label>
+        <input className="line-input" value={form.performedBy} onChange={(e) => setForm({ ...form, performedBy: e.target.value })} />
       </div>
-      <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.date')}</label>
-        <input style={inp} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+      <div className="field">
+        <label>{t('field.date')}</label>
+        <input className="line-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
       </div>
-      <div>
-        <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.next_due')}</label>
-        <input style={inp} type="date" value={form.nextDueDate} onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })} />
+      <div className="field">
+        <label>{t('field.maint.next_due')}</label>
+        <input className="line-input" type="date" value={form.nextDueDate} onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })} />
       </div>
     </form>
   );
@@ -468,29 +454,30 @@ function RecordsTab() {
       {/* Filters + Search toolbar */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
         <input
-          style={{ ...inp, width: 200 }}
+          className="line-input"
+          style={{ width: 200 }}
           placeholder={t('search.placeholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select style={{ ...inp, width: 190 }} value={filterEquip} onChange={(e) => setFilterEquip(e.target.value)}>
+        <select className="line-input" style={{ width: 190 }} value={filterEquip} onChange={(e) => setFilterEquip(e.target.value)}>
           <option value="">{t('filter.all_equipment')}</option>
           {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.name ? ` — ${eq.name}` : eq.type ? ` — ${eq.type}` : ''}</option>)}
         </select>
-        <select style={{ ...inp, width: 150 }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+        <select className="line-input" style={{ width: 150 }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
           <option value="">{t('filter.all_types')}</option>
           <option value="PREVENTIVE">{t('opt.maint.preventive')}</option>
           <option value="CORRECTIVE">{t('opt.maint.corrective')}</option>
         </select>
-        <select style={{ ...inp, width: 160 }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+        <select className="line-input" style={{ width: 160 }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
           <option value="">{t('filter.all_statuses')}</option>
           <option value="SCHEDULED">{t('opt.maint.scheduled')}</option>
           <option value="IN_PROGRESS">{t('opt.maint.in_progress')}</option>
           <option value="COMPLETED">{t('opt.maint.completed')}</option>
           <option value="CANCELLED">{t('opt.maint.cancelled')}</option>
         </select>
-        <input style={{ ...inp, width: 150 }} type="date" title={t('filter.date_from')} value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
-        <input style={{ ...inp, width: 150 }} type="date" title={t('filter.date_to')}   value={filterDateTo}   onChange={(e) => setFilterDateTo(e.target.value)} />
+        <input className="line-input" style={{ width: 150 }} type="date" title={t('filter.date_from')} value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+        <input className="line-input" style={{ width: 150 }} type="date" title={t('filter.date_to')}   value={filterDateTo}   onChange={(e) => setFilterDateTo(e.target.value)} />
         <div style={{ flex: 1 }} />
         <button className="btn secondary sm" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         {hasPermission('maintenance.create') && (
@@ -665,7 +652,7 @@ function FuelTab() {
       </div>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
-        <select style={{ ...inp, width: 200 }} value={filterEquip} onChange={(e) => setFilterEquip(e.target.value)}>
+        <select className="line-input" style={{ width: 200 }} value={filterEquip} onChange={(e) => setFilterEquip(e.target.value)}>
           <option value="">{t('filter.all_equipment')}</option>
           {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
         </select>
@@ -690,9 +677,9 @@ function FuelTab() {
           }
         >
           <form id="maint-fuel-form" onSubmit={handleCreate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.equipment')} *</label>
-              <select style={inp} required value={form.equipmentId} onChange={(e) => {
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('field.equipment')} *</label>
+              <select className="line-input" required value={form.equipmentId} onChange={(e) => {
                 const eq = equipmentList.find((x) => String(x.id) === e.target.value);
                 setForm({ ...form, equipmentId: e.target.value, plateNumber: eq?.plateNumber ?? '' });
               }}>
@@ -700,29 +687,29 @@ function FuelTab() {
                 {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
               </select>
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.plate_number')}</label>
-              <input style={{ ...inp, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('field.plate_number')}</label>
+              <input className="line-input" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
             </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.liters')} *</label>
-              <input style={inp} type="number" min="0.001" step="0.001" required value={form.liters} onChange={(e) => setForm({ ...form, liters: e.target.value })} />
+            <div className="field">
+              <label>{t('field.maint.liters')} *</label>
+              <input className="line-input" type="number" min="0.001" step="0.001" required value={form.liters} onChange={(e) => setForm({ ...form, liters: e.target.value })} />
             </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.amount_kd')} *</label>
-              <input style={inp} type="number" min="0" step="0.001" required value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
+            <div className="field">
+              <label>{t('field.amount_kd')} *</label>
+              <input className="line-input" type="number" min="0" step="0.001" required value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} />
             </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.odometer')}</label>
-              <input style={inp} type="number" min="0" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} />
+            <div className="field">
+              <label>{t('field.maint.odometer')}</label>
+              <input className="line-input" type="number" min="0" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} />
             </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.date')}</label>
-              <input style={inp} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+            <div className="field">
+              <label>{t('field.date')}</label>
+              <input className="line-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.notes')}</label>
-              <textarea style={{ ...inp, minHeight: 60, resize: 'vertical' }} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('field.notes')}</label>
+              <textarea className="line-input" style={{ minHeight: 60, resize: 'vertical' }} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
             </div>
           </form>
         </Modal>
@@ -836,11 +823,11 @@ function BreakdownsTab() {
       </div>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
-        <select style={{ ...inp, width: 200 }} value={filterEquip} onChange={(e) => setFilterEquip(e.target.value)}>
+        <select className="line-input" style={{ width: 200 }} value={filterEquip} onChange={(e) => setFilterEquip(e.target.value)}>
           <option value="">{t('filter.all_equipment')}</option>
           {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
         </select>
-        <select style={{ ...inp, width: 160 }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+        <select className="line-input" style={{ width: 160 }} value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
           <option value="">{t('filter.all_statuses')}</option>
           <option value="OPEN">{t('opt.maint.breakdown_open')}</option>
           <option value="RESOLVED">{t('opt.maint.breakdown_resolved')}</option>
@@ -866,9 +853,9 @@ function BreakdownsTab() {
           }
         >
           <form id="maint-breakdown-form" onSubmit={handleCreate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.equipment')} *</label>
-              <select style={inp} required value={form.equipmentId} onChange={(e) => {
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('field.equipment')} *</label>
+              <select className="line-input" required value={form.equipmentId} onChange={(e) => {
                 const eq = equipmentList.find((x) => String(x.id) === e.target.value);
                 setForm({ ...form, equipmentId: e.target.value, plateNumber: eq?.plateNumber ?? '' });
               }}>
@@ -876,17 +863,17 @@ function BreakdownsTab() {
                 {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
               </select>
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.plate_number')}</label>
-              <input style={{ ...inp, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('field.plate_number')}</label>
+              <input className="line-input" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.description')} *</label>
-              <textarea style={{ ...inp, minHeight: 72, resize: 'vertical' }} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('field.description')} *</label>
+              <textarea className="line-input" style={{ minHeight: 72, resize: 'vertical' }} required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.severity')}</label>
-              <select style={inp} value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })}>
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('field.maint.severity')}</label>
+              <select className="line-input" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })}>
                 <option value="LOW">{t('opt.maint.sev_low')}</option>
                 <option value="MEDIUM">{t('opt.maint.sev_medium')}</option>
                 <option value="HIGH">{t('opt.maint.sev_high')}</option>
@@ -977,7 +964,7 @@ function SparePartsTab() {
       </div>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
-        <select style={{ ...inp, width: 200 }} value={filterEquip} onChange={(e) => setFilterEquip(e.target.value)}>
+        <select className="line-input" style={{ width: 200 }} value={filterEquip} onChange={(e) => setFilterEquip(e.target.value)}>
           <option value="">{t('filter.all_equipment')}</option>
           {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
         </select>
@@ -1002,9 +989,9 @@ function SparePartsTab() {
           }
         >
           <form id="maint-spare-form" onSubmit={handleCreate} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.equipment')} *</label>
-              <select style={inp} required value={form.equipmentId} onChange={(e) => {
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('field.equipment')} *</label>
+              <select className="line-input" required value={form.equipmentId} onChange={(e) => {
                 const eq = equipmentList.find((x) => String(x.id) === e.target.value);
                 setForm({ ...form, equipmentId: e.target.value, plateNumber: eq?.plateNumber ?? '' });
               }}>
@@ -1012,25 +999,25 @@ function SparePartsTab() {
                 {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.type ? ` — ${eq.type}` : ''}</option>)}
               </select>
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.plate_number')}</label>
-              <input style={{ ...inp, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('field.plate_number')}</label>
+              <input className="line-input" style={{ background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default' }} readOnly tabIndex={-1} value={form.plateNumber || '—'} />
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.part_name')} *</label>
-              <input style={inp} required value={form.partName} onChange={(e) => setForm({ ...form, partName: e.target.value })} />
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('field.maint.part_name')} *</label>
+              <input className="line-input" required value={form.partName} onChange={(e) => setForm({ ...form, partName: e.target.value })} />
             </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.quantity')} *</label>
-              <input style={inp} type="number" min="1" required value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+            <div className="field">
+              <label>{t('field.maint.quantity')} *</label>
+              <input className="line-input" type="number" min="1" required value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
             </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.maint.unit_cost')} *</label>
-              <input style={inp} type="number" min="0" step="0.001" required value={form.unitCost} onChange={(e) => setForm({ ...form, unitCost: e.target.value })} />
+            <div className="field">
+              <label>{t('field.maint.unit_cost')} *</label>
+              <input className="line-input" type="number" min="0" step="0.001" required value={form.unitCost} onChange={(e) => setForm({ ...form, unitCost: e.target.value })} />
             </div>
-            <div style={{ gridColumn: '1/-1' }}>
-              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 13, color: 'var(--text-muted)' }}>{t('field.date')}</label>
-              <input style={inp} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+            <div className="field" style={{ gridColumn: '1/-1' }}>
+              <label>{t('field.date')}</label>
+              <input className="line-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
             </div>
           </form>
         </Modal>

@@ -117,13 +117,13 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         if (cancelled) return;
         const d = res.data?.data;
         if (d) setContractStats({ totalContracts: d.totalContracts ?? 0, activeContracts: d.activeContracts ?? 0, monthlyTransportTotal: d.monthlyTransportTotal ?? 0 });
-      }).catch((e) => { console.warn('[ResourcePage] contracts summary fetch failed:', e); });
+      }).catch(() => {});
     } else if (cfg.key === 'equipment') {
       api.get('/equipment/summary').then((res) => {
         if (cancelled) return;
         const d = res.data?.data;
         if (d) setEquipmentStats({ total: d.total ?? 0, byStatus: d.byStatus ?? [] });
-      }).catch((e) => { console.warn('[ResourcePage] equipment summary fetch failed:', e); });
+      }).catch(() => {});
     }
     return () => { cancelled = true; };
   }, [cfg.key]);

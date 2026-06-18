@@ -13,6 +13,7 @@ import { addRecentLocation, computeDropdown } from '../utils/recentLocations';
 import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription, parseDescription } from '../utils/invoiceDescription';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadXlsx } from '../utils/exportUtils';
+import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 
 const statusPill: Record<string, [string, string]> = {
   UNPAID: ['inv.status.unpaid', 'red'], PARTIAL: ['inv.status.partial', 'amber'], PAID: ['inv.status.paid', 'green'],
@@ -32,16 +33,6 @@ function isCustomUnit(unit: string): boolean {
 }
 const INVOICE_YEAR_OPTIONS = [2024, 2025, 2026, 2027, 2028] as const;
 const DEFAULT_INVOICE_YEAR = String(new Date().getFullYear());
-
-const ARABIC_MONTHS = [
-  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
-] as const;
-
-function billingYearOptions(): number[] {
-  const y = new Date().getFullYear();
-  return [y - 2, y - 1, y, y + 1, y + 2];
-}
 
 function parseInvoiceNumber(invNum: string): { year: string; suffix: string } {
   const match = invNum.match(/^MN-INV-(\d{4})-(.+)$/);
@@ -449,7 +440,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     }
     api.get('/prices/for-invoice', { params: { customerId: partyId } })
       .then((res) => setPrices(res.data?.data ?? []))
-      .catch((e) => { console.warn('[CreateInvoice] prices fetch failed:', e); });
+      .catch(() => {});
   }, [partyId, effectivePartySource]);
 
   useEffect(() => {
@@ -1054,7 +1045,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
     api.get('/prices/for-invoice', { params: { customerId: partyId } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((res: any) => setPrices(res.data?.data ?? []))
-      .catch((e: unknown) => { console.warn('[EditInvoice] prices fetch failed:', e); });
+      .catch(() => {});
   }, [partyId, effectivePartySource]);
 
   const lineTotal = (it: Item) => Number(it.quantity) * Number(it.unitPrice);

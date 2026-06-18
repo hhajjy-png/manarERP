@@ -5,6 +5,7 @@ import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadBlob } from '../utils/exportUtils';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { ARABIC_MONTHS } from '../utils/dateUtils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -90,11 +91,6 @@ const REPORT_TYPES: ReportType[] = [
 ];
 
 const GROUPS = ['report.group.financial', 'report.group.business', 'report.group.hr', 'report.group.operations', 'report.group.operational'];
-
-const ARABIC_MONTHS = [
-  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
-];
 
 const CONTRACT_UNITS = ['طن', 'درب', 'يومية', 'مقطوعية'];
 

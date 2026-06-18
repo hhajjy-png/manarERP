@@ -8,11 +8,7 @@ import { money, dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadXlsx } from '../utils/exportUtils';
-
-const ARABIC_MONTHS = [
-  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
-] as const;
+import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 
 const EXPENSE_CATEGORIES: { value: string; label: string }[] = [
   { value: 'FUEL', label: 'وقود' },
@@ -32,11 +28,6 @@ const EXPENSE_CATEGORIES: { value: string; label: string }[] = [
 ];
 
 const CAT_LABEL: Record<string, string> = Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.value, c.label]));
-
-function billingYearOptions(): number[] {
-  const y = new Date().getFullYear();
-  return [y - 2, y - 1, y, y + 1, y + 2];
-}
 
 const STATUS_PILL: Record<string, [string, string]> = {
   PENDING:  ['exp.status.pending',   'amber'],
