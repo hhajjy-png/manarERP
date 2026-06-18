@@ -84,6 +84,14 @@ const FORM_CARDS: FormCard[] = [
     description: 'نموذج تقييم الأداء السنوي بمعايير موضوعية.',
     icon: '⭐',
   },
+  {
+    key: 'employment-contract',
+    route: 'employment-contract',
+    titleAr: 'عقد العمل',
+    titleEn: 'Employment Contract',
+    description: 'نموذج عقد العمل الرسمي الصادر عن الهيئة العامة للقوى العاملة، ثنائي اللغة (عربي / إنجليزي).',
+    icon: '📝',
+  },
 ];
 
 const sel: React.CSSProperties = {

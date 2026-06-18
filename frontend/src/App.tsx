@@ -33,6 +33,7 @@ import SalaryAdvance from './pages/SalaryAdvance';
 import Resignation from './pages/Resignation';
 import EmployeeWarning from './pages/EmployeeWarning';
 import PerformanceEvaluation from './pages/PerformanceEvaluation';
+import EmploymentContract from './pages/EmploymentContract';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="/forms/resignation/:employeeId" element={<ProtectedRoute><Resignation /></ProtectedRoute>} />
         <Route path="/forms/employee-warning/:employeeId" element={<ProtectedRoute><EmployeeWarning /></ProtectedRoute>} />
         <Route path="/forms/performance-evaluation/:employeeId" element={<ProtectedRoute><PerformanceEvaluation /></ProtectedRoute>} />
+        <Route path="/forms/employment-contract/:employeeId" element={<ProtectedRoute><EmploymentContract /></ProtectedRoute>} />
         <Route
           element={
             <ProtectedRoute>
