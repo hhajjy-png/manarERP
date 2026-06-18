@@ -229,6 +229,8 @@ function CategoriesTab() {
   const [editing, setEditing] = useState<Partial<MaterialCategory> | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -243,7 +245,7 @@ function CategoriesTab() {
     if (!confirm(t('confirm.delete_category'))) return;
     if (busy) return;
     setBusy(true);
-    try { await api.delete(`/inventory/categories/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/inventory/categories/${id}`); showMsg('تم الحذف بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -259,6 +261,7 @@ function CategoriesTab() {
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setEditing({})}>{t('btn.inv.new_category')}</button>}
       </div>
       {error && <div className="alert error">⚠️ {error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
       <DataTable columns={columns} rows={rows} loading={loading} emptyText={t('empty.inv.categories')}
         actions={(row: MaterialCategory) => (
           <>
@@ -268,7 +271,7 @@ function CategoriesTab() {
         )}
       />
       {editing !== null && (
-        <CategoryForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />
+        <CategoryForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم الحفظ بنجاح'); setEditing(null); load(); }} />
       )}
     </div>
   );
@@ -287,6 +290,8 @@ function MaterialsTab() {
   const [editing, setEditing] = useState<Partial<Material> | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -302,7 +307,7 @@ function MaterialsTab() {
     if (!confirm(t('confirm.delete_material'))) return;
     if (busy) return;
     setBusy(true);
-    try { await api.delete(`/inventory/materials/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/inventory/materials/${id}`); showMsg('تم الحذف بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -325,6 +330,7 @@ function MaterialsTab() {
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setEditing({})}>{t('btn.inv.new_material')}</button>}
       </div>
       {error && <div className="alert error">⚠️ {error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.materials')}
         actions={(row: Material) => (
           <>
@@ -334,7 +340,7 @@ function MaterialsTab() {
         )}
       />
       {editing !== null && (
-        <MaterialForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />
+        <MaterialForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم الحفظ بنجاح'); setEditing(null); load(); }} />
       )}
     </div>
   );
@@ -354,6 +360,8 @@ function PurchaseOrdersTab() {
   const [detailId, setDetailId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -365,18 +373,18 @@ function PurchaseOrdersTab() {
   }, [page, statusFilter]);
   useEffect(() => { load(); }, [load]);
 
-  async function doPost(endpoint: string, confirmMsg: string) {
+  async function doPost(endpoint: string, confirmMsg: string, successMsg: string) {
     if (!confirm(confirmMsg)) return;
     if (busy) return;
     setBusy(true);
-    try { await api.post(endpoint); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.post(endpoint); showMsg(successMsg); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   async function remove(id: number) {
     if (!confirm(t('confirm.delete_po'))) return;
     if (busy) return;
     setBusy(true);
-    try { await api.delete(`/inventory/purchase-orders/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/inventory/purchase-orders/${id}`); showMsg('تم الحذف بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -402,15 +410,16 @@ function PurchaseOrdersTab() {
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_po')}</button>}
       </div>
       {error && <div className="alert error">⚠️ {error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.po')}
         actions={(row: PurchaseOrder) => (
           <>
             <button className="btn secondary sm" onClick={() => setDetailId(row.id)}>{t('btn.inv.view')}</button>{' '}
             {hasPermission('inventory.update') && row.status === 'DRAFT' && (
-              <button className="btn sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/submit`, t('confirm.submit_po'))} disabled={busy}>{t('btn.inv.submit_po')}</button>
+              <button className="btn sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/submit`, t('confirm.submit_po'), 'تم الترحيل بنجاح')} disabled={busy}>{t('btn.inv.submit_po')}</button>
             )}{' '}
             {hasPermission('inventory.update') && ['DRAFT', 'SUBMITTED'].includes(row.status) && (
-              <button className="btn secondary sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/cancel`, t('confirm.cancel_po'))} disabled={busy}>{t('action.cancel')}</button>
+              <button className="btn secondary sm" onClick={() => doPost(`/inventory/purchase-orders/${row.id}/cancel`, t('confirm.cancel_po'), 'تم الإلغاء بنجاح')} disabled={busy}>{t('action.cancel')}</button>
             )}{' '}
             {hasPermission('inventory.delete') && row.status === 'DRAFT' && (
               <button className="btn secondary sm" onClick={() => remove(row.id)} disabled={busy}>{t('action.delete')}</button>
@@ -418,7 +427,7 @@ function PurchaseOrdersTab() {
           </>
         )}
       />
-      {creating && <PurchaseOrderForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); load(); }} />}
+      {creating && <PurchaseOrderForm onClose={() => setCreating(false)} onSaved={() => { showMsg('تم الحفظ بنجاح'); setCreating(false); load(); }} />}
       {detailId !== null && (
         <DetailModal title={t('modal.inv.detail_po')} id={detailId} endpoint="/inventory/purchase-orders" onClose={() => setDetailId(null)} />
       )}
@@ -439,6 +448,8 @@ function GoodsReceiptsTab() {
   const [detailId, setDetailId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -454,14 +465,14 @@ function GoodsReceiptsTab() {
     if (!confirm(t('confirm.post_gr'))) return;
     if (busy) return;
     setBusy(true);
-    try { await api.post(`/inventory/goods-receipts/${id}/post`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.post(`/inventory/goods-receipts/${id}/post`); showMsg('تم الترحيل بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   async function remove(id: number) {
     if (!confirm(t('confirm.delete_gr'))) return;
     if (busy) return;
     setBusy(true);
-    try { await api.delete(`/inventory/goods-receipts/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/inventory/goods-receipts/${id}`); showMsg('تم الحذف بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -480,6 +491,7 @@ function GoodsReceiptsTab() {
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_gr')}</button>}
       </div>
       {error && <div className="alert error">⚠️ {error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.gr')}
         actions={(row: GoodsReceipt) => (
           <>
@@ -493,7 +505,7 @@ function GoodsReceiptsTab() {
           </>
         )}
       />
-      {creating && <GoodsReceiptForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); load(); }} />}
+      {creating && <GoodsReceiptForm onClose={() => setCreating(false)} onSaved={() => { showMsg('تم الحفظ بنجاح'); setCreating(false); load(); }} />}
       {detailId !== null && (
         <DetailModal title={t('modal.inv.detail_gr')} id={detailId} endpoint="/inventory/goods-receipts" onClose={() => setDetailId(null)} />
       )}
@@ -516,6 +528,8 @@ function MaterialIssuesTab() {
   const [detailId, setDetailId] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -530,19 +544,19 @@ function MaterialIssuesTab() {
   async function post(id: number) {
     if (!confirm(t('confirm.post_mi'))) return;
     if (busy) return; setBusy(true);
-    try { await api.post(`/inventory/material-issues/${id}/post`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.post(`/inventory/material-issues/${id}/post`); showMsg('تم الترحيل بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   async function cancel(id: number) {
     if (!confirm(t('confirm.cancel_mi'))) return;
     if (busy) return; setBusy(true);
-    try { await api.post(`/inventory/material-issues/${id}/cancel`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.post(`/inventory/material-issues/${id}/cancel`); showMsg('تم الإلغاء بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   async function remove(id: number) {
     if (!confirm(t('confirm.delete_mi'))) return;
     if (busy) return; setBusy(true);
-    try { await api.delete(`/inventory/material-issues/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/inventory/material-issues/${id}`); showMsg('تم الحذف بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -566,6 +580,7 @@ function MaterialIssuesTab() {
         {hasPermission('inventory.create') && <button className="btn" onClick={() => setCreating(true)}>{t('btn.inv.new_mi')}</button>}
       </div>
       {error && <div className="alert error">⚠️ {error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
       <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} emptyText={t('empty.inv.mi')}
         actions={(row: MaterialIssue) => (
           <>
@@ -585,8 +600,8 @@ function MaterialIssuesTab() {
           </>
         )}
       />
-      {creating && <MaterialIssueForm onClose={() => setCreating(false)} onSaved={() => { setCreating(false); load(); }} />}
-      {editing !== null && <MaterialIssueForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load(); }} />}
+      {creating && <MaterialIssueForm onClose={() => setCreating(false)} onSaved={() => { showMsg('تم الحفظ بنجاح'); setCreating(false); load(); }} />}
+      {editing !== null && <MaterialIssueForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم الحفظ بنجاح'); setEditing(null); load(); }} />}
       {detailId !== null && (
         <DetailModal title={t('modal.inv.detail_mi')} id={detailId} endpoint="/inventory/material-issues" onClose={() => setDetailId(null)} />
       )}

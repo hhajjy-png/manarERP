@@ -564,7 +564,7 @@ export default function Cheques() {
       {/* Alerts */}
       {formError && (
         <div className="alert error no-print" style={{ marginBottom: 12 }}>
-          {formError}
+          ⚠️ {formError}
           <button type="button" className="alert-close-btn" onClick={() => setFormError('')}>✕</button>
         </div>
       )}

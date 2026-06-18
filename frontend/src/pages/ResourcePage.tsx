@@ -49,6 +49,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const canDelete = hasPermission(`${cfg.key}.delete`);
   const canExport = cfg.supportsExport && hasPermission('reports.export');
   const [exportBusy, setExportBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -182,6 +184,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     try {
       await api.patch(`${cfg.endpoint}/${archiveCandidate.id}/archive`);
       setArchiveCandidate(null);
+      showMsg('تم الأرشفة بنجاح');
       load();
     } catch (err) {
       setError(errorMessage(err));
@@ -197,6 +200,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     setBusy(true);
     try {
       await api.patch(`${cfg.endpoint}/${id}/${action}`);
+      showMsg(action === 'approve' ? 'تمت الموافقة بنجاح' : 'تم الرفض');
       load();
     } catch (err) {
       setError(errorMessage(err));
@@ -290,6 +294,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         </div>
       )}
 
+      {msg && <div className="alert ok">{msg}</div>}
+
       <form className="toolbar" onSubmit={onSearch}>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: 240 }}>
           <input
@@ -357,7 +363,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           fields={cfg.fields}
           endpoint={cfg.endpoint}
           onClose={() => setCreating(false)}
-          onSaved={load}
+          onSaved={() => { showMsg('تم الحفظ بنجاح'); load(); }}
         />
       )}
       {editing && (
@@ -368,7 +374,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           id={editing.id}
           initial={editing}
           onClose={() => setEditing(null)}
-          onSaved={load}
+          onSaved={() => { showMsg('تم الحفظ بنجاح'); load(); }}
         />
       )}
 

@@ -137,12 +137,14 @@ export default function Invoices() {
   }, []);
 
   const [cancelBusy, setCancelBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   async function cancel(id: number) {
     if (!confirm(t('confirm.cancel_invoice'))) return;
     if (cancelBusy) return;
     setCancelBusy(true);
-    try { await api.patch(`/invoices/${id}/cancel`); load(); } catch (e) { setLoadError(errorMessage(e)); } finally { setCancelBusy(false); }
+    try { await api.patch(`/invoices/${id}/cancel`); showMsg('تم إلغاء الفاتورة بنجاح'); load(); } catch (e) { setLoadError(errorMessage(e)); } finally { setCancelBusy(false); }
   }
 
   async function exportExcel() {
@@ -259,6 +261,7 @@ export default function Invoices() {
           <button type="button" className="btn secondary sm" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         </div>
       )}
+      {msg && <div className="alert ok">{msg}</div>}
       <form className="toolbar" onSubmit={(e) => e.preventDefault()}>
         <input
           placeholder={t('page.invoices.search')}
@@ -361,9 +364,9 @@ export default function Invoices() {
         )}
       />
 
-      {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={load} />}
-      {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={load} />}
-      {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={load} />}
+      {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={() => { showMsg('تم حفظ الفاتورة بنجاح'); load(); }} />}
+      {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم حفظ الفاتورة بنجاح'); load(); }} />}
+      {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={() => { showMsg('تم تسجيل الدفعة بنجاح'); load(); }} />}
       {showMonthlyReport && (
         <MonthlyReportModal
           filters={{

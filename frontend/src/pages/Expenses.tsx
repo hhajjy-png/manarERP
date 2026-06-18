@@ -76,6 +76,8 @@ export default function Expenses() {
   const [exportingExcel, setExportingExcel] = useState(false);
   const [error, setError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const isFiltered = !!(search || statusFilter || categoryFilter || supplierFilter || monthFilter || yearFilter);
 
@@ -121,21 +123,21 @@ export default function Expenses() {
     if (!confirm(t('msg.confirm_approve'))) return;
     if (actionBusy) return;
     setActionBusy(true);
-    try { await api.patch(`/expenses/${id}/approve`); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
+    try { await api.patch(`/expenses/${id}/approve`); showMsg('تمت الموافقة بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
   }
 
   async function reject(id: number) {
     if (!confirm(t('msg.confirm_reject'))) return;
     if (actionBusy) return;
     setActionBusy(true);
-    try { await api.patch(`/expenses/${id}/reject`); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
+    try { await api.patch(`/expenses/${id}/reject`); showMsg('تم الرفض'); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
   }
 
   async function remove(id: number) {
     if (!confirm('هل أنت متأكد من حذف هذا المصروف؟')) return;
     if (actionBusy) return;
     setActionBusy(true);
-    try { await api.delete(`/expenses/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
+    try { await api.delete(`/expenses/${id}`); showMsg('تم الحذف بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
   }
 
   async function exportExcel() {
@@ -248,6 +250,7 @@ export default function Expenses() {
         </div>
       )}
       {error && <div className="alert error">⚠️ {error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
 
       {/* ── Filters ── */}
       <form className="toolbar" onSubmit={(e) => e.preventDefault()}>
@@ -320,8 +323,8 @@ export default function Expenses() {
         )}
       />
 
-      {creating && <ExpenseForm onClose={() => setCreating(false)} onSaved={load} suppliers={suppliers} />}
-      {editing && <ExpenseForm expense={editing} onClose={() => setEditing(null)} onSaved={load} suppliers={suppliers} />}
+      {creating && <ExpenseForm onClose={() => setCreating(false)} onSaved={() => { showMsg('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
+      {editing && <ExpenseForm expense={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
     </div>
   );
 }

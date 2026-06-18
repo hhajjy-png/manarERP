@@ -145,6 +145,8 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
   const [editing, setEditing] = useState<any | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -164,7 +166,7 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
     if (!confirm(t('confirm.delete_account'))) return;
     if (busy) return;
     setBusy(true);
-    try { await api.delete(`/accounting/accounts/${id}`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/accounting/accounts/${id}`); showMsg('تم حذف الحساب بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -189,6 +191,7 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
       </div>
 
       {error && <div className="alert error">⚠️ {error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
 
       <DataTable
         columns={columns}
@@ -204,8 +207,8 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
         )}
       />
 
-      {creating && <AccountForm onClose={() => setCreating(false)} onSaved={load} />}
-      {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSaved={load} />}
+      {creating && <AccountForm onClose={() => setCreating(false)} onSaved={() => { showMsg('تم حفظ الحساب بنجاح'); load(); }} />}
+      {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم حفظ الحساب بنجاح'); load(); }} />}
     </div>
   );
 }
@@ -293,6 +296,8 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
   const [expanded, setExpanded] = useState<any | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -310,7 +315,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
     if (!confirm(t('confirm.cancel_entry'))) return;
     if (busy) return;
     setBusy(true);
-    try { await api.patch(`/accounting/journal/${id}/cancel`); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.patch(`/accounting/journal/${id}/cancel`); showMsg('تم إلغاء القيد بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -330,6 +335,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
       </div>
 
       {error && <div className="alert error">⚠️ {error}</div>}
+      {msg && <div className="alert ok">{msg}</div>}
 
       <DataTable
         columns={columns}
@@ -347,7 +353,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
         )}
       />
 
-      {creating && <JournalEntryForm onClose={() => setCreating(false)} onSaved={load} />}
+      {creating && <JournalEntryForm onClose={() => setCreating(false)} onSaved={() => { showMsg('تم ترحيل القيد بنجاح'); load(); }} />}
       {expanded && <JournalEntryDetails entry={expanded} onClose={() => setExpanded(null)} />}
     </div>
   );
