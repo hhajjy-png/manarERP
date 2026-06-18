@@ -11,6 +11,7 @@ import ChequeCalibrator from '../components/ChequeCalibrator';
 import gulfBankImg from '../assets/cheakv1.png';
 import {
   DEFAULT_TEMPLATE,
+  cloneDefaultTemplate,
   fmtChequeAmount,
   templateFromSettings,
 } from '../utils/chequeTemplate';
@@ -262,7 +263,7 @@ export default function Cheques() {
       setAllTemplates(result);
     }).catch(() => {
       const result: Record<string, ChequeTemplate> = {};
-      for (const bank of KUWAITI_BANKS) result[bank] = { ...DEFAULT_TEMPLATE };
+      for (const bank of KUWAITI_BANKS) result[bank] = cloneDefaultTemplate();
       setAllTemplates(result);
     });
   }, []);

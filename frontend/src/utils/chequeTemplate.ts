@@ -17,24 +17,48 @@ export type ChequeTemplate = Record<FieldKey, FieldConfig>;
 /** Default positions extracted from the original hardcoded values in Cheques.tsx */
 export const DEFAULT_TEMPLATE: ChequeTemplate = {
   beneficiary: {
-    top: 29.8, left: 34.5, width: 38,
-    fontSize: 11, fontFamily: 'Cairo', fontWeight: '600',
-    fontStyle: 'normal', textAlign: 'left', color: '#000000',
+    top: 29.8,
+    left: 34.5,
+    width: 38,
+    fontSize: 11,
+    fontFamily: 'Cairo',
+    fontWeight: '600',
+    fontStyle: 'normal',
+    textAlign: 'left',
+    color: '#000000',
   },
   date: {
-    top: 24.3, left: 79.1, width: 23,
-    fontSize: 10, fontFamily: 'Cairo', fontWeight: '600',
-    fontStyle: 'normal', textAlign: 'center', color: '#000000',
+    top: 24.3,
+    left: 79.1,
+    width: 23,
+    fontSize: 10,
+    fontFamily: 'Cairo',
+    fontWeight: '600',
+    fontStyle: 'normal',
+    textAlign: 'center',
+    color: '#000000',
   },
   tafqeet: {
-    top: 39.1, left: 5.7, width: 72,
-    fontSize: 10, fontFamily: 'Cairo', fontWeight: '600',
-    fontStyle: 'normal', textAlign: 'right', color: '#000000',
+    top: 39.1,
+    left: 5.7,
+    width: 72,
+    fontSize: 10,
+    fontFamily: 'Cairo',
+    fontWeight: '600',
+    fontStyle: 'normal',
+    textAlign: 'right',
+    color: '#000000',
   },
   numeric: {
-    top: 45.8, left: 82.4, width: 18,
-    fontSize: 11, fontFamily: 'monospace', fontWeight: '700',
-    fontStyle: 'normal', textAlign: 'center', color: '#000000',
+    top: 45.8,
+    left: 82.4,
+    width: 18,
+    fontSize: 11,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+    fontStyle: 'normal',
+    textAlign: 'center',
+    color: '#000000',
   },
 };
 
@@ -56,12 +80,22 @@ export function settingKey(bank: string): string {
   return `${SETTING_KEY_PREFIX}${bank}`;
 }
 
+/** Returns a deep clone of DEFAULT_TEMPLATE with no shared nested references. */
+export function cloneDefaultTemplate(): ChequeTemplate {
+  return {
+    beneficiary: { ...DEFAULT_TEMPLATE.beneficiary },
+    date: { ...DEFAULT_TEMPLATE.date },
+    tafqeet: { ...DEFAULT_TEMPLATE.tafqeet },
+    numeric: { ...DEFAULT_TEMPLATE.numeric },
+  };
+}
+
 export function templateFromSettings(
   settings: { key: string; value: string }[],
   bank: string,
 ): ChequeTemplate {
   const row = settings.find((s) => s.key === settingKey(bank));
-  if (!row) return { ...DEFAULT_TEMPLATE, ...Object.fromEntries(Object.entries(DEFAULT_TEMPLATE).map(([k, v]) => [k, { ...v }])) };
+  if (!row) return cloneDefaultTemplate();
   try {
     const parsed = JSON.parse(row.value) as Partial<ChequeTemplate>;
     return {
@@ -71,7 +105,7 @@ export function templateFromSettings(
       numeric: { ...DEFAULT_TEMPLATE.numeric, ...(parsed.numeric ?? {}) },
     };
   } catch {
-    return { ...DEFAULT_TEMPLATE };
+    return cloneDefaultTemplate();
   }
 }
 
