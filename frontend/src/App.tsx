@@ -35,6 +35,7 @@ import EmployeeWarning from './pages/EmployeeWarning';
 import PerformanceEvaluation from './pages/PerformanceEvaluation';
 import EmploymentContract from './pages/EmploymentContract';
 import BankImport from './pages/BankImport';
+import BankSalaryAnalytics from './pages/BankSalaryAnalytics';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/cheques" element={<Cheques />} />
           <Route path="/import" element={<DataImport />} />
           <Route path="/payroll/bank-import" element={<BankImport />} />
+          <Route path="/payroll/bank-analytics" element={<BankSalaryAnalytics />} />
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/maintenance" element={<Maintenance />} />
           <Route path="/prices" element={<Prices />} />
