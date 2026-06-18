@@ -155,6 +155,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     if (!confirm(t('msg.confirm_delete', { id: row.code ?? row.name ?? row.username ?? row.id }))) return;
     try {
       await api.delete(`${cfg.endpoint}/${row.id}`);
+      showMsg('تم الحذف بنجاح');
       load();
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -294,8 +295,6 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         </div>
       )}
 
-      {msg && <div className="alert ok">{msg}</div>}
-
       <form className="toolbar" onSubmit={onSearch}>
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: 1, minWidth: 240 }}>
           <input
@@ -330,6 +329,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         )}
         <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
       </form>
+
+      {msg && <div className="alert ok">{msg}</div>}
 
       <DataTable
         columns={cfg.columns}

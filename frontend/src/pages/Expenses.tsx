@@ -250,7 +250,6 @@ export default function Expenses() {
         </div>
       )}
       {error && <div className="alert error">⚠️ {error}</div>}
-      {msg && <div className="alert ok">{msg}</div>}
 
       {/* ── Filters ── */}
       <form className="toolbar" onSubmit={(e) => e.preventDefault()}>
@@ -291,6 +290,8 @@ export default function Expenses() {
         <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         <ExportExcelButton onExport={exportExcel} busy={exportingExcel} />
       </form>
+
+      {msg && <div className="alert ok">{msg}</div>}
 
       <DataTable
         columns={columns}

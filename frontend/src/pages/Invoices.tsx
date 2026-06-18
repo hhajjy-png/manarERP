@@ -261,7 +261,6 @@ export default function Invoices() {
           <button type="button" className="btn secondary sm" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
         </div>
       )}
-      {msg && <div className="alert ok">{msg}</div>}
       <form className="toolbar" onSubmit={(e) => e.preventDefault()}>
         <input
           placeholder={t('page.invoices.search')}
@@ -330,6 +329,8 @@ export default function Invoices() {
           📅 {t('inv.monthly_report')}
         </button>
       </form>
+
+      {msg && <div className="alert ok">{msg}</div>}
 
       <DataTable
         columns={columns}
