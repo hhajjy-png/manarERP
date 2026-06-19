@@ -5,6 +5,7 @@ import { getPrintMode } from '../forms/shared/printMode';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import SalaryAdvanceTemplate from '../forms/SalaryAdvanceTemplate';
+import LanguageToggle from '../forms/shared/LanguageToggle';
 
 export default function SalaryAdvance() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -14,6 +15,7 @@ export default function SalaryAdvance() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
   useEffect(() => {
     if (!employeeId) return;
@@ -52,6 +54,7 @@ export default function SalaryAdvance() {
       formNumber={formNumber}
       title="طلب سلفة راتب"
       printMode={printMode}
+      toolbarExtra={<LanguageToggle lang={lang} onChange={setLang} />}
       qrData={{
         formType: 'salary-advance',
         formNumber,
@@ -60,7 +63,7 @@ export default function SalaryAdvance() {
         issueDate: new Date().toISOString(),
       }}
     >
-      <SalaryAdvanceTemplate employee={data.employee} latestAdvance={data.latestAdvance} />
+      <SalaryAdvanceTemplate employee={data.employee} latestAdvance={data.latestAdvance} lang={lang} />
     </FormLayout>
   );
 }

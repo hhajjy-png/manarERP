@@ -73,6 +73,22 @@ export function money(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' د.ك';
 }
 
+export function fmtDateEn(v: string | Date | null | undefined): string {
+  if (!v) return '—';
+  const d = new Date(v as string);
+  return isNaN(d.getTime())
+    ? '—'
+    : d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+export function issueDateStrEn(): string {
+  return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+export function moneyEn(v: number): string {
+  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' KWD';
+}
+
 export const blankLine: CSSProperties = {
   borderBottom: '1px solid #64748b',
   display: 'inline-block',

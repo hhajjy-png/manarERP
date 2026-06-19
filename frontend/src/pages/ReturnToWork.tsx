@@ -5,6 +5,7 @@ import { getPrintMode } from '../forms/shared/printMode';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import ReturnToWorkTemplate from '../forms/ReturnToWorkTemplate';
+import LanguageToggle from '../forms/shared/LanguageToggle';
 
 export default function ReturnToWork() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -14,6 +15,7 @@ export default function ReturnToWork() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
   useEffect(() => {
     if (!employeeId) return;
@@ -52,6 +54,7 @@ export default function ReturnToWork() {
       formNumber={formNumber}
       title="إشعار العودة إلى العمل"
       printMode={printMode}
+      toolbarExtra={<LanguageToggle lang={lang} onChange={setLang} />}
       qrData={{
         formType: 'return-to-work',
         formNumber,
@@ -60,7 +63,7 @@ export default function ReturnToWork() {
         issueDate: new Date().toISOString(),
       }}
     >
-      <ReturnToWorkTemplate employee={data.employee} latestLeave={data.latestLeave} />
+      <ReturnToWorkTemplate employee={data.employee} latestLeave={data.latestLeave} lang={lang} />
     </FormLayout>
   );
 }

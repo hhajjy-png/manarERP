@@ -5,6 +5,7 @@ import { getPrintMode } from '../forms/shared/printMode';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import EmployeeWarningTemplate from '../forms/EmployeeWarningTemplate';
+import LanguageToggle from '../forms/shared/LanguageToggle';
 
 export default function EmployeeWarning() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -14,6 +15,7 @@ export default function EmployeeWarning() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
   useEffect(() => {
     if (!employeeId) return;
@@ -52,6 +54,7 @@ export default function EmployeeWarning() {
       formNumber={formNumber}
       title="إنذار موظف"
       printMode={printMode}
+      toolbarExtra={<LanguageToggle lang={lang} onChange={setLang} />}
       qrData={{
         formType: 'employee-warning',
         formNumber,
@@ -60,7 +63,7 @@ export default function EmployeeWarning() {
         issueDate: new Date().toISOString(),
       }}
     >
-      <EmployeeWarningTemplate employee={data.employee} />
+      <EmployeeWarningTemplate employee={data.employee} lang={lang} />
     </FormLayout>
   );
 }

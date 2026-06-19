@@ -5,8 +5,11 @@ import {
   sectionHeader,
   tableWrapper,
   fmtDate,
+  fmtDateEn,
   issueDateStr,
+  issueDateStrEn,
   money,
+  moneyEn,
   blankLine,
 } from './shared/formStyles';
 
@@ -30,9 +33,95 @@ interface Advance {
 interface Props {
   employee: Employee;
   latestAdvance: Advance | null;
+  lang?: 'ar' | 'en';
 }
 
-export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance }: Props) {
+export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, lang = 'ar' }: Props) {
+  if (lang === 'en') {
+    return (
+      <>
+        <div style={{ ...tableWrapper, direction: 'ltr' }}>
+          <div style={{ ...sectionHeader, textAlign: 'left' }}>Employee Information</div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Name</div>
+            <div style={{ ...valueCell, fontWeight: 700 }}>{emp.fullName}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Employee ID</div>
+            <div style={{ ...valueCell, fontFamily: 'monospace' }}>{emp.code}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Civil ID</div>
+            <div style={{ ...valueCell, fontFamily: 'monospace' }}>{emp.civilId ?? '—'}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Job Title</div>
+            <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Department</div>
+            <div style={valueCell}>{emp.department ?? '—'}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Monthly Salary</div>
+            <div style={{ ...valueCell, fontWeight: 700, color: '#065f46' }}>{moneyEn(emp.salary)}</div>
+          </div>
+        </div>
+
+        <div style={{ ...tableWrapper, direction: 'ltr' }}>
+          <div style={{ ...sectionHeader, textAlign: 'left' }}>Salary Advance Request Details</div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Requested Amount</div>
+            <div style={{ ...valueCell, fontWeight: 700, color: '#065f46' }}>
+              {latestAdvance ? moneyEn(latestAdvance.amount) : <span style={blankLine} />}
+            </div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Request Date</div>
+            <div style={valueCell}>
+              {latestAdvance ? fmtDateEn(latestAdvance.date) : <span style={blankLine} />}
+            </div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Purpose / Reason</div>
+            <div style={valueCell}>
+              {latestAdvance?.notes ?? <span style={blankLine} />}
+            </div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Repayment Schedule</div>
+            <div style={{ ...valueCell, minHeight: 40 }}>
+              <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 20, fontSize: 13, color: '#374151', lineHeight: 2, textAlign: 'justify', direction: 'ltr' }}>
+          <p style={{ margin: 0 }}>
+            The above-mentioned employee agrees to the deduction of the advance amount from their
+            monthly salary according to the agreed repayment schedule, and acknowledges receipt
+            of the stated amount.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, fontSize: 13, color: '#374151', direction: 'ltr' }}>
+          <div>
+            <strong>Employee Signature:</strong>
+            <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
+          </div>
+          <div>
+            <strong>HR / Finance Approval:</strong>
+            <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 8, fontSize: 13, color: '#374151', direction: 'ltr' }}>
+          <strong>Request Date:</strong> {issueDateStrEn()}
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <div style={tableWrapper}>

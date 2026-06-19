@@ -5,6 +5,7 @@ import { getPrintMode } from '../forms/shared/printMode';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import ResignationTemplate from '../forms/ResignationTemplate';
+import LanguageToggle from '../forms/shared/LanguageToggle';
 
 export default function Resignation() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -14,6 +15,7 @@ export default function Resignation() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
   useEffect(() => {
     if (!employeeId) return;
@@ -52,6 +54,7 @@ export default function Resignation() {
       formNumber={formNumber}
       title="طلب استقالة"
       printMode={printMode}
+      toolbarExtra={<LanguageToggle lang={lang} onChange={setLang} />}
       qrData={{
         formType: 'resignation',
         formNumber,
@@ -60,7 +63,7 @@ export default function Resignation() {
         issueDate: new Date().toISOString(),
       }}
     >
-      <ResignationTemplate employee={data.employee} />
+      <ResignationTemplate employee={data.employee} lang={lang} />
     </FormLayout>
   );
 }

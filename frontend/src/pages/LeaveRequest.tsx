@@ -5,6 +5,7 @@ import { getPrintMode } from '../forms/shared/printMode';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import LeaveRequestTemplate from '../forms/LeaveRequestTemplate';
+import LanguageToggle from '../forms/shared/LanguageToggle';
 
 export default function LeaveRequest() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -14,6 +15,7 @@ export default function LeaveRequest() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
   useEffect(() => {
     if (!employeeId) return;
@@ -52,6 +54,7 @@ export default function LeaveRequest() {
       formNumber={formNumber}
       title="طلب إجازة"
       printMode={printMode}
+      toolbarExtra={<LanguageToggle lang={lang} onChange={setLang} />}
       qrData={{
         formType: 'leave-request',
         formNumber,
@@ -60,7 +63,7 @@ export default function LeaveRequest() {
         issueDate: new Date().toISOString(),
       }}
     >
-      <LeaveRequestTemplate employee={data.employee} latestLeave={data.latestLeave} />
+      <LeaveRequestTemplate employee={data.employee} latestLeave={data.latestLeave} lang={lang} />
     </FormLayout>
   );
 }
