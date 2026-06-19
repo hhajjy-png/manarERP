@@ -1,10 +1,11 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
-import { getPrintMode } from '../forms/shared/printMode';
+import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import LanguageToggle from '../forms/shared/LanguageToggle';
+import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 import SalaryCertificateTemplate from '../forms/SalaryCertificateTemplate';
 
 type Lang = 'ar' | 'en';
@@ -12,12 +13,13 @@ type Lang = 'ar' | 'en';
 export default function SalaryCertificate() {
   const { employeeId } = useParams<{ employeeId: string }>();
   const { search } = useLocation();
-  const printMode = getPrintMode(search);
   const formNumber = useMemo(() => generateFormNumber('salary-certificate'), []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<Lang>('ar');
+  const [profile, setProfile] = useState<ProfileId>(() => getProfileIdFromSearch(search));
+  const [printFields, setPrintFields] = useState({ certPurpose: '' });
 
   useEffect(() => {
     if (!employeeId) return;
@@ -36,10 +38,10 @@ export default function SalaryCertificate() {
         employeeId: Number(employeeId),
         employeeName: data.employee.fullName,
         issueDate: new Date().toISOString(),
-        printMode,
+        printMode: profile,
       })
       .catch(() => {});
-  }, [data, formNumber, employeeId, printMode]);
+  }, [data, formNumber, employeeId, profile]);
 
   if (error)
     return <div className="center-msg">تعذّر تحميل بيانات الشهادة: {error}</div>;
@@ -56,8 +58,13 @@ export default function SalaryCertificate() {
       ready
       formNumber={formNumber}
       title={lang === 'en' ? 'Salary Certificate' : 'شـهـادة راتـب'}
-      printMode={printMode}
-      toolbarExtra={<LanguageToggle lang={lang} onChange={setLang} />}
+      profile={profile}
+      toolbarExtra={
+        <>
+          <LanguageToggle lang={lang} onChange={setLang} />
+          <PrintProfileToggle profile={profile} onChange={setProfile} />
+        </>
+      }
       qrData={{
         formType: 'salary-certificate',
         formNumber,
@@ -66,10 +73,23 @@ export default function SalaryCertificate() {
         issueDate: new Date().toISOString(),
       }}
     >
+      <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div className="field" style={{ maxWidth: 400 }}>
+          <label>الغرض من الشهادة / Purpose</label>
+          <input
+            maxLength={120}
+            value={printFields.certPurpose}
+            onChange={(e) => setPrintFields(p => ({ ...p, certPurpose: e.target.value }))}
+            placeholder="مثال: للتقديم إلى البنك / For bank submission"
+          />
+        </div>
+      </div>
       <SalaryCertificateTemplate
         employee={data.employee}
         latestPayroll={data.latestPayroll}
         lang={lang}
+        printFields={printFields}
       />
     </FormLayout>
   );
