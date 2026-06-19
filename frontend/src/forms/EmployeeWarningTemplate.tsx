@@ -18,9 +18,17 @@ interface Employee {
   civilId: string | null;
 }
 
+interface PrintFields {
+  warningReason?: string;
+  violationDetails?: string;
+  correctiveAction?: string;
+  additionalNotes?: string;
+}
+
 interface Props {
   employee: Employee;
   lang?: 'ar' | 'en';
+  printFields?: PrintFields;
 }
 
 const WARNING_LEVELS = ['أولى (شفهية)', 'ثانية (خطية)', 'نهائية (إنذار)'];
@@ -37,7 +45,7 @@ const checkboxStyle = {
   userSelect: 'none',
 } as const;
 
-export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar' }: Props) {
+export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar', printFields }: Props) {
   if (lang === 'en') {
     return (
       <>
@@ -85,28 +93,25 @@ export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar' }: 
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Warning Reason</div>
             <div style={{ ...valueCell, minHeight: 48 }}>
-              <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
-              <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+              {printFields?.warningReason?.trim() ? <span>{printFields.warningReason}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Violation Details</div>
             <div style={{ ...valueCell, minHeight: 48 }}>
-              <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
-              <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+              {printFields?.violationDetails?.trim() ? <span>{printFields.violationDetails}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Corrective Action</div>
             <div style={{ ...valueCell, minHeight: 40 }}>
-              <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
-              <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+              {printFields?.correctiveAction?.trim() ? <span>{printFields.correctiveAction}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Additional Notes</div>
             <div style={{ ...valueCell, minHeight: 36 }}>
-              <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+              {printFields?.additionalNotes?.trim() ? <span>{printFields.additionalNotes}</span> : <span style={{ ...blankLine, width: '100%', display: 'block' }} />}
             </div>
           </div>
         </div>
@@ -174,18 +179,7 @@ export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar' }: 
           <div style={{ ...valueCell, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
             {WARNING_LEVELS.map((lvl) => (
               <span key={lvl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span
-                  style={{
-                    width: 14,
-                    height: 14,
-                    border: '1px solid #94a3b8',
-                    borderRadius: 2,
-                    display: 'inline-block',
-                    flexShrink: 0,
-                    cursor: 'default',
-                    userSelect: 'none',
-                  }}
-                />
+                <span style={checkboxStyle} />
                 {lvl}
               </span>
             ))}
@@ -194,28 +188,25 @@ export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar' }: 
         <div style={tableRow}>
           <div style={labelCell}>سبب الإنذار</div>
           <div style={{ ...valueCell, minHeight: 48 }}>
-            <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
-            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+            {printFields?.warningReason?.trim() ? <span>{printFields.warningReason}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
           </div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>تفاصيل المخالفة</div>
           <div style={{ ...valueCell, minHeight: 48 }}>
-            <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
-            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+            {printFields?.violationDetails?.trim() ? <span>{printFields.violationDetails}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
           </div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>الإجراء التصحيحي</div>
           <div style={{ ...valueCell, minHeight: 40 }}>
-            <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
-            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+            {printFields?.correctiveAction?.trim() ? <span>{printFields.correctiveAction}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
           </div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>ملاحظات إضافية</div>
           <div style={{ ...valueCell, minHeight: 36 }}>
-            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+            {printFields?.additionalNotes?.trim() ? <span>{printFields.additionalNotes}</span> : <span style={{ ...blankLine, width: '100%', display: 'block' }} />}
           </div>
         </div>
       </div>

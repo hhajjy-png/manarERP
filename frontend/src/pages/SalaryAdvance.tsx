@@ -16,6 +16,7 @@ export default function SalaryAdvance() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [printFields, setPrintFields] = useState({ repaymentSchedule: '' });
 
   useEffect(() => {
     if (!employeeId) return;
@@ -63,7 +64,14 @@ export default function SalaryAdvance() {
         issueDate: new Date().toISOString(),
       }}
     >
-      <SalaryAdvanceTemplate employee={data.employee} latestAdvance={data.latestAdvance} lang={lang} />
+      <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div className="field" style={{ maxWidth: 400 }}>
+          <label>جدول السداد</label>
+          <input value={printFields.repaymentSchedule} onChange={(e) => setPrintFields(p => ({ ...p, repaymentSchedule: e.target.value }))} placeholder="مثال: 3 أقساط × 100 د.ك" />
+        </div>
+      </div>
+      <SalaryAdvanceTemplate employee={data.employee} latestAdvance={data.latestAdvance} lang={lang} printFields={printFields} />
     </FormLayout>
   );
 }

@@ -16,6 +16,7 @@ export default function PerformanceEvaluation() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [printFields, setPrintFields] = useState<{ scores: string[]; reviewerComments: string }>({ scores: ['', '', '', '', ''], reviewerComments: '' });
 
   useEffect(() => {
     if (!employeeId) return;
@@ -63,10 +64,26 @@ export default function PerformanceEvaluation() {
         issueDate: new Date().toISOString(),
       }}
     >
+      <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 10 }}>
+          {['جودة العمل', 'الالتزام والانضباط', 'العمل الجماعي', 'المبادرة والإبداع', 'الانضباط في المواعيد'].map((label, i) => (
+            <div key={i} className="field">
+              <label>{label} (من 20)</label>
+              <input type="number" min="0" max="20" title={label} value={printFields.scores[i]} onChange={(e) => setPrintFields(p => { const s = [...p.scores]; s[i] = e.target.value; return { ...p, scores: s }; })} />
+            </div>
+          ))}
+        </div>
+        <div className="field">
+          <label>ملاحظات المقيِّم والتوصيات</label>
+          <input title="ملاحظات المقيِّم" value={printFields.reviewerComments} onChange={(e) => setPrintFields(p => ({ ...p, reviewerComments: e.target.value }))} />
+        </div>
+      </div>
       <PerformanceEvaluationTemplate
         employee={data.employee}
         latestReview={data.latestReview}
         lang={lang}
+        printFields={printFields}
       />
     </FormLayout>
   );

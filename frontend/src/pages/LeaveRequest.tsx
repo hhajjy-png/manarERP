@@ -16,6 +16,7 @@ export default function LeaveRequest() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [printFields, setPrintFields] = useState({ expectedReturnDate: '' });
 
   useEffect(() => {
     if (!employeeId) return;
@@ -63,7 +64,14 @@ export default function LeaveRequest() {
         issueDate: new Date().toISOString(),
       }}
     >
-      <LeaveRequestTemplate employee={data.employee} latestLeave={data.latestLeave} lang={lang} />
+      <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div className="field" style={{ maxWidth: 280 }}>
+          <label>تاريخ العودة المتوقعة</label>
+          <input type="date" title="تاريخ العودة المتوقعة" value={printFields.expectedReturnDate} onChange={(e) => setPrintFields(p => ({ ...p, expectedReturnDate: e.target.value }))} />
+        </div>
+      </div>
+      <LeaveRequestTemplate employee={data.employee} latestLeave={data.latestLeave} lang={lang} printFields={printFields} />
     </FormLayout>
   );
 }

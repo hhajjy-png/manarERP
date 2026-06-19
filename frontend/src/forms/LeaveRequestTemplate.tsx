@@ -42,13 +42,18 @@ interface Leave {
   reason: string | null;
 }
 
+interface PrintFields {
+  expectedReturnDate?: string;
+}
+
 interface Props {
   employee: Employee;
   latestLeave: Leave | null;
   lang?: 'ar' | 'en';
+  printFields?: PrintFields;
 }
 
-export default function LeaveRequestTemplate({ employee: emp, latestLeave, lang = 'ar' }: Props) {
+export default function LeaveRequestTemplate({ employee: emp, latestLeave, lang = 'ar', printFields }: Props) {
   if (lang === 'en') {
     return (
       <>
@@ -110,7 +115,7 @@ export default function LeaveRequestTemplate({ employee: emp, latestLeave, lang 
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Expected Return Date</div>
-            <div style={valueCell}><span style={blankLine} /></div>
+            <div style={valueCell}>{printFields?.expectedReturnDate?.trim() ? <span>{printFields.expectedReturnDate}</span> : <span style={blankLine} />}</div>
           </div>
         </div>
 
@@ -198,9 +203,7 @@ export default function LeaveRequestTemplate({ employee: emp, latestLeave, lang 
         </div>
         <div style={tableRow}>
           <div style={labelCell}>تاريخ العودة المتوقعة</div>
-          <div style={valueCell}>
-            <span style={blankLine} />
-          </div>
+          <div style={valueCell}>{printFields?.expectedReturnDate?.trim() ? <span>{printFields.expectedReturnDate}</span> : <span style={blankLine} />}</div>
         </div>
       </div>
 

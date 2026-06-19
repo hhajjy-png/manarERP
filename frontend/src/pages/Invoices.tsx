@@ -1031,6 +1031,8 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   const [loadingData, setLoadingData] = useState(true);
   const submittingRef = useRef(false);
   const [loadError, setLoadError] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [payments, setPayments] = useState<any[]>([]);
 
   const effectivePartySource = directionChoice === 'OTHER' ? customPartyType : directionChoice;
   const firstPartyLoad = useRef(true);
@@ -1053,6 +1055,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
       if (inv.billingMonth) setBillingMonth(Number(inv.billingMonth));
       if (inv.billingYear) setBillingYear(Number(inv.billingYear));
       if (inv.deliveryDate) setDeliveryDate(String(inv.deliveryDate).slice(0, 10));
+      if (Array.isArray(inv.payments)) setPayments(inv.payments);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }).catch((e: any) => { setLoadError(errorMessage(e)); }).finally(() => { setLoadingData(false); });
   }, [invoice.id]);
@@ -1402,6 +1405,49 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ resize: 'vertical' }} placeholder={t('field.notes')} />
         </div>
       </div>
+
+      {/* Collection Summary */}
+      {Number(invoice.total ?? 0) > 0 && (() => {
+        const paid = Number(invoice.paidAmount ?? 0);
+        const invTotal = Number(invoice.total ?? 0);
+        const remaining = invTotal - paid;
+        const pct = invTotal > 0 ? Math.round((paid / invTotal) * 100) : 0;
+        const latestPmt = payments[0] ?? null;
+        const statusLabel: Record<string, string> = { PENDING: 'معلقة', PARTIAL: 'مدفوعة جزئياً', PAID: 'مدفوعة بالكامل', CANCELLED: 'ملغاة' };
+        return (
+          <div style={{ marginTop: 14, padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10 }}>
+            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>تحصيل الفاتورة</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
+              <div style={{ textAlign: 'center', padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>إجمالي الفاتورة</div>
+                <div style={{ fontWeight: 800, fontSize: 14 }}>{money(invTotal)}</div>
+              </div>
+              <div style={{ textAlign: 'center', padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>المحصّل</div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: '#065f46' }}>{money(paid)}</div>
+              </div>
+              <div style={{ textAlign: 'center', padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>المتبقي</div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: remaining > 0 ? '#dc2626' : '#065f46' }}>{money(remaining)}</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: payments.length > 0 ? 8 : 0 }}>
+              <div style={{ flex: 1, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${Math.min(pct, 100)}%`, background: pct >= 100 ? '#065f46' : pct >= 50 ? '#d97706' : '#dc2626', borderRadius: 3 }} />
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', minWidth: 36, textAlign: 'end' }}>{pct}%</span>
+              {invoice.status && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 12, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>{statusLabel[invoice.status as string] ?? invoice.status}</span>}
+            </div>
+            {payments.length > 0 && (
+              <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                <span>عدد الدفعات: <strong style={{ color: 'var(--text)' }}>{payments.length}</strong></span>
+                {latestPmt && <span>آخر دفعة: <strong style={{ color: 'var(--text)' }}>{money(latestPmt.amount)}</strong></span>}
+                {latestPmt?.date && <span>تاريخ آخر دفعة: <strong style={{ color: 'var(--text)' }}>{new Date(latestPmt.date).toLocaleDateString('ar-KW')}</strong></span>}
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </Modal>
   );
 }

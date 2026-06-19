@@ -16,6 +16,7 @@ export default function ReturnToWork() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [printFields, setPrintFields] = useState({ actualReturnDate: '', medicalNotes: '' });
 
   useEffect(() => {
     if (!employeeId) return;
@@ -63,7 +64,14 @@ export default function ReturnToWork() {
         issueDate: new Date().toISOString(),
       }}
     >
-      <ReturnToWorkTemplate employee={data.employee} latestLeave={data.latestLeave} lang={lang} />
+      <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="field"><label>تاريخ العودة الفعلية</label><input type="date" title="تاريخ العودة الفعلية" value={printFields.actualReturnDate} onChange={(e) => setPrintFields(p => ({ ...p, actualReturnDate: e.target.value }))} /></div>
+          <div className="field"><label>ملاحظات طبية / تقرير الطبيب</label><input title="ملاحظات طبية" value={printFields.medicalNotes} onChange={(e) => setPrintFields(p => ({ ...p, medicalNotes: e.target.value }))} /></div>
+        </div>
+      </div>
+      <ReturnToWorkTemplate employee={data.employee} latestLeave={data.latestLeave} lang={lang} printFields={printFields} />
     </FormLayout>
   );
 }

@@ -16,6 +16,7 @@ export default function Resignation() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [printFields, setPrintFields] = useState({ lastWorkingDay: '', noticePeriod: '', resignationReason: '', handoverObligations: '' });
 
   useEffect(() => {
     if (!employeeId) return;
@@ -63,7 +64,16 @@ export default function Resignation() {
         issueDate: new Date().toISOString(),
       }}
     >
-      <ResignationTemplate employee={data.employee} lang={lang} />
+      <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="field"><label>آخر يوم عمل</label><input type="date" title="آخر يوم عمل" value={printFields.lastWorkingDay} onChange={(e) => setPrintFields(p => ({ ...p, lastWorkingDay: e.target.value }))} /></div>
+          <div className="field"><label>فترة الإشعار</label><input value={printFields.noticePeriod} onChange={(e) => setPrintFields(p => ({ ...p, noticePeriod: e.target.value }))} placeholder="مثال: شهر واحد" /></div>
+          <div className="field"><label>سبب الاستقالة</label><input title="سبب الاستقالة" value={printFields.resignationReason} onChange={(e) => setPrintFields(p => ({ ...p, resignationReason: e.target.value }))} /></div>
+          <div className="field"><label>التزامات التسليم</label><input title="التزامات التسليم" value={printFields.handoverObligations} onChange={(e) => setPrintFields(p => ({ ...p, handoverObligations: e.target.value }))} /></div>
+        </div>
+      </div>
+      <ResignationTemplate employee={data.employee} lang={lang} printFields={printFields} />
     </FormLayout>
   );
 }
