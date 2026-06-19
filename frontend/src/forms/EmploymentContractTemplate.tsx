@@ -31,9 +31,7 @@ const EN_DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday
 
 function dmy(iso: string): string {
   const d = new Date(iso);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  return `${day}/${month}/${d.getFullYear()}`;
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
 const PRINT_CSS = `
@@ -45,16 +43,15 @@ const PRINT_CSS = `
     font-size: 8pt !important;
     line-height: 1.4 !important;
     width: 210mm !important;
-    padding: 7mm 8mm !important;
+    padding: 6mm 6mm 6mm 12mm !important;
     box-sizing: border-box !important;
   }
   .ec-row { page-break-inside: avoid !important; }
   .ec-page-break { break-after: page !important; page-break-after: always !important; }
-  .ec-cell { padding: 3px 7px !important; }
-  .ec-bold { font-weight: 700 !important; }
+  .ec-cell { padding: 2.5px 6px !important; }
 }
 @media screen {
-  .ec-wrapper { max-width: 780px; margin: 0 auto; }
+  .ec-wrapper { max-width: 800px; margin: 0 auto; }
 }
 `;
 
@@ -62,7 +59,7 @@ const NOTE =
   'ملاحظة / هذا النموذج يعد نموذجاً إسترشادياً لشروط وأحكام عقد العمل في القطاع الأهلي، ويحق لكل شركة إعداد نموذج مماثل له على المطبوعات الخاصة بها شرط أن يتضمن كافة الأحكام والشروط الواردة بهذا النموذج';
 
 const wrap: React.CSSProperties = {
-  border: '1px solid #6b7280',
+  border: '2px solid #1d4e6f',
   fontFamily: "'Cairo', 'Tajawal', Arial, sans-serif",
   fontSize: 11,
   lineHeight: 1.5,
@@ -84,10 +81,11 @@ const twoCol: React.CSSProperties = {
   borderBottom: '1px solid #9ca3af',
 };
 
-const en: React.CSSProperties = {
+// Arabic is now the LEFT column — it gets the divider on its right
+const ar: React.CSSProperties = {
   padding: '4px 7px',
-  direction: 'ltr',
-  textAlign: 'left',
+  direction: 'rtl',
+  textAlign: 'right',
   borderRight: '1px solid #9ca3af',
   whiteSpace: 'pre-line',
   verticalAlign: 'top',
@@ -95,10 +93,11 @@ const en: React.CSSProperties = {
   lineHeight: 1.45,
 };
 
-const ar: React.CSSProperties = {
+// English is now the RIGHT column — no right border needed
+const en: React.CSSProperties = {
   padding: '4px 7px',
-  direction: 'rtl',
-  textAlign: 'right',
+  direction: 'ltr',
+  textAlign: 'left',
   whiteSpace: 'pre-line',
   verticalAlign: 'top',
   fontSize: 10.5,
@@ -146,8 +145,11 @@ export default function EmploymentContractTemplate({
 
         {/* Row 1 — Emblem */}
         <div style={{ ...fullRow, padding: '8px 10px' }}>
-          <img src="/contract_emblem.png" alt="Kuwait Public Authority Emblem"
-            style={{ height: 52, objectFit: 'contain' }} />
+          <img
+            src="/contract_emblem.png"
+            alt="Kuwait Public Authority Emblem"
+            style={{ height: 52, objectFit: 'contain' }}
+          />
         </div>
 
         {/* Row 2 — Authority name */}
@@ -156,178 +158,185 @@ export default function EmploymentContractTemplate({
           <div style={{ fontSize: 10, fontWeight: 500, color: '#374151', marginTop: 1 }}>The Public Authority For Manpower</div>
         </div>
 
-        {/* Row 3 — Contract title */}
-        <div className="ec-row" style={{ ...twoCol, background: '#f9fafb' }}>
-          <div className="ec-cell" style={{ ...en, fontWeight: 700, textAlign: 'center', borderRight: '1px solid #9ca3af', padding: '4px 7px' }}>
-            Sample Form of an Employment Contract in the Civil Sector
-          </div>
+        {/* Row 3 — Contract title (AR left, EN right) */}
+        <div className="ec-row" style={{ ...twoCol, background: '#f0f4f8', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
           <div className="ec-cell" style={{ ...ar, fontWeight: 700, textAlign: 'center', padding: '4px 7px' }}>
             نموذج عقد عمل إسترشادي في القطاع الأهلي
+          </div>
+          <div className="ec-cell" style={{ ...en, fontWeight: 700, textAlign: 'center', padding: '4px 7px' }}>
+            Sample Form of an Employment Contract in the Civil Sector
           </div>
         </div>
 
         {/* Row 4 — State of Kuwait preamble */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}>{`State of Kuwait\nPublic Authority for Manpower / Labour Department Farwaniya\nOn ${dayEn} corresponding to ${issueFmt} the present contract was concluded by and between:`}</div>
           <div className="ec-cell" style={ar}>{`دولة الكويت\nالهيئة العامة للقوى العاملة / إدارة عمل محافظة الفروانية\nإنه في يوم ${dayAr} الموافق ${issueFmt} تحرر هذا العقد بين كل من:-`}</div>
+          <div className="ec-cell" style={en}>{`State of Kuwait\nPublic Authority for Manpower / Labour Department Farwaniya\nOn ${dayEn} corresponding to ${issueFmt} the present contract was concluded by and between:`}</div>
         </div>
 
         {/* Row 5 — First party (Employer) */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}>
-            <div style={hdr}>First Party (Employer):</div>
-            {`Company: ALAMANAR ALDAWLIYA\nRepresented by: HASSAN FALAH NAYEF AL-HAJJI\nCivil ID: 282081000827`}
-          </div>
           <div className="ec-cell" style={ar}>
             <div style={{ ...hdr, direction: 'rtl' }}>الطرف الأول (صاحب العمل):</div>
             {`شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة\nيمثلها: حسن فلاح نايف الحاجي\nرقم مدني: 282081000827`}
+          </div>
+          <div className="ec-cell" style={en}>
+            <div style={hdr}>First Party (Employer):</div>
+            {`Company: ALAMANAR ALDAWLIYA\nRepresented by: HASSAN FALAH NAYEF AL-HAJJI\nCivil ID: 282081000827`}
           </div>
         </div>
 
         {/* Row 6 — Second party (Employee) */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}>
-            <div style={hdr}>Second Party (Employee):</div>
-            {`Name: ${emp.fullNameEn ?? emp.fullName}\nNationality: ${natEn}\nCivil ID: ${emp.civilId ?? '—'}\nPassport No.: ${emp.passportNumber ?? '—'}`}
-            {emp.address ? `\nAddress: ${emp.address}` : ''}
-          </div>
           <div className="ec-cell" style={ar}>
             <div style={{ ...hdr, direction: 'rtl' }}>الطرف الثاني (العامل):</div>
             {`الاسم: ${emp.fullName}\nالجنسية: ${emp.nationality ?? '—'}\nالرقم المدني: ${emp.civilId ?? '—'}\nرقم الجواز: ${emp.passportNumber ?? '—'}`}
             {emp.address ? `\nالعنوان: ${emp.address}` : ''}
           </div>
+          <div className="ec-cell" style={en}>
+            <div style={hdr}>Second Party (Employee):</div>
+            {`Name: ${emp.fullNameEn ?? emp.fullName}\nNationality: ${natEn}\nCivil ID: ${emp.civilId ?? '—'}\nPassport No.: ${emp.passportNumber ?? '—'}`}
+            {emp.address ? `\nAddress: ${emp.address}` : ''}
+          </div>
         </div>
 
         {/* Row 7 — Preamble */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}>
-            <span style={hdr}>Preamble: </span>
-            {`The first party owns the establishment entitled ALAMANAR ALDAWLIYA working in the field of STREET CONSTRUCTION & MAINTENANCE; whereas it wishes to conclude a contract with the second party to work for it in the profession of ${jobTitleEn}; whereas the parties acknowledged their capacity to conclude this contract, they agreed upon the following:`}
-          </div>
           <div className="ec-cell" style={ar}>
             <span style={hdr}>تمهيد: </span>
             {`يمتلك الطرف الأول منشأة بإسم شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة تعمل في مجال صيانة وإنشاء الشوارع، ويرغب في التعاقد مع الطرف الثاني للعمل لديه بمهنة ${emp.jobTitle ?? '—'}، وبعد أن أقر الطرفان بأهليتهما في إبرام هذا العقد تم الاتفاق على ما يلي:`}
           </div>
-        </div>
-
-        {/* Row 8 — Article 1 */}
-        <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article One: </span>{'The preamble above shall constitute an integral part of the present contract.'}</div>
-          <div className="ec-cell" style={ar}><span style={hdr}>البند الأول: </span>{'يعتبر التمهيد السابق جزءاً لا يتجزأ من هذا العقد.'}</div>
-        </div>
-
-        {/* Row 9 — Article 2 */}
-        <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Two — Nature of Work: </span>{`The first party concluded a contract with the second party to work in the profession of ${jobTitleEn} in the State of Kuwait.`}</div>
-          <div className="ec-cell" style={ar}><span style={hdr}>البند الثاني — طبيعة العمل: </span>{`تعاقد الطرف الأول مع الطرف الثاني للعمل لديه بمهنة ${emp.jobTitle ?? '—'} داخل دولة الكويت.`}</div>
-        </div>
-
-        {/* Row 10 — Article 3 */}
-        <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Three — Probation Period: </span>{`The second party shall be subject to a probation period not exceeding ${params.probationDays} work days. Either party may terminate the contract during this period without prior notice.`}</div>
-          <div className="ec-cell" style={ar}><span style={hdr}>البند الثالث — فترة التجربة: </span>{`يخضع الطرف الثاني لفترة تجربة لمدة لا تزيد عن ${params.probationDays} يوم عمل، ويحق لكل طرف إنهاء العقد خلال تلك الفترة دون إخطار مسبق.`}</div>
-        </div>
-
-        {/* Row 11 — Article 4 (Salary) — enhanced */}
-        <div className="ec-row" style={twoCol}>
           <div className="ec-cell" style={en}>
-            <span style={hdr}>Article Four — Wage: </span>
-            {`The second party shall receive a monthly wage of `}
-            <strong>{sal} KWD</strong>
-            {` (${salWords}) payable at the end of each month. The first party may not reduce the wage during the contract term, nor transfer the second party to daily wage without approval.`}
+            <span style={hdr}>Preamble: </span>
+            {`The first party owns the establishment entitled ALAMANAR ALDAWLIYA working in the field of STREET CONSTRUCTION & MAINTENANCE; whereas it wishes to conclude a contract with the second party to work for it in the profession of ${jobTitleEn}; whereas the parties acknowledged their capacity to conclude this contract, they agreed upon the following:`}
           </div>
+        </div>
+
+        {/* Article 1 */}
+        <div className="ec-row" style={twoCol}>
+          <div className="ec-cell" style={ar}><span style={hdr}>البند الأول: </span>{'يعتبر التمهيد السابق جزءاً لا يتجزأ من هذا العقد.'}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article One: </span>{'The preamble above shall constitute an integral part of the present contract.'}</div>
+        </div>
+
+        {/* Article 2 */}
+        <div className="ec-row" style={twoCol}>
+          <div className="ec-cell" style={ar}><span style={hdr}>البند الثاني — طبيعة العمل: </span>{`تعاقد الطرف الأول مع الطرف الثاني للعمل لديه بمهنة ${emp.jobTitle ?? '—'} داخل دولة الكويت.`}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Two — Nature of Work: </span>{`The first party concluded a contract with the second party to work in the profession of ${jobTitleEn} in the State of Kuwait.`}</div>
+        </div>
+
+        {/* Article 3 */}
+        <div className="ec-row" style={twoCol}>
+          <div className="ec-cell" style={ar}><span style={hdr}>البند الثالث — فترة التجربة: </span>{`يخضع الطرف الثاني لفترة تجربة لمدة لا تزيد عن ${params.probationDays} يوم عمل، ويحق لكل طرف إنهاء العقد خلال تلك الفترة دون إخطار مسبق.`}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Three — Probation Period: </span>{`The second party shall be subject to a probation period not exceeding ${params.probationDays} work days. Either party may terminate the contract during this period without prior notice.`}</div>
+        </div>
+
+        {/* Article 4 — Salary */}
+        <div className="ec-row" style={twoCol}>
           <div className="ec-cell" style={ar}>
             <span style={hdr}>البند الرابع — قيمة الأجر: </span>
             {'يتقاضى الطرف الثاني عن تنفيذ هذا العقد أجراً شهرياً مقداره '}
             <strong>{sal} دينار كويتي</strong>
-            {` (${salWords}) يدفع في نهاية كل شهر، ولا يجوز للطرف الأول تخفيض الأجر أثناء سريان العقد، ولا نقل الطرف الثاني إلى الأجر اليومي دون موافقته.`}
+            {` (${salWords}) يدفع في نهاية كل شهر، ولا يجوز للطرف الأول تخفيض الأجر أثناء سريان العقد.`}
+          </div>
+          <div className="ec-cell" style={en}>
+            <span style={hdr}>Article Four — Wage: </span>
+            {'The second party shall receive a monthly wage of '}
+            <strong>{sal} KWD</strong>
+            {` (${salWords}) payable at the end of each month. The first party may not reduce the wage during the contract term.`}
           </div>
         </div>
 
-        {/* Row 12 — Article 5 */}
+        {/* Article 5 */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Five — Commencement: </span>{`The contract shall come into force on ${startFmt}. The second party shall perform his duties throughout the full term of the contract.`}</div>
           <div className="ec-cell" style={ar}><span style={hdr}>البند الخامس — نفاذ العقد: </span>{`يبدأ نفاذ العقد اعتباراً من ${startFmt}، ويلتزم الطرف الثاني بالقيام بأداء عمله طوال مدة نفاذه.`}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Five — Commencement: </span>{`The contract shall come into force on ${startFmt}. The second party shall perform his duties throughout the full term of the contract.`}</div>
         </div>
 
-        {/* Row 13 — Article 6 */}
+        {/* Article 6 — last article on page 1 */}
         <div className="ec-row" style={twoCol}>
+          <div className="ec-cell" style={ar}><span style={hdr}>البند السادس — مدة العقد: </span>{`هذا العقد محدد المدة، يبدأ اعتباراً من ${startFmt} ولمدة ${params.durationAr}، ويجوز تجديده بموافقة الطرفين لمدة مماثلة بحد أقصى خمس سنوات. (خيار العقد غير المحدد المدة يخضع لإرادة الطرفين.)`}</div>
           <div className="ec-cell" style={en}><span style={hdr}>Article Six — Contract Term: </span>{`This contract has a definite term, commencing ${startFmt} for a period of ${params.durationEn}. It may be renewed by mutual agreement for similar terms not exceeding five years. (An indefinite-term option is available subject to agreement of both parties.)`}</div>
-          <div className="ec-cell" style={ar}><span style={hdr}>البند السادس — مدة العقد: </span>{`هذا العقد محدد المدة، يبدأ اعتباراً من ${startFmt} ولمدة ${params.durationAr}، ويجوز تجديده بموافقة الطرفين لمدة مماثلة بحد أقصى خمس سنوات ميلادية. (خيار العقد غير المحدد المدة يخضع لإرادة الطرفين.)`}</div>
         </div>
 
-        {/* Full-width note (top of page 1 bottom) */}
-        <div style={{ ...noteStyle, borderBottom: '1px solid #9ca3af' }}>{NOTE}</div>
-
-        {/* Row 14 — Article 7 */}
-        <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Seven — Annual Leave: </span>{`The second party shall be entitled to a paid annual leave of ${params.annualLeaveDays} days. This entitlement does not accrue in the first year until the expiry of nine months from the contract commencement date.`}</div>
-          <div className="ec-cell" style={ar}><span style={hdr}>البند السابع — الإجازة السنوية: </span>{`للطرف الثاني الحق في إجازة سنوية مدفوعة الأجر مدتها ${params.annualLeaveDays} يوماً، ولا يستحقها عن السنة الأولى إلا بعد انقضاء تسعة أشهر تحسب من تاريخ نفاذ العقد.`}</div>
-        </div>
-
-        {/* ─── PAGE BREAK ─── */}
+        {/* ─── PAGE BREAK — page 1 ends after Article 6 ─── */}
         <div className="ec-page-break" style={{ breakAfter: 'page' }} />
 
-        {/* Row 15 — Article 8 */}
+        {/* Article 7 — first article on page 2 */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Eight — Working Hours: </span>{'The first party may not require the second party to work more than eight daily hours with rest periods of not less than one hour, except as provided by law.'}</div>
+          <div className="ec-cell" style={ar}><span style={hdr}>البند السابع — الإجازة السنوية: </span>{`للطرف الثاني الحق في إجازة سنوية مدفوعة الأجر مدتها ${params.annualLeaveDays} يوماً، ولا يستحقها عن السنة الأولى إلا بعد انقضاء تسعة أشهر تحسب من تاريخ نفاذ العقد.`}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Seven — Annual Leave: </span>{`The second party shall be entitled to a paid annual leave of ${params.annualLeaveDays} days. This entitlement does not accrue in the first year until the expiry of nine months from the contract commencement date.`}</div>
+        </div>
+
+        {/* Article 8 */}
+        <div className="ec-row" style={twoCol}>
           <div className="ec-cell" style={ar}><span style={hdr}>البند الثامن — ساعات العمل: </span>{'لا يجوز للطرف الأول تشغيل الطرف الثاني لمدة تزيد عن ثماني ساعات عمل يومياً تتخللها فترة راحة لا تقل عن ساعة، باستثناء الحالات المقررة قانوناً.'}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Eight — Working Hours: </span>{'The first party may not require the second party to work more than eight daily hours with rest periods of not less than one hour, except as provided by law.'}</div>
         </div>
 
-        {/* Row 16 — Article 9 */}
+        {/* Article 9 */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Nine — Travel Ticket: </span>{'The first party shall bear the cost of returning the second party to his home country upon expiry of the work relationship and final departure from Kuwait.'}</div>
           <div className="ec-cell" style={ar}><span style={hdr}>البند التاسع — تذكرة السفر: </span>{'يتحمل الطرف الأول مصاريف عودة الطرف الثاني إلى بلده عند انتهاء علاقة العمل ومغادرته نهائياً للبلاد.'}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Nine — Travel Ticket: </span>{'The first party shall bear the cost of returning the second party to his home country upon expiry of the work relationship and final departure from Kuwait.'}</div>
         </div>
 
-        {/* Row 17 — Article 10 */}
+        {/* Article 10 */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Ten — Insurance: </span>{'The first party shall insure the second party against work injuries and occupational diseases, and shall also provide health insurance in accordance with Law No. (1) of 1999.'}</div>
           <div className="ec-cell" style={ar}><span style={hdr}>البند العاشر — التأمين: </span>{'يلتزم الطرف الأول بالتأمين على الطرف الثاني ضد إصابات وأمراض العمل، كما يلتزم بقيمة التأمين الصحي طبقاً للقانون رقم (1) لسنة 1999.'}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Ten — Insurance: </span>{'The first party shall insure the second party against work injuries and occupational diseases, and shall also provide health insurance in accordance with Law No. (1) of 1999.'}</div>
         </div>
 
-        {/* Row 18 — Article 11 */}
+        {/* Article 11 */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Eleven — End of Service: </span>{'The second party shall be entitled to end-of-service benefits as stipulated by the applicable labour laws.'}</div>
           <div className="ec-cell" style={ar}><span style={hdr}>البند الحادي عشر — مكافأة نهاية الخدمة: </span>{'يستحق الطرف الثاني مكافأة نهاية الخدمة المنصوص عليها في القوانين المنظمة.'}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Eleven — End of Service: </span>{'The second party shall be entitled to end-of-service benefits as stipulated by the applicable labour laws.'}</div>
         </div>
 
-        {/* Row 19 — Article 12 */}
+        {/* Article 12 */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Twelve — Applicable Law: </span>{'The provisions of Labour Law No. 6 of 2010 and its implementing decisions shall apply to all matters not covered in this contract. Any condition contrary to the law shall be null and void unless it provides a greater benefit to the worker.'}</div>
           <div className="ec-cell" style={ar}><span style={hdr}>البند الثاني عشر — القانون الواجب التطبيق: </span>{'تسري أحكام قانون العمل في القطاع الأهلي رقم 6 لسنة 2010 والقرارات المنفذة له فيما لم يرد بشأنه نص في هذا العقد، ويقع باطلاً كل شرط مخالف لأحكام القانون ما لم يكن أفضل للعامل.'}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Twelve — Applicable Law: </span>{'The provisions of Labour Law No. 6 of 2010 and its implementing decisions shall apply to all matters not covered in this contract. Any condition contrary to the law shall be null and void unless it provides a greater benefit to the worker.'}</div>
         </div>
 
-        {/* Row 20 — Article 13 Special conditions */}
+        {/* Article 13 — Special Conditions */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Thirteen — Special Conditions: </span>{`\n${params.specialConditionsEn || 'None.'}`}</div>
           <div className="ec-cell" style={ar}><span style={hdr}>البند الثالث عشر — شروط خاصة: </span>{`\n${params.specialConditionsAr || 'لا يوجد.'}`}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Thirteen — Special Conditions: </span>{`\n${params.specialConditionsEn || 'None.'}`}</div>
         </div>
 
-        {/* Row 21 — Article 14 */}
+        {/* Article 14 */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Fourteen — Jurisdiction: </span>{'The Court of First Instance and its Labour Departments, pursuant to Law No. 46 of 1987, shall have jurisdiction over all disputes arising from the execution or interpretation of this contract.'}</div>
           <div className="ec-cell" style={ar}><span style={hdr}>البند الرابع عشر — المحكمة المختصة: </span>{'تختص المحكمة الكلية ودوائرها العمالية طبقاً لأحكام القانون رقم 46 لسنة 1987 بنظر كافة المنازعات الناشئة عن تطبيق أو تفسير هذا العقد.'}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Fourteen — Jurisdiction: </span>{'The Court of First Instance and its Labour Departments, pursuant to Law No. 46 of 1987, shall have jurisdiction over all disputes arising from the execution or interpretation of this contract.'}</div>
         </div>
 
-        {/* Row 22 — Article 15 */}
+        {/* Article 15 */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Fifteen — Contract Language: </span>{'This contract is made in Arabic and English. The Arabic text shall prevail in case of any conflict between them.'}</div>
           <div className="ec-cell" style={ar}><span style={hdr}>البند الخامس عشر — لغة العقد: </span>{'حُرِّر هذا العقد باللغتين العربية والإنجليزية، ويُعتدّ بنصوص اللغة العربية عند وقوع أي تعارض بينهما.'}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Fifteen — Contract Language: </span>{'This contract is made in Arabic and English. The Arabic text shall prevail in case of any conflict between them.'}</div>
         </div>
 
-        {/* Row 23 — Article 16 */}
+        {/* Article 16 */}
         <div className="ec-row" style={twoCol}>
-          <div className="ec-cell" style={en}><span style={hdr}>Article Sixteen — Contract Copies: </span>{'This contract is made in three copies: one for each party and the third to be deposited at the Public Authority for Manpower.'}</div>
           <div className="ec-cell" style={ar}><span style={hdr}>البند السادس عشر — نسخ العقد: </span>{'حُرِّر هذا العقد من ثلاث نسخ، بيد كل طرف نسخة للعمل بموجبها، والثالثة تودَع لدى الهيئة العامة للقوى العاملة.'}</div>
+          <div className="ec-cell" style={en}><span style={hdr}>Article Sixteen — Contract Copies: </span>{'This contract is made in three copies: one for each party and the third to be deposited at the Public Authority for Manpower.'}</div>
         </div>
 
-        {/* Row 24 — Signatures */}
+        {/* Signatures */}
         <div className="ec-row" style={{ ...twoCol, borderBottom: 'none' }}>
-          {/* Second Party (Employee) — Left column in LTR */}
-          <div style={{ ...en, padding: '8px 10px', borderRight: '1px solid #9ca3af' }}>
+          {/* First Party (Employer) — AR left */}
+          <div style={{ ...ar, padding: '8px 10px' }}>
+            <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 2, direction: 'rtl' }}>الطرف الأول — صاحب العمل / First Party</div>
+            <div style={{ fontSize: 10, color: '#374151', marginBottom: 44, direction: 'rtl' }}>
+              شركة المنار الدولية · حسن فلاح نايف
+            </div>
+            <div style={{ borderTop: '1px solid #374151', paddingTop: 4, fontSize: 9.5, color: '#6b7280', direction: 'rtl' }}>
+              التوقيع &nbsp;/&nbsp; Signature &nbsp;&nbsp;&nbsp; التاريخ / Date: ___________
+            </div>
+          </div>
+          {/* Second Party (Employee) — EN right */}
+          <div style={{ ...en, padding: '8px 10px' }}>
             <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 2 }}>Second Party — Employee / الطرف الثاني</div>
-            <div style={{ fontSize: 10, color: '#374151', marginBottom: 48 }}>
+            <div style={{ fontSize: 10, color: '#374151', marginBottom: 44 }}>
               {emp.fullNameEn ?? emp.fullName}
               {emp.civilId ? ` · ${emp.civilId}` : ''}
             </div>
@@ -335,19 +344,9 @@ export default function EmploymentContractTemplate({
               Signature &nbsp;/&nbsp; التوقيع &nbsp;&nbsp;&nbsp; Date / التاريخ: ___________
             </div>
           </div>
-          {/* First Party (Employer) — Right column in RTL */}
-          <div style={{ ...ar, padding: '8px 10px' }}>
-            <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 2, direction: 'rtl' }}>الطرف الأول — صاحب العمل / First Party</div>
-            <div style={{ fontSize: 10, color: '#374151', marginBottom: 48, direction: 'rtl' }}>
-              شركة المنار الدولية · حسن فلاح نايف
-            </div>
-            <div style={{ borderTop: '1px solid #374151', paddingTop: 4, fontSize: 9.5, color: '#6b7280', direction: 'ltr', textAlign: 'left' }}>
-              Signature &nbsp;/&nbsp; التوقيع &nbsp;&nbsp;&nbsp; Date / التاريخ: ___________
-            </div>
-          </div>
         </div>
 
-        {/* Bottom note */}
+        {/* NOTE — bottom of page 2 */}
         <div style={{ ...noteStyle, borderTop: '1px solid #9ca3af', borderBottom: 'none' }}>{NOTE}</div>
 
       </div>

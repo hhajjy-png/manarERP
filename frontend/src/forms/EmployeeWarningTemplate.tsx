@@ -78,24 +78,47 @@ export default function EmployeeWarningTemplate({ employee: emp }: Props) {
         </div>
         <div style={tableRow}>
           <div style={labelCell}>سبب الإنذار</div>
-          <div style={{ ...valueCell, minHeight: 80, whiteSpace: 'pre-line' }}>
+          <div style={{ ...valueCell, minHeight: 48 }}>
             <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
+            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+          </div>
+        </div>
+        <div style={tableRow}>
+          <div style={labelCell}>تفاصيل المخالفة</div>
+          <div style={{ ...valueCell, minHeight: 48 }}>
             <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
+            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+          </div>
+        </div>
+        <div style={tableRow}>
+          <div style={labelCell}>الإجراء التصحيحي</div>
+          <div style={{ ...valueCell, minHeight: 40 }}>
+            <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
+            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+          </div>
+        </div>
+        <div style={tableRow}>
+          <div style={labelCell}>ملاحظات إضافية</div>
+          <div style={{ ...valueCell, minHeight: 36 }}>
             <span style={{ ...blankLine, width: '100%', display: 'block' }} />
           </div>
         </div>
       </div>
 
-      <div style={{ marginBottom: 20, fontSize: 13, color: '#374151', lineHeight: 2 }}>
+      <div style={{ marginBottom: 14, fontSize: 12.5, color: '#374151', lineHeight: 1.7 }}>
         <p style={{ margin: 0 }}>
           أُفيد الموظف/ة المذكور/ة بهذا الإنذار، وأُحاط علماً بمضمونه، ويُلتزم
           بعدم تكرار المخالفة مستقبلاً وإلا تعرّض/تتعرّض للإجراءات التأديبية المقررة.
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginBottom: 16, fontSize: 13, color: '#374151' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, marginBottom: 16, fontSize: 13, color: '#374151' }}>
         <div>
           <strong>توقيع الموظف (إقرار الاستلام):</strong>
+          <div style={{ marginTop: 24, borderBottom: '1px solid #64748b', width: '100%' }} />
+        </div>
+        <div>
+          <strong>توقيع المشرف المباشر:</strong>
           <div style={{ marginTop: 24, borderBottom: '1px solid #64748b', width: '100%' }} />
         </div>
         <div>

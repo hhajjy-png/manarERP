@@ -323,12 +323,30 @@ export default function Dashboard() {
           </div>
           {exec && (
             <div style={{
-              marginTop: 8, padding: '7px 14px', background: 'var(--surface-2)',
+              marginTop: 8, padding: '10px 16px', background: 'var(--surface-2)',
               border: '1px solid var(--border)', borderRadius: 8, fontSize: 12,
-              color: 'var(--text-muted)', display: 'flex', gap: 6, alignItems: 'center',
             }}>
-              <span style={{ fontWeight: 700 }}>ℹ مصدر البيانات:</span>
-              <span>الإيرادات والمصروفات من سجل المعاملات اليومية · الفواتير غير المسددة بحالة غير مدفوعة / جزئية / متأخرة · صافي الربح = الإيرادات − المصروفات</span>
+              <div style={{ fontWeight: 700, marginBottom: 7, color: 'var(--text)', fontSize: 12 }}>
+                ℹ مصدر البيانات المالية
+              </div>
+              <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                <span>
+                  <span style={{ color: '#16a34a', fontWeight: 700 }}>الإيرادات</span>
+                  {' '}— دفعات الفواتير المحصّلة من سجل المعاملات
+                </span>
+                <span>
+                  <span style={{ color: '#dc2626', fontWeight: 700 }}>المصروفات</span>
+                  {' '}— المصروفات المعتمدة من سجل المعاملات
+                </span>
+                <span>
+                  <span style={{ color: '#1d4e6f', fontWeight: 700 }}>الربح الصافي</span>
+                  {' '}= الإيرادات − المصروفات (قد يكون سالباً)
+                </span>
+                <span>
+                  <span style={{ color: '#d97706', fontWeight: 700 }}>الفواتير المعلّقة</span>
+                  {' '}— بحالة غير مدفوعة أو جزئية أو متأخرة
+                </span>
+              </div>
             </div>
           )}
         </>

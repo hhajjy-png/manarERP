@@ -67,23 +67,43 @@ export default function ResignationTemplate({ employee: emp }: Props) {
           </div>
         </div>
         <div style={tableRow}>
+          <div style={labelCell}>فترة الإشعار</div>
+          <div style={valueCell}>
+            <span style={blankLine} />
+          </div>
+        </div>
+        <div style={tableRow}>
           <div style={labelCell}>سبب الاستقالة</div>
-          <div style={{ ...valueCell, minHeight: 60 }}>
+          <div style={{ ...valueCell, minHeight: 52 }}>
+            <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} />
+            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+          </div>
+        </div>
+        <div style={tableRow}>
+          <div style={labelCell}>التزامات التسليم</div>
+          <div style={{ ...valueCell, minHeight: 48 }}>
             <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} />
             <span style={{ ...blankLine, width: '100%', display: 'block' }} />
           </div>
         </div>
       </div>
 
-      <div style={{ marginBottom: 20, fontSize: 13, color: '#374151', lineHeight: 2, textAlign: 'justify' }}>
+      <div style={{ marginBottom: 14, fontSize: 12.5, color: '#374151', lineHeight: 1.7, textAlign: 'justify' }}>
         <p style={{ margin: 0 }}>
           أتقدم/تتقدم بهذا الطلب للاستقالة من وظيفتي في الشركة المذكورة،
           وأتعهد بتسليم ما بعهدتي من مهام ومستندات خلال فترة الإشعار المحددة.
         </p>
       </div>
 
-      <div style={{ marginBottom: 8, fontSize: 13, color: '#374151' }}>
-        <strong>توقيع الموظف:</strong> <span style={blankLine} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, fontSize: 13, color: '#374151' }}>
+        <div>
+          <strong>توقيع الموظف:</strong>
+          <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
+        </div>
+        <div>
+          <strong>استلام الإدارة / التاريخ:</strong>
+          <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
+        </div>
       </div>
 
     </>

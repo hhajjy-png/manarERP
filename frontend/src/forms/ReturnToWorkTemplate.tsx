@@ -92,17 +92,35 @@ export default function ReturnToWorkTemplate({ employee: emp, latestLeave }: Pro
             <span style={blankLine} />
           </div>
         </div>
+        <div style={tableRow}>
+          <div style={labelCell}>ملاحظات طبية / تقرير الطبيب</div>
+          <div style={{ ...valueCell, minHeight: 44 }}>
+            <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
+            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+          </div>
+        </div>
       </div>
 
-      <div style={{ marginBottom: 20, fontSize: 13, color: '#374151', lineHeight: 2 }}>
+      <div style={{ marginBottom: 14, fontSize: 12.5, color: '#374151', lineHeight: 1.7 }}>
         <p style={{ margin: 0 }}>
           أُفيد بأن الموظف/ة المذكور/ة أعلاه قد عاد/ت إلى العمل بعد انقضاء إجازته/إجازتها
           وهو/هي في حالة جيدة وجاهز/ة لاستئناف مهام عمله/عملها.
         </p>
       </div>
 
-      <div style={{ marginBottom: 16, fontSize: 13, color: '#374151' }}>
+      <div style={{ marginBottom: 8, fontSize: 13, color: '#374151' }}>
         <strong>تاريخ الإشعار:</strong> {issueDateStr()}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, fontSize: 13, color: '#374151' }}>
+        <div>
+          <strong>توقيع الموظف (تأكيد العودة):</strong>
+          <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
+        </div>
+        <div>
+          <strong>تأكيد المدير المباشر:</strong>
+          <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
+        </div>
       </div>
 
     </>

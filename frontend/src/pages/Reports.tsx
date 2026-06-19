@@ -413,8 +413,8 @@ export default function Reports() {
               ))
             )}
             {preview.totalsRow && (
-              <tr style={{ fontWeight: 800, background: 'var(--surface-2)' }}>
-                {preview.columns.map((c) => <td key={c.key}>{fmt(preview.totalsRow[c.key])}</td>)}
+              <tr style={{ fontWeight: 800, background: '#e8f0f7', borderTop: '2px solid #1d4e6f', color: '#1d4e6f' }}>
+                {preview.columns.map((c) => <td key={c.key} style={{ padding: '9px 14px', fontSize: 13 }}>{fmt(preview.totalsRow[c.key])}</td>)}
               </tr>
             )}
           </tbody>

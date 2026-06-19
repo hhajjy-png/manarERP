@@ -285,23 +285,12 @@ export default function InvoicePreview() {
           </div>
         )}
 
-        {/* ── Print Header (print only) ── */}
+        {/* ── Print Header (print only) — clean professional layout ── */}
         <div className="print-only inv-print-header" style={{
           borderBottom: '2px solid #1d4e6f', marginBottom: 12, paddingBottom: 8,
-          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
         }}>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: '#1d4e6f' }}>شركة المنار الدولية</div>
-            <div style={{ fontSize: 11, color: '#64748b' }}>لإنشاء وصيانة الشوارع والأرصفة</div>
-          </div>
-          <div style={{ textAlign: 'center', flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#1d4e6f' }}>{partyName}</div>
-            <div style={{ fontSize: 11, color: '#64748b' }}>{directionLabel}</div>
-          </div>
-          <div style={{ textAlign: 'left', direction: 'ltr' }}>
-            <div style={{ fontWeight: 800, fontSize: 13, color: '#1d4e6f' }}>{data.invoiceNumber ?? data.number}</div>
-            <div style={{ fontSize: 11, color: '#64748b' }}>{billingPeriod}</div>
-          </div>
+          <div style={{ fontWeight: 800, fontSize: 16, color: '#1d4e6f' }}>شركة المنار الدولية</div>
+          <div style={{ fontSize: 11, color: '#64748b' }}>لإنشاء وصيانة الشوارع والأرصفة ومستلزمات الطرق</div>
         </div>
 
         {/* ── Section 1: Invoice Details ── */}
@@ -414,34 +403,54 @@ export default function InvoicePreview() {
         </div>
 
         {/* ── Section 5: Collection Summary (screen only) ── */}
-        {hasPayments && (
-          <div id="inv-collections" className="inv-nav-anchor no-print">
-            <div style={secTitle}>ملخص التحصيل</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 10 }}>
-              <div className="inv-collection-chip">
-                <div className="inv-collection-chip-label">إجمالي المحصّل</div>
-                <div className="inv-collection-chip-val" style={{ color: '#16a34a' }}>{money(data.paidAmount)}</div>
+        {hasPayments && (() => {
+          const methodTotals = data.payments.reduce((acc: Record<string, number>, p: { method: string; amount: number | string }) => {
+            acc[p.method] = (acc[p.method] ?? 0) + Number(p.amount);
+            return acc;
+          }, {});
+          const methodBreakdown = Object.entries(methodTotals).filter(([, v]) => v > 0);
+          return (
+            <div id="inv-collections" className="inv-nav-anchor no-print">
+              <div style={secTitle}>ملخص التحصيل</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 10 }}>
+                <div className="inv-collection-chip">
+                  <div className="inv-collection-chip-label">إجمالي المحصّل</div>
+                  <div className="inv-collection-chip-val" style={{ color: '#16a34a' }}>{money(data.paidAmount)}</div>
+                </div>
+                <div className="inv-collection-chip">
+                  <div className="inv-collection-chip-label">المتبقي</div>
+                  <div className="inv-collection-chip-val" style={{ color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</div>
+                </div>
+                <div className="inv-collection-chip">
+                  <div className="inv-collection-chip-label">نسبة التحصيل</div>
+                  <div className="inv-collection-chip-val" style={{ color: '#1d4e6f' }}>{collectionPct}%</div>
+                </div>
+                <div className="inv-collection-chip">
+                  <div className="inv-collection-chip-label">عدد الدفعات</div>
+                  <div className="inv-collection-chip-val" style={{ color: '#0f172a' }}>{data.payments.length}</div>
+                </div>
               </div>
-              <div className="inv-collection-chip">
-                <div className="inv-collection-chip-label">المتبقي</div>
-                <div className="inv-collection-chip-val" style={{ color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</div>
-              </div>
-              <div className="inv-collection-chip">
-                <div className="inv-collection-chip-label">نسبة التحصيل</div>
-                <div className="inv-collection-chip-val" style={{ color: '#1d4e6f' }}>{collectionPct}%</div>
-              </div>
-              <div className="inv-collection-chip">
-                <div className="inv-collection-chip-label">عدد الدفعات</div>
-                <div className="inv-collection-chip-val" style={{ color: '#0f172a' }}>{data.payments.length}</div>
-              </div>
+              {methodBreakdown.length > 1 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                  {methodBreakdown.map(([method, total]) => (
+                    <span key={method} style={{
+                      fontSize: 12, padding: '3px 10px',
+                      background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 20,
+                      color: '#475569', fontWeight: 600,
+                    }}>
+                      {PAY_METHOD_AR[method] ?? method}: <span style={{ color: '#16a34a' }}>{money(total)}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {lastPaymentDate && (
+                <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px' }}>
+                  📅 آخر دفعة: <strong>{dateText(lastPaymentDate)}</strong>
+                </p>
+              )}
             </div>
-            {lastPaymentDate && (
-              <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px' }}>
-                📅 آخر دفعة: <strong>{dateText(lastPaymentDate)}</strong>
-              </p>
-            )}
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── Section 6: Payment History ── */}
         {hasPayments && (
