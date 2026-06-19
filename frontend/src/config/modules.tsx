@@ -233,6 +233,7 @@ export const MODULES: Record<string, ModuleConfig> = {
       ],
     },
     columns: [
+      { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: 12 }}>{r.code}</span> },
       { key: 'fullName', label: 'col.fullname_ar', render: (r) => <strong>{r.fullName}</strong> },
       { key: 'fullNameEn', label: 'col.fullname_en' },
       { key: 'civilId', label: 'col.civil_id', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.civilId ?? '—'}</span> },

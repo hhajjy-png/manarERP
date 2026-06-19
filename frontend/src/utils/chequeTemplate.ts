@@ -109,6 +109,49 @@ export function templateFromSettings(
   }
 }
 
+// ── Future-compatibility stubs (no UI wired yet) ─────────────────────────────
+
+/**
+ * A saved beneficiary entry for future autocomplete / master-list feature.
+ * Store in settings under key 'cheque.beneficiaries' as JSON array.
+ */
+export interface BeneficiaryMaster {
+  id: string;
+  name: string;
+  nameAr?: string;
+  accountNumber?: string;
+  bankName?: string;
+  notes?: string;
+}
+
+/**
+ * A named bank template binding a bank name to its saved field positions.
+ * Extends the existing per-bank settings to support multiple named layouts
+ * per bank (e.g. different cheque book sizes from the same bank).
+ */
+export interface BankTemplateProfile {
+  id: string;
+  bankName: string;
+  profileName: string;
+  template: ChequeTemplate;
+  isDefault: boolean;
+}
+
+/**
+ * Printer preference saved per bank — for future "saved printer" feature.
+ * Would be stored in Electron userData and applied when printing cheques.
+ */
+export interface ChequePrinterPreference {
+  bankName: string;
+  printerName: string;
+  /** When true, forces landscape orientation regardless of system default. */
+  forceLandscape: boolean;
+  /** Paper tray index (OS-specific). */
+  trayIndex?: number;
+}
+
+// ── End future stubs ─────────────────────────────────────────────────────────
+
 /**
  * Formats a cheque amount: hides .000 fils, keeps any non-zero fils.
  * 5000     → #5,000#
