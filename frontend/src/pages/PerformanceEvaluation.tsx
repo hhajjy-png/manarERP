@@ -5,6 +5,7 @@ import { getPrintMode } from '../forms/shared/printMode';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import PerformanceEvaluationTemplate from '../forms/PerformanceEvaluationTemplate';
+import LanguageToggle from '../forms/shared/LanguageToggle';
 
 export default function PerformanceEvaluation() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -14,6 +15,7 @@ export default function PerformanceEvaluation() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
   useEffect(() => {
     if (!employeeId) return;
@@ -52,6 +54,7 @@ export default function PerformanceEvaluation() {
       formNumber={formNumber}
       title="تقييم أداء الموظف"
       printMode={printMode}
+      toolbarExtra={<LanguageToggle lang={lang} onChange={setLang} />}
       qrData={{
         formType: 'performance-evaluation',
         formNumber,
@@ -63,6 +66,7 @@ export default function PerformanceEvaluation() {
       <PerformanceEvaluationTemplate
         employee={data.employee}
         latestReview={data.latestReview}
+        lang={lang}
       />
     </FormLayout>
   );

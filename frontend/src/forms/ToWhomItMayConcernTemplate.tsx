@@ -6,27 +6,16 @@ import {
   sectionHeader,
   tableWrapper,
   fmtDate,
+  fmtDateEn,
   issueDateStr,
+  issueDateStrEn,
   money,
+  moneyEn,
   blankLine,
 } from './shared/formStyles';
 
 const COMPANY_NAME_EN =
   'ALAMANAR ALDAWLIYA FOR STREET CONSTRUCTION & MAINTENANCE CO., W.L.L.';
-
-function fmtDateEn(v: string | Date | null | undefined): string {
-  if (!v) return '—';
-  const d = new Date(v as string);
-  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function issueDateStrEn(): string {
-  return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function moneyEn(v: number): string {
-  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' KWD';
-}
 
 interface Employee {
   id: number;

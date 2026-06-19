@@ -40,15 +40,15 @@ const PRINT_CSS = `
   html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
   .no-print { display: none !important; }
   .ec-wrapper {
-    font-size: 8pt !important;
-    line-height: 1.4 !important;
+    font-size: 8.5pt !important;
+    line-height: 1.45 !important;
     width: 210mm !important;
-    padding: 6mm 6mm 6mm 12mm !important;
+    padding: 12mm 4mm 5mm 8mm !important;
     box-sizing: border-box !important;
   }
   .ec-row { page-break-inside: avoid !important; }
   .ec-page-break { break-after: page !important; page-break-after: always !important; }
-  .ec-cell { padding: 2.5px 6px !important; }
+  .ec-cell { padding: 3px 7px !important; }
 }
 @media screen {
   .ec-wrapper { max-width: 800px; margin: 0 auto; }
@@ -59,7 +59,7 @@ const NOTE =
   'ملاحظة / هذا النموذج يعد نموذجاً إسترشادياً لشروط وأحكام عقد العمل في القطاع الأهلي، ويحق لكل شركة إعداد نموذج مماثل له على المطبوعات الخاصة بها شرط أن يتضمن كافة الأحكام والشروط الواردة بهذا النموذج';
 
 const wrap: React.CSSProperties = {
-  border: '2px solid #1d4e6f',
+  border: '1.5px solid #1d4e6f',
   fontFamily: "'Cairo', 'Tajawal', Arial, sans-serif",
   fontSize: 11,
   lineHeight: 1.5,
@@ -70,7 +70,7 @@ const wrap: React.CSSProperties = {
 };
 
 const fullRow: React.CSSProperties = {
-  borderBottom: '1px solid #9ca3af',
+  borderBottom: '1px solid #888',
   padding: '5px 10px',
   textAlign: 'center',
 };
@@ -78,7 +78,7 @@ const fullRow: React.CSSProperties = {
 const twoCol: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '1fr 1fr',
-  borderBottom: '1px solid #9ca3af',
+  borderBottom: '1px solid #888',
 };
 
 // Arabic is now the LEFT column — it gets the divider on its right
@@ -86,7 +86,7 @@ const ar: React.CSSProperties = {
   padding: '4px 7px',
   direction: 'rtl',
   textAlign: 'right',
-  borderRight: '1px solid #9ca3af',
+  borderRight: '1px solid #888',
   whiteSpace: 'pre-line',
   verticalAlign: 'top',
   fontSize: 10.5,
@@ -148,14 +148,14 @@ export default function EmploymentContractTemplate({
           <img
             src="/contract_emblem.png"
             alt="Kuwait Public Authority Emblem"
-            style={{ height: 52, objectFit: 'contain' }}
+            style={{ height: 62, objectFit: 'contain' }}
           />
         </div>
 
         {/* Row 2 — Authority name */}
         <div style={{ ...fullRow, padding: '5px 10px' }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: '#111827' }}>الهـيئة العـامة للقـوى العـاملة</div>
-          <div style={{ fontSize: 10, fontWeight: 500, color: '#374151', marginTop: 1 }}>The Public Authority For Manpower</div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>الهـيئة العـامة للقـوى العـاملة</div>
+          <div style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginTop: 1 }}>The Public Authority For Manpower</div>
         </div>
 
         {/* Row 3 — Contract title (AR left, EN right) */}
@@ -326,7 +326,7 @@ export default function EmploymentContractTemplate({
           {/* First Party (Employer) — AR left */}
           <div style={{ ...ar, padding: '8px 10px' }}>
             <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 2, direction: 'rtl' }}>الطرف الأول — صاحب العمل / First Party</div>
-            <div style={{ fontSize: 10, color: '#374151', marginBottom: 44, direction: 'rtl' }}>
+            <div style={{ fontSize: 10, color: '#374151', marginBottom: 28, direction: 'rtl' }}>
               شركة المنار الدولية · حسن فلاح نايف
             </div>
             <div style={{ borderTop: '1px solid #374151', paddingTop: 4, fontSize: 9.5, color: '#6b7280', direction: 'rtl' }}>
@@ -336,7 +336,7 @@ export default function EmploymentContractTemplate({
           {/* Second Party (Employee) — EN right */}
           <div style={{ ...en, padding: '8px 10px' }}>
             <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 2 }}>Second Party — Employee / الطرف الثاني</div>
-            <div style={{ fontSize: 10, color: '#374151', marginBottom: 44 }}>
+            <div style={{ fontSize: 10, color: '#374151', marginBottom: 28 }}>
               {emp.fullNameEn ?? emp.fullName}
               {emp.civilId ? ` · ${emp.civilId}` : ''}
             </div>
@@ -347,7 +347,7 @@ export default function EmploymentContractTemplate({
         </div>
 
         {/* NOTE — bottom of page 2 */}
-        <div style={{ ...noteStyle, borderTop: '1px solid #9ca3af', borderBottom: 'none' }}>{NOTE}</div>
+        <div style={{ ...noteStyle, borderTop: '1px solid #888', borderBottom: 'none' }}>{NOTE}</div>
 
       </div>
     </>

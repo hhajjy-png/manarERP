@@ -4,6 +4,7 @@ import { api, errorMessage } from '../api/client';
 import { getPrintMode } from '../forms/shared/printMode';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
+import LanguageToggle from '../forms/shared/LanguageToggle';
 import SalaryCertificateTemplate from '../forms/SalaryCertificateTemplate';
 
 type Lang = 'ar' | 'en';
@@ -50,36 +51,13 @@ export default function SalaryCertificate() {
       </div>
     );
 
-  const langToggle = (
-    <div style={{ display: 'flex', gap: 6, alignItems: 'center', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-      {(['ar', 'en'] as Lang[]).map((l) => (
-        <button
-          key={l}
-          type="button"
-          onClick={() => setLang(l)}
-          style={{
-            padding: '4px 12px',
-            fontSize: 12,
-            border: 'none',
-            cursor: 'pointer',
-            background: lang === l ? 'var(--primary)' : 'transparent',
-            color: lang === l ? '#fff' : 'var(--text-muted)',
-            fontWeight: lang === l ? 700 : 400,
-          }}
-        >
-          {l === 'ar' ? 'عربي' : 'English'}
-        </button>
-      ))}
-    </div>
-  );
-
   return (
     <FormLayout
       ready
       formNumber={formNumber}
       title={lang === 'en' ? 'Salary Certificate' : 'شـهـادة راتـب'}
       printMode={printMode}
-      toolbarExtra={langToggle}
+      toolbarExtra={<LanguageToggle lang={lang} onChange={setLang} />}
       qrData={{
         formType: 'salary-certificate',
         formNumber,
