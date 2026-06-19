@@ -21,6 +21,8 @@ export default function LanguageToggle({ lang, onChange }: Props) {
         <button
           key={l}
           type="button"
+          aria-pressed={lang === l ? 'true' : 'false'}
+          aria-label={l === 'ar' ? 'Arabic' : 'English'}
           onClick={() => onChange(l)}
           style={{
             padding: '4px 12px',
