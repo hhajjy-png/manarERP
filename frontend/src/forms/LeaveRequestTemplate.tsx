@@ -29,6 +29,7 @@ interface Employee {
   id: number;
   code: string;
   fullName: string;
+  fullNameEn?: string | null;
   jobTitle: string | null;
   department: string | null;
   civilId: string | null;
@@ -66,7 +67,7 @@ export default function LeaveRequestTemplate({ employee: emp, latestLeave, lang 
           <div style={{ ...sectionHeader, textAlign: 'left' }}>Employee Information</div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Name</div>
-            <div style={{ ...valueCell, fontWeight: 700 }}>{emp.fullName}</div>
+            <div style={{ ...valueCell, fontWeight: 700 }}>{emp.fullNameEn ?? emp.fullName}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Employee ID</div>
