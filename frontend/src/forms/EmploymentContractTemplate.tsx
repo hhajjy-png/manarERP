@@ -39,19 +39,27 @@ const PRINT_CSS = `
   @page { size: A4; margin: 0; }
   html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
   .no-print { display: none !important; }
-  .ec-wrapper {
-    font-size: 8.5pt !important;
-    line-height: 1.45 !important;
+  .ec-page {
     width: 210mm !important;
     padding: 10mm 8mm 5mm 16mm !important;
     box-sizing: border-box !important;
+    font-size: 8.5pt !important;
+    line-height: 1.45 !important;
+  }
+  .ec-p1 {
+    break-after: page !important;
+    page-break-after: always !important;
+  }
+  .ec-p2 {
+    break-after: auto !important;
+    page-break-after: auto !important;
   }
   .ec-row { break-inside: avoid !important; page-break-inside: avoid !important; }
-  .ec-page-2 { break-before: page !important; page-break-before: always !important; }
   .ec-cell { padding: 3px 7px !important; }
 }
 @media screen {
-  .ec-wrapper { max-width: 800px; margin: 0 auto; }
+  .ec-page { max-width: 800px; margin: 0 auto; }
+  .ec-p1 { margin-bottom: 40px; }
 }
 `;
 
@@ -141,7 +149,8 @@ export default function EmploymentContractTemplate({
     <>
       <style>{PRINT_CSS}</style>
 
-      <div className="ec-wrapper" style={wrap}>
+      {/* ═══════════════════ PAGE 1 — Header + Articles 1–6 ═══════════════════ */}
+      <div className="ec-page ec-p1" style={wrap}>
 
         {/* Row 1 — Emblem */}
         <div style={{ ...fullRow, padding: '8px 10px' }}>
@@ -253,13 +262,18 @@ export default function EmploymentContractTemplate({
         </div>
 
         {/* Article 6 — last article on page 1 */}
-        <div className="ec-row" style={twoCol}>
+        <div className="ec-row" style={{ ...twoCol, borderBottom: 'none' }}>
           <div className="ec-cell" style={ar}><span style={hdr}>البند السادس — مدة العقد: </span>{`هذا العقد محدد المدة، يبدأ اعتباراً من ${startFmt} ولمدة ${params.durationAr}، ويجوز تجديده بموافقة الطرفين لمدة مماثلة بحد أقصى خمس سنوات. (خيار العقد غير المحدد المدة يخضع لإرادة الطرفين.)`}</div>
           <div className="ec-cell" style={en}><span style={hdr}>Article Six — Contract Term: </span>{`This contract has a definite term, commencing ${startFmt} for a period of ${params.durationEn}. It may be renewed by mutual agreement for similar terms not exceeding five years. (An indefinite-term option is available subject to agreement of both parties.)`}</div>
         </div>
 
-        {/* Article 7 — starts page 2 via break-before (more reliable than break-after on separator) */}
-        <div className="ec-row ec-page-2" style={twoCol}>
+      </div>
+
+      {/* ═══════════════════ PAGE 2 — Articles 7–16 + Signatures + NOTE ═══════ */}
+      <div className="ec-page ec-p2" style={wrap}>
+
+        {/* Article 7 — first content on page 2 */}
+        <div className="ec-row" style={twoCol}>
           <div className="ec-cell" style={ar}><span style={hdr}>البند السابع — الإجازة السنوية: </span>{`للطرف الثاني الحق في إجازة سنوية مدفوعة الأجر مدتها ${params.annualLeaveDays} يوماً، ولا يستحقها عن السنة الأولى إلا بعد انقضاء تسعة أشهر تحسب من تاريخ نفاذ العقد.`}</div>
           <div className="ec-cell" style={en}><span style={hdr}>Article Seven — Annual Leave: </span>{`The second party shall be entitled to a paid annual leave of ${params.annualLeaveDays} days. This entitlement does not accrue in the first year until the expiry of nine months from the contract commencement date.`}</div>
         </div>
