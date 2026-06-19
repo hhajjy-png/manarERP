@@ -1,6 +1,6 @@
 import { ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PrintMode } from './printMode';
+import { ProfileId, PRINT_PROFILES, getPrintProfileStyle } from './printProfiles';
 import FormHeader from './FormHeader';
 import FormQRCode, { QRData } from './FormQRCode';
 import ApprovalSection from './ApprovalSection';
@@ -11,9 +11,9 @@ interface FormLayoutProps {
   ready: boolean;
   formNumber: string;
   title: string;
-  printMode: PrintMode;
+  profile: ProfileId;
   qrData: QRData;
-  /** Optional extra controls rendered in the no-print toolbar (e.g. language toggle) */
+  /** Extra controls rendered in the no-print toolbar (e.g. LanguageToggle, PrintProfileToggle) */
   toolbarExtra?: ReactNode;
 }
 
@@ -22,7 +22,7 @@ export default function FormLayout({
   ready,
   formNumber,
   title,
-  printMode,
+  profile,
   qrData,
   toolbarExtra,
 }: FormLayoutProps) {
@@ -33,6 +33,9 @@ export default function FormLayout({
     const t = setTimeout(() => window.print(), 600);
     return () => clearTimeout(t);
   }, [ready]);
+
+  const activeProfile = PRINT_PROFILES[profile];
+  const padding = getPrintProfileStyle(activeProfile);
 
   return (
     <>
@@ -48,7 +51,7 @@ export default function FormLayout({
           .form-page {
             width: 210mm !important;
             height: 297mm !important;
-            padding: 10mm 12mm !important;
+            padding: ${padding} !important;
             box-sizing: border-box !important;
             overflow: hidden !important;
             margin: 0 !important;
@@ -82,13 +85,12 @@ export default function FormLayout({
           </button>
           {toolbarExtra}
           <span style={{ fontSize: 12, color: 'var(--text-muted)', marginRight: 'auto' }}>
-            {printMode === 'letterhead' ? 'وضع الورق الرسمي' : 'وضع القالب الكامل'} —{' '}
-            {formNumber}
+            {PRINT_PROFILES[profile].labelAr} — {formNumber}
           </span>
         </div>
 
         {/* Company header — hidden in letterhead mode (space preserved) */}
-        <FormHeader printMode={printMode} />
+        <FormHeader isLetterhead={profile === 'letterhead'} />
 
         {/* Form number + title */}
         <div style={{ textAlign: 'center', marginBottom: 14 }}>

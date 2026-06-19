@@ -1,13 +1,11 @@
 import { CSSProperties } from 'react';
-import { PrintMode } from './printMode';
 
 const COMPANY_NAME =
   'شركة المنار الدولية لإنشاء وصيانة الشوارع والأرصفة ومستلزمات الطرق ذ.م.م';
 
-export default function FormHeader({ printMode }: { printMode: PrintMode }) {
-  const hidden = printMode === 'letterhead';
+export default function FormHeader({ isLetterhead }: { isLetterhead: boolean }) {
   // visibility:hidden preserves the physical space so letterhead content stays aligned
-  const style: CSSProperties = hidden ? { visibility: 'hidden' } : {};
+  const style: CSSProperties = isLetterhead ? { visibility: 'hidden' } : {};
 
   return (
     <div
