@@ -43,7 +43,7 @@ const PRINT_CSS = `
     font-size: 8.5pt !important;
     line-height: 1.45 !important;
     width: 210mm !important;
-    padding: 12mm 4mm 5mm 8mm !important;
+    padding: 10mm 8mm 5mm 16mm !important;
     box-sizing: border-box !important;
   }
   .ec-row { page-break-inside: avoid !important; }
@@ -59,7 +59,7 @@ const NOTE =
   'ملاحظة / هذا النموذج يعد نموذجاً إسترشادياً لشروط وأحكام عقد العمل في القطاع الأهلي، ويحق لكل شركة إعداد نموذج مماثل له على المطبوعات الخاصة بها شرط أن يتضمن كافة الأحكام والشروط الواردة بهذا النموذج';
 
 const wrap: React.CSSProperties = {
-  border: '1.5px solid #1d4e6f',
+  border: '1px solid #1d4e6f',
   fontFamily: "'Cairo', 'Tajawal', Arial, sans-serif",
   fontSize: 11,
   lineHeight: 1.5,

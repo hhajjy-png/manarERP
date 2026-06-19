@@ -30,13 +30,18 @@ interface Advance {
   notes: string | null;
 }
 
+interface PrintFields {
+  repaymentSchedule?: string;
+}
+
 interface Props {
   employee: Employee;
   latestAdvance: Advance | null;
   lang?: 'ar' | 'en';
+  printFields?: PrintFields;
 }
 
-export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, lang = 'ar' }: Props) {
+export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, lang = 'ar', printFields }: Props) {
   if (lang === 'en') {
     return (
       <>
@@ -91,7 +96,7 @@ export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, la
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Repayment Schedule</div>
             <div style={{ ...valueCell, minHeight: 40 }}>
-              <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+              {printFields?.repaymentSchedule?.trim() ? <span>{printFields.repaymentSchedule}</span> : <span style={{ ...blankLine, width: '100%', display: 'block' }} />}
             </div>
           </div>
         </div>
@@ -172,6 +177,12 @@ export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, la
             {latestAdvance?.notes ?? <span style={blankLine} />}
           </div>
         </div>
+        <div style={tableRow}>
+          <div style={labelCell}>جدول السداد</div>
+          <div style={{ ...valueCell, minHeight: 40 }}>
+            {printFields?.repaymentSchedule?.trim() ? <span>{printFields.repaymentSchedule}</span> : <span style={{ ...blankLine, width: '100%', display: 'block' }} />}
+          </div>
+        </div>
       </div>
 
       <div style={{ marginBottom: 20, fontSize: 13, color: '#374151', lineHeight: 2, textAlign: 'justify' }}>
@@ -181,8 +192,15 @@ export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, la
         </p>
       </div>
 
-      <div style={{ marginBottom: 8, fontSize: 13, color: '#374151' }}>
-        <strong>توقيع الموظف:</strong> <span style={blankLine} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, fontSize: 13, color: '#374151' }}>
+        <div>
+          <strong>توقيع الموظف:</strong>
+          <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
+        </div>
+        <div>
+          <strong>اعتماد الموارد البشرية / المالية:</strong>
+          <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
+        </div>
       </div>
 
       <div style={{ marginBottom: 16, fontSize: 13, color: '#374151' }}>

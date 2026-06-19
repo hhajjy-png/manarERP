@@ -27,10 +27,16 @@ interface PerformanceReview {
   date: string;
 }
 
+interface PrintFields {
+  scores?: string[];
+  reviewerComments?: string;
+}
+
 interface Props {
   employee: Employee;
   latestReview: PerformanceReview | null;
   lang?: 'ar' | 'en';
+  printFields?: PrintFields;
 }
 
 const CRITERIA = [
@@ -55,7 +61,7 @@ const checkboxStyle = {
   userSelect: 'none',
 } as const;
 
-export default function PerformanceEvaluationTemplate({ employee: emp, latestReview, lang = 'ar' }: Props) {
+export default function PerformanceEvaluationTemplate({ employee: emp, latestReview, lang = 'ar', printFields }: Props) {
   if (lang === 'en') {
     return (
       <>
@@ -98,12 +104,12 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
             <span style={{ textAlign: 'center', minWidth: 60 }}>Max Score</span>
             <span style={{ textAlign: 'center', minWidth: 80 }}>Score</span>
           </div>
-          {CRITERIA.map((c) => (
+          {CRITERIA.map((c, i) => (
             <div key={c.labelEn} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', padding: '9px 14px', fontSize: 13, borderBottom: '1px solid #e2e8f0', direction: 'ltr' }}>
               <span>{c.labelEn}</span>
               <span style={{ textAlign: 'center', minWidth: 60, color: '#64748b' }}>{c.max}</span>
               <span style={{ textAlign: 'center', minWidth: 80 }}>
-                <span style={{ ...blankLine, width: 50 }} />
+                {printFields?.scores?.[i]?.trim() ? <span>{printFields.scores[i]}</span> : <span style={{ ...blankLine, width: 50 }} />}
               </span>
             </div>
           ))}
@@ -113,6 +119,8 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
             <span style={{ textAlign: 'center', minWidth: 80 }}>
               {latestReview ? (
                 <span style={{ color: '#065f46', fontWeight: 800 }}>{latestReview.score}</span>
+              ) : printFields?.scores?.length === 5 && printFields.scores.every(s => s?.trim()) ? (
+                <span style={{ color: '#065f46', fontWeight: 800 }}>{printFields.scores.reduce((a, s) => a + (parseFloat(s) || 0), 0)}</span>
               ) : (
                 <span style={{ ...blankLine, width: 50 }} />
               )}
@@ -136,6 +144,8 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Reviewer Comments & Recommendations:</div>
           {latestReview?.comments ? (
             <p style={{ margin: 0, lineHeight: 1.8 }}>{latestReview.comments}</p>
+          ) : printFields?.reviewerComments?.trim() ? (
+            <p style={{ margin: 0, lineHeight: 1.8 }}>{printFields.reviewerComments}</p>
           ) : (
             <>
               <div style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} />
@@ -217,7 +227,7 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
           <span style={{ textAlign: 'center', minWidth: 60 }}>الدرجة العظمى</span>
           <span style={{ textAlign: 'center', minWidth: 80 }}>الدرجة المحصّلة</span>
         </div>
-        {CRITERIA.map((c) => (
+        {CRITERIA.map((c, i) => (
           <div
             key={c.label}
             style={{
@@ -231,7 +241,7 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
             <span>{c.label}</span>
             <span style={{ textAlign: 'center', minWidth: 60, color: '#64748b' }}>{c.max}</span>
             <span style={{ textAlign: 'center', minWidth: 80 }}>
-              <span style={{ ...blankLine, width: 50 }} />
+              {printFields?.scores?.[i]?.trim() ? <span>{printFields.scores[i]}</span> : <span style={{ ...blankLine, width: 50 }} />}
             </span>
           </div>
         ))}
@@ -252,6 +262,8 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
           <span style={{ textAlign: 'center', minWidth: 80 }}>
             {latestReview ? (
               <span style={{ color: '#065f46', fontWeight: 800 }}>{latestReview.score}</span>
+            ) : printFields?.scores?.length === 5 && printFields.scores.every(s => s?.trim()) ? (
+              <span style={{ color: '#065f46', fontWeight: 800 }}>{printFields.scores.reduce((a, s) => a + (parseFloat(s) || 0), 0)}</span>
             ) : (
               <span style={{ ...blankLine, width: 50 }} />
             )}
@@ -288,6 +300,8 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
         <div style={{ fontWeight: 700, marginBottom: 6 }}>ملاحظات المقيِّم والتوصيات:</div>
         {latestReview?.comments ? (
           <p style={{ margin: 0, lineHeight: 1.8 }}>{latestReview.comments}</p>
+        ) : printFields?.reviewerComments?.trim() ? (
+          <p style={{ margin: 0, lineHeight: 1.8 }}>{printFields.reviewerComments}</p>
         ) : (
           <>
             <div style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} />

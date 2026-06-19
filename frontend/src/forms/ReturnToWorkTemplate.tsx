@@ -41,13 +41,19 @@ interface Leave {
   days: number;
 }
 
+interface PrintFields {
+  actualReturnDate?: string;
+  medicalNotes?: string;
+}
+
 interface Props {
   employee: Employee;
   latestLeave: Leave | null;
   lang?: 'ar' | 'en';
+  printFields?: PrintFields;
 }
 
-export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang = 'ar' }: Props) {
+export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang = 'ar', printFields }: Props) {
   if (lang === 'en') {
     return (
       <>
@@ -99,13 +105,12 @@ export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang 
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Actual Return Date</div>
-            <div style={valueCell}><span style={blankLine} /></div>
+            <div style={valueCell}>{printFields?.actualReturnDate?.trim() ? <span>{printFields.actualReturnDate}</span> : <span style={blankLine} />}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Medical Notes / Doctor's Report</div>
             <div style={{ ...valueCell, minHeight: 44 }}>
-              <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
-              <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+              {printFields?.medicalNotes?.trim() ? <span>{printFields.medicalNotes}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
             </div>
           </div>
         </div>
@@ -185,15 +190,12 @@ export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang 
         </div>
         <div style={tableRow}>
           <div style={labelCell}>تاريخ العودة الفعلية</div>
-          <div style={valueCell}>
-            <span style={blankLine} />
-          </div>
+          <div style={valueCell}>{printFields?.actualReturnDate?.trim() ? <span>{printFields.actualReturnDate}</span> : <span style={blankLine} />}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>ملاحظات طبية / تقرير الطبيب</div>
           <div style={{ ...valueCell, minHeight: 44 }}>
-            <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
-            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+            {printFields?.medicalNotes?.trim() ? <span>{printFields.medicalNotes}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
           </div>
         </div>
       </div>

@@ -21,12 +21,20 @@ interface Employee {
   hireDate: string | null;
 }
 
+interface PrintFields {
+  lastWorkingDay?: string;
+  noticePeriod?: string;
+  resignationReason?: string;
+  handoverObligations?: string;
+}
+
 interface Props {
   employee: Employee;
   lang?: 'ar' | 'en';
+  printFields?: PrintFields;
 }
 
-export default function ResignationTemplate({ employee: emp, lang = 'ar' }: Props) {
+export default function ResignationTemplate({ employee: emp, lang = 'ar', printFields }: Props) {
   if (lang === 'en') {
     return (
       <>
@@ -66,24 +74,22 @@ export default function ResignationTemplate({ employee: emp, lang = 'ar' }: Prop
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Last Working Day</div>
-            <div style={valueCell}><span style={blankLine} /></div>
+            <div style={valueCell}>{printFields?.lastWorkingDay?.trim() ? <span>{printFields.lastWorkingDay}</span> : <span style={blankLine} />}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Notice Period</div>
-            <div style={valueCell}><span style={blankLine} /></div>
+            <div style={valueCell}>{printFields?.noticePeriod?.trim() ? <span>{printFields.noticePeriod}</span> : <span style={blankLine} />}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Reason for Resignation</div>
             <div style={{ ...valueCell, minHeight: 52 }}>
-              <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} />
-              <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+              {printFields?.resignationReason?.trim() ? <span>{printFields.resignationReason}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Handover Obligations</div>
             <div style={{ ...valueCell, minHeight: 48 }}>
-              <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} />
-              <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+              {printFields?.handoverObligations?.trim() ? <span>{printFields.handoverObligations}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
             </div>
           </div>
         </div>
@@ -147,28 +153,22 @@ export default function ResignationTemplate({ employee: emp, lang = 'ar' }: Prop
         </div>
         <div style={tableRow}>
           <div style={labelCell}>آخر يوم عمل</div>
-          <div style={valueCell}>
-            <span style={blankLine} />
-          </div>
+          <div style={valueCell}>{printFields?.lastWorkingDay?.trim() ? <span>{printFields.lastWorkingDay}</span> : <span style={blankLine} />}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>فترة الإشعار</div>
-          <div style={valueCell}>
-            <span style={blankLine} />
-          </div>
+          <div style={valueCell}>{printFields?.noticePeriod?.trim() ? <span>{printFields.noticePeriod}</span> : <span style={blankLine} />}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>سبب الاستقالة</div>
           <div style={{ ...valueCell, minHeight: 52 }}>
-            <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} />
-            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+            {printFields?.resignationReason?.trim() ? <span>{printFields.resignationReason}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
           </div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>التزامات التسليم</div>
           <div style={{ ...valueCell, minHeight: 48 }}>
-            <span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} />
-            <span style={{ ...blankLine, width: '100%', display: 'block' }} />
+            {printFields?.handoverObligations?.trim() ? <span>{printFields.handoverObligations}</span> : (<><span style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} /><span style={{ ...blankLine, width: '100%', display: 'block' }} /></>)}
           </div>
         </div>
       </div>
