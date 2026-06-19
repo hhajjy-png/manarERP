@@ -30,13 +30,18 @@ interface Employee {
   nationality: string | null;
 }
 
+interface PrintFields {
+  certPurpose?: string;
+}
+
 interface Props {
   employee: Employee;
   latestPayroll: { month: number; year: number; netSalary: number; snapshotBaseSalary: number } | null;
   lang?: 'ar' | 'en';
+  printFields?: PrintFields;
 }
 
-export default function ToWhomItMayConcernTemplate({ employee: emp, latestPayroll, lang = 'ar' }: Props) {
+export default function ToWhomItMayConcernTemplate({ employee: emp, latestPayroll, lang = 'ar', printFields }: Props) {
   const baseSalary = latestPayroll?.snapshotBaseSalary ?? emp.salary;
 
   if (lang === 'en') {
@@ -92,7 +97,9 @@ export default function ToWhomItMayConcernTemplate({ employee: emp, latestPayrol
 
         <div style={{ marginBottom: 20, fontSize: 13, color: '#374151', direction: 'ltr' }}>
           <strong>Purpose:</strong>{' '}
-          <span style={blankLine} />
+          {printFields?.certPurpose?.trim()
+            ? <span>{printFields.certPurpose}</span>
+            : <span style={blankLine} />}
         </div>
 
         <p style={{ fontSize: 13, lineHeight: 2, marginBottom: 20, textAlign: 'justify', direction: 'ltr', color: '#374151' }}>
@@ -159,7 +166,9 @@ export default function ToWhomItMayConcernTemplate({ employee: emp, latestPayrol
 
       <div style={{ marginBottom: 20, fontSize: 13, color: '#374151' }}>
         <strong>الغرض من الشهادة:</strong>{' '}
-        <span style={blankLine} />
+        {printFields?.certPurpose?.trim()
+          ? <span>{printFields.certPurpose}</span>
+          : <span style={blankLine} />}
       </div>
 
       <p style={{ fontSize: 13, lineHeight: 2, marginBottom: 20, textAlign: 'justify', color: '#374151' }}>

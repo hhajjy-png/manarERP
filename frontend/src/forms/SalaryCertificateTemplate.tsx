@@ -11,6 +11,7 @@ import {
   issueDateStrEn,
   money,
   moneyEn,
+  blankLine,
 } from './shared/formStyles';
 
 const COMPANY_NAME_EN =
@@ -36,13 +37,18 @@ interface LatestPayroll {
   snapshotBaseSalary: number;
 }
 
+interface PrintFields {
+  certPurpose?: string;
+}
+
 interface Props {
   employee: Employee;
   latestPayroll: LatestPayroll | null;
   lang?: 'ar' | 'en';
+  printFields?: PrintFields;
 }
 
-export default function SalaryCertificateTemplate({ employee: emp, latestPayroll, lang = 'ar' }: Props) {
+export default function SalaryCertificateTemplate({ employee: emp, latestPayroll, lang = 'ar', printFields }: Props) {
   const baseSalary = latestPayroll?.snapshotBaseSalary ?? emp.salary;
 
   if (lang === 'en') {
@@ -88,6 +94,14 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Date of Hire</div>
             <div style={valueCell}>{fmtDateEn(emp.hireDate)}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Purpose</div>
+            <div style={valueCell}>
+              {printFields?.certPurpose?.trim()
+                ? <span>{printFields.certPurpose}</span>
+                : <span style={blankLine} />}
+            </div>
           </div>
         </div>
 
@@ -171,6 +185,14 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
         <div style={tableRow}>
           <div style={labelCell}>تاريخ التعيين</div>
           <div style={valueCell}>{fmtDate(emp.hireDate)}</div>
+        </div>
+        <div style={tableRow}>
+          <div style={labelCell}>الغرض</div>
+          <div style={valueCell}>
+            {printFields?.certPurpose?.trim()
+              ? <span>{printFields.certPurpose}</span>
+              : <span style={blankLine} />}
+          </div>
         </div>
       </div>
 

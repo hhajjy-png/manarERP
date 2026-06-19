@@ -6,6 +6,8 @@ import EmploymentContractTemplate, {
   type ContractParams,
   type ContractEmployee,
 } from '../forms/EmploymentContractTemplate';
+import { ProfileId, DEFAULT_PROFILE_ID } from '../forms/shared/printProfiles';
+import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -449,6 +451,7 @@ export default function EmploymentContract() {
   const hasLogged = useRef(false);
 
   const [params, setParams] = useState<ContractParams>(defaultParams());
+  const [profile, setProfile] = useState<ProfileId>(DEFAULT_PROFILE_ID);
 
   // Fetch when coming from Employees list with a URL param
   useEffect(() => {
@@ -472,10 +475,10 @@ export default function EmploymentContract() {
         employeeId: employee.id || 0,
         employeeName: employee.fullName,
         issueDate: new Date().toISOString(),
-        printMode: 'full-template',
+        printMode: profile,
       })
       .catch(() => {});
-  }, [employee, mode, formNumber]);
+  }, [employee, mode, formNumber, profile]);
 
   function handleChange<K extends keyof ContractParams>(key: K, value: ContractParams[K]) {
     setParams(prev => ({ ...prev, [key]: value }));
@@ -557,12 +560,13 @@ export default function EmploymentContract() {
           <button className="btn secondary" onClick={() => employeeId ? navigate(-1) : setMode('selector')}>
             رجوع
           </button>
+          <PrintProfileToggle profile={profile} onChange={setProfile} />
           <span style={{ fontSize: 12, color: 'var(--text-muted)', marginRight: 'auto' }}>
             {formNumber}
           </span>
         </div>
 
-        <EmploymentContractTemplate employee={employee} params={params} />
+        <EmploymentContractTemplate employee={employee} params={params} profile={profile} />
       </div>
     );
   }

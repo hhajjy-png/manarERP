@@ -9,6 +9,14 @@ import {
   blankLine,
 } from './shared/formStyles';
 
+type WarningLevel = '' | 'first' | 'second' | 'final';
+
+const LEVELS = [
+  { key: 'first',  ar: 'أولى (شفهية)',    en: 'First (Verbal)'   },
+  { key: 'second', ar: 'ثانية (خطية)',     en: 'Second (Written)' },
+  { key: 'final',  ar: 'نهائية (إنذار)',   en: 'Final Warning'    },
+] as const;
+
 interface Employee {
   id: number;
   code: string;
@@ -19,6 +27,7 @@ interface Employee {
 }
 
 interface PrintFields {
+  warningLevel?: WarningLevel;
   warningReason?: string;
   violationDetails?: string;
   correctiveAction?: string;
@@ -29,23 +38,75 @@ interface Props {
   employee: Employee;
   lang?: 'ar' | 'en';
   printFields?: PrintFields;
+  onWarningLevelChange?: (level: WarningLevel) => void;
 }
 
-const WARNING_LEVELS = ['أولى (شفهية)', 'ثانية (خطية)', 'نهائية (إنذار)'];
-const WARNING_LEVELS_EN = ['First (Verbal)', 'Second (Written)', 'Final (Notice)'];
+function WarningCheckboxRow({
+  lang,
+  printFields,
+  onWarningLevelChange,
+}: {
+  lang: 'ar' | 'en';
+  printFields?: PrintFields;
+  onWarningLevelChange?: (level: WarningLevel) => void;
+}) {
+  return (
+    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      {LEVELS.map((level) => {
+        const isSelected = printFields?.warningLevel === level.key;
+        return (
+          <span
+            key={level.key}
+            role="checkbox"
+            aria-checked={isSelected ? 'true' : 'false'}
+            tabIndex={onWarningLevelChange ? 0 : -1}
+            onClick={() =>
+              onWarningLevelChange?.(isSelected ? '' : level.key as WarningLevel)
+            }
+            onKeyDown={(e) => {
+              if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                onWarningLevelChange?.(isSelected ? '' : level.key as WarningLevel);
+              }
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              cursor: onWarningLevelChange ? 'pointer' : 'default',
+              userSelect: 'none',
+            }}
+          >
+            <span
+              style={{
+                width: 14,
+                height: 14,
+                border: `1px solid ${isSelected ? '#1d4e6f' : '#94a3b8'}`,
+                borderRadius: 2,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+                background: isSelected ? '#1d4e6f' : 'transparent',
+                WebkitPrintColorAdjust: 'exact',
+                printColorAdjust: 'exact',
+              }}
+            >
+              {isSelected && (
+                <span style={{ color: '#fff', fontSize: 10, lineHeight: 1, fontWeight: 700 }}>
+                  ✓
+                </span>
+              )}
+            </span>
+            {lang === 'en' ? level.en : level.ar}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
-const checkboxStyle = {
-  width: 14,
-  height: 14,
-  border: '1px solid #94a3b8',
-  borderRadius: 2,
-  display: 'inline-block',
-  flexShrink: 0,
-  cursor: 'default',
-  userSelect: 'none',
-} as const;
-
-export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar', printFields }: Props) {
+export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar', printFields, onWarningLevelChange }: Props) {
   if (lang === 'en') {
     return (
       <>
@@ -81,13 +142,8 @@ export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar', pr
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Warning Level</div>
-            <div style={{ ...valueCell, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-              {WARNING_LEVELS_EN.map((lvl) => (
-                <span key={lvl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={checkboxStyle} />
-                  {lvl}
-                </span>
-              ))}
+            <div style={valueCell}>
+              <WarningCheckboxRow lang="en" printFields={printFields} onWarningLevelChange={onWarningLevelChange} />
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
@@ -176,13 +232,8 @@ export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar', pr
         </div>
         <div style={tableRow}>
           <div style={labelCell}>درجة الإنذار</div>
-          <div style={{ ...valueCell, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {WARNING_LEVELS.map((lvl) => (
-              <span key={lvl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={checkboxStyle} />
-                {lvl}
-              </span>
-            ))}
+          <div style={valueCell}>
+            <WarningCheckboxRow lang="ar" printFields={printFields} onWarningLevelChange={onWarningLevelChange} />
           </div>
         </div>
         <div style={tableRow}>
