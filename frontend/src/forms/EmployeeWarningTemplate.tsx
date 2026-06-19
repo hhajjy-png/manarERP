@@ -4,6 +4,8 @@ import {
   valueCell,
   sectionHeader,
   tableWrapper,
+  fmtDate,
+  fmtDateEn,
   issueDateStr,
   issueDateStrEn,
   blankLine,
@@ -21,6 +23,7 @@ interface Employee {
   id: number;
   code: string;
   fullName: string;
+  fullNameEn?: string | null;
   jobTitle: string | null;
   department: string | null;
   civilId: string | null;
@@ -28,6 +31,7 @@ interface Employee {
 
 interface PrintFields {
   warningLevel?: WarningLevel;
+  warningDate?: string;
   warningReason?: string;
   violationDetails?: string;
   correctiveAction?: string;
@@ -114,7 +118,7 @@ export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar', pr
           <div style={{ ...sectionHeader, textAlign: 'left' }}>Employee Information</div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Name</div>
-            <div style={{ ...valueCell, fontWeight: 700 }}>{emp.fullName}</div>
+            <div style={{ ...valueCell, fontWeight: 700 }}>{emp.fullNameEn ?? emp.fullName}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Employee ID</div>
@@ -138,7 +142,7 @@ export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar', pr
           <div style={{ ...sectionHeader, textAlign: 'left' }}>Warning Details</div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Warning Date</div>
-            <div style={valueCell}>{issueDateStrEn()}</div>
+            <div style={valueCell}>{printFields?.warningDate?.trim() ? fmtDateEn(printFields.warningDate) : issueDateStrEn()}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Warning Level</div>
@@ -228,7 +232,7 @@ export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar', pr
         <div style={sectionHeader}>تفاصيل الإنذار</div>
         <div style={tableRow}>
           <div style={labelCell}>تاريخ الإنذار</div>
-          <div style={valueCell}>{issueDateStr()}</div>
+          <div style={valueCell}>{printFields?.warningDate?.trim() ? fmtDate(printFields.warningDate) : issueDateStr()}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>درجة الإنذار</div>

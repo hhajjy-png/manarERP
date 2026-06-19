@@ -25,6 +25,7 @@ export default function EmployeeWarning() {
     violationDetails: '',
     correctiveAction: '',
     additionalNotes: '',
+    warningDate: '',
   });
 
   useEffect(() => {
@@ -81,6 +82,7 @@ export default function EmployeeWarning() {
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div className="field"><label>تاريخ الإنذار</label><input type="date" title="تاريخ الإنذار" value={printFields.warningDate} onChange={(e) => setPrintFields(p => ({ ...p, warningDate: e.target.value }))} /></div>
           <div className="field"><label>سبب الإنذار</label><input title="سبب الإنذار" value={printFields.warningReason} onChange={(e) => setPrintFields(p => ({ ...p, warningReason: e.target.value }))} /></div>
           <div className="field"><label>تفاصيل المخالفة</label><input title="تفاصيل المخالفة" value={printFields.violationDetails} onChange={(e) => setPrintFields(p => ({ ...p, violationDetails: e.target.value }))} /></div>
           <div className="field"><label>الإجراء التصحيحي</label><input title="الإجراء التصحيحي" value={printFields.correctiveAction} onChange={(e) => setPrintFields(p => ({ ...p, correctiveAction: e.target.value }))} /></div>

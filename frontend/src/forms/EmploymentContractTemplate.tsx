@@ -21,7 +21,9 @@ export interface ContractEmployee {
   fullNameEn: string | null;
   civilId: string | null;
   jobTitle: string | null;
+  jobTitleEn?: string | null;
   nationality: string | null;
+  nationalityEn?: string | null;
   passportNumber: string | null;
   salary: number;
   address?: string | null;
@@ -142,8 +144,8 @@ export default function EmploymentContractTemplate({
   params: ContractParams;
   profile?: ProfileId;
 }) {
-  const jobTitleEn = getJobTitleEn(emp.jobTitle);
-  const natEn = getNationalityEn(emp.nationality);
+  const jobTitleEn = emp.jobTitleEn?.trim() || getJobTitleEn(emp.jobTitle);
+  const natEn = emp.nationalityEn?.trim() || getNationalityEn(emp.nationality);
   const issueD = new Date(params.issueDate);
   const issueFmt = dmy(params.issueDate);
   const startFmt = dmy(params.startDate);

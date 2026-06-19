@@ -29,6 +29,7 @@ interface Employee {
   id: number;
   code: string;
   fullName: string;
+  fullNameEn?: string | null;
   jobTitle: string | null;
   department: string | null;
   civilId: string | null;
@@ -42,6 +43,10 @@ interface Leave {
 }
 
 interface PrintFields {
+  leaveType?: '' | 'ANNUAL' | 'SICK' | 'UNPAID' | 'EMERGENCY';
+  leaveStartDate?: string;
+  leaveEndDate?: string;
+  leaveDays?: string;
   actualReturnDate?: string;
   medicalNotes?: string;
 }
@@ -61,7 +66,7 @@ export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang 
           <div style={{ ...sectionHeader, textAlign: 'left' }}>Employee Information</div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Name</div>
-            <div style={{ ...valueCell, fontWeight: 700 }}>{emp.fullName}</div>
+            <div style={{ ...valueCell, fontWeight: 700 }}>{emp.fullNameEn ?? emp.fullName}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Employee ID</div>
@@ -82,30 +87,30 @@ export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang 
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Leave Type</div>
             <div style={valueCell}>
-              {latestLeave ? (LEAVE_TYPES_EN[latestLeave.type] ?? latestLeave.type) : <span style={blankLine} />}
+              {latestLeave ? (LEAVE_TYPES_EN[latestLeave.type] ?? latestLeave.type) : printFields?.leaveType ? (LEAVE_TYPES_EN[printFields.leaveType] ?? printFields.leaveType) : <span style={blankLine} />}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Leave Start Date</div>
             <div style={valueCell}>
-              {latestLeave ? fmtDateEn(latestLeave.startDate) : <span style={blankLine} />}
+              {latestLeave ? fmtDateEn(latestLeave.startDate) : printFields?.leaveStartDate ? fmtDateEn(printFields.leaveStartDate) : <span style={blankLine} />}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Leave End Date</div>
             <div style={valueCell}>
-              {latestLeave ? fmtDateEn(latestLeave.endDate) : <span style={blankLine} />}
+              {latestLeave ? fmtDateEn(latestLeave.endDate) : printFields?.leaveEndDate ? fmtDateEn(printFields.leaveEndDate) : <span style={blankLine} />}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Days</div>
             <div style={valueCell}>
-              {latestLeave ? `${latestLeave.days} day(s)` : <span style={blankLine} />}
+              {latestLeave ? `${latestLeave.days} day(s)` : printFields?.leaveDays ? `${printFields.leaveDays} day(s)` : <span style={blankLine} />}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Actual Return Date</div>
-            <div style={valueCell}>{printFields?.actualReturnDate?.trim() ? <span>{printFields.actualReturnDate}</span> : <span style={blankLine} />}</div>
+            <div style={valueCell}>{printFields?.actualReturnDate?.trim() ? fmtDateEn(printFields.actualReturnDate) : <span style={blankLine} />}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Medical Notes / Doctor's Report</div>
@@ -167,30 +172,30 @@ export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang 
         <div style={tableRow}>
           <div style={labelCell}>نوع الإجازة المنقضية</div>
           <div style={valueCell}>
-            {latestLeave ? (LEAVE_TYPES[latestLeave.type] ?? latestLeave.type) : <span style={blankLine} />}
+            {latestLeave ? (LEAVE_TYPES[latestLeave.type] ?? latestLeave.type) : printFields?.leaveType ? (LEAVE_TYPES[printFields.leaveType] ?? printFields.leaveType) : <span style={blankLine} />}
           </div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>تاريخ بداية الإجازة</div>
           <div style={valueCell}>
-            {latestLeave ? fmtDate(latestLeave.startDate) : <span style={blankLine} />}
+            {latestLeave ? fmtDate(latestLeave.startDate) : printFields?.leaveStartDate ? fmtDate(printFields.leaveStartDate) : <span style={blankLine} />}
           </div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>تاريخ نهاية الإجازة</div>
           <div style={valueCell}>
-            {latestLeave ? fmtDate(latestLeave.endDate) : <span style={blankLine} />}
+            {latestLeave ? fmtDate(latestLeave.endDate) : printFields?.leaveEndDate ? fmtDate(printFields.leaveEndDate) : <span style={blankLine} />}
           </div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>عدد الأيام</div>
           <div style={valueCell}>
-            {latestLeave ? `${latestLeave.days} يوم` : <span style={blankLine} />}
+            {latestLeave ? `${latestLeave.days} يوم` : printFields?.leaveDays ? `${printFields.leaveDays} يوم` : <span style={blankLine} />}
           </div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>تاريخ العودة الفعلية</div>
-          <div style={valueCell}>{printFields?.actualReturnDate?.trim() ? <span>{printFields.actualReturnDate}</span> : <span style={blankLine} />}</div>
+          <div style={valueCell}>{printFields?.actualReturnDate?.trim() ? fmtDate(printFields.actualReturnDate) : <span style={blankLine} />}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>ملاحظات طبية / تقرير الطبيب</div>

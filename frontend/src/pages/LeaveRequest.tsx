@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
@@ -7,6 +7,14 @@ import FormLayout from '../forms/shared/FormLayout';
 import LeaveRequestTemplate from '../forms/LeaveRequestTemplate';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
+
+function calcDays(start: string, end: string): number {
+  const [sy, sm, sd] = start.split('-').map(Number);
+  const [ey, em, ed] = end.split('-').map(Number);
+  const s = new Date(sy, sm - 1, sd);
+  const e = new Date(ey, em - 1, ed);
+  return Math.max(1, Math.round((e.getTime() - s.getTime()) / 86400000) + 1);
+}
 
 export default function LeaveRequest() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -17,6 +25,7 @@ export default function LeaveRequest() {
   const [error, setError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [profile, setProfile] = useState<ProfileId>(() => getProfileIdFromSearch(search));
+  const daysManuallyEdited = useRef(false);
   const [printFields, setPrintFields] = useState({
     expectedReturnDate: '',
     leaveType: '' as '' | 'ANNUAL' | 'SICK' | 'UNPAID' | 'EMERGENCY',
@@ -47,6 +56,17 @@ export default function LeaveRequest() {
       })
       .catch(() => {});
   }, [data, formNumber, employeeId, profile]);
+
+  useEffect(() => {
+    const { startDate, endDate } = printFields;
+    if (!startDate || !endDate) {
+      daysManuallyEdited.current = false;
+      return;
+    }
+    if (daysManuallyEdited.current) return;
+    const computed = calcDays(startDate, endDate);
+    setPrintFields(p => ({ ...p, days: String(computed) }));
+  }, [printFields.startDate, printFields.endDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!data)
@@ -105,8 +125,14 @@ export default function LeaveRequest() {
                 min="1"
                 title="عدد الأيام"
                 value={printFields.days}
-                onChange={(e) => setPrintFields(p => ({ ...p, days: e.target.value }))}
+                onChange={(e) => {
+                  daysManuallyEdited.current = true;
+                  setPrintFields(p => ({ ...p, days: e.target.value }));
+                }}
               />
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3, display: 'block' }}>
+                يُحسب تلقائياً من التاريخين — يمكن التعديل يدوياً
+              </span>
             </div>
             <div className="field">
               <label>تاريخ البداية</label>
