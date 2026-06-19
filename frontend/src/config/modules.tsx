@@ -245,6 +245,7 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'vehiclePlate', label: 'col.vehicle_plate', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.vehiclePlate ?? '—'}</span> },
       { key: 'vehicleLicenseExpiry', label: 'col.vehicle_license_expiry', render: (r) => dateText(r.vehicleLicenseExpiry) },
       { key: 'salary', label: 'col.salary', render: (r) => money(r.salary) },
+      { key: 'hireDate', label: 'col.hire_date', render: (r) => dateText(r.hireDate) },
       { key: 'status', label: 'col.status', render: (r) => employeeStatus(r.status) },
     ],
     fields: [
@@ -261,6 +262,7 @@ export const MODULES: Record<string, ModuleConfig> = {
       { name: 'vehiclePlate', label: 'field.vehicle_plate' },
       { name: 'vehicleLicenseExpiry', label: 'field.vehicle_license_expiry', type: 'date' },
       { name: 'birthDate', label: 'field.birth_date', type: 'date' },
+      { name: 'hireDate', label: 'field.hire_date', type: 'date' },
       { name: 'company', label: 'field.company' },
       { name: 'address', label: 'field.address' },
       { name: 'bankAccount', label: 'field.bank_account' },

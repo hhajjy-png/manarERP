@@ -21,6 +21,8 @@ export interface ContractEmployee {
   nationality: string | null;
   passportNumber: string | null;
   salary: number;
+  address?: string | null;
+  phone?: string | null;
 }
 
 const AR_DAYS = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
