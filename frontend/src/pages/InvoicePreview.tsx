@@ -294,9 +294,13 @@ export default function InvoicePreview() {
             <div style={{ fontWeight: 800, fontSize: 16, color: '#1d4e6f' }}>شركة المنار الدولية</div>
             <div style={{ fontSize: 11, color: '#64748b' }}>لإنشاء وصيانة الشوارع والأرصفة</div>
           </div>
+          <div style={{ textAlign: 'center', flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#1d4e6f' }}>{partyName}</div>
+            <div style={{ fontSize: 11, color: '#64748b' }}>{directionLabel}</div>
+          </div>
           <div style={{ textAlign: 'left', direction: 'ltr' }}>
             <div style={{ fontWeight: 800, fontSize: 13, color: '#1d4e6f' }}>{data.invoiceNumber ?? data.number}</div>
-            <div style={{ fontSize: 11, color: '#64748b' }}>{directionLabel} · {billingPeriod}</div>
+            <div style={{ fontSize: 11, color: '#64748b' }}>{billingPeriod}</div>
           </div>
         </div>
 
