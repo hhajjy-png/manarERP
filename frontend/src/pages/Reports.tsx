@@ -134,6 +134,7 @@ export default function Reports() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [excelBusy, setExcelBusy] = useState(false);
+  const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
 
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [employees, setEmployees] = useState<EmployeeItem[]>([]);
@@ -192,6 +193,7 @@ export default function Reports() {
     try {
       const res = await api.get(`/reports/${selected}/preview`, { params: buildParams() });
       setPreview(res.data.data);
+      setGeneratedAt(new Date());
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -457,16 +459,23 @@ export default function Reports() {
           )}
 
           {!loading && !preview && !error && (
-            <div className="card" style={{ padding: 40 }}>
-              <div className="center-msg" style={{ color: 'var(--text-muted)' }}>
-                {t('page.reports.empty')}
-              </div>
+            <div className="card" style={{ padding: 40, textAlign: 'center' }}>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>{currentType.icon}</div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{t(currentType.label)}</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('page.reports.empty')}</div>
             </div>
           )}
 
           {!loading && preview && (
-            <div style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-              {preview.rows.length} {t('page.reports.results_count')}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 600 }}>
+                {preview.rows.length} {t('page.reports.results_count')}
+              </span>
+              {generatedAt && (
+                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                  آخر تحديث: {generatedAt.toLocaleTimeString('ar')}
+                </span>
+              )}
             </div>
           )}
           {!loading && previewTable}

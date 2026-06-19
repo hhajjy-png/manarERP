@@ -290,36 +290,48 @@ export default function Dashboard() {
       {loading ? (
         <KPISkeletons />
       ) : (
-        <div className="db-kpi-grid">
-          <KPICard
-            label={t('kpi.total_revenue')}
-            value={money(f.totalRevenue)}
-            icon="💰"
-            color="green"
-            sub={t('kpi.all_time')}
-          />
-          <KPICard
-            label={t('kpi.total_expenses')}
-            value={money(f.totalExpense)}
-            icon="📉"
-            color="red"
-            sub={t('kpi.all_time')}
-          />
-          <KPICard
-            label={t('kpi.net_profit')}
-            value={money(f.netProfit)}
-            icon="📈"
-            color={profitPositive ? 'blue' : 'red'}
-            sub={t('kpi.all_time')}
-          />
-          <KPICard
-            label={t('kpi.unpaid_invoices')}
-            value={money(inv.unpaidAmount)}
-            icon="🧾"
-            color="amber"
-            sub={inv.unpaid ? t('kpi.pending_sub', { count: inv.unpaid }) : undefined}
-          />
-        </div>
+        <>
+          <div className="db-kpi-grid">
+            <KPICard
+              label={t('kpi.total_revenue')}
+              value={money(f.totalRevenue)}
+              icon="💰"
+              color="green"
+              sub="من مبيعات الفواتير المحصّلة (سجل المعاملات)"
+            />
+            <KPICard
+              label={t('kpi.total_expenses')}
+              value={money(f.totalExpense)}
+              icon="📉"
+              color="red"
+              sub="مجموع المصروفات المعتمدة (سجل المعاملات)"
+            />
+            <KPICard
+              label={t('kpi.net_profit')}
+              value={money(f.netProfit)}
+              icon="📈"
+              color={profitPositive ? 'blue' : 'red'}
+              sub={profitPositive ? `الإيرادات − المصروفات` : `⚠ خسارة: المصروفات تتجاوز الإيرادات`}
+            />
+            <KPICard
+              label={t('kpi.unpaid_invoices')}
+              value={money(inv.unpaidAmount)}
+              icon="🧾"
+              color="amber"
+              sub={inv.unpaid ? `${inv.unpaid} فاتورة نقليات غير مسددة` : 'لا توجد فواتير معلّقة'}
+            />
+          </div>
+          {exec && (
+            <div style={{
+              marginTop: 8, padding: '7px 14px', background: 'var(--surface-2)',
+              border: '1px solid var(--border)', borderRadius: 8, fontSize: 12,
+              color: 'var(--text-muted)', display: 'flex', gap: 6, alignItems: 'center',
+            }}>
+              <span style={{ fontWeight: 700 }}>ℹ مصدر البيانات:</span>
+              <span>الإيرادات والمصروفات من سجل المعاملات اليومية · الفواتير غير المسددة بحالة غير مدفوعة / جزئية / متأخرة · صافي الربح = الإيرادات − المصروفات</span>
+            </div>
+          )}
+        </>
       )}
 
       {/* ══════════════════════════════════════════════════
