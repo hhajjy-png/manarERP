@@ -1,21 +1,22 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
-import { getPrintMode } from '../forms/shared/printMode';
+import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import ReturnToWorkTemplate from '../forms/ReturnToWorkTemplate';
 import LanguageToggle from '../forms/shared/LanguageToggle';
+import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 
 export default function ReturnToWork() {
   const { employeeId } = useParams<{ employeeId: string }>();
   const { search } = useLocation();
-  const printMode = getPrintMode(search);
   const formNumber = useMemo(() => generateFormNumber('return-to-work'), []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [profile, setProfile] = useState<ProfileId>(() => getProfileIdFromSearch(search));
   const [printFields, setPrintFields] = useState({ actualReturnDate: '', medicalNotes: '' });
 
   useEffect(() => {
@@ -35,10 +36,10 @@ export default function ReturnToWork() {
         employeeId: Number(employeeId),
         employeeName: data.employee.fullName,
         issueDate: new Date().toISOString(),
-        printMode,
+        printMode: profile,
       })
       .catch(() => {});
-  }, [data, formNumber, employeeId, printMode]);
+  }, [data, formNumber, employeeId, profile]);
 
   if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!data)
@@ -54,8 +55,13 @@ export default function ReturnToWork() {
       ready
       formNumber={formNumber}
       title="إشعار العودة إلى العمل"
-      printMode={printMode}
-      toolbarExtra={<LanguageToggle lang={lang} onChange={setLang} />}
+      profile={profile}
+      toolbarExtra={
+        <>
+          <LanguageToggle lang={lang} onChange={setLang} />
+          <PrintProfileToggle profile={profile} onChange={setProfile} />
+        </>
+      }
       qrData={{
         formType: 'return-to-work',
         formNumber,
