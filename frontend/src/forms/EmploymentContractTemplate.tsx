@@ -46,8 +46,8 @@ const PRINT_CSS = `
     padding: 10mm 8mm 5mm 16mm !important;
     box-sizing: border-box !important;
   }
-  .ec-row { page-break-inside: avoid !important; }
-  .ec-page-break { break-after: page !important; page-break-after: always !important; }
+  .ec-row { break-inside: avoid !important; page-break-inside: avoid !important; }
+  .ec-page-2 { break-before: page !important; page-break-before: always !important; }
   .ec-cell { padding: 3px 7px !important; }
 }
 @media screen {
@@ -258,11 +258,8 @@ export default function EmploymentContractTemplate({
           <div className="ec-cell" style={en}><span style={hdr}>Article Six — Contract Term: </span>{`This contract has a definite term, commencing ${startFmt} for a period of ${params.durationEn}. It may be renewed by mutual agreement for similar terms not exceeding five years. (An indefinite-term option is available subject to agreement of both parties.)`}</div>
         </div>
 
-        {/* ─── PAGE BREAK — page 1 ends after Article 6 ─── */}
-        <div className="ec-page-break" style={{ breakAfter: 'page' }} />
-
-        {/* Article 7 — first article on page 2 */}
-        <div className="ec-row" style={twoCol}>
+        {/* Article 7 — starts page 2 via break-before (more reliable than break-after on separator) */}
+        <div className="ec-row ec-page-2" style={twoCol}>
           <div className="ec-cell" style={ar}><span style={hdr}>البند السابع — الإجازة السنوية: </span>{`للطرف الثاني الحق في إجازة سنوية مدفوعة الأجر مدتها ${params.annualLeaveDays} يوماً، ولا يستحقها عن السنة الأولى إلا بعد انقضاء تسعة أشهر تحسب من تاريخ نفاذ العقد.`}</div>
           <div className="ec-cell" style={en}><span style={hdr}>Article Seven — Annual Leave: </span>{`The second party shall be entitled to a paid annual leave of ${params.annualLeaveDays} days. This entitlement does not accrue in the first year until the expiry of nine months from the contract commencement date.`}</div>
         </div>
@@ -324,23 +321,23 @@ export default function EmploymentContractTemplate({
         {/* Signatures */}
         <div className="ec-row" style={{ ...twoCol, borderBottom: 'none' }}>
           {/* First Party (Employer) — AR left */}
-          <div style={{ ...ar, padding: '8px 10px' }}>
-            <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 2, direction: 'rtl' }}>الطرف الأول — صاحب العمل / First Party</div>
-            <div style={{ fontSize: 10, color: '#374151', marginBottom: 28, direction: 'rtl' }}>
+          <div style={{ ...ar, padding: '12px 10px' }}>
+            <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4, direction: 'rtl' }}>الطرف الأول — صاحب العمل / First Party</div>
+            <div style={{ fontSize: 10, color: '#374151', marginBottom: 48, direction: 'rtl' }}>
               شركة المنار الدولية · حسن فلاح نايف
             </div>
-            <div style={{ borderTop: '1px solid #374151', paddingTop: 4, fontSize: 9.5, color: '#6b7280', direction: 'rtl' }}>
+            <div style={{ borderTop: '1px solid #374151', paddingTop: 6, fontSize: 9.5, color: '#6b7280', direction: 'rtl' }}>
               التوقيع &nbsp;/&nbsp; Signature &nbsp;&nbsp;&nbsp; التاريخ / Date: ___________
             </div>
           </div>
           {/* Second Party (Employee) — EN right */}
-          <div style={{ ...en, padding: '8px 10px' }}>
-            <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 2 }}>Second Party — Employee / الطرف الثاني</div>
-            <div style={{ fontSize: 10, color: '#374151', marginBottom: 28 }}>
+          <div style={{ ...en, padding: '12px 10px' }}>
+            <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4 }}>Second Party — Employee / الطرف الثاني</div>
+            <div style={{ fontSize: 10, color: '#374151', marginBottom: 48 }}>
               {emp.fullNameEn ?? emp.fullName}
               {emp.civilId ? ` · ${emp.civilId}` : ''}
             </div>
-            <div style={{ borderTop: '1px solid #374151', paddingTop: 4, fontSize: 9.5, color: '#6b7280' }}>
+            <div style={{ borderTop: '1px solid #374151', paddingTop: 6, fontSize: 9.5, color: '#6b7280' }}>
               Signature &nbsp;/&nbsp; التوقيع &nbsp;&nbsp;&nbsp; Date / التاريخ: ___________
             </div>
           </div>
