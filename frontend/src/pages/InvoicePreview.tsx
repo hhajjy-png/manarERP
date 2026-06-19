@@ -152,10 +152,13 @@ export default function InvoicePreview() {
       <style>{`
         @media screen { .inv-wrap { min-height: 100vh; } .print-only { display: none; } }
         @media print {
-          @page { size: A4; margin: 10mm; }
+          @page { size: A4; margin: 8mm 10mm; }
           body { background: white !important; }
           .no-print { display: none !important; }
           .print-only { display: block !important; }
+          .inv-wrap { padding: 6px 10px !important; max-width: 100% !important; }
+          table { margin-bottom: 8px !important; font-size: 12px !important; }
+          table th, table td { padding: 4px 8px !important; }
         }
       `}</style>
     <div className="inv-wrap" style={{
@@ -349,6 +352,38 @@ export default function InvoicePreview() {
             </tbody>
           </table>
         </>
+      )}
+
+      {/* ── Section 6: Collection Summary (screen only) ── */}
+      {data.payments.length > 0 && (
+        <div className="no-print">
+          <div style={secTitle}>ملخص التحصيل</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 8 }}>
+            {[
+              { label: 'إجمالي المحصّل', value: money(data.paidAmount), color: '#16a34a' },
+              { label: 'المتبقي', value: money(remaining), color: remaining > 0 ? '#dc2626' : '#16a34a' },
+              {
+                label: 'نسبة التحصيل',
+                value: data.total > 0 ? `${((Number(data.paidAmount) / Number(data.total)) * 100).toFixed(1)}%` : '—',
+                color: '#1d4e6f',
+              },
+              { label: 'عدد الدفعات', value: String(data.payments.length), color: '#0f172a' },
+            ].map(({ label, value, color }) => (
+              <div key={label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>{label}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color }}>{value}</div>
+              </div>
+            ))}
+          </div>
+          {data.payments.length > 0 && (() => {
+            const lastDate = data.payments.reduce((max, p) => p.date > max ? p.date : max, data.payments[0].date);
+            return (
+              <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>
+                آخر دفعة: {dateText(lastDate)}
+              </p>
+            );
+          })()}
+        </div>
       )}
 
       {/* ── Notes ── */}

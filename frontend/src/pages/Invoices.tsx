@@ -719,6 +719,22 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           لا توجد اتفاقيات أسعار مسجّلة لهذا العميل
         </p>
       )}
+      {effectivePartySource === 'SALES' && partyId && prices.length > 0 && (
+        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 14px', marginBottom: 10, fontSize: 13 }}>
+          <div style={{ fontWeight: 800, color: '#1e40af', marginBottom: 6, fontSize: 12 }}>
+            📋 اتفاقيات الأسعار المسجّلة
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
+            {prices.map(p => (
+              <span key={p.id} style={{ fontSize: 12, color: '#1e3a5f' }}>
+                <strong>{p.contractUnit}</strong>: {money(p.unitPrice)}
+                {p.asphaltPlant ? ` — ${p.asphaltPlant}` : ''}
+                {p.contractLocation ? ` (${p.contractLocation})` : ''}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
       {items.map((it, i) => (
         <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'start', width: '100%' }}>
           <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'visible' }}>
@@ -820,9 +836,28 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
       ))}
       <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }])}>{t('btn.inv.add_material')}</button>
 
-      <div className="form-grid" style={{ marginTop: 16 }}>
-        <div className="field"><label>{t('field.inv.discount_kd')}</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
-        <div className="field"><label>{t('col.inv.total')}</label><div className="line-input" style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default' }}>{money(total)}</div></div>
+      {/* Financial Summary */}
+      <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'end' }}>
+        <div className="field">
+          <label>{t('field.inv.discount_kd')}</label>
+          <input type="number" title={t('field.inv.discount_kd')} value={discount} onChange={(e) => setDiscount(Number(e.target.value))} />
+        </div>
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+            <span style={{ color: 'var(--text-muted)' }}>{t('lbl.inv.subtotal')}</span>
+            <span style={{ fontWeight: 600 }}>{money(subtotal)}</span>
+          </div>
+          {Number(discount) > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+              <span style={{ color: 'var(--text-muted)' }}>{t('field.inv.discount_kd')}</span>
+              <span style={{ fontWeight: 600, color: '#dc2626' }}>−{money(discount)}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 800, borderTop: '1px solid var(--border)', paddingTop: 6, marginTop: 4, color: 'var(--accent)' }}>
+            <span>{t('lbl.inv.grand_total')}</span>
+            <span>{money(total)}</span>
+          </div>
+        </div>
       </div>
     </Modal>
   );
@@ -1284,6 +1319,22 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
           لا توجد اتفاقيات أسعار مسجّلة لهذا العميل
         </p>
+      )}
+      {effectivePartySource === 'SALES' && partyId && prices.length > 0 && (
+        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 14px', marginBottom: 10, fontSize: 13 }}>
+          <div style={{ fontWeight: 800, color: '#1e40af', marginBottom: 6, fontSize: 12 }}>
+            📋 اتفاقيات الأسعار المسجّلة
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
+            {prices.map(p => (
+              <span key={p.id} style={{ fontSize: 12, color: '#1e3a5f' }}>
+                <strong>{p.contractUnit}</strong>: {money(p.unitPrice)}
+                {p.asphaltPlant ? ` — ${p.asphaltPlant}` : ''}
+                {p.contractLocation ? ` (${p.contractLocation})` : ''}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
       {items.map((it, i) => (
         <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'start', width: '100%' }}>

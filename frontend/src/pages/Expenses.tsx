@@ -231,6 +231,15 @@ export default function Expenses() {
               <span className="inv-stat-value">{money(amt)}</span>
             </div>
           ))}
+          {!categoryFilter && stats.byCategory && Object.entries(stats.byCategory as Record<string, number>)
+            .sort(([, a], [, b]) => (b as number) - (a as number))
+            .slice(0, 5)
+            .map(([cat, amt]) => (
+              <div key={cat} className="inv-stat-chip">
+                <span className="inv-stat-label">{CAT_LABEL[cat] ?? cat}</span>
+                <span className="inv-stat-value">{money(amt as number)}</span>
+              </div>
+            ))}
         </div>
       )}
 

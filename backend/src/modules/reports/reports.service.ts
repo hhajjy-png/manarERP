@@ -262,6 +262,7 @@ export class ReportsService {
         { header: 'انتهاء الإقامة', key: 'residency', width: 16 },
         { header: 'انتهاء الجواز', key: 'passport', width: 16 },
         { header: 'الراتب الشهري', key: 'salary', width: 16, numFmt: '#,##0.000' },
+        { header: 'تاريخ التعيين', key: 'hireDate', width: 16 },
         { header: 'الحالة', key: 'status', width: 14 },
       ],
       rows: rows.map((e) => ({
@@ -273,6 +274,7 @@ export class ReportsService {
         residency: e.residencyExpiry ? new Date(e.residencyExpiry).toLocaleDateString('ar') : '',
         passport: e.passportExpiry ? new Date(e.passportExpiry).toLocaleDateString('ar') : '',
         salary: num(e.salary),
+        hireDate: e.hireDate ? new Date(e.hireDate).toISOString().slice(0, 10) : '',
         status: e.status,
       })),
     };

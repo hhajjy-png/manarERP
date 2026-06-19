@@ -57,6 +57,7 @@ export default function App() {
         <Route path="/forms/resignation/:employeeId" element={<ProtectedRoute><Resignation /></ProtectedRoute>} />
         <Route path="/forms/employee-warning/:employeeId" element={<ProtectedRoute><EmployeeWarning /></ProtectedRoute>} />
         <Route path="/forms/performance-evaluation/:employeeId" element={<ProtectedRoute><PerformanceEvaluation /></ProtectedRoute>} />
+        <Route path="/forms/employment-contract" element={<ProtectedRoute><EmploymentContract /></ProtectedRoute>} />
         <Route path="/forms/employment-contract/:employeeId" element={<ProtectedRoute><EmploymentContract /></ProtectedRoute>} />
         <Route
           element={
