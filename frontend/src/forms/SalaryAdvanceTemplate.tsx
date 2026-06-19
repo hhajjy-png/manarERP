@@ -17,6 +17,7 @@ interface Employee {
   id: number;
   code: string;
   fullName: string;
+  fullNameEn?: string | null;
   jobTitle: string | null;
   department: string | null;
   civilId: string | null;
@@ -31,6 +32,11 @@ interface Advance {
 }
 
 interface PrintFields {
+  advanceAmount?: string;
+  requestDate?: string;
+  reason?: string;
+  installments?: string;
+  installmentAmount?: string;
   repaymentSchedule?: string;
 }
 
@@ -49,7 +55,7 @@ export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, la
           <div style={{ ...sectionHeader, textAlign: 'left' }}>Employee Information</div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Name</div>
-            <div style={{ ...valueCell, fontWeight: 700 }}>{emp.fullName}</div>
+            <div style={{ ...valueCell, fontWeight: 700 }}>{emp.fullNameEn ?? emp.fullName}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Employee ID</div>
@@ -78,19 +84,31 @@ export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, la
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Requested Amount</div>
             <div style={{ ...valueCell, fontWeight: 700, color: '#065f46' }}>
-              {latestAdvance ? moneyEn(latestAdvance.amount) : <span style={blankLine} />}
+              {latestAdvance ? moneyEn(latestAdvance.amount) : printFields?.advanceAmount?.trim() ? moneyEn(Number(printFields.advanceAmount)) : <span style={blankLine} />}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Request Date</div>
             <div style={valueCell}>
-              {latestAdvance ? fmtDateEn(latestAdvance.date) : <span style={blankLine} />}
+              {latestAdvance ? fmtDateEn(latestAdvance.date) : printFields?.requestDate?.trim() ? fmtDateEn(printFields.requestDate) : <span style={blankLine} />}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Purpose / Reason</div>
             <div style={valueCell}>
-              {latestAdvance?.notes ?? <span style={blankLine} />}
+              {latestAdvance?.notes ?? (printFields?.reason?.trim() ? <span>{printFields.reason}</span> : <span style={blankLine} />)}
+            </div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>No. of Installments</div>
+            <div style={valueCell}>
+              {printFields?.installments?.trim() ? <span>{printFields.installments}</span> : <span style={blankLine} />}
+            </div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Installment Amount (KWD)</div>
+            <div style={valueCell}>
+              {printFields?.installmentAmount?.trim() ? moneyEn(Number(printFields.installmentAmount)) : <span style={blankLine} />}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
@@ -162,19 +180,31 @@ export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, la
         <div style={tableRow}>
           <div style={labelCell}>المبلغ المطلوب</div>
           <div style={{ ...valueCell, fontWeight: 700, color: '#065f46' }}>
-            {latestAdvance ? money(latestAdvance.amount) : <span style={blankLine} />}
+            {latestAdvance ? money(latestAdvance.amount) : printFields?.advanceAmount?.trim() ? money(Number(printFields.advanceAmount)) : <span style={blankLine} />}
           </div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>تاريخ الطلب</div>
           <div style={valueCell}>
-            {latestAdvance ? fmtDate(latestAdvance.date) : <span style={blankLine} />}
+            {latestAdvance ? fmtDate(latestAdvance.date) : printFields?.requestDate?.trim() ? fmtDate(printFields.requestDate) : <span style={blankLine} />}
           </div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>الغرض / السبب</div>
           <div style={valueCell}>
-            {latestAdvance?.notes ?? <span style={blankLine} />}
+            {latestAdvance?.notes ?? (printFields?.reason?.trim() ? <span>{printFields.reason}</span> : <span style={blankLine} />)}
+          </div>
+        </div>
+        <div style={tableRow}>
+          <div style={labelCell}>عدد الأقساط</div>
+          <div style={valueCell}>
+            {printFields?.installments?.trim() ? <span>{printFields.installments}</span> : <span style={blankLine} />}
+          </div>
+        </div>
+        <div style={tableRow}>
+          <div style={labelCell}>قيمة القسط (د.ك)</div>
+          <div style={valueCell}>
+            {printFields?.installmentAmount?.trim() ? money(Number(printFields.installmentAmount)) : <span style={blankLine} />}
           </div>
         </div>
         <div style={tableRow}>

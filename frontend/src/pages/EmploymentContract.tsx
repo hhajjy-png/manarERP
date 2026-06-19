@@ -157,8 +157,10 @@ function NewEmployeeForm({ onComplete, onBack }: {
     fullNameEn: '',
     civilId: '',
     nationality: '',
+    nationalityEn: '',
     passportNumber: '',
     jobTitle: '',
+    jobTitleEn: '',
     salary: '',
     address: '',
     phone: '',
@@ -184,8 +186,10 @@ function NewEmployeeForm({ onComplete, onBack }: {
       fullNameEn: data.fullNameEn.trim() || null,
       civilId: data.civilId.trim() || null,
       nationality: data.nationality.trim() || null,
+      nationalityEn: data.nationalityEn.trim() || null,
       passportNumber: data.passportNumber.trim() || null,
       jobTitle: data.jobTitle.trim() || null,
+      jobTitleEn: data.jobTitleEn.trim() || null,
       salary: sal,
       address: data.address.trim() || null,
       phone: data.phone.trim() || null,
@@ -246,15 +250,30 @@ function NewEmployeeForm({ onComplete, onBack }: {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
           <div>
+            <label style={lbl}>الجنسية بالإنجليزي</label>
+            <input style={inp} value={data.nationalityEn}
+              onChange={e => set('nationalityEn', e.target.value)}
+              placeholder="e.g. Kuwaiti" />
+          </div>
+          <div>
             <label style={lbl}>رقم الجواز</label>
             <input style={inp} value={data.passportNumber}
               onChange={e => set('passportNumber', e.target.value)} />
           </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
           <div>
             <label style={lbl}>المسمى الوظيفي</label>
             <input style={inp} value={data.jobTitle}
               onChange={e => set('jobTitle', e.target.value)}
               placeholder="مثال: مهندس مدني" />
+          </div>
+          <div>
+            <label style={lbl}>المسمى الوظيفي بالإنجليزي</label>
+            <input style={inp} value={data.jobTitleEn}
+              onChange={e => set('jobTitleEn', e.target.value)}
+              placeholder="e.g. Civil Engineer" />
           </div>
         </div>
 

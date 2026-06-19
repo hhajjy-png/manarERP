@@ -15,6 +15,7 @@ interface Employee {
   id: number;
   code: string;
   fullName: string;
+  fullNameEn?: string | null;
   jobTitle: string | null;
   department: string | null;
 }
@@ -30,6 +31,9 @@ interface PerformanceReview {
 interface PrintFields {
   scores?: string[];
   reviewerComments?: string;
+  periodFrom?: string;
+  periodTo?: string;
+  overrideRating?: string;
 }
 
 interface Props {
@@ -47,8 +51,21 @@ const CRITERIA = [
   { label: 'الانضباط في المواعيد', labelEn: 'Punctuality', max: 20 },
 ];
 
-const RATINGS = ['ممتاز (90-100)', 'جيد جدًا (75-89)', 'جيد (60-74)', 'مقبول (50-59)', 'ضعيف (أقل من 50)'];
-const RATINGS_EN = ['Excellent (90-100)', 'Very Good (75-89)', 'Good (60-74)', 'Acceptable (50-59)', 'Poor (Below 50)'];
+const GRADE_LEVELS = [
+  { key: 'excellent',   ar: 'ممتاز (90-100)',    en: 'Excellent (90-100)' },
+  { key: 'very_good',  ar: 'جيد جدًا (75-89)',   en: 'Very Good (75-89)' },
+  { key: 'good',       ar: 'جيد (60-74)',         en: 'Good (60-74)' },
+  { key: 'acceptable', ar: 'مقبول (50-59)',        en: 'Acceptable (50-59)' },
+  { key: 'poor',       ar: 'ضعيف (أقل من 50)',    en: 'Poor (Below 50)' },
+] as const;
+
+function gradeFromScore(score: number): string {
+  if (score >= 90) return 'excellent';
+  if (score >= 75) return 'very_good';
+  if (score >= 60) return 'good';
+  if (score >= 50) return 'acceptable';
+  return 'poor';
+}
 
 const checkboxStyle = {
   width: 14,
@@ -62,6 +79,16 @@ const checkboxStyle = {
 } as const;
 
 export default function PerformanceEvaluationTemplate({ employee: emp, latestReview, lang = 'ar', printFields }: Props) {
+  const allFilled = printFields?.scores?.length === 5 && printFields.scores.every(s => s?.trim());
+  const computedTotal = allFilled ? printFields!.scores!.reduce((a, s) => a + (parseFloat(s) || 0), 0) : null;
+  const activeGrade: string | null = printFields?.overrideRating
+    ? printFields.overrideRating
+    : latestReview
+      ? gradeFromScore(latestReview.score)
+      : computedTotal !== null
+        ? gradeFromScore(computedTotal)
+        : null;
+
   if (lang === 'en') {
     return (
       <>
@@ -69,7 +96,7 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
           <div style={{ ...sectionHeader, textAlign: 'left' }}>Employee Information</div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Name</div>
-            <div style={{ ...valueCell, fontWeight: 700 }}>{emp.fullName}</div>
+            <div style={{ ...valueCell, fontWeight: 700 }}>{emp.fullNameEn ?? emp.fullName}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Employee ID</div>
@@ -86,7 +113,13 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Review Period</div>
             <div style={valueCell}>
-              {latestReview ? latestReview.period : <span style={blankLine} />}
+              {latestReview
+                ? latestReview.period
+                : (printFields?.periodFrom && printFields?.periodTo)
+                  ? `From ${fmtDateEn(printFields.periodFrom)} To ${fmtDateEn(printFields.periodTo)}`
+                  : printFields?.periodFrom
+                    ? `From ${fmtDateEn(printFields.periodFrom)}`
+                    : <span style={blankLine} />}
             </div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
@@ -131,12 +164,26 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
         <div style={{ marginBottom: 20, fontSize: 13, color: '#374151', direction: 'ltr' }}>
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Overall Rating:</div>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {RATINGS_EN.map((r) => (
-              <span key={r} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={checkboxStyle} />
-                {r}
-              </span>
-            ))}
+            {GRADE_LEVELS.map((g) => {
+              const isActive = activeGrade === g.key;
+              return (
+                <span key={g.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{
+                    ...checkboxStyle,
+                    border: `1px solid ${isActive ? '#1d4e6f' : '#94a3b8'}`,
+                    background: isActive ? '#1d4e6f' : 'transparent',
+                    WebkitPrintColorAdjust: 'exact',
+                    printColorAdjust: 'exact',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    {isActive && <span style={{ color: '#fff', fontSize: 10, lineHeight: 1, fontWeight: 700 }}>✓</span>}
+                  </span>
+                  {g.en}
+                </span>
+              );
+            })}
           </div>
         </div>
 
@@ -197,7 +244,13 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
         <div style={tableRow}>
           <div style={labelCell}>فترة التقييم</div>
           <div style={valueCell}>
-            {latestReview ? latestReview.period : <span style={blankLine} />}
+            {latestReview
+              ? latestReview.period
+              : (printFields?.periodFrom && printFields?.periodTo)
+                ? `من ${fmtDate(printFields.periodFrom)} إلى ${fmtDate(printFields.periodTo)}`
+                : printFields?.periodFrom
+                  ? `من ${fmtDate(printFields.periodFrom)}`
+                  : <span style={blankLine} />}
           </div>
         </div>
         <div style={tableRow}>
@@ -275,23 +328,26 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
       <div style={{ marginBottom: 20, fontSize: 13, color: '#374151' }}>
         <div style={{ fontWeight: 700, marginBottom: 8 }}>التقدير العام:</div>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          {RATINGS.map((r) => (
-            <span key={r} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span
-                style={{
-                  width: 14,
-                  height: 14,
-                  border: '1px solid #94a3b8',
-                  borderRadius: 2,
-                  display: 'inline-block',
-                  flexShrink: 0,
-                  cursor: 'default',
-                  userSelect: 'none',
-                }}
-              />
-              {r}
-            </span>
-          ))}
+          {GRADE_LEVELS.map((g) => {
+            const isActive = activeGrade === g.key;
+            return (
+              <span key={g.key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{
+                  ...checkboxStyle,
+                  border: `1px solid ${isActive ? '#1d4e6f' : '#94a3b8'}`,
+                  background: isActive ? '#1d4e6f' : 'transparent',
+                  WebkitPrintColorAdjust: 'exact',
+                  printColorAdjust: 'exact',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  {isActive && <span style={{ color: '#fff', fontSize: 10, lineHeight: 1, fontWeight: 700 }}>✓</span>}
+                </span>
+                {g.ar}
+              </span>
+            );
+          })}
         </div>
       </div>
 

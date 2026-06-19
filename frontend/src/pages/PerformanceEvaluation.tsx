@@ -17,7 +17,13 @@ export default function PerformanceEvaluation() {
   const [error, setError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [profile, setProfile] = useState<ProfileId>(() => getProfileIdFromSearch(search));
-  const [printFields, setPrintFields] = useState<{ scores: string[]; reviewerComments: string }>({ scores: ['', '', '', '', ''], reviewerComments: '' });
+  const [printFields, setPrintFields] = useState<{
+    scores: string[];
+    reviewerComments: string;
+    periodFrom: string;
+    periodTo: string;
+    overrideRating: string;
+  }>({ scores: ['', '', '', '', ''], reviewerComments: '', periodFrom: '', periodTo: '', overrideRating: '' });
 
   useEffect(() => {
     if (!employeeId) return;
@@ -72,6 +78,16 @@ export default function PerformanceEvaluation() {
     >
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div className="field">
+            <label>فترة التقييم من</label>
+            <input type="date" title="فترة التقييم من" value={printFields.periodFrom} onChange={(e) => setPrintFields(p => ({ ...p, periodFrom: e.target.value }))} />
+          </div>
+          <div className="field">
+            <label>فترة التقييم إلى</label>
+            <input type="date" title="فترة التقييم إلى" value={printFields.periodTo} onChange={(e) => setPrintFields(p => ({ ...p, periodTo: e.target.value }))} />
+          </div>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 10 }}>
           {['جودة العمل', 'الالتزام والانضباط', 'العمل الجماعي', 'المبادرة والإبداع', 'الانضباط في المواعيد'].map((label, i) => (
             <div key={i} className="field">
@@ -80,9 +96,31 @@ export default function PerformanceEvaluation() {
             </div>
           ))}
         </div>
-        <div className="field">
-          <label>ملاحظات المقيِّم والتوصيات</label>
-          <input title="ملاحظات المقيِّم" value={printFields.reviewerComments} onChange={(e) => setPrintFields(p => ({ ...p, reviewerComments: e.target.value }))} />
+        {(() => {
+          const allFilled = printFields.scores.length === 5 && printFields.scores.every(s => s?.trim());
+          const autoTotal = allFilled ? printFields.scores.reduce((a, s) => a + (parseFloat(s) || 0), 0) : null;
+          return autoTotal !== null ? (
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+              المجموع التلقائي: <strong>{autoTotal}</strong> / 100
+            </div>
+          ) : null;
+        })()}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div className="field">
+            <label>التقدير اليدوي (يتجاوز الحساب التلقائي)</label>
+            <select title="التقدير اليدوي" value={printFields.overrideRating} onChange={(e) => setPrintFields(p => ({ ...p, overrideRating: e.target.value }))}>
+              <option value="">— (تلقائي) —</option>
+              <option value="excellent">ممتاز</option>
+              <option value="very_good">جيد جداً</option>
+              <option value="good">جيد</option>
+              <option value="acceptable">مقبول</option>
+              <option value="poor">ضعيف</option>
+            </select>
+          </div>
+          <div className="field">
+            <label>ملاحظات المقيِّم والتوصيات</label>
+            <input title="ملاحظات المقيِّم" value={printFields.reviewerComments} onChange={(e) => setPrintFields(p => ({ ...p, reviewerComments: e.target.value }))} />
+          </div>
         </div>
       </div>
       <PerformanceEvaluationTemplate
