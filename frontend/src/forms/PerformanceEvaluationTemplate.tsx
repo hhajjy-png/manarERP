@@ -159,16 +159,35 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
       </div>
 
       {/* Comments */}
-      <div style={{ marginBottom: 16, fontSize: 13, color: '#374151' }}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>ملاحظات المقيِّم:</div>
+      <div style={{ marginBottom: 14, fontSize: 13, color: '#374151' }}>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>ملاحظات المقيِّم والتوصيات:</div>
         {latestReview?.comments ? (
           <p style={{ margin: 0, lineHeight: 1.8 }}>{latestReview.comments}</p>
         ) : (
           <>
-            <div style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 10 }} />
+            <div style={{ ...blankLine, width: '100%', display: 'block', marginBottom: 8 }} />
             <div style={{ ...blankLine, width: '100%', display: 'block' }} />
           </>
         )}
+      </div>
+
+      {/* Signatures */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, fontSize: 13, color: '#374151' }}>
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>
+            توقيع المقيِّم
+            {latestReview?.reviewer ? ` — ${latestReview.reviewer}` : ':'}
+          </div>
+          <div style={{ marginTop: 20, borderBottom: '1px solid #64748b', width: '100%' }} />
+          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+            {latestReview ? fmtDate(latestReview.date) : issueDateStr()}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>توقيع الموظف (اطلاع وقبول):</div>
+          <div style={{ marginTop: 20, borderBottom: '1px solid #64748b', width: '100%' }} />
+          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>التاريخ: ___________</div>
+        </div>
       </div>
 
     </>

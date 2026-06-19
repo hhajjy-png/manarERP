@@ -10,6 +10,23 @@ import {
   money,
 } from './shared/formStyles';
 
+const COMPANY_NAME_EN =
+  'ALAMANAR ALDAWLIYA FOR STREET CONSTRUCTION & MAINTENANCE CO., W.L.L.';
+
+function fmtDateEn(v: string | Date | null | undefined): string {
+  if (!v) return '—';
+  const d = new Date(v as string);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function issueDateStrEn(): string {
+  return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function moneyEn(v: number): string {
+  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' KWD';
+}
+
 interface Employee {
   id: number;
   code: string;
@@ -33,10 +50,94 @@ interface LatestPayroll {
 interface Props {
   employee: Employee;
   latestPayroll: LatestPayroll | null;
+  lang?: 'ar' | 'en';
 }
 
-export default function SalaryCertificateTemplate({ employee: emp, latestPayroll }: Props) {
+export default function SalaryCertificateTemplate({ employee: emp, latestPayroll, lang = 'ar' }: Props) {
   const baseSalary = latestPayroll?.snapshotBaseSalary ?? emp.salary;
+
+  if (lang === 'en') {
+    return (
+      <>
+        <p style={{ fontSize: 14, lineHeight: 2, marginBottom: 22, textAlign: 'justify', direction: 'ltr' }}>
+          This is to certify that the below-named employee is currently employed by{' '}
+          <strong>{COMPANY_NAME_EN}</strong>, as follows:
+        </p>
+
+        <div style={{ ...tableWrapper, direction: 'ltr' }}>
+          <div style={{ ...sectionHeader, textAlign: 'left' }}>Employee Information</div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Full Name (Arabic)</div>
+            <div style={{ ...valueCell, fontWeight: 700, fontSize: 15 }}>{emp.fullName}</div>
+          </div>
+          {emp.fullNameEn && (
+            <div style={{ ...tableRow, direction: 'ltr' }}>
+              <div style={{ ...labelCell, textAlign: 'left' }}>Full Name (English)</div>
+              <div style={{ ...valueCell, fontWeight: 700, fontSize: 15 }}>{emp.fullNameEn}</div>
+            </div>
+          )}
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Employee ID</div>
+            <div style={{ ...valueCell, fontFamily: 'monospace', fontWeight: 600 }}>{emp.code}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Civil ID</div>
+            <div style={{ ...valueCell, fontFamily: 'monospace' }}>{emp.civilId ?? '—'}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Job Title</div>
+            <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Department</div>
+            <div style={valueCell}>{emp.department ?? '—'}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Nationality</div>
+            <div style={valueCell}>{emp.nationality ?? '—'}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Date of Hire</div>
+            <div style={valueCell}>{fmtDateEn(emp.hireDate)}</div>
+          </div>
+        </div>
+
+        <div style={{ ...tableWrapper, direction: 'ltr' }}>
+          <div style={{ ...sectionHeader, textAlign: 'left' }}>Salary Details</div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Monthly Basic Salary</div>
+            <div style={{ ...valueCell, fontWeight: 700, fontSize: 15, color: '#065f46' }}>
+              {moneyEn(baseSalary)}
+            </div>
+          </div>
+          {latestPayroll && (
+            <div style={{ ...tableRow, direction: 'ltr' }}>
+              <div style={{ ...labelCell, textAlign: 'left' }}>Last Net Salary</div>
+              <div style={{ ...valueCell, fontWeight: 600 }}>
+                {moneyEn(latestPayroll.netSalary)}
+                <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>
+                  ({latestPayroll.month}/{latestPayroll.year})
+                </span>
+              </div>
+            </div>
+          )}
+          <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Currency</div>
+            <div style={valueCell}>Kuwaiti Dinar (KWD)</div>
+          </div>
+        </div>
+
+        <p style={{ fontSize: 13, lineHeight: 2, marginBottom: 20, textAlign: 'justify', direction: 'ltr', color: '#374151' }}>
+          This certificate has been issued upon the employee's request for official use and to be
+          presented wherever needed, without any liability on the company's part.
+        </p>
+
+        <div style={{ marginBottom: 16, fontSize: 13, color: '#374151', direction: 'ltr' }}>
+          <strong>Date of Issue:</strong> {issueDateStrEn()}
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

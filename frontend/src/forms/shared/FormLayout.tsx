@@ -13,6 +13,8 @@ interface FormLayoutProps {
   title: string;
   printMode: PrintMode;
   qrData: QRData;
+  /** Optional extra controls rendered in the no-print toolbar (e.g. language toggle) */
+  toolbarExtra?: ReactNode;
 }
 
 export default function FormLayout({
@@ -22,6 +24,7 @@ export default function FormLayout({
   title,
   printMode,
   qrData,
+  toolbarExtra,
 }: FormLayoutProps) {
   const navigate = useNavigate();
 
@@ -77,6 +80,7 @@ export default function FormLayout({
           <button className="btn secondary" onClick={() => navigate(-1)}>
             رجوع
           </button>
+          {toolbarExtra}
           <span style={{ fontSize: 12, color: 'var(--text-muted)', marginRight: 'auto' }}>
             {printMode === 'letterhead' ? 'وضع الورق الرسمي' : 'وضع القالب الكامل'} —{' '}
             {formNumber}
