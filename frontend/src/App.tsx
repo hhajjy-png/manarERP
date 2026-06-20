@@ -36,6 +36,8 @@ import PerformanceEvaluation from './pages/PerformanceEvaluation';
 import EmploymentContract from './pages/EmploymentContract';
 import BankImport from './pages/BankImport';
 import BankSalaryAnalytics from './pages/BankSalaryAnalytics';
+import Quotation from './pages/Quotation';
+import PurchaseRequest from './pages/PurchaseRequest';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -59,6 +61,8 @@ export default function App() {
         <Route path="/forms/performance-evaluation/:employeeId" element={<ProtectedRoute><PerformanceEvaluation /></ProtectedRoute>} />
         <Route path="/forms/employment-contract" element={<ProtectedRoute><EmploymentContract /></ProtectedRoute>} />
         <Route path="/forms/employment-contract/:employeeId" element={<ProtectedRoute><EmploymentContract /></ProtectedRoute>} />
+        <Route path="/forms/quotation" element={<ProtectedRoute><Quotation /></ProtectedRoute>} />
+        <Route path="/forms/purchase-request" element={<ProtectedRoute><PurchaseRequest /></ProtectedRoute>} />
         <Route
           element={
             <ProtectedRoute>
