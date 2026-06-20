@@ -161,7 +161,7 @@ export default function EmploymentContractTemplate({
       {/* PAGE 1 — Header + Articles 1–6 */}
       <div className="ec-page ec-p1" style={wrap}>
 
-        <div style={{ ...fullRow, padding: '8px 10px' }}>
+        <div style={{ ...fullRow, padding: '5px 10px' }}>
           <img
             src="/contract_emblem.png"
             alt="Kuwait Public Authority Emblem"
@@ -169,7 +169,7 @@ export default function EmploymentContractTemplate({
           />
         </div>
 
-        <div style={{ ...fullRow, padding: '5px 10px' }}>
+        <div style={{ ...fullRow, padding: '3px 10px' }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>الهـيئة العـامة للقـوى العـاملة</div>
           <div style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginTop: 1 }}>The Public Authority For Manpower</div>
         </div>
