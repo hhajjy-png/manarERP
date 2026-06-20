@@ -21,7 +21,7 @@ html[data-theme="dark"] {
   --amber-light: rgba(245,158,11,.15); --blue-light: rgba(59,130,246,.15);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Cairo', sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; transition: background .3s, color .3s; }
+body { font-family: "IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; transition: background .3s, color .3s; }
 a { color: inherit; text-decoration: none; }
 .app { display: flex; min-height: 100vh; }
 

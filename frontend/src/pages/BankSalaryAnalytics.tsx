@@ -791,7 +791,7 @@ export default function BankSalaryAnalytics() {
                     content={({ active, payload, label }) => {
                       if (!active || !payload?.length) return null;
                       return (
-                        <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '10px 14px', fontFamily: 'Cairo, sans-serif', direction: 'rtl' }}>
+                        <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '10px 14px', fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', direction: 'rtl' }}>
                           <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6 }}>{label}</p>
                           <p style={{ color: '#60A5FA', fontSize: 13, fontWeight: 700 }}>{fmt3(Number(payload[0].value))} د.ك</p>
                         </div>

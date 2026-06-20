@@ -64,7 +64,7 @@ export default function ContractStatusChart({ data, loading }: Props) {
                 border: '1px solid rgba(255,255,255,0.10)',
                 borderRadius: 10,
                 padding: '10px 14px',
-                fontFamily: 'Cairo, sans-serif',
+                fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
                 direction: 'rtl',
               }}>
                 <p style={{ color: p.fill ?? '#fff', fontSize: 13, fontWeight: 700 }}>
@@ -74,7 +74,7 @@ export default function ContractStatusChart({ data, loading }: Props) {
             );
           }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: 'Cairo, sans-serif', fontWeight: 700 }}>
+            <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
               {t('contract.status.' + value.toLowerCase())}
             </span>
           )} />
