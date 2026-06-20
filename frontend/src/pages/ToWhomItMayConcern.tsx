@@ -8,8 +8,13 @@ import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 import ToWhomItMayConcernTemplate from '../forms/ToWhomItMayConcernTemplate';
 import { usePrintLogStore } from '../stores/printLogStore';
+import { usePrintDraftStore } from '../stores/printDraftStore';
 
 type Lang = 'ar' | 'en';
+
+const FORM_KEY = 'to-whom-it-may-concern';
+
+const INITIAL_PRINT_FIELDS = { certPurpose: '' };
 
 export default function ToWhomItMayConcern() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -44,6 +49,15 @@ export default function ToWhomItMayConcern() {
       .catch(() => {});
   }, [data, formNumber, employeeId, profile]);
 
+  const draftEntry = usePrintDraftStore((s) => s.drafts[FORM_KEY] ?? null);
+  const saveDraft = usePrintDraftStore((s) => s.saveDraft);
+  const clearDraft = usePrintDraftStore((s) => s.clearDraft);
+
+  function resetPrintFields() {
+    if (!window.confirm('سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟')) return;
+    setPrintFields({ ...INITIAL_PRINT_FIELDS });
+  }
+
   const addPrintLog = usePrintLogStore((s) => s.addEntry);
   useEffect(() => {
     if (!data) return;
@@ -71,6 +85,37 @@ export default function ToWhomItMayConcern() {
         <>
           <LanguageToggle lang={lang} onChange={setLang} />
           <PrintProfileToggle profile={profile} onChange={setProfile} />
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12, padding: '4px 8px' }}
+            title="حفظ مسودة"
+            onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
+          >
+            💾
+          </button>
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
+              title="استعادة المسودة"
+              onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
+            >
+              ↩
+            </button>
+          )}
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px' }}
+              title="مسح المسودة"
+              onClick={() => clearDraft(FORM_KEY)}
+            >
+              ✕
+            </button>
+          )}
         </>
       }
       qrData={{
@@ -90,6 +135,16 @@ export default function ToWhomItMayConcern() {
             onChange={(e) => setPrintFields(p => ({ ...p, certPurpose: e.target.value }))}
             placeholder="مثال: السفارة الهندية / Indian Embassy"
           />
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12 }}
+            onClick={resetPrintFields}
+          >
+            ↺ مسح حقول الطباعة
+          </button>
         </div>
       </div>
       <ToWhomItMayConcernTemplate
