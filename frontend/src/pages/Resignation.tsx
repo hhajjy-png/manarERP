@@ -6,8 +6,18 @@ import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import ResignationTemplate from '../forms/ResignationTemplate';
 import { usePrintLogStore } from '../stores/printLogStore';
+import { usePrintDraftStore } from '../stores/printDraftStore';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
+
+const FORM_KEY = 'resignation';
+
+const INITIAL_PRINT_FIELDS = {
+  lastWorkingDay: '',
+  noticePeriod: '',
+  resignationReason: '',
+  handoverObligations: '',
+};
 
 export default function Resignation() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -42,6 +52,15 @@ export default function Resignation() {
       .catch(() => {});
   }, [data, formNumber, employeeId, profile]);
 
+  const draftEntry = usePrintDraftStore((s) => s.drafts[FORM_KEY] ?? null);
+  const saveDraft = usePrintDraftStore((s) => s.saveDraft);
+  const clearDraft = usePrintDraftStore((s) => s.clearDraft);
+
+  function resetPrintFields() {
+    if (!window.confirm('سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟')) return;
+    setPrintFields({ ...INITIAL_PRINT_FIELDS });
+  }
+
   const addPrintLog = usePrintLogStore((s) => s.addEntry);
   useEffect(() => {
     if (!data) return;
@@ -69,6 +88,37 @@ export default function Resignation() {
         <>
           <LanguageToggle lang={lang} onChange={setLang} />
           <PrintProfileToggle profile={profile} onChange={setProfile} />
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12, padding: '4px 8px' }}
+            title="حفظ مسودة"
+            onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
+          >
+            💾
+          </button>
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
+              title="استعادة المسودة"
+              onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
+            >
+              ↩
+            </button>
+          )}
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px' }}
+              title="مسح المسودة"
+              onClick={() => clearDraft(FORM_KEY)}
+            >
+              ✕
+            </button>
+          )}
         </>
       }
       qrData={{
@@ -86,6 +136,16 @@ export default function Resignation() {
           <div className="field"><label>فترة الإشعار</label><input value={printFields.noticePeriod} onChange={(e) => setPrintFields(p => ({ ...p, noticePeriod: e.target.value }))} placeholder="مثال: شهر واحد" /></div>
           <div className="field"><label>سبب الاستقالة</label><input title="سبب الاستقالة" value={printFields.resignationReason} onChange={(e) => setPrintFields(p => ({ ...p, resignationReason: e.target.value }))} /></div>
           <div className="field"><label>التزامات التسليم</label><input title="التزامات التسليم" value={printFields.handoverObligations} onChange={(e) => setPrintFields(p => ({ ...p, handoverObligations: e.target.value }))} /></div>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12 }}
+            onClick={resetPrintFields}
+          >
+            ↺ مسح حقول الطباعة
+          </button>
         </div>
       </div>
       <ResignationTemplate employee={data.employee} lang={lang} printFields={printFields} />

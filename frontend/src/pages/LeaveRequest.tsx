@@ -6,8 +6,20 @@ import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import LeaveRequestTemplate from '../forms/LeaveRequestTemplate';
 import { usePrintLogStore } from '../stores/printLogStore';
+import { usePrintDraftStore } from '../stores/printDraftStore';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
+
+const FORM_KEY = 'leave-request';
+
+const INITIAL_PRINT_FIELDS = {
+  expectedReturnDate: '',
+  leaveType: '' as '' | 'ANNUAL' | 'SICK' | 'UNPAID' | 'EMERGENCY',
+  startDate: '',
+  endDate: '',
+  days: '',
+  reason: '',
+};
 
 function calcDays(start: string, end: string): number {
   const [sy, sm, sd] = start.split('-').map(Number);
@@ -69,6 +81,16 @@ export default function LeaveRequest() {
     setPrintFields(p => ({ ...p, days: String(computed) }));
   }, [printFields.startDate, printFields.endDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const draftEntry = usePrintDraftStore((s) => s.drafts[FORM_KEY] ?? null);
+  const saveDraft = usePrintDraftStore((s) => s.saveDraft);
+  const clearDraft = usePrintDraftStore((s) => s.clearDraft);
+
+  function resetPrintFields() {
+    if (!window.confirm('سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟')) return;
+    daysManuallyEdited.current = false;
+    setPrintFields({ ...INITIAL_PRINT_FIELDS });
+  }
+
   const addPrintLog = usePrintLogStore((s) => s.addEntry);
   useEffect(() => {
     if (!data) return;
@@ -98,6 +120,37 @@ export default function LeaveRequest() {
         <>
           <LanguageToggle lang={lang} onChange={setLang} />
           <PrintProfileToggle profile={profile} onChange={setProfile} />
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12, padding: '4px 8px' }}
+            title="حفظ مسودة"
+            onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
+          >
+            💾
+          </button>
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
+              title="استعادة المسودة"
+              onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
+            >
+              ↩
+            </button>
+          )}
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px' }}
+              title="مسح المسودة"
+              onClick={() => clearDraft(FORM_KEY)}
+            >
+              ✕
+            </button>
+          )}
         </>
       }
       qrData={{
@@ -184,6 +237,16 @@ export default function LeaveRequest() {
             value={printFields.expectedReturnDate}
             onChange={(e) => setPrintFields(p => ({ ...p, expectedReturnDate: e.target.value }))}
           />
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12 }}
+            onClick={resetPrintFields}
+          >
+            ↺ مسح حقول الطباعة
+          </button>
         </div>
       </div>
       <LeaveRequestTemplate employee={data.employee} latestLeave={latestLeave} lang={lang} printFields={printFields} />

@@ -1,0 +1,388 @@
+import { useState, useEffect } from 'react';
+import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
+import { generateFormNumber } from '../forms/shared/formNumber';
+import FormLayout from '../forms/shared/FormLayout';
+import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
+import LanguageToggle from '../forms/shared/LanguageToggle';
+import QuotationTemplate, {
+  type QuotationItem,
+  type QuotationPrintFields,
+} from '../forms/QuotationTemplate';
+import { usePrintLogStore } from '../stores/printLogStore';
+import { usePrintDraftStore } from '../stores/printDraftStore';
+
+const FORM_KEY = 'quotation';
+
+function newItem(): QuotationItem {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    description: '',
+    qty: '',
+    unit: '',
+    unitPrice: '',
+  };
+}
+
+function makeInitial(): QuotationPrintFields {
+  return {
+    quotationNumber: generateFormNumber(FORM_KEY),
+    date: new Date().toISOString().slice(0, 10),
+    validUntil: '',
+    currency: 'KWD',
+    subject: '',
+    customerName: '',
+    contactPerson: '',
+    phone: '',
+    project: '',
+    items: [newItem()],
+    notes: '',
+    paymentTerms: 'الدفع خلال 30 يوماً من تاريخ الفاتورة',
+  };
+}
+
+const inp: React.CSSProperties = {
+  padding: '6px 10px',
+  border: '1px solid var(--border)',
+  borderRadius: 8,
+  background: 'var(--bg)',
+  color: 'var(--text)',
+  fontFamily: 'inherit',
+  fontSize: 13,
+  width: '100%',
+  boxSizing: 'border-box',
+};
+
+const lbl: React.CSSProperties = {
+  display: 'block',
+  fontSize: 12,
+  fontWeight: 700,
+  marginBottom: 4,
+  color: 'var(--text-muted)',
+};
+
+export default function Quotation() {
+  const [profile, setProfile] = useState<ProfileId>(DEFAULT_PROFILE_ID);
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [printFields, setPrintFields] = useState<QuotationPrintFields>(makeInitial);
+
+  const draftEntry = usePrintDraftStore((s) => s.drafts[FORM_KEY] ?? null);
+  const saveDraft = usePrintDraftStore((s) => s.saveDraft);
+  const clearDraft = usePrintDraftStore((s) => s.clearDraft);
+
+  const addPrintLog = usePrintLogStore((s) => s.addEntry);
+  useEffect(() => {
+    const handler = () =>
+      addPrintLog({
+        formType: FORM_KEY,
+        formNumber: printFields.quotationNumber,
+        employeeName: printFields.customerName || '—',
+        printProfile: profile,
+      });
+    window.addEventListener('beforeprint', handler);
+    return () => window.removeEventListener('beforeprint', handler);
+  }, [printFields.quotationNumber, printFields.customerName, profile, addPrintLog]);
+
+  function addItem() {
+    setPrintFields((prev) => ({ ...prev, items: [...prev.items, newItem()] }));
+  }
+
+  function removeItem(id: string) {
+    setPrintFields((prev) => ({
+      ...prev,
+      items: prev.items.length > 1 ? prev.items.filter((i) => i.id !== id) : prev.items,
+    }));
+  }
+
+  function updateItem(id: string, field: keyof Omit<QuotationItem, 'id'>, value: string) {
+    setPrintFields((prev) => ({
+      ...prev,
+      items: prev.items.map((i) => (i.id === id ? { ...i, [field]: value } : i)),
+    }));
+  }
+
+  function set<K extends keyof Omit<QuotationPrintFields, 'items'>>(
+    key: K,
+    value: QuotationPrintFields[K],
+  ) {
+    setPrintFields((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function resetForm() {
+    if (!window.confirm('سيتم مسح جميع الحقول. هل تريد المتابعة؟')) return;
+    setPrintFields(makeInitial());
+  }
+
+  return (
+    <FormLayout
+      ready={false}
+      formNumber={printFields.quotationNumber || generateFormNumber(FORM_KEY)}
+      title={lang === 'ar' ? 'عرض سعر' : 'Quotation'}
+      profile={profile}
+      toolbarExtra={
+        <>
+          <LanguageToggle lang={lang} onChange={setLang} />
+          <PrintProfileToggle profile={profile} onChange={setProfile} />
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12, padding: '4px 8px' }}
+            title="حفظ مسودة"
+            onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
+          >
+            💾
+          </button>
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
+              title="استعادة المسودة"
+              onClick={() => setPrintFields(draftEntry.state as QuotationPrintFields)}
+            >
+              ↩
+            </button>
+          )}
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px' }}
+              title="مسح المسودة"
+              onClick={() => clearDraft(FORM_KEY)}
+            >
+              ✕
+            </button>
+          )}
+        </>
+      }
+      qrData={{
+        formType: FORM_KEY,
+        formNumber: printFields.quotationNumber,
+        employeeId: 0,
+        employeeName: printFields.customerName || '—',
+        issueDate: new Date().toISOString(),
+      }}
+    >
+      {/* No-print panel */}
+      <div
+        className="no-print"
+        style={{
+          marginBottom: 16,
+          padding: '14px 18px',
+          background: 'var(--surface-2)',
+          border: '1px dashed var(--border)',
+          borderRadius: 10,
+        }}
+      >
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+          حقول الطباعة فقط — لن تُحفظ
+        </div>
+
+        {/* Row 1: number, date, validUntil, currency */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div>
+            <label style={lbl}>رقم العرض</label>
+            <input
+              style={inp}
+              value={printFields.quotationNumber}
+              onChange={(e) => set('quotationNumber', e.target.value)}
+            />
+          </div>
+          <div>
+            <label style={lbl}>التاريخ</label>
+            <input
+              type="date"
+              lang="en"
+              style={inp}
+              value={printFields.date}
+              onChange={(e) => set('date', e.target.value)}
+            />
+          </div>
+          <div>
+            <label style={lbl}>صالح حتى</label>
+            <input
+              type="date"
+              lang="en"
+              style={inp}
+              value={printFields.validUntil}
+              onChange={(e) => set('validUntil', e.target.value)}
+            />
+          </div>
+          <div>
+            <label style={lbl}>العملة</label>
+            <select
+              title="العملة"
+              style={inp}
+              value={printFields.currency}
+              onChange={(e) => set('currency', e.target.value)}
+            >
+              <option value="KWD">د.ك — KWD</option>
+              <option value="USD">دولار — USD</option>
+              <option value="SAR">ريال — SAR</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Row 2: customer, contact, phone, project */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div>
+            <label style={lbl}>اسم العميل</label>
+            <input
+              style={inp}
+              value={printFields.customerName}
+              onChange={(e) => set('customerName', e.target.value)}
+            />
+          </div>
+          <div>
+            <label style={lbl}>جهة الاتصال</label>
+            <input
+              style={inp}
+              value={printFields.contactPerson}
+              onChange={(e) => set('contactPerson', e.target.value)}
+            />
+          </div>
+          <div>
+            <label style={lbl}>الهاتف</label>
+            <input
+              style={inp}
+              value={printFields.phone}
+              onChange={(e) => set('phone', e.target.value)}
+            />
+          </div>
+          <div>
+            <label style={lbl}>المشروع</label>
+            <input
+              style={inp}
+              value={printFields.project}
+              onChange={(e) => set('project', e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Subject */}
+        <div style={{ marginBottom: 10 }}>
+          <label style={lbl}>الموضوع / Subject</label>
+          <input
+            style={inp}
+            value={printFields.subject}
+            onChange={(e) => set('subject', e.target.value)}
+          />
+        </div>
+
+        {/* Items table */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <label style={lbl}>البنود</label>
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '3px 8px' }}
+              onClick={addItem}
+            >
+              + إضافة بند
+            </button>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ background: 'var(--surface-2)' }}>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right', border: '1px solid var(--border)', width: '35%' }}>الوصف</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center', border: '1px solid var(--border)', width: '12%' }}>الكمية</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center', border: '1px solid var(--border)', width: '12%' }}>الوحدة</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'end', border: '1px solid var(--border)', width: '18%' }}>سعر الوحدة</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'end', border: '1px solid var(--border)', width: '15%' }}>الإجمالي</th>
+                <th style={{ border: '1px solid var(--border)', width: '8%' }} />
+              </tr>
+            </thead>
+            <tbody>
+              {printFields.items.map((item) => {
+                const total = (parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0);
+                return (
+                  <tr key={item.id}>
+                    <td style={{ border: '1px solid var(--border)', padding: 3 }}>
+                      <input
+                        style={{ ...inp, padding: '3px 6px' }}
+                        value={item.description}
+                        onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid var(--border)', padding: 3 }}>
+                      <input
+                        type="number"
+                        lang="en"
+                        min="0"
+                        style={{ ...inp, padding: '3px 6px', textAlign: 'center' }}
+                        value={item.qty}
+                        onChange={(e) => updateItem(item.id, 'qty', e.target.value)}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid var(--border)', padding: 3 }}>
+                      <input
+                        style={{ ...inp, padding: '3px 6px', textAlign: 'center' }}
+                        value={item.unit}
+                        onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid var(--border)', padding: 3 }}>
+                      <input
+                        type="number"
+                        lang="en"
+                        min="0"
+                        step="0.001"
+                        style={{ ...inp, padding: '3px 6px', textAlign: 'end' }}
+                        value={item.unitPrice}
+                        onChange={(e) => updateItem(item.id, 'unitPrice', e.target.value)}
+                      />
+                    </td>
+                    <td style={{ border: '1px solid var(--border)', padding: '3px 6px', textAlign: 'end', fontWeight: 600, color: '#1d4e6f' }}>
+                      {total > 0
+                        ? total.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+                        : '—'}
+                    </td>
+                    <td style={{ border: '1px solid var(--border)', padding: 3, textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 16, lineHeight: 1 }}
+                        disabled={printFields.items.length === 1}
+                        onClick={() => removeItem(item.id)}
+                      >
+                        ×
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Notes + terms */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+          <div>
+            <label style={lbl}>ملاحظات</label>
+            <textarea
+              style={{ ...inp, minHeight: 60, resize: 'vertical' }}
+              value={printFields.notes}
+              onChange={(e) => set('notes', e.target.value)}
+            />
+          </div>
+          <div>
+            <label style={lbl}>شروط الدفع</label>
+            <textarea
+              style={{ ...inp, minHeight: 60, resize: 'vertical' }}
+              value={printFields.paymentTerms}
+              onChange={(e) => set('paymentTerms', e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* Reset */}
+        <button type="button" className="btn secondary" style={{ fontSize: 12 }} onClick={resetForm}>
+          ↺ إعادة تعيين
+        </button>
+      </div>
+
+      {/* Print template */}
+      <QuotationTemplate printFields={printFields} lang={lang} />
+    </FormLayout>
+  );
+}

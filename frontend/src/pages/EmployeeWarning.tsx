@@ -6,10 +6,22 @@ import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import EmployeeWarningTemplate from '../forms/EmployeeWarningTemplate';
 import { usePrintLogStore } from '../stores/printLogStore';
+import { usePrintDraftStore } from '../stores/printDraftStore';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 
 type WarningLevel = '' | 'first' | 'second' | 'final';
+
+const FORM_KEY = 'employee-warning';
+
+const INITIAL_PRINT_FIELDS = {
+  warningLevel: '' as WarningLevel,
+  warningReason: '',
+  violationDetails: '',
+  correctiveAction: '',
+  additionalNotes: '',
+  warningDate: '',
+};
 
 export default function EmployeeWarning() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -51,6 +63,15 @@ export default function EmployeeWarning() {
       .catch(() => {});
   }, [data, formNumber, employeeId, profile]);
 
+  const draftEntry = usePrintDraftStore((s) => s.drafts[FORM_KEY] ?? null);
+  const saveDraft = usePrintDraftStore((s) => s.saveDraft);
+  const clearDraft = usePrintDraftStore((s) => s.clearDraft);
+
+  function resetPrintFields() {
+    if (!window.confirm('سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟')) return;
+    setPrintFields({ ...INITIAL_PRINT_FIELDS });
+  }
+
   const addPrintLog = usePrintLogStore((s) => s.addEntry);
   useEffect(() => {
     if (!data) return;
@@ -78,6 +99,37 @@ export default function EmployeeWarning() {
         <>
           <LanguageToggle lang={lang} onChange={setLang} />
           <PrintProfileToggle profile={profile} onChange={setProfile} />
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12, padding: '4px 8px' }}
+            title="حفظ مسودة"
+            onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
+          >
+            💾
+          </button>
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
+              title="استعادة المسودة"
+              onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
+            >
+              ↩
+            </button>
+          )}
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px' }}
+              title="مسح المسودة"
+              onClick={() => clearDraft(FORM_KEY)}
+            >
+              ✕
+            </button>
+          )}
         </>
       }
       qrData={{
@@ -96,6 +148,16 @@ export default function EmployeeWarning() {
           <div className="field"><label>تفاصيل المخالفة</label><input title="تفاصيل المخالفة" value={printFields.violationDetails} onChange={(e) => setPrintFields(p => ({ ...p, violationDetails: e.target.value }))} /></div>
           <div className="field"><label>الإجراء التصحيحي</label><input title="الإجراء التصحيحي" value={printFields.correctiveAction} onChange={(e) => setPrintFields(p => ({ ...p, correctiveAction: e.target.value }))} /></div>
           <div className="field"><label>ملاحظات إضافية</label><input title="ملاحظات إضافية" value={printFields.additionalNotes} onChange={(e) => setPrintFields(p => ({ ...p, additionalNotes: e.target.value }))} /></div>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12 }}
+            onClick={resetPrintFields}
+          >
+            ↺ مسح حقول الطباعة
+          </button>
         </div>
       </div>
       <EmployeeWarningTemplate

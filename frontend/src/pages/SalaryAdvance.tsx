@@ -6,8 +6,20 @@ import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import SalaryAdvanceTemplate from '../forms/SalaryAdvanceTemplate';
 import { usePrintLogStore } from '../stores/printLogStore';
+import { usePrintDraftStore } from '../stores/printDraftStore';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
+
+const FORM_KEY = 'salary-advance';
+
+const INITIAL_PRINT_FIELDS = {
+  advanceAmount: '',
+  requestDate: '',
+  reason: '',
+  installments: '',
+  installmentAmount: '',
+  repaymentSchedule: '',
+};
 
 export default function SalaryAdvance() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -49,6 +61,15 @@ export default function SalaryAdvance() {
       .catch(() => {});
   }, [data, formNumber, employeeId, profile]);
 
+  const draftEntry = usePrintDraftStore((s) => s.drafts[FORM_KEY] ?? null);
+  const saveDraft = usePrintDraftStore((s) => s.saveDraft);
+  const clearDraft = usePrintDraftStore((s) => s.clearDraft);
+
+  function resetPrintFields() {
+    if (!window.confirm('سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟')) return;
+    setPrintFields({ ...INITIAL_PRINT_FIELDS });
+  }
+
   const addPrintLog = usePrintLogStore((s) => s.addEntry);
   useEffect(() => {
     if (!data) return;
@@ -76,6 +97,37 @@ export default function SalaryAdvance() {
         <>
           <LanguageToggle lang={lang} onChange={setLang} />
           <PrintProfileToggle profile={profile} onChange={setProfile} />
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12, padding: '4px 8px' }}
+            title="حفظ مسودة"
+            onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
+          >
+            💾
+          </button>
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
+              title="استعادة المسودة"
+              onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
+            >
+              ↩
+            </button>
+          )}
+          {draftEntry && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px' }}
+              title="مسح المسودة"
+              onClick={() => clearDraft(FORM_KEY)}
+            >
+              ✕
+            </button>
+          )}
         </>
       }
       qrData={{
@@ -117,6 +169,16 @@ export default function SalaryAdvance() {
             <label>جدول السداد</label>
             <input title="جدول السداد" value={printFields.repaymentSchedule} onChange={(e) => setPrintFields(p => ({ ...p, repaymentSchedule: e.target.value }))} placeholder="مثال: 3 أقساط × 100 د.ك" />
           </div>
+        </div>
+        <div style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12 }}
+            onClick={resetPrintFields}
+          >
+            ↺ مسح حقول الطباعة
+          </button>
         </div>
       </div>
       <SalaryAdvanceTemplate employee={data.employee} latestAdvance={data.latestAdvance} lang={lang} printFields={printFields} />
