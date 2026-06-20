@@ -30,7 +30,7 @@ function DarkTooltip({ active, payload, label, revenueLabel = '', expensesLabel 
       border: '1px solid rgba(255,255,255,0.12)',
       borderRadius: 12,
       padding: '12px 16px',
-      fontFamily: 'Cairo, sans-serif',
+      fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
       direction: 'rtl',
       minWidth: 185,
       boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
@@ -82,7 +82,7 @@ export default function RevenueChart({ data, loading }: Props) {
           <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
           <XAxis
             dataKey="label"
-            tick={{ fill: '#9CA3AF', fontSize: 12, fontFamily: 'Cairo' }}
+            tick={{ fill: '#9CA3AF', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif' }}
             axisLine={false}
             tickLine={false}
           />
@@ -95,7 +95,7 @@ export default function RevenueChart({ data, loading }: Props) {
           />
           <Tooltip content={<DarkTooltip revenueLabel={revenueLabel} expensesLabel={expensesLabel} />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: 'Cairo, sans-serif', fontWeight: 700 }}>
+            <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
               {value === 'revenue' ? revenueLabel : expensesLabel}
             </span>
           )} />
