@@ -98,7 +98,7 @@ export default function InvoicePreview() {
 
   if (loadError) {
     return (
-      <div style={{ padding: 40, textAlign: 'center', fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif' }}>
+      <div style={{ padding: 40, textAlign: 'center', fontFamily: '"Cairo", Arial, sans-serif' }}>
         <p style={{ color: '#dc2626', fontWeight: 700 }}>⚠️ {loadError}</p>
         <button className="btn secondary" onClick={() => navigate('/invoices')} style={{ marginTop: 16 }}>
           ← {t('btn.inv.back')}
@@ -109,7 +109,7 @@ export default function InvoicePreview() {
 
   if (!data) {
     return (
-      <div style={{ padding: 40, textAlign: 'center', fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif' }}>
+      <div style={{ padding: 40, textAlign: 'center', fontFamily: '"Cairo", Arial, sans-serif' }}>
         <div className="spinner" />
         <p style={{ marginTop: 12, color: '#64748b' }}>{t('msg.loading')}</p>
       </div>
@@ -204,7 +204,7 @@ export default function InvoicePreview() {
       `}</style>
 
       <div className="inv-wrap" style={{
-        padding: '16px 24px', fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
+        padding: '16px 24px', fontFamily: '"Cairo", Arial, sans-serif',
         maxWidth: 900, margin: '0 auto', color: '#0f172a',
         background: '#fff', direction: 'rtl',
       }}>

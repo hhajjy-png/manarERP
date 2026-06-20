@@ -85,7 +85,7 @@ export default function PayrollPayslip() {
     <div
       style={{
         padding: 28,
-        fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
+        fontFamily: '"Cairo", Arial, sans-serif',
         maxWidth: 900,
         margin: '0 auto',
         color: '#0f172a',
