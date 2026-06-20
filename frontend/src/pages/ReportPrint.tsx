@@ -51,7 +51,7 @@ export default function ReportPrint() {
   if (error || !rep) return <div className="center-msg">تعذّر تحميل التقرير: {error}</div>;
 
   return (
-    <div style={{ padding: 28, fontFamily: "'Cairo', sans-serif", maxWidth: 1100, margin: '0 auto', color: '#0f172a', background: '#fff', minHeight: '100vh' }}>
+    <div style={{ padding: 28, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', maxWidth: 1100, margin: '0 auto', color: '#0f172a', background: '#fff', minHeight: '100vh' }}>
       <div className="no-print" style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
         <button className="btn" onClick={() => window.print()}>🖨️ طباعة / حفظ PDF</button>
         <button className="btn secondary" onClick={() => navigate(-1)}>رجوع</button>
