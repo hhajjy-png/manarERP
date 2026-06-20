@@ -5,6 +5,7 @@ import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import LeaveRequestTemplate from '../forms/LeaveRequestTemplate';
+import { usePrintLogStore } from '../stores/printLogStore';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 
@@ -68,6 +69,14 @@ export default function LeaveRequest() {
     setPrintFields(p => ({ ...p, days: String(computed) }));
   }, [printFields.startDate, printFields.endDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const addPrintLog = usePrintLogStore((s) => s.addEntry);
+  useEffect(() => {
+    if (!data) return;
+    const handler = () => addPrintLog({ formType: 'leave-request', formNumber, employeeName: data.employee.fullName, printProfile: profile });
+    window.addEventListener('beforeprint', handler);
+    return () => window.removeEventListener('beforeprint', handler);
+  }, [data, formNumber, addPrintLog, profile]);
+
   if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!data)
     return (
@@ -122,6 +131,7 @@ export default function LeaveRequest() {
               <label>عدد الأيام</label>
               <input
                 type="number"
+                lang="en"
                 min="1"
                 title="عدد الأيام"
                 value={printFields.days}
@@ -138,6 +148,7 @@ export default function LeaveRequest() {
               <label>تاريخ البداية</label>
               <input
                 type="date"
+                lang="en"
                 title="تاريخ البداية"
                 value={printFields.startDate}
                 onChange={(e) => setPrintFields(p => ({ ...p, startDate: e.target.value }))}
@@ -147,6 +158,7 @@ export default function LeaveRequest() {
               <label>تاريخ النهاية</label>
               <input
                 type="date"
+                lang="en"
                 title="تاريخ النهاية"
                 value={printFields.endDate}
                 onChange={(e) => setPrintFields(p => ({ ...p, endDate: e.target.value }))}
@@ -167,6 +179,7 @@ export default function LeaveRequest() {
           <label>تاريخ العودة المتوقعة</label>
           <input
             type="date"
+            lang="en"
             title="تاريخ العودة المتوقعة"
             value={printFields.expectedReturnDate}
             onChange={(e) => setPrintFields(p => ({ ...p, expectedReturnDate: e.target.value }))}

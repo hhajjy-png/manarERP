@@ -8,6 +8,9 @@ import EmploymentContractTemplate, {
 } from '../forms/EmploymentContractTemplate';
 import { ProfileId, DEFAULT_PROFILE_ID } from '../forms/shared/printProfiles';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
+import { usePrintDraftStore } from '../stores/printDraftStore';
+import { usePrintLogStore } from '../stores/printLogStore';
+import { getNationalityEn, getJobTitleEn } from '../forms/shared/contractTranslations';
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -86,12 +89,12 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
           <div>
             <label style={lbl}>تاريخ تحرير العقد</label>
-            <input type="date" style={inp} value={params.issueDate}
+            <input type="date" lang="en" style={inp} value={params.issueDate}
               onChange={e => onChange('issueDate', e.target.value)} />
           </div>
           <div>
             <label style={lbl}>تاريخ بداية نفاذ العقد</label>
-            <input type="date" style={inp} value={params.startDate}
+            <input type="date" lang="en" style={inp} value={params.startDate}
               onChange={e => onChange('startDate', e.target.value)} />
           </div>
         </div>
@@ -109,13 +112,13 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
           <div>
             <label style={lbl}>فترة التجربة (أيام)</label>
-            <input type="number" style={inp} min={1} max={365}
+            <input type="number" lang="en" style={inp} min={1} max={365}
               value={params.probationDays}
               onChange={e => onChange('probationDays', Math.max(1, Number(e.target.value)))} />
           </div>
           <div>
             <label style={lbl}>الإجازة السنوية (أيام)</label>
-            <input type="number" style={inp} min={1} max={60}
+            <input type="number" lang="en" style={inp} min={1} max={60}
               value={params.annualLeaveDays}
               onChange={e => onChange('annualLeaveDays', Math.max(1, Number(e.target.value)))} />
           </div>
@@ -241,24 +244,36 @@ function NewEmployeeForm({ onComplete, onBack }: {
               placeholder="00000000000" />
           </div>
           <div>
-            <label style={lbl}>الجنسية</label>
-            <input style={inp} value={data.nationality}
-              onChange={e => set('nationality', e.target.value)}
-              placeholder="مثال: كويتي" />
+            <label style={lbl}>رقم الجواز</label>
+            <input style={inp} value={data.passportNumber}
+              onChange={e => set('passportNumber', e.target.value)} />
           </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
           <div>
-            <label style={lbl}>الجنسية بالإنجليزي</label>
+            <label style={lbl}>الجنسية</label>
+            <input style={inp} value={data.nationality}
+              onChange={e => set('nationality', e.target.value)}
+              placeholder="مثال: كويتي" />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+              <label style={{ ...lbl, marginBottom: 0 }}>الجنسية بالإنجليزي</label>
+              {data.nationality && (
+                <button
+                  type="button"
+                  title="ترجمة الجنسية من العربي تلقائياً"
+                  style={{ fontSize: 11, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', fontFamily: 'inherit' }}
+                  onClick={() => set('nationalityEn', getNationalityEn(data.nationality))}
+                >
+                  ترجمة ←
+                </button>
+              )}
+            </div>
             <input style={inp} value={data.nationalityEn}
               onChange={e => set('nationalityEn', e.target.value)}
               placeholder="e.g. Kuwaiti" />
-          </div>
-          <div>
-            <label style={lbl}>رقم الجواز</label>
-            <input style={inp} value={data.passportNumber}
-              onChange={e => set('passportNumber', e.target.value)} />
           </div>
         </div>
 
@@ -270,7 +285,19 @@ function NewEmployeeForm({ onComplete, onBack }: {
               placeholder="مثال: مهندس مدني" />
           </div>
           <div>
-            <label style={lbl}>المسمى الوظيفي بالإنجليزي</label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+              <label style={{ ...lbl, marginBottom: 0 }}>المسمى الوظيفي بالإنجليزي</label>
+              {data.jobTitle && (
+                <button
+                  type="button"
+                  title="ترجمة المسمى الوظيفي من العربي تلقائياً"
+                  style={{ fontSize: 11, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', fontFamily: 'inherit' }}
+                  onClick={() => set('jobTitleEn', getJobTitleEn(data.jobTitle))}
+                >
+                  ترجمة ←
+                </button>
+              )}
+            </div>
             <input style={inp} value={data.jobTitleEn}
               onChange={e => set('jobTitleEn', e.target.value)}
               placeholder="e.g. Civil Engineer" />
@@ -280,7 +307,7 @@ function NewEmployeeForm({ onComplete, onBack }: {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
           <div>
             <label style={lbl}>الراتب الشهري (د.ك) <span style={{ color: '#dc2626' }}>*</span></label>
-            <input type="number" style={inp} value={data.salary}
+            <input type="number" lang="en" style={inp} value={data.salary}
               onChange={e => set('salary', e.target.value)}
               placeholder="0.000" min={0} step={0.001} />
           </div>
@@ -405,7 +432,7 @@ function ExistingEmployeeLookup({ onFound, onBack }: {
     setLoading(true);
     try {
       const res = await api.get(`/employees?search=${encodeURIComponent(query.trim())}&limit=1`);
-      const rows: ContractEmployee[] = res.data.data?.rows ?? [];
+      const rows: ContractEmployee[] = res.data.data?.data ?? [];
       if (rows.length === 0) { setError('لم يُعثر على موظف بهذا الرقم أو الاسم'); return; }
       const emp = rows[0];
       const detail = await api.get(`/forms/employment-contract/${emp.id}`);
@@ -471,6 +498,11 @@ export default function EmploymentContract() {
 
   const [params, setParams] = useState<ContractParams>(defaultParams());
   const [profile, setProfile] = useState<ProfileId>(DEFAULT_PROFILE_ID);
+  const [printCount, setPrintCount] = useState(0);
+
+  const saveDraft = usePrintDraftStore(s => s.saveDraft);
+  const getDraft = usePrintDraftStore(s => s.getDraft);
+  const addPrintLog = usePrintLogStore(s => s.addEntry);
 
   // Fetch when coming from Employees list with a URL param
   useEffect(() => {
@@ -498,6 +530,34 @@ export default function EmploymentContract() {
       })
       .catch(() => {});
   }, [employee, mode, formNumber, profile]);
+
+  function handlePrint() {
+    if (employee) {
+      saveDraft('employment-contract', { employee, params, profile });
+      addPrintLog({
+        formType: 'employment-contract',
+        formNumber,
+        employeeName: employee.fullName,
+        printProfile: profile,
+      });
+    }
+    setPrintCount(c => c + 1);
+    window.print();
+  }
+
+  function restoreLastDraft() {
+    const draft = getDraft('employment-contract');
+    if (!draft) return;
+    const { employee: e, params: p, profile: pr } = draft.state as {
+      employee: ContractEmployee;
+      params: ContractParams;
+      profile: ProfileId;
+    };
+    setEmployee(e);
+    setParams(p);
+    setProfile(pr);
+    setMode('preview');
+  }
 
   function handleChange<K extends keyof ContractParams>(key: K, value: ContractParams[K]) {
     setParams(prev => ({ ...prev, [key]: value }));
@@ -570,7 +630,7 @@ export default function EmploymentContract() {
           className="no-print"
           style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center' }}
         >
-          <button className="btn" onClick={() => window.print()}>
+          <button className="btn" onClick={handlePrint}>
             🖨️ طباعة / حفظ PDF
           </button>
           <button className="btn secondary" onClick={() => setMode('params')}>
@@ -579,6 +639,11 @@ export default function EmploymentContract() {
           <button className="btn secondary" onClick={() => employeeId ? navigate(-1) : setMode('selector')}>
             رجوع
           </button>
+          {printCount > 0 && getDraft('employment-contract') && (
+            <button type="button" className="btn secondary" onClick={restoreLastDraft} title="استعادة آخر مسودة مطبوعة">
+              ↩ استعادة المسودة
+            </button>
+          )}
           <PrintProfileToggle profile={profile} onChange={setProfile} />
           <span style={{ fontSize: 12, color: 'var(--text-muted)', marginRight: 'auto' }}>
             {formNumber}

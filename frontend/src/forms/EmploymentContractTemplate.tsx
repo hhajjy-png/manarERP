@@ -174,15 +174,6 @@ export default function EmploymentContractTemplate({
           <div style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginTop: 1 }}>The Public Authority For Manpower</div>
         </div>
 
-        <div className="ec-row" style={{ ...twoCol, background: '#f0f4f8', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-          <div className="ec-cell" style={{ ...ar, fontWeight: 700, textAlign: 'center', padding: '4px 7px' }}>
-            نموذج عقد عمل إسترشادي في القطاع الأهلي
-          </div>
-          <div className="ec-cell" style={{ ...en, fontWeight: 700, textAlign: 'center', padding: '4px 7px' }}>
-            Sample Form of an Employment Contract in the Civil Sector
-          </div>
-        </div>
-
         <div className="ec-row" style={twoCol}>
           <div className="ec-cell" style={ar}>{`دولة الكويت\nالهيئة العامة للقوى العاملة / إدارة عمل محافظة الفروانية\nإنه في يوم ${dayAr} الموافق ${issueFmt} تحرر هذا العقد بين كل من:-`}</div>
           <div className="ec-cell" style={en}>{`State of Kuwait\nPublic Authority for Manpower / Labour Department Farwaniya\nOn ${dayEn} corresponding to ${issueFmt} the present contract was concluded by and between:`}</div>
@@ -321,7 +312,7 @@ export default function EmploymentContractTemplate({
         <div className="ec-row" style={{ ...twoCol, borderBottom: 'none' }}>
           <div style={{ ...ar, padding: '12px 10px' }}>
             <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4, direction: 'rtl' }}>الطرف الأول — صاحب العمل / First Party</div>
-            <div style={{ fontSize: 10, color: '#374151', marginBottom: 48, direction: 'rtl' }}>
+            <div style={{ fontSize: 10, color: '#374151', marginBottom: 72, direction: 'rtl' }}>
               شركة المنار الدولية · حسن فلاح نايف
             </div>
             <div style={{ borderTop: '1px solid #374151', paddingTop: 6, fontSize: 9.5, color: '#6b7280', direction: 'rtl' }}>
@@ -330,7 +321,7 @@ export default function EmploymentContractTemplate({
           </div>
           <div style={{ ...en, padding: '12px 10px' }}>
             <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4 }}>Second Party — Employee / الطرف الثاني</div>
-            <div style={{ fontSize: 10, color: '#374151', marginBottom: 48 }}>
+            <div style={{ fontSize: 10, color: '#374151', marginBottom: 72 }}>
               {emp.fullNameEn ?? emp.fullName}
               {emp.civilId ? ` · ${emp.civilId}` : ''}
             </div>
