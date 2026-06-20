@@ -18,6 +18,7 @@ interface FormCard {
   titleEn: string;
   description: string;
   icon: string;
+  requiresEmployee?: boolean;
 }
 
 const FORM_CARDS: FormCard[] = [
@@ -93,6 +94,24 @@ const FORM_CARDS: FormCard[] = [
     description: 'نموذج عقد العمل الرسمي الصادر عن الهيئة العامة للقوى العاملة، ثنائي اللغة (عربي / إنجليزي).',
     icon: '📝',
   },
+  {
+    key: 'quotation',
+    route: 'quotation',
+    titleAr: 'عرض سعر',
+    titleEn: 'Quotation',
+    description: 'نموذج عرض سعر رسمي للعملاء يتضمن جدول الأسعار والشروط.',
+    icon: '📊',
+    requiresEmployee: false,
+  },
+  {
+    key: 'purchase-request',
+    route: 'purchase-request',
+    titleAr: 'طلب شراء',
+    titleEn: 'Purchase Request',
+    description: 'نموذج طلب شراء داخلي مع جدول المواد والكميات وبيانات الاعتماد.',
+    icon: '🛒',
+    requiresEmployee: false,
+  },
 ];
 
 const sel: React.CSSProperties = {
@@ -128,8 +147,12 @@ export default function Forms() {
   }
 
   function handlePrint(card: FormCard) {
-    if (!selectedId) return;
-    navigate(`/forms/${card.route}/${selectedId}?printMode=${printModes[card.key]}`);
+    if (card.requiresEmployee !== false && !selectedId) return;
+    if (card.requiresEmployee === false) {
+      navigate(`/forms/${card.route}`);
+    } else {
+      navigate(`/forms/${card.route}/${selectedId}?printMode=${printModes[card.key]}`);
+    }
   }
 
   return (
@@ -214,7 +237,7 @@ export default function Forms() {
             </p>
 
             {/* Print mode selector — not applicable for employment contract (has own dialog) */}
-            {card.key !== 'employment-contract' && (
+            {card.key !== 'employment-contract' && card.requiresEmployee !== false && (
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 6, color: 'var(--text-muted)' }}>
                   وضع الطباعة
@@ -238,7 +261,7 @@ export default function Forms() {
               className="btn"
               style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               onClick={() => handlePrint(card)}
-              disabled={!selectedId}
+              disabled={card.requiresEmployee !== false && !selectedId}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>print</span>
               طباعة

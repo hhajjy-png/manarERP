@@ -25,6 +25,8 @@ const FORM_LABELS: Record<string, string> = {
   'employee-warning': 'إنذار موظف',
   'performance-evaluation': 'تقييم أداء',
   'resignation': 'استقالة',
+  quotation: 'عرض سعر',
+  'purchase-request': 'طلب شراء',
 };
 
 const PROFILE_LABELS: Record<string, string> = {
