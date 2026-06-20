@@ -157,7 +157,7 @@ function ChequePrintOutput({ data, template }: { data: PreviewData; template: Ch
         position: 'relative',
         width: '100%',
         aspectRatio: '700 / 272',
-        fontFamily: "'Cairo', 'Tajawal', Arial, sans-serif",
+        fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
         overflow: 'hidden',
       }}
     >
