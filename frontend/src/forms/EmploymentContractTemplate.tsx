@@ -77,7 +77,7 @@ const NOTE =
 
 const wrap: CSSProperties = {
   border: '1px solid #1d4e6f',
-  fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
+  fontFamily: '"Cairo", Arial, sans-serif',
   fontSize: 11,
   lineHeight: 1.5,
   color: '#111827',

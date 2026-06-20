@@ -64,7 +64,7 @@ export default function FormLayout({
         className="form-page"
         style={{
           padding: '18px 32px',
-          fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
+          fontFamily: '"Cairo", Arial, sans-serif',
           maxWidth: 820,
           margin: '0 auto',
           color: '#0f172a',
