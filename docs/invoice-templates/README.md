@@ -82,7 +82,7 @@ Source font files: `source/fonts/*.woff2`
 
 ---
 
-## Future Integration
+## Future Integration — Invoice Templates
 
 > **Do not implement now.** Document only.
 
@@ -96,6 +96,60 @@ The integration will work as follows:
 - **Invoice template selection** — a future Settings page will allow admins to set the default invoice layout per company
 - **Fully offline** — no CDN, no remote font loading; fonts bundled in the production build
 - **Cairo / IBM Plex Sans Arabic ready** — the React implementation will support both Cairo (current brand) and IBM Plex Sans Arabic as a future alternative
+
+---
+
+## Future Integration — Quotation & Purchase Request Forms
+
+> Added 2026-06-20 as part of Forms & Operations Polish Pack v3.
+
+Two standalone print forms were added in Pack v3 that use hardcoded fields instead of backend entities. This section documents how they should eventually be integrated.
+
+### Quotation (`/forms/quotation`)
+
+**Current state (Pack v3):** Standalone form with manually-entered customer name, contact, phone, project description, and items. No backend connection. Data lives in React state only — not persisted.
+
+**Integration contract (future):**
+
+| Current field | Future data source | Notes |
+|---|---|---|
+| `customerName` | `customerId` → `GET /customers/:id` | Replace text input with customer selector |
+| `contactPerson` | Customer entity `.contactPerson` | Derived from customer record |
+| `phone` | Customer entity `.phone` | Derived from customer record |
+| `project` | `projectId` → future Projects module | Replace text input with project selector |
+| `currency` | Settings or per-customer default | Keep local state as override |
+| `items[]` | React state only | No change — items are quotation-specific |
+
+**Backend requirements:**
+- No new tables needed for the form itself
+- A future `Quotation` model (with status: `draft | sent | approved | rejected`) would enable saving and tracking quotations
+- `formNumber` (currently `QTN-YYYY-XXXX`) should be replaced with a server-generated sequence
+
+**Print integration:**
+- The template already uses `FormLayout` with `ProfileId` — fully compatible with the Print Profile system
+- Language toggle (AR/EN) is already implemented
+
+### Purchase Request (`/forms/purchase-request`)
+
+**Current state (Pack v3):** Standalone form with manually-entered requester name, department, date, priority, and items. No backend connection.
+
+**Integration contract (future):**
+
+| Current field | Future data source | Notes |
+|---|---|---|
+| `requesterName` | `employeeId` → `GET /employees/:id` | Replace text input with employee selector |
+| `department` | Employee entity `.department` | Derived from employee record |
+| `requestDate` | Default to today | Keep as override |
+| `priority` | `PriorityLevel` enum | Keep as-is |
+| `items[]` | React state only | No change — items are request-specific |
+
+**Backend requirements:**
+- A future `PurchaseRequest` model with status workflow (`draft | submitted | approved | rejected | ordered`) would enable tracking
+- Approval section (Requester / Department Head / Purchasing) maps to a future multi-step approval workflow
+- `formNumber` (currently `PR-YYYY-XXXX`) should be server-generated
+
+**Print integration:**
+- Same as Quotation — already uses `FormLayout`, `ProfileId`, language toggle
 
 ---
 
