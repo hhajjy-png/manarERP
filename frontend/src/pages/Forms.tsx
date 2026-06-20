@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { PrintMode, PRINT_MODE_LABELS } from '../forms/shared/printMode';
+import PrintLogPanel from '../components/PrintLogPanel';
 
 interface EmployeeOption {
   id: number;
@@ -176,7 +177,7 @@ export default function Forms() {
         )}
       </div>
 
-      {/* 8 form cards */}
+      {/* Form cards grid */}
       <div
         style={{
           display: 'grid',
@@ -245,6 +246,8 @@ export default function Forms() {
           </div>
         ))}
       </div>
+
+      <PrintLogPanel />
     </div>
   );
 }

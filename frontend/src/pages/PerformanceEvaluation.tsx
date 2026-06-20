@@ -5,6 +5,7 @@ import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import PerformanceEvaluationTemplate from '../forms/PerformanceEvaluationTemplate';
+import { usePrintLogStore } from '../stores/printLogStore';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 
@@ -47,6 +48,14 @@ export default function PerformanceEvaluation() {
       .catch(() => {});
   }, [data, formNumber, employeeId, profile]);
 
+  const addPrintLog = usePrintLogStore((s) => s.addEntry);
+  useEffect(() => {
+    if (!data) return;
+    const handler = () => addPrintLog({ formType: 'performance-evaluation', formNumber, employeeName: data.employee.fullName, printProfile: profile });
+    window.addEventListener('beforeprint', handler);
+    return () => window.removeEventListener('beforeprint', handler);
+  }, [data, formNumber, addPrintLog, profile]);
+
   if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!data)
     return (
@@ -81,18 +90,18 @@ export default function PerformanceEvaluation() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div className="field">
             <label>فترة التقييم من</label>
-            <input type="date" title="فترة التقييم من" value={printFields.periodFrom} onChange={(e) => setPrintFields(p => ({ ...p, periodFrom: e.target.value }))} />
+            <input type="date" lang="en" title="فترة التقييم من" value={printFields.periodFrom} onChange={(e) => setPrintFields(p => ({ ...p, periodFrom: e.target.value }))} />
           </div>
           <div className="field">
             <label>فترة التقييم إلى</label>
-            <input type="date" title="فترة التقييم إلى" value={printFields.periodTo} onChange={(e) => setPrintFields(p => ({ ...p, periodTo: e.target.value }))} />
+            <input type="date" lang="en" title="فترة التقييم إلى" value={printFields.periodTo} onChange={(e) => setPrintFields(p => ({ ...p, periodTo: e.target.value }))} />
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 10 }}>
           {['جودة العمل', 'الالتزام والانضباط', 'العمل الجماعي', 'المبادرة والإبداع', 'الانضباط في المواعيد'].map((label, i) => (
             <div key={i} className="field">
               <label>{label} (من 20)</label>
-              <input type="number" min="0" max="20" title={label} value={printFields.scores[i]} onChange={(e) => setPrintFields(p => { const s = [...p.scores]; s[i] = e.target.value; return { ...p, scores: s }; })} />
+              <input type="number" lang="en" min="0" max="20" title={label} value={printFields.scores[i]} onChange={(e) => setPrintFields(p => { const s = [...p.scores]; s[i] = e.target.value; return { ...p, scores: s }; })} />
             </div>
           ))}
         </div>

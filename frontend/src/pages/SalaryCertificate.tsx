@@ -7,6 +7,7 @@ import FormLayout from '../forms/shared/FormLayout';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 import SalaryCertificateTemplate from '../forms/SalaryCertificateTemplate';
+import { usePrintLogStore } from '../stores/printLogStore';
 
 type Lang = 'ar' | 'en';
 
@@ -42,6 +43,14 @@ export default function SalaryCertificate() {
       })
       .catch(() => {});
   }, [data, formNumber, employeeId, profile]);
+
+  const addPrintLog = usePrintLogStore((s) => s.addEntry);
+  useEffect(() => {
+    if (!data) return;
+    const handler = () => addPrintLog({ formType: 'salary-certificate', formNumber, employeeName: data.employee.fullName, printProfile: profile });
+    window.addEventListener('beforeprint', handler);
+    return () => window.removeEventListener('beforeprint', handler);
+  }, [data, formNumber, addPrintLog, profile]);
 
   if (error)
     return <div className="center-msg">تعذّر تحميل بيانات الشهادة: {error}</div>;

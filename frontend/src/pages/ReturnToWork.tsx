@@ -5,6 +5,7 @@ import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import ReturnToWorkTemplate from '../forms/ReturnToWorkTemplate';
+import { usePrintLogStore } from '../stores/printLogStore';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 
@@ -68,6 +69,14 @@ export default function ReturnToWork() {
     setPrintFields(p => ({ ...p, leaveDays: String(computed) }));
   }, [printFields.leaveStartDate, printFields.leaveEndDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const addPrintLog = usePrintLogStore((s) => s.addEntry);
+  useEffect(() => {
+    if (!data) return;
+    const handler = () => addPrintLog({ formType: 'return-to-work', formNumber, employeeName: data.employee.fullName, printProfile: profile });
+    window.addEventListener('beforeprint', handler);
+    return () => window.removeEventListener('beforeprint', handler);
+  }, [data, formNumber, addPrintLog, profile]);
+
   if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!data)
     return (
@@ -115,6 +124,7 @@ export default function ReturnToWork() {
               <label>عدد الأيام</label>
               <input
                 type="number"
+                lang="en"
                 min="1"
                 title="عدد الأيام"
                 value={printFields.leaveDays}
@@ -129,16 +139,16 @@ export default function ReturnToWork() {
             </div>
             <div className="field">
               <label>تاريخ بداية الإجازة</label>
-              <input type="date" title="تاريخ بداية الإجازة" value={printFields.leaveStartDate} onChange={(e) => setPrintFields(p => ({ ...p, leaveStartDate: e.target.value }))} />
+              <input type="date" lang="en" title="تاريخ بداية الإجازة" value={printFields.leaveStartDate} onChange={(e) => setPrintFields(p => ({ ...p, leaveStartDate: e.target.value }))} />
             </div>
             <div className="field">
               <label>تاريخ نهاية الإجازة</label>
-              <input type="date" title="تاريخ نهاية الإجازة" value={printFields.leaveEndDate} onChange={(e) => setPrintFields(p => ({ ...p, leaveEndDate: e.target.value }))} />
+              <input type="date" lang="en" title="تاريخ نهاية الإجازة" value={printFields.leaveEndDate} onChange={(e) => setPrintFields(p => ({ ...p, leaveEndDate: e.target.value }))} />
             </div>
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="field"><label>تاريخ العودة الفعلية</label><input type="date" title="تاريخ العودة الفعلية" value={printFields.actualReturnDate} onChange={(e) => setPrintFields(p => ({ ...p, actualReturnDate: e.target.value }))} /></div>
+          <div className="field"><label>تاريخ العودة الفعلية</label><input type="date" lang="en" title="تاريخ العودة الفعلية" value={printFields.actualReturnDate} onChange={(e) => setPrintFields(p => ({ ...p, actualReturnDate: e.target.value }))} /></div>
           <div className="field"><label>ملاحظات طبية / تقرير الطبيب</label><input title="ملاحظات طبية" value={printFields.medicalNotes} onChange={(e) => setPrintFields(p => ({ ...p, medicalNotes: e.target.value }))} /></div>
         </div>
       </div>

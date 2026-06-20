@@ -5,6 +5,7 @@ import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import SalaryAdvanceTemplate from '../forms/SalaryAdvanceTemplate';
+import { usePrintLogStore } from '../stores/printLogStore';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 
@@ -48,6 +49,14 @@ export default function SalaryAdvance() {
       .catch(() => {});
   }, [data, formNumber, employeeId, profile]);
 
+  const addPrintLog = usePrintLogStore((s) => s.addEntry);
+  useEffect(() => {
+    if (!data) return;
+    const handler = () => addPrintLog({ formType: 'salary-advance', formNumber, employeeName: data.employee.fullName, printProfile: profile });
+    window.addEventListener('beforeprint', handler);
+    return () => window.removeEventListener('beforeprint', handler);
+  }, [data, formNumber, addPrintLog, profile]);
+
   if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!data)
     return (
@@ -83,11 +92,11 @@ export default function SalaryAdvance() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
             <div className="field">
               <label>مبلغ السلفة (د.ك)</label>
-              <input type="number" min="0" step="0.001" title="مبلغ السلفة" value={printFields.advanceAmount} onChange={(e) => setPrintFields(p => ({ ...p, advanceAmount: e.target.value }))} placeholder="0.000" />
+              <input type="number" lang="en" min="0" step="0.001" title="مبلغ السلفة" value={printFields.advanceAmount} onChange={(e) => setPrintFields(p => ({ ...p, advanceAmount: e.target.value }))} placeholder="0.000" />
             </div>
             <div className="field">
               <label>تاريخ الطلب</label>
-              <input type="date" title="تاريخ الطلب" value={printFields.requestDate} onChange={(e) => setPrintFields(p => ({ ...p, requestDate: e.target.value }))} />
+              <input type="date" lang="en" title="تاريخ الطلب" value={printFields.requestDate} onChange={(e) => setPrintFields(p => ({ ...p, requestDate: e.target.value }))} />
             </div>
             <div className="field">
               <label>سبب السلفة</label>
@@ -98,11 +107,11 @@ export default function SalaryAdvance() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
           <div className="field">
             <label>عدد الأقساط</label>
-            <input type="number" min="1" title="عدد الأقساط" value={printFields.installments} onChange={(e) => setPrintFields(p => ({ ...p, installments: e.target.value }))} />
+            <input type="number" lang="en" min="1" title="عدد الأقساط" value={printFields.installments} onChange={(e) => setPrintFields(p => ({ ...p, installments: e.target.value }))} />
           </div>
           <div className="field">
             <label>قيمة القسط (د.ك)</label>
-            <input type="number" min="0" step="0.001" title="قيمة القسط" value={printFields.installmentAmount} onChange={(e) => setPrintFields(p => ({ ...p, installmentAmount: e.target.value }))} placeholder="0.000" />
+            <input type="number" lang="en" min="0" step="0.001" title="قيمة القسط" value={printFields.installmentAmount} onChange={(e) => setPrintFields(p => ({ ...p, installmentAmount: e.target.value }))} placeholder="0.000" />
           </div>
           <div className="field">
             <label>جدول السداد</label>
