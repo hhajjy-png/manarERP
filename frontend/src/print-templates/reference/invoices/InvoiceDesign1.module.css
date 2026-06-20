@@ -1,0 +1,37 @@
+.page { width:210mm; height:297mm; position:relative; background:#fff; overflow:hidden; }
+.ar { direction:rtl; text-align:right; }
+.en { direction:ltr; text-align:left; }
+
+.p { padding:5mm 8mm 7mm 8mm; height:297mm; display:flex; flex-direction:column; }
+.hdr { display:flex; justify-content:space-between; align-items:flex-start; }
+.hL { width:34%; }
+.hC { width:24%; text-align:center; }
+.hR { width:34%; direction:rtl; text-align:right; }
+.cname-en { font-weight:800; font-size:12.5pt; color:#30246C; line-height:1.05; }
+.tag-en { font-weight:700; font-size:6.4pt; color:#30246C; margin-top:1mm; }
+.cap-en { font-size:7.2pt; color:#30246C; margin-top:.3mm; }
+.cname-ar { font-weight:800; font-size:15pt; color:#30246C; line-height:1; }
+.tag-ar { font-weight:700; font-size:7pt; color:#30246C; margin-top:1mm; }
+.cap-ar { font-size:7.5pt; color:#30246C; margin-top:.3mm; }
+.contact { font-size:7.4pt; color:#30246C; margin-top:1.5mm; line-height:1.55; }
+.contact span { font-weight:800; }
+.logo { width:26mm; }
+.title { text-align:center; margin-top:0.5mm; margin-bottom:1mm; }
+.title .a { font-weight:800; font-size:13pt; color:#30246C; }
+.title .b { font-weight:800; font-size:11pt; color:#30246C; letter-spacing:.3px; }
+.meta { direction:rtl; display:flex; flex-direction:column; font-size:9.5pt; color:#30246C; font-weight:700; margin:1mm 1mm 1.5mm 1mm; }
+.m-date { margin-bottom:1.8mm; }
+.m-to { display:flex; align-items:flex-end; }
+.dotline { flex:1; border-bottom:1px dotted #30246C; margin:0 2mm; transform:translateY(-3px); }
+.page table { width:100%; border-collapse:collapse; direction:ltr; }
+.page th, .page td { border:1px solid #30246C; text-align:center; vertical-align:middle; }
+.page thead th { color:#30246C; font-weight:800; padding:1mm; }
+.grp { font-size:9.5pt; } .sub { font-size:8pt; font-weight:700; }
+.c-desc { width:38%; } .c-qty { width:13%; } .c-d { width:13%; } .c-f { width:6.5%; }
+.page tbody td { height:8mm; }
+.deschead { font-size:10pt; } .descsub { font-size:8.5pt; }
+.totrow td { color:#30246C; font-weight:800; padding:1.6mm 2mm; font-size:10pt; }
+.tot-label { text-align:center; }
+.foot { direction:rtl; display:flex; justify-content:space-between; font-size:10pt; color:#30246C; font-weight:700; margin-top:4mm; }
+.foot .ln { display:inline-block; width:46mm; border-bottom:1px dotted #30246C; margin:0 2mm; transform:translateY(-3px); }
+.wm { position:absolute; top:46%; left:50%; transform:translate(-50%,-50%); width:70mm; opacity:.06; }

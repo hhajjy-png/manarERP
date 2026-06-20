@@ -1,88 +1,49 @@
-﻿export default function QuotationDesign1Blank() {
+import logo from '../assets/almanar-logo.png';
+import styles from './QuotationDesign1.module.css';
+
+export default function QuotationDesign1Blank() {
   return (
     <>
-      <style>{`
-body { margin:0; font-family:'Cairo',sans-serif; color:#000; }
-.page { width:210mm; height:297mm; position:relative; background:#fff; overflow:hidden; }
-.ar { direction:rtl; text-align:right; }
-.en { direction:ltr; text-align:left; }
-
-.p { padding:8mm 9mm 6mm 9mm; height:297mm; display:flex; flex-direction:column; position:relative; }
-.wm { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:120mm; opacity:.05; }
-.hdr { display:flex; justify-content:space-between; align-items:flex-start; }
-.hL { width:37%; } .hC { width:22%; text-align:center; } .hR { width:37%; direction:rtl; text-align:right; }
-.cname-en { font-weight:800; font-size:11.5pt; color:#30246C; line-height:1.05; }
-.tag-en { font-weight:700; font-size:6pt; color:#30246C; margin-top:1mm; }
-.cap-en { font-size:6.6pt; color:#30246C; margin-top:.3mm; }
-.cname-ar { font-weight:800; font-size:14pt; color:#30246C; line-height:1; }
-.tag-ar { font-weight:700; font-size:6.8pt; color:#30246C; margin-top:1mm; }
-.cap-ar { font-size:7pt; color:#30246C; margin-top:.3mm; }
-.contact { font-size:7pt; color:#30246C; margin-top:2mm; line-height:1.7; }
-.contact b { font-weight:800; }
-.logo { width:24mm; }
-.ttl { text-align:center; margin:3mm 0 2mm 0; }
-.ttl .a { font-weight:800; font-size:15pt; color:#fff; background:#30246C; display:inline-block; padding:1.6mm 12mm; border-radius:2mm; letter-spacing:.3px; }
-.ttl .b { font-weight:700; font-size:9pt; color:#30246C; margin-top:1.5mm; letter-spacing:.5px; }
-.foot { margin-top:auto; text-align:center; border-top:1.5px solid #30246C; padding-top:2mm; }
-.foot .a { font-weight:700; font-size:8.5pt; color:#30246C; letter-spacing:1px; }
-.foot .b { font-weight:600; font-size:7.5pt; color:#30246C; margin-top:.6mm; letter-spacing:.3px; }
-
-.meta { direction:rtl; display:flex; flex-wrap:wrap; gap:2mm 0; border:1px solid #30246C; border-radius:2mm; padding:3mm 4mm; font-size:9pt; color:#30246C; margin-bottom:2mm; }
-.meta .it { width:50%; } .meta b { font-weight:800; }
-.subj { direction:rtl; font-size:9.5pt; margin:1mm 0 3mm 0; } .subj b { color:#30246C; font-weight:800; }
-table { width:100%; border-collapse:collapse; direction:rtl; }
-th,td { border:1px solid #30246C; text-align:center; vertical-align:middle; padding:1.8mm 1mm; font-size:9pt; }
-thead th { background:#30246C; color:#fff; font-weight:800; }
-td.d { text-align:right; }
-.c1{width:6%} .c2{width:47%} .c3{width:10%} .c4{width:10%} .c5{width:13.5%} .c6{width:13.5%}
-tfoot td { font-weight:800; color:#30246C; background:#eee9f5; }
-.terms { direction:rtl; margin-top:3mm; font-size:8.8pt; color:#30246C; }
-.terms h4 { margin:0 0 1mm; font-size:9.5pt; } .terms ul { margin:0; padding-right:5mm; line-height:1.9; }
-.sign { direction:rtl; display:flex; justify-content:space-between; margin-top:12mm; font-size:9.5pt; color:#30246C; font-weight:700; }
-.sign .ln { display:inline-block; width:50mm; border-bottom:1px dotted #30246C; margin-top:10mm; } .sign .col { text-align:center; }
-
-      `}</style>
-      <style>{`.hdr{visibility:hidden!important;}.foot{visibility:hidden!important;}.wm{display:none!important;}`}</style>
-      <div className="page"><div className="p">
-<img className="wm" src="" />
-  <div className="hdr">
-    <div className="hL en">
-      <div className="cname-en">Al Manar Al Duwaliya Company <span style={{"fontSize": "6.5pt"}}>L.L.C</span></div>
-      <div className="tag-en">For construction and maintenance of roads streets pavements and road supplies</div>
-      <div className="cap-en">Paid-up capital: 500,000 thousand K.D.</div>
-      <div className="contact"><b>&#9742;</b> : 99333820 / 94404401<br /><b>&#9743;</b> : 98777887<br /><b>&#9993;</b> : Manar.int.co@gmail.com</div>
+      <div className={styles.page}><div className={styles.p}>
+<img className={styles.wm} src={logo} alt="" style={{display: 'none'}} />
+  <div className={styles.hdr} style={{visibility: 'hidden'}}>
+    <div className={`${styles.hL} ${styles.en}`}>
+      <div className={styles['cname-en']}>Al Manar Al Duwaliya Company <span style={{"fontSize": "6.5pt"}}>L.L.C</span></div>
+      <div className={styles['tag-en']}>For construction and maintenance of roads streets pavements and road supplies</div>
+      <div className={styles['cap-en']}>Paid-up capital: 500,000 thousand K.D.</div>
+      <div className={styles.contact}><b>&#9742;</b> : 99333820 / 94404401<br /><b>&#9743;</b> : 98777887<br /><b>&#9993;</b> : Manar.int.co@gmail.com</div>
     </div>
-    <div className="hC"><img className="logo" src="" /></div>
-    <div className="hR ar">
-      <div className="cname-ar">شركة المنار الدولية <span style={{"fontSize": "8.5pt"}}>ذ.م.م</span></div>
-      <div className="tag-ar">لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق</div>
-      <div className="cap-ar">رأس المال المدفوع ٥٠٠،٠٠٠ ألف دينار كويتي</div>
-      <div className="contact">99333820 / 94404401 : <b>&#9742;</b><br />98777887 : <b>&#9743;</b><br />Manar.int.co@gmail.com : <b>&#9993;</b></div>
+    <div className={styles.hC}><img className={styles.logo} src={logo} alt="" /></div>
+    <div className={`${styles.hR} ${styles.ar}`}>
+      <div className={styles['cname-ar']}>شركة المنار الدولية <span style={{"fontSize": "8.5pt"}}>ذ.م.م</span></div>
+      <div className={styles['tag-ar']}>لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق</div>
+      <div className={styles['cap-ar']}>رأس المال المدفوع ٥٠٠،٠٠٠ ألف دينار كويتي</div>
+      <div className={styles.contact}>99333820 / 94404401 : <b>&#9742;</b><br />98777887 : <b>&#9743;</b><br />Manar.int.co@gmail.com : <b>&#9993;</b></div>
     </div>
   </div>
-<div className="ttl"><div className="a">عرض سعر</div><div className="b">Price Quotation</div></div>
-<div className="meta">
-  <div className="it"><b>رقم العرض:</b> QT-2026-0061</div>
-  <div className="it"><b>التاريخ:</b> 20 / 06 / 2026</div>
-  <div className="it"><b>إلى:</b> السادة / مصنع الخليج للأسفلت ذ.م.م</div>
-  <div className="it"><b>عناية:</b> إدارة المشاريع</div>
-  <div className="it"><b>صلاحية العرض:</b> 15 يوماً</div>
+<div className={styles.ttl}><div className={styles.a}>عرض سعر</div><div className={styles.b}>Price Quotation</div></div>
+<div className={styles.meta}>
+  <div className={styles.it}><b>رقم العرض:</b> QT-2026-0061</div>
+  <div className={styles.it}><b>التاريخ:</b> 20 / 06 / 2026</div>
+  <div className={styles.it}><b>إلى:</b> السادة / مصنع الخليج للأسفلت ذ.م.م</div>
+  <div className={styles.it}><b>عناية:</b> إدارة المشاريع</div>
+  <div className={styles.it}><b>صلاحية العرض:</b> 15 يوماً</div>
 </div>
-<div className="subj"><b>الموضوع:</b> عرض سعر – خدمات نقل أسفلت (خلطة ساخنة)</div>
+<div className={styles.subj}><b>الموضوع:</b> عرض سعر – خدمات نقل أسفلت (خلطة ساخنة)</div>
 <table><thead><tr>
-  <th className="c1">م</th><th className="c2">البيان / Description</th><th className="c3">الوحدة</th>
-  <th className="c4">الكمية</th><th className="c5">سعر الوحدة (د.ك)</th><th className="c6">الإجمالي (د.ك)</th>
-</tr></thead><tbody><tr><td>1</td><td className="d">نقل أسفلت خلطة ساخنة – داخل المدينة (حتى 30 كم)</td><td>نقلة</td><td>25</td><td>20.000</td><td>500.000</td></tr><tr><td>2</td><td className="d">نقل أسفلت خلطة ساخنة – مسافة (30 – 60 كم)</td><td>نقلة</td><td>15</td><td>28.000</td><td>420.000</td></tr><tr><td>3</td><td className="d">نقل أسفلت خلطة ساخنة – مسافة (أكثر من 60 كم)</td><td>نقلة</td><td>8</td><td>38.000</td><td>304.000</td></tr><tr><td>4</td><td className="d">رسوم انتظار إضافي بالموقع (بعد ساعتين)</td><td>ساعة</td><td>10</td><td>6.000</td><td>60.000</td></tr></tbody>
+  <th className={styles.c1}>م</th><th className={styles.c2}>البيان / Description</th><th className={styles.c3}>الوحدة</th>
+  <th className={styles.c4}>الكمية</th><th className={styles.c5}>سعر الوحدة (د.ك)</th><th className={styles.c6}>الإجمالي (د.ك)</th>
+</tr></thead><tbody><tr><td>1</td><td className={styles.d}>نقل أسفلت خلطة ساخنة – داخل المدينة (حتى 30 كم)</td><td>نقلة</td><td>25</td><td>20.000</td><td>500.000</td></tr><tr><td>2</td><td className={styles.d}>نقل أسفلت خلطة ساخنة – مسافة (30 – 60 كم)</td><td>نقلة</td><td>15</td><td>28.000</td><td>420.000</td></tr><tr><td>3</td><td className={styles.d}>نقل أسفلت خلطة ساخنة – مسافة (أكثر من 60 كم)</td><td>نقلة</td><td>8</td><td>38.000</td><td>304.000</td></tr><tr><td>4</td><td className={styles.d}>رسوم انتظار إضافي بالموقع (بعد ساعتين)</td><td>ساعة</td><td>10</td><td>6.000</td><td>60.000</td></tr></tbody>
 <tfoot><tr><td colSpan={5} style={{"textAlign": "left"}}>الإجمالي (د.ك)</td><td>1,284.000</td></tr></tfoot>
 </table>
-<div className="terms"><h4>الشروط والأحكام</h4><ul><li>الأسعار بالدينار الكويتي وتشمل أجور السائق والوقود.</li><li>لا تشمل الأسعار أي رسوم حكومية أو تصاريح خاصة.</li><li>صلاحية العرض 15 يوماً من تاريخه.</li><li>الدفع خلال 30 يوماً من تاريخ الفاتورة.</li></ul></div>
-<div className="sign">
-  <div className="col">المخوّل بالتوقيع<div className="ln"></div></div>
-  <div className="col">ختم الشركة<div className="ln"></div></div>
+<div className={styles.terms}><h4>الشروط والأحكام</h4><ul><li>الأسعار بالدينار الكويتي وتشمل أجور السائق والوقود.</li><li>لا تشمل الأسعار أي رسوم حكومية أو تصاريح خاصة.</li><li>صلاحية العرض 15 يوماً من تاريخه.</li><li>الدفع خلال 30 يوماً من تاريخ الفاتورة.</li></ul></div>
+<div className={styles.sign}>
+  <div className={styles.col}>المخوّل بالتوقيع<div className={styles.ln}></div></div>
+  <div className={styles.col}>ختم الشركة<div className={styles.ln}></div></div>
 </div>
-<div className="foot">
-    <div className="a">جليب الشيوخ – مجمع الروضة التجاري – الدور الثاني – مكتب ١٣</div>
-    <div className="b">Jleeb Al Shuyoukh - Al Rawda Commercial Complex - Second Floor - Office 13</div>
+<div className={styles.foot} style={{visibility: 'hidden'}}>
+    <div className={styles.a}>جليب الشيوخ – مجمع الروضة التجاري – الدور الثاني – مكتب ١٣</div>
+    <div className={styles.b}>Jleeb Al Shuyoukh - Al Rawda Commercial Complex - Second Floor - Office 13</div>
   </div>
 </div></div>
     </>
