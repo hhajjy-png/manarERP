@@ -19,6 +19,11 @@ interface ChildCounts {
   contractDocuments: number;
 }
 
+function safePct(numerator: number, denominator: number): number | null {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) return null;
+  return Math.round((numerator / denominator) * 100 * 1000) / 1000;
+}
+
 export class ContractsService {
   async list(query: ContractQuery) {
     const pagination = getPagination(query);
@@ -133,6 +138,137 @@ export class ContractsService {
       willBeDeleted,
       willBeNullified,
       ...(blockedReason ? { blockedReason } : {}),
+    };
+  }
+
+  async getFinancialSummary(contractId: number) {
+    const contract = await prisma.contract.findUnique({
+      where: { id: contractId },
+      include: { customer: { select: { id: true, name: true, type: true } } },
+    });
+    if (!contract) throw AppError.notFound('العقد غير موجود');
+
+    const [invoices, expenses] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { contractId, direction: 'SALES', status: { not: 'CANCELLED' } },
+        select: {
+          id: true, total: true, paidAmount: true, issueDate: true, status: true,
+          payments: { select: { id: true, amount: true, date: true } },
+        },
+        orderBy: { issueDate: 'asc' },
+      }),
+      prisma.expense.findMany({
+        where: { contractId, status: { notIn: ['REJECTED', 'CANCELLED'] } },
+        select: { id: true, amount: true, date: true },
+        orderBy: { date: 'asc' },
+      }),
+    ]);
+
+    const n = (v: unknown) => Number(v ?? 0);
+    const r3 = (v: number) => Math.round(v * 1000) / 1000;
+
+    // Revenue
+    const totalInvoiced = r3(invoices.reduce((s, i) => s + n(i.total), 0));
+    const invoiceCount = invoices.length;
+    const avgInvoice = invoiceCount > 0 ? r3(totalInvoiced / invoiceCount) : 0;
+    const lastInvoiceDateRaw = invoices.length > 0 ? invoices[invoices.length - 1].issueDate : null;
+
+    const monthlyValue = contract.monthlyTransportValue ? n(contract.monthlyTransportValue) : null;
+    let contractDurationMonths: number | null = null;
+    if (contract.startDate && contract.endDate) {
+      const diffMs = new Date(contract.endDate).getTime() - new Date(contract.startDate).getTime();
+      contractDurationMonths = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 30.44)));
+    }
+    const estimatedContractValue =
+      monthlyValue && contractDurationMonths ? r3(monthlyValue * contractDurationMonths) : null;
+    const remainingToInvoice =
+      estimatedContractValue !== null ? r3(estimatedContractValue - totalInvoiced) : null;
+
+    // Collections
+    const totalCollected = r3(invoices.reduce((s, i) => s + n(i.paidAmount), 0));
+    const outstanding = r3(totalInvoiced - totalCollected);
+    const collectionRate = safePct(totalCollected, totalInvoiced);
+
+    let lastPaymentDate: Date | null = null;
+    let totalCollectionDays = 0;
+    let collectionCount = 0;
+    for (const inv of invoices) {
+      for (const p of inv.payments) {
+        const pd = new Date(p.date);
+        if (!lastPaymentDate || pd > lastPaymentDate) lastPaymentDate = pd;
+        const diffDays = Math.floor((pd.getTime() - new Date(inv.issueDate).getTime()) / 86_400_000);
+        if (diffDays >= 0) { totalCollectionDays += diffDays; collectionCount++; }
+      }
+    }
+    const avgCollectionDays = collectionCount > 0 ? Math.round(totalCollectionDays / collectionCount) : null;
+
+    // Expenses
+    const totalExpenses = r3(expenses.reduce((s, e) => s + n(e.amount), 0));
+    const expenseCount = expenses.length;
+    const lastExpenseDateRaw = expenses.length > 0 ? expenses[expenses.length - 1].date : null;
+
+    // Profitability
+    const profit = r3(totalInvoiced - totalExpenses);
+    const profitMargin = safePct(profit, totalInvoiced);
+    const profitStatus: 'GREEN' | 'YELLOW' | 'ORANGE' | 'RED' =
+      profit < 0 ? 'RED'
+      : profitMargin === null ? 'ORANGE'
+      : profitMargin >= 25 ? 'GREEN'
+      : profitMargin >= 10 ? 'YELLOW'
+      : 'ORANGE';
+
+    // Progress
+    const billingProgress = safePct(totalInvoiced, estimatedContractValue ?? 0);
+    const collectionProgress = safePct(totalCollected, totalInvoiced);
+    const expenseRatio = safePct(totalExpenses, totalInvoiced);
+
+    // Monthly chart data
+    const monthlyMap = new Map<string, { invoiced: number; collected: number; expenses: number }>();
+    const getM = (key: string) => {
+      if (!monthlyMap.has(key)) monthlyMap.set(key, { invoiced: 0, collected: 0, expenses: 0 });
+      return monthlyMap.get(key)!;
+    };
+    for (const inv of invoices) {
+      const d = new Date(inv.issueDate);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      getM(k).invoiced = r3(getM(k).invoiced + n(inv.total));
+      for (const p of inv.payments) {
+        const pd = new Date(p.date);
+        const pk = `${pd.getFullYear()}-${String(pd.getMonth() + 1).padStart(2, '0')}`;
+        getM(pk).collected = r3(getM(pk).collected + n(p.amount));
+      }
+    }
+    for (const exp of expenses) {
+      const d = new Date(exp.date);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      getM(k).expenses = r3(getM(k).expenses + n(exp.amount));
+    }
+    const monthlyData = [...monthlyMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, data]) => ({ month, ...data }));
+
+    return {
+      contract: {
+        id: contract.id,
+        code: contract.code,
+        asphaltPlant: contract.asphaltPlant,
+        location: contract.location,
+        status: contract.status,
+        startDate: contract.startDate,
+        endDate: contract.endDate,
+        monthlyTransportValue: monthlyValue,
+        price: contract.price ? n(contract.price) : null,
+        unitName: contract.unitName,
+        companyName: contract.companyName,
+        customer: contract.customer,
+        contractDurationMonths,
+      },
+      revenue: { totalInvoiced, invoiceCount, avgInvoice, lastInvoiceDate: lastInvoiceDateRaw, estimatedContractValue, remainingToInvoice },
+      collections: { totalCollected, outstanding, collectionRate, lastPaymentDate, avgCollectionDays },
+      expenses: { totalExpenses, expenseCount, lastExpenseDate: lastExpenseDateRaw },
+      profitability: { profit, profitMargin, profitMarginBasis: 'INVOICED_REVENUE' as const, profitStatus, revenue: totalInvoiced, expenses: totalExpenses },
+      progress: { billingProgress, collectionProgress, expenseRatio },
+      monthlyData,
     };
   }
 
