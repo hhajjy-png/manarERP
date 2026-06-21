@@ -1,10 +1,17 @@
-import { CSSProperties, useEffect, useRef, useState } from 'react';
+import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import type { ComponentType } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { money, dateText } from '../config/modules';
 import { useT } from '../lib/i18n';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
+import type { ApiInvoice } from '../print-templates/adapters/apiTypes';
+import type { InvoicePrintData } from '../print-templates/engine/types';
+import { usePrintTemplate } from '../print-templates/hooks/usePrintTemplate';
+import { buildInvoicePrintData } from '../print-templates/builders/invoicePrintDataBuilder';
+import PrintTemplateSelector from '../print-templates/components/PrintTemplateSelector';
+import { validateInvoicePrintData } from '../print-templates/integration/invoicePreviewIntegration';
 
 const PAY_METHOD_AR: Record<string, string> = {
   CASH: 'نقدًا', BANK: 'بنك', CHEQUE: 'شيك', TRANSFER: 'تحويل',
@@ -77,6 +84,8 @@ export default function InvoicePreview() {
   const [payMethod, setPayMethod] = useState('CASH');
   const [payError, setPayError] = useState('');
   const [paySaving, setPaySaving] = useState(false);
+  const [previewMode, setPreviewMode] = useState<'legacy' | 'engine'>('legacy');
+  const [engineWarning, setEngineWarning] = useState('');
 
   const autoPrint = searchParams.get('print') === '1';
   const printFiredRef = useRef(false);
@@ -95,6 +104,34 @@ export default function InvoicePreview() {
       return () => clearTimeout(timer);
     }
   }, [data, autoPrint]);
+
+  const printData = useMemo<InvoicePrintData | null>(() => {
+    if (!data) return null;
+    try {
+      return buildInvoicePrintData(data as unknown as ApiInvoice);
+    } catch {
+      return null;
+    }
+  }, [data]);
+
+  const { resolvedTemplate, profile, setProfile } = usePrintTemplate<InvoicePrintData>(
+    'invoice',
+    printData ?? undefined,
+  );
+
+  const printWarnings = useMemo(
+    () => (printData ? validateInvoicePrintData(printData) : []),
+    [printData],
+  );
+
+  const EngineComponent = resolvedTemplate.component as ComponentType<{ data?: InvoicePrintData }>;
+
+  useEffect(() => {
+    if (data && printData === null) {
+      setPreviewMode('legacy');
+      setEngineWarning('تعذّر تحميل بيانات القالب — جارٍ العرض في الوضع الكلاسيكي');
+    }
+  }, [data, printData]);
 
   if (loadError) {
     return (
@@ -181,6 +218,13 @@ export default function InvoicePreview() {
           .inv-frow { margin-bottom: 3px !important; font-size: 12px !important; }
           .inv-totals { font-size: 12px !important; }
           .inv-sig { margin-top: 14px !important; }
+          .engine-hide-legacy { display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important; }
+        }
+        .engine-hide-legacy {
+          display: none !important;
+          visibility: hidden !important;
+          height: 0 !important;
+          overflow: hidden !important;
         }
         .inv-nav-anchor { scroll-margin-top: 80px; }
         .inv-quick-nav { display: flex; gap: 8px; align-items: center; font-size: 13px; }
@@ -233,286 +277,322 @@ export default function InvoicePreview() {
             </button>
           )}
           {actionError && <span style={{ color: '#dc2626', fontSize: 13, fontWeight: 600 }}>⚠️ {actionError}</span>}
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => setPreviewMode(m => m === 'legacy' ? 'engine' : 'legacy')}
+            disabled={!printData}
+            style={{ marginInlineStart: 'auto' }}
+          >
+            {previewMode === 'engine' ? '📋 العرض الكلاسيكي' : '✨ قالب الطباعة'}
+          </button>
         </div>
 
-        {/* ── Quick Navigation (screen only) ── */}
-        {hasPayments && (
-          <div className="no-print" style={{ marginBottom: 16, padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-            <div className="inv-quick-nav">
-              <span style={{ color: '#64748b', fontWeight: 700, fontSize: 12 }}>انتقل إلى:</span>
-              <a href="#inv-details">تفاصيل الفاتورة</a>
-              <a href="#inv-collections">ملخص التحصيل</a>
-              <a href="#inv-payments">سجل الدفعات</a>
-              <a href="#inv-summary">الملخص المالي</a>
-            </div>
+        {/* ── Engine template selector (engine mode only, hidden on print) ── */}
+        {previewMode === 'engine' && printData && (
+          <div className="no-print" style={{ marginBottom: 12, padding: '8px 12px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+            <PrintTemplateSelector category="invoice" profile={profile} onSelect={setProfile} />
           </div>
         )}
 
-        {/* ── Inline payment form (hidden on print) ── */}
-        {paying && (
-          <div className="no-print" style={{
-            background: 'var(--surface-2)', border: '1px solid var(--border)',
-            borderRadius: 10, padding: 16, marginBottom: 16, maxWidth: 440,
-          }}>
-            <p style={{ fontWeight: 700, marginBottom: 12, fontSize: 14 }}>
-              {t('modal.collect_payment')} — {t('lbl.remaining')} {money(remaining)}
-            </p>
-            {payError && <div className="alert error" style={{ marginBottom: 8 }}>⚠️ {payError}</div>}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('field.amount_kd')}</label>
-                <input
-                  type="number" step="0.001" value={payAmount}
-                  onChange={(e) => setPayAmount(Number(e.target.value))}
-                  style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, width: 130 }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('field.payment_method')}</label>
-                <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
-                  style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14 }}>
-                  <option value="CASH">{t('opt.payment.cash')}</option>
-                  <option value="BANK">{t('opt.payment.bank')}</option>
-                  <option value="CHEQUE">{t('opt.payment.cheque')}</option>
-                  <option value="TRANSFER">{t('opt.payment.transfer')}</option>
-                </select>
-              </div>
-              <button type="button" className="btn" onClick={handleCollect} disabled={paySaving}>
-                {paySaving ? t('msg.saving') : t('btn.record_payment')}
-              </button>
-              <button type="button" className="btn secondary" onClick={() => setPaying(false)}>{t('action.cancel')}</button>
-            </div>
+        {/* ── Engine / data warnings (hidden on print) ── */}
+        {previewMode === 'engine' && (engineWarning || printWarnings.length > 0) && (
+          <div className="no-print" style={{ marginBottom: 12, padding: '8px 14px', background: '#fef9c3', borderRadius: 8, border: '1px solid #fde047', fontSize: 13, color: '#713f12' }}>
+            {engineWarning && <p style={{ margin: '2px 0' }}>⚠️ {engineWarning}</p>}
+            {printWarnings.map(w => (
+              <p key={w.field} style={{ margin: '2px 0' }}>⚠️ {w.messageAr}</p>
+            ))}
           </div>
         )}
 
-        {/* ── Print Header (print only) — clean professional layout ── */}
-        <div className="print-only inv-print-header" style={{
-          borderBottom: '2px solid #1d4e6f', marginBottom: 12, paddingBottom: 8,
-        }}>
-          <div style={{ fontWeight: 800, fontSize: 16, color: '#1d4e6f' }}>شركة المنار الدولية</div>
-          <div style={{ fontSize: 11, color: '#64748b' }}>لإنشاء وصيانة الشوارع والأرصفة ومستلزمات الطرق</div>
-        </div>
+        {/* ── Legacy preview content (hidden in engine mode) ── */}
+        <div className={previewMode === 'engine' ? 'engine-hide-legacy' : undefined}>
 
-        {/* ── Section 1: Invoice Details ── */}
-        <div id="inv-details" className="inv-nav-anchor">
-          <div className="inv-section-title" style={secTitle}>
-            <span>{t('page.invoice_preview.section.header')}</span>
-            <span className="no-print" style={{
-              marginInlineStart: 10, fontSize: 12, fontWeight: 700,
-              background: STATUS_COLOR[data.status] ?? '#6b7280',
-              color: '#fff', padding: '1px 10px', borderRadius: 12,
+          {/* ── Quick Navigation (screen only) ── */}
+          {hasPayments && (
+            <div className="no-print" style={{ marginBottom: 16, padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+              <div className="inv-quick-nav">
+                <span style={{ color: '#64748b', fontWeight: 700, fontSize: 12 }}>انتقل إلى:</span>
+                <a href="#inv-details">تفاصيل الفاتورة</a>
+                <a href="#inv-collections">ملخص التحصيل</a>
+                <a href="#inv-payments">سجل الدفعات</a>
+                <a href="#inv-summary">الملخص المالي</a>
+              </div>
+            </div>
+          )}
+
+          {/* ── Inline payment form (hidden on print) ── */}
+          {paying && (
+            <div className="no-print" style={{
+              background: 'var(--surface-2)', border: '1px solid var(--border)',
+              borderRadius: 10, padding: 16, marginBottom: 16, maxWidth: 440,
             }}>
-              {STATUS_LABEL_AR[data.status] ?? data.status}
-            </span>
+              <p style={{ fontWeight: 700, marginBottom: 12, fontSize: 14 }}>
+                {t('modal.collect_payment')} — {t('lbl.remaining')} {money(remaining)}
+              </p>
+              {payError && <div className="alert error" style={{ marginBottom: 8 }}>⚠️ {payError}</div>}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('field.amount_kd')}</label>
+                  <input
+                    type="number" step="0.001" value={payAmount}
+                    onChange={(e) => setPayAmount(Number(e.target.value))}
+                    style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14, width: 130 }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('field.payment_method')}</label>
+                  <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
+                    style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 14 }}>
+                    <option value="CASH">{t('opt.payment.cash')}</option>
+                    <option value="BANK">{t('opt.payment.bank')}</option>
+                    <option value="CHEQUE">{t('opt.payment.cheque')}</option>
+                    <option value="TRANSFER">{t('opt.payment.transfer')}</option>
+                  </select>
+                </div>
+                <button type="button" className="btn" onClick={handleCollect} disabled={paySaving}>
+                  {paySaving ? t('msg.saving') : t('btn.record_payment')}
+                </button>
+                <button type="button" className="btn secondary" onClick={() => setPaying(false)}>{t('action.cancel')}</button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Print Header (print only) — clean professional layout ── */}
+          <div className="print-only inv-print-header" style={{
+            borderBottom: '2px solid #1d4e6f', marginBottom: 12, paddingBottom: 8,
+          }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: '#1d4e6f' }}>شركة المنار الدولية</div>
+            <div style={{ fontSize: 11, color: '#64748b' }}>لإنشاء وصيانة الشوارع والأرصفة ومستلزمات الطرق</div>
           </div>
+
+          {/* ── Section 1: Invoice Details ── */}
+          <div id="inv-details" className="inv-nav-anchor">
+            <div className="inv-section-title" style={secTitle}>
+              <span>{t('page.invoice_preview.section.header')}</span>
+              <span className="no-print" style={{
+                marginInlineStart: 10, fontSize: 12, fontWeight: 700,
+                background: STATUS_COLOR[data.status] ?? '#6b7280',
+                color: '#fff', padding: '1px 10px', borderRadius: 12,
+              }}>
+                {STATUS_LABEL_AR[data.status] ?? data.status}
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px 24px' }}>
+              <div className="inv-frow" style={fRow}><span style={fLbl}>{t('col.inv.number')}</span><span style={{ ...fVal, fontFamily: 'monospace' }}>{data.invoiceNumber ?? data.number}</span></div>
+              <div className="inv-frow" style={fRow}><span style={fLbl}>{t('lbl.inv.issue_date')}</span><span style={fVal}>{dateText(data.issueDate)}</span></div>
+              <div className="inv-frow" style={fRow}><span style={fLbl}>{t('col.inv.direction')}</span><span style={fVal}>{directionLabel}</span></div>
+              <div className="inv-frow" style={fRow}><span style={fLbl}>{t('lbl.inv.billing_period')}</span><span style={fVal}>{billingPeriod}</span></div>
+              <div className="inv-frow" style={fRow}><span style={fLbl}>{t('col.inv.type')}</span><span style={fVal}>{data.invoiceType}</span></div>
+              {data.dueDate && (
+                <div className="inv-frow" style={fRow}><span style={fLbl}>{t('lbl.inv.due_date')}</span><span style={fVal}>{dateText(data.dueDate)}</span></div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Section 2: Party & Contract ── */}
+          <div style={secTitle}>{data.contract ? t('page.invoice_preview.section.party') : 'الجهة'}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px 24px' }}>
-            <div className="inv-frow" style={fRow}><span style={fLbl}>{t('col.inv.number')}</span><span style={{ ...fVal, fontFamily: 'monospace' }}>{data.invoiceNumber ?? data.number}</span></div>
-            <div className="inv-frow" style={fRow}><span style={fLbl}>{t('lbl.inv.issue_date')}</span><span style={fVal}>{dateText(data.issueDate)}</span></div>
-            <div className="inv-frow" style={fRow}><span style={fLbl}>{t('col.inv.direction')}</span><span style={fVal}>{directionLabel}</span></div>
-            <div className="inv-frow" style={fRow}><span style={fLbl}>{t('lbl.inv.billing_period')}</span><span style={fVal}>{billingPeriod}</span></div>
-            <div className="inv-frow" style={fRow}><span style={fLbl}>{t('col.inv.type')}</span><span style={fVal}>{data.invoiceType}</span></div>
-            {data.dueDate && (
-              <div className="inv-frow" style={fRow}><span style={fLbl}>{t('lbl.inv.due_date')}</span><span style={fVal}>{dateText(data.dueDate)}</span></div>
+            <div className="inv-frow" style={fRow}>
+              <span style={fLbl}>{data.customer ? t('col.customer') : t('col.supplier')}</span>
+              <span style={fVal}>{partyName}</span>
+            </div>
+            {data.contract && (
+              <>
+                {data.contract.code && (
+                  <div className="inv-frow" style={fRow}>
+                    <span style={fLbl}>رقم العقد</span>
+                    <span style={fVal}>{data.contract.code}</span>
+                  </div>
+                )}
+                <div className="inv-frow" style={fRow}>
+                  <span style={fLbl}>{t('field.linked_contract')}</span>
+                  <span style={fVal}>{data.contract.asphaltPlant}</span>
+                </div>
+              </>
             )}
           </div>
-        </div>
 
-        {/* ── Section 2: Party & Contract ── */}
-        <div style={secTitle}>{data.contract ? t('page.invoice_preview.section.party') : 'الجهة'}</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px 24px' }}>
-          <div className="inv-frow" style={fRow}>
-            <span style={fLbl}>{data.customer ? t('col.customer') : t('col.supplier')}</span>
-            <span style={fVal}>{partyName}</span>
-          </div>
-          {data.contract && (
-            <>
-              {data.contract.code && (
-                <div className="inv-frow" style={fRow}>
-                  <span style={fLbl}>رقم العقد</span>
-                  <span style={fVal}>{data.contract.code}</span>
+          {/* ── Section 3: Line Items ── */}
+          <div style={secTitle}>{t('lbl.items')}</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }}>
+            <thead>
+              <tr>
+                <th style={th}>{t('col.description')}</th>
+                <th style={{ ...th, width: 72, textAlign: 'center' }}>{t('ph.qty')}</th>
+                <th style={{ ...th, width: 72, textAlign: 'center' }}>{t('col.inv.unit')}</th>
+                <th style={{ ...th, width: 115, textAlign: 'end' }}>{t('lbl.inv.unit_price')}</th>
+                <th style={{ ...th, width: 115, textAlign: 'end' }}>{t('col.inv.total')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.items.map((item) => (
+                <tr key={item.id}>
+                  <td style={td}>{item.description}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>{item.quantity}</td>
+                  <td style={{ ...td, textAlign: 'center' }}>{item.unit}</td>
+                  <td style={{ ...td, textAlign: 'end' }}>{money(item.unitPrice)}</td>
+                  <td style={{ ...td, textAlign: 'end', fontWeight: 700 }}>{money(item.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* ── Section 4: Financial Summary ── */}
+          <div id="inv-summary" className="inv-nav-anchor">
+            <div style={secTitle}>{t('page.invoice_preview.section.financial')}</div>
+            <div className="inv-totals" style={{ maxWidth: 340, marginInlineStart: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
+                <span style={fLbl}>{t('lbl.inv.subtotal')}</span><span style={fVal}>{money(data.subtotal)}</span>
+              </div>
+              {Number(data.discount) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
+                  <span style={fLbl}>{t('field.inv.discount_kd')}</span>
+                  <span style={{ ...fVal, color: '#dc2626' }}>−{money(data.discount)}</span>
                 </div>
               )}
-              <div className="inv-frow" style={fRow}>
-                <span style={fLbl}>{t('field.linked_contract')}</span>
-                <span style={fVal}>{data.contract.asphaltPlant}</span>
+              {Number(data.taxAmount) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
+                  <span style={fLbl}>{t('lbl.inv.tax')} ({data.taxRate}%)</span>
+                  <span style={fVal}>{money(data.taxAmount)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '2px solid #1d4e6f', fontSize: 16, fontWeight: 800 }}>
+                <span style={{ color: '#1d4e6f' }}>{t('lbl.inv.grand_total')}</span>
+                <span style={{ color: '#1d4e6f' }}>{money(data.total)}</span>
               </div>
+              {/* Paid / Remaining — shown on screen and print */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
+                <span style={fLbl}>{t('col.inv.paid')}</span>
+                <span style={{ ...fVal, color: '#16a34a' }}>{money(data.paidAmount)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 14, fontWeight: 800 }}>
+                <span style={{ ...fLbl, fontSize: 14, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>
+                  {t('lbl.inv.remaining_amount')}
+                </span>
+                <span style={{ fontWeight: 800, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Section 5: Collection Summary (screen only) ── */}
+          {hasPayments && (() => {
+            const methodTotals = data.payments.reduce((acc: Record<string, number>, p: { method: string; amount: number | string }) => {
+              acc[p.method] = (acc[p.method] ?? 0) + Number(p.amount);
+              return acc;
+            }, {});
+            const methodBreakdown = Object.entries(methodTotals).filter(([, v]) => v > 0);
+            return (
+              <div id="inv-collections" className="inv-nav-anchor no-print">
+                <div style={secTitle}>ملخص التحصيل</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 10 }}>
+                  <div className="inv-collection-chip">
+                    <div className="inv-collection-chip-label">إجمالي المحصّل</div>
+                    <div className="inv-collection-chip-val" style={{ color: '#16a34a' }}>{money(data.paidAmount)}</div>
+                  </div>
+                  <div className="inv-collection-chip">
+                    <div className="inv-collection-chip-label">المتبقي</div>
+                    <div className="inv-collection-chip-val" style={{ color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</div>
+                  </div>
+                  <div className="inv-collection-chip">
+                    <div className="inv-collection-chip-label">نسبة التحصيل</div>
+                    <div className="inv-collection-chip-val" style={{ color: '#1d4e6f' }}>{collectionPct}%</div>
+                  </div>
+                  <div className="inv-collection-chip">
+                    <div className="inv-collection-chip-label">عدد الدفعات</div>
+                    <div className="inv-collection-chip-val" style={{ color: '#0f172a' }}>{data.payments.length}</div>
+                  </div>
+                </div>
+                {methodBreakdown.length > 1 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                    {methodBreakdown.map(([method, total]) => (
+                      <span key={method} style={{
+                        fontSize: 12, padding: '3px 10px',
+                        background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 20,
+                        color: '#475569', fontWeight: 600,
+                      }}>
+                        {PAY_METHOD_AR[method] ?? method}: <span style={{ color: '#16a34a' }}>{money(total)}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {lastPaymentDate && (
+                  <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px' }}>
+                    📅 آخر دفعة: <strong>{dateText(lastPaymentDate)}</strong>
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── Section 6: Payment History ── */}
+          {hasPayments && (
+            <div id="inv-payments" className="inv-nav-anchor">
+              <div style={secTitle}>{t('lbl.inv.payment_history')}</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }}>
+                <thead>
+                  <tr>
+                    <th style={{ ...th, width: 50, textAlign: 'center' }}>#</th>
+                    <th style={th}>{t('col.date')}</th>
+                    <th style={{ ...th, width: 130, textAlign: 'end' }}>{t('col.amount')}</th>
+                    <th style={{ ...th, width: 100 }}>{t('field.payment_method')}</th>
+                    <th style={th}>{t('field.inv.reference')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.payments.map((p, idx) => (
+                    <tr key={p.id} className="inv-pay-row">
+                      <td style={{ ...td, textAlign: 'center', color: '#94a3b8', fontSize: 11 }}>{idx + 1}</td>
+                      <td style={td}>{dateText(p.date)}</td>
+                      <td style={{ ...td, fontWeight: 700, textAlign: 'end', color: '#16a34a' }}>{money(p.amount)}</td>
+                      <td style={td}>{PAY_METHOD_AR[p.method] ?? p.method}</td>
+                      <td style={{ ...td, color: '#64748b' }}>{p.reference ?? '—'}</td>
+                    </tr>
+                  ))}
+                  {/* Totals row */}
+                  <tr style={{ background: '#f1f5f9' }}>
+                    <td colSpan={2} style={{ ...td, fontWeight: 700, fontSize: 13 }}>المجموع</td>
+                    <td style={{ ...td, fontWeight: 800, textAlign: 'end', color: '#16a34a', fontSize: 14 }}>{money(data.paidAmount)}</td>
+                    <td colSpan={2} style={td} />
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* ── Notes ── */}
+          {data.notes && (
+            <>
+              <div style={secTitle}>{t('field.notes')}</div>
+              <p style={{ fontSize: 13, padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, margin: '0 0 12px' }}>
+                {data.notes}
+              </p>
             </>
           )}
-        </div>
 
-        {/* ── Section 3: Line Items ── */}
-        <div style={secTitle}>{t('lbl.items')}</div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }}>
-          <thead>
-            <tr>
-              <th style={th}>{t('col.description')}</th>
-              <th style={{ ...th, width: 72, textAlign: 'center' }}>{t('ph.qty')}</th>
-              <th style={{ ...th, width: 72, textAlign: 'center' }}>{t('col.inv.unit')}</th>
-              <th style={{ ...th, width: 115, textAlign: 'end' }}>{t('lbl.inv.unit_price')}</th>
-              <th style={{ ...th, width: 115, textAlign: 'end' }}>{t('col.inv.total')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.items.map((item) => (
-              <tr key={item.id}>
-                <td style={td}>{item.description}</td>
-                <td style={{ ...td, textAlign: 'center' }}>{item.quantity}</td>
-                <td style={{ ...td, textAlign: 'center' }}>{item.unit}</td>
-                <td style={{ ...td, textAlign: 'end' }}>{money(item.unitPrice)}</td>
-                <td style={{ ...td, textAlign: 'end', fontWeight: 700 }}>{money(item.total)}</td>
-              </tr>
+          {/* ── Signature Area ── */}
+          <div className="inv-sig" style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', gap: 16, pageBreakInside: 'avoid' }}>
+            {([
+              { label: 'التوقيع والختم', sub: data.customer?.name ?? data.supplier?.name ?? 'الجهة المستلمة' },
+              { label: 'المسؤول', sub: 'شركة المنار الدولية' },
+              { label: 'المحاسبة', sub: '' },
+            ] as { label: string; sub: string }[]).map(({ label, sub }) => (
+              <div key={label} style={{ flex: 1, textAlign: 'center', minWidth: 130 }}>
+                <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>{label}</div>
+                {sub && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>{sub}</div>}
+                <div style={{ height: 36 }} />
+                <div style={{ borderTop: '1px solid #94a3b8' }} />
+                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>التوقيع / Signature</div>
+              </div>
             ))}
-          </tbody>
-        </table>
-
-        {/* ── Section 4: Financial Summary ── */}
-        <div id="inv-summary" className="inv-nav-anchor">
-          <div style={secTitle}>{t('page.invoice_preview.section.financial')}</div>
-          <div className="inv-totals" style={{ maxWidth: 340, marginInlineStart: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
-              <span style={fLbl}>{t('lbl.inv.subtotal')}</span><span style={fVal}>{money(data.subtotal)}</span>
-            </div>
-            {Number(data.discount) > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
-                <span style={fLbl}>{t('field.inv.discount_kd')}</span>
-                <span style={{ ...fVal, color: '#dc2626' }}>−{money(data.discount)}</span>
-              </div>
-            )}
-            {Number(data.taxAmount) > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
-                <span style={fLbl}>{t('lbl.inv.tax')} ({data.taxRate}%)</span>
-                <span style={fVal}>{money(data.taxAmount)}</span>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '2px solid #1d4e6f', fontSize: 16, fontWeight: 800 }}>
-              <span style={{ color: '#1d4e6f' }}>{t('lbl.inv.grand_total')}</span>
-              <span style={{ color: '#1d4e6f' }}>{money(data.total)}</span>
-            </div>
-            {/* Paid / Remaining — shown on screen and print */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
-              <span style={fLbl}>{t('col.inv.paid')}</span>
-              <span style={{ ...fVal, color: '#16a34a' }}>{money(data.paidAmount)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 14, fontWeight: 800 }}>
-              <span style={{ ...fLbl, fontSize: 14, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>
-                {t('lbl.inv.remaining_amount')}
-              </span>
-              <span style={{ fontWeight: 800, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</span>
-            </div>
           </div>
-        </div>
 
-        {/* ── Section 5: Collection Summary (screen only) ── */}
-        {hasPayments && (() => {
-          const methodTotals = data.payments.reduce((acc: Record<string, number>, p: { method: string; amount: number | string }) => {
-            acc[p.method] = (acc[p.method] ?? 0) + Number(p.amount);
-            return acc;
-          }, {});
-          const methodBreakdown = Object.entries(methodTotals).filter(([, v]) => v > 0);
-          return (
-            <div id="inv-collections" className="inv-nav-anchor no-print">
-              <div style={secTitle}>ملخص التحصيل</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 10 }}>
-                <div className="inv-collection-chip">
-                  <div className="inv-collection-chip-label">إجمالي المحصّل</div>
-                  <div className="inv-collection-chip-val" style={{ color: '#16a34a' }}>{money(data.paidAmount)}</div>
-                </div>
-                <div className="inv-collection-chip">
-                  <div className="inv-collection-chip-label">المتبقي</div>
-                  <div className="inv-collection-chip-val" style={{ color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</div>
-                </div>
-                <div className="inv-collection-chip">
-                  <div className="inv-collection-chip-label">نسبة التحصيل</div>
-                  <div className="inv-collection-chip-val" style={{ color: '#1d4e6f' }}>{collectionPct}%</div>
-                </div>
-                <div className="inv-collection-chip">
-                  <div className="inv-collection-chip-label">عدد الدفعات</div>
-                  <div className="inv-collection-chip-val" style={{ color: '#0f172a' }}>{data.payments.length}</div>
-                </div>
-              </div>
-              {methodBreakdown.length > 1 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                  {methodBreakdown.map(([method, total]) => (
-                    <span key={method} style={{
-                      fontSize: 12, padding: '3px 10px',
-                      background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 20,
-                      color: '#475569', fontWeight: 600,
-                    }}>
-                      {PAY_METHOD_AR[method] ?? method}: <span style={{ color: '#16a34a' }}>{money(total)}</span>
-                    </span>
-                  ))}
-                </div>
-              )}
-              {lastPaymentDate && (
-                <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px' }}>
-                  📅 آخر دفعة: <strong>{dateText(lastPaymentDate)}</strong>
-                </p>
-              )}
-            </div>
-          );
-        })()}
+        </div>{/* end legacy wrapper */}
 
-        {/* ── Section 6: Payment History ── */}
-        {hasPayments && (
-          <div id="inv-payments" className="inv-nav-anchor">
-            <div style={secTitle}>{t('lbl.inv.payment_history')}</div>
-            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }}>
-              <thead>
-                <tr>
-                  <th style={{ ...th, width: 50, textAlign: 'center' }}>#</th>
-                  <th style={th}>{t('col.date')}</th>
-                  <th style={{ ...th, width: 130, textAlign: 'end' }}>{t('col.amount')}</th>
-                  <th style={{ ...th, width: 100 }}>{t('field.payment_method')}</th>
-                  <th style={th}>{t('field.inv.reference')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.payments.map((p, idx) => (
-                  <tr key={p.id} className="inv-pay-row">
-                    <td style={{ ...td, textAlign: 'center', color: '#94a3b8', fontSize: 11 }}>{idx + 1}</td>
-                    <td style={td}>{dateText(p.date)}</td>
-                    <td style={{ ...td, fontWeight: 700, textAlign: 'end', color: '#16a34a' }}>{money(p.amount)}</td>
-                    <td style={td}>{PAY_METHOD_AR[p.method] ?? p.method}</td>
-                    <td style={{ ...td, color: '#64748b' }}>{p.reference ?? '—'}</td>
-                  </tr>
-                ))}
-                {/* Totals row */}
-                <tr style={{ background: '#f1f5f9' }}>
-                  <td colSpan={2} style={{ ...td, fontWeight: 700, fontSize: 13 }}>المجموع</td>
-                  <td style={{ ...td, fontWeight: 800, textAlign: 'end', color: '#16a34a', fontSize: 14 }}>{money(data.paidAmount)}</td>
-                  <td colSpan={2} style={td} />
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        {/* ── Engine template render ── */}
+        {previewMode === 'engine' && printData && (
+          <EngineComponent data={printData} />
         )}
-
-        {/* ── Notes ── */}
-        {data.notes && (
-          <>
-            <div style={secTitle}>{t('field.notes')}</div>
-            <p style={{ fontSize: 13, padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, margin: '0 0 12px' }}>
-              {data.notes}
-            </p>
-          </>
-        )}
-
-        {/* ── Signature Area ── */}
-        <div className="inv-sig" style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', gap: 16, pageBreakInside: 'avoid' }}>
-          {([
-            { label: 'التوقيع والختم', sub: data.customer?.name ?? data.supplier?.name ?? 'الجهة المستلمة' },
-            { label: 'المسؤول', sub: 'شركة المنار الدولية' },
-            { label: 'المحاسبة', sub: '' },
-          ] as { label: string; sub: string }[]).map(({ label, sub }) => (
-            <div key={label} style={{ flex: 1, textAlign: 'center', minWidth: 130 }}>
-              <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>{label}</div>
-              {sub && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>{sub}</div>}
-              <div style={{ height: 36 }} />
-              <div style={{ borderTop: '1px solid #94a3b8' }} />
-              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>التوقيع / Signature</div>
-            </div>
-          ))}
-        </div>
 
       </div>
     </>

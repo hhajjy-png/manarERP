@@ -1,7 +1,13 @@
 import logo from '../assets/almanar-logo.png';
 import styles from './InvoiceDesign1.module.css';
+import type { InvoicePrintData } from '../../engine/types';
+import { splitKWD } from '../../utils/formatKWD';
 
-export default function InvoiceDesign1() {
+interface Props { data?: InvoicePrintData; }
+
+export default function InvoiceDesign1({ data }: Props) {
+  const fillerCount = data ? Math.max(0, 15 - data.lineItems.length) : 20;
+
   return (
     <>
       <div className={styles.page}><img className={styles.wm} src={logo} />
@@ -31,8 +37,16 @@ export default function InvoiceDesign1() {
   </div>
   <div className={styles.title}><div className={styles.a}>فاتورة نقداً / بالحساب</div><div className={styles.b}>Cash / Credit Invoice</div></div>
   <div className={styles.meta}>
-    <div className={styles['m-date']}>التاريخ : &nbsp;&nbsp;/&nbsp;&nbsp;/&nbsp; 20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</div>
-    <div className={styles['m-to']}><span>المطلوب من السيد / السادة :</span><span className={styles.dotline}></span></div>
+    <div className={styles['m-date']}>
+      التاريخ : {data ? data.date : <>&nbsp;&nbsp;/&nbsp;&nbsp;/&nbsp; 20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</>}
+    </div>
+    <div className={styles['m-to']}>
+      <span>المطلوب من السيد / السادة :</span>
+      {data
+        ? <span>{data.customerName}</span>
+        : <span className={styles.dotline}></span>
+      }
+    </div>
   </div>
   <table>
     <thead>
@@ -47,9 +61,42 @@ export default function InvoiceDesign1() {
         <th className={styles.sub}>دينار K.D</th><th className={styles.sub}>فلس Fils</th>
       </tr>
     </thead>
-    <tbody><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr><tr><td className={styles['c-desc']}></td><td className={styles['c-qty']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td><td className={styles['c-d']}></td><td className={styles['c-f']}></td></tr></tbody>
+    <tbody>
+      {data && data.lineItems.map((item, i) => {
+        const up = splitKWD(item.unitPrice);
+        const tot = splitKWD(item.total);
+        return (
+          <tr key={i}>
+            <td className={styles['c-desc']}>{item.descriptionAr}</td>
+            <td className={styles['c-qty']}>{item.quantity}</td>
+            <td className={styles['c-d']}>{up.dinars}</td>
+            <td className={styles['c-f']}>{up.filsPadded}</td>
+            <td className={styles['c-d']}>{tot.dinars}</td>
+            <td className={styles['c-f']}>{tot.filsPadded}</td>
+          </tr>
+        );
+      })}
+      {Array.from({ length: fillerCount }).map((_, i) => (
+        <tr key={`f${i}`}>
+          <td className={styles['c-desc']}></td><td className={styles['c-qty']}></td>
+          <td className={styles['c-d']}></td><td className={styles['c-f']}></td>
+          <td className={styles['c-d']}></td><td className={styles['c-f']}></td>
+        </tr>
+      ))}
+    </tbody>
     <tfoot>
-      <tr className={styles.totrow}><td colSpan={6}><div style={{"display": "flex", "justifyContent": "space-between", "direction": "rtl", "alignItems": "center"}}><span>القيمة الإجمالية مبلغ وقدره ...........................................................................</span><span style={{"direction": "ltr"}}>Total :</span></div></td></tr>
+      <tr className={styles.totrow}><td colSpan={6}><div style={{"display": "flex", "justifyContent": "space-between", "direction": "rtl", "alignItems": "center"}}>
+        <span>
+          {data
+            ? <>القيمة الإجمالية مبلغ وقدره {data.totalInWords}</>
+            : 'القيمة الإجمالية مبلغ وقدره ...........................................................................'}
+        </span>
+        <span style={{"direction": "ltr"}}>
+          {data
+            ? `${data.totalDinars} / ${String(data.totalFils).padStart(3, '0')}`
+            : 'Total :'}
+        </span>
+      </div></td></tr>
     </tfoot>
   </table>
   <div className={styles.foot}>

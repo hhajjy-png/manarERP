@@ -47,10 +47,17 @@ export function getDefaultPrintTemplate(category: PrintTemplateCategory): PrintT
   const template = ALL_TEMPLATES.find(
     (t) => t.category === category && t.variant === 'original',
   );
-  if (!template) {
-    throw new Error(`[PrintEngine] No default template found for category: ${category}`);
+  if (template) return template;
+
+  // Fallback: any template in the category (e.g. only blank-letterhead variants remain)
+  const anyInCategory = ALL_TEMPLATES.find((t) => t.category === category);
+  if (anyInCategory) {
+    console.error(`[PrintEngine] No original-variant template for "${category}" — using first available.`);
+    return anyInCategory;
   }
-  return template;
+
+  // Only reachable if the category was never registered — a build-time configuration error.
+  throw new Error(`[PrintEngine] No templates registered for category: ${category}`);
 }
 
 /**

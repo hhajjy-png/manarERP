@@ -1,0 +1,149 @@
+/* PrintTemplateSelector — isolated template picker for print dialogs */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+/* Template rows */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  text-align: start;
+  font-family: inherit;
+  width: 100%;
+  color: var(--text);
+}
+
+.item:hover {
+  border-color: var(--accent);
+  background: var(--surface-hover);
+}
+
+.item.selected {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s;
+}
+
+.item.selected .radio {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.radioDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.nameAr {
+  font-size: 14px;
+  font-weight: 700;
+  direction: rtl;
+}
+
+.nameEn {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  direction: ltr;
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.badge.blank {
+  background: var(--amber-light);
+  color: var(--amber);
+}
+
+/* Paper type toggle */
+.paperToggle {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.paperBtn {
+  flex: 1;
+  padding: 8px 0;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.paperBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.paperBtn.active {
+  border-color: var(--accent);
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.sectionLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 0 2px;
+}

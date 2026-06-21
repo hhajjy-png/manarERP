@@ -77,6 +77,8 @@ export interface InvoicePrintData {
   invoiceNumber: string;
   date: string;
   customerName: string;
+  /** From contract.asphaltPlant — shown in project/reference rows of invoice templates. */
+  projectName?: string;
   lineItems: PrintLineItem[];
   totalDinars: number;
   totalFils: number;
