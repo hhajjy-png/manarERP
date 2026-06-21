@@ -412,6 +412,416 @@ export class DashboardService {
       expiringAgreementsCount,
     };
   }
+  /**
+   * حزمة الذكاء التنفيذي V2 — تنبيهات + توقعات + اتجاهات + مقارنات KPI + صحة العقود + توصيات.
+   * Read-only. لا يكتب أي شيء. لا migration.
+   */
+  async executiveIntelligenceV2() {
+    const now = new Date();
+    const r3 = (v: number) => Math.round(v * 1000) / 1000;
+    const n  = (v: unknown) => Number(v ?? 0);
+    const sp = (num: number, den: number): number | null => {
+      if (!Number.isFinite(num) || !Number.isFinite(den) || den <= 0) return null;
+      return Math.round((num / den) * 100 * 1000) / 1000;
+    };
+
+    const sixMonthsAgo  = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 86_400_000);
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      return { label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` };
+    });
+
+    const [
+      activeContracts,
+      invByContract,
+      expByContract,
+      outstandingInvoices,
+      trendInvoices,
+      trendExpenses,
+      trendPayments,
+      thisMonthRevAgg,
+      lastMonthRevAgg,
+      thisMonthExpAgg,
+      lastMonthExpAgg,
+      thisMonthColAgg,
+      lastMonthColAgg,
+      recentActivity,
+    ] = await Promise.all([
+      prisma.contract.findMany({
+        where: { status: 'ACTIVE' }, take: 100, orderBy: { id: 'desc' },
+        select: { id: true, code: true, asphaltPlant: true, customer: { select: { id: true, name: true } } },
+      }),
+      prisma.invoice.groupBy({
+        by: ['contractId'],
+        where: { direction: 'SALES', status: { not: 'CANCELLED' }, contractId: { not: null } },
+        _sum: { total: true, paidAmount: true },
+      }),
+      prisma.expense.groupBy({
+        by: ['contractId'],
+        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, contractId: { not: null } },
+        _sum: { amount: true },
+      }),
+      prisma.invoice.findMany({
+        where: { direction: 'SALES', status: { notIn: ['PAID', 'CANCELLED'] }, customerId: { not: null } },
+        take: 500,
+        select: {
+          customerId: true, total: true, paidAmount: true, issueDate: true,
+          contractId: true, customer: { select: { id: true, name: true } },
+        },
+      }),
+      prisma.invoice.findMany({
+        where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: sixMonthsAgo } },
+        take: 2000,
+        select: { issueDate: true, total: true },
+      }),
+      prisma.expense.findMany({
+        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, date: { gte: sixMonthsAgo } },
+        take: 2000,
+        select: { date: true, amount: true },
+      }),
+      prisma.payment.findMany({
+        where: { date: { gte: sixMonthsAgo }, invoice: { direction: 'SALES' } },
+        take: 2000,
+        select: { date: true, amount: true },
+      }),
+      prisma.invoice.aggregate({
+        where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: thisMonthStart } },
+        _sum: { total: true },
+      }),
+      prisma.invoice.aggregate({
+        where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: lastMonthStart, lte: lastMonthEnd } },
+        _sum: { total: true },
+      }),
+      prisma.expense.aggregate({
+        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, date: { gte: thisMonthStart } },
+        _sum: { amount: true },
+      }),
+      prisma.expense.aggregate({
+        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, date: { gte: lastMonthStart, lte: lastMonthEnd } },
+        _sum: { amount: true },
+      }),
+      prisma.payment.aggregate({
+        where: { date: { gte: thisMonthStart }, invoice: { direction: 'SALES' } },
+        _sum: { amount: true },
+      }),
+      prisma.payment.aggregate({
+        where: { date: { gte: lastMonthStart, lte: lastMonthEnd }, invoice: { direction: 'SALES' } },
+        _sum: { amount: true },
+      }),
+      prisma.invoice.findMany({
+        where: {
+          direction: 'SALES', status: { not: 'CANCELLED' },
+          contractId: { not: null }, issueDate: { gte: ninetyDaysAgo },
+        },
+        take: 500,
+        select: { contractId: true },
+        distinct: ['contractId'],
+      }),
+    ]);
+
+    // ── Contract stats ─────────────────────────────────────────────────────
+    const invMap = new Map(invByContract.map(r => [r.contractId as number, { total: n(r._sum.total), paid: n(r._sum.paidAmount) }]));
+    const expMap = new Map(expByContract.map(r => [r.contractId as number, n(r._sum.amount)]));
+    const recentSet = new Set(recentActivity.map(r => r.contractId as number));
+
+    const contractStats = activeContracts.map(c => {
+      const inv = invMap.get(c.id) ?? { total: 0, paid: 0 };
+      const exp = expMap.get(c.id) ?? 0;
+      const revenue    = r3(inv.total);
+      const collected  = r3(inv.paid);
+      const expenses   = r3(exp);
+      const outstanding = r3(Math.max(0, revenue - collected));
+      const profit     = r3(revenue - expenses);
+      return {
+        id: c.id, code: c.code, asphaltPlant: c.asphaltPlant,
+        customerName: c.customer?.name ?? '—',
+        revenue, collected, expenses, outstanding, profit,
+        profitMargin:   sp(profit, revenue),
+        collectionRate: sp(collected, revenue),
+        expenseRatio:   sp(expenses, revenue),
+        hasRecentActivity: recentSet.has(c.id),
+      };
+    });
+
+    // ── Debtor map ─────────────────────────────────────────────────────────
+    const debtorMap = new Map<number, { name: string; outstanding: number; oldestDays: number }>();
+    for (const inv of outstandingInvoices) {
+      if (!inv.customerId || !inv.customer) continue;
+      const os = Math.max(0, n(inv.total) - n(inv.paidAmount));
+      if (os <= 0) continue;
+      const days = Math.floor((now.getTime() - new Date(inv.issueDate).getTime()) / 86_400_000);
+      const e = debtorMap.get(inv.customerId) ?? { name: inv.customer.name, outstanding: 0, oldestDays: 0 };
+      e.outstanding = r3(e.outstanding + os);
+      if (days > e.oldestDays) e.oldestDays = days;
+      debtorMap.set(inv.customerId, e);
+    }
+    const debtorList = [...debtorMap.entries()].map(([id, d]) => ({ customerId: id, ...d }));
+
+    // ── Part 1: Alerts ─────────────────────────────────────────────────────
+    const overdueCustomers = debtorList
+      .filter(d => d.oldestDays > 90)
+      .sort((a, b) => b.outstanding - a.outstanding)
+      .slice(0, 5)
+      .map(d => ({
+        id: `overdue-${d.customerId}`,
+        severity: (d.oldestDays > 180 ? 'HIGH' : 'MEDIUM') as 'HIGH' | 'MEDIUM' | 'LOW',
+        type: 'OVERDUE_CUSTOMER', title: `ذمة متأخرة: ${d.name}`,
+        description: `مديونية متأخرة ${d.oldestDays} يوم`,
+        amount: d.outstanding, relatedId: d.customerId, relatedType: 'CUSTOMER',
+        actionLabel: 'متابعة التحصيل',
+      }));
+
+    const highOutstanding = debtorList
+      .sort((a, b) => b.outstanding - a.outstanding)
+      .slice(0, 5)
+      .map(d => ({
+        id: `high-os-${d.customerId}`,
+        severity: (d.outstanding > 10000 ? 'HIGH' : 'MEDIUM') as 'HIGH' | 'MEDIUM' | 'LOW',
+        type: 'HIGH_OUTSTANDING', title: `مديونية عالية: ${d.name}`,
+        description: `إجمالي الذمم المستحقة`,
+        amount: d.outstanding, relatedId: d.customerId, relatedType: 'CUSTOMER',
+        actionLabel: 'مراجعة الحساب',
+      }));
+
+    const lossMaking = contractStats
+      .filter(c => c.revenue > 0 && c.profit < 0)
+      .sort((a, b) => a.profit - b.profit)
+      .slice(0, 5)
+      .map(c => ({
+        id: `loss-${c.id}`,
+        severity: 'HIGH' as 'HIGH' | 'MEDIUM' | 'LOW',
+        type: 'LOSS_CONTRACT', title: `عقد خاسر: ${c.code}`,
+        description: `هامش ربح سلبي — ${c.asphaltPlant}`,
+        amount: Math.abs(c.profit), relatedId: c.id, relatedType: 'CONTRACT',
+        actionLabel: 'مراجعة المصروفات',
+      }));
+
+    const lowCollection = contractStats
+      .filter(c => c.revenue > 0 && (c.collectionRate ?? 100) < 50)
+      .sort((a, b) => (a.collectionRate ?? 0) - (b.collectionRate ?? 0))
+      .slice(0, 5)
+      .map(c => ({
+        id: `low-col-${c.id}`,
+        severity: ((c.collectionRate ?? 0) < 25 ? 'HIGH' : 'MEDIUM') as 'HIGH' | 'MEDIUM' | 'LOW',
+        type: 'LOW_COLLECTION', title: `تحصيل منخفض: ${c.code}`,
+        description: `نسبة التحصيل ${(c.collectionRate ?? 0).toFixed(1)}%`,
+        amount: c.outstanding, relatedId: c.id, relatedType: 'CONTRACT',
+        actionLabel: 'متابعة التحصيل',
+      }));
+
+    const highExpenseRatio = contractStats
+      .filter(c => c.revenue > 0 && (c.expenseRatio ?? 0) > 80)
+      .sort((a, b) => (b.expenseRatio ?? 0) - (a.expenseRatio ?? 0))
+      .slice(0, 5)
+      .map(c => ({
+        id: `high-exp-${c.id}`,
+        severity: ((c.expenseRatio ?? 0) > 100 ? 'HIGH' : 'MEDIUM') as 'HIGH' | 'MEDIUM' | 'LOW',
+        type: 'HIGH_EXPENSE_RATIO', title: `مصروفات مرتفعة: ${c.code}`,
+        description: `نسبة المصروفات ${(c.expenseRatio ?? 0).toFixed(1)}%`,
+        amount: c.expenses, relatedId: c.id, relatedType: 'CONTRACT',
+        actionLabel: 'مراجعة المصروفات',
+      }));
+
+    const noActivity = activeContracts
+      .filter(c => !recentSet.has(c.id))
+      .slice(0, 5)
+      .map(c => ({
+        id: `no-act-${c.id}`,
+        severity: 'LOW' as 'HIGH' | 'MEDIUM' | 'LOW',
+        type: 'NO_INVOICE_ACTIVITY', title: `لا نشاط: ${c.code}`,
+        description: `لا فواتير منذ أكثر من 90 يوم — ${c.asphaltPlant}`,
+        amount: null as number | null, relatedId: c.id, relatedType: 'CONTRACT',
+        actionLabel: 'مراجعة العقد',
+      }));
+
+    const alerts = [...overdueCustomers, ...highOutstanding, ...lossMaking, ...lowCollection, ...highExpenseRatio, ...noActivity];
+
+    // ── Part 2: Forecast ───────────────────────────────────────────────────
+    let exp30 = 0, exp60 = 0, exp90 = 0;
+    for (const inv of outstandingInvoices) {
+      const os = Math.max(0, n(inv.total) - n(inv.paidAmount));
+      if (os <= 0) continue;
+      const days = Math.floor((now.getTime() - new Date(inv.issueDate).getTime()) / 86_400_000);
+      if (days <= 30) exp30 += os;
+      else if (days <= 60) exp60 += os;
+      else exp90 += os;
+    }
+
+    const thisCol  = n(thisMonthColAgg._sum.amount);
+    const thisExp  = n(thisMonthExpAgg._sum.amount);
+    const thisRev  = n(thisMonthRevAgg._sum.total);
+    const lastCol  = n(lastMonthColAgg._sum.amount);
+    const lastExp  = n(lastMonthExpAgg._sum.amount);
+    const lastRev  = n(lastMonthRevAgg._sum.total);
+    const totalOs  = r3(exp30 + exp60 + exp90);
+
+    let riskScore = 0;
+    if (totalOs > thisCol * 3) riskScore += 2; else if (totalOs > thisCol) riskScore += 1;
+    if (thisExp > thisCol)       riskScore += 2; else if (thisExp > thisCol * 0.8) riskScore += 1;
+    if (exp90 > totalOs * 0.4)   riskScore += 1;
+    const cashRisk: 'LOW' | 'MEDIUM' | 'HIGH' = riskScore >= 4 ? 'HIGH' : riskScore >= 2 ? 'MEDIUM' : 'LOW';
+
+    const forecast = {
+      expectedCollections30: r3(exp30),
+      expectedCollections60: r3(exp60),
+      expectedCollections90: r3(exp90),
+      cashRisk,
+      next30DaysSummary: {
+        expectedCollections: r3(exp30),
+        netThisMonth: r3(thisRev - thisExp),
+        cashRisk,
+      },
+    };
+
+    // ── Part 3: Monthly Trends ─────────────────────────────────────────────
+    const trendMap = new Map<string, { revenue: number; expenses: number; collections: number }>(
+      months.map(m => [m.label, { revenue: 0, expenses: 0, collections: 0 }]),
+    );
+    for (const inv of trendInvoices) {
+      const d = new Date(inv.issueDate);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const e = trendMap.get(k); if (e) e.revenue = r3(e.revenue + n(inv.total));
+    }
+    for (const exp of trendExpenses) {
+      const d = new Date(exp.date);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const e = trendMap.get(k); if (e) e.expenses = r3(e.expenses + n(exp.amount));
+    }
+    for (const p of trendPayments) {
+      const d = new Date(p.date);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const e = trendMap.get(k); if (e) e.collections = r3(e.collections + n(p.amount));
+    }
+    const monthlyTrends = months.map(m => {
+      const t = trendMap.get(m.label)!;
+      return { month: m.label, revenue: t.revenue, expenses: t.expenses, collections: t.collections, profit: r3(t.revenue - t.expenses) };
+    });
+
+    // ── Part 4: KPI Comparisons ────────────────────────────────────────────
+    const thisProfit = r3(thisRev - thisExp);
+    const lastProfit = r3(lastRev - lastExp);
+    const kpiComparisons = {
+      revenueChangePct:     sp(thisRev - lastRev, lastRev),
+      expensesChangePct:    sp(thisExp - lastExp, lastExp),
+      collectionsChangePct: sp(thisCol - lastCol, lastCol),
+      profitChangePct:      sp(thisProfit - lastProfit, Math.abs(lastProfit)),
+      thisMonth:  { revenue: r3(thisRev), expenses: r3(thisExp), collections: r3(thisCol), profit: thisProfit },
+      lastMonth:  { revenue: r3(lastRev), expenses: r3(lastExp), collections: r3(lastCol), profit: lastProfit },
+    };
+
+    // ── Part 5: Contract Health ────────────────────────────────────────────
+    const healthScores = contractStats.map(c => {
+      // Profit margin (0-25)
+      let ps = 0;
+      if (c.profitMargin !== null) {
+        ps = c.profitMargin >= 30 ? 25 : c.profitMargin >= 20 ? 20 : c.profitMargin >= 10 ? 15 : c.profitMargin >= 0 ? 5 : 0;
+      } else { ps = c.revenue === 0 ? 10 : 0; }
+
+      // Collection (0-25)
+      let cs = 0;
+      if (c.collectionRate !== null) {
+        cs = c.collectionRate >= 90 ? 25 : c.collectionRate >= 70 ? 20 : c.collectionRate >= 50 ? 13 : c.collectionRate >= 25 ? 7 : 0;
+      } else { cs = c.revenue === 0 ? 10 : 0; }
+
+      // Expense ratio (0-25)
+      let es = 0;
+      if (c.expenseRatio !== null) {
+        es = c.expenseRatio <= 50 ? 25 : c.expenseRatio <= 65 ? 18 : c.expenseRatio <= 80 ? 10 : c.expenseRatio <= 100 ? 3 : 0;
+      } else { es = c.revenue === 0 ? 10 : 0; }
+
+      // Activity (0-25)
+      const as_ = c.hasRecentActivity ? 25 : c.revenue > 0 ? 12 : 5;
+
+      const score = ps + cs + es + as_;
+      const status: 'HEALTHY' | 'WATCH' | 'RISK' = score >= 80 ? 'HEALTHY' : score >= 60 ? 'WATCH' : 'RISK';
+
+      const reasons: string[] = [];
+      if (c.profit < 0) reasons.push('ربح سلبي');
+      if (c.revenue > 0 && (c.collectionRate ?? 100) < 50) reasons.push('تحصيل منخفض');
+      if (c.revenue > 0 && (c.expenseRatio ?? 0) > 80) reasons.push('مصروفات مرتفعة');
+      if (!c.hasRecentActivity) reasons.push('لا نشاط مؤخراً');
+
+      return {
+        contractId: c.id, code: c.code, asphaltPlant: c.asphaltPlant, customerName: c.customerName,
+        score, status, profitMargin: c.profitMargin, collectionRate: c.collectionRate,
+        outstanding: c.outstanding, reason: reasons.join(' · ') || 'أداء جيد',
+      };
+    });
+
+    const riskContracts  = [...healthScores].filter(h => h.status === 'RISK').sort((a, b) => a.score - b.score).slice(0, 5);
+    const watchContracts = [...healthScores].filter(h => h.status === 'WATCH').sort((a, b) => a.score - b.score).slice(0, 5);
+    const contractHealth = {
+      riskContracts, watchContracts,
+      summary: {
+        healthy: healthScores.filter(h => h.status === 'HEALTHY').length,
+        watch:   healthScores.filter(h => h.status === 'WATCH').length,
+        risk:    healthScores.filter(h => h.status === 'RISK').length,
+        total:   healthScores.length,
+      },
+    };
+
+    // ── Part 6: Smart Recommendations ─────────────────────────────────────
+    type Rec = { id: string; priority: 'HIGH' | 'MEDIUM' | 'LOW'; title: string; message: string; metric: string; actionHint: string };
+    const recs: Rec[] = [];
+
+    overdueCustomers.slice(0, 2).forEach(a => recs.push({
+      id: `rec-${a.id}`, priority: 'HIGH',
+      title: 'متابعة ذمة متأخرة',
+      message: `${a.title.replace('ذمة متأخرة: ', '')} لديه ذمم متأخرة بقيمة ${a.amount?.toFixed(3) ?? '0.000'} د.ك منذ أكثر من 90 يوم.`,
+      metric: `${a.amount?.toFixed(3) ?? '0.000'} د.ك`, actionHint: 'أرسل كشف حساب محدث وتواصل مع العميل.',
+    }));
+
+    lossMaking.slice(0, 2).forEach(a => recs.push({
+      id: `rec-${a.id}`, priority: 'HIGH',
+      title: 'عقد يحقق خسارة',
+      message: `العقد ${a.title.replace('عقد خاسر: ', '')} يظهر هامش ربح سلبي.`,
+      metric: `خسارة ${a.amount?.toFixed(3) ?? '0.000'} د.ك`, actionHint: 'راجع تفاصيل المصروفات للعقد.',
+    }));
+
+    lowCollection.slice(0, 1).forEach(a => recs.push({
+      id: `rec-${a.id}`, priority: 'MEDIUM',
+      title: 'نسبة تحصيل منخفضة',
+      message: `العقد ${a.title.replace('تحصيل منخفض: ', '')} — ${a.description}.`,
+      metric: a.description, actionHint: 'راجع الفواتير المستحقة لهذا العقد.',
+    }));
+
+    const colChg = kpiComparisons.collectionsChangePct;
+    if (colChg !== null && colChg < -10) recs.push({
+      id: 'rec-col-drop', priority: 'HIGH',
+      title: 'انخفاض التحصيلات',
+      message: `التحصيل هذا الشهر أقل من الشهر السابق بنسبة ${Math.abs(colChg).toFixed(1)}%.`,
+      metric: `${Math.abs(colChg).toFixed(1)}% انخفاض`, actionHint: 'راجع الفواتير المستحقة وتابع مع العملاء.',
+    });
+
+    const expChg = kpiComparisons.expensesChangePct;
+    if (expChg !== null && expChg > 15) recs.push({
+      id: 'rec-exp-surge', priority: 'MEDIUM',
+      title: 'ارتفاع المصاريف',
+      message: `المصاريف هذا الشهر أعلى من الشهر السابق بنسبة ${expChg.toFixed(1)}%.`,
+      metric: `${expChg.toFixed(1)}% ارتفاع`, actionHint: 'راجع المصاريف المرتفعة وقارن مع الميزانية.',
+    });
+
+    highExpenseRatio.slice(0, 1).forEach(a => recs.push({
+      id: `rec-${a.id}`, priority: 'MEDIUM',
+      title: 'نسبة مصروفات مرتفعة',
+      message: `العقد ${a.title.replace('مصروفات مرتفعة: ', '')} — ${a.description}.`,
+      metric: a.description, actionHint: 'راجع بنود المصروفات وقارن مع العقد الأصلي.',
+    }));
+
+    if (noActivity.length > 0) recs.push({
+      id: 'rec-no-act', priority: 'LOW',
+      title: 'عقود بدون نشاط',
+      message: `${noActivity.length} عقود نشطة لم تُصدر لها فواتير منذ أكثر من 90 يوم.`,
+      metric: `${noActivity.length} عقود`, actionHint: 'تأكد من مستوى الأعمال في هذه العقود.',
+    });
+
+    return { alerts, forecast, monthlyTrends, kpiComparisons, contractHealth, recommendations: recs.slice(0, 8) };
+  }
 }
 
 export const dashboardService = new DashboardService();
