@@ -144,10 +144,42 @@ describe('customerStatement', () => {
 
     const report = await reportsService.build('customer-statement', { customerId: '1', from: '2026-03-01' });
 
-    // The aggregate where should filter out CANCELLED — verify the call arg
     const aggregateCall = mockPrisma.invoice.aggregate.mock.calls[0][0];
     expect(aggregateCall.where.status).toEqual({ not: 'CANCELLED' });
     expect(report.totalsRow?.['balance']).toBeCloseTo(500, 3);
+  });
+
+  it('same-day entries: invoices sort before payments (sortOrder), then by id ascending', async () => {
+    const sameDate = new Date('2026-03-15');
+    mockPrisma.customer.findUnique.mockResolvedValue(makeCustomer());
+    mockPrisma.invoice.findMany.mockResolvedValue([
+      { ...makeInvoice(), id: 5, issueDate: sameDate, total: 600, invoiceNumber: 'MN-INV-0005' },
+      { ...makeInvoice(), id: 3, issueDate: sameDate, total: 400, invoiceNumber: 'MN-INV-0003' },
+    ]);
+    mockPrisma.payment.findMany.mockResolvedValue([
+      { ...makePayment(), id: 1, date: sameDate, amount: 200, reference: null, invoice: { invoiceNumber: 'MN-INV-0003' } },
+    ]);
+
+    const report = await reportsService.build('customer-statement', { customerId: '1' });
+
+    // Expected: invoice id=3 first, invoice id=5 second, payment last
+    expect(report.rows[0]['reference']).toBe('MN-INV-0003');
+    expect(report.rows[1]['reference']).toBe('MN-INV-0005');
+    expect(report.rows[2]['type']).toBe('دفعة');
+  });
+
+  it('invoice filter applies endOfDay to the `to` date parameter', async () => {
+    mockPrisma.customer.findUnique.mockResolvedValue(makeCustomer());
+    mockPrisma.invoice.findMany.mockResolvedValue([]);
+    mockPrisma.payment.findMany.mockResolvedValue([]);
+
+    await reportsService.build('customer-statement', { customerId: '1', from: '2026-01-01', to: '2026-06-30' });
+
+    const invoiceWhereArg = mockPrisma.invoice.findMany.mock.calls[0][0].where;
+    const lte: Date = invoiceWhereArg.issueDate.lte;
+    expect(lte.getHours()).toBe(23);
+    expect(lte.getMinutes()).toBe(59);
+    expect(lte.getSeconds()).toBe(59);
   });
 });
 
@@ -225,6 +257,24 @@ describe('receivablesAging', () => {
     expect(report.totalsRow?.['totalOutstanding']).toBe(0);
   });
 
+  it('overpaid invoice (outstanding < 0) is excluded from aging', async () => {
+    mockPrisma.invoice.findMany.mockResolvedValue([
+      makeInvoice({ total: 100, paidAmount: 120, status: 'PAID', payments: [] }),
+    ]);
+
+    const report = await reportsService.build('receivables-aging', {});
+    expect(report.rows).toHaveLength(0);
+    expect(report.totalsRow?.['totalOutstanding']).toBe(0);
+  });
+
+  it('PAID and CANCELLED statuses are excluded via the where clause', async () => {
+    mockPrisma.invoice.findMany.mockResolvedValue([]);
+    await reportsService.build('receivables-aging', {});
+
+    const whereArg = mockPrisma.invoice.findMany.mock.calls[0][0].where;
+    expect(whereArg.status).toEqual({ notIn: ['PAID', 'CANCELLED'] });
+  });
+
   it('totals row sums all buckets correctly', async () => {
     const d15 = new Date(); d15.setDate(d15.getDate() - 15);
     const d45 = new Date(); d45.setDate(d45.getDate() - 45);
@@ -275,16 +325,36 @@ describe('customerBalances', () => {
   });
 
   it('CANCELLED invoices are excluded (where clause)', async () => {
-    // CANCELLED filtered at DB level (where status: { not: 'CANCELLED' })
-    // We just verify non-cancelled invoice is included
     mockPrisma.invoice.findMany.mockResolvedValue([
       makeInvoice({ total: 300, paidAmount: 0, status: 'UNPAID', payments: [] }),
     ]);
     const report = await reportsService.build('customer-balances', {});
     expect(report.rows[0]['totalInvoiced']).toBeCloseTo(300, 3);
-    // Verify the findMany where arg excludes CANCELLED
     const whereArg = mockPrisma.invoice.findMany.mock.calls[0][0].where;
     expect(whereArg.status).toEqual({ not: 'CANCELLED' });
+  });
+
+  it('unpaidCount uses outstanding > 0, not status check', async () => {
+    mockPrisma.invoice.findMany.mockResolvedValue([
+      // PARTIAL: outstanding = 600 → counts
+      makeInvoice({ id: 1, total: 1000, paidAmount: 400, status: 'PARTIAL', payments: [] }),
+      // PAID: outstanding = 0 → does NOT count
+      makeInvoice({ id: 2, total: 500, paidAmount: 500, status: 'PAID', payments: [] }),
+      // Overpaid: outstanding = -20 → does NOT count
+      makeInvoice({ id: 3, total: 100, paidAmount: 120, status: 'PAID', payments: [] }),
+    ]);
+    const report = await reportsService.build('customer-balances', {});
+    expect(report.rows[0]['unpaidCount']).toBe(1);
+  });
+
+  it('money columns have numFmt #,##0.000', async () => {
+    mockPrisma.invoice.findMany.mockResolvedValue([]);
+    const report = await reportsService.build('customer-balances', {});
+    const moneyKeys = ['totalInvoiced', 'totalPaid', 'balance'];
+    for (const key of moneyKeys) {
+      const col = report.columns.find((c) => c.key === key);
+      expect(col?.numFmt).toBe('#,##0.000');
+    }
   });
 });
 

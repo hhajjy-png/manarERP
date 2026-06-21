@@ -507,7 +507,7 @@ export class ReportsService {
           customerId: cId, direction: 'SALES', status: { not: 'CANCELLED' },
           ...dateWhere(q.from, q.to, 'issueDate') as Prisma.InvoiceWhereInput,
         },
-        select: { invoiceNumber: true, issueDate: true, total: true, notes: true },
+        select: { id: true, invoiceNumber: true, issueDate: true, total: true, notes: true },
         orderBy: { issueDate: 'asc' },
       }),
       prisma.payment.findMany({
@@ -515,26 +515,26 @@ export class ReportsService {
           invoice: { customerId: cId, direction: 'SALES', status: { not: 'CANCELLED' } },
           ...dateWhere(q.from, q.to) as Prisma.PaymentWhereInput,
         },
-        select: { date: true, amount: true, reference: true, notes: true, invoice: { select: { invoiceNumber: true } } },
+        select: { id: true, date: true, amount: true, reference: true, notes: true, invoice: { select: { invoiceNumber: true } } },
         orderBy: { date: 'asc' },
       }),
     ]);
 
-    type Entry = { date: Date; sortOrder: number; type: string; reference: string; description: string; debit: number; credit: number };
+    type Entry = { id: number; date: Date; sortOrder: number; type: string; reference: string; description: string; debit: number; credit: number };
     const entries: Entry[] = [
       ...invoices.map((i) => ({
-        date: i.issueDate, sortOrder: 0, type: 'فاتورة',
+        id: i.id, date: i.issueDate, sortOrder: 0, type: 'فاتورة',
         reference: i.invoiceNumber, description: i.notes ?? 'فاتورة نقل',
         debit: num(i.total), credit: 0,
       })),
       ...payments.map((p) => ({
-        date: p.date, sortOrder: 1, type: 'دفعة',
+        id: p.id, date: p.date, sortOrder: 1, type: 'دفعة',
         reference: p.reference ?? p.invoice.invoiceNumber,
         description: p.notes ?? 'دفعة مقبوضة',
         debit: 0, credit: num(p.amount),
       })),
     ];
-    entries.sort((a, b) => a.date.getTime() - b.date.getTime() || a.sortOrder - b.sortOrder);
+    entries.sort((a, b) => a.date.getTime() - b.date.getTime() || a.sortOrder - b.sortOrder || a.id - b.id);
 
     let balance = openingBalance;
     const rows = entries.map((e) => {
@@ -718,7 +718,7 @@ export class ReportsService {
       row.totalInvoiced = round3(row.totalInvoiced + num(inv.total));
       row.totalPaid = round3(row.totalPaid + num(inv.paidAmount));
       row.invoiceCount++;
-      if (inv.status !== 'PAID') row.unpaidCount++;
+      if (round3(num(inv.total) - num(inv.paidAmount)) > 0) row.unpaidCount++;
       const d = new Date(inv.issueDate);
       if (!row.lastInvoiceDate || d > row.lastInvoiceDate) row.lastInvoiceDate = d;
       for (const p of inv.payments) {
