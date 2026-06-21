@@ -21,4 +21,7 @@ router.get('/executive', canRead, asyncHandler(async (_req, res) => ok(res, awai
 /** ملخص العمليات المعلّقة — pending expenses, draft payroll, unprinted cheques, etc. */
 router.get('/operational', canRead, asyncHandler(async (_req, res) => ok(res, await dashboardService.operationalSummary())));
 
+/** المؤشرات المالية التنفيذية V2 — تحصيلات الشهر، كبار المدينين، الذمم، ربحية العقود. */
+router.get('/executive-financial-v2', canRead, asyncHandler(async (_req, res) => ok(res, await dashboardService.executiveFinancialV2())));
+
 export default router;

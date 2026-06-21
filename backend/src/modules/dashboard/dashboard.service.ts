@@ -227,6 +227,152 @@ export class DashboardService {
     };
   }
 
+  /**
+   * ملخص مالي تنفيذي متقدم — تحصيلات الشهر، كبار المدينين، تحليل الذمم، ربحية العقود.
+   * مصدر بيانات Part 1 (Dashboard V2) + Part 3 (Receivables Widgets).
+   */
+  async executiveFinancialV2() {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const r3 = (v: number) => Math.round(v * 1000) / 1000;
+    const n = (v: unknown) => Number(v ?? 0);
+
+    const months = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      return {
+        label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+        start: d,
+        end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999),
+      };
+    });
+
+    const [
+      collectionsThisMonthAgg,
+      expensesThisMonthAgg,
+      outstandingInvoices,
+      invByContract,
+      expByContract,
+      activeContracts,
+      collectionTrendRaw,
+    ] = await Promise.all([
+      prisma.payment.aggregate({
+        where: { date: { gte: monthStart }, invoice: { direction: 'SALES', status: { not: 'CANCELLED' } } },
+        _sum: { amount: true },
+      }),
+      prisma.expense.aggregate({
+        where: { status: 'APPROVED', date: { gte: monthStart } },
+        _sum: { amount: true },
+      }),
+      prisma.invoice.findMany({
+        where: { direction: 'SALES', status: { notIn: ['PAID', 'CANCELLED'] }, customerId: { not: null } },
+        select: {
+          customerId: true, total: true, paidAmount: true, issueDate: true,
+          customer: { select: { id: true, name: true } },
+        },
+      }),
+      prisma.invoice.groupBy({
+        by: ['contractId'],
+        where: { direction: 'SALES', status: { not: 'CANCELLED' }, contractId: { not: null } },
+        _sum: { total: true },
+      }),
+      prisma.expense.groupBy({
+        by: ['contractId'],
+        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, contractId: { not: null } },
+        _sum: { amount: true },
+      }),
+      prisma.contract.findMany({
+        where: { status: 'ACTIVE' },
+        take: 50,
+        orderBy: { id: 'desc' },
+        select: { id: true, code: true, asphaltPlant: true },
+      }),
+      Promise.all(
+        months.map(async (m) => {
+          const agg = await prisma.payment.aggregate({
+            where: {
+              date: { gte: m.start, lte: m.end },
+              invoice: { direction: 'SALES', status: { not: 'CANCELLED' } },
+            },
+            _sum: { amount: true },
+          });
+          return { label: m.label, collected: r3(n(agg._sum.amount)) };
+        }),
+      ),
+    ]);
+
+    // ── Top Debtors ────────────────────────────────────────────────────────────
+    const debtorMap = new Map<number, { name: string; outstanding: number }>();
+    for (const inv of outstandingInvoices) {
+      if (!inv.customerId || !inv.customer) continue;
+      const outstanding = Math.max(0, n(inv.total) - n(inv.paidAmount));
+      if (outstanding <= 0) continue;
+      const entry = debtorMap.get(inv.customerId) ?? { name: inv.customer.name, outstanding: 0 };
+      entry.outstanding = r3(entry.outstanding + outstanding);
+      debtorMap.set(inv.customerId, entry);
+    }
+    const topDebtors = [...debtorMap.entries()]
+      .map(([customerId, d]) => ({ customerId, name: d.name, outstanding: d.outstanding }))
+      .sort((a, b) => b.outstanding - a.outstanding)
+      .slice(0, 5);
+
+    // ── Aging Summary ──────────────────────────────────────────────────────────
+    let b0_30 = 0, b31_60 = 0, b61_90 = 0, b90plus = 0;
+    for (const inv of outstandingInvoices) {
+      const outstanding = Math.max(0, n(inv.total) - n(inv.paidAmount));
+      if (outstanding <= 0) continue;
+      const days = Math.floor((now.getTime() - new Date(inv.issueDate).getTime()) / 86_400_000);
+      if (days <= 30)      b0_30   += outstanding;
+      else if (days <= 60) b31_60  += outstanding;
+      else if (days <= 90) b61_90  += outstanding;
+      else                 b90plus += outstanding;
+    }
+    const agingSummary = {
+      bucket0_30:  r3(b0_30),
+      bucket31_60: r3(b31_60),
+      bucket61_90: r3(b61_90),
+      bucket90Plus: r3(b90plus),
+      totalOutstanding: r3(b0_30 + b31_60 + b61_90 + b90plus),
+    };
+
+    // ── Contract Profitability ─────────────────────────────────────────────────
+    const invMap = new Map(invByContract.map((r) => [r.contractId as number, n(r._sum.total)]));
+    const expMap = new Map(expByContract.map((r) => [r.contractId as number, n(r._sum.amount)]));
+
+    const contractProfits = activeContracts
+      .map((c) => {
+        const revenue  = invMap.get(c.id) ?? 0;
+        const expenses = expMap.get(c.id) ?? 0;
+        const profit   = r3(revenue - expenses);
+        const profitMargin = revenue > 0 ? Math.round((profit / revenue) * 100 * 10) / 10 : null;
+        return { id: c.id, code: c.code, asphaltPlant: c.asphaltPlant, revenue: r3(revenue), expenses: r3(expenses), profit, profitMargin };
+      })
+      .filter((c) => c.revenue > 0);
+
+    const byMarginDesc = [...contractProfits].sort((a, b) => (b.profitMargin ?? -Infinity) - (a.profitMargin ?? -Infinity));
+    const topProfitableContracts = byMarginDesc.slice(0, 5);
+    const lowestProfitContracts  = [...byMarginDesc].reverse().slice(0, 5);
+
+    // ── Financial Alerts ───────────────────────────────────────────────────────
+    const financialAlerts: { type: string; level: 'warning' | 'danger'; messageAr: string }[] = [];
+    if (agingSummary.bucket90Plus > 0) {
+      financialAlerts.push({ type: 'aging_90plus', level: 'danger',  messageAr: `مديونيات متأخرة أكثر من 90 يوم: ${agingSummary.bucket90Plus.toFixed(3)} د.ك` });
+    }
+    if (agingSummary.bucket61_90 > 0) {
+      financialAlerts.push({ type: 'aging_61_90', level: 'warning', messageAr: `مديونيات 61–90 يوم: ${agingSummary.bucket61_90.toFixed(3)} د.ك` });
+    }
+
+    return {
+      collectionsThisMonth:   r3(n(collectionsThisMonthAgg._sum.amount)),
+      expensesThisMonth:      r3(n(expensesThisMonthAgg._sum.amount)),
+      topDebtors,
+      agingSummary,
+      collectionTrend:        collectionTrendRaw,
+      topProfitableContracts,
+      lowestProfitContracts,
+      financialAlerts,
+    };
+  }
+
   /** ملخص العمليات المعلّقة — للشريط التحذيري في لوحة التحكم. */
   async operationalSummary() {
     const now = new Date();

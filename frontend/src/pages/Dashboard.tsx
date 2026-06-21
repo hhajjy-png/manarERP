@@ -23,6 +23,8 @@ import {
   TableRowSkeletons,
 } from '../components/dashboard/Skeleton';
 import LastAutoBackupCard from '../components/dashboard/LastAutoBackupCard';
+import FinancialIntelPanel from '../components/dashboard/FinancialIntelPanel';
+import type { FinV2Data } from '../components/dashboard/FinancialIntelPanel';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ApiAny = any;
@@ -64,6 +66,7 @@ export default function Dashboard() {
   const [contracts, setContracts] = useState<ApiAny[]>([]);
   const [alerts, setAlerts] = useState<DashAlert[]>([]);
   const [ops, setOps] = useState<ApiAny>(null);
+  const [finV2, setFinV2] = useState<FinV2Data | null>(null);
 
   const today = new Date().toLocaleDateString('ar-KW', {
     weekday: 'long',
@@ -81,11 +84,12 @@ export default function Dashboard() {
       else setRefreshing(true);
       setError('');
       try {
-        const [execRes, equipRes, empsRes, opsRes] = await Promise.all([
+        const [execRes, equipRes, empsRes, opsRes, finV2Res] = await Promise.all([
           api.get('/dashboard/executive'),
           api.get('/equipment/expiring', { params: { days: 30 } }),
           api.get('/employees/expiring-documents', { params: { days: 30 } }),
           api.get('/dashboard/operational'),
+          api.get('/dashboard/executive-financial-v2'),
         ]);
 
         if (cancelled) return;
@@ -120,6 +124,7 @@ export default function Dashboard() {
         });
         setAlerts([...equipAlerts, ...empAlerts]);
         setOps(opsRes.data?.data ?? null);
+        setFinV2(finV2Res.data?.data ?? null);
         setRefreshAt(new Date());
       } catch (e) {
         if (!cancelled) setError(errorMessage(e));
@@ -791,6 +796,11 @@ export default function Dashboard() {
           </tbody>
         </table>
       </div>
+
+      {/* ══════════════════════════════════════════════════
+          FINANCIAL INTELLIGENCE PANEL V2
+      ══════════════════════════════════════════════════ */}
+      <FinancialIntelPanel data={finV2} loading={initialLoading} />
     </div>
   );
 }
