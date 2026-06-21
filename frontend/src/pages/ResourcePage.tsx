@@ -10,6 +10,7 @@ import ForceDeleteEquipmentModal from '../components/ForceDeleteEquipmentModal';
 import ForceDeleteCustomerModal from '../components/ForceDeleteCustomerModal';
 import ForceDeleteSupplierModal from '../components/ForceDeleteSupplierModal';
 import ForceDeleteContractModal from '../components/ForceDeleteContractModal';
+import ContractFinancialSummaryModal from '../components/ContractFinancialSummaryModal';
 import { usePersistedState } from '../hooks/usePersistedState';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadBlob } from '../utils/exportUtils';
@@ -43,6 +44,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [forceDeleteCustomerCandidate, setForceDeleteCustomerCandidate] = useState<{ id: number; code: string } | null>(null);
   const [forceDeleteSupplierCandidate, setForceDeleteSupplierCandidate] = useState<{ id: number; code: string } | null>(null);
   const [forceDeleteContractCandidate, setForceDeleteContractCandidate] = useState<{ id: number; code: string } | null>(null);
+  const [financialSummaryContract, setFinancialSummaryContract] = useState<{ id: number; code: string } | null>(null);
 
   const canCreate = hasPermission(`${cfg.key}.create`);
   const canUpdate = hasPermission(`${cfg.key}.update`);
@@ -356,6 +358,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
                 <button type="button" className="btn secondary sm" onClick={() => onApprove(row.id, 'reject')} disabled={busy}>{t('action.reject')}</button>{' '}
               </>
             )}
+            {cfg.key === 'contracts' && (
+              <><button type="button" className="btn secondary sm" onClick={() => setFinancialSummaryContract({ id: row.id, code: row.code })}>📊 {t('action.financial_summary')}</button>{' '}</>
+            )}
             {canUpdate && <button type="button" className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>}{' '}
             {canDelete && <button type="button" className="btn danger sm" onClick={() => onDelete(row)}>{t('action.delete')}</button>}
           </>
@@ -428,6 +433,14 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           contractId={forceDeleteContractCandidate.id}
           onClose={() => setForceDeleteContractCandidate(null)}
           onDeleted={() => { setForceDeleteContractCandidate(null); load(); }}
+        />
+      )}
+
+      {financialSummaryContract && (
+        <ContractFinancialSummaryModal
+          contractId={financialSummaryContract.id}
+          contractCode={financialSummaryContract.code}
+          onClose={() => setFinancialSummaryContract(null)}
         />
       )}
     </div>

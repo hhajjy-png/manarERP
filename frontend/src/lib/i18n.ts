@@ -972,6 +972,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     'action.reset_filters': 'مسح التصفية',
     'action.refresh': 'تحديث',
+    'action.financial_summary': 'الملخص المالي',
 
     // ── Audit Log Viewer ─────────────────────────────────────────────────────
     'nav.audit': 'سجل التدقيق',
@@ -2178,6 +2179,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     'action.reset_filters': 'Reset Filters',
     'action.refresh': 'Refresh',
+    'action.financial_summary': 'Financial Summary',
 
     // ── Audit Log Viewer ─────────────────────────────────────────────────────
     'nav.audit': 'Audit Log',

@@ -12,6 +12,7 @@ router.use(authenticate);
 
 router.get('/', requirePermission('contracts.read'), asyncHandler(contractsController.list));
 router.get('/summary', requirePermission('contracts.read'), asyncHandler(contractsController.summary));
+router.get('/:id/financial-summary', requirePermission('contracts.read'), asyncHandler(contractsController.getFinancialSummary));
 router.get('/:id/force', requireRole(ROLES.SYSTEM_ADMIN), asyncHandler(contractsController.forceRemovePreview));
 router.get('/:id', requirePermission('contracts.read'), asyncHandler(contractsController.getById));
 router.post('/', requirePermission('contracts.create'), validate(createContractSchema), asyncHandler(contractsController.create));
