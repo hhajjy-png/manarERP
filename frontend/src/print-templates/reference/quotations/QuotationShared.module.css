@@ -24,6 +24,7 @@
 .blank { padding: 50mm 16mm 25mm; }
 
 @media print {
+  @page { size: A4; margin: 0; }
   .page { margin: 0; box-shadow: none; }
 }
 
@@ -314,6 +315,7 @@
   border-bottom: 2px solid #30246C;
   padding: 5px 28px;
   display: inline-block;
+  box-shadow: 0 3px 0 -1px #30246C;
 }
 .tpl1 .qMeta {
   margin: 4mm auto 0;
@@ -429,4 +431,5 @@
 .tpl5 .qTable tbody td { padding: 8px 6px; }
 .tpl5 .qTable tbody .desc { font-weight: 500; }
 .tpl5 .qTable tbody tr:nth-child(even) td { background: #f5f4fa; }
+.tpl5 .qTable tfoot td { border: 1px solid #30246C; }
 .tpl5 .rowGrand { font-size: 13px; }
