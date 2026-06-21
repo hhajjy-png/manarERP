@@ -21,7 +21,8 @@ const mp = prisma as unknown as {
 
 const emptyRevAgg  = () => ({ _sum: { total: null } });
 const emptyAmtAgg  = () => ({ _sum: { amount: null } });
-const daysAgo = (d: number) => new Date(Date.now() - d * 86_400_000);
+const daysAgo    = (d: number) => new Date(Date.now() - d * 86_400_000);
+const daysFromNow = (d: number) => new Date(Date.now() + d * 86_400_000);
 
 function setupDefaults() {
   mp.contract.findMany.mockResolvedValue([]);
@@ -126,14 +127,15 @@ describe('executiveIntelligenceV2', () => {
     }
   });
 
-  it('forecast buckets 30/60/90 computed correctly', async () => {
+  it('forecast buckets 30/60/90 computed correctly using dueDate', async () => {
     mp.invoice.findMany
       .mockResolvedValueOnce([
-        { customerId: 1, total: 1000, paidAmount: 0, issueDate: daysAgo(15), contractId: null, customer: { id: 1, name: 'أ' } },
-        { customerId: 2, total: 2000, paidAmount: 0, issueDate: daysAgo(45), contractId: null, customer: { id: 2, name: 'ب' } },
-        { customerId: 3, total: 3000, paidAmount: 0, issueDate: daysAgo(75), contractId: null, customer: { id: 3, name: 'ج' } },
+        // dueDate explicit → each goes into exactly one bucket
+        { customerId: 1, total: 1000, paidAmount: 0, issueDate: daysAgo(5),  dueDate: daysFromNow(25), contractId: null, customer: { id: 1, name: 'أ' } },  // daysUntilDue=25 → bucket30
+        { customerId: 2, total: 2000, paidAmount: 0, issueDate: daysAgo(10), dueDate: daysFromNow(45), contractId: null, customer: { id: 2, name: 'ب' } },  // daysUntilDue=45 → bucket60
+        { customerId: 3, total: 3000, paidAmount: 0, issueDate: daysAgo(10), dueDate: daysFromNow(75), contractId: null, customer: { id: 3, name: 'ج' } },  // daysUntilDue=75 → bucket90
         // fully paid → excluded
-        { customerId: 4, total: 4000, paidAmount: 4000, issueDate: daysAgo(10), contractId: null, customer: { id: 4, name: 'د' } },
+        { customerId: 4, total: 4000, paidAmount: 4000, issueDate: daysAgo(10), dueDate: daysFromNow(20), contractId: null, customer: { id: 4, name: 'د' } },
       ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
@@ -277,6 +279,120 @@ describe('executiveIntelligenceV2', () => {
     const lossRec = result.recommendations.find(r => r.id.startsWith('rec-loss'));
     expect(lossRec).toBeDefined();
     expect(lossRec?.priority).toBe('HIGH');
+  });
+
+  // ── Blocker 1: new/no-data contract neutral guard ──────────────────────────
+
+  it('new contract (startDate within 30 days) — HEALTHY, excluded from RISK, no HIGH recommendation', async () => {
+    mp.contract.findMany.mockResolvedValue([
+      { id: 99, code: 'C99', asphaltPlant: 'مصنع جديد', startDate: daysAgo(10), customer: { id: 99, name: 'عميل جديد' } },
+    ]);
+    // No invoices or expenses → noData = true via isNew
+    mp.invoice.findMany.mockResolvedValue([]);
+
+    const result = await dashboardService.executiveIntelligenceV2();
+
+    expect(result.contractHealth.summary.total).toBe(1);
+    expect(result.contractHealth.summary.risk).toBe(0);
+    expect(result.contractHealth.summary.healthy).toBe(1);
+    expect(result.contractHealth.riskContracts).toHaveLength(0);
+    // No HIGH-priority recommendation triggered by this new contract
+    const highRecs = result.recommendations.filter(r => r.priority === 'HIGH');
+    expect(highRecs.every(r => !r.id.includes('99') && !r.message.includes('C99'))).toBe(true);
+  });
+
+  it('no-data contract (null startDate, zero revenue/expenses) — HEALTHY not RISK', async () => {
+    mp.contract.findMany.mockResolvedValue([
+      { id: 88, code: 'C88', asphaltPlant: 'مصنع', startDate: null, customer: { id: 88, name: 'عميل قديم' } },
+    ]);
+    // Zero invoices and expenses → noData = true
+    mp.invoice.groupBy.mockResolvedValue([]);
+    mp.expense.groupBy.mockResolvedValue([]);
+    mp.invoice.findMany.mockResolvedValue([]);
+
+    const result = await dashboardService.executiveIntelligenceV2();
+
+    expect(result.contractHealth.summary.risk).toBe(0);
+    expect(result.contractHealth.summary.healthy).toBe(1);
+    expect(result.contractHealth.riskContracts).toHaveLength(0);
+    expect(result.contractHealth.watchContracts).toHaveLength(0);
+  });
+
+  // ── Blocker 2: mutually exclusive forecast buckets ─────────────────────────
+
+  it('forecast bucket exact boundaries — 30/31/60/61/90 days until due', async () => {
+    mp.invoice.findMany
+      .mockResolvedValueOnce([
+        { customerId: 1, total: 100,  paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(30), contractId: null, customer: { id: 1, name: 'أ' } }, // boundary 30 → bucket30
+        { customerId: 2, total: 200,  paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(31), contractId: null, customer: { id: 2, name: 'ب' } }, // boundary 31 → bucket60
+        { customerId: 3, total: 400,  paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(60), contractId: null, customer: { id: 3, name: 'ج' } }, // boundary 60 → bucket60
+        { customerId: 4, total: 800,  paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(61), contractId: null, customer: { id: 4, name: 'د' } }, // boundary 61 → bucket90
+        { customerId: 5, total: 1600, paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(90), contractId: null, customer: { id: 5, name: 'ه' } }, // boundary 90 → bucket90
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await dashboardService.executiveIntelligenceV2();
+
+    expect(result.forecast.expectedCollections30).toBeCloseTo(100, 3);          // only boundary-30
+    expect(result.forecast.expectedCollections60).toBeCloseTo(200 + 400, 3);    // boundary-31 + boundary-60
+    expect(result.forecast.expectedCollections90).toBeCloseTo(800 + 1600, 3);   // boundary-61 + boundary-90
+  });
+
+  it('overdue invoices (past dueDate) excluded from all forecast buckets', async () => {
+    mp.invoice.findMany
+      .mockResolvedValueOnce([
+        // dueDate in the past → overdue
+        { customerId: 1, total: 9000, paidAmount: 0, issueDate: daysAgo(100), dueDate: daysAgo(10), contractId: null, customer: { id: 1, name: 'أ' } },
+        // dueDate in future → valid forecast
+        { customerId: 2, total: 500,  paidAmount: 0, issueDate: daysAgo(5),   dueDate: daysFromNow(25), contractId: null, customer: { id: 2, name: 'ب' } },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await dashboardService.executiveIntelligenceV2();
+
+    // Only the 500 invoice is in forecast; overdue 9000 is excluded
+    expect(result.forecast.expectedCollections30).toBeCloseTo(500, 3);
+    const total = result.forecast.expectedCollections30 + result.forecast.expectedCollections60 + result.forecast.expectedCollections90;
+    expect(total).toBeCloseTo(500, 3);
+  });
+
+  it('no invoice counted in more than one forecast bucket', async () => {
+    mp.invoice.findMany
+      .mockResolvedValueOnce([
+        { customerId: 1, total: 1000, paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(10), contractId: null, customer: { id: 1, name: 'أ' } }, // bucket30
+        { customerId: 2, total: 1000, paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(40), contractId: null, customer: { id: 2, name: 'ب' } }, // bucket60
+        { customerId: 3, total: 1000, paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(80), contractId: null, customer: { id: 3, name: 'ج' } }, // bucket90
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const result = await dashboardService.executiveIntelligenceV2();
+    const { expectedCollections30: e30, expectedCollections60: e60, expectedCollections90: e90 } = result.forecast;
+
+    expect(e30).toBeCloseTo(1000, 3);
+    expect(e60).toBeCloseTo(1000, 3);
+    expect(e90).toBeCloseTo(1000, 3);
+    // Total equals sum of individuals — no double counting
+    expect(e30 + e60 + e90).toBeCloseTo(3000, 3);
+  });
+
+  // ── Blocker 3: denominator zero → null, JSON-safe payload ─────────────────
+
+  it('denominator zero in KPI — null in payload, no NaN/Infinity in JSON', async () => {
+    mp.invoice.aggregate
+      .mockResolvedValueOnce({ _sum: { total: 8000 } }) // thisMonth revenue
+      .mockResolvedValueOnce({ _sum: { total: null } }); // lastMonth = 0
+
+    const result = await dashboardService.executiveIntelligenceV2();
+
+    expect(result.kpiComparisons.revenueChangePct).toBeNull();
+    expect(result.kpiComparisons.thisMonth.revenue).toBeCloseTo(8000, 3);
+    // Full payload must be JSON-serialisable with no NaN or Infinity
+    const payload = JSON.stringify(result);
+    expect(payload).not.toContain('NaN');
+    expect(payload).not.toContain('Infinity');
   });
 
   it('recommendations capped at 8', async () => {

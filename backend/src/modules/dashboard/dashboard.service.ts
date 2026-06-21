@@ -430,6 +430,7 @@ export class DashboardService {
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    const thirtyDaysAgo  = new Date(now.getTime() - 30 * 86_400_000);
 
     const months = Array.from({ length: 6 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
@@ -454,7 +455,7 @@ export class DashboardService {
     ] = await Promise.all([
       prisma.contract.findMany({
         where: { status: 'ACTIVE' }, take: 100, orderBy: { id: 'desc' },
-        select: { id: true, code: true, asphaltPlant: true, customer: { select: { id: true, name: true } } },
+        select: { id: true, code: true, asphaltPlant: true, startDate: true, customer: { select: { id: true, name: true } } },
       }),
       prisma.invoice.groupBy({
         by: ['contractId'],
@@ -470,7 +471,7 @@ export class DashboardService {
         where: { direction: 'SALES', status: { notIn: ['PAID', 'CANCELLED'] }, customerId: { not: null } },
         take: 500,
         select: {
-          customerId: true, total: true, paidAmount: true, issueDate: true,
+          customerId: true, total: true, paidAmount: true, issueDate: true, dueDate: true,
           contractId: true, customer: { select: { id: true, name: true } },
         },
       }),
@@ -537,6 +538,8 @@ export class DashboardService {
       const expenses   = r3(exp);
       const outstanding = r3(Math.max(0, revenue - collected));
       const profit     = r3(revenue - expenses);
+      const isNew  = c.startDate !== null && c.startDate > thirtyDaysAgo;
+      const noData = (revenue === 0 && expenses === 0 && collected === 0) || isNew;
       return {
         id: c.id, code: c.code, asphaltPlant: c.asphaltPlant,
         customerName: c.customer?.name ?? '—',
@@ -545,8 +548,11 @@ export class DashboardService {
         collectionRate: sp(collected, revenue),
         expenseRatio:   sp(expenses, revenue),
         hasRecentActivity: recentSet.has(c.id),
+        noData,
       };
     });
+
+    const noDataContractIds = new Set(contractStats.filter(c => c.noData).map(c => c.id));
 
     // ── Debtor map ─────────────────────────────────────────────────────────
     const debtorMap = new Map<number, { name: string; outstanding: number; oldestDays: number }>();
@@ -628,7 +634,7 @@ export class DashboardService {
       }));
 
     const noActivity = activeContracts
-      .filter(c => !recentSet.has(c.id))
+      .filter(c => !recentSet.has(c.id) && !noDataContractIds.has(c.id))
       .slice(0, 5)
       .map(c => ({
         id: `no-act-${c.id}`,
@@ -646,10 +652,15 @@ export class DashboardService {
     for (const inv of outstandingInvoices) {
       const os = Math.max(0, n(inv.total) - n(inv.paidAmount));
       if (os <= 0) continue;
-      const days = Math.floor((now.getTime() - new Date(inv.issueDate).getTime()) / 86_400_000);
-      if (days <= 30) exp30 += os;
-      else if (days <= 60) exp60 += os;
-      else exp90 += os;
+      // Use dueDate if set; fallback: issueDate + 30 day default payment term
+      const refDate = inv.dueDate
+        ?? new Date(new Date(inv.issueDate).getTime() + 30 * 86_400_000);
+      const daysUntilDue = Math.ceil((new Date(refDate).getTime() - now.getTime()) / 86_400_000);
+      if (daysUntilDue < 0)   continue;          // overdue — not a future forecast
+      if (daysUntilDue <= 30)  exp30 += os;      // due within 0–30 days
+      else if (daysUntilDue <= 60) exp60 += os;  // due in 31–60 days
+      else if (daysUntilDue <= 90) exp90 += os;  // due in 61–90 days
+      // > 90 days: out of phase-1 forecast range
     }
 
     const thisCol  = n(thisMonthColAgg._sum.amount);
@@ -716,6 +727,14 @@ export class DashboardService {
 
     // ── Part 5: Contract Health ────────────────────────────────────────────
     const healthScores = contractStats.map(c => {
+      // New or no-data contracts must not be classified as RISK
+      if (c.noData) {
+        return {
+          contractId: c.id, code: c.code, asphaltPlant: c.asphaltPlant, customerName: c.customerName,
+          score: 100, status: 'HEALTHY' as const, profitMargin: null, collectionRate: null,
+          outstanding: 0, reason: 'عقد جديد أو لا توجد بيانات مالية كافية بعد',
+        };
+      }
       // Profit margin (0-25)
       let ps = 0;
       if (c.profitMargin !== null) {

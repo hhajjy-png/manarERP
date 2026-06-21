@@ -95,8 +95,13 @@ const HLTH_COLOR: Record<string, string> = { HEALTHY: '#10B981', WATCH: '#F59E0B
 const HLTH_LABEL: Record<string, string> = { HEALTHY: 'سليم', WATCH: 'مراقبة', RISK: 'خطر' };
 const PRI_COLOR:  Record<string, string> = { HIGH: '#EF4444', MEDIUM: '#F59E0B', LOW: '#9CA3AF' };
 
+function formatPct(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return `${value.toFixed(3)}%`;
+}
+
 function deltaBadge(pct: number | null, invert = false) {
-  if (pct === null) return <span style={{ color: '#6B7280', fontSize: 11 }}>—</span>;
+  if (pct === null || !Number.isFinite(pct)) return <span style={{ color: '#6B7280', fontSize: 11 }}>—</span>;
   const positive = invert ? pct < 0 : pct > 0;
   const color = positive ? '#10B981' : '#EF4444';
   const arrow = pct > 0 ? '↑' : '↓';
