@@ -88,9 +88,25 @@ const REPORT_TYPES: ReportType[] = [
     key: 'prices-usage', label: 'تقرير استخدام الاتفاقيات', icon: '🤝', group: 'report.group.operational',
     filters: ['customer', 'company', 'workType'],
   },
+  {
+    key: 'customer-statement', label: 'report.type.customer_statement', icon: '📋', group: 'report.group.receivables',
+    filters: ['customer', 'date'],
+  },
+  {
+    key: 'receivables-aging', label: 'report.type.receivables_aging', icon: '⏳', group: 'report.group.receivables',
+    filters: ['date', 'customer'],
+  },
+  {
+    key: 'customer-balances', label: 'report.type.customer_balances', icon: '⚖️', group: 'report.group.receivables',
+    filters: ['customer', 'date'],
+  },
+  {
+    key: 'collections-summary', label: 'report.type.collections_summary', icon: '💰', group: 'report.group.receivables',
+    filters: ['date', 'customer'],
+  },
 ];
 
-const GROUPS = ['report.group.financial', 'report.group.business', 'report.group.hr', 'report.group.operations', 'report.group.operational'];
+const GROUPS = ['report.group.financial', 'report.group.business', 'report.group.hr', 'report.group.operations', 'report.group.operational', 'report.group.receivables'];
 
 const CONTRACT_UNITS = ['طن', 'درب', 'يومية', 'مقطوعية'];
 
@@ -447,6 +463,12 @@ export default function Reports() {
           {['invoices', 'expenses', 'payroll'].includes(selected) && !from && !to && (
             <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 6 }}>
               ℹ️ {t('page.reports.date_range_hint')}
+            </div>
+          )}
+
+          {selected === 'customer-statement' && !customerId && (
+            <div style={{ color: 'var(--warning, #b45309)', fontSize: 13, marginBottom: 8, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 6 }}>
+              ⚠️ يجب اختيار عميل لعرض كشف الحساب
             </div>
           )}
 

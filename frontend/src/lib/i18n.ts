@@ -636,6 +636,11 @@ const DICT: Record<Lang, Record<string, string>> = {
     'report.group.hr': 'الموارد البشرية',
     'report.group.operations': 'التشغيل',
     'report.group.operational': 'التشغيلية',
+    'report.group.receivables': 'الذمم المدينة',
+    'report.type.customer_statement': 'كشف حساب عميل',
+    'report.type.receivables_aging': 'أعمار الديون',
+    'report.type.customer_balances': 'أرصدة العملاء',
+    'report.type.collections_summary': 'ملخص التحصيلات',
 
     // ── Phase 5: common additions ────────────────────────────────────────────
     'action.view': 'تفاصيل',
@@ -1837,6 +1842,11 @@ const DICT: Record<Lang, Record<string, string>> = {
     'report.group.hr': 'Human Resources',
     'report.group.operations': 'Operations',
     'report.group.operational': 'Operational',
+    'report.group.receivables': 'Receivables',
+    'report.type.customer_statement': 'Customer Statement',
+    'report.type.receivables_aging': 'Receivables Aging',
+    'report.type.customer_balances': 'Customer Balances',
+    'report.type.collections_summary': 'Collections Summary',
 
     // ── Phase 5: common additions ────────────────────────────────────────────
     'action.view': 'Details',

@@ -4,6 +4,7 @@ import { AppError } from '../../core/errors/AppError';
 import { ReportInput } from '../../shared/services/reportEngine/excel.service';
 
 const num = (n: number | null | undefined) => Number(n ?? 0);
+const round3 = (n: number) => Math.round(n * 1000) / 1000;
 const dateAr = (d: Date | null) => (d ? new Date(d).toLocaleDateString('ar') : '');
 const ARABIC_MONTHS_RPT = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
@@ -58,6 +59,14 @@ export class ReportsService {
         return this.suppliers(query);
       case 'prices':
         return this.prices(query);
+      case 'customer-statement':
+        return this.customerStatement(query);
+      case 'receivables-aging':
+        return this.receivablesAging(query);
+      case 'customer-balances':
+        return this.customerBalances(query);
+      case 'collections-summary':
+        return this.collectionsSummary(query);
       default:
         throw AppError.badRequest('نوع تقرير غير معروف');
     }
@@ -465,6 +474,336 @@ export class ReportsService {
         { item: 'إجمالي المصروفات', amount: totalExpense },
       ],
       totalsRow: { item: 'صافي الربح / الخسارة', amount: net },
+    };
+  }
+
+  private async customerStatement(q: ReportQuery): Promise<ReportInput> {
+    if (!q.customerId) throw AppError.badRequest('يجب تحديد العميل');
+    const cId = Number(q.customerId);
+
+    const customer = await prisma.customer.findUnique({ where: { id: cId } });
+    if (!customer) throw AppError.notFound('العميل غير موجود');
+
+    // Opening balance = all invoiced − all paid, strictly before `from`
+    let openingBalance = 0;
+    if (q.from) {
+      const fromDate = new Date(q.from);
+      const [invBefore, paysBefore] = await Promise.all([
+        prisma.invoice.aggregate({
+          where: { customerId: cId, direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { lt: fromDate } },
+          _sum: { total: true },
+        }),
+        prisma.payment.findMany({
+          where: { date: { lt: fromDate }, invoice: { customerId: cId, direction: 'SALES', status: { not: 'CANCELLED' } } },
+          select: { amount: true },
+        }),
+      ]);
+      openingBalance = round3(num(invBefore._sum.total) - paysBefore.reduce((s, p) => s + num(p.amount), 0));
+    }
+
+    const [invoices, payments] = await Promise.all([
+      prisma.invoice.findMany({
+        where: {
+          customerId: cId, direction: 'SALES', status: { not: 'CANCELLED' },
+          ...dateWhere(q.from, q.to, 'issueDate') as Prisma.InvoiceWhereInput,
+        },
+        select: { id: true, invoiceNumber: true, issueDate: true, total: true, notes: true },
+        orderBy: { issueDate: 'asc' },
+      }),
+      prisma.payment.findMany({
+        where: {
+          invoice: { customerId: cId, direction: 'SALES', status: { not: 'CANCELLED' } },
+          ...dateWhere(q.from, q.to) as Prisma.PaymentWhereInput,
+        },
+        select: { id: true, date: true, amount: true, reference: true, notes: true, invoice: { select: { invoiceNumber: true } } },
+        orderBy: { date: 'asc' },
+      }),
+    ]);
+
+    type Entry = { id: number; date: Date; sortOrder: number; type: string; reference: string; description: string; debit: number; credit: number };
+    const entries: Entry[] = [
+      ...invoices.map((i) => ({
+        id: i.id, date: i.issueDate, sortOrder: 0, type: 'فاتورة',
+        reference: i.invoiceNumber, description: i.notes ?? 'فاتورة نقل',
+        debit: num(i.total), credit: 0,
+      })),
+      ...payments.map((p) => ({
+        id: p.id, date: p.date, sortOrder: 1, type: 'دفعة',
+        reference: p.reference ?? p.invoice.invoiceNumber,
+        description: p.notes ?? 'دفعة مقبوضة',
+        debit: 0, credit: num(p.amount),
+      })),
+    ];
+    entries.sort((a, b) => a.date.getTime() - b.date.getTime() || a.sortOrder - b.sortOrder || a.id - b.id);
+
+    let balance = openingBalance;
+    const rows = entries.map((e) => {
+      balance = round3(balance + e.debit - e.credit);
+      return { date: dateAr(e.date), type: e.type, reference: e.reference, description: e.description, debit: e.debit, credit: e.credit, balance };
+    });
+
+    const totalDebit = round3(entries.reduce((s, e) => s + e.debit, 0));
+    const totalCredit = round3(entries.reduce((s, e) => s + e.credit, 0));
+    const closingBalance = round3(openingBalance + totalDebit - totalCredit);
+
+    return {
+      title: `كشف حساب العميل — ${customer.name}`,
+      subtitle: q.from || q.to
+        ? `الفترة: ${q.from ?? '—'} إلى ${q.to ?? '—'} | الرصيد الافتتاحي: ${openingBalance.toFixed(3)} د.ك`
+        : `إجمالي المعاملات: ${entries.length}`,
+      columns: [
+        { header: 'التاريخ', key: 'date', width: 14 },
+        { header: 'النوع', key: 'type', width: 10 },
+        { header: 'المرجع', key: 'reference', width: 26 },
+        { header: 'البيان', key: 'description', width: 34 },
+        { header: 'مدين (د.ك)', key: 'debit', width: 16, numFmt: '#,##0.000' },
+        { header: 'دائن (د.ك)', key: 'credit', width: 16, numFmt: '#,##0.000' },
+        { header: 'الرصيد (د.ك)', key: 'balance', width: 18, numFmt: '#,##0.000' },
+      ],
+      rows,
+      totalsRow: { reference: 'الإجمالي', debit: totalDebit, credit: totalCredit, balance: closingBalance },
+    };
+  }
+
+  private async receivablesAging(q: ReportQuery): Promise<ReportInput> {
+    const asOfDate = q.to ? endOfDay(q.to) : new Date();
+
+    const agingWhere: Prisma.InvoiceWhereInput = {
+      direction: 'SALES',
+      status: { notIn: ['PAID', 'CANCELLED'] },
+      issueDate: { lte: asOfDate },
+    };
+    if (q.customerId) {
+      agingWhere.customerId = Number(q.customerId);
+    } else {
+      agingWhere.customerId = { not: null };
+    }
+
+    const invoices = await prisma.invoice.findMany({
+      where: agingWhere,
+      include: {
+        customer: { select: { id: true, name: true } },
+        payments: { select: { date: true } },
+      },
+    });
+
+    interface AgingRow {
+      customerName: string;
+      current: number;
+      bucket0_30: number;
+      bucket31_60: number;
+      bucket61_90: number;
+      bucket90Plus: number;
+      totalOutstanding: number;
+      lastInvoiceDate: Date;
+      lastPaymentDate: Date | null;
+    }
+
+    const customerMap = new Map<number, AgingRow>();
+
+    for (const inv of invoices) {
+      const outstanding = round3(num(inv.total) - num(inv.paidAmount));
+      if (outstanding <= 0 || !inv.customer) continue;
+
+      const custId = inv.customer.id;
+      if (!customerMap.has(custId)) {
+        customerMap.set(custId, {
+          customerName: inv.customer.name,
+          current: 0, bucket0_30: 0, bucket31_60: 0, bucket61_90: 0, bucket90Plus: 0,
+          totalOutstanding: 0,
+          lastInvoiceDate: new Date(inv.issueDate),
+          lastPaymentDate: null,
+        });
+      }
+      const row = customerMap.get(custId)!;
+      const dueDateRaw = inv.dueDate ?? inv.issueDate;
+      const daysOverdue = Math.floor((asOfDate.getTime() - new Date(dueDateRaw).getTime()) / 86_400_000);
+
+      row.totalOutstanding = round3(row.totalOutstanding + outstanding);
+      if (daysOverdue <= 0) row.current = round3(row.current + outstanding);
+      else if (daysOverdue <= 30) row.bucket0_30 = round3(row.bucket0_30 + outstanding);
+      else if (daysOverdue <= 60) row.bucket31_60 = round3(row.bucket31_60 + outstanding);
+      else if (daysOverdue <= 90) row.bucket61_90 = round3(row.bucket61_90 + outstanding);
+      else row.bucket90Plus = round3(row.bucket90Plus + outstanding);
+
+      const invDate = new Date(inv.issueDate);
+      if (invDate > row.lastInvoiceDate) row.lastInvoiceDate = invDate;
+      for (const p of inv.payments) {
+        const pd = new Date(p.date);
+        if (!row.lastPaymentDate || pd > row.lastPaymentDate) row.lastPaymentDate = pd;
+      }
+    }
+
+    const rows = [...customerMap.values()].sort((a, b) => b.totalOutstanding - a.totalOutstanding);
+    const totals = {
+      current: round3(rows.reduce((s, r) => s + r.current, 0)),
+      bucket0_30: round3(rows.reduce((s, r) => s + r.bucket0_30, 0)),
+      bucket31_60: round3(rows.reduce((s, r) => s + r.bucket31_60, 0)),
+      bucket61_90: round3(rows.reduce((s, r) => s + r.bucket61_90, 0)),
+      bucket90Plus: round3(rows.reduce((s, r) => s + r.bucket90Plus, 0)),
+      totalOutstanding: round3(rows.reduce((s, r) => s + r.totalOutstanding, 0)),
+    };
+
+    return {
+      title: 'تقرير أعمار الديون (الذمم المدينة)',
+      subtitle: `كما في: ${asOfDate.toLocaleDateString('ar')} — إجمالي المستحق: ${totals.totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك`,
+      columns: [
+        { header: 'العميل', key: 'customerName', width: 28 },
+        { header: 'حالي', key: 'current', width: 16, numFmt: '#,##0.000' },
+        { header: '1-30 يوم', key: 'bucket0_30', width: 16, numFmt: '#,##0.000' },
+        { header: '31-60 يوم', key: 'bucket31_60', width: 16, numFmt: '#,##0.000' },
+        { header: '61-90 يوم', key: 'bucket61_90', width: 16, numFmt: '#,##0.000' },
+        { header: '+90 يوم', key: 'bucket90Plus', width: 16, numFmt: '#,##0.000' },
+        { header: 'إجمالي المستحق', key: 'totalOutstanding', width: 18, numFmt: '#,##0.000' },
+        { header: 'آخر فاتورة', key: 'lastInvoiceDate', width: 14 },
+        { header: 'آخر دفعة', key: 'lastPaymentDate', width: 14 },
+      ],
+      rows: rows.map((r) => ({
+        customerName: r.customerName,
+        current: r.current,
+        bucket0_30: r.bucket0_30,
+        bucket31_60: r.bucket31_60,
+        bucket61_90: r.bucket61_90,
+        bucket90Plus: r.bucket90Plus,
+        totalOutstanding: r.totalOutstanding,
+        lastInvoiceDate: dateAr(r.lastInvoiceDate),
+        lastPaymentDate: r.lastPaymentDate ? dateAr(r.lastPaymentDate) : '—',
+      })),
+      totalsRow: { customerName: 'الإجمالي', ...totals, lastInvoiceDate: '', lastPaymentDate: '' },
+    };
+  }
+
+  private async customerBalances(q: ReportQuery): Promise<ReportInput> {
+    const balWhere: Prisma.InvoiceWhereInput = {
+      direction: 'SALES',
+      status: { not: 'CANCELLED' },
+      customerId: { not: null },
+    };
+    if (q.customerId) balWhere.customerId = Number(q.customerId);
+    if (q.to) balWhere.issueDate = { lte: endOfDay(q.to) };
+
+    const invoices = await prisma.invoice.findMany({
+      where: balWhere,
+      select: {
+        customerId: true,
+        total: true,
+        paidAmount: true,
+        status: true,
+        issueDate: true,
+        customer: { select: { id: true, name: true, code: true } },
+        payments: { select: { date: true } },
+      },
+      orderBy: { issueDate: 'asc' },
+    });
+
+    interface BalRow {
+      code: string;
+      name: string;
+      totalInvoiced: number;
+      totalPaid: number;
+      invoiceCount: number;
+      unpaidCount: number;
+      lastInvoiceDate: Date | null;
+      lastPaymentDate: Date | null;
+    }
+
+    const map = new Map<number, BalRow>();
+    for (const inv of invoices) {
+      if (!inv.customer) continue;
+      const custId = inv.customer.id;
+      if (!map.has(custId)) {
+        map.set(custId, { code: inv.customer.code, name: inv.customer.name, totalInvoiced: 0, totalPaid: 0, invoiceCount: 0, unpaidCount: 0, lastInvoiceDate: null, lastPaymentDate: null });
+      }
+      const row = map.get(custId)!;
+      row.totalInvoiced = round3(row.totalInvoiced + num(inv.total));
+      row.totalPaid = round3(row.totalPaid + num(inv.paidAmount));
+      row.invoiceCount++;
+      if (round3(num(inv.total) - num(inv.paidAmount)) > 0) row.unpaidCount++;
+      const d = new Date(inv.issueDate);
+      if (!row.lastInvoiceDate || d > row.lastInvoiceDate) row.lastInvoiceDate = d;
+      for (const p of inv.payments) {
+        const pd = new Date(p.date);
+        if (!row.lastPaymentDate || pd > row.lastPaymentDate) row.lastPaymentDate = pd;
+      }
+    }
+
+    const rows = [...map.values()].sort((a, b) => b.totalInvoiced - a.totalInvoiced);
+    const grandTotalInvoiced = round3(rows.reduce((s, r) => s + r.totalInvoiced, 0));
+    const grandTotalPaid = round3(rows.reduce((s, r) => s + r.totalPaid, 0));
+    const grandBalance = round3(grandTotalInvoiced - grandTotalPaid);
+    const grandInvoiceCount = rows.reduce((s, r) => s + r.invoiceCount, 0);
+
+    return {
+      title: 'ملخص أرصدة العملاء',
+      subtitle: `إجمالي المفوتر: ${grandTotalInvoiced.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك — المحصّل: ${grandTotalPaid.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك — الرصيد: ${grandBalance.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك`,
+      columns: [
+        { header: 'الرمز', key: 'code', width: 12 },
+        { header: 'العميل', key: 'name', width: 28 },
+        { header: 'إجمالي المفوتر', key: 'totalInvoiced', width: 18, numFmt: '#,##0.000' },
+        { header: 'إجمالي المحصّل', key: 'totalPaid', width: 18, numFmt: '#,##0.000' },
+        { header: 'الرصيد', key: 'balance', width: 18, numFmt: '#,##0.000' },
+        { header: 'عدد الفواتير', key: 'invoiceCount', width: 14 },
+        { header: 'فواتير مفتوحة', key: 'unpaidCount', width: 14 },
+        { header: 'آخر فاتورة', key: 'lastInvoiceDate', width: 14 },
+        { header: 'آخر دفعة', key: 'lastPaymentDate', width: 14 },
+      ],
+      rows: rows.map((r) => ({
+        code: r.code,
+        name: r.name,
+        totalInvoiced: r.totalInvoiced,
+        totalPaid: r.totalPaid,
+        balance: round3(r.totalInvoiced - r.totalPaid),
+        invoiceCount: r.invoiceCount,
+        unpaidCount: r.unpaidCount,
+        lastInvoiceDate: r.lastInvoiceDate ? dateAr(r.lastInvoiceDate) : '',
+        lastPaymentDate: r.lastPaymentDate ? dateAr(r.lastPaymentDate) : '—',
+      })),
+      totalsRow: { name: 'الإجمالي', totalInvoiced: grandTotalInvoiced, totalPaid: grandTotalPaid, balance: grandBalance, invoiceCount: grandInvoiceCount },
+    };
+  }
+
+  private async collectionsSummary(q: ReportQuery): Promise<ReportInput> {
+    const invoiceWhere: Prisma.InvoiceWhereInput = { direction: 'SALES', status: { not: 'CANCELLED' } };
+    if (q.customerId) invoiceWhere.customerId = Number(q.customerId);
+
+    const where: Prisma.PaymentWhereInput = {
+      invoice: invoiceWhere,
+      ...dateWhere(q.from, q.to) as Prisma.PaymentWhereInput,
+    };
+
+    const payments = await prisma.payment.findMany({
+      where,
+      include: {
+        invoice: { select: { invoiceNumber: true, customer: { select: { name: true } } } },
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    const METHOD_AR: Record<string, string> = { CASH: 'نقد', BANK: 'تحويل بنكي', CHEQUE: 'شيك', TRANSFER: 'حوالة' };
+    const total = round3(payments.reduce((s, p) => s + num(p.amount), 0));
+
+    return {
+      title: 'ملخص التحصيلات',
+      subtitle: q.from || q.to
+        ? `الفترة: ${q.from ?? '—'} إلى ${q.to ?? '—'} — إجمالي التحصيل: ${total.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك — عدد الدفعات: ${payments.length}`
+        : `إجمالي التحصيل: ${total.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك — عدد الدفعات: ${payments.length}`,
+      columns: [
+        { header: 'التاريخ', key: 'date', width: 14 },
+        { header: 'العميل', key: 'customerName', width: 28 },
+        { header: 'رقم الفاتورة', key: 'invoiceNumber', width: 24 },
+        { header: 'طريقة الدفع', key: 'method', width: 16 },
+        { header: 'المرجع', key: 'reference', width: 20 },
+        { header: 'المبلغ (د.ك)', key: 'amount', width: 18, numFmt: '#,##0.000' },
+      ],
+      rows: payments.map((p) => ({
+        date: dateAr(p.date),
+        customerName: p.invoice.customer?.name ?? '',
+        invoiceNumber: p.invoice.invoiceNumber,
+        method: METHOD_AR[p.method] ?? p.method,
+        reference: p.reference ?? '',
+        amount: num(p.amount),
+      })),
+      totalsRow: { customerName: 'الإجمالي', amount: total },
     };
   }
 }
