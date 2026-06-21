@@ -1,0 +1,432 @@
+/* ============================================================
+   شركة المنار الدولية — قوالب عروض الأسعار
+   QuotationShared.module.css | A4 Portrait | RTL | Print ready
+   Font: Tajawal (self-hosted via styles/fonts.css)
+   ============================================================ */
+
+/* ── Page frame ──────────────────────────────────────────────────────────── */
+.page {
+  position: relative;
+  width: 210mm;
+  min-height: 297mm;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
+  color: #1d1d22;
+  direction: rtl;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.letterhead { padding: 12mm 15mm; }
+.blank { padding: 50mm 16mm 25mm; }
+
+@media print {
+  .page { margin: 0; box-shadow: none; }
+}
+
+/* ── Letterhead header ──────────────────────────────────────────────────── */
+.lh {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  direction: ltr;
+  gap: 5mm;
+  padding-bottom: 2mm;
+}
+
+.lhLogo { width: 20mm; height: auto; align-self: center; }
+
+/* EN column */
+.lhEn {
+  direction: ltr;
+  text-align: left;
+  font-size: 8px;
+  color: #1d1d22;
+  line-height: 1.4;
+}
+.lhEn .nm { font-weight: 800; font-size: 12px; color: #30246C; letter-spacing: .2px; }
+.lhEn .nm small { font-weight: 700; font-size: 8px; }
+.lhEn .act { font-weight: 700; font-size: 7.4px; }
+.lhEn .cap { font-size: 9px; }
+.lhEn .cl { display: flex; align-items: center; gap: 5px; margin-top: 1.5px; }
+.lhEn .cl:first-of-type { margin-top: 6px; }
+.lhEn .cl span { white-space: nowrap; }
+
+/* AR column */
+.lhAr {
+  direction: rtl;
+  text-align: right;
+  font-size: 8.4px;
+  color: #1d1d22;
+  line-height: 1.45;
+}
+.lhAr .nm { font-weight: 800; font-size: 15px; color: #30246C; letter-spacing: .3px; }
+.lhAr .nm small { font-size: 9px; font-weight: 700; }
+.lhAr .act { font-weight: 700; font-size: 8px; }
+.lhAr .cap { font-weight: 500; }
+.lhAr .cl { display: flex; align-items: center; justify-content: flex-start; gap: 5px; margin-top: 1.5px; }
+.lhAr .cl:first-of-type { margin-top: 5px; }
+
+/* shared inner classes */
+.nm { }
+.act { }
+.cap { }
+.cl { display: flex; align-items: center; gap: 5px; margin-top: 1.5px; }
+.cl span { white-space: nowrap; }
+
+.ic { width: 11px; height: 11px; fill: #30246C; flex: 0 0 auto; }
+
+/* ── Watermark ───────────────────────────────────────────────────────────── */
+.watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120mm;
+  height: 120mm;
+  pointer-events: none;
+  z-index: 0;
+}
+.watermark img { width: 100%; opacity: .05; }
+
+/* ── Letterhead footer ───────────────────────────────────────────────────── */
+.lhFoot {
+  position: relative;
+  z-index: 1;
+  margin-top: 4mm;
+  text-align: center;
+}
+.lhFootRule { height: 1.4px; background: #141414; width: 100%; margin-bottom: 2mm; }
+.lhFootAr { font-weight: 700; font-size: 9px; color: #141414; letter-spacing: 1px; }
+.lhFootEn { font-size: 8px; color: #222; letter-spacing: .3px; margin-top: 1px; }
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+.qbody {
+  position: relative;
+  z-index: 1;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding-top: 2mm;
+}
+.blank .qbody { padding-top: 0; }
+
+/* ── Q-Head: title + meta ────────────────────────────────────────────────── */
+.qHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8mm;
+}
+
+.qTitle h1 {
+  font-size: 20px;
+  font-weight: 800;
+  color: #30246C;
+  line-height: 1;
+}
+.qTitle .subtitle {
+  font-size: 8.5px;
+  color: #6c6c76;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.qMeta { min-width: 62mm; font-size: 10px; }
+.qMetaRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px dotted #d9d9e2;
+}
+.qMetaRow .lbl { color: #6c6c76; font-weight: 500; }
+.qMetaRow .val { font-weight: 700; color: #1d1d22; }
+
+/* ── Q-Info: client & project ────────────────────────────────────────────── */
+.qInfo {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 3mm;
+  border: 1px solid #d9d9e2;
+}
+.qInfoCell {
+  flex: 0 0 50%;
+  min-width: 0;
+  padding: 3.5px 9px;
+  border-bottom: 1px solid #d9d9e2;
+  border-left: 1px solid #d9d9e2;
+  font-size: 9.8px;
+  line-height: 1.4;
+}
+.qInfoCell:nth-child(even) { border-left: none; }
+.qInfoCellWide { flex: 0 0 100%; border-left: none; }
+
+.qInfoCell .lbl { color: #30246C; font-weight: 700; }
+.qInfoCell .lbl::after { content: ' :'; }
+.qInfoCell .val { color: #1d1d22; font-weight: 500; margin-right: 5px; }
+
+/* shared lbl/val defaults (qMetaRow uses these as base) */
+.lbl { color: #6c6c76; font-weight: 500; }
+.val { font-weight: 700; color: #1d1d22; }
+
+/* ── Intro paragraph ─────────────────────────────────────────────────────── */
+.qIntro {
+  margin-top: 2.5mm;
+  font-size: 9.8px;
+  line-height: 1.5;
+  color: #34343b;
+  text-align: justify;
+  white-space: pre-line;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* ── Items table ─────────────────────────────────────────────────────────── */
+.qTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 2.5mm;
+  font-size: 9.8px;
+}
+.qTable thead th {
+  background: #30246C;
+  color: #fff;
+  font-weight: 700;
+  padding: 4px 6px;
+  text-align: center;
+  border: 1px solid #30246C;
+  font-size: 10px;
+}
+.qTable tbody td {
+  border: 1px solid #d9d9e2;
+  padding: 4px 6px;
+  text-align: center;
+  vertical-align: middle;
+}
+.qTable tbody .desc { text-align: right; line-height: 1.6; }
+.qTable tbody .num { font-variant-numeric: tabular-nums; direction: ltr; }
+
+.cNo { width: 9mm; }
+.cUnit { width: 14mm; }
+.cQty { width: 16mm; }
+.cPrice { width: 22mm; }
+.cTotal { width: 26mm; }
+
+/* D5 chip for row number */
+.chip {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  border-radius: 50%;
+  background: #ece9f4;
+  color: #30246C;
+  font-weight: 800;
+  font-size: 10px;
+  text-align: center;
+}
+
+/* ── Summary: terms + totals ─────────────────────────────────────────────── */
+.qSummary {
+  display: flex;
+  gap: 7mm;
+  margin-top: 3mm;
+  align-items: flex-start;
+}
+.qTerms { flex: 1 1 auto; min-width: 0; }
+.qTotals { flex: 0 0 68mm; }
+
+.qTerms h3 {
+  font-size: 10.5px;
+  color: #30246C;
+  font-weight: 700;
+  margin-bottom: 3px;
+  border-right: 3px solid #30246C;
+  padding-right: 6px;
+}
+.qTerms h3:not(:first-child) { margin-top: 5mm; }
+.qTerms ul { list-style: none; margin: 0; padding: 0; }
+.qTerms li {
+  font-size: 9.3px;
+  line-height: 1.5;
+  color: #44444c;
+  padding-right: 12px;
+  position: relative;
+}
+.qTerms li::before { content: "•"; color: #30246C; position: absolute; right: 0; }
+
+.qTotals { border: 1px solid #d9d9e2; }
+.row {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 10px;
+  font-size: 10px;
+  border-bottom: 1px solid #d9d9e2;
+}
+.row span:first-child { color: #6c6c76; font-weight: 500; }
+.row span:last-child { font-weight: 700; direction: ltr; font-variant-numeric: tabular-nums; }
+.rowGrand {
+  background: #30246C;
+  color: #fff;
+  border-bottom: none;
+  padding: 9px 10px;
+}
+.rowGrand span { color: #fff !important; font-weight: 800; font-size: 12.5px; }
+
+/* ── Signature ───────────────────────────────────────────────────────────── */
+.qSign {
+  display: flex;
+  justify-content: flex-start;
+  gap: 14mm;
+  margin-top: 4mm;
+  padding-top: 3mm;
+  border-top: 1px solid #d9d9e2;
+}
+.signCol { flex: 0 0 50%; text-align: center; }
+.signRole { font-size: 9.5px; font-weight: 700; color: #30246C; margin-bottom: 7mm; }
+.signLine { height: 1px; background: #1d1d22; margin: 0 6mm; }
+.signCap { font-size: 9px; color: #6c6c76; margin-top: 4px; }
+.signStamp {
+  display: inline-block;
+  font-size: 8.5px;
+  color: #6c6c76;
+  margin-top: 4mm;
+  border: 1.3px dashed #b9b9c6;
+  border-radius: 8px;
+  padding: 6mm 10mm;
+}
+
+/* ============================================================
+   THEMES — descendant selectors work because both class
+   names come from this same CSS module (same hash scope).
+   ============================================================ */
+
+/* ── Theme 1: كلاسيكي رسمي ──────────────────────────────── */
+.tpl1 .qTitle { text-align: center; width: 100%; }
+.tpl1 .qHead { flex-direction: column; align-items: center; }
+.tpl1 .qTitle h1 {
+  border-top: 2px solid #30246C;
+  border-bottom: 2px solid #30246C;
+  padding: 5px 28px;
+  display: inline-block;
+}
+.tpl1 .qMeta {
+  margin: 4mm auto 0;
+  width: auto;
+  min-width: auto;
+  display: inline-flex;
+  border: 1px solid #ece9f4;
+}
+.tpl1 .qMetaRow {
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  border-left: 1px solid #ece9f4;
+  padding: 5px 16px;
+}
+.tpl1 .qMetaRow:last-child { border-left: none; }
+.tpl1 .qTable thead th {
+  background: #ece9f4;
+  color: #30246C;
+  border-color: #b9b9c6;
+}
+
+/* ── Theme 2: تنفيذي فاخر ────────────────────────────────── */
+.tpl2 .qbody { padding-right: 6mm; }
+.tpl2 .qbody::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 3.5mm;
+  background: linear-gradient(#30246C, #241a52);
+  border-radius: 2px;
+}
+.tpl2 .qTitle h1 { font-size: 22px; }
+.tpl2 .qTitle .subtitle {
+  display: inline-block;
+  background: #30246C;
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: 20px;
+  letter-spacing: 2px;
+  margin-top: 4px;
+}
+.tpl2 .qMeta {
+  background: #f5f4fa;
+  border: 1px solid #ece9f4;
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+.tpl2 .qInfo { border: none; gap: 2.5mm; }
+.tpl2 .qInfoCell {
+  flex: 0 0 calc(50% - 1.5mm);
+  background: #f4f4f8;
+  border: 1px solid #d9d9e2;
+  border-radius: 6px;
+  padding: 4px 9px;
+}
+.tpl2 .qInfoCell .lbl { display: block; }
+.tpl2 .qInfoCell .val { display: block; margin-right: 0; margin-top: 1px; }
+.tpl2 .qInfoCellWide { flex: 0 0 100%; background: #f5f4fa; }
+.tpl2 .qTable tbody tr:nth-child(even) td { background: #f5f4fa; }
+.tpl2 .qTable thead th { background: linear-gradient(#30246C, #241a52); }
+.tpl2 .qTotals { border: 2px solid #30246C; border-radius: 6px; overflow: hidden; }
+
+/* ── Theme 3: Minimal حديث ───────────────────────────────── */
+.tpl3 .qTitle h1 { font-weight: 500; letter-spacing: 1px; }
+.tpl3 .qHead { border-bottom: 1px solid #1d1d22; padding-bottom: 4mm; }
+.tpl3 .qMetaRow { border-bottom: none; }
+.tpl3 .qInfo { border: none; border-top: 1px solid #d9d9e2; border-bottom: 1px solid #d9d9e2; }
+.tpl3 .qInfoCell { border: none !important; }
+.tpl3 .qTable thead th {
+  background: #fff;
+  color: #30246C;
+  border: none;
+  border-bottom: 2px solid #30246C;
+}
+.tpl3 .qTable tbody td { border: none; border-bottom: 1px solid #d9d9e2; }
+.tpl3 .qTotals { border: none; }
+.tpl3 .row { border-bottom: 1px solid #d9d9e2; }
+.tpl3 .rowGrand {
+  background: #fff;
+  color: #30246C;
+  border-bottom: none;
+  border-top: 2px solid #30246C;
+}
+.tpl3 .rowGrand span { color: #30246C !important; }
+.tpl3 .qTerms h3 { border-right: none; padding-right: 0; border-bottom: 1px solid #30246C; padding-bottom: 2px; }
+
+/* ── Theme 4: Corporate Clean ────────────────────────────── */
+.tpl4 .qHead { background: #f4f4f8; border: 1px solid #d9d9e2; padding: 6mm; align-items: center; }
+.tpl4 .qMeta { background: #fff; border: 1px solid #d9d9e2; border-radius: 4px; padding: 4px 10px; }
+.tpl4 .qInfo { margin-top: 5mm; }
+.tpl4 .qInfoCell .lbl { display: block; }
+.tpl4 .qInfoCell .val { display: block; margin-right: 0; }
+.tpl4 .qTable thead th { background: #241a52; }
+.tpl4 .qTable tbody tr:nth-child(even) td { background: #f4f4f8; }
+.tpl4 .qTotals { border: 1px solid #d9d9e2; }
+.tpl4 .rowGrand { background: #241a52; }
+
+/* ── Theme 5: جدول احترافي واضح ─────────────────────────── */
+.tpl5 .qHead { background: #30246C; color: #fff; padding: 6mm 7mm; align-items: center; }
+.tpl5 .qTitle h1 { color: #fff; }
+.tpl5 .qTitle .subtitle { color: #cdc8e6; }
+.tpl5 .qMeta { color: #fff; }
+.tpl5 .qMetaRow { border-bottom: 1px solid rgba(255, 255, 255, .25); }
+.tpl5 .qMetaRow .lbl { color: #cdc8e6; }
+.tpl5 .qMetaRow .val { color: #fff; }
+.tpl5 .qTable { font-size: 10.5px; }
+.tpl5 .qTable thead th { background: #30246C; padding: 8px 6px; font-size: 10.5px; }
+.tpl5 .qTable tbody td { padding: 8px 6px; }
+.tpl5 .qTable tbody .desc { font-weight: 500; }
+.tpl5 .qTable tbody tr:nth-child(even) td { background: #f5f4fa; }
+.tpl5 .rowGrand { font-size: 13px; }

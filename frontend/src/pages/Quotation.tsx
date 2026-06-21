@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
@@ -10,6 +11,12 @@ import QuotationTemplate, {
 } from '../forms/QuotationTemplate';
 import { usePrintLogStore } from '../stores/printLogStore';
 import { usePrintDraftStore } from '../stores/printDraftStore';
+import { usePrintTemplate } from '../print-templates/hooks/usePrintTemplate';
+import { PrintTemplateSelector } from '../print-templates/components';
+import {
+  adaptFormToQuotationPrintData,
+  validateQuotationPrintData,
+} from '../print-templates/integration/quotationPreviewIntegration';
 
 const FORM_KEY = 'quotation';
 
@@ -61,13 +68,35 @@ const lbl: React.CSSProperties = {
 };
 
 export default function Quotation() {
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileId>(DEFAULT_PROFILE_ID);
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [printFields, setPrintFields] = useState<QuotationPrintFields>(makeInitial);
+  const [previewMode, setPreviewMode] = useState<'legacy' | 'engine'>('legacy');
+  const [adapterError, setAdapterError] = useState<string | null>(null);
 
   const draftEntry = usePrintDraftStore((s) => s.drafts[FORM_KEY] ?? null);
   const saveDraft = usePrintDraftStore((s) => s.saveDraft);
   const clearDraft = usePrintDraftStore((s) => s.clearDraft);
+
+  // ── Print engine — called unconditionally (React hooks rules) ──────────────
+  const printData = useMemo(() => {
+    try {
+      return adaptFormToQuotationPrintData(printFields);
+    } catch {
+      return null;
+    }
+  }, [printFields]);
+
+  const { resolvedTemplate, profile: tplProfile, setProfile: setTplProfile } =
+    usePrintTemplate('quotation', printData ?? undefined);
+
+  const warnings = useMemo(
+    () => (printData ? validateQuotationPrintData(printData) : []),
+    [printData],
+  );
+
+  const EngineComponent = resolvedTemplate.component;
 
   const addPrintLog = usePrintLogStore((s) => s.addEntry);
   useEffect(() => {
@@ -112,6 +141,77 @@ export default function Quotation() {
     setPrintFields(makeInitial());
   }
 
+  function switchToEngine() {
+    if (!printData) {
+      setAdapterError('تعذّر تحويل البيانات إلى قالب الطباعة. يُرجى التحقق من البنود.');
+      return;
+    }
+    setAdapterError(null);
+    setPreviewMode('engine');
+  }
+
+  // ── ENGINE MODE ───────────────────────────────────────────────────────────────
+  if (previewMode === 'engine') {
+    return (
+      <div dir="rtl" style={{ minHeight: '100vh', background: '#f0f4f8' }}>
+        <style>{`
+          @media print {
+            @page { size: A4; margin: 0; }
+            html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
+            .no-print { display: none !important; }
+            .engine-hide-legacy { display: none !important; visibility: hidden !important; height: 0 !important; overflow: hidden !important; }
+          }
+        `}</style>
+
+        {/* Toolbar */}
+        <div
+          className="no-print"
+          style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '10px 18px', background: '#fff', borderBottom: '1px solid var(--border)', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }}
+        >
+          <button type="button" className="btn" onClick={() => window.print()}>
+            🖨️ طباعة / حفظ PDF
+          </button>
+          <button type="button" className="btn secondary" onClick={() => navigate(-1)}>
+            رجوع
+          </button>
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12, padding: '4px 10px' }}
+            onClick={() => setPreviewMode('legacy')}
+          >
+            📋 العرض الكلاسيكي
+          </button>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 'auto' }}>
+            {printFields.quotationNumber}
+          </span>
+        </div>
+
+        {/* Template selector */}
+        <div
+          className="no-print"
+          style={{ padding: '12px 18px', background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}
+        >
+          <PrintTemplateSelector category="quotation" profile={tplProfile} onSelect={setTplProfile} />
+        </div>
+
+        {/* Warning banner */}
+        {warnings.length > 0 && (
+          <div
+            className="no-print"
+            style={{ padding: '8px 18px', background: '#fffbeb', borderBottom: '1px solid #f59e0b', fontSize: 12, color: '#92400e', direction: 'rtl' }}
+          >
+            ⚠️ {warnings.map((w) => w.messageAr).join(' — ')}
+          </div>
+        )}
+
+        {/* Engine template */}
+        <EngineComponent data={printData ?? undefined} />
+      </div>
+    );
+  }
+
+  // ── LEGACY MODE (unchanged) ───────────────────────────────────────────────────
   return (
     <FormLayout
       ready={false}
@@ -120,6 +220,17 @@ export default function Quotation() {
       profile={profile}
       toolbarExtra={
         <>
+          <button
+            type="button"
+            className="btn secondary"
+            style={{ fontSize: 12, padding: '4px 10px' }}
+            onClick={switchToEngine}
+          >
+            ✨ قالب الطباعة
+          </button>
+          {adapterError && (
+            <span style={{ fontSize: 11, color: '#dc2626' }}>{adapterError}</span>
+          )}
           <LanguageToggle lang={lang} onChange={setLang} />
           <PrintProfileToggle profile={profile} onChange={setProfile} />
           <button
