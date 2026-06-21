@@ -4,3 +4,7 @@ export { default as QuotationDesign2 } from './QuotationDesign2';
 export { default as QuotationDesign2Blank } from './QuotationDesign2Blank';
 export { default as QuotationDesign3 } from './QuotationDesign3';
 export { default as QuotationDesign3Blank } from './QuotationDesign3Blank';
+export { default as QuotationDesign4 } from './QuotationDesign4';
+export { default as QuotationDesign4Blank } from './QuotationDesign4Blank';
+export { default as QuotationDesign5 } from './QuotationDesign5';
+export { default as QuotationDesign5Blank } from './QuotationDesign5Blank';

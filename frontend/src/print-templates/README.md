@@ -1,6 +1,6 @@
 # Print Templates — Architecture Reference
 
-> **Status:** Phase 1.95 — hardening layer complete. Not connected to production pages.
+> **Status:** Phase 2B — Quotation.tsx preview connected. Invoice preview (2C) pending.
 >
 > All files live exclusively under `frontend/src/print-templates/`.
 
@@ -36,9 +36,10 @@ Future Production Pages
 | `service/` | Registry lookup API for production pages | ✅ Yes |
 | `adapters/` | API response → PrintData converters | Via `builders/` |
 | `builders/` | Composition entry point: adapter + overrides + future QR | ✅ Yes |
-| `utils/` | Pure functions: tafqeet, KWD format, date format | Via adapters / builders |
+| `utils/` | Pure functions: tafqeet, KWD format, date format, sanitizePrintText | Via adapters / builders |
 | `hooks/` | React hooks: usePrintProfile, usePrintTemplate | ✅ Yes |
 | `components/` | Isolated UI: PrintTemplateSelector | ✅ Yes |
+| `integration/` | Form-state → PrintData adapters for pages that own form state | ✅ Yes (Quotation.tsx) |
 
 ---
 
@@ -170,6 +171,11 @@ formatKWDAr(total) → "1,234.500 د.ك"
 formatDateForPrint(date)     → "20 / 06 / 2026"
 formatDateCompact(date)      → "20-06-2026"
 formatDateArabicLong(date)   → "20 يونيو 2026"
+
+// sanitizePrintText.ts
+sanitizePrintText(value?: string | null) → string
+// null/undefined → ''. Trims whitespace. No HTML processing. No innerHTML. Plain text only.
+// REQUIRED: apply to every string field rendered inside a template component.
 ```
 
 ---
@@ -210,6 +216,38 @@ Uses app CSS tokens (`--accent`, `--border`, `--surface`, etc.). Not routed.
 
 ---
 
+### `integration/` — Form-State Adapters
+
+For pages (like `Quotation.tsx`) that own their own form state and have no backend API entity yet.
+Each integration file pairs a validator with a form-to-PrintData adapter.
+
+```ts
+// quotationPreviewIntegration.ts
+interface PrintDataWarning { field: string; messageAr: string; }
+
+adaptFormToQuotationPrintData(fields: QuotationPrintFields): QuotationPrintData
+// Maps form strings → typed numbers, contactPerson → attention, project → projectName,
+// validUntil date → formatted validity string, empty → fallback text.
+
+validateQuotationPrintData(data: QuotationPrintData): PrintDataWarning[]
+// Returns warnings for: missing quotationNumber, customerName, subject, empty lineItems, grandTotal=0.
+// Never throws.
+```
+
+**Usage in pages:**
+```tsx
+const printData = useMemo(() => {
+  try { return adaptFormToQuotationPrintData(printFields); } catch { return null; }
+}, [printFields]);
+
+const { resolvedTemplate, profile, setProfile } = usePrintTemplate('quotation', printData ?? undefined);
+const warnings = useMemo(() => printData ? validateQuotationPrintData(printData) : [], [printData]);
+```
+
+**Rule:** Call `usePrintTemplate` unconditionally (before any early returns) — React hooks rules.
+
+---
+
 ## Phase 2 Integration Pattern
 
 ```tsx
@@ -244,10 +282,10 @@ function InvoicePrintView({ apiInvoice }: { apiInvoice: ApiInvoice }) {
 | Category | Original Designs | Blank-Letterhead Variants | Total |
 |---|---|---|---|
 | `invoice` | 5 (Design 1–5) | 5 | 10 |
-| `quotation` | 3 (Design 1–3) | 3 | 6 |
+| `quotation` | 5 (Design 1–5) | 5 | 10 |
 | `purchase-order` | 2 (Design 1–2) | 2 | 4 |
 | `rfq` | 3 (Design 1–3) | 3 | 6 |
-| **Total** | **13** | **13** | **26** |
+| **Total** | **15** | **15** | **30** |
 
 ---
 
@@ -295,6 +333,144 @@ Do **not** use `override || default` patterns in builder or adapter code — use
 
 ---
 
+## How-To Guides
+
+### Add a New Template Design
+
+1. **Create the CSS module** — copy the closest existing theme file (e.g. `QuotationShared.module.css`) and add a new `.tplN {}` block with your theme overrides. Descendant selectors work because both class names live in the same CSS module scope.
+2. **Create the component file** — create `QuotationDesignN.tsx` as a thin wrapper:
+   ```tsx
+   import QuotationBase from './QuotationBase';
+   import styles from './QuotationShared.module.css';
+   import type { QuotationPrintData } from '../../engine/types';
+
+   export default function QuotationDesignN({ data }: { data?: QuotationPrintData }) {
+     return <QuotationBase themeClass={styles.tplN} showLetterhead={true} data={data} />;
+   }
+   ```
+3. **Create the Blank variant** — same but `showLetterhead={false}` and `themeClass={styles.tplNBlank}` (or reuse `tplN` — blank uses the `.blank` CSS class for top padding).
+4. **Export from `reference/quotations/index.ts`** — add both components.
+5. **Register in `engine/quotationTemplates.ts`** — add two `PrintTemplateDefinition` entries (original + blank).
+6. **Run validation** — `cd frontend && npx tsc --noEmit && npm test`.
+
+---
+
+### Add a New Adapter (for a Page With Its Own Form State)
+
+Use this pattern when the page owns form state rather than reading from a backend API entity.
+
+1. **Create `integration/<category>PreviewIntegration.ts`**:
+   ```ts
+   export interface PrintDataWarning { field: string; messageAr: string; }
+
+   export function adaptFormTo<Category>PrintData(fields: <Category>PrintFields): <Category>PrintData { ... }
+   export function validate<Category>PrintData(data: <Category>PrintData): PrintDataWarning[] { ... }
+   ```
+2. **Apply `sanitizePrintText`** on all string fields passed to JSX in `adaptForm...` or in the component itself.
+3. **Add tests** in `frontend/src/__tests__/printTemplates/<category>Adapter.test.ts`.
+4. **Call `usePrintTemplate` unconditionally** in the page component (before any early returns).
+
+---
+
+### Register a New Template in the Engine
+
+In `engine/<category>Templates.ts`:
+
+```ts
+import { quotationTemplate } from './quotationTemplates'; // or appropriate helper
+import MyDesignN from '../reference/quotations/MyDesignN';
+import MyDesignNBlank from '../reference/quotations/MyDesignNBlank';
+
+// Add to the registry array:
+quotationTemplate(MyDesignN, {
+  id: 'quotation-design-N',
+  nameAr: 'اسم التصميم بالعربي',
+  nameEn: 'Design Name',
+  variant: 'original',
+  sourceFile: 'docs/new q/quotation-template-0N-with-letterhead.html',
+}),
+quotationTemplate(MyDesignNBlank, {
+  id: 'quotation-design-N-blank',
+  nameAr: 'اسم التصميم بالعربي — بدون ترويسة',
+  nameEn: 'Design Name — Blank',
+  variant: 'blank-letterhead',
+  sourceFile: 'docs/new q/quotation-template-0N-blank-letterhead.html',
+}),
+```
+
+Convention: blank id = original id + `"-blank"`.
+
+---
+
+### Use PrintTemplateSelector in a Page
+
+```tsx
+import { usePrintTemplate, PrintTemplateSelector } from '../print-templates';
+
+function MyPrintPage({ data }: { data?: CategoryPrintData }) {
+  // Must be unconditional — call before any early return:
+  const { resolvedTemplate, profile, setProfile } = usePrintTemplate('quotation', data);
+  const EngineComponent = resolvedTemplate.component;
+
+  return (
+    <>
+      <PrintTemplateSelector category="quotation" profile={profile} onSelect={setProfile} />
+      <EngineComponent data={data} />
+    </>
+  );
+}
+```
+
+`resolveTemplateForProfile` (via `usePrintTemplate`) automatically returns the blank-letterhead variant when `profile.paperType === 'letterhead'`.
+
+---
+
+## Rules
+
+These rules apply to every file under `print-templates/`. Violations block merge.
+
+### 1 — No External Font CDN
+
+**Never** load fonts from Google Fonts, Adobe Fonts, or any CDN. The app is offline-only.
+
+```css
+/* ❌ Forbidden */
+@import url('https://fonts.googleapis.com/css2?family=Cairo');
+
+/* ✅ Required — self-hosted woff2 under src/assets/fonts/ */
+@font-face { font-family: 'Tajawal'; src: url('...Tajawal-Regular.woff2') format('woff2'); }
+```
+
+### 2 — No PNG Backgrounds
+
+PNG files in template layouts cause print bleed and file-size issues. Use SVG or CSS-only decorations. The company logo (`assets/almanar-logo.png`) is the only permitted PNG — as a standalone `<img>`, never as a CSS `background-image`.
+
+### 3 — sanitizePrintText on All Printed Text
+
+Every string field rendered as JSX text must pass through `sanitizePrintText`. This prevents `"undefined"` literals and strips whitespace that breaks layout.
+
+```tsx
+import { sanitizePrintText } from '../../utils/sanitizePrintText';
+
+// ✅ Required
+<span>{sanitizePrintText(d.customerName)}</span>
+
+// ❌ Forbidden
+<span>{d.customerName}</span>
+```
+
+Exceptions: static strings, numbers (`formatKWD(...)`), list keys, and fields already guaranteed non-null by the type system (e.g. `d.quotationNumber` after validation).
+
+### 4 — Legacy Mode Is Default
+
+For pages with an engine toggle, `previewMode` must default to `'legacy'`. Engine mode is opt-in. The original legacy rendering path must remain byte-for-byte identical to pre-Phase-2B behavior.
+
+### 5 — Blank Variant = Layout Minus Header/Footer
+
+The blank-letterhead variant does NOT use `visibility: hidden` (which wastes print space). It uses a CSS `.blank` class that adds `padding-top: 50mm` and simply excludes the header/footer JSX via `showLetterhead={false}`. The body, table, totals, and signature blocks are otherwise identical.
+
+---
+
 ## Phase History
 
 | Phase | Commit | What |
@@ -305,3 +481,6 @@ Do **not** use `override || default` patterns in builder or adapter code — use
 | 1.9 | — | Adapters, utils (tafqeet/formatKWD/formatDate), hooks, PrintTemplateSelector, top-level barrel |
 | 1.95 | — | Storage wrapper, Template Service, Builders, company provider, stub docs, unit tests, README |
 | 1.96 | — | `??` override semantics in company data, adapters hidden from public barrel, edge-case tests, README update |
+| 2B-1 | `feature/print-templates-react-phase1` | Quotation registry completed: 5 designs × 2 variants = 10 templates. `quotationTemplates.ts` rewritten with typed `quotationTemplate()` helper. QuotationBase.tsx + QuotationShared.module.css + D1–D5 + Blank variants. |
+| 2B-2 | `feature/print-templates-react-phase1` | Quotation.tsx preview integration: `previewMode` toggle (default `'legacy'`), `adaptFormToQuotationPrintData`, `validateQuotationPrintData`, `PrintTemplateSelector` in engine mode, warning banner. |
+| 2B-2 hardening | `feature/print-templates-react-phase1` | Gemini-required: `sanitizePrintText` utility, intro text CSS (`white-space: pre-line; overflow-wrap`), Totals Block always renders all 3 rows. |

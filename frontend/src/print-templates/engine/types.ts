@@ -94,7 +94,12 @@ export interface QuotationPrintData {
   attention?: string;
   validity: string;
   subject: string;
+  projectName?: string;
+  projectLocation?: string;
+  introText?: string;
   lineItems: PrintLineItem[];
+  subtotal?: number;
+  discount?: number;
   grandTotal: number;
   terms?: string[];
   notes?: string;
