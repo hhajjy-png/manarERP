@@ -11,13 +11,11 @@ import {
   InvoiceDesign5,
   InvoiceDesign5Blank,
 } from '../reference/invoices';
-import type { PrintTemplateComponent, PrintTemplateDefinition } from './types';
+import type { InvoicePrintData, PrintTemplateComponent, PrintTemplateDefinition } from './types';
 
-/**
- * Bridge Phase 1.5 static components (no props) into the Phase 1.8 typed
- * interface. Phase 2 replaces these with data-driven components.
- */
-function bridge(c: ComponentType): PrintTemplateComponent {
+function invoiceTemplate(
+  c: ComponentType<{ data?: InvoicePrintData }>,
+): PrintTemplateComponent {
   return c as unknown as PrintTemplateComponent;
 }
 
@@ -30,7 +28,7 @@ export const invoiceTemplateDefinitions: PrintTemplateDefinition[] = [
     variant: 'original',
     language: 'bilingual',
     supports: { plainA4: true, letterhead: false },
-    component: bridge(InvoiceDesign1),
+    component: invoiceTemplate(InvoiceDesign1),
     sourceFile: 'docs/invoice_templates/html/design1.html',
   },
   {
@@ -41,7 +39,7 @@ export const invoiceTemplateDefinitions: PrintTemplateDefinition[] = [
     variant: 'blank-letterhead',
     language: 'bilingual',
     supports: { plainA4: false, letterhead: true },
-    component: bridge(InvoiceDesign1Blank),
+    component: invoiceTemplate(InvoiceDesign1Blank),
     sourceFile: 'docs/invoice_templates/html/design1_blank.html',
   },
   {
@@ -52,7 +50,7 @@ export const invoiceTemplateDefinitions: PrintTemplateDefinition[] = [
     variant: 'original',
     language: 'bilingual',
     supports: { plainA4: true, letterhead: false },
-    component: bridge(InvoiceDesign2),
+    component: invoiceTemplate(InvoiceDesign2),
     sourceFile: 'docs/invoice_templates/html/design2.html',
   },
   {
@@ -63,7 +61,7 @@ export const invoiceTemplateDefinitions: PrintTemplateDefinition[] = [
     variant: 'blank-letterhead',
     language: 'bilingual',
     supports: { plainA4: false, letterhead: true },
-    component: bridge(InvoiceDesign2Blank),
+    component: invoiceTemplate(InvoiceDesign2Blank),
     sourceFile: 'docs/invoice_templates/html/design2_blank.html',
   },
   {
@@ -74,7 +72,7 @@ export const invoiceTemplateDefinitions: PrintTemplateDefinition[] = [
     variant: 'original',
     language: 'bilingual',
     supports: { plainA4: true, letterhead: false },
-    component: bridge(InvoiceDesign3),
+    component: invoiceTemplate(InvoiceDesign3),
     sourceFile: 'docs/invoice_templates/html/design3.html',
   },
   {
@@ -85,7 +83,7 @@ export const invoiceTemplateDefinitions: PrintTemplateDefinition[] = [
     variant: 'blank-letterhead',
     language: 'bilingual',
     supports: { plainA4: false, letterhead: true },
-    component: bridge(InvoiceDesign3Blank),
+    component: invoiceTemplate(InvoiceDesign3Blank),
     sourceFile: 'docs/invoice_templates/html/design3_blank.html',
   },
   {
@@ -96,7 +94,7 @@ export const invoiceTemplateDefinitions: PrintTemplateDefinition[] = [
     variant: 'original',
     language: 'bilingual',
     supports: { plainA4: true, letterhead: false },
-    component: bridge(InvoiceDesign4),
+    component: invoiceTemplate(InvoiceDesign4),
     sourceFile: 'docs/invoice_templates/html/design4.html',
   },
   {
@@ -107,7 +105,7 @@ export const invoiceTemplateDefinitions: PrintTemplateDefinition[] = [
     variant: 'blank-letterhead',
     language: 'bilingual',
     supports: { plainA4: false, letterhead: true },
-    component: bridge(InvoiceDesign4Blank),
+    component: invoiceTemplate(InvoiceDesign4Blank),
     sourceFile: 'docs/invoice_templates/html/design4_blank.html',
     notes: 'Blank variant hides .strip (header bar) instead of .head — structural equivalent.',
   },
@@ -119,7 +117,7 @@ export const invoiceTemplateDefinitions: PrintTemplateDefinition[] = [
     variant: 'original',
     language: 'bilingual',
     supports: { plainA4: true, letterhead: false },
-    component: bridge(InvoiceDesign5),
+    component: invoiceTemplate(InvoiceDesign5),
     sourceFile: 'docs/invoice_templates/html/design5.html',
   },
   {
@@ -130,7 +128,7 @@ export const invoiceTemplateDefinitions: PrintTemplateDefinition[] = [
     variant: 'blank-letterhead',
     language: 'bilingual',
     supports: { plainA4: false, letterhead: true },
-    component: bridge(InvoiceDesign5Blank),
+    component: invoiceTemplate(InvoiceDesign5Blank),
     sourceFile: 'docs/invoice_templates/html/design5_blank.html',
   },
 ];

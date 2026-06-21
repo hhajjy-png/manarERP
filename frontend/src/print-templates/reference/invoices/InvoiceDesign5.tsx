@@ -1,7 +1,14 @@
 import logo from '../assets/almanar-logo.png';
 import styles from './InvoiceDesign5.module.css';
+import type { InvoicePrintData } from '../../engine/types';
+import { formatKWD, formatKWDAr } from '../../utils/formatKWD';
 
-export default function InvoiceDesign5() {
+interface Props { data?: InvoicePrintData; }
+
+export default function InvoiceDesign5({ data }: Props) {
+  const grandTotal = data ? data.totalDinars + data.totalFils / 1000 : null;
+  const fillerCount = data ? Math.max(0, 5 - data.lineItems.length) : 0;
+
   return (
     <>
       <div className={styles.page}>
@@ -17,28 +24,55 @@ export default function InvoiceDesign5() {
   </div>
   <div className={styles.rule}></div>
   <div className={styles.meta}>
-    <div className={styles.c}><b>رقم الفاتورة:</b> INV-2026-0142</div>
-    <div className={styles.c}><b>التاريخ:</b> 20 / 06 / 2026</div>
-    <div className={`${styles.c} ${styles.full}`}><b>المطلوب من السادة:</b> مصنع الخليج للأسفلت ذ.م.م</div>
+    <div className={styles.c}><b>رقم الفاتورة:</b> {data ? data.invoiceNumber : 'INV-2026-0142'}</div>
+    <div className={styles.c}><b>التاريخ:</b> {data ? data.date : '20 / 06 / 2026'}</div>
+    <div className={`${styles.c} ${styles.full}`}><b>المطلوب من السادة:</b> {data ? data.customerName : 'مصنع الخليج للأسفلت ذ.م.م'}</div>
   </div>
   <div className={styles.meta} style={{"borderTop": "none"}}>
-    <div className={`${styles.c} ${styles.full}`}><b>المشروع:</b> توريد ونقل أسفلت – عقد شهري</div>
-    <div className={`${styles.c} ${styles.full}`}><b>موقع المشروع:</b> منطقة الشعيبة الصناعية – الكويت</div>
+    <div className={`${styles.c} ${styles.full}`}><b>المشروع:</b> {data ? (data.projectName ?? '') : 'توريد ونقل أسفلت – عقد شهري'}</div>
+    <div className={`${styles.c} ${styles.full}`}><b>موقع المشروع:</b> {data ? '' : 'منطقة الشعيبة الصناعية – الكويت'}</div>
   </div>
   <table>
     <thead><tr><th className={styles.ds}>البيان / Description</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة (د.ك)</th><th>القيمة (د.ك)</th></tr></thead>
-    <tbody><tr><td className={styles.ds}>نقل أسفلت – خلطة ساخنة</td><td>درب</td><td>12</td><td>28.500</td><td className={styles.t}>342.000</td></tr><tr><td className={styles.ds}>توريد ونقل بيس كورس</td><td>طن</td><td>60</td><td>4.250</td><td className={styles.t}>255.000</td></tr><tr><td className={styles.ds}>أجور معدة فرش وتسوية</td><td>يوم</td><td>3</td><td>45.000</td><td className={styles.t}>135.000</td></tr><tr className={styles.e}><td></td><td></td><td></td><td></td><td></td></tr><tr className={styles.e}><td></td><td></td><td></td><td></td><td></td></tr><tr className={styles.e}><td></td><td></td><td></td><td></td><td></td></tr><tr className={styles.e}><td></td><td></td><td></td><td></td><td></td></tr><tr className={styles.e}><td></td><td></td><td></td><td></td><td></td></tr></tbody>
+    <tbody>
+      {data
+        ? <>
+            {data.lineItems.map((item, i) => (
+              <tr key={i}>
+                <td className={styles.ds}>{item.descriptionAr}</td>
+                <td>{item.unit}</td>
+                <td>{item.quantity}</td>
+                <td>{formatKWD(item.unitPrice)}</td>
+                <td className={styles.t}>{formatKWD(item.total)}</td>
+              </tr>
+            ))}
+            {Array.from({ length: fillerCount }).map((_, i) => (
+              <tr key={`f${i}`} className={styles.e}><td></td><td></td><td></td><td></td><td></td></tr>
+            ))}
+          </>
+        : <>
+            <tr><td className={styles.ds}>نقل أسفلت – خلطة ساخنة</td><td>درب</td><td>12</td><td>28.500</td><td className={styles.t}>342.000</td></tr>
+            <tr><td className={styles.ds}>توريد ونقل بيس كورس</td><td>طن</td><td>60</td><td>4.250</td><td className={styles.t}>255.000</td></tr>
+            <tr><td className={styles.ds}>أجور معدة فرش وتسوية</td><td>يوم</td><td>3</td><td>45.000</td><td className={styles.t}>135.000</td></tr>
+            <tr className={styles.e}><td></td><td></td><td></td><td></td><td></td></tr>
+            <tr className={styles.e}><td></td><td></td><td></td><td></td><td></td></tr>
+            <tr className={styles.e}><td></td><td></td><td></td><td></td><td></td></tr>
+            <tr className={styles.e}><td></td><td></td><td></td><td></td><td></td></tr>
+            <tr className={styles.e}><td></td><td></td><td></td><td></td><td></td></tr>
+          </>
+      }
+    </tbody>
   </table>
   <div className={styles.belt}>
-    <div className={styles.words}><b>المبلغ كتابةً:</b><br />سبعمائة واثنان وثلاثون ديناراً كويتياً لا غير</div>
+    <div className={styles.words}><b>المبلغ كتابةً:</b><br />{data ? data.totalInWords : 'سبعمائة واثنان وثلاثون ديناراً كويتياً لا غير'}</div>
     <div className={styles.tot}>
-      <div className={styles.r}><b>المجموع الفرعي</b><span>732.000 د.ك</span></div>
-      <div className={styles.g}><span>الإجمالي النهائي</span><span>732.000 د.ك</span></div>
+      <div className={styles.r}><b>المجموع الفرعي</b><span>{grandTotal !== null ? formatKWDAr(grandTotal) : '732.000 د.ك'}</span></div>
+      <div className={styles.g}><span>الإجمالي النهائي</span><span>{grandTotal !== null ? formatKWDAr(grandTotal) : '732.000 د.ك'}</span></div>
     </div>
   </div>
   <div className={styles.secrow}>
     <div className={styles.sec}><div className={styles.h}>شروط الدفع</div><div className={styles.b}>السداد خلال 30 يوماً من تاريخ الفاتورة.</div></div>
-    <div className={styles.sec}><div className={styles.h}>ملاحظات</div><div className={styles.b} style={{"minHeight": "16mm"}}></div></div>
+    <div className={styles.sec}><div className={styles.h}>ملاحظات</div><div className={styles.b} style={{"minHeight": "16mm"}}>{data?.notes ?? ''}</div></div>
   </div>
   <div className={styles.sign}>
     <div className={styles.s}><div className={styles.lbl}>المحاسبة</div><div className={styles.ln}>التوقيع</div></div>
