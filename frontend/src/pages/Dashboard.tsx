@@ -25,6 +25,8 @@ import {
 import LastAutoBackupCard from '../components/dashboard/LastAutoBackupCard';
 import FinancialIntelPanel from '../components/dashboard/FinancialIntelPanel';
 import type { FinV2Data } from '../components/dashboard/FinancialIntelPanel';
+import ExecutiveIntelligenceV2Panel from '../components/dashboard/ExecutiveIntelligenceV2Panel';
+import type { IntelV2Data } from '../components/dashboard/ExecutiveIntelligenceV2Panel';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ApiAny = any;
@@ -67,6 +69,8 @@ export default function Dashboard() {
   const [alerts, setAlerts] = useState<DashAlert[]>([]);
   const [ops, setOps] = useState<ApiAny>(null);
   const [finV2, setFinV2] = useState<FinV2Data | null>(null);
+  const [intelV2, setIntelV2] = useState<IntelV2Data | null>(null);
+  const [intelV2Loading, setIntelV2Loading] = useState(true);
 
   const today = new Date().toLocaleDateString('ar-KW', {
     weekday: 'long',
@@ -83,6 +87,12 @@ export default function Dashboard() {
       if (exec === null) setInitialLoading(true);
       else setRefreshing(true);
       setError('');
+
+      // Intelligence V2 — isolated fetch; failure does NOT break main dashboard
+      setIntelV2Loading(true);
+      const intelPromise = api.get('/dashboard/executive-intelligence-v2')
+        .then(r => r.data?.data ?? null)
+        .catch(() => null);
       try {
         const [execRes, equipRes, empsRes, opsRes, finV2Res] = await Promise.all([
           api.get('/dashboard/executive'),
@@ -133,6 +143,13 @@ export default function Dashboard() {
           setInitialLoading(false);
           setRefreshing(false);
         }
+      }
+
+      // Resolve intel panel (already running in parallel)
+      const intelData = await intelPromise;
+      if (!cancelled) {
+        setIntelV2(intelData);
+        setIntelV2Loading(false);
       }
     }
 
@@ -801,6 +818,11 @@ export default function Dashboard() {
           FINANCIAL INTELLIGENCE PANEL V2
       ══════════════════════════════════════════════════ */}
       <FinancialIntelPanel data={finV2} loading={initialLoading} />
+
+      {/* ══════════════════════════════════════════════════
+          EXECUTIVE INTELLIGENCE V2
+      ══════════════════════════════════════════════════ */}
+      <ExecutiveIntelligenceV2Panel data={intelV2} loading={intelV2Loading} />
     </div>
   );
 }

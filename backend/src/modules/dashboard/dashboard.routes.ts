@@ -24,4 +24,7 @@ router.get('/operational', canRead, asyncHandler(async (_req, res) => ok(res, aw
 /** المؤشرات المالية التنفيذية V2 — تحصيلات الشهر، كبار المدينين، الذمم، ربحية العقود. */
 router.get('/executive-financial-v2', canRead, asyncHandler(async (_req, res) => ok(res, await dashboardService.executiveFinancialV2())));
 
+/** حزمة الذكاء التنفيذي V2 — تنبيهات + توقعات + اتجاهات + KPI + صحة العقود + توصيات. */
+router.get('/executive-intelligence-v2', canRead, asyncHandler(async (_req, res) => ok(res, await dashboardService.executiveIntelligenceV2())));
+
 export default router;
