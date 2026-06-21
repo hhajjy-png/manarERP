@@ -1,0 +1,40 @@
+.page { width:210mm; height:297mm; position:relative; background:#fff; overflow:hidden; }
+.ar { direction:rtl; text-align:right; }
+.en { direction:ltr; text-align:left; }
+
+.p { padding:8mm 9mm 6mm 9mm; height:297mm; display:flex; flex-direction:column; position:relative; }
+.wm { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:120mm; opacity:.05; }
+.hdr { display:flex; justify-content:space-between; align-items:flex-start; }
+.hL { width:37%; } .hC { width:22%; text-align:center; } .hR { width:37%; direction:rtl; text-align:right; }
+.cname-en { font-weight:800; font-size:11.5pt; color:#30246C; line-height:1.05; }
+.tag-en { font-weight:700; font-size:6pt; color:#30246C; margin-top:1mm; }
+.cap-en { font-size:6.6pt; color:#30246C; margin-top:.3mm; }
+.cname-ar { font-weight:800; font-size:14pt; color:#30246C; line-height:1; }
+.tag-ar { font-weight:700; font-size:6.8pt; color:#30246C; margin-top:1mm; }
+.cap-ar { font-size:7pt; color:#30246C; margin-top:.3mm; }
+.contact { font-size:7pt; color:#30246C; margin-top:2mm; line-height:1.7; }
+.contact b { font-weight:800; }
+.logo { width:24mm; }
+.ttl { text-align:center; margin:3mm 0 2mm 0; }
+.ttl .a { font-weight:800; font-size:15pt; color:#fff; background:#30246C; display:inline-block; padding:1.6mm 12mm; border-radius:2mm; letter-spacing:.3px; }
+.ttl .b { font-weight:700; font-size:9pt; color:#30246C; margin-top:1.5mm; letter-spacing:.5px; }
+.foot { margin-top:auto; text-align:center; border-top:1.5px solid #30246C; padding-top:2mm; }
+.foot .a { font-weight:700; font-size:8.5pt; color:#30246C; letter-spacing:1px; }
+.foot .b { font-weight:600; font-size:7.5pt; color:#30246C; margin-top:.6mm; letter-spacing:.3px; }
+
+.ttl .a { background:#fff !important; color:#30246C !important; border:2px solid #30246C; }
+.meta { direction:rtl; font-size:9pt; color:#30246C; margin-bottom:3mm; line-height:2; }
+.meta b { font-weight:800; } .meta .sep { color:#bbb; }
+.lead { direction:rtl; font-size:9pt; margin:0 0 3mm 0; }
+.page table { width:100%; border-collapse:collapse; direction:rtl; }
+.page th, .page td { border-bottom:1px solid #30246C; text-align:center; vertical-align:middle; padding:2.2mm 1mm; font-size:9pt; }
+.page thead th { border-bottom:2px solid #30246C; color:#30246C; font-weight:800; }
+.page tbody tr:nth-child(even) td { background:#f6f4fa; }
+.page td.d { text-align:right; }
+.c1{width:7%} .c2{width:42%} .c3{width:11%} .c4{width:11%} .c5{width:14%} .c6{width:15%}
+.grid2 { direction:rtl; display:flex; gap:4mm; margin-top:4mm; }
+.grid2 .b { flex:1; border:1px solid #30246C; border-radius:2mm; padding:2.5mm 3mm; font-size:8.6pt; color:#30246C; }
+.grid2 .b h4 { margin:0 0 1.5mm 0; font-size:9pt; }
+.sign { direction:rtl; display:flex; justify-content:space-between; margin-top:12mm; font-size:9.5pt; color:#30246C; font-weight:700; }
+.sign .ln { display:inline-block; width:50mm; border-bottom:1px dotted #30246C; margin-top:10mm; }
+.sign .col { text-align:center; }
