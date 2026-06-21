@@ -40,8 +40,8 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
         <table>
           <thead>
             <tr>
-              {columns.map((c) => <th key={c.key}>{t(c.label)}</th>)}
-              {actions && <th style={{ minWidth: 80 }}>{t('col.actions')}</th>}
+              {columns.map((c) => <th key={c.key} scope="col">{t(c.label)}</th>)}
+              {actions && <th scope="col" style={{ minWidth: 80 }}>{t('col.actions')}</th>}
             </tr>
           </thead>
           <tbody>

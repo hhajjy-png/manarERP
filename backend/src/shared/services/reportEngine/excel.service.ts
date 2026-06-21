@@ -79,8 +79,10 @@ export async function buildExcel(input: ReportInput): Promise<Buffer> {
   if (input.totalsRow) {
     const r = ws.addRow(input.columns.map((c) => input.totalsRow![c.key] ?? ''));
     r.font = { bold: true };
-    r.eachCell((cell) => {
+    r.eachCell((cell, colNumber) => {
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F3F7' } };
+      const col = input.columns[colNumber - 1];
+      if (col?.numFmt) cell.numFmt = col.numFmt;
     });
   }
 

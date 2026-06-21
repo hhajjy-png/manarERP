@@ -220,7 +220,17 @@ export async function postPaymentToGL(tx: Tx, paymentId: number): Promise<void> 
  */
 export async function repostInvoiceToGL(tx: Tx, invoiceId: number): Promise<void> {
   await tx.journalEntry.deleteMany({
-    where: { referenceType: { in: [GL_REFERENCE_TYPES.INVOICE, 'INVOICE_REVERSAL'] }, referenceId: invoiceId },
+    where: {
+      referenceType: {
+        in: [
+          GL_REFERENCE_TYPES.INVOICE,
+          'INVOICE_REVERSAL',
+          GL_REFERENCE_TYPES.PURCHASE_INVOICE,
+          GL_REFERENCE_TYPES.PURCHASE_INVOICE_REVERSAL,
+        ],
+      },
+      referenceId: invoiceId,
+    },
   });
   await postInvoiceToGL(tx, invoiceId);
 }

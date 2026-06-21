@@ -382,6 +382,7 @@ export class PayrollService {
     const updated = await prisma.$transaction(async (tx) => {
       const payroll = await tx.payroll.findUnique({ where: { id } });
       if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
+      if (payroll.status === 'APPROVED') throw AppError.badRequest('الكشف معتمد بالفعل');
       if (payroll.status === 'PAID') throw AppError.badRequest('الكشف مدفوع بالفعل');
       if (payroll.status === 'CANCELLED') throw AppError.badRequest('لا يمكن اعتماد كشف ملغى');
       return tx.payroll.update({ where: { id }, data: { status: 'APPROVED', approvedAt: new Date(), approvedById: userId } });

@@ -12,7 +12,7 @@ const SAMPLE: QuotationPrintData = {
     taglineEn: 'For construction and maintenance of roads streets pavements and road supplies',
     capitalAr: 'رأس المال المدفوع ٥٠٠،٠٠٠ ألف دينار كويتي',
     capitalEn: 'Paid-up capital: 500,000 thousand K.D.',
-    phone: '99333820 / 94404401',
+    phone: '98777887 / 94404401',
     fax: '98777887',
     email: 'Manar.int.co@gmail.com',
     addressAr: 'ص.ب : ٢٩٢٤١ الصفاة — الرمز البريدي ١٣١٤٣ الكويت',
@@ -104,10 +104,10 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
                 <IcLocation /><span>: P.O.Box 29241 — Code No. 13143 Kuwait</span>
               </div>
               <div className={styles.cl}>
-                <IcPhone /><span>: 99333820 / 94404401</span>
+                <IcPhone /><span>: 98777887 / 94404401</span>
               </div>
               <div className={styles.cl}>
-                <IcWhatsApp /><span>: 99333820</span>
+                <IcWhatsApp /><span>: 98777887</span>
               </div>
               <div className={styles.cl}>
                 <IcEmail /><span>: Manar.int.co@gmail.com</span>
@@ -133,10 +133,10 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
                 <span>الرمز البريدي ١٣١٤٣ الكويت</span>
               </div>
               <div className={styles.cl}>
-                <span>٩٩٣٣٣٨٢٠ / ٩٤٤٠٤٤٠١</span><IcPhone />
+                <span>٩٨٧٧٧٨٨٧ / ٩٤٤٠٤٤٠١</span><IcPhone />
               </div>
               <div className={styles.cl}>
-                <span>٩٩٣٣٣٨٢٠</span><IcWhatsApp />
+                <span>٩٨٧٧٧٨٨٧</span><IcWhatsApp />
               </div>
               <div className={styles.cl}>
                 <span>Manar.int.co@gmail.com</span><IcEmail />

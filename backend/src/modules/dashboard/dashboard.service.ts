@@ -71,17 +71,17 @@ export class DashboardService {
       months.push({ label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, year: d.getFullYear(), month: d.getMonth() + 1 });
     }
 
-    const result = [];
-    for (const m of months) {
-      const start = new Date(m.year, m.month - 1, 1);
-      const end = new Date(m.year, m.month, 0, 23, 59, 59);
-      const [rev, exp] = await Promise.all([
-        prisma.transaction.aggregate({ where: { type: 'REVENUE', date: { gte: start, lte: end } }, _sum: { credit: true } }),
-        prisma.transaction.aggregate({ where: { type: 'EXPENSE', date: { gte: start, lte: end } }, _sum: { debit: true } }),
-      ]);
-      result.push({ label: m.label, revenue: rev._sum.credit ?? 0, expense: exp._sum.debit ?? 0 });
-    }
-    return result;
+    return Promise.all(
+      months.map(async (m) => {
+        const start = new Date(m.year, m.month - 1, 1);
+        const end = new Date(m.year, m.month, 0, 23, 59, 59);
+        const [rev, exp] = await Promise.all([
+          prisma.transaction.aggregate({ where: { type: 'REVENUE', date: { gte: start, lte: end } }, _sum: { credit: true } }),
+          prisma.transaction.aggregate({ where: { type: 'EXPENSE', date: { gte: start, lte: end } }, _sum: { debit: true } }),
+        ]);
+        return { label: m.label, revenue: rev._sum.credit ?? 0, expense: exp._sum.debit ?? 0 };
+      }),
+    );
   }
 
   /** توزيع حالة المشاريع للرسم الدائري. */

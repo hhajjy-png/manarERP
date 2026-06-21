@@ -54,7 +54,18 @@ export class MaintenanceService {
   async updateRecord(id: number, input: UpdateMaintenanceInput, req: Request) {
     const old = await prisma.maintenanceRecord.findUnique({ where: { id } });
     if (!old) throw AppError.notFound('سجل الصيانة غير موجود');
-    const record = await prisma.maintenanceRecord.update({ where: { id }, data: input });
+    const record = await prisma.$transaction(async (tx) => {
+      const r = await tx.maintenanceRecord.update({ where: { id }, data: input });
+      // مزامنة حالة المعدة عند تغيير حالة الصيانة
+      if (input.status && input.status !== old.status) {
+        if (input.status === 'IN_PROGRESS') {
+          await tx.equipment.update({ where: { id: old.equipmentId }, data: { status: 'NOT_WORKING' } });
+        } else if (input.status === 'COMPLETED' || input.status === 'CANCELLED') {
+          await tx.equipment.update({ where: { id: old.equipmentId }, data: { status: 'WORKING' } });
+        }
+      }
+      return r;
+    });
     await recordAudit({ req, action: 'UPDATE', module: 'maintenance', entityId: id, oldValue: old, newValue: input });
     return record;
   }
@@ -144,7 +155,7 @@ export class MaintenanceService {
 
   async addSparePart(input: CreateSparePartInput, req: Request) {
     await assertEquipment(input.equipmentId);
-    const totalCost = Math.round(input.quantity * input.unitCost * 100) / 100;
+    const totalCost = Math.round(input.quantity * input.unitCost * 1000) / 1000;
     const part = await prisma.sparePartUsage.create({ data: { ...input, totalCost } });
     await recordAudit({ req, action: 'CREATE', module: 'maintenance', entityId: part.id, newValue: { part: input.partName } });
     return part;

@@ -6,7 +6,7 @@ import { formatDate } from '../lib/date';
 // ===== أدوات عرض =====
 export function money(v: unknown): string {
   const n = Number(v ?? 0);
-  return n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) + ' د.ك';
+  return n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' د.ك';
 }
 
 export function dateText(v: unknown): string {
