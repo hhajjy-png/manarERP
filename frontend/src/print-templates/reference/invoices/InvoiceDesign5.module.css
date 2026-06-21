@@ -43,3 +43,8 @@
 .s { width:30%; text-align:center; }
 .s .lbl { font-weight:800; color:#30246C; font-size:10pt; margin-bottom:13mm; }
 .s .ln { border-top:1.4px solid #30246C; padding-top:1mm; font-size:8pt; color:#000; }
+
+@media print {
+  @page { size: A4; margin: 0; }
+  .page { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

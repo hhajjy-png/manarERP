@@ -35,3 +35,8 @@
 .foot { direction:rtl; display:flex; justify-content:space-between; font-size:10pt; color:#30246C; font-weight:700; margin-top:4mm; }
 .foot .ln { display:inline-block; width:46mm; border-bottom:1px dotted #30246C; margin:0 2mm; transform:translateY(-3px); }
 .wm { position:absolute; top:46%; left:50%; transform:translate(-50%,-50%); width:70mm; opacity:.06; }
+
+@media print {
+  @page { size: A4; margin: 0; }
+  .page { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

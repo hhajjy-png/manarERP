@@ -42,3 +42,8 @@
 .ln { border-top:1px solid #000; padding-top:1mm; font-size:8pt; color:#000; }
 .footbar { height:4mm; background:#30246C; position:absolute; bottom:0; left:0; right:0; }
 .contactbar { position:absolute; bottom:4mm; left:0; right:0; text-align:center; direction:rtl; font-size:7.6pt; color:#30246C; padding:2mm; }
+
+@media print {
+  @page { size: A4; margin: 0; }
+  .page { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

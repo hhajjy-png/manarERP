@@ -11,6 +11,7 @@ import { usePersistedState } from '../hooks/usePersistedState';
 import { CategoryGroup } from '../constants/kuwaitLocations';
 import { addRecentLocation, computeDropdown } from '../utils/recentLocations';
 import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription, parseDescription } from '../utils/invoiceDescription';
+import { toInvoiceItemPayload } from '../utils/invoicePayload';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadXlsx } from '../utils/exportUtils';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
@@ -40,7 +41,7 @@ function parseInvoiceNumber(invNum: string): { year: string; suffix: string } {
   return { year: DEFAULT_INVOICE_YEAR, suffix: invNum };
 }
 
-interface Item { description: string; quantity: number; unit: string; unitPrice: number; priceTouched?: boolean; workType?: string; location?: string; }
+interface Item { uid: string; description: string; quantity: number; unit: string; unitPrice: number; priceTouched?: boolean; workType?: string; location?: string; }
 
 interface InvStats { count: number; totalSales: number; totalCollected: number; totalRemaining: number; average: number; }
 interface MonthlyRow { year: number | null; month: number | null; count: number; totalSales: number; totalCollected: number; totalRemaining: number; }
@@ -413,7 +414,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const [partyId, setPartyId] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [parties, setParties] = useState<any[]>([]);
-  const [items, setItems] = useState<Item[]>([{ description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }]);
+  const [items, setItems] = useState<Item[]>([{ uid: crypto.randomUUID(), description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }]);
   const [deliveryDate, setDeliveryDate] = useState('');
   const [discount, setDiscount] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -555,7 +556,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         billingMonth,
         billingYear,
         discount: Number(discount),
-        items: items.map((it) => ({ description: it.description, quantity: it.quantity, unit: it.unit, unitPrice: it.unitPrice })),
+        items: items.map(toInvoiceItemPayload),
       });
       onSaved();
       onClose();
@@ -736,7 +737,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         </div>
       )}
       {items.map((it, i) => (
-        <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'start', width: '100%' }}>
+        <div key={it.uid} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'start', width: '100%' }}>
           <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'visible' }}>
             <select
               value={it.workType ?? DEFAULT_WORK_TYPE}
@@ -834,7 +835,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           </div>
         </div>
       ))}
-      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }])}>{t('btn.inv.add_material')}</button>
+      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { uid: crypto.randomUUID(), description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }])}>{t('btn.inv.add_material')}</button>
 
       {/* Financial Summary */}
       <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, alignItems: 'end' }}>
@@ -1018,7 +1019,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [parties, setParties] = useState<any[]>([]);
 
-  const [items, setItems] = useState<Item[]>([{ description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }]);
+  const [items, setItems] = useState<Item[]>([{ uid: crypto.randomUUID(), description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }]);
   const [deliveryDate, setDeliveryDate] = useState<string>(
     invoice.deliveryDate ? String(invoice.deliveryDate).slice(0, 10) : ''
   );
@@ -1047,7 +1048,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setItems(inv.items.map((it: any) => {
         const { workType, location } = parseDescription(it.description ?? '');
-        return { description: it.description, quantity: it.quantity, unit: it.unit, unitPrice: it.unitPrice, workType, location };
+        return { uid: crypto.randomUUID(), description: it.description, quantity: it.quantity, unit: it.unit, unitPrice: it.unitPrice, workType, location };
       }));
       setDiscount(Number(inv.discount));
       setNotes(inv.notes ?? '');
@@ -1179,7 +1180,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
         billingYear,
         discount: Number(discount),
         notes: notes.trim() || undefined,
-        items: items.map((it) => ({ description: it.description, quantity: it.quantity, unit: it.unit, unitPrice: it.unitPrice })),
+        items: items.map(toInvoiceItemPayload),
       });
       onSaved();
       onClose();
@@ -1340,7 +1341,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
         </div>
       )}
       {items.map((it, i) => (
-        <div key={i} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'start', width: '100%' }}>
+        <div key={it.uid} className="invoice-item-row" style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 8, alignItems: 'start', width: '100%' }}>
           <div className="invoice-cell description-cell" style={{ minWidth: 0, overflow: 'visible' }}>
             <select
               value={it.workType ?? DEFAULT_WORK_TYPE}
@@ -1395,7 +1396,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
           </div>
         </div>
       ))}
-      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }])}>{t('btn.inv.add_material')}</button>
+      <button className="btn secondary sm" type="button" onClick={() => setItems((p) => [...p, { uid: crypto.randomUUID(), description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' }])}>{t('btn.inv.add_material')}</button>
 
       <div className="form-grid" style={{ marginTop: 16 }}>
         <div className="field"><label>{t('field.inv.discount_kd')}</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>

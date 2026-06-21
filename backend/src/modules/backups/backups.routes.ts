@@ -112,14 +112,12 @@ router.post(
   }),
 );
 
-const exportSchema = z.object({ path: z.string().min(1, 'المسار مطلوب') });
 router.post(
   '/export',
   requirePermission('backups.create'),
-  asyncHandler(async (req, res) => {
-    const { path: target } = exportSchema.parse(req.body);
-    ok(res, await backupService.exportTo(target), 'تم تصدير قاعدة البيانات');
-  }),
+  (_req, res) => {
+    res.status(403).json({ success: false, error: 'تصدير النسخ الاحتياطي يتم من خلال تطبيق سطح المكتب فقط' });
+  },
 );
 
 router.post(

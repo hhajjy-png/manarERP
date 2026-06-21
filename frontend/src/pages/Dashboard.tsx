@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { money } from '../config/modules';
@@ -71,66 +71,63 @@ export default function Dashboard() {
     day: 'numeric',
   });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError('');
+  useEffect(() => {
     let cancelled = false;
 
-    try {
-      const [execRes, equipRes, empsRes, opsRes] = await Promise.all([
-        api.get('/dashboard/executive'),
-        api.get('/equipment/expiring', { params: { days: 30 } }),
-        api.get('/employees/expiring-documents', { params: { days: 30 } }),
-        api.get('/dashboard/operational'),
-      ]);
+    async function run() {
+      setLoading(true);
+      setError('');
+      try {
+        const [execRes, equipRes, empsRes, opsRes] = await Promise.all([
+          api.get('/dashboard/executive'),
+          api.get('/equipment/expiring', { params: { days: 30 } }),
+          api.get('/employees/expiring-documents', { params: { days: 30 } }),
+          api.get('/dashboard/operational'),
+        ]);
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      const d = execRes.data?.data ?? {};
-      setExec(d.kpis ?? null);
-      setAtt(d.attendance ?? {});
-      setTrend(d.trend ?? []);
-      setCStatus(d.contractStatus ?? []);
-      setIStatus(d.invoiceStatus ?? []);
-      setInvoices(d.latestInvoices ?? []);
-      setExpenses(d.latestExpenses ?? []);
-      setContracts(d.latestContracts ?? []);
+        const d = execRes.data?.data ?? {};
+        setExec(d.kpis ?? null);
+        setAtt(d.attendance ?? {});
+        setTrend(d.trend ?? []);
+        setCStatus(d.contractStatus ?? []);
+        setIStatus(d.invoiceStatus ?? []);
+        setInvoices(d.latestInvoices ?? []);
+        setExpenses(d.latestExpenses ?? []);
+        setContracts(d.latestContracts ?? []);
 
-      // Build alerts from equipment + employee expiry endpoints
-      const equipAlerts: DashAlert[] = (equipRes.data?.data || []).map((e: ApiAny) => ({
-        title: `${t('dash.alert.equipment')}: ${e.code}`,
-        desc: `${t('dash.alert.vehicle_book')}: ${e.registration?.remainingText ?? '—'}`,
-        status: (e.registration?.expired ? 'red' : 'amber') as DashAlert['status'],
-        icon: '🚜',
-      }));
-      const empAlerts: DashAlert[] = [];
-      (empsRes.data?.data || []).forEach((e: ApiAny) => {
-        (e.alerts ?? []).forEach((a: ApiAny) => {
-          empAlerts.push({
-            title: e.fullName,
-            desc: `${a.document}: ${a.remainingDays < 0 ? t('dash.alert.expired') : t('dash.alert.expires_in', { days: a.remainingDays })}`,
-            status: (a.remainingDays < 0 ? 'red' : 'amber') as DashAlert['status'],
-            icon: '👷',
+        // Build alerts from equipment + employee expiry endpoints
+        const equipAlerts: DashAlert[] = (equipRes.data?.data || []).map((e: ApiAny) => ({
+          title: `${t('dash.alert.equipment')}: ${e.code}`,
+          desc: `${t('dash.alert.vehicle_book')}: ${e.registration?.remainingText ?? '—'}`,
+          status: (e.registration?.expired ? 'red' : 'amber') as DashAlert['status'],
+          icon: '🚜',
+        }));
+        const empAlerts: DashAlert[] = [];
+        (empsRes.data?.data || []).forEach((e: ApiAny) => {
+          (e.alerts ?? []).forEach((a: ApiAny) => {
+            empAlerts.push({
+              title: e.fullName,
+              desc: `${a.document}: ${a.remainingDays < 0 ? t('dash.alert.expired') : t('dash.alert.expires_in', { days: a.remainingDays })}`,
+              status: (a.remainingDays < 0 ? 'red' : 'amber') as DashAlert['status'],
+              icon: '👷',
+            });
           });
         });
-      });
-      setAlerts([...equipAlerts, ...empAlerts]);
-      setOps(opsRes.data?.data ?? null);
-      setRefreshAt(new Date());
-    } catch (e) {
-      if (!cancelled) setError(errorMessage(e));
-    } finally {
-      if (!cancelled) setLoading(false);
+        setAlerts([...equipAlerts, ...empAlerts]);
+        setOps(opsRes.data?.data ?? null);
+        setRefreshAt(new Date());
+      } catch (e) {
+        if (!cancelled) setError(errorMessage(e));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    load();
-  }, [load]);
+    run();
+    return () => { cancelled = true; };
+  }, [refreshKey, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived values ────────────────────────────────────────────────────────
   const f = exec?.finance ?? {};
