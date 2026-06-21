@@ -47,7 +47,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { t } = useT();
 
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshAt, setRefreshAt] = useState<Date | null>(null);
@@ -75,7 +76,9 @@ export default function Dashboard() {
     let cancelled = false;
 
     async function run() {
-      setLoading(true);
+      // Only show skeleton on first load; subsequent refreshes use the refreshing indicator
+      if (exec === null) setInitialLoading(true);
+      else setRefreshing(true);
       setError('');
       try {
         const [execRes, equipRes, empsRes, opsRes] = await Promise.all([
@@ -121,13 +124,16 @@ export default function Dashboard() {
       } catch (e) {
         if (!cancelled) setError(errorMessage(e));
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setInitialLoading(false);
+          setRefreshing(false);
+        }
       }
     }
 
     run();
     return () => { cancelled = true; };
-  }, [refreshKey, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Derived values ────────────────────────────────────────────────────────
   const f = exec?.finance ?? {};
@@ -165,7 +171,7 @@ export default function Dashboard() {
         <div className="db-exec-topbar">
           <span className="db-exec-system-label">{t('layout.tagline')}</span>
           <div className="db-exec-topbar-end">
-            {refreshAt && !loading && (
+            {refreshAt && !initialLoading && (
               <span className="db-refresh-time">
                 {t('page.dashboard.last_update')} {refreshAt.toLocaleTimeString('ar')}
               </span>
@@ -174,9 +180,9 @@ export default function Dashboard() {
               type="button"
               className="btn secondary db-refresh-btn"
               onClick={() => setRefreshKey((k) => k + 1)}
-              disabled={loading}
+              disabled={initialLoading || refreshing}
             >
-              {loading ? '⏳' : t('page.dashboard.refresh')}
+              {refreshing ? '⏳' : t('page.dashboard.refresh')}
             </button>
           </div>
         </div>
@@ -190,7 +196,7 @@ export default function Dashboard() {
             <p className="db-exec-date">📅 {today}</p>
 
             {/* Executive snapshot metrics strip */}
-            {loading ? (
+            {initialLoading ? (
               <div className="db-exec-hero-metrics">
                 <Skeleton height={42} width="120px" style={{ borderRadius: 8 }} />
                 <Skeleton height={42} width="120px" style={{ borderRadius: 8 }} />
@@ -219,7 +225,7 @@ export default function Dashboard() {
               </div>
             ) : null}
 
-            {!loading && (
+            {!initialLoading && (
               <div className="db-exec-chips">
                 <span className="db-exec-chip blue">
                   <span className="db-exec-chip-dot" />
@@ -284,7 +290,7 @@ export default function Dashboard() {
           ROW 1 — FINANCIAL KPIs
       ══════════════════════════════════════════════════ */}
       <div className="db-section-label">{t('section.financial_kpis')}</div>
-      {loading ? (
+      {initialLoading ? (
         <KPISkeletons />
       ) : (
         <>
@@ -353,7 +359,7 @@ export default function Dashboard() {
           EXECUTIVE ALERT WIDGETS
       ══════════════════════════════════════════════════ */}
       <div className="db-section-label">{t('section.operation_alerts')}</div>
-      {loading ? (
+      {initialLoading ? (
         <div className="db-alert-widgets">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="db-aw db-aw-loading">
@@ -409,7 +415,7 @@ export default function Dashboard() {
       {/* ══════════════════════════════════════════════════
           OPERATIONAL PENDING SUMMARY
       ══════════════════════════════════════════════════ */}
-      {!loading && ops && (ops.pendingExpensesCount > 0 || ops.draftPayrollCount > 0 || ops.unprintedChequesCount > 0 || ops.outstandingInvoicesCount > 0 || ops.expiringAgreementsCount > 0) && (
+      {!initialLoading && ops && (ops.pendingExpensesCount > 0 || ops.draftPayrollCount > 0 || ops.unprintedChequesCount > 0 || ops.outstandingInvoicesCount > 0 || ops.expiringAgreementsCount > 0) && (
         <>
           <div className="db-section-label">عمليات معلّقة تستحق المراجعة</div>
           <div className="db-alert-widgets">
@@ -474,7 +480,7 @@ export default function Dashboard() {
           ROW 2 — OPERATIONAL STATS (6 cards)
       ══════════════════════════════════════════════════ */}
       <div className="db-section-label">{t('section.data_summary')}</div>
-      {loading ? (
+      {initialLoading ? (
         <StatsSkeletons />
       ) : (
         <div className="db-stats-grid">
@@ -541,14 +547,14 @@ export default function Dashboard() {
               <h3>{t('section.latest_contracts')}</h3>
               <p>{t('section.latest_5')}</p>
             </div>
-            {!loading && contracts.length > 0 && (
+            {!initialLoading && contracts.length > 0 && (
               <span className="db-pill blue">
                 {contracts.length} {t('page.dashboard.contract_unit')}
               </span>
             )}
           </div>
           <div className="db-card-body scrollable">
-            <ContractProgressList contracts={contracts} loading={loading} />
+            <ContractProgressList contracts={contracts} loading={initialLoading} />
           </div>
         </div>
         <div className="db-card">
@@ -557,10 +563,10 @@ export default function Dashboard() {
               <h3>{t('section.urgent_alerts')}</h3>
               <p>{t('section.expiry_30')}</p>
             </div>
-            {!loading && alerts.length > 0 && <span className="db-pill red">{alerts.length}</span>}
+            {!initialLoading && alerts.length > 0 && <span className="db-pill red">{alerts.length}</span>}
           </div>
           <div className="db-card-body scrollable">
-            <AlertPanel alerts={alerts} loading={loading} />
+            <AlertPanel alerts={alerts} loading={initialLoading} />
           </div>
         </div>
       </div>
@@ -577,7 +583,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="db-card-body">
-            <RevenueChart data={trend} loading={loading} />
+            <RevenueChart data={trend} loading={initialLoading} />
           </div>
         </div>
         <div className="db-card">
@@ -588,7 +594,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="db-card-body">
-            <ContractStatusChart data={cStatus} loading={loading} />
+            <ContractStatusChart data={cStatus} loading={initialLoading} />
           </div>
         </div>
       </div>
@@ -606,7 +612,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="db-card-body">
-            {loading ? (
+            {initialLoading ? (
               <div className="db-inv-rows">
                 {[0, 1, 2, 3, 4].map((i) => (
                   <Skeleton key={i} height={36} style={{ borderRadius: 8 }} />
@@ -657,7 +663,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="db-card-body">
-            {loading ? (
+            {initialLoading ? (
               <div className="db-att-grid">
                 {[0, 1, 2, 3].map((i) => (
                   <Skeleton key={i} height={88} style={{ borderRadius: 12 }} />
@@ -700,13 +706,13 @@ export default function Dashboard() {
               <h3>{t('section.latest_invoices')}</h3>
               <p>{t('section.latest_inv_sub')}</p>
             </div>
-            {!loading && invoices.length > 0 && (
+            {!initialLoading && invoices.length > 0 && (
               <button type="button" className="btn secondary db-card-btn" onClick={() => navigate('/invoices')}>
                 {t('page.dashboard.view_all')}
               </button>
             )}
           </div>
-          <LatestInvoicesTable invoices={invoices} loading={loading} />
+          <LatestInvoicesTable invoices={invoices} loading={initialLoading} />
         </div>
         <div className="db-card">
           <div className="db-card-head">
@@ -714,13 +720,13 @@ export default function Dashboard() {
               <h3>{t('section.latest_expenses')}</h3>
               <p>{t('section.latest_exp_sub')}</p>
             </div>
-            {!loading && expenses.length > 0 && (
+            {!initialLoading && expenses.length > 0 && (
               <button type="button" className="btn secondary db-card-btn" onClick={() => navigate('/expenses')}>
                 {t('page.dashboard.view_all')}
               </button>
             )}
           </div>
-          <LatestExpensesTable expenses={expenses} loading={loading} />
+          <LatestExpensesTable expenses={expenses} loading={initialLoading} />
         </div>
       </div>
 
@@ -752,7 +758,7 @@ export default function Dashboard() {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {initialLoading ? (
               <TableRowSkeletons rows={4} cols={5} />
             ) : contracts.length === 0 ? (
               <tr>
