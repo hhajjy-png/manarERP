@@ -39,8 +39,30 @@ export function createApp(): Application {
   const app = express();
 
   app.use(helmet());
-  // الخدمة محلية فقط؛ نسمح للواجهة (Electron / Vite dev) بالوصول.
-  app.use(cors({ origin: true, credentials: true }));
+  // الخدمة تعمل على localhost فقط — لا يمكن الوصول إليها من الشبكة.
+  //
+  // Origins المسموح بها:
+  //   1. !origin (no Origin header) — طلبات من Electron Main Process أو أدوات مثل curl.
+  //   2. 'null' (string) — Electron Production يحمّل الواجهة عبر win.loadFile() بروتوكول file://
+  //      وعندما يرسل Renderer طلب HTTP إلى 127.0.0.1، يرسل المتصفح Origin: null.
+  //      لا يوجد app:// في هذا المشروع — file:// هو البروتوكول الوحيد في الإنتاج.
+  //   3. Vite dev server — http://localhost:5173 و http://127.0.0.1:5173.
+  //
+  // لا يوجد wildcard ولا origin: true.
+  const ALLOWED_ORIGINS = new Set([
+    'http://localhost:5173',    // Vite dev server
+    'http://127.0.0.1:5173',   // Vite dev server (alt)
+    'null',                     // Electron production: file:// page → Origin: null
+  ]);
+  app.use(cors({
+    origin(origin, cb) {
+      // !origin: no Origin header (Electron main, health checks, local tools)
+      // ALLOWED_ORIGINS.has(origin): Vite dev or Electron production (null)
+      if (!origin || ALLOWED_ORIGINS.has(origin)) return cb(null, true);
+      return cb(new Error('CORS: origin not allowed'));
+    },
+    credentials: true,
+  }));
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 

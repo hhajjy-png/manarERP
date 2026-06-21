@@ -1,10 +1,12 @@
-import { app } from 'electron';
+import { app, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fork, ChildProcess } from 'child_process';
 import { randomBytes } from 'crypto';
 
 let backendProcess: ChildProcess | null = null;
+let appQuitting = false;
+app.on('before-quit', () => { appQuitting = true; });
 
 /**
  * تحديد مسارات البيانات حسب البيئة:
@@ -147,7 +149,22 @@ export function startBackend(internalSecret = ''): Promise<void> {
     backendProcess.stderr?.on('data', (d) => process.stderr.write(`[backend] ${d}`));
     backendProcess.on('error', reject);
 
-    waitForHealth().then(resolve).catch(reject);
+    waitForHealth().then(() => {
+      backendProcess?.on('exit', (code, signal) => {
+        if (appQuitting) return;
+        // eslint-disable-next-line no-console
+        console.error(`[backend] توقفت الخدمة بشكل غير متوقع — code=${code} signal=${signal}`);
+        dialog.showMessageBoxSync({
+          type: 'error',
+          title: 'خطأ في نظام المنار',
+          message: 'توقفت الخدمة الخلفية بشكل غير متوقع.',
+          detail: 'سيتم إغلاق التطبيق. يرجى إعادة تشغيله.',
+          buttons: ['حسناً'],
+        });
+        app.quit();
+      });
+      resolve();
+    }).catch(reject);
   });
 }
 

@@ -40,3 +40,8 @@
 .s .lbl { font-weight:800; color:#30246C; font-size:9.5pt; margin-bottom:13mm; }
 .s .ln { border-top:1.4px solid #30246C; padding-top:1mm; font-size:8pt; }
 .fbar { width:100%; border-top:3px solid #30246C; margin-top:6mm; padding-top:2mm; text-align:center; direction:rtl; font-size:8pt; color:#30246C; }
+
+@media print {
+  @page { size: A4; margin: 0; }
+  .page { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

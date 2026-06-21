@@ -7,11 +7,17 @@ const num = (n: number | null | undefined) => Number(n ?? 0);
 const dateAr = (d: Date | null) => (d ? new Date(d).toLocaleDateString('ar') : '');
 const ARABIC_MONTHS_RPT = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
+function endOfDay(dateStr: string): Date {
+  const d = new Date(dateStr);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
 function dateWhere(from?: string, to?: string, field = 'date'): Record<string, unknown> {
   if (!from && !to) return {};
   const range: Record<string, Date> = {};
   if (from) range.gte = new Date(from);
-  if (to) range.lte = new Date(to);
+  if (to) range.lte = endOfDay(to);
   return { [field]: range };
 }
 
@@ -452,7 +458,7 @@ export class ReportsService {
       subtitle: q.from || q.to ? `الفترة: ${q.from ?? '—'} إلى ${q.to ?? '—'}` : 'كل الفترات',
       columns: [
         { header: 'البند', key: 'item', width: 40 },
-        { header: 'المبلغ', key: 'amount', width: 22, numFmt: '#,##0.00' },
+        { header: 'المبلغ', key: 'amount', width: 22, numFmt: '#,##0.000' },
       ],
       rows: [
         { item: 'إجمالي الإيرادات', amount: totalRevenue },

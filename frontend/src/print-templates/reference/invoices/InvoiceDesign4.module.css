@@ -40,3 +40,8 @@
 .sbox .h { background:#eeedf6; color:#30246C; font-weight:800; font-size:8.6pt; padding:1.4mm; border-bottom:1.2px solid #30246C; }
 .sbox .b { height:15mm; }
 .fbar { width:100%; margin-top:auto; border-top:2px solid #30246C; padding-top:2mm; text-align:center; direction:rtl; font-size:8pt; color:#30246C; }
+
+@media print {
+  @page { size: A4; margin: 0; }
+  .page { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

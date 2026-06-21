@@ -68,9 +68,12 @@ export const useAuth = create<AuthState>((set, get) => ({
       const user = res.data.data as AuthUser;
       set({ user });
       syncElectronToken(getToken());
-    } catch {
-      setToken(null);
-      syncElectronToken(null);
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } }).response?.status;
+      if (status === 401) {
+        setToken(null);
+        syncElectronToken(null);
+      }
     } finally {
       set({ initialized: true });
     }
