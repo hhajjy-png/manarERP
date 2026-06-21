@@ -172,7 +172,7 @@ export function startBackend(internalSecret = ''): Promise<void> {
 async function waitForHealth(retries = 50): Promise<void> {
   for (let i = 0; i < retries; i++) {
     try {
-      const res = await fetch('http://127.0.0.1:48211/api/health');
+      const res = await fetch('http://127.0.0.1:48211/api/health', { signal: AbortSignal.timeout(250) });
       if (res.ok) return;
     } catch {
       // لم تجهز بعد

@@ -140,7 +140,11 @@ function filsSuffix(n: number): string {
  * tafqeet(0)       // "صفر دينار كويتي فقط لا غير"
  */
 export function tafqeet(amount: number): string {
-  if (!isFinite(amount) || amount < 0) return '';
+  if (!isFinite(amount)) return '';
+  if (amount < 0) {
+    const pos = tafqeet(-amount);
+    return pos ? 'مبلغ دائن: ' + pos : '';
+  }
 
   const dinars = Math.floor(amount);
   const fils = Math.round((amount - dinars) * 1000);

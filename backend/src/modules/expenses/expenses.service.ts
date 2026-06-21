@@ -132,7 +132,7 @@ export class ExpensesService {
   async approve(id: number, req: Request) {
     const expense = await prisma.expense.findUnique({ where: { id } });
     if (!expense) throw AppError.notFound('المصروف غير موجود');
-    if (expense.status === 'APPROVED') throw AppError.badRequest('المصروف معتمد بالفعل');
+    if (expense.status !== 'PENDING') throw AppError.badRequest('يمكن اعتماد المصاريف المعلّقة فقط');
 
     // ربط المعتمِد بالموظف المرتبط بحساب المستخدم (إن وُجد)
     const user = await prisma.user.findUnique({ where: { id: req.user!.userId }, select: { employeeId: true } });

@@ -37,13 +37,16 @@ export default function Modal({ title, onClose, onBeforeClose, children, footer,
       <div
         ref={containerRef}
         className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title-id"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div
           className="modal-head"
           onMouseDown={onHeaderMouseDown}
         >
-          <h3>{title}</h3>
+          <h3 id="modal-title-id">{title}</h3>
           <button className="icon-btn" onClick={handleClose} aria-label="إغلاق">✕</button>
         </div>
         <div className="modal-body">{children}</div>

@@ -13,7 +13,7 @@ const canRead = requirePermission('dashboard.read');
 router.get('/overview', canRead, asyncHandler(async (_req, res) => ok(res, await dashboardService.overview())));
 router.get('/trend', canRead, asyncHandler(async (_req, res) => ok(res, await dashboardService.monthlyTrend())));
 router.get('/contract-status', canRead, asyncHandler(async (_req, res) => ok(res, await dashboardService.contractStatusBreakdown())));
-router.get('/activity', canRead, asyncHandler(async (req, res) => ok(res, await dashboardService.recentActivity(req.query.limit ? Number(req.query.limit) : 8))));
+router.get('/activity', canRead, asyncHandler(async (req, res) => ok(res, await dashboardService.recentActivity(Math.min(Number(req.query.limit) || 8, 50)))));
 
 /** لوحة التحكم التنفيذية — جميع KPIs والرسوم والقوائم في استدعاء واحد. */
 router.get('/executive', canRead, asyncHandler(async (_req, res) => ok(res, await dashboardService.executive())));

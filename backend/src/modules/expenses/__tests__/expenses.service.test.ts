@@ -83,7 +83,7 @@ describe('ExpensesService.approve — guards', () => {
 
   it('throws badRequest when approving already-APPROVED expense', async () => {
     mockPrisma.expense.findUnique.mockResolvedValue({ ...pendingExpense, status: 'APPROVED' });
-    await expect(service.approve(1, fakeReq)).rejects.toThrow('المصروف معتمد بالفعل');
+    await expect(service.approve(1, fakeReq)).rejects.toThrow('يمكن اعتماد المصاريف المعلّقة فقط');
   });
 });
 

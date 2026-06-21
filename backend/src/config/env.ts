@@ -12,7 +12,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(48211),
   HOST: z.string().default('127.0.0.1'),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL مطلوب'),
-  JWT_SECRET: z.string().min(8, 'JWT_SECRET يجب أن يكون 8 أحرف على الأقل'),
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET يجب أن يكون 32 حرفًا على الأقل'),
   JWT_EXPIRES_IN: z.string().default('12h'),
   BACKUP_DIR: z.string().default('./data/backups'),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
