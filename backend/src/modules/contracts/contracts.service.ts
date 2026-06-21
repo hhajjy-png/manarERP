@@ -19,6 +19,11 @@ interface ChildCounts {
   contractDocuments: number;
 }
 
+function safePct(numerator: number, denominator: number): number | null {
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator <= 0) return null;
+  return Math.round((numerator / denominator) * 100 * 1000) / 1000;
+}
+
 export class ContractsService {
   async list(query: ContractQuery) {
     const pagination = getPagination(query);
@@ -182,7 +187,7 @@ export class ContractsService {
     // Collections
     const totalCollected = r3(invoices.reduce((s, i) => s + n(i.paidAmount), 0));
     const outstanding = r3(totalInvoiced - totalCollected);
-    const collectionRate = totalInvoiced > 0 ? r3((totalCollected / totalInvoiced) * 100) : 0;
+    const collectionRate = safePct(totalCollected, totalInvoiced);
 
     let lastPaymentDate: Date | null = null;
     let totalCollectionDays = 0;
@@ -204,17 +209,18 @@ export class ContractsService {
 
     // Profitability
     const profit = r3(totalInvoiced - totalExpenses);
-    const profitMargin = totalInvoiced > 0 ? r3((profit / totalInvoiced) * 100) : 0;
+    const profitMargin = safePct(profit, totalInvoiced);
     const profitStatus: 'GREEN' | 'YELLOW' | 'ORANGE' | 'RED' =
-      profit < 0 ? 'RED' : profitMargin >= 25 ? 'GREEN' : profitMargin >= 10 ? 'YELLOW' : 'ORANGE';
+      profit < 0 ? 'RED'
+      : profitMargin === null ? 'ORANGE'
+      : profitMargin >= 25 ? 'GREEN'
+      : profitMargin >= 10 ? 'YELLOW'
+      : 'ORANGE';
 
     // Progress
-    const billingProgress =
-      estimatedContractValue && estimatedContractValue > 0
-        ? r3((totalInvoiced / estimatedContractValue) * 100)
-        : null;
-    const collectionProgress = totalInvoiced > 0 ? r3((totalCollected / totalInvoiced) * 100) : 0;
-    const expenseRatio = totalInvoiced > 0 ? r3((totalExpenses / totalInvoiced) * 100) : 0;
+    const billingProgress = safePct(totalInvoiced, estimatedContractValue ?? 0);
+    const collectionProgress = safePct(totalCollected, totalInvoiced);
+    const expenseRatio = safePct(totalExpenses, totalInvoiced);
 
     // Monthly chart data
     const monthlyMap = new Map<string, { invoiced: number; collected: number; expenses: number }>();
@@ -260,7 +266,7 @@ export class ContractsService {
       revenue: { totalInvoiced, invoiceCount, avgInvoice, lastInvoiceDate: lastInvoiceDateRaw, estimatedContractValue, remainingToInvoice },
       collections: { totalCollected, outstanding, collectionRate, lastPaymentDate, avgCollectionDays },
       expenses: { totalExpenses, expenseCount, lastExpenseDate: lastExpenseDateRaw },
-      profitability: { profit, profitMargin, profitStatus, revenue: totalInvoiced, expenses: totalExpenses },
+      profitability: { profit, profitMargin, profitMarginBasis: 'INVOICED_REVENUE' as const, profitStatus, revenue: totalInvoiced, expenses: totalExpenses },
       progress: { billingProgress, collectionProgress, expenseRatio },
       monthlyData,
     };

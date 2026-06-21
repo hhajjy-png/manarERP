@@ -35,7 +35,7 @@ interface RevenueSummary {
 interface CollectionsSummary {
   totalCollected: number;
   outstanding: number;
-  collectionRate: number;
+  collectionRate: number | null;
   lastPaymentDate: string | null;
   avgCollectionDays: number | null;
 }
@@ -48,7 +48,8 @@ interface ExpensesSummary {
 
 interface ProfitabilitySummary {
   profit: number;
-  profitMargin: number;
+  profitMargin: number | null;
+  profitMarginBasis: 'INVOICED_REVENUE';
   profitStatus: 'GREEN' | 'YELLOW' | 'ORANGE' | 'RED';
   revenue: number;
   expenses: number;
@@ -56,8 +57,8 @@ interface ProfitabilitySummary {
 
 interface ProgressSummary {
   billingProgress: number | null;
-  collectionProgress: number;
-  expenseRatio: number;
+  collectionProgress: number | null;
+  expenseRatio: number | null;
 }
 
 interface MonthlyEntry {
@@ -98,6 +99,11 @@ function pct(n: number | null | undefined): string {
 function fmtDate(d: string | null | undefined): string {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('ar-KW', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function clampPct(value: number | null | undefined): number {
+  if (value == null || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
 }
 
 const CONTRACT_STATUS_AR: Record<string, string> = {
@@ -144,8 +150,8 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ProgressBar({ value, color }: { value: number | null; color: string }) {
-  const v = Math.min(100, Math.max(0, value ?? 0));
+function ProgressBar({ value, color }: { value: number | null | undefined; color: string }) {
+  const v = clampPct(value);
   return (
     <div style={{ background: 'var(--border)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
       <div style={{ width: `${v}%`, background: color, height: '100%', borderRadius: 4, transition: 'width 0.5s' }} />
@@ -265,7 +271,7 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
               label="إجمالي المحصّل"
               value={kwd(data.collections.totalCollected)}
               sub={`${pct(data.collections.collectionRate)} من المفوتر`}
-              color={data.collections.collectionRate >= 80 ? '#22c55e' : data.collections.collectionRate >= 50 ? '#f59e0b' : '#ef4444'}
+              color={(data.collections.collectionRate ?? 0) >= 80 ? '#22c55e' : (data.collections.collectionRate ?? 0) >= 50 ? '#f59e0b' : '#ef4444'}
             />
             <KpiCard
               label="إجمالي المصروفات"
@@ -353,7 +359,7 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
                 </div>
                 <ProgressBar
                   value={data.progress.expenseRatio}
-                  color={data.progress.expenseRatio > 90 ? '#ef4444' : data.progress.expenseRatio > 70 ? '#f97316' : '#f59e0b'}
+                  color={(data.progress.expenseRatio ?? 0) > 90 ? '#ef4444' : (data.progress.expenseRatio ?? 0) > 70 ? '#f97316' : '#f59e0b'}
                 />
               </div>
             </div>

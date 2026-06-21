@@ -77,7 +77,7 @@ describe('getFinancialSummary', () => {
     expect(result.revenue.invoiceCount).toBe(0);
     expect(result.collections.totalCollected).toBe(0);
     expect(result.collections.outstanding).toBe(0);
-    expect(result.collections.collectionRate).toBe(0);
+    expect(result.collections.collectionRate).toBeNull();
     expect(result.collections.lastPaymentDate).toBeNull();
     expect(result.collections.avgCollectionDays).toBeNull();
     expect(result.monthlyData).toHaveLength(0);
@@ -268,5 +268,59 @@ describe('getFinancialSummary', () => {
     const mar = result.monthlyData.find((m) => m.month === '2026-03');
     expect(feb?.collected).toBeCloseTo(4000, 3);
     expect(mar?.collected).toBeCloseTo(2000, 3);
+  });
+
+  it('zero invoices with expenses: profitMargin and collectionRate are null, no NaN/Infinity', async () => {
+    mockPrisma.contract.findUnique.mockResolvedValue(makeContract());
+    mockPrisma.invoice.findMany.mockResolvedValue([]);
+    mockPrisma.expense.findMany.mockResolvedValue([makeExpense({ amount: 5000 })]);
+
+    const result = await contractsService.getFinancialSummary(1);
+
+    expect(result.profitability.profitMargin).toBeNull();
+    expect(result.collections.collectionRate).toBeNull();
+    expect(result.progress.collectionProgress).toBeNull();
+    expect(result.progress.expenseRatio).toBeNull();
+    expect(Number.isNaN(result.profitability.profit)).toBe(false);
+    expect(Number.isFinite(result.profitability.profit)).toBe(true);
+  });
+
+  it('over-collection: collectionRate > 100 is valid, no NaN', async () => {
+    mockPrisma.contract.findUnique.mockResolvedValue(makeContract());
+    mockPrisma.invoice.findMany.mockResolvedValue([
+      makeInvoice({ total: 5000, paidAmount: 6000 }),
+    ]);
+    mockPrisma.expense.findMany.mockResolvedValue([]);
+
+    const result = await contractsService.getFinancialSummary(1);
+
+    expect(result.collections.collectionRate).not.toBeNull();
+    expect(result.collections.collectionRate as number).toBeGreaterThan(100);
+    expect(Number.isNaN(result.collections.collectionRate)).toBe(false);
+  });
+
+  it('loss detail: expenses > invoiced gives negative profitMargin and RED status', async () => {
+    mockPrisma.contract.findUnique.mockResolvedValue(makeContract());
+    mockPrisma.invoice.findMany.mockResolvedValue([makeInvoice({ total: 4000, paidAmount: 4000 })]);
+    mockPrisma.expense.findMany.mockResolvedValue([makeExpense({ amount: 6000 })]);
+
+    const result = await contractsService.getFinancialSummary(1);
+
+    expect(result.profitability.profit).toBeLessThan(0);
+    expect(result.profitability.profitMargin).not.toBeNull();
+    expect(result.profitability.profitMargin as number).toBeLessThan(0);
+    expect(result.profitability.profitStatus).toBe('RED');
+  });
+
+  it('billingProgress is null when estimatedContractValue is null (no dates)', async () => {
+    mockPrisma.contract.findUnique.mockResolvedValue(
+      makeContract({ startDate: null, endDate: null }),
+    );
+    mockPrisma.invoice.findMany.mockResolvedValue([makeInvoice({ total: 5000, paidAmount: 0 })]);
+    mockPrisma.expense.findMany.mockResolvedValue([]);
+
+    const result = await contractsService.getFinancialSummary(1);
+
+    expect(result.progress.billingProgress).toBeNull();
   });
 });
