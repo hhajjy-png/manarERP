@@ -74,7 +74,17 @@ export default function InvoiceDesign4Blank({ data }: Props) {
     </div>
     <div className={styles.sign}>
       <div className={styles.sbox}><div className={styles.h}>المحاسبة</div><div className={styles.b}></div></div>
-      <div className={styles.sbox}><div className={styles.h}>المسؤول / الختم</div><div className={styles.b}></div></div>
+      <div className={styles.sbox}>
+        <div className={styles.h}>المسؤول / الختم</div>
+        <div className={styles.b} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4mm' }}>
+          {data?.company?.showSignature !== false && data?.company?.signatureUrl && (
+            <img src={data.company.signatureUrl} alt="" style={{ maxHeight: '12mm', maxWidth: '28mm', objectFit: 'contain' }} />
+          )}
+          {data?.company?.showStamp !== false && data?.company?.stampUrl && (
+            <img src={data.company.stampUrl} alt="" style={{ maxHeight: '12mm', maxWidth: '28mm', objectFit: 'contain' }} />
+          )}
+        </div>
+      </div>
     </div>
   </div>
   <div className={styles.fbar}>هاتف 99333820 / 94404401 &nbsp;•&nbsp; واتساب 98777887 &nbsp;•&nbsp; Manar.int.co@gmail.com</div>
