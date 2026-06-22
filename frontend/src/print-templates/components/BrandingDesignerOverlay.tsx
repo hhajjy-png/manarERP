@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import type { BrandingDesignerHandle, ElementType } from '../hooks/useBrandingDesigner';
 import type { TextStyleDesignerHandle } from '../designer/useTextStyleDesigner';
+import { getDesignerElementFromTarget } from '../designer/designerDom';
 import { formatUnit } from '../utils/designerUtils';
 import BrandingDesignerToolbar from './BrandingDesignerToolbar';
 
@@ -84,6 +85,11 @@ export default function BrandingDesignerOverlay({
       if (e.ctrlKey && e.shiftKey && (e.key === 'Z' || e.key === 'z')) { e.preventDefault(); redo(); return; }
       if (e.ctrlKey && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) { e.preventDefault(); undo(); return; }
 
+      // Copy / Paste / Duplicate — reserved for Phase 5D+
+      if (e.ctrlKey && (e.key === 'c' || e.key === 'C') && !e.shiftKey) { e.preventDefault(); return; }
+      if (e.ctrlKey && (e.key === 'v' || e.key === 'V') && !e.shiftKey) { e.preventDefault(); return; }
+      if (e.ctrlKey && (e.key === 'd' || e.key === 'D') && !e.shiftKey) { e.preventDefault(); return; }
+
       const dirMap: Record<string, 'left' | 'right' | 'up' | 'down'> = {
         ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
       };
@@ -148,11 +154,9 @@ export default function BrandingDesignerOverlay({
   // ── Click on doc canvas to pick text areas ──
   function handleDocClick(e: React.MouseEvent<HTMLDivElement>) {
     if (isDragging) return;
-    const target = e.target as HTMLElement;
-    const textEl = target.closest<HTMLElement>('[data-designer-type="text"]');
-    if (textEl && textStyleDesigner) {
-      const areaId = textEl.dataset.designerId ?? null;
-      textStyleDesigner.setSelectedArea(areaId);
+    const element = getDesignerElementFromTarget(e.target as HTMLElement);
+    if (element?.kind === 'text' && textStyleDesigner) {
+      textStyleDesigner.setSelectedArea(element.id);
       e.stopPropagation();
     }
   }

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { BrandingDesignerHandle, ElementType } from '../hooks/useBrandingDesigner';
 import type { TextStyleDesignerHandle, TextAreaKey } from '../designer/useTextStyleDesigner';
+import type { DesignerElement } from '../designer/designerTypes';
+import { isBrandingElement, isTextElement } from '../designer/designerTypes';
 import { formatUnit, GRID_PRESETS, type GridSizeOption } from '../utils/designerUtils';
 import { INK_MODE_LABELS, type InkMode } from '../utils/inkFilter';
 import type { PrintDocumentType } from '../engine/types';
@@ -19,6 +21,8 @@ import {
 interface Props {
   designer: BrandingDesignerHandle;
   textStyleDesigner?: TextStyleDesignerHandle;
+  /** Universal selection — when provided, drives mode switching instead of textStyleDesigner.selectedArea */
+  selection?: DesignerElement | null;
   docLabel: string;
   onClose: () => void;
   onSave?: () => Promise<void>;
@@ -252,6 +256,7 @@ function TextAreaControls({ textStyleDesigner, areaId }: {
 export default function BrandingDesignerPanel({
   designer,
   textStyleDesigner,
+  selection,
   docLabel,
   onClose,
   onSave,
@@ -270,7 +275,19 @@ export default function BrandingDesignerPanel({
   const accentColor = selected === 'signature' ? '#3b82f6' : '#10b981';
 
   const selectedTextArea = textStyleDesigner?.selectedArea ?? null;
-  const isTextMode = selectedTextArea !== null;
+
+  // When the universal `selection` prop is provided use it; otherwise fall back
+  // to the legacy textStyleDesigner.selectedArea signal for backward compat.
+  const isTextMode = selection !== undefined
+    ? isTextElement(selection)
+    : selectedTextArea !== null;
+  const isEmptyState = selection !== undefined && selection === null;
+
+  // The id to pass to TextAreaControls — derived from universal selection when
+  // available, otherwise from the legacy selectedArea string.
+  const textAreaIdForControls: string = isTextElement(selection)
+    ? selection.id
+    : selectedTextArea ?? '';
 
   const isDirty = textStyleDesigner?.isDirty ?? false;
 
@@ -333,7 +350,7 @@ export default function BrandingDesignerPanel({
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ fontWeight: 700, fontSize: 12, color: '#1e293b' }}>
-          {isTextMode ? 'تنسيق النص' : 'خصائص'} — {docLabel}
+          {isEmptyState ? 'تصميم' : isTextMode ? 'تنسيق النص' : 'خصائص'} — {docLabel}
         </span>
         <div style={{ display: 'flex', gap: 4 }}>
           <button
@@ -355,10 +372,22 @@ export default function BrandingDesignerPanel({
         </div>
       </div>
 
-      {/* ── Text mode: area controls ── */}
-      {isTextMode && textStyleDesigner ? (
+      {/* ── Empty state (universal selection provided but nothing selected) ── */}
+      {isEmptyState ? (
+        <div style={{
+          padding: '20px 8px', textAlign: 'center',
+          color: '#94a3b8', fontSize: 11, lineHeight: 1.8,
+        }}>
+          <div style={{ fontSize: 22, marginBottom: 6 }}>🖱</div>
+          <div>انقر على عنصر في المستند لتحديده</div>
+          <div style={{ fontSize: 10, marginTop: 4, color: '#cbd5e1' }}>
+            توقيع · ختم · منطقة نص
+          </div>
+        </div>
+      ) : isTextMode && textStyleDesigner ? (
+        /* ── Text mode: area controls ── */
         <>
-          <TextAreaControls textStyleDesigner={textStyleDesigner} areaId={selectedTextArea} />
+          <TextAreaControls textStyleDesigner={textStyleDesigner} areaId={textAreaIdForControls} />
         </>
       ) : (
         <>
@@ -389,6 +418,15 @@ export default function BrandingDesignerPanel({
           <NumSlider lbl="رأسي Y" min={-60} max={60} step={1} value={el.y} onChange={(v) => updateElement(selected, { y: v })} />
           <NumSlider lbl="حجم" min={0.4} max={2.5} step={0.05} value={el.scale} onChange={(v) => updateElement(selected, { scale: v })} />
           <NumSlider lbl="شفافية" min={0.2} max={1} step={0.05} value={el.opacity} onChange={(v) => updateElement(selected, { opacity: v })} />
+
+          {/* Rotation — placeholder for Phase 5D+ */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, opacity: 0.45 }}>
+            <label style={{ width: 52, fontSize: 11, color: '#6b7280', textAlign: 'end', flexShrink: 0 }}>
+              دوران
+            </label>
+            <input type="range" min={-180} max={180} step={1} value={0} disabled onChange={() => {}} title="الدوران — قريباً" aria-label="الدوران — قريباً" style={{ flex: 1 }} />
+            <span style={{ width: 48, fontSize: 11, textAlign: 'center', color: '#94a3b8' }}>قريباً</span>
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
             <span style={{ fontSize: 11, color: '#6b7280', width: 52, textAlign: 'end', flexShrink: 0 }}>طبقة</span>
