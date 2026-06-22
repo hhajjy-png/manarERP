@@ -161,6 +161,18 @@ export default function BrandingDesignerToolbar({ designer, docLabel, onClose }:
         ⊡ محاذاة
       </Btn>
 
+      <div style={DIVIDER} />
+
+      {/* Future commands — disabled until Phase 5D+ */}
+      <Btn onClick={() => {}} title="نسخ — قريباً (Ctrl+C)" disabled>⎘ نسخ</Btn>
+      <Btn onClick={() => {}} title="لصق — قريباً (Ctrl+V)" disabled>⎗ لصق</Btn>
+      <Btn onClick={() => {}} title="تكرار — قريباً (Ctrl+D)" disabled>⿻ تكرار</Btn>
+
+      <div style={DIVIDER} />
+
+      <Btn onClick={() => {}} title="قفل — قريباً" disabled>🔒 قفل</Btn>
+      <Btn onClick={() => {}} title="إخفاء — قريباً" disabled>👁 إخفاء</Btn>
+
       {/* Spacer */}
       <div style={{ flex: 1, minWidth: 8 }} />
 
