@@ -3,6 +3,7 @@ import { formatKWD } from '../../utils/formatKWD';
 import { sanitizePrintText } from '../../utils/sanitizePrintText';
 import styles from './QuotationShared.module.css';
 import logoSrc from '../assets/almanar-logo.png';
+import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../../utils/brandingLayout';
 
 const SAMPLE: QuotationPrintData = {
   company: {
@@ -79,6 +80,7 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
   const d = data ?? SAMPLE;
   const sub = d.subtotal ?? d.lineItems.reduce((acc, item) => acc + item.total, 0);
   const disc = d.discount ?? 0;
+  const brandingLayout = getBrandingLayoutForDocument(d.company?.brandingLayout, 'quotation');
 
   const pageClass = [
     styles.page,
@@ -274,7 +276,7 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
               <img
                 src={d.company.signatureUrl}
                 alt=""
-                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '0 auto 2mm' }}
+                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '0 auto 2mm', ...applyBrandingElementStyle(brandingLayout.signature) }}
               />
             )}
             <div className={styles.signLine} />
@@ -283,7 +285,7 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
               <img
                 src={d.company.stampUrl}
                 alt=""
-                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '4mm auto 0' }}
+                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '4mm auto 0', ...applyBrandingElementStyle(brandingLayout.stamp) }}
               />
             ) : (
               <div className={styles.signStamp}>مكان الختم</div>

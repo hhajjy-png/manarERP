@@ -143,6 +143,7 @@ export default function Quotation() {
         stampUrl: branding.stampUrl,
         showSignature: printShowSignature,
         showStamp: printShowStamp,
+        brandingLayout: branding.brandingLayout,
       }),
     };
   }, [printData, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp]);

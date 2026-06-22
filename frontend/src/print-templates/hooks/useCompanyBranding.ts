@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { api, errorMessage } from '../../api/client';
+import type { PrintBrandingLayoutSettings } from '../engine/types';
+import { parseBrandingLayout } from '../utils/brandingLayout';
 
 export interface CompanyBranding {
   signatureUrl: string | undefined;
   stampUrl: string | undefined;
   showSignature: boolean;
   showStamp: boolean;
+  brandingLayout: PrintBrandingLayoutSettings | undefined;
   loading: boolean;
   error: string | undefined;
 }
@@ -16,6 +19,7 @@ export function useCompanyBranding(): CompanyBranding {
     stampUrl: undefined,
     showSignature: true,
     showStamp: true,
+    brandingLayout: undefined,
     loading: true,
     error: undefined,
   });
@@ -45,11 +49,15 @@ export function useCompanyBranding(): CompanyBranding {
           return val === 'true';
         };
 
+        const layoutRaw = find('print.brandingLayout');
+        const brandingLayout = layoutRaw ? parseBrandingLayout(layoutRaw) : undefined;
+
         setBranding({
           signatureUrl: parseImage('print.signatureImage'),
           stampUrl: parseImage('print.stampImage'),
           showSignature: parseBool('print.showSignature'),
           showStamp: parseBool('print.showStamp'),
+          brandingLayout,
           loading: false,
           error: undefined,
         });

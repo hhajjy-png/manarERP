@@ -18,7 +18,7 @@ export interface InvoiceBuildOptions {
    * Signature and stamp branding. Merged on top of company overrides.
    * Pass from useCompanyBranding() hook.
    */
-  branding?: Pick<CompanyPrintData, 'signatureUrl' | 'stampUrl' | 'showSignature' | 'showStamp'>;
+  branding?: Pick<CompanyPrintData, 'signatureUrl' | 'stampUrl' | 'showSignature' | 'showStamp' | 'brandingLayout'>;
 
   // ── Future hooks (not yet wired) ──────────────────────────────────────────
   // qrEnabled?: boolean;   — Phase 2: embed QR linking to online invoice view

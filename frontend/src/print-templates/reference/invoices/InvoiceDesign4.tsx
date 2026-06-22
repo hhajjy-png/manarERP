@@ -2,12 +2,14 @@ import logo from '../assets/almanar-logo.png';
 import styles from './InvoiceDesign4.module.css';
 import type { InvoicePrintData } from '../../engine/types';
 import { formatKWD } from '../../utils/formatKWD';
+import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../../utils/brandingLayout';
 
 interface Props { data?: InvoicePrintData; }
 
 export default function InvoiceDesign4({ data }: Props) {
   const grandTotal = data ? data.totalDinars + data.totalFils / 1000 : null;
   const fillerCount = data ? Math.max(0, 6 - data.lineItems.length) : 0;
+  const brandingLayout = getBrandingLayoutForDocument(data?.company?.brandingLayout, 'invoice');
 
   return (
     <>
@@ -78,10 +80,10 @@ export default function InvoiceDesign4({ data }: Props) {
         <div className={styles.h}>المسؤول / الختم</div>
         <div className={styles.b} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4mm' }}>
           {data?.company?.showSignature !== false && data?.company?.signatureUrl && (
-            <img src={data.company.signatureUrl} alt="" style={{ maxHeight: '12mm', maxWidth: '28mm', objectFit: 'contain' }} />
+            <img src={data.company.signatureUrl} alt="" style={{ maxHeight: '12mm', maxWidth: '28mm', objectFit: 'contain', ...applyBrandingElementStyle(brandingLayout.signature) }} />
           )}
           {data?.company?.showStamp !== false && data?.company?.stampUrl && (
-            <img src={data.company.stampUrl} alt="" style={{ maxHeight: '12mm', maxWidth: '28mm', objectFit: 'contain' }} />
+            <img src={data.company.stampUrl} alt="" style={{ maxHeight: '12mm', maxWidth: '28mm', objectFit: 'contain', ...applyBrandingElementStyle(brandingLayout.stamp) }} />
           )}
         </div>
       </div>
