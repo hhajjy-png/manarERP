@@ -7,7 +7,7 @@ import { money, dateText } from '../config/modules';
 import { useT } from '../lib/i18n';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
 import type { ApiInvoice } from '../print-templates/adapters/apiTypes';
-import type { InvoicePrintData } from '../print-templates/engine/types';
+import type { InvoicePrintData, PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import { usePrintTemplate } from '../print-templates/hooks/usePrintTemplate';
 import { buildInvoicePrintData } from '../print-templates/builders/invoicePrintDataBuilder';
 import PrintTemplateSelector from '../print-templates/components/PrintTemplateSelector';
@@ -15,6 +15,9 @@ import { validateInvoicePrintData } from '../print-templates/integration/invoice
 import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
 import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../print-templates/utils/brandingLayout';
 import { buildInvoicePdfName } from '../utils/pdfFilename';
+import { useBrandingDesigner } from '../print-templates/hooks/useBrandingDesigner';
+import BrandingDesignerOverlay from '../print-templates/components/BrandingDesignerOverlay';
+import BrandingDesignerPanel from '../print-templates/components/BrandingDesignerPanel';
 
 const PAY_METHOD_AR: Record<string, string> = {
   CASH: 'نقدًا', BANK: 'بنك', CHEQUE: 'شيك', TRANSFER: 'تحويل',
@@ -110,6 +113,16 @@ export default function InvoicePreview() {
 
   const branding = useCompanyBranding();
 
+  const [savedBrandingLayout, setSavedBrandingLayout] = useState<PrintBrandingLayoutSettings | undefined>(undefined);
+  const designer = useBrandingDesigner({
+    docType: 'invoice',
+    initialLayout: branding.brandingLayout,
+    onSaved: (layout) => setSavedBrandingLayout(layout),
+  });
+  const effectiveBrandingLayout = designer.isActive
+    ? designer.localLayout
+    : (savedBrandingLayout ?? branding.brandingLayout);
+
   const [pdfExporting, setPdfExporting] = useState(false);
   const [pdfMsg, setPdfMsg] = useState('');
   const [pdfError, setPdfError] = useState('');
@@ -161,13 +174,13 @@ export default function InvoicePreview() {
           stampUrl: branding.stampUrl,
           showSignature: printShowSignature,
           showStamp: printShowStamp,
-          brandingLayout: branding.brandingLayout,
+          brandingLayout: effectiveBrandingLayout,
         },
       });
     } catch {
       return null;
     }
-  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp]);
+  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp, effectiveBrandingLayout]);
 
   const { resolvedTemplate, profile, setProfile } = usePrintTemplate<InvoicePrintData>(
     'invoice',
@@ -330,6 +343,16 @@ export default function InvoicePreview() {
           {pdfError && (
             <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>⚠️ {pdfError}</span>
           )}
+          {(branding.signatureUrl || branding.stampUrl) && previewMode === 'legacy' && (
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => designer.isActive ? designer.deactivate() : designer.activate()}
+              style={{ fontWeight: 600 }}
+            >
+              {designer.isActive ? '✓ إنهاء التصميم' : '🔧 وضع التصميم'}
+            </button>
+          )}
           {hasPermission('invoices.update') && canEdit && (
             <button type="button" className="btn secondary" onClick={() => navigate('/invoices')}>
               {t('action.edit')}
@@ -401,6 +424,7 @@ export default function InvoicePreview() {
         )}
 
         {/* ── Legacy preview content (hidden in engine mode) ── */}
+        <BrandingDesignerOverlay designer={designer}>
         <div className={previewMode === 'engine' ? 'engine-hide-legacy' : undefined}>
 
           {/* ── Quick Navigation (screen only) ── */}
@@ -682,11 +706,12 @@ export default function InvoicePreview() {
               <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>المسؤول</div>
               <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>شركة المنار الدولية</div>
               {printShowSignature && branding.signatureUrl ? (() => {
-                const invLayout = getBrandingLayoutForDocument(branding.brandingLayout, 'invoice');
+                const invLayout = getBrandingLayoutForDocument(effectiveBrandingLayout, 'invoice');
                 return (
                   <img
                     src={branding.signatureUrl}
                     alt="توقيع المدير"
+                    {...(designer.isActive ? { 'data-bd-type': 'signature' } : {})}
                     style={{ maxHeight: 40, maxWidth: 120, objectFit: 'contain', display: 'block', margin: '0 auto', ...applyBrandingElementStyle(invLayout.signature) }}
                   />
                 );
@@ -694,11 +719,12 @@ export default function InvoicePreview() {
                 <div style={{ height: 40 }} />
               )}
               {printShowStamp && branding.stampUrl && (() => {
-                const invLayout = getBrandingLayoutForDocument(branding.brandingLayout, 'invoice');
+                const invLayout = getBrandingLayoutForDocument(effectiveBrandingLayout, 'invoice');
                 return (
                   <img
                     src={branding.stampUrl}
                     alt="ختم الشركة"
+                    {...(designer.isActive ? { 'data-bd-type': 'stamp' } : {})}
                     style={{ maxHeight: 36, maxWidth: 100, objectFit: 'contain', display: 'block', margin: '4px auto 0', ...applyBrandingElementStyle(invLayout.stamp) }}
                   />
                 );
@@ -716,6 +742,7 @@ export default function InvoicePreview() {
           </div>
 
         </div>{/* end legacy wrapper */}
+        </BrandingDesignerOverlay>
 
         {/* ── Engine template render ── */}
         {previewMode === 'engine' && printData && (
@@ -723,6 +750,14 @@ export default function InvoicePreview() {
         )}
 
       </div>
+
+      {designer.isActive && (
+        <BrandingDesignerPanel
+          designer={designer}
+          docLabel="الفاتورة"
+          onClose={designer.deactivate}
+        />
+      )}
     </>
   );
 }

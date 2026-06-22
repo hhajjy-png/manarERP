@@ -276,6 +276,7 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
               <img
                 src={d.company.signatureUrl}
                 alt=""
+                data-bd-type="signature"
                 style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '0 auto 2mm', ...applyBrandingElementStyle(brandingLayout.signature) }}
               />
             )}
@@ -285,6 +286,7 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
               <img
                 src={d.company.stampUrl}
                 alt=""
+                data-bd-type="stamp"
                 style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '4mm auto 0', ...applyBrandingElementStyle(brandingLayout.stamp) }}
               />
             ) : (
