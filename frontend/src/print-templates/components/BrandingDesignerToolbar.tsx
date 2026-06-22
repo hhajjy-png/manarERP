@@ -6,6 +6,7 @@ interface Props {
   designer: BrandingDesignerHandle;
   docLabel: string;
   onClose: () => void;
+  onSave?: () => Promise<void>;
 }
 
 const BTN_BASE: React.CSSProperties = {
@@ -66,7 +67,7 @@ function Btn({
   );
 }
 
-export default function BrandingDesignerToolbar({ designer, docLabel, onClose }: Props) {
+export default function BrandingDesignerToolbar({ designer, docLabel, onClose, onSave }: Props) {
   const {
     canUndo, canRedo, undo, redo,
     zoom, setZoom,
@@ -179,7 +180,7 @@ export default function BrandingDesignerToolbar({ designer, docLabel, onClose }:
       {/* Save */}
       <button
         type="button"
-        onClick={save}
+        onClick={onSave ?? save}
         disabled={saving}
         title="حفظ التخطيط (Ctrl+S)"
         style={{

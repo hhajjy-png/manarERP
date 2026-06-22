@@ -10,6 +10,7 @@ import {
   applyTableBorderStyle,
   getTextAreasForDocument,
 } from '../../utils/textStyleOverrides';
+import { getStaticText } from '../../designer/staticTextUtils';
 
 interface Props { data?: InvoicePrintData; }
 
@@ -18,6 +19,7 @@ export default function InvoiceDesign5Blank({ data }: Props) {
   const fillerCount = data ? Math.max(0, 5 - data.lineItems.length) : 0;
   const brandingLayout = getBrandingLayoutForDocument(data?.company?.brandingLayout, 'invoice');
   const textAreas = getTextAreasForDocument(data?.company?.textStyleOverrides, 'invoice') as InvoiceTextAreas;
+  const staticText = data?.company?.staticTextOverrides;
 
   return (
     <>
@@ -27,7 +29,7 @@ export default function InvoiceDesign5Blank({ data }: Props) {
       <div className={styles['en-t']}>For construction &amp; maintenance of roads, streets, pavements and road supplies</div>
       <div className={styles['en-c']}>Tel: 99333820 / 94404401<br />WhatsApp: 98777887<br />Manar.int.co@gmail.com</div></div>
     <div className={styles.hC}><img className={styles.logo} src={logo} />
-      <div className={styles.title} data-designer-type="text" data-designer-id="invoice.title" style={applyTextElementStyle(textAreas.title, 'title')}><div className={styles.a}>فاتورة نقداً / بالحساب</div><div className={styles.b}>Cash / Credit Invoice</div></div></div>
+      <div className={styles.title} data-designer-type="text" data-designer-id="invoice.title" style={applyTextElementStyle(textAreas.title, 'title')}><div className={styles.a} data-designer-editable="true" data-designer-key="invoice.titleAr">{getStaticText(staticText, 'invoice.titleAr', 'فاتورة نقداً / بالحساب')}</div><div className={styles.b} data-designer-editable="true" data-designer-key="invoice.titleEn">{getStaticText(staticText, 'invoice.titleEn', 'Cash / Credit Invoice')}</div></div></div>
     <div className={styles.hR}><div className={styles['ar-n']}>شركة المنار الدولية ذ.م.م</div>
       <div className={styles['ar-t']}>لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق</div>
       <div className={styles['ar-c']}>هاتف: 99333820 / 94404401<br />واتساب: 98777887<br />رأس المال المدفوع ٥٠٠،٠٠٠ د.ك</div></div>
@@ -81,11 +83,11 @@ export default function InvoiceDesign5Blank({ data }: Props) {
     </div>
   </div>
   <div className={styles.secrow}>
-    <div className={styles.sec}><div className={styles.h}>شروط الدفع</div><div className={styles.b}>السداد خلال 30 يوماً من تاريخ الفاتورة.</div></div>
+    <div className={styles.sec}><div className={styles.h} data-designer-editable="true" data-designer-key="invoice.paymentTermsLabel">{getStaticText(staticText, 'invoice.paymentTermsLabel', 'شروط الدفع')}</div><div className={styles.b} data-designer-editable="true" data-designer-key="invoice.paymentTermsText">{getStaticText(staticText, 'invoice.paymentTermsText', 'السداد خلال 30 يوماً من تاريخ الفاتورة.')}</div></div>
     <div className={styles.sec}><div className={styles.h}>ملاحظات</div><div className={styles.b} style={{"minHeight": "16mm"}}>{data?.notes ?? ''}</div></div>
   </div>
   <div className={styles.sign}>
-    <div className={styles.s}><div className={styles.lbl}>المحاسبة</div><div className={styles.ln}>التوقيع</div></div>
+    <div className={styles.s}><div className={styles.lbl} data-designer-editable="true" data-designer-key="invoice.footerAccountant">{getStaticText(staticText, 'invoice.footerAccountant', 'المحاسبة')}</div><div className={styles.ln}>التوقيع</div></div>
     <div className={styles.s}>
       <div className={styles.lbl}>الختم الرسمي</div>
       {data?.company?.showStamp !== false && data?.company?.stampUrl && (
@@ -94,7 +96,7 @@ export default function InvoiceDesign5Blank({ data }: Props) {
       <div className={styles.ln}>&nbsp;</div>
     </div>
     <div className={styles.s}>
-      <div className={styles.lbl}>المسؤول</div>
+      <div className={styles.lbl} data-designer-editable="true" data-designer-key="invoice.footerManager">{getStaticText(staticText, 'invoice.footerManager', 'المسؤول')}</div>
       {data?.company?.showSignature !== false && data?.company?.signatureUrl && (
         <img src={data.company.signatureUrl} alt="" data-designer-type="branding" data-designer-id="signature" data-bd-type="signature" style={{ maxHeight: '20mm', maxWidth: '32mm', objectFit: 'contain', display: 'block', margin: '1mm auto', ...applyBrandingElementStyle(brandingLayout.signature) }} />
       )}

@@ -17,6 +17,7 @@ import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../prin
 import { buildInvoicePdfName } from '../utils/pdfFilename';
 import { useBrandingDesigner } from '../print-templates/hooks/useBrandingDesigner';
 import { useTextStyleDesigner } from '../print-templates/designer/useTextStyleDesigner';
+import { useStaticTextDesigner } from '../print-templates/designer/useStaticTextDesigner';
 import BrandingDesignerOverlay from '../print-templates/components/BrandingDesignerOverlay';
 import BrandingDesignerPanel from '../print-templates/components/BrandingDesignerPanel';
 import { getInkFilterStyle } from '../print-templates/utils/inkFilter';
@@ -129,6 +130,10 @@ export default function InvoicePreview() {
     initialSettings: branding.textStyleOverrides,
   });
 
+  const staticTextDesigner = useStaticTextDesigner({
+    initialOverrides: branding.staticTextOverrides,
+  });
+
   const [pdfExporting, setPdfExporting] = useState(false);
   const [pdfMsg, setPdfMsg] = useState('');
   const [pdfError, setPdfError] = useState('');
@@ -183,13 +188,14 @@ export default function InvoicePreview() {
           brandingLayout: effectiveBrandingLayout,
           inkMode: designer.inkMode,
           textStyleOverrides: textDesigner.settings,
+          staticTextOverrides: staticTextDesigner.overrides,
         },
       });
     } catch {
       return null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp, effectiveBrandingLayout, designer.inkMode, textDesigner.settings]);
+  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp, effectiveBrandingLayout, designer.inkMode, textDesigner.settings, staticTextDesigner.overrides]);
 
   const { resolvedTemplate, profile, setProfile } = usePrintTemplate<InvoicePrintData>(
     'invoice',
@@ -436,9 +442,13 @@ export default function InvoicePreview() {
         <BrandingDesignerOverlay
           designer={designer}
           textStyleDesigner={textDesigner}
+          staticTextDesigner={staticTextDesigner}
           signatureUrl={branding.signatureUrl}
           stampUrl={branding.stampUrl}
           docLabel="الفاتورة"
+          onSave={async () => {
+            await Promise.all([designer.save(), textDesigner.save(), staticTextDesigner.save()]);
+          }}
         >
         <div className={previewMode === 'engine' ? 'engine-hide-legacy' : undefined}>
 
@@ -761,12 +771,12 @@ export default function InvoicePreview() {
           </div>
 
         </div>{/* end legacy wrapper */}
-        </BrandingDesignerOverlay>
 
-        {/* ── Engine template render ── */}
+        {/* ── Engine template render (inside overlay so dblclick editable handler fires) ── */}
         {previewMode === 'engine' && printData && (
           <EngineComponent data={printData} />
         )}
+        </BrandingDesignerOverlay>
 
       </div>
 
@@ -774,10 +784,11 @@ export default function InvoicePreview() {
         <BrandingDesignerPanel
           designer={designer}
           textStyleDesigner={textDesigner}
+          staticTextDesigner={staticTextDesigner}
           docLabel="الفاتورة"
           onClose={designer.deactivate}
           onSave={async () => {
-            await Promise.all([designer.save(), textDesigner.save()]);
+            await Promise.all([designer.save(), textDesigner.save(), staticTextDesigner.save()]);
           }}
         />
       )}

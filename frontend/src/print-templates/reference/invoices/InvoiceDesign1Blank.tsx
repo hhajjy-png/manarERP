@@ -10,6 +10,7 @@ import {
   applyTableBorderStyle,
   getTextAreasForDocument,
 } from '../../utils/textStyleOverrides';
+import { getStaticText } from '../../designer/staticTextUtils';
 
 interface Props { data?: InvoicePrintData; }
 
@@ -17,6 +18,7 @@ export default function InvoiceDesign1Blank({ data }: Props) {
   const fillerCount = data ? Math.max(0, 15 - data.lineItems.length) : 20;
   const brandingLayout = getBrandingLayoutForDocument(data?.company?.brandingLayout, 'invoice');
   const textAreas = getTextAreasForDocument(data?.company?.textStyleOverrides, 'invoice') as InvoiceTextAreas;
+  const staticText = data?.company?.staticTextOverrides;
 
   return (
     <>
@@ -45,7 +47,7 @@ export default function InvoiceDesign1Blank({ data }: Props) {
       </div>
     </div>
   </div>
-  <div className={styles.title} data-designer-type="text" data-designer-id="invoice.title" style={applyTextElementStyle(textAreas.title, 'title')}><div className={styles.a}>فاتورة نقداً / بالحساب</div><div className={styles.b}>Cash / Credit Invoice</div></div>
+  <div className={styles.title} data-designer-type="text" data-designer-id="invoice.title" style={applyTextElementStyle(textAreas.title, 'title')}><div className={styles.a} data-designer-editable="true" data-designer-key="invoice.titleAr">{getStaticText(staticText, 'invoice.titleAr', 'فاتورة نقداً / بالحساب')}</div><div className={styles.b} data-designer-editable="true" data-designer-key="invoice.titleEn">{getStaticText(staticText, 'invoice.titleEn', 'Cash / Credit Invoice')}</div></div>
   <div className={styles.meta} data-designer-type="text" data-designer-id="invoice.customerBlock">
     <div className={styles['m-date']}>
       التاريخ : {data ? data.date : <>&nbsp;&nbsp;/&nbsp;&nbsp;/&nbsp; 20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</>}
@@ -110,7 +112,7 @@ export default function InvoiceDesign1Blank({ data }: Props) {
     </tfoot>
   </table>
   <div className={styles.foot}>
-    <div>المحاسبة : <span className={styles.ln}></span></div>
+    <div><span data-designer-editable="true" data-designer-key="invoice.footerAccountant">{getStaticText(staticText, 'invoice.footerAccountant', 'المحاسبة')}</span>{' : '}<span className={styles.ln}></span></div>
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {data?.company?.showSignature !== false && data?.company?.signatureUrl && (
         <img src={data.company.signatureUrl} alt="" data-designer-type="branding" data-designer-id="signature" data-bd-type="signature" style={{ maxHeight: '12mm', maxWidth: '30mm', objectFit: 'contain', display: 'block', margin: '0 auto 1mm', ...applyBrandingElementStyle(brandingLayout.signature) }} />
@@ -118,7 +120,7 @@ export default function InvoiceDesign1Blank({ data }: Props) {
       {data?.company?.showStamp !== false && data?.company?.stampUrl && (
         <img src={data.company.stampUrl} alt="" data-designer-type="branding" data-designer-id="stamp" data-bd-type="stamp" style={{ maxHeight: '12mm', maxWidth: '30mm', objectFit: 'contain', display: 'block', margin: '0 auto 1mm', ...applyBrandingElementStyle(brandingLayout.stamp) }} />
       )}
-      <span>المسؤول : <span className={styles.ln}></span></span>
+      <span><span data-designer-editable="true" data-designer-key="invoice.footerManager">{getStaticText(staticText, 'invoice.footerManager', 'المسؤول')}</span>{' : '}<span className={styles.ln}></span></span>
     </div>
   </div>
 </div></div>

@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type { PrintTextStyleSettings } from './textStyleTypes';
+import type { StaticTextOverrides } from '../designer/staticTextTypes';
 
 // ─── Template taxonomy ────────────────────────────────────────────────────────
 
@@ -83,6 +84,7 @@ export interface CompanyPrintData {
   brandingLayout?: PrintBrandingLayoutSettings;
   inkMode?: 'original' | 'blue-ink' | 'black';
   textStyleOverrides?: PrintTextStyleSettings;
+  staticTextOverrides?: StaticTextOverrides;
 }
 
 // ─── Shared line item ─────────────────────────────────────────────────────────
