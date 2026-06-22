@@ -11,6 +11,11 @@ export interface QuotationBuildOptions {
    * Applies only truthy string values; defaults to ALMANAR_COMPANY.
    */
   company?: Partial<CompanyPrintData>;
+  /**
+   * Signature and stamp branding. Merged on top of company overrides.
+   * Pass from useCompanyBranding() hook.
+   */
+  branding?: Pick<CompanyPrintData, 'signatureUrl' | 'stampUrl' | 'showSignature' | 'showStamp'>;
 
   // ── Future hooks ──────────────────────────────────────────────────────────
   // qrEnabled?: boolean;      — Phase 2: embed QR for online quotation view
@@ -36,10 +41,7 @@ export function buildQuotationPrintData(
   options?: QuotationBuildOptions,
 ): QuotationPrintData {
   const base = adaptQuotation(quotation);
-
-  if (options?.company) {
-    return { ...base, company: createCompanyPrintData(options.company) };
-  }
-
-  return base;
+  const overrides: Partial<CompanyPrintData> = { ...(options?.company ?? {}), ...(options?.branding ?? {}) };
+  if (Object.keys(overrides).length === 0) return base;
+  return { ...base, company: createCompanyPrintData(overrides) };
 }
