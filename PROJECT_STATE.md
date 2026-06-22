@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `6bf44f5` — Merge Print & Document Suite Phase 3 PDF Export into production |
-| **Latest stable tag** | `stable-print-document-suite-phase3-v1` |
+| **HEAD** | `d257db0` — Merge Executive Decision Center Bundle Phase 1 into production |
+| **Latest stable tag** | `stable-executive-decision-center-phase1-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -27,6 +27,7 @@
 
 | Feature | Stable Tag | Summary |
 |---------|-----------|---------|
+| **Executive Decision Center — Phase 1** | `stable-executive-decision-center-phase1-v1` | مركز القرار التنفيذي — 7 integrated features: Financial Summary (8 KPI cards, top debtors, this/last month comparison), Decision Cards (8 intelligent insight cards by priority), Executive Alerts V3 (9 alert types, HIGH/MEDIUM/LOW, deduplicated, sorted), KPI Timeline (1m/3m/6m/12m Recharts area charts), Company Health Score (0–100, 6 weighted components, EXCELLENT/GOOD/WATCH/RISK), Executive Recommendations V2 (rule-based, max 10), PDF export via existing `printToPDF` Electron IPC. New `/api/executive` module reusing `dashboard.read` permission. 30 new Vitest tests. No schema changes, no migrations, no new packages. |
 | **Print & Document Suite — Phase 3** | `stable-print-document-suite-phase3-v1` | Native PDF export via Electron `webContents.printToPDF`. New `pdf:export` IPC channel. `⬇️ PDF` button in InvoicePreview toolbar (both modes) and Quotation engine toolbar. `pdfFilename.ts` utility with Windows-safe sanitization. 10 new tests. No migration, no backend, no schema changes. |
 | **Print & Document Suite — Phase 2** | `stable-print-document-suite-phase2-v1` | Per-print signature/stamp controls in InvoicePreview + Quotation engine toolbar. Session-only overrides; Settings never modified. `brandingHelpers.ts` utility. 15 new tests. No migration, no IPC, no schema changes. |
 | **Print & Document Suite — Phase 1** | `stable-print-document-suite-phase1-v1` | Digital manager signature + company stamp. Base64 storage in Settings table. `useCompanyBranding` hook. InvoicePreview (engine + legacy) + Quotation engine + all 10 invoice templates + QuotationBase. Canvas resize (never upscale). 300 KB output guard. 15 new tests. No migration, no IPC, no schema changes. |
@@ -88,6 +89,7 @@
 | `audit` | Complete |
 | `forms` | Complete — 8 HR print endpoints |
 | `prices` | Complete |
+| `executive` | Complete — `/api/executive/decision-center` + `/api/executive/kpi-timeline`; reuses `dashboard.read` permission |
 
 ### Frontend (`frontend/src/pages/`)
 
@@ -112,6 +114,7 @@
 | `Forms.tsx` + 12 print pages | Complete — 8 HR forms + EmploymentContract + Quotation + PurchaseRequest |
 | `Prices.tsx` | Complete |
 | `ResourcePage.tsx` | Complete — generic CRUD with persisted state |
+| `ExecutiveDecisionCenter.tsx` | Complete — 6-tab layout: Financial Summary, Decision Cards, Alerts V3, KPI Timeline, Health Score, Recommendations; PDF export via `window.manar.exportPdf()` |
 
 ---
 
@@ -214,7 +217,7 @@ Session state seeded once from `useCompanyBranding` (via `printOptionsInitialize
 | `backup:getDatabasePath` | `backup.ipc.ts` | DB path info |
 | `backup:reconfigure` | `backup.ipc.ts` | Reload auto-backup schedule |
 | `session:setToken` | `session.ipc.ts` | Sync JWT to main process |
-| **`pdf:export`** | **`pdf.ipc.ts`** | **Native PDF export — Phase 3** |
+| **`pdf:export`** | **`pdf.ipc.ts`** | **Native PDF export — Phase 3; also used by Executive Decision Center PDF button** |
 
 ---
 
@@ -230,6 +233,7 @@ Session state seeded once from `useCompanyBranding` (via `printOptionsInitialize
 | `RevenueChart` | Complete |
 | `LastAutoBackupCard` | Complete |
 | `LatestInvoicesTable` / `LatestExpensesTable` | Complete |
+| **Executive Decision Center components** | Complete — `CompanyHealthScore`, `ExecutiveAlertsV3`, `ExecutiveDecisionCards`, `ExecutiveRecommendationsPanel`, `KPITimeline` |
 
 ---
 
@@ -244,6 +248,8 @@ Session state seeded once from `useCompanyBranding` (via `printOptionsInitialize
 | Collections Summary | `GET /api/reports/collections` | Payment collection analytics |
 | Contract Financial Summary | `GET /api/contracts/:id/financial-summary` | Per-contract profitability |
 | General Reports (Excel/PDF) | `GET /api/reports/*` | Attendance, payroll, invoices, expenses |
+| **Executive Decision Center** | **`GET /api/executive/decision-center`** | **Financial summary, decision cards, alerts V3, health score, recommendations — all in one parallel batch** |
+| **KPI Timeline** | **`GET /api/executive/kpi-timeline?period=`** | **1m/3m/6m/12m monthly breakdowns of revenue/expenses/collections/profit/outstanding** |
 
 ---
 
@@ -251,7 +257,7 @@ Session state seeded once from `useCompanyBranding` (via `printOptionsInitialize
 
 | Layer | Files | Tests | Status |
 |-------|-------|-------|--------|
-| Backend (Vitest) | 28 | 496 | All passing |
+| Backend (Vitest) | 29 | 526 | All passing |
 | Frontend (Vitest) | 15 | 246 | All passing |
 
 ### Frontend test files (`frontend/src/__tests__/`)
@@ -275,7 +281,15 @@ printTemplates/
   tafqeet.test.ts
 ```
 
-### TypeScript validation (last clean run — post Phase 3 merge)
+### Backend test files (new — Executive Decision Center Phase 1)
+
+```
+backend/src/modules/executive/__tests__/executive.service.test.ts   # 30 tests
+  — decisionCenter(): financials, health score, alerts, decision cards, recommendations
+  — kpiTimeline(): point count, field presence, profit formula, non-negative outstanding
+```
+
+### TypeScript validation (last clean run — post Executive Decision Center Phase 1 merge)
 
 ```
 cd backend && npx tsc --noEmit        ✅ 0 errors
@@ -410,4 +424,4 @@ After 2026-06-13 full operational reset:
 
 ---
 
-*Last updated: 2026-06-22 — Print & Document Suite Phase 3 released. HEAD `6bf44f5`. Tag `stable-print-document-suite-phase3-v1`. 496 backend tests / 246 frontend tests.*
+*Last updated: 2026-06-22 — Executive Decision Center Phase 1 released. HEAD `d257db0`. Merge commit `d257db0`. Tag `stable-executive-decision-center-phase1-v1`. 526 backend tests / 246 frontend tests.*
