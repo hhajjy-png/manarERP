@@ -108,6 +108,18 @@ export default function InvoicePreview() {
 
   const branding = useCompanyBranding();
 
+  const [printShowSignature, setPrintShowSignature] = useState(true);
+  const [printShowStamp, setPrintShowStamp] = useState(true);
+  const [printOptionsInitialized, setPrintOptionsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (!branding.loading && !printOptionsInitialized) {
+      setPrintShowSignature(branding.showSignature);
+      setPrintShowStamp(branding.showStamp);
+      setPrintOptionsInitialized(true);
+    }
+  }, [branding.loading, branding.showSignature, branding.showStamp, printOptionsInitialized]);
+
   const printData = useMemo<InvoicePrintData | null>(() => {
     if (!data) return null;
     try {
@@ -115,14 +127,14 @@ export default function InvoicePreview() {
         branding: {
           signatureUrl: branding.signatureUrl,
           stampUrl: branding.stampUrl,
-          showSignature: branding.showSignature,
-          showStamp: branding.showStamp,
+          showSignature: printShowSignature,
+          showStamp: printShowStamp,
         },
       });
     } catch {
       return null;
     }
-  }, [data, branding.signatureUrl, branding.stampUrl, branding.showSignature, branding.showStamp]);
+  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp]);
 
   const { resolvedTemplate, profile, setProfile } = usePrintTemplate<InvoicePrintData>(
     'invoice',
@@ -287,6 +299,32 @@ export default function InvoicePreview() {
             </button>
           )}
           {actionError && <span style={{ color: '#dc2626', fontSize: 13, fontWeight: 600 }}>⚠️ {actionError}</span>}
+          {printOptionsInitialized && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '4px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.signatureUrl ? 'pointer' : 'not-allowed' }}>
+                <input
+                  type="checkbox"
+                  checked={printShowSignature}
+                  disabled={!branding.signatureUrl}
+                  onChange={(e) => setPrintShowSignature(e.target.checked)}
+                />
+                <span style={{ color: branding.signatureUrl ? undefined : '#94a3b8' }}>
+                  التوقيع{!branding.signatureUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
+                </span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.stampUrl ? 'pointer' : 'not-allowed' }}>
+                <input
+                  type="checkbox"
+                  checked={printShowStamp}
+                  disabled={!branding.stampUrl}
+                  onChange={(e) => setPrintShowStamp(e.target.checked)}
+                />
+                <span style={{ color: branding.stampUrl ? undefined : '#94a3b8' }}>
+                  الختم{!branding.stampUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
+                </span>
+              </label>
+            </span>
+          )}
           <button
             type="button"
             className="btn secondary"
@@ -596,7 +634,7 @@ export default function InvoicePreview() {
             <div key="mgr-sig" style={{ flex: 1, textAlign: 'center', minWidth: 130 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>المسؤول</div>
               <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>شركة المنار الدولية</div>
-              {branding.showSignature && branding.signatureUrl ? (
+              {printShowSignature && branding.signatureUrl ? (
                 <img
                   src={branding.signatureUrl}
                   alt="توقيع المدير"
@@ -605,7 +643,7 @@ export default function InvoicePreview() {
               ) : (
                 <div style={{ height: 40 }} />
               )}
-              {branding.showStamp && branding.stampUrl && (
+              {printShowStamp && branding.stampUrl && (
                 <img
                   src={branding.stampUrl}
                   alt="ختم الشركة"

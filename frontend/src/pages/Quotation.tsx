@@ -83,6 +83,18 @@ export default function Quotation() {
 
   const branding = useCompanyBranding();
 
+  const [printShowSignature, setPrintShowSignature] = useState(true);
+  const [printShowStamp, setPrintShowStamp] = useState(true);
+  const [printOptionsInitialized, setPrintOptionsInitialized] = useState(false);
+
+  useEffect(() => {
+    if (!branding.loading && !printOptionsInitialized) {
+      setPrintShowSignature(branding.showSignature);
+      setPrintShowStamp(branding.showStamp);
+      setPrintOptionsInitialized(true);
+    }
+  }, [branding.loading, branding.showSignature, branding.showStamp, printOptionsInitialized]);
+
   // ── Print engine — called unconditionally (React hooks rules) ──────────────
   const printData = useMemo(() => {
     try {
@@ -99,11 +111,11 @@ export default function Quotation() {
       company: createCompanyPrintData({
         signatureUrl: branding.signatureUrl,
         stampUrl: branding.stampUrl,
-        showSignature: branding.showSignature,
-        showStamp: branding.showStamp,
+        showSignature: printShowSignature,
+        showStamp: printShowStamp,
       }),
     };
-  }, [printData, branding.signatureUrl, branding.stampUrl, branding.showSignature, branding.showStamp]);
+  }, [printData, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp]);
 
   const { resolvedTemplate, profile: tplProfile, setProfile: setTplProfile } =
     usePrintTemplate('quotation', brandedPrintData ?? undefined);
@@ -199,6 +211,32 @@ export default function Quotation() {
           >
             📋 العرض الكلاسيكي
           </button>
+          {printOptionsInitialized && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '4px 10px', background: '#f8fafc', border: '1px solid var(--border)', borderRadius: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.signatureUrl ? 'pointer' : 'not-allowed' }}>
+                <input
+                  type="checkbox"
+                  checked={printShowSignature}
+                  disabled={!branding.signatureUrl}
+                  onChange={(e) => setPrintShowSignature(e.target.checked)}
+                />
+                <span style={{ color: branding.signatureUrl ? undefined : '#94a3b8' }}>
+                  التوقيع{!branding.signatureUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
+                </span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.stampUrl ? 'pointer' : 'not-allowed' }}>
+                <input
+                  type="checkbox"
+                  checked={printShowStamp}
+                  disabled={!branding.stampUrl}
+                  onChange={(e) => setPrintShowStamp(e.target.checked)}
+                />
+                <span style={{ color: branding.stampUrl ? undefined : '#94a3b8' }}>
+                  الختم{!branding.stampUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
+                </span>
+              </label>
+            </span>
+          )}
           <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 'auto' }}>
             {printFields.quotationNumber}
           </span>
