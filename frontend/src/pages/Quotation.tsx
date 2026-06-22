@@ -17,6 +17,8 @@ import {
   adaptFormToQuotationPrintData,
   validateQuotationPrintData,
 } from '../print-templates/integration/quotationPreviewIntegration';
+import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
+import { createCompanyPrintData } from '../print-templates/adapters/companyData';
 
 const FORM_KEY = 'quotation';
 
@@ -79,6 +81,8 @@ export default function Quotation() {
   const saveDraft = usePrintDraftStore((s) => s.saveDraft);
   const clearDraft = usePrintDraftStore((s) => s.clearDraft);
 
+  const branding = useCompanyBranding();
+
   // ── Print engine — called unconditionally (React hooks rules) ──────────────
   const printData = useMemo(() => {
     try {
@@ -88,12 +92,25 @@ export default function Quotation() {
     }
   }, [printFields]);
 
+  const brandedPrintData = useMemo(() => {
+    if (!printData) return null;
+    return {
+      ...printData,
+      company: createCompanyPrintData({
+        signatureUrl: branding.signatureUrl,
+        stampUrl: branding.stampUrl,
+        showSignature: branding.showSignature,
+        showStamp: branding.showStamp,
+      }),
+    };
+  }, [printData, branding.signatureUrl, branding.stampUrl, branding.showSignature, branding.showStamp]);
+
   const { resolvedTemplate, profile: tplProfile, setProfile: setTplProfile } =
-    usePrintTemplate('quotation', printData ?? undefined);
+    usePrintTemplate('quotation', brandedPrintData ?? undefined);
 
   const warnings = useMemo(
-    () => (printData ? validateQuotationPrintData(printData) : []),
-    [printData],
+    () => (brandedPrintData ? validateQuotationPrintData(brandedPrintData) : []),
+    [brandedPrintData],
   );
 
   const EngineComponent = resolvedTemplate.component;
@@ -206,7 +223,7 @@ export default function Quotation() {
         )}
 
         {/* Engine template */}
-        <EngineComponent data={printData ?? undefined} />
+        <EngineComponent data={brandedPrintData ?? undefined} />
       </div>
     );
   }
