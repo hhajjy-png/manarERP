@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useUI } from '../stores/uiStore';
 import { useT, type Lang } from '../lib/i18n';
@@ -32,6 +32,11 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState<'ok' | 'error'>('ok');
+  const sigInputRef = useRef<HTMLInputElement>(null);
+  const stmpInputRef = useRef<HTMLInputElement>(null);
+  const [brandingError, setBrandingError] = useState('');
+  const [brandingMsg, setBrandingMsg] = useState('');
+  const [brandingSaving, setBrandingSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -52,7 +57,14 @@ export default function Settings() {
     setSaving(true);
     setMsg('');
     try {
-      const settings = FIELDS.map((f) => ({ key: f.key, value: values[f.key] ?? '', group: f.group }));
+      const brandingSettings = [
+        { key: 'print.showSignature', value: values['print.showSignature'] ?? 'true', group: 'print' },
+        { key: 'print.showStamp', value: values['print.showStamp'] ?? 'true', group: 'print' },
+      ];
+      const settings = [
+        ...FIELDS.map((f) => ({ key: f.key, value: values[f.key] ?? '', group: f.group })),
+        ...brandingSettings,
+      ];
       await api.put('/settings', { settings });
       await window.manar?.backupReconfigure?.();
       setMsg(t('page.settings.saved'));
@@ -63,6 +75,83 @@ export default function Settings() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function resizeImage(file: File, maxW: number, maxH: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, maxW / img.width, maxH / img.height);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('فشل تحميل الصورة')); };
+      img.src = url;
+    });
+  }
+
+  async function saveBrandingKey(key: string, value: string) {
+    await api.put('/settings', { settings: [{ key, value, group: 'print' }] });
+  }
+
+  async function handleSignatureUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setBrandingError('يرجى اختيار ملف صورة'); return; }
+    if (file.size > 1_048_576) { setBrandingError('حجم الصورة يتجاوز 1 ميغابايت'); return; }
+    setBrandingError('');
+    setBrandingSaving(true);
+    try {
+      const dataUrl = await resizeImage(file, 500, 250);
+      setValues(p => ({ ...p, 'print.signatureImage': dataUrl }));
+      await saveBrandingKey('print.signatureImage', dataUrl);
+      setBrandingMsg('تم حفظ التوقيع');
+    } catch { setBrandingError('فشل رفع التوقيع'); }
+    finally { setBrandingSaving(false); e.target.value = ''; }
+  }
+
+  async function handleStampUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setBrandingError('يرجى اختيار ملف صورة'); return; }
+    if (file.size > 1_048_576) { setBrandingError('حجم الصورة يتجاوز 1 ميغابايت'); return; }
+    setBrandingError('');
+    setBrandingSaving(true);
+    try {
+      const dataUrl = await resizeImage(file, 400, 400);
+      setValues(p => ({ ...p, 'print.stampImage': dataUrl }));
+      await saveBrandingKey('print.stampImage', dataUrl);
+      setBrandingMsg('تم حفظ الختم');
+    } catch { setBrandingError('فشل رفع الختم'); }
+    finally { setBrandingSaving(false); e.target.value = ''; }
+  }
+
+  async function handleDeleteSignature() {
+    setBrandingSaving(true);
+    try {
+      setValues(p => ({ ...p, 'print.signatureImage': '' }));
+      await saveBrandingKey('print.signatureImage', '');
+      setBrandingMsg('تم حذف التوقيع');
+    } catch { setBrandingError('فشل حذف التوقيع'); }
+    finally { setBrandingSaving(false); }
+  }
+
+  async function handleDeleteStamp() {
+    setBrandingSaving(true);
+    try {
+      setValues(p => ({ ...p, 'print.stampImage': '' }));
+      await saveBrandingKey('print.stampImage', '');
+      setBrandingMsg('تم حذف الختم');
+    } catch { setBrandingError('فشل حذف الختم'); }
+    finally { setBrandingSaving(false); }
   }
 
   if (loading) return <div className="center-msg"><div className="spinner" />{t('msg.loading')}</div>;
@@ -128,6 +217,112 @@ export default function Settings() {
               )}
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="card panel">
+        <h3 className="branding-section-title">طباعة المستندات</h3>
+
+        {brandingMsg && <div className="alert ok branding-msg">{brandingMsg}</div>}
+
+        {/* Signature Row */}
+        <div className="branding-row">
+          <div className="branding-row-label">توقيع المدير</div>
+          <div className="branding-row-controls">
+            {values['print.signatureImage'] && (
+              <img
+                src={values['print.signatureImage']}
+                alt="توقيع المدير"
+                className="branding-preview-img"
+              />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              ref={sigInputRef}
+              onChange={handleSignatureUpload}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => sigInputRef.current?.click()}
+              disabled={brandingSaving}
+            >
+              رفع التوقيع
+            </button>
+            {values['print.signatureImage'] && (
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleDeleteSignature}
+                disabled={brandingSaving}
+              >
+                حذف التوقيع
+              </button>
+            )}
+            <label className="branding-toggle-label">
+              <input
+                type="checkbox"
+                checked={(values['print.showSignature'] ?? 'true') !== 'false'}
+                onChange={(e) => setValues(p => ({ ...p, 'print.showSignature': e.target.checked ? 'true' : 'false' }))}
+              />
+              إظهار التوقيع في المستندات
+            </label>
+          </div>
+          {brandingError && brandingError.includes('توقيع') && (
+            <div className="branding-error">{brandingError}</div>
+          )}
+        </div>
+
+        {/* Stamp Row */}
+        <div className="branding-row">
+          <div className="branding-row-label">ختم الشركة</div>
+          <div className="branding-row-controls">
+            {values['print.stampImage'] && (
+              <img
+                src={values['print.stampImage']}
+                alt="ختم الشركة"
+                className="branding-preview-img"
+              />
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              ref={stmpInputRef}
+              onChange={handleStampUpload}
+            />
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => stmpInputRef.current?.click()}
+              disabled={brandingSaving}
+            >
+              رفع الختم
+            </button>
+            {values['print.stampImage'] && (
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleDeleteStamp}
+                disabled={brandingSaving}
+              >
+                حذف الختم
+              </button>
+            )}
+            <label className="branding-toggle-label">
+              <input
+                type="checkbox"
+                checked={(values['print.showStamp'] ?? 'true') !== 'false'}
+                onChange={(e) => setValues(p => ({ ...p, 'print.showStamp': e.target.checked ? 'true' : 'false' }))}
+              />
+              إظهار الختم في المستندات
+            </label>
+          </div>
+          {brandingError && !brandingError.includes('توقيع') && (
+            <div className="branding-error">{brandingError}</div>
+          )}
         </div>
       </div>
     </div>

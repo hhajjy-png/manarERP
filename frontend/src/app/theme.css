@@ -195,3 +195,13 @@ tbody tr:last-child td { border-bottom: none; }
 html[dir="ltr"] .nav a:hover {
   transform: translateX(4px);
 }
+
+/* ── Document Branding (Settings page) ──────────────────────────────── */
+.branding-section-title { margin-bottom: 16px; font-weight: 700; font-size: 16px; }
+.branding-row { margin-bottom: 20px; }
+.branding-row-label { font-weight: 600; margin-bottom: 8px; }
+.branding-row-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.branding-preview-img { max-height: 60px; border: 1px solid #e2e8f0; border-radius: 4px; }
+.branding-toggle-label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.branding-error { color: var(--red); font-size: 13px; margin-top: 6px; }
+.branding-msg { margin-bottom: 12px; }
