@@ -64,6 +64,15 @@ const api = {
   /** إعادة قراءة إعدادات النسخ التلقائي وتطبيقها على الجدولة. */
   backupReconfigure: (): Promise<{ ok: boolean }> =>
     ipcRenderer.invoke('backup:reconfigure'),
+
+  /** تصدير الصفحة الحالية كملف PDF — يفتح حوار الحفظ في العملية الرئيسية. */
+  exportPdf: (suggestedName: string): Promise<{
+    success: boolean;
+    canceled?: boolean;
+    path?: string;
+    sizeBytes?: number;
+    error?: string;
+  }> => ipcRenderer.invoke('pdf:export', suggestedName),
 };
 
 contextBridge.exposeInMainWorld('manar', api);

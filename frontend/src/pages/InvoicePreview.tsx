@@ -13,6 +13,7 @@ import { buildInvoicePrintData } from '../print-templates/builders/invoicePrintD
 import PrintTemplateSelector from '../print-templates/components/PrintTemplateSelector';
 import { validateInvoicePrintData } from '../print-templates/integration/invoicePreviewIntegration';
 import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
+import { buildInvoicePdfName } from '../utils/pdfFilename';
 
 const PAY_METHOD_AR: Record<string, string> = {
   CASH: 'نقدًا', BANK: 'بنك', CHEQUE: 'شيك', TRANSFER: 'تحويل',
@@ -107,6 +108,36 @@ export default function InvoicePreview() {
   }, [data, autoPrint]);
 
   const branding = useCompanyBranding();
+
+  const [pdfExporting, setPdfExporting] = useState(false);
+  const [pdfMsg, setPdfMsg] = useState('');
+  const [pdfError, setPdfError] = useState('');
+
+  async function handleExportPdf() {
+    if (!data) return;
+    setPdfExporting(true);
+    setPdfMsg('');
+    setPdfError('');
+    try {
+      const suggestedName = buildInvoicePdfName(data.invoiceNumber ?? data.number);
+      const result = await window.manar?.exportPdf(suggestedName);
+      if (!result) {
+        setPdfError('تصدير PDF غير متاح في هذه البيئة');
+        return;
+      }
+      if (result.canceled) return;
+      if (result.success && result.path) {
+        setPdfMsg(`تم الحفظ: ${result.path}`);
+        setTimeout(() => setPdfMsg(''), 6000);
+      } else {
+        setPdfError(result.error ?? 'فشل تصدير PDF');
+      }
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : 'فشل تصدير PDF');
+    } finally {
+      setPdfExporting(false);
+    }
+  }
 
   const [printShowSignature, setPrintShowSignature] = useState(true);
   const [printShowStamp, setPrintShowStamp] = useState(true);
@@ -283,6 +314,20 @@ export default function InvoicePreview() {
           <button type="button" className="btn" onClick={() => window.print()}>
             🖨️ {t('btn.inv.print_invoice')}
           </button>
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={handleExportPdf}
+            disabled={pdfExporting}
+          >
+            {pdfExporting ? '⏳ جارٍ التصدير…' : '⬇️ PDF'}
+          </button>
+          {pdfMsg && (
+            <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>✓ {pdfMsg}</span>
+          )}
+          {pdfError && (
+            <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>⚠️ {pdfError}</span>
+          )}
           {hasPermission('invoices.update') && canEdit && (
             <button type="button" className="btn secondary" onClick={() => navigate('/invoices')}>
               {t('action.edit')}
