@@ -270,9 +270,24 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
         <section className={styles.qSign}>
           <div className={styles.signCol}>
             <div className={styles.signRole}>عن شركة المنار الدولية</div>
+            {d.company?.showSignature !== false && d.company?.signatureUrl && (
+              <img
+                src={d.company.signatureUrl}
+                alt=""
+                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '0 auto 2mm' }}
+              />
+            )}
             <div className={styles.signLine} />
             <div className={styles.signCap}>الاسم والتوقيع</div>
-            <div className={styles.signStamp}>مكان الختم</div>
+            {d.company?.showStamp !== false && d.company?.stampUrl ? (
+              <img
+                src={d.company.stampUrl}
+                alt=""
+                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '4mm auto 0' }}
+              />
+            ) : (
+              <div className={styles.signStamp}>مكان الختم</div>
+            )}
           </div>
         </section>
       </main>
