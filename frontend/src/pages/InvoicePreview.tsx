@@ -12,6 +12,7 @@ import { usePrintTemplate } from '../print-templates/hooks/usePrintTemplate';
 import { buildInvoicePrintData } from '../print-templates/builders/invoicePrintDataBuilder';
 import PrintTemplateSelector from '../print-templates/components/PrintTemplateSelector';
 import { validateInvoicePrintData } from '../print-templates/integration/invoicePreviewIntegration';
+import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
 
 const PAY_METHOD_AR: Record<string, string> = {
   CASH: 'نقدًا', BANK: 'بنك', CHEQUE: 'شيك', TRANSFER: 'تحويل',
@@ -105,14 +106,23 @@ export default function InvoicePreview() {
     }
   }, [data, autoPrint]);
 
+  const branding = useCompanyBranding();
+
   const printData = useMemo<InvoicePrintData | null>(() => {
     if (!data) return null;
     try {
-      return buildInvoicePrintData(data as unknown as ApiInvoice);
+      return buildInvoicePrintData(data as unknown as ApiInvoice, {
+        branding: {
+          signatureUrl: branding.signatureUrl,
+          stampUrl: branding.stampUrl,
+          showSignature: branding.showSignature,
+          showStamp: branding.showStamp,
+        },
+      });
     } catch {
       return null;
     }
-  }, [data]);
+  }, [data, branding.signatureUrl, branding.stampUrl, branding.showSignature, branding.showStamp]);
 
   const { resolvedTemplate, profile, setProfile } = usePrintTemplate<InvoicePrintData>(
     'invoice',
@@ -572,19 +582,46 @@ export default function InvoicePreview() {
 
           {/* ── Signature Area ── */}
           <div className="inv-sig" style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', gap: 16, pageBreakInside: 'avoid' }}>
-            {([
-              { label: 'التوقيع والختم', sub: data.customer?.name ?? data.supplier?.name ?? 'الجهة المستلمة' },
-              { label: 'المسؤول', sub: 'شركة المنار الدولية' },
-              { label: 'المحاسبة', sub: '' },
-            ] as { label: string; sub: string }[]).map(({ label, sub }) => (
-              <div key={label} style={{ flex: 1, textAlign: 'center', minWidth: 130 }}>
-                <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>{label}</div>
-                {sub && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>{sub}</div>}
-                <div style={{ height: 36 }} />
-                <div style={{ borderTop: '1px solid #94a3b8' }} />
-                <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>التوقيع / Signature</div>
+            {/* Column: التوقيع والختم (party) */}
+            <div key="party-sig" style={{ flex: 1, textAlign: 'center', minWidth: 130 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>التوقيع والختم</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>
+                {data.customer?.name ?? data.supplier?.name ?? 'الجهة المستلمة'}
               </div>
-            ))}
+              <div style={{ height: 36 }} />
+              <div style={{ borderTop: '1px solid #94a3b8' }} />
+              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>التوقيع / Signature</div>
+            </div>
+            {/* Column: المسؤول (our signature + stamp) */}
+            <div key="mgr-sig" style={{ flex: 1, textAlign: 'center', minWidth: 130 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>المسؤول</div>
+              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>شركة المنار الدولية</div>
+              {branding.showSignature && branding.signatureUrl ? (
+                <img
+                  src={branding.signatureUrl}
+                  alt="توقيع المدير"
+                  style={{ maxHeight: 40, maxWidth: 120, objectFit: 'contain', display: 'block', margin: '0 auto' }}
+                />
+              ) : (
+                <div style={{ height: 40 }} />
+              )}
+              {branding.showStamp && branding.stampUrl && (
+                <img
+                  src={branding.stampUrl}
+                  alt="ختم الشركة"
+                  style={{ maxHeight: 36, maxWidth: 100, objectFit: 'contain', display: 'block', margin: '4px auto 0' }}
+                />
+              )}
+              <div style={{ borderTop: '1px solid #94a3b8', marginTop: 4 }} />
+              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>التوقيع / Signature</div>
+            </div>
+            {/* Column: المحاسبة (unchanged) */}
+            <div key="acct-sig" style={{ flex: 1, textAlign: 'center', minWidth: 130 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>المحاسبة</div>
+              <div style={{ height: 36 }} />
+              <div style={{ borderTop: '1px solid #94a3b8' }} />
+              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>التوقيع / Signature</div>
+            </div>
           </div>
 
         </div>{/* end legacy wrapper */}
