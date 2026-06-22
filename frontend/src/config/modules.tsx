@@ -358,6 +358,7 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'inventory', label: 'nav.inventory', icon: 'warehouse', permission: 'inventory.read' },
   ] },
   { group: 'nav.group.system', items: [
+    { key: 'executive', label: 'nav.executive', icon: 'crisis_alert', permission: 'dashboard.read' },
     { key: 'reports', label: 'nav.reports', icon: 'analytics', permission: 'reports.read' },
     { key: 'users', label: 'nav.users', icon: 'manage_accounts', permission: 'users.read' },
     { key: 'audit', label: 'nav.audit', icon: 'history', permission: 'audit.read' },
