@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `d257db0` — Merge Executive Decision Center Bundle Phase 1 into production |
-| **Latest stable tag** | `stable-executive-decision-center-phase1-v1` |
+| **HEAD** | `1b547ee` — Merge Print & Document Suite Phase 4 into production |
+| **Latest stable tag** | `stable-print-document-suite-phase4-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -27,6 +27,7 @@
 
 | Feature | Stable Tag | Summary |
 |---------|-----------|---------|
+| **Print & Document Suite — Phase 4** | `stable-print-document-suite-phase4-v1` | Visual Signature & Stamp Position Designer. `BrandingLayoutDesigner` modal with live preview, drag-and-drop, per-element sliders (X/Y offset ±80/60 px, scale 0.4–2.5, opacity 0.2–1, z-index). Per-document-type independence (invoice vs quotation stored separately). Applied to all 10 invoice templates + `QuotationBase.tsx` + legacy `InvoicePreview`. Stored in `print.brandingLayout` Settings key via existing `PUT /settings`. Fail-safe JSON parse with `DEFAULT_BRANDING_LAYOUT` fallback. 16 new unit tests (`brandingLayout.test.ts`). No schema changes, no migrations, no new IPC, no new dependencies. Phase 1/2/3 compatibility fully preserved. |
 | **Executive Decision Center — Phase 1** | `stable-executive-decision-center-phase1-v1` | مركز القرار التنفيذي — 7 integrated features: Financial Summary (8 KPI cards, top debtors, this/last month comparison), Decision Cards (8 intelligent insight cards by priority), Executive Alerts V3 (9 alert types, HIGH/MEDIUM/LOW, deduplicated, sorted), KPI Timeline (1m/3m/6m/12m Recharts area charts), Company Health Score (0–100, 6 weighted components, EXCELLENT/GOOD/WATCH/RISK), Executive Recommendations V2 (rule-based, max 10), PDF export via existing `printToPDF` Electron IPC. New `/api/executive` module reusing `dashboard.read` permission. 30 new Vitest tests. No schema changes, no migrations, no new packages. |
 | **Print & Document Suite — Phase 3** | `stable-print-document-suite-phase3-v1` | Native PDF export via Electron `webContents.printToPDF`. New `pdf:export` IPC channel. `⬇️ PDF` button in InvoicePreview toolbar (both modes) and Quotation engine toolbar. `pdfFilename.ts` utility with Windows-safe sanitization. 10 new tests. No migration, no backend, no schema changes. |
 | **Print & Document Suite — Phase 2** | `stable-print-document-suite-phase2-v1` | Per-print signature/stamp controls in InvoicePreview + Quotation engine toolbar. Session-only overrides; Settings never modified. `brandingHelpers.ts` utility. 15 new tests. No migration, no IPC, no schema changes. |
@@ -132,7 +133,7 @@ frontend/src/print-templates/
 ├── integration/     # invoicePreviewIntegration, quotationPreviewIntegration
 ├── service/         # printTemplateService
 ├── storage/         # printProfileStorage (localStorage)
-├── utils/           # brandingHelpers, formatKWD, tafqeet, sanitizePrintText, formatDate
+├── utils/           # brandingHelpers, brandingLayout, formatKWD, tafqeet, sanitizePrintText, formatDate
 └── reference/       # 30 React template components
     ├── invoices/    # InvoiceDesign1–5 + Blank variants (10 files)
     ├── quotations/  # QuotationBase + QuotationDesign1–5 + Blank variants (11 files)
@@ -175,6 +176,31 @@ Session state seeded once from `useCompanyBranding` (via `printOptionsInitialize
 - `Quotation.tsx` — affects engine mode only (`brandedPrintData` useMemo)
 
 **`brandingHelpers.ts`** — `mergeEffectiveBranding()`, `shouldShowSignature()`, `shouldShowStamp()`
+
+### Print & Document Suite — Phase 4 (Visual Signature & Stamp Position Designer)
+
+**Storage:** `print.brandingLayout` key in existing `Settings` table (JSON string). No migration, no schema change, no IPC, no new dependencies.
+
+**Data shape:**
+```typescript
+PrintBrandingLayoutSettings = Record<'invoice' | 'quotation', {
+  signature: BrandingElementLayout;  // { x, y, scale, opacity, zIndex }
+  stamp:     BrandingElementLayout;
+}>
+```
+Clamp bounds: x ±80 px, y ±60 px, scale 0.4–2.5, opacity 0.2–1, zIndex 1|2.
+
+**Key files:**
+- `engine/types.ts` — `BrandingElementLayout`, `BrandingLayout`, `PrintBrandingLayoutSettings`, `PrintDocumentType`
+- `utils/brandingLayout.ts` — `parseBrandingLayout` (fail-safe), `serializeBrandingLayout`, `clampBrandingElementLayout`, `getBrandingLayoutForDocument`, `applyBrandingElementStyle` (returns `CSSProperties`)
+- `components/BrandingLayoutDesigner.tsx` — modal with live preview area (380×240 px), drag-and-drop via native pointer events (`setPointerCapture`), `Slider` sub-component, per-document-type tabs, RTL
+- `hooks/useCompanyBranding.ts` — loads `print.brandingLayout` and parses it; exposes `brandingLayout: PrintBrandingLayoutSettings | undefined`
+- `adapters/companyData.ts` — `createCompanyPrintData()` filter now passes `brandingLayout` objects (changed `typeof value === 'string' || boolean` to `value !== undefined`)
+- `Settings.tsx` — "معايرة التوقيع والختم" button opens designer; `handleDesignerSave` calls `PUT /settings`; success message shown
+
+**Template integration:** All 10 invoice templates call `getBrandingLayoutForDocument(data?.company?.brandingLayout, 'invoice')` and spread `applyBrandingElementStyle(brandingLayout.signature/stamp)` onto each image. `QuotationBase.tsx` does the same with `'quotation'` doc type.
+
+**Phase compatibility:** `showSignature`/`showStamp` toggles (Phase 2) take precedence — layout only affects position/scale/opacity of already-visible elements. PDF export (Phase 3) captures DOM as-is, so layout is embedded in exported PDFs automatically.
 
 ### Print & Document Suite — Phase 3 (Native PDF Export)
 
@@ -258,7 +284,7 @@ Session state seeded once from `useCompanyBranding` (via `printOptionsInitialize
 | Layer | Files | Tests | Status |
 |-------|-------|-------|--------|
 | Backend (Vitest) | 29 | 526 | All passing |
-| Frontend (Vitest) | 15 | 246 | All passing |
+| Frontend (Vitest) | 16 | 262 | All passing |
 
 ### Frontend test files (`frontend/src/__tests__/`)
 
@@ -269,6 +295,7 @@ kuwaitLocations.test.ts
 recentLocations.test.ts
 pdfFilename.test.ts              # Phase 3 — 10 tests
 printTemplates/
+  brandingLayout.test.ts         # Phase 4 — 16 tests: parseBrandingLayout, clamp, serialize/roundtrip, getForDoc, applyStyle
   builders.test.ts               # builder branding passthrough (9 tests)
   companyBranding.test.ts        # createCompanyPrintData boolean fields (6 tests)
   formatKWD.test.ts
@@ -289,7 +316,7 @@ backend/src/modules/executive/__tests__/executive.service.test.ts   # 30 tests
   — kpiTimeline(): point count, field presence, profit formula, non-negative outstanding
 ```
 
-### TypeScript validation (last clean run — post Executive Decision Center Phase 1 merge)
+### TypeScript validation (last clean run — post Print & Document Suite Phase 4 merge)
 
 ```
 cd backend && npx tsc --noEmit        ✅ 0 errors
@@ -424,4 +451,4 @@ After 2026-06-13 full operational reset:
 
 ---
 
-*Last updated: 2026-06-22 — Executive Decision Center Phase 1 released. HEAD `d257db0`. Merge commit `d257db0`. Tag `stable-executive-decision-center-phase1-v1`. 526 backend tests / 246 frontend tests.*
+*Last updated: 2026-06-22 — Print & Document Suite Phase 4 released. HEAD `1b547ee`. Merge commit `1b547ee`. Tag `stable-print-document-suite-phase4-v1`. 526 backend tests / 262 frontend tests (16 files).*
