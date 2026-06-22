@@ -83,6 +83,7 @@ export default function Settings() {
       const url = URL.createObjectURL(file);
       img.onload = () => {
         URL.revokeObjectURL(url);
+        // never upscale, only downscale
         const scale = Math.min(1, maxW / img.width, maxH / img.height);
         const w = Math.round(img.width * scale);
         const h = Math.round(img.height * scale);
@@ -91,7 +92,13 @@ export default function Settings() {
         canvas.height = h;
         const ctx = canvas.getContext('2d')!;
         ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/png'));
+        const dataUrl = canvas.toDataURL('image/png');
+        const MAX_B64_BYTES = 300 * 1024;
+        if (dataUrl.length > MAX_B64_BYTES) {
+          reject(new Error('حجم الصورة بعد المعالجة كبير جداً (الحد الأقصى 300KB). استخدم صورة أصغر.'));
+          return;
+        }
+        resolve(dataUrl);
       };
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('فشل تحميل الصورة')); };
       img.src = url;
