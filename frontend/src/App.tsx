@@ -38,6 +38,7 @@ import BankImport from './pages/BankImport';
 import BankSalaryAnalytics from './pages/BankSalaryAnalytics';
 import Quotation from './pages/Quotation';
 import PurchaseRequest from './pages/PurchaseRequest';
+import ExecutiveDecisionCenter from './pages/ExecutiveDecisionCenter';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/salaries" element={<Salaries />} />
           <Route path="/accounting" element={<Accounting />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/executive" element={<ExecutiveDecisionCenter />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/backup" element={<Backup />} />
           <Route path="/inventory" element={<Inventory />} />

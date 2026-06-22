@@ -1205,6 +1205,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // ── Forms & Templates ─────────────────────────────────────────────────────
     'nav.forms': 'النماذج الإدارية',
+    'nav.executive': 'مركز القرار التنفيذي',
     'nav.group.admin_ops': 'الشؤون الإدارية',
     'page.forms.title': 'النماذج الإدارية',
     'page.forms.subtitle': 'طباعة النماذج والشهادات الرسمية للموظفين',
@@ -2412,6 +2413,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // ── Forms & Templates ─────────────────────────────────────────────────────
     'nav.forms': 'Admin Forms',
+    'nav.executive': 'Executive Decision Center',
     'nav.group.admin_ops': 'Administration',
     'page.forms.title': 'Admin Forms',
     'page.forms.subtitle': 'Print official certificates and forms for employees',

@@ -17,3 +17,9 @@ export function buildQuotationPdfName(quotationNumber: string): string {
   if (!quotationNumber.trim()) return `quotation-${date}`;
   return sanitizePdfFilename(`QT-${quotationNumber}-${date}`, `quotation-${date}`);
 }
+
+/** Generic filename builder: `{prefix}-{YYYY-MM-DD}` */
+export function buildFilenameFromDate(prefix: string): string {
+  const date = new Date().toISOString().slice(0, 10);
+  return sanitizePdfFilename(`${prefix}-${date}`, `document-${date}`);
+}
