@@ -1,9 +1,12 @@
 import { useRef, useEffect, useState } from 'react';
 import type { BrandingDesignerHandle, ElementType } from '../hooks/useBrandingDesigner';
 import type { TextStyleDesignerHandle } from '../designer/useTextStyleDesigner';
+import type { StaticTextDesignerHandle } from '../designer/useStaticTextDesigner';
+import type { StaticTextKey } from '../designer/staticTextTypes';
 import { getDesignerElementFromTarget } from '../designer/designerDom';
 import { formatUnit } from '../utils/designerUtils';
 import BrandingDesignerToolbar from './BrandingDesignerToolbar';
+import InlineTextEditor from '../designer/InlineTextEditor';
 
 const RULER = 20;
 
@@ -12,18 +15,22 @@ type ElemRect = { x: number; y: number; w: number; h: number };
 interface Props {
   designer: BrandingDesignerHandle;
   textStyleDesigner?: TextStyleDesignerHandle;
+  staticTextDesigner?: StaticTextDesignerHandle;
   signatureUrl?: string;
   stampUrl?: string;
   docLabel: string;
+  onSave?: () => Promise<void>;
   children: React.ReactNode;
 }
 
 export default function BrandingDesignerOverlay({
   designer,
   textStyleDesigner,
+  staticTextDesigner,
   signatureUrl,
   stampUrl,
   docLabel,
+  onSave,
   children,
 }: Props) {
   const {
@@ -151,6 +158,13 @@ export default function BrandingDesignerOverlay({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, textStyleDesigner?.selectedArea, effectiveZoom]);
 
+  // ── Editable text rect (for InlineTextEditor positioning) ──
+  const [editingTextRect, setEditingTextRect] = useState<ElemRect | null>(null);
+
+  useEffect(() => {
+    if (!staticTextDesigner?.editingKey) setEditingTextRect(null);
+  }, [staticTextDesigner?.editingKey]);
+
   // ── Click on doc canvas to pick text areas ──
   function handleDocClick(e: React.MouseEvent<HTMLDivElement>) {
     if (isDragging) return;
@@ -159,6 +173,23 @@ export default function BrandingDesignerOverlay({
       textStyleDesigner.setSelectedArea(element.id);
       e.stopPropagation();
     }
+  }
+
+  // ── Double-click to start inline static text edit ──
+  function handleDocDblClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (!staticTextDesigner) return;
+    const el = (e.target as HTMLElement).closest('[data-designer-editable="true"]') as HTMLElement | null;
+    if (!el) return;
+    const key = el.getAttribute('data-designer-key') as StaticTextKey | null;
+    if (!key) return;
+    const container = docRef.current;
+    if (!container) return;
+    const cr = container.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    const rect: ElemRect = { x: r.left - cr.left, y: r.top - cr.top, w: r.width, h: r.height };
+    setEditingTextRect(rect);
+    staticTextDesigner.startEdit(key, el.textContent?.trim() ?? '');
+    e.stopPropagation();
   }
 
   // ── DragHandle ──
@@ -251,7 +282,7 @@ export default function BrandingDesignerOverlay({
       className="no-print"
     >
       {/* Toolbar */}
-      <BrandingDesignerToolbar designer={designer} docLabel={docLabel} onClose={deactivate} />
+      <BrandingDesignerToolbar designer={designer} docLabel={docLabel} onClose={deactivate} onSave={onSave} />
 
       {/* Corner + top ruler row */}
       <div style={{ display: 'flex', flexShrink: 0 }}>
@@ -310,6 +341,7 @@ export default function BrandingDesignerOverlay({
             <div
               ref={docRef}
               onClick={handleDocClick}
+              onDoubleClick={handleDocDblClick}
               style={{
                 position: 'absolute', top: 0, left: 0,
                 transform: `scale(${effectiveZoom})`,
@@ -359,6 +391,21 @@ export default function BrandingDesignerOverlay({
                 }} />
               )}
             </div>
+
+            {/* Inline static text editor */}
+            {staticTextDesigner?.editingKey && editingTextRect && (
+              <InlineTextEditor
+                left={editingTextRect.x}
+                top={editingTextRect.y + editingTextRect.h + 4}
+                minWidth={editingTextRect.w}
+                editingKey={staticTextDesigner.editingKey}
+                value={staticTextDesigner.draftValue}
+                error={staticTextDesigner.draftError}
+                onChange={staticTextDesigner.updateDraft}
+                onCommit={staticTextDesigner.commitEdit}
+                onCancel={staticTextDesigner.cancelEdit}
+              />
+            )}
           </div>
         </div>
       </div>

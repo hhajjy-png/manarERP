@@ -12,6 +12,7 @@ import {
   applyTableBorderStyle,
   getTextAreasForDocument,
 } from '../../utils/textStyleOverrides';
+import { getStaticText } from '../../designer/staticTextUtils';
 
 const SAMPLE: QuotationPrintData = {
   company: {
@@ -90,6 +91,7 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
   const disc = d.discount ?? 0;
   const brandingLayout = getBrandingLayoutForDocument(d.company?.brandingLayout, 'quotation');
   const textAreas = getTextAreasForDocument(d.company?.textStyleOverrides, 'quotation') as QuotationTextAreas;
+  const staticText = d.company?.staticTextOverrides;
 
   const pageClass = [
     styles.page,
@@ -167,8 +169,8 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
         {/* ── Q-Head ── */}
         <div className={styles.qHead}>
           <div className={styles.qTitle} data-designer-type="text" data-designer-id="quotation.title">
-            <h1 style={applyTextElementStyle(textAreas.title, 'title')}>عرض سعر</h1>
-            <div className={styles.subtitle}>Price Quotation</div>
+            <h1 style={applyTextElementStyle(textAreas.title, 'title')} data-designer-editable="true" data-designer-key="quotation.titleAr">{getStaticText(staticText, 'quotation.titleAr', 'عرض سعر')}</h1>
+            <div className={styles.subtitle} data-designer-editable="true" data-designer-key="quotation.titleEn">{getStaticText(staticText, 'quotation.titleEn', 'Price Quotation')}</div>
           </div>
           <div className={styles.qMeta} data-designer-type="text" data-designer-id="quotation.metadataLabels">
             <div className={styles.qMetaRow}>
@@ -304,7 +306,7 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
         {/* ── Signature ── */}
         <section className={styles.qSign}>
           <div className={styles.signCol}>
-            <div className={styles.signRole}>عن شركة المنار الدولية</div>
+            <div className={styles.signRole} data-designer-editable="true" data-designer-key="quotation.footerSignatoryRole">{getStaticText(staticText, 'quotation.footerSignatoryRole', 'عن شركة المنار الدولية')}</div>
             {d.company?.showSignature !== false && d.company?.signatureUrl && (
               <img
                 src={d.company.signatureUrl}
@@ -337,11 +339,11 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
       {showLetterhead && (
         <footer className={styles.lhFoot}>
           <div className={styles.lhFootRule} />
-          <div className={styles.lhFootAr}>
-            جليب الشيوخ - المجمع التجاري الروضة - الدور الثاني - مكتب ١٣
+          <div className={styles.lhFootAr} data-designer-editable="true" data-designer-key="quotation.footerAddressAr">
+            {getStaticText(staticText, 'quotation.footerAddressAr', 'جليب الشيوخ - المجمع التجاري الروضة - الدور الثاني - مكتب ١٣')}
           </div>
-          <div className={styles.lhFootEn}>
-            Jleeb Al Shuyoukh - Al Rawda Commercial Complex - Second Floor - Office 13
+          <div className={styles.lhFootEn} data-designer-editable="true" data-designer-key="quotation.footerAddressEn">
+            {getStaticText(staticText, 'quotation.footerAddressEn', 'Jleeb Al Shuyoukh - Al Rawda Commercial Complex - Second Floor - Office 13')}
           </div>
         </footer>
       )}

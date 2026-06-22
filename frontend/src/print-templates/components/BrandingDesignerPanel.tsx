@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { BrandingDesignerHandle, ElementType } from '../hooks/useBrandingDesigner';
 import type { TextStyleDesignerHandle, TextAreaKey } from '../designer/useTextStyleDesigner';
+import type { StaticTextDesignerHandle } from '../designer/useStaticTextDesigner';
 import type { DesignerElement } from '../designer/designerTypes';
 import { isBrandingElement, isTextElement } from '../designer/designerTypes';
 import { formatUnit, GRID_PRESETS, type GridSizeOption } from '../utils/designerUtils';
@@ -21,6 +22,7 @@ import {
 interface Props {
   designer: BrandingDesignerHandle;
   textStyleDesigner?: TextStyleDesignerHandle;
+  staticTextDesigner?: StaticTextDesignerHandle;
   /** Universal selection — when provided, drives mode switching instead of textStyleDesigner.selectedArea */
   selection?: DesignerElement | null;
   docLabel: string;
@@ -256,6 +258,7 @@ function TextAreaControls({ textStyleDesigner, areaId }: {
 export default function BrandingDesignerPanel({
   designer,
   textStyleDesigner,
+  staticTextDesigner,
   selection,
   docLabel,
   onClose,
@@ -305,8 +308,8 @@ export default function BrandingDesignerPanel({
     }
   }
 
-  const isSaving = saving || (textStyleDesigner?.saving ?? false);
-  const error = saveError ?? textStyleDesigner?.saveError;
+  const isSaving = saving || (textStyleDesigner?.saving ?? false) || (staticTextDesigner?.saving ?? false);
+  const error = saveError ?? textStyleDesigner?.saveError ?? staticTextDesigner?.saveError;
 
   if (collapsed) {
     return (
@@ -543,7 +546,8 @@ export default function BrandingDesignerPanel({
             Ctrl+Z / Ctrl+Shift+Z &nbsp;تراجع / إعادة<br />
             Ctrl+0 &nbsp;ملاءمة صفحة<br />
             Esc &nbsp;إغلاق وضع التصميم<br />
-            انقر نصاً &nbsp;تنسيق المنطقة
+            انقر نصاً &nbsp;تنسيق المنطقة<br />
+            انقر مزدوجاً نصاً ثابتاً &nbsp;تعديل النص
           </div>
         </>
       )}

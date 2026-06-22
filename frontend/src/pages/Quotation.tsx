@@ -23,6 +23,7 @@ import { buildQuotationPdfName } from '../utils/pdfFilename';
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import { useBrandingDesigner } from '../print-templates/hooks/useBrandingDesigner';
 import { useTextStyleDesigner } from '../print-templates/designer/useTextStyleDesigner';
+import { useStaticTextDesigner } from '../print-templates/designer/useStaticTextDesigner';
 import BrandingDesignerOverlay from '../print-templates/components/BrandingDesignerOverlay';
 import BrandingDesignerPanel from '../print-templates/components/BrandingDesignerPanel';
 
@@ -100,6 +101,10 @@ export default function Quotation() {
     initialSettings: branding.textStyleOverrides,
   });
 
+  const staticTextDesigner = useStaticTextDesigner({
+    initialOverrides: branding.staticTextOverrides,
+  });
+
   const [pdfExporting, setPdfExporting] = useState(false);
   const [pdfMsg, setPdfMsg] = useState('');
   const [pdfError, setPdfError] = useState('');
@@ -165,6 +170,7 @@ export default function Quotation() {
         brandingLayout: effectiveLayout,
         inkMode: designer.inkMode,
         textStyleOverrides: textDesigner.settings,
+        staticTextOverrides: staticTextDesigner.overrides,
       }),
     };
   }, [
@@ -179,6 +185,7 @@ export default function Quotation() {
     savedBrandingLayout,
     branding.brandingLayout,
     textDesigner.settings,
+    staticTextDesigner.overrides,
   ]);
 
   const { resolvedTemplate, profile: tplProfile, setProfile: setTplProfile } =
@@ -352,9 +359,13 @@ export default function Quotation() {
         <BrandingDesignerOverlay
           designer={designer}
           textStyleDesigner={textDesigner}
+          staticTextDesigner={staticTextDesigner}
           signatureUrl={branding.signatureUrl}
           stampUrl={branding.stampUrl}
           docLabel="عرض السعر"
+          onSave={async () => {
+            await Promise.all([designer.save(), textDesigner.save(), staticTextDesigner.save()]);
+          }}
         >
           <EngineComponent data={brandedPrintData ?? undefined} />
         </BrandingDesignerOverlay>
@@ -363,10 +374,11 @@ export default function Quotation() {
           <BrandingDesignerPanel
             designer={designer}
             textStyleDesigner={textDesigner}
+            staticTextDesigner={staticTextDesigner}
             docLabel="عرض السعر"
             onClose={designer.deactivate}
             onSave={async () => {
-              await Promise.all([designer.save(), textDesigner.save()]);
+              await Promise.all([designer.save(), textDesigner.save(), staticTextDesigner.save()]);
             }}
           />
         )}

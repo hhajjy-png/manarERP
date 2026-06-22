@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { api, errorMessage } from '../../api/client';
 import type { PrintBrandingLayoutSettings } from '../engine/types';
 import type { PrintTextStyleSettings } from '../engine/textStyleTypes';
+import type { StaticTextOverrides } from '../designer/staticTextTypes';
 import { parseBrandingLayout } from '../utils/brandingLayout';
 import { parseTextStyleSettings } from '../utils/textStyleOverrides';
+import { parseStaticTextOverrides } from '../designer/staticTextUtils';
 
 export interface CompanyBranding {
   signatureUrl: string | undefined;
@@ -12,6 +14,7 @@ export interface CompanyBranding {
   showStamp: boolean;
   brandingLayout: PrintBrandingLayoutSettings | undefined;
   textStyleOverrides: PrintTextStyleSettings | undefined;
+  staticTextOverrides: StaticTextOverrides | undefined;
   loading: boolean;
   error: string | undefined;
 }
@@ -24,6 +27,7 @@ export function useCompanyBranding(): CompanyBranding {
     showStamp: true,
     brandingLayout: undefined,
     textStyleOverrides: undefined,
+    staticTextOverrides: undefined,
     loading: true,
     error: undefined,
   });
@@ -61,6 +65,11 @@ export function useCompanyBranding(): CompanyBranding {
           ? parseTextStyleSettings(textStyleRaw)
           : undefined;
 
+        const staticTextRaw = find('print.staticTextOverrides');
+        const staticTextOverrides = staticTextRaw
+          ? parseStaticTextOverrides(staticTextRaw)
+          : undefined;
+
         setBranding({
           signatureUrl: parseImage('print.signatureImage'),
           stampUrl: parseImage('print.stampImage'),
@@ -68,6 +77,7 @@ export function useCompanyBranding(): CompanyBranding {
           showStamp: parseBool('print.showStamp'),
           brandingLayout,
           textStyleOverrides,
+          staticTextOverrides,
           loading: false,
           error: undefined,
         });
