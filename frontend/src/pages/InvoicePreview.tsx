@@ -174,13 +174,13 @@ export default function InvoicePreview() {
           stampUrl: branding.stampUrl,
           showSignature: printShowSignature,
           showStamp: printShowStamp,
-          brandingLayout: branding.brandingLayout,
+          brandingLayout: effectiveBrandingLayout,
         },
       });
     } catch {
       return null;
     }
-  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp]);
+  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp, effectiveBrandingLayout]);
 
   const { resolvedTemplate, profile, setProfile } = usePrintTemplate<InvoicePrintData>(
     'invoice',

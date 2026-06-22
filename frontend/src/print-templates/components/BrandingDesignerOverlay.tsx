@@ -124,7 +124,14 @@ export default function BrandingDesignerOverlay({ designer, children }: Props) {
             continueDrag(e.clientX, e.clientY);
           }
         }}
-        onPointerUp={() => endDrag()}
+        onPointerUp={(e) => {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+          endDrag();
+        }}
+        onPointerCancel={(e) => {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+          endDrag();
+        }}
       >
         ✥
       </div>
