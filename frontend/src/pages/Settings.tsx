@@ -121,7 +121,7 @@ export default function Settings() {
       setValues(p => ({ ...p, 'print.signatureImage': dataUrl }));
       await saveBrandingKey('print.signatureImage', dataUrl);
       setBrandingMsg('تم حفظ التوقيع');
-    } catch { setBrandingError('فشل رفع التوقيع'); }
+    } catch (err) { setBrandingError(err instanceof Error ? err.message : 'فشل رفع التوقيع'); }
     finally { setBrandingSaving(false); e.target.value = ''; }
   }
 
@@ -137,7 +137,7 @@ export default function Settings() {
       setValues(p => ({ ...p, 'print.stampImage': dataUrl }));
       await saveBrandingKey('print.stampImage', dataUrl);
       setBrandingMsg('تم حفظ الختم');
-    } catch { setBrandingError('فشل رفع الختم'); }
+    } catch (err) { setBrandingError(err instanceof Error ? err.message : 'فشل رفع الختم'); }
     finally { setBrandingSaving(false); e.target.value = ''; }
   }
 
