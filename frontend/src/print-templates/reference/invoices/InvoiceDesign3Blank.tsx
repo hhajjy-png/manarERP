@@ -72,8 +72,20 @@ export default function InvoiceDesign3Blank({ data }: Props) {
   </div>
   <div className={styles.sign}>
     <div className={styles.s}><div className={styles.lbl}>المحاسبة</div><div className={styles.ln}>التوقيع</div></div>
-    <div className={styles.s}><div className={styles.lbl}>الختم الرسمي</div><div className={styles.ln}>&nbsp;</div></div>
-    <div className={styles.s}><div className={styles.lbl}>المسؤول / المعتمد</div><div className={styles.ln}>التوقيع</div></div>
+    <div className={styles.s}>
+      <div className={styles.lbl}>الختم الرسمي</div>
+      {data?.company?.showStamp !== false && data?.company?.stampUrl && (
+        <img src={data.company.stampUrl} alt="" style={{ maxHeight: '20mm', maxWidth: '32mm', objectFit: 'contain', display: 'block', margin: '1mm auto' }} />
+      )}
+      <div className={styles.ln}>&nbsp;</div>
+    </div>
+    <div className={styles.s}>
+      <div className={styles.lbl}>المسؤول / المعتمد</div>
+      {data?.company?.showSignature !== false && data?.company?.signatureUrl && (
+        <img src={data.company.signatureUrl} alt="" style={{ maxHeight: '20mm', maxWidth: '32mm', objectFit: 'contain', display: 'block', margin: '1mm auto' }} />
+      )}
+      <div className={styles.ln}>التوقيع</div>
+    </div>
   </div>
   <div className={styles.fbar}>هاتف 99333820 / 94404401 &nbsp;•&nbsp; واتساب 98777887 &nbsp;•&nbsp; Manar.int.co@gmail.com</div>
 </div>

@@ -56,6 +56,10 @@ export interface CompanyPrintData {
   email: string;
   addressAr: string;
   addressEn: string;
+  signatureUrl?: string;
+  stampUrl?: string;
+  showSignature?: boolean;
+  showStamp?: boolean;
 }
 
 // ─── Shared line item ─────────────────────────────────────────────────────────

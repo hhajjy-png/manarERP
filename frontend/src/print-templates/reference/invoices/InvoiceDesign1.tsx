@@ -101,7 +101,15 @@ export default function InvoiceDesign1({ data }: Props) {
   </table>
   <div className={styles.foot}>
     <div>المحاسبة : <span className={styles.ln}></span></div>
-    <div>المسؤول : <span className={styles.ln}></span></div>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      {data?.company?.showSignature !== false && data?.company?.signatureUrl && (
+        <img src={data.company.signatureUrl} alt="" style={{ maxHeight: '12mm', maxWidth: '30mm', objectFit: 'contain', display: 'block', margin: '0 auto 1mm' }} />
+      )}
+      {data?.company?.showStamp !== false && data?.company?.stampUrl && (
+        <img src={data.company.stampUrl} alt="" style={{ maxHeight: '12mm', maxWidth: '30mm', objectFit: 'contain', display: 'block', margin: '0 auto 1mm' }} />
+      )}
+      <span>المسؤول : <span className={styles.ln}></span></span>
+    </div>
   </div>
 </div></div>
     </>

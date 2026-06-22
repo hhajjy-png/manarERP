@@ -57,8 +57,8 @@ export function createCompanyPrintData(overrides?: Partial<CompanyPrintData>): C
   const result: CompanyPrintData = { ...ALMANAR_COMPANY };
   (Object.keys(overrides) as Array<keyof CompanyPrintData>).forEach((key) => {
     const value = overrides[key];
-    if (typeof value === 'string') {
-      (result as unknown as Record<string, string>)[key] = value;
+    if (typeof value === 'string' || typeof value === 'boolean') {
+      (result as unknown as Record<string, unknown>)[key] = value;
     }
   });
   return result;

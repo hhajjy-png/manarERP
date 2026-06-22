@@ -8,12 +8,17 @@ import { createCompanyPrintData } from '../adapters/companyData';
 export interface InvoiceBuildOptions {
   /**
    * Shallow overrides for company header data.
-   * Only truthy string values are applied; omitted keys use the Al-Manar defaults.
+   * Only truthy string/boolean values are applied; omitted keys use the Al-Manar defaults.
    *
    * @example
    * { email: 'accounting@manar.kw' }
    */
   company?: Partial<CompanyPrintData>;
+  /**
+   * Signature and stamp branding. Merged on top of company overrides.
+   * Pass from useCompanyBranding() hook.
+   */
+  branding?: Pick<CompanyPrintData, 'signatureUrl' | 'stampUrl' | 'showSignature' | 'showStamp'>;
 
   // ── Future hooks (not yet wired) ──────────────────────────────────────────
   // qrEnabled?: boolean;   — Phase 2: embed QR linking to online invoice view
@@ -42,10 +47,7 @@ export function buildInvoicePrintData(
   options?: InvoiceBuildOptions,
 ): InvoicePrintData {
   const base = adaptInvoice(invoice);
-
-  if (options?.company) {
-    return { ...base, company: createCompanyPrintData(options.company) };
-  }
-
-  return base;
+  const overrides: Partial<CompanyPrintData> = { ...(options?.company ?? {}), ...(options?.branding ?? {}) };
+  if (Object.keys(overrides).length === 0) return base;
+  return { ...base, company: createCompanyPrintData(overrides) };
 }
