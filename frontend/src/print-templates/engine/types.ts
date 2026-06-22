@@ -80,6 +80,7 @@ export interface CompanyPrintData {
   showSignature?: boolean;
   showStamp?: boolean;
   brandingLayout?: PrintBrandingLayoutSettings;
+  inkMode?: 'original' | 'blue-ink' | 'black';
 }
 
 // ─── Shared line item ─────────────────────────────────────────────────────────

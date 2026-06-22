@@ -158,6 +158,7 @@ export default function Quotation() {
         showSignature: printShowSignature,
         showStamp: printShowStamp,
         brandingLayout: effectiveLayout,
+        inkMode: designer.inkMode,
       }),
     };
   }, [
@@ -168,6 +169,7 @@ export default function Quotation() {
     printShowStamp,
     designer.isActive,
     designer.localLayout,
+    designer.inkMode,
     savedBrandingLayout,
     branding.brandingLayout,
   ]);
@@ -340,7 +342,12 @@ export default function Quotation() {
         )}
 
         {/* Engine template */}
-        <BrandingDesignerOverlay designer={designer}>
+        <BrandingDesignerOverlay
+          designer={designer}
+          signatureUrl={branding.signatureUrl}
+          stampUrl={branding.stampUrl}
+          docLabel="عرض السعر"
+        >
           <EngineComponent data={brandedPrintData ?? undefined} />
         </BrandingDesignerOverlay>
 

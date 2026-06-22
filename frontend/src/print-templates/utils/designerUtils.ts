@@ -1,7 +1,13 @@
-export type ZoomLevel = 50 | 75 | 100 | 150 | 200 | 'fit';
+export type ZoomLevel = 50 | 75 | 100 | 150 | 200 | 'fit-width' | 'fit-page' | 'fit';
 export const ZOOM_PRESETS = [50, 75, 100, 150, 200] as const;
 export const GRID_SIZES = [1, 2, 5, 10] as const;
 export type GridSizeOption = typeof GRID_SIZES[number];
+
+export const GRID_PRESETS = [
+  { value: 2 as GridSizeOption, label: 'ناعمة (2)' },
+  { value: 5 as GridSizeOption, label: 'متوسطة (5)' },
+  { value: 10 as GridSizeOption, label: 'خشنة (10)' },
+] as const;
 
 /** Snap value to nearest grid multiple. Returns original if disabled or gridSize ≤ 0. */
 export function snapToGrid(value: number, gridSize: number, enabled: boolean): number {

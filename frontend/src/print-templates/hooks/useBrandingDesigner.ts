@@ -18,6 +18,11 @@ import {
   type ZoomLevel,
   type GridSizeOption,
 } from '../utils/designerUtils';
+import {
+  type InkMode,
+  readStoredInkMode,
+  writeStoredInkMode,
+} from '../utils/inkFilter';
 
 export type ElementType = 'signature' | 'stamp';
 
@@ -69,6 +74,8 @@ export interface BrandingDesignerHandle {
   zoom: ZoomLevel;
   setZoom: (z: ZoomLevel) => void;
   effectiveZoom: number;
+  setFitWidthZoom: (z: number) => void;
+  setFitPageZoom: (z: number) => void;
 
   // Grid + Snap
   showGrid: boolean;
@@ -77,6 +84,10 @@ export interface BrandingDesignerHandle {
   setSnapEnabled: (v: boolean) => void;
   gridSize: GridSizeOption;
   setGridSize: (s: GridSizeOption) => void;
+
+  // Ink mode (persisted in localStorage; applies to sig/stamp images)
+  inkMode: InkMode;
+  setInkMode: (mode: InkMode) => void;
 
   // Save
   saving: boolean;
@@ -102,7 +113,6 @@ export function useBrandingDesigner({
     setLayoutState(next);
   }
 
-  // Sync when parent loads branding from API
   useEffect(() => {
     if (!initialLayout) return;
     layoutRef.current = initialLayout;
@@ -113,7 +123,7 @@ export function useBrandingDesigner({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialLayout]);
 
-  // ── History (mutable ref avoids stale closures during drag) ──
+  // ── History ──
   const histRef = useRef<{ entries: PrintBrandingLayoutSettings[]; cursor: number }>({
     entries: [effective],
     cursor: 0,
@@ -170,13 +180,27 @@ export function useBrandingDesigner({
 
   // ── Zoom ──
   const [zoom, setZoom] = useState<ZoomLevel>(100);
-  const [fitZoom] = useState(0.8);
-  const effectiveZoom = zoom === 'fit' ? fitZoom : zoom / 100;
+  const [fitWidthZoom, setFitWidthZoom] = useState(0.85);
+  const [fitPageZoom, setFitPageZoom] = useState(0.7);
+
+  const effectiveZoom = (() => {
+    if (zoom === 'fit-width' || zoom === 'fit') return fitWidthZoom;
+    if (zoom === 'fit-page') return fitPageZoom;
+    return (zoom as number) / 100;
+  })();
 
   // ── Grid + Snap ──
   const [showGrid, setShowGrid] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [gridSize, setGridSize] = useState<GridSizeOption>(5);
+
+  // ── Ink mode (persisted) ──
+  const [inkMode, setInkModeState] = useState<InkMode>(readStoredInkMode);
+
+  function setInkMode(mode: InkMode) {
+    setInkModeState(mode);
+    writeStoredInkMode(mode);
+  }
 
   // ── Drag ──
   const [isDragging, setIsDragging] = useState(false);
@@ -188,7 +212,6 @@ export function useBrandingDesigner({
     type: ElementType;
   } | null>(null);
 
-  // Snapshot of snap/zoom at drag start (avoids stale closure during move)
   const dragZoomRef = useRef<number>(1);
   const dragSnapRef = useRef<{ enabled: boolean; size: GridSizeOption }>({
     enabled: false,
@@ -214,7 +237,10 @@ export function useBrandingDesigner({
   function startDrag(type: ElementType, pointerX: number, pointerY: number) {
     const el = layoutRef.current[docType][type];
     dragStartRef.current = { px: pointerX, py: pointerY, ex: el.x, ey: el.y, type };
-    dragZoomRef.current = zoom === 'fit' ? fitZoom : (zoom as number) / 100;
+    // Snapshot effective zoom at drag start
+    if (zoom === 'fit-width' || zoom === 'fit') dragZoomRef.current = fitWidthZoom;
+    else if (zoom === 'fit-page') dragZoomRef.current = fitPageZoom;
+    else dragZoomRef.current = (zoom as number) / 100;
     dragSnapRef.current = { enabled: snapEnabled, size: gridSize };
     setIsDragging(true);
     setSelected(type);
@@ -228,7 +254,6 @@ export function useBrandingDesigner({
     const newX = snapToGrid(ds.ex + (pointerX - ds.px) / zm, snap.size, snap.enabled);
     const newY = snapToGrid(ds.ey + (pointerY - ds.py) / zm, snap.size, snap.enabled);
     const next = patchDoc(ds.type, { x: newX, y: newY });
-    // Update ref immediately for smooth dragging; state follows on React cycle
     layoutRef.current = next;
     setLayoutState(next);
   }
@@ -310,12 +335,16 @@ export function useBrandingDesigner({
     zoom,
     setZoom,
     effectiveZoom,
+    setFitWidthZoom,
+    setFitPageZoom,
     showGrid,
     setShowGrid,
     snapEnabled,
     setSnapEnabled,
     gridSize,
     setGridSize,
+    inkMode,
+    setInkMode,
     saving,
     saveError,
     save,
