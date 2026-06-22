@@ -200,11 +200,11 @@
   font-weight: 700;
   padding: 4px 6px;
   text-align: center;
-  border: 1px solid #30246C;
+  border: 1px solid var(--designer-table-border, #30246C);
   font-size: 10px;
 }
 .qTable tbody td {
-  border: 1px solid #d9d9e2;
+  border: 1px solid var(--designer-table-border, #d9d9e2);
   padding: 4px 6px;
   text-align: center;
   vertical-align: middle;
@@ -337,7 +337,7 @@
 .tpl1 .qTable thead th {
   background: #ece9f4;
   color: #30246C;
-  border-color: #b9b9c6;
+  border-color: var(--designer-table-border, #b9b9c6);
 }
 
 /* ── Theme 2: تنفيذي فاخر ────────────────────────────────── */
@@ -393,9 +393,9 @@
   background: #fff;
   color: #30246C;
   border: none;
-  border-bottom: 2px solid #30246C;
+  border-bottom: 2px solid var(--designer-table-border, #30246C);
 }
-.tpl3 .qTable tbody td { border: none; border-bottom: 1px solid #d9d9e2; }
+.tpl3 .qTable tbody td { border: none; border-bottom: 1px solid var(--designer-table-border, #d9d9e2); }
 .tpl3 .qTotals { border: none; }
 .tpl3 .row { border-bottom: 1px solid #d9d9e2; }
 .tpl3 .rowGrand {
@@ -431,5 +431,5 @@
 .tpl5 .qTable tbody td { padding: 8px 6px; }
 .tpl5 .qTable tbody .desc { font-weight: 500; }
 .tpl5 .qTable tbody tr:nth-child(even) td { background: #f5f4fa; }
-.tpl5 .qTable tfoot td { border: 1px solid #30246C; }
+.tpl5 .qTable tfoot td { border: 1px solid var(--designer-table-border, #30246C); }
 .tpl5 .rowGrand { font-size: 13px; }

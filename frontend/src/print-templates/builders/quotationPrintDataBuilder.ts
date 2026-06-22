@@ -15,7 +15,7 @@ export interface QuotationBuildOptions {
    * Signature and stamp branding. Merged on top of company overrides.
    * Pass from useCompanyBranding() hook.
    */
-  branding?: Pick<CompanyPrintData, 'signatureUrl' | 'stampUrl' | 'showSignature' | 'showStamp' | 'brandingLayout' | 'inkMode'>;
+  branding?: Pick<CompanyPrintData, 'signatureUrl' | 'stampUrl' | 'showSignature' | 'showStamp' | 'brandingLayout' | 'inkMode' | 'textStyleOverrides'>;
 
   // ── Future hooks ──────────────────────────────────────────────────────────
   // qrEnabled?: boolean;      — Phase 2: embed QR for online quotation view

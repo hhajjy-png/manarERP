@@ -1,10 +1,17 @@
 import type { QuotationPrintData } from '../../engine/types';
+import type { QuotationTextAreas } from '../../engine/textStyleTypes';
 import { formatKWD } from '../../utils/formatKWD';
 import { sanitizePrintText } from '../../utils/sanitizePrintText';
 import styles from './QuotationShared.module.css';
 import logoSrc from '../assets/almanar-logo.png';
 import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../../utils/brandingLayout';
 import { getInkFilterStyle } from '../../utils/inkFilter';
+import {
+  applyTextElementStyle,
+  applyTableHeaderStyle,
+  applyTableBorderStyle,
+  getTextAreasForDocument,
+} from '../../utils/textStyleOverrides';
 
 const SAMPLE: QuotationPrintData = {
   company: {
@@ -82,6 +89,7 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
   const sub = d.subtotal ?? d.lineItems.reduce((acc, item) => acc + item.total, 0);
   const disc = d.discount ?? 0;
   const brandingLayout = getBrandingLayoutForDocument(d.company?.brandingLayout, 'quotation');
+  const textAreas = getTextAreasForDocument(d.company?.textStyleOverrides, 'quotation') as QuotationTextAreas;
 
   const pageClass = [
     styles.page,
@@ -158,11 +166,11 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
       <main className={styles.qbody}>
         {/* ── Q-Head ── */}
         <div className={styles.qHead}>
-          <div className={styles.qTitle}>
-            <h1>عرض سعر</h1>
+          <div className={styles.qTitle} data-designer-type="text" data-designer-id="quotation.title">
+            <h1 style={applyTextElementStyle(textAreas.title, 'title')}>عرض سعر</h1>
             <div className={styles.subtitle}>Price Quotation</div>
           </div>
-          <div className={styles.qMeta}>
+          <div className={styles.qMeta} data-designer-type="text" data-designer-id="quotation.metadataLabels">
             <div className={styles.qMetaRow}>
               <span className={styles.lbl}>رقم العرض</span>
               <span className={styles.val}>{d.quotationNumber}</span>
@@ -179,7 +187,7 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
         </div>
 
         {/* ── Q-Info ── */}
-        <section className={styles.qInfo}>
+        <section className={styles.qInfo} data-designer-type="text" data-designer-id="quotation.customerBlock" style={applyTextElementStyle(textAreas.customerBlock)}>
           <div className={styles.qInfoCell}>
             <span className={styles.lbl}>العميل</span>
             <span className={styles.val}>{sanitizePrintText(d.customerName)}</span>
@@ -203,33 +211,47 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
         </section>
 
         {/* ── Intro ── */}
-        {d.introText && <p className={styles.qIntro}>{sanitizePrintText(d.introText)}</p>}
+        {d.introText && (
+          <p
+            className={styles.qIntro}
+            data-designer-type="text"
+            data-designer-id="quotation.introText"
+            style={applyTextElementStyle(textAreas.introText)}
+          >
+            {sanitizePrintText(d.introText)}
+          </p>
+        )}
 
         {/* ── Items Table ── */}
-        <table className={styles.qTable}>
-          <thead>
+        <table
+          className={styles.qTable}
+          data-designer-type="text"
+          data-designer-id="quotation.tableBorder"
+          style={applyTableBorderStyle(textAreas.tableBorder) as React.CSSProperties}
+        >
+          <thead data-designer-type="text" data-designer-id="quotation.tableHeader">
             <tr>
-              <th className={styles.cNo}>#</th>
-              <th>الوصف</th>
-              <th className={styles.cUnit}>الوحدة</th>
-              <th className={styles.cQty}>الكمية</th>
-              <th className={styles.cPrice}>سعر الوحدة (د.ك)</th>
-              <th className={styles.cTotal}>الإجمالي (د.ك)</th>
+              <th className={styles.cNo} style={applyTableHeaderStyle(textAreas.tableHeader)}>#</th>
+              <th style={applyTableHeaderStyle(textAreas.tableHeader)}>الوصف</th>
+              <th className={styles.cUnit} style={applyTableHeaderStyle(textAreas.tableHeader)}>الوحدة</th>
+              <th className={styles.cQty} style={applyTableHeaderStyle(textAreas.tableHeader)}>الكمية</th>
+              <th className={styles.cPrice} style={applyTableHeaderStyle(textAreas.tableHeader)}>سعر الوحدة (د.ك)</th>
+              <th className={styles.cTotal} style={applyTableHeaderStyle(textAreas.tableHeader)}>الإجمالي (د.ك)</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody data-designer-type="text" data-designer-id="quotation.lineItem">
             {d.lineItems.map((item) => (
               <tr key={item.number}>
-                <td>
+                <td style={applyTextElementStyle(textAreas.lineItem)}>
                   {showChips
                     ? <span className={styles.chip}>{item.number}</span>
                     : item.number}
                 </td>
-                <td className={styles.desc}>{item.descriptionAr}</td>
-                <td>{item.unit}</td>
-                <td className={styles.num}>{item.quantity.toLocaleString('en-US')}</td>
-                <td className={styles.num}>{formatKWD(item.unitPrice)}</td>
-                <td className={styles.num}>{formatKWD(item.total)}</td>
+                <td className={styles.desc} style={applyTextElementStyle(textAreas.lineItem)}>{item.descriptionAr}</td>
+                <td style={applyTextElementStyle(textAreas.lineItem)}>{item.unit}</td>
+                <td className={styles.num} style={applyTextElementStyle(textAreas.lineItem)}>{item.quantity.toLocaleString('en-US')}</td>
+                <td className={styles.num} style={applyTextElementStyle(textAreas.lineItem)}>{formatKWD(item.unitPrice)}</td>
+                <td className={styles.num} style={applyTextElementStyle(textAreas.lineItem)}>{formatKWD(item.total)}</td>
               </tr>
             ))}
           </tbody>
@@ -237,10 +259,15 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
 
         {/* ── Summary: terms + totals ── */}
         <section className={styles.qSummary}>
-          <div className={styles.qTerms}>
+          <div
+            className={styles.qTerms}
+            data-designer-type="text"
+            data-designer-id="quotation.terms"
+            style={applyTextElementStyle(textAreas.terms)}
+          >
             {d.terms && d.terms.length > 0 && (
               <>
-                <h3>الشروط والأحكام</h3>
+                <h3 data-designer-type="text" data-designer-id="quotation.sectionTitle" style={applyTextElementStyle(textAreas.sectionTitle, 'title')}>الشروط والأحكام</h3>
                 <ul>
                   {d.terms.map((term, i) => <li key={i}>{term}</li>)}
                 </ul>
@@ -248,12 +275,17 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
             )}
             {d.notes && (
               <>
-                <h3>الملاحظات</h3>
+                <h3 data-designer-type="text" data-designer-id="quotation.sectionTitle" style={applyTextElementStyle(textAreas.sectionTitle, 'title')}>الملاحظات</h3>
                 <ul><li>{sanitizePrintText(d.notes)}</li></ul>
               </>
             )}
           </div>
-          <div className={styles.qTotals}>
+          <div
+            className={styles.qTotals}
+            data-designer-type="text"
+            data-designer-id="quotation.totals"
+            style={applyTextElementStyle(textAreas.totals)}
+          >
             <div className={styles.row}>
               <span>المجموع الفرعي</span>
               <span>{formatKWD(sub)} د.ك</span>
@@ -278,6 +310,8 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
                 src={d.company.signatureUrl}
                 alt=""
                 data-bd-type="signature"
+                data-designer-type="branding"
+                data-designer-id="signature"
                 style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '0 auto 2mm', ...applyBrandingElementStyle(brandingLayout.signature), ...getInkFilterStyle(d.company.inkMode) }}
               />
             )}
@@ -288,6 +322,8 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
                 src={d.company.stampUrl}
                 alt=""
                 data-bd-type="stamp"
+                data-designer-type="branding"
+                data-designer-id="stamp"
                 style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '4mm auto 0', ...applyBrandingElementStyle(brandingLayout.stamp), ...getInkFilterStyle(d.company.inkMode) }}
               />
             ) : (

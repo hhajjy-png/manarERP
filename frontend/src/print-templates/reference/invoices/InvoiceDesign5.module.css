@@ -22,8 +22,8 @@
 .meta .c b { color:#30246C; font-weight:800; }
 .meta .full { flex:2; }
 .page table { width:100%; border-collapse:collapse; direction:rtl; margin-top:4mm; }
-.page thead th { border:1.2px solid #30246C; color:#30246C; font-weight:800; font-size:9.5pt; padding:2.4mm 1mm; text-align:center; background:#f2f1f9; }
-.page tbody td { border:1px solid #30246C; padding:2.6mm 2mm; font-size:9.5pt; text-align:center; height:7.6mm; color:#000; }
+.page thead th { border:1.2px solid var(--designer-table-border, #30246C); color:#30246C; font-weight:800; font-size:9.5pt; padding:2.4mm 1mm; text-align:center; background:#f2f1f9; }
+.page tbody td { border:1px solid var(--designer-table-border, #30246C); padding:2.6mm 2mm; font-size:9.5pt; text-align:center; height:7.6mm; color:#000; }
 .page tbody td.ds { text-align:right; padding-right:4mm; }
 .page tbody .e td { height:7.6mm; }
 .ds { width:46%; } .t { font-weight:800; color:#30246C; }

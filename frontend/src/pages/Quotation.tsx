@@ -22,6 +22,7 @@ import { createCompanyPrintData } from '../print-templates/adapters/companyData'
 import { buildQuotationPdfName } from '../utils/pdfFilename';
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import { useBrandingDesigner } from '../print-templates/hooks/useBrandingDesigner';
+import { useTextStyleDesigner } from '../print-templates/designer/useTextStyleDesigner';
 import BrandingDesignerOverlay from '../print-templates/components/BrandingDesignerOverlay';
 import BrandingDesignerPanel from '../print-templates/components/BrandingDesignerPanel';
 
@@ -95,6 +96,10 @@ export default function Quotation() {
     onSaved: (layout) => setSavedBrandingLayout(layout),
   });
 
+  const textDesigner = useTextStyleDesigner({
+    initialSettings: branding.textStyleOverrides,
+  });
+
   const [pdfExporting, setPdfExporting] = useState(false);
   const [pdfMsg, setPdfMsg] = useState('');
   const [pdfError, setPdfError] = useState('');
@@ -159,6 +164,7 @@ export default function Quotation() {
         showStamp: printShowStamp,
         brandingLayout: effectiveLayout,
         inkMode: designer.inkMode,
+        textStyleOverrides: textDesigner.settings,
       }),
     };
   }, [
@@ -172,6 +178,7 @@ export default function Quotation() {
     designer.inkMode,
     savedBrandingLayout,
     branding.brandingLayout,
+    textDesigner.settings,
   ]);
 
   const { resolvedTemplate, profile: tplProfile, setProfile: setTplProfile } =
@@ -344,6 +351,7 @@ export default function Quotation() {
         {/* Engine template */}
         <BrandingDesignerOverlay
           designer={designer}
+          textStyleDesigner={textDesigner}
           signatureUrl={branding.signatureUrl}
           stampUrl={branding.stampUrl}
           docLabel="عرض السعر"
@@ -354,8 +362,12 @@ export default function Quotation() {
         {designer.isActive && (
           <BrandingDesignerPanel
             designer={designer}
+            textStyleDesigner={textDesigner}
             docLabel="عرض السعر"
             onClose={designer.deactivate}
+            onSave={async () => {
+              await Promise.all([designer.save(), textDesigner.save()]);
+            }}
           />
         )}
       </div>

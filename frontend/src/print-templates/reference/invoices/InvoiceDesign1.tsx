@@ -3,12 +3,20 @@ import styles from './InvoiceDesign1.module.css';
 import type { InvoicePrintData } from '../../engine/types';
 import { splitKWD } from '../../utils/formatKWD';
 import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../../utils/brandingLayout';
+import type { InvoiceTextAreas } from '../../engine/textStyleTypes';
+import {
+  applyTextElementStyle,
+  applyTableHeaderStyle,
+  applyTableBorderStyle,
+  getTextAreasForDocument,
+} from '../../utils/textStyleOverrides';
 
 interface Props { data?: InvoicePrintData; }
 
 export default function InvoiceDesign1({ data }: Props) {
   const fillerCount = data ? Math.max(0, 15 - data.lineItems.length) : 20;
   const brandingLayout = getBrandingLayoutForDocument(data?.company?.brandingLayout, 'invoice');
+  const textAreas = getTextAreasForDocument(data?.company?.textStyleOverrides, 'invoice') as InvoiceTextAreas;
 
   return (
     <>
@@ -37,8 +45,8 @@ export default function InvoiceDesign1({ data }: Props) {
       </div>
     </div>
   </div>
-  <div className={styles.title}><div className={styles.a}>فاتورة نقداً / بالحساب</div><div className={styles.b}>Cash / Credit Invoice</div></div>
-  <div className={styles.meta}>
+  <div className={styles.title} data-designer-type="text" data-designer-id="invoice.title" style={applyTextElementStyle(textAreas.title, 'title')}><div className={styles.a}>فاتورة نقداً / بالحساب</div><div className={styles.b}>Cash / Credit Invoice</div></div>
+  <div className={styles.meta} data-designer-type="text" data-designer-id="invoice.customerBlock">
     <div className={styles['m-date']}>
       التاريخ : {data ? data.date : <>&nbsp;&nbsp;/&nbsp;&nbsp;/&nbsp; 20&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</>}
     </div>
@@ -50,31 +58,31 @@ export default function InvoiceDesign1({ data }: Props) {
       }
     </div>
   </div>
-  <table>
-    <thead>
+  <table data-designer-type="text" data-designer-id="invoice.tableBorder" style={applyTableBorderStyle(textAreas.tableBorder) as React.CSSProperties}>
+    <thead data-designer-type="text" data-designer-id="invoice.tableHeader">
       <tr>
-        <th className={styles['c-desc']} rowSpan={2}><div className={styles.deschead}>ملاحظات</div><div className={styles.descsub}>Description</div></th>
-        <th className={styles['c-qty']} rowSpan={2}><div className={styles.grp}>الكمية</div><div className={styles.sub}>طن / درب</div></th>
-        <th colSpan={2}><div className={styles.grp}>سعر الوحدة</div><div className={styles.sub}>Unit Price</div></th>
-        <th colSpan={2}><div className={styles.grp}>القيمة</div><div className={styles.sub}>Total Price</div></th>
+        <th className={styles['c-desc']} rowSpan={2} style={applyTableHeaderStyle(textAreas.tableHeader)}><div className={styles.deschead}>ملاحظات</div><div className={styles.descsub}>Description</div></th>
+        <th className={styles['c-qty']} rowSpan={2} style={applyTableHeaderStyle(textAreas.tableHeader)}><div className={styles.grp}>الكمية</div><div className={styles.sub}>طن / درب</div></th>
+        <th colSpan={2} style={applyTableHeaderStyle(textAreas.tableHeader)}><div className={styles.grp}>سعر الوحدة</div><div className={styles.sub}>Unit Price</div></th>
+        <th colSpan={2} style={applyTableHeaderStyle(textAreas.tableHeader)}><div className={styles.grp}>القيمة</div><div className={styles.sub}>Total Price</div></th>
       </tr>
       <tr>
-        <th className={styles.sub}>دينار K.D</th><th className={styles.sub}>فلس Fils</th>
-        <th className={styles.sub}>دينار K.D</th><th className={styles.sub}>فلس Fils</th>
+        <th className={styles.sub} style={applyTableHeaderStyle(textAreas.tableHeader)}>دينار K.D</th><th className={styles.sub} style={applyTableHeaderStyle(textAreas.tableHeader)}>فلس Fils</th>
+        <th className={styles.sub} style={applyTableHeaderStyle(textAreas.tableHeader)}>دينار K.D</th><th className={styles.sub} style={applyTableHeaderStyle(textAreas.tableHeader)}>فلس Fils</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody data-designer-type="text" data-designer-id="invoice.lineItem">
       {data && data.lineItems.map((item, i) => {
         const up = splitKWD(item.unitPrice);
         const tot = splitKWD(item.total);
         return (
           <tr key={i}>
-            <td className={styles['c-desc']}>{item.descriptionAr}</td>
-            <td className={styles['c-qty']}>{item.quantity}</td>
-            <td className={styles['c-d']}>{up.dinars}</td>
-            <td className={styles['c-f']}>{up.filsPadded}</td>
-            <td className={styles['c-d']}>{tot.dinars}</td>
-            <td className={styles['c-f']}>{tot.filsPadded}</td>
+            <td className={styles['c-desc']} style={applyTextElementStyle(textAreas.lineItem)}>{item.descriptionAr}</td>
+            <td className={styles['c-qty']} style={applyTextElementStyle(textAreas.lineItem)}>{item.quantity}</td>
+            <td className={styles['c-d']} style={applyTextElementStyle(textAreas.lineItem)}>{up.dinars}</td>
+            <td className={styles['c-f']} style={applyTextElementStyle(textAreas.lineItem)}>{up.filsPadded}</td>
+            <td className={styles['c-d']} style={applyTextElementStyle(textAreas.lineItem)}>{tot.dinars}</td>
+            <td className={styles['c-f']} style={applyTextElementStyle(textAreas.lineItem)}>{tot.filsPadded}</td>
           </tr>
         );
       })}
@@ -86,8 +94,8 @@ export default function InvoiceDesign1({ data }: Props) {
         </tr>
       ))}
     </tbody>
-    <tfoot>
-      <tr className={styles.totrow}><td colSpan={6}><div style={{"display": "flex", "justifyContent": "space-between", "direction": "rtl", "alignItems": "center"}}>
+    <tfoot data-designer-type="text" data-designer-id="invoice.totals">
+      <tr className={styles.totrow}><td colSpan={6} style={applyTextElementStyle(textAreas.totals)}><div style={{"display": "flex", "justifyContent": "space-between", "direction": "rtl", "alignItems": "center"}}>
         <span>
           {data
             ? <>القيمة الإجمالية مبلغ وقدره {data.totalInWords}</>
@@ -105,10 +113,10 @@ export default function InvoiceDesign1({ data }: Props) {
     <div>المحاسبة : <span className={styles.ln}></span></div>
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {data?.company?.showSignature !== false && data?.company?.signatureUrl && (
-        <img src={data.company.signatureUrl} alt="" style={{ maxHeight: '12mm', maxWidth: '30mm', objectFit: 'contain', display: 'block', margin: '0 auto 1mm', ...applyBrandingElementStyle(brandingLayout.signature) }} />
+        <img src={data.company.signatureUrl} alt="" data-designer-type="branding" data-designer-id="signature" data-bd-type="signature" style={{ maxHeight: '12mm', maxWidth: '30mm', objectFit: 'contain', display: 'block', margin: '0 auto 1mm', ...applyBrandingElementStyle(brandingLayout.signature) }} />
       )}
       {data?.company?.showStamp !== false && data?.company?.stampUrl && (
-        <img src={data.company.stampUrl} alt="" style={{ maxHeight: '12mm', maxWidth: '30mm', objectFit: 'contain', display: 'block', margin: '0 auto 1mm', ...applyBrandingElementStyle(brandingLayout.stamp) }} />
+        <img src={data.company.stampUrl} alt="" data-designer-type="branding" data-designer-id="stamp" data-bd-type="stamp" style={{ maxHeight: '12mm', maxWidth: '30mm', objectFit: 'contain', display: 'block', margin: '0 auto 1mm', ...applyBrandingElementStyle(brandingLayout.stamp) }} />
       )}
       <span>المسؤول : <span className={styles.ln}></span></span>
     </div>

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api, errorMessage } from '../../api/client';
 import type { PrintBrandingLayoutSettings } from '../engine/types';
+import type { PrintTextStyleSettings } from '../engine/textStyleTypes';
 import { parseBrandingLayout } from '../utils/brandingLayout';
+import { parseTextStyleSettings } from '../utils/textStyleOverrides';
 
 export interface CompanyBranding {
   signatureUrl: string | undefined;
@@ -9,6 +11,7 @@ export interface CompanyBranding {
   showSignature: boolean;
   showStamp: boolean;
   brandingLayout: PrintBrandingLayoutSettings | undefined;
+  textStyleOverrides: PrintTextStyleSettings | undefined;
   loading: boolean;
   error: string | undefined;
 }
@@ -20,6 +23,7 @@ export function useCompanyBranding(): CompanyBranding {
     showSignature: true,
     showStamp: true,
     brandingLayout: undefined,
+    textStyleOverrides: undefined,
     loading: true,
     error: undefined,
   });
@@ -52,12 +56,18 @@ export function useCompanyBranding(): CompanyBranding {
         const layoutRaw = find('print.brandingLayout');
         const brandingLayout = layoutRaw ? parseBrandingLayout(layoutRaw) : undefined;
 
+        const textStyleRaw = find('print.textStyleOverrides');
+        const textStyleOverrides = textStyleRaw
+          ? parseTextStyleSettings(textStyleRaw)
+          : undefined;
+
         setBranding({
           signatureUrl: parseImage('print.signatureImage'),
           stampUrl: parseImage('print.stampImage'),
           showSignature: parseBool('print.showSignature'),
           showStamp: parseBool('print.showStamp'),
           brandingLayout,
+          textStyleOverrides,
           loading: false,
           error: undefined,
         });

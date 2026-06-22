@@ -22,7 +22,7 @@
 .mrow span { color:#000; }
 .page table { width:100%; margin-top:6mm; border-collapse:collapse; direction:rtl; }
 .page thead th { background:#30246C; color:#fff; font-weight:700; font-size:9pt; padding:2.6mm 2mm; text-align:center; }
-.page tbody td { border-bottom:1px solid #cdccdf; padding:2.8mm 2mm; font-size:9.5pt; text-align:center; color:#000; }
+.page tbody td { border-bottom:1px solid var(--designer-table-border, #cdccdf); padding:2.8mm 2mm; font-size:9.5pt; text-align:center; color:#000; }
 .page tbody td.ds { text-align:right; padding-right:4mm; }
 .page tbody tr:nth-child(even) td { background:#f5f4fb; }
 .n { width:7%; } .ds { width:43%; } .u { width:11%; } .q { width:11%; } .pr { width:14%; } .t { width:14%; font-weight:800; color:#30246C; }
