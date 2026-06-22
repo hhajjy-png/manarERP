@@ -10,8 +10,8 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `1b547ee` — Merge Print & Document Suite Phase 4 into production |
-| **Latest stable tag** | `stable-print-document-suite-phase4-v1` |
+| **HEAD** | `88ba3dc` — Merge Print Designer Phase 5A Inline WYSIWYG Branding Designer into production |
+| **Latest stable tag** | `stable-print-designer-phase5a-v1` |
 | **Remote sync** | `origin/production` — up to date |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -27,6 +27,7 @@
 
 | Feature | Stable Tag | Summary |
 |---------|-----------|---------|
+| **Print Designer — Phase 5A (Inline WYSIWYG Branding Designer)** | `stable-print-designer-phase5a-v1` | In-document WYSIWYG designer mode directly inside `InvoicePreview.tsx` (legacy view) and `Quotation.tsx` (engine mode). "🔧 وضع التصميم" toolbar button activates a live editing session on the real rendered document with real data and real images. Shared designer engine: `useBrandingDesigner` hook (layout ref + history ref + drag ref + zoom/grid/snap/save), `BrandingDesignerOverlay` (rulers, SVG grid, `getBoundingClientRect` drag handles via `[data-bd-type]` query), `BrandingDesignerPanel` (floating RTL panel — X/Y/scale/opacity/zIndex sliders, alignment, undo/redo, reset, save). Pure-function utilities in `designerUtils.ts` (snapToGrid, formatUnit, keyboardMove, historyPush/Undo/Redo — max 30 entries). Keyboard: arrow keys (1 unit), Shift+arrow (10 units), Ctrl+Z/Ctrl+Shift+Z undo/redo. Zoom 50/75/100/150/200/Fit. Snap-to-grid. `data-bd-type="signature/stamp"` added to `QuotationBase.tsx` (covers all 10 quotation designs). Post-save layout sync via `onSaved` callback + `savedBrandingLayout` state (no page refresh). `printData` useMemo in InvoicePreview uses `effectiveBrandingLayout`. `onPointerCancel` + `releasePointerCapture` on drag handles for safe gesture termination. 25 new unit tests (`designerUtils.test.ts`). No schema changes, no migrations, no backend routes, no IPC, no new dependencies. Phases 1–4 fully preserved. Designer UI carries `.no-print` class — does not appear in print/PDF output. |
 | **Print & Document Suite — Phase 4** | `stable-print-document-suite-phase4-v1` | Visual Signature & Stamp Position Designer. `BrandingLayoutDesigner` modal with live preview, drag-and-drop, per-element sliders (X/Y offset ±80/60 px, scale 0.4–2.5, opacity 0.2–1, z-index). Per-document-type independence (invoice vs quotation stored separately). Applied to all 10 invoice templates + `QuotationBase.tsx` + legacy `InvoicePreview`. Stored in `print.brandingLayout` Settings key via existing `PUT /settings`. Fail-safe JSON parse with `DEFAULT_BRANDING_LAYOUT` fallback. 16 new unit tests (`brandingLayout.test.ts`). No schema changes, no migrations, no new IPC, no new dependencies. Phase 1/2/3 compatibility fully preserved. |
 | **Executive Decision Center — Phase 1** | `stable-executive-decision-center-phase1-v1` | مركز القرار التنفيذي — 7 integrated features: Financial Summary (8 KPI cards, top debtors, this/last month comparison), Decision Cards (8 intelligent insight cards by priority), Executive Alerts V3 (9 alert types, HIGH/MEDIUM/LOW, deduplicated, sorted), KPI Timeline (1m/3m/6m/12m Recharts area charts), Company Health Score (0–100, 6 weighted components, EXCELLENT/GOOD/WATCH/RISK), Executive Recommendations V2 (rule-based, max 10), PDF export via existing `printToPDF` Electron IPC. New `/api/executive` module reusing `dashboard.read` permission. 30 new Vitest tests. No schema changes, no migrations, no new packages. |
 | **Print & Document Suite — Phase 3** | `stable-print-document-suite-phase3-v1` | Native PDF export via Electron `webContents.printToPDF`. New `pdf:export` IPC channel. `⬇️ PDF` button in InvoicePreview toolbar (both modes) and Quotation engine toolbar. `pdfFilename.ts` utility with Windows-safe sanitization. 10 new tests. No migration, no backend, no schema changes. |
@@ -97,8 +98,8 @@
 | Page | Status |
 |------|--------|
 | `Dashboard.tsx` | Complete — Executive Intelligence V2, Financial Intel, KPI cards, charts |
-| `Invoices.tsx` / `InvoicePreview.tsx` | Complete — InvoicePreview: engine + legacy + per-print branding + PDF export |
-| `Quotation.tsx` | Complete — legacy form mode + engine template mode + per-print branding + PDF export (engine) |
+| `Invoices.tsx` / `InvoicePreview.tsx` | Complete — InvoicePreview: engine + legacy + per-print branding + PDF export + **Phase 5A inline designer mode** |
+| `Quotation.tsx` | Complete — legacy form mode + engine template mode + per-print branding + PDF export (engine) + **Phase 5A inline designer mode (engine)** |
 | `Salaries.tsx` / `PayrollPayslip.tsx` | Complete |
 | `Accounting.tsx` | Complete |
 | `Reports.tsx` / `ReportPrint.tsx` | Complete |
@@ -133,7 +134,9 @@ frontend/src/print-templates/
 ├── integration/     # invoicePreviewIntegration, quotationPreviewIntegration
 ├── service/         # printTemplateService
 ├── storage/         # printProfileStorage (localStorage)
-├── utils/           # brandingHelpers, brandingLayout, formatKWD, tafqeet, sanitizePrintText, formatDate
+├── utils/           # brandingHelpers, brandingLayout, designerUtils, formatKWD, tafqeet, sanitizePrintText, formatDate
+├── hooks/           # usePrintTemplate, useCompanyBranding, useBrandingDesigner
+├── components/      # PrintTemplateSelector, BrandingLayoutDesigner, BrandingDesignerOverlay, BrandingDesignerPanel
 └── reference/       # 30 React template components
     ├── invoices/    # InvoiceDesign1–5 + Blank variants (10 files)
     ├── quotations/  # QuotationBase + QuotationDesign1–5 + Blank variants (11 files)
@@ -176,6 +179,29 @@ Session state seeded once from `useCompanyBranding` (via `printOptionsInitialize
 - `Quotation.tsx` — affects engine mode only (`brandedPrintData` useMemo)
 
 **`brandingHelpers.ts`** — `mergeEffectiveBranding()`, `shouldShowSignature()`, `shouldShowStamp()`
+
+### Print Designer — Phase 5A (Inline WYSIWYG Branding Designer)
+
+**UX flow:** Open invoice/quotation → click "🔧 وضع التصميم" → real document becomes editable → drag signature/stamp directly → save. No Settings modal required for primary editing.
+
+**Shared designer engine (new files):**
+- `utils/designerUtils.ts` — 6 pure helpers: `snapToGrid`, `formatUnit`, `keyboardMove`, `historyPush`, `historyUndo`, `historyRedo`
+- `hooks/useBrandingDesigner.ts` — all designer state: `localLayout` (with `layoutRef` mirror for synchronous drag reads), history via `histRef` (max 30 entries), drag via `dragStartRef`, zoom (50/75/100/150/200/Fit), grid, snap, save
+- `components/BrandingDesignerOverlay.tsx` — wraps document; adds H+V rulers (tick every 50 scaled px), SVG grid overlay, drag handles positioned via `getBoundingClientRect` on `[data-bd-type]` elements; keyboard listener (Arrow, Shift+Arrow, Ctrl+Z/Ctrl+Shift+Z); `onPointerCancel` + `releasePointerCapture` for safe gesture termination
+- `components/BrandingDesignerPanel.tsx` — floating RTL properties panel; X/Y/scale/opacity/zIndex controls, center H/V alignment, bring forward/backward, reset element/doc, zoom selector, grid/snap checkboxes, undo/redo buttons, keyboard hint, save/cancel
+
+**Page integration:**
+- `InvoicePreview.tsx` — designer in legacy view mode; `effectiveBrandingLayout` drives both sig/stamp rendering and `printData` useMemo; `data-bd-type` attrs on imgs when designer active
+- `Quotation.tsx` — designer in engine mode; `brandedPrintData` memo uses `effectiveBrandingLayout`
+- `QuotationBase.tsx` — `data-bd-type="signature"` and `data-bd-type="stamp"` on branding imgs (2-line change covers all 10 quotation designs)
+
+**Storage:** Same `print.brandingLayout` key and JSON shape as Phase 4. Save calls `PUT /settings`. Zoom/grid/snap are local-only (not persisted).
+
+**No migration. No backend changes. No new IPC. No new npm packages.**
+
+**25 new unit tests** (`designerUtils.test.ts`) covering all 6 pure functions. Total frontend tests: **287** (17 files).
+
+---
 
 ### Print & Document Suite — Phase 4 (Visual Signature & Stamp Position Designer)
 
@@ -284,7 +310,7 @@ Clamp bounds: x ±80 px, y ±60 px, scale 0.4–2.5, opacity 0.2–1, zIndex 1|2
 | Layer | Files | Tests | Status |
 |-------|-------|-------|--------|
 | Backend (Vitest) | 29 | 526 | All passing |
-| Frontend (Vitest) | 16 | 262 | All passing |
+| Frontend (Vitest) | 17 | 287 | All passing |
 
 ### Frontend test files (`frontend/src/__tests__/`)
 
@@ -296,6 +322,7 @@ recentLocations.test.ts
 pdfFilename.test.ts              # Phase 3 — 10 tests
 printTemplates/
   brandingLayout.test.ts         # Phase 4 — 16 tests: parseBrandingLayout, clamp, serialize/roundtrip, getForDoc, applyStyle
+  designerUtils.test.ts          # Phase 5A — 25 tests: snapToGrid, formatUnit, keyboardMove, historyPush/Undo/Redo
   builders.test.ts               # builder branding passthrough (9 tests)
   companyBranding.test.ts        # createCompanyPrintData boolean fields (6 tests)
   formatKWD.test.ts
@@ -316,7 +343,7 @@ backend/src/modules/executive/__tests__/executive.service.test.ts   # 30 tests
   — kpiTimeline(): point count, field presence, profit formula, non-negative outstanding
 ```
 
-### TypeScript validation (last clean run — post Print & Document Suite Phase 4 merge)
+### TypeScript validation (last clean run — post Print Designer Phase 5A merge)
 
 ```
 cd backend && npx tsc --noEmit        ✅ 0 errors
@@ -451,4 +478,4 @@ After 2026-06-13 full operational reset:
 
 ---
 
-*Last updated: 2026-06-22 — Print & Document Suite Phase 4 released. HEAD `1b547ee`. Merge commit `1b547ee`. Tag `stable-print-document-suite-phase4-v1`. 526 backend tests / 262 frontend tests (16 files).*
+*Last updated: 2026-06-22 — Print Designer Phase 5A released. HEAD `88ba3dc`. Merge commit `88ba3dc`. Tag `stable-print-designer-phase5a-v1`. 526 backend tests / 287 frontend tests (17 files). No migration, no backend, no IPC, no new dependencies.*
