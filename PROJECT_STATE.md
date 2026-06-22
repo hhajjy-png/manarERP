@@ -10,9 +10,9 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `4a2203e` — Merge Print Designer Phase 5A.1 Professional UX Polish into production |
-| **Latest stable tag** | `stable-print-designer-phase5a1-v1` |
-| **Remote sync** | `origin/production` — up to date |
+| **HEAD** | `a2e6cdd` — Merge Print Designer Phase 5B Text Styling Controls into production |
+| **Latest stable tag** | `stable-print-designer-phase5b-v1` |
+| **Remote sync** | `origin/production` — up to date (post push) |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
 | **UI font** | `"IBM Plex Sans Arabic"` (WOFF2, local) → `"Cairo"` → `"Tajawal"` → Arial |
@@ -27,8 +27,9 @@
 
 | Feature | Stable Tag | Summary |
 |---------|-----------|---------|
-| **Print Designer — Phase 5A.1 (Professional UX Polish)** | `stable-print-designer-phase5a1-v1` | 14 UX improvements on the inline WYSIWYG branding designer. **Blue Ink Rendering** — CSS filter (Original / Blue Ink / Black) applied to signature and stamp images via `inkMode`, persisted in localStorage, flows through `CompanyPrintData.inkMode` to InvoicePreview legacy view and all quotation templates via QuotationBase; `inkFilter.ts` utility (`sepia/saturate/hue-rotate` for blue-ink, `grayscale/brightness/contrast` for black). **Real Image Handles** — transparent full-size overlay boxes replace old ✥ circle icons; grab/grabbing cursors; dashed blue hover on unselected; `ElemRect` tracks full bounding box. **Horizontal Toolbar** — `BrandingDesignerToolbar.tsx` (new file): Undo, Redo, Zoom select with Fit Width / Fit Page, Grid toggle, Snap toggle, Save, Exit. **Better Panel** — collapsible (▶/◀), 6 grouped sections: Element / Position+Size / Appearance / Alignment / Reset / Shortcuts; ink mode selector in Appearance. **Better Zoom** — `fit-width` and `fit-page` via ResizeObserver measuring container; `setFitWidthZoom` / `setFitPageZoom` callbacks from overlay to hook. **Better Grid** — Fine (2) / Medium (5) / Coarse (10) labelled GRID_PRESETS. **Better Selection** — blue 2px border + 4 corner handles (8px squares) + center dot on selected element. **Better Keyboard** — Esc=exit designer, Delete=reset selected element, Ctrl+0=fit-page, Ctrl+S=save. **Icon Alignment** — ↔ ↕ ⬆ ⬇ Unicode icon buttons. **Status Bar** — bottom strip: element name, X, Y, Scale, Zoom, Snap indicator. **Empty State** — warning notice when no sig/stamp uploaded, with link to Settings. **Cursor** — `grab` on hover, `grabbing` while dragging. **Professional Styling** — section headers, compact spacing, consistent shadows throughout. **Regression** — TypeScript 0 errors (all 3 targets), Tests: 287 frontend (17 files) + 526 backend (29 files), all passing. No Prisma, no migrations, no backend routes, no IPC, no npm packages, no layout-JSON shape changes. |
-| **Print Designer — Phase 5A (Inline WYSIWYG Branding Designer)** | `stable-print-designer-phase5a-v1` | In-document WYSIWYG designer mode directly inside `InvoicePreview.tsx` (legacy view) and `Quotation.tsx` (engine mode). "🔧 وضع التصميم" toolbar button activates a live editing session on the real rendered document with real data and real images. Shared designer engine: `useBrandingDesigner` hook (layout ref + history ref + drag ref + zoom/grid/snap/save), `BrandingDesignerOverlay` (rulers, SVG grid, `getBoundingClientRect` drag handles via `[data-bd-type]` query), `BrandingDesignerPanel` (floating RTL panel — X/Y/scale/opacity/zIndex sliders, alignment, undo/redo, reset, save). Pure-function utilities in `designerUtils.ts` (snapToGrid, formatUnit, keyboardMove, historyPush/Undo/Redo — max 30 entries). Keyboard: arrow keys (1 unit), Shift+arrow (10 units), Ctrl+Z/Ctrl+Shift+Z undo/redo. Zoom 50/75/100/150/200/Fit. Snap-to-grid. `data-bd-type="signature/stamp"` added to `QuotationBase.tsx` (covers all 10 quotation designs). Post-save layout sync via `onSaved` callback + `savedBrandingLayout` state (no page refresh). `printData` useMemo in InvoicePreview uses `effectiveBrandingLayout`. `onPointerCancel` + `releasePointerCapture` on drag handles for safe gesture termination. 25 new unit tests (`designerUtils.test.ts`). No schema changes, no migrations, no backend routes, no IPC, no new dependencies. Phases 1–4 fully preserved. Designer UI carries `.no-print` class — does not appear in print/PDF output. |
+| **Print Designer — Phase 5B (Text Styling Controls)** | `stable-print-designer-phase5b-v1` | Token-based text styling inside the existing Designer Mode. Clicking any text zone in the document switches the side panel from branding controls to text-style controls for that area. **Architecture:** `textStyleTypes.ts` — finite token unions (fontSize: tiny/small/normal/large/xlarge, fontFamily: cairo/ibmPlexArabic/tajawal/arial, fontWeight: normal/bold/extrabold, color: default/dark/primary/secondary/muted/white, align: inherit/right/center/left, lineHeight: tight/normal/relaxed/loose, letterSpacing: tight/normal/wide, tableBgColor: default/light/primary, tableBorderColor: default/light/medium/dark/none) with `*_LABELS` record maps for the panel UI. `textStyleOverrides.ts` — token→CSS maps, `applyTextElementStyle(style, context)` (context='title': 12–18pt range, context='cell': 9–12pt range), `applyTableHeaderStyle`, `applyTableBorderStyle` (returns `--designer-table-border` CSS property on table element), `parseTextStyleSettings`, `serializeTextStyleSettings`, `normalizeTextStyleSettings`, all `isValid*` validators. `useTextStyleDesigner.ts` hook — `selectedArea`, `updateArea`, `resetArea`, `resetDocType`, `isDirty`, `save` (persists to `print.textStyleOverrides` settings key). **Settings key:** `print.textStyleOverrides` (JSON string, existing Settings table, no migration). **Supported areas (per doc type, independently stored):** `title`, `customerBlock`, `metadataLabels`, `sectionTitle`, `introText`, `tableHeader`, `lineItem`, `totals`, `tableBorder`, `terms`. **Designer integration:** `BrandingDesignerOverlay` detects clicks on `[data-designer-type="text"]` elements and routes to `textStyleDesigner.setSelectedArea`; amber highlight rect tracks selected area via `querySelector`. `BrandingDesignerPanel` context-switches to `TextAreaControls` when `selectedArea` is set; `onSave` prop saves both branding + text style concurrently via `Promise.all`. **Template coverage:** All 10 `InvoiceDesign*.tsx` + `QuotationBase.tsx` carry `data-designer-type/id` attrs + `applyTextElementStyle` spreads on all text zones; `applyTableBorderStyle` on `<table>`; `applyTableHeaderStyle` on `<th>`. **CSS variable integration (Phase 5B Polish):** All 6 CSS modules (`InvoiceDesign1–5.module.css`, `QuotationShared.module.css`) consume `var(--designer-table-border, <original>)` on `thead th`, `tbody td`, `tfoot td` — fallback preserves exact original appearance when no override set. tpl1/tpl3 theme overrides in QuotationShared also wired. **46 new tests** in `textStyleOverrides.test.ts` (14 groups: parse valid JSON, parse invalid, unknown tokens stripped, 'default' produces no CSS, font-size mapping, font-family, color, alignment RTL-safe, table header bgColor, table border, invoice/quotation independence, serialize round-trip, CSS injection blocked, token validators). No Prisma schema changes. No migrations. No backend routes. No IPC channels. No new npm packages. |
+| **Print Designer — Phase 5A.1 (Professional UX Polish)** | `stable-print-designer-phase5a1-v1` | 14 UX improvements on the inline WYSIWYG branding designer. **Blue Ink Rendering** — CSS filter (Original / Blue Ink / Black) applied to signature and stamp images via `inkMode`, persisted in localStorage, flows through `CompanyPrintData.inkMode` to InvoicePreview legacy view and all quotation templates via QuotationBase; `inkFilter.ts` utility (`sepia/saturate/hue-rotate` for blue-ink, `grayscale/brightness/contrast` for black). **Real Image Handles** — transparent full-size overlay boxes replace old ✥ circle icons; grab/grabbing cursors; dashed blue hover on unselected; `ElemRect` tracks full bounding box. **Horizontal Toolbar** — `BrandingDesignerToolbar.tsx` (new file): Undo, Redo, Zoom select with Fit Width / Fit Page, Grid toggle, Snap toggle, Save, Exit. **Better Panel** — collapsible (▶/◀), 6 grouped sections: Element / Position+Size / Appearance / Alignment / Reset / Shortcuts; ink mode selector in Appearance. **Better Zoom** — `fit-width` and `fit-page` via ResizeObserver measuring container; `setFitWidthZoom` / `setFitPageZoom` callbacks from overlay to hook. **Better Grid** — Fine (2) / Medium (5) / Coarse (10) labelled GRID_PRESETS. **Better Selection** — blue 2px border + 4 corner handles (8px squares) + center dot on selected element. **Better Keyboard** — Esc=exit designer, Delete=reset selected element, Ctrl+0=fit-page, Ctrl+S=save. **Icon Alignment** — ↔ ↕ ⬆ ⬇ Unicode icon buttons. **Status Bar** — bottom strip: element name, X, Y, Scale, Zoom, Snap indicator. **Empty State** — warning notice when no sig/stamp uploaded, with link to Settings. **Cursor** — `grab` on hover, `grabbing` while dragging. **Professional Styling** — section headers, compact spacing, consistent shadows throughout. No Prisma, no migrations, no backend routes, no IPC, no npm packages. |
+| **Print Designer — Phase 5A (Inline WYSIWYG Branding Designer)** | `stable-print-designer-phase5a-v1` | In-document WYSIWYG designer mode directly inside `InvoicePreview.tsx` (legacy view) and `Quotation.tsx` (engine mode). "🔧 وضع التصميم" toolbar button activates a live editing session on the real rendered document with real data and real images. Shared designer engine: `useBrandingDesigner` hook (layout ref + history ref + drag ref + zoom/grid/snap/save), `BrandingDesignerOverlay` (rulers, SVG grid, `getBoundingClientRect` drag handles via `[data-bd-type]` query), `BrandingDesignerPanel` (floating RTL panel — X/Y/scale/opacity/zIndex sliders, alignment, undo/redo, reset, save). Pure-function utilities in `designerUtils.ts` (snapToGrid, formatUnit, keyboardMove, historyPush/Undo/Redo — max 30 entries). Keyboard: arrow keys (1 unit), Shift+arrow (10 units), Ctrl+Z/Ctrl+Shift+Z undo/redo. Zoom 50/75/100/150/200/Fit. Snap-to-grid. `data-bd-type="signature/stamp"` added to `QuotationBase.tsx` (covers all 10 quotation designs). Post-save layout sync via `onSaved` callback + `savedBrandingLayout` state (no page refresh). `printData` useMemo in InvoicePreview uses `effectiveBrandingLayout`. `onPointerCancel` + `releasePointerCapture` on drag handles for safe gesture termination. 25 new unit tests (`designerUtils.test.ts`). No schema changes, no migrations, no backend routes, no IPC, no new dependencies. |
 | **Print & Document Suite — Phase 4** | `stable-print-document-suite-phase4-v1` | Visual Signature & Stamp Position Designer. `BrandingLayoutDesigner` modal with live preview, drag-and-drop, per-element sliders (X/Y offset ±80/60 px, scale 0.4–2.5, opacity 0.2–1, z-index). Per-document-type independence (invoice vs quotation stored separately). Applied to all 10 invoice templates + `QuotationBase.tsx` + legacy `InvoicePreview`. Stored in `print.brandingLayout` Settings key via existing `PUT /settings`. Fail-safe JSON parse with `DEFAULT_BRANDING_LAYOUT` fallback. 16 new unit tests (`brandingLayout.test.ts`). No schema changes, no migrations, no new IPC, no new dependencies. Phase 1/2/3 compatibility fully preserved. |
 | **Executive Decision Center — Phase 1** | `stable-executive-decision-center-phase1-v1` | مركز القرار التنفيذي — 7 integrated features: Financial Summary (8 KPI cards, top debtors, this/last month comparison), Decision Cards (8 intelligent insight cards by priority), Executive Alerts V3 (9 alert types, HIGH/MEDIUM/LOW, deduplicated, sorted), KPI Timeline (1m/3m/6m/12m Recharts area charts), Company Health Score (0–100, 6 weighted components, EXCELLENT/GOOD/WATCH/RISK), Executive Recommendations V2 (rule-based, max 10), PDF export via existing `printToPDF` Electron IPC. New `/api/executive` module reusing `dashboard.read` permission. 30 new Vitest tests. No schema changes, no migrations, no new packages. |
 | **Print & Document Suite — Phase 3** | `stable-print-document-suite-phase3-v1` | Native PDF export via Electron `webContents.printToPDF`. New `pdf:export` IPC channel. `⬇️ PDF` button in InvoicePreview toolbar (both modes) and Quotation engine toolbar. `pdfFilename.ts` utility with Windows-safe sanitization. 10 new tests. No migration, no backend, no schema changes. |
@@ -58,7 +59,7 @@
 | **Data Import** | *(stable)* | 7 entities: employees, customers, equipment, suppliers, project prices, contracts, expenses. FK code resolution. |
 | **Audit Log** | *(stable)* | Server-side paginated `GET /api/audit`. Filter bar. Details drawer. |
 | **Reports & Export Center** | *(stable)* | Excel/PDF export. Attendance, payroll, financial reports. |
-| **Roles & Permissions (RBAC)** | *(stable)* | Role-based access. Permission keys format `<module>.<action>`. `SYSTEM_ADMIN` bypass. |
+| **Roles & Permissions (RBAC)** | *(stable)* | Role-based access. Permission keys format `<module>.<action>`. `SYSTEM_ADMIN` bypasses. |
 | **Backup & Restore** | *(stable)* | Manual backup/restore via Electron IPC. Auto-backup via node-cron. |
 | **Authentication** | *(stable)* | JWT (12h). bcrypt passwords. `authenticate` + `requirePermission` middleware. |
 
@@ -87,7 +88,7 @@
 | `inventory` | Complete |
 | `cheques` | Complete |
 | `import` | Complete — 7 entities |
-| `settings` | Complete — includes `print.*` branding keys |
+| `settings` | Complete — includes `print.*` branding keys (`print.signatureImage`, `print.stampImage`, `print.showSignature`, `print.showStamp`, `print.brandingLayout`, `print.textStyleOverrides`) |
 | `backups` | Complete — manual + auto |
 | `audit` | Complete |
 | `forms` | Complete — 8 HR print endpoints |
@@ -99,8 +100,8 @@
 | Page | Status |
 |------|--------|
 | `Dashboard.tsx` | Complete — Executive Intelligence V2, Financial Intel, KPI cards, charts |
-| `Invoices.tsx` / `InvoicePreview.tsx` | Complete — InvoicePreview: engine + legacy + per-print branding + PDF export + **Phase 5A inline designer mode** |
-| `Quotation.tsx` | Complete — legacy form mode + engine template mode + per-print branding + PDF export (engine) + **Phase 5A inline designer mode (engine)** |
+| `Invoices.tsx` / `InvoicePreview.tsx` | Complete — InvoicePreview: engine + legacy + per-print branding + PDF export + **Phase 5A inline designer mode** + **Phase 5B text styling** |
+| `Quotation.tsx` | Complete — legacy form mode + engine template mode + per-print branding + PDF export (engine) + **Phase 5A inline designer mode (engine)** + **Phase 5B text styling** |
 | `Salaries.tsx` / `PayrollPayslip.tsx` | Complete |
 | `Accounting.tsx` | Complete |
 | `Reports.tsx` / `ReportPrint.tsx` | Complete |
@@ -127,20 +128,21 @@
 
 ```
 frontend/src/print-templates/
-├── engine/          # Types, registry, template definitions
+├── engine/          # Types, registry, template definitions, textStyleTypes.ts
 ├── adapters/        # companyData (createCompanyPrintData), apiTypes
 ├── builders/        # invoicePrintDataBuilder, quotationPrintDataBuilder
 ├── hooks/           # usePrintTemplate, useCompanyBranding, index.ts
-├── components/      # PrintTemplateSelector
+├── components/      # PrintTemplateSelector, BrandingLayoutDesigner,
+│                    # BrandingDesignerOverlay, BrandingDesignerPanel, BrandingDesignerToolbar
+├── designer/        # useTextStyleDesigner.ts (Phase 5B)
 ├── integration/     # invoicePreviewIntegration, quotationPreviewIntegration
 ├── service/         # printTemplateService
 ├── storage/         # printProfileStorage (localStorage)
-├── utils/           # brandingHelpers, brandingLayout, designerUtils, formatKWD, tafqeet, sanitizePrintText, formatDate
-├── hooks/           # usePrintTemplate, useCompanyBranding, useBrandingDesigner
-├── components/      # PrintTemplateSelector, BrandingLayoutDesigner, BrandingDesignerOverlay, BrandingDesignerPanel
+├── utils/           # brandingHelpers, brandingLayout, designerUtils, formatKWD, tafqeet,
+│                    # sanitizePrintText, formatDate, textStyleOverrides.ts (Phase 5B)
 └── reference/       # 30 React template components
-    ├── invoices/    # InvoiceDesign1–5 + Blank variants (10 files)
-    ├── quotations/  # QuotationBase + QuotationDesign1–5 + Blank variants (11 files)
+    ├── invoices/    # InvoiceDesign1–5 + Blank variants (10 files + 5 CSS modules)
+    ├── quotations/  # QuotationBase + QuotationDesign1–5 + Blank variants (11 files + 1 CSS module)
     ├── purchase-orders/
     └── rfq/
 ```
@@ -154,53 +156,67 @@ frontend/src/print-templates/
 | Purchase Order | 6 | Design 1–3 (original + blank) |
 | RFQ | 4 | Design 1–2 (original + blank) |
 
-### Print & Document Suite — Phase 1 (Digital Signature + Company Stamp)
+### Print Settings Keys (Settings Table)
 
-**Storage:** Base64 strings in existing `Settings` table. No migration, no schema change, no IPC.
-- `print.signatureImage` — manager signature, JPEG/PNG, max 500×250 px, max 300 KB output
-- `print.stampImage` — company stamp, max 400×400 px, max 300 KB output
-- `print.showSignature` / `print.showStamp` — global boolean defaults
+| Key | Type | Phase | Purpose |
+|-----|------|-------|---------|
+| `print.signatureImage` | Base64 string | Phase 1 | Manager signature image |
+| `print.stampImage` | Base64 string | Phase 1 | Company stamp image |
+| `print.showSignature` | `'true'`/`'false'` | Phase 1 | Global signature visibility default |
+| `print.showStamp` | `'true'`/`'false'` | Phase 1 | Global stamp visibility default |
+| `print.brandingLayout` | JSON string | Phase 4 | Signature/stamp position per doc type |
+| `print.textStyleOverrides` | JSON string | **Phase 5B** | **Text area style tokens per doc type** |
 
-**Key files:**
-- `CompanyPrintData` in `engine/types.ts` — 4 optional fields: `signatureUrl?`, `stampUrl?`, `showSignature?`, `showStamp?`
-- `createCompanyPrintData()` in `adapters/companyData.ts` — supports boolean overrides
-- `useCompanyBranding` hook — fetches 4 keys from `GET /settings`; safe defaults on failure (`true` for booleans)
-- `Settings.tsx` — Document Branding card: upload (Canvas resize, never upscale, 300 KB guard), preview, delete, toggle
+### Phase 5B — Text Style Token System
 
-**Template coverage:** All 10 invoice designs + blank variants, `QuotationBase.tsx`. Legacy `InvoicePreview` signature row.
+**Settings key:** `print.textStyleOverrides`
 
-### Print & Document Suite — Phase 2 (Per-Print Overrides)
+**Data shape:**
+```typescript
+PrintTextStyleSettings = {
+  invoice?: InvoiceTextAreas;   // per-area style objects
+  quotation?: QuotationTextAreas;
+}
 
-**Principle:** Settings supply the default; the print screen allows session-only override. Settings are never modified by the toggles.
+// Each area (e.g. title, customerBlock, tableHeader, etc.) contains:
+TextElementStyle = {
+  fontSize?: TextFontSize;           // tiny/small/normal/large/xlarge
+  fontFamily?: TextFontFamily;       // cairo/ibmPlexArabic/tajawal/arial
+  fontWeight?: TextFontWeight;       // normal/bold/extrabold
+  color?: TextColor;                 // default/dark/primary/secondary/muted/white
+  align?: TextAlign;                 // inherit/right/center/left
+  lineHeight?: TextLineHeight;       // tight/normal/relaxed/loose
+  letterSpacing?: TextLetterSpacing; // tight/normal/wide
+}
+TableHeaderStyle = TextElementStyle & { bgColor?: TableBgColor }  // default/light/primary
+TableBorderStyle = { color?: TableBorderColor }  // default/light/medium/dark/none
+```
 
-Session state seeded once from `useCompanyBranding` (via `printOptionsInitialized` flag). User changes stay local — never written back to Settings.
+**CSS variable for table borders:** `--designer-table-border` — set on `<table>` element inline style; consumed by CSS module rules on `th`, `td`, `tfoot td`. Fallback is original hardcoded color. All 6 CSS modules updated (InvoiceDesign1–5.module.css + QuotationShared.module.css).
 
-**Scope:**
-- `InvoicePreview.tsx` — affects engine mode (`printData` useMemo) + legacy mode (signature area)
-- `Quotation.tsx` — affects engine mode only (`brandedPrintData` useMemo)
+**apply functions:**
+- `applyTextElementStyle(style, context?)` — context='title' → 12–18pt; context='cell' → 9–12pt
+- `applyTableHeaderStyle(style)` — returns merged text + bgColor CSS
+- `applyTableBorderStyle(style)` — returns `{ '--designer-table-border': color }` or `{}`
 
-**`brandingHelpers.ts`** — `mergeEffectiveBranding()`, `shouldShowSignature()`, `shouldShowStamp()`
-
-### Print Designer — Phase 5A (Inline WYSIWYG Branding Designer)
+### Print & Document Suite — Phase 5A (Inline WYSIWYG Branding Designer)
 
 **UX flow:** Open invoice/quotation → click "🔧 وضع التصميم" → real document becomes editable → drag signature/stamp directly → save. No Settings modal required for primary editing.
 
 **Shared designer engine (new files):**
 - `utils/designerUtils.ts` — 6 pure helpers: `snapToGrid`, `formatUnit`, `keyboardMove`, `historyPush`, `historyUndo`, `historyRedo`
 - `hooks/useBrandingDesigner.ts` — all designer state: `localLayout` (with `layoutRef` mirror for synchronous drag reads), history via `histRef` (max 30 entries), drag via `dragStartRef`, zoom (50/75/100/150/200/Fit), grid, snap, save
-- `components/BrandingDesignerOverlay.tsx` — wraps document; adds H+V rulers (tick every 50 scaled px), SVG grid overlay, drag handles positioned via `getBoundingClientRect` on `[data-bd-type]` elements; keyboard listener (Arrow, Shift+Arrow, Ctrl+Z/Ctrl+Shift+Z); `onPointerCancel` + `releasePointerCapture` for safe gesture termination
-- `components/BrandingDesignerPanel.tsx` — floating RTL properties panel; X/Y/scale/opacity/zIndex controls, center H/V alignment, bring forward/backward, reset element/doc, zoom selector, grid/snap checkboxes, undo/redo buttons, keyboard hint, save/cancel
+- `components/BrandingDesignerOverlay.tsx` — wraps document; adds H+V rulers (tick every 50 scaled px), SVG grid overlay, drag handles positioned via `getBoundingClientRect` on `[data-bd-type]` elements; keyboard listener (Arrow, Shift+Arrow, Ctrl+Z/Ctrl+Shift+Z); `onPointerCancel` + `releasePointerCapture` for safe gesture termination. **Phase 5B:** also detects `[data-designer-type="text"]` clicks for text area selection; amber highlight rect overlaid on selected text area.
+- `components/BrandingDesignerPanel.tsx` — floating RTL properties panel; context-switches between branding controls and `TextAreaControls` based on `textStyleDesigner.selectedArea`. Combined save via `onSave` prop. **Phase 5B:** `TokenButtons<T>` generic component for token selection UI.
 
 **Page integration:**
-- `InvoicePreview.tsx` — designer in legacy view mode; `effectiveBrandingLayout` drives both sig/stamp rendering and `printData` useMemo; `data-bd-type` attrs on imgs when designer active
-- `Quotation.tsx` — designer in engine mode; `brandedPrintData` memo uses `effectiveBrandingLayout`
-- `QuotationBase.tsx` — `data-bd-type="signature"` and `data-bd-type="stamp"` on branding imgs (2-line change covers all 10 quotation designs)
+- `InvoicePreview.tsx` — designer in legacy view mode; `effectiveBrandingLayout` drives both sig/stamp rendering and `printData` useMemo; `data-bd-type` attrs on imgs when designer active; **Phase 5B:** `useTextStyleDesigner` hook wired, `data-designer-type/id` on all text zones, `onSave` saves both branding + text style
+- `Quotation.tsx` — designer in engine mode; **Phase 5B:** same wiring
+- `QuotationBase.tsx` — `data-bd-type="signature/stamp"` (Phase 5A) + `data-designer-type/id` on all text zones (Phase 5B)
 
-**Storage:** Same `print.brandingLayout` key and JSON shape as Phase 4. Save calls `PUT /settings`. Zoom/grid/snap are local-only (not persisted).
+**Storage:** `print.brandingLayout` for branding, `print.textStyleOverrides` for text styles. Both via `PUT /settings`. Zoom/grid/snap are local-only (not persisted).
 
 **No migration. No backend changes. No new IPC. No new npm packages.**
-
-**25 new unit tests** (`designerUtils.test.ts`) covering all 6 pure functions. Total frontend tests: **287** (17 files).
 
 ---
 
@@ -221,8 +237,8 @@ Clamp bounds: x ±80 px, y ±60 px, scale 0.4–2.5, opacity 0.2–1, zIndex 1|2
 - `engine/types.ts` — `BrandingElementLayout`, `BrandingLayout`, `PrintBrandingLayoutSettings`, `PrintDocumentType`
 - `utils/brandingLayout.ts` — `parseBrandingLayout` (fail-safe), `serializeBrandingLayout`, `clampBrandingElementLayout`, `getBrandingLayoutForDocument`, `applyBrandingElementStyle` (returns `CSSProperties`)
 - `components/BrandingLayoutDesigner.tsx` — modal with live preview area (380×240 px), drag-and-drop via native pointer events (`setPointerCapture`), `Slider` sub-component, per-document-type tabs, RTL
-- `hooks/useCompanyBranding.ts` — loads `print.brandingLayout` and parses it; exposes `brandingLayout: PrintBrandingLayoutSettings | undefined`
-- `adapters/companyData.ts` — `createCompanyPrintData()` filter now passes `brandingLayout` objects (changed `typeof value === 'string' || boolean` to `value !== undefined`)
+- `hooks/useCompanyBranding.ts` — loads `print.brandingLayout` and `print.textStyleOverrides`; exposes both parsed or `undefined`
+- `adapters/companyData.ts` — `createCompanyPrintData()` filter now passes `brandingLayout` and `textStyleOverrides` objects
 - `Settings.tsx` — "معايرة التوقيع والختم" button opens designer; `handleDesignerSave` calls `PUT /settings`; success message shown
 
 **Template integration:** All 10 invoice templates call `getBrandingLayoutForDocument(data?.company?.brandingLayout, 'invoice')` and spread `applyBrandingElementStyle(brandingLayout.signature/stamp)` onto each image. `QuotationBase.tsx` does the same with `'quotation'` doc type.
@@ -311,7 +327,7 @@ Clamp bounds: x ±80 px, y ±60 px, scale 0.4–2.5, opacity 0.2–1, zIndex 1|2
 | Layer | Files | Tests | Status |
 |-------|-------|-------|--------|
 | Backend (Vitest) | 29 | 526 | All passing |
-| Frontend (Vitest) | 17 | 287 | All passing |
+| Frontend (Vitest) | 18 | 333 | All passing |
 
 ### Frontend test files (`frontend/src/__tests__/`)
 
@@ -324,6 +340,7 @@ pdfFilename.test.ts              # Phase 3 — 10 tests
 printTemplates/
   brandingLayout.test.ts         # Phase 4 — 16 tests: parseBrandingLayout, clamp, serialize/roundtrip, getForDoc, applyStyle
   designerUtils.test.ts          # Phase 5A — 25 tests: snapToGrid, formatUnit, keyboardMove, historyPush/Undo/Redo
+  textStyleOverrides.test.ts     # Phase 5B — 46 tests: parse/serialize, token maps, CSS injection prevention, area independence
   builders.test.ts               # builder branding passthrough (9 tests)
   companyBranding.test.ts        # createCompanyPrintData boolean fields (6 tests)
   formatKWD.test.ts
@@ -336,7 +353,7 @@ printTemplates/
   tafqeet.test.ts
 ```
 
-### Backend test files (new — Executive Decision Center Phase 1)
+### Backend test files (Executive Decision Center Phase 1)
 
 ```
 backend/src/modules/executive/__tests__/executive.service.test.ts   # 30 tests
@@ -344,16 +361,16 @@ backend/src/modules/executive/__tests__/executive.service.test.ts   # 30 tests
   — kpiTimeline(): point count, field presence, profit formula, non-negative outstanding
 ```
 
-### TypeScript validation (last clean run — post Print Designer Phase 5A merge)
+### TypeScript validation (Phase 5B — clean run)
 
 ```
-cd backend && npx tsc --noEmit        ✅ 0 errors
-cd frontend && npx tsc --noEmit       ✅ 0 errors
-tsc -p electron/tsconfig.json --noEmit  ✅ 0 errors
-cd backend && npx prisma validate     ✅ valid
-npm run build:back                    ✅ clean
-npm run build:front                   ✅ clean
-npm run electron:build                ✅ clean
+cd backend && npx tsc --noEmit             ✅ 0 errors
+cd frontend && npx tsc --noEmit            ✅ 0 errors
+npx tsc -p electron/tsconfig.json --noEmit ✅ 0 errors
+cd backend && npx prisma validate          ✅ valid
+npm run build:back                         ✅ clean
+npm run build:front                        ✅ clean (5.03s)
+npm run electron:build                     ✅ clean
 ```
 
 ---
@@ -405,6 +422,7 @@ manarERP/
 | Audit logging | `AuditLog` table — all mutating operations logged |
 | Sensitive data | No plain passwords or tokens in DB or logs |
 | Settings images | Base64 in Settings table; 1 MB upload limit; 300 KB output limit |
+| **Text style tokens** | **Finite token sets validated via `Set.has()` — arbitrary CSS strings never reach the DOM** |
 
 ---
 
@@ -479,4 +497,17 @@ After 2026-06-13 full operational reset:
 
 ---
 
-*Last updated: 2026-06-22 — Print Designer Phase 5A released. HEAD `88ba3dc`. Merge commit `88ba3dc`. Tag `stable-print-designer-phase5a-v1`. 526 backend tests / 287 frontend tests (17 files). No migration, no backend, no IPC, no new dependencies.*
+## Release History
+
+| Date | Tag | HEAD | Feature |
+|------|-----|------|---------|
+| 2026-06-22 | `stable-print-designer-phase5b-v1` | `a2e6cdd` | Print Designer Phase 5B — Text Styling Controls |
+| 2026-06-22 | `stable-print-designer-phase5a1-v1` | `4a2203e` | Print Designer Phase 5A.1 — Professional UX Polish |
+| 2026-06-21 | `stable-print-designer-phase5a-v1` | `88ba3dc` | Print Designer Phase 5A — Inline WYSIWYG Branding Designer |
+| 2026-06-20 | `stable-print-document-suite-phase4-v1` | *(earlier)* | Phase 4 — Visual Position Designer |
+| 2026-06-19 | `stable-executive-decision-center-phase1-v1` | *(earlier)* | Executive Decision Center |
+| 2026-06-18 | `stable-print-document-suite-phase3-v1` | *(earlier)* | Phase 3 — Native PDF Export |
+
+---
+
+*Last updated: 2026-06-22 — Print Designer Phase 5B released. HEAD `a2e6cdd`. Merge commit `a2e6cdd`. Tag `stable-print-designer-phase5b-v1`. 526 backend tests (29 files) / 333 frontend tests (18 files). No migration, no backend routes, no IPC, no new dependencies.*
