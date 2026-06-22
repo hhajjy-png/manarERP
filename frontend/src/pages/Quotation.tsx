@@ -20,6 +20,10 @@ import {
 import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
 import { createCompanyPrintData } from '../print-templates/adapters/companyData';
 import { buildQuotationPdfName } from '../utils/pdfFilename';
+import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
+import { useBrandingDesigner } from '../print-templates/hooks/useBrandingDesigner';
+import BrandingDesignerOverlay from '../print-templates/components/BrandingDesignerOverlay';
+import BrandingDesignerPanel from '../print-templates/components/BrandingDesignerPanel';
 
 const FORM_KEY = 'quotation';
 
@@ -84,6 +88,13 @@ export default function Quotation() {
 
   const branding = useCompanyBranding();
 
+  const [savedBrandingLayout, setSavedBrandingLayout] = useState<PrintBrandingLayoutSettings | undefined>(undefined);
+  const designer = useBrandingDesigner({
+    docType: 'quotation',
+    initialLayout: branding.brandingLayout,
+    onSaved: (layout) => setSavedBrandingLayout(layout),
+  });
+
   const [pdfExporting, setPdfExporting] = useState(false);
   const [pdfMsg, setPdfMsg] = useState('');
   const [pdfError, setPdfError] = useState('');
@@ -136,6 +147,9 @@ export default function Quotation() {
 
   const brandedPrintData = useMemo(() => {
     if (!printData) return null;
+    const effectiveLayout = designer.isActive
+      ? designer.localLayout
+      : (savedBrandingLayout ?? branding.brandingLayout);
     return {
       ...printData,
       company: createCompanyPrintData({
@@ -143,10 +157,20 @@ export default function Quotation() {
         stampUrl: branding.stampUrl,
         showSignature: printShowSignature,
         showStamp: printShowStamp,
-        brandingLayout: branding.brandingLayout,
+        brandingLayout: effectiveLayout,
       }),
     };
-  }, [printData, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp]);
+  }, [
+    printData,
+    branding.signatureUrl,
+    branding.stampUrl,
+    printShowSignature,
+    printShowStamp,
+    designer.isActive,
+    designer.localLayout,
+    savedBrandingLayout,
+    branding.brandingLayout,
+  ]);
 
   const { resolvedTemplate, profile: tplProfile, setProfile: setTplProfile } =
     usePrintTemplate('quotation', brandedPrintData ?? undefined);
@@ -245,6 +269,16 @@ export default function Quotation() {
           {pdfError && (
             <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>⚠️ {pdfError}</span>
           )}
+          {(branding.signatureUrl || branding.stampUrl) && (
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => designer.isActive ? designer.deactivate() : designer.activate()}
+              style={{ fontWeight: 600 }}
+            >
+              {designer.isActive ? '✓ إنهاء التصميم' : '🔧 وضع التصميم'}
+            </button>
+          )}
           <button type="button" className="btn secondary" onClick={() => navigate(-1)}>
             رجوع
           </button>
@@ -306,7 +340,17 @@ export default function Quotation() {
         )}
 
         {/* Engine template */}
-        <EngineComponent data={brandedPrintData ?? undefined} />
+        <BrandingDesignerOverlay designer={designer}>
+          <EngineComponent data={brandedPrintData ?? undefined} />
+        </BrandingDesignerOverlay>
+
+        {designer.isActive && (
+          <BrandingDesignerPanel
+            designer={designer}
+            docLabel="عرض السعر"
+            onClose={designer.deactivate}
+          />
+        )}
       </div>
     );
   }
