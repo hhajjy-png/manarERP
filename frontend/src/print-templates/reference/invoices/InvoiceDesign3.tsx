@@ -2,11 +2,13 @@ import logo from '../assets/almanar-logo.png';
 import styles from './InvoiceDesign3.module.css';
 import type { InvoicePrintData } from '../../engine/types';
 import { formatKWD, formatKWDAr } from '../../utils/formatKWD';
+import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../../utils/brandingLayout';
 
 interface Props { data?: InvoicePrintData; }
 
 export default function InvoiceDesign3({ data }: Props) {
   const grandTotal = data ? data.totalDinars + data.totalFils / 1000 : null;
+  const brandingLayout = getBrandingLayoutForDocument(data?.company?.brandingLayout, 'invoice');
 
   return (
     <>
@@ -75,14 +77,14 @@ export default function InvoiceDesign3({ data }: Props) {
     <div className={styles.s}>
       <div className={styles.lbl}>الختم الرسمي</div>
       {data?.company?.showStamp !== false && data?.company?.stampUrl && (
-        <img src={data.company.stampUrl} alt="" style={{ maxHeight: '20mm', maxWidth: '32mm', objectFit: 'contain', display: 'block', margin: '1mm auto' }} />
+        <img src={data.company.stampUrl} alt="" style={{ maxHeight: '20mm', maxWidth: '32mm', objectFit: 'contain', display: 'block', margin: '1mm auto', ...applyBrandingElementStyle(brandingLayout.stamp) }} />
       )}
       <div className={styles.ln}>&nbsp;</div>
     </div>
     <div className={styles.s}>
       <div className={styles.lbl}>المسؤول / المعتمد</div>
       {data?.company?.showSignature !== false && data?.company?.signatureUrl && (
-        <img src={data.company.signatureUrl} alt="" style={{ maxHeight: '20mm', maxWidth: '32mm', objectFit: 'contain', display: 'block', margin: '1mm auto' }} />
+        <img src={data.company.signatureUrl} alt="" style={{ maxHeight: '20mm', maxWidth: '32mm', objectFit: 'contain', display: 'block', margin: '1mm auto', ...applyBrandingElementStyle(brandingLayout.signature) }} />
       )}
       <div className={styles.ln}>التوقيع</div>
     </div>

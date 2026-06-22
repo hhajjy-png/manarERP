@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useUI } from '../stores/uiStore';
 import { useT, type Lang } from '../lib/i18n';
+import BrandingLayoutDesigner from '../print-templates/components/BrandingLayoutDesigner';
+import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
+import { parseBrandingLayout, serializeBrandingLayout, DEFAULT_BRANDING_LAYOUT } from '../print-templates/utils/brandingLayout';
 
 const DEFAULT_VALUES: Record<string, string> = {
   'backup.auto.enabled': 'true',
@@ -37,6 +40,8 @@ export default function Settings() {
   const [brandingError, setBrandingError] = useState('');
   const [brandingMsg, setBrandingMsg] = useState('');
   const [brandingSaving, setBrandingSaving] = useState(false);
+  const [designerOpen, setDesignerOpen] = useState(false);
+  const [brandingLayout, setBrandingLayout] = useState<PrintBrandingLayoutSettings>(DEFAULT_BRANDING_LAYOUT);
 
   useEffect(() => {
     (async () => {
@@ -47,6 +52,8 @@ export default function Settings() {
         const v: Record<string, string> = { ...DEFAULT_VALUES };
         list.forEach((s) => (v[s.key] = s.value));
         setValues(v);
+        const layoutEntry = list.find((s) => s.key === 'print.brandingLayout');
+        if (layoutEntry?.value) setBrandingLayout(parseBrandingLayout(layoutEntry.value));
       } finally {
         setLoading(false);
       }
@@ -149,6 +156,22 @@ export default function Settings() {
       setBrandingMsg('تم حذف التوقيع');
     } catch { setBrandingError('فشل حذف التوقيع'); }
     finally { setBrandingSaving(false); }
+  }
+
+  async function handleDesignerSave(layout: PrintBrandingLayoutSettings) {
+    setBrandingSaving(true);
+    setBrandingError('');
+    try {
+      const serialized = serializeBrandingLayout(layout);
+      await saveBrandingKey('print.brandingLayout', serialized);
+      setBrandingLayout(layout);
+      setBrandingMsg('تم حفظ إعدادات معايرة التوقيع والختم');
+      setDesignerOpen(false);
+    } catch {
+      setBrandingError('فشل حفظ إعدادات المعايرة');
+    } finally {
+      setBrandingSaving(false);
+    }
   }
 
   async function handleDeleteStamp() {
@@ -331,7 +354,32 @@ export default function Settings() {
             <div className="branding-error">{brandingError}</div>
           )}
         </div>
+
+        {/* Position designer */}
+        <div className="branding-row" style={{ marginTop: 12 }}>
+          <div className="branding-row-label">موضع التوقيع والختم</div>
+          <div className="branding-row-controls">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setDesignerOpen(true)}
+              disabled={brandingSaving}
+            >
+              معايرة التوقيع والختم
+            </button>
+          </div>
+        </div>
       </div>
+
+      {designerOpen && (
+        <BrandingLayoutDesigner
+          signatureUrl={values['print.signatureImage'] || undefined}
+          stampUrl={values['print.stampImage'] || undefined}
+          initialLayout={brandingLayout}
+          onSave={handleDesignerSave}
+          onClose={() => setDesignerOpen(false)}
+        />
+      )}
     </div>
   );
 }

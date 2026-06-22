@@ -13,6 +13,7 @@ import { buildInvoicePrintData } from '../print-templates/builders/invoicePrintD
 import PrintTemplateSelector from '../print-templates/components/PrintTemplateSelector';
 import { validateInvoicePrintData } from '../print-templates/integration/invoicePreviewIntegration';
 import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
+import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../print-templates/utils/brandingLayout';
 import { buildInvoicePdfName } from '../utils/pdfFilename';
 
 const PAY_METHOD_AR: Record<string, string> = {
@@ -160,6 +161,7 @@ export default function InvoicePreview() {
           stampUrl: branding.stampUrl,
           showSignature: printShowSignature,
           showStamp: printShowStamp,
+          brandingLayout: branding.brandingLayout,
         },
       });
     } catch {
@@ -679,22 +681,28 @@ export default function InvoicePreview() {
             <div key="mgr-sig" style={{ flex: 1, textAlign: 'center', minWidth: 130 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>المسؤول</div>
               <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>شركة المنار الدولية</div>
-              {printShowSignature && branding.signatureUrl ? (
-                <img
-                  src={branding.signatureUrl}
-                  alt="توقيع المدير"
-                  style={{ maxHeight: 40, maxWidth: 120, objectFit: 'contain', display: 'block', margin: '0 auto' }}
-                />
-              ) : (
+              {printShowSignature && branding.signatureUrl ? (() => {
+                const invLayout = getBrandingLayoutForDocument(branding.brandingLayout, 'invoice');
+                return (
+                  <img
+                    src={branding.signatureUrl}
+                    alt="توقيع المدير"
+                    style={{ maxHeight: 40, maxWidth: 120, objectFit: 'contain', display: 'block', margin: '0 auto', ...applyBrandingElementStyle(invLayout.signature) }}
+                  />
+                );
+              })() : (
                 <div style={{ height: 40 }} />
               )}
-              {printShowStamp && branding.stampUrl && (
-                <img
-                  src={branding.stampUrl}
-                  alt="ختم الشركة"
-                  style={{ maxHeight: 36, maxWidth: 100, objectFit: 'contain', display: 'block', margin: '4px auto 0' }}
-                />
-              )}
+              {printShowStamp && branding.stampUrl && (() => {
+                const invLayout = getBrandingLayoutForDocument(branding.brandingLayout, 'invoice');
+                return (
+                  <img
+                    src={branding.stampUrl}
+                    alt="ختم الشركة"
+                    style={{ maxHeight: 36, maxWidth: 100, objectFit: 'contain', display: 'block', margin: '4px auto 0', ...applyBrandingElementStyle(invLayout.stamp) }}
+                  />
+                );
+              })()}
               <div style={{ borderTop: '1px solid #94a3b8', marginTop: 4 }} />
               <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>التوقيع / Signature</div>
             </div>

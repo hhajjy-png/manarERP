@@ -42,6 +42,25 @@ export interface PrintTemplateDefinition<TData = unknown> {
   notes?: string;
 }
 
+// ─── Branding layout types (Phase 4) ─────────────────────────────────────────
+
+export type PrintDocumentType = 'invoice' | 'quotation';
+
+export interface BrandingElementLayout {
+  x: number;
+  y: number;
+  scale: number;
+  opacity: number;
+  zIndex: number;
+}
+
+export interface BrandingLayout {
+  signature: BrandingElementLayout;
+  stamp: BrandingElementLayout;
+}
+
+export type PrintBrandingLayoutSettings = Record<PrintDocumentType, BrandingLayout>;
+
 // ─── Shared company data ──────────────────────────────────────────────────────
 
 export interface CompanyPrintData {
@@ -60,6 +79,7 @@ export interface CompanyPrintData {
   stampUrl?: string;
   showSignature?: boolean;
   showStamp?: boolean;
+  brandingLayout?: PrintBrandingLayoutSettings;
 }
 
 // ─── Shared line item ─────────────────────────────────────────────────────────
