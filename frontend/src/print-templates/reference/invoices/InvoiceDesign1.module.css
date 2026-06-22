@@ -24,7 +24,7 @@
 .m-to { display:flex; align-items:flex-end; }
 .dotline { flex:1; border-bottom:1px dotted #30246C; margin:0 2mm; transform:translateY(-3px); }
 .page table { width:100%; border-collapse:collapse; direction:ltr; }
-.page th, .page td { border:1px solid #30246C; text-align:center; vertical-align:middle; }
+.page th, .page td { border:1px solid var(--designer-table-border, #30246C); text-align:center; vertical-align:middle; }
 .page thead th { color:#30246C; font-weight:800; padding:1mm; }
 .grp { font-size:9.5pt; } .sub { font-size:8pt; font-weight:700; }
 .c-desc { width:38%; } .c-qty { width:13%; } .c-d { width:13%; } .c-f { width:6.5%; }

@@ -16,6 +16,7 @@ import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding'
 import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../print-templates/utils/brandingLayout';
 import { buildInvoicePdfName } from '../utils/pdfFilename';
 import { useBrandingDesigner } from '../print-templates/hooks/useBrandingDesigner';
+import { useTextStyleDesigner } from '../print-templates/designer/useTextStyleDesigner';
 import BrandingDesignerOverlay from '../print-templates/components/BrandingDesignerOverlay';
 import BrandingDesignerPanel from '../print-templates/components/BrandingDesignerPanel';
 import { getInkFilterStyle } from '../print-templates/utils/inkFilter';
@@ -124,6 +125,10 @@ export default function InvoicePreview() {
     ? designer.localLayout
     : (savedBrandingLayout ?? branding.brandingLayout);
 
+  const textDesigner = useTextStyleDesigner({
+    initialSettings: branding.textStyleOverrides,
+  });
+
   const [pdfExporting, setPdfExporting] = useState(false);
   const [pdfMsg, setPdfMsg] = useState('');
   const [pdfError, setPdfError] = useState('');
@@ -177,13 +182,14 @@ export default function InvoicePreview() {
           showStamp: printShowStamp,
           brandingLayout: effectiveBrandingLayout,
           inkMode: designer.inkMode,
+          textStyleOverrides: textDesigner.settings,
         },
       });
     } catch {
       return null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp, effectiveBrandingLayout, designer.inkMode]);
+  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp, effectiveBrandingLayout, designer.inkMode, textDesigner.settings]);
 
   const { resolvedTemplate, profile, setProfile } = usePrintTemplate<InvoicePrintData>(
     'invoice',
@@ -429,6 +435,7 @@ export default function InvoicePreview() {
         {/* ── Legacy preview content (hidden in engine mode) ── */}
         <BrandingDesignerOverlay
           designer={designer}
+          textStyleDesigner={textDesigner}
           signatureUrl={branding.signatureUrl}
           stampUrl={branding.stampUrl}
           docLabel="الفاتورة"
@@ -495,7 +502,7 @@ export default function InvoicePreview() {
 
           {/* ── Section 1: Invoice Details ── */}
           <div id="inv-details" className="inv-nav-anchor">
-            <div className="inv-section-title" style={secTitle}>
+            <div className="inv-section-title" style={secTitle} data-designer-type="text" data-designer-id="invoice.sectionTitle">
               <span>{t('page.invoice_preview.section.header')}</span>
               <span className="no-print" style={{
                 marginInlineStart: 10, fontSize: 12, fontWeight: 700,
@@ -518,8 +525,8 @@ export default function InvoicePreview() {
           </div>
 
           {/* ── Section 2: Party & Contract ── */}
-          <div style={secTitle}>{data.contract ? t('page.invoice_preview.section.party') : 'الجهة'}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px 24px' }}>
+          <div style={secTitle} data-designer-type="text" data-designer-id="invoice.sectionTitle">{data.contract ? t('page.invoice_preview.section.party') : 'الجهة'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px 24px' }} data-designer-type="text" data-designer-id="invoice.customerBlock">
             <div className="inv-frow" style={fRow}>
               <span style={fLbl}>{data.customer ? t('col.customer') : t('col.supplier')}</span>
               <span style={fVal}>{partyName}</span>
@@ -541,9 +548,9 @@ export default function InvoicePreview() {
           </div>
 
           {/* ── Section 3: Line Items ── */}
-          <div style={secTitle}>{t('lbl.items')}</div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }}>
-            <thead>
+          <div style={secTitle} data-designer-type="text" data-designer-id="invoice.sectionTitle">{t('lbl.items')}</div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }} data-designer-type="text" data-designer-id="invoice.tableBorder">
+            <thead data-designer-type="text" data-designer-id="invoice.tableHeader">
               <tr>
                 <th style={th}>{t('col.description')}</th>
                 <th style={{ ...th, width: 72, textAlign: 'center' }}>{t('ph.qty')}</th>
@@ -552,7 +559,7 @@ export default function InvoicePreview() {
                 <th style={{ ...th, width: 115, textAlign: 'end' }}>{t('col.inv.total')}</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody data-designer-type="text" data-designer-id="invoice.lineItem">
               {data.items.map((item) => (
                 <tr key={item.id}>
                   <td style={td}>{item.description}</td>
@@ -567,8 +574,8 @@ export default function InvoicePreview() {
 
           {/* ── Section 4: Financial Summary ── */}
           <div id="inv-summary" className="inv-nav-anchor">
-            <div style={secTitle}>{t('page.invoice_preview.section.financial')}</div>
-            <div className="inv-totals" style={{ maxWidth: 340, marginInlineStart: 'auto' }}>
+            <div style={secTitle} data-designer-type="text" data-designer-id="invoice.sectionTitle">{t('page.invoice_preview.section.financial')}</div>
+            <div className="inv-totals" style={{ maxWidth: 340, marginInlineStart: 'auto' }} data-designer-type="text" data-designer-id="invoice.totals">
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
                 <span style={fLbl}>{t('lbl.inv.subtotal')}</span><span style={fVal}>{money(data.subtotal)}</span>
               </div>
@@ -720,6 +727,8 @@ export default function InvoicePreview() {
                     src={branding.signatureUrl}
                     alt="توقيع المدير"
                     data-bd-type="signature"
+                    data-designer-type="branding"
+                    data-designer-id="signature"
                     style={{ maxHeight: 40, maxWidth: 120, objectFit: 'contain', display: 'block', margin: '0 auto', ...applyBrandingElementStyle(invLayout.signature), ...getInkFilterStyle(designer.inkMode) }}
                   />
                 );
@@ -733,6 +742,8 @@ export default function InvoicePreview() {
                     src={branding.stampUrl}
                     alt="ختم الشركة"
                     data-bd-type="stamp"
+                    data-designer-type="branding"
+                    data-designer-id="stamp"
                     style={{ maxHeight: 36, maxWidth: 100, objectFit: 'contain', display: 'block', margin: '4px auto 0', ...applyBrandingElementStyle(invLayout.stamp), ...getInkFilterStyle(designer.inkMode) }}
                   />
                 );
@@ -762,8 +773,12 @@ export default function InvoicePreview() {
       {designer.isActive && (
         <BrandingDesignerPanel
           designer={designer}
+          textStyleDesigner={textDesigner}
           docLabel="الفاتورة"
           onClose={designer.deactivate}
+          onSave={async () => {
+            await Promise.all([designer.save(), textDesigner.save()]);
+          }}
         />
       )}
     </>

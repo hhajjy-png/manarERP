@@ -20,12 +20,12 @@
 .clientrow .cell:last-child { border-left:none; }
 .clientrow .cell b { color:#30246C; font-weight:800; }
 .page table { width:100%; border-collapse:collapse; direction:rtl; margin-top:4mm; }
-.page thead th { background:#30246C; color:#fff; font-weight:700; font-size:9pt; padding:2.4mm 1mm; text-align:center; border:1px solid #30246C; }
-.page tbody td { border:1px solid #9d9cba; padding:2.5mm 2mm; font-size:9.3pt; text-align:center; height:7mm; color:#000; }
+.page thead th { background:#30246C; color:#fff; font-weight:700; font-size:9pt; padding:2.4mm 1mm; text-align:center; border:1px solid var(--designer-table-border, #30246C); }
+.page tbody td { border:1px solid var(--designer-table-border, #9d9cba); padding:2.5mm 2mm; font-size:9.3pt; text-align:center; height:7mm; color:#000; }
 .page tbody td.ds { text-align:right; padding-right:3.5mm; }
 .page tbody .empty td { height:7mm; }
 .n { width:6%; } .ds { width:44%; } .t { font-weight:800; color:#30246C; }
-.page tfoot td { border:1px solid #30246C; font-weight:700; font-size:9.5pt; padding:2.2mm 2mm; }
+.page tfoot td { border:1px solid var(--designer-table-border, #30246C); font-weight:700; font-size:9.5pt; padding:2.2mm 2mm; }
 .page tfoot .lab { text-align:right; padding-right:3.5mm; color:#30246C; font-weight:800; background:#eeedf6; }
 .page tfoot .val { text-align:center; }
 .page tfoot .grand td { background:#30246C; color:#fff; font-size:11pt; font-weight:800; }

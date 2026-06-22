@@ -3,12 +3,20 @@ import styles from './InvoiceDesign2.module.css';
 import type { InvoicePrintData } from '../../engine/types';
 import { formatKWD, formatKWDAr } from '../../utils/formatKWD';
 import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../../utils/brandingLayout';
+import type { InvoiceTextAreas } from '../../engine/textStyleTypes';
+import {
+  applyTextElementStyle,
+  applyTableHeaderStyle,
+  applyTableBorderStyle,
+  getTextAreasForDocument,
+} from '../../utils/textStyleOverrides';
 
 interface Props { data?: InvoicePrintData; }
 
 export default function InvoiceDesign2Blank({ data }: Props) {
   const grandTotal = data ? data.totalDinars + data.totalFils / 1000 : null;
   const brandingLayout = getBrandingLayoutForDocument(data?.company?.brandingLayout, 'invoice');
+  const textAreas = getTextAreasForDocument(data?.company?.textStyleOverrides, 'invoice') as InvoiceTextAreas;
 
   return (
     <>
@@ -20,9 +28,9 @@ export default function InvoiceDesign2Blank({ data }: Props) {
         <div className={styles['cn-sub']}>لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق</div>
         <div className={styles['cn-en']}>AL MANAR AL DUWALIYA CO. L.L.C</div></div>
     </div>
-    <div className={styles.invtitle}><div className={styles.h}>INVOICE</div><div className={styles.ar}>فاتورة نقداً / بالحساب</div></div>
+    <div className={styles.invtitle} data-designer-type="text" data-designer-id="invoice.title" style={applyTextElementStyle(textAreas.title, 'title')}><div className={styles.h}>INVOICE</div><div className={styles.ar}>فاتورة نقداً / بالحساب</div></div>
   </div>
-  <div className={styles.metawrap}>
+  <div className={styles.metawrap} data-designer-type="text" data-designer-id="invoice.customerBlock">
     <div className={styles.mbox}>
       <div className={styles.mrow}><b>رقم الفاتورة</b><span>{data ? data.invoiceNumber : 'INV-2026-0142'}</span></div>
       <div className={styles.mrow}><b>التاريخ</b><span>{data ? data.date : '20 / 06 / 2026'}</span></div>
@@ -34,18 +42,18 @@ export default function InvoiceDesign2Blank({ data }: Props) {
     </div>
   </div>
   <div className={styles.tedge}>
-  <table>
-    <thead><tr><th className={styles.n}>م</th><th>البيان / Description</th><th>الوحدة</th><th>الكمية</th><th>سعر الوحدة (د.ك)</th><th>القيمة (د.ك)</th></tr></thead>
-    <tbody>
+  <table data-designer-type="text" data-designer-id="invoice.tableBorder" style={applyTableBorderStyle(textAreas.tableBorder) as React.CSSProperties}>
+    <thead data-designer-type="text" data-designer-id="invoice.tableHeader"><tr><th className={styles.n} style={applyTableHeaderStyle(textAreas.tableHeader)}>م</th><th style={applyTableHeaderStyle(textAreas.tableHeader)}>البيان / Description</th><th style={applyTableHeaderStyle(textAreas.tableHeader)}>الوحدة</th><th style={applyTableHeaderStyle(textAreas.tableHeader)}>الكمية</th><th style={applyTableHeaderStyle(textAreas.tableHeader)}>سعر الوحدة (د.ك)</th><th style={applyTableHeaderStyle(textAreas.tableHeader)}>القيمة (د.ك)</th></tr></thead>
+    <tbody data-designer-type="text" data-designer-id="invoice.lineItem">
       {data
         ? data.lineItems.map((item, i) => (
             <tr key={i}>
-              <td className={styles.n}>{item.number}</td>
-              <td className={styles.ds}>{item.descriptionAr}</td>
-              <td className={styles.u}>{item.unit}</td>
-              <td className={styles.q}>{item.quantity}</td>
-              <td className={styles.pr}>{formatKWD(item.unitPrice)}</td>
-              <td className={styles.t}>{formatKWD(item.total)}</td>
+              <td className={styles.n} style={applyTextElementStyle(textAreas.lineItem)}>{item.number}</td>
+              <td className={styles.ds} style={applyTextElementStyle(textAreas.lineItem)}>{item.descriptionAr}</td>
+              <td className={styles.u} style={applyTextElementStyle(textAreas.lineItem)}>{item.unit}</td>
+              <td className={styles.q} style={applyTextElementStyle(textAreas.lineItem)}>{item.quantity}</td>
+              <td className={styles.pr} style={applyTextElementStyle(textAreas.lineItem)}>{formatKWD(item.unitPrice)}</td>
+              <td className={styles.t} style={applyTextElementStyle(textAreas.lineItem)}>{formatKWD(item.total)}</td>
             </tr>
           ))
         : <>
@@ -65,9 +73,9 @@ export default function InvoiceDesign2Blank({ data }: Props) {
         <><div className={styles['sec-h']} style={{"marginTop": "3mm"}}>ملاحظات</div><div className={styles['sec-b']}>{data.notes}</div></>
       )}
     </div>
-    <div className={styles.right}>
-      <div className={styles.tr}><b>المجموع الفرعي</b><span>{grandTotal !== null ? formatKWDAr(grandTotal) : '732.000 د.ك'}</span></div>
-      <div className={styles.grand}><span>الإجمالي النهائي</span><span>{grandTotal !== null ? formatKWDAr(grandTotal) : '732.000 د.ك'}</span></div>
+    <div className={styles.right} data-designer-type="text" data-designer-id="invoice.totals">
+      <div className={styles.tr} style={applyTextElementStyle(textAreas.totals)}><b>المجموع الفرعي</b><span>{grandTotal !== null ? formatKWDAr(grandTotal) : '732.000 د.ك'}</span></div>
+      <div className={styles.grand} style={applyTextElementStyle(textAreas.totals)}><span>الإجمالي النهائي</span><span>{grandTotal !== null ? formatKWDAr(grandTotal) : '732.000 د.ك'}</span></div>
     </div>
   </div>
   <div className={styles.sign}>
@@ -75,14 +83,14 @@ export default function InvoiceDesign2Blank({ data }: Props) {
     <div className={styles.s}>
       <div className={styles.lbl}>الختم</div>
       {data?.company?.showStamp !== false && data?.company?.stampUrl && (
-        <img src={data.company.stampUrl} alt="" style={{ maxHeight: '20mm', maxWidth: '32mm', objectFit: 'contain', display: 'block', margin: '1mm auto', ...applyBrandingElementStyle(brandingLayout.stamp) }} />
+        <img src={data.company.stampUrl} alt="" data-designer-type="branding" data-designer-id="stamp" data-bd-type="stamp" style={{ maxHeight: '20mm', maxWidth: '32mm', objectFit: 'contain', display: 'block', margin: '1mm auto', ...applyBrandingElementStyle(brandingLayout.stamp) }} />
       )}
       <div className={styles.ln}>&nbsp;</div>
     </div>
     <div className={styles.s}>
       <div className={styles.lbl}>المسؤول / المعتمد</div>
       {data?.company?.showSignature !== false && data?.company?.signatureUrl && (
-        <img src={data.company.signatureUrl} alt="" style={{ maxHeight: '20mm', maxWidth: '32mm', objectFit: 'contain', display: 'block', margin: '1mm auto', ...applyBrandingElementStyle(brandingLayout.signature) }} />
+        <img src={data.company.signatureUrl} alt="" data-designer-type="branding" data-designer-id="signature" data-bd-type="signature" style={{ maxHeight: '20mm', maxWidth: '32mm', objectFit: 'contain', display: 'block', margin: '1mm auto', ...applyBrandingElementStyle(brandingLayout.signature) }} />
       )}
       <div className={styles.ln}>التوقيع</div>
     </div>

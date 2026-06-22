@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import type { PrintTextStyleSettings } from './textStyleTypes';
 
 // ─── Template taxonomy ────────────────────────────────────────────────────────
 
@@ -81,6 +82,7 @@ export interface CompanyPrintData {
   showStamp?: boolean;
   brandingLayout?: PrintBrandingLayoutSettings;
   inkMode?: 'original' | 'blue-ink' | 'black';
+  textStyleOverrides?: PrintTextStyleSettings;
 }
 
 // ─── Shared line item ─────────────────────────────────────────────────────────
