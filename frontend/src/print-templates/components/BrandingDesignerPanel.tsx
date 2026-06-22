@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { BrandingDesignerHandle, ElementType } from '../hooks/useBrandingDesigner';
-import { formatUnit, ZOOM_PRESETS, GRID_SIZES, type GridSizeOption, type ZoomLevel } from '../utils/designerUtils';
+import { formatUnit, GRID_PRESETS, type GridSizeOption } from '../utils/designerUtils';
+import { INK_MODE_LABELS, type InkMode } from '../utils/inkFilter';
 
 interface Props {
   designer: BrandingDesignerHandle;
@@ -42,7 +44,7 @@ function NumSlider({ lbl, min, max, step, value, onChange }: NumSliderProps) {
           if (!isNaN(v)) onChange(v);
         }}
         style={{
-          width: 52,
+          width: 48,
           fontSize: 11,
           textAlign: 'center',
           border: '1px solid #d1d5db',
@@ -54,7 +56,34 @@ function NumSlider({ lbl, min, max, step, value, onChange }: NumSliderProps) {
   );
 }
 
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <div style={{
+      fontSize: 10,
+      fontWeight: 700,
+      color: '#94a3b8',
+      textTransform: 'uppercase',
+      letterSpacing: '0.06em',
+      marginBottom: 6,
+      marginTop: 12,
+      paddingBottom: 4,
+      borderBottom: '1px solid #f1f5f9',
+    }}>
+      {label}
+    </div>
+  );
+}
+
+const ALIGN_BTNS = [
+  { icon: '⬛◻', label: 'توسيط أفقي', action: 'alignH' },
+  { icon: '◻⬛', label: 'توسيط رأسي', action: 'alignV' },
+  { icon: '▲', label: 'للأمام', action: 'bringForward' },
+  { icon: '▼', label: 'للخلف', action: 'sendBackward' },
+] as const;
+
 export default function BrandingDesignerPanel({ designer, docLabel, onClose }: Props) {
+  const [collapsed, setCollapsed] = useState(false);
+
   const {
     localLayout,
     selected,
@@ -67,18 +96,12 @@ export default function BrandingDesignerPanel({ designer, docLabel, onClose }: P
     sendBackward,
     resetElement,
     resetDoc,
-    canUndo,
-    canRedo,
-    undo,
-    redo,
-    zoom,
-    setZoom,
-    showGrid,
-    setShowGrid,
     snapEnabled,
     setSnapEnabled,
     gridSize,
     setGridSize,
+    inkMode,
+    setInkMode,
     saving,
     saveError,
     save,
@@ -86,6 +109,55 @@ export default function BrandingDesignerPanel({ designer, docLabel, onClose }: P
 
   const el = localLayout[docType][selected];
   const accentColor = selected === 'signature' ? '#3b82f6' : '#10b981';
+
+  const handleAlign = (action: typeof ALIGN_BTNS[number]['action']) => {
+    switch (action) {
+      case 'alignH': alignCenterH(selected); break;
+      case 'alignV': alignCenterV(selected); break;
+      case 'bringForward': bringForward(selected); break;
+      case 'sendBackward': sendBackward(selected); break;
+    }
+  };
+
+  if (collapsed) {
+    return (
+      <div
+        className="no-print"
+        style={{
+          position: 'fixed',
+          top: 80,
+          insetInlineEnd: 12,
+          zIndex: 9000,
+          background: '#fff',
+          borderRadius: 8,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.14)',
+          border: '1px solid #e2e8f0',
+          direction: 'rtl',
+          overflow: 'hidden',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setCollapsed(false)}
+          title="فتح لوحة الخصائص"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '8px 12px',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: 12,
+            color: '#374151',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ◀ خصائص
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -95,115 +167,51 @@ export default function BrandingDesignerPanel({ designer, docLabel, onClose }: P
         top: 80,
         insetInlineEnd: 12,
         zIndex: 9000,
-        width: 270,
+        width: 256,
         background: '#fff',
         borderRadius: 10,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
         border: '1px solid #e2e8f0',
         direction: 'rtl',
-        padding: '12px 14px',
+        padding: '10px 12px 14px',
         overflowY: 'auto',
-        maxHeight: 'calc(100vh - 100px)',
+        maxHeight: 'calc(100vh - 96px)',
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <span style={{ fontWeight: 700, fontSize: 13, color: '#1e293b' }}>
-          مصمم التوقيع — {docLabel}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <span style={{ fontWeight: 700, fontSize: 12, color: '#1e293b' }}>
+          خصائص — {docLabel}
         </span>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: 16,
-            color: '#94a3b8',
-            lineHeight: 1,
-            padding: 0,
-          }}
-        >
-          ✕
-        </button>
-      </div>
-
-      {/* Undo / Redo */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        {[
-          { lbl: '↩ تراجع', fn: undo, enabled: canUndo },
-          { lbl: '↪ إعادة', fn: redo, enabled: canRedo },
-        ].map(({ lbl, fn, enabled }) => (
+        <div style={{ display: 'flex', gap: 4 }}>
           <button
-            key={lbl}
             type="button"
-            onClick={fn}
-            disabled={!enabled}
+            onClick={() => setCollapsed(true)}
+            title="طي اللوحة"
             style={{
-              flex: 1,
-              padding: '4px 0',
-              borderRadius: 6,
-              border: '1px solid #d1d5db',
-              background: enabled ? '#fff' : 'transparent',
-              cursor: enabled ? 'pointer' : 'not-allowed',
-              fontSize: 12,
-              opacity: enabled ? 1 : 0.4,
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 13, color: '#94a3b8', padding: '0 3px', lineHeight: 1,
             }}
           >
-            {lbl}
+            ▶
           </button>
-        ))}
-      </div>
-
-      {/* Zoom */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-        <span style={{ fontSize: 11, color: '#6b7280' }}>تكبير:</span>
-        <select
-          value={zoom}
-          onChange={(e) => {
-            const v = e.target.value;
-            setZoom(v === 'fit' ? 'fit' : (Number(v) as Exclude<ZoomLevel, 'fit'>));
-          }}
-          style={{
-            fontSize: 12,
-            padding: '3px 6px',
-            borderRadius: 5,
-            border: '1px solid #d1d5db',
-            flex: 1,
-          }}
-        >
-          {ZOOM_PRESETS.map((z) => (
-            <option key={z} value={z}>{z}%</option>
-          ))}
-          <option value="fit">ملاءمة</option>
-        </select>
-      </div>
-
-      {/* Grid + Snap */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer' }}>
-          <input type="checkbox" checked={showGrid} onChange={(e) => setShowGrid(e.target.checked)} />
-          شبكة
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer' }}>
-          <input type="checkbox" checked={snapEnabled} onChange={(e) => setSnapEnabled(e.target.checked)} />
-          محاذاة
-        </label>
-        {snapEnabled && (
-          <select
-            value={gridSize}
-            onChange={(e) => setGridSize(Number(e.target.value) as GridSizeOption)}
-            style={{ fontSize: 11, padding: '2px 4px', borderRadius: 4, border: '1px solid #d1d5db' }}
+          <button
+            type="button"
+            onClick={onClose}
+            title="إغلاق"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: 14, color: '#94a3b8', padding: '0 3px', lineHeight: 1,
+            }}
           >
-            {GRID_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        )}
+            ✕
+          </button>
+        </div>
       </div>
 
-      <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '10px 0' }} />
-
-      {/* Element selector */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+      {/* ── SECTION: Selection ── */}
+      <SectionHeader label="العنصر" />
+      <div style={{ display: 'flex', gap: 5, marginBottom: 4 }}>
         {(['signature', 'stamp'] as ElementType[]).map((type) => (
           <button
             key={type}
@@ -221,18 +229,19 @@ export default function BrandingDesignerPanel({ designer, docLabel, onClose }: P
               color: selected === type ? '#fff' : '#6b7280',
             }}
           >
-            {type === 'signature' ? 'التوقيع' : 'الختم'}
+            {type === 'signature' ? '✏ التوقيع' : '🔵 الختم'}
           </button>
         ))}
       </div>
 
-      {/* Properties */}
+      {/* ── SECTION: Transform ── */}
+      <SectionHeader label="الموضع والحجم" />
       <NumSlider lbl="أفقي X" min={-80} max={80} step={1} value={el.x} onChange={(v) => updateElement(selected, { x: v })} />
       <NumSlider lbl="رأسي Y" min={-60} max={60} step={1} value={el.y} onChange={(v) => updateElement(selected, { y: v })} />
       <NumSlider lbl="حجم" min={0.4} max={2.5} step={0.05} value={el.scale} onChange={(v) => updateElement(selected, { scale: v })} />
       <NumSlider lbl="شفافية" min={0.2} max={1} step={0.05} value={el.opacity} onChange={(v) => updateElement(selected, { opacity: v })} />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
         <span style={{ fontSize: 11, color: '#6b7280', width: 52, textAlign: 'end', flexShrink: 0 }}>طبقة</span>
         {[1, 2].map((z) => (
           <label key={z} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 12, cursor: 'pointer' }}>
@@ -247,92 +256,163 @@ export default function BrandingDesignerPanel({ designer, docLabel, onClose }: P
         ))}
       </div>
 
-      <hr style={{ border: 'none', borderTop: '1px solid #f1f5f9', margin: '10px 0' }} />
-
-      {/* Alignment */}
-      <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', marginBottom: 6 }}>محاذاة</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 10 }}>
-        {[
-          { lbl: 'توسيط أفقي', fn: () => alignCenterH(selected) },
-          { lbl: 'توسيط رأسي', fn: () => alignCenterV(selected) },
-          { lbl: 'للأمام', fn: () => bringForward(selected) },
-          { lbl: 'للخلف', fn: () => sendBackward(selected) },
-        ].map(({ lbl, fn }) => (
-          <button
-            key={lbl}
-            type="button"
-            onClick={fn}
-            style={{
-              padding: '4px 0',
-              borderRadius: 5,
-              border: '1px solid #e2e8f0',
-              background: '#fff',
-              cursor: 'pointer',
-              fontSize: 11,
-            }}
-          >
-            {lbl}
-          </button>
-        ))}
+      {/* ── SECTION: Appearance ── */}
+      <SectionHeader label="المظهر" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 11, color: '#6b7280', flexShrink: 0 }}>الحبر:</span>
+        <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+          {(['original', 'blue-ink', 'black'] as InkMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setInkMode(mode)}
+              title={INK_MODE_LABELS[mode]}
+              style={{
+                flex: 1,
+                padding: '3px 2px',
+                borderRadius: 5,
+                fontSize: 10,
+                fontWeight: inkMode === mode ? 700 : 400,
+                cursor: 'pointer',
+                border: `1px solid ${inkMode === mode ? '#3b82f6' : '#d1d5db'}`,
+                background: inkMode === mode ? '#eff6ff' : 'transparent',
+                color: inkMode === mode ? '#3b82f6' : '#6b7280',
+              }}
+            >
+              {INK_MODE_LABELS[mode]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Reset */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginBottom: 12 }}>
+      {/* Snap */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer' }}>
+          <input type="checkbox" checked={snapEnabled} onChange={(e) => setSnapEnabled(e.target.checked)} />
+          محاذاة للشبكة
+        </label>
+        {snapEnabled && (
+          <select
+            value={gridSize}
+            aria-label="حجم الشبكة"
+            title="حجم الشبكة"
+            onChange={(e) => setGridSize(Number(e.target.value) as GridSizeOption)}
+            style={{
+              fontSize: 11,
+              padding: '2px 4px',
+              borderRadius: 4,
+              border: '1px solid #d1d5db',
+              marginInlineStart: 'auto',
+            }}
+          >
+            {GRID_PRESETS.map((p) => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* ── SECTION: Alignment ── */}
+      <SectionHeader label="محاذاة" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5, marginBottom: 4 }}>
+        <button
+          type="button"
+          title="توسيط أفقي — X = 0"
+          onClick={() => handleAlign('alignH')}
+          style={{ padding: '5px 0', borderRadius: 5, border: '1px solid #e2e8f0', background: '#fafafa', cursor: 'pointer', fontSize: 14 }}
+        >
+          ↔
+        </button>
+        <button
+          type="button"
+          title="توسيط رأسي — Y = 0"
+          onClick={() => handleAlign('alignV')}
+          style={{ padding: '5px 0', borderRadius: 5, border: '1px solid #e2e8f0', background: '#fafafa', cursor: 'pointer', fontSize: 14 }}
+        >
+          ↕
+        </button>
+        <button
+          type="button"
+          title="إحضار للأمام"
+          onClick={() => handleAlign('bringForward')}
+          style={{ padding: '5px 0', borderRadius: 5, border: '1px solid #e2e8f0', background: '#fafafa', cursor: 'pointer', fontSize: 13 }}
+        >
+          ⬆ أمام
+        </button>
+        <button
+          type="button"
+          title="إرسال للخلف"
+          onClick={() => handleAlign('sendBackward')}
+          style={{ padding: '5px 0', borderRadius: 5, border: '1px solid #e2e8f0', background: '#fafafa', cursor: 'pointer', fontSize: 13 }}
+        >
+          ⬇ خلف
+        </button>
+      </div>
+
+      {/* ── SECTION: Reset ── */}
+      <SectionHeader label="إعادة ضبط" />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 4 }}>
         <button
           type="button"
           onClick={() => resetElement('signature')}
-          style={{ padding: '4px 0', borderRadius: 5, border: '1px solid #3b82f644', background: 'transparent', cursor: 'pointer', fontSize: 11, color: '#3b82f6' }}
+          style={{ padding: '4px 0', borderRadius: 5, border: '1px solid #3b82f633', background: 'transparent', cursor: 'pointer', fontSize: 11, color: '#3b82f6' }}
         >
-          إعادة ضبط التوقيع
+          ↺ التوقيع
         </button>
         <button
           type="button"
           onClick={() => resetElement('stamp')}
-          style={{ padding: '4px 0', borderRadius: 5, border: '1px solid #10b98144', background: 'transparent', cursor: 'pointer', fontSize: 11, color: '#10b981' }}
+          style={{ padding: '4px 0', borderRadius: 5, border: '1px solid #10b98133', background: 'transparent', cursor: 'pointer', fontSize: 11, color: '#10b981' }}
         >
-          إعادة ضبط الختم
+          ↺ الختم
         </button>
         <button
           type="button"
           onClick={resetDoc}
           style={{ padding: '4px 0', borderRadius: 5, border: '1px solid #e2e8f0', background: 'transparent', cursor: 'pointer', fontSize: 11, color: '#64748b' }}
         >
-          إعادة ضبط {docLabel}
+          ↺ الكل
         </button>
       </div>
 
-      {/* Keyboard hint */}
+      {/* ── SECTION: Shortcuts ── */}
+      <SectionHeader label="اختصارات" />
       <div style={{
         fontSize: 10,
         color: '#94a3b8',
         background: '#f8fafc',
         padding: '6px 8px',
         borderRadius: 6,
-        lineHeight: 1.7,
+        lineHeight: 1.8,
         marginBottom: 12,
       }}>
-        ← → ↑ ↓ للتحريك — Shift+سهم: 10 وحدات<br />
-        Ctrl+Z تراجع — Ctrl+Shift+Z إعادة
+        ← → ↑ ↓ &nbsp;تحريك بوحدة<br />
+        Shift+سهم &nbsp;تحريك 10 وحدات<br />
+        Delete &nbsp;إعادة ضبط المحدد<br />
+        Ctrl+Z / Ctrl+Shift+Z &nbsp;تراجع / إعادة<br />
+        Ctrl+0 &nbsp;ملاءمة صفحة<br />
+        Esc &nbsp;إغلاق وضع التصميم
       </div>
 
       {/* Error */}
       {saveError && (
-        <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 8 }}>⚠️ {saveError}</div>
+        <div style={{ fontSize: 12, color: '#dc2626', marginBottom: 8 }}>⚠ {saveError}</div>
       )}
 
       {/* Save / Cancel */}
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 7 }}>
         <button
           type="button"
           onClick={onClose}
           style={{
             flex: 1,
-            padding: '8px 0',
+            padding: '7px 0',
             borderRadius: 8,
             border: '1px solid #d1d5db',
             background: 'none',
             cursor: 'pointer',
-            fontSize: 13,
+            fontSize: 12,
+            color: '#64748b',
           }}
         >
           إلغاء
@@ -342,8 +422,8 @@ export default function BrandingDesignerPanel({ designer, docLabel, onClose }: P
           onClick={save}
           disabled={saving}
           style={{
-            flex: 1,
-            padding: '8px 0',
+            flex: 2,
+            padding: '7px 0',
             borderRadius: 8,
             border: 'none',
             background: '#3b82f6',
@@ -354,7 +434,7 @@ export default function BrandingDesignerPanel({ designer, docLabel, onClose }: P
             opacity: saving ? 0.7 : 1,
           }}
         >
-          {saving ? '⏳' : 'حفظ'}
+          {saving ? '⏳ جاري الحفظ...' : '💾 حفظ'}
         </button>
       </div>
     </div>

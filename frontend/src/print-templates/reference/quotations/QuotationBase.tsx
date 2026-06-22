@@ -4,6 +4,7 @@ import { sanitizePrintText } from '../../utils/sanitizePrintText';
 import styles from './QuotationShared.module.css';
 import logoSrc from '../assets/almanar-logo.png';
 import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../../utils/brandingLayout';
+import { getInkFilterStyle } from '../../utils/inkFilter';
 
 const SAMPLE: QuotationPrintData = {
   company: {
@@ -277,7 +278,7 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
                 src={d.company.signatureUrl}
                 alt=""
                 data-bd-type="signature"
-                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '0 auto 2mm', ...applyBrandingElementStyle(brandingLayout.signature) }}
+                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '0 auto 2mm', ...applyBrandingElementStyle(brandingLayout.signature), ...getInkFilterStyle(d.company.inkMode) }}
               />
             )}
             <div className={styles.signLine} />
@@ -287,7 +288,7 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
                 src={d.company.stampUrl}
                 alt=""
                 data-bd-type="stamp"
-                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '4mm auto 0', ...applyBrandingElementStyle(brandingLayout.stamp) }}
+                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '4mm auto 0', ...applyBrandingElementStyle(brandingLayout.stamp), ...getInkFilterStyle(d.company.inkMode) }}
               />
             ) : (
               <div className={styles.signStamp}>مكان الختم</div>

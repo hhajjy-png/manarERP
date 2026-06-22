@@ -18,6 +18,7 @@ import { buildInvoicePdfName } from '../utils/pdfFilename';
 import { useBrandingDesigner } from '../print-templates/hooks/useBrandingDesigner';
 import BrandingDesignerOverlay from '../print-templates/components/BrandingDesignerOverlay';
 import BrandingDesignerPanel from '../print-templates/components/BrandingDesignerPanel';
+import { getInkFilterStyle } from '../print-templates/utils/inkFilter';
 
 const PAY_METHOD_AR: Record<string, string> = {
   CASH: 'نقدًا', BANK: 'بنك', CHEQUE: 'شيك', TRANSFER: 'تحويل',
@@ -175,12 +176,14 @@ export default function InvoicePreview() {
           showSignature: printShowSignature,
           showStamp: printShowStamp,
           brandingLayout: effectiveBrandingLayout,
+          inkMode: designer.inkMode,
         },
       });
     } catch {
       return null;
     }
-  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp, effectiveBrandingLayout]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp, effectiveBrandingLayout, designer.inkMode]);
 
   const { resolvedTemplate, profile, setProfile } = usePrintTemplate<InvoicePrintData>(
     'invoice',
@@ -343,7 +346,7 @@ export default function InvoicePreview() {
           {pdfError && (
             <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>⚠️ {pdfError}</span>
           )}
-          {(branding.signatureUrl || branding.stampUrl) && previewMode === 'legacy' && (
+          {previewMode === 'legacy' && (
             <button
               type="button"
               className="btn secondary"
@@ -424,7 +427,12 @@ export default function InvoicePreview() {
         )}
 
         {/* ── Legacy preview content (hidden in engine mode) ── */}
-        <BrandingDesignerOverlay designer={designer}>
+        <BrandingDesignerOverlay
+          designer={designer}
+          signatureUrl={branding.signatureUrl}
+          stampUrl={branding.stampUrl}
+          docLabel="الفاتورة"
+        >
         <div className={previewMode === 'engine' ? 'engine-hide-legacy' : undefined}>
 
           {/* ── Quick Navigation (screen only) ── */}
@@ -711,8 +719,8 @@ export default function InvoicePreview() {
                   <img
                     src={branding.signatureUrl}
                     alt="توقيع المدير"
-                    {...(designer.isActive ? { 'data-bd-type': 'signature' } : {})}
-                    style={{ maxHeight: 40, maxWidth: 120, objectFit: 'contain', display: 'block', margin: '0 auto', ...applyBrandingElementStyle(invLayout.signature) }}
+                    data-bd-type="signature"
+                    style={{ maxHeight: 40, maxWidth: 120, objectFit: 'contain', display: 'block', margin: '0 auto', ...applyBrandingElementStyle(invLayout.signature), ...getInkFilterStyle(designer.inkMode) }}
                   />
                 );
               })() : (
@@ -724,8 +732,8 @@ export default function InvoicePreview() {
                   <img
                     src={branding.stampUrl}
                     alt="ختم الشركة"
-                    {...(designer.isActive ? { 'data-bd-type': 'stamp' } : {})}
-                    style={{ maxHeight: 36, maxWidth: 100, objectFit: 'contain', display: 'block', margin: '4px auto 0', ...applyBrandingElementStyle(invLayout.stamp) }}
+                    data-bd-type="stamp"
+                    style={{ maxHeight: 36, maxWidth: 100, objectFit: 'contain', display: 'block', margin: '4px auto 0', ...applyBrandingElementStyle(invLayout.stamp), ...getInkFilterStyle(designer.inkMode) }}
                   />
                 );
               })()}

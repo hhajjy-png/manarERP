@@ -1,14 +1,27 @@
 import { useRef, useEffect, useState } from 'react';
 import type { BrandingDesignerHandle, ElementType } from '../hooks/useBrandingDesigner';
+import { formatUnit } from '../utils/designerUtils';
+import BrandingDesignerToolbar from './BrandingDesignerToolbar';
 
 const RULER = 20;
 
+type ElemRect = { x: number; y: number; w: number; h: number };
+
 interface Props {
   designer: BrandingDesignerHandle;
+  signatureUrl?: string;
+  stampUrl?: string;
+  docLabel: string;
   children: React.ReactNode;
 }
 
-export default function BrandingDesignerOverlay({ designer, children }: Props) {
+export default function BrandingDesignerOverlay({
+  designer,
+  signatureUrl,
+  stampUrl,
+  docLabel,
+  children,
+}: Props) {
   const {
     isActive,
     effectiveZoom,
@@ -23,12 +36,36 @@ export default function BrandingDesignerOverlay({ designer, children }: Props) {
     undo,
     redo,
     updateElement,
+    resetElement,
     localLayout,
     docType,
+    deactivate,
+    setZoom,
+    save,
+    setFitWidthZoom,
+    setFitPageZoom,
   } = designer;
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const docRef = useRef<HTMLDivElement>(null);
+
+  // ── Fit-zoom computation (measure container on mount + resize) ──
+  useEffect(() => {
+    if (!isActive || !wrapperRef.current) return;
+    const update = () => {
+      const el = wrapperRef.current;
+      if (!el) return;
+      const availW = Math.max(el.clientWidth - RULER - 32, 200);
+      const availH = Math.max(el.clientHeight - RULER - 44 - 32, 200);
+      setFitWidthZoom(Math.min(Math.max(availW / 794, 0.25), 2.0));
+      setFitPageZoom(Math.min(Math.max(Math.min(availW / 794, availH / 1123), 0.25), 2.0));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(wrapperRef.current);
+    return () => ro.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive]);
 
   // ── Keyboard listener ──
   useEffect(() => {
@@ -37,7 +74,11 @@ export default function BrandingDesignerOverlay({ designer, children }: Props) {
     if (!el) return;
 
     function onKey(e: KeyboardEvent) {
-      if (e.ctrlKey && e.shiftKey && e.key === 'Z') { e.preventDefault(); redo(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); deactivate(); return; }
+      if (e.key === 'Delete') { e.preventDefault(); resetElement(selected); return; }
+      if (e.ctrlKey && (e.key === '0')) { e.preventDefault(); setZoom('fit-page'); return; }
+      if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); save(); return; }
+      if (e.ctrlKey && e.shiftKey && (e.key === 'Z' || e.key === 'z')) { e.preventDefault(); redo(); return; }
       if (e.ctrlKey && (e.key === 'z' || e.key === 'Z') && !e.shiftKey) { e.preventDefault(); undo(); return; }
 
       const dirMap: Record<string, 'left' | 'right' | 'up' | 'down'> = {
@@ -55,64 +96,72 @@ export default function BrandingDesignerOverlay({ designer, children }: Props) {
 
     el.addEventListener('keydown', onKey);
     return () => el.removeEventListener('keydown', onKey);
-  }, [isActive, selected, undo, redo, updateElement, localLayout, docType]);
+  }, [isActive, selected, undo, redo, updateElement, localLayout, docType, deactivate, resetElement, setZoom, save]);
 
-  // ── Drag handle positions (read from DOM after layout changes) ──
-  const [sigPos, setSigPos] = useState<{ x: number; y: number } | null>(null);
-  const [stampPos, setStampPos] = useState<{ x: number; y: number } | null>(null);
+  // Focus overlay wrapper so keyboard events work
+  useEffect(() => {
+    if (isActive) wrapperRef.current?.focus();
+  }, [isActive]);
+
+  // ── Element rects (track full bounding box for selection overlays) ──
+  const [sigRect, setSigRect] = useState<ElemRect | null>(null);
+  const [stampRect, setStampRect] = useState<ElemRect | null>(null);
+  const [hoveredType, setHoveredType] = useState<ElementType | null>(null);
 
   useEffect(() => {
     if (!isActive || !docRef.current) return;
     const container = docRef.current;
 
-    function findHandlePos(type: ElementType) {
+    function findRect(type: ElementType): ElemRect | null {
       const el = container.querySelector(`[data-bd-type="${type}"]`);
       if (!el) return null;
-      const containerRect = container.getBoundingClientRect();
+      const cr = container.getBoundingClientRect();
       const r = el.getBoundingClientRect();
       return {
-        x: r.left - containerRect.left + r.width / 2,
-        y: r.top - containerRect.top + r.height / 2,
+        x: r.left - cr.left,
+        y: r.top - cr.top,
+        w: r.width,
+        h: r.height,
       };
     }
 
-    setSigPos(findHandlePos('signature'));
-    setStampPos(findHandlePos('stamp'));
+    setSigRect(findRect('signature'));
+    setStampRect(findRect('stamp'));
   }, [isActive, localLayout, effectiveZoom]);
 
   // ── Drag handle component ──
-  function DragHandle({ type, pos }: { type: ElementType; pos: { x: number; y: number } }) {
-    const isSelected = selected === type;
-    const color = type === 'signature' ? '#3b82f6' : '#10b981';
-    const label = type === 'signature' ? 'التوقيع' : 'الختم';
+  function DragHandle({ type, rect }: { type: ElementType; rect: ElemRect }) {
+    const isSel = selected === type;
+    const isHovered = hoveredType === type && !isSel;
+    const isThisDragging = isDragging && designer.selected === type;
 
     return (
       <div
         data-bd-handle={type}
-        title={`اسحب لتحريك ${label}`}
+        title={`اسحب لتحريك ${type === 'signature' ? 'التوقيع' : 'الختم'}`}
         style={{
           position: 'absolute',
-          left: pos.x,
-          top: pos.y,
-          transform: 'translate(-50%, -50%)',
-          width: 28,
-          height: 28,
-          borderRadius: '50%',
-          background: isSelected ? color : `${color}88`,
-          border: `2px solid ${color}`,
-          cursor: isDragging && type === designer.selected ? 'grabbing' : 'grab',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: 12,
-          color: '#fff',
-          fontWeight: 700,
+          left: rect.x,
+          top: rect.y,
+          width: Math.max(rect.w, 16),
+          height: Math.max(rect.h, 16),
+          border: isSel
+            ? '2px solid #3b82f6'
+            : isHovered
+            ? '1.5px dashed #93c5fd'
+            : '2px solid transparent',
+          boxShadow: isSel ? '0 0 0 4px rgba(59,130,246,0.15)' : 'none',
+          borderRadius: 3,
+          cursor: isThisDragging ? 'grabbing' : 'grab',
+          boxSizing: 'border-box',
           zIndex: 1000,
-          boxShadow: isSelected ? `0 0 0 3px ${color}44` : 'none',
-          userSelect: 'none',
           touchAction: 'none',
           pointerEvents: 'all',
+          transition: 'border-color 0.12s, box-shadow 0.12s',
         }}
+        onMouseEnter={() => setHoveredType(type)}
+        onMouseLeave={() => setHoveredType(null)}
+        onClick={() => setSelected(type)}
         onPointerDown={(e) => {
           e.stopPropagation();
           (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -133,7 +182,43 @@ export default function BrandingDesignerOverlay({ designer, children }: Props) {
           endDrag();
         }}
       >
-        ✥
+        {/* Corner handles */}
+        {isSel && (['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((pos) => {
+          const [v, h] = pos.split('-') as ['top' | 'bottom', 'left' | 'right'];
+          return (
+            <div
+              key={pos}
+              style={{
+                position: 'absolute',
+                [v]: -4,
+                [h]: -4,
+                width: 8,
+                height: 8,
+                background: '#3b82f6',
+                border: '1.5px solid #fff',
+                borderRadius: 2,
+                zIndex: 2,
+              }}
+            />
+          );
+        })}
+        {/* Center point */}
+        {isSel && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 6,
+              height: 6,
+              background: '#3b82f6',
+              border: '1.5px solid #fff',
+              borderRadius: '50%',
+              zIndex: 2,
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -144,23 +229,39 @@ export default function BrandingDesignerOverlay({ designer, children }: Props) {
 
   const scaledWidth = Math.round(794 * effectiveZoom);
   const scaledHeight = Math.round(1123 * effectiveZoom);
+  const el = localLayout[docType][selected];
+  const hasAnyImage = !!(signatureUrl || stampUrl);
 
   return (
     <div
       ref={wrapperRef}
       tabIndex={-1}
-      style={{ outline: 'none', background: '#e2e8f0', overflowAuto: 'auto' } as React.CSSProperties}
+      style={{ outline: 'none', background: '#e2e8f0', display: 'flex', flexDirection: 'column' } as React.CSSProperties}
       className="no-print"
     >
+      {/* Toolbar */}
+      <BrandingDesignerToolbar
+        designer={designer}
+        docLabel={docLabel}
+        onClose={deactivate}
+      />
+
       {/* Corner + top ruler row */}
-      <div style={{ display: 'flex' }}>
+      <div style={{ display: 'flex', flexShrink: 0 }}>
         <div style={{
           width: RULER, height: RULER, flexShrink: 0,
           background: '#f8fafc',
           borderRight: '1px solid #cbd5e1',
           borderBottom: '1px solid #cbd5e1',
         }} />
-        <div style={{ flex: 1, height: RULER, background: '#f8fafc', borderBottom: '1px solid #cbd5e1', position: 'relative', overflow: 'hidden' }}>
+        <div style={{
+          flex: 1,
+          height: RULER,
+          background: '#f8fafc',
+          borderBottom: '1px solid #cbd5e1',
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
           {Array.from({ length: Math.ceil(scaledWidth / 50) + 1 }).map((_, i) => {
             const px = i * 50;
             const unit = Math.round(px / effectiveZoom);
@@ -175,7 +276,7 @@ export default function BrandingDesignerOverlay({ designer, children }: Props) {
       </div>
 
       {/* Left ruler + scaled document */}
-      <div style={{ display: 'flex', overflow: 'auto', maxHeight: 'calc(100vh - 140px)' }}>
+      <div style={{ display: 'flex', overflow: 'auto', flex: 1, maxHeight: 'calc(100vh - 188px)' }}>
         {/* Left ruler */}
         <div style={{ width: RULER, flexShrink: 0, background: '#f8fafc', borderRight: '1px solid #cbd5e1', position: 'relative' }}>
           {Array.from({ length: Math.ceil(scaledHeight / 50) + 1 }).map((_, i) => {
@@ -192,6 +293,25 @@ export default function BrandingDesignerOverlay({ designer, children }: Props) {
 
         {/* Document area */}
         <div style={{ padding: 16, flex: 1 }}>
+          {/* Empty state notice when no images */}
+          {!hasAnyImage && (
+            <div style={{
+              marginBottom: 12,
+              padding: '10px 16px',
+              background: '#fffbeb',
+              border: '1px solid #fcd34d',
+              borderRadius: 8,
+              fontSize: 12,
+              color: '#92400e',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              <span style={{ fontSize: 16 }}>⚠</span>
+              <span>لم يتم رفع صورة توقيع أو ختم بعد. أضفها من <strong>الإعدادات ← الطباعة</strong> ثم عد لتعديل المواضع.</span>
+            </div>
+          )}
+
           <div
             style={{
               position: 'relative',
@@ -209,13 +329,14 @@ export default function BrandingDesignerOverlay({ designer, children }: Props) {
                 left: 0,
                 transform: `scale(${effectiveZoom})`,
                 transformOrigin: 'top left',
-                boxShadow: '0 4px 24px rgba(0,0,0,0.2)',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+                borderRadius: 1,
               }}
             >
               {children}
             </div>
 
-            {/* Grid overlay (rendered over the scaled wrapper so it matches visual pixels) */}
+            {/* Grid overlay */}
             {showGrid && (
               <svg
                 style={{
@@ -232,23 +353,66 @@ export default function BrandingDesignerOverlay({ designer, children }: Props) {
                   const g = Math.max(gridSize, 1) * effectiveZoom;
                   const lines: React.ReactNode[] = [];
                   for (let x = 0; x <= scaledWidth; x += g) {
-                    lines.push(<line key={`v${x}`} x1={x} y1={0} x2={x} y2={scaledHeight} stroke="#94a3b840" strokeWidth={0.5} />);
+                    lines.push(<line key={`v${x}`} x1={x} y1={0} x2={x} y2={scaledHeight} stroke="#94a3b850" strokeWidth={0.5} />);
                   }
                   for (let y = 0; y <= scaledHeight; y += g) {
-                    lines.push(<line key={`h${y}`} x1={0} y1={y} x2={scaledWidth} y2={y} stroke="#94a3b840" strokeWidth={0.5} />);
+                    lines.push(<line key={`h${y}`} x1={0} y1={y} x2={scaledWidth} y2={y} stroke="#94a3b850" strokeWidth={0.5} />);
                   }
                   return lines;
                 })()}
               </svg>
             )}
 
-            {/* Drag handles (positioned in scaled-document pixel space) */}
+            {/* Selection overlay handles */}
             <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 10 }}>
-              {sigPos && <DragHandle type="signature" pos={sigPos} />}
-              {stampPos && <DragHandle type="stamp" pos={stampPos} />}
+              {sigRect && <DragHandle type="signature" rect={sigRect} />}
+              {stampRect && <DragHandle type="stamp" rect={stampRect} />}
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Status bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        padding: '4px 14px',
+        background: '#f1f5f9',
+        borderTop: '1px solid #e2e8f0',
+        fontSize: 11,
+        color: '#64748b',
+        flexShrink: 0,
+        direction: 'rtl',
+        flexWrap: 'wrap',
+      }}>
+        <span style={{
+          fontWeight: 600,
+          color: selected === 'signature' ? '#3b82f6' : '#10b981',
+        }}>
+          {selected === 'signature' ? '✏ التوقيع' : '🔵 الختم'}
+        </span>
+        <span style={{ color: '#94a3b8' }}>|</span>
+        <span>X: <strong>{formatUnit(el.x)}</strong></span>
+        <span>Y: <strong>{formatUnit(el.y)}</strong></span>
+        <span>حجم: <strong>{formatUnit(el.scale)}×</strong></span>
+        <span style={{ color: '#94a3b8' }}>|</span>
+        <span>
+          تكبير:{' '}
+          <strong>
+            {designer.zoom === 'fit-width'
+              ? 'ملاءمة عرض'
+              : designer.zoom === 'fit-page'
+              ? 'ملاءمة صفحة'
+              : `${Math.round(effectiveZoom * 100)}%`}
+          </strong>
+        </span>
+        {designer.snapEnabled && (
+          <span>محاذاة: <strong>{designer.gridSize}</strong></span>
+        )}
+        <span style={{ marginInlineStart: 'auto', color: '#94a3b8' }}>
+          Esc إغلاق · Del إعادة ضبط · Ctrl+0 ملاءمة
+        </span>
       </div>
     </div>
   );
