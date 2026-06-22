@@ -7,6 +7,7 @@ import { registerDialogIpc } from './ipc/dialog.ipc';
 import { registerBackupIpc } from './ipc/backup.ipc';
 import { registerSessionIpc } from './ipc/session.ipc';
 import { registerContextMenuIpc } from './ipc/contextMenu.ipc';
+import { registerPdfIpc } from './ipc/pdf.ipc';
 
 const INTERNAL_SECRET = randomUUID();
 
@@ -23,6 +24,7 @@ async function bootstrap() {
     registerDialogIpc();
     registerBackupIpc();
     registerSessionIpc();
+    registerPdfIpc();
     await startBackend(INTERNAL_SECRET); // تشغيل الخدمة الخلفية أولًا
     await startBackupScheduler(INTERNAL_SECRET); // ثم جدولة النسخ التلقائي
     runCatchupIfNeeded(INTERNAL_SECRET).catch(console.error); // نسخة تعويضية إذا فات وقت الجدولة

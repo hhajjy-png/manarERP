@@ -25,6 +25,10 @@ declare global {
       setSessionToken: (token: string | null) => Promise<{ ok: boolean }>;
       // ─── Scheduler IPC ──────────────────────────────────────────────────────────
       backupReconfigure: () => Promise<{ ok: boolean }>;
+      // ─── PDF Export IPC ─────────────────────────────────────────────────────────
+      exportPdf: (suggestedName: string) => Promise<{
+        success: boolean; canceled?: boolean; path?: string; sizeBytes?: number; error?: string;
+      }>;
     };
   }
 }

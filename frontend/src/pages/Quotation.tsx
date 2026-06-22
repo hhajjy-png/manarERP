@@ -19,6 +19,7 @@ import {
 } from '../print-templates/integration/quotationPreviewIntegration';
 import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
 import { createCompanyPrintData } from '../print-templates/adapters/companyData';
+import { buildQuotationPdfName } from '../utils/pdfFilename';
 
 const FORM_KEY = 'quotation';
 
@@ -82,6 +83,35 @@ export default function Quotation() {
   const clearDraft = usePrintDraftStore((s) => s.clearDraft);
 
   const branding = useCompanyBranding();
+
+  const [pdfExporting, setPdfExporting] = useState(false);
+  const [pdfMsg, setPdfMsg] = useState('');
+  const [pdfError, setPdfError] = useState('');
+
+  async function handleExportPdf() {
+    setPdfExporting(true);
+    setPdfMsg('');
+    setPdfError('');
+    try {
+      const suggestedName = buildQuotationPdfName(printFields.quotationNumber);
+      const result = await window.manar?.exportPdf(suggestedName);
+      if (!result) {
+        setPdfError('تصدير PDF غير متاح في هذه البيئة');
+        return;
+      }
+      if (result.canceled) return;
+      if (result.success && result.path) {
+        setPdfMsg(`تم الحفظ: ${result.path}`);
+        setTimeout(() => setPdfMsg(''), 6000);
+      } else {
+        setPdfError(result.error ?? 'فشل تصدير PDF');
+      }
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : 'فشل تصدير PDF');
+    } finally {
+      setPdfExporting(false);
+    }
+  }
 
   const [printShowSignature, setPrintShowSignature] = useState(true);
   const [printShowStamp, setPrintShowStamp] = useState(true);
@@ -198,8 +228,22 @@ export default function Quotation() {
           style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '10px 18px', background: '#fff', borderBottom: '1px solid var(--border)', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }}
         >
           <button type="button" className="btn" onClick={() => window.print()}>
-            🖨️ طباعة / حفظ PDF
+            🖨️ طباعة
           </button>
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={handleExportPdf}
+            disabled={pdfExporting}
+          >
+            {pdfExporting ? '⏳ جارٍ التصدير…' : '⬇️ PDF'}
+          </button>
+          {pdfMsg && (
+            <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>✓ {pdfMsg}</span>
+          )}
+          {pdfError && (
+            <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>⚠️ {pdfError}</span>
+          )}
           <button type="button" className="btn secondary" onClick={() => navigate(-1)}>
             رجوع
           </button>
