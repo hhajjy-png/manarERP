@@ -217,6 +217,7 @@ export class ReportsService {
         { header: 'العقد', key: 'contract', width: 22 },
         { header: 'المبلغ', key: 'amount', width: 16, numFmt: '#,##0.000' },
         { header: 'التاريخ', key: 'date', width: 16 },
+        { header: 'شهر الحساب', key: 'billingPeriod', width: 18 },
         { header: 'الحالة', key: 'status', width: 16 },
       ],
       rows: rows.map((e) => ({
@@ -227,6 +228,9 @@ export class ReportsService {
         contract: e.contract?.asphaltPlant ?? '',
         amount: num(e.amount),
         date: dateAr(e.date),
+        billingPeriod: e.billingMonth && e.billingYear
+          ? `${ARABIC_MONTHS_RPT[(e.billingMonth as number) - 1]} ${e.billingYear}`
+          : '',
         status: STATUS_AR[e.status] ?? e.status,
       })),
       totalsRow: { description: 'الإجمالي', amount: total },
