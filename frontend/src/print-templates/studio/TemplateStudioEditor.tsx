@@ -772,18 +772,51 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
         <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', marginTop: 6 }}>الإجماليات</div>
         {(
           [
-            ['showSubtotal',   'المجموع الفرعي'],
+            ['showSubtotal',   'الإجمالي قبل الخصم'],
             ['showDiscount',   'الخصم'],
             ['showTax',        'الضريبة'],
-            ['showGrandTotal', 'الإجمالي الكلي'],
-          ] as [keyof NonNullable<LineItemsTableElement['totals']>, string][]
+            ['showGrandTotal', 'الإجمالي النهائي'],
+          ] as [keyof Pick<NonNullable<LineItemsTableElement['totals']>, 'showSubtotal' | 'showDiscount' | 'showTax' | 'showGrandTotal'>, string][]
         ).map(([key, lbl]) => (
           <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#e2e8f0' }}>
-            <input type="checkbox" checked={!!el.totals?.[key]}
+            <input type="checkbox" aria-label={lbl} checked={!!el.totals?.[key]}
               onChange={(e) => updateTotals({ [key]: e.target.checked })} />
             {lbl}
           </label>
         ))}
+        <div style={propRow}>
+          <label style={propLabel}>محاذاة التسمية</label>
+          <select style={propInput} value={el.totals?.labelAlign ?? 'end'}
+            title="محاذاة تسمية الإجمالي"
+            onChange={(e) => updateTotals({ labelAlign: e.target.value as 'start' | 'center' | 'end' })}>
+            <option value="start">يمين</option>
+            <option value="center">وسط</option>
+            <option value="end">يسار</option>
+          </select>
+        </div>
+        <div style={propRow}>
+          <label style={propLabel}>محاذاة القيمة</label>
+          <select style={propInput} value={el.totals?.valueAlign ?? 'end'}
+            title="محاذاة قيمة الإجمالي"
+            onChange={(e) => updateTotals({ valueAlign: e.target.value as 'start' | 'center' | 'end' })}>
+            <option value="start">يمين</option>
+            <option value="center">وسط</option>
+            <option value="end">يسار</option>
+          </select>
+        </div>
+
+        {/* Display options */}
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', marginTop: 6 }}>خيارات العرض</div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#e2e8f0' }}>
+          <input type="checkbox" aria-label="إخفاء الأعمدة الصفرية تلقائياً" checked={!!el.autoHideZeroColumns}
+            onChange={(e) => updateElement(el.id, { autoHideZeroColumns: e.target.checked } as Partial<LineItemsTableElement>)} />
+          إخفاء الأعمدة الصفرية تلقائياً
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#e2e8f0' }}>
+          <input type="checkbox" aria-label="تلوين الصفوف بالتناوب" checked={!!el.rowStriping}
+            onChange={(e) => updateElement(el.id, { rowStriping: e.target.checked } as Partial<LineItemsTableElement>)} />
+          تلوين الصفوف بالتناوب
+        </label>
       </>
     );
   }

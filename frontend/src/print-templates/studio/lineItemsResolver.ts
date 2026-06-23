@@ -4,6 +4,46 @@ import type {
   TemplateStudioDocumentType,
 } from './templateStudioTypes';
 
+// ─── Document-level totals ────────────────────────────────────────────────────
+export interface DocumentTotals {
+  subtotal:   string;
+  discount:   string;
+  tax:        string;
+  grandTotal: string;
+}
+
+// ─── Safe formatter for pre-formatted or raw number strings ──────────────────
+// Accepts already-formatted KWD strings (e.g. "1,234.500") or raw numbers.
+// Returns '0.000' for missing, empty, NaN, or Infinity values.
+function safeFmtStr(val: unknown): string {
+  if (val === undefined || val === null || val === '') return '0.000';
+  const s = String(val).replace(/,/g, '');
+  const n = parseFloat(s);
+  if (!isFinite(n)) return '0.000';
+  return n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+}
+
+// ─── Document-level totals resolvers ─────────────────────────────────────────
+// Invoice: data already has subtotal/discount/tax/grandTotal as formatted strings.
+export function resolveInvoiceDocumentTotals(data: Record<string, string>): DocumentTotals {
+  return {
+    subtotal:   safeFmtStr(data.subtotal),
+    discount:   safeFmtStr(data.discount),
+    tax:        safeFmtStr(data.tax),
+    grandTotal: safeFmtStr(data.grandTotal),
+  };
+}
+
+// Quotation: data has 'total' but may not have subtotal/discount/tax/grandTotal.
+export function resolveQuotationDocumentTotals(data: Record<string, string>): DocumentTotals {
+  return {
+    subtotal:   safeFmtStr(data.subtotal   ?? data.total),
+    discount:   safeFmtStr(data.discount),
+    tax:        safeFmtStr(data.tax),
+    grandTotal: safeFmtStr(data.grandTotal ?? data.total),
+  };
+}
+
 // ─── KWD number formatter ─────────────────────────────────────────────────────
 function fmtNum(n: unknown): string {
   const num = typeof n === 'number' ? n : parseFloat(String(n ?? ''));
