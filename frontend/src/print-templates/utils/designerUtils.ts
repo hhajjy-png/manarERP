@@ -66,3 +66,91 @@ export function historyRedo<T>(
   if (cursor >= history.length - 1) return null;
   return { state: history[cursor + 1], cursor: cursor + 1 };
 }
+
+// ── mm ↔ px conversion (A4: 794px = 210mm) ──────────────────────────────────
+
+export const PX_PER_MM = 794 / 210; // ≈ 3.7795
+
+export function mmToPx(mm: number): number { return mm * PX_PER_MM; }
+export function pxToMm(px: number): number { return px / PX_PER_MM; }
+
+// ── Smart guides ──────────────────────────────────────────────────────────────
+
+export interface ElementRect { x: number; y: number; w: number; h: number; }
+
+export interface GuideLine {
+  axis: 'x' | 'y'; // x = vertical line, y = horizontal line
+  position: number; // px coordinate on that axis
+  from: number;     // perpendicular axis start (for rendering)
+  to: number;       // perpendicular axis end
+}
+
+export interface GuideSnap {
+  lines: GuideLine[];
+  dx: number; // x correction to snap
+  dy: number; // y correction to snap
+}
+
+function centerX(r: ElementRect) { return r.x + r.w / 2; }
+function centerY(r: ElementRect) { return r.y + r.h / 2; }
+
+export function computeSmartGuides(
+  movingRects: ElementRect[],
+  staticRects: ElementRect[],
+  canvasW: number,
+  canvasH: number,
+  threshold = 6,
+): GuideSnap {
+  const lines: GuideLine[] = [];
+  let dx = 0;
+  let dy = 0;
+  let bestDx = threshold + 1;
+  let bestDy = threshold + 1;
+
+  const canvasRect: ElementRect = { x: 0, y: 0, w: canvasW, h: canvasH };
+  const allStatic = [...staticRects, canvasRect];
+
+  // X-axis candidates: left edges, centers, right edges
+  const xCandidates = allStatic.flatMap((r) => [r.x, centerX(r), r.x + r.w]);
+  const yCandidates = allStatic.flatMap((r) => [r.y, centerY(r), r.y + r.h]);
+
+  for (const moving of movingRects) {
+    const mPoints = {
+      left: moving.x, centerX: centerX(moving), right: moving.x + moving.w,
+      top: moving.y, centerY: centerY(moving), bottom: moving.y + moving.h,
+    };
+
+    for (const candidate of xCandidates) {
+      for (const mKey of ['left', 'centerX', 'right'] as const) {
+        const diff = candidate - mPoints[mKey];
+        if (Math.abs(diff) < threshold && Math.abs(diff) < Math.abs(bestDx)) {
+          bestDx = diff;
+          dx = diff;
+          lines.push({ axis: 'x', position: candidate, from: 0, to: canvasH });
+        }
+      }
+    }
+
+    for (const candidate of yCandidates) {
+      for (const mKey of ['top', 'centerY', 'bottom'] as const) {
+        const diff = candidate - mPoints[mKey];
+        if (Math.abs(diff) < threshold && Math.abs(diff) < Math.abs(bestDy)) {
+          bestDy = diff;
+          dy = diff;
+          lines.push({ axis: 'y', position: candidate, from: 0, to: canvasW });
+        }
+      }
+    }
+  }
+
+  // Deduplicate guide lines
+  const seen = new Set<string>();
+  const uniqueLines = lines.filter((g) => {
+    const key = `${g.axis}:${g.position}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return { lines: uniqueLines, dx: bestDx > threshold ? 0 : dx, dy: bestDy > threshold ? 0 : dy };
+}
