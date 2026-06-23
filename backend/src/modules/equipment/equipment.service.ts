@@ -134,7 +134,22 @@ export class EquipmentService {
     if (!(await repo.findById(id))) throw AppError.notFound('المعدة غير موجودة');
     const counts = await this.getChildCounts(id);
     const total = Object.values(counts).reduce((a, b) => a + b, 0);
-    if (total > 0) throw AppError.conflict('لا يمكن حذف المعدة لوجود سجلات مرتبطة بها. استخدم الحذف الإجباري.');
+
+    if (total > 0) {
+      const parts: string[] = [];
+      if (counts.maintenanceRecords === 1) parts.push('سجل صيانة واحد');
+      else if (counts.maintenanceRecords > 1) parts.push(`${counts.maintenanceRecords} سجل صيانة`);
+      if (counts.breakdowns === 1) parts.push('بلاغ عطل واحد');
+      else if (counts.breakdowns > 1) parts.push(`${counts.breakdowns} بلاغ عطل`);
+      if (counts.fuelLogs === 1) parts.push('سجل وقود واحد');
+      else if (counts.fuelLogs > 1) parts.push(`${counts.fuelLogs} سجل وقود`);
+      if (counts.spareParts === 1) parts.push('سجل قطع غيار واحد');
+      else if (counts.spareParts > 1) parts.push(`${counts.spareParts} سجل قطع غيار`);
+      throw AppError.conflict(
+        `لا يمكن حذف هذه المعدة لوجود ${parts.join('، و')} مرتبطة بها — استخدم الحذف الإجباري`,
+      );
+    }
+
     await repo.delete(id);
     await recordAudit({ req, action: 'DELETE', module: 'equipment', entityId: id });
     return { deleted: true };

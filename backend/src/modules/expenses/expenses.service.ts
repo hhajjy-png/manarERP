@@ -275,7 +275,44 @@ export class ExpensesService {
       bySupplier[label] = (bySupplier[label] ?? 0) + Number(r.amount);
     }
 
-    return { count, total, pendingCount, pendingTotal, byCategory, byCompanyGroup, bySupplier };
+    // Period cards — use billing month/year only, strip date/period range filters so
+    // they always reflect absolute calendar windows regardless of active filters.
+    const periodsBaseWhere: Prisma.ExpenseWhereInput = {};
+    if (query.category) periodsBaseWhere.category = query.category;
+    if (query.status) periodsBaseWhere.status = query.status;
+    if (query.supplierId) periodsBaseWhere.supplierId = Number(query.supplierId);
+
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+    const prevMonth = curMonth === 1 ? 12 : curMonth - 1;
+    const prevMonthYear = curMonth === 1 ? curYear - 1 : curYear;
+
+    const [cmAgg, pmAgg, cyAgg] = await Promise.all([
+      prisma.expense.aggregate({
+        where: { ...periodsBaseWhere, billingMonth: curMonth, billingYear: curYear },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+      prisma.expense.aggregate({
+        where: { ...periodsBaseWhere, billingMonth: prevMonth, billingYear: prevMonthYear },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+      prisma.expense.aggregate({
+        where: { ...periodsBaseWhere, billingYear: curYear },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const periods = {
+      currentMonth: { total: Number(cmAgg._sum.amount ?? 0), count: cmAgg._count._all, month: curMonth, year: curYear },
+      previousMonth: { total: Number(pmAgg._sum.amount ?? 0), count: pmAgg._count._all, month: prevMonth, year: prevMonthYear },
+      currentYear: { total: Number(cyAgg._sum.amount ?? 0), count: cyAgg._count._all, year: curYear },
+    };
+
+    return { count, total, pendingCount, pendingTotal, byCategory, byCompanyGroup, bySupplier, periods };
   }
 }
 

@@ -14,7 +14,9 @@ vi.mock('../customers.repository', () => ({
   customersRepository: {
     create: vi.fn(),
     findById: vi.fn(),
+    findWithRelations: vi.fn(),
     update: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -35,7 +37,9 @@ const mockPrisma = prisma as unknown as {
 const mockRepo = customersRepository as unknown as {
   create: ReturnType<typeof vi.fn>;
   findById: ReturnType<typeof vi.fn>;
+  findWithRelations: ReturnType<typeof vi.fn>;
   update: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
 };
 
 const fakeReq = {} as import('express').Request;
@@ -167,5 +171,79 @@ describe('CustomersService.update — duplicate code check', () => {
     await expect(
       service.update(999, { name: 'لا يوجد' }, fakeReq),
     ).rejects.toThrow('العميل غير موجود');
+  });
+});
+
+// ── remove() — rich FK conflict guard ──────────────────────────────────────
+
+describe('CustomersService.remove — rich conflict messages', () => {
+  let service: CustomersService;
+
+  beforeEach(() => {
+    service = new CustomersService();
+    vi.clearAllMocks();
+  });
+
+  it('throws notFound when customer does not exist', async () => {
+    mockRepo.findWithRelations.mockResolvedValue(null);
+    await expect(service.remove(999, fakeReq)).rejects.toThrow('العميل غير موجود');
+  });
+
+  it('mentions single contract code when exactly one contract', async () => {
+    mockRepo.findWithRelations.mockResolvedValue({
+      id: 1,
+      contracts: [{ id: 10, code: 'KW-2025-001', asphaltPlant: 'مصنع أ', status: 'ACTIVE', monthlyTransportValue: 0 }],
+      _count: { contracts: 1, invoices: 0 },
+    });
+    const err = await service.remove(1, fakeReq).catch((e: unknown) => e);
+    expect((err as Error).message).toContain('KW-2025-001');
+    expect((err as Error).message).not.toContain('عقود أخرى');
+  });
+
+  it('mentions first contract code and remaining count when multiple contracts', async () => {
+    mockRepo.findWithRelations.mockResolvedValue({
+      id: 1,
+      contracts: [{ id: 10, code: 'KW-2025-001', asphaltPlant: 'مصنع أ', status: 'ACTIVE', monthlyTransportValue: 0 }],
+      _count: { contracts: 3, invoices: 2 },
+    });
+    const err = await service.remove(1, fakeReq).catch((e: unknown) => e);
+    expect((err as Error).message).toContain('KW-2025-001');
+    expect((err as Error).message).toContain('2 عقود أخرى');
+    expect((err as Error).message).toContain('2 فواتير');
+  });
+
+  it('mentions only invoices when customer has no contracts', async () => {
+    mockRepo.findWithRelations.mockResolvedValue({
+      id: 1,
+      contracts: [],
+      _count: { contracts: 0, invoices: 5 },
+    });
+    const err = await service.remove(1, fakeReq).catch((e: unknown) => e);
+    expect((err as Error).message).toContain('5 فواتير');
+    expect((err as Error).message).not.toContain('عقد');
+  });
+
+  it('returns { deleted: true } when customer has no linked records', async () => {
+    mockRepo.findWithRelations.mockResolvedValue({
+      id: 1,
+      contracts: [],
+      _count: { contracts: 0, invoices: 0 },
+    });
+    mockRepo.delete.mockResolvedValue({ id: 1 });
+
+    const result = await service.remove(1, fakeReq);
+    expect(result).toEqual({ deleted: true });
+    expect(mockRepo.delete).toHaveBeenCalledWith(1);
+  });
+
+  it('error has statusCode 409', async () => {
+    mockRepo.findWithRelations.mockResolvedValue({
+      id: 1,
+      contracts: [{ id: 10, code: 'KW-2025-001', asphaltPlant: 'مصنع أ', status: 'ACTIVE', monthlyTransportValue: 0 }],
+      _count: { contracts: 1, invoices: 0 },
+    });
+    let err: AppError | undefined;
+    try { await service.remove(1, fakeReq); } catch (e) { err = e as AppError; }
+    expect(err?.statusCode).toBe(409);
   });
 });

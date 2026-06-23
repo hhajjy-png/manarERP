@@ -89,9 +89,33 @@ export class CustomersService {
   async remove(id: number, req: Request) {
     const customer = await customersRepository.findWithRelations(id);
     if (!customer) throw AppError.notFound('العميل غير موجود');
-    if (customer._count.contracts > 0 || customer._count.invoices > 0) {
-      throw AppError.conflict('لا يمكن حذف عميل مرتبط بعقود أو فواتير — يمكنك أرشفته بدلًا من ذلك');
+
+    const contractCount = customer._count.contracts;
+    const invoiceCount = customer._count.invoices;
+
+    if (contractCount > 0 || invoiceCount > 0) {
+      const firstCode = customer.contracts[0]?.code ?? null;
+      const parts: string[] = [];
+
+      if (contractCount === 1 && firstCode) {
+        parts.push(`العقد ${firstCode}`);
+      } else if (contractCount > 1 && firstCode) {
+        parts.push(`العقد ${firstCode}، و${contractCount - 1} عقود أخرى`);
+      } else if (contractCount > 0) {
+        parts.push(`${contractCount} عقد`);
+      }
+
+      if (invoiceCount === 1) {
+        parts.push('فاتورة واحدة');
+      } else if (invoiceCount > 1) {
+        parts.push(`${invoiceCount} فواتير`);
+      }
+
+      throw AppError.conflict(
+        `لا يمكن حذف هذا العميل لأنه مستخدم في ${parts.join('، و')} — يمكنك أرشفته بدلاً من ذلك`,
+      );
     }
+
     await customersRepository.delete(id);
     await recordAudit({ req, action: 'DELETE', module: 'customers', entityId: id, oldValue: customer });
     return { deleted: true };
