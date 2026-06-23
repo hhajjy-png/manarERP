@@ -23,6 +23,7 @@ import BrandingDesignerPanel from '../print-templates/components/BrandingDesigne
 import LayoutOverrideStyles from '../print-templates/components/LayoutOverrideStyles';
 import UniversalDesignerOverlay from '../print-templates/components/UniversalDesignerOverlay';
 import LayoutDesignerPanel from '../print-templates/components/LayoutDesignerPanel';
+import ConfirmModal from '../components/ConfirmModal';
 import type { AllLayoutOverrides } from '../print-templates/designer/layoutOverrideTypes';
 import { getInkFilterStyle } from '../print-templates/utils/inkFilter';
 import { useTemplateStudio } from '../print-templates/studio/useTemplateStudio';
@@ -96,6 +97,7 @@ export default function InvoicePreview() {
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
   const [paying, setPaying] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [payAmount, setPayAmount] = useState(0);
   const [payMethod, setPayMethod] = useState('CASH');
   const [payError, setPayError] = useState('');
@@ -285,8 +287,10 @@ export default function InvoicePreview() {
     ? data.payments.reduce((max, p) => p.date > max ? p.date : max, data.payments[0].date)
     : null;
 
-  async function handleCancel() {
-    if (!confirm(t('confirm.cancel_invoice'))) return;
+  function handleCancel() { setShowCancelConfirm(true); }
+
+  async function executeCancel() {
+    setShowCancelConfirm(false);
     setActionError('');
     try {
       await api.patch(`/invoices/${data!.id}/cancel`);
@@ -875,6 +879,16 @@ export default function InvoicePreview() {
           onSave={async () => {
             await Promise.all([layoutDesigner.save(), designer.save(), textDesigner.save(), staticTextDesigner.save()]);
           }}
+        />
+      )}
+      {showCancelConfirm && (
+        <ConfirmModal
+          title="تأكيد إلغاء الفاتورة"
+          message={t('confirm.cancel_invoice')}
+          confirmLabel="إلغاء الفاتورة"
+          variant="danger"
+          onConfirm={executeCancel}
+          onCancel={() => setShowCancelConfirm(false)}
         />
       )}
     </>

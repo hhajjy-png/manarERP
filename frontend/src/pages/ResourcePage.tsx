@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { useToast } from '../stores/toastStore';
 import { api, errorMessage } from '../api/client';
 import { MODULES, money } from '../config/modules';
 import { useAuth } from '../stores/authStore';
@@ -11,6 +12,7 @@ import ForceDeleteCustomerModal from '../components/ForceDeleteCustomerModal';
 import ForceDeleteSupplierModal from '../components/ForceDeleteSupplierModal';
 import ForceDeleteContractModal from '../components/ForceDeleteContractModal';
 import ContractFinancialSummaryModal from '../components/ContractFinancialSummaryModal';
+import ConfirmModal from '../components/ConfirmModal';
 import { usePersistedState } from '../hooks/usePersistedState';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadBlob } from '../utils/exportUtils';
@@ -24,6 +26,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const { hasPermission, user } = useAuth();
   const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
   const { t } = useT();
+  const toast = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -40,6 +43,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [contractStats, setContractStats] = useState<ContractStats | null>(null);
   const [equipmentStats, setEquipmentStats] = useState<EquipmentStats | null>(null);
   const [archiveCandidate, setArchiveCandidate] = useState<{ id: number; label: string } | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [deleteCandidate, setDeleteCandidate] = useState<any | null>(null);
+  const [approveCandidate, setApproveCandidate] = useState<{ id: number; action: 'approve' | 'reject' } | null>(null);
   const [forceDeleteCandidate, setForceDeleteCandidate] = useState<{ id: number; code: string } | null>(null);
   const [forceDeleteCustomerCandidate, setForceDeleteCustomerCandidate] = useState<{ id: number; code: string } | null>(null);
   const [forceDeleteSupplierCandidate, setForceDeleteSupplierCandidate] = useState<{ id: number; code: string } | null>(null);
@@ -51,8 +57,6 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const canDelete = hasPermission(`${cfg.key}.delete`);
   const canExport = cfg.supportsExport && hasPermission('reports.export');
   const [exportBusy, setExportBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -153,13 +157,20 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  async function onDelete(row: any) {
-    if (!confirm(t('msg.confirm_delete', { id: row.code ?? row.name ?? row.username ?? row.id }))) return;
+  function onDelete(row: any) {
+    setDeleteCandidate(row);
+  }
+
+  const [busy, setBusy] = useState(false);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function executeDelete(row: any) {
+    setDeleteCandidate(null);
     if (busy) return;
     setBusy(true);
     try {
       await api.delete(`${cfg.endpoint}/${row.id}`);
-      showMsg('تم الحذف بنجاح');
+      toast.ok('تم الحذف بنجاح');
       load();
     } catch (err) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -182,8 +193,6 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     }
   }
 
-  const [busy, setBusy] = useState(false);
-
   async function onConfirmArchive() {
     if (!archiveCandidate) return;
     if (busy) return;
@@ -191,7 +200,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     try {
       await api.patch(`${cfg.endpoint}/${archiveCandidate.id}/archive`);
       setArchiveCandidate(null);
-      showMsg('تم الأرشفة بنجاح');
+      toast.ok('تم الأرشفة بنجاح');
       load();
     } catch (err) {
       setError(errorMessage(err));
@@ -201,13 +210,17 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     }
   }
 
-  async function onApprove(id: number, action: 'approve' | 'reject') {
-    if (!confirm(t(action === 'approve' ? 'msg.confirm_approve' : 'msg.confirm_reject'))) return;
+  function onApprove(id: number, action: 'approve' | 'reject') {
+    setApproveCandidate({ id, action });
+  }
+
+  async function executeApprove(id: number, action: 'approve' | 'reject') {
+    setApproveCandidate(null);
     if (busy) return;
     setBusy(true);
     try {
       await api.patch(`${cfg.endpoint}/${id}/${action}`);
-      showMsg(action === 'approve' ? 'تمت الموافقة بنجاح' : 'تم الرفض');
+      toast.ok(action === 'approve' ? 'تمت الموافقة بنجاح' : 'تم الرفض');
       load();
     } catch (err) {
       setError(errorMessage(err));
@@ -336,7 +349,6 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         <button className="btn secondary" type="button" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
       </form>
 
-      {msg && <div className="alert ok">{msg}</div>}
 
       <DataTable
         columns={cfg.columns}
@@ -373,7 +385,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           fields={cfg.fields}
           endpoint={cfg.endpoint}
           onClose={() => setCreating(false)}
-          onSaved={() => { showMsg('تم الحفظ بنجاح'); load(); }}
+          onSaved={() => { toast.ok('تم الحفظ بنجاح'); load(); }}
         />
       )}
       {editing && (
@@ -384,7 +396,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           id={editing.id}
           initial={editing}
           onClose={() => setEditing(null)}
-          onSaved={() => { showMsg('تم الحفظ بنجاح'); load(); }}
+          onSaved={() => { toast.ok('تم الحفظ بنجاح'); load(); }}
         />
       )}
 
@@ -441,6 +453,28 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           contractId={financialSummaryContract.id}
           contractCode={financialSummaryContract.code}
           onClose={() => setFinancialSummaryContract(null)}
+        />
+      )}
+
+      {deleteCandidate && (
+        <ConfirmModal
+          title="تأكيد الحذف"
+          message={t('msg.confirm_delete', { id: deleteCandidate.code ?? deleteCandidate.name ?? deleteCandidate.username ?? deleteCandidate.id })}
+          confirmLabel="حذف"
+          variant="danger"
+          onConfirm={() => executeDelete(deleteCandidate)}
+          onCancel={() => setDeleteCandidate(null)}
+        />
+      )}
+
+      {approveCandidate && (
+        <ConfirmModal
+          title={approveCandidate.action === 'approve' ? 'تأكيد الموافقة' : 'تأكيد الرفض'}
+          message={t(approveCandidate.action === 'approve' ? 'msg.confirm_approve' : 'msg.confirm_reject')}
+          confirmLabel={approveCandidate.action === 'approve' ? 'موافقة' : 'رفض'}
+          variant={approveCandidate.action === 'approve' ? 'warning' : 'danger'}
+          onConfirm={() => executeApprove(approveCandidate.id, approveCandidate.action)}
+          onCancel={() => setApproveCandidate(null)}
         />
       )}
     </div>

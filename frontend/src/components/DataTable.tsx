@@ -37,14 +37,14 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
   return (
     <div className="card panel" style={{ padding: 0 }}>
       <div className="table-responsive" style={{ minHeight: 120 }}>
-        <table>
+        <table aria-busy={!!loading}>
           <thead>
             <tr>
               {columns.map((c) => <th key={c.key} scope="col">{t(c.label)}</th>)}
-              {actions && <th scope="col" style={{ minWidth: 80 }}>{t('col.actions')}</th>}
+              {actions && <th scope="col" className="th-actions">{t('col.actions')}</th>}
             </tr>
           </thead>
-          <tbody>
+          <tbody aria-live="polite">
             {loading ? (
               <tr><td colSpan={colSpan}><div className="center-msg"><div className="spinner" />{t('msg.loading')}</div></td></tr>
             ) : rows.length === 0 ? (
@@ -62,7 +62,7 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
               rows.map((row, i) => (
                 <tr key={row.id ?? i}>
                   {columns.map((c) => <td key={c.key}>{c.render ? c.render(row) : (row[c.key] ?? '—')}</td>)}
-                  {actions && <td style={{ textAlign: 'start', whiteSpace: 'nowrap' }}>{actions(row)}</td>}
+                  {actions && <td className="td-actions">{actions(row)}</td>}
                 </tr>
               ))
             )}

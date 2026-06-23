@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
@@ -26,6 +27,7 @@ export default function ToWhomItMayConcern() {
   const [lang, setLang] = useState<Lang>('ar');
   const [profile, setProfile] = useState<ProfileId>(() => getProfileIdFromSearch(search));
   const [printFields, setPrintFields] = useState({ certPurpose: '' });
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
     if (!employeeId) return;
@@ -53,10 +55,8 @@ export default function ToWhomItMayConcern() {
   const saveDraft = usePrintDraftStore((s) => s.saveDraft);
   const clearDraft = usePrintDraftStore((s) => s.clearDraft);
 
-  function resetPrintFields() {
-    if (!window.confirm('سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟')) return;
-    setPrintFields({ ...INITIAL_PRINT_FIELDS });
-  }
+  function resetPrintFields() { setShowClearConfirm(true); }
+  function executeClear() { setShowClearConfirm(false); setPrintFields({ ...INITIAL_PRINT_FIELDS }); }
 
   const addPrintLog = usePrintLogStore((s) => s.addEntry);
   useEffect(() => {
@@ -153,6 +153,9 @@ export default function ToWhomItMayConcern() {
         lang={lang}
         printFields={printFields}
       />
+      {showClearConfirm && (
+        <ConfirmModal message="سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+      )}
     </FormLayout>
   );
 }

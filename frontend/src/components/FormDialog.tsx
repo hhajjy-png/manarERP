@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from './Modal';
+import ConfirmModal from './ConfirmModal';
 import { api, errorMessage } from '../api/client';
 import { useT } from '../lib/i18n';
 
@@ -55,6 +56,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [helperMsg, setHelperMsg] = useState('');
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   useEffect(() => {
     fields
@@ -79,8 +81,8 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
 
   const isDirty = JSON.stringify(values) !== JSON.stringify(initialValues);
 
-  function canClose() {
-    return !isDirty || confirm(t('msg.unsaved_changes'));
+  function tryClose() {
+    if (isDirty) { setShowDiscardConfirm(true); } else { onClose(); }
   }
 
   function set(name: string, value: string) {
@@ -116,52 +118,64 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
   }
 
   return (
-    <Modal
-      title={title}
-      onClose={onClose}
-      onBeforeClose={canClose}
-      footer={
-        <>
-          <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
-          <button className="btn secondary" onClick={() => { if (canClose()) onClose(); }}>{t('action.cancel')}</button>
-        </>
-      }
-    >
-      {error && <div className="alert error">⚠️ {error}</div>}
-      {helperMsg && <div className="alert info">✓ {helperMsg}</div>}
-      <div className="form-grid">
-        {fields.map((f, i) => {
-          const opts = f.options ?? asyncOptions[f.name] ?? [];
-          const autoFocus = i === 0 && f.type !== 'select';
-          return (
-            <div className="field" key={f.name} style={f.half === false ? { gridColumn: '1 / -1' } : undefined}>
-              <label>{t(f.label)}{f.required ? ' *' : ''}</label>
-              {f.type === 'select' ? (
-                <select value={values[f.name] ?? ''} onChange={(e) => {
-                  const newVal = e.target.value;
-                  if (f.onSelectRaw && newVal) {
-                    const rawOpt = asyncOptions[f.name]?.find((o) => o.value === newVal);
-                    if (rawOpt) {
-                      const updates = f.onSelectRaw(rawOpt.raw);
-                      setValues((p: Record<string, unknown>) => ({ ...p, [f.name]: newVal, ...updates }));
-                      setHelperMsg(t('msg.price_autofill'));
-                      return;
+    <>
+      <Modal
+        title={title}
+        onClose={tryClose}
+        footer={
+          <>
+            <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
+            <button type="button" className="btn secondary" onClick={tryClose}>{t('action.cancel')}</button>
+          </>
+        }
+      >
+        {error && <div className="alert error">⚠️ {error}</div>}
+        {helperMsg && <div className="alert info">✓ {helperMsg}</div>}
+        <div className="form-grid">
+          {fields.map((f, i) => {
+            const opts = f.options ?? asyncOptions[f.name] ?? [];
+            const autoFocus = i === 0 && f.type !== 'select';
+            return (
+              <div className={`field${f.half === false ? ' field-full' : ''}`} key={f.name}>
+                <label>{t(f.label)}{f.required ? ' *' : ''}</label>
+                {f.type === 'select' ? (
+                  <select aria-label={t(f.label)} value={values[f.name] ?? ''} onChange={(e) => {
+                    const newVal = e.target.value;
+                    if (f.onSelectRaw && newVal) {
+                      const rawOpt = asyncOptions[f.name]?.find((o) => o.value === newVal);
+                      if (rawOpt) {
+                        const updates = f.onSelectRaw(rawOpt.raw);
+                        setValues((p: Record<string, unknown>) => ({ ...p, [f.name]: newVal, ...updates }));
+                        setHelperMsg(t('msg.price_autofill'));
+                        return;
+                      }
                     }
-                  }
-                  set(f.name, newVal);
-                }}>
-                  <option value="">{t('msg.select_placeholder')}</option>
-                  {opts.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
-                </select>
-              ) : f.type === 'textarea' ? (
-                <textarea rows={3} autoFocus={autoFocus} placeholder={f.placeholder} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
-              ) : (
-                <input autoFocus={autoFocus} type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'password' ? 'password' : 'text'} placeholder={f.placeholder} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </Modal>
+                    set(f.name, newVal);
+                  }}>
+                    <option value="">{t('msg.select_placeholder')}</option>
+                    {opts.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
+                  </select>
+                ) : f.type === 'textarea' ? (
+                  <textarea rows={3} autoFocus={autoFocus} placeholder={f.placeholder} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
+                ) : (
+                  <input autoFocus={autoFocus} type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'password' ? 'password' : 'text'} placeholder={f.placeholder} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Modal>
+      {showDiscardConfirm && (
+        <ConfirmModal
+          title="تغييرات غير محفوظة"
+          message={t('msg.unsaved_changes')}
+          confirmLabel="إغلاق بدون حفظ"
+          cancelLabel="العودة"
+          variant="warning"
+          onConfirm={onClose}
+          onCancel={() => setShowDiscardConfirm(false)}
+        />
+      )}
+    </>
   );
 }

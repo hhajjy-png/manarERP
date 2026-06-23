@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { useToast } from '../stores/toastStore';
 import { formatDate } from '../lib/date';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import { money } from '../config/modules';
 import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
+import ConfirmModal from '../components/ConfirmModal';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadBlob } from '../utils/exportUtils';
 
@@ -73,6 +75,7 @@ export default function Prices() {
   const { hasPermission, user } = useAuth();
   const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
   const { t } = useT();
+  const toast = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -92,8 +95,7 @@ export default function Prices() {
   const [forceDeleteCandidate, setForceDeleteCandidate] = useState<{ id: number; asphaltPlant: string } | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
+  const [archiveConfirmId, setArchiveConfirmId] = useState<number | null>(null);
 
   const [stats, setStats] = useState<PricesStats | null>(null);
   const [usageReport, setUsageReport] = useState<UsageReport | null>(null);
@@ -189,10 +191,12 @@ export default function Prices() {
     }
   }
 
-  async function archiveRow(id: number) {
-    if (!confirm(t('confirm.archive_price'))) return;
+  function archiveRow(id: number) { setArchiveConfirmId(id); }
+
+  async function executeArchive(id: number) {
+    setArchiveConfirmId(null);
     if (busy) return; setBusy(true);
-    try { await api.delete(`/prices/${id}`); showMsg('تم الأرشفة بنجاح'); load(); loadStats(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/prices/${id}`); toast.ok('تم الأرشفة بنجاح'); load(); loadStats(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -229,7 +233,6 @@ export default function Prices() {
       </div>
 
       {error && <div className="alert error">⚠️ {error}</div>}
-      {msg && <div className="alert ok">{msg}</div>}
 
       {/* ── Stats Dashboard ─────────────────────────────────────────────────── */}
       {stats && (
@@ -339,8 +342,8 @@ export default function Prices() {
         )}
       />
 
-      {creating && <PriceForm customers={customers} onClose={() => setCreating(false)} onSaved={() => { showMsg('تم حفظ السعر بنجاح'); load(); loadStats(); }} />}
-      {editing && <PriceForm customers={customers} price={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم حفظ السعر بنجاح'); load(); loadStats(); }} />}
+      {creating && <PriceForm customers={customers} onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ السعر بنجاح'); load(); loadStats(); }} />}
+      {editing && <PriceForm customers={customers} price={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ السعر بنجاح'); load(); loadStats(); }} />}
 
       {forceDeleteCandidate && (
         <ForceDeleteProjectPriceModal
@@ -354,6 +357,7 @@ export default function Prices() {
       {showUsage && usageReport && (
         <Modal
           title={t('agreements.usage.title')}
+          size="xl"
           onClose={() => { setShowUsage(false); setGroupByCompany(false); }}
           footer={<button className="btn secondary" onClick={() => { setShowUsage(false); setGroupByCompany(false); }}>{t('action.close')}</button>}
         >
@@ -464,6 +468,16 @@ export default function Prices() {
           )}
         </Modal>
       )}
+      {archiveConfirmId !== null && (
+        <ConfirmModal
+          title="تأكيد الأرشفة"
+          message={t('confirm.archive_price')}
+          confirmLabel="أرشفة"
+          variant="warning"
+          onConfirm={() => executeArchive(archiveConfirmId)}
+          onCancel={() => setArchiveConfirmId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -536,6 +550,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
   return (
     <Modal
       title={isEdit ? t('modal.edit_price') : t('modal.new_price')}
+      size="lg"
       onClose={onClose}
       footer={
         <>

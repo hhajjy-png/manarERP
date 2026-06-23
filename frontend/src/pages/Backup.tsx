@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
+import ConfirmModal from '../components/ConfirmModal';
 import { dateText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { useToast } from '../stores/toastStore';
 
 const isElectron = typeof window !== 'undefined' && !!window.manar;
 
@@ -16,6 +18,7 @@ function fmt(bytes: number): string {
 export default function Backup() {
   const { hasPermission } = useAuth();
   const { t } = useT();
+  const toast = useToast();
   const canCreate = hasPermission('backups.create');
   const canRestore = hasPermission('backups.update');
 
@@ -28,17 +31,14 @@ export default function Backup() {
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ text: string; type: 'ok' | 'err' | 'warn' } | null>(null);
+  const [restoreListConfirm, setRestoreListConfirm] = useState<{ id: number; fileName: string } | null>(null);
+  const [restoreFileConfirm, setRestoreFileConfirm] = useState<string | null>(null);
+  const [deleteBackupId, setDeleteBackupId] = useState<number | null>(null);
   const [dbInfo, setDbInfo] = useState<{ dir: string; backupDir: string; exists: boolean; sizeBytes: number; isDev: boolean } | null>(null);
   const [showDbPath, setShowDbPath] = useState(false);
   const [autoStatus, setAutoStatus] = useState<AutoStatus | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<AutoSettings>({ enabled: true, time: '22:00', retentionCount: 30 });
   const [settingsBusy, setSettingsBusy] = useState(false);
-
-  function showMsg(text: string, type: 'ok' | 'err' | 'warn' = 'ok') {
-    setMsg({ text, type });
-    setTimeout(() => setMsg(null), 8000);
-  }
 
   async function load() {
     setLoading(true);
@@ -62,92 +62,93 @@ export default function Backup() {
     try {
       await api.put('/backups/settings', settingsDraft);
       if (isElectron) await window.manar!.backupReconfigure();
-      showMsg(t('msg.backup.settings_saved'));
+      toast.ok(t('msg.backup.settings_saved'));
       // Reload status to reflect enabled/disabled immediately
       const statusRes = await api.get('/backups/auto-status').catch(() => null);
       if (statusRes) setAutoStatus(statusRes.data.data);
-    } catch (err) { showMsg(errorMessage(err), 'err'); } finally { setSettingsBusy(false); }
+    } catch (err) { toast.error(errorMessage(err)); } finally { setSettingsBusy(false); }
   }
 
   async function createBackupApi() {
-    setBusy(true); setMsg(null);
+    setBusy(true);
     try {
       await api.post('/backups');
-      showMsg(t('msg.backup.created'));
+      toast.ok(t('msg.backup.created'));
       load();
-    } catch (err) { showMsg(errorMessage(err), 'err'); } finally { setBusy(false); }
+    } catch (err) { toast.error(errorMessage(err)); } finally { setBusy(false); }
   }
 
   async function createBackupElectron() {
-    if (!isElectron) { showMsg(t('msg.backup.desktop_only'), 'warn'); return; }
-    setBusy(true); setMsg(null);
+    if (!isElectron) { toast.warn(t('msg.backup.desktop_only')); return; }
+    setBusy(true);
     const result = await window.manar!.backupCreate();
     setBusy(false);
     if (result.success) {
-      showMsg(t('msg.backup.direct_done', { size: fmt(result.sizeBytes ?? 0) }));
+      toast.ok(t('msg.backup.direct_done', { size: fmt(result.sizeBytes ?? 0) }));
     } else if (!result.canceled) {
-      showMsg(result.error ?? t('msg.backup.create_fail'), 'err');
+      toast.error(result.error ?? t('msg.backup.create_fail'));
     }
   }
 
   async function exportDb() {
-    if (!isElectron) { showMsg(t('msg.backup.desktop_only'), 'warn'); return; }
+    if (!isElectron) { toast.warn(t('msg.backup.desktop_only')); return; }
     const targetPath = await window.manar!.chooseSavePath('manar-export.db');
     if (!targetPath) return;
-    try { await api.post('/backups/export', { path: targetPath }); showMsg(t('msg.backup.export_done')); }
-    catch (err) { showMsg(errorMessage(err), 'err'); }
+    try { await api.post('/backups/export', { path: targetPath }); toast.ok(t('msg.backup.export_done')); }
+    catch (err) { toast.error(errorMessage(err)); }
   }
 
-  async function restoreFromList(id: number, fileName: string) {
-    if (!confirm(t('confirm.backup.restore_list', { fileName }))) return;
-    setBusy(true); setMsg(null);
+  function restoreFromList(id: number, fileName: string) { setRestoreListConfirm({ id, fileName }); }
+
+  async function executeRestoreFromList(id: number) {
+    setRestoreListConfirm(null);
+    setBusy(true);
     try {
       await api.post(`/backups/${id}/restore`);
-      showMsg(t('msg.backup.restored_restart', { size: '' }).replace(' ()', ''), 'warn');
+      toast.warn(t('msg.backup.restored_restart', { size: '' }).replace(' ()', ''));
       if (isElectron) {
         await new Promise((r) => setTimeout(r, 2000));
         await window.manar!.restartApp();
       }
-    } catch (err) { showMsg(errorMessage(err), 'err'); } finally { setBusy(false); }
+    } catch (err) { toast.error(errorMessage(err)); } finally { setBusy(false); }
   }
 
   async function restoreFromFile() {
-    if (!isElectron) { showMsg(t('msg.backup.desktop_only'), 'warn'); return; }
-
+    if (!isElectron) { toast.warn(t('msg.backup.desktop_only')); return; }
     const sourcePath = await window.manar!.chooseBackupFile();
     if (!sourcePath) return;
+    setRestoreFileConfirm(sourcePath);
+  }
 
-    if (!confirm(t('confirm.backup.restore_file', { path: sourcePath }))) return;
-
+  async function executeRestoreFromFile(sourcePath: string) {
+    setRestoreFileConfirm(null);
     setBusy(true);
-    setMsg(null);
     const result = await window.manar!.backupRestore(sourcePath);
     setBusy(false);
-
     if (result.success) {
-      showMsg(t('msg.backup.restored_restart', { size: fmt(result.sizeBytes ?? 0) }), 'warn');
+      toast.warn(t('msg.backup.restored_restart', { size: fmt(result.sizeBytes ?? 0) }));
       await new Promise((r) => setTimeout(r, 3000));
       await window.manar!.restartApp();
     } else {
-      showMsg(result.error ?? t('msg.backup.restore_fail'), 'err');
+      toast.error(result.error ?? t('msg.backup.restore_fail'));
     }
   }
 
   async function toggleDbPath() {
-    if (!isElectron) { showMsg(t('msg.backup.desktop_only'), 'warn'); return; }
+    if (!isElectron) { toast.warn(t('msg.backup.desktop_only')); return; }
     if (showDbPath) { setShowDbPath(false); return; }
     const info = await window.manar!.getDbPath();
     setDbInfo(info);
     setShowDbPath(true);
   }
 
-  async function remove(id: number) {
-    if (!confirm(t('confirm.backup.delete'))) return;
-    if (busy) return; setBusy(true);
-    try { await api.delete(`/backups/${id}`); load(); } catch (err) { showMsg(errorMessage(err), 'err'); } finally { setBusy(false); }
-  }
+  function remove(id: number) { setDeleteBackupId(id); }
 
-  const alertClass = msg?.type === 'ok' ? 'alert ok' : msg?.type === 'warn' ? 'alert warn' : 'alert error';
+  async function executeRemove(id: number) {
+    setDeleteBackupId(null);
+    if (busy) return; setBusy(true);
+    try { await api.delete(`/backups/${id}`); load(); } catch (err) { toast.error(errorMessage(err)); } finally { setBusy(false); }
+  }
 
   return (
     <div>
@@ -155,26 +156,25 @@ export default function Backup() {
         <div><h2>{t('page.backup.title')}</h2><p>{t('page.backup.subtitle')}</p></div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {isElectron && (
-            <button className="btn secondary" onClick={toggleDbPath}>
+            <button type="button" className="btn secondary" onClick={toggleDbPath}>
               {showDbPath ? `🔒 ${t('btn.backup.toggle_path_hide')}` : `📂 ${t('btn.backup.toggle_path_show')}`}
             </button>
           )}
           {canCreate && isElectron && (
-            <button className="btn secondary" onClick={exportDb} disabled={busy}>⤓ {t('btn.backup.export')}</button>
+            <button type="button" className="btn secondary" onClick={exportDb} disabled={busy}>⤓ {t('btn.backup.export')}</button>
           )}
           {canRestore && isElectron && (
-            <button className="btn secondary" onClick={restoreFromFile} disabled={busy}>↩️ {t('btn.backup.restore_file')}</button>
+            <button type="button" className="btn secondary" onClick={restoreFromFile} disabled={busy}>↩️ {t('btn.backup.restore_file')}</button>
           )}
           {canCreate && isElectron && (
-            <button className="btn secondary" onClick={createBackupElectron} disabled={busy}>💾 {t('btn.backup.direct')}</button>
+            <button type="button" className="btn secondary" onClick={createBackupElectron} disabled={busy}>💾 {t('btn.backup.direct')}</button>
           )}
           {canCreate && (
-            <button className="btn" onClick={createBackupApi} disabled={busy}>💾 {t('btn.backup.now')}</button>
+            <button type="button" className="btn" onClick={createBackupApi} disabled={busy}>💾 {t('btn.backup.now')}</button>
           )}
         </div>
       </div>
 
-      {msg && <div className={alertClass} style={{ marginBottom: 16 }}>{msg.text}</div>}
       {busy && <div className="alert warn" style={{ marginBottom: 16 }}>⏳ {t('msg.backup.busy')}</div>}
 
       {showDbPath && dbInfo && (
@@ -291,7 +291,7 @@ export default function Backup() {
         </table>
         {canSettings && (
           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button className="btn" onClick={saveSettings} disabled={settingsBusy}>
+            <button type="button" className="btn" onClick={saveSettings} disabled={settingsBusy}>
               {settingsBusy ? `⏳ ${t('msg.loading')}` : t('btn.backup.save_settings')}
             </button>
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
@@ -323,8 +323,8 @@ export default function Backup() {
                   </td>
                   <td>{dateText(b.createdAt)}</td>
                   <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
-                    {canRestore && <><button className="btn secondary sm" disabled={busy} onClick={() => restoreFromList(b.id, b.fileName)}>↩️ {t('btn.backup.restore')}</button>{' '}</>}
-                    {canRestore && <button className="btn danger sm" onClick={() => remove(b.id)} disabled={busy}>{t('action.delete')}</button>}
+                    {canRestore && <><button type="button" className="btn secondary sm" disabled={busy} onClick={() => restoreFromList(b.id, b.fileName)}>↩️ {t('btn.backup.restore')}</button>{' '}</>}
+                    {canRestore && <button type="button" className="btn danger sm" onClick={() => remove(b.id)} disabled={busy}>{t('action.delete')}</button>}
                   </td>
                 </tr>
               ))}
@@ -336,6 +336,37 @@ export default function Backup() {
       <div className="card panel" style={{ marginTop: 16, background: 'var(--surface-2)', fontSize: 13, color: 'var(--text-muted)' }}>
         <strong>{t('note.backup.types')}</strong>
       </div>
+
+      {restoreListConfirm && (
+        <ConfirmModal
+          title="تأكيد الاستعادة"
+          message={t('confirm.backup.restore_list', { fileName: restoreListConfirm.fileName })}
+          confirmLabel="استعادة"
+          variant="warning"
+          onConfirm={() => executeRestoreFromList(restoreListConfirm.id)}
+          onCancel={() => setRestoreListConfirm(null)}
+        />
+      )}
+      {restoreFileConfirm && (
+        <ConfirmModal
+          title="تأكيد الاستعادة من ملف"
+          message={t('confirm.backup.restore_file', { path: restoreFileConfirm })}
+          confirmLabel="استعادة"
+          variant="warning"
+          onConfirm={() => executeRestoreFromFile(restoreFileConfirm)}
+          onCancel={() => setRestoreFileConfirm(null)}
+        />
+      )}
+      {deleteBackupId !== null && (
+        <ConfirmModal
+          title="تأكيد الحذف"
+          message={t('confirm.backup.delete')}
+          confirmLabel="حذف"
+          variant="danger"
+          onConfirm={() => executeRemove(deleteBackupId)}
+          onCancel={() => setDeleteBackupId(null)}
+        />
+      )}
     </div>
   );
 }

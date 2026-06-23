@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { useToast } from '../stores/toastStore';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import StatCard from '../components/StatCard';
 import { dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -204,7 +206,7 @@ function DetailsModal({ record, onClose }: { record: AttendanceRecord; onClose: 
     </div>
   );
   return (
-    <Modal title={t('modal.att.details_title')} onClose={onClose}>
+    <Modal title={t('modal.att.details_title')} size="lg" onClose={onClose}>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         {row(t('col.att.employee'),  record.employee ? `${record.employee.fullName} (${record.employee.code})` : record.employeeId)}
         {row(t('field.date'),        dateText(record.date))}
@@ -228,6 +230,7 @@ function DetailsModal({ record, onClose }: { record: AttendanceRecord; onClose: 
 export default function Attendance() {
   const { t } = useT();
   const { hasPermission } = useAuth();
+  const toast = useToast();
 
   const [rows, setRows] = useState<AttendanceRecord[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -246,6 +249,8 @@ export default function Attendance() {
 
   // Modals
   const [showCreate, setShowCreate] = useState(false);
+  const [showCreateUnsaved, setShowCreateUnsaved] = useState(false);
+  const [showEditUnsaved, setShowEditUnsaved] = useState(false);
   const [detailRecord, setDetailRecord] = useState<AttendanceRecord | null>(null);
   const [editRecord, setEditRecord] = useState<AttendanceRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AttendanceRecord | null>(null);
@@ -257,8 +262,6 @@ export default function Attendance() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [formError, setFormError] = useState('');
-  const [msg, setMsg] = useState('');
-  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -308,7 +311,7 @@ export default function Attendance() {
       });
       setShowCreate(false);
       setCreateForm(EMPTY_FORM);
-      showMsg('تم التسجيل بنجاح');
+      toast.ok('تم التسجيل بنجاح');
       load();
     } catch (e) {
       setFormError(errorMessage(e));
@@ -348,7 +351,7 @@ export default function Attendance() {
         notes: editForm.notes || undefined,
       });
       setEditRecord(null);
-      showMsg('تم الحفظ بنجاح');
+      toast.ok('تم الحفظ بنجاح');
       load();
     } catch (e) {
       setFormError(errorMessage(e));
@@ -363,7 +366,7 @@ export default function Attendance() {
     try {
       await api.delete(`/employees/attendance/${deleteTarget.id}`);
       setDeleteTarget(null);
-      showMsg('تم الحذف بنجاح');
+      toast.ok('تم الحذف بنجاح');
       load();
     } catch (e) {
       setError(errorMessage(e));
@@ -410,16 +413,16 @@ export default function Attendance() {
   ];
 
   function createGuardClose() {
-    if (JSON.stringify(createForm) !== EMPTY_FORM_JSON && !confirm(t('msg.unsaved_changes'))) return;
-    setShowCreate(false);
-    setCreateForm(EMPTY_FORM);
-    setFormError('');
+    if (JSON.stringify(createForm) !== EMPTY_FORM_JSON) { setShowCreateUnsaved(true); return; }
+    setShowCreate(false); setCreateForm(EMPTY_FORM); setFormError('');
   }
+  function executeCreateClose() { setShowCreateUnsaved(false); setShowCreate(false); setCreateForm(EMPTY_FORM); setFormError(''); }
 
   function editGuardClose() {
-    if (JSON.stringify(editForm) !== JSON.stringify(editInitialRef.current) && !confirm(t('msg.unsaved_changes'))) return;
+    if (JSON.stringify(editForm) !== JSON.stringify(editInitialRef.current)) { setShowEditUnsaved(true); return; }
     setEditRecord(null);
   }
+  function executeEditClose() { setShowEditUnsaved(false); setEditRecord(null); }
 
   return (
     <div>
@@ -469,7 +472,6 @@ export default function Attendance() {
         <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
       </div>
 
-      {msg && <div className="alert ok">{msg}</div>}
       {error && <div className="alert error" style={{ marginBottom: 12 }}>⚠️ {error}</div>}
 
       <DataTable
@@ -485,6 +487,7 @@ export default function Attendance() {
       {showCreate && (
         <Modal
           title={t('modal.att.create_title')}
+          size="lg"
           onClose={createGuardClose}
           footer={
             <>
@@ -510,6 +513,7 @@ export default function Attendance() {
       {editRecord && (
         <Modal
           title={t('modal.att.edit_title')}
+          size="lg"
           onClose={editGuardClose}
           footer={
             <>
@@ -553,6 +557,12 @@ export default function Attendance() {
             {deleteTarget.employee?.fullName ?? deleteTarget.employeeId} — {dateText(deleteTarget.date)}
           </p>
         </Modal>
+      )}
+      {showCreateUnsaved && (
+        <ConfirmModal title="تغييرات غير محفوظة" message={t('msg.unsaved_changes')} confirmLabel="تجاهل" variant="warning" onConfirm={executeCreateClose} onCancel={() => setShowCreateUnsaved(false)} />
+      )}
+      {showEditUnsaved && (
+        <ConfirmModal title="تغييرات غير محفوظة" message={t('msg.unsaved_changes')} confirmLabel="تجاهل" variant="warning" onConfirm={executeEditClose} onCancel={() => setShowEditUnsaved(false)} />
       )}
     </div>
   );

@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import StatCard from '../components/StatCard';
 import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import DataTable, { PageMeta } from '../components/DataTable';
 import { money, dateText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { useToast } from '../stores/toastStore';
 
 type Tab = 'summary' | 'accounts' | 'journal' | 'payments';
 
@@ -44,6 +46,7 @@ export default function Accounting() {
         ] as [Tab, string, string][]).map(([key, icon, labelKey]) => (
           <button
             key={key}
+            type="button"
             onClick={() => setTab(key)}
             style={{
               padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer',
@@ -133,6 +136,7 @@ function SummaryTab() {
 
 function AccountsTab({ canCreate }: { canCreate: boolean }) {
   const { t } = useT();
+  const toast = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -145,8 +149,7 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
   const [editing, setEditing] = useState<any | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -162,11 +165,13 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
   }, [page, search, typeFilter]);
   useEffect(() => { load(); }, [load]);
 
-  async function deleteAccount(id: number) {
-    if (!confirm(t('confirm.delete_account'))) return;
+  function deleteAccount(id: number) { setDeleteConfirmId(id); }
+
+  async function executeDeleteAccount(id: number) {
+    setDeleteConfirmId(null);
     if (busy) return;
     setBusy(true);
-    try { await api.delete(`/accounting/accounts/${id}`); showMsg('تم حذف الحساب بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/accounting/accounts/${id}`); toast.ok('تم حذف الحساب بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -191,7 +196,6 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
       </div>
 
       {error && <div className="alert error">⚠️ {error}</div>}
-      {msg && <div className="alert ok">{msg}</div>}
 
       <DataTable
         columns={columns}
@@ -207,8 +211,18 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
         )}
       />
 
-      {creating && <AccountForm onClose={() => setCreating(false)} onSaved={() => { showMsg('تم حفظ الحساب بنجاح'); load(); }} />}
-      {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم حفظ الحساب بنجاح'); load(); }} />}
+      {creating && <AccountForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ الحساب بنجاح'); load(); }} />}
+      {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ الحساب بنجاح'); load(); }} />}
+      {deleteConfirmId !== null && (
+        <ConfirmModal
+          title="تأكيد حذف الحساب"
+          message={t('confirm.delete_account')}
+          confirmLabel="حذف"
+          variant="danger"
+          onConfirm={() => executeDeleteAccount(deleteConfirmId)}
+          onCancel={() => setDeleteConfirmId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -245,7 +259,7 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
   }
 
   return (
-    <Modal title={isEdit ? t('modal.acc.edit_account') : t('modal.acc.new_account')} onClose={onClose} footer={
+    <Modal title={isEdit ? t('modal.acc.edit_account') : t('modal.acc.new_account')} size="lg" onClose={onClose} footer={
       <>
         <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
         <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
@@ -285,6 +299,7 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
 
 function JournalTab({ canCreate }: { canCreate: boolean }) {
   const { t } = useT();
+  const toast = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -296,8 +311,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
   const [expanded, setExpanded] = useState<any | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
+  const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -311,11 +325,13 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
   }, [page, search]);
   useEffect(() => { load(); }, [load]);
 
-  async function cancelEntry(id: number) {
-    if (!confirm(t('confirm.cancel_entry'))) return;
+  function cancelEntry(id: number) { setCancelConfirmId(id); }
+
+  async function executeCancelEntry(id: number) {
+    setCancelConfirmId(null);
     if (busy) return;
     setBusy(true);
-    try { await api.patch(`/accounting/journal/${id}/cancel`); showMsg('تم إلغاء القيد بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.patch(`/accounting/journal/${id}/cancel`); toast.ok('تم إلغاء القيد بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const columns = [
@@ -335,7 +351,6 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
       </div>
 
       {error && <div className="alert error">⚠️ {error}</div>}
-      {msg && <div className="alert ok">{msg}</div>}
 
       <DataTable
         columns={columns}
@@ -353,8 +368,18 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
         )}
       />
 
-      {creating && <JournalEntryForm onClose={() => setCreating(false)} onSaved={() => { showMsg('تم ترحيل القيد بنجاح'); load(); }} />}
+      {creating && <JournalEntryForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم ترحيل القيد بنجاح'); load(); }} />}
       {expanded && <JournalEntryDetails entry={expanded} onClose={() => setExpanded(null)} />}
+      {cancelConfirmId !== null && (
+        <ConfirmModal
+          title="تأكيد إلغاء القيد"
+          message={t('confirm.cancel_entry')}
+          confirmLabel="إلغاء القيد"
+          variant="danger"
+          onConfirm={() => executeCancelEntry(cancelConfirmId)}
+          onCancel={() => setCancelConfirmId(null)}
+        />
+      )}
     </div>
   );
 }
@@ -365,7 +390,7 @@ function JournalEntryDetails({ entry, onClose }: { entry: any; onClose: () => vo
   const totalDebit = (entry.lines ?? []).reduce((s: number, l: { debit: number }) => s + l.debit, 0);
   const totalCredit = (entry.lines ?? []).reduce((s: number, l: { credit: number }) => s + l.credit, 0);
   return (
-    <Modal title={`${t('col.acc.entry_number')}: ${entry.entryNumber}`} onClose={onClose} footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.close')}</button>}>
+    <Modal title={`${t('col.acc.entry_number')}: ${entry.entryNumber}`} size="lg" onClose={onClose} footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.close')}</button>}>
       <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>{dateText(entry.date)} — {entry.description}</p>
       <div className="table-responsive">
         <table>
@@ -442,7 +467,7 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
   }
 
   return (
-    <Modal title={t('modal.acc.new_entry')} onClose={onClose} footer={
+    <Modal title={t('modal.acc.new_entry')} size="xl" onClose={onClose} footer={
       <>
         <button type="button" className="btn" onClick={submit} disabled={saving || !balanced}>{saving ? t('msg.saving') : t('btn.acc.post_entry')}</button>
         <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
