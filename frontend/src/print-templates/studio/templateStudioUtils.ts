@@ -7,11 +7,14 @@ import type {
   TemplatePageSettings,
   ValidationResult,
   ImportResult,
+  LineItemsTableElement,
 } from './templateStudioTypes';
 import {
   ALLOWED_ELEMENT_TYPES,
   INVOICE_ALLOWED_FIELDS,
   QUOTATION_ALLOWED_FIELDS,
+  INVOICE_LINE_ITEM_FIELDS,
+  QUOTATION_LINE_ITEM_FIELDS,
 } from './templateStudioTypes';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -127,6 +130,53 @@ export function validateElement(
       errors.push('مصدر الصورة يجب أن يكون data URL');
     } else if (element.src && !isDataUrlWithinLimit(element.src)) {
       errors.push('حجم الصورة يتجاوز 1 ميغابايت');
+    }
+  }
+
+  if (element.type === 'lineItemsTable') {
+    const el = element as LineItemsTableElement;
+    const allowedFields: readonly string[] =
+      docType === 'invoice' ? INVOICE_LINE_ITEM_FIELDS : QUOTATION_LINE_ITEM_FIELDS;
+
+    if (!Array.isArray(el.columns) || el.columns.length === 0) {
+      errors.push('جدول البنود يجب أن يحتوي على عمود واحد على الأقل');
+    } else {
+      const seenIds = new Set<string>();
+      for (const col of el.columns) {
+        if (seenIds.has(col.id)) {
+          errors.push(`معرف عمود مكرر: ${col.id}`);
+        }
+        seenIds.add(col.id);
+
+        if (!allowedFields.includes(col.field)) {
+          errors.push(`حقل جدول غير مسموح: ${String(col.field)}`);
+        }
+
+        if (
+          typeof col.label !== 'string' ||
+          col.label.includes('<') ||
+          col.label.includes('>')
+        ) {
+          errors.push('تسمية عمود غير آمنة');
+        }
+
+        if (!['start', 'center', 'end'].includes(col.align)) {
+          errors.push(`محاذاة عمود غير صالحة: ${col.align}`);
+        }
+
+        if (typeof col.width !== 'number' || col.width < 0) {
+          errors.push('عرض عمود غير صالح');
+        }
+      }
+    }
+
+    if (el.totals) {
+      for (const key of ['showSubtotal', 'showDiscount', 'showTax', 'showGrandTotal'] as const) {
+        const v = el.totals[key];
+        if (v !== undefined && typeof v !== 'boolean') {
+          errors.push(`قيمة إجمالي غير صالحة: ${key}`);
+        }
+      }
     }
   }
 
