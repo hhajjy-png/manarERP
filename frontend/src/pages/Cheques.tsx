@@ -6,6 +6,7 @@ import { tafqeetKWD } from '../lib/tafqeet';
 import { formatDate } from '../lib/date';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import StatCard from '../components/StatCard';
 import ChequeCalibrator from '../components/ChequeCalibrator';
 import gulfBankImg from '../assets/cheakv1.png';
@@ -211,6 +212,8 @@ export default function Cheques() {
   const [allTemplates, setAllTemplates] = useState<Record<string, ChequeTemplate>>({});
   const [busy, setBusy] = useState(false);
   const [restoringDefault, setRestoringDefault] = useState(false);
+  const [cancelConfirmCheque, setCancelConfirmCheque] = useState<Cheque | null>(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const canCreate = hasPermission('cheques.create');
   const canUpdate = hasPermission('cheques.update');
   const canPrint = hasPermission('cheques.print');
@@ -390,8 +393,8 @@ export default function Cheques() {
 
   // ── Cancel ────────────────────────────────────────────────────────────────
 
-  async function handleCancel(cheque: Cheque) {
-    if (!window.confirm(t('page.cheques.confirm_cancel'))) return;
+  async function executeCancel(cheque: Cheque) {
+    setCancelConfirmCheque(null);
     if (busy) return; setBusy(true);
     try {
       await api.post(`/cheques/${cheque.id}/cancel`);
@@ -410,8 +413,8 @@ export default function Cheques() {
 
   // ── Restore default template for current bank ─────────────────────────────
 
-  async function handleRestoreDefault() {
-    if (!window.confirm(`استعادة الإحداثيات الافتراضية لبنك "${form.bankName}"؟ سيُحذف القالب المحفوظ.`)) return;
+  async function executeRestoreDefault() {
+    setShowRestoreConfirm(false);
     if (restoringDefault) return;
     setRestoringDefault(true);
     try {
@@ -479,7 +482,7 @@ export default function Cheques() {
         {t('btn.cheque.select')}
       </button>
       {canCancel && row.status === 'DRAFT' && (
-        <button type="button" className="btn danger sm" onClick={() => handleCancel(row)} disabled={busy}>
+        <button type="button" className="btn danger sm" onClick={() => setCancelConfirmCheque(row)} disabled={busy}>
           {t('page.cheques.cancel_cheque')}
         </button>
       )}
@@ -578,6 +581,7 @@ export default function Cheques() {
       {showPrintConfirm && printTarget && (
         <Modal
           title={t('page.cheques.mark_printed')}
+          size="lg"
           onClose={() => setShowPrintConfirm(false)}
           className="no-print"
           footer={
@@ -680,14 +684,14 @@ export default function Cheques() {
               <button
                 type="button"
                 className="btn secondary"
-                onClick={handleRestoreDefault}
+                onClick={() => setShowRestoreConfirm(true)}
                 disabled={restoringDefault}
               >
                 {restoringDefault ? '...' : '↺ استعادة الافتراضي'}
               </button>
             )}
             {canCancel && printTarget && printTarget.status === 'DRAFT' && (
-              <button type="button" className="btn danger" onClick={() => handleCancel(printTarget)} disabled={busy}>
+              <button type="button" className="btn danger" onClick={() => setCancelConfirmCheque(printTarget)} disabled={busy}>
                 {t('page.cheques.cancel_cheque')}
               </button>
             )}
@@ -921,6 +925,23 @@ export default function Cheques() {
           emptyText={t('empty.cheques')}
         />
       </div>
+      {cancelConfirmCheque !== null && (
+        <ConfirmModal
+          title={t('page.cheques.cancel_cheque')}
+          message={t('page.cheques.confirm_cancel')}
+          variant="warning"
+          onConfirm={() => executeCancel(cancelConfirmCheque)}
+          onCancel={() => setCancelConfirmCheque(null)}
+        />
+      )}
+      {showRestoreConfirm && (
+        <ConfirmModal
+          message={`استعادة الإحداثيات الافتراضية لبنك "${form.bankName}"؟ سيُحذف القالب المحفوظ.`}
+          variant="warning"
+          onConfirm={executeRestoreDefault}
+          onCancel={() => setShowRestoreConfirm(false)}
+        />
+      )}
     </div>
   );
 }

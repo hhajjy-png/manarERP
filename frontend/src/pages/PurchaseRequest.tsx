@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
@@ -108,10 +109,9 @@ export default function PurchaseRequest() {
     setPrintFields((prev) => ({ ...prev, [key]: value }));
   }
 
-  function resetForm() {
-    if (!window.confirm('سيتم مسح جميع الحقول. هل تريد المتابعة؟')) return;
-    setPrintFields(makeInitial());
-  }
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  function resetForm() { setShowClearConfirm(true); }
+  function executeClear() { setShowClearConfirm(false); setPrintFields(makeInitial()); }
 
   return (
     <FormLayout
@@ -373,6 +373,9 @@ export default function PurchaseRequest() {
 
       {/* Print template */}
       <PurchaseRequestTemplate printFields={printFields} lang={lang} />
+      {showClearConfirm && (
+        <ConfirmModal message="سيتم مسح جميع الحقول. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+      )}
     </FormLayout>
   );
 }

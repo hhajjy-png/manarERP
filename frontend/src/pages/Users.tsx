@@ -3,6 +3,7 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import Modal from '../components/Modal';
 import { useT } from '../lib/i18n';
+import { useToast } from '../stores/toastStore';
 
 type UserRow = {
   id: number;
@@ -53,12 +54,7 @@ export default function Users() {
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const [msg, setMsg] = useState<{ text: string; type: 'ok' | 'err' } | null>(null);
-
-  function showMsg(text: string, type: 'ok' | 'err' = 'ok') {
-    setMsg({ text, type });
-    setTimeout(() => setMsg(null), 6000);
-  }
+  const toast = useToast();
 
   async function loadUsers() {
     setUsersLoading(true);
@@ -116,10 +112,10 @@ export default function Users() {
 
       if (editingUser) {
         await api.put(`/users/${editingUser.id}`, payload);
-        showMsg(t('msg.users.updated'));
+        toast.ok(t('msg.users.updated'));
       } else {
         await api.post('/users', payload);
-        showMsg(t('msg.users.created'));
+        toast.ok(t('msg.users.created'));
       }
       setShowForm(false);
       loadUsers();
@@ -134,9 +130,9 @@ export default function Users() {
     if (busy) return; setBusy(true);
     try {
       await api.put(`/users/${u.id}`, { isActive: !u.isActive });
-      showMsg(u.isActive ? t('msg.users.disabled') : t('msg.users.enabled'));
+      toast.ok(u.isActive ? t('msg.users.disabled') : t('msg.users.enabled'));
       loadUsers();
-    } catch (err) { showMsg(errorMessage(err), 'err'); } finally { setBusy(false); }
+    } catch (err) { toast.error(errorMessage(err)); } finally { setBusy(false); }
   }
 
   async function toggleRoleExpand(roleId: number) {
@@ -158,12 +154,6 @@ export default function Users() {
           <button type="button" className="btn" onClick={openCreate}>{t('btn.users.new_user')}</button>
         )}
       </div>
-
-      {msg && (
-        <div className={`alert ${msg.type === 'ok' ? 'ok' : 'error'}`} style={{ marginBottom: 16 }}>
-          {msg.text}
-        </div>
-      )}
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
         <button type="button" className={`btn ${tab === 'users' ? '' : 'secondary'}`} onClick={() => setTab('users')}>
@@ -279,6 +269,7 @@ export default function Users() {
       {showForm && (
         <Modal
           title={editingUser ? t('modal.users.edit_prefix') + editingUser.username : t('modal.users.new')}
+          size="lg"
           onClose={() => setShowForm(false)}
           footer={
             <>

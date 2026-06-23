@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
+import ConfirmModal from '../components/ConfirmModal';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
@@ -65,10 +66,9 @@ export default function SalaryAdvance() {
   const saveDraft = usePrintDraftStore((s) => s.saveDraft);
   const clearDraft = usePrintDraftStore((s) => s.clearDraft);
 
-  function resetPrintFields() {
-    if (!window.confirm('سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟')) return;
-    setPrintFields({ ...INITIAL_PRINT_FIELDS });
-  }
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  function resetPrintFields() { setShowClearConfirm(true); }
+  function executeClear() { setShowClearConfirm(false); setPrintFields({ ...INITIAL_PRINT_FIELDS }); }
 
   const addPrintLog = usePrintLogStore((s) => s.addEntry);
   useEffect(() => {
@@ -182,6 +182,9 @@ export default function SalaryAdvance() {
         </div>
       </div>
       <SalaryAdvanceTemplate employee={data.employee} latestAdvance={data.latestAdvance} lang={lang} printFields={printFields} />
+      {showClearConfirm && (
+        <ConfirmModal message="سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+      )}
     </FormLayout>
   );
 }

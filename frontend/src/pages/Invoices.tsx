@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { useToast } from '../stores/toastStore';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import ForceDeleteInvoiceModal from '../components/ForceDeleteInvoiceModal';
+import ConfirmModal from '../components/ConfirmModal';
 import { money, dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { CategoryGroup } from '../constants/kuwaitLocations';
@@ -60,6 +62,7 @@ export default function Invoices() {
   const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
   const { t } = useT();
   const navigate = useNavigate();
+  const toast = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -129,14 +132,15 @@ export default function Invoices() {
   }, []);
 
   const [cancelBusy, setCancelBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
+  const [cancelCandidate, setCancelCandidate] = useState<number | null>(null);
 
-  async function cancel(id: number) {
-    if (!confirm(t('confirm.cancel_invoice'))) return;
+  function cancel(id: number) { setCancelCandidate(id); }
+
+  async function executeCancel(id: number) {
+    setCancelCandidate(null);
     if (cancelBusy) return;
     setCancelBusy(true);
-    try { await api.patch(`/invoices/${id}/cancel`); showMsg('تم إلغاء الفاتورة بنجاح'); load(); } catch (e) { setLoadError(errorMessage(e)); } finally { setCancelBusy(false); }
+    try { await api.patch(`/invoices/${id}/cancel`); toast.ok('تم إلغاء الفاتورة بنجاح'); load(); } catch (e) { setLoadError(errorMessage(e)); } finally { setCancelBusy(false); }
   }
 
   async function exportExcel() {
@@ -337,7 +341,6 @@ export default function Invoices() {
         </button>
       </form>
 
-      {msg && <div className="alert ok">{msg}</div>}
 
       <DataTable
         columns={columns}
@@ -372,9 +375,9 @@ export default function Invoices() {
         )}
       />
 
-      {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={() => { showMsg('تم حفظ الفاتورة بنجاح'); load(); }} />}
-      {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم حفظ الفاتورة بنجاح'); load(); }} />}
-      {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={() => { showMsg('تم تسجيل الدفعة بنجاح'); load(); }} />}
+      {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ الفاتورة بنجاح'); load(); }} />}
+      {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ الفاتورة بنجاح'); load(); }} />}
+      {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={() => { toast.ok('تم تسجيل الدفعة بنجاح'); load(); }} />}
       {showMonthlyReport && (
         <MonthlyReportModal
           filters={{
@@ -391,6 +394,16 @@ export default function Invoices() {
           invoiceId={forceDeleteId}
           onClose={() => setForceDeleteId(null)}
           onDeleted={() => { setForceDeleteId(null); load(); }}
+        />
+      )}
+      {cancelCandidate !== null && (
+        <ConfirmModal
+          title="تأكيد إلغاء الفاتورة"
+          message={t('confirm.cancel_invoice')}
+          confirmLabel="إلغاء الفاتورة"
+          variant="danger"
+          onConfirm={() => executeCancel(cancelCandidate)}
+          onCancel={() => setCancelCandidate(null)}
         />
       )}
     </div>
@@ -569,7 +582,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   }
 
   return (
-    <Modal title={t('modal.new_invoice')} onClose={onClose} footer={
+    <Modal title={t('modal.new_invoice')} size="xl" onClose={onClose} footer={
       <>
         <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('btn.save_invoice')}</button>
         <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
@@ -1193,19 +1206,19 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   }
 
   if (loadingData) return (
-    <Modal title={t('modal.edit_invoice')} onClose={onClose} footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>}>
+    <Modal title={t('modal.edit_invoice')} size="xl" onClose={onClose} footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>}>
       <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>{t('msg.loading')}</div>
     </Modal>
   );
 
   if (loadError) return (
-    <Modal title={t('modal.edit_invoice')} onClose={onClose} footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>}>
+    <Modal title={t('modal.edit_invoice')} size="xl" onClose={onClose} footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>}>
       <div className="alert error">⚠️ {loadError}</div>
     </Modal>
   );
 
   return (
-    <Modal title={`${t('modal.edit_invoice')} — ${String(invoice.invoiceNumber ?? invoice.number)}`} onClose={onClose} footer={
+    <Modal title={`${t('modal.edit_invoice')} — ${String(invoice.invoiceNumber ?? invoice.number)}`} size="xl" onClose={onClose} footer={
       <>
         <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
         <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
@@ -1489,7 +1502,7 @@ function MonthlyReportModal({
   const tdStyle: React.CSSProperties = { padding: '7px 12px', borderBottom: '1px solid var(--border)', fontSize: 13 };
 
   return (
-    <Modal title={t('inv.monthly_report')} onClose={onClose} footer={
+    <Modal title={t('inv.monthly_report')} size="xl" onClose={onClose} footer={
       <>
         {rows.length > 0 && <ExportExcelButton onExport={exportMonthlyExcel} busy={false} />}
         <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
@@ -1582,7 +1595,7 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
   }
 
   return (
-    <Modal title={`${t('modal.collect_payment')} — ${invoice.invoiceNumber ?? invoice.number}`} onClose={onClose} footer={
+    <Modal title={`${t('modal.collect_payment')} — ${invoice.invoiceNumber ?? invoice.number}`} size="lg" onClose={onClose} footer={
       <>
         <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('btn.record_payment')}</button>
         <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>

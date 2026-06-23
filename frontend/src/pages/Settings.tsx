@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useUI } from '../stores/uiStore';
 import { useT, type Lang } from '../lib/i18n';
+import { useToast } from '../stores/toastStore';
 import BrandingLayoutDesigner from '../print-templates/components/BrandingLayoutDesigner';
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import { parseBrandingLayout, serializeBrandingLayout, DEFAULT_BRANDING_LAYOUT } from '../print-templates/utils/brandingLayout';
@@ -31,15 +32,13 @@ const FIELDS: { key: string; label: string; group: string; type?: FieldType }[] 
 export default function Settings() {
   const { lang, setLang } = useUI();
   const { t } = useT();
+  const toast = useToast();
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [msgType, setMsgType] = useState<'ok' | 'error'>('ok');
   const sigInputRef = useRef<HTMLInputElement>(null);
   const stmpInputRef = useRef<HTMLInputElement>(null);
   const [brandingError, setBrandingError] = useState('');
-  const [brandingMsg, setBrandingMsg] = useState('');
   const [brandingSaving, setBrandingSaving] = useState(false);
   const [designerOpen, setDesignerOpen] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
@@ -64,7 +63,6 @@ export default function Settings() {
 
   async function save() {
     setSaving(true);
-    setMsg('');
     try {
       const brandingSettings = [
         { key: 'print.showSignature', value: values['print.showSignature'] ?? 'true', group: 'print' },
@@ -76,11 +74,9 @@ export default function Settings() {
       ];
       await api.put('/settings', { settings });
       await window.manar?.backupReconfigure?.();
-      setMsg(t('page.settings.saved'));
-      setMsgType('ok');
+      toast.ok(t('page.settings.saved'));
     } catch (err) {
-      setMsg(errorMessage(err));
-      setMsgType('error');
+      toast.error(errorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -129,7 +125,7 @@ export default function Settings() {
       const dataUrl = await resizeImage(file, 500, 250);
       setValues(p => ({ ...p, 'print.signatureImage': dataUrl }));
       await saveBrandingKey('print.signatureImage', dataUrl);
-      setBrandingMsg('تم حفظ التوقيع');
+      toast.ok('تم حفظ التوقيع');
     } catch (err) { setBrandingError(err instanceof Error ? err.message : 'فشل رفع التوقيع'); }
     finally { setBrandingSaving(false); e.target.value = ''; }
   }
@@ -145,7 +141,7 @@ export default function Settings() {
       const dataUrl = await resizeImage(file, 400, 400);
       setValues(p => ({ ...p, 'print.stampImage': dataUrl }));
       await saveBrandingKey('print.stampImage', dataUrl);
-      setBrandingMsg('تم حفظ الختم');
+      toast.ok('تم حفظ الختم');
     } catch (err) { setBrandingError(err instanceof Error ? err.message : 'فشل رفع الختم'); }
     finally { setBrandingSaving(false); e.target.value = ''; }
   }
@@ -155,7 +151,7 @@ export default function Settings() {
     try {
       setValues(p => ({ ...p, 'print.signatureImage': '' }));
       await saveBrandingKey('print.signatureImage', '');
-      setBrandingMsg('تم حذف التوقيع');
+      toast.ok('تم حذف التوقيع');
     } catch { setBrandingError('فشل حذف التوقيع'); }
     finally { setBrandingSaving(false); }
   }
@@ -167,7 +163,7 @@ export default function Settings() {
       const serialized = serializeBrandingLayout(layout);
       await saveBrandingKey('print.brandingLayout', serialized);
       setBrandingLayout(layout);
-      setBrandingMsg('تم حفظ إعدادات معايرة التوقيع والختم');
+      toast.ok('تم حفظ إعدادات معايرة التوقيع والختم');
       setDesignerOpen(false);
     } catch {
       setBrandingError('فشل حفظ إعدادات المعايرة');
@@ -181,7 +177,7 @@ export default function Settings() {
     try {
       setValues(p => ({ ...p, 'print.stampImage': '' }));
       await saveBrandingKey('print.stampImage', '');
-      setBrandingMsg('تم حذف الختم');
+      toast.ok('تم حذف الختم');
     } catch { setBrandingError('فشل حذف الختم'); }
     finally { setBrandingSaving(false); }
   }
@@ -192,9 +188,8 @@ export default function Settings() {
     <div>
       <div className="page-head">
         <div><h2>{t('page.settings.title')}</h2><p>{t('page.settings.subtitle')}</p></div>
-        <button className="btn" onClick={save} disabled={saving}>{saving ? t('page.settings.saving') : t('page.settings.save')}</button>
+        <button type="button" className="btn" onClick={save} disabled={saving}>{saving ? t('page.settings.saving') : t('page.settings.save')}</button>
       </div>
-      {msg && <div className={`alert ${msgType}`}>{msgType === 'error' ? `⚠️ ${msg}` : msg}</div>}
 
       <div className="card panel" style={{ marginBottom: 20 }}>
         <div className="form-grid">
@@ -254,8 +249,6 @@ export default function Settings() {
 
       <div className="card panel">
         <h3 className="branding-section-title">طباعة المستندات</h3>
-
-        {brandingMsg && <div className="alert ok branding-msg">{brandingMsg}</div>}
 
         {/* Signature Row */}
         <div className="branding-row">

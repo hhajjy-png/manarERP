@@ -2,8 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { useToast } from '../stores/toastStore';
 import DataTable, { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import { money, dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
 import ExportExcelButton from '../components/ExportExcelButton';
@@ -44,6 +46,7 @@ const STATUS_AR: Record<string, string> = {
 export default function Expenses() {
   const { hasPermission } = useAuth();
   const { t } = useT();
+  const toast = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -67,8 +70,7 @@ export default function Expenses() {
   const [exportingExcel, setExportingExcel] = useState(false);
   const [error, setError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-  const showMsg = (m: string) => { setMsg(m); setTimeout(() => setMsg(''), 5000); };
+  const [expenseConfirm, setExpenseConfirm] = useState<{ id: number; action: 'approve' | 'reject' | 'delete' } | null>(null);
 
   const isFiltered = !!(search || statusFilter || categoryFilter || supplierFilter || monthFilter || yearFilter);
 
@@ -110,25 +112,20 @@ export default function Expenses() {
       .catch(() => {});
   }, []);
 
-  async function approve(id: number) {
-    if (!confirm(t('msg.confirm_approve'))) return;
-    if (actionBusy) return;
-    setActionBusy(true);
-    try { await api.patch(`/expenses/${id}/approve`); showMsg('تمت الموافقة بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
-  }
+  function approve(id: number) { setExpenseConfirm({ id, action: 'approve' }); }
+  function reject(id: number) { setExpenseConfirm({ id, action: 'reject' }); }
+  function remove(id: number) { setExpenseConfirm({ id, action: 'delete' }); }
 
-  async function reject(id: number) {
-    if (!confirm(t('msg.confirm_reject'))) return;
+  async function executeExpenseAction(id: number, action: 'approve' | 'reject' | 'delete') {
+    setExpenseConfirm(null);
     if (actionBusy) return;
     setActionBusy(true);
-    try { await api.patch(`/expenses/${id}/reject`); showMsg('تم الرفض'); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
-  }
-
-  async function remove(id: number) {
-    if (!confirm('هل أنت متأكد من حذف هذا المصروف؟')) return;
-    if (actionBusy) return;
-    setActionBusy(true);
-    try { await api.delete(`/expenses/${id}`); showMsg('تم الحذف بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
+    try {
+      if (action === 'approve') { await api.patch(`/expenses/${id}/approve`); toast.ok('تمت الموافقة بنجاح'); }
+      else if (action === 'reject') { await api.patch(`/expenses/${id}/reject`); toast.ok('تم الرفض'); }
+      else { await api.delete(`/expenses/${id}`); toast.ok('تم الحذف بنجاح'); }
+      load();
+    } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
   }
 
   async function exportExcel() {
@@ -291,7 +288,6 @@ export default function Expenses() {
         <ExportExcelButton onExport={exportExcel} busy={exportingExcel} />
       </form>
 
-      {msg && <div className="alert ok">{msg}</div>}
 
       <DataTable
         columns={columns}
@@ -324,8 +320,18 @@ export default function Expenses() {
         )}
       />
 
-      {creating && <ExpenseForm onClose={() => setCreating(false)} onSaved={() => { showMsg('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
-      {editing && <ExpenseForm expense={editing} onClose={() => setEditing(null)} onSaved={() => { showMsg('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
+      {creating && <ExpenseForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
+      {editing && <ExpenseForm expense={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
+      {expenseConfirm && (
+        <ConfirmModal
+          title={expenseConfirm.action === 'approve' ? 'تأكيد الموافقة' : expenseConfirm.action === 'reject' ? 'تأكيد الرفض' : 'تأكيد الحذف'}
+          message={expenseConfirm.action === 'approve' ? t('msg.confirm_approve') : expenseConfirm.action === 'reject' ? t('msg.confirm_reject') : 'هل أنت متأكد من حذف هذا المصروف؟'}
+          confirmLabel={expenseConfirm.action === 'approve' ? 'موافقة' : expenseConfirm.action === 'reject' ? 'رفض' : 'حذف'}
+          variant={expenseConfirm.action === 'delete' ? 'danger' : 'warning'}
+          onConfirm={() => executeExpenseAction(expenseConfirm.id, expenseConfirm.action)}
+          onCancel={() => setExpenseConfirm(null)}
+        />
+      )}
     </div>
   );
 }
@@ -402,6 +408,7 @@ function ExpenseForm({
   return (
     <Modal
       title={isEdit ? 'تعديل المصروف' : 'مصروف جديد'}
+      size="lg"
       onClose={onClose}
       footer={
         <>

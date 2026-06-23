@@ -4,6 +4,7 @@ import { useAuth } from '../stores/authStore';
 import { useUI } from '../stores/uiStore';
 import { useT } from '../lib/i18n';
 import almanarLogo from '../assets/almanar-logo.png';
+import Toast from './Toast';
 import './layout-polish.css';
 
 export default function Layout() {
@@ -71,6 +72,7 @@ export default function Layout() {
         </header>
         <main className="content"><Outlet /></main>
       </div>
+      <Toast />
     </div>
   );
 }

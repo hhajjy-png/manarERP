@@ -491,7 +491,7 @@ function RecordsTab() {
 
       {/* ── Create Modal ── */}
       {showCreate && (
-        <Modal title={t('action.maint.add_record')} onClose={() => setShowCreate(false)}
+        <Modal title={t('action.maint.add_record')} size="lg" onClose={() => setShowCreate(false)}
           footer={
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn secondary sm" onClick={() => setShowCreate(false)}>{t('action.cancel')}</button>
@@ -506,7 +506,7 @@ function RecordsTab() {
 
       {/* ── Edit Modal ── */}
       {editRecord && (
-        <Modal title={t('action.maint.edit')} onClose={() => setEditRecord(null)}
+        <Modal title={t('action.maint.edit')} size="lg" onClose={() => setEditRecord(null)}
           footer={
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn secondary sm" onClick={() => setEditRecord(null)}>{t('action.cancel')}</button>
@@ -521,7 +521,7 @@ function RecordsTab() {
 
       {/* ── Details Modal ── */}
       {detailRecord && (
-        <Modal title={t('modal.maint.details_title')} onClose={() => setDetailRecord(null)}
+        <Modal title={t('modal.maint.details_title')} size="lg" onClose={() => setDetailRecord(null)}
           footer={<div style={{ display: 'flex', justifyContent: 'flex-end' }}><button className="btn secondary sm" onClick={() => setDetailRecord(null)}>{t('action.cancel')}</button></div>}
         >
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 20px', fontSize: 14 }}>
@@ -668,7 +668,7 @@ function FuelTab() {
       <DataTable columns={columns} rows={rows} loading={loading} emptyText={t('empty.maint.fuel')} />
 
       {showCreate && (
-        <Modal title={t('action.maint.add_fuel')} onClose={() => setShowCreate(false)}
+        <Modal title={t('action.maint.add_fuel')} size="lg" onClose={() => setShowCreate(false)}
           footer={
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn secondary sm" onClick={() => setShowCreate(false)}>{t('action.cancel')}</button>
@@ -844,7 +844,7 @@ function BreakdownsTab() {
       <DataTable columns={columns} rows={rows} loading={loading} emptyText={t('empty.maint.breakdowns')} />
 
       {showCreate && (
-        <Modal title={t('action.maint.report_breakdown')} onClose={() => setShowCreate(false)}
+        <Modal title={t('action.maint.report_breakdown')} size="lg" onClose={() => setShowCreate(false)}
           footer={
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn secondary sm" onClick={() => setShowCreate(false)}>{t('action.cancel')}</button>
@@ -980,7 +980,7 @@ function SparePartsTab() {
       <DataTable columns={columns} rows={rows} loading={loading} emptyText={t('empty.maint.spare_parts')} />
 
       {showCreate && (
-        <Modal title={t('action.maint.add_spare_part')} onClose={() => setShowCreate(false)}
+        <Modal title={t('action.maint.add_spare_part')} size="lg" onClose={() => setShowCreate(false)}
           footer={
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button className="btn secondary sm" onClick={() => setShowCreate(false)}>{t('action.cancel')}</button>

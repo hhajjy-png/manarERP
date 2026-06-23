@@ -1,5 +1,6 @@
 import { CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
+import ConfirmModal from '../../components/ConfirmModal';
 import type {
   TemplateStudioDocumentType,
   TemplateStudioSettings,
@@ -100,6 +101,7 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
   const [selectedElementId, setSelectedElId]    = useState<string | null>(null);
   const [renaming, setRenaming]                 = useState<string | null>(null);
   const [renameVal, setRenameVal]               = useState('');
+  const [deleteConfirmId, setDeleteConfirmId]   = useState<string | null>(null);
 
   const dragRef     = useRef<DragState | null>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
@@ -942,13 +944,7 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
                   {activeId === currentTemplate.id ? 'إلغاء التفعيل' : 'تفعيل'}
                 </button>
                 <button type="button" style={{ ...btnLeft, color: '#fca5a5', borderColor: '#7f1d1d' }}
-                  onClick={() => {
-                    if (confirm(`حذف "${currentTemplate.name}"؟`)) {
-                      updateTemplates((ts) => ts.filter((t) => t.id !== currentTemplate.id));
-                      setSelectedTplId(null);
-                      setSelectedElId(null);
-                    }
-                  }}>حذف</button>
+                  onClick={() => setDeleteConfirmId(currentTemplate.id)}>حذف</button>
               </>
             )}
 
@@ -1029,6 +1025,21 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
           </div>
         </div>
       </div>
+      {deleteConfirmId !== null && (() => {
+        const tpl = studioSettings.templates.find((t) => t.id === deleteConfirmId);
+        return (
+          <ConfirmModal
+            message={`حذف "${tpl?.name ?? ''}"؟`}
+            onConfirm={() => {
+              setDeleteConfirmId(null);
+              updateTemplates((ts) => ts.filter((t) => t.id !== deleteConfirmId));
+              setSelectedTplId(null);
+              setSelectedElId(null);
+            }}
+            onCancel={() => setDeleteConfirmId(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
