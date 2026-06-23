@@ -10,9 +10,9 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `57b3fc3` — Merge UX Polish Pack v4 into production |
-| **Merge Commit** | `57b3fc3` |
-| **Latest stable tag** | `stable-ux-polish-pack-v4` |
+| **HEAD** | `2c00c6b` — Merge Accounting Completeness H1 into production |
+| **Merge Commit** | `2c00c6b` |
+| **Latest stable tag** | `stable-accounting-completeness-h1-v1` |
 | **Remote sync** | `origin/production` — up to date (post push) |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -28,6 +28,7 @@
 
 | Feature | Stable Tag | Summary |
 |---------|-----------|---------|
+| **Accounting Completeness H1 — Purchase Invoice GL Posting** | `stable-accounting-completeness-h1-v1` | Closes the GL gap for purchase-direction invoices and supplier payments. **Purchase Invoice GL (`postPurchaseInvoiceToGL`):** already existed (Phase D); now exposed via an explicit `PATCH /invoices/:id/approve` endpoint secured by `invoices.approve` permission. **Purchase Payment GL (`postPurchasePaymentToGL`):** NEW — Dr ACCOUNTS_PAYABLE (2000), Cr CASH (1000) or BANK (1010) depending on `payment.method` (BANK/TRANSFER → BANK account; CASH/CHEQUE/other → CASH account). Called automatically from `addPayment()` when `invoice.direction === 'PURCHASE'`. Idempotent double-posting guard (`journalEntry.findFirst` on `PURCHASE_PAYMENT` + `referenceId`). Skips SALES invoices and zero-amount payments. KWD 3 decimal precision via `round3()`. **AP Settlement flow:** invoice creation creates liability (Dr PURCHASES 5000, Cr AP 2000); payment creation settles it (Dr AP 2000, Cr Cash/Bank) — net AP = 0 when paid in full. **Reversal (`reversePurchasePaymentGL`):** NEW — creates `PURCHASE_PAYMENT_REVERSAL` journal via `reverseGL()` (debit↔credit swap); never deletes original; no-op if no original GL entry; no-op if reversal already exists. **Approve endpoint:** `PATCH /invoices/:id/approve` → 3-attempt retry on `entryNumber` P2002 collision (`isEntryNumberCollision`); guards: PURCHASE direction required, CANCELLED invoices rejected; records `APPROVE` audit entry. **`clearGLForInvoice()` extended:** now includes `PURCHASE_PAYMENT` and `PURCHASE_PAYMENT_REVERSAL` in referenceType deleteMany for force-delete cleanup. **GL_REFERENCE_TYPES extended:** added `PURCHASE_PAYMENT` and `PURCHASE_PAYMENT_REVERSAL` to `gl.service.ts`. **No Prisma schema changes. No migrations. No frontend changes. No Electron IPC changes. No new npm packages.** 7 files changed (5 modified + 2 new test files), 851 insertions, 4 deletions. **Tests:** 571/571 backend (31 files — +45 new tests across 2 new test files: `invoices.purchase-payment.test.ts` 19 tests + `invoices.approve.test.ts` 26 tests) + 507/507 frontend (24 files). |
 | **UX Polish Pack v4** | `stable-ux-polish-pack-v4` | Global UX hardening — frontend-only release. **ConfirmModal system:** `ConfirmModal.tsx` async confirmation modal replaces all `window.confirm()` calls across Inventory.tsx (9 calls / 5 sub-tabs), Cheques.tsx (2), TemplateStudioEditor.tsx (1), Attendance.tsx (2), and 10 print-form pages (ToWhomItMayConcern, LeaveRequest, SalaryCertificate, EmployeeWarning, Resignation, PerformanceEvaluation, SalaryAdvance, ReturnToWork, Quotation, PurchaseRequest). **Toast notification system:** `toastStore.ts` (Zustand) + `Toast.tsx` (fixed-position container, mounted in Layout.tsx). `useToast()` provides `toast.ok/error/warn()` with 4-second auto-dismiss. Replaced all `const [msg, setMsg]` inline alert patterns across: Users.tsx, Prices.tsx, Attendance.tsx, Expenses.tsx, Invoices.tsx, Accounting.tsx (2 tabs), Inventory.tsx (5 tabs), Backup.tsx (3-variant showMsg pattern), Settings.tsx. **Modal hardening:** `Modal.tsx` — added `size?: 'sm'|'md'|'lg'|'xl'` prop, focus trap, scroll lock, Escape key handler, focus restoration on close. **Modal sizes standardized** across Invoices (xl/lg), Inventory (xl/lg), Accounting (xl/lg), Attendance (lg), Maintenance (lg), Expenses (lg), Cheques (lg), Prices (xl/lg), Users (lg). **DataTable a11y:** `aria-busy={!!loading}` on table, `aria-live="polite"` on tbody, `className="th-actions"`/`"td-actions"` with `position:sticky; inset-inline-end:0` for sticky action column. **Button hardening:** `type="button"` on all non-submit buttons in form contexts; `:focus-visible` focus rings; `.btn.loading` class; `.btn:hover:not(:disabled)` guard. **CSS/RTL improvements:** `.user-info { text-align: start }`, `.field label.required::after`, `alert-close-btn`, `.skip-to-content`, `.spinner-sm`, dark-mode modal overlay. **Scope:** 32 files changed (29 modified + 3 new), 787 insertions, 364 deletions. No Prisma schema changes. No migrations. No backend API changes. No Electron IPC changes. No new npm packages. |
 | **Print Designer — Phase 6.1C (Template Studio Polish & Quotation Totals Consistency)** | `stable-print-designer-phase6-1c-v1` | Enriches quotation data flow and hardens totals rendering. **Data map (`Quotation.tsx`):** now passes all four totals fields explicitly — `subtotal: qtTotal`, `discount: '0.000'`, `tax: '0.000'`, `grandTotal: qtTotal` — making the renderer fully deterministic and removing reliance on fallback alone. **`resolveQuotationDocumentTotals` fix (`lineItemsResolver.ts`):** changed `??` to `||` for `subtotal` and `grandTotal` fields so that empty-string values also fall back to `data.total` (not just `null`/`undefined`). `resolveInvoiceDocumentTotals` is unchanged. **Studio UX (`TemplateStudioEditor.tsx`):** context note added at top of line items table props panel ("البنود تُعبأ من الوثيقة عند الطباعة"); quotation-specific inline hint added after totals checkboxes ("ملاحظة: الخصم والضريبة في عروض الأسعار دائماً 0.000") shown only when `activeDocType === 'quotation'`. **Test suite:** 17 new tests in `templateStudio.test.ts` (groups 46–53, total 507): quotation enriched data map verification; subtotal fallback (missing key and empty string both fall back to total); discount/tax fallback (absent, empty string, '0.000' all return '0.000'); grandTotal fallback; no-blank-cells regression (both resolvers always return non-empty strings); backward compat (old quotation data with only `total` key resolves correctly); invoice totals unaffected. **Backward compatibility:** all Phase 6.1B tests (groups 33–45) continue passing. No Prisma schema changes. No migrations. No backend routes. No Electron IPC. No new npm packages. |
 | **Print Designer — Phase 6.1B (Advanced Line Items & Totals)** | `stable-print-designer-phase6-1b-v1` | Extends the `lineItemsTable` element type with document-level totals binding, zero-column auto-hiding, row striping, and configurable alignment. **Architecture:** Purely frontend, no Prisma, no backend routes, no Electron IPC, no new npm packages. **Type changes (`templateStudioTypes.ts`):** `LineItemsTableElement` extended with `autoHideZeroColumns?: boolean`, `rowStriping?: boolean`; `totals` object extended with `labelAlign?: 'start'|'center'|'end'` and `valueAlign?: 'start'|'center'|'end'`. **New document totals infrastructure (`lineItemsResolver.ts`):** `DocumentTotals` interface (`subtotal/discount/tax/grandTotal: string`); `safeFmtStr(val)` — strips commas, parses float, returns `'0.000'` for NaN/Infinity/missing; `resolveInvoiceDocumentTotals(data)` reads `data.subtotal/discount/tax/grandTotal` directly; `resolveQuotationDocumentTotals(data)` falls back `subtotal → data.subtotal ?? data.total`, `grandTotal → data.grandTotal ?? data.total`. **Renderer (`TemplateStudioRenderer.tsx`):** `REQUIRED_LINE_ITEM_FIELDS = new Set(['description', 'total'])` — these two columns are never auto-hidden; `isAllZeroOrEmpty(rows, field)` checks all rows return `''`, `'0'`, or `'0.000'`; `renderLineItemsTableEl` now takes 4 params `(el, lineItems, docType, data)` — resolves `docTotals` from `docType === 'invoice' ? resolveInvoiceDocumentTotals(data) : resolveQuotationDocumentTotals(data)`; filters visible columns with `autoHideZeroColumns`; RTL cell align `'start' → right`, `'end' → left`, `'center' → center`; row striping on odd rows (0-indexed) `COLOR_TOKEN_MAP.light` (`#f3f4f6`) with `printColorAdjust: 'exact'`; print-safe CSS: `thead { display: table-header-group }`, `tfoot { display: table-footer-group }`, `tr { pageBreakInside: 'avoid' }`; footer Arabic labels: الإجمالي قبل الخصم / الخصم / الضريبة / الإجمالي النهائي; `totals.labelAlign` (default `'end'`) and `totals.valueAlign` (default `'end'`). **Editor (`TemplateStudioEditor.tsx`):** 8 new controls in "خيارات العرض" section: `autoHideZeroColumns` checkbox, `rowStriping` checkbox; `labelAlign` select (start/center/end → يمين/وسط/يسار); `valueAlign` select; all totals checkboxes with `aria-label`. **Validation (`templateStudioUtils.ts`):** `autoHideZeroColumns` non-boolean rejected; `rowStriping` non-boolean rejected; `totals.labelAlign`/`valueAlign` must be `'start'|'center'|'end'` or undefined (invalid values rejected with error "محاذاة إجمالي غير صالحة"). **Backward compatibility:** All 6.1B fields are optional (`?`) — existing Phase 6.1A templates pass validation unchanged. **Test suite:** 23 new test groups (tests 33–45) in `templateStudio.test.ts`: `resolveInvoiceDocumentTotals` formatting, `resolveQuotationDocumentTotals` fallback, missing data fallbacks (both → `0.000`), NaN/Infinity blocked, `autoHideZeroColumns` validation, `rowStriping` validation, `totals.labelAlign`/`valueAlign` validation, Phase 6.1A backward compatibility, required columns always kept, `autoHideZeroColumns` with all-zero column, complete 6.1B totals object, pre-formatted KWD round-trip, quotation explicit subtotal preferred. **Frontend tests: 490 total (24 files).** No Prisma schema changes. No migrations. No backend routes. No Electron IPC. No new npm packages. |
@@ -396,7 +397,7 @@ Clamp bounds: x ±80 px, y ±60 px, scale 0.4–2.5, opacity 0.2–1, zIndex 1|2
 
 | Layer | Files | Tests | Status |
 |-------|-------|-------|--------|
-| Backend (Vitest) | 29 | 526 | All passing |
+| Backend (Vitest) | 31 | 571 | All passing |
 | Frontend (Vitest) | 24 | 507 | All passing |
 
 ### Frontend test files (`frontend/src/__tests__/`)
@@ -437,14 +438,14 @@ backend/src/modules/executive/__tests__/executive.service.test.ts   # 30 tests
   — kpiTimeline(): point count, field presence, profit formula, non-negative outstanding
 ```
 
-### TypeScript validation (UX Polish Pack v4 — clean run)
+### TypeScript validation (Accounting Completeness H1 — clean run)
 
 ```
 cd backend && npx prisma validate          ✅ valid
 cd backend && npx tsc --noEmit             ✅ 0 errors
 cd frontend && npx tsc --noEmit            ✅ 0 errors
 npx tsc -p electron/tsconfig.json --noEmit ✅ 0 errors
-cd backend && npm test                     ✅ 526/526 (29 files)
+cd backend && npm test                     ✅ 571/571 (31 files)
 cd frontend && npx vitest run              ✅ 507/507 (24 files)
 npm run build:back                         ✅ clean
 npm run build:front                        ✅ clean (pre-existing chunk size warning only)
@@ -538,7 +539,6 @@ After 2026-06-13 full operational reset:
 - Per-document signature policies (different signer per document type)
 - QR verification endpoint for printed documents
 - Advanced print profiles (custom margins, watermarks)
-- Purchase Invoice → GL integration (deferred — `PURCHASE_INVOICE_GL_POSTING_SKIPPED`)
 
 ### Low Priority
 - Payroll → GL double-entry wiring (`PAYROLL_EXPENSE 5100` account exists, unused)
@@ -558,7 +558,7 @@ After 2026-06-13 full operational reset:
 
 3. **paymentMethod on GL credit** — Currently always credits CASH (1000). When `paymentMethod` field exists, route to BANK (1010) or ACCOUNTS_PAYABLE (2000) accordingly.
 
-4. **Purchase Invoice GL** — `invoices.accounting.ts` logs `PURCHASE_INVOICE_GL_POSTING_SKIPPED` for purchase-direction invoices. AP + Purchases posting deferred.
+4. **Purchase Invoice GL** — ~~Deferred~~ **IMPLEMENTED in H1** — `postPurchaseInvoiceToGL` (Dr PURCHASES/Cr AP) + `postPurchasePaymentToGL` (Dr AP/Cr Cash/Bank) + `reversePurchasePaymentGL` + `PATCH /invoices/:id/approve` endpoint. The `PURCHASE_INVOICE_GL_POSTING_SKIPPED` log path is gone; posting happens automatically on payment or explicitly via approve.
 
 ---
 
@@ -586,6 +586,7 @@ After 2026-06-13 full operational reset:
 
 | Date | Tag | HEAD | Feature |
 |------|-----|------|---------|
+| 2026-06-23 | `stable-accounting-completeness-h1-v1` | `2c00c6b` | Accounting Completeness H1 — Purchase Invoice GL Posting. `postPurchasePaymentToGL` (Dr AP 2000 / Cr Cash 1000 or Bank 1010), `reversePurchasePaymentGL`, `PATCH /invoices/:id/approve` endpoint, `clearGLForInvoice` extended, `GL_REFERENCE_TYPES` extended. 7 files changed, 851 insertions, 4 deletions. Backend-only. No migration. No frontend changes. No IPC. 571/571 backend tests (31 files) + 507/507 frontend tests (24 files). |
 | 2026-06-23 | `stable-ux-polish-pack-v4` | `57b3fc3` | UX Polish Pack v4 — ConfirmModal system, global Toast notifications (toastStore + Toast.tsx), Modal size standardization (sm/md/lg/xl + focus trap), DataTable a11y (aria-busy, aria-live, sticky actions), Button hardening (type=, focus rings, loading state), CSS/RTL foundation. 32 files changed. Frontend-only. 526 backend tests + 507 frontend tests, all passing. |
 | 2026-06-23 | `stable-print-designer-phase6-1c-v1` | `bf58714` | Print Designer Phase 6.1C — Template Studio Polish & Quotation Totals Consistency (enriched quotation data map, || vs ?? fix in resolveQuotationDocumentTotals, studio context note + quotation hint, 17 new tests, 507 frontend tests total) |
 | 2026-06-23 | `stable-print-designer-phase6-1b-v1` | `b8fc3a0` | Print Designer Phase 6.1B — Advanced Line Items & Totals (document totals binding, autoHideZeroColumns, rowStriping, labelAlign/valueAlign, print-safe thead/tfoot/tr CSS, safeFmtStr, resolveInvoice/QuotationDocumentTotals, 23 new test groups, 490 frontend tests total) |
@@ -603,4 +604,4 @@ After 2026-06-13 full operational reset:
 
 ---
 
-*Last updated: 2026-06-23 — UX Polish Pack v4 released. HEAD `57b3fc3`. Merge commit `57b3fc3`. Tag `stable-ux-polish-pack-v4`. 526 backend tests (29 files) / 507 frontend tests (24 files). Frontend-only: no migration, no backend routes, no IPC, no new npm packages.*
+*Last updated: 2026-06-23 — Accounting Completeness H1 released. HEAD `2c00c6b`. Merge commit `2c00c6b`. Tag `stable-accounting-completeness-h1-v1`. 571 backend tests (31 files) / 507 frontend tests (24 files). Backend-only: no migration, no schema changes, no frontend changes, no IPC, no new npm packages.*
