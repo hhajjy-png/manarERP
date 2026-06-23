@@ -30,6 +30,8 @@ import LayoutOverrideStyles from '../print-templates/components/LayoutOverrideSt
 import UniversalDesignerOverlay from '../print-templates/components/UniversalDesignerOverlay';
 import LayoutDesignerPanel from '../print-templates/components/LayoutDesignerPanel';
 import type { AllLayoutOverrides } from '../print-templates/designer/layoutOverrideTypes';
+import { useTemplateStudio } from '../print-templates/studio/useTemplateStudio';
+import TemplateStudioRenderer from '../print-templates/studio/TemplateStudioRenderer';
 
 const FORM_KEY = 'quotation';
 
@@ -87,6 +89,8 @@ export default function Quotation() {
   const [printFields, setPrintFields] = useState<QuotationPrintFields>(makeInitial);
   const [previewMode, setPreviewMode] = useState<'legacy' | 'engine'>('legacy');
   const [adapterError, setAdapterError] = useState<string | null>(null);
+  const { activeTemplate: studioTemplate } = useTemplateStudio('quotation');
+  const [useStudio, setUseStudio] = useState(false);
 
   const draftEntry = usePrintDraftStore((s) => s.drafts[FORM_KEY] ?? null);
   const saveDraft = usePrintDraftStore((s) => s.saveDraft);
@@ -365,6 +369,16 @@ export default function Quotation() {
           <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 'auto' }}>
             {printFields.quotationNumber}
           </span>
+          {studioTemplate && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', padding: '3px 8px', background: useStudio ? '#dbeafe' : '#f8fafc', border: '1px solid #bfdbfe', borderRadius: 6 }}>
+              <input
+                type="checkbox"
+                checked={useStudio}
+                onChange={(e) => setUseStudio(e.target.checked)}
+              />
+              استخدام قالب Template Studio
+            </label>
+          )}
         </div>
 
         {/* Template selector */}
@@ -386,21 +400,44 @@ export default function Quotation() {
         )}
 
         {/* Engine template */}
-        <UniversalDesignerOverlay
-          layoutDesigner={layoutDesigner}
-          designer={designer}
-          textStyleDesigner={textDesigner}
-          staticTextDesigner={staticTextDesigner}
-          signatureUrl={branding.signatureUrl}
-          stampUrl={branding.stampUrl}
-          docLabel="عرض السعر"
-          onSave={async () => {
-            await Promise.all([layoutDesigner.save(), designer.save(), textDesigner.save(), staticTextDesigner.save()]);
-          }}
-        >
-          <LayoutOverrideStyles overrides={effectiveLayoutOverrides.quotation} />
-          <EngineComponent data={brandedPrintData ?? undefined} />
-        </UniversalDesignerOverlay>
+        {!useStudio && (
+          <UniversalDesignerOverlay
+            layoutDesigner={layoutDesigner}
+            designer={designer}
+            textStyleDesigner={textDesigner}
+            staticTextDesigner={staticTextDesigner}
+            signatureUrl={branding.signatureUrl}
+            stampUrl={branding.stampUrl}
+            docLabel="عرض السعر"
+            onSave={async () => {
+              await Promise.all([layoutDesigner.save(), designer.save(), textDesigner.save(), staticTextDesigner.save()]);
+            }}
+          >
+            <LayoutOverrideStyles overrides={effectiveLayoutOverrides.quotation} />
+            <EngineComponent data={brandedPrintData ?? undefined} />
+          </UniversalDesignerOverlay>
+        )}
+
+        {/* Template Studio renderer (optional, default OFF) */}
+        {useStudio && studioTemplate && (() => {
+          const qtTotal = printFields.items.reduce(
+            (sum, item) => sum + (parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0),
+            0,
+          ).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+          return (
+            <TemplateStudioRenderer
+              template={studioTemplate}
+              data={{
+                number:          printFields.quotationNumber ?? '',
+                date:            printFields.date ?? '',
+                customerName:    printFields.customerName ?? '',
+                customerAddress: '',
+                total:           qtTotal,
+                notes:           printFields.notes ?? '',
+              }}
+            />
+          );
+        })()}
 
         {designer.isActive && (
           <BrandingDesignerPanel

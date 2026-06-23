@@ -5,6 +5,7 @@ import { useT, type Lang } from '../lib/i18n';
 import BrandingLayoutDesigner from '../print-templates/components/BrandingLayoutDesigner';
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import { parseBrandingLayout, serializeBrandingLayout, DEFAULT_BRANDING_LAYOUT } from '../print-templates/utils/brandingLayout';
+import TemplateStudioEditor from '../print-templates/studio/TemplateStudioEditor';
 
 const DEFAULT_VALUES: Record<string, string> = {
   'backup.auto.enabled': 'true',
@@ -41,6 +42,7 @@ export default function Settings() {
   const [brandingMsg, setBrandingMsg] = useState('');
   const [brandingSaving, setBrandingSaving] = useState(false);
   const [designerOpen, setDesignerOpen] = useState(false);
+  const [studioOpen, setStudioOpen] = useState(false);
   const [brandingLayout, setBrandingLayout] = useState<PrintBrandingLayoutSettings>(DEFAULT_BRANDING_LAYOUT);
 
   useEffect(() => {
@@ -369,7 +371,28 @@ export default function Settings() {
             </button>
           </div>
         </div>
+
+        {/* Template Studio */}
+        <div className="branding-row" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
+          <div className="branding-row-label">Template Studio</div>
+          <div className="branding-row-controls">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setStudioOpen(true)}
+            >
+              فتح Template Studio
+            </button>
+            <span style={{ fontSize: 12, color: '#64748b', marginInlineStart: 8 }}>
+              بناء قوالب طباعة مخصصة بدون برمجة
+            </span>
+          </div>
+        </div>
       </div>
+
+      {studioOpen && (
+        <TemplateStudioEditor onClose={() => setStudioOpen(false)} />
+      )}
 
       {designerOpen && (
         <BrandingLayoutDesigner
