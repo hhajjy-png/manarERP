@@ -240,6 +240,40 @@ export default function Expenses() {
         </div>
       )}
 
+      {/* ── Period Cards ── */}
+      {stats?.periods && (
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '8px 0' }}>
+          {[
+            { label: `شهر الحساب الحالي (${ARABIC_MONTHS[(stats.periods.currentMonth.month as number) - 1]} ${stats.periods.currentMonth.year})`, data: stats.periods.currentMonth, color: '#1e40af', bg: '#eff6ff', border: '#bfdbfe' },
+            { label: `الشهر السابق (${ARABIC_MONTHS[(stats.periods.previousMonth.month as number) - 1]} ${stats.periods.previousMonth.year})`, data: stats.periods.previousMonth, color: '#374151', bg: '#f9fafb', border: '#e5e7eb' },
+            { label: `السنة الحالية ${stats.periods.currentYear.year}`, data: stats.periods.currentYear, color: '#065f46', bg: '#ecfdf5', border: '#a7f3d0' },
+          ].map(({ label, data, color, bg, border }) => (
+            <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: 10, padding: '10px 16px', minWidth: 180, flex: '1 1 180px' }}>
+              <div style={{ fontSize: 11, color, fontWeight: 700, marginBottom: 4 }}>{label}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color }}>{money(data.total)}</div>
+              <div style={{ fontSize: 11, color, opacity: 0.7 }}>{data.count} مصروف</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Top Suppliers ── */}
+      {stats?.bySupplier && Object.keys(stats.bySupplier as Record<string, number>).length > 0 && (
+        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', margin: '0 0 8px', fontSize: 13 }}>
+          <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>أعلى الموردين مصرفاً</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 20px' }}>
+            {Object.entries(stats.bySupplier as Record<string, number>)
+              .sort(([, a], [, b]) => b - a)
+              .slice(0, 6)
+              .map(([name, amt]) => (
+                <span key={name} style={{ fontSize: 12 }}>
+                  <strong>{name}</strong>: {money(amt)}
+                </span>
+              ))}
+          </div>
+        </div>
+      )}
+
       {loadError && (
         <div className="alert error" role="alert">
           <span>⚠️ {loadError}</span>

@@ -483,7 +483,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.invoice_preview.section.financial': 'الملخص المالي',
     'page.invoice_preview.section.system': 'معلومات النظام',
     'lbl.inv.issue_date': 'تاريخ الفاتورة',
-    'lbl.inv.billing_period': 'حساب شهر',
+    'lbl.inv.billing_period': 'شهر الحساب',
     'lbl.inv.due_date': 'تاريخ الاستحقاق',
     'lbl.inv.subtotal': 'الإجمالي الفرعي',
     'lbl.inv.tax': 'الضريبة',

@@ -57,6 +57,14 @@ type PriceOption = {
   unitPrice: number;
 };
 
+type ContractOption = {
+  id: number;
+  code: string;
+  asphaltPlant?: string | null;
+  companyName?: string | null;
+  status: string;
+};
+
 export default function Invoices() {
   const { hasPermission, user } = useAuth();
   const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
@@ -198,7 +206,7 @@ export default function Invoices() {
     { key: 'issueDate', label: 'col.date', render: (r: Record<string, unknown>) => dateText(r.issueDate) },
     {
       key: 'billingPeriod',
-      label: 'شهر الفوترة',
+      label: 'lbl.inv.billing_period',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       render: (row: any) =>
         row.billingMonth && row.billingYear
@@ -209,7 +217,7 @@ export default function Invoices() {
     { key: 'paidAmount', label: 'col.inv.paid', render: (r: Record<string, unknown>) => money(r.paidAmount) },
     {
       key: 'remaining',
-      label: 'المتبقي',
+      label: 'lbl.inv.remaining_amount',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       render: (row: any) => money(Math.max(0, row.total - (row.paidAmount ?? 0))),
     },
@@ -314,7 +322,7 @@ export default function Invoices() {
         <select
           value={monthFilter}
           onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }}
-          title="شهر الفوترة"
+          title="شهر الحساب"
           style={{ maxWidth: 140 }}
         >
           <option value="">الشهر — الكل</option>
@@ -433,6 +441,9 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [prices, setPrices] = useState<PriceOption[]>([]);
+  const [contracts, setContracts] = useState<ContractOption[]>([]);
+  const [contractId, setContractId] = useState('');
+  const [pickerSearch, setPickerSearch] = useState('');
   const [openPickerIdx, setOpenPickerIdx] = useState<number | null>(null);
   const prevPartyIdRef = useRef('');
   const submittingRef = useRef(false);
@@ -460,15 +471,20 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
       // Auto-filled prices (single-unit match) also have priceTouched=false but are
       // customer-specific and must be cleared when the customer changes.
       setItems((prev) => prev.map((it) => ({ ...it, unitPrice: 0, priceTouched: false })));
+      setContractId('');
     }
     prevPartyIdRef.current = partyId;
 
     if (effectivePartySource !== 'SALES' || !partyId) {
       setPrices([]);
+      setContracts([]);
       return;
     }
     api.get('/prices/for-invoice', { params: { customerId: partyId } })
       .then((res) => setPrices(res.data?.data ?? []))
+      .catch(() => {});
+    api.get('/contracts', { params: { customerId: partyId, pageSize: 100 } })
+      .then((res) => setContracts(res.data?.data?.data ?? []))
       .catch(() => {});
   }, [partyId, effectivePartySource]);
 
@@ -483,6 +499,12 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
       document.removeEventListener('keydown', handleEscape);
     };
   }, [openPickerIdx]);
+
+  const activeContract = contracts.find((c) => String(c.id) === contractId);
+  const filterAsphaltPlant = activeContract?.asphaltPlant ?? null;
+  const displayPrices = filterAsphaltPlant
+    ? prices.filter((p) => p.asphaltPlant === filterAsphaltPlant)
+    : prices;
 
   const lineTotal = (it: Item) => Number(it.quantity) * Number(it.unitPrice);
   const subtotal = items.reduce((s, it) => s + lineTotal(it), 0);
@@ -501,6 +523,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
     if (key === 'unit') {
       const newUnit = String(value);
       setOpenPickerIdx(null);
+      setPickerSearch('');
       if (newUnit === UNIT_OTHER) {
         setItems((prev) =>
           prev.map((it, idx) => {
@@ -515,7 +538,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           if (idx !== i) return it;
           const base = { ...it, unit: newUnit };
           if (!it.priceTouched) {
-            const matches = prices.filter((p) => p.contractUnit === newUnit);
+            const matches = displayPrices.filter((p) => p.contractUnit === newUnit);
             if (matches.length === 1) return { ...base, unitPrice: matches[0].unitPrice };
           }
           return base;
@@ -535,6 +558,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   function applyPrice(i: number, price: PriceOption) {
     setItems((p) => p.map((it, idx) => idx === i ? { ...it, unitPrice: price.unitPrice, unit: price.contractUnit, priceTouched: true } : it));
     setOpenPickerIdx(null);
+    setPickerSearch('');
   }
 
   async function submit() {
@@ -640,7 +664,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           />
         </div>
         <div className="field">
-          <label>حساب شهر</label>
+          <label>{t('lbl.inv.billing_period')}</label>
           <div style={{ display: 'flex', gap: 8 }}>
             <select
               value={billingMonth}
@@ -714,32 +738,55 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
             {parties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
+        {effectivePartySource === 'SALES' && partyId && contracts.length > 0 && (
+          <div className="field">
+            <label>العقد / المصنع (لتضييق الأسعار)</label>
+            <select aria-label="اختر العقد" value={contractId} onChange={(e) => setContractId(e.target.value)}>
+              <option value="">كل العقود</option>
+              {contracts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.code}{c.asphaltPlant ? ` — ${c.asphaltPlant}` : ''}{c.companyName ? ` (${c.companyName})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <label style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, display: 'block', margin: '8px 0' }}>{t('lbl.items')}</label>
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 4, padding: '0 2px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 4, padding: '0 2px', borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
         {['البنود', 'الكمية', 'الوحدة', 'السعر', 'الإجمالي'].map((h) => (
           <div key={h} style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>{h}</div>
         ))}
         <div />
       </div>
       {effectivePartySource === 'SALES' && !partyId && (
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 8px', fontStyle: 'italic' }}>
           اختر العميل أولاً لعرض اتفاقيات أسعاره
         </p>
       )}
       {effectivePartySource === 'SALES' && partyId && prices.length === 0 && (
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 8px', fontStyle: 'italic' }}>
           لا توجد اتفاقيات أسعار مسجّلة لهذا العميل
         </p>
       )}
-      {effectivePartySource === 'SALES' && partyId && prices.length > 0 && (
+      {effectivePartySource === 'SALES' && partyId && displayPrices.length === 0 && prices.length > 0 && (
+        <p style={{ fontSize: 12, color: '#b45309', margin: '4px 0 8px', fontStyle: 'italic' }}>
+          لا توجد اتفاقيات أسعار مطابقة لهذا العميل / العقد / المصنع
+        </p>
+      )}
+      {effectivePartySource === 'SALES' && partyId && displayPrices.length > 0 && (
         <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 14px', marginBottom: 10, fontSize: 13 }}>
-          <div style={{ fontWeight: 800, color: '#1e40af', marginBottom: 6, fontSize: 12 }}>
-            📋 اتفاقيات الأسعار المسجّلة
+          <div style={{ fontWeight: 800, color: '#1e40af', marginBottom: 6, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            📋 اتفاقيات الأسعار
+            {filterAsphaltPlant && (
+              <span style={{ background: '#dbeafe', color: '#1e40af', borderRadius: 6, padding: '1px 8px', fontSize: 11, fontWeight: 600 }}>
+                مصفّى: {filterAsphaltPlant}
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
-            {prices.map(p => (
+            {displayPrices.map(p => (
               <span key={p.id} style={{ fontSize: 12, color: '#1e3a5f' }}>
                 <strong>{p.contractUnit}</strong>: {money(p.unitPrice)}
                 {p.asphaltPlant ? ` — ${p.asphaltPlant}` : ''}
@@ -790,46 +837,67 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
           <div className="invoice-cell price-cell" style={{ minWidth: 0, overflow: 'visible', position: 'relative' }}>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               <input type="number" min="0" step="0.001" placeholder={t('ph.unit_price')} value={it.unitPrice} onChange={(e) => setItem(i, 'unitPrice', e.target.value)} className="line-input" style={{ flex: 1, minWidth: 0, boxSizing: 'border-box' }} />
-              {(() => { const unitPrices = prices.filter((p) => p.contractUnit === it.unit); return unitPrices.length > 0 ? (
-                <>
-                  <button
-                    type="button"
-                    className="btn secondary sm"
-                    style={{ flexShrink: 0, padding: '0 8px', fontSize: 14 }}
-                    title={t('ph.prices.picker_btn')}
-                    aria-label={t('ph.prices.picker_btn')}
-                    aria-haspopup="listbox"
-                    aria-expanded={openPickerIdx === i ? 'true' : 'false'}
-                    onClick={(e) => { e.stopPropagation(); setOpenPickerIdx(openPickerIdx === i ? null : i); }}
-                  >
-                    📋
-                  </button>
-                  {openPickerIdx === i && (
-                    <div
-                      role="listbox"
-                      aria-label={t('ph.prices.picker_list')}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      style={{ position: 'absolute', top: '100%', insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 200, minWidth: 300, maxHeight: 260, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)', marginTop: 2 }}
+              {(() => {
+                const unitPrices = displayPrices.filter((p) => p.contractUnit === it.unit);
+                const searchTerm = pickerSearch.trim().toLowerCase();
+                const filtered = searchTerm
+                  ? unitPrices.filter((p) => [p.asphaltPlant, p.companyName, p.contractLocation].some((f) => f?.toLowerCase().includes(searchTerm)))
+                  : unitPrices;
+                return unitPrices.length > 0 ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn secondary sm"
+                      style={{ flexShrink: 0, padding: '0 8px', fontSize: 14 }}
+                      title={t('ph.prices.picker_btn')}
+                      aria-label={t('ph.prices.picker_btn')}
+                      aria-haspopup="listbox"
+                      aria-expanded={openPickerIdx === i}
+                      onClick={(e) => { e.stopPropagation(); setOpenPickerIdx(openPickerIdx === i ? null : i); setPickerSearch(''); }}
                     >
-                      <div style={{ padding: '6px 12px', fontSize: 12, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', fontWeight: 700, userSelect: 'none' }}>
-                        {t('ph.prices.picker_unit')}: {it.unit}
+                      📋
+                    </button>
+                    {openPickerIdx === i && (
+                      <div
+                        onMouseDown={(e) => e.stopPropagation()}
+                        style={{ position: 'absolute', top: '100%', insetInlineStart: 0, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, zIndex: 200, minWidth: 300, maxHeight: 320, overflowY: 'auto', boxShadow: '0 4px 16px rgba(0,0,0,.18)', marginTop: 2 }}
+                      >
+                        <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 1 }}>
+                          <input
+                            autoFocus
+                            placeholder="بحث (مصنع / موقع / شركة)…"
+                            value={pickerSearch}
+                            onChange={(e) => setPickerSearch(e.target.value)}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', background: 'var(--surface-2)', color: 'var(--text)' }}
+                          />
+                        </div>
+                        <div role="listbox" aria-label={t('ph.prices.picker_list')}>
+                          <div style={{ padding: '4px 12px', fontSize: 11, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', fontWeight: 700, userSelect: 'none' }}>
+                            {t('ph.prices.picker_unit')}: {it.unit}
+                          </div>
+                          {filtered.length === 0 ? (
+                            <div style={{ padding: '12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
+                              لا توجد اتفاقيات أسعار مطابقة لهذا العميل / العقد / المصنع
+                            </div>
+                          ) : filtered.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              role="option"
+                              aria-selected="false"
+                              style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', lineHeight: 1.5 }}
+                              onClick={() => applyPrice(i, p)}
+                            >
+                              <strong>{p.asphaltPlant ?? '—'}</strong>{p.companyName ? ` — ${p.companyName}` : ''}{p.contractLocation ? ` — ${p.contractLocation}` : ''} — <strong>{money(p.unitPrice)}</strong>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      {unitPrices.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          role="option"
-                          aria-selected="false"
-                          style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', lineHeight: 1.5 }}
-                          onClick={() => applyPrice(i, p)}
-                        >
-                          <strong>{p.asphaltPlant ?? '—'}</strong>{p.companyName ? ` — ${p.companyName}` : ''}{p.contractLocation ? ` — ${p.contractLocation}` : ''} — <strong>{money(p.unitPrice)}</strong>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : null; })()}
+                    )}
+                  </>
+                ) : null;
+              })()}
             </div>
           </div>
           <div className="invoice-cell total-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
@@ -1041,6 +1109,9 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [prices, setPrices] = useState<PriceOption[]>([]);
+  const [contracts, setContracts] = useState<ContractOption[]>([]);
+  const [contractId, setContractId] = useState('');
+  const [pickerSearch, setPickerSearch] = useState('');
   const [openPickerIdx, setOpenPickerIdx] = useState<number | null>(null);
   const [loadingData, setLoadingData] = useState(true);
   const submittingRef = useRef(false);
@@ -1104,21 +1175,31 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
 
   useEffect(() => {
     if (partyId && partyId !== prevPartyIdRef.current) {
-      // Reset all unit prices on customer change — covers both picker-selected
-      // and auto-filled prices (which have priceTouched=false but are customer-specific).
       setItems((prev) => prev.map((it) => ({ ...it, unitPrice: 0, priceTouched: false })));
+      setContractId('');
     }
     prevPartyIdRef.current = partyId;
 
     if (effectivePartySource !== 'SALES' || !partyId) {
       setPrices([]);
+      setContracts([]);
       return;
     }
     api.get('/prices/for-invoice', { params: { customerId: partyId } })
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((res: any) => setPrices(res.data?.data ?? []))
       .catch(() => {});
+    api.get('/contracts', { params: { customerId: partyId, pageSize: 100 } })
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((res: any) => setContracts(res.data?.data?.data ?? []))
+      .catch(() => {});
   }, [partyId, effectivePartySource]);
+
+  const activeContract = contracts.find((c) => String(c.id) === contractId);
+  const filterAsphaltPlant = activeContract?.asphaltPlant ?? null;
+  const displayPrices = filterAsphaltPlant
+    ? prices.filter((p) => p.asphaltPlant === filterAsphaltPlant)
+    : prices;
 
   const lineTotal = (it: Item) => Number(it.quantity) * Number(it.unitPrice);
   const subtotal = items.reduce((s, it) => s + lineTotal(it), 0);
@@ -1145,11 +1226,12 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
         if (idx !== i) return it;
         const base = { ...it, unit: newUnit };
         if (!it.priceTouched) {
-          const matches = prices.filter((p) => p.contractUnit === newUnit);
+          const matches = displayPrices.filter((p) => p.contractUnit === newUnit);
           if (matches.length === 1) return { ...base, unitPrice: matches[0].unitPrice };
         }
         return base;
       }));
+      setPickerSearch('');
       return;
     }
     setItems((prev) => prev.map((it, idx) => {
@@ -1162,6 +1244,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   function applyPrice(i: number, price: PriceOption) {
     setItems((p) => p.map((it, idx) => idx === i ? { ...it, unitPrice: price.unitPrice, unit: price.contractUnit, priceTouched: true } : it));
     setOpenPickerIdx(null);
+    setPickerSearch('');
   }
 
   async function submit() {
@@ -1266,7 +1349,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
           <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} title="تاريخ تسليم الفاتورة" />
         </div>
         <div className="field">
-          <label>حساب شهر</label>
+          <label>{t('lbl.inv.billing_period')}</label>
           <div style={{ display: 'flex', gap: 8 }}>
             <select value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} title="شهر الحساب" style={{ flex: 1 }}>
               {ARABIC_MONTHS.map((name, idx) => <option key={idx + 1} value={idx + 1}>{name}</option>)}
@@ -1318,32 +1401,55 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
             {parties.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
+        {effectivePartySource === 'SALES' && partyId && contracts.length > 0 && (
+          <div className="field">
+            <label>العقد / المصنع (لتضييق الأسعار)</label>
+            <select aria-label="اختر العقد" value={contractId} onChange={(e) => setContractId(e.target.value)}>
+              <option value="">كل العقود</option>
+              {contracts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.code}{c.asphaltPlant ? ` — ${c.asphaltPlant}` : ''}{c.companyName ? ` (${c.companyName})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <label style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, display: 'block', margin: '8px 0' }}>{t('lbl.items')}</label>
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 4, padding: '0 2px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 4, padding: '0 2px', borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
         {['البنود', 'الكمية', 'الوحدة', 'السعر', 'الإجمالي'].map((h) => (
           <div key={h} style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>{h}</div>
         ))}
         <div />
       </div>
       {effectivePartySource === 'SALES' && !partyId && (
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 8px', fontStyle: 'italic' }}>
           اختر العميل أولاً لعرض اتفاقيات أسعاره
         </p>
       )}
       {effectivePartySource === 'SALES' && partyId && prices.length === 0 && (
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 8px', fontStyle: 'italic' }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 8px', fontStyle: 'italic' }}>
           لا توجد اتفاقيات أسعار مسجّلة لهذا العميل
         </p>
       )}
-      {effectivePartySource === 'SALES' && partyId && prices.length > 0 && (
+      {effectivePartySource === 'SALES' && partyId && displayPrices.length === 0 && prices.length > 0 && (
+        <p style={{ fontSize: 12, color: '#b45309', margin: '4px 0 8px', fontStyle: 'italic' }}>
+          لا توجد اتفاقيات أسعار مطابقة لهذا العميل / العقد / المصنع
+        </p>
+      )}
+      {effectivePartySource === 'SALES' && partyId && displayPrices.length > 0 && (
         <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 14px', marginBottom: 10, fontSize: 13 }}>
-          <div style={{ fontWeight: 800, color: '#1e40af', marginBottom: 6, fontSize: 12 }}>
-            📋 اتفاقيات الأسعار المسجّلة
+          <div style={{ fontWeight: 800, color: '#1e40af', marginBottom: 6, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            📋 اتفاقيات الأسعار
+            {filterAsphaltPlant && (
+              <span style={{ background: '#dbeafe', color: '#1e40af', borderRadius: 6, padding: '1px 8px', fontSize: 11, fontWeight: 600 }}>
+                مصفّى: {filterAsphaltPlant}
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
-            {prices.map(p => (
+            {displayPrices.map(p => (
               <span key={p.id} style={{ fontSize: 12, color: '#1e3a5f' }}>
                 <strong>{p.contractUnit}</strong>: {money(p.unitPrice)}
                 {p.asphaltPlant ? ` — ${p.asphaltPlant}` : ''}

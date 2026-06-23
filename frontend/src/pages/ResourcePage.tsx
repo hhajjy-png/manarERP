@@ -42,7 +42,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [contractStats, setContractStats] = useState<ContractStats | null>(null);
   const [equipmentStats, setEquipmentStats] = useState<EquipmentStats | null>(null);
-  const [archiveCandidate, setArchiveCandidate] = useState<{ id: number; label: string } | null>(null);
+  const [archiveCandidate, setArchiveCandidate] = useState<{ id: number; label: string; conflictMessage?: string } | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [deleteCandidate, setDeleteCandidate] = useState<any | null>(null);
   const [approveCandidate, setApproveCandidate] = useState<{ id: number; action: 'approve' | 'reject' } | null>(null);
@@ -184,7 +184,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       } else if (status === 409 && cfg.key === 'contracts' && isSystemAdmin) {
         setForceDeleteContractCandidate({ id: row.id, code: row.code });
       } else if (status === 409 && cfg.supportsArchive && canUpdate) {
-        setArchiveCandidate({ id: row.id, label: row.name ?? row.code ?? String(row.id) });
+        setArchiveCandidate({ id: row.id, label: row.name ?? row.code ?? String(row.id), conflictMessage: errorMessage(err) });
       } else {
         setError(errorMessage(err));
       }
@@ -411,7 +411,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
             </>
           }
         >
-          <p>لا يمكن حذف هذا السجل لأنه مرتبط ببيانات أخرى.</p>
+          <p>{archiveCandidate.conflictMessage ?? 'لا يمكن حذف هذا السجل لأنه مرتبط ببيانات أخرى.'}</p>
           <p>يمكنك أرشفته بدلاً من حذفه — سيختفي من القوائم ويبقى في قاعدة البيانات.</p>
         </Modal>
       )}
