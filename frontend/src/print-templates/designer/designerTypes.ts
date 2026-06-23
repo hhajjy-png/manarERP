@@ -1,9 +1,4 @@
-// ─── Universal designer element abstraction ───────────────────────────────────
-//
-// Phase 5C foundation: 'image', 'shape', 'qr', 'barcode' are type-only placeholders.
-// Only 'branding' and 'text' are implemented today.
-
-export type DesignerElementKind = 'branding' | 'text' | 'image' | 'shape' | 'qr' | 'barcode';
+export type DesignerElementKind = 'branding' | 'text' | 'layout' | 'image' | 'shape' | 'qr' | 'barcode';
 
 export interface DesignerElement {
   id: string;
@@ -18,7 +13,7 @@ export interface DesignerSelection {
 
 export type DesignerCommand = 'copy' | 'paste' | 'duplicate' | 'lock' | 'hide' | 'rotate';
 
-export type DesignerMode = 'branding' | 'text' | 'idle';
+export type DesignerMode = 'branding' | 'text' | 'layout' | 'idle';
 
 export interface DesignerCapabilities {
   rotation: boolean;
@@ -30,12 +25,12 @@ export interface DesignerCapabilities {
 }
 
 export const DESIGNER_CAPABILITIES: DesignerCapabilities = {
-  rotation: false,
-  copy: false,
-  paste: false,
-  duplicate: false,
-  lock: false,
-  hide: false,
+  rotation: true,
+  copy: true,
+  paste: true,
+  duplicate: true,
+  lock: true,
+  hide: true,
 };
 
 export function isBrandingElement(el: DesignerElement | null | undefined): el is DesignerElement & { kind: 'branding' } {
@@ -44,4 +39,8 @@ export function isBrandingElement(el: DesignerElement | null | undefined): el is
 
 export function isTextElement(el: DesignerElement | null | undefined): el is DesignerElement & { kind: 'text' } {
   return el != null && el.kind === 'text';
+}
+
+export function isLayoutElement(el: DesignerElement | null | undefined): el is DesignerElement & { kind: 'layout' } {
+  return el != null && el.kind === 'layout';
 }
