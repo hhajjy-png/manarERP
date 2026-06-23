@@ -25,6 +25,8 @@ import UniversalDesignerOverlay from '../print-templates/components/UniversalDes
 import LayoutDesignerPanel from '../print-templates/components/LayoutDesignerPanel';
 import type { AllLayoutOverrides } from '../print-templates/designer/layoutOverrideTypes';
 import { getInkFilterStyle } from '../print-templates/utils/inkFilter';
+import { useTemplateStudio } from '../print-templates/studio/useTemplateStudio';
+import TemplateStudioRenderer from '../print-templates/studio/TemplateStudioRenderer';
 
 const PAY_METHOD_AR: Record<string, string> = {
   CASH: 'نقدًا', BANK: 'بنك', CHEQUE: 'شيك', TRANSFER: 'تحويل',
@@ -155,6 +157,9 @@ export default function InvoicePreview() {
   const staticTextDesigner = useStaticTextDesigner({
     initialOverrides: branding.staticTextOverrides,
   });
+
+  const { activeTemplate: studioTemplate } = useTemplateStudio('invoice');
+  const [useStudio, setUseStudio] = useState(false);
 
   const [pdfExporting, setPdfExporting] = useState(false);
   const [pdfMsg, setPdfMsg] = useState('');
@@ -451,6 +456,16 @@ export default function InvoicePreview() {
           >
             {previewMode === 'engine' ? '📋 العرض الكلاسيكي' : '✨ قالب الطباعة'}
           </button>
+          {studioTemplate && previewMode === 'engine' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', padding: '3px 8px', background: useStudio ? '#dbeafe' : '#f8fafc', border: '1px solid #bfdbfe', borderRadius: 6 }}>
+              <input
+                type="checkbox"
+                checked={useStudio}
+                onChange={(e) => setUseStudio(e.target.checked)}
+              />
+              استخدام قالب Template Studio
+            </label>
+          )}
         </div>
 
         {/* ── Engine template selector (engine mode only, hidden on print) ── */}
@@ -806,11 +821,30 @@ export default function InvoicePreview() {
         </div>{/* end legacy wrapper */}
 
         {/* ── Engine template render (inside overlay so dblclick editable handler fires) ── */}
-        {previewMode === 'engine' && printData && (
+        {previewMode === 'engine' && printData && !useStudio && (
           <>
             <LayoutOverrideStyles overrides={effectiveLayoutOverrides.invoice} />
             <EngineComponent data={printData} />
           </>
+        )}
+
+        {/* ── Template Studio renderer (optional, default OFF) ── */}
+        {previewMode === 'engine' && useStudio && studioTemplate && data && (
+          <TemplateStudioRenderer
+            template={studioTemplate}
+            data={{
+              number:          data.invoiceNumber ?? data.number ?? '',
+              date:            data.issueDate ?? '',
+              customerName:    data.customer?.name ?? data.supplier?.name ?? '',
+              customerAddress: '',
+              total:           money(data.total ?? 0),
+              subtotal:        money(data.subtotal ?? 0),
+              discount:        money(data.discount ?? 0),
+              tax:             money(data.taxAmount ?? 0),
+              grandTotal:      money(data.total ?? 0),
+              notes:           data.notes ?? '',
+            }}
+          />
         )}
         </UniversalDesignerOverlay>
 
