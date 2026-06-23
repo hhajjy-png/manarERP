@@ -77,9 +77,43 @@ export class SuppliersService {
   async remove(id: number, req: Request) {
     const supplier = await repo.findWithCounts(id);
     if (!supplier) throw AppError.notFound('المورّد غير موجود');
-    if (supplier._count.invoices > 0 || supplier._count.expenses > 0) {
-      throw AppError.conflict('لا يمكن حذف مورّد مرتبط بفواتير أو مصروفات — يمكنك أرشفته');
+
+    const invoiceCount = supplier._count.invoices;
+    const expenseCount = supplier._count.expenses;
+
+    if (invoiceCount > 0 || expenseCount > 0) {
+      const [firstInvoice, firstExpense] = await Promise.all([
+        invoiceCount > 0
+          ? prisma.invoice.findFirst({ where: { supplierId: id }, select: { invoiceNumber: true } })
+          : Promise.resolve(null),
+        expenseCount > 0
+          ? prisma.expense.findFirst({ where: { supplierId: id }, select: { code: true } })
+          : Promise.resolve(null),
+      ]);
+
+      const parts: string[] = [];
+
+      if (invoiceCount === 1 && firstInvoice) {
+        parts.push(`الفاتورة ${firstInvoice.invoiceNumber}`);
+      } else if (invoiceCount > 1 && firstInvoice) {
+        parts.push(`الفاتورة ${firstInvoice.invoiceNumber}، و${invoiceCount - 1} فاتورة أخرى`);
+      } else if (invoiceCount > 0) {
+        parts.push(`${invoiceCount} فاتورة`);
+      }
+
+      if (expenseCount === 1 && firstExpense) {
+        parts.push(`المصروف ${firstExpense.code}`);
+      } else if (expenseCount > 1 && firstExpense) {
+        parts.push(`المصروف ${firstExpense.code}، و${expenseCount - 1} مصروف آخر`);
+      } else if (expenseCount > 0) {
+        parts.push(`${expenseCount} مصروف`);
+      }
+
+      throw AppError.conflict(
+        `لا يمكن حذف هذا المورّد لأنه مستخدم في ${parts.join('، و')} — يمكنك أرشفته`,
+      );
     }
+
     await repo.delete(id);
     await recordAudit({ req, action: 'DELETE', module: 'suppliers', entityId: id });
     return { deleted: true };
