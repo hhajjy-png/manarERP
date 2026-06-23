@@ -692,6 +692,11 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
 
     return (
       <>
+        {/* Context note */}
+        <div style={{ fontSize: 10, color: '#64748b', fontStyle: 'italic', padding: '3px 5px', background: '#0f172a', borderRadius: 3, marginBottom: 4 }}>
+          البنود تُعبأ من الوثيقة عند الطباعة
+        </div>
+
         {/* Columns */}
         <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', marginTop: 6 }}>الأعمدة</div>
         {el.columns.map((col, i) => (
@@ -784,6 +789,11 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
             {lbl}
           </label>
         ))}
+        {activeDocType === 'quotation' && (
+          <div style={{ fontSize: 10, color: '#94a3b8', fontStyle: 'italic', padding: '3px 5px', background: '#1e293b', borderRadius: 3, marginTop: 3 }}>
+            ملاحظة: الخصم والضريبة في عروض الأسعار دائماً 0.000
+          </div>
+        )}
         <div style={propRow}>
           <label style={propLabel}>محاذاة التسمية</label>
           <select style={propInput} value={el.totals?.labelAlign ?? 'end'}

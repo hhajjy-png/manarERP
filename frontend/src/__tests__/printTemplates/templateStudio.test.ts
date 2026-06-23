@@ -830,3 +830,163 @@ describe('resolveQuotationDocumentTotals: explicit subtotal preferred', () => {
     expect(totals.grandTotal).toBe('500.000');
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 6.1C — Template Studio Polish & Quotation Totals Consistency
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── 46. Quotation enriched data map — subtotal and grandTotal equal total ────
+describe('Phase 6.1C: quotation enriched data map', () => {
+  it('subtotal resolves to total when both are provided and equal', () => {
+    const data = { total: '1,200.000', subtotal: '1,200.000', discount: '0.000', tax: '0.000', grandTotal: '1,200.000' };
+    const totals = resolveQuotationDocumentTotals(data);
+    expect(totals.subtotal).toBe('1,200.000');
+    expect(totals.grandTotal).toBe('1,200.000');
+  });
+
+  it('discount is 0.000 when passed as literal 0.000', () => {
+    const data = { total: '500.000', subtotal: '500.000', discount: '0.000', tax: '0.000', grandTotal: '500.000' };
+    const totals = resolveQuotationDocumentTotals(data);
+    expect(totals.discount).toBe('0.000');
+  });
+
+  it('tax is 0.000 when passed as literal 0.000', () => {
+    const data = { total: '500.000', subtotal: '500.000', discount: '0.000', tax: '0.000', grandTotal: '500.000' };
+    const totals = resolveQuotationDocumentTotals(data);
+    expect(totals.tax).toBe('0.000');
+  });
+});
+
+// ─── 47. Quotation subtotal fallback chain ────────────────────────────────────
+describe('Phase 6.1C: quotation subtotal fallback', () => {
+  it('falls back to total when subtotal is missing', () => {
+    const data = { total: '800.000', discount: '0.000', tax: '0.000', grandTotal: '800.000' };
+    const totals = resolveQuotationDocumentTotals(data);
+    expect(totals.subtotal).toBe('800.000');
+  });
+
+  it('falls back to total when subtotal is empty string', () => {
+    const data = { total: '350.000', subtotal: '', discount: '0.000', tax: '0.000', grandTotal: '350.000' };
+    const totals = resolveQuotationDocumentTotals(data);
+    expect(totals.subtotal).toBe('350.000');
+  });
+});
+
+// ─── 48. Quotation discount fallback ─────────────────────────────────────────
+describe('Phase 6.1C: quotation discount fallback', () => {
+  it('returns 0.000 when discount key is absent', () => {
+    const totals = resolveQuotationDocumentTotals({ total: '100.000' });
+    expect(totals.discount).toBe('0.000');
+  });
+
+  it('returns 0.000 when discount is an empty string', () => {
+    const totals = resolveQuotationDocumentTotals({ total: '100.000', discount: '' });
+    expect(totals.discount).toBe('0.000');
+  });
+
+  it('returns 0.000 when discount is the string "0.000"', () => {
+    const totals = resolveQuotationDocumentTotals({ total: '100.000', discount: '0.000' });
+    expect(totals.discount).toBe('0.000');
+  });
+});
+
+// ─── 49. Quotation tax fallback ───────────────────────────────────────────────
+describe('Phase 6.1C: quotation tax fallback', () => {
+  it('returns 0.000 when tax key is absent', () => {
+    const totals = resolveQuotationDocumentTotals({ total: '100.000' });
+    expect(totals.tax).toBe('0.000');
+  });
+
+  it('returns 0.000 when tax is an empty string', () => {
+    const totals = resolveQuotationDocumentTotals({ total: '100.000', tax: '' });
+    expect(totals.tax).toBe('0.000');
+  });
+});
+
+// ─── 50. Quotation grandTotal fallback ───────────────────────────────────────
+describe('Phase 6.1C: quotation grandTotal fallback', () => {
+  it('falls back to total when grandTotal is missing', () => {
+    const totals = resolveQuotationDocumentTotals({ total: '999.500' });
+    expect(totals.grandTotal).toBe('999.500');
+  });
+
+  it('falls back to total when grandTotal is empty string', () => {
+    const totals = resolveQuotationDocumentTotals({ total: '250.000', grandTotal: '' });
+    expect(totals.grandTotal).toBe('250.000');
+  });
+});
+
+// ─── 51. No blank totals cells — all resolver outputs are non-empty strings ──
+describe('Phase 6.1C: no blank totals cells', () => {
+  it('invoice resolver: no field is ever blank or undefined', () => {
+    const cases: Record<string, string>[] = [
+      {},
+      { subtotal: '100.000' },
+      { grandTotal: '200.000' },
+      { subtotal: '', discount: '', tax: '', grandTotal: '' },
+    ];
+    for (const data of cases) {
+      const totals = resolveInvoiceDocumentTotals(data);
+      expect(typeof totals.subtotal).toBe('string');
+      expect(typeof totals.discount).toBe('string');
+      expect(typeof totals.tax).toBe('string');
+      expect(typeof totals.grandTotal).toBe('string');
+      expect(totals.subtotal.length).toBeGreaterThan(0);
+      expect(totals.discount.length).toBeGreaterThan(0);
+      expect(totals.tax.length).toBeGreaterThan(0);
+      expect(totals.grandTotal.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('quotation resolver: no field is ever blank or undefined', () => {
+    const cases: Record<string, string>[] = [
+      {},
+      { total: '500.000' },
+      { total: '0' },
+      { total: '', discount: '', tax: '' },
+    ];
+    for (const data of cases) {
+      const totals = resolveQuotationDocumentTotals(data);
+      expect(typeof totals.subtotal).toBe('string');
+      expect(typeof totals.discount).toBe('string');
+      expect(typeof totals.tax).toBe('string');
+      expect(typeof totals.grandTotal).toBe('string');
+      expect(totals.subtotal.length).toBeGreaterThan(0);
+      expect(totals.discount.length).toBeGreaterThan(0);
+      expect(totals.tax.length).toBeGreaterThan(0);
+      expect(totals.grandTotal.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+// ─── 52. Backward compat — old quotation data (total only) still works ────────
+describe('Phase 6.1C: backward compat — old quotation data with total only', () => {
+  it('resolves correctly when data has only total (pre-6.1C shape)', () => {
+    const data = { total: '1,500.750' };
+    const totals = resolveQuotationDocumentTotals(data);
+    expect(totals.subtotal).toBe('1,500.750');
+    expect(totals.discount).toBe('0.000');
+    expect(totals.tax).toBe('0.000');
+    expect(totals.grandTotal).toBe('1,500.750');
+  });
+});
+
+// ─── 53. Invoice totals unaffected by quotation changes ──────────────────────
+describe('Phase 6.1C: invoice totals unaffected', () => {
+  it('invoice resolver reads all four fields independently from quotation fallback logic', () => {
+    const data = { subtotal: '1,000.000', discount: '100.000', tax: '45.000', grandTotal: '945.000' };
+    const totals = resolveInvoiceDocumentTotals(data);
+    expect(totals.subtotal).toBe('1,000.000');
+    expect(totals.discount).toBe('100.000');
+    expect(totals.tax).toBe('45.000');
+    expect(totals.grandTotal).toBe('945.000');
+  });
+
+  it('invoice resolver does NOT fall back discount/tax to total', () => {
+    const data = { total: '500.000', subtotal: '500.000', grandTotal: '500.000' };
+    const totals = resolveInvoiceDocumentTotals(data);
+    // Invoice does not use data.total as fallback; discount/tax missing → 0.000
+    expect(totals.discount).toBe('0.000');
+    expect(totals.tax).toBe('0.000');
+  });
+});

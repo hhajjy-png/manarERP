@@ -35,12 +35,13 @@ export function resolveInvoiceDocumentTotals(data: Record<string, string>): Docu
 }
 
 // Quotation: data has 'total' but may not have subtotal/discount/tax/grandTotal.
+// Uses || (not ??) so that empty-string values also fall back to total.
 export function resolveQuotationDocumentTotals(data: Record<string, string>): DocumentTotals {
   return {
-    subtotal:   safeFmtStr(data.subtotal   ?? data.total),
+    subtotal:   safeFmtStr(data.subtotal   || data.total),
     discount:   safeFmtStr(data.discount),
     tax:        safeFmtStr(data.tax),
-    grandTotal: safeFmtStr(data.grandTotal ?? data.total),
+    grandTotal: safeFmtStr(data.grandTotal || data.total),
   };
 }
 

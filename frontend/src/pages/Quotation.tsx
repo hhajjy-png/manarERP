@@ -434,6 +434,10 @@ export default function Quotation() {
                 customerName:    printFields.customerName ?? '',
                 customerAddress: '',
                 total:           qtTotal,
+                subtotal:        qtTotal,
+                discount:        '0.000',
+                tax:             '0.000',
+                grandTotal:      qtTotal,
                 notes:           printFields.notes ?? '',
               }}
               lineItems={resolveQuotationLineItems(printFields.items)}
