@@ -27,6 +27,7 @@ import type { AllLayoutOverrides } from '../print-templates/designer/layoutOverr
 import { getInkFilterStyle } from '../print-templates/utils/inkFilter';
 import { useTemplateStudio } from '../print-templates/studio/useTemplateStudio';
 import TemplateStudioRenderer from '../print-templates/studio/TemplateStudioRenderer';
+import { resolveInvoiceLineItems } from '../print-templates/studio/lineItemsResolver';
 
 const PAY_METHOD_AR: Record<string, string> = {
   CASH: 'نقدًا', BANK: 'بنك', CHEQUE: 'شيك', TRANSFER: 'تحويل',
@@ -844,6 +845,7 @@ export default function InvoicePreview() {
               grandTotal:      money(data.total ?? 0),
               notes:           data.notes ?? '',
             }}
+            lineItems={resolveInvoiceLineItems(data.items)}
           />
         )}
         </UniversalDesignerOverlay>

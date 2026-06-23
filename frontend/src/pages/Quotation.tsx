@@ -32,6 +32,7 @@ import LayoutDesignerPanel from '../print-templates/components/LayoutDesignerPan
 import type { AllLayoutOverrides } from '../print-templates/designer/layoutOverrideTypes';
 import { useTemplateStudio } from '../print-templates/studio/useTemplateStudio';
 import TemplateStudioRenderer from '../print-templates/studio/TemplateStudioRenderer';
+import { resolveQuotationLineItems } from '../print-templates/studio/lineItemsResolver';
 
 const FORM_KEY = 'quotation';
 
@@ -435,6 +436,7 @@ export default function Quotation() {
                 total:           qtTotal,
                 notes:           printFields.notes ?? '',
               }}
+              lineItems={resolveQuotationLineItems(printFields.items)}
             />
           );
         })()}
