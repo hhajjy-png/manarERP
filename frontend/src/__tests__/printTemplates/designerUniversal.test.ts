@@ -60,13 +60,13 @@ describe('isTextElement', () => {
 // ── DESIGNER_CAPABILITIES ─────────────────────────────────────────────────────
 
 describe('DESIGNER_CAPABILITIES', () => {
-  it('all capabilities are disabled in Phase 5C', () => {
-    expect(DESIGNER_CAPABILITIES.rotation).toBe(false);
-    expect(DESIGNER_CAPABILITIES.copy).toBe(false);
-    expect(DESIGNER_CAPABILITIES.paste).toBe(false);
-    expect(DESIGNER_CAPABILITIES.duplicate).toBe(false);
-    expect(DESIGNER_CAPABILITIES.lock).toBe(false);
-    expect(DESIGNER_CAPABILITIES.hide).toBe(false);
+  it('all capabilities are enabled in Phase 5D.2', () => {
+    expect(DESIGNER_CAPABILITIES.rotation).toBe(true);
+    expect(DESIGNER_CAPABILITIES.copy).toBe(true);
+    expect(DESIGNER_CAPABILITIES.paste).toBe(true);
+    expect(DESIGNER_CAPABILITIES.duplicate).toBe(true);
+    expect(DESIGNER_CAPABILITIES.lock).toBe(true);
+    expect(DESIGNER_CAPABILITIES.hide).toBe(true);
   });
 });
 
