@@ -24,8 +24,12 @@ import type { PrintBrandingLayoutSettings } from '../print-templates/engine/type
 import { useBrandingDesigner } from '../print-templates/hooks/useBrandingDesigner';
 import { useTextStyleDesigner } from '../print-templates/designer/useTextStyleDesigner';
 import { useStaticTextDesigner } from '../print-templates/designer/useStaticTextDesigner';
-import BrandingDesignerOverlay from '../print-templates/components/BrandingDesignerOverlay';
+import { useLayoutDesigner } from '../print-templates/hooks/useLayoutDesigner';
 import BrandingDesignerPanel from '../print-templates/components/BrandingDesignerPanel';
+import LayoutOverrideStyles from '../print-templates/components/LayoutOverrideStyles';
+import UniversalDesignerOverlay from '../print-templates/components/UniversalDesignerOverlay';
+import LayoutDesignerPanel from '../print-templates/components/LayoutDesignerPanel';
+import type { AllLayoutOverrides } from '../print-templates/designer/layoutOverrideTypes';
 
 const FORM_KEY = 'quotation';
 
@@ -89,6 +93,24 @@ export default function Quotation() {
   const clearDraft = usePrintDraftStore((s) => s.clearDraft);
 
   const branding = useCompanyBranding();
+
+  const [layoutOverrides, setLayoutOverrides] = useState<AllLayoutOverrides>({ invoice: {}, quotation: {} });
+  const [layoutOverridesInitialized, setLayoutOverridesInitialized] = useState(false);
+
+  useEffect(() => {
+    if (!branding.loading && !layoutOverridesInitialized) {
+      setLayoutOverrides(branding.layoutOverrides);
+      setLayoutOverridesInitialized(true);
+    }
+  }, [branding.loading, branding.layoutOverrides, layoutOverridesInitialized]);
+
+  const layoutDesigner = useLayoutDesigner({
+    docType: 'quotation',
+    initialLayouts: layoutOverrides,
+    onSaved: setLayoutOverrides,
+  });
+
+  const effectiveLayoutOverrides = layoutDesigner.isActive ? layoutDesigner.layouts : layoutOverrides;
 
   const [savedBrandingLayout, setSavedBrandingLayout] = useState<PrintBrandingLayoutSettings | undefined>(undefined);
   const designer = useBrandingDesigner({
@@ -295,6 +317,14 @@ export default function Quotation() {
               {designer.isActive ? '✓ إنهاء التصميم' : '🔧 وضع التصميم'}
             </button>
           )}
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => layoutDesigner.isActive ? layoutDesigner.deactivate() : layoutDesigner.activate()}
+            style={{ fontWeight: 600 }}
+          >
+            {layoutDesigner.isActive ? '✓ إنهاء التخطيط' : '🔲 تخطيط'}
+          </button>
           <button type="button" className="btn secondary" onClick={() => navigate(-1)}>
             رجوع
           </button>
@@ -356,7 +386,8 @@ export default function Quotation() {
         )}
 
         {/* Engine template */}
-        <BrandingDesignerOverlay
+        <UniversalDesignerOverlay
+          layoutDesigner={layoutDesigner}
           designer={designer}
           textStyleDesigner={textDesigner}
           staticTextDesigner={staticTextDesigner}
@@ -364,11 +395,12 @@ export default function Quotation() {
           stampUrl={branding.stampUrl}
           docLabel="عرض السعر"
           onSave={async () => {
-            await Promise.all([designer.save(), textDesigner.save(), staticTextDesigner.save()]);
+            await Promise.all([layoutDesigner.save(), designer.save(), textDesigner.save(), staticTextDesigner.save()]);
           }}
         >
+          <LayoutOverrideStyles overrides={effectiveLayoutOverrides.quotation} />
           <EngineComponent data={brandedPrintData ?? undefined} />
-        </BrandingDesignerOverlay>
+        </UniversalDesignerOverlay>
 
         {designer.isActive && (
           <BrandingDesignerPanel
@@ -379,6 +411,19 @@ export default function Quotation() {
             onClose={designer.deactivate}
             onSave={async () => {
               await Promise.all([designer.save(), textDesigner.save(), staticTextDesigner.save()]);
+            }}
+          />
+        )}
+
+        {layoutDesigner.isActive && (
+          <LayoutDesignerPanel
+            layoutDesigner={layoutDesigner}
+            designer={designer}
+            textStyleDesigner={textDesigner}
+            docLabel="عرض السعر"
+            onClose={layoutDesigner.deactivate}
+            onSave={async () => {
+              await Promise.all([layoutDesigner.save(), designer.save(), textDesigner.save(), staticTextDesigner.save()]);
             }}
           />
         )}

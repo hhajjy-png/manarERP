@@ -3,9 +3,11 @@ import { api, errorMessage } from '../../api/client';
 import type { PrintBrandingLayoutSettings } from '../engine/types';
 import type { PrintTextStyleSettings } from '../engine/textStyleTypes';
 import type { StaticTextOverrides } from '../designer/staticTextTypes';
+import type { AllLayoutOverrides } from '../designer/layoutOverrideTypes';
 import { parseBrandingLayout } from '../utils/brandingLayout';
 import { parseTextStyleSettings } from '../utils/textStyleOverrides';
 import { parseStaticTextOverrides } from '../designer/staticTextUtils';
+import { parseAllLayouts } from '../designer/layoutOverrideUtils';
 
 export interface CompanyBranding {
   signatureUrl: string | undefined;
@@ -15,6 +17,7 @@ export interface CompanyBranding {
   brandingLayout: PrintBrandingLayoutSettings | undefined;
   textStyleOverrides: PrintTextStyleSettings | undefined;
   staticTextOverrides: StaticTextOverrides | undefined;
+  layoutOverrides: AllLayoutOverrides;
   loading: boolean;
   error: string | undefined;
 }
@@ -28,6 +31,7 @@ export function useCompanyBranding(): CompanyBranding {
     brandingLayout: undefined,
     textStyleOverrides: undefined,
     staticTextOverrides: undefined,
+    layoutOverrides: { invoice: {}, quotation: {} },
     loading: true,
     error: undefined,
   });
@@ -70,6 +74,8 @@ export function useCompanyBranding(): CompanyBranding {
           ? parseStaticTextOverrides(staticTextRaw)
           : undefined;
 
+        const layoutOverrides = parseAllLayouts(find('print.layoutOverrides'));
+
         setBranding({
           signatureUrl: parseImage('print.signatureImage'),
           stampUrl: parseImage('print.stampImage'),
@@ -78,6 +84,7 @@ export function useCompanyBranding(): CompanyBranding {
           brandingLayout,
           textStyleOverrides,
           staticTextOverrides,
+          layoutOverrides,
           loading: false,
           error: undefined,
         });

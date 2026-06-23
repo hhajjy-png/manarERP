@@ -111,7 +111,7 @@ export default function InvoiceDesign1Blank({ data }: Props) {
       </div></td></tr>
     </tfoot>
   </table>
-  <div className={styles.foot}>
+  <div className={styles.foot} data-designer-id="invoice.footerBlock">
     <div><span data-designer-editable="true" data-designer-key="invoice.footerAccountant">{getStaticText(staticText, 'invoice.footerAccountant', 'المحاسبة')}</span>{' : '}<span className={styles.ln}></span></div>
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
       {data?.company?.showSignature !== false && data?.company?.signatureUrl && (
