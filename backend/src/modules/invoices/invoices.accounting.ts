@@ -167,6 +167,61 @@ export async function postInvoiceToGL(tx: Tx, invoiceId: number): Promise<void> 
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
+ * ترحيل قيد يومية مزدوج لسداد مورّد (فواتير المشتريات):
+ *   Dr ذمم الموردين (2000) — مدين (تسوية الالتزام)
+ *   Cr الصندوق/البنك (1000/1010) — دائن (خروج النقد)
+ * محمي من الترحيل المزدوج عبر (referenceType='PURCHASE_PAYMENT', referenceId).
+ */
+export async function postPurchasePaymentToGL(tx: Tx, paymentId: number): Promise<void> {
+  const payment = await tx.payment.findUnique({
+    where: { id: paymentId },
+    include: { invoice: { select: { direction: true, invoiceNumber: true } } },
+  });
+  if (!payment) throw AppError.notFound('الدفعة غير موجودة');
+  if (!payment.invoice || payment.invoice.direction !== 'PURCHASE') return;
+
+  const amount = round3(payment.amount);
+  if (amount <= 0) return;
+
+  const existing = await tx.journalEntry.findFirst({
+    where: { referenceType: GL_REFERENCE_TYPES.PURCHASE_PAYMENT, referenceId: paymentId },
+  });
+  if (existing) return;
+
+  await ensureSystemAccounts(tx);
+  const accounts = await getSystemAccounts(tx);
+  const apId = requireAccount(accounts, SYSTEM_ACCOUNT_CODES.ACCOUNTS_PAYABLE);
+  const cashCode = payment.method === 'BANK' || payment.method === 'TRANSFER'
+    ? SYSTEM_ACCOUNT_CODES.BANK
+    : SYSTEM_ACCOUNT_CODES.CASH;
+  const cashId = requireAccount(accounts, cashCode);
+  const ref = payment.invoice.invoiceNumber ?? `#${paymentId}`;
+
+  await createBalancedJournal(tx, {
+    date: payment.date ?? new Date(),
+    description: `قيد سداد مورد — فاتورة ${ref}`,
+    referenceType: GL_REFERENCE_TYPES.PURCHASE_PAYMENT,
+    referenceId: paymentId,
+    lines: [
+      { accountId: apId, debit: amount, credit: 0, description: `تسوية ذمم المورد — فاتورة ${ref}` },
+      { accountId: cashId, debit: 0, credit: amount, description: `سداد نقدي/بنكي — فاتورة ${ref}` },
+    ],
+  });
+}
+
+/**
+ * عكس قيد سداد مورد (عند حذف الفاتورة أو الدفعة).
+ */
+export async function reversePurchasePaymentGL(tx: Tx, paymentId: number): Promise<void> {
+  await reverseGL(
+    tx,
+    GL_REFERENCE_TYPES.PURCHASE_PAYMENT,
+    paymentId,
+    GL_REFERENCE_TYPES.PURCHASE_PAYMENT_REVERSAL,
+  );
+}
+
+/**
  * ترحيل قيد يومية مزدوج لتحصيل دفعة (مبيعات فقط):
  *   Dr الصندوق/البنك (مدين) → Cr ذمم العملاء (دائن).
  * محمي من الترحيل المزدوج عبر (referenceType='PAYMENT', referenceId).

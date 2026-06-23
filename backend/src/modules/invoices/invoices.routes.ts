@@ -18,6 +18,7 @@ router.get('/:id', requirePermission('invoices.read'), asyncHandler(invoicesCont
 router.post('/', requirePermission('invoices.create'), validate(createInvoiceSchema), asyncHandler(invoicesController.create));
 router.put('/:id', requirePermission('invoices.update'), validate(updateInvoiceSchema), asyncHandler(invoicesController.update));
 router.post('/:id/payments', requirePermission('invoices.update'), validate(addPaymentSchema), asyncHandler(invoicesController.addPayment));
+router.patch('/:id/approve', requirePermission('invoices.approve'), asyncHandler(invoicesController.approve));
 router.patch('/:id/cancel', requirePermission('invoices.update'), asyncHandler(invoicesController.cancel));
 router.delete('/:id/force', requireRole(ROLES.SYSTEM_ADMIN), validate(forceDeleteInvoiceSchema), asyncHandler(invoicesController.forceRemove));
 router.delete('/:id', requirePermission('invoices.delete'), asyncHandler(invoicesController.remove));

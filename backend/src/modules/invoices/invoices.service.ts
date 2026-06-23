@@ -7,7 +7,7 @@ import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core
 import { transactionsService } from '../transactions/transactions.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
 import { round3, computeTotals, nextStatus, overpaymentExceeds } from './invoices.calc';
-import { postInvoiceToGL, postPaymentToGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
+import { postInvoiceToGL, postPurchaseInvoiceToGL, postPaymentToGL, postPurchasePaymentToGL, reversePurchasePaymentGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
 
 /**
  * يُميّز خطأ P2002 على حقل entryNumber في journal_entries عن بقية أخطاء التعارض.
@@ -396,8 +396,11 @@ export class InvoicesService {
           notes: input.notes ?? null,
         },
       });
-      // ترحيل قيد اليومية المزدوج للتحصيل (Phase 1 — تحصيلات فواتير المبيعات)
+      // ترحيل قيد اليومية المزدوج للدفعة:
+      //   مبيعات  → Dr Cash/Bank,  Cr AR   (تحصيل من عميل)
+      //   مشتريات → Dr AP,          Cr Cash/Bank (سداد لمورد)
       await postPaymentToGL(tx, payment.id);
+      await postPurchasePaymentToGL(tx, payment.id);
       return tx.invoice.update({
         where: { id },
         data: { paidAmount: newPaid, status: nextStatus(invoice.total, newPaid) },
@@ -425,6 +428,38 @@ export class InvoicesService {
 
     await recordAudit({ req, action: 'CANCEL', module: 'invoices', entityId: id });
     return updated;
+  }
+
+  /**
+   * اعتماد فاتورة مشتريات للترحيل المحاسبي.
+   * الإجراء idempotent — لا يُنشئ قيدًا مكررًا إذا كانت الفاتورة مُرحَّلة مسبقًا.
+   * يُستخدم لإعادة تأكيد الاعتماد أو لترحيل فاتورة أُنشئت بدون ترحيل تلقائي.
+   */
+  async approve(id: number, req: Request) {
+    const invoice = await prisma.invoice.findUnique({ where: { id } });
+    if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');
+    if (invoice.direction !== 'PURCHASE') throw AppError.badRequest('الاعتماد متاح لفواتير المشتريات فقط');
+    if (invoice.status === 'CANCELLED') throw AppError.badRequest('لا يمكن اعتماد فاتورة ملغاة');
+
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await prisma.$transaction(async (tx) => {
+          await postPurchaseInvoiceToGL(tx, id);
+        });
+        break;
+      } catch (err) {
+        if (attempt < 2 && isEntryNumberCollision(err)) {
+          lastErr = err;
+          continue;
+        }
+        throw err;
+      }
+    }
+    if (lastErr) throw lastErr;
+
+    await recordAudit({ req, action: 'APPROVE', module: 'invoices', entityId: id, newValue: { invoiceNumber: invoice.invoiceNumber, total: invoice.total } });
+    return { approved: true, invoiceNumber: invoice.invoiceNumber };
   }
 
   async forceRemovePreview(id: number) {
@@ -538,8 +573,23 @@ export class InvoicesService {
     await tx.journalEntry.deleteMany({
       where: {
         OR: [
-          { referenceType: { in: ['INVOICE', 'INVOICE_REVERSAL', 'PURCHASE_INVOICE', 'PURCHASE_INVOICE_REVERSAL'] }, referenceId: invoiceId },
-          ...(paymentIds.length > 0 ? [{ referenceType: 'PAYMENT', referenceId: { in: paymentIds } }] : []),
+          {
+            referenceType: {
+              in: [
+                'INVOICE', 'INVOICE_REVERSAL',
+                'PURCHASE_INVOICE', 'PURCHASE_INVOICE_REVERSAL',
+              ],
+            },
+            referenceId: invoiceId,
+          },
+          ...(paymentIds.length > 0
+            ? [{
+                referenceType: {
+                  in: ['PAYMENT', 'PURCHASE_PAYMENT', 'PURCHASE_PAYMENT_REVERSAL'],
+                },
+                referenceId: { in: paymentIds },
+              }]
+            : []),
         ],
       },
     });
