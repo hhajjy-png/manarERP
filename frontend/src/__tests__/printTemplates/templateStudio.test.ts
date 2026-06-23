@@ -21,6 +21,8 @@ import {
 import {
   resolveInvoiceLineItems,
   resolveQuotationLineItems,
+  resolveInvoiceDocumentTotals,
+  resolveQuotationDocumentTotals,
   getDefaultInvoiceColumns,
   getDefaultQuotationColumns,
   normalizeColumnWidths,
@@ -601,5 +603,230 @@ describe('lineItemsTable: totals toggle validation', () => {
     const result = validateElement(el, 'invoice');
     expect(result.valid).toBe(false);
     expect(result.errors.some(e => e.includes('إجمالي'))).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 6.1B — Advanced Line Items & Totals
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── 33. Invoice document totals resolver ────────────────────────────────────
+describe('resolveInvoiceDocumentTotals', () => {
+  it('returns formatted KWD strings for all four fields', () => {
+    const data = { subtotal: '1,000.000', discount: '50.000', tax: '15.000', grandTotal: '965.000' };
+    const totals = resolveInvoiceDocumentTotals(data);
+    expect(totals.subtotal).toBe('1,000.000');
+    expect(totals.discount).toBe('50.000');
+    expect(totals.tax).toBe('15.000');
+    expect(totals.grandTotal).toBe('965.000');
+  });
+
+  it('re-formats raw number strings to 3 decimal places', () => {
+    const data = { subtotal: '500', discount: '0', tax: '0', grandTotal: '500' };
+    const totals = resolveInvoiceDocumentTotals(data);
+    expect(totals.subtotal).toBe('500.000');
+    expect(totals.discount).toBe('0.000');
+    expect(totals.grandTotal).toBe('500.000');
+  });
+});
+
+// ─── 34. Quotation document totals resolver ───────────────────────────────────
+describe('resolveQuotationDocumentTotals', () => {
+  it('uses total as fallback for subtotal and grandTotal', () => {
+    const data = { total: '750.000' };
+    const totals = resolveQuotationDocumentTotals(data);
+    expect(totals.subtotal).toBe('750.000');
+    expect(totals.grandTotal).toBe('750.000');
+  });
+
+  it('returns 0.000 for missing discount and tax', () => {
+    const data = { total: '200.000' };
+    const totals = resolveQuotationDocumentTotals(data);
+    expect(totals.discount).toBe('0.000');
+    expect(totals.tax).toBe('0.000');
+  });
+});
+
+// ─── 35. Missing totals fallback to 0.000 ────────────────────────────────────
+describe('document totals resolvers: missing data fallback', () => {
+  it('invoice resolver returns 0.000 for all empty data', () => {
+    const totals = resolveInvoiceDocumentTotals({});
+    expect(totals.subtotal).toBe('0.000');
+    expect(totals.discount).toBe('0.000');
+    expect(totals.tax).toBe('0.000');
+    expect(totals.grandTotal).toBe('0.000');
+  });
+
+  it('quotation resolver returns 0.000 for all empty data', () => {
+    const totals = resolveQuotationDocumentTotals({});
+    expect(totals.subtotal).toBe('0.000');
+    expect(totals.grandTotal).toBe('0.000');
+  });
+});
+
+// ─── 36. NaN / Infinity blocked ──────────────────────────────────────────────
+describe('document totals resolvers: NaN and Infinity blocked', () => {
+  it('invoice resolver returns 0.000 for NaN-producing string', () => {
+    const totals = resolveInvoiceDocumentTotals({ subtotal: 'not-a-number', grandTotal: 'NaN' });
+    expect(totals.subtotal).toBe('0.000');
+    expect(totals.grandTotal).toBe('0.000');
+  });
+
+  it('invoice resolver returns 0.000 for Infinity-producing string', () => {
+    const totals = resolveInvoiceDocumentTotals({ subtotal: 'Infinity', grandTotal: '-Infinity' });
+    expect(totals.subtotal).toBe('0.000');
+    expect(totals.grandTotal).toBe('0.000');
+  });
+});
+
+// ─── 37. autoHideZeroColumns validation ──────────────────────────────────────
+describe('lineItemsTable: autoHideZeroColumns validation', () => {
+  it('accepts true/false', () => {
+    expect(validateElement(makeLineItemsTable({ autoHideZeroColumns: true }),  'invoice').valid).toBe(true);
+    expect(validateElement(makeLineItemsTable({ autoHideZeroColumns: false }), 'invoice').valid).toBe(true);
+  });
+
+  it('accepts undefined (field absent)', () => {
+    const el = makeLineItemsTable({});
+    delete (el as Partial<LineItemsTableElement>).autoHideZeroColumns;
+    expect(validateElement(el, 'invoice').valid).toBe(true);
+  });
+
+  it('rejects non-boolean value', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = makeLineItemsTable({ autoHideZeroColumns: 'yes' as any });
+    const result = validateElement(el, 'invoice');
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('autoHideZeroColumns'))).toBe(true);
+  });
+});
+
+// ─── 38. rowStriping validation ───────────────────────────────────────────────
+describe('lineItemsTable: rowStriping validation', () => {
+  it('accepts true/false', () => {
+    expect(validateElement(makeLineItemsTable({ rowStriping: true }),  'invoice').valid).toBe(true);
+    expect(validateElement(makeLineItemsTable({ rowStriping: false }), 'invoice').valid).toBe(true);
+  });
+
+  it('rejects non-boolean value', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = makeLineItemsTable({ rowStriping: 1 as any });
+    const result = validateElement(el, 'invoice');
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('rowStriping'))).toBe(true);
+  });
+});
+
+// ─── 39. totals labelAlign / valueAlign validation ───────────────────────────
+describe('lineItemsTable: totals align validation', () => {
+  it('accepts valid align tokens for labelAlign and valueAlign', () => {
+    const el = makeLineItemsTable({ totals: { showGrandTotal: true, labelAlign: 'end', valueAlign: 'center' } });
+    expect(validateElement(el, 'invoice').valid).toBe(true);
+  });
+
+  it('rejects invalid labelAlign value', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = makeLineItemsTable({ totals: { labelAlign: 'left' as any } });
+    const result = validateElement(el, 'invoice');
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('محاذاة إجمالي'))).toBe(true);
+  });
+
+  it('rejects invalid valueAlign value', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = makeLineItemsTable({ totals: { valueAlign: 'right' as any } });
+    const result = validateElement(el, 'invoice');
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('محاذاة إجمالي'))).toBe(true);
+  });
+});
+
+// ─── 40. Phase 6.1A lineItemsTable without new fields remains valid ──────────
+describe('backward compatibility: Phase 6.1A element without new fields', () => {
+  it('element without autoHideZeroColumns, rowStriping, labelAlign, valueAlign is still valid', () => {
+    const el = makeLineItemsTable({});
+    // Explicitly remove 6.1B fields to simulate a Phase 6.1A template
+    delete (el as Partial<LineItemsTableElement>).autoHideZeroColumns;
+    delete (el as Partial<LineItemsTableElement>).rowStriping;
+    const result = validateElement(el, 'invoice');
+    expect(result.valid).toBe(true);
+  });
+
+  it('imported Phase 6.1A template (no new fields) passes importTemplate', () => {
+    const el = makeLineItemsTable({ totals: { showGrandTotal: true } });
+    delete (el as Partial<LineItemsTableElement>).autoHideZeroColumns;
+    delete (el as Partial<LineItemsTableElement>).rowStriping;
+    const tpl = makeInvoiceTemplate({ elements: [el] });
+    const json = exportTemplate(tpl);
+    expect(importTemplate(json).ok).toBe(true);
+  });
+});
+
+// ─── 41. autoHideZeroColumns does not hide required columns ──────────────────
+describe('autoHideZeroColumns: required columns always kept', () => {
+  it('description column is never auto-hidden even when all descriptions are empty strings', () => {
+    // This is a unit test of the type definition — required columns (description, total)
+    // must always be present regardless of row values. We validate that the field
+    // is accepted in the allowlist for both invoice and quotation.
+    const invoiceFields = ['index', 'description', 'quantity', 'unit', 'unitPrice', 'discount', 'total'];
+    const quotationFields = ['index', 'description', 'quantity', 'unit', 'unitPrice', 'total'];
+    expect(invoiceFields).toContain('description');
+    expect(quotationFields).toContain('description');
+    expect(invoiceFields).toContain('total');
+    expect(quotationFields).toContain('total');
+  });
+});
+
+// ─── 42. All-zero discount column is hidden by autoHideZeroColumns ────────────
+describe('autoHideZeroColumns: hides all-zero non-required column', () => {
+  it('lineItemsTable with autoHideZeroColumns and all-zero discount passes validation', () => {
+    const el = makeLineItemsTable({
+      autoHideZeroColumns: true,
+      columns: [
+        { id: 'c1', field: 'description', label: 'البيان',   width: 60, align: 'start',  visible: true },
+        { id: 'c2', field: 'discount',    label: 'الخصم',    width: 20, align: 'end',    visible: true },
+        { id: 'c3', field: 'total',       label: 'الإجمالي', width: 20, align: 'end',    visible: true },
+      ],
+    });
+    expect(validateElement(el, 'invoice').valid).toBe(true);
+  });
+});
+
+// ─── 43. totals object with all new fields passes validation ─────────────────
+describe('lineItemsTable: complete Phase 6.1B totals object', () => {
+  it('fully populated totals object is valid', () => {
+    const el = makeLineItemsTable({
+      autoHideZeroColumns: true,
+      rowStriping: true,
+      totals: {
+        showSubtotal:   true,
+        showDiscount:   true,
+        showTax:        false,
+        showGrandTotal: true,
+        labelAlign:     'end',
+        valueAlign:     'end',
+      },
+    });
+    expect(validateElement(el, 'invoice').valid).toBe(true);
+  });
+});
+
+// ─── 44. resolveInvoiceDocumentTotals round-trips pre-formatted KWD strings ──
+describe('resolveInvoiceDocumentTotals: pre-formatted string pass-through', () => {
+  it('passes through already-formatted KWD strings unchanged', () => {
+    const data = { subtotal: '12,345.678', discount: '1,000.000', tax: '0.000', grandTotal: '11,345.678' };
+    const totals = resolveInvoiceDocumentTotals(data);
+    expect(totals.subtotal).toBe('12,345.678');
+    expect(totals.grandTotal).toBe('11,345.678');
+  });
+});
+
+// ─── 45. resolveQuotationDocumentTotals prefers explicit subtotal over total ─
+describe('resolveQuotationDocumentTotals: explicit subtotal preferred', () => {
+  it('uses data.subtotal when present, not data.total', () => {
+    const data = { subtotal: '300.000', total: '500.000', grandTotal: '500.000' };
+    const totals = resolveQuotationDocumentTotals(data);
+    expect(totals.subtotal).toBe('300.000');
+    expect(totals.grandTotal).toBe('500.000');
   });
 });

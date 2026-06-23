@@ -17,11 +17,16 @@ import type {
   LineItemsTableElement,
   LineItemsColumn,
   NormalizedLineRow,
+  AllowedLineItemField,
   TableHeaderStyle,
   TableRowStyle,
   TableBorderStyle,
 } from './templateStudioTypes';
 import { resolveDynamicField } from './templateStudioUtils';
+import {
+  resolveInvoiceDocumentTotals,
+  resolveQuotationDocumentTotals,
+} from './lineItemsResolver';
 
 // ─── A4 canvas dimensions (matches PX_PER_MM = 794/210 from designerUtils) ────
 const A4_W_PX  = 794;
@@ -247,7 +252,10 @@ function renderCircleEl(el: CircleElement): React.ReactNode {
 }
 
 // ─── Line items table renderer ────────────────────────────────────────────────
-function getCellValue(row: NormalizedLineRow, field: LineItemsColumn['field']): string {
+// Required fields may never be auto-hidden even when all values are zero.
+const REQUIRED_LINE_ITEM_FIELDS: ReadonlySet<AllowedLineItemField> = new Set(['description', 'total']);
+
+function getCellValue(row: NormalizedLineRow, field: AllowedLineItemField): string {
   switch (field) {
     case 'index':       return String(row.index);
     case 'description': return row.description;
@@ -259,36 +267,57 @@ function getCellValue(row: NormalizedLineRow, field: LineItemsColumn['field']): 
   }
 }
 
-function tableCellAlign(align: LineItemsColumn['align']): 'right' | 'center' | 'left' {
+function tableCellAlign(align: 'start' | 'center' | 'end'): 'right' | 'center' | 'left' {
   if (align === 'center') return 'center';
-  if (align === 'end')    return 'left';   // end = left in RTL layout
+  if (align === 'end')    return 'left';   // end = left in RTL
   return 'right';                           // start = right in RTL
+}
+
+function isAllZeroOrEmpty(rows: NormalizedLineRow[], field: AllowedLineItemField): boolean {
+  if (rows.length === 0) return false;
+  return rows.every((row) => {
+    const v = getCellValue(row, field);
+    return v === '' || v === '0' || v === '0.000';
+  });
 }
 
 function renderLineItemsTableEl(
   el:        LineItemsTableElement,
   lineItems: NormalizedLineRow[],
+  docType:   TemplateStudioDocumentType,
+  data:      Record<string, string>,
 ): React.ReactNode {
-  const visibleCols = el.columns.filter((c) => c.visible);
-  const borderVal   = `1px solid ${COLOR_TOKEN_MAP[el.borderStyle.color] ?? COLOR_TOKEN_MAP.gray}`;
-  const hdrBg       = COLOR_TOKEN_MAP[el.headerStyle.background] ?? COLOR_TOKEN_MAP.brand;
-  const hdrColor    = TEXT_COLOR_MAP[el.headerStyle.color]       ?? '#ffffff';
-  const hdrSize     = FONT_SIZE_MAP[el.headerStyle.fontSize]     ?? '11pt';
-  const hdrWeight   = FONT_WEIGHT_MAP[el.headerStyle.fontWeight] ?? '700';
-  const rowColor    = TEXT_COLOR_MAP[el.rowStyle.color]          ?? TEXT_COLOR_MAP.default;
-  const rowSize     = FONT_SIZE_MAP[el.rowStyle.fontSize]        ?? '11pt';
+  // Resolve document-level totals from pre-formatted data map.
+  const docTotals = docType === 'invoice'
+    ? resolveInvoiceDocumentTotals(data)
+    : resolveQuotationDocumentTotals(data);
 
+  // Determine visible columns, optionally auto-hiding all-zero non-required ones.
+  let visibleCols = el.columns.filter((c) => c.visible);
+  if (el.autoHideZeroColumns) {
+    visibleCols = visibleCols.filter((c) =>
+      REQUIRED_LINE_ITEM_FIELDS.has(c.field) || !isAllZeroOrEmpty(lineItems, c.field),
+    );
+  }
+
+  const borderVal  = `1px solid ${COLOR_TOKEN_MAP[el.borderStyle.color] ?? COLOR_TOKEN_MAP.gray}`;
+  const hdrBg      = COLOR_TOKEN_MAP[el.headerStyle.background] ?? COLOR_TOKEN_MAP.brand;
+  const hdrColor   = TEXT_COLOR_MAP[el.headerStyle.color]       ?? '#ffffff';
+  const hdrSize    = FONT_SIZE_MAP[el.headerStyle.fontSize]     ?? '11pt';
+  const hdrWeight  = FONT_WEIGHT_MAP[el.headerStyle.fontWeight] ?? '700';
+  const rowColor   = TEXT_COLOR_MAP[el.rowStyle.color]          ?? TEXT_COLOR_MAP.default;
+  const rowSize    = FONT_SIZE_MAP[el.rowStyle.fontSize]        ?? '11pt';
+  const stripeBg   = COLOR_TOKEN_MAP.light;  // #f3f4f6 for odd rows
+
+  // Footer totals from document-level resolver (not computed from line items).
   const totalsRows: { label: string; value: string }[] = [];
-  if (el.totals?.showSubtotal) {
-    const sub = lineItems.reduce((s, r) => s + (parseFloat(r.total.replace(/,/g, '')) || 0), 0);
-    totalsRows.push({ label: 'المجموع الفرعي', value: sub.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) });
-  }
-  if (el.totals?.showDiscount)  totalsRows.push({ label: 'الخصم',        value: '' });
-  if (el.totals?.showTax)       totalsRows.push({ label: 'الضريبة',      value: '' });
-  if (el.totals?.showGrandTotal) {
-    const grand = lineItems.reduce((s, r) => s + (parseFloat(r.total.replace(/,/g, '')) || 0), 0);
-    totalsRows.push({ label: 'الإجمالي الكلي', value: grand.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) });
-  }
+  if (el.totals?.showSubtotal)   totalsRows.push({ label: 'الإجمالي قبل الخصم', value: docTotals.subtotal   });
+  if (el.totals?.showDiscount)   totalsRows.push({ label: 'الخصم',               value: docTotals.discount   });
+  if (el.totals?.showTax)        totalsRows.push({ label: 'الضريبة',              value: docTotals.tax        });
+  if (el.totals?.showGrandTotal) totalsRows.push({ label: 'الإجمالي النهائي',     value: docTotals.grandTotal });
+
+  const lblAlign = tableCellAlign(el.totals?.labelAlign ?? 'end');
+  const valAlign = tableCellAlign(el.totals?.valueAlign ?? 'end');
 
   return (
     <div style={{ width: '100%', overflow: 'visible', fontFamily: 'Cairo, sans-serif', direction: 'rtl' }}>
@@ -298,8 +327,9 @@ function renderLineItemsTableEl(
             <col key={col.id} style={{ width: `${col.width}%` }} />
           ))}
         </colgroup>
-        <thead>
-          <tr>
+        {/* display:table-header-group makes the header repeat on print page breaks */}
+        <thead style={{ display: 'table-header-group' }}>
+          <tr style={{ pageBreakInside: 'avoid' }}>
             {visibleCols.map((col) => (
               <th key={col.id} style={{
                 background: hdrBg, color: hdrColor, fontSize: hdrSize, fontWeight: hdrWeight,
@@ -313,32 +343,54 @@ function renderLineItemsTableEl(
           </tr>
         </thead>
         <tbody>
-          {lineItems.length === 0 ? (
-            <tr>
-              <td colSpan={visibleCols.length} style={{ border: borderVal, padding: '6px', textAlign: 'center', color: '#9ca3af', fontSize: rowSize }}>
+          {visibleCols.length === 0 || lineItems.length === 0 ? (
+            <tr style={{ pageBreakInside: 'avoid' }}>
+              <td colSpan={Math.max(visibleCols.length, 1)} style={{
+                border: borderVal, padding: '6px', textAlign: 'center',
+                color: '#9ca3af', fontSize: rowSize, fontFamily: 'Cairo, sans-serif',
+              }}>
                 لا توجد بنود
               </td>
             </tr>
           ) : (
-            lineItems.map((row) => (
-              <tr key={row.index}>
-                {visibleCols.map((col) => (
-                  <td key={col.id} style={{ border: borderVal, padding: '3px 6px', textAlign: tableCellAlign(col.align), fontSize: rowSize, fontFamily: 'Cairo, sans-serif', wordBreak: 'break-word' }}>
-                    {getCellValue(row, col.field)}
-                  </td>
-                ))}
-              </tr>
-            ))
+            lineItems.map((row, idx) => {
+              const isStripe = el.rowStriping && idx % 2 === 1;
+              return (
+                <tr key={row.index} style={{ pageBreakInside: 'avoid', background: isStripe ? stripeBg : undefined,
+                  WebkitPrintColorAdjust: isStripe ? 'exact' : undefined,
+                  printColorAdjust:       isStripe ? 'exact' : undefined,
+                }}>
+                  {visibleCols.map((col) => (
+                    <td key={col.id} style={{
+                      border: borderVal, padding: '3px 6px',
+                      textAlign: tableCellAlign(col.align), fontSize: rowSize,
+                      fontFamily: 'Cairo, sans-serif', wordBreak: 'break-word',
+                    }}>
+                      {getCellValue(row, col.field)}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })
           )}
         </tbody>
+        {/* display:table-footer-group keeps footer at page bottom on print */}
         {totalsRows.length > 0 && (
-          <tfoot>
+          <tfoot style={{ display: 'table-footer-group' }}>
             {totalsRows.map((t) => (
-              <tr key={t.label}>
-                <td colSpan={visibleCols.length - 1} style={{ border: borderVal, padding: '3px 6px', textAlign: 'end', fontWeight: 700, fontSize: rowSize }}>
+              <tr key={t.label} style={{ pageBreakInside: 'avoid' }}>
+                <td colSpan={visibleCols.length - 1} style={{
+                  border: borderVal, padding: '3px 6px',
+                  textAlign: lblAlign, fontWeight: 700, fontSize: rowSize,
+                  fontFamily: 'Cairo, sans-serif',
+                }}>
                   {t.label}
                 </td>
-                <td style={{ border: borderVal, padding: '3px 6px', textAlign: 'end', fontWeight: 700, fontSize: rowSize }}>
+                <td style={{
+                  border: borderVal, padding: '3px 6px',
+                  textAlign: valAlign, fontWeight: 700, fontSize: rowSize,
+                  fontFamily: 'Cairo, sans-serif',
+                }}>
                   {t.value}
                 </td>
               </tr>
@@ -383,7 +435,7 @@ function ElementShell({
     case 'line':           content = renderLineEl(el);                            break;
     case 'rect':           content = renderRectEl(el);                            break;
     case 'circle':         content = renderCircleEl(el);                          break;
-    case 'lineItemsTable': content = renderLineItemsTableEl(el, lineItems);       break;
+    case 'lineItemsTable': content = renderLineItemsTableEl(el, lineItems, docType, data); break;
     default:               content = null;
   }
 

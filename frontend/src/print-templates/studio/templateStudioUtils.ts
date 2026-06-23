@@ -170,11 +170,24 @@ export function validateElement(
       }
     }
 
+    if (el.autoHideZeroColumns !== undefined && typeof el.autoHideZeroColumns !== 'boolean') {
+      errors.push('autoHideZeroColumns يجب أن يكون قيمة منطقية');
+    }
+    if (el.rowStriping !== undefined && typeof el.rowStriping !== 'boolean') {
+      errors.push('rowStriping يجب أن يكون قيمة منطقية');
+    }
+
     if (el.totals) {
       for (const key of ['showSubtotal', 'showDiscount', 'showTax', 'showGrandTotal'] as const) {
         const v = el.totals[key];
         if (v !== undefined && typeof v !== 'boolean') {
           errors.push(`قيمة إجمالي غير صالحة: ${key}`);
+        }
+      }
+      for (const key of ['labelAlign', 'valueAlign'] as const) {
+        const v = el.totals[key];
+        if (v !== undefined && !['start', 'center', 'end'].includes(v)) {
+          errors.push(`محاذاة إجمالي غير صالحة: ${key}`);
         }
       }
     }

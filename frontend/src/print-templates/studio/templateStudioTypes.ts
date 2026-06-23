@@ -118,16 +118,20 @@ export interface TableBorderStyle {
 
 // ─── Line items table element ─────────────────────────────────────────────────
 export interface LineItemsTableElement extends BaseElement {
-  type:        'lineItemsTable';
-  columns:     LineItemsColumn[];
-  headerStyle: TableHeaderStyle;
-  rowStyle:    TableRowStyle;
-  borderStyle: TableBorderStyle;
+  type:                 'lineItemsTable';
+  columns:              LineItemsColumn[];
+  headerStyle:          TableHeaderStyle;
+  rowStyle:             TableRowStyle;
+  borderStyle:          TableBorderStyle;
+  autoHideZeroColumns?: boolean;  // hide columns where all row values are zero/empty
+  rowStriping?:         boolean;  // alternate row background color
   totals?: {
     showSubtotal?:   boolean;
     showDiscount?:   boolean;
     showTax?:        boolean;
     showGrandTotal?: boolean;
+    labelAlign?: 'start' | 'center' | 'end';  // footer label cell alignment
+    valueAlign?: 'start' | 'center' | 'end';  // footer value cell alignment
   };
 }
 
