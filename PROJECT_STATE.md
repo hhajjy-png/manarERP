@@ -10,8 +10,9 @@
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **HEAD** | `5e6c097` — Merge Print Designer Phase 5D.1 Editable Static Text into production |
-| **Latest stable tag** | `stable-print-designer-phase5d1-v1` |
+| **HEAD** | `4c87b5b` — Merge Print Designer Phase 5D.2 Universal Layout Designer into production |
+| **Merge Commit** | `4c87b5b` |
+| **Latest stable tag** | `stable-print-designer-phase5d2-v1` |
 | **Remote sync** | `origin/production` — up to date (post push) |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -27,6 +28,7 @@
 
 | Feature | Stable Tag | Summary |
 |---------|-----------|---------|
+| **Print Designer — Phase 5D.2 (Universal Layout Designer)** | `stable-print-designer-phase5d2-v1` | Transforms the Print Designer into a true Universal Layout Designer supporting drag, resize, rotation, z-index, alignment, multi-selection (Ctrl+Click / Shift+Click), smart guides (SVG, mm-calibrated), rulers (H+V, mm), lock/unlock, hide/show, copy/paste/duplicate, arrow-key movement (Shift=10px, Alt=0.5px fine), and Import/Export Layout JSON. **Architecture:** CSS-transform injection via `<style>` tag (`LayoutOverrideStyles`) targeting `[data-designer-id]` — applies identically during interactive view and `window.print()`. **New settings key:** `print.layoutOverrides` (JSON) stored via existing `PUT /settings`. **New types:** `layoutOverrideTypes.ts` — `LayoutElementOverride` (`x/y/rotation/scaleX/scaleY/zIndex/opacity/hidden/locked`), `AllLayoutOverrides` (`{ invoice: DocumentLayoutOverrides; quotation: DocumentLayoutOverrides }`), `LAYOUT_ELEMENT_IDS`, `LAYOUT_ELEMENT_LABELS` (Arabic). **New utilities:** `layoutOverrideUtils.ts` — `clampLayoutElement`, `buildLayoutStyleSheet`, `layoutElementToCSS`, `parseAllLayouts`, `patchDocumentLayout`, `serializeAllLayouts`, `getLayoutElement`. `designerUtils.ts` extended — `PX_PER_MM = 794/210`, `mmToPx`, `pxToMm`, `computeSmartGuides`, `GuideLine`, `ElementRect`. **New hook:** `useLayoutDesigner.ts` — `LayoutDesignerHandle` interface (activate/deactivate, selectedIds Set, drag/resize/rotation state machines via Pointer Events API, 30-entry history, clipboard, zoom/grid/snap, export via `URL.createObjectURL`, import via `FileReader`, `save()` to settings). **New components:** `LayoutOverrideStyles.tsx` (injects `<style>` tag), `SmartGuides.tsx` (SVG guide lines, `#3b82f6`, dashed, axis-correct), `UniversalDesignerOverlay.tsx` (547 lines: 24px ruler with mm marks, drag handles, 8 resize handles, rotation handle at top:-24, keyboard handler, status bar), `LayoutDesignerPanel.tsx` (260 lines: RTL panel, sliders for X/Y/rotation/scaleX/scaleY/opacity/zIndex, 6 alignment buttons, lock/hide/copy/paste/duplicate/reset, grid controls, import/export). **Template instrumentation:** `InvoiceDesign1.tsx` + `InvoiceDesign1Blank.tsx` footer `<div>` gets `data-designer-id="invoice.footerBlock"`. **Integration:** `useCompanyBranding.ts` extended to load `print.layoutOverrides` alongside existing keys; `InvoicePreview.tsx` and `Quotation.tsx` wire `useLayoutDesigner` + `UniversalDesignerOverlay` + `LayoutDesignerPanel` with `🔲 تخطيط` toolbar button (engine mode). **Test fix:** `designerUniversal.test.ts` updated from Phase 5C assertion (`DESIGNER_CAPABILITIES.*=false`) to Phase 5D.2 (`*=true`). **36 new unit tests** (11 `layoutOverride.test.ts`, 5 `smartGuides.test.ts`, 20 `useLayoutDesigner.test.ts`). No Prisma schema changes. No migrations. No backend routes. No Electron IPC changes. No new npm packages. |
 | **Print Designer — Phase 5D.1 (Editable Static Text)** | `stable-print-designer-phase5d1-v1` | Double-click inline editing for static text labels in invoice and quotation print templates. 4 editable fields per doc type: `titleAr`, `titleEn`, `footerAccountant`, `footerManager`. **Architecture:** `staticTextTypes.ts` — `StaticTextKey` union (8 keys across invoice/quotation), `StaticTextOverrides` record, `DEFAULT_STATIC_TEXT`, `STATIC_TEXT_LIMITS` (per-key char limits). `staticTextUtils.ts` — `getStaticText()` (override → designDefault → DEFAULT_STATIC_TEXT), `validateStaticText()`, `escapeStaticText()`, `parseStaticTextOverrides()` (safe parse + key validation, strips unknowns + non-strings), `serializeStaticTextOverrides()`. `useStaticTextDesigner.ts` — manages overrides state, `startEdit/updateDraft/commitEdit/cancelEdit`, `save()` (PUT `print.staticTextOverrides`), `useEffect` sync for async branding load. `InlineTextEditor.tsx` — floating positioned textarea; Enter commits, Shift+Enter inserts newline, Escape cancels; animated pulse ring on active element. **Template integration:** all 10 `InvoiceDesign*.tsx` + `QuotationBase.tsx` carry `data-designer-editable="true"` + `data-designer-key="…"` on static text spans; `getStaticText(staticText, key, designDefault)` for fallback chain. **Overlay wiring:** `BrandingDesignerOverlay` `handleDocDblClick` finds `closest('[data-designer-editable]')`, computes position relative to `docRef`, calls `staticTextDesigner.startEdit()`, renders `InlineTextEditor`; `onSave` prop threads through to `BrandingDesignerToolbar` so toolbar save button fires `Promise.all([designer.save(), textDesigner.save(), staticTextDesigner.save()])`. **Bug fixes (found in smoke test):** EngineComponent moved inside overlay so dblclick fires; toolbar `onSave` wired to all-3-saves (was calling only `designer.save()`); `useEffect` in `useStaticTextDesigner` syncs from server on async branding load (useState initializer ran before API response). **18 new unit tests** in `staticTextDesigner.test.ts`: `getStaticText` fallback chain, `validateStaticText` (empty, over-limit, at-limit), `escapeStaticText` HTML safety, `parseStaticTextOverrides` (valid JSON, unknown keys stripped, non-string stripped, malformed, non-object), `serializeStaticTextOverrides` round-trip, `DEFAULT_STATIC_TEXT` completeness, dynamic-field lock (source-level guard). Settings key: `print.staticTextOverrides` (JSON, existing Settings table). No Prisma schema changes. No migrations. No backend routes. No IPC. No new npm packages. |
 | **Print Designer — Phase 5C (Universal Designer Foundation)** | `stable-print-designer-phase5c-v1` | Architecture foundation introducing `DesignerElement` as the shared abstraction unifying branding and text selection. **New types (`designerTypes.ts`):** `DesignerElementKind` = `'branding' \| 'text' \| 'image' \| 'shape' \| 'qr' \| 'barcode'` (image/shape/qr/barcode are type-only placeholders — no UI); `DesignerElement` (`id`, `kind`, `documentType`, `label`); `DesignerSelection`; `DesignerCommand` = `'copy' \| 'paste' \| 'duplicate' \| 'lock' \| 'hide' \| 'rotate'`; `DesignerMode` = `'branding' \| 'text' \| 'idle'`; `DesignerCapabilities` (all false in Phase 5C); `DESIGNER_CAPABILITIES` constant; `isBrandingElement()` / `isTextElement()` type guards. **New hook (`useDesignerSelection.ts`):** `selectedElement: DesignerElement \| null`, `selectElement()`, `clearSelection()`, `isSelected(id)`, `getPrimarySelection()`, `isBrandingSelection()`, `isTextSelection()` — standalone, ready to be wired into parent pages in Phase 5D. **New DOM utility (`designerDom.ts`):** `getDesignerElementFromTarget(target: HTMLElement)` — reads universal `data-designer-type/id/doc/label` attributes via `closest()`; validates kind against `VALID_KINDS` Set; returns `null` for unknown kinds or no match. **Panel update (`BrandingDesignerPanel.tsx`):** optional `selection?: DesignerElement \| null` prop; when provided, drives mode switching via `isBrandingElement`/`isTextElement` instead of `textStyleDesigner.selectedArea` (backward-compat: `undefined` falls back to legacy path); empty state view when `selection === null`; disabled rotation placeholder (`title="الدوران — قريباً"`, opacity 0.45). **Overlay update (`BrandingDesignerOverlay.tsx`):** `handleDocClick` now uses `getDesignerElementFromTarget` instead of manual `.closest('[data-designer-type="text"]')` — single DOM detection entry point; added Ctrl+C / Ctrl+V / Ctrl+D no-op keyboard handlers (reserved for Phase 5D). **Toolbar update (`BrandingDesignerToolbar.tsx`):** 5 disabled placeholder buttons added between Snap and Save: نسخ (Ctrl+C), لصق (Ctrl+V), تكرار (Ctrl+D), قفل, إخفاء — all with `disabled` prop + "قريباً" tooltip. **14 new tests** in `designerUniversal.test.ts` covering all type guards, `DESIGNER_CAPABILITIES`, and `getDesignerElementFromTarget` (null ancestor, invalid kind, text kind full attributes, branding kind, missing label fallback, missing doc fallback). No Prisma schema changes. No migrations. No backend routes. No IPC. No new npm packages. All callers backward-compatible. |
 | **Print Designer — Phase 5B (Text Styling Controls)** | `stable-print-designer-phase5b-v1` | Token-based text styling inside the existing Designer Mode. Clicking any text zone in the document switches the side panel from branding controls to text-style controls for that area. **Architecture:** `textStyleTypes.ts` — finite token unions (fontSize: tiny/small/normal/large/xlarge, fontFamily: cairo/ibmPlexArabic/tajawal/arial, fontWeight: normal/bold/extrabold, color: default/dark/primary/secondary/muted/white, align: inherit/right/center/left, lineHeight: tight/normal/relaxed/loose, letterSpacing: tight/normal/wide, tableBgColor: default/light/primary, tableBorderColor: default/light/medium/dark/none) with `*_LABELS` record maps for the panel UI. `textStyleOverrides.ts` — token→CSS maps, `applyTextElementStyle(style, context)` (context='title': 12–18pt range, context='cell': 9–12pt range), `applyTableHeaderStyle`, `applyTableBorderStyle` (returns `--designer-table-border` CSS property on table element), `parseTextStyleSettings`, `serializeTextStyleSettings`, `normalizeTextStyleSettings`, all `isValid*` validators. `useTextStyleDesigner.ts` hook — `selectedArea`, `updateArea`, `resetArea`, `resetDocType`, `isDirty`, `save` (persists to `print.textStyleOverrides` settings key). **Settings key:** `print.textStyleOverrides` (JSON string, existing Settings table, no migration). **Supported areas (per doc type, independently stored):** `title`, `customerBlock`, `metadataLabels`, `sectionTitle`, `introText`, `tableHeader`, `lineItem`, `totals`, `tableBorder`, `terms`. **Designer integration:** `BrandingDesignerOverlay` detects clicks on `[data-designer-type="text"]` elements and routes to `textStyleDesigner.setSelectedArea`; amber highlight rect tracks selected area via `querySelector`. `BrandingDesignerPanel` context-switches to `TextAreaControls` when `selectedArea` is set; `onSave` prop saves both branding + text style concurrently via `Promise.all`. **Template coverage:** All 10 `InvoiceDesign*.tsx` + `QuotationBase.tsx` carry `data-designer-type/id` attrs + `applyTextElementStyle` spreads on all text zones; `applyTableBorderStyle` on `<table>`; `applyTableHeaderStyle` on `<th>`. **CSS variable integration (Phase 5B Polish):** All 6 CSS modules (`InvoiceDesign1–5.module.css`, `QuotationShared.module.css`) consume `var(--designer-table-border, <original>)` on `thead th`, `tbody td`, `tfoot td` — fallback preserves exact original appearance when no override set. tpl1/tpl3 theme overrides in QuotationShared also wired. **46 new tests** in `textStyleOverrides.test.ts` (14 groups: parse valid JSON, parse invalid, unknown tokens stripped, 'default' produces no CSS, font-size mapping, font-family, color, alignment RTL-safe, table header bgColor, table border, invoice/quotation independence, serialize round-trip, CSS injection blocked, token validators). No Prisma schema changes. No migrations. No backend routes. No IPC channels. No new npm packages. |
@@ -90,7 +92,7 @@
 | `inventory` | Complete |
 | `cheques` | Complete |
 | `import` | Complete — 7 entities |
-| `settings` | Complete — includes `print.*` branding keys (`print.signatureImage`, `print.stampImage`, `print.showSignature`, `print.showStamp`, `print.brandingLayout`, `print.textStyleOverrides`) |
+| `settings` | Complete — includes `print.*` branding keys (`print.signatureImage`, `print.stampImage`, `print.showSignature`, `print.showStamp`, `print.brandingLayout`, `print.textStyleOverrides`, `print.staticTextOverrides`, `print.layoutOverrides`) |
 | `backups` | Complete — manual + auto |
 | `audit` | Complete |
 | `forms` | Complete — 8 HR print endpoints |
@@ -102,8 +104,8 @@
 | Page | Status |
 |------|--------|
 | `Dashboard.tsx` | Complete — Executive Intelligence V2, Financial Intel, KPI cards, charts |
-| `Invoices.tsx` / `InvoicePreview.tsx` | Complete — InvoicePreview: engine + legacy + per-print branding + PDF export + **Phase 5A inline designer mode** + **Phase 5B text styling** |
-| `Quotation.tsx` | Complete — legacy form mode + engine template mode + per-print branding + PDF export (engine) + **Phase 5A inline designer mode (engine)** + **Phase 5B text styling** |
+| `Invoices.tsx` / `InvoicePreview.tsx` | Complete — InvoicePreview: engine + legacy + per-print branding + PDF export + **Phase 5A inline designer mode** + **Phase 5B text styling** + **Phase 5D.1 editable static text** + **Phase 5D.2 Universal Layout Designer** |
+| `Quotation.tsx` | Complete — legacy form mode + engine template mode + per-print branding + PDF export (engine) + **Phase 5A inline designer mode (engine)** + **Phase 5B text styling** + **Phase 5D.1 editable static text** + **Phase 5D.2 Universal Layout Designer (engine mode)** |
 | `Salaries.tsx` / `PayrollPayslip.tsx` | Complete |
 | `Accounting.tsx` | Complete |
 | `Reports.tsx` / `ReportPrint.tsx` | Complete |
@@ -133,18 +135,28 @@ frontend/src/print-templates/
 ├── engine/          # Types, registry, template definitions, textStyleTypes.ts
 ├── adapters/        # companyData (createCompanyPrintData), apiTypes
 ├── builders/        # invoicePrintDataBuilder, quotationPrintDataBuilder
-├── hooks/           # usePrintTemplate, useCompanyBranding, index.ts
+├── hooks/           # usePrintTemplate, useCompanyBranding (extended Phase 5D.2),
+│                    # useBrandingDesigner, useLayoutDesigner.ts (Phase 5D.2)
 ├── components/      # PrintTemplateSelector, BrandingLayoutDesigner,
-│                    # BrandingDesignerOverlay, BrandingDesignerPanel, BrandingDesignerToolbar
+│                    # BrandingDesignerOverlay, BrandingDesignerPanel, BrandingDesignerToolbar,
+│                    # UniversalDesignerOverlay.tsx (Phase 5D.2)
+│                    # LayoutDesignerPanel.tsx (Phase 5D.2)
+│                    # LayoutOverrideStyles.tsx (Phase 5D.2)
+│                    # SmartGuides.tsx (Phase 5D.2)
 ├── designer/        # useTextStyleDesigner.ts (Phase 5B)
-│                    # designerTypes.ts, useDesignerSelection.ts, designerDom.ts (Phase 5C)
+│                    # designerTypes.ts (Phase 5C, updated 5D.2: all capabilities true)
+│                    # useDesignerSelection.ts, designerDom.ts (Phase 5C)
+│                    # layoutOverrideTypes.ts (Phase 5D.2)
+│                    # layoutOverrideUtils.ts (Phase 5D.2)
 ├── integration/     # invoicePreviewIntegration, quotationPreviewIntegration
 ├── service/         # printTemplateService
 ├── storage/         # printProfileStorage (localStorage)
-├── utils/           # brandingHelpers, brandingLayout, designerUtils, formatKWD, tafqeet,
-│                    # sanitizePrintText, formatDate, textStyleOverrides.ts (Phase 5B)
+├── utils/           # brandingHelpers, brandingLayout, designerUtils (extended Phase 5D.2),
+│                    # formatKWD, tafqeet, sanitizePrintText, formatDate,
+│                    # textStyleOverrides.ts (Phase 5B), inkFilter.ts (Phase 5A.1)
 └── reference/       # 30 React template components
     ├── invoices/    # InvoiceDesign1–5 + Blank variants (10 files + 5 CSS modules)
+    │                # InvoiceDesign1+Blank: footer div gets data-designer-id (Phase 5D.2)
     ├── quotations/  # QuotationBase + QuotationDesign1–5 + Blank variants (11 files + 1 CSS module)
     ├── purchase-orders/
     └── rfq/
@@ -168,7 +180,9 @@ frontend/src/print-templates/
 | `print.showSignature` | `'true'`/`'false'` | Phase 1 | Global signature visibility default |
 | `print.showStamp` | `'true'`/`'false'` | Phase 1 | Global stamp visibility default |
 | `print.brandingLayout` | JSON string | Phase 4 | Signature/stamp position per doc type |
-| `print.textStyleOverrides` | JSON string | **Phase 5B** | **Text area style tokens per doc type** |
+| `print.textStyleOverrides` | JSON string | Phase 5B | Text area style tokens per doc type |
+| `print.staticTextOverrides` | JSON string | Phase 5D.1 | Editable static text labels per doc type |
+| `print.layoutOverrides` | JSON string | **Phase 5D.2** | **Element CSS transforms per doc type — `AllLayoutOverrides` shape** |
 
 ### Phase 5B — Text Style Token System
 
@@ -330,7 +344,7 @@ Clamp bounds: x ±80 px, y ±60 px, scale 0.4–2.5, opacity 0.2–1, zIndex 1|2
 | Layer | Files | Tests | Status |
 |-------|-------|-------|--------|
 | Backend (Vitest) | 29 | 526 | All passing |
-| Frontend (Vitest) | 19 | 347 | All passing |
+| Frontend (Vitest) | 23 | 403 | All passing |
 
 ### Frontend test files (`frontend/src/__tests__/`)
 
@@ -344,7 +358,11 @@ printTemplates/
   brandingLayout.test.ts         # Phase 4 — 16 tests: parseBrandingLayout, clamp, serialize/roundtrip, getForDoc, applyStyle
   designerUtils.test.ts          # Phase 5A — 25 tests: snapToGrid, formatUnit, keyboardMove, historyPush/Undo/Redo
   textStyleOverrides.test.ts     # Phase 5B — 46 tests: parse/serialize, token maps, CSS injection prevention, area independence
-  designerUniversal.test.ts     # Phase 5C — 14 tests: isBrandingElement, isTextElement, DESIGNER_CAPABILITIES, getDesignerElementFromTarget
+  designerUniversal.test.ts     # Phase 5C/5D.2 — 14 tests: isBrandingElement, isTextElement, DESIGNER_CAPABILITIES (all true), getDesignerElementFromTarget
+  layoutOverride.test.ts         # Phase 5D.2 — 11 tests: clamp, buildLayoutStyleSheet, layoutElementToCSS, parseAllLayouts, patchDocumentLayout
+  smartGuides.test.ts            # Phase 5D.2 — 5 tests: computeSmartGuides edge/center alignment, no-snap default
+  useLayoutDesigner.test.ts      # Phase 5D.2 — 20 tests: pure utility coverage of hook logic (activate/deactivate, selection, updateElement, drag/resize/rotate deltas, align, lock/hide, copy/paste/duplicate, undo/redo, export/import)
+  staticTextDesigner.test.ts     # Phase 5D.1 — 18 tests
   builders.test.ts               # builder branding passthrough (9 tests)
   companyBranding.test.ts        # createCompanyPrintData boolean fields (6 tests)
   formatKWD.test.ts
@@ -365,15 +383,17 @@ backend/src/modules/executive/__tests__/executive.service.test.ts   # 30 tests
   — kpiTimeline(): point count, field presence, profit formula, non-negative outstanding
 ```
 
-### TypeScript validation (Phase 5C — clean run)
+### TypeScript validation (Phase 5D.2 — clean run)
 
 ```
+cd backend && npx prisma validate          ✅ valid
 cd backend && npx tsc --noEmit             ✅ 0 errors
 cd frontend && npx tsc --noEmit            ✅ 0 errors
 npx tsc -p electron/tsconfig.json --noEmit ✅ 0 errors
-cd backend && npx prisma validate          ✅ valid
+cd backend && npm test                     ✅ 526/526 (29 files)
+cd frontend && npx vitest run              ✅ 403/403 (23 files)
 npm run build:back                         ✅ clean
-npm run build:front                        ✅ clean (4.60s)
+npm run build:front                        ✅ clean (4.89s)
 npm run electron:build                     ✅ clean
 ```
 
@@ -506,6 +526,8 @@ After 2026-06-13 full operational reset:
 
 | Date | Tag | HEAD | Feature |
 |------|-----|------|---------|
+| 2026-06-23 | `stable-print-designer-phase5d2-v1` | `4c87b5b` | Print Designer Phase 5D.2 — Universal Layout Designer (drag/resize/rotation/multi-select/smart guides/rulers/lock/hide/copy/paste/import-export) |
+| 2026-06-23 | `stable-print-designer-phase5d1-v1` | `5e6c097` | Print Designer Phase 5D.1 — Editable Static Text |
 | 2026-06-22 | `stable-print-designer-phase5c-v1` | `cbcb101` | Print Designer Phase 5C — Universal Designer Foundation |
 | 2026-06-22 | `stable-print-designer-phase5b-v1` | `a2e6cdd` | Print Designer Phase 5B — Text Styling Controls |
 | 2026-06-22 | `stable-print-designer-phase5a1-v1` | `4a2203e` | Print Designer Phase 5A.1 — Professional UX Polish |
@@ -516,4 +538,4 @@ After 2026-06-13 full operational reset:
 
 ---
 
-*Last updated: 2026-06-22 — Print Designer Phase 5C released. HEAD `cbcb101`. Merge commit `cbcb101`. Tag `stable-print-designer-phase5c-v1`. 526 backend tests (29 files) / 347 frontend tests (19 files). No migration, no backend routes, no IPC, no new dependencies.*
+*Last updated: 2026-06-23 — Print Designer Phase 5D.2 Universal Layout Designer released. HEAD `4c87b5b`. Merge commit `4c87b5b`. Tag `stable-print-designer-phase5d2-v1`. 526 backend tests (29 files) / 403 frontend tests (23 files). No migration, no backend routes, no IPC, no new npm packages.*
