@@ -77,6 +77,71 @@ export interface CircleElement extends BaseElement {
   borderColor: StudioColorToken;
 }
 
+// ─── Line-items table allowlists ─────────────────────────────────────────────
+export const INVOICE_LINE_ITEM_FIELDS = [
+  'index', 'description', 'quantity', 'unit', 'unitPrice', 'discount', 'total',
+] as const;
+
+export const QUOTATION_LINE_ITEM_FIELDS = [
+  'index', 'description', 'quantity', 'unit', 'unitPrice', 'total',
+] as const;
+
+export type AllowedLineItemField =
+  | (typeof INVOICE_LINE_ITEM_FIELDS)[number]
+  | (typeof QUOTATION_LINE_ITEM_FIELDS)[number];
+
+export interface LineItemsColumn {
+  id:      string;
+  field:   AllowedLineItemField;
+  label:   string;
+  width:   number;   // percentage; visible columns should sum to ~100
+  align:   'start' | 'center' | 'end';
+  visible: boolean;
+}
+
+// ─── Table sub-styles (token-only) ───────────────────────────────────────────
+export interface TableHeaderStyle {
+  background: StudioColorToken;
+  color:      StudioTextColor;
+  fontSize:   StudioFontSize;
+  fontWeight: StudioFontWeight;
+}
+
+export interface TableRowStyle {
+  fontSize: StudioFontSize;
+  color:    StudioTextColor;
+}
+
+export interface TableBorderStyle {
+  color: StudioColorToken;
+}
+
+// ─── Line items table element ─────────────────────────────────────────────────
+export interface LineItemsTableElement extends BaseElement {
+  type:        'lineItemsTable';
+  columns:     LineItemsColumn[];
+  headerStyle: TableHeaderStyle;
+  rowStyle:    TableRowStyle;
+  borderStyle: TableBorderStyle;
+  totals?: {
+    showSubtotal?:   boolean;
+    showDiscount?:   boolean;
+    showTax?:        boolean;
+    showGrandTotal?: boolean;
+  };
+}
+
+// ─── Normalized row (resolver output) ────────────────────────────────────────
+export interface NormalizedLineRow {
+  index:       number;
+  description: string;
+  quantity:    string;
+  unit:        string;
+  unitPrice:   string;
+  discount?:   string;
+  total:       string;
+}
+
 export type TemplateStudioElement =
   | TextElement
   | DynamicFieldElement
@@ -85,13 +150,14 @@ export type TemplateStudioElement =
   | ImageElement
   | LineElement
   | RectElement
-  | CircleElement;
+  | CircleElement
+  | LineItemsTableElement;
 
 export type TemplateStudioElementType = TemplateStudioElement['type'];
 
 // Validated set of known element types
 export const ALLOWED_ELEMENT_TYPES: ReadonlySet<TemplateStudioElementType> = new Set([
-  'text', 'dynamicField', 'qr', 'barcode', 'image', 'line', 'rect', 'circle',
+  'text', 'dynamicField', 'qr', 'barcode', 'image', 'line', 'rect', 'circle', 'lineItemsTable',
 ]);
 
 // ─── Template page settings ───────────────────────────────────────────────────

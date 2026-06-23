@@ -14,6 +14,12 @@ import type {
   LineElement,
   RectElement,
   CircleElement,
+  LineItemsTableElement,
+  LineItemsColumn,
+  NormalizedLineRow,
+  TableHeaderStyle,
+  TableRowStyle,
+  TableBorderStyle,
 } from './templateStudioTypes';
 import { resolveDynamicField } from './templateStudioUtils';
 
@@ -240,16 +246,122 @@ function renderCircleEl(el: CircleElement): React.ReactNode {
   );
 }
 
+// ─── Line items table renderer ────────────────────────────────────────────────
+function getCellValue(row: NormalizedLineRow, field: LineItemsColumn['field']): string {
+  switch (field) {
+    case 'index':       return String(row.index);
+    case 'description': return row.description;
+    case 'quantity':    return row.quantity;
+    case 'unit':        return row.unit;
+    case 'unitPrice':   return row.unitPrice;
+    case 'discount':    return row.discount ?? '';
+    case 'total':       return row.total;
+  }
+}
+
+function tableCellAlign(align: LineItemsColumn['align']): 'right' | 'center' | 'left' {
+  if (align === 'center') return 'center';
+  if (align === 'end')    return 'left';   // end = left in RTL layout
+  return 'right';                           // start = right in RTL
+}
+
+function renderLineItemsTableEl(
+  el:        LineItemsTableElement,
+  lineItems: NormalizedLineRow[],
+): React.ReactNode {
+  const visibleCols = el.columns.filter((c) => c.visible);
+  const borderVal   = `1px solid ${COLOR_TOKEN_MAP[el.borderStyle.color] ?? COLOR_TOKEN_MAP.gray}`;
+  const hdrBg       = COLOR_TOKEN_MAP[el.headerStyle.background] ?? COLOR_TOKEN_MAP.brand;
+  const hdrColor    = TEXT_COLOR_MAP[el.headerStyle.color]       ?? '#ffffff';
+  const hdrSize     = FONT_SIZE_MAP[el.headerStyle.fontSize]     ?? '11pt';
+  const hdrWeight   = FONT_WEIGHT_MAP[el.headerStyle.fontWeight] ?? '700';
+  const rowColor    = TEXT_COLOR_MAP[el.rowStyle.color]          ?? TEXT_COLOR_MAP.default;
+  const rowSize     = FONT_SIZE_MAP[el.rowStyle.fontSize]        ?? '11pt';
+
+  const totalsRows: { label: string; value: string }[] = [];
+  if (el.totals?.showSubtotal) {
+    const sub = lineItems.reduce((s, r) => s + (parseFloat(r.total.replace(/,/g, '')) || 0), 0);
+    totalsRows.push({ label: 'المجموع الفرعي', value: sub.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) });
+  }
+  if (el.totals?.showDiscount)  totalsRows.push({ label: 'الخصم',        value: '' });
+  if (el.totals?.showTax)       totalsRows.push({ label: 'الضريبة',      value: '' });
+  if (el.totals?.showGrandTotal) {
+    const grand = lineItems.reduce((s, r) => s + (parseFloat(r.total.replace(/,/g, '')) || 0), 0);
+    totalsRows.push({ label: 'الإجمالي الكلي', value: grand.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) });
+  }
+
+  return (
+    <div style={{ width: '100%', overflow: 'visible', fontFamily: 'Cairo, sans-serif', direction: 'rtl' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: rowSize, color: rowColor }}>
+        <colgroup>
+          {visibleCols.map((col) => (
+            <col key={col.id} style={{ width: `${col.width}%` }} />
+          ))}
+        </colgroup>
+        <thead>
+          <tr>
+            {visibleCols.map((col) => (
+              <th key={col.id} style={{
+                background: hdrBg, color: hdrColor, fontSize: hdrSize, fontWeight: hdrWeight,
+                border: borderVal, padding: '4px 6px', textAlign: tableCellAlign(col.align),
+                fontFamily: 'Cairo, sans-serif',
+                WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact',
+              }}>
+                {col.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {lineItems.length === 0 ? (
+            <tr>
+              <td colSpan={visibleCols.length} style={{ border: borderVal, padding: '6px', textAlign: 'center', color: '#9ca3af', fontSize: rowSize }}>
+                لا توجد بنود
+              </td>
+            </tr>
+          ) : (
+            lineItems.map((row) => (
+              <tr key={row.index}>
+                {visibleCols.map((col) => (
+                  <td key={col.id} style={{ border: borderVal, padding: '3px 6px', textAlign: tableCellAlign(col.align), fontSize: rowSize, fontFamily: 'Cairo, sans-serif', wordBreak: 'break-word' }}>
+                    {getCellValue(row, col.field)}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+        {totalsRows.length > 0 && (
+          <tfoot>
+            {totalsRows.map((t) => (
+              <tr key={t.label}>
+                <td colSpan={visibleCols.length - 1} style={{ border: borderVal, padding: '3px 6px', textAlign: 'end', fontWeight: 700, fontSize: rowSize }}>
+                  {t.label}
+                </td>
+                <td style={{ border: borderVal, padding: '3px 6px', textAlign: 'end', fontWeight: 700, fontSize: rowSize }}>
+                  {t.value}
+                </td>
+              </tr>
+            ))}
+          </tfoot>
+        )}
+      </table>
+    </div>
+  );
+}
+
 // ─── Single element shell ─────────────────────────────────────────────────────
 function ElementShell({
-  el, docType, data,
+  el, docType, data, lineItems,
 }: {
-  el:      TemplateStudioElement;
-  docType: TemplateStudioDocumentType;
-  data:    Record<string, string>;
+  el:        TemplateStudioElement;
+  docType:   TemplateStudioDocumentType;
+  data:      Record<string, string>;
+  lineItems: NormalizedLineRow[];
 }) {
   if (el.hidden) return null;
 
+  const isTable  = el.type === 'lineItemsTable';
   const style: CSSProperties = {
     position:  'absolute',
     left:      el.x * PX_PER_MM,
@@ -257,21 +369,22 @@ function ElementShell({
     width:     el.w * PX_PER_MM,
     height:    el.h * PX_PER_MM,
     transform: el.rotation ? `rotate(${el.rotation}deg)` : undefined,
-    overflow:  'hidden',
+    overflow:  isTable ? 'visible' : 'hidden',
     boxSizing: 'border-box',
   };
 
   let content: React.ReactNode;
   switch (el.type) {
-    case 'text':         content = renderTextEl(el);                            break;
-    case 'dynamicField': content = renderDynamicFieldEl(el, docType, data);     break;
-    case 'qr':           content = renderQrEl(el, docType, data);               break;
-    case 'barcode':      content = renderBarcodeEl(el, docType, data);          break;
-    case 'image':        content = renderImageEl(el);                           break;
-    case 'line':         content = renderLineEl(el);                            break;
-    case 'rect':         content = renderRectEl(el);                            break;
-    case 'circle':       content = renderCircleEl(el);                          break;
-    default:             content = null;
+    case 'text':           content = renderTextEl(el);                            break;
+    case 'dynamicField':   content = renderDynamicFieldEl(el, docType, data);     break;
+    case 'qr':             content = renderQrEl(el, docType, data);               break;
+    case 'barcode':        content = renderBarcodeEl(el, docType, data);          break;
+    case 'image':          content = renderImageEl(el);                           break;
+    case 'line':           content = renderLineEl(el);                            break;
+    case 'rect':           content = renderRectEl(el);                            break;
+    case 'circle':         content = renderCircleEl(el);                          break;
+    case 'lineItemsTable': content = renderLineItemsTableEl(el, lineItems);       break;
+    default:               content = null;
   }
 
   return <div style={style}>{content}</div>;
@@ -279,15 +392,17 @@ function ElementShell({
 
 // ─── Public renderer props ────────────────────────────────────────────────────
 export interface TemplateStudioRendererProps {
-  template: TemplateStudioTemplate;
-  data:     Record<string, string>; // flat map: field-key (no prefix) → display value
-  scale?:   number; // CSS scale factor (default 1 = full 794×1123)
+  template:   TemplateStudioTemplate;
+  data:       Record<string, string>; // flat map: field-key (no prefix) → display value
+  lineItems?: NormalizedLineRow[];    // optional; required only for lineItemsTable elements
+  scale?:     number;                 // CSS scale factor (default 1 = full 794×1123)
   className?: string;
 }
 
 export default function TemplateStudioRenderer({
   template,
   data,
+  lineItems = [],
   scale = 1,
   className,
 }: TemplateStudioRendererProps) {
@@ -322,6 +437,7 @@ export default function TemplateStudioRenderer({
             el={el}
             docType={template.documentType}
             data={data}
+            lineItems={lineItems}
           />
         ))}
       </div>

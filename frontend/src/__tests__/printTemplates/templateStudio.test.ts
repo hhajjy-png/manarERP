@@ -18,12 +18,20 @@ import {
   getActiveTemplate,
   MAX_IMAGE_BYTES,
 } from '../../print-templates/studio/templateStudioUtils';
+import {
+  resolveInvoiceLineItems,
+  resolveQuotationLineItems,
+  getDefaultInvoiceColumns,
+  getDefaultQuotationColumns,
+  normalizeColumnWidths,
+} from '../../print-templates/studio/lineItemsResolver';
 import type {
   TemplateStudioSettings,
   TemplateStudioTemplate,
   TextElement,
   DynamicFieldElement,
   RectElement,
+  LineItemsTableElement,
 } from '../../print-templates/studio/templateStudioTypes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -364,5 +372,234 @@ describe('default-off studio mode', () => {
     const parsed = parseTemplateStudioSettings(serialized);
     expect(parsed?.templates).toHaveLength(1);
     expect(parsed?.templates[0].name).toBe(tpl.name);
+  });
+});
+
+// ─── lineItemsTable helpers ───────────────────────────────────────────────────
+function makeLineItemsTable(overrides: Partial<LineItemsTableElement> = {}): LineItemsTableElement {
+  return {
+    id: 'lit-1', label: 'جدول البنود', type: 'lineItemsTable',
+    x: 20, y: 80, w: 170, h: 70, rotation: 0,
+    columns: [
+      { id: 'c1', field: 'index',       label: '#',        width: 10, align: 'center', visible: true },
+      { id: 'c2', field: 'description', label: 'البيان',   width: 60, align: 'start',  visible: true },
+      { id: 'c3', field: 'total',       label: 'الإجمالي', width: 30, align: 'end',    visible: true },
+    ],
+    headerStyle: { background: 'brand', color: 'default', fontSize: 'small', fontWeight: 'bold' },
+    rowStyle:    { fontSize: 'small', color: 'default' },
+    borderStyle: { color: 'gray' },
+    ...overrides,
+  };
+}
+
+// ─── 18. Valid lineItemsTable element ─────────────────────────────────────────
+describe('lineItemsTable: valid element', () => {
+  it('accepts a well-formed lineItemsTable element', () => {
+    const result = validateElement(makeLineItemsTable(), 'invoice');
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+});
+
+// ─── 19. Unknown field rejected ───────────────────────────────────────────────
+describe('lineItemsTable: unknown field rejected', () => {
+  it('rejects column with field not in allowlist', () => {
+    const el = makeLineItemsTable({
+      columns: [
+        { id: 'c1', field: 'index' as LineItemsTableElement['columns'][0]['field'], label: '#', width: 100, align: 'center', visible: true },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { id: 'c2', field: '__proto__' as any, label: 'bad', width: 0, align: 'start', visible: true },
+      ],
+    });
+    const result = validateElement(el, 'invoice');
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('حقل جدول غير مسموح'))).toBe(true);
+  });
+});
+
+// ─── 20. Duplicate column IDs rejected ───────────────────────────────────────
+describe('lineItemsTable: duplicate column IDs rejected', () => {
+  it('rejects two columns with the same id', () => {
+    const el = makeLineItemsTable({
+      columns: [
+        { id: 'dup', field: 'index',       label: '#',      width: 50, align: 'center', visible: true },
+        { id: 'dup', field: 'description', label: 'البيان', width: 50, align: 'start',  visible: true },
+      ],
+    });
+    const result = validateElement(el, 'invoice');
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('معرف عمود مكرر'))).toBe(true);
+  });
+});
+
+// ─── 21. Empty columns rejected ──────────────────────────────────────────────
+describe('lineItemsTable: empty columns rejected', () => {
+  it('rejects element with empty columns array', () => {
+    const result = validateElement(makeLineItemsTable({ columns: [] }), 'invoice');
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('عمود واحد'))).toBe(true);
+  });
+});
+
+// ─── 22. Width normalization ──────────────────────────────────────────────────
+describe('normalizeColumnWidths', () => {
+  it('normalizes visible column widths to sum to 100', () => {
+    const cols = getDefaultInvoiceColumns().map(c => ({ ...c, visible: true }));
+    const normalized = normalizeColumnWidths(cols);
+    const sum = normalized.filter(c => c.visible).reduce((s, c) => s + c.width, 0);
+    expect(Math.round(sum)).toBe(100);
+  });
+
+  it('does not change the width of hidden columns', () => {
+    const cols = getDefaultInvoiceColumns();
+    const hiddenBefore = cols.filter(c => !c.visible).map(c => c.width);
+    const hiddenAfter  = normalizeColumnWidths(cols).filter(c => !c.visible).map(c => c.width);
+    expect(hiddenAfter).toEqual(hiddenBefore);
+  });
+});
+
+// ─── 23. Default invoice columns ─────────────────────────────────────────────
+describe('getDefaultInvoiceColumns', () => {
+  it('includes index, description, quantity, unitPrice, total fields', () => {
+    const fields = getDefaultInvoiceColumns().map(c => c.field);
+    expect(fields).toContain('index');
+    expect(fields).toContain('description');
+    expect(fields).toContain('quantity');
+    expect(fields).toContain('unitPrice');
+    expect(fields).toContain('total');
+  });
+
+  it('has at least one visible column', () => {
+    expect(getDefaultInvoiceColumns().some(c => c.visible)).toBe(true);
+  });
+});
+
+// ─── 24. Default quotation columns ───────────────────────────────────────────
+describe('getDefaultQuotationColumns', () => {
+  it('does not include discount (not in quotation allowlist)', () => {
+    const fields = getDefaultQuotationColumns().map(c => c.field);
+    expect(fields).not.toContain('discount');
+  });
+
+  it('includes total', () => {
+    expect(getDefaultQuotationColumns().some(c => c.field === 'total')).toBe(true);
+  });
+});
+
+// ─── 25. Invoice row resolver ─────────────────────────────────────────────────
+describe('resolveInvoiceLineItems', () => {
+  it('normalizes invoice items into NormalizedLineRow[]', () => {
+    const rows = resolveInvoiceLineItems([
+      { id: 1, description: 'أسفلت', quantity: 5, unit: 'طن', unitPrice: 100, total: 500 },
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].description).toBe('أسفلت');
+    expect(rows[0].quantity).toBe('5');
+    expect(rows[0].unit).toBe('طن');
+    expect(rows[0].total).toBe('500.000');
+  });
+});
+
+// ─── 26. Quotation row resolver ───────────────────────────────────────────────
+describe('resolveQuotationLineItems', () => {
+  it('computes total from qty * unitPrice', () => {
+    const rows = resolveQuotationLineItems([
+      { id: 'a', description: 'عمالة', qty: '3', unit: 'يوم', unitPrice: '50' },
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].description).toBe('عمالة');
+    expect(rows[0].total).toBe('150.000');
+  });
+});
+
+// ─── 27. Missing line items returns empty rows ────────────────────────────────
+describe('resolver: missing data', () => {
+  it('returns empty array for null', () => {
+    expect(resolveInvoiceLineItems(null)).toHaveLength(0);
+  });
+
+  it('returns empty array for undefined', () => {
+    expect(resolveQuotationLineItems(undefined)).toHaveLength(0);
+  });
+
+  it('returns empty array for a non-array', () => {
+    expect(resolveInvoiceLineItems('bad-input')).toHaveLength(0);
+  });
+});
+
+// ─── 28. Resolver output shape (rows) ────────────────────────────────────────
+describe('resolver output: all fields are correct types', () => {
+  it('index is number; description/quantity/unit/unitPrice/total are strings', () => {
+    const rows = resolveInvoiceLineItems([
+      { id: 1, description: 'Test', quantity: 2, unit: 'م', unitPrice: 10, total: 20 },
+    ]);
+    expect(typeof rows[0].index).toBe('number');
+    expect(typeof rows[0].description).toBe('string');
+    expect(typeof rows[0].quantity).toBe('string');
+    expect(typeof rows[0].unit).toBe('string');
+    expect(typeof rows[0].unitPrice).toBe('string');
+    expect(typeof rows[0].total).toBe('string');
+  });
+});
+
+// ─── 29. Resolver with empty items array ─────────────────────────────────────
+describe('resolver: empty items array', () => {
+  it('returns empty array for both resolvers when given []', () => {
+    expect(resolveInvoiceLineItems([])).toHaveLength(0);
+    expect(resolveQuotationLineItems([])).toHaveLength(0);
+  });
+});
+
+// ─── 30. Import/export roundtrip with lineItemsTable ─────────────────────────
+describe('import/export roundtrip: lineItemsTable', () => {
+  it('preserves lineItemsTable element type through export/import', () => {
+    const tpl = makeInvoiceTemplate({ elements: [makeLineItemsTable()] });
+    const json = exportTemplate(tpl);
+    const result = importTemplate(json);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.template.elements[0].type).toBe('lineItemsTable');
+  });
+
+  it('rejects import when lineItemsTable has unknown field', () => {
+    const el = makeLineItemsTable({
+      columns: [
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { id: 'c1', field: 'injected' as any, label: 'x', width: 100, align: 'start', visible: true },
+      ],
+    });
+    const tpl = makeInvoiceTemplate({ elements: [el] });
+    const json = JSON.stringify({ version: 1, template: tpl });
+    expect(importTemplate(json).ok).toBe(false);
+  });
+});
+
+// ─── 31. Unsafe label rejected ────────────────────────────────────────────────
+describe('lineItemsTable: unsafe column label rejected', () => {
+  it('rejects column label containing <', () => {
+    const el = makeLineItemsTable({
+      columns: [
+        { id: 'c1', field: 'index', label: '<script>x</script>', width: 100, align: 'center', visible: true },
+      ],
+    });
+    const result = validateElement(el, 'invoice');
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('تسمية عمود غير آمنة'))).toBe(true);
+  });
+});
+
+// ─── 32. Totals toggles validated ────────────────────────────────────────────
+describe('lineItemsTable: totals toggle validation', () => {
+  it('accepts valid boolean totals flags', () => {
+    const el = makeLineItemsTable({ totals: { showSubtotal: true, showGrandTotal: false } });
+    expect(validateElement(el, 'invoice').valid).toBe(true);
+  });
+
+  it('rejects a non-boolean totals flag', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const el = makeLineItemsTable({ totals: { showSubtotal: 'yes' as any } });
+    const result = validateElement(el, 'invoice');
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.includes('إجمالي'))).toBe(true);
   });
 });

@@ -14,9 +14,15 @@ import type {
   LineElement,
   RectElement,
   CircleElement,
+  LineItemsTableElement,
+  LineItemsColumn,
+  TableHeaderStyle,
+  TableRowStyle,
+  TableBorderStyle,
   StudioTextStyle,
   StudioColorToken,
 } from './templateStudioTypes';
+import { getDefaultLineItemsColumns } from './lineItemsResolver';
 import {
   parseTemplateStudioSettings,
   serializeTemplateStudioSettings,
@@ -305,6 +311,18 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
   function addCircle() {
     addElement(makeElement<CircleElement>('circle', { ...DEFAULT_POS, w: 20, h: 20, type: 'circle', fillColor: 'light', borderColor: 'dark' }));
   }
+  function addLineItemsTable() {
+    const cols = getDefaultLineItemsColumns(activeDocType);
+    addElement(makeElement<LineItemsTableElement>('lineItemsTable', {
+      x: 20, y: 80, w: 170, h: 70, rotation: 0,
+      type:        'lineItemsTable',
+      columns:     cols,
+      headerStyle: { background: 'brand', color: 'default', fontSize: 'small', fontWeight: 'bold' },
+      rowStyle:    { fontSize: 'small', color: 'default' },
+      borderStyle: { color: 'gray' },
+      totals:      { showGrandTotal: true },
+    }));
+  }
 
   // ── Rename template ───────────────────────────────────────────
   function startRename(tpl: TemplateStudioTemplate) {
@@ -378,6 +396,20 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
         return <div style={{ width: '100%', height: '100%', background: '#e2e8f0', border: '1px solid #94a3b8' }} />;
       case 'circle':
         return <div style={{ width: '100%', height: '100%', background: '#e2e8f0', border: '1px solid #94a3b8', borderRadius: '50%' }} />;
+      case 'lineItemsTable': {
+        const tblEl = el as LineItemsTableElement;
+        const visLabels = tblEl.columns.filter(c => c.visible).map(c => c.label).join(' | ');
+        return (
+          <div style={{ width: '100%', height: '100%', background: '#f8fafc', border: '1px solid #94a3b8', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ background: '#1d4e6f', color: '#fff', fontSize: 6, padding: '1px 3px', fontFamily: 'Cairo, sans-serif' }}>
+              {visLabels}
+            </div>
+            <div style={{ fontSize: 6, color: '#64748b', padding: '2px 3px', fontFamily: 'Cairo, sans-serif' }}>
+              بنود الجدول…
+            </div>
+          </div>
+        );
+      }
       default:
         return null;
     }
@@ -462,6 +494,7 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
         {el.type === 'line' && renderLineProps(el)}
         {el.type === 'rect' && renderRectProps(el)}
         {el.type === 'circle' && renderCircleProps(el)}
+        {el.type === 'lineItemsTable' && renderLineItemsTableProps(el as LineItemsTableElement)}
 
         {/* Delete */}
         <button
@@ -629,6 +662,132 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
     );
   }
 
+  function renderLineItemsTableProps(el: LineItemsTableElement) {
+    function updateCol(colId: string, patch: Partial<LineItemsColumn>) {
+      updateElement(el.id, {
+        columns: el.columns.map((c) => (c.id === colId ? { ...c, ...patch } : c)),
+      } as Partial<LineItemsTableElement>);
+    }
+    function moveCol(colId: string, dir: -1 | 1) {
+      const idx = el.columns.findIndex((c) => c.id === colId);
+      if (idx < 0) return;
+      const newIdx = idx + dir;
+      if (newIdx < 0 || newIdx >= el.columns.length) return;
+      const cols = [...el.columns];
+      [cols[idx], cols[newIdx]] = [cols[newIdx], cols[idx]];
+      updateElement(el.id, { columns: cols } as Partial<LineItemsTableElement>);
+    }
+    function updateHeader(patch: Partial<TableHeaderStyle>) {
+      updateElement(el.id, { headerStyle: { ...el.headerStyle, ...patch } } as Partial<LineItemsTableElement>);
+    }
+    function updateRow(patch: Partial<TableRowStyle>) {
+      updateElement(el.id, { rowStyle: { ...el.rowStyle, ...patch } } as Partial<LineItemsTableElement>);
+    }
+    function updateBorder(patch: Partial<TableBorderStyle>) {
+      updateElement(el.id, { borderStyle: { ...el.borderStyle, ...patch } } as Partial<LineItemsTableElement>);
+    }
+    function updateTotals(patch: Partial<NonNullable<LineItemsTableElement['totals']>>) {
+      updateElement(el.id, { totals: { ...el.totals, ...patch } } as Partial<LineItemsTableElement>);
+    }
+
+    return (
+      <>
+        {/* Columns */}
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', marginTop: 6 }}>الأعمدة</div>
+        {el.columns.map((col, i) => (
+          <div key={col.id} style={{ border: '1px solid #334155', borderRadius: 3, padding: 4, marginBottom: 3 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, marginBottom: 3 }}>
+              <input type="checkbox" aria-label={`إظهار عمود ${col.field}`} checked={col.visible}
+                onChange={(e) => updateCol(col.id, { visible: e.target.checked })} />
+              <span style={{ color: '#e2e8f0' }}>{col.field}</span>
+            </label>
+            <div style={propRow}>
+              <label style={propLabel}>تسمية</label>
+              <input type="text" style={propInput} value={col.label} maxLength={30}
+                aria-label="تسمية العمود"
+                onChange={(e) => updateCol(col.id, { label: e.target.value.replace(/[<>]/g, '') })} />
+            </div>
+            <div style={propRow}>
+              <label style={propLabel}>عرض %</label>
+              <input type="number" style={propInput} value={col.width} min={0} max={100} step={1}
+                aria-label="عرض العمود"
+                onChange={(e) => updateCol(col.id, { width: parseFloat(e.target.value) || 0 })} />
+            </div>
+            <div style={propRow}>
+              <label style={propLabel}>محاذاة</label>
+              <select style={propInput} value={col.align} title="محاذاة العمود"
+                onChange={(e) => updateCol(col.id, { align: e.target.value as LineItemsColumn['align'] })}>
+                <option value="start">يمين</option>
+                <option value="center">وسط</option>
+                <option value="end">يسار</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
+              <button type="button" style={{ ...propInput, cursor: 'pointer', flex: 1, textAlign: 'center' }}
+                disabled={i === 0} onClick={() => moveCol(col.id, -1)}>↑</button>
+              <button type="button" style={{ ...propInput, cursor: 'pointer', flex: 1, textAlign: 'center' }}
+                disabled={i === el.columns.length - 1} onClick={() => moveCol(col.id, 1)}>↓</button>
+            </div>
+          </div>
+        ))}
+
+        {/* Header style */}
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', marginTop: 6 }}>رأس الجدول</div>
+        <div style={propRow}>
+          <label style={propLabel}>خلفية</label>
+          <select style={propInput} value={el.headerStyle.background}
+            onChange={(e) => updateHeader({ background: e.target.value as TableHeaderStyle['background'] })}>
+            {COLOR_TOKEN_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </div>
+        <div style={propRow}>
+          <label style={propLabel}>حجم خط الرأس</label>
+          <select style={propInput} value={el.headerStyle.fontSize}
+            onChange={(e) => updateHeader({ fontSize: e.target.value as TableHeaderStyle['fontSize'] })}>
+            {FONT_SIZE_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </div>
+
+        {/* Row style */}
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', marginTop: 6 }}>صفوف البيانات</div>
+        <div style={propRow}>
+          <label style={propLabel}>حجم الخط</label>
+          <select style={propInput} value={el.rowStyle.fontSize}
+            onChange={(e) => updateRow({ fontSize: e.target.value as TableRowStyle['fontSize'] })}>
+            {FONT_SIZE_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </div>
+
+        {/* Border */}
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', marginTop: 6 }}>الحدود</div>
+        <div style={propRow}>
+          <label style={propLabel}>لون الحدود</label>
+          <select style={propInput} value={el.borderStyle.color}
+            onChange={(e) => updateBorder({ color: e.target.value as TableBorderStyle['color'] })}>
+            {COLOR_TOKEN_OPTIONS.map((v) => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </div>
+
+        {/* Totals */}
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', marginTop: 6 }}>الإجماليات</div>
+        {(
+          [
+            ['showSubtotal',   'المجموع الفرعي'],
+            ['showDiscount',   'الخصم'],
+            ['showTax',        'الضريبة'],
+            ['showGrandTotal', 'الإجمالي الكلي'],
+          ] as [keyof NonNullable<LineItemsTableElement['totals']>, string][]
+        ).map(([key, lbl]) => (
+          <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#e2e8f0' }}>
+            <input type="checkbox" checked={!!el.totals?.[key]}
+              onChange={(e) => updateTotals({ [key]: e.target.checked })} />
+            {lbl}
+          </label>
+        ))}
+      </>
+    );
+  }
+
   // ── Inline styles ────────────────────────────────────────────
   const propRow:   CSSProperties = { display: 'flex', flexDirection: 'column', gap: 2 };
   const propLabel: CSSProperties = { fontSize: 10, color: '#64748b', fontWeight: 600 };
@@ -768,14 +927,15 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
               {/* Element toolbar row above canvas */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8, direction: 'rtl' }}>
                 {[
-                  { label: 'نص',       fn: addText },
-                  { label: 'حقل',      fn: addDynamicField },
-                  { label: 'QR',       fn: addQr },
-                  { label: 'باركود',   fn: addBarcode },
-                  { label: 'صورة',     fn: addImage },
-                  { label: 'خط',       fn: addLine },
-                  { label: 'مستطيل',   fn: addRect },
-                  { label: 'دائرة',    fn: addCircle },
+                  { label: 'نص',         fn: addText },
+                  { label: 'حقل',        fn: addDynamicField },
+                  { label: 'QR',         fn: addQr },
+                  { label: 'باركود',     fn: addBarcode },
+                  { label: 'صورة',       fn: addImage },
+                  { label: 'خط',         fn: addLine },
+                  { label: 'مستطيل',     fn: addRect },
+                  { label: 'دائرة',      fn: addCircle },
+                  { label: 'جدول بنود',  fn: addLineItemsTable },
                 ].map(({ label, fn }) => (
                   <button key={label} type="button" onClick={fn} style={btnTool}>
                     + {label}
