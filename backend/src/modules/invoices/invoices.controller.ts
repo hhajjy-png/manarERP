@@ -24,6 +24,9 @@ export const invoicesController = {
   async addPayment(req: Request, res: Response) {
     ok(res, await invoicesService.addPayment(Number(req.params.id), req.body, req), 'تم تسجيل الدفعة');
   },
+  async approve(req: Request, res: Response) {
+    ok(res, await invoicesService.approve(Number(req.params.id), req), 'تم اعتماد الفاتورة');
+  },
   async cancel(req: Request, res: Response) {
     ok(res, await invoicesService.cancel(Number(req.params.id), req), 'تم إلغاء الفاتورة');
   },
