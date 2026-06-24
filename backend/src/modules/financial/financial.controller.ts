@@ -4,6 +4,7 @@ import {
   StatementParamsSchema,
   StatementQuerySchema,
   ExportQuerySchema,
+  AgingQuerySchema,
 } from './financial.schema';
 import { recordAudit }     from '@core/middleware/audit';
 import { ok }              from '@core/utils/response';
@@ -48,4 +49,50 @@ export async function exportStatement(req: Request, res: Response): Promise<void
   res.send(buffer);
 }
 
-// Parts 3–5 append additional handler functions here.
+// ─── AR Aging ────────────────────────────────────────────────────────────────
+
+export async function getArAging(req: Request, res: Response): Promise<void> {
+  const query = AgingQuerySchema.parse(req.query);
+  const data  = await financialService.getArAging(query);
+  ok(res, data);
+}
+
+export async function exportArAging(req: Request, res: Response): Promise<void> {
+  const query  = AgingQuerySchema.parse(req.query);
+  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const buffer = await financialService.exportArAging(query, format);
+
+  recordAudit({
+    req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
+    newValue: { reportType: 'ar-aging', format, filters: sanitizeFilters(query as Record<string, unknown>) },
+  }).catch(() => {});
+
+  const ext = format === 'pdf' ? 'pdf' : 'xlsx';
+  res.setHeader('Content-Type', format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="ar-aging-${Date.now()}.${ext}"`);
+  res.send(buffer);
+}
+
+// ─── AP Aging ────────────────────────────────────────────────────────────────
+
+export async function getApAging(req: Request, res: Response): Promise<void> {
+  const query = AgingQuerySchema.omit({ customerType: true }).parse(req.query);
+  const data  = await financialService.getApAging(query);
+  ok(res, data);
+}
+
+export async function exportApAging(req: Request, res: Response): Promise<void> {
+  const query  = AgingQuerySchema.omit({ customerType: true }).parse(req.query);
+  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const buffer = await financialService.exportApAging(query, format);
+
+  recordAudit({
+    req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
+    newValue: { reportType: 'ap-aging', format, filters: sanitizeFilters(query as Record<string, unknown>) },
+  }).catch(() => {});
+
+  const ext = format === 'pdf' ? 'pdf' : 'xlsx';
+  res.setHeader('Content-Type', format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="ap-aging-${Date.now()}.${ext}"`);
+  res.send(buffer);
+}

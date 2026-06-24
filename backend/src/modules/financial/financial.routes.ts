@@ -2,7 +2,11 @@ import { Router } from 'express';
 import { authenticate }      from '@core/middleware/auth.middleware';
 import { requirePermission } from '@core/middleware/rbac.middleware';
 import { asyncHandler }      from '@core/utils/asyncHandler';
-import { getStatement, exportStatement } from './financial.controller';
+import {
+  getStatement, exportStatement,
+  getArAging, exportArAging,
+  getApAging, exportApAging,
+} from './financial.controller';
 
 const router = Router();
 router.use(authenticate);
@@ -11,6 +15,12 @@ router.use(authenticate);
 router.get('/statements/:entityType/:id',        requirePermission('statements.read'),   asyncHandler(getStatement));
 router.get('/statements/:entityType/:id/export', requirePermission('statements.export'), asyncHandler(exportStatement));
 
-// Parts 3–5 append additional routes here.
+// ─── AR Aging ─────────────────────────────────────────────────────────────────
+router.get('/ar-aging',        requirePermission('aging.read'),   asyncHandler(getArAging));
+router.get('/ar-aging/export', requirePermission('aging.export'), asyncHandler(exportArAging));
+
+// ─── AP Aging ─────────────────────────────────────────────────────────────────
+router.get('/ap-aging',        requirePermission('aging.read'),   asyncHandler(getApAging));
+router.get('/ap-aging/export', requirePermission('aging.export'), asyncHandler(exportApAging));
 
 export default router;

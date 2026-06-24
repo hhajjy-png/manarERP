@@ -28,6 +28,7 @@
   color: #9ca3af;
   font-size: 0.95rem;
 }
+.fc-coming-soon-icon { font-size: 48px; color: #9ca3af; }
 
 /* ─── Financial Tabs ───────────────────────────────────────────────────────── */
 .financial-tabs {
@@ -167,6 +168,7 @@
   font-size: 0.88rem;
   color: var(--text, #0f172a);
   cursor: pointer;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -292,4 +294,84 @@
   animation: highlightFade 3s ease-out forwards;
   outline: 2px solid #f59e0b;
   outline-offset: -2px;
+}
+
+/* ─── Aging tab ────────────────────────────────────────────────────────────── */
+.aging-subtabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+.subtab-btn {
+  padding: 7px 18px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 20px;
+  background: var(--surface, #fff);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  transition: all 0.15s;
+}
+.subtab-btn.active {
+  background: #1d4e6f;
+  border-color: #1d4e6f;
+  color: #fff;
+}
+
+.aging-note {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #92400e;
+  direction: rtl;
+}
+
+.aging-chart-container {
+  margin-bottom: 16px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.aging-table-container { margin-top: 8px; }
+
+.aging-table td.aging-critical  { background: #fee2e2; color: #991b1b; font-weight: 700; }
+.aging-table td.aging-warning   { background: #ffedd5; color: #9a3412; }
+.aging-table td.aging-caution   { background: #fefce8; color: #713f12; }
+.aging-table td.aging-total-col { font-weight: 700; border-right: 2px solid var(--border, #e2e8f0); }
+.aging-table th.sortable        { cursor: pointer; -webkit-user-select: none; user-select: none; }
+.aging-table th.sortable:hover  { background: #d1dce8; }
+
+.aging-entity-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: #1d4e6f;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  font-weight: 600;
+  text-align: right;
+}
+.aging-entity-link:hover { color: #163d56; }
+
+.aging-bucket-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-style: dashed;
+  font-variant-numeric: tabular-nums;
 }
