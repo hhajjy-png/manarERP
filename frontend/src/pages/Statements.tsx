@@ -135,6 +135,7 @@ function StatementTab({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const cancelRef = useRef(false);
 
   // Load entity list
@@ -178,6 +179,7 @@ function StatementTab({
   async function doExport() {
     if (!selectedId || !result) return;
     setExporting(true);
+    setExportError(null);
     try {
       const filters: StatementFilters = {
         fromDate: fromDate || undefined,
@@ -187,7 +189,7 @@ function StatementTab({
       };
       await exportStatement(selectedId, filters, result.entityName);
     } catch {
-      // silent
+      setExportError('تعذّر تصدير كشف الحساب، يرجى المحاولة مجدداً');
     } finally {
       setExporting(false);
     }
@@ -328,6 +330,14 @@ function StatementTab({
           padding: '12px 16px', color: '#b91c1c', marginBottom: 16,
         }}>
           {error}
+        </div>
+      )}
+      {exportError && (
+        <div style={{
+          background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: 8,
+          padding: '12px 16px', color: '#b91c1c', marginBottom: 16,
+        }}>
+          {exportError}
         </div>
       )}
 

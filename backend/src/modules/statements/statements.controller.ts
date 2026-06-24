@@ -24,9 +24,15 @@ const EXCEL_COLUMNS = [
   { header: 'الحالة', key: 'status', width: 14 },
 ] as const;
 
+function parseEntityId(raw: string): number | null {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 export const statementsController = {
   async getCustomerStatement(req: Request, res: Response): Promise<void> {
-    const entityId = Number(req.params.id);
+    const entityId = parseEntityId(req.params.id);
+    if (!entityId) { res.status(400).json({ success: false, error: 'معرّف الكيان غير صالح' }); return; }
     const query = StatementQuerySchema.parse(req.query);
 
     const result = await buildStatement({
@@ -45,7 +51,8 @@ export const statementsController = {
   },
 
   async getSupplierStatement(req: Request, res: Response): Promise<void> {
-    const entityId = Number(req.params.id);
+    const entityId = parseEntityId(req.params.id);
+    if (!entityId) { res.status(400).json({ success: false, error: 'معرّف الكيان غير صالح' }); return; }
     const query = StatementQuerySchema.parse(req.query);
 
     const result = await buildStatement({
@@ -64,7 +71,8 @@ export const statementsController = {
   },
 
   async exportCustomerStatement(req: Request, res: Response): Promise<void> {
-    const entityId = Number(req.params.id);
+    const entityId = parseEntityId(req.params.id);
+    if (!entityId) { res.status(400).json({ success: false, error: 'معرّف الكيان غير صالح' }); return; }
     const query = StatementQuerySchema.parse(req.query);
 
     const result = await buildStatement({
@@ -100,7 +108,8 @@ export const statementsController = {
   },
 
   async exportSupplierStatement(req: Request, res: Response): Promise<void> {
-    const entityId = Number(req.params.id);
+    const entityId = parseEntityId(req.params.id);
+    if (!entityId) { res.status(400).json({ success: false, error: 'معرّف الكيان غير صالح' }); return; }
     const query = StatementQuerySchema.parse(req.query);
 
     const result = await buildStatement({

@@ -134,7 +134,7 @@ async function buildSupplierStatement(
 
   const dateWhere = buildDateWhere(filters.fromDate, filters.toDate);
 
-  // Purchase invoices in range (debit — supplier charges us)
+  // Purchase invoices in range (credit — we owe supplier)
   const purchaseInvoices = await prisma.invoice.findMany({
     where: {
       supplierId: entityId,
@@ -145,7 +145,7 @@ async function buildSupplierStatement(
     orderBy: { issueDate: 'asc' },
   });
 
-  // Expenses for this supplier in range (debit — supplier charges us)
+  // Expenses for this supplier in range (credit — we owe supplier)
   const expenses = await prisma.expense.findMany({
     where: {
       supplierId: entityId,
@@ -155,7 +155,7 @@ async function buildSupplierStatement(
     orderBy: { date: 'asc' },
   });
 
-  // Payments on purchase invoices in range (credit — we paid supplier)
+  // Payments on purchase invoices in range (debit — we paid supplier)
   const payments = await prisma.payment.findMany({
     where: {
       invoice: { supplierId: entityId, direction: 'PURCHASE' },
@@ -174,8 +174,8 @@ async function buildSupplierStatement(
     referenceType: 'INVOICE' as const,
     referenceId: inv.id,
     description: `فاتورة مشتريات${inv.notes ? ` — ${inv.notes}` : ''}`,
-    debit: Number(inv.total),
-    credit: 0,
+    debit: 0,
+    credit: Number(inv.total),
     status: inv.status,
     entityName: supplier.name,
     entityCode: supplier.code,
@@ -188,8 +188,8 @@ async function buildSupplierStatement(
     referenceType: 'EXPENSE' as const,
     referenceId: exp.id,
     description: exp.description,
-    debit: Number(exp.amount),
-    credit: 0,
+    debit: 0,
+    credit: Number(exp.amount),
     status: exp.status,
     entityName: supplier.name,
     entityCode: supplier.code,
@@ -202,8 +202,8 @@ async function buildSupplierStatement(
     referenceType: 'PAYMENT' as const,
     referenceId: pmt.id,
     description: `دفعة على ${pmt.invoice.invoiceNumber}${pmt.notes ? ` — ${pmt.notes}` : ''}`,
-    debit: 0,
-    credit: Number(pmt.amount),
+    debit: Number(pmt.amount),
+    credit: 0,
     status: 'PAID',
     entityName: supplier.name,
     entityCode: supplier.code,
@@ -291,15 +291,20 @@ function assembleResult(input: AssembleInput): StatementResult {
   }
 
   // Compute running balance after filtering
+  // Supplier (AP): liability increases on credit, decreases on debit → balance - debit + credit
+  // Customer (AR): receivable increases on debit, decreases on credit → balance + debit - credit
+  const isSupplier = entityType === 'SUPPLIER';
   let balance = openingBalance;
   const entries: StatementEntry[] = filtered.map((e) => {
-    balance = balance + e.debit - e.credit;
+    balance = isSupplier ? balance - e.debit + e.credit : balance + e.debit - e.credit;
     return { ...e, runningBalance: balance };
   });
 
   const totalDebit = entries.reduce((s, e) => s + e.debit, 0);
   const totalCredit = entries.reduce((s, e) => s + e.credit, 0);
-  const closingBalance = openingBalance + totalDebit - totalCredit;
+  const closingBalance = isSupplier
+    ? openingBalance - totalDebit + totalCredit
+    : openingBalance + totalDebit - totalCredit;
 
   return {
     entityId,
