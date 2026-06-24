@@ -58,7 +58,14 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   import: ['read', 'create'],
   prices: ['read', 'create', 'update', 'delete'],
   forms: ['read', 'create', 'print'],
-  statements: ['read', 'export'],
+  statements:   ['read', 'export'],
+  // Financial Center Phase 2 — reporting modules
+  aging:        ['read', 'export'],
+  gl:           ['read', 'export'],
+  trialbalance: ['read', 'export'],
+  journal:      ['read', 'export'],
+  finreports:   ['read', 'export'],
+  // financialdashboard is seeded separately (compound module name)
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -107,7 +114,18 @@ async function main() {
   for (const p of allPermissionKeys) {
     await prisma.permission.upsert({ where: { key: p.key }, update: {}, create: p });
   }
-  console.log(`  ✓ ${allPermissionKeys.length} صلاحية`);
+  // financialdashboard.read uses a compound module name not in the MODULE_ACTIONS loop
+  await prisma.permission.upsert({
+    where:  { key: 'financialdashboard.read' },
+    update: {},
+    create: {
+      key:         'financialdashboard.read',
+      module:      'financialdashboard',
+      action:      'read',
+      description: 'عرض - لوحة التحكم المالية',
+    },
+  });
+  console.log(`  ✓ ${allPermissionKeys.length + 1} صلاحية`);
 
   const permByKey = new Map(
     (await prisma.permission.findMany()).map((p) => [p.key, p.id]),
@@ -120,6 +138,7 @@ async function main() {
     GENERAL_MANAGER: allKeys.filter((k) => !k.startsWith('users.') && k !== 'settings.update'),
     ACCOUNTANT: [
       ...keysForModules(['invoices', 'expenses', 'transactions', 'suppliers', 'reports', 'customers', 'cheques', 'statements']),
+      ...keysForModules(['aging', 'gl', 'trialbalance', 'journal', 'finreports']),
       ...readOnly(['dashboard', 'contracts', 'employees', 'equipment', 'payroll', 'audit']),
       'forms.read',
       'forms.print',
@@ -131,6 +150,7 @@ async function main() {
       'prices.read',
       'import.read',
       'import.create',
+      'financialdashboard.read',
     ],
     PROJECT_MANAGER: [
       ...keysForModules(['contracts', 'prices', 'reports']),
@@ -138,6 +158,8 @@ async function main() {
       'inventory.read',
       'forms.read',
       'statements.read',
+      'aging.read',
+      'financialdashboard.read',
     ],
     EQUIPMENT_MANAGER: [
       ...keysForModules(['equipment', 'maintenance', 'reports']),
@@ -156,7 +178,10 @@ async function main() {
       'import.read',
       'import.create',
     ],
-    STANDARD_USER: readOnly(['dashboard', 'customers', 'contracts', 'equipment', 'prices']),
+    STANDARD_USER: [
+      ...readOnly(['dashboard', 'customers', 'contracts', 'equipment', 'prices']),
+      'statements.read',
+    ],
   };
 
   // 3) إنشاء الأدوار + ربط الصلاحيات

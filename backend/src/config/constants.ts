@@ -53,6 +53,12 @@ export const MODULES = [
   'prices',
   'forms',
   'statements',
+  'aging',
+  'gl',
+  'trialbalance',
+  'journal',
+  'finreports',
+  'financial',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
