@@ -40,9 +40,32 @@ type TabKey = 'customers' | 'suppliers';
 export default function Statements() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabKey>('customers');
+  const [bannerVisible, setBannerVisible] = useState(
+    !localStorage.getItem('statements.bannerDismissed')
+  );
 
   return (
     <div style={{ padding: '0 24px 24px', direction: 'rtl' }}>
+      {bannerVisible && (
+        <div className="migration-banner info-banner" dir="rtl">
+          <span>🆕 يتوفر الإصدار الجديد من كشف الحساب داخل المحاسبة المالية</span>
+          <button
+            type="button"
+            className="banner-action-btn"
+            onClick={() => navigate('/financial?tab=statement')}
+          >
+            فتح الإصدار الجديد
+          </button>
+          <button
+            type="button"
+            className="banner-dismiss-btn"
+            aria-label="إغلاق"
+            onClick={() => { localStorage.setItem('statements.bannerDismissed', '1'); setBannerVisible(false); }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {/* Page header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '16px 0 20px' }}>
         <span className="material-symbols-outlined" style={{ fontSize: 28, color: '#1d4e6f' }}>

@@ -59,6 +59,7 @@ export const MODULES = [
   'journal',
   'finreports',
   'financial',
+  'financialdashboard',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];

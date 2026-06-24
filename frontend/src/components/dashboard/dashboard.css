@@ -3,6 +3,35 @@
    Zero impact on any other page, component, or global styles.
    ================================================================ */
 
+/* ─── Dashboard tab bar (General / Financial) ───────────────────────────── */
+.db-tab-bar {
+  display: flex;
+  gap: 4px;
+  padding: 8px 16px 0;
+  border-bottom: 2px solid #e5e7eb;
+  background: #fff;
+  direction: rtl;
+}
+.db-tab-btn {
+  padding: 8px 22px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  background: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #6b7280;
+  transition: all 0.15s;
+}
+.db-tab-btn.active {
+  font-weight: 700;
+  color: #1d4e6f;
+  border-bottom-color: #1d4e6f;
+}
+.db-tab-btn:hover:not(.active) { color: #374151; }
+
 .db-page {
   /* Design tokens — live only inside this subtree */
   --db-bg: #0b1220;

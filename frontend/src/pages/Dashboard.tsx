@@ -27,6 +27,7 @@ import FinancialIntelPanel from '../components/dashboard/FinancialIntelPanel';
 import type { FinV2Data } from '../components/dashboard/FinancialIntelPanel';
 import ExecutiveIntelligenceV2Panel from '../components/dashboard/ExecutiveIntelligenceV2Panel';
 import type { IntelV2Data } from '../components/dashboard/ExecutiveIntelligenceV2Panel';
+import { FinancialDashboardTab } from '../components/financial/FinancialDashboardTab';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ApiAny = any;
@@ -46,7 +47,7 @@ const CONTRACT_STATUS_CLS: Record<string, string> = {
   SUSPENDED: 'red',
 };
 
-export default function Dashboard() {
+function GeneralDashboardContent() {
   const { user, hasPermission } = useAuth();
   const navigate = useNavigate();
   const { t } = useT();
@@ -823,6 +824,39 @@ export default function Dashboard() {
           EXECUTIVE INTELLIGENCE V2
       ══════════════════════════════════════════════════ */}
       <ExecutiveIntelligenceV2Panel data={intelV2} loading={intelV2Loading} />
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const { hasPermission } = useAuth();
+  const [dashTab, setDashTab] = useState<'general' | 'financial'>(
+    (localStorage.getItem('dashboard.tab') as 'general' | 'financial') ?? 'general'
+  );
+
+  return (
+    <div>
+      <div className="db-tab-bar">
+        <button
+          type="button"
+          className={`db-tab-btn${dashTab === 'general' ? ' active' : ''}`}
+          onClick={() => { setDashTab('general'); localStorage.setItem('dashboard.tab', 'general'); }}
+        >
+          عام
+        </button>
+        {hasPermission('financialdashboard.read') && (
+          <button
+            type="button"
+            className={`db-tab-btn${dashTab === 'financial' ? ' active' : ''}`}
+            onClick={() => { setDashTab('financial'); localStorage.setItem('dashboard.tab', 'financial'); }}
+          >
+            مالي
+          </button>
+        )}
+      </div>
+
+      {dashTab === 'general' && <GeneralDashboardContent />}
+      {dashTab === 'financial' && hasPermission('financialdashboard.read') && <FinancialDashboardTab />}
     </div>
   );
 }

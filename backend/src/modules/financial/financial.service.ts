@@ -12,10 +12,12 @@ import { toAgingReportInput }          from '@shared/services/financial/export/a
 import { toGlStatementReportInput, toGlReportInput } from '@shared/services/financial/export/gl.export.adapter';
 import { toTrialBalanceReportInput }   from '@shared/services/financial/export/trial.export.adapter';
 import { toJournalBookReportInput }    from '@shared/services/financial/export/journal.export.adapter';
+import { toSummaryReportInput }        from '@shared/services/financial/export/summary.export.adapter';
+import { dashboardSummaryService }     from '@shared/services/financial/dashboard-summary.service';
 import { AccountingService }           from '@modules/accounting/accounting.service';
 import { prisma }                      from '@config/database';
 import type {
-  FinancialResponse, StatementRow, ArAgingRow, ApAgingRow,
+  FinancialResponse, FinancialRow, StatementRow, ArAgingRow, ApAgingRow,
   GlStatementRow, GlReportAccount, GlReportResponse,
   TrialBalanceAsOfRow, TrialBalancePeriodRow, JournalBookRow,
 } from '@shared/services/financial/financial.types';
@@ -699,6 +701,45 @@ export class FinancialService {
     const data  = await this.getJournalBook({ ...f, pageSize: 500, page: 1 });
     const input = toJournalBookReportInput(data);
     return format === 'pdf' ? buildPdf(input) : buildExcel(input);
+  }
+
+  // ─── Financial Summary ──────────────────────────────────────────────────────
+
+  async getFinancialSummary(filters: { fromDate?: string; toDate?: string }) {
+    const raw = await accountingService.financialSummary(filters.fromDate, filters.toDate);
+
+    return wrapFinancialResponse<FinancialRow>({
+      reportType: 'financial-summary',
+      summary: {
+        totalDebit:     normalizeMoney(raw.totalExpenses  ?? 0),
+        totalCredit:    normalizeMoney(raw.totalRevenue   ?? 0),
+        closingBalance: normalizeMoney(raw.netProfit      ?? 0),
+      },
+      metadata: {
+        totalRevenue:   normalizeMoney(raw.totalRevenue          ?? 0),
+        totalExpenses:  normalizeMoney(raw.totalExpenses         ?? 0),
+        totalCollected: normalizeMoney(raw.totalCollected        ?? 0),
+        totalPaid:      normalizeMoney(raw.totalPaymentsRecorded ?? 0),
+        netIncome:      normalizeMoney(raw.netProfit             ?? 0),
+        disclaimer: 'الملخص المالي يعتمد على الجداول التشغيلية (الفواتير والمصروفات). قد تختلف أرقامه عن ميزان المراجعة الذي يعتمد على القيود المحاسبية.',
+        fromDate: filters.fromDate,
+        toDate:   filters.toDate,
+      },
+      filters: sanitizeFilters(filters as Record<string, unknown>),
+      rows: [],
+    });
+  }
+
+  async exportFinancialSummary(filters: { fromDate?: string; toDate?: string }, format: 'pdf' | 'excel'): Promise<Buffer> {
+    const data  = await this.getFinancialSummary(filters);
+    const input = toSummaryReportInput(data);
+    return format === 'pdf' ? buildPdf(input) : buildExcel(input);
+  }
+
+  // ─── Dashboard Summary ──────────────────────────────────────────────────────
+
+  async getDashboardSummary() {
+    return dashboardSummaryService.getSummary();
   }
 }
 

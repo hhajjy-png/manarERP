@@ -576,3 +576,177 @@
   0%   { background: #fef08a; }
   100% { background: transparent; }
 }
+
+/* ─── Financial Reports Tab — Part 5 ────────────────────────────────────── */
+.financial-reports-tab { padding: 0 4px; }
+.financial-summary-section { margin-bottom: 32px; }
+.future-reports-section { margin-top: 24px; }
+.section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  margin: 0 0 14px;
+}
+.accounting-disclaimer {
+  font-size: 0.78rem;
+  color: var(--text-muted, #64748b);
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-right: 3px solid #3b82f6;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 12px 0 16px;
+  line-height: 1.6;
+}
+.future-reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.future-report-card {
+  padding: 18px 16px;
+  border-radius: 12px;
+  border: 1px dashed var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  opacity: 0.65;
+}
+.future-report-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+}
+.coming-soon-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #64748b;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+
+/* ─── Financial Dashboard Tab — Part 5 ──────────────────────────────────── */
+.financial-dashboard-tab { padding: 0 4px; }
+.dashboard-last-updated {
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 16px;
+  text-align: left;
+}
+.financial-dashboard-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.fin-dash-card {
+  padding: 16px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fin-dash-card-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+}
+.fin-dash-card-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+.fin-dash-card-value span { font-size: 0.72rem; color: var(--text-muted, #64748b); }
+.fin-dash-card-value.green { color: #16a34a; }
+.fin-dash-card-sub { font-size: 0.72rem; color: var(--text-muted, #64748b); }
+.fin-dash-card-sub.critical { color: #dc2626; }
+.fin-dash-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.78rem;
+  color: #1d4e6f;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: right;
+  margin-top: 4px;
+}
+.fin-dash-link:hover { text-decoration: underline; }
+.financial-dashboard-tables {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 768px) {
+  .financial-dashboard-tables { grid-template-columns: 1fr; }
+}
+.fin-dash-table h4 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  margin: 0 0 10px;
+}
+.fin-dash-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.fin-dash-table th,
+.fin-dash-table td {
+  padding: 8px 10px;
+  text-align: right;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.fin-dash-table th {
+  background: var(--surface-2, #f1f5f9);
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+}
+.fin-dash-table td.num { font-variant-numeric: tabular-nums; }
+.clickable-row { cursor: pointer; }
+.clickable-row:hover td { background: var(--surface-2, #f8fafc); }
+
+/* ─── Migration banner — Part 5 ──────────────────────────────────────────── */
+.migration-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.info-banner {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1e3a5f;
+}
+.banner-action-btn {
+  background: #1d4e6f;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 5px 14px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.banner-action-btn:hover { background: #163d57; }
+.banner-dismiss-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  color: var(--text-muted, #64748b);
+  margin-right: auto;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.banner-dismiss-btn:hover { background: rgba(0,0,0,0.06); }

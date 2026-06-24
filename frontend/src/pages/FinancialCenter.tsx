@@ -27,6 +27,7 @@ import { ImbalanceAlert }       from '../components/financial/ImbalanceAlert';
 import { TrialBalanceTable }    from '../components/financial/TrialBalanceTable';
 import { JournalBookTable }     from '../components/financial/JournalBookTable';
 import { BalanceDisplay }       from '../components/financial/BalanceDisplay';
+import { FinancialReportsTab } from '../components/financial/FinancialReportsTab';
 
 interface EntityOption { id: number; name: string; code: string; }
 
@@ -119,6 +120,10 @@ export default function FinancialCenter() {
   const jStatus = searchParams.get('jStatus') ?? '';
   const jSearch = searchParams.get('jSearch') ?? '';
   const jPage   = searchParams.get('jPage')   ? Number(searchParams.get('jPage')) : 1;
+
+  // ── Financial Reports URL params ───────────────────────────────────────────
+  const frFrom  = searchParams.get('frFrom')  ?? '';
+  const frTo    = searchParams.get('frTo')    ?? '';
 
   // ── Entity list (Statement tab) ────────────────────────────────────────────
   const [entities, setEntities] = useState<EntityOption[]>([]);
@@ -886,12 +891,14 @@ export default function FinancialCenter() {
         </div>
       )}
 
-      {/* ── Placeholder (Part 5) ────────────────────────────────────────── */}
+      {/* ── Financial Reports ─────────────────────────────────────────────── */}
       {activeTab === 'finreport' && (
-        <div className="fc-tab-content fc-coming-soon">
-          <span className="material-symbols-outlined fc-coming-soon-icon">construction</span>
-          <p>قريباً — سيتم إتاحة هذا التقرير في التحديث القادم.</p>
-        </div>
+        <FinancialReportsTab
+          fromDate={frFrom}
+          toDate={frTo}
+          onFromDate={v => setParam('frFrom', v)}
+          onToDate={v   => setParam('frTo',   v)}
+        />
       )}
     </div>
   );

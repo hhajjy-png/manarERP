@@ -3,13 +3,15 @@ import { authenticate }      from '@core/middleware/auth.middleware';
 import { requirePermission } from '@core/middleware/rbac.middleware';
 import { asyncHandler }      from '@core/utils/asyncHandler';
 import {
-  getStatement,     exportStatement,
-  getArAging,       exportArAging,
-  getApAging,       exportApAging,
-  getGlStatement,   exportGlStatement,
-  getGlReport,      exportGlReport,
-  getTrialBalance,  exportTrialBalance,
-  getJournalBook,   exportJournalBook,
+  getStatement,          exportStatement,
+  getArAging,            exportArAging,
+  getApAging,            exportApAging,
+  getGlStatement,        exportGlStatement,
+  getGlReport,           exportGlReport,
+  getTrialBalance,       exportTrialBalance,
+  getJournalBook,        exportJournalBook,
+  getFinancialSummary,   exportFinancialSummary,
+  getDashboardSummary,
 } from './financial.controller';
 
 const router = Router();
@@ -42,5 +44,12 @@ router.get('/trial-balance/export', requirePermission('trialbalance.export'), as
 // ─── Journal Book ─────────────────────────────────────────────────────────────
 router.get('/journal-book',        requirePermission('journal.read'),   asyncHandler(getJournalBook));
 router.get('/journal-book/export', requirePermission('journal.export'), asyncHandler(exportJournalBook));
+
+// ─── Financial Summary ─────────────────────────────────────────────────────────
+router.get('/summary',        requirePermission('finreports.read'),   asyncHandler(getFinancialSummary));
+router.get('/summary/export', requirePermission('finreports.export'), asyncHandler(exportFinancialSummary));
+
+// ─── Dashboard Summary ─────────────────────────────────────────────────────────
+router.get('/dashboard-summary', requirePermission('financialdashboard.read'), asyncHandler(getDashboardSummary));
 
 export default router;

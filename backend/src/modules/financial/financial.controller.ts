@@ -10,6 +10,7 @@ import {
   GlReportQuerySchema,
   TrialBalanceQuerySchema,
   JournalBookQuerySchema,
+  SummaryQuerySchema,
 } from './financial.schema';
 import { recordAudit }     from '@core/middleware/audit';
 import { ok }              from '@core/utils/response';
@@ -173,4 +174,29 @@ export async function exportJournalBook(req: Request, res: Response): Promise<vo
   recordAudit({ req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
     newValue: { reportType: 'journal-book', format, filters: sanitizeFilters(query as Record<string, unknown>) } }).catch(() => {});
   sendFile(res, buffer, 'journal-book', format);
+}
+
+// ─── Financial Summary ────────────────────────────────────────────────────────
+
+export async function getFinancialSummary(req: Request, res: Response): Promise<void> {
+  const query = SummaryQuerySchema.parse(req.query);
+  ok(res, await financialService.getFinancialSummary(query));
+}
+
+export async function exportFinancialSummary(req: Request, res: Response): Promise<void> {
+  const query  = SummaryQuerySchema.parse(req.query);
+  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const buffer = await financialService.exportFinancialSummary(query, format);
+  recordAudit({ req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
+    newValue: { reportType: 'financial-summary', format, filters: sanitizeFilters(query as Record<string, unknown>) } }).catch(() => {});
+  sendFile(res, buffer, 'financial-summary', format);
+}
+
+// ─── Dashboard Summary ────────────────────────────────────────────────────────
+
+export async function getDashboardSummary(req: Request, res: Response): Promise<void> {
+  const data = await financialService.getDashboardSummary();
+  const ageSeconds = Math.floor((Date.now() - new Date(data.generatedAt).getTime()) / 1000);
+  res.setHeader('X-Cache-Age', String(ageSeconds));
+  ok(res, data);
 }
