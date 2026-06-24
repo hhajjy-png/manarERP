@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import type { TrialBalanceAsOfRow, TrialBalancePeriodRow } from '../../types/financial.types';
+import { BalanceDisplay } from './BalanceDisplay';
 
 type AnyRow = TrialBalanceAsOfRow | TrialBalancePeriodRow;
 
@@ -92,10 +93,10 @@ export function TrialBalanceTable({ rows, mode, totals }: Props) {
                   {row.accountName}
                 </button>
               </td>
-              <td className="num">{fmt(row.openingBalance)}</td>
+              <td className="num"><BalanceDisplay value={row.openingBalance} /></td>
               <td className="num">{fmt(row.periodDebit)}</td>
               <td className="num">{fmt(row.periodCredit)}</td>
-              <td className="num">{fmt(row.closingBalance)}</td>
+              <td className="num"><BalanceDisplay value={row.closingBalance} /></td>
             </tr>
           ))}
         </tbody>

@@ -376,6 +376,29 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ─── Balance Display (M9 fix) ────────────────────────────────────────────── */
+.balance-display {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.balance-display .balance-amount  { }
+.balance-display .balance-indicator {
+  font-size: 0.78em;
+  font-weight: 700;
+  opacity: 0.85;
+}
+.balance-debit  .balance-indicator { color: #1d6d3c; }
+.balance-credit .balance-indicator { color: #991b1b; }
+.balance-zero { color: var(--text-muted, #94a3b8); }
+
+/* summary-card overrides for formattedValue */
+.summary-card .card-value .balance-display {
+  font-size: inherit;
+}
+
 /* ─── GL / Trial Balance / Journal Book — Part 4 ─────────────────────────── */
 
 /* Account selector */

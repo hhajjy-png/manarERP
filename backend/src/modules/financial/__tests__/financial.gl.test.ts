@@ -123,11 +123,13 @@ describe('FinancialService.getGlReport', () => {
     mockPrisma.account.findMany.mockResolvedValue([
       makeAccount(1), makeAccount(2),
     ]);
-    mockPrisma.journalEntryLine.aggregate
-      .mockResolvedValueOnce(agg(1000, 0))  // account 1 opening
-      .mockResolvedValueOnce(agg(200, 50))  // account 1 period
-      .mockResolvedValueOnce(zeroAgg())      // account 2 opening
-      .mockResolvedValueOnce(agg(0, 300));   // account 2 period
+    // groupBy returns arrays — one entry per accountId
+    mockPrisma.journalEntryLine.groupBy
+      .mockResolvedValueOnce([{ accountId: 1, _sum: { debit: 1000, credit: 0 } }])   // opening
+      .mockResolvedValueOnce([                                                          // period
+        { accountId: 1, _sum: { debit: 200, credit: 50 } },
+        { accountId: 2, _sum: { debit: 0,   credit: 300 } },
+      ]);
 
     const result = await service.getGlReport({ page: 1, pageSize: 10 });
     expect(result.accounts).toHaveLength(2);
@@ -143,8 +145,8 @@ describe('FinancialService.getGlReport', () => {
     mockPrisma.account.findMany.mockResolvedValue([
       makeAccount(1), makeAccount(2), makeAccount(3),
     ]);
-    // Only page 1 of size 1 → 1 account returned
-    mockPrisma.journalEntryLine.aggregate.mockResolvedValue(zeroAgg());
+    // page 1 of size 1 → only account 1 in paginatedAccounts; groupBy returns empty
+    mockPrisma.journalEntryLine.groupBy.mockResolvedValue([]);
 
     const result = await service.getGlReport({ page: 1, pageSize: 1 });
     expect(result.accounts).toHaveLength(1);

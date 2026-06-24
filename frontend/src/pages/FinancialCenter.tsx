@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { financialApi } from '../api/financial';
 import type {
@@ -26,6 +26,7 @@ import { ModeToggle }           from '../components/financial/ModeToggle';
 import { ImbalanceAlert }       from '../components/financial/ImbalanceAlert';
 import { TrialBalanceTable }    from '../components/financial/TrialBalanceTable';
 import { JournalBookTable }     from '../components/financial/JournalBookTable';
+import { BalanceDisplay }       from '../components/financial/BalanceDisplay';
 
 interface EntityOption { id: number; name: string; code: string; }
 
@@ -65,6 +66,13 @@ export default function FinancialCenter() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { hasPermission } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Restore scroll position when returning from a DrillDown
+  useEffect(() => {
+    const scrollY = (location.state as { scrollY?: number } | null)?.scrollY;
+    if (scrollY) window.scrollTo({ top: scrollY, behavior: 'smooth' });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Common URL helpers ─────────────────────────────────────────────────────
   const tab = searchParams.get('tab') ?? 'statement';
@@ -565,10 +573,10 @@ export default function FinancialCenter() {
 
               {glStatData?.summary && (
                 <SummaryCards cards={[
-                  { label: 'رصيد افتتاحي',  value: glStatData.summary.openingBalance, variant: 'neutral' },
-                  { label: 'إجمالي المدين', value: glStatData.summary.totalDebit,     variant: 'blue'    },
-                  { label: 'إجمالي الدائن', value: glStatData.summary.totalCredit,    variant: 'green'   },
-                  { label: 'رصيد ختامي',    value: glStatData.summary.closingBalance,
+                  { label: 'رصيد افتتاحي',  formattedValue: <BalanceDisplay value={glStatData.summary.openingBalance ?? 0} />, variant: 'neutral' },
+                  { label: 'إجمالي المدين', value: glStatData.summary.totalDebit,  variant: 'blue'  },
+                  { label: 'إجمالي الدائن', value: glStatData.summary.totalCredit, variant: 'green' },
+                  { label: 'رصيد ختامي',    formattedValue: <BalanceDisplay value={glStatData.summary.closingBalance ?? 0} />,
                     variant: (glStatData.summary.closingBalance ?? 0) < 0 ? 'red' : 'neutral' },
                 ]} />
               )}
@@ -596,8 +604,8 @@ export default function FinancialCenter() {
                           <td>{row.description}</td>
                           <td className="num">{fmtKwd(row.debit)}</td>
                           <td className="num">{fmtKwd(row.credit)}</td>
-                          <td className={`num ${row.runningBalance < 0 ? 'negative' : ''}`}>
-                            {fmtKwd(row.runningBalance)}
+                          <td className="num">
+                            <BalanceDisplay value={row.runningBalance} />
                           </td>
                         </tr>
                       ))}
@@ -679,12 +687,10 @@ export default function FinancialCenter() {
                               </button>
                             </td>
                             <td>{acc.accountType}</td>
-                            <td className="num">{fmtKwd(acc.openingBalance)}</td>
+                            <td className="num"><BalanceDisplay value={acc.openingBalance} /></td>
                             <td className="num">{fmtKwd(acc.totalDebit)}</td>
                             <td className="num">{fmtKwd(acc.totalCredit)}</td>
-                            <td className={`num ${acc.closingBalance < 0 ? 'negative' : ''}`}>
-                              {fmtKwd(acc.closingBalance)}
-                            </td>
+                            <td className="num"><BalanceDisplay value={acc.closingBalance} /></td>
                           </tr>
                         ))}
                       </tbody>

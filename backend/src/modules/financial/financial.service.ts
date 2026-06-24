@@ -414,51 +414,54 @@ export class FinancialService {
 
     const total             = allAccounts.length;
     const paginatedAccounts = allAccounts.slice((page - 1) * pageSize, page * pageSize);
+    const paginatedIds      = paginatedAccounts.map(a => a.id);
 
-    const accounts: GlReportAccount[] = await Promise.all(
-      paginatedAccounts.map(async account => {
-        const [openingAgg, periodAgg] = await Promise.all([
-          prisma.journalEntryLine.aggregate({
-            where: {
-              accountId: account.id,
-              journalEntry: {
-                status: 'POSTED',
-                ...(filters.fromDate && { date: { lt: new Date(filters.fromDate) } }),
-              },
-            },
-            _sum: { debit: true, credit: true },
-          }),
-          prisma.journalEntryLine.aggregate({
-            where: {
-              accountId: account.id,
-              journalEntry: {
-                status: 'POSTED',
-                ...(filters.fromDate && { date: { gte: new Date(filters.fromDate) } }),
-                ...(filters.toDate   && { date: { lte: new Date(filters.toDate)   } }),
-              },
-            },
-            _sum: { debit: true, credit: true },
-          }),
-        ]);
+    // Two grouped aggregate queries instead of N×2 per-account queries
+    const [openingGrouped, periodGrouped] = await Promise.all([
+      prisma.journalEntryLine.groupBy({
+        by:    ['accountId'],
+        where: {
+          accountId:    { in: paginatedIds },
+          journalEntry: {
+            status: 'POSTED',
+            ...(filters.fromDate && { date: { lt: new Date(filters.fromDate) } }),
+          },
+        },
+        _sum: { debit: true, credit: true },
+      }),
+      prisma.journalEntryLine.groupBy({
+        by:    ['accountId'],
+        where: {
+          accountId:    { in: paginatedIds },
+          journalEntry: {
+            status: 'POSTED',
+            ...(filters.fromDate && { date: { gte: new Date(filters.fromDate) } }),
+            ...(filters.toDate   && { date: { lte: new Date(filters.toDate)   } }),
+          },
+        },
+        _sum: { debit: true, credit: true },
+      }),
+    ]);
 
-        const openingBalance = normalizeMoney((openingAgg._sum.debit ?? 0) - (openingAgg._sum.credit ?? 0));
-        const totalDebit     = normalizeMoney(periodAgg._sum.debit  ?? 0);
-        const totalCredit    = normalizeMoney(periodAgg._sum.credit ?? 0);
-
-        return {
-          accountId:     account.id,
-          accountCode:   account.code,
-          accountName:   account.name,
-          accountType:   account.type,
-          normalBalance: (account.normalBalance ?? 'DEBIT') as 'DEBIT' | 'CREDIT',
-          openingBalance,
-          totalDebit,
-          totalCredit,
-          closingBalance: calculateClosingBalance(openingBalance, totalDebit, totalCredit),
-          rows: [],
-        };
-      })
-    );
+    const accounts: GlReportAccount[] = paginatedAccounts.map(account => {
+      const openAgg    = openingGrouped.find(g => g.accountId === account.id);
+      const periodAgg  = periodGrouped.find(g  => g.accountId === account.id);
+      const openingBalance = normalizeMoney((openAgg?._sum.debit ?? 0) - (openAgg?._sum.credit ?? 0));
+      const totalDebit     = normalizeMoney(periodAgg?._sum.debit  ?? 0);
+      const totalCredit    = normalizeMoney(periodAgg?._sum.credit ?? 0);
+      return {
+        accountId:     account.id,
+        accountCode:   account.code,
+        accountName:   account.name,
+        accountType:   account.type,
+        normalBalance: (account.normalBalance ?? 'DEBIT') as 'DEBIT' | 'CREDIT',
+        openingBalance,
+        totalDebit,
+        totalCredit,
+        closingBalance: calculateClosingBalance(openingBalance, totalDebit, totalCredit),
+        rows: [],
+      };
+    });
 
     return {
       generatedAt: new Date().toISOString(),

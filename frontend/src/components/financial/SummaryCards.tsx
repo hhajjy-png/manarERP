@@ -1,7 +1,10 @@
+import type { ReactNode } from 'react';
+
 interface Card {
-  label: string;
-  value?: number;
-  variant?: 'neutral' | 'green' | 'red' | 'blue';
+  label:          string;
+  value?:         number;
+  formattedValue?: ReactNode;
+  variant?:       'neutral' | 'green' | 'red' | 'blue';
 }
 
 interface Props { cards: Card[]; }
@@ -18,7 +21,9 @@ export function SummaryCards({ cards }: Props) {
         <div key={i} className={`summary-card ${c.variant ?? 'neutral'}`}>
           <div className="card-label">{c.label}</div>
           <div className="card-value">
-            {fmt(c.value)} <span className="currency">د.ك</span>
+            {c.formattedValue ?? (
+              <>{fmt(c.value)} <span className="currency">د.ك</span></>
+            )}
           </div>
         </div>
       ))}
