@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import StatCard from '../components/StatCard';
 import Modal from '../components/Modal';
@@ -9,6 +10,7 @@ import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { useToast } from '../stores/toastStore';
+import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
 
 type Tab = 'summary' | 'accounts' | 'journal' | 'payments';
 
@@ -33,6 +35,7 @@ export default function Accounting() {
 
   return (
     <div>
+      <ReturnToReportButton />
       <div className="page-head">
         <div><h2>{t('page.accounting.title')}</h2><p>{t('page.accounting.subtitle')}</p></div>
       </div>
@@ -300,6 +303,8 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
 function JournalTab({ canCreate }: { canCreate: boolean }) {
   const { t } = useT();
   const toast = useToast();
+  const [searchParams] = useSearchParams();
+  const highlight = searchParams.get('highlight');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -324,6 +329,15 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
     }
   }, [page, search]);
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!highlight || loading) return;
+    const el = document.getElementById(`row-${highlight}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('highlight-row');
+    }
+  }, [highlight, loading, rows]);
 
   function cancelEntry(id: number) { setCancelConfirmId(id); }
 
@@ -358,6 +372,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
         loading={loading}
         meta={meta}
         onPage={setPage}
+        getRowId={row => `row-${row.id}`}
         actions={(row) => (
           <>
             <button type="button" className="btn sm" onClick={() => setExpanded(row)}>{t('action.view')}</button>{' '}

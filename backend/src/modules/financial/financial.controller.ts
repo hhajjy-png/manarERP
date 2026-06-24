@@ -1,14 +1,29 @@
 import type { Request, Response } from 'express';
-import { financialService }  from './financial.service';
+import { z }                from 'zod';
+import { financialService } from './financial.service';
 import {
   StatementParamsSchema,
   StatementQuerySchema,
   ExportQuerySchema,
   AgingQuerySchema,
+  GlStatementQuerySchema,
+  GlReportQuerySchema,
+  TrialBalanceQuerySchema,
+  JournalBookQuerySchema,
 } from './financial.schema';
 import { recordAudit }     from '@core/middleware/audit';
 import { ok }              from '@core/utils/response';
 import { sanitizeFilters } from '@shared/services/financial/summary.utils';
+
+function sendFile(res: Response, buffer: Buffer, name: string, format: 'pdf' | 'excel') {
+  const ext         = format === 'pdf' ? 'pdf' : 'xlsx';
+  const contentType = format === 'pdf'
+    ? 'application/pdf'
+    : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Content-Disposition', `attachment; filename="${name}-${Date.now()}.${ext}"`);
+  res.send(buffer);
+}
 
 // ─── Statement ───────────────────────────────────────────────────────────────
 
@@ -91,8 +106,71 @@ export async function exportApAging(req: Request, res: Response): Promise<void> 
     newValue: { reportType: 'ap-aging', format, filters: sanitizeFilters(query as Record<string, unknown>) },
   }).catch(() => {});
 
-  const ext = format === 'pdf' ? 'pdf' : 'xlsx';
-  res.setHeader('Content-Type', format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="ap-aging-${Date.now()}.${ext}"`);
-  res.send(buffer);
+  sendFile(res, buffer, 'ap-aging', format);
+}
+
+// ─── GL Statement ─────────────────────────────────────────────────────────────
+
+export async function getGlStatement(req: Request, res: Response): Promise<void> {
+  const accountId = z.coerce.number().int().positive().parse(req.params.accountId);
+  const query     = GlStatementQuerySchema.parse(req.query);
+  ok(res, await financialService.getGlStatement(accountId, query));
+}
+
+export async function exportGlStatement(req: Request, res: Response): Promise<void> {
+  const accountId = z.coerce.number().int().positive().parse(req.params.accountId);
+  const query     = GlStatementQuerySchema.extend({ format: z.enum(['pdf', 'excel']).default('excel') }).parse(req.query);
+  const format    = query.format as 'pdf' | 'excel';
+  const buffer    = await financialService.exportGlStatement(accountId, query, format);
+  recordAudit({ req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
+    newValue: { reportType: 'gl-statement', format, filters: sanitizeFilters(query as Record<string, unknown>) } }).catch(() => {});
+  sendFile(res, buffer, `gl-statement-${accountId}`, format);
+}
+
+// ─── GL Report ────────────────────────────────────────────────────────────────
+
+export async function getGlReport(req: Request, res: Response): Promise<void> {
+  const query = GlReportQuerySchema.parse(req.query);
+  ok(res, await financialService.getGlReport(query));
+}
+
+export async function exportGlReport(req: Request, res: Response): Promise<void> {
+  const query  = GlReportQuerySchema.parse(req.query);
+  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const buffer = await financialService.exportGlReport(query, format);
+  recordAudit({ req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
+    newValue: { reportType: 'gl-report', format, filters: sanitizeFilters(query as Record<string, unknown>) } }).catch(() => {});
+  sendFile(res, buffer, 'gl-report', format);
+}
+
+// ─── Trial Balance ────────────────────────────────────────────────────────────
+
+export async function getTrialBalance(req: Request, res: Response): Promise<void> {
+  const query = TrialBalanceQuerySchema.parse(req.query);
+  ok(res, await financialService.getTrialBalance(query));
+}
+
+export async function exportTrialBalance(req: Request, res: Response): Promise<void> {
+  const query  = TrialBalanceQuerySchema.parse(req.query);
+  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const buffer = await financialService.exportTrialBalance(query, format);
+  recordAudit({ req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
+    newValue: { reportType: 'trial-balance', format, filters: sanitizeFilters(query as Record<string, unknown>) } }).catch(() => {});
+  sendFile(res, buffer, 'trial-balance', format);
+}
+
+// ─── Journal Book ─────────────────────────────────────────────────────────────
+
+export async function getJournalBook(req: Request, res: Response): Promise<void> {
+  const query = JournalBookQuerySchema.parse(req.query);
+  ok(res, await financialService.getJournalBook(query));
+}
+
+export async function exportJournalBook(req: Request, res: Response): Promise<void> {
+  const query  = JournalBookQuerySchema.parse(req.query);
+  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const buffer = await financialService.exportJournalBook(query, format);
+  recordAudit({ req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
+    newValue: { reportType: 'journal-book', format, filters: sanitizeFilters(query as Record<string, unknown>) } }).catch(() => {});
+  sendFile(res, buffer, 'journal-book', format);
 }
