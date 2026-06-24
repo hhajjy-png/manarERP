@@ -134,7 +134,7 @@ async function buildSupplierStatement(
 
   const dateWhere = buildDateWhere(filters.fromDate, filters.toDate);
 
-  // Purchase invoices in range (credit — we owe supplier)
+  // Purchase invoices in range (debit — supplier charges us)
   const purchaseInvoices = await prisma.invoice.findMany({
     where: {
       supplierId: entityId,
@@ -145,7 +145,7 @@ async function buildSupplierStatement(
     orderBy: { issueDate: 'asc' },
   });
 
-  // Expenses for this supplier in range (credit — we owe supplier)
+  // Expenses for this supplier in range (debit — supplier charges us)
   const expenses = await prisma.expense.findMany({
     where: {
       supplierId: entityId,
@@ -155,7 +155,7 @@ async function buildSupplierStatement(
     orderBy: { date: 'asc' },
   });
 
-  // Payments on purchase invoices in range (debit — we paid supplier)
+  // Payments on purchase invoices in range (credit — we paid supplier)
   const payments = await prisma.payment.findMany({
     where: {
       invoice: { supplierId: entityId, direction: 'PURCHASE' },
@@ -174,8 +174,8 @@ async function buildSupplierStatement(
     referenceType: 'INVOICE' as const,
     referenceId: inv.id,
     description: `فاتورة مشتريات${inv.notes ? ` — ${inv.notes}` : ''}`,
-    debit: 0,
-    credit: Number(inv.total),
+    debit: Number(inv.total),
+    credit: 0,
     status: inv.status,
     entityName: supplier.name,
     entityCode: supplier.code,
@@ -188,8 +188,8 @@ async function buildSupplierStatement(
     referenceType: 'EXPENSE' as const,
     referenceId: exp.id,
     description: exp.description,
-    debit: 0,
-    credit: Number(exp.amount),
+    debit: Number(exp.amount),
+    credit: 0,
     status: exp.status,
     entityName: supplier.name,
     entityCode: supplier.code,
@@ -202,8 +202,8 @@ async function buildSupplierStatement(
     referenceType: 'PAYMENT' as const,
     referenceId: pmt.id,
     description: `دفعة على ${pmt.invoice.invoiceNumber}${pmt.notes ? ` — ${pmt.notes}` : ''}`,
-    debit: Number(pmt.amount),
-    credit: 0,
+    debit: 0,
+    credit: Number(pmt.amount),
     status: 'PAID',
     entityName: supplier.name,
     entityCode: supplier.code,

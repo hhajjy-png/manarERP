@@ -221,7 +221,7 @@ describe('Customer Statement', () => {
 // ── Supplier Statement ─────────────────────────────────────────────────
 
 describe('Supplier Statement', () => {
-  it('includes purchase invoices as credit, expenses as credit, payments as debit', async () => {
+  it('includes purchase invoices and expenses as debit, payments as credit', async () => {
     (prisma.supplier.findUniqueOrThrow as ReturnType<typeof vi.fn>).mockResolvedValue(mockSupplier);
     (prisma.invoice.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
       { id: 10, invoiceNumber: 'PO-001', issueDate: makeDate(2026, 1, 5), total: 800, status: 'UNPAID', notes: null },
@@ -248,18 +248,18 @@ describe('Supplier Statement', () => {
 
     const invEntry = result.entries.find((e) => e.referenceType === 'INVOICE');
     expect(invEntry).toBeDefined();
-    expect(invEntry!.debit).toBe(0);
-    expect(invEntry!.credit).toBe(800);
+    expect(invEntry!.debit).toBe(800);
+    expect(invEntry!.credit).toBe(0);
 
     const expEntry = result.entries.find((e) => e.referenceType === 'EXPENSE');
     expect(expEntry).toBeDefined();
-    expect(expEntry!.debit).toBe(0);
-    expect(expEntry!.credit).toBe(200);
+    expect(expEntry!.debit).toBe(200);
+    expect(expEntry!.credit).toBe(0);
 
     const pmtEntry = result.entries.find((e) => e.referenceType === 'PAYMENT');
     expect(pmtEntry).toBeDefined();
-    expect(pmtEntry!.debit).toBe(500);
-    expect(pmtEntry!.credit).toBe(0);
+    expect(pmtEntry!.debit).toBe(0);
+    expect(pmtEntry!.credit).toBe(500);
   });
 
   it('computes supplier opening balance: invoices + expenses - payments before fromDate', async () => {
@@ -305,12 +305,12 @@ describe('Supplier Statement', () => {
     });
 
     // assembleResult uses: balance = balance + e.debit - e.credit
-    // Supplier invoice: debit=0, credit=600 → runningBalance = 0 + 0 - 600 = -600
-    // Supplier payment: debit=250, credit=0 → runningBalance = -600 + 250 - 0 = -350
-    // closingBalance = openingBalance(0) + totalDebit(250) - totalCredit(600) = -350
-    expect(result.entries[0].runningBalance).toBe(-600); // after invoice (credit 600)
-    expect(result.entries[1].runningBalance).toBe(-350); // after payment (debit 250)
-    expect(result.summary.closingBalance).toBe(-350);
+    // Supplier invoice: debit=600, credit=0 → runningBalance = 0 + 600 - 0 = 600
+    // Supplier payment: debit=0, credit=250 → runningBalance = 600 + 0 - 250 = 350
+    // closingBalance = openingBalance(0) + totalDebit(600) - totalCredit(250) = 350
+    expect(result.entries[0].runningBalance).toBe(600); // after invoice (debit 600)
+    expect(result.entries[1].runningBalance).toBe(350); // after payment (credit 250)
+    expect(result.summary.closingBalance).toBe(350);
   });
 });
 
