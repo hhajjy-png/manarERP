@@ -58,6 +58,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   import: ['read', 'create'],
   prices: ['read', 'create', 'update', 'delete'],
   forms: ['read', 'create', 'print'],
+  statements: ['read', 'export'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -118,7 +119,7 @@ async function main() {
     SYSTEM_ADMIN: allKeys,
     GENERAL_MANAGER: allKeys.filter((k) => !k.startsWith('users.') && k !== 'settings.update'),
     ACCOUNTANT: [
-      ...keysForModules(['invoices', 'expenses', 'transactions', 'suppliers', 'reports', 'customers', 'cheques']),
+      ...keysForModules(['invoices', 'expenses', 'transactions', 'suppliers', 'reports', 'customers', 'cheques', 'statements']),
       ...readOnly(['dashboard', 'contracts', 'employees', 'equipment', 'payroll', 'audit']),
       'forms.read',
       'forms.print',
@@ -136,6 +137,7 @@ async function main() {
       ...readOnly(['dashboard', 'customers', 'equipment', 'invoices', 'expenses', 'suppliers']),
       'inventory.read',
       'forms.read',
+      'statements.read',
     ],
     EQUIPMENT_MANAGER: [
       ...keysForModules(['equipment', 'maintenance', 'reports']),
