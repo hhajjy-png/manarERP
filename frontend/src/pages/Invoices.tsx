@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import { useHighlight } from '../hooks/useHighlight';
+import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
@@ -71,6 +73,7 @@ export default function Invoices() {
   const { t } = useT();
   const navigate = useNavigate();
   const toast = useToast();
+  useHighlight();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -226,6 +229,7 @@ export default function Invoices() {
 
   return (
     <div>
+      <ReturnToReportButton />
       <div className="page-head">
         <div><h2>{t('page.invoices.title')}</h2><p>{t('page.invoices.subtitle')}</p></div>
         {hasPermission('invoices.create') && <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>}
@@ -359,6 +363,7 @@ export default function Invoices() {
         emptyText={t('empty.invoices')}
         isFiltered={isFiltered}
         onResetFilters={resetFilters}
+        getRowId={(row) => `row-${row.id}`}
         emptyAction={hasPermission('invoices.create') ? (
           <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>
         ) : undefined}

@@ -28,9 +28,11 @@ interface Props {
   emptyAction?: ReactNode;
   isFiltered?: boolean;
   onResetFilters?: () => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  getRowId?: (row: any) => string;
 }
 
-export default function DataTable({ columns, rows, loading, meta, onPage, actions, emptyText, emptyAction, isFiltered, onResetFilters }: Props) {
+export default function DataTable({ columns, rows, loading, meta, onPage, actions, emptyText, emptyAction, isFiltered, onResetFilters, getRowId }: Props) {
   const { t } = useT();
   const colSpan = columns.length + (actions ? 1 : 0);
 
@@ -59,12 +61,15 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
                 </div>
               </td></tr>
             ) : (
-              rows.map((row, i) => (
-                <tr key={row.id ?? i}>
-                  {columns.map((c) => <td key={c.key}>{c.render ? c.render(row) : (row[c.key] ?? '—')}</td>)}
-                  {actions && <td className="td-actions">{actions(row)}</td>}
-                </tr>
-              ))
+              rows.map((row, i) => {
+                const rowId = getRowId ? getRowId(row) : undefined;
+                return (
+                  <tr key={row.id ?? i} id={rowId}>
+                    {columns.map((c) => <td key={c.key}>{c.render ? c.render(row) : (row[c.key] ?? '—')}</td>)}
+                    {actions && <td className="td-actions">{actions(row)}</td>}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

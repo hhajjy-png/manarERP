@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
+import { useHighlight } from '../hooks/useHighlight';
+import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
@@ -47,6 +49,7 @@ export default function Expenses() {
   const { hasPermission } = useAuth();
   const { t } = useT();
   const toast = useToast();
+  useHighlight();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -195,6 +198,7 @@ export default function Expenses() {
 
   return (
     <div>
+      <ReturnToReportButton />
       <div className="page-head">
         <div>
           <h2>{t('mod.expenses.title')}</h2>
@@ -332,6 +336,7 @@ export default function Expenses() {
         emptyText={t('empty.expenses')}
         isFiltered={isFiltered}
         onResetFilters={resetFilters}
+        getRowId={(row) => `row-${row.id}`}
         emptyAction={hasPermission('expenses.create') ? (
           <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('mod.expenses.create')}</button>
         ) : undefined}

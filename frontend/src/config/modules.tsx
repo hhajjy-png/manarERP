@@ -354,6 +354,7 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'suppliers', label: 'nav.suppliers', icon: 'inventory_2', permission: 'suppliers.read' },
     { key: 'accounting', label: 'nav.accounting', icon: 'account_balance', permission: 'transactions.read' },
     { key: 'statements', label: 'nav.statements', icon: 'account_balance_wallet', permission: 'statements.read' },
+    { key: 'financial', label: 'nav.financial', icon: 'account_balance', permission: 'statements.read' },
   ] },
   { group: 'nav.group.warehouse', items: [
     { key: 'inventory', label: 'nav.inventory', icon: 'warehouse', permission: 'inventory.read' },

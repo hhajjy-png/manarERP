@@ -40,6 +40,7 @@ import Quotation from './pages/Quotation';
 import PurchaseRequest from './pages/PurchaseRequest';
 import ExecutiveDecisionCenter from './pages/ExecutiveDecisionCenter';
 import Statements from './pages/Statements';
+import FinancialCenter from './pages/FinancialCenter';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -98,6 +99,7 @@ export default function App() {
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/forms" element={<Forms />} />
           <Route path="/statements" element={<Statements />} />
+          <Route path="/financial" element={<FinancialCenter />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

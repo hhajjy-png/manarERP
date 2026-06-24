@@ -9,6 +9,7 @@ import '@fontsource/cairo/700.css';
 import 'material-symbols/outlined.css';
 import './app/theme.css';
 import './styles/stitch-full.css';
+import './styles/financial.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
