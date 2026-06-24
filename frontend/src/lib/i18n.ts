@@ -1203,6 +1203,9 @@ const DICT: Record<Lang, Record<string, string>> = {
     'kpi.all_time': 'منذ التأسيس',
     'att.weekend': 'إجازة أسبوعية',
 
+    // ── Statements ────────────────────────────────────────────────────────────
+    'nav.statements': 'كشف الحساب',
+
     // ── Forms & Templates ─────────────────────────────────────────────────────
     'nav.forms': 'النماذج الإدارية',
     'nav.executive': 'مركز القرار التنفيذي',
@@ -2410,6 +2413,9 @@ const DICT: Record<Lang, Record<string, string>> = {
     'dash.lbl.expenses': 'Expenses',
     'kpi.all_time': 'All time',
     'att.weekend': 'Weekend',
+
+    // ── Statements ────────────────────────────────────────────────────────────
+    'nav.statements': 'Statement Center',
 
     // ── Forms & Templates ─────────────────────────────────────────────────────
     'nav.forms': 'Admin Forms',

@@ -39,6 +39,7 @@ import BankSalaryAnalytics from './pages/BankSalaryAnalytics';
 import Quotation from './pages/Quotation';
 import PurchaseRequest from './pages/PurchaseRequest';
 import ExecutiveDecisionCenter from './pages/ExecutiveDecisionCenter';
+import Statements from './pages/Statements';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -96,6 +97,7 @@ export default function App() {
           <Route path="/prices" element={<Prices />} />
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/forms" element={<Forms />} />
+          <Route path="/statements" element={<Statements />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
