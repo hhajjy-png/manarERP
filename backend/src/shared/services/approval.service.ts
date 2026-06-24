@@ -36,6 +36,14 @@ export class ApprovalEngine {
     this.listeners.push(listener);
   }
 
+  hasModule(entityType: string): boolean {
+    return this.configs.has(entityType);
+  }
+
+  getHistoryPermission(entityType: string): string | undefined {
+    return this.configs.get(entityType)?.historyPermission;
+  }
+
   // ── Core Transition ───────────────────────────────────────────────────
 
   async transition<TEntity = unknown>(

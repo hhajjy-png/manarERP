@@ -89,6 +89,12 @@ export interface ApprovalModuleConfig<TEntity = Record<string, unknown>> {
    * cancel→إلغاء, reopen→إعادة فتح, pay→صرف.
    */
   auditLabels?: Partial<Record<string, string>>;
+
+  /** Optional permission key required to view this module's approval history.
+   *  If absent, any authenticated user may read history (Phase A fallback).
+   *  Set in Phase B when modules register (e.g. 'expenses.view').
+   */
+  historyPermission?: string;
 }
 
 // ── Engine Input / Output ────────────────────────────────────────────────

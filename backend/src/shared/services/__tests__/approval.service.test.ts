@@ -358,3 +358,32 @@ describe('ApprovalEngine.getHistory', () => {
     expect(result).toEqual([]);
   });
 });
+
+describe('ApprovalEngine.hasModule and getHistoryPermission', () => {
+  let engine: import('../approval.service').ApprovalEngine;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    const mod = await import('../approval.service');
+    engine = new mod.ApprovalEngine();
+  });
+
+  it('hasModule returns false for unregistered entityType', () => {
+    expect(engine.hasModule('expense')).toBe(false);
+  });
+
+  it('hasModule returns true after register()', () => {
+    engine.register(makeConfig({ entityType: 'expense' }));
+    expect(engine.hasModule('expense')).toBe(true);
+  });
+
+  it('getHistoryPermission returns undefined when not set', () => {
+    engine.register(makeConfig({ entityType: 'expense' }));
+    expect(engine.getHistoryPermission('expense')).toBeUndefined();
+  });
+
+  it('getHistoryPermission returns the declared permission', () => {
+    engine.register({ ...makeConfig({ entityType: 'expense' }), historyPermission: 'expenses.view' });
+    expect(engine.getHistoryPermission('expense')).toBe('expenses.view');
+  });
+});
