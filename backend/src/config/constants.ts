@@ -70,6 +70,8 @@ export const ACTIONS = [
   'adjust',
   'cancel',
   'print',
+  'submit',   // Draft → Pending submission step (used by future module configs)
+  'reopen',   // Rejected → Pending reopen step (used by future module configs)
 ] as const;
 export type ActionName = (typeof ACTIONS)[number];
 
