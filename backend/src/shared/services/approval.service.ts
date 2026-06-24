@@ -190,7 +190,7 @@ export class ApprovalEngine {
       },
     });
 
-    if (!user) throw AppError.unauthorized('المستخدم غير موجود');
+    if (!user || !user.role) throw AppError.forbidden('المستخدم غير موجود أو ليس له دور محدد');
     if (user.role.name === ROLES.SYSTEM_ADMIN) return;
 
     const keys = user.role.rolePermissions.map((rp) => rp.permission.key);
@@ -203,5 +203,3 @@ export class ApprovalEngine {
 /** Singleton — import this everywhere instead of instantiating. */
 export const approvalEngine = new ApprovalEngine();
 
-// Re-export DEFAULT_AUDIT_LABELS for use in module configs
-export { DEFAULT_AUDIT_LABELS };
