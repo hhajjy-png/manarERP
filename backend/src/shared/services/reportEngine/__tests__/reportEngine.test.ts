@@ -217,6 +217,22 @@ describe('buildBrandingHeader', () => {
     expect(html).toContain('<img');
     expect(html).toContain('abc123');
   });
+
+  it('applies min-height inline style when headerHeight config is provided', () => {
+    const html = buildBrandingHeader({ companyNameAr: 'شركة' }, { headerHeight: '70px' });
+    expect(html).toContain('min-height');
+    expect(html).toContain('70px');
+  });
+
+  it('does NOT apply min-height when no config provided (backward compat)', () => {
+    const html = buildBrandingHeader({ companyNameAr: 'شركة' });
+    expect(html).not.toContain('min-height');
+  });
+
+  it('includes branding-logo-wrap wrapper always', () => {
+    const html = buildBrandingHeader({ companyNameAr: 'شركة' });
+    expect(html).toContain('branding-logo-wrap');
+  });
 });
 
 // ─── buildReportHeader ────────────────────────────────────────────────────────
