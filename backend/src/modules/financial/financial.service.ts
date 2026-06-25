@@ -1,6 +1,7 @@
 import { buildStatement }              from '@shared/services/statement.service';
 import { buildExcel }                  from '@shared/services/reportEngine/excel.service';
 import { buildReportHtml }             from '@shared/services/reportEngine/html.service';
+import { loadReportBranding }          from '@shared/services/reportEngine/brandingLoader';
 import { wrapFinancialResponse }       from '@shared/services/financial/financial.response';
 import { buildDrillDownRef }           from '@shared/services/financial/drilldown.utils';
 import type { DrillDownRef }           from '@shared/services/financial/drilldown.utils';
@@ -25,6 +26,12 @@ import type {
 const accountingService = new AccountingService();
 
 export class FinancialService {
+
+  /** Generates a branded HTML report buffer using company settings. */
+  private async htmlBuf(input: import('@shared/services/reportEngine/excel.service').ReportInput): Promise<Buffer> {
+    const branding = await loadReportBranding();
+    return Buffer.from(buildReportHtml(input, { profile: 'a4-landscape', branding, showPageNumbers: true }), 'utf-8');
+  }
 
   // ─── Statement ─────────────────────────────────────────────────────────────
 
@@ -101,7 +108,7 @@ export class FinancialService {
     const entityName = String(data.metadata?.entityName ?? '');
     const input      = toStatementReportInput(data, entityName);
     if (format === 'excel') return buildExcel(input);
-    return Buffer.from(buildReportHtml(input), 'utf-8');
+    return this.htmlBuf(input);
   }
 
   // ─── AR Aging ─────────────────────────────────────────────────────────────
@@ -195,7 +202,7 @@ export class FinancialService {
     const data  = await this.getArAging(filters);
     const input = toAgingReportInput(data, 'ar');
     if (format === 'excel') return buildExcel(input);
-    return Buffer.from(buildReportHtml(input), 'utf-8');
+    return this.htmlBuf(input);
   }
 
   // ─── AP Aging ─────────────────────────────────────────────────────────────
@@ -287,7 +294,7 @@ export class FinancialService {
     const data  = await this.getApAging(filters);
     const input = toAgingReportInput(data, 'ap');
     if (format === 'excel') return buildExcel(input);
-    return Buffer.from(buildReportHtml(input), 'utf-8');
+    return this.htmlBuf(input);
   }
 
   // ─── GL Statement ──────────────────────────────────────────────────────────
@@ -398,7 +405,7 @@ export class FinancialService {
     const data  = await this.getGlStatement(accountId, filters as Parameters<typeof this.getGlStatement>[1]);
     const input = toGlStatementReportInput(data);
     if (format === 'excel') return buildExcel(input);
-    return Buffer.from(buildReportHtml(input), 'utf-8');
+    return this.htmlBuf(input);
   }
 
   // ─── GL Report ─────────────────────────────────────────────────────────────
@@ -482,7 +489,7 @@ export class FinancialService {
     const data  = await this.getGlReport(filters as Parameters<typeof this.getGlReport>[0]);
     const input = toGlReportInput(data);
     if (format === 'excel') return buildExcel(input);
-    return Buffer.from(buildReportHtml(input), 'utf-8');
+    return this.htmlBuf(input);
   }
 
   // ─── Trial Balance ─────────────────────────────────────────────────────────
@@ -627,7 +634,7 @@ export class FinancialService {
     const data  = await this.getTrialBalance(filters as Parameters<typeof this.getTrialBalance>[0]);
     const input = toTrialBalanceReportInput(data);
     if (format === 'excel') return buildExcel(input);
-    return Buffer.from(buildReportHtml(input), 'utf-8');
+    return this.htmlBuf(input);
   }
 
   // ─── Journal Book ──────────────────────────────────────────────────────────
@@ -707,7 +714,7 @@ export class FinancialService {
     const data  = await this.getJournalBook({ ...f, pageSize: 500, page: 1 });
     const input = toJournalBookReportInput(data);
     if (format === 'excel') return buildExcel(input);
-    return Buffer.from(buildReportHtml(input), 'utf-8');
+    return this.htmlBuf(input);
   }
 
   // ─── Financial Summary ──────────────────────────────────────────────────────
@@ -741,7 +748,7 @@ export class FinancialService {
     const data  = await this.getFinancialSummary(filters);
     const input = toSummaryReportInput(data);
     if (format === 'excel') return buildExcel(input);
-    return Buffer.from(buildReportHtml(input), 'utf-8');
+    return this.htmlBuf(input);
   }
 
   // ─── Dashboard Summary ──────────────────────────────────────────────────────

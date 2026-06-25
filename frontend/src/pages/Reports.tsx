@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadBlob } from '../utils/exportUtils';
+import { exportReportAsPdf } from '../utils/pdfExport';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
@@ -150,6 +151,7 @@ export default function Reports() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [excelBusy, setExcelBusy] = useState(false);
+  const [pdfBusy,   setPdfBusy]   = useState(false);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
 
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
@@ -231,6 +233,22 @@ export default function Reports() {
       setError(errorMessage(e));
     } finally {
       setExcelBusy(false);
+    }
+  }
+
+  async function downloadPdf() {
+    if (!canExport) return;
+    setPdfBusy(true);
+    try {
+      await exportReportAsPdf(
+        `/reports/${selected}/export`,
+        { ...buildParams(), format: 'html' },
+        `report-${selected}`,
+      );
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setPdfBusy(false);
     }
   }
 
@@ -392,8 +410,18 @@ export default function Reports() {
           {canExport && preview && (
             <>
               <ExportExcelButton onExport={downloadExcel} busy={excelBusy} />
+              {window.manar?.exportPdfFromHtml && (
+                <button
+                  type="button"
+                  className="btn secondary"
+                  onClick={downloadPdf}
+                  disabled={pdfBusy}
+                >
+                  {pdfBusy ? '...' : 'PDF'}
+                </button>
+              )}
               <button type="button" className="btn secondary" onClick={openPrint}>
-                🖨️ {t('btn.reports.print')}
+                {t('btn.reports.print')}
               </button>
             </>
           )}
