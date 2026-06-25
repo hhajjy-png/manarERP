@@ -365,7 +365,8 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'users', label: 'nav.users', icon: 'manage_accounts', permission: 'users.read' },
     { key: 'audit', label: 'nav.audit', icon: 'history', permission: 'audit.read' },
     { key: 'backup', label: 'nav.backup', icon: 'backup', permission: 'backups.read' },
-    { key: 'settings', label: 'nav.settings', icon: 'settings', permission: 'settings.read' },
+    { key: 'settings',      label: 'nav.settings',      icon: 'settings',         permission: 'settings.read' },
+    { key: 'integrations',  label: 'nav.integrations',  icon: 'hub',              permission: 'integrations.read' },
   ] },
   { group: 'nav.group.tools', items: [
     { key: 'import', label: 'nav.import', icon: 'upload', permission: 'import.read' },

@@ -61,6 +61,7 @@ export const MODULES = [
   'financial',
   'financialdashboard',
   'verification',
+  'integrations',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
@@ -79,8 +80,10 @@ export const ACTIONS = [
   'adjust',
   'cancel',
   'print',
-  'submit',   // Draft → Pending submission step (used by future module configs)
-  'reopen',   // Rejected → Pending reopen step (used by future module configs)
+  'submit',      // Draft → Pending submission step (used by future module configs)
+  'reopen',      // Rejected → Pending reopen step (used by future module configs)
+  'configure',   // Update integration/module configuration
+  'run',         // Execute an integration or automated task
 ] as const;
 export type ActionName = (typeof ACTIONS)[number];
 
