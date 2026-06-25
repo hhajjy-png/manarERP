@@ -36,6 +36,7 @@ import statementsRoutes from './modules/statements/statements.routes';
 import financialRoutes  from './modules/financial/financial.routes';
 import verificationRoutes from './modules/verification/verification.routes';
 import integrationsRoutes from './modules/integrations/integrations.routes';
+import payrollBankImportRoutes from './modules/payrollBankImport/routes';
 
 /**
  * إنشاء تطبيق Express وتهيئة الـ Middlewares والمسارات.
@@ -110,6 +111,7 @@ export function createApp(): Application {
   app.use('/api/financial',  financialRoutes);
   app.use('/api/verify', verificationRoutes);
   app.use('/api/integrations', integrationsRoutes);
+  app.use('/api/payroll-bank-import', payrollBankImportRoutes);
 
   // معالجة المسارات غير الموجودة + الأخطاء (يجب أن تكون في النهاية)
   app.use(notFoundHandler);

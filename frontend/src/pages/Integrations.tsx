@@ -436,6 +436,11 @@ export default function Integrations() {
   useEffect(() => { void load(); }, [load]);
 
   async function handleRun(card: IntegrationCard) {
+    // Cards with a targetRoute open the dedicated workflow page instead of calling the API
+    if (card.targetRoute) {
+      navigate(card.targetRoute);
+      return;
+    }
     setRunningId(card.id);
     try {
       const result = await integrationsApi.run(card.id);

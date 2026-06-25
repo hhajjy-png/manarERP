@@ -34,7 +34,7 @@ import Resignation from './pages/Resignation';
 import EmployeeWarning from './pages/EmployeeWarning';
 import PerformanceEvaluation from './pages/PerformanceEvaluation';
 import EmploymentContract from './pages/EmploymentContract';
-import BankImport from './pages/BankImport';
+import PayrollBankImport from './pages/PayrollBankImport';
 import BankSalaryAnalytics from './pages/BankSalaryAnalytics';
 import Quotation from './pages/Quotation';
 import PurchaseRequest from './pages/PurchaseRequest';
@@ -92,7 +92,7 @@ export default function App() {
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/cheques" element={<Cheques />} />
           <Route path="/import" element={<DataImport />} />
-          <Route path="/payroll/bank-import" element={<BankImport />} />
+          <Route path="/payroll/bank-import" element={<PayrollBankImport />} />
           <Route path="/payroll/bank-analytics" element={<BankSalaryAnalytics />} />
           <Route path="/audit" element={<AuditLog />} />
           <Route path="/maintenance" element={<Maintenance />} />
