@@ -27,6 +27,9 @@ extraResources:
   # قاعدة بيانات مبدئية مُهيّأة (أنشئها قبل البناء عبر prisma migrate + seed)
   - from: backend/data/manar.db
     to: backend/data/manar.db
+  # خطوط عربية مُضمَّنة في قوالب HTML للتقارير
+  - from: backend/assets
+    to: backend/assets
 
 win:
   target:

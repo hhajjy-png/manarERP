@@ -1,6 +1,6 @@
 import { buildStatement }              from '@shared/services/statement.service';
 import { buildExcel }                  from '@shared/services/reportEngine/excel.service';
-import { buildPdf }                    from '@shared/services/reportEngine/pdf.service';
+import { buildReportHtml }             from '@shared/services/reportEngine/html.service';
 import { wrapFinancialResponse }       from '@shared/services/financial/financial.response';
 import { buildDrillDownRef }           from '@shared/services/financial/drilldown.utils';
 import type { DrillDownRef }           from '@shared/services/financial/drilldown.utils';
@@ -95,12 +95,13 @@ export class FinancialService {
     entityType: string,
     entityId: number,
     filters: { fromDate?: string; toDate?: string; search?: string; referenceType?: string },
-    format: 'pdf' | 'excel'
+    format: 'pdf' | 'html' | 'excel'
   ): Promise<Buffer> {
     const data       = await this.getStatement(entityType, entityId, filters);
     const entityName = String(data.metadata?.entityName ?? '');
     const input      = toStatementReportInput(data, entityName);
-    return format === 'pdf' ? buildPdf(input) : buildExcel(input);
+    if (format === 'excel') return buildExcel(input);
+    return Buffer.from(buildReportHtml(input), 'utf-8');
   }
 
   // ─── AR Aging ─────────────────────────────────────────────────────────────
@@ -189,11 +190,12 @@ export class FinancialService {
 
   async exportArAging(
     filters: { asOfDate?: string; search?: string; customerType?: string; hideZero?: boolean },
-    format:  'pdf' | 'excel'
+    format:  'pdf' | 'html' | 'excel'
   ): Promise<Buffer> {
     const data  = await this.getArAging(filters);
     const input = toAgingReportInput(data, 'ar');
-    return format === 'pdf' ? buildPdf(input) : buildExcel(input);
+    if (format === 'excel') return buildExcel(input);
+    return Buffer.from(buildReportHtml(input), 'utf-8');
   }
 
   // ─── AP Aging ─────────────────────────────────────────────────────────────
@@ -280,11 +282,12 @@ export class FinancialService {
 
   async exportApAging(
     filters: { asOfDate?: string; search?: string; hideZero?: boolean },
-    format:  'pdf' | 'excel'
+    format:  'pdf' | 'html' | 'excel'
   ): Promise<Buffer> {
     const data  = await this.getApAging(filters);
     const input = toAgingReportInput(data, 'ap');
-    return format === 'pdf' ? buildPdf(input) : buildExcel(input);
+    if (format === 'excel') return buildExcel(input);
+    return Buffer.from(buildReportHtml(input), 'utf-8');
   }
 
   // ─── GL Statement ──────────────────────────────────────────────────────────
@@ -391,10 +394,11 @@ export class FinancialService {
     });
   }
 
-  async exportGlStatement(accountId: number, filters: object, format: 'pdf' | 'excel'): Promise<Buffer> {
+  async exportGlStatement(accountId: number, filters: object, format: 'pdf' | 'html' | 'excel'): Promise<Buffer> {
     const data  = await this.getGlStatement(accountId, filters as Parameters<typeof this.getGlStatement>[1]);
     const input = toGlStatementReportInput(data);
-    return format === 'pdf' ? buildPdf(input) : buildExcel(input);
+    if (format === 'excel') return buildExcel(input);
+    return Buffer.from(buildReportHtml(input), 'utf-8');
   }
 
   // ─── GL Report ─────────────────────────────────────────────────────────────
@@ -474,10 +478,11 @@ export class FinancialService {
     };
   }
 
-  async exportGlReport(filters: object, format: 'pdf' | 'excel'): Promise<Buffer> {
+  async exportGlReport(filters: object, format: 'pdf' | 'html' | 'excel'): Promise<Buffer> {
     const data  = await this.getGlReport(filters as Parameters<typeof this.getGlReport>[0]);
     const input = toGlReportInput(data);
-    return format === 'pdf' ? buildPdf(input) : buildExcel(input);
+    if (format === 'excel') return buildExcel(input);
+    return Buffer.from(buildReportHtml(input), 'utf-8');
   }
 
   // ─── Trial Balance ─────────────────────────────────────────────────────────
@@ -618,10 +623,11 @@ export class FinancialService {
     });
   }
 
-  async exportTrialBalance(filters: object, format: 'pdf' | 'excel'): Promise<Buffer> {
+  async exportTrialBalance(filters: object, format: 'pdf' | 'html' | 'excel'): Promise<Buffer> {
     const data  = await this.getTrialBalance(filters as Parameters<typeof this.getTrialBalance>[0]);
     const input = toTrialBalanceReportInput(data);
-    return format === 'pdf' ? buildPdf(input) : buildExcel(input);
+    if (format === 'excel') return buildExcel(input);
+    return Buffer.from(buildReportHtml(input), 'utf-8');
   }
 
   // ─── Journal Book ──────────────────────────────────────────────────────────
@@ -696,11 +702,12 @@ export class FinancialService {
     });
   }
 
-  async exportJournalBook(filters: object, format: 'pdf' | 'excel'): Promise<Buffer> {
+  async exportJournalBook(filters: object, format: 'pdf' | 'html' | 'excel'): Promise<Buffer> {
     const f     = filters as Parameters<typeof this.getJournalBook>[0];
     const data  = await this.getJournalBook({ ...f, pageSize: 500, page: 1 });
     const input = toJournalBookReportInput(data);
-    return format === 'pdf' ? buildPdf(input) : buildExcel(input);
+    if (format === 'excel') return buildExcel(input);
+    return Buffer.from(buildReportHtml(input), 'utf-8');
   }
 
   // ─── Financial Summary ──────────────────────────────────────────────────────
@@ -730,10 +737,11 @@ export class FinancialService {
     });
   }
 
-  async exportFinancialSummary(filters: { fromDate?: string; toDate?: string }, format: 'pdf' | 'excel'): Promise<Buffer> {
+  async exportFinancialSummary(filters: { fromDate?: string; toDate?: string }, format: 'pdf' | 'html' | 'excel'): Promise<Buffer> {
     const data  = await this.getFinancialSummary(filters);
     const input = toSummaryReportInput(data);
-    return format === 'pdf' ? buildPdf(input) : buildExcel(input);
+    if (format === 'excel') return buildExcel(input);
+    return Buffer.from(buildReportHtml(input), 'utf-8');
   }
 
   // ─── Dashboard Summary ──────────────────────────────────────────────────────

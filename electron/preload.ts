@@ -73,6 +73,18 @@ const api = {
     sizeBytes?: number;
     error?: string;
   }> => ipcRenderer.invoke('pdf:export', suggestedName),
+
+  /** تصدير HTML كـ PDF عبر Chromium (يُستخدم للتقارير العربية). */
+  exportPdfFromHtml: (
+    html: string,
+    suggestedName: string,
+  ): Promise<{
+    success: boolean;
+    canceled?: boolean;
+    path?: string;
+    sizeBytes?: number;
+    error?: string;
+  }> => ipcRenderer.invoke('pdf:exportHtml', html, suggestedName),
 };
 
 contextBridge.exposeInMainWorld('manar', api);

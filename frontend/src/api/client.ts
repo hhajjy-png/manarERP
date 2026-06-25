@@ -29,6 +29,9 @@ declare global {
       exportPdf: (suggestedName: string) => Promise<{
         success: boolean; canceled?: boolean; path?: string; sizeBytes?: number; error?: string;
       }>;
+      exportPdfFromHtml: (html: string, suggestedName: string) => Promise<{
+        success: boolean; canceled?: boolean; path?: string; sizeBytes?: number; error?: string;
+      }>;
     };
   }
 }

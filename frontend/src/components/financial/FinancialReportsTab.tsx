@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { financialApi } from '../../api/financial';
+import { exportReportAsPdf } from '../../utils/pdfExport';
 import { FilterBar } from './FilterBar';
 import { ExportBar } from './ExportBar';
 
@@ -29,14 +30,21 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
   }, [fromDate, toDate]);
 
   async function handleExport(format: 'pdf' | 'excel') {
+    if (format === 'pdf') {
+      await exportReportAsPdf(
+        '/financial/summary/export',
+        { fromDate: fromDate || undefined, toDate: toDate || undefined },
+        'financial-summary',
+      );
+      return;
+    }
     const blob = await financialApi.exportFinancialSummary({
       fromDate: fromDate || undefined,
       toDate:   toDate   || undefined,
       format,
     });
-    const ext = format === 'pdf' ? 'pdf' : 'xlsx';
     const url = URL.createObjectURL(blob);
-    Object.assign(document.createElement('a'), { href: url, download: `financial-summary.${ext}` }).click();
+    Object.assign(document.createElement('a'), { href: url, download: 'financial-summary.xlsx' }).click();
     URL.revokeObjectURL(url);
   }
 
