@@ -35,6 +35,8 @@ import EmployeeWarning from './pages/EmployeeWarning';
 import PerformanceEvaluation from './pages/PerformanceEvaluation';
 import EmploymentContract from './pages/EmploymentContract';
 import PayrollBankImport from './pages/PayrollBankImport';
+import BankStatementImport from './pages/BankStatementImport';
+import BankReconciliation from './pages/BankReconciliation';
 import BankSalaryAnalytics from './pages/BankSalaryAnalytics';
 import Quotation from './pages/Quotation';
 import PurchaseRequest from './pages/PurchaseRequest';
@@ -102,6 +104,9 @@ export default function App() {
           <Route path="/statements" element={<Statements />} />
           <Route path="/financial" element={<FinancialCenter />} />
           <Route path="/integrations" element={<Integrations />} />
+          <Route path="/bank-statement-import" element={<BankStatementImport />} />
+          <Route path="/bank-reconciliation" element={<BankReconciliation />} />
+          <Route path="/bank-reconciliation/:importId" element={<BankReconciliation />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

@@ -1067,6 +1067,80 @@ model SalaryPayment {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+//  استيراد كشف الحساب البنكي (Bank Statement Import)
+// ─────────────────────────────────────────────────────────────────────────
+
+model BankStatementImport {
+  id           Int       @id @default(autoincrement())
+  bankName     String    // 'NBK' | 'KFH' | 'GulfBank' | 'Boubyan' | 'Warba' | 'AhliUnited' | 'Unknown'
+  fileName     String
+  importedBy   String
+  importedAt   DateTime  @default(now())
+  fromDate     DateTime?
+  toDate       DateTime?
+  totalRows    Int       @default(0)
+  totalDebits  Float     @default(0)
+  totalCredits Float     @default(0)
+  status       String    @default("ACTIVE") // ACTIVE | ARCHIVED
+
+  transactions BankStatementTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([bankName])
+  @@index([status])
+  @@index([importedAt])
+  @@map("bank_statement_imports")
+}
+
+model BankStatementTransaction {
+  id     Int                 @id @default(autoincrement())
+  importId Int
+  import BankStatementImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  transactionId  String?
+  bankName       String
+  statementDate  DateTime?
+  postingDate    DateTime?
+  description    String    @default("")
+  reference      String?
+  debit          Float     @default(0)
+  credit         Float     @default(0)
+  balance        Float?
+  currency       String    @default("KWD")
+  accountNumber  String?
+  iban           String?
+  chequeNumber   String?
+  rawRow         String    @default("{}") // JSON
+  normalizedText String    @default("")
+
+  // Reconciliation state
+  reconcileStatus String  @default("UNMATCHED") // UNMATCHED | MATCHED | IGNORED | DUPLICATE | REVIEW
+  matchedType     String? // 'invoice' | 'payment' | 'expense' | 'journal' | 'cheque' | 'payroll'
+  matchedId       Int?
+  matchedRef      String?
+  matchConfidence Int?    // 100 | 90 | 75 | 0
+
+  // Flags
+  isDuplicate Boolean @default(false)
+  isBankFee   Boolean @default(false)
+  bankFeeType String? // 'TRANSFER_FEE' | 'MONTHLY_FEE' | 'INTEREST' | 'CHARGE' | 'OTHER'
+  errors      String  @default("[]") // JSON array
+  warnings    String  @default("[]") // JSON array
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([importId])
+  @@index([reconcileStatus])
+  @@index([transactionId])
+  @@index([chequeNumber])
+  @@index([statementDate])
+  @@map("bank_statement_transactions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 //  الأسعار الثابتة للمشاريع (Project Prices)
 // ─────────────────────────────────────────────────────────────────────────
 

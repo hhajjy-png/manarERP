@@ -67,7 +67,8 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   finreports:   ['read', 'export'],
   // financialdashboard is seeded separately (compound module name)
   integrations:      ['read', 'configure', 'run'],
-  payrollBankImport: ['read', 'create', 'export'],
+  payrollBankImport:    ['read', 'create', 'export'],
+  bankStatementImport:  ['read', 'create', 'export', 'reconcile'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -85,6 +86,7 @@ const ACTION_AR: Record<string, string> = {
   print:     'طباعة',
   configure: 'ضبط الإعدادات',
   run:       'تشغيل',
+  reconcile: 'مطابقة',
 };
 
 // مصفوفة صلاحيات كل دور (قائمة وحدات بصلاحية كاملة، أو مفاتيح محددة)
@@ -160,6 +162,10 @@ async function main() {
       'payrollBankImport.read',
       'payrollBankImport.create',
       'payrollBankImport.export',
+      'bankStatementImport.read',
+      'bankStatementImport.create',
+      'bankStatementImport.export',
+      'bankStatementImport.reconcile',
     ],
     PROJECT_MANAGER: [
       ...keysForModules(['contracts', 'prices', 'reports']),
@@ -171,6 +177,7 @@ async function main() {
       'financialdashboard.read',
       'integrations.read',
       'payrollBankImport.read',
+      'bankStatementImport.read',
     ],
     EQUIPMENT_MANAGER: [
       ...keysForModules(['equipment', 'maintenance', 'reports']),

@@ -99,10 +99,10 @@ describe('integrationsService.list', () => {
   it('respects enabled=true override from Settings for a planned integration', async () => {
     // even if someone forces enabled=true on a planned integration, health stays unavailable
     mockPrisma.setting.findMany.mockResolvedValue([
-      { key: 'integrations.bank-statement-import.enabled', value: 'true' },
+      { key: 'integrations.bank-reconciliation.enabled', value: 'true' },
     ]);
     const result = await integrationsService.list();
-    const card = result.find((c) => c.id === 'bank-statement-import')!;
+    const card = result.find((c) => c.id === 'bank-reconciliation')!;
     expect(card.enabled).toBe(true);
     expect(card.health).toBe('unavailable');
   });
