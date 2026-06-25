@@ -29,6 +29,7 @@ import { getInkFilterStyle } from '../print-templates/utils/inkFilter';
 import { useTemplateStudio } from '../print-templates/studio/useTemplateStudio';
 import TemplateStudioRenderer from '../print-templates/studio/TemplateStudioRenderer';
 import { resolveInvoiceLineItems } from '../print-templates/studio/lineItemsResolver';
+import { DocumentVerificationQR } from '../print-templates/components/DocumentVerificationQR';
 
 const PAY_METHOD_AR: Record<string, string> = {
   CASH: 'نقدًا', BANK: 'بنك', CHEQUE: 'شيك', TRANSFER: 'تحويل',
@@ -63,6 +64,7 @@ type FullInvoice = {
   total: number;
   paidAmount: number;
   notes?: string | null;
+  verificationUuid?: string | null;
   createdAt: string;
   updatedAt: string;
   customer?: { id: number; name: string } | null;
@@ -830,6 +832,11 @@ export default function InvoicePreview() {
           <>
             <LayoutOverrideStyles overrides={effectiveLayoutOverrides.invoice} />
             <EngineComponent data={printData} />
+            {data?.verificationUuid && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 8px 0' }}>
+                <DocumentVerificationQR uuid={data.verificationUuid} size={72} />
+              </div>
+            )}
           </>
         )}
 
