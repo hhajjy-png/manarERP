@@ -1,6 +1,24 @@
 import type { PrintProfile, ReportBranding } from './reportTypes';
 import { PRINT_PROFILES } from './printProfiles';
 
+export function resolveTablePadding(density?: 'compact' | 'normal' | 'comfortable'): string {
+  if (density === 'compact')     return '3px 6px';
+  if (density === 'comfortable') return '8px 14px';
+  return '6px 10px';
+}
+
+export function resolveLogoWidth(size?: 'small' | 'medium' | 'large'): string {
+  if (size === 'medium') return '90px';
+  if (size === 'large')  return '120px';
+  return '60px';
+}
+
+export function resolveLogoJustify(align?: 'start' | 'center' | 'end'): string {
+  if (align === 'center') return 'center';
+  if (align === 'end')    return 'flex-end';
+  return 'flex-start';
+}
+
 export function buildStyles(
   profile: PrintProfile = 'a4-landscape',
   branding?: ReportBranding,
@@ -269,5 +287,10 @@ export function buildStyles(
 
     .card-label { font-size: 9.5px; color: #6b7280; margin-bottom: 4px; }
     .card-value { font-size: 14px; font-weight: 700; color: #111827; }
+
+    /* ── Profile density + logo sizing ── */
+    table td, table th { padding: ${resolveTablePadding(p.tableDensity)}; }
+    .branding-logo-wrap { display: flex; justify-content: ${resolveLogoJustify(p.logoAlignment)}; }
+    .branding-logo { width: ${resolveLogoWidth(p.logoSize)}; height: auto; }
   `;
 }

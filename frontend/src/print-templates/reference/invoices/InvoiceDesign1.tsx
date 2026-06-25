@@ -106,7 +106,7 @@ export default function InvoiceDesign1({ data }: Props) {
         <span style={{"direction": "ltr"}}>
           {data
             ? `${data.totalDinars} / ${String(data.totalFils).padStart(3, '0')}`
-            : 'Total :'}
+            : 'الإجمالي:'}
         </span>
       </div></td></tr>
     </tfoot>

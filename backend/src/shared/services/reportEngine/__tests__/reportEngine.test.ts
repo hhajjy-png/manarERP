@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { buildReportHtml } from '../html.service';
-import { buildStyles } from '../styles.template';
+import { buildStyles, resolveTablePadding, resolveLogoWidth, resolveLogoJustify } from '../styles.template';
 import { buildBrandingHeader } from '../branding.template';
 import { buildReportHeader } from '../header.template';
 import { buildTable } from '../table.template';
@@ -216,6 +216,22 @@ describe('buildBrandingHeader', () => {
     const html = buildBrandingHeader({ companyNameAr: 'شركة', logoBase64: 'abc123' });
     expect(html).toContain('<img');
     expect(html).toContain('abc123');
+  });
+
+  it('applies min-height inline style when headerHeight config is provided', () => {
+    const html = buildBrandingHeader({ companyNameAr: 'شركة' }, { headerHeight: '70px' });
+    expect(html).toContain('min-height');
+    expect(html).toContain('70px');
+  });
+
+  it('does NOT apply min-height when no config provided (backward compat)', () => {
+    const html = buildBrandingHeader({ companyNameAr: 'شركة' });
+    expect(html).not.toContain('min-height');
+  });
+
+  it('includes branding-logo-wrap wrapper always', () => {
+    const html = buildBrandingHeader({ companyNameAr: 'شركة' });
+    expect(html).toContain('branding-logo-wrap');
   });
 });
 
@@ -464,5 +480,51 @@ describe('Migration compatibility', () => {
       expect(html).toContain('<!DOCTYPE html>');
       expect(html).toContain('@page');
     }
+  });
+});
+
+// ─── Profile Helper Functions ─────────────────────────────────────────────────
+
+describe('resolveTablePadding', () => {
+  it('returns compact padding for compact density', () =>
+    expect(resolveTablePadding('compact')).toBe('3px 6px'));
+  it('returns normal padding for normal density', () =>
+    expect(resolveTablePadding('normal')).toBe('6px 10px'));
+  it('returns comfortable padding for comfortable density', () =>
+    expect(resolveTablePadding('comfortable')).toBe('8px 14px'));
+  it('returns normal padding when undefined (default)', () =>
+    expect(resolveTablePadding(undefined)).toBe('6px 10px'));
+});
+
+describe('resolveLogoWidth', () => {
+  it('returns 60px for small size', () => expect(resolveLogoWidth('small')).toBe('60px'));
+  it('returns 90px for medium size', () => expect(resolveLogoWidth('medium')).toBe('90px'));
+  it('returns 120px for large size', () => expect(resolveLogoWidth('large')).toBe('120px'));
+  it('returns 60px when undefined (default)', () => expect(resolveLogoWidth(undefined)).toBe('60px'));
+});
+
+describe('resolveLogoJustify', () => {
+  it('returns flex-start for start alignment', () =>
+    expect(resolveLogoJustify('start')).toBe('flex-start'));
+  it('returns center for center alignment', () =>
+    expect(resolveLogoJustify('center')).toBe('center'));
+  it('returns flex-end for end alignment', () =>
+    expect(resolveLogoJustify('end')).toBe('flex-end'));
+  it('returns flex-start when undefined (default)', () =>
+    expect(resolveLogoJustify(undefined)).toBe('flex-start'));
+});
+
+describe('buildStyles — profile density CSS', () => {
+  it('statement profile generates comfortable table padding in CSS', () => {
+    const css = buildStyles('statement');
+    expect(css).toContain('8px 14px');
+  });
+  it('a4-landscape profile generates compact table padding in CSS', () => {
+    const css = buildStyles('a4-landscape');
+    expect(css).toContain('3px 6px');
+  });
+  it('a4-portrait profile generates normal table padding in CSS', () => {
+    const css = buildStyles('a4-portrait');
+    expect(css).toContain('6px 10px');
   });
 });

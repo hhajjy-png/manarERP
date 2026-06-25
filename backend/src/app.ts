@@ -34,6 +34,7 @@ import executiveRoutes from './modules/executive/executive.routes';
 import approvalHistoryRoutes from './modules/approval/approval.routes';
 import statementsRoutes from './modules/statements/statements.routes';
 import financialRoutes  from './modules/financial/financial.routes';
+import verificationRoutes from './modules/verification/verification.routes';
 
 /**
  * إنشاء تطبيق Express وتهيئة الـ Middlewares والمسارات.
@@ -106,6 +107,7 @@ export function createApp(): Application {
   app.use('/api/approval-history', approvalHistoryRoutes);
   app.use('/api/statements', statementsRoutes);
   app.use('/api/financial',  financialRoutes);
+  app.use('/api/verify', verificationRoutes);
 
   // معالجة المسارات غير الموجودة + الأخطاء (يجب أن تكون في النهاية)
   app.use(notFoundHandler);

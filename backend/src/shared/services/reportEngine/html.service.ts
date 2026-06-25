@@ -4,6 +4,7 @@ import type { ReportInput } from './excel.service';
 import type { ReportOptions } from './reportTypes';
 import { buildStyles } from './styles.template';
 import { buildBrandingHeader } from './branding.template';
+import { PRINT_PROFILES } from './printProfiles';
 import { buildReportHeader } from './header.template';
 import { buildPageFooterHtml } from './footer.template';
 import { buildTable } from './table.template';
@@ -46,10 +47,11 @@ export function buildReportHtml(input: ReportInput, options?: ReportOptions): st
       }`
     : '';
 
-  const profile  = options?.profile   ?? 'a4-landscape';
-  const styles   = buildStyles(profile, options?.branding, fontFace);
-  const watermark    = buildWatermark(options?.watermark);
-  const brandingHdr  = options?.branding ? buildBrandingHeader(options.branding) : '';
+  const profile       = options?.profile ?? 'a4-landscape';
+  const profileConfig = PRINT_PROFILES[profile];
+  const styles        = buildStyles(profile, options?.branding, fontFace);
+  const watermark     = buildWatermark(options?.watermark);
+  const brandingHdr   = options?.branding ? buildBrandingHeader(options.branding, profileConfig) : '';
   const reportHdr    = buildReportHeader(input, options);
   const table        = buildTable(input.columns, input.rows, input.totalsRow);
   const footerHtml   = buildPageFooterHtml(options?.branding, options);

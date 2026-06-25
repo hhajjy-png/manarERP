@@ -60,6 +60,7 @@ export const MODULES = [
   'finreports',
   'financial',
   'financialdashboard',
+  'verification',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
