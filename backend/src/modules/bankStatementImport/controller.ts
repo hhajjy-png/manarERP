@@ -1,0 +1,148 @@
+import type { Request, Response } from 'express';
+import { asyncHandler } from '@core/utils/asyncHandler.js';
+import { ok, created } from '@core/utils/response.js';
+import { AppError } from '@core/errors/AppError.js';
+import { recordAudit } from '@core/middleware/audit.js';
+import {
+  PreviewRequestSchema,
+  ExecuteImportSchema,
+  WorkspaceQuerySchema,
+  UpdateStatusSchema,
+  BulkUpdateStatusSchema,
+  ReportExportSchema,
+} from './schema.js';
+import * as svc from './service.js';
+
+// ── Preview ────────────────────────────────────────────────────────────────────
+
+export const previewHandler = asyncHandler(async (req: Request, res: Response) => {
+  const parsed = PreviewRequestSchema.safeParse(req.body);
+  if (!parsed.success) throw AppError.badRequest(parsed.error.errors[0]?.message ?? 'بيانات غير صحيحة');
+  const result = await svc.preview(parsed.data);
+  ok(res, result);
+});
+
+// ── Execute import ─────────────────────────────────────────────────────────────
+
+export const executeHandler = asyncHandler(async (req: Request, res: Response) => {
+  const parsed = ExecuteImportSchema.safeParse(req.body);
+  if (!parsed.success) throw AppError.badRequest(parsed.error.errors[0]?.message ?? 'بيانات غير صحيحة');
+
+  const importedBy = req.user?.username ?? 'unknown';
+  const result     = await svc.execute(parsed.data, importedBy);
+
+  await recordAudit({
+    req,
+    action:   'CREATE',
+    module:   'bankStatementImport',
+    entityId: result.importId,
+    newValue: { bankName: result.bankName, fileName: result.fileName, totalRows: result.totalRows },
+  });
+
+  created(res, result);
+});
+
+// ── List imports ───────────────────────────────────────────────────────────────
+
+export const listHandler = asyncHandler(async (req: Request, res: Response) => {
+  const page     = parseInt(String(req.query.page     ?? '1'),  10);
+  const pageSize = parseInt(String(req.query.pageSize ?? '20'), 10);
+  const result   = await svc.listImports(page, pageSize);
+  ok(res, result);
+});
+
+// ── Workspace ──────────────────────────────────────────────────────────────────
+
+export const workspaceHandler = asyncHandler(async (req: Request, res: Response) => {
+  const importId = parseInt(req.params.importId!, 10);
+  if (isNaN(importId)) throw AppError.badRequest('معرّف الاستيراد غير صحيح');
+
+  const queryParsed = WorkspaceQuerySchema.safeParse(req.query);
+  if (!queryParsed.success) throw AppError.badRequest(queryParsed.error.errors[0]?.message ?? 'معامل استعلام غير صحيح');
+
+  const q: Record<string, string | undefined> = {};
+  for (const [k, v] of Object.entries(queryParsed.data)) {
+    if (v != null) q[k] = String(v);
+  }
+
+  const result = await svc.getWorkspaceByImport(importId, q);
+  ok(res, result);
+});
+
+// ── Update transaction status ──────────────────────────────────────────────────
+
+export const updateStatusHandler = asyncHandler(async (req: Request, res: Response) => {
+  const importId      = parseInt(req.params.importId!,      10);
+  const transactionId = parseInt(req.params.transactionId!, 10);
+  if (isNaN(importId) || isNaN(transactionId)) throw AppError.badRequest('معرّف غير صحيح');
+
+  const parsed = UpdateStatusSchema.safeParse(req.body);
+  if (!parsed.success) throw AppError.badRequest(parsed.error.errors[0]?.message ?? 'بيانات غير صحيحة');
+
+  await svc.updateTransactionStatus(importId, transactionId, parsed.data);
+
+  await recordAudit({
+    req,
+    action:   'UPDATE',
+    module:   'bankStatementImport',
+    entityId: transactionId,
+    newValue: { importId, newStatus: parsed.data.status },
+  });
+
+  ok(res, { updated: 1 });
+});
+
+// ── Bulk update status ─────────────────────────────────────────────────────────
+
+export const bulkUpdateStatusHandler = asyncHandler(async (req: Request, res: Response) => {
+  const importId = parseInt(req.params.importId!, 10);
+  if (isNaN(importId)) throw AppError.badRequest('معرّف الاستيراد غير صحيح');
+
+  const parsed = BulkUpdateStatusSchema.safeParse(req.body);
+  if (!parsed.success) throw AppError.badRequest(parsed.error.errors[0]?.message ?? 'بيانات غير صحيحة');
+
+  const result = await svc.bulkUpdateTransactionStatus(importId, parsed.data);
+
+  await recordAudit({
+    req,
+    action:   'UPDATE',
+    module:   'bankStatementImport',
+    entityId: importId,
+    newValue: { bulkCount: result.updated, status: parsed.data.status },
+  });
+
+  ok(res, result);
+});
+
+// ── Posting suggestions ────────────────────────────────────────────────────────
+
+export const postingSuggestionsHandler = asyncHandler(async (req: Request, res: Response) => {
+  const importId      = parseInt(req.params.importId!,      10);
+  const transactionId = parseInt(req.params.transactionId!, 10);
+  if (isNaN(importId) || isNaN(transactionId)) throw AppError.badRequest('معرّف غير صحيح');
+
+  const suggestions = await svc.getPostingSuggestions(importId, transactionId);
+  ok(res, suggestions);
+});
+
+// ── Report export ──────────────────────────────────────────────────────────────
+
+export const exportReportHandler = asyncHandler(async (req: Request, res: Response) => {
+  const importId = parseInt(req.params.importId!, 10);
+  if (isNaN(importId)) throw AppError.badRequest('معرّف الاستيراد غير صحيح');
+
+  const parsed = ReportExportSchema.safeParse(req.query);
+  if (!parsed.success) throw AppError.badRequest('الصيغة غير صحيحة — يُسمح بـ excel أو pdf');
+
+  const result = await svc.exportReport(importId, parsed.data.format);
+
+  res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+  res.setHeader('Content-Type', result.contentType);
+
+  if (result.html) {
+    res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
+    res.send(result.html);
+  } else {
+    res.send(result.buffer);
+  }
+});

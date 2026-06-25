@@ -63,6 +63,7 @@ export const MODULES = [
   'verification',
   'integrations',
   'payrollBankImport',
+  'bankStatementImport',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
@@ -85,6 +86,7 @@ export const ACTIONS = [
   'reopen',      // Rejected → Pending reopen step (used by future module configs)
   'configure',   // Update integration/module configuration
   'run',         // Execute an integration or automated task
+  'reconcile',   // Reconcile bank statement transactions
 ] as const;
 export type ActionName = (typeof ACTIONS)[number];
 

@@ -351,6 +351,8 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'salaries', label: 'nav.salaries', icon: 'account_balance_wallet', permission: 'payroll.read' },
     { key: 'payroll/bank-import', label: 'nav.bank_import', icon: 'file_upload', permission: 'import.read' },
     { key: 'payroll/bank-analytics', label: 'nav.bank_analytics', icon: 'bar_chart', permission: 'import.read' },
+    { key: 'bank-statement-import', label: 'nav.bank_statement_import', icon: 'account_balance', permission: 'bankStatementImport.read' },
+    { key: 'bank-reconciliation',   label: 'nav.bank_reconciliation',   icon: 'balance',          permission: 'bankStatementImport.read' },
     { key: 'suppliers', label: 'nav.suppliers', icon: 'inventory_2', permission: 'suppliers.read' },
     { key: 'accounting', label: 'nav.accounting', icon: 'account_balance', permission: 'transactions.read' },
     { key: 'statements', label: 'nav.statements', icon: 'account_balance_wallet', permission: 'statements.read' },
