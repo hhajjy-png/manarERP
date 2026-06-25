@@ -24,6 +24,7 @@ import type {
   StudioColorToken,
 } from './templateStudioTypes';
 import { getDefaultLineItemsColumns } from './lineItemsResolver';
+import DocxImportWizard from './docxImport/DocxImportWizard';
 import {
   parseTemplateStudioSettings,
   serializeTemplateStudioSettings,
@@ -98,6 +99,7 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
   // ── Editor state ──────────────────────────────────────────────
   const [activeDocType, setActiveDocType]       = useState<TemplateStudioDocumentType>('invoice');
   const [selectedTemplateId, setSelectedTplId]  = useState<string | null>(null);
+  const [docxWizardOpen, setDocxWizardOpen]     = useState(false);
   const [selectedElementId, setSelectedElId]    = useState<string | null>(null);
   const [renaming, setRenaming]                 = useState<string | null>(null);
   const [renameVal, setRenameVal]               = useState('');
@@ -952,6 +954,9 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
               استيراد ملف
             </button>
             <input ref={importRef} type="file" accept=".json" hidden onChange={handleImportFile} />
+            <button type="button" style={btnLeft} onClick={() => setDocxWizardOpen(true)}>
+              استيراد DOCX
+            </button>
           </div>
         </div>
 
@@ -1040,6 +1045,16 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
           />
         );
       })()}
+      <DocxImportWizard
+        open={docxWizardOpen}
+        onClose={() => setDocxWizardOpen(false)}
+        onImportConfirm={(tpl) => {
+          updateTemplates((ts) => [...ts, tpl]);
+          setSelectedTplId(tpl.id);
+          setActiveDocType(tpl.documentType);
+          setDocxWizardOpen(false);
+        }}
+      />
     </div>
   );
 }
