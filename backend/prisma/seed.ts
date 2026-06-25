@@ -66,7 +66,8 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   journal:      ['read', 'export'],
   finreports:   ['read', 'export'],
   // financialdashboard is seeded separately (compound module name)
-  integrations: ['read', 'configure', 'run'],
+  integrations:      ['read', 'configure', 'run'],
+  payrollBankImport: ['read', 'create', 'export'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -156,6 +157,9 @@ async function main() {
       'financialdashboard.read',
       'integrations.read',
       'integrations.run',
+      'payrollBankImport.read',
+      'payrollBankImport.create',
+      'payrollBankImport.export',
     ],
     PROJECT_MANAGER: [
       ...keysForModules(['contracts', 'prices', 'reports']),
@@ -166,6 +170,7 @@ async function main() {
       'aging.read',
       'financialdashboard.read',
       'integrations.read',
+      'payrollBankImport.read',
     ],
     EQUIPMENT_MANAGER: [
       ...keysForModules(['equipment', 'maintenance', 'reports']),
@@ -183,6 +188,9 @@ async function main() {
       ...readOnly(['dashboard']),
       'import.read',
       'import.create',
+      'payrollBankImport.read',
+      'payrollBankImport.create',
+      'payrollBankImport.export',
     ],
     STANDARD_USER: [
       ...readOnly(['dashboard', 'customers', 'contracts', 'equipment', 'prices']),

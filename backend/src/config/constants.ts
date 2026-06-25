@@ -62,6 +62,7 @@ export const MODULES = [
   'financialdashboard',
   'verification',
   'integrations',
+  'payrollBankImport',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];

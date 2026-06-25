@@ -1,0 +1,1024 @@
+import { useRef, useState, useCallback } from 'react';
+import * as XLSX from 'xlsx';
+import { useAuth } from '../stores/authStore';
+import { errorMessage } from '../api/client';
+import {
+  previewImport, executeImport, exportReportExcel, exportReportPdf,
+  type BankTemplate, type ParsedBankRow, type PreviewSummary, type ImportReport,
+} from '../api/payrollBankImport';
+
+// ── Bank template configs (mirrors backend excelParser.ts) ────────────────────
+
+interface BankColumnMap {
+  employeeCode: string[];
+  civilId: string[];
+  iban: string[];
+  bankAccount: string[];
+  beneficiaryName: string[];
+  amount: string[];
+  currency: string[];
+  transactionId: string[];
+  paymentDate: string[];
+  paymentStatus: string[];
+}
+
+interface BankTemplateConfig {
+  nameAr: string;
+  detectionSignature: string[];
+  columns: BankColumnMap;
+}
+
+const BANK_CONFIGS: Record<BankTemplate, BankTemplateConfig> = {
+  NBK: {
+    nameAr: 'بنك الكويت الوطني (NBK)',
+    detectionSignature: ['transaction id', 'beneficiary account number'],
+    columns: {
+      employeeCode:    [],
+      civilId:         ['civil id', 'civil no', 'civil number'],
+      iban:            ['iban'],
+      bankAccount:     ['beneficiary account number', 'account number'],
+      beneficiaryName: ['beneficiary account name', 'beneficiary name'],
+      amount:          ['payment amount', 'amount'],
+      currency:        ['currency'],
+      transactionId:   ['transaction id', 'reference'],
+      paymentDate:     ['payment date', 'date'],
+      paymentStatus:   ['status', 'transaction status'],
+    },
+  },
+  KFH: {
+    nameAr: 'بيت التمويل الكويتي (KFH)',
+    detectionSignature: ['civil number', 'transaction reference'],
+    columns: {
+      employeeCode:    [],
+      civilId:         ['civil number', 'civil id'],
+      iban:            ['iban'],
+      bankAccount:     ['account number'],
+      beneficiaryName: ['beneficiary name', 'name'],
+      amount:          ['amount', 'transfer amount'],
+      currency:        ['currency'],
+      transactionId:   ['transaction reference', 'ref no', 'reference'],
+      paymentDate:     ['value date', 'payment date', 'date'],
+      paymentStatus:   ['status'],
+    },
+  },
+  Boubyan: {
+    nameAr: 'بنك بوبيان',
+    detectionSignature: ['civil id', 'iban'],
+    columns: {
+      employeeCode:    [],
+      civilId:         ['civil id'],
+      iban:            ['iban'],
+      bankAccount:     ['account number', 'bank account'],
+      beneficiaryName: ['beneficiary name', 'name'],
+      amount:          ['amount'],
+      currency:        ['currency'],
+      transactionId:   ['reference no', 'transaction id', 'reference'],
+      paymentDate:     ['payment date', 'date'],
+      paymentStatus:   ['status'],
+    },
+  },
+  GulfBank: {
+    nameAr: 'بنك الخليج',
+    detectionSignature: ['employee code', 'civil id', 'bank account'],
+    columns: {
+      employeeCode:    ['employee code', 'emp code', 'emp id'],
+      civilId:         ['civil id', 'civil number', 'civil no'],
+      iban:            ['iban'],
+      bankAccount:     ['bank account', 'account'],
+      beneficiaryName: ['employee name', 'name'],
+      amount:          ['salary', 'net salary', 'amount'],
+      currency:        ['currency'],
+      transactionId:   ['reference', 'transaction id', 'ref no'],
+      paymentDate:     ['payment date', 'date'],
+      paymentStatus:   ['status', 'payment status'],
+    },
+  },
+  Warba: {
+    nameAr: 'بنك وربة',
+    detectionSignature: ['reference number', 'civil number'],
+    columns: {
+      employeeCode:    [],
+      civilId:         ['civil number', 'civil id'],
+      iban:            ['iban'],
+      bankAccount:     ['account number', 'bank account'],
+      beneficiaryName: ['beneficiary name', 'name'],
+      amount:          ['amount', 'transfer amount'],
+      currency:        ['currency'],
+      transactionId:   ['reference number', 'ref no'],
+      paymentDate:     ['payment date', 'value date'],
+      paymentStatus:   ['status', 'payment status'],
+    },
+  },
+  AhliUnited: {
+    nameAr: 'بنك الأهلي المتحد',
+    detectionSignature: ['employee id', 'national id'],
+    columns: {
+      employeeCode:    ['employee id', 'emp id'],
+      civilId:         ['national id', 'civil id'],
+      iban:            ['iban'],
+      bankAccount:     ['account', 'bank account'],
+      beneficiaryName: ['employee name', 'name'],
+      amount:          ['net salary', 'amount'],
+      currency:        ['currency'],
+      transactionId:   ['reference', 'transaction ref', 'transaction id'],
+      paymentDate:     ['payment date', 'date'],
+      paymentStatus:   ['status'],
+    },
+  },
+  Unknown: {
+    nameAr: 'نموذج غير معروف',
+    detectionSignature: [],
+    columns: {
+      employeeCode:    ['employee code', 'emp code', 'employee id'],
+      civilId:         ['civil id', 'civil number', 'national id'],
+      iban:            ['iban'],
+      bankAccount:     ['bank account', 'account number', 'account'],
+      beneficiaryName: ['beneficiary name', 'name', 'employee name'],
+      amount:          ['amount', 'payment amount', 'net salary', 'salary'],
+      currency:        ['currency'],
+      transactionId:   ['transaction id', 'reference', 'reference number'],
+      paymentDate:     ['payment date', 'date', 'value date'],
+      paymentStatus:   ['status', 'transaction status', 'payment status'],
+    },
+  },
+};
+
+// ── Parser helpers ────────────────────────────────────────────────────────────
+
+function normalizeHeader(h: string): string {
+  return String(h).trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function detectTemplate(rawHeaders: string[]): BankTemplate {
+  const normalized = new Set(rawHeaders.map(normalizeHeader));
+  const ORDER: BankTemplate[] = ['GulfBank', 'AhliUnited', 'KFH', 'Warba', 'Boubyan', 'NBK'];
+  for (const bank of ORDER) {
+    const sig = BANK_CONFIGS[bank].detectionSignature;
+    if (sig.length > 0 && sig.every((h) => normalized.has(h))) return bank;
+  }
+  return 'Unknown';
+}
+
+function isSafeValue(val: string): boolean {
+  if (!val) return true;
+  return !['=', '+', '-', '@', '\t', '\r'].includes(val[0]);
+}
+
+function escapeCell(raw: string): string {
+  const t = raw.trim();
+  return isSafeValue(t) ? t : '';
+}
+
+function extractValue(nr: Record<string, unknown>, candidates: string[]): string {
+  for (const key of candidates) {
+    const v = nr[normalizeHeader(key)];
+    if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+  }
+  return '';
+}
+
+const MONTH_MAP: Record<string, number> = {
+  jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3,
+  apr: 4, april: 4, may: 5, jun: 6, june: 6, jul: 7, july: 7,
+  aug: 8, august: 8, sep: 9, sept: 9, september: 9,
+  oct: 10, october: 10, nov: 11, november: 11, dec: 12, december: 12,
+};
+
+function parseSheetMonth(name: string): { month: number; year: number } | null {
+  const clean = name.trim().toLowerCase();
+  const m = clean.match(/^([a-z]+)[-\s](\d{4})$/);
+  if (!m) return null;
+  const month = MONTH_MAP[m[1]];
+  const year  = parseInt(m[2], 10);
+  if (month && year >= 2000 && year <= 2100) return { month, year };
+  return null;
+}
+
+function parseMonthColumn(value: unknown): { month: number; year: number } | null {
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) return null;
+    const y = value.getFullYear();
+    return y >= 2000 && y <= 2100 ? { month: value.getMonth() + 1, year: y } : null;
+  }
+  if (typeof value !== 'string') return null;
+  const m = value.trim().toLowerCase().match(/^([a-z]+)-(\d{2})$/);
+  if (!m) return null;
+  const month = MONTH_MAP[m[1]];
+  const year  = 2000 + parseInt(m[2], 10);
+  return month && year <= 2100 ? { month, year } : null;
+}
+
+function parseDateValue(v: unknown): string | null {
+  if (!v) return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v.toISOString();
+  const s = String(v).trim();
+  if (!s) return null;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? s : d.toISOString();
+}
+
+function buildParsedRow(
+  rawRow: Record<string, unknown>,
+  template: BankTemplate,
+  sheetName: string,
+  payrollMonth: number,
+  payrollYear: number,
+  rowIndex: number,
+): ParsedBankRow {
+  const cols = BANK_CONFIGS[template].columns;
+  const nr: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(rawRow)) nr[normalizeHeader(k)] = v;
+  const get = (keys: string[]) => escapeCell(extractValue(nr, keys));
+  const amount = parseFloat(extractValue(nr, cols.amount).replace(/,/g, '')) || 0;
+  const pdRaw  = nr[normalizeHeader(cols.paymentDate[0] ?? '')] ?? extractValue(nr, cols.paymentDate);
+
+  return {
+    employeeCode:  get(cols.employeeCode) || null,
+    civilId:       get(cols.civilId) || null,
+    iban:          get(cols.iban) || null,
+    bankAccount:   get(cols.bankAccount) || null,
+    beneficiaryName: get(cols.beneficiaryName),
+    amount,
+    currency:      (get(cols.currency) || 'KWD').toUpperCase(),
+    transactionId: get(cols.transactionId) || null,
+    paymentDate:   parseDateValue(pdRaw),
+    paymentStatus: get(cols.paymentStatus) || null,
+    payrollMonth,
+    payrollYear,
+    _rowIndex: rowIndex,
+    _sheetName: sheetName,
+  };
+}
+
+interface ParseResult {
+  rows: ParsedBankRow[];
+  templateName: BankTemplate;
+  skippedSheets: string[];
+}
+
+const MAX_ROWS = 2000;
+
+/** Extract the header row (first row) from a worksheet as string[]. */
+function sheetHeaders(ws: XLSX.WorkSheet): string[] {
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][];
+  return (raw[0] ?? []).map(String);
+}
+
+/** Read data rows from a worksheet (workbook already parsed with cellDates:true). */
+function sheetRows(ws: XLSX.WorkSheet): Record<string, unknown>[] {
+  return XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+}
+
+function parseWorkbook(wb: XLSX.WorkBook): ParseResult {
+  // Priority 1: Monthly-named sheets (e.g. "mar-2025")
+  const monthlySheets = wb.SheetNames.filter((n) => parseSheetMonth(n) !== null);
+
+  if (monthlySheets.length > 0) {
+    const template = detectTemplate(sheetHeaders(wb.Sheets[monthlySheets[0]]));
+    const rows: ParsedBankRow[] = [];
+
+    for (const sheetName of monthlySheets) {
+      const { month, year } = parseSheetMonth(sheetName)!;
+      const rawRows = sheetRows(wb.Sheets[sheetName]);
+      for (let i = 0; i < rawRows.length && rows.length < MAX_ROWS; i++) {
+        const row = buildParsedRow(rawRows[i], template, sheetName, month, year, i);
+        if (row.transactionId || row.civilId || row.bankAccount || row.employeeCode) {
+          rows.push(row);
+        }
+      }
+    }
+    return { rows, templateName: template, skippedSheets: wb.SheetNames.filter((n) => !monthlySheets.includes(n)) };
+  }
+
+  // Priority 2: All_Transactions sheet with Month column
+  const allTxName = wb.SheetNames.find((n) => n.trim().toLowerCase() === 'all_transactions');
+  if (allTxName) {
+    const ws = wb.Sheets[allTxName];
+    const template = detectTemplate(sheetHeaders(ws));
+    const allRaw   = sheetRows(ws);
+    const rows: ParsedBankRow[] = [];
+
+    for (let i = 0; i < allRaw.length && rows.length < MAX_ROWS; i++) {
+      const nr: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(allRaw[i])) nr[normalizeHeader(k)] = v;
+      const parsed = parseMonthColumn(nr['month']) ?? { month: 0, year: 0 };
+      const row = buildParsedRow(allRaw[i], template, allTxName, parsed.month, parsed.year, i);
+      if (row.transactionId || row.civilId || row.bankAccount || row.employeeCode) {
+        rows.push(row);
+      }
+    }
+    return { rows, templateName: template, skippedSheets: [] };
+  }
+
+  // Fallback: first sheet, attempt detection
+  const firstSheetName = wb.SheetNames[0];
+  const ws = wb.Sheets[firstSheetName];
+  const template = detectTemplate(sheetHeaders(ws));
+  const allRaw   = sheetRows(ws);
+  const rows: ParsedBankRow[] = [];
+
+  for (let i = 0; i < allRaw.length && rows.length < MAX_ROWS; i++) {
+    const row = buildParsedRow(allRaw[i], template, firstSheetName, 0, 0, i);
+    if (row.transactionId || row.civilId || row.bankAccount || row.employeeCode) {
+      rows.push(row);
+    }
+  }
+  return { rows, templateName: template, skippedSheets: [] };
+}
+
+// ── Wizard state ──────────────────────────────────────────────────────────────
+
+type WizardStep = 'upload' | 'preview' | 'confirm' | 'done';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href    = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const MONTH_AR = ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
+function fmtDate(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('ar-KW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
+function fmtAmount(n: number): string {
+  return n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function StepIndicator({ current }: { current: WizardStep }) {
+  const steps: { id: WizardStep; label: string; visual: string }[] = [
+    { id: 'upload',  label: 'رفع الملف',    visual: '① ' },
+    { id: 'preview', label: 'معاينة وتحقق', visual: '② ' },
+    { id: 'preview', label: 'ملخص التحقق',  visual: '③ ' },
+    { id: 'confirm', label: 'تأكيد',        visual: '④ ' },
+    { id: 'done',    label: 'اكتمل',        visual: '⑤ ' },
+  ];
+  const stepOrder: WizardStep[] = ['upload', 'preview', 'confirm', 'done'];
+  const currentIdx = stepOrder.indexOf(current);
+
+  return (
+    <div style={{ display: 'flex', gap: 0, marginBottom: 28, position: 'relative' }}>
+      {/* connector line */}
+      <div style={{ position: 'absolute', top: 16, right: 32, left: 32, height: 2, background: 'var(--border, #e5e7eb)', zIndex: 0 }} />
+      {steps.map((step, i) => {
+        const stepStateIdx = stepOrder.indexOf(step.id);
+        const done    = stepStateIdx < currentIdx;
+        const active  = stepStateIdx === currentIdx;
+        return (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 13, fontWeight: 700,
+              background: done ? '#16a34a' : active ? 'var(--color-brand, #1d4e6f)' : 'var(--bg-card, #fff)',
+              color:      done ? '#fff'    : active ? '#fff'                         : 'var(--text-muted, #9ca3af)',
+              border:     done ? 'none'    : active ? 'none'                         : '2px solid var(--border, #d1d5db)',
+            }}>
+              {done ? '✓' : String(i + 1)}
+            </div>
+            <span style={{
+              fontSize: 11, marginTop: 6, fontWeight: active ? 700 : 400,
+              color: active ? 'var(--text-primary, #111827)' : done ? '#16a34a' : 'var(--text-muted, #9ca3af)',
+              textAlign: 'center',
+            }}>
+              {step.visual}{step.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function KpiCard({ label, value, color }: { label: string; value: string | number; color: string }) {
+  return (
+    <div style={{
+      background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e5e7eb)',
+      borderRadius: 8, padding: '14px 20px', minWidth: 110, textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 24, fontWeight: 700, color }}>{value}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted, #6b7280)', marginTop: 3 }}>{label}</div>
+    </div>
+  );
+}
+
+function ErrorBanner({ msg }: { msg: string }) {
+  return (
+    <div style={{
+      background: '#fef2f2', border: '1px solid #dc2626', borderRadius: 6,
+      padding: '10px 14px', marginBottom: 16, color: '#dc2626', fontSize: 14,
+    }}>
+      {msg}
+    </div>
+  );
+}
+
+function btn(variant: 'primary' | 'secondary' | 'danger' | 'success', disabled = false): React.CSSProperties {
+  const base: React.CSSProperties = {
+    padding: '9px 20px', borderRadius: 6, fontWeight: 600, fontSize: 14,
+    cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+    border: 'none', fontFamily: 'inherit', transition: 'opacity .15s',
+  };
+  if (variant === 'primary')   return { ...base, background: 'var(--color-brand, #1d4e6f)', color: '#fff' };
+  if (variant === 'danger')    return { ...base, background: '#dc2626', color: '#fff' };
+  if (variant === 'success')   return { ...base, background: '#16a34a', color: '#fff' };
+  return { ...base, background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e5e7eb)', color: 'var(--text-secondary, #374151)' };
+}
+
+const TH: React.CSSProperties = { padding: '10px 12px', textAlign: 'start', fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap', background: 'var(--bg-header, #f9fafb)' };
+const TD: React.CSSProperties = { padding: '8px 12px', verticalAlign: 'top', fontSize: 13 };
+
+function StatusPill({ status, errors }: { status: 'valid'|'warning'|'error'; errors: string[] }) {
+  const map = {
+    valid:   { bg: '#dcfce7', color: '#16a34a', label: 'صالح' },
+    warning: { bg: '#fef3c7', color: '#d97706', label: 'تحذير' },
+    error:   { bg: '#fee2e2', color: '#dc2626', label: 'خطأ' },
+  };
+  const { bg, color, label } = map[status];
+  return (
+    <div>
+      <span style={{ background: bg, color, borderRadius: 4, padding: '2px 8px', fontSize: 12, fontWeight: 700 }}>{label}</span>
+      {errors.length > 0 && (
+        <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4, lineHeight: 1.4 }}>{errors.join(' · ')}</div>
+      )}
+    </div>
+  );
+}
+
+function MatchBadge({ confidence }: { confidence: string | null }) {
+  if (!confidence) return <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>;
+  const map: Record<string, { label: string; color: string }> = {
+    CODE_100:        { label: 'كود — 100%', color: '#16a34a' },
+    CIVIL_ID_100:    { label: 'مدني — 100%', color: '#16a34a' },
+    BANK_ACCOUNT_90: { label: 'حساب — 90%', color: '#2563eb' },
+    MANUAL:          { label: 'يدوية', color: '#d97706' },
+  };
+  const m = map[confidence] ?? { label: confidence, color: '#6b7280' };
+  return <span style={{ fontSize: 11, color: m.color, fontWeight: 600 }}>{m.label}</span>;
+}
+
+// ── Upload step ───────────────────────────────────────────────────────────────
+
+interface UploadStepProps {
+  onParsed(result: { rows: ParsedBankRow[]; templateName: BankTemplate; fileName: string }): void;
+}
+
+function UploadStep({ onParsed }: UploadStepProps) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [error, setError]       = useState<string | null>(null);
+  const [loading, setLoading]   = useState(false);
+
+  function processFile(file: File) {
+    setError(null);
+    if (file.size > 10 * 1024 * 1024) { setError('حجم الملف كبير جداً — الحد الأقصى 10 م.ب'); return; }
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!['.xlsx', '.xls'].includes(ext)) { setError('يرجى اختيار ملف Excel بصيغة .xlsx أو .xls فقط'); return; }
+
+    setLoading(true);
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target!.result as ArrayBuffer);
+        const wb   = XLSX.read(data, { type: 'array', cellDates: true });
+        if (wb.SheetNames.length === 0) { setError('الملف فارغ'); setLoading(false); return; }
+
+        const { rows, templateName } = parseWorkbook(wb);
+        if (rows.length === 0) {
+          setError('لم يتم العثور على صفوف. تأكد أن أسماء الأوراق بصيغة "mar-2025" أو أن الملف يحتوي على ورقة "All_Transactions"');
+          setLoading(false);
+          return;
+        }
+        if (rows.length > MAX_ROWS) {
+          setError(`الملف يحتوي على أكثر من ${MAX_ROWS} صف — قسّم الملف إلى دفعات أصغر`);
+          setLoading(false);
+          return;
+        }
+        onParsed({ rows, templateName, fileName: file.name });
+      } catch {
+        setError('تعذّر قراءة الملف — تأكد أنه ملف Excel صحيح (.xlsx أو .xls)');
+      } finally {
+        setLoading(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) processFile(file);
+  }
+
+  return (
+    <div>
+      {error && <ErrorBanner msg={error} />}
+
+      {/* Drop zone */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        style={{
+          border: `2px dashed ${dragging ? 'var(--color-brand, #1d4e6f)' : 'var(--border, #d1d5db)'}`,
+          borderRadius: 12, padding: '40px 24px', textAlign: 'center',
+          background: dragging ? '#f0f4ff' : 'var(--bg-card, #fff)',
+          cursor: 'pointer', transition: 'all .2s',
+          marginBottom: 20,
+        }}
+        onClick={() => fileRef.current?.click()}
+      >
+        <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleFileChange} />
+        <div style={{ fontSize: 40, marginBottom: 12 }}>📂</div>
+        <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #111827)', margin: '0 0 6px' }}>
+          اسحب الملف هنا أو انقر للاختيار
+        </p>
+        <p style={{ fontSize: 13, color: 'var(--text-muted, #6b7280)', margin: 0 }}>
+          .xlsx أو .xls — الحد الأقصى 10 م.ب — {MAX_ROWS.toLocaleString('ar')} صف كحد أقصى
+        </p>
+        {loading && <p style={{ marginTop: 12, color: '#2563eb', fontSize: 14 }}>جارٍ قراءة الملف…</p>}
+      </div>
+
+      {/* Bank support info */}
+      <div style={{
+        background: 'var(--bg-card, #f9fafb)', border: '1px solid var(--border, #e5e7eb)',
+        borderRadius: 8, padding: '14px 18px', fontSize: 13, color: 'var(--text-muted, #6b7280)',
+      }}>
+        <p style={{ margin: '0 0 8px', fontWeight: 600, color: 'var(--text-secondary, #374151)' }}>البنوك المدعومة (كشف التحقق التلقائي):</p>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {['NBK', 'KFH', 'Boubyan', 'GulfBank', 'Warba', 'AhliUnited'].map((b) => (
+            <span key={b} style={{ background: '#dbeafe', color: '#1e40af', borderRadius: 4, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>{b}</span>
+          ))}
+        </div>
+        <p style={{ margin: '10px 0 0', fontSize: 12 }}>
+          يُحدَّد النموذج تلقائياً من أسماء الأعمدة. أسماء الأوراق يجب أن تكون بصيغة <code>mar-2025</code> أو أن يحتوي الملف على ورقة <code>All_Transactions</code>.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Preview + Validation step ─────────────────────────────────────────────────
+
+interface PreviewStepProps {
+  summary:      PreviewSummary;
+  templateName: string;
+  fileName:     string;
+  onConfirm():  void;
+  onBack():     void;
+}
+
+function PreviewStep({ summary, templateName, fileName, onConfirm, onBack }: PreviewStepProps) {
+  const [showAll, setShowAll] = useState(false);
+  const displayRows = showAll ? summary.rows : summary.rows.slice(0, 50);
+
+  return (
+    <div>
+      {/* File + template info */}
+      <div style={{
+        background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e5e7eb)',
+        borderRadius: 8, padding: '12px 16px', marginBottom: 16,
+        display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center', fontSize: 13,
+      }}>
+        <span>📄 <strong>{fileName}</strong></span>
+        <span style={{ color: 'var(--text-muted, #6b7280)' }}>|</span>
+        <span>🏦 {BANK_CONFIGS[templateName as BankTemplate]?.nameAr ?? templateName}</span>
+        <span style={{ color: 'var(--text-muted, #6b7280)' }}>|</span>
+        <span>{summary.totalRows.toLocaleString('ar')} صف</span>
+      </div>
+
+      {/* KPI cards */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+        <KpiCard label="إجمالي الصفوف"      value={summary.totalRows}          color="var(--text-primary, #111827)" />
+        <KpiCard label="مطابقون"             value={summary.matched}             color="#16a34a" />
+        <KpiCard label="غير مطابقين"         value={summary.unmatched}           color={summary.unmatched   > 0 ? '#dc2626' : '#9ca3af'} />
+        <KpiCard label="صالحة"               value={summary.valid}               color="#16a34a" />
+        <KpiCard label="تحذيرات"             value={summary.withWarnings}        color={summary.withWarnings > 0 ? '#d97706' : '#9ca3af'} />
+        <KpiCard label="أخطاء"               value={summary.invalid}             color={summary.invalid      > 0 ? '#dc2626' : '#9ca3af'} />
+        <KpiCard label="مكررة"               value={summary.duplicates}          color={summary.duplicates   > 0 ? '#ca8a04' : '#9ca3af'} />
+        <KpiCard label="المبلغ الكلي (د.ك)" value={fmtAmount(summary.totalAmount)} color="#1d4ed8" />
+      </div>
+
+      {/* Cannot execute warning */}
+      {!summary.canExecute && (
+        <div style={{
+          background: '#fef3c7', border: '1px solid #d97706', borderRadius: 6,
+          padding: '10px 14px', marginBottom: 16, color: '#78350f', fontSize: 13,
+        }}>
+          ⚠️ لا يمكن التنفيذ — يجب أن تكون جميع الصفوف صحيحة ومطابقة لموظفين. راجع الأخطاء في الجدول أدناه.
+        </div>
+      )}
+
+      {/* Preview table */}
+      <div style={{ overflowX: 'auto', border: '1px solid var(--border, #e5e7eb)', borderRadius: 8, marginBottom: 16 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr>
+              {['رقم الموظف', 'الموظف المطابق', 'المطابقة', 'الرقم المدني', 'IBAN', 'رقم الحساب', 'اسم المستفيد', 'المبلغ', 'العملة', 'تاريخ الدفع', 'رقم المعاملة', 'الحالة'].map((h) => (
+                <th key={h} style={TH}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {displayRows.map((row, i) => {
+              const rowBg = row.status === 'error'   ? '#fef2f2'
+                          : row.status === 'warning' ? '#fffbeb' : 'transparent';
+              return (
+                <tr key={i} style={{ borderBottom: '1px solid var(--border, #f3f4f6)', background: rowBg }}>
+                  <td style={{ ...TD, fontFamily: 'monospace', fontSize: 12 }}>{row.employeeCode ?? '—'}</td>
+                  <td style={TD}>
+                    {row.matchedEmployeeName
+                      ? <span style={{ color: '#16a34a', fontWeight: 600 }}>{row.matchedEmployeeName}</span>
+                      : <span style={{ color: '#dc2626' }}>غير محدد</span>}
+                  </td>
+                  <td style={TD}><MatchBadge confidence={row.matchConfidence} /></td>
+                  <td style={{ ...TD, fontFamily: 'monospace', fontSize: 12 }}>{row.civilId ?? '—'}</td>
+                  <td style={{ ...TD, fontFamily: 'monospace', fontSize: 11 }}>{row.iban ?? '—'}</td>
+                  <td style={{ ...TD, fontFamily: 'monospace', fontSize: 11 }}>{row.bankAccount ?? '—'}</td>
+                  <td style={TD}>{row.beneficiaryName || '—'}</td>
+                  <td style={{ ...TD, fontFamily: 'monospace' }}>{fmtAmount(row.amount)}</td>
+                  <td style={TD}>{row.currency}</td>
+                  <td style={TD}>{fmtDate(row.paymentDate)}</td>
+                  <td style={{ ...TD, fontFamily: 'monospace', fontSize: 11 }}>{row.transactionId ?? '—'}</td>
+                  <td style={TD}>
+                    <StatusPill status={row.status} errors={[...row.errors, ...row.warnings]} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Show more */}
+      {summary.rows.length > 50 && !showAll && (
+        <p style={{ fontSize: 13, color: '#2563eb', cursor: 'pointer', marginBottom: 16 }} onClick={() => setShowAll(true)}>
+          ↓ عرض جميع الصفوف ({summary.rows.length})
+        </p>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button type="button" style={btn('secondary')} onClick={onBack}>
+          ← رجوع
+        </button>
+        <button
+          type="button"
+          style={btn('primary', !summary.canExecute)}
+          disabled={!summary.canExecute}
+          onClick={onConfirm}
+          title={summary.canExecute ? undefined : 'أصلح الأخطاء أولاً قبل المتابعة'}
+        >
+          التالي: تأكيد الاستيراد ←
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Confirm step ──────────────────────────────────────────────────────────────
+
+interface ConfirmStepProps {
+  summary:     PreviewSummary;
+  templateName: string;
+  canExecute:  boolean;
+  executing:   boolean;
+  onExecute(): void;
+  onBack():    void;
+}
+
+function ConfirmStep({ summary, templateName, canExecute, executing, onExecute, onBack }: ConfirmStepProps) {
+  const [checked, setChecked] = useState(false);
+  return (
+    <div>
+      {/* Summary box */}
+      <div style={{
+        background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 10,
+        padding: '20px 24px', marginBottom: 24,
+      }}>
+        <p style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700, color: '#0c4a6e' }}>
+          ملخص عملية الاستيراد
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+          {[
+            { label: 'البنك', value: BANK_CONFIGS[templateName as BankTemplate]?.nameAr ?? templateName },
+            { label: 'إجمالي الصفوف', value: summary.totalRows },
+            { label: 'الصفوف الصالحة', value: summary.valid + summary.withWarnings },
+            { label: 'المبلغ الإجمالي (د.ك)', value: fmtAmount(summary.totalAmount) },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ fontSize: 13 }}>
+              <span style={{ color: '#6b7280' }}>{label}: </span>
+              <strong style={{ color: '#0c4a6e' }}>{value}</strong>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Warning */}
+      <div style={{
+        background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 8,
+        padding: '14px 18px', marginBottom: 20, fontSize: 14, color: '#78350f',
+      }}>
+        <p style={{ margin: '0 0 8px', fontWeight: 700 }}>⚠️ تحذير — هذه العملية لا يمكن التراجع عنها</p>
+        <p style={{ margin: 0 }}>سيتم إنشاء {summary.valid + summary.withWarnings} سجل دفع في قاعدة البيانات. تأكد من صحة البيانات قبل المتابعة.</p>
+      </div>
+
+      {/* Confirmation checkbox */}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => setChecked(e.target.checked)}
+          style={{ width: 18, height: 18 }}
+        />
+        أؤكد صحة البيانات وأوافق على تنفيذ عملية الاستيراد
+      </label>
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <button type="button" style={btn('secondary')} onClick={onBack} disabled={executing}>
+          ← رجوع
+        </button>
+        <button
+          type="button"
+          style={btn('danger', !checked || executing || !canExecute)}
+          disabled={!checked || executing || !canExecute}
+          onClick={onExecute}
+        >
+          {executing ? '⏳ جارٍ الاستيراد…' : '⬆ تنفيذ الاستيراد'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Done step ─────────────────────────────────────────────────────────────────
+
+interface DoneStepProps {
+  report:     ImportReport;
+  canExport:  boolean;
+  onNewImport(): void;
+}
+
+function DoneStep({ report, canExport, onNewImport }: DoneStepProps) {
+  const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
+
+  async function handleExport(format: 'excel' | 'pdf') {
+    if (exporting) return;
+    setExporting(format);
+    try {
+      if (format === 'excel') {
+        const blob = await exportReportExcel(report);
+        downloadBlob(blob, `import-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      } else {
+        const blob = await exportReportPdf(report);
+        downloadBlob(blob, `import-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+      }
+    } catch {
+      // silently ignore export errors — user can retry
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  return (
+    <div>
+      {/* Success banner */}
+      <div style={{
+        background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12,
+        padding: '20px 24px', marginBottom: 24,
+      }}>
+        <p style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: '#16a34a' }}>✅ اكتمل الاستيراد بنجاح</p>
+        <p style={{ margin: 0, fontSize: 13, color: '#15803d' }}>
+          تم تنفيذ الاستيراد في {new Date(report.importedAt).toLocaleString('ar-KW')} بواسطة {report.importedBy}
+        </p>
+      </div>
+
+      {/* Result KPIs */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 24 }}>
+        <KpiCard label="تم استيراده"          value={report.imported}              color="#16a34a" />
+        <KpiCard label="تم تخطيه"             value={report.skipped}               color={report.skipped > 0 ? '#dc2626' : '#9ca3af'} />
+        <KpiCard label="بتحذيرات"             value={report.withWarnings}           color={report.withWarnings > 0 ? '#d97706' : '#9ca3af'} />
+        <KpiCard label="المبلغ الكلي (د.ك)"  value={fmtAmount(report.totalAmount)} color="#1d4ed8" />
+      </div>
+
+      {/* Export + actions */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 28 }}>
+        {canExport && (
+          <>
+            <button type="button" style={btn('secondary', exporting === 'excel')} onClick={() => handleExport('excel')} disabled={!!exporting}>
+              {exporting === 'excel' ? '⏳ جارٍ التصدير…' : '📊 تصدير Excel'}
+            </button>
+            <button type="button" style={btn('secondary', exporting === 'pdf')} onClick={() => handleExport('pdf')} disabled={!!exporting}>
+              {exporting === 'pdf' ? '⏳ جارٍ التصدير…' : '📄 تصدير PDF'}
+            </button>
+          </>
+        )}
+        <button type="button" style={btn('primary')} onClick={onNewImport}>
+          + استيراد جديد
+        </button>
+      </div>
+
+      {/* Report detail table */}
+      <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>تفاصيل الاستيراد</h3>
+      <div style={{ overflowX: 'auto', border: '1px solid var(--border, #e5e7eb)', borderRadius: 8 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr>
+              {['رقم الموظف', 'الاسم', 'الرقم المدني', 'المبلغ (د.ك)', 'العملة', 'رقم المعاملة', 'تاريخ الدفع', 'الشهر/السنة', 'الحالة', 'الملاحظة'].map((h) => (
+                <th key={h} style={TH}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {report.rows.map((row, i) => (
+              <tr key={i} style={{
+                borderBottom: '1px solid var(--border, #f3f4f6)',
+                background: row.status === 'skipped' ? '#fef2f2' : 'transparent',
+              }}>
+                <td style={{ ...TD, fontFamily: 'monospace', fontSize: 12 }}>{row.employeeCode ?? '—'}</td>
+                <td style={TD}>{row.employeeName ?? '—'}</td>
+                <td style={{ ...TD, fontFamily: 'monospace', fontSize: 12 }}>{row.civilId ?? '—'}</td>
+                <td style={{ ...TD, fontFamily: 'monospace' }}>{fmtAmount(row.amount)}</td>
+                <td style={TD}>{row.currency}</td>
+                <td style={{ ...TD, fontFamily: 'monospace', fontSize: 11 }}>{row.transactionId ?? '—'}</td>
+                <td style={TD}>{fmtDate(row.paymentDate)}</td>
+                <td style={TD}>{row.payrollMonth ? `${MONTH_AR[row.payrollMonth - 1]} ${row.payrollYear}` : '—'}</td>
+                <td style={TD}>
+                  <span style={{
+                    background: row.status === 'imported' ? '#dcfce7' : '#fee2e2',
+                    color:      row.status === 'imported' ? '#16a34a' : '#dc2626',
+                    borderRadius: 4, padding: '2px 8px', fontSize: 12, fontWeight: 700,
+                  }}>
+                    {row.status === 'imported' ? 'مستورد' : 'متخطى'}
+                  </span>
+                </td>
+                <td style={{ ...TD, fontSize: 12, color: '#6b7280' }}>{row.reason ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function PayrollBankImport() {
+  const { hasPermission } = useAuth();
+
+  if (!hasPermission('payrollBankImport.read')) {
+    return (
+      <div style={{ padding: 32, color: 'var(--text-muted, #6b7280)', fontSize: 14 }}>
+        ليس لديك صلاحية لعرض هذه الصفحة.
+      </div>
+    );
+  }
+
+  const canCreate = hasPermission('payrollBankImport.create');
+  const canExport = hasPermission('payrollBankImport.export');
+
+  const [step, setStep]               = useState<WizardStep>('upload');
+  const [fileName, setFileName]       = useState('');
+  const [parsedRows, setParsedRows]   = useState<ParsedBankRow[]>([]);
+  const [templateName, setTemplateName] = useState<BankTemplate>('Unknown');
+  const [summary, setSummary]         = useState<PreviewSummary | null>(null);
+  const [report, setReport]           = useState<ImportReport | null>(null);
+  const [error, setError]             = useState<string | null>(null);
+  const [loading, setLoading]         = useState(false);
+
+  const handleParsed = useCallback(async (result: { rows: ParsedBankRow[]; templateName: BankTemplate; fileName: string }) => {
+    setError(null);
+    setParsedRows(result.rows);
+    setTemplateName(result.templateName);
+    setFileName(result.fileName);
+    setSummary(null);
+    setReport(null);
+    setLoading(true);
+
+    try {
+      const prev = await previewImport(result.templateName, result.rows);
+      setSummary(prev);
+      setStep('preview');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  async function handleExecute() {
+    if (!canCreate) { setError('ليس لديك صلاحية تنفيذ الاستيراد'); return; }
+    setError(null);
+    setLoading(true);
+    try {
+      const rep = await executeImport(templateName, parsedRows);
+      setReport(rep);
+      setStep('done');
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleReset() {
+    setStep('upload');
+    setFileName('');
+    setParsedRows([]);
+    setTemplateName('Unknown');
+    setSummary(null);
+    setReport(null);
+    setError(null);
+    setLoading(false);
+  }
+
+  return (
+    <div style={{
+      padding: '24px 32px', maxWidth: 1300, direction: 'rtl',
+      fontFamily: '"IBM Plex Sans Arabic", Cairo, Tajawal, Arial, sans-serif',
+    }}>
+      {/* Page header */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary, #111827)', margin: '0 0 4px' }}>
+          <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: 22, marginLeft: 8 }}>upload_file</span>
+          استيراد الرواتب البنكية
+        </h1>
+        <p style={{ fontSize: 13, color: 'var(--text-muted, #6b7280)', margin: 0 }}>
+          استيراد كشف التحويلات البنكية وربطه بسجلات الموظفين — يدعم NBK، KFH، بوبيان، بنك الخليج، وربة، الأهلي المتحد
+        </p>
+      </div>
+
+      {/* Step indicator */}
+      <StepIndicator current={step} />
+
+      {/* Error banner (shared) */}
+      {error && <ErrorBanner msg={error} />}
+
+      {/* Loading overlay */}
+      {loading && (
+        <div style={{
+          background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e5e7eb)',
+          borderRadius: 8, padding: '20px', textAlign: 'center', marginBottom: 16,
+          color: 'var(--text-muted, #6b7280)', fontSize: 14,
+        }}>
+          ⏳ جارٍ التحميل…
+        </div>
+      )}
+
+      {/* Steps */}
+      {!loading && step === 'upload' && (
+        <UploadStep onParsed={handleParsed} />
+      )}
+
+      {!loading && step === 'preview' && summary && (
+        <PreviewStep
+          summary={summary}
+          templateName={templateName}
+          fileName={fileName}
+          onConfirm={() => {
+            if (!canCreate) { setError('ليس لديك صلاحية تنفيذ الاستيراد'); return; }
+            setStep('confirm');
+          }}
+          onBack={handleReset}
+        />
+      )}
+
+      {!loading && step === 'confirm' && summary && (
+        <ConfirmStep
+          summary={summary}
+          templateName={templateName}
+          canExecute={summary.canExecute && canCreate}
+          executing={loading}
+          onExecute={handleExecute}
+          onBack={() => setStep('preview')}
+        />
+      )}
+
+      {!loading && step === 'done' && report && (
+        <DoneStep
+          report={report}
+          canExport={canExport}
+          onNewImport={handleReset}
+        />
+      )}
+    </div>
+  );
+}
