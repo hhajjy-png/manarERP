@@ -1,10 +1,9 @@
 import type { Request, Response } from 'express';
 import { payrollBankImportService } from './service';
 import { buildImportReportExcel, buildImportReportHtml } from './reportBuilder';
-import { PreviewInputSchema, ExecuteInputSchema } from './schema';
+import { PreviewInputSchema, ExecuteInputSchema, ReportExportSchema } from './schema';
 import { ok } from '../../core/utils/response';
 import { AppError } from '../../core/errors/AppError';
-import type { ImportReport } from './types';
 
 export async function previewHandler(req: Request, res: Response): Promise<void> {
   const parsed = PreviewInputSchema.safeParse(req.body);
@@ -21,19 +20,20 @@ export async function executeHandler(req: Request, res: Response): Promise<void>
 }
 
 export async function reportExcelHandler(req: Request, res: Response): Promise<void> {
-  const report = req.body?.report as ImportReport | undefined;
-  if (!report) throw AppError.badRequest('بيانات التقرير مفقودة');
-  const buffer = await buildImportReportExcel(report);
+  const parsed = ReportExportSchema.safeParse(req.body);
+  if (!parsed.success) throw AppError.badRequest(parsed.error.errors[0]?.message ?? 'بيانات التقرير غير صحيحة');
+  const buffer = await buildImportReportExcel(parsed.data.report);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="payroll-import-report.xlsx"`);
+  res.setHeader('Content-Disposition', 'attachment; filename="payroll-import-report.xlsx"');
   res.send(buffer);
 }
 
 export async function reportPdfHandler(req: Request, res: Response): Promise<void> {
-  const report = req.body?.report as ImportReport | undefined;
-  if (!report) throw AppError.badRequest('بيانات التقرير مفقودة');
-  const html = buildImportReportHtml(report);
+  const parsed = ReportExportSchema.safeParse(req.body);
+  if (!parsed.success) throw AppError.badRequest(parsed.error.errors[0]?.message ?? 'بيانات التقرير غير صحيحة');
+  const html = buildImportReportHtml(parsed.data.report);
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Content-Disposition', 'inline');
+  res.setHeader('Content-Disposition', 'attachment; filename="payroll-import-report.html"');
+  res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'");
   res.send(html);
 }

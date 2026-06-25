@@ -28,7 +28,32 @@ export const ExecuteInputSchema = z.object({
   confirm: z.literal(true),
 });
 
+const ImportReportRowSchema = z.object({
+  employeeCode:  z.string().max(64).nullable(),
+  employeeName:  z.string().max(256).nullable(),
+  civilId:       z.string().max(32).nullable(),
+  amount:        z.number().nonnegative(),
+  currency:      z.string().max(8),
+  transactionId: z.string().max(128).nullable(),
+  paymentDate:   z.string().max(64).nullable(),
+  payrollMonth:  z.number().int().min(1).max(12),
+  payrollYear:   z.number().int().min(2000).max(2100),
+  status:        z.enum(['imported', 'skipped']),
+  reason:        z.string().max(512).optional(),
+});
+
+const ImportReportSchema = z.object({
+  templateName: z.string().max(64),
+  importedAt:   z.string().max(64),
+  importedBy:   z.string().max(128),
+  imported:     z.number().int().nonnegative(),
+  skipped:      z.number().int().nonnegative(),
+  withWarnings: z.number().int().nonnegative(),
+  totalAmount:  z.number().nonnegative(),
+  rows:         z.array(ImportReportRowSchema).max(2000),
+});
+
 export const ReportExportSchema = z.object({
   format: z.enum(['excel', 'pdf']),
-  report: z.any(),
+  report: ImportReportSchema,
 });
