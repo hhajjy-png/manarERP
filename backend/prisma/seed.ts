@@ -66,6 +66,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   journal:      ['read', 'export'],
   finreports:   ['read', 'export'],
   // financialdashboard is seeded separately (compound module name)
+  integrations: ['read', 'configure', 'run'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -79,8 +80,10 @@ const ACTION_AR: Record<string, string> = {
   generate: 'توليد',
   payslip: 'قسيمة راتب',
   adjust: 'تسوية',
-  cancel: 'إلغاء',
-  print: 'طباعة',
+  cancel:    'إلغاء',
+  print:     'طباعة',
+  configure: 'ضبط الإعدادات',
+  run:       'تشغيل',
 };
 
 // مصفوفة صلاحيات كل دور (قائمة وحدات بصلاحية كاملة، أو مفاتيح محددة)
@@ -151,6 +154,8 @@ async function main() {
       'import.read',
       'import.create',
       'financialdashboard.read',
+      'integrations.read',
+      'integrations.run',
     ],
     PROJECT_MANAGER: [
       ...keysForModules(['contracts', 'prices', 'reports']),
@@ -160,6 +165,7 @@ async function main() {
       'statements.read',
       'aging.read',
       'financialdashboard.read',
+      'integrations.read',
     ],
     EQUIPMENT_MANAGER: [
       ...keysForModules(['equipment', 'maintenance', 'reports']),

@@ -41,6 +41,7 @@ import PurchaseRequest from './pages/PurchaseRequest';
 import ExecutiveDecisionCenter from './pages/ExecutiveDecisionCenter';
 import Statements from './pages/Statements';
 import FinancialCenter from './pages/FinancialCenter';
+import Integrations from './pages/Integrations';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -100,6 +101,7 @@ export default function App() {
           <Route path="/forms" element={<Forms />} />
           <Route path="/statements" element={<Statements />} />
           <Route path="/financial" element={<FinancialCenter />} />
+          <Route path="/integrations" element={<Integrations />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
