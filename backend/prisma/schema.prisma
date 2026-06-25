@@ -593,7 +593,8 @@ model Invoice {
   total         Float     @default(0)
   paidAmount    Float     @default(0)
   status        String    @default("UNPAID") // UNPAID | PARTIAL | PAID | OVERDUE | CANCELLED
-  notes         String?
+  notes             String?
+  verificationUuid  String?  @unique
   billingMonth  Int?      // شهر الحساب (1-12)
   billingYear   Int?      // سنة الحساب (مثال: 2026)
   deliveryDate  DateTime? // تاريخ تسليم الفاتورة (متابعة داخلية — لا يظهر في الطباعة)
