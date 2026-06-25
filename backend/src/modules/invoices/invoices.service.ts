@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
@@ -256,6 +257,7 @@ export class InvoicesService {
               paidAmount: 0,
               status: 'UNPAID',
               notes: input.notes ?? null,
+              verificationUuid: randomUUID(),
               items: { create: lines },
             },
             include: FULL_INCLUDE,
