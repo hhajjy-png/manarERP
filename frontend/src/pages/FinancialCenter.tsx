@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { financialApi } from '../api/financial';
+import { exportReportAsPdf } from '../utils/pdfExport';
 import type {
   FinancialResponse, StatementRow, ArAgingRow, ApAgingRow,
   GlStatementRow, GlReportResponse,
@@ -171,14 +172,22 @@ export default function FinancialCenter() {
     if (!entityId) return;
     setExporting(true);
     try {
-      const blob = await financialApi.exportStatement(entityType, entityId, {
-        fromDate: fromDate || undefined,
-        toDate:   toDate   || undefined,
-        search:   search   || undefined,
-        format,
-      });
       const entity = entities.find(e => e.id === entityId);
-      saveBlob(blob, `statement-${entity?.code ?? entityId}.${format === 'excel' ? 'xlsx' : 'pdf'}`);
+      if (format === 'pdf') {
+        await exportReportAsPdf(
+          `/financial/statements/${entityType}/${entityId}/export`,
+          { fromDate: fromDate || undefined, toDate: toDate || undefined, search: search || undefined },
+          `statement-${entity?.code ?? entityId}`,
+        );
+      } else {
+        const blob = await financialApi.exportStatement(entityType, entityId, {
+          fromDate: fromDate || undefined,
+          toDate:   toDate   || undefined,
+          search:   search   || undefined,
+          format,
+        });
+        saveBlob(blob, `statement-${entity?.code ?? entityId}.xlsx`);
+      }
     } finally {
       setExporting(false);
     }
@@ -498,10 +507,11 @@ export default function FinancialCenter() {
                 onPdfExport={async () => {
                   setAgingExporting(true);
                   try {
-                    const blob = agingSubTab === 'ar'
-                      ? await financialApi.exportArAging({ asOfDate: agingAsOfDate || undefined, format: 'pdf' })
-                      : await financialApi.exportApAging({ asOfDate: agingAsOfDate || undefined, format: 'pdf' });
-                    saveBlob(blob, `${agingSubTab}-aging.pdf`);
+                    await exportReportAsPdf(
+                      `/financial/${agingSubTab}-aging/export`,
+                      { asOfDate: agingAsOfDate || undefined },
+                      `${agingSubTab}-aging`,
+                    );
                   } finally { setAgingExporting(false); }
                 }}
                 loading={agingExporting}
@@ -565,8 +575,11 @@ export default function FinancialCenter() {
                       if (!glAccountId) return;
                       setGlExporting(true);
                       try {
-                        const blob = await financialApi.exportGlStatement(glAccountId, { fromDate: glFrom || undefined, toDate: glTo || undefined, format: 'pdf' });
-                        saveBlob(blob, `gl-statement-${glAccountId}.pdf`);
+                        await exportReportAsPdf(
+                          `/financial/gl-statement/${glAccountId}/export`,
+                          { fromDate: glFrom || undefined, toDate: glTo || undefined },
+                          `gl-statement-${glAccountId}`,
+                        );
                       } finally { setGlExporting(false); }
                     }}
                     loading={glExporting}
@@ -652,8 +665,11 @@ export default function FinancialCenter() {
                     onPdfExport={async () => {
                       setGlReportExporting(true);
                       try {
-                        const blob = await financialApi.exportGlReport({ fromDate: glFrom || undefined, toDate: glTo || undefined, format: 'pdf' });
-                        saveBlob(blob, 'gl-report.pdf');
+                        await exportReportAsPdf(
+                          '/financial/gl-report/export',
+                          { fromDate: glFrom || undefined, toDate: glTo || undefined },
+                          'gl-report',
+                        );
                       } finally { setGlReportExporting(false); }
                     }}
                     loading={glReportExporting}
@@ -767,14 +783,16 @@ export default function FinancialCenter() {
                 onPdfExport={async () => {
                   setTrialExporting(true);
                   try {
-                    const blob = await financialApi.exportTrialBalance({
-                      mode: trialMode,
-                      asOfDate: trialMode === 'as-of'  ? (trialAsOf  || undefined) : undefined,
-                      fromDate: trialMode === 'period' ? (trialFrom   || undefined) : undefined,
-                      toDate:   trialMode === 'period' ? (trialTo     || undefined) : undefined,
-                      format: 'pdf',
-                    });
-                    saveBlob(blob, 'trial-balance.pdf');
+                    await exportReportAsPdf(
+                      '/financial/trial-balance/export',
+                      {
+                        mode:     trialMode,
+                        asOfDate: trialMode === 'as-of'  ? (trialAsOf || undefined) : undefined,
+                        fromDate: trialMode === 'period' ? (trialFrom  || undefined) : undefined,
+                        toDate:   trialMode === 'period' ? (trialTo    || undefined) : undefined,
+                      },
+                      'trial-balance',
+                    );
                   } finally { setTrialExporting(false); }
                 }}
                 loading={trialExporting}
@@ -849,8 +867,11 @@ export default function FinancialCenter() {
                 onPdfExport={async () => {
                   setJournalExporting(true);
                   try {
-                    const blob = await financialApi.exportJournalBook({ fromDate: jFrom || undefined, toDate: jTo || undefined, status: jStatus || undefined, search: jSearch || undefined, format: 'pdf' });
-                    saveBlob(blob, 'journal-book.pdf');
+                    await exportReportAsPdf(
+                      '/financial/journal-book/export',
+                      { fromDate: jFrom || undefined, toDate: jTo || undefined, status: jStatus || undefined, search: jSearch || undefined },
+                      'journal-book',
+                    );
                   } finally { setJournalExporting(false); }
                 }}
                 loading={journalExporting}

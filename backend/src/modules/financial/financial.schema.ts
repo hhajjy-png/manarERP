@@ -19,7 +19,7 @@ export const StatementQuerySchema = z.object({
 });
 
 export const ExportQuerySchema = StatementQuerySchema.extend({
-  format: z.enum(['pdf', 'excel']).default('excel'),
+  format: z.enum(['pdf', 'html', 'excel']).default('excel'),
 });
 
 // ── Aging (stubs for Parts 3–5) ──────────────────────────────────────────────
@@ -28,7 +28,7 @@ export const AgingQuerySchema = z.object({
   search:       z.string().optional(),
   customerType: z.enum(['GOVERNMENT', 'PRIVATE']).optional(),
   hideZero:     z.coerce.boolean().default(false),
-  format:       z.enum(['pdf', 'excel']).optional(),
+  format:       z.enum(['pdf', 'html', 'excel']).optional(),
 });
 
 // ── GL (stubs) ────────────────────────────────────────────────────────────────
@@ -37,7 +37,7 @@ export const GlStatementQuerySchema = z.object({
   toDate:   dateStr,
   search:   z.string().optional(),
   status:   z.string().optional(),
-  format:   z.enum(['pdf', 'excel']).optional(),
+  format:   z.enum(['pdf', 'html', 'excel']).optional(),
   page:     pageInt,
   pageSize: pageSizeInt,
 });
@@ -48,7 +48,7 @@ export const GlReportQuerySchema = z.object({
   accountType: z.string().optional(),
   page:        pageInt,
   pageSize:    z.coerce.number().int().positive().max(100).default(20),
-  format:      z.enum(['pdf', 'excel']).optional(),
+  format:      z.enum(['pdf', 'html', 'excel']).optional(),
 });
 
 // ── Trial Balance (stubs) ─────────────────────────────────────────────────────
@@ -59,7 +59,7 @@ export const TrialBalanceQuerySchema = z.object({
   toDate:           dateStr,
   showZeroBalances: z.coerce.boolean().default(false),
   accountType:      z.string().optional(),
-  format:           z.enum(['pdf', 'excel']).optional(),
+  format:           z.enum(['pdf', 'html', 'excel']).optional(),
 });
 
 // ── Journal Book (stubs) ──────────────────────────────────────────────────────
@@ -71,12 +71,12 @@ export const JournalBookQuerySchema = z.object({
   search:        z.string().optional(),
   page:          pageInt,
   pageSize:      pageSizeInt,
-  format:        z.enum(['pdf', 'excel']).optional(),
+  format:        z.enum(['pdf', 'html', 'excel']).optional(),
 });
 
 // ── Financial Summary (stubs) ─────────────────────────────────────────────────
 export const SummaryQuerySchema = z.object({
   fromDate: dateStr,
   toDate:   dateStr,
-  format:   z.enum(['pdf', 'excel']).optional(),
+  format:   z.enum(['pdf', 'html', 'excel']).optional(),
 });

@@ -16,7 +16,12 @@ import { recordAudit }     from '@core/middleware/audit';
 import { ok }              from '@core/utils/response';
 import { sanitizeFilters } from '@shared/services/financial/summary.utils';
 
-function sendFile(res: Response, buffer: Buffer, name: string, format: 'pdf' | 'excel') {
+function sendFile(res: Response, buffer: Buffer, name: string, format: 'pdf' | 'html' | 'excel') {
+  if (format === 'html') {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `inline; filename="${name}.html"`);
+    return res.send(buffer);
+  }
   const ext         = format === 'pdf' ? 'pdf' : 'xlsx';
   const contentType = format === 'pdf'
     ? 'application/pdf'
@@ -38,7 +43,7 @@ export async function getStatement(req: Request, res: Response): Promise<void> {
 export async function exportStatement(req: Request, res: Response): Promise<void> {
   const { entityType, id } = StatementParamsSchema.parse(req.params);
   const query  = ExportQuerySchema.parse(req.query);
-  const format = query.format as 'pdf' | 'excel';
+  const format = query.format as 'pdf' | 'html' | 'excel';
 
   const buffer = await financialService.exportStatement(entityType, id, query, format);
 
@@ -56,13 +61,7 @@ export async function exportStatement(req: Request, res: Response): Promise<void
     },
   }).catch(() => {});
 
-  const contentType = format === 'pdf'
-    ? 'application/pdf'
-    : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-  const ext = format === 'pdf' ? 'pdf' : 'xlsx';
-  res.setHeader('Content-Type', contentType);
-  res.setHeader('Content-Disposition', `attachment; filename="statement-${entityType}-${id}-${Date.now()}.${ext}"`);
-  res.send(buffer);
+  sendFile(res, buffer, `statement-${entityType}-${id}`, format);
 }
 
 // ─── AR Aging ────────────────────────────────────────────────────────────────
@@ -75,7 +74,7 @@ export async function getArAging(req: Request, res: Response): Promise<void> {
 
 export async function exportArAging(req: Request, res: Response): Promise<void> {
   const query  = AgingQuerySchema.parse(req.query);
-  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const format = (query.format ?? 'excel') as 'pdf' | 'html' | 'excel';
   const buffer = await financialService.exportArAging(query, format);
 
   recordAudit({
@@ -85,8 +84,7 @@ export async function exportArAging(req: Request, res: Response): Promise<void> 
 
   const ext = format === 'pdf' ? 'pdf' : 'xlsx';
   res.setHeader('Content-Type', format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="ar-aging-${Date.now()}.${ext}"`);
-  res.send(buffer);
+  sendFile(res, buffer, 'ar-aging', format);
 }
 
 // ─── AP Aging ────────────────────────────────────────────────────────────────
@@ -99,7 +97,7 @@ export async function getApAging(req: Request, res: Response): Promise<void> {
 
 export async function exportApAging(req: Request, res: Response): Promise<void> {
   const query  = AgingQuerySchema.omit({ customerType: true }).parse(req.query);
-  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const format = (query.format ?? 'excel') as 'pdf' | 'html' | 'excel';
   const buffer = await financialService.exportApAging(query, format);
 
   recordAudit({
@@ -120,8 +118,8 @@ export async function getGlStatement(req: Request, res: Response): Promise<void>
 
 export async function exportGlStatement(req: Request, res: Response): Promise<void> {
   const accountId = z.coerce.number().int().positive().parse(req.params.accountId);
-  const query     = GlStatementQuerySchema.extend({ format: z.enum(['pdf', 'excel']).default('excel') }).parse(req.query);
-  const format    = query.format as 'pdf' | 'excel';
+  const query     = GlStatementQuerySchema.extend({ format: z.enum(['pdf', 'html', 'excel']).default('excel') }).parse(req.query);
+  const format    = query.format as 'pdf' | 'html' | 'excel';
   const buffer    = await financialService.exportGlStatement(accountId, query, format);
   recordAudit({ req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
     newValue: { reportType: 'gl-statement', format, filters: sanitizeFilters(query as Record<string, unknown>) } }).catch(() => {});
@@ -137,7 +135,7 @@ export async function getGlReport(req: Request, res: Response): Promise<void> {
 
 export async function exportGlReport(req: Request, res: Response): Promise<void> {
   const query  = GlReportQuerySchema.parse(req.query);
-  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const format = (query.format ?? 'excel') as 'pdf' | 'html' | 'excel';
   const buffer = await financialService.exportGlReport(query, format);
   recordAudit({ req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
     newValue: { reportType: 'gl-report', format, filters: sanitizeFilters(query as Record<string, unknown>) } }).catch(() => {});
@@ -153,7 +151,7 @@ export async function getTrialBalance(req: Request, res: Response): Promise<void
 
 export async function exportTrialBalance(req: Request, res: Response): Promise<void> {
   const query  = TrialBalanceQuerySchema.parse(req.query);
-  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const format = (query.format ?? 'excel') as 'pdf' | 'html' | 'excel';
   const buffer = await financialService.exportTrialBalance(query, format);
   recordAudit({ req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
     newValue: { reportType: 'trial-balance', format, filters: sanitizeFilters(query as Record<string, unknown>) } }).catch(() => {});
@@ -169,7 +167,7 @@ export async function getJournalBook(req: Request, res: Response): Promise<void>
 
 export async function exportJournalBook(req: Request, res: Response): Promise<void> {
   const query  = JournalBookQuerySchema.parse(req.query);
-  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const format = (query.format ?? 'excel') as 'pdf' | 'html' | 'excel';
   const buffer = await financialService.exportJournalBook(query, format);
   recordAudit({ req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
     newValue: { reportType: 'journal-book', format, filters: sanitizeFilters(query as Record<string, unknown>) } }).catch(() => {});
@@ -185,7 +183,7 @@ export async function getFinancialSummary(req: Request, res: Response): Promise<
 
 export async function exportFinancialSummary(req: Request, res: Response): Promise<void> {
   const query  = SummaryQuerySchema.parse(req.query);
-  const format = (query.format ?? 'excel') as 'pdf' | 'excel';
+  const format = (query.format ?? 'excel') as 'pdf' | 'html' | 'excel';
   const buffer = await financialService.exportFinancialSummary(query, format);
   recordAudit({ req, action: 'REPORT_EXPORT', module: 'financial', entityId: undefined,
     newValue: { reportType: 'financial-summary', format, filters: sanitizeFilters(query as Record<string, unknown>) } }).catch(() => {});
