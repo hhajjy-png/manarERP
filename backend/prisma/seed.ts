@@ -70,6 +70,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   payrollBankImport:    ['read', 'create', 'export'],
   bankStatementImport:  ['read', 'create', 'export', 'reconcile'],
   expirations:          ['read', 'export'],
+  attachments:          ['read', 'create', 'delete'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -168,6 +169,9 @@ async function main() {
       'bankStatementImport.export',
       'bankStatementImport.reconcile',
       'expirations.read',
+      'attachments.read',
+      'attachments.create',
+      'attachments.delete',
     ],
     PROJECT_MANAGER: [
       ...keysForModules(['contracts', 'prices', 'reports']),
@@ -181,6 +185,9 @@ async function main() {
       'payrollBankImport.read',
       'bankStatementImport.read',
       'expirations.read',
+      'attachments.read',
+      'attachments.create',
+      'attachments.delete',
     ],
     EQUIPMENT_MANAGER: [
       ...keysForModules(['equipment', 'maintenance', 'reports']),
@@ -193,6 +200,8 @@ async function main() {
       ...readOnly(['dashboard', 'contracts', 'suppliers']),
       'forms.read',
       'expirations.read',
+      'attachments.read',
+      'attachments.create',
     ],
     HR_MANAGER: [
       ...keysForModules(['employees', 'attendance', 'payroll', 'reports', 'forms']),
@@ -203,10 +212,14 @@ async function main() {
       'payrollBankImport.create',
       'payrollBankImport.export',
       'expirations.read',
+      'attachments.read',
+      'attachments.create',
+      'attachments.delete',
     ],
     STANDARD_USER: [
       ...readOnly(['dashboard', 'customers', 'contracts', 'equipment', 'prices']),
       'statements.read',
+      'attachments.read',
     ],
   };
 
