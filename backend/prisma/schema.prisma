@@ -402,6 +402,7 @@ model Equipment {
   driverName         String? // اسم السائق
   plateNumber        String? // رقم اللوحة
   registrationExpiry DateTime? // تاريخ انتهاء دفتر المركبة
+  insuranceExpiry    DateTime? // تاريخ انتهاء التأمين
   status             String    @default("WORKING") // WORKING (تعمل) | NOT_WORKING (لا تعمل)
   manufacturer       String?
   model              String?
@@ -424,6 +425,7 @@ model Equipment {
   @@index([type])
   @@index([status])
   @@index([registrationExpiry])
+  @@index([insuranceExpiry])
   @@map("equipment")
 }
 
