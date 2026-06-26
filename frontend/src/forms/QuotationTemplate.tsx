@@ -8,6 +8,7 @@ import {
   fmtDate,
   fmtDateEn,
   blankLine,
+  longTextCell,
 } from './shared/formStyles';
 
 // ─── Exported interfaces ──────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ export interface QuotationPrintFields {
   items: QuotationItem[];
   notes: string;
   paymentTerms: string;
+  lang?: 'ar' | 'en';
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -163,7 +165,7 @@ export default function QuotationTemplate({ printFields: pf, lang = 'ar' }: Prop
               {pf.items.map((item, i) => (
                 <tr key={item.id}>
                   <td style={{ ...td, textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                  <td style={td}>{item.description.trim() || <span style={blankLine} />}</td>
+                  <td style={{ ...td, ...longTextCell }}>{item.description.trim() || <span style={blankLine} />}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{item.qty || '—'}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{item.unit || '—'}</td>
                   <td style={{ ...td, textAlign: 'end' }}>
@@ -190,7 +192,7 @@ export default function QuotationTemplate({ printFields: pf, lang = 'ar' }: Prop
           <div style={{ ...tableWrapper, marginBottom: 10 }}>
             <div style={sectionHeader}>Notes & Terms</div>
             {pf.notes.trim() && (
-              <div style={{ padding: '6px 12px', fontSize: 12, borderBottom: '1px solid #e2e8f0' }}>
+              <div style={{ padding: '6px 12px', fontSize: 12, borderBottom: '1px solid #e2e8f0', ...longTextCell }}>
                 <strong>Notes: </strong>{pf.notes}
               </div>
             )}
@@ -253,7 +255,7 @@ export default function QuotationTemplate({ printFields: pf, lang = 'ar' }: Prop
             {pf.items.map((item, i) => (
               <tr key={item.id}>
                 <td style={{ ...td, textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                <td style={td}>{item.description.trim() || <span style={blankLine} />}</td>
+                <td style={{ ...td, ...longTextCell }}>{item.description.trim() || <span style={blankLine} />}</td>
                 <td style={{ ...td, textAlign: 'center' }}>{item.qty || '—'}</td>
                 <td style={{ ...td, textAlign: 'center' }}>{item.unit || '—'}</td>
                 <td style={{ ...td, textAlign: 'end' }}>
@@ -280,7 +282,7 @@ export default function QuotationTemplate({ printFields: pf, lang = 'ar' }: Prop
         <div style={{ ...tableWrapper, marginBottom: 10 }}>
           <div style={sectionHeader}>ملاحظات وشروط</div>
           {pf.notes.trim() && (
-            <div style={{ padding: '6px 12px', fontSize: 12, borderBottom: '1px solid #e2e8f0' }}>
+            <div style={{ padding: '6px 12px', fontSize: 12, borderBottom: '1px solid #e2e8f0', ...longTextCell }}>
               <strong>ملاحظات: </strong>{pf.notes}
             </div>
           )}
