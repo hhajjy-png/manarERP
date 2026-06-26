@@ -34,9 +34,10 @@ model User {
   employeeId Int?      @unique
   employee   Employee? @relation(fields: [employeeId], references: [id])
 
-  auditLogs         AuditLog[]
-  backups           Backup[]
-  approvalHistories ApprovalHistory[]
+  auditLogs            AuditLog[]
+  backups              Backup[]
+  approvalHistories    ApprovalHistory[]
+  uploadedAttachments  Attachment[]  @relation("AttachmentUploader")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -544,6 +545,26 @@ model ContractDocument {
 
   @@index([contractId])
   @@map("contract_documents")
+}
+
+model Attachment {
+  id           Int      @id @default(autoincrement())
+  entityType   String   // CUSTOMER | CONTRACT | INVOICE | EMPLOYEE | SUPPLIER | EXPENSE | EQUIPMENT
+  entityId     Int
+  title        String
+  fileName     String   // stored filename (uuid prefix)
+  originalName String   // original upload filename
+  filePath     String   // absolute path on disk
+  fileSize     Int      @default(0) // bytes
+  mimeType     String?
+  uploadedById Int?
+  uploadedAt   DateTime @default(now())
+
+  uploadedBy User? @relation("AttachmentUploader", fields: [uploadedById], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([uploadedAt])
+  @@map("attachments")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
