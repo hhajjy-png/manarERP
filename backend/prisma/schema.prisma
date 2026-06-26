@@ -782,6 +782,11 @@ model Backup {
   createdById Int?
   createdAt   DateTime @default(now())
 
+  checksumSha256      String?   // SHA-256 of the backup file (computed on verify)
+  verifiedAt          DateTime? // timestamp of last verification
+  verificationStatus  String?   // PASS | FAIL | PENDING
+  verificationNote    String?   // short error or info message
+
   createdBy User? @relation(fields: [createdById], references: [id])
 
   @@index([type])
