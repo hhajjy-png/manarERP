@@ -187,7 +187,6 @@ async function main() {
       'expirations.read',
       'attachments.read',
       'attachments.create',
-      'attachments.delete',
     ],
     EQUIPMENT_MANAGER: [
       ...keysForModules(['equipment', 'maintenance', 'reports']),

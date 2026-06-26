@@ -10,6 +10,7 @@ import { ok, created } from '@core/utils/response';
 import { recordAudit } from '@core/middleware/audit';
 import { AppError } from '@core/errors/AppError';
 import { prisma } from '@config/database';
+import { ROLES } from '@config/constants';
 import { attachmentsService } from './attachments.service';
 import {
   listQuerySchema,
@@ -17,6 +18,38 @@ import {
   ALLOWED_MIME_TYPES,
   ALLOWED_ENTITY_TYPES,
 } from './attachments.schema';
+
+// Entity-type → minimum permission required for read access
+const ENTITY_READ_PERM: Record<string, string> = {
+  CUSTOMER:  'customers.read',
+  CONTRACT:  'contracts.read',
+  INVOICE:   'invoices.read',
+  EMPLOYEE:  'employees.read',
+  SUPPLIER:  'suppliers.read',
+  EXPENSE:   'expenses.read',
+  EQUIPMENT: 'equipment.read',
+};
+
+// Entity-type → minimum permission required for write/delete access
+const ENTITY_WRITE_PERM: Record<string, string> = {
+  CUSTOMER:  'customers.update',
+  CONTRACT:  'contracts.update',
+  INVOICE:   'invoices.update',
+  EMPLOYEE:  'employees.update',
+  SUPPLIER:  'suppliers.update',
+  EXPENSE:   'expenses.update',
+  EQUIPMENT: 'equipment.update',
+};
+
+/** Returns true if the user has the required entity-module permission (SYSTEM_ADMIN always passes). */
+function hasEntityPerm(
+  roleName: string,
+  permissions: string[],
+  perm: string,
+): boolean {
+  if (roleName === ROLES.SYSTEM_ADMIN) return true;
+  return permissions.includes(perm);
+}
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -50,6 +83,12 @@ router.get(
   requirePermission('attachments.read'),
   asyncHandler(async (req, res) => {
     const { entityType, entityId } = listQuerySchema.parse(req.query);
+
+    const entityPerm = ENTITY_READ_PERM[entityType];
+    if (entityPerm && !hasEntityPerm(req.user!.roleName, req.permissions ?? [], entityPerm)) {
+      throw AppError.forbidden('ليست لديك صلاحية لعرض مرفقات هذا النوع');
+    }
+
     ok(res, await attachmentsService.list(entityType, entityId));
   }),
 );
@@ -108,6 +147,16 @@ router.delete(
   requirePermission('attachments.delete'),
   asyncHandler(async (req, res) => {
     const { id } = deleteParamSchema.parse(req.params);
+
+    // Enforce entity-module write permission based on the attachment's entityType
+    const attachment = await prisma.attachment.findUnique({ where: { id }, select: { entityType: true } });
+    if (attachment) {
+      const entityPerm = ENTITY_WRITE_PERM[attachment.entityType];
+      if (entityPerm && !hasEntityPerm(req.user!.roleName, req.permissions ?? [], entityPerm)) {
+        throw AppError.forbidden('ليست لديك صلاحية لحذف مرفقات هذا النوع');
+      }
+    }
+
     await attachmentsService.remove(id, req.user!.userId, req);
     ok(res, null, 'تم حذف المرفق');
   }),
