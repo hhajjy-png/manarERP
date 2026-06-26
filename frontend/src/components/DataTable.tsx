@@ -112,17 +112,27 @@ export default function DataTable({ columns, rows, loading, meta, onPage, action
           <tbody aria-live="polite">
             {loading ? (
               <tr><td colSpan={colSpan}><div className="center-msg"><div className="spinner" />{t('msg.loading')}</div></td></tr>
-            ) : rows.length === 0 ? (
-              <tr><td colSpan={colSpan}>
-                <div className="center-msg" style={{ flexDirection: 'column', gap: 12 }}>
-                  <span>{isFiltered ? t('msg.empty_filtered') : (emptyText ?? t('msg.empty'))}</span>
-                  {isFiltered && onResetFilters ? (
-                    <button type="button" className="btn secondary sm" onClick={onResetFilters}>
-                      {t('action.reset_filters_inline')}
+            ) : rows.length === 0 && !loading ? (
+              <tr>
+                <td colSpan={colSpan} style={{ textAlign: 'center', padding: '40px 16px', color: '#9CA3AF' }}>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>📋</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                    {isFiltered ? 'لا توجد نتائج مطابقة' : (emptyText || t('msg.empty'))}
+                  </div>
+                  {isFiltered && onResetFilters && (
+                    <button
+                      type="button"
+                      onClick={onResetFilters}
+                      style={{ marginTop: 8, fontSize: 13, color: '#3B82F6', background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      مسح الفلاتر
                     </button>
-                  ) : !isFiltered ? emptyAction : null}
-                </div>
-              </td></tr>
+                  )}
+                  {!isFiltered && emptyAction && (
+                    <div style={{ marginTop: 10 }}>{emptyAction}</div>
+                  )}
+                </td>
+              </tr>
             ) : (
               rows.map((row, i) => {
                 const rowId = getRowId ? getRowId(row) : undefined;
