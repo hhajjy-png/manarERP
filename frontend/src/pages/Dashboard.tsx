@@ -23,6 +23,7 @@ import {
   TableRowSkeletons,
 } from '../components/dashboard/Skeleton';
 import LastAutoBackupCard from '../components/dashboard/LastAutoBackupCard';
+import ExpirationWidget from '../components/dashboard/ExpirationWidget';
 import FinancialIntelPanel from '../components/dashboard/FinancialIntelPanel';
 import type { FinV2Data } from '../components/dashboard/FinancialIntelPanel';
 import ExecutiveIntelligenceV2Panel from '../components/dashboard/ExecutiveIntelligenceV2Panel';
@@ -377,6 +378,11 @@ function GeneralDashboardContent() {
           )}
         </>
       )}
+
+      {/* ══════════════════════════════════════════════════
+          DOCUMENT EXPIRATION WIDGET
+      ══════════════════════════════════════════════════ */}
+      <ExpirationWidget />
 
       {/* ══════════════════════════════════════════════════
           EXECUTIVE ALERT WIDGETS
