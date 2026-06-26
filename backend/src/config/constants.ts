@@ -65,6 +65,7 @@ export const MODULES = [
   'payrollBankImport',
   'bankStatementImport',
   'expirations',
+  'attachments',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
