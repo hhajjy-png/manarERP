@@ -56,7 +56,7 @@ const upload = multer({
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
       const parsed = listQuerySchema.safeParse(req.query);
-      if (!parsed.success) return cb(new Error('invalid entityType or entityId'), '');
+      if (!parsed.success) return cb(AppError.badRequest('نوع الكيان أو المعرّف غير صالح.'), '');
       const dir = attachmentsService.storageDir(parsed.data.entityType, parsed.data.entityId);
       cb(null, dir);
     },
@@ -70,7 +70,7 @@ const upload = multer({
     if ((ALLOWED_MIME_TYPES as readonly string[]).includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error(`نوع الملف غير مسموح: ${file.mimetype}`));
+      cb(AppError.badRequest('نوع الملف غير مدعوم.'));
     }
   },
 });
