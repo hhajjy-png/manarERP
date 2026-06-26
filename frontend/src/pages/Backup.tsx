@@ -8,6 +8,21 @@ import { useToast } from '../stores/toastStore';
 
 const isElectron = typeof window !== 'undefined' && !!window.manar;
 
+interface BackupRecord {
+  id: number;
+  fileName: string;
+  filePath: string;
+  sizeBytes: number;
+  type: string;
+  status: string;
+  createdAt: string;
+  // verification fields (added Phase C)
+  checksumSha256:     string | null;
+  verifiedAt:         string | null;
+  verificationStatus: string | null; // 'PASS' | 'FAIL' | null
+  verificationNote:   string | null;
+}
+
 function fmt(bytes: number): string {
   if (bytes === 0) return '0 ب';
   if (bytes < 1024) return `${bytes} ب`;
@@ -27,8 +42,7 @@ export default function Backup() {
 
   const canSettings = hasPermission('settings.update');
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [list, setList] = useState<any[]>([]);
+  const [list, setList] = useState<BackupRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [restoreListConfirm, setRestoreListConfirm] = useState<{ id: number; fileName: string } | null>(null);
