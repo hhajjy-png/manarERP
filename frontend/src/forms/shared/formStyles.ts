@@ -96,3 +96,10 @@ export const blankLine: CSSProperties = {
   height: 18,
   marginBottom: -4,
 };
+
+export const longTextCell: CSSProperties = {
+  wordWrap: 'break-word',
+  overflowWrap: 'break-word',
+  whiteSpace: 'pre-wrap',
+  maxWidth: '100%',
+};
