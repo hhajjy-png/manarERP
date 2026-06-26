@@ -44,6 +44,7 @@ import ExecutiveDecisionCenter from './pages/ExecutiveDecisionCenter';
 import Statements from './pages/Statements';
 import FinancialCenter from './pages/FinancialCenter';
 import Integrations from './pages/Integrations';
+import DocumentExpirationCenter from './pages/DocumentExpirationCenter';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -107,6 +108,7 @@ export default function App() {
           <Route path="/bank-statement-import" element={<BankStatementImport />} />
           <Route path="/bank-reconciliation" element={<BankReconciliation />} />
           <Route path="/bank-reconciliation/:importId" element={<BankReconciliation />} />
+          <Route path="/expirations" element={<DocumentExpirationCenter />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
