@@ -39,6 +39,7 @@ export default function Backup() {
   const [autoStatus, setAutoStatus] = useState<AutoStatus | null>(null);
   const [settingsDraft, setSettingsDraft] = useState<AutoSettings>({ enabled: true, time: '22:00', retentionCount: 30 });
   const [settingsBusy, setSettingsBusy] = useState(false);
+  const [verifying, setVerifying] = useState<number | null>(null);
 
   async function load() {
     setLoading(true);
@@ -56,6 +57,18 @@ export default function Backup() {
     }
   }
   useEffect(() => { load(); }, []);
+
+  async function verifyBackup(id: number) {
+    setVerifying(id);
+    try {
+      await api.post(`/backups/${id}/verify`);
+      await load(); // refresh list
+    } catch {
+      // error shown by global interceptor
+    } finally {
+      setVerifying(null);
+    }
+  }
 
   async function saveSettings() {
     setSettingsBusy(true);
@@ -148,6 +161,12 @@ export default function Backup() {
     setDeleteBackupId(null);
     if (busy) return; setBusy(true);
     try { await api.delete(`/backups/${id}`); load(); } catch (err) { toast.error(errorMessage(err)); } finally { setBusy(false); }
+  }
+
+  function verifyBadge(status: string | null, note: string | null) {
+    if (status === 'PASS') return <span style={{ color: '#10B981', fontWeight: 600 }} title={note ?? undefined}>✓ ناجح</span>;
+    if (status === 'FAIL') return <span style={{ color: '#EF4444', fontWeight: 600 }} title={note ?? undefined}>✗ فشل</span>;
+    return <span style={{ color: '#9CA3AF' }}>—</span>;
   }
 
   return (
@@ -305,13 +324,13 @@ export default function Backup() {
         <div className="table-responsive">
           <table>
             <thead>
-              <tr><th>{t('col.backup.file')}</th><th>{t('col.backup.size')}</th><th>{t('col.backup.type')}</th><th>{t('col.date')}</th><th></th></tr>
+              <tr><th>{t('col.backup.file')}</th><th>{t('col.backup.size')}</th><th>{t('col.backup.type')}</th><th>{t('col.date')}</th><th>التحقق</th><th></th></tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5}><div className="center-msg"><div className="spinner" />{t('msg.loading')}</div></td></tr>
+                <tr><td colSpan={6}><div className="center-msg"><div className="spinner" />{t('msg.loading')}</div></td></tr>
               ) : list.length === 0 ? (
-                <tr><td colSpan={5}><div className="center-msg">{t('msg.backup.no_records')}</div></td></tr>
+                <tr><td colSpan={6}><div className="center-msg">{t('msg.backup.no_records')}</div></td></tr>
               ) : list.map((b) => (
                 <tr key={b.id}>
                   <td style={{ fontFamily: 'monospace', fontSize: 13 }}><strong>{b.fileName}</strong></td>
@@ -322,7 +341,11 @@ export default function Backup() {
                     </span>
                   </td>
                   <td>{dateText(b.createdAt)}</td>
+                  <td>{verifyBadge(b.verificationStatus ?? null, b.verificationNote ?? null)}</td>
                   <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
+                    <button type="button" className="btn secondary sm" disabled={verifying === b.id || busy} onClick={() => verifyBackup(b.id)}>
+                      {verifying === b.id ? '⏳' : '✓'} تحقق
+                    </button>{' '}
                     {canRestore && <><button type="button" className="btn secondary sm" disabled={busy} onClick={() => restoreFromList(b.id, b.fileName)}>↩️ {t('btn.backup.restore')}</button>{' '}</>}
                     {canRestore && <button type="button" className="btn danger sm" onClick={() => remove(b.id)} disabled={busy}>{t('action.delete')}</button>}
                   </td>
