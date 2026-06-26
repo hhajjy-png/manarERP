@@ -2,6 +2,8 @@ import { CSSProperties } from 'react';
 import { getNationalityEn, getJobTitleEn } from './shared/contractTranslations';
 import { tafqeetKWD } from '../lib/tafqeet';
 import { ProfileId, DEFAULT_PROFILE_ID, PRINT_PROFILES, getPrintProfileStyle } from './shared/printProfiles';
+import ApprovalSection from './shared/ApprovalSection';
+import { longTextCell } from './shared/formStyles';
 
 export interface ContractParams {
   issueDate: string;
@@ -139,10 +141,12 @@ export default function EmploymentContractTemplate({
   employee: emp,
   params,
   profile = DEFAULT_PROFILE_ID,
+  lang = 'ar',
 }: {
   employee: ContractEmployee;
   params: ContractParams;
   profile?: ProfileId;
+  lang?: 'ar' | 'en';
 }) {
   const jobTitleEn = emp.jobTitleEn?.trim() || getJobTitleEn(emp.jobTitle);
   const natEn = emp.nationalityEn?.trim() || getNationalityEn(emp.nationality);
@@ -153,6 +157,176 @@ export default function EmploymentContractTemplate({
   const salWords = tafqeetKWD(sal);
   const dayAr = AR_DAYS[issueD.getDay()];
   const dayEn = EN_DAYS[issueD.getDay()];
+
+  // ── English-only render path ──────────────────────────────────────────────
+  if (lang === 'en') {
+    const enWrap: CSSProperties = {
+      ...wrap,
+      direction: 'ltr',
+    };
+
+    const enRow: CSSProperties = {
+      borderBottom: '1px solid #888',
+      padding: '5px 10px',
+      direction: 'ltr',
+      textAlign: 'left',
+    };
+
+    return (
+      <>
+        <style>{buildContractPrintCSS(profile)}</style>
+
+        {/* EN PAGE 1 — Header + Articles 1–6 */}
+        <div className="ec-page ec-p1" style={enWrap}>
+
+          <div style={{ ...fullRow, padding: '5px 10px' }}>
+            <img
+              src="/contract_emblem.png"
+              alt="Kuwait Public Authority Emblem"
+              style={{ height: 62, objectFit: 'contain' }}
+            />
+          </div>
+
+          <div style={{ ...fullRow, padding: '3px 10px' }}>
+            <div style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginTop: 1 }}>The Public Authority For Manpower</div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>الهـيئة العـامة للقـوى العـاملة</div>
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            {`State of Kuwait\nPublic Authority for Manpower / Labour Department Farwaniya\nOn ${dayEn} corresponding to ${issueFmt} the present contract was concluded by and between:`}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <div style={{ ...hdr }}>First Party (Employer):</div>
+            {`Company: ALAMANAR ALDAWLIYA\nRepresented by: HASSAN FALAH NAYEF AL-HAJJI\nCivil ID: 282081000827`}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <div style={{ ...hdr }}>Second Party (Employee):</div>
+            {`Name: ${emp.fullNameEn ?? emp.fullName}\nNationality: ${natEn}\nCivil ID: ${emp.civilId ?? '—'}\nPassport No.: ${emp.passportNumber ?? '—'}`}
+            {emp.address ? `\nAddress: ${emp.address}` : ''}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Preamble: </span>
+            {`The first party owns the establishment entitled ALAMANAR ALDAWLIYA working in the field of STREET CONSTRUCTION & MAINTENANCE; whereas it wishes to conclude a contract with the second party to work for it in the profession of ${jobTitleEn}; whereas the parties acknowledged their capacity to conclude this contract, they agreed upon the following:`}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article One: </span>{'The preamble above shall constitute an integral part of the present contract.'}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Two — Nature of Work: </span>{`The first party concluded a contract with the second party to work in the profession of ${jobTitleEn} in the State of Kuwait.`}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Three — Probation Period: </span>{`The second party shall be subject to a probation period not exceeding ${params.probationDays} work days. Either party may terminate the contract during this period without prior notice.`}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Four — Wage: </span>
+            {'The second party shall receive a monthly wage of '}
+            <strong>{sal} KWD</strong>
+            {` (${salWords}) payable at the end of each month. The first party may not reduce the wage during the contract term.`}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Five — Commencement: </span>{`The contract shall come into force on ${startFmt}. The second party shall perform his duties throughout the full term of the contract.`}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow, borderBottom: 'none' }}>
+            <span style={hdr}>Article Six — Contract Term: </span>{`This contract has a definite term, commencing ${startFmt} for a period of ${params.durationEn}. It may be renewed by mutual agreement for similar terms not exceeding five years. (An indefinite-term option is available subject to agreement of both parties.)`}
+          </div>
+
+        </div>
+
+        {/* EN PAGE 2 — Articles 7–16 + Signatures */}
+        <div className="ec-page ec-p2" style={enWrap}>
+
+          <div className="ec-row ec-page-2" style={{ ...enRow }}>
+            <span style={hdr}>Article Seven — Annual Leave: </span>{`The second party shall be entitled to a paid annual leave of ${params.annualLeaveDays} days. This entitlement does not accrue in the first year until the expiry of nine months from the contract commencement date.`}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Eight — Working Hours: </span>{'The first party may not require the second party to work more than eight daily hours with rest periods of not less than one hour, except as provided by law.'}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Nine — Travel Ticket: </span>{'The first party shall bear the cost of returning the second party to his home country upon expiry of the work relationship and final departure from Kuwait.'}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Ten — Insurance: </span>{'The first party shall insure the second party against work injuries and occupational diseases, and shall also provide health insurance in accordance with Law No. (1) of 1999.'}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Eleven — End of Service: </span>{'The second party shall be entitled to end-of-service benefits as stipulated by the applicable labour laws.'}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Twelve — Applicable Law: </span>{'The provisions of Labour Law No. 6 of 2010 and its implementing decisions shall apply to all matters not covered in this contract. Any condition contrary to the law shall be null and void unless it provides a greater benefit to the worker.'}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Thirteen — Special Conditions: </span>
+            <span style={longTextCell}>{`\n${params.specialConditionsEn || 'None.'}`}</span>
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Fourteen — Jurisdiction: </span>{'The Court of First Instance and its Labour Departments, pursuant to Law No. 46 of 1987, shall have jurisdiction over all disputes arising from the execution or interpretation of this contract.'}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Fifteen — Contract Language: </span>{'This contract is made in Arabic and English. The Arabic text shall prevail in case of any conflict between them.'}
+          </div>
+
+          <div className="ec-row" style={{ ...enRow }}>
+            <span style={hdr}>Article Sixteen — Contract Copies: </span>{'This contract is made in three copies: one for each party and the third to be deposited at the Public Authority for Manpower.'}
+          </div>
+
+          <div
+            className="ec-row"
+            style={{
+              ...enRow,
+              borderBottom: 'none',
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 24,
+              padding: '12px 10px',
+              pageBreakInside: 'avoid',
+              breakInside: 'avoid',
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4 }}>First Party — Employer</div>
+              <div style={{ fontSize: 10, color: '#374151', marginBottom: 72 }}>
+                ALAMANAR ALDAWLIYA · HASSAN FALAH NAYEF
+              </div>
+              <div style={{ borderTop: '1px solid #374151', paddingTop: 6, fontSize: 9.5, color: '#6b7280' }}>
+                Signature ___________ &nbsp;&nbsp;&nbsp; Date: ___________
+              </div>
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4 }}>Second Party — Employee</div>
+              <div style={{ fontSize: 10, color: '#374151', marginBottom: 72 }}>
+                {emp.fullNameEn ?? emp.fullName}
+                {emp.civilId ? ` · ${emp.civilId}` : ''}
+              </div>
+              <div style={{ borderTop: '1px solid #374151', paddingTop: 6, fontSize: 9.5, color: '#6b7280' }}>
+                Signature ___________ &nbsp;&nbsp;&nbsp; Date: ___________
+              </div>
+            </div>
+          </div>
+
+          <div style={{ padding: '12px 10px', borderTop: '1px solid #888' }}>
+            <ApprovalSection lang="en" title="Employer Signature" />
+          </div>
+
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
