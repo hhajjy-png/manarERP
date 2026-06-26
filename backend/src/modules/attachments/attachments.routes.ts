@@ -55,8 +55,9 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, _file, cb) => {
-      const { entityType, entityId } = req.query as { entityType: string; entityId: string };
-      const dir = attachmentsService.storageDir(entityType, Number(entityId));
+      const parsed = listQuerySchema.safeParse(req.query);
+      if (!parsed.success) return cb(new Error('invalid entityType or entityId'), '');
+      const dir = attachmentsService.storageDir(parsed.data.entityType, parsed.data.entityId);
       cb(null, dir);
     },
     filename: (_req, file, cb) => {

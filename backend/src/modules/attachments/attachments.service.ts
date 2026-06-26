@@ -6,9 +6,16 @@ import { env } from '@config/env';
 import { AppError } from '@core/errors/AppError';
 import { recordAudit } from '@core/middleware/audit';
 
+const ALLOWED_ENTITY_TYPES = new Set([
+  'CUSTOMER', 'CONTRACT', 'INVOICE', 'EMPLOYEE', 'SUPPLIER', 'EXPENSE', 'EQUIPMENT',
+]);
+
 export class AttachmentsService {
   storageDir(entityType: string, entityId: number): string {
-    const dir = path.resolve(process.cwd(), env.ATTACHMENTS_DIR, entityType, String(entityId));
+    if (!ALLOWED_ENTITY_TYPES.has(entityType)) throw new Error('invalid entityType');
+    const base = path.resolve(process.cwd(), env.ATTACHMENTS_DIR);
+    const dir = path.resolve(path.join(base, entityType, String(entityId)));
+    if (!dir.startsWith(base + path.sep)) throw new Error('invalid storage path');
     fs.mkdirSync(dir, { recursive: true });
     return dir;
   }
