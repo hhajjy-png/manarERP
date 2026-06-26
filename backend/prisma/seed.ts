@@ -69,6 +69,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   integrations:      ['read', 'configure', 'run'],
   payrollBankImport:    ['read', 'create', 'export'],
   bankStatementImport:  ['read', 'create', 'export', 'reconcile'],
+  expirations:          ['read', 'export'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -166,6 +167,7 @@ async function main() {
       'bankStatementImport.create',
       'bankStatementImport.export',
       'bankStatementImport.reconcile',
+      'expirations.read',
     ],
     PROJECT_MANAGER: [
       ...keysForModules(['contracts', 'prices', 'reports']),
@@ -178,6 +180,7 @@ async function main() {
       'integrations.read',
       'payrollBankImport.read',
       'bankStatementImport.read',
+      'expirations.read',
     ],
     EQUIPMENT_MANAGER: [
       ...keysForModules(['equipment', 'maintenance', 'reports']),
@@ -189,6 +192,7 @@ async function main() {
       'inventory.export',
       ...readOnly(['dashboard', 'contracts', 'suppliers']),
       'forms.read',
+      'expirations.read',
     ],
     HR_MANAGER: [
       ...keysForModules(['employees', 'attendance', 'payroll', 'reports', 'forms']),
@@ -198,6 +202,7 @@ async function main() {
       'payrollBankImport.read',
       'payrollBankImport.create',
       'payrollBankImport.export',
+      'expirations.read',
     ],
     STANDARD_USER: [
       ...readOnly(['dashboard', 'customers', 'contracts', 'equipment', 'prices']),
