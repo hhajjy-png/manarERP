@@ -104,3 +104,15 @@ const PRIORITY_EN: Record<string, string> = {
 export function getPriorityLabelEn(key: string): string {
   return PRIORITY_EN[key.toUpperCase()] ?? key;
 }
+
+export function getPriorityEn(ar: string | null | undefined): string {
+  if (!ar) return '—';
+  // Map Arabic priority labels to English equivalents
+  const AR_TO_EN: Record<string, string> = {
+    'منخفضة': 'Low',
+    'متوسطة': 'Medium',
+    'عالية': 'High',
+    'عاجل': 'Urgent',
+  };
+  return AR_TO_EN[ar.trim()] ?? ar;
+}

@@ -11,7 +11,6 @@ import {
   longTextCell,
 } from './shared/formStyles';
 import { getPriorityLabelEn } from './shared/contractTranslations';
-import ApprovalSection from './shared/ApprovalSection';
 
 // ─── Exported interfaces ──────────────────────────────────────────────────────
 // Future integration notes:
@@ -168,10 +167,19 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
           </div>
         )}
 
-        <div style={{ ...tableWrapper, marginTop: 10 }}>
-          <div style={sectionHeader}>Approvals</div>
-          <div style={{ padding: '8px 12px' }}>
-            <ApprovalSection lang="en" />
+        <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginTop: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 12 }}>
+            {[
+              { label: 'Requested By', name: pf.requestedBy },
+              { label: 'Reviewed By', name: pf.reviewedBy },
+              { label: 'Approved By', name: pf.approvedBy },
+            ].map(({ label, name }) => (
+              <div key={label} style={{ border: '1px solid #1d4e6f', borderRadius: 4, padding: '8px 10px', textAlign: 'center' }}>
+                <div style={{ fontWeight: 700, marginBottom: 8, color: '#1d4e6f' }}>{label}</div>
+                <div style={{ borderBottom: '1px solid #64748b', minHeight: 24, marginBottom: 4 }}>{name || ''}</div>
+                <div style={{ fontSize: 10, color: '#6B7280' }}>Signature</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -240,10 +248,19 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
         </div>
       )}
 
-      <div style={{ ...tableWrapper, marginTop: 10 }}>
-        <div style={sectionHeader}>الاعتماد</div>
-        <div style={{ padding: '8px 12px' }}>
-          <ApprovalSection lang="ar" />
+      <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginTop: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 12 }}>
+          {[
+            { label: 'طلب بواسطة', name: pf.requestedBy },
+            { label: 'مراجعة بواسطة', name: pf.reviewedBy },
+            { label: 'اعتماد بواسطة', name: pf.approvedBy },
+          ].map(({ label, name }) => (
+            <div key={label} style={{ border: '1px solid #1d4e6f', borderRadius: 4, padding: '8px 10px', textAlign: 'center' }}>
+              <div style={{ fontWeight: 700, marginBottom: 8, color: '#1d4e6f' }}>{label}</div>
+              <div style={{ borderBottom: '1px solid #64748b', minHeight: 24, marginBottom: 4 }}>{name || ''}</div>
+              <div style={{ fontSize: 10, color: '#6B7280' }}>التوقيع</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
