@@ -16,7 +16,6 @@ import {
   listQuerySchema,
   deleteParamSchema,
   ALLOWED_MIME_TYPES,
-  ALLOWED_ENTITY_TYPES,
 } from './attachments.schema';
 
 // Entity-type → minimum permission required for read access
@@ -61,8 +60,8 @@ const upload = multer({
       cb(null, dir);
     },
     filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      cb(null, `${randomUUID()}${ext}`);
+      const safeOriginal = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+      cb(null, `${randomUUID()}-${safeOriginal}`);
     },
   }),
   limits: { fileSize: MAX_FILE_SIZE },
@@ -103,10 +102,11 @@ router.post(
     const { entityType, entityId } = listQuerySchema.parse(req.query);
     const title: string = (req.body.title as string) || req.file.originalname;
 
-    if (!(ALLOWED_ENTITY_TYPES as readonly string[]).includes(entityType)) {
-      // Clean up the already-uploaded file before throwing
+    // Enforce entity-module write permission (Zod already validates entityType above)
+    const entityPerm = ENTITY_WRITE_PERM[entityType];
+    if (entityPerm && !hasEntityPerm(req.user!.roleName, req.permissions ?? [], entityPerm)) {
       if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-      throw AppError.badRequest('نوع الكيان غير مسموح');
+      throw AppError.forbidden('ليست لديك صلاحية لرفع مرفقات لهذا النوع');
     }
 
     let att;
