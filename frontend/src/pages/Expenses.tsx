@@ -13,6 +13,7 @@ import { usePersistedState } from '../hooks/usePersistedState';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadXlsx } from '../utils/exportUtils';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
+import AttachmentsPanel from '../components/AttachmentsPanel';
 
 const EXPENSE_CATEGORIES: { value: string; label: string }[] = [
   { value: 'FUEL', label: 'وقود' },
@@ -548,6 +549,10 @@ function ExpenseForm({
           />
         </div>
       </div>
+
+      {isEdit && expense?.id != null && (
+        <AttachmentsPanel entityType="EXPENSE" entityId={Number(expense.id as number)} />
+      )}
     </Modal>
   );
 }
