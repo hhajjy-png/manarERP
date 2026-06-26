@@ -27,6 +27,22 @@ const NATIONALITY_EN: Record<string, string> = {
   'إثيوبية': 'ETHIOPIAN',
   'إندونيسي': 'INDONESIAN',
   'إندونيسية': 'INDONESIAN',
+  'عراقي': 'IRAQI',
+  'عراقية': 'IRAQI',
+  'سوداني': 'SUDANESE',
+  'سودانية': 'SUDANESE',
+  'تونسي': 'TUNISIAN',
+  'تونسية': 'TUNISIAN',
+  'مغربي': 'MOROCCAN',
+  'مغربية': 'MOROCCAN',
+  'لبناني': 'LEBANESE',
+  'لبنانية': 'LEBANESE',
+  'ميانماري': 'MYANMAR',
+  'ميانمارية': 'MYANMAR',
+  'كيني': 'KENYAN',
+  'كينية': 'KENYAN',
+  'غاني': 'GHANAIAN',
+  'غانية': 'GHANAIAN',
 };
 
 const JOB_TITLE_EN: Record<string, string> = {
@@ -43,6 +59,29 @@ const JOB_TITLE_EN: Record<string, string> = {
   'محاسب': 'ACCOUNTANT',
   'حارس': 'GUARD',
   'سائق': 'DRIVER',
+  'مشغل معدات ثقيلة': 'HEAVY EQUIPMENT OPERATOR',
+  'مشغل حفار': 'EXCAVATOR OPERATOR',
+  'مشغل مدحلة': 'ROLLER OPERATOR',
+  'مشغل شيول': 'WHEEL LOADER OPERATOR',
+  'سائق شاحنة قلاب': 'DUMP TRUCK DRIVER',
+  'ميكانيكي': 'MECHANIC',
+  'كهربائي': 'ELECTRICIAN',
+  'لحام': 'WELDER',
+  'نجار': 'CARPENTER',
+  'بناء': 'MASON',
+  'مساعد سائق': 'DRIVER ASSISTANT',
+  'مراقب': 'INSPECTOR',
+  'مدير مشروع': 'PROJECT MANAGER',
+  'مهندس مدني': 'CIVIL ENGINEER',
+  'مهندس ميداني': 'FIELD ENGINEER',
+  'مسؤول مخازن': 'STOREKEEPER',
+  'عامل مستودع': 'WAREHOUSE WORKER',
+  'مساح': 'SURVEYOR',
+  'مساعد إداري': 'ADMINISTRATIVE ASSISTANT',
+  'سكرتير': 'SECRETARY',
+  'مدير مالي': 'FINANCIAL MANAGER',
+  'مدير موارد بشرية': 'HR MANAGER',
+  'مسؤول مشتريات': 'PROCUREMENT OFFICER',
 };
 
 export function getNationalityEn(ar: string | null | undefined): string {
@@ -53,4 +92,27 @@ export function getNationalityEn(ar: string | null | undefined): string {
 export function getJobTitleEn(ar: string | null | undefined): string {
   if (!ar) return '—';
   return JOB_TITLE_EN[ar.trim()] ?? ar;
+}
+
+const PRIORITY_EN: Record<string, string> = {
+  LOW:    'Low',
+  MEDIUM: 'Medium',
+  HIGH:   'High',
+  URGENT: 'Urgent',
+};
+
+export function getPriorityLabelEn(key: string): string {
+  return PRIORITY_EN[key.toUpperCase()] ?? key;
+}
+
+export function getPriorityEn(ar: string | null | undefined): string {
+  if (!ar) return '—';
+  // Map Arabic priority labels to English equivalents
+  const AR_TO_EN: Record<string, string> = {
+    'منخفضة': 'Low',
+    'متوسطة': 'Medium',
+    'عالية': 'High',
+    'عاجل': 'Urgent',
+  };
+  return AR_TO_EN[ar.trim()] ?? ar;
 }

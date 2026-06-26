@@ -85,6 +85,14 @@ const api = {
     sizeBytes?: number;
     error?: string;
   }> => ipcRenderer.invoke('pdf:exportHtml', html, suggestedName),
+
+  /** فتح مربع حوار اختيار ملف للإرفاق — يُعيد المسار أو null إذا ألغى المستخدم. */
+  openFileDialog: (): Promise<string | null> =>
+    ipcRenderer.invoke('attachments:openFileDialog'),
+
+  /** فتح ملف مرفق بالتطبيق الافتراضي للنظام — يُعيد null عند النجاح أو رسالة الخطأ. */
+  openAttachment: (filePath: string): Promise<string | null> =>
+    ipcRenderer.invoke('attachments:openPath', filePath),
 };
 
 contextBridge.exposeInMainWorld('manar', api);

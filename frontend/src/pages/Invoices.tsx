@@ -19,6 +19,7 @@ import { toInvoiceItemPayload } from '../utils/invoicePayload';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadXlsx } from '../utils/exportUtils';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
+import AttachmentsPanel from '../components/AttachmentsPanel';
 
 const statusPill: Record<string, [string, string]> = {
   UNPAID: ['inv.status.unpaid', 'red'], PARTIAL: ['inv.status.partial', 'amber'], PAID: ['inv.status.paid', 'green'],
@@ -1573,6 +1574,8 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
           </div>
         );
       })()}
+
+      <AttachmentsPanel entityType="INVOICE" entityId={invoice.id as number} />
     </Modal>
   );
 }

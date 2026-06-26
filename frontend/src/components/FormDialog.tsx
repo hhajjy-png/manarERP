@@ -56,6 +56,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [helperMsg, setHelperMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   useEffect(() => {
@@ -89,14 +90,24 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
     setValues((p: Record<string, unknown>) => ({ ...p, [name]: value }));
   }
 
-  async function submit() {
-    setError('');
-    for (const f of fields) {
-      if (f.required && !values[f.name]) {
-        setError(t('msg.required_field', { field: t(f.label) }));
-        return;
+  function validate(vals: Record<string, unknown>): Record<string, string> {
+    const errors: Record<string, string> = {};
+    for (const field of fields) {
+      if (field.required && !String(vals[field.name] ?? '').trim()) {
+        errors[field.name] = `الحقل «${t(field.label)}» مطلوب`;
       }
     }
+    return errors;
+  }
+
+  async function submit() {
+    setError('');
+    const errors = validate(values);
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload: any = {};
     for (const f of fields) {
@@ -139,26 +150,63 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
               <div className={`field${f.half === false ? ' field-full' : ''}`} key={f.name}>
                 <label>{t(f.label)}{f.required ? ' *' : ''}</label>
                 {f.type === 'select' ? (
-                  <select aria-label={t(f.label)} value={values[f.name] ?? ''} onChange={(e) => {
-                    const newVal = e.target.value;
-                    if (f.onSelectRaw && newVal) {
-                      const rawOpt = asyncOptions[f.name]?.find((o) => o.value === newVal);
-                      if (rawOpt) {
-                        const updates = f.onSelectRaw(rawOpt.raw);
-                        setValues((p: Record<string, unknown>) => ({ ...p, [f.name]: newVal, ...updates }));
-                        setHelperMsg(t('msg.price_autofill'));
-                        return;
+                  <select
+                    aria-label={t(f.label)}
+                    value={values[f.name] ?? ''}
+                    style={{ borderColor: fieldErrors[f.name] ? '#EF4444' : undefined }}
+                    onChange={(e) => {
+                      const newVal = e.target.value;
+                      if (fieldErrors[f.name]) {
+                        setFieldErrors(prev => { const n = { ...prev }; delete n[f.name]; return n; });
                       }
-                    }
-                    set(f.name, newVal);
-                  }}>
+                      if (f.onSelectRaw && newVal) {
+                        const rawOpt = asyncOptions[f.name]?.find((o) => o.value === newVal);
+                        if (rawOpt) {
+                          const updates = f.onSelectRaw(rawOpt.raw);
+                          setValues((p: Record<string, unknown>) => ({ ...p, [f.name]: newVal, ...updates }));
+                          setHelperMsg(t('msg.price_autofill'));
+                          return;
+                        }
+                      }
+                      set(f.name, newVal);
+                    }}
+                  >
                     <option value="">{t('msg.select_placeholder')}</option>
                     {opts.map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
                   </select>
                 ) : f.type === 'textarea' ? (
-                  <textarea rows={3} autoFocus={autoFocus} placeholder={f.placeholder} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
+                  <textarea
+                    rows={3}
+                    autoFocus={autoFocus}
+                    placeholder={f.placeholder}
+                    value={values[f.name] ?? ''}
+                    style={{ borderColor: fieldErrors[f.name] ? '#EF4444' : undefined }}
+                    onChange={(e) => {
+                      set(f.name, e.target.value);
+                      if (fieldErrors[f.name]) {
+                        setFieldErrors(prev => { const n = { ...prev }; delete n[f.name]; return n; });
+                      }
+                    }}
+                  />
                 ) : (
-                  <input autoFocus={autoFocus} type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'password' ? 'password' : 'text'} placeholder={f.placeholder} value={values[f.name] ?? ''} onChange={(e) => set(f.name, e.target.value)} />
+                  <input
+                    autoFocus={autoFocus}
+                    type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'password' ? 'password' : 'text'}
+                    placeholder={f.placeholder}
+                    value={values[f.name] ?? ''}
+                    style={{ borderColor: fieldErrors[f.name] ? '#EF4444' : undefined }}
+                    onChange={(e) => {
+                      set(f.name, e.target.value);
+                      if (fieldErrors[f.name]) {
+                        setFieldErrors(prev => { const n = { ...prev }; delete n[f.name]; return n; });
+                      }
+                    }}
+                  />
+                )}
+                {fieldErrors[f.name] && (
+                  <span style={{ color: '#EF4444', fontSize: 12, marginTop: 2, display: 'block' }}>
+                    {fieldErrors[f.name]}
+                  </span>
                 )}
               </div>
             );

@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { Prisma } from '@prisma/client';
+import multer from 'multer';
 import { AppError } from './AppError';
 import { logger } from '../utils/logger';
 
@@ -29,6 +30,15 @@ export function errorHandler(
     statusCode = err.statusCode;
     message = err.message;
     details = err.details;
+  } else if (err instanceof multer.MulterError) {
+    statusCode = 400;
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      message = 'حجم الملف يتجاوز الحد المسموح (10 ميجابايت).';
+    } else if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      message = 'حقل الملف غير متوقع.';
+    } else {
+      message = 'خطأ في رفع الملف.';
+    }
   } else if (err instanceof ZodError) {
     statusCode = 400;
     message = 'بيانات غير صحيحة';

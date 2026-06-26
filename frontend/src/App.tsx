@@ -41,9 +41,11 @@ import BankSalaryAnalytics from './pages/BankSalaryAnalytics';
 import Quotation from './pages/Quotation';
 import PurchaseRequest from './pages/PurchaseRequest';
 import ExecutiveDecisionCenter from './pages/ExecutiveDecisionCenter';
+import FinancialOperationsDashboard from './pages/FinancialOperationsDashboard';
 import Statements from './pages/Statements';
 import FinancialCenter from './pages/FinancialCenter';
 import Integrations from './pages/Integrations';
+import DocumentExpirationCenter from './pages/DocumentExpirationCenter';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -89,6 +91,7 @@ export default function App() {
           <Route path="/accounting" element={<Accounting />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/executive" element={<ExecutiveDecisionCenter />} />
+          <Route path="/financial-ops" element={<FinancialOperationsDashboard />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/backup" element={<Backup />} />
           <Route path="/inventory" element={<Inventory />} />
@@ -107,6 +110,7 @@ export default function App() {
           <Route path="/bank-statement-import" element={<BankStatementImport />} />
           <Route path="/bank-reconciliation" element={<BankReconciliation />} />
           <Route path="/bank-reconciliation/:importId" element={<BankReconciliation />} />
+          <Route path="/expirations" element={<DocumentExpirationCenter />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

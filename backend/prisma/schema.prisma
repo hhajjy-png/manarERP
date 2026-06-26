@@ -34,9 +34,10 @@ model User {
   employeeId Int?      @unique
   employee   Employee? @relation(fields: [employeeId], references: [id])
 
-  auditLogs         AuditLog[]
-  backups           Backup[]
-  approvalHistories ApprovalHistory[]
+  auditLogs            AuditLog[]
+  backups              Backup[]
+  approvalHistories    ApprovalHistory[]
+  uploadedAttachments  Attachment[]  @relation("AttachmentUploader")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -402,6 +403,7 @@ model Equipment {
   driverName         String? // اسم السائق
   plateNumber        String? // رقم اللوحة
   registrationExpiry DateTime? // تاريخ انتهاء دفتر المركبة
+  insuranceExpiry    DateTime? // تاريخ انتهاء التأمين
   status             String    @default("WORKING") // WORKING (تعمل) | NOT_WORKING (لا تعمل)
   manufacturer       String?
   model              String?
@@ -424,6 +426,7 @@ model Equipment {
   @@index([type])
   @@index([status])
   @@index([registrationExpiry])
+  @@index([insuranceExpiry])
   @@map("equipment")
 }
 
@@ -542,6 +545,26 @@ model ContractDocument {
 
   @@index([contractId])
   @@map("contract_documents")
+}
+
+model Attachment {
+  id           Int      @id @default(autoincrement())
+  entityType   String   // CUSTOMER | CONTRACT | INVOICE | EMPLOYEE | SUPPLIER | EXPENSE | EQUIPMENT
+  entityId     Int
+  title        String
+  fileName     String   // stored filename (uuid prefix)
+  originalName String   // original upload filename
+  filePath     String   // absolute path on disk
+  fileSize     Int      @default(0) // bytes
+  mimeType     String?
+  uploadedById Int?
+  uploadedAt   DateTime @default(now())
+
+  uploadedBy User? @relation("AttachmentUploader", fields: [uploadedById], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([uploadedAt])
+  @@map("attachments")
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -779,6 +802,11 @@ model Backup {
   status      String   @default("SUCCESS") // SUCCESS | FAILED
   createdById Int?
   createdAt   DateTime @default(now())
+
+  checksumSha256      String?   // SHA-256 of the backup file (computed on verify)
+  verifiedAt          DateTime? // timestamp of last verification
+  verificationStatus  String?   // PASS | FAIL | PENDING
+  verificationNote    String?   // short error or info message
 
   createdBy User? @relation(fields: [createdById], references: [id])
 

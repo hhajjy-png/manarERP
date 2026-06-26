@@ -8,7 +8,9 @@ import {
   fmtDate,
   fmtDateEn,
   blankLine,
+  longTextCell,
 } from './shared/formStyles';
+import { getPriorityLabelEn } from './shared/contractTranslations';
 
 // ─── Exported interfaces ──────────────────────────────────────────────────────
 // Future integration notes:
@@ -39,6 +41,7 @@ export interface PurchaseRequestPrintFields {
   requestedBy: string;
   reviewedBy: string;
   approvedBy: string;
+  lang?: 'ar' | 'en';
 }
 
 // ─── Labels ───────────────────────────────────────────────────────────────────
@@ -50,12 +53,10 @@ const PRIORITY_AR: Record<string, string> = {
   URGENT: 'عاجل',
 };
 
-const PRIORITY_EN: Record<string, string> = {
-  LOW: 'Low',
-  MEDIUM: 'Medium',
-  HIGH: 'High',
-  URGENT: 'Urgent',
-};
+function priorityLabel(key: string, lang: 'ar' | 'en'): string {
+  if (lang === 'en') return getPriorityLabelEn(key);
+  return PRIORITY_AR[key] ?? key;
+}
 
 // ─── Table styles ─────────────────────────────────────────────────────────────
 
@@ -90,35 +91,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ─── ApprovalCell helpers ─────────────────────────────────────────────────────
-
-const sigLine: CSSProperties = {
-  borderBottom: '1px solid #64748b',
-  display: 'inline-block',
-  width: 120,
-  marginBottom: 2,
-};
-
-function ApprovalCellAr({ label, name }: { label: string; name: string }) {
-  return (
-    <div style={{ flex: 1, padding: '8px 12px', textAlign: 'center', borderInlineEnd: '1px solid #e2e8f0' }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4e6f', marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 12, marginBottom: 4 }}>{name.trim() ? name : <span style={sigLine} />}</div>
-      <div style={{ fontSize: 11, color: '#64748b' }}>التوقيع: <span style={{ ...sigLine, width: 80 }} /></div>
-    </div>
-  );
-}
-
-function ApprovalCellEn({ label, name }: { label: string; name: string }) {
-  return (
-    <div style={{ flex: 1, padding: '8px 12px', textAlign: 'center', borderInlineEnd: '1px solid #e2e8f0' }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4e6f', marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 12, marginBottom: 4 }}>{name.trim() ? name : <span style={sigLine} />}</div>
-      <div style={{ fontSize: 11, color: '#64748b' }}>Signature: <span style={{ ...sigLine, width: 80 }} /></div>
-    </div>
-  );
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const COMPANY_NAME_EN =
@@ -146,7 +118,7 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
             <InfoRow label="Request No." value={pf.requestNumber} />
             <InfoRow label="Date" value={fmtDateEn(pf.date)} />
             <InfoRow label="Required Date" value={fmtDateEn(pf.requiredDate)} />
-            <InfoRow label="Priority" value={pf.priority ? (PRIORITY_EN[pf.priority] ?? pf.priority) : '—'} />
+            <InfoRow label="Priority" value={pf.priority ? priorityLabel(pf.priority, 'en') : '—'} />
           </div>
         </div>
 
@@ -157,7 +129,7 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
             <InfoRow label="Department" value={pf.department} />
             <div style={{ gridColumn: '1 / -1', display: 'flex', borderBottom: '1px solid #e2e8f0' }}>
               <div style={{ ...labelCell, width: 130, flexShrink: 0 }}>Reason</div>
-              <div style={valueCell}>{pf.reason.trim() ? pf.reason : <span style={blankLine} />}</div>
+              <div style={{ ...valueCell, ...longTextCell }}>{pf.reason.trim() ? pf.reason : <span style={blankLine} />}</div>
             </div>
           </div>
         </div>
@@ -178,10 +150,10 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
               {pf.items.map((item, i) => (
                 <tr key={item.id}>
                   <td style={{ ...td, textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                  <td style={td}>{item.description.trim() || <span style={blankLine} />}</td>
+                  <td style={{ ...td, ...longTextCell }}>{item.description.trim() || <span style={blankLine} />}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{item.qty || '—'}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{item.unit || '—'}</td>
-                  <td style={td}>{item.specification.trim() || <span style={blankLine} />}</td>
+                  <td style={{ ...td, ...longTextCell }}>{item.specification.trim() || <span style={blankLine} />}</td>
                 </tr>
               ))}
             </tbody>
@@ -191,16 +163,23 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
         {pf.notes.trim() && (
           <div style={{ ...tableWrapper, marginBottom: 10 }}>
             <div style={sectionHeader}>Notes</div>
-            <div style={{ padding: '6px 12px', fontSize: 12 }}>{pf.notes}</div>
+            <div style={{ padding: '6px 12px', fontSize: 12, ...longTextCell }}>{pf.notes}</div>
           </div>
         )}
 
-        <div style={{ ...tableWrapper, marginTop: 10 }}>
-          <div style={sectionHeader}>Approvals</div>
-          <div style={{ display: 'flex' }}>
-            <ApprovalCellEn label="Requested By" name={pf.requestedBy} />
-            <ApprovalCellEn label="Reviewed By" name={pf.reviewedBy} />
-            <ApprovalCellEn label="Approved By" name={pf.approvedBy} />
+        <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginTop: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 12 }}>
+            {[
+              { label: 'Requested By', name: pf.requestedBy },
+              { label: 'Reviewed By', name: pf.reviewedBy },
+              { label: 'Approved By', name: pf.approvedBy },
+            ].map(({ label, name }) => (
+              <div key={label} style={{ border: '1px solid #1d4e6f', borderRadius: 4, padding: '8px 10px', textAlign: 'center' }}>
+                <div style={{ fontWeight: 700, marginBottom: 8, color: '#1d4e6f' }}>{label}</div>
+                <div style={{ borderBottom: '1px solid #64748b', minHeight: 24, marginBottom: 4 }}>{name || ''}</div>
+                <div style={{ fontSize: 10, color: '#6B7280' }}>Signature</div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -220,7 +199,7 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
           <InfoRow label="رقم الطلب" value={pf.requestNumber} />
           <InfoRow label="التاريخ" value={fmtDate(pf.date)} />
           <InfoRow label="التاريخ المطلوب" value={fmtDate(pf.requiredDate)} />
-          <InfoRow label="الأولوية" value={pf.priority ? (PRIORITY_AR[pf.priority] ?? pf.priority) : '—'} />
+          <InfoRow label="الأولوية" value={pf.priority ? priorityLabel(pf.priority, 'ar') : '—'} />
         </div>
       </div>
 
@@ -231,7 +210,7 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
           <InfoRow label="القسم" value={pf.department} />
           <div style={{ gridColumn: '1 / -1', display: 'flex', borderBottom: '1px solid #e2e8f0' }}>
             <div style={{ ...labelCell, width: 130, flexShrink: 0 }}>سبب الطلب</div>
-            <div style={valueCell}>{pf.reason.trim() ? pf.reason : <span style={blankLine} />}</div>
+            <div style={{ ...valueCell, ...longTextCell }}>{pf.reason.trim() ? pf.reason : <span style={blankLine} />}</div>
           </div>
         </div>
       </div>
@@ -252,10 +231,10 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
             {pf.items.map((item, i) => (
               <tr key={item.id}>
                 <td style={{ ...td, textAlign: 'center', color: '#64748b' }}>{i + 1}</td>
-                <td style={td}>{item.description.trim() || <span style={blankLine} />}</td>
+                <td style={{ ...td, ...longTextCell }}>{item.description.trim() || <span style={blankLine} />}</td>
                 <td style={{ ...td, textAlign: 'center' }}>{item.qty || '—'}</td>
                 <td style={{ ...td, textAlign: 'center' }}>{item.unit || '—'}</td>
-                <td style={td}>{item.specification.trim() || <span style={blankLine} />}</td>
+                <td style={{ ...td, ...longTextCell }}>{item.specification.trim() || <span style={blankLine} />}</td>
               </tr>
             ))}
           </tbody>
@@ -265,16 +244,23 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
       {pf.notes.trim() && (
         <div style={{ ...tableWrapper, marginBottom: 10 }}>
           <div style={sectionHeader}>ملاحظات</div>
-          <div style={{ padding: '6px 12px', fontSize: 12 }}>{pf.notes}</div>
+          <div style={{ padding: '6px 12px', fontSize: 12, ...longTextCell }}>{pf.notes}</div>
         </div>
       )}
 
-      <div style={{ ...tableWrapper, marginTop: 10 }}>
-        <div style={sectionHeader}>الاعتماد</div>
-        <div style={{ display: 'flex' }}>
-          <ApprovalCellAr label="طلب بواسطة" name={pf.requestedBy} />
-          <ApprovalCellAr label="مراجعة بواسطة" name={pf.reviewedBy} />
-          <ApprovalCellAr label="اعتماد بواسطة" name={pf.approvedBy} />
+      <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginTop: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, fontSize: 12 }}>
+          {[
+            { label: 'طلب بواسطة', name: pf.requestedBy },
+            { label: 'مراجعة بواسطة', name: pf.reviewedBy },
+            { label: 'اعتماد بواسطة', name: pf.approvedBy },
+          ].map(({ label, name }) => (
+            <div key={label} style={{ border: '1px solid #1d4e6f', borderRadius: 4, padding: '8px 10px', textAlign: 'center' }}>
+              <div style={{ fontWeight: 700, marginBottom: 8, color: '#1d4e6f' }}>{label}</div>
+              <div style={{ borderBottom: '1px solid #64748b', minHeight: 24, marginBottom: 4 }}>{name || ''}</div>
+              <div style={{ fontSize: 10, color: '#6B7280' }}>التوقيع</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

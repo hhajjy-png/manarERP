@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { prisma, disconnectDatabase } from '../../config/database';
 import { env } from '../../config/env';
 import { AppError } from '../../core/errors/AppError';
@@ -102,6 +103,91 @@ export class BackupService {
     if (fs.existsSync(backup.filePath)) fs.unlinkSync(backup.filePath);
     await prisma.backup.delete({ where: { id: backupId } });
     return { deleted: true };
+  }
+
+  /** حساب SHA-256 checksum لملف (قراءة فقط — لا كتابة). */
+  computeChecksum(filePath: string): string {
+    const hash = crypto.createHash('sha256');
+    const buf  = fs.readFileSync(filePath);
+    hash.update(buf);
+    return hash.digest('hex');
+  }
+
+  /**
+   * التحقق من سلامة نسخة احتياطية:
+   * 1. التحقق من وجود الملف.
+   * 2. التحقق من رأسية SQLite (أول 16 بايت).
+   * 3. حساب SHA-256 وتخزينه.
+   * الملف لا يُفتح أبدًا للكتابة — قراءة فقط.
+   */
+  async verify(backupId: number): Promise<{
+    status: 'PASS' | 'FAIL';
+    note: string;
+    checksumSha256: string | null;
+    verifiedAt: Date;
+  }> {
+    const backup = await prisma.backup.findUnique({ where: { id: backupId } });
+    if (!backup) throw AppError.notFound('النسخة الاحتياطية غير موجودة');
+
+    const verifiedAt = new Date();
+
+    if (!fs.existsSync(backup.filePath)) {
+      await prisma.backup.update({
+        where: { id: backupId },
+        data: {
+          verificationStatus: 'FAIL',
+          verificationNote:   'الملف غير موجود على القرص',
+          verifiedAt,
+        },
+      });
+      return { status: 'FAIL', note: 'الملف غير موجود على القرص', checksumSha256: null, verifiedAt };
+    }
+
+    // Read first 16 bytes to validate SQLite header
+    const fd = fs.openSync(backup.filePath, 'r');
+    const headerBuf = Buffer.alloc(16);
+    fs.readSync(fd, headerBuf, 0, 16, 0);
+    fs.closeSync(fd);
+
+    const SQLITE_MAGIC = Buffer.from('SQLite format 3\x00');
+    if (!headerBuf.equals(SQLITE_MAGIC)) {
+      await prisma.backup.update({
+        where: { id: backupId },
+        data: {
+          verificationStatus: 'FAIL',
+          verificationNote:   'الملف ليس قاعدة بيانات SQLite صالحة (رأسية خاطئة)',
+          verifiedAt,
+        },
+      });
+      return {
+        status: 'FAIL',
+        note: 'الملف ليس قاعدة بيانات SQLite صالحة',
+        checksumSha256: null,
+        verifiedAt,
+      };
+    }
+
+    // Compute checksum (read-only)
+    const checksum = this.computeChecksum(backup.filePath);
+
+    // Check file size matches recorded size
+    const { size } = fs.statSync(backup.filePath);
+    const sizeNote = size !== backup.sizeBytes
+      ? ` — حجم الملف (${size}) يختلف عن المسجّل (${backup.sizeBytes})`
+      : '';
+
+    const note = `التحقق ناجح${sizeNote}`;
+    await prisma.backup.update({
+      where: { id: backupId },
+      data: {
+        checksumSha256:     checksum,
+        verificationStatus: 'PASS',
+        verificationNote:   note,
+        verifiedAt,
+      },
+    });
+
+    return { status: 'PASS', note, checksumSha256: checksum, verifiedAt };
   }
 
   /**
