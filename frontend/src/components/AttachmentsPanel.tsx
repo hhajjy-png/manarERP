@@ -1,0 +1,159 @@
+import { useEffect, useState, useRef } from 'react';
+import { api, errorMessage } from '../api/client';
+
+interface Attachment {
+  id: number;
+  title: string;
+  originalName: string;
+  filePath: string;
+  fileSize: number;
+  mimeType: string | null;
+  uploadedAt: string;
+  uploadedBy: { username: string; fullName: string | null } | null;
+}
+
+interface Props {
+  entityType: 'CUSTOMER' | 'CONTRACT' | 'INVOICE' | 'EMPLOYEE' | 'SUPPLIER' | 'EXPENSE' | 'EQUIPMENT';
+  entityId: number;
+  readOnly?: boolean;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export default function AttachmentsPanel({ entityType, entityId, readOnly = false }: Props) {
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [titleInput, setTitleInput] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const r = await api.get<{ success: boolean; data: Attachment[] }>('/attachments', {
+        params: { entityType, entityId },
+      });
+      setAttachments(r.data.data ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, [entityType, entityId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleUpload() {
+    const file = fileRef.current?.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', titleInput || file.name);
+
+    setUploading(true);
+    try {
+      await api.post('/attachments', formData, {
+        params: { entityType, entityId },
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setTitleInput('');
+      if (fileRef.current) fileRef.current.value = '';
+      await load();
+    } catch (e) {
+      alert(errorMessage(e));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm('هل تريد حذف هذا المرفق؟')) return;
+    try {
+      await api.delete(`/attachments/${id}`);
+      await load();
+    } catch (e) {
+      alert(errorMessage(e));
+    }
+  }
+
+  async function handleOpen(filePath: string) {
+    if (window.manar?.openAttachment) {
+      const err = await window.manar.openAttachment(filePath);
+      if (err) alert(`تعذّر فتح الملف: ${err}`);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      <strong style={{ fontSize: 13, color: '#374151' }}>المرفقات ({attachments.length})</strong>
+
+      {!readOnly && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            placeholder="عنوان المرفق (اختياري)"
+            value={titleInput}
+            onChange={e => setTitleInput(e.target.value)}
+            style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+          />
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".pdf,.docx,.jpg,.jpeg,.png,.gif,.webp"
+            style={{ flex: 2, fontSize: 13 }}
+          />
+          <button onClick={handleUpload} disabled={uploading} className="btn-primary" style={{ fontSize: 13 }}>
+            {uploading ? 'جارٍ الرفع…' : 'رفع'}
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ marginTop: 10, color: '#9CA3AF', fontSize: 13 }}>جارٍ التحميل…</div>
+      ) : attachments.length === 0 ? (
+        <div style={{ marginTop: 10, color: '#9CA3AF', fontSize: 13 }}>لا توجد مرفقات</div>
+      ) : (
+        <table style={{ width: '100%', marginTop: 10, fontSize: 13, borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+              <th style={{ textAlign: 'right', padding: '6px 8px' }}>العنوان</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px' }}>الحجم</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px' }}>التاريخ</th>
+              <th style={{ padding: '6px 8px' }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {attachments.map(att => (
+              <tr key={att.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                <td style={{ padding: '6px 8px' }}>
+                  <button
+                    onClick={() => handleOpen(att.filePath)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', textAlign: 'right', padding: 0 }}
+                  >
+                    {att.title || att.originalName}
+                  </button>
+                </td>
+                <td style={{ padding: '6px 8px', color: '#6B7280' }}>{formatBytes(att.fileSize)}</td>
+                <td style={{ padding: '6px 8px', color: '#6B7280' }}>
+                  {new Date(att.uploadedAt).toLocaleDateString('ar-KW')}
+                </td>
+                <td style={{ padding: '6px 8px' }}>
+                  {!readOnly && (
+                    <button
+                      onClick={() => handleDelete(att.id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 13 }}
+                    >
+                      حذف
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}

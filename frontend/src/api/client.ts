@@ -32,6 +32,9 @@ declare global {
       exportPdfFromHtml: (html: string, suggestedName: string) => Promise<{
         success: boolean; canceled?: boolean; path?: string; sizeBytes?: number; error?: string;
       }>;
+      // ─── Attachments IPC ────────────────────────────────────────────────────────
+      openFileDialog: () => Promise<string | null>;
+      openAttachment: (filePath: string) => Promise<string | null>;
     };
   }
 }
