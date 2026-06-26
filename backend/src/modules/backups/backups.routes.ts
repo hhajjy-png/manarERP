@@ -130,6 +130,22 @@ router.post(
   }),
 );
 
+router.post(
+  '/:id/verify',
+  requirePermission('backups.read'),
+  asyncHandler(async (req, res) => {
+    const result = await backupService.verify(Number(req.params.id));
+    await recordAudit({
+      req,
+      action: 'BACKUP_VERIFY',
+      module: 'backups',
+      entityId: Number(req.params.id),
+      newValue: JSON.stringify({ status: result.status, note: result.note }),
+    });
+    ok(res, result, result.status === 'PASS' ? 'التحقق ناجح' : 'فشل التحقق');
+  }),
+);
+
 router.delete(
   '/:id',
   requirePermission('backups.update'),
