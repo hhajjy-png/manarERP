@@ -1211,6 +1211,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     // ── Forms & Templates ─────────────────────────────────────────────────────
     'nav.forms': 'النماذج الإدارية',
     'nav.executive': 'مركز القرار التنفيذي',
+    'nav.financial_ops': 'العمليات المالية التنفيذية',
     'nav.expirations': 'مركز انتهاء الوثائق',
     'nav.integrations': 'مركز التكاملات',
     'nav.group.admin_ops': 'الشؤون الإدارية',
@@ -2426,6 +2427,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     // ── Forms & Templates ─────────────────────────────────────────────────────
     'nav.forms': 'Admin Forms',
     'nav.executive': 'Executive Decision Center',
+    'nav.financial_ops': 'Financial Operations Dashboard',
     'nav.expirations': 'Document Expiration Center',
     'nav.integrations': 'Integrations Center',
     'nav.group.admin_ops': 'Administration',
