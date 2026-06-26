@@ -39,6 +39,7 @@ import integrationsRoutes from './modules/integrations/integrations.routes';
 import payrollBankImportRoutes from './modules/payrollBankImport/routes';
 import bankStatementImportRoutes from './modules/bankStatementImport/routes.js';
 import expirationsRoutes from './modules/expirations/expirations.routes';
+import attachmentsRouter from './modules/attachments/attachments.routes';
 
 /**
  * إنشاء تطبيق Express وتهيئة الـ Middlewares والمسارات.
@@ -116,6 +117,7 @@ export function createApp(): Application {
   app.use('/api/payroll-bank-import', payrollBankImportRoutes);
   app.use('/api/bank-statement-import', bankStatementImportRoutes);
   app.use('/api/expirations', expirationsRoutes);
+  app.use('/api/attachments', attachmentsRouter);
 
   // معالجة المسارات غير الموجودة + الأخطاء (يجب أن تكون في النهاية)
   app.use(notFoundHandler);
