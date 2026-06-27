@@ -46,6 +46,7 @@ import Statements from './pages/Statements';
 import FinancialCenter from './pages/FinancialCenter';
 import Integrations from './pages/Integrations';
 import DocumentExpirationCenter from './pages/DocumentExpirationCenter';
+import DocumentVerify from './pages/DocumentVerify';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -55,6 +56,8 @@ export default function App() {
     <HashRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        {/* صفحة التحقق من الوثائق — عامة، لا تتطلب تسجيل الدخول */}
+        <Route path="/verify/:uuid" element={<DocumentVerify />} />
         {/* صفحة طباعة التقرير — خارج التخطيط لطباعة نظيفة بعربية سليمة */}
         <Route path="/print/:type" element={<ProtectedRoute><ReportPrint /></ProtectedRoute>} />
         <Route path="/payroll/:id/payslip" element={<ProtectedRoute><PayrollPayslip /></ProtectedRoute>} />
