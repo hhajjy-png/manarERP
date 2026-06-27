@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { statementsApi, type StatementResult, type StatementFilters, type StatementEntry } from '../api/statements';
+import PrivateAmount from '../components/PrivateAmount';
 
 // ─── Status translations ───────────────────────────────────────────────────────
 const STATUS_AR: Record<string, string> = {
@@ -442,10 +443,10 @@ function StatementTab({
                       الإجمالي
                     </td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', color: '#16a34a' }}>
-                      {kwd(result.summary.totalDebit)}
+                      <PrivateAmount value={result.summary.totalDebit} />
                     </td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', color: '#dc2626' }}>
-                      {kwd(result.summary.totalCredit)}
+                      <PrivateAmount value={result.summary.totalCredit} />
                     </td>
                     <td
                       style={{
@@ -453,7 +454,7 @@ function StatementTab({
                         color: result.summary.closingBalance < 0 ? '#dc2626' : '#1d4e6f',
                       }}
                     >
-                      {kwd(result.summary.closingBalance)}
+                      <PrivateAmount value={result.summary.closingBalance} />
                     </td>
                     <td />
                   </tr>
@@ -494,8 +495,7 @@ function SummaryCard({
     >
       <div style={{ fontSize: '0.78rem', color: '#6b7280', marginBottom: 6 }}>{label}</div>
       <div style={{ fontSize: '1.25rem', fontWeight: 700, color }}>
-        {isCount ? value.toLocaleString('ar') : kwd(value)}
-        {!isCount && <span style={{ fontSize: '0.7rem', color: '#9ca3af', marginRight: 4 }}>د.ك</span>}
+        {isCount ? value.toLocaleString('ar') : <PrivateAmount value={value} />}
       </div>
     </div>
   );
@@ -564,7 +564,7 @@ function StatementRow({
         color: entry.debit > 0 ? '#16a34a' : '#d1d5db',
         fontWeight: entry.debit > 0 ? 600 : 400,
       }}>
-        {entry.debit > 0 ? kwd(entry.debit) : '—'}
+        {entry.debit > 0 ? <PrivateAmount value={entry.debit} /> : '—'}
       </td>
 
       {/* Credit — red */}
@@ -573,7 +573,7 @@ function StatementRow({
         color: entry.credit > 0 ? '#dc2626' : '#d1d5db',
         fontWeight: entry.credit > 0 ? 600 : 400,
       }}>
-        {entry.credit > 0 ? kwd(entry.credit) : '—'}
+        {entry.credit > 0 ? <PrivateAmount value={entry.credit} /> : '—'}
       </td>
 
       {/* Running Balance */}
@@ -581,7 +581,7 @@ function StatementRow({
         padding: '9px 12px', textAlign: 'right', fontWeight: 700,
         color: entry.runningBalance < 0 ? '#dc2626' : '#1d4e6f',
       }}>
-        {kwd(entry.runningBalance)}
+        <PrivateAmount value={entry.runningBalance} />
       </td>
 
       {/* Status */}

@@ -1,0 +1,46 @@
+/* Privacy Mode — screen vs print visibility */
+
+/* Screen default: show mask, hide real */
+.pm-mask { display: inline; }
+.pm-real { display: none; }
+
+/* Print: hide mask, show real — !important overrides React inline styles */
+@media print {
+  .pm-mask { display: none !important; }
+  .pm-real { display: inline !important; }
+}
+
+/* UI-only elements (badge, toggle) that should never appear in print */
+.pm-ui-only { display: inline; }
+@media print {
+  .pm-ui-only { display: none !important; }
+}
+
+/* Privacy toggle button strip in the topbar */
+.privacy-toggle-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.privacy-btn {
+  font-size: 12px;
+  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.privacy-btn--on {
+  color: var(--text-muted, #6b7280);
+}
+
+.privacy-btn--off {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.privacy-btn--rehide {
+  font-size: 11px;
+}

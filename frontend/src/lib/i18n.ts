@@ -12,6 +12,12 @@ const DICT: Record<Lang, Record<string, string>> = {
     'layout.toggle_theme': 'تغيير المظهر',
     'layout.toggle_lang': 'تغيير اللغة',
     'layout.menu': 'القائمة',
+    'layout.privacy_on': 'وضع الخصوصية',
+    'layout.privacy_on_title': 'القيم المالية مخفية — انقر للكشف',
+    'layout.privacy_off': 'القيم مكشوفة',
+    'layout.privacy_off_title': 'وضع الخصوصية معطّل لهذه الجلسة',
+    'layout.privacy_rehide': 'إخفاء مجدداً',
+    'layout.privacy_rehide_title': 'إعادة تفعيل وضع الخصوصية',
 
     // actions
     'action.save': 'حفظ',
@@ -1228,6 +1234,12 @@ const DICT: Record<Lang, Record<string, string>> = {
     'layout.toggle_theme': 'Toggle theme',
     'layout.toggle_lang': 'Toggle language',
     'layout.menu': 'Menu',
+    'layout.privacy_on': 'Privacy Mode',
+    'layout.privacy_on_title': 'Financial values hidden — click to reveal',
+    'layout.privacy_off': 'Values Visible',
+    'layout.privacy_off_title': 'Privacy mode disabled for this session',
+    'layout.privacy_rehide': 'Hide Again',
+    'layout.privacy_rehide_title': 'Re-enable Privacy Mode',
 
     // actions
     'action.save': 'Save',

@@ -1,6 +1,8 @@
+import { ReactNode } from 'react';
+
 interface KPICardProps {
   label: string;
-  value: string;
+  value: ReactNode;
   icon: string;
   color: 'green' | 'red' | 'blue' | 'amber';
   badge?: { dir: 'up' | 'down'; text: string };

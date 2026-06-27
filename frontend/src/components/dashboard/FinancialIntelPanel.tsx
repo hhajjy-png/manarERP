@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import { Skeleton } from './Skeleton';
 import { money } from '../../config/modules';
+import PrivateAmount from '../PrivateAmount';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -180,7 +181,7 @@ function DebtorList({ debtors, loading }: { debtors: DebtorEntry[]; loading: boo
             </span>
           </div>
           <span style={{ color: '#EF4444', fontSize: 13, fontWeight: 800, flexShrink: 0, marginRight: 8 }}>
-            {money(d.outstanding)}
+            <PrivateAmount value={d.outstanding} />
           </span>
         </div>
       ))}
@@ -194,7 +195,7 @@ function AgingBar({ label, amount, total, color }: { label: string; amount: numb
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
         <span style={{ color: '#9CA3AF', fontSize: 12, fontWeight: 600 }}>{label}</span>
-        <span style={{ color: '#F9FAFB', fontSize: 12, fontWeight: 700 }}>{money(amount)}</span>
+        <span style={{ color: '#F9FAFB', fontSize: 12, fontWeight: 700 }}><PrivateAmount value={amount} /></span>
       </div>
       <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)' }}>
         <div style={{ height: '100%', width: `${width}%`, background: color, borderRadius: 999, transition: 'width 0.5s ease' }} />
@@ -229,7 +230,7 @@ function AgingSummaryBars({ aging, loading }: { aging: AgingSummary | null; load
       <AgingBar label="+90 يوم"     amount={aging.bucket90Plus} total={total} color="#EF4444" />
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12, marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ color: '#9CA3AF', fontSize: 12, fontWeight: 600 }}>إجمالي الذمم</span>
-        <span style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 800 }}>{money(aging.totalOutstanding)}</span>
+        <span style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 800 }}><PrivateAmount value={aging.totalOutstanding} /></span>
       </div>
     </div>
   );
@@ -253,7 +254,7 @@ function ContractProfitRow({ c, rank }: { c: ContractProfit; rank: 'top' | 'low'
         ) : (
           <span style={{ color: '#6B7280', fontSize: 12 }}>—</span>
         )}
-        <p style={{ color: '#9CA3AF', fontSize: 10, margin: '2px 0 0', textAlign: 'left' }}>ربح {money(c.profit)}</p>
+        <p style={{ color: '#9CA3AF', fontSize: 10, margin: '2px 0 0', textAlign: 'left' }}>ربح <PrivateAmount value={c.profit} /></p>
       </div>
     </div>
   );
@@ -328,17 +329,17 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
             <div className="db-kpi c-green">
               <div className="db-kpi-icon">💰</div>
               <div className="db-kpi-label">تحصيلات هذا الشهر</div>
-              <div className="db-kpi-val">{money(collections)}</div>
+              <div className="db-kpi-val"><PrivateAmount value={collections} /></div>
             </div>
             <div className="db-kpi c-red">
               <div className="db-kpi-icon">📤</div>
               <div className="db-kpi-label">مصروفات هذا الشهر</div>
-              <div className="db-kpi-val">{money(expenses)}</div>
+              <div className="db-kpi-val"><PrivateAmount value={expenses} /></div>
             </div>
             <div className={`db-kpi ${outstanding > 0 ? 'c-amber' : 'c-blue'}`}>
               <div className="db-kpi-icon">⏳</div>
               <div className="db-kpi-label">إجمالي الذمم المدينة</div>
-              <div className="db-kpi-val">{money(outstanding)}</div>
+              <div className="db-kpi-val"><PrivateAmount value={outstanding} /></div>
             </div>
           </>
         )}
