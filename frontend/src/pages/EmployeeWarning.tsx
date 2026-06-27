@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import { useParams, useLocation } from 'react-router-dom';
+import { useT } from '../lib/i18n';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { generateFormNumber } from '../forms/shared/formNumber';
@@ -25,6 +26,7 @@ const INITIAL_PRINT_FIELDS = {
 };
 
 export default function EmployeeWarning() {
+  const { t } = useT();
   const { employeeId } = useParams<{ employeeId: string }>();
   const { search } = useLocation();
   const formNumber = useMemo(() => generateFormNumber('employee-warning'), []);
@@ -80,12 +82,12 @@ export default function EmployeeWarning() {
     return () => window.removeEventListener('beforeprint', handler);
   }, [data, formNumber, addPrintLog, profile]);
 
-  if (error) return <div className="center-msg">خطأ: {error}</div>;
+  if (error) return <div className="center-msg">{t('msg.error')}: {error}</div>;
   if (!data)
     return (
       <div className="center-msg">
         <div className="spinner" />
-        جارٍ التحميل…
+        {t('msg.loading')}
       </div>
     );
 
@@ -93,7 +95,7 @@ export default function EmployeeWarning() {
     <FormLayout
       ready
       formNumber={formNumber}
-      title="إنذار موظف"
+      title={t('page.warning.title')}
       profile={profile}
       toolbarExtra={
         <>
@@ -103,7 +105,7 @@ export default function EmployeeWarning() {
             type="button"
             className="btn secondary"
             style={{ fontSize: 12, padding: '4px 8px' }}
-            title="حفظ مسودة"
+            title={t('page.warning.save_draft_title')}
             onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
           >
             💾
@@ -113,7 +115,7 @@ export default function EmployeeWarning() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
-              title="استعادة المسودة"
+              title={t('page.warning.load_draft_title')}
               onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
             >
               ↩
@@ -124,7 +126,7 @@ export default function EmployeeWarning() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px' }}
-              title="مسح المسودة"
+              title={t('page.warning.clear_draft_title')}
               onClick={() => clearDraft(FORM_KEY)}
             >
               ✕
@@ -141,13 +143,13 @@ export default function EmployeeWarning() {
       }}
     >
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{t('page.warning.print_fields_header')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="field"><label>تاريخ الإنذار</label><input type="date" lang="en" title="تاريخ الإنذار" value={printFields.warningDate} onChange={(e) => setPrintFields(p => ({ ...p, warningDate: e.target.value }))} /></div>
-          <div className="field"><label>سبب الإنذار</label><input title="سبب الإنذار" value={printFields.warningReason} onChange={(e) => setPrintFields(p => ({ ...p, warningReason: e.target.value }))} /></div>
-          <div className="field"><label>تفاصيل المخالفة</label><input title="تفاصيل المخالفة" value={printFields.violationDetails} onChange={(e) => setPrintFields(p => ({ ...p, violationDetails: e.target.value }))} /></div>
-          <div className="field"><label>الإجراء التصحيحي</label><input title="الإجراء التصحيحي" value={printFields.correctiveAction} onChange={(e) => setPrintFields(p => ({ ...p, correctiveAction: e.target.value }))} /></div>
-          <div className="field"><label>ملاحظات إضافية</label><input title="ملاحظات إضافية" value={printFields.additionalNotes} onChange={(e) => setPrintFields(p => ({ ...p, additionalNotes: e.target.value }))} /></div>
+          <div className="field"><label>{t('page.warning.field.date')}</label><input type="date" lang="en" title={t('page.warning.field.date')} value={printFields.warningDate} onChange={(e) => setPrintFields(p => ({ ...p, warningDate: e.target.value }))} /></div>
+          <div className="field"><label>{t('page.warning.field.reason')}</label><input title={t('page.warning.field.reason')} value={printFields.warningReason} onChange={(e) => setPrintFields(p => ({ ...p, warningReason: e.target.value }))} /></div>
+          <div className="field"><label>{t('page.warning.field.violation')}</label><input title={t('page.warning.field.violation')} value={printFields.violationDetails} onChange={(e) => setPrintFields(p => ({ ...p, violationDetails: e.target.value }))} /></div>
+          <div className="field"><label>{t('page.warning.field.corrective')}</label><input title={t('page.warning.field.corrective')} value={printFields.correctiveAction} onChange={(e) => setPrintFields(p => ({ ...p, correctiveAction: e.target.value }))} /></div>
+          <div className="field"><label>{t('page.warning.field.notes')}</label><input title={t('page.warning.field.notes')} value={printFields.additionalNotes} onChange={(e) => setPrintFields(p => ({ ...p, additionalNotes: e.target.value }))} /></div>
         </div>
         <div style={{ marginTop: 10 }}>
           <button
@@ -156,7 +158,7 @@ export default function EmployeeWarning() {
             style={{ fontSize: 12 }}
             onClick={resetPrintFields}
           >
-            ↺ مسح حقول الطباعة
+            {t('page.warning.clear_fields_btn')}
           </button>
         </div>
       </div>
@@ -169,7 +171,7 @@ export default function EmployeeWarning() {
         }
       />
       {showClearConfirm && (
-        <ConfirmModal message="سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+        <ConfirmModal message={t('page.warning.clear_confirm')} confirmLabel={t('page.warning.clear_confirm_btn')} variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
   );

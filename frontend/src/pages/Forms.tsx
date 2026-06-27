@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { PrintMode, PRINT_MODE_LABELS } from '../forms/shared/printMode';
 import PrintLogPanel from '../components/PrintLogPanel';
+import { useT } from '../lib/i18n';
 
 interface EmployeeOption {
   id: number;
@@ -128,6 +129,7 @@ const sel: React.CSSProperties = {
 
 export default function Forms() {
   const navigate = useNavigate();
+  const { t } = useT();
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [loadError, setLoadError] = useState('');
@@ -159,8 +161,8 @@ export default function Forms() {
     <div className="page">
       <div className="page-head">
         <div>
-          <h2>النماذج الإدارية</h2>
-          <p>طباعة النماذج والشهادات الرسمية للموظفين</p>
+          <h2>{t('page.forms.title')}</h2>
+          <p>{t('page.forms.subtitle')}</p>
         </div>
       </div>
 
@@ -180,10 +182,10 @@ export default function Forms() {
         </span>
         <div style={{ flex: 1 }}>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--text-muted)' }}>
-            اختر الموظف (مشترك لجميع النماذج) *
+            {t('page.forms.select_employee_label')}
           </label>
-          <select title="اختر الموظف" style={sel} value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
-            <option value="">— اختر موظفًا —</option>
+          <select title={t('page.forms.select_employee_label')} style={sel} value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
+            <option value="">{t('page.forms.select_employee_ph')}</option>
             {employees.map((emp) => (
               <option key={emp.id} value={emp.id}>
                 {emp.fullName}
@@ -195,7 +197,7 @@ export default function Forms() {
         </div>
         {!selectedId && (
           <span style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-            يجب اختيار موظف أولاً
+            {t('page.forms.employee_required')}
           </span>
         )}
       </div>
@@ -240,10 +242,10 @@ export default function Forms() {
             {card.key !== 'employment-contract' && card.requiresEmployee !== false && (
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 11, fontWeight: 700, marginBottom: 6, color: 'var(--text-muted)' }}>
-                  وضع الطباعة
+                  {t('page.forms.print_mode')}
                 </label>
                 <select
-                  title="وضع الطباعة"
+                  title={t('page.forms.print_mode')}
                   style={{ ...sel, fontSize: 12 }}
                   value={printModes[card.key]}
                   onChange={(e) => setMode(card.key, e.target.value as PrintMode)}
@@ -264,7 +266,7 @@ export default function Forms() {
               disabled={card.requiresEmployee !== false && !selectedId}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 18 }}>print</span>
-              طباعة
+              {t('page.forms.print_btn')}
             </button>
           </div>
         ))}

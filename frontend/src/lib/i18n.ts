@@ -33,6 +33,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // messages
     'msg.loading': 'جارٍ التحميل…',
+    'msg.error': 'خطأ',
     'msg.empty': 'لا توجد بيانات',
     'msg.saving': 'جارٍ الحفظ…',
     'msg.page': 'صفحة',
@@ -1225,6 +1226,26 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.forms.subtitle': 'طباعة النماذج والشهادات الرسمية للموظفين',
     'page.salary_cert.loading': 'جارٍ تجهيز شهادة الراتب…',
     'page.salary_cert.error': 'تعذّر تحميل بيانات الشهادة',
+
+    // ── Package C: Admin Forms UI chrome ─────────────────────────────────────
+    'page.forms.select_employee_label': 'اختر الموظف (مشترك لجميع النماذج) *',
+    'page.forms.select_employee_ph': '— اختر موظفًا —',
+    'page.forms.employee_required': 'يجب اختيار موظف أولاً',
+    'page.forms.print_mode': 'وضع الطباعة',
+    'page.forms.print_btn': 'طباعة',
+    'page.warning.title': 'إنذار موظف',
+    'page.warning.save_draft_title': 'حفظ مسودة',
+    'page.warning.load_draft_title': 'استعادة المسودة',
+    'page.warning.clear_draft_title': 'مسح المسودة',
+    'page.warning.print_fields_header': 'حقول الطباعة فقط — لن تُحفظ',
+    'page.warning.field.date': 'تاريخ الإنذار',
+    'page.warning.field.reason': 'سبب الإنذار',
+    'page.warning.field.violation': 'تفاصيل المخالفة',
+    'page.warning.field.corrective': 'الإجراء التصحيحي',
+    'page.warning.field.notes': 'ملاحظات إضافية',
+    'page.warning.clear_fields_btn': '↺ مسح حقول الطباعة',
+    'page.warning.clear_confirm': 'سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟',
+    'page.warning.clear_confirm_btn': 'مسح',
   },
   en: {
     // layout
@@ -1255,6 +1276,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // messages
     'msg.loading': 'Loading…',
+    'msg.error': 'Error',
     'msg.empty': 'No data',
     'msg.saving': 'Saving…',
     'msg.page': 'Page',
@@ -2447,6 +2469,26 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.forms.subtitle': 'Print official certificates and forms for employees',
     'page.salary_cert.loading': 'Preparing salary certificate…',
     'page.salary_cert.error': 'Failed to load certificate data',
+
+    // ── Package C: Admin Forms UI chrome ─────────────────────────────────────
+    'page.forms.select_employee_label': 'Select Employee (shared across all forms) *',
+    'page.forms.select_employee_ph': '— Select Employee —',
+    'page.forms.employee_required': 'Please select an employee first',
+    'page.forms.print_mode': 'Print Mode',
+    'page.forms.print_btn': 'Print',
+    'page.warning.title': 'Employee Warning Notice',
+    'page.warning.save_draft_title': 'Save Draft',
+    'page.warning.load_draft_title': 'Restore Draft',
+    'page.warning.clear_draft_title': 'Clear Draft',
+    'page.warning.print_fields_header': 'Print-only fields — not saved',
+    'page.warning.field.date': 'Warning Date',
+    'page.warning.field.reason': 'Warning Reason',
+    'page.warning.field.violation': 'Violation Details',
+    'page.warning.field.corrective': 'Corrective Action',
+    'page.warning.field.notes': 'Additional Notes',
+    'page.warning.clear_fields_btn': '↺ Clear Print Fields',
+    'page.warning.clear_confirm': 'All print fields will be cleared. Continue?',
+    'page.warning.clear_confirm_btn': 'Clear',
   },
 };
 
