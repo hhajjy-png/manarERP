@@ -4,6 +4,7 @@ import { api, errorMessage } from '../api/client';
 import { money } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import PrivateAmount from '../components/PrivateAmount';
 
 import '../components/dashboard/dashboard.css';
 
@@ -230,20 +231,20 @@ function GeneralDashboardContent() {
               <div className="db-exec-hero-metrics">
                 <div className="db-exec-hm-item">
                   <span className="db-exec-hm-label">{t('kpi.total_revenue')}</span>
-                  <span className="db-exec-hm-val db-exec-hm-green">{money(f.totalRevenue)}</span>
+                  <span className="db-exec-hm-val db-exec-hm-green"><PrivateAmount value={f.totalRevenue} /></span>
                 </div>
                 <div className="db-exec-hm-sep" />
                 <div className="db-exec-hm-item">
                   <span className="db-exec-hm-label">{t('kpi.net_profit')}</span>
                   <span className={`db-exec-hm-val ${profitPositive ? 'db-exec-hm-green' : 'db-exec-hm-red'}`}>
-                    {money(f.netProfit)}
+                    <PrivateAmount value={f.netProfit} />
                   </span>
                 </div>
                 <div className="db-exec-hm-sep" />
                 <div className="db-exec-hm-item">
                   <span className="db-exec-hm-label">{t('kpi.unpaid_invoices')}</span>
                   <span className={`db-exec-hm-val ${(inv.unpaidAmount ?? 0) > 0 ? 'db-exec-hm-amber' : 'db-exec-hm-green'}`}>
-                    {money(inv.unpaidAmount)}
+                    <PrivateAmount value={inv.unpaidAmount} />
                   </span>
                 </div>
               </div>
@@ -321,28 +322,28 @@ function GeneralDashboardContent() {
           <div className="db-kpi-grid">
             <KPICard
               label={t('kpi.total_revenue')}
-              value={money(f.totalRevenue)}
+              value={<PrivateAmount value={f.totalRevenue} />}
               icon="💰"
               color="green"
               sub="من مبيعات الفواتير المحصّلة (سجل المعاملات)"
             />
             <KPICard
               label={t('kpi.total_expenses')}
-              value={money(f.totalExpense)}
+              value={<PrivateAmount value={f.totalExpense} />}
               icon="📉"
               color="red"
               sub="مجموع المصروفات المعتمدة (سجل المعاملات)"
             />
             <KPICard
               label={t('kpi.net_profit')}
-              value={money(f.netProfit)}
+              value={<PrivateAmount value={f.netProfit} />}
               icon="📈"
               color={profitPositive ? 'blue' : 'red'}
               sub={profitPositive ? `الإيرادات − المصروفات` : `⚠ خسارة: المصروفات تتجاوز الإيرادات`}
             />
             <KPICard
               label={t('kpi.unpaid_invoices')}
-              value={money(inv.unpaidAmount)}
+              value={<PrivateAmount value={inv.unpaidAmount} />}
               icon="🧾"
               color="amber"
               sub={inv.unpaid ? `${inv.unpaid} فاتورة نقليات غير مسددة` : 'لا توجد فواتير معلّقة'}
@@ -424,7 +425,7 @@ function GeneralDashboardContent() {
               <div className="db-aw-val">{duePayments}</div>
               <div className="db-aw-label">{t('page.dashboard.due_payments')}</div>
               {(inv.unpaidAmount ?? 0) > 0 && (
-                <div className="db-aw-sub">{money(inv.unpaidAmount)}</div>
+                <div className="db-aw-sub"><PrivateAmount value={inv.unpaidAmount} /></div>
               )}
             </div>
             <span className="db-aw-tag">{t('page.dashboard.invoice_unit')}</span>
@@ -454,7 +455,7 @@ function GeneralDashboardContent() {
                 <div className="db-aw-body">
                   <div className="db-aw-val">{ops.pendingExpensesCount}</div>
                   <div className="db-aw-label">مصاريف معلّقة</div>
-                  <div className="db-aw-sub">{money(ops.pendingExpensesTotal)}</div>
+                  <div className="db-aw-sub"><PrivateAmount value={ops.pendingExpensesTotal} /></div>
                 </div>
                 <span className="db-aw-tag">مصروف</span>
               </div>
@@ -485,7 +486,7 @@ function GeneralDashboardContent() {
                 <div className="db-aw-body">
                   <div className="db-aw-val">{ops.outstandingInvoicesCount}</div>
                   <div className="db-aw-label">فواتير مستحقة</div>
-                  <div className="db-aw-sub">{money(ops.outstandingInvoicesTotal)}</div>
+                  <div className="db-aw-sub"><PrivateAmount value={ops.outstandingInvoicesTotal} /></div>
                 </div>
                 <span className="db-aw-tag">فاتورة</span>
               </div>
@@ -809,7 +810,7 @@ function GeneralDashboardContent() {
                     </td>
                     <td className="db-table-strong">{ct.asphaltPlant}</td>
                     <td>{ct.customer?.name ?? '—'}</td>
-                    <td>{ct.monthlyTransportValue ? money(ct.monthlyTransportValue) : '—'}</td>
+                    <td>{ct.monthlyTransportValue ? <PrivateAmount value={ct.monthlyTransportValue} /> : '—'}</td>
                     <td>
                       <span className={`db-pill ${statusCls}`}>{statusLabel}</span>
                     </td>

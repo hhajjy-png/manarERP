@@ -1,4 +1,5 @@
 import type { FinancialSummary } from '../../types/financial.types';
+import PrivateAmount from '../PrivateAmount';
 
 interface Props { summary: FinancialSummary; type: 'ar' | 'ap'; }
 
@@ -14,13 +15,13 @@ export function AgingSummaryCards({ summary, type }: Props) {
       <div className="summary-card blue">
         <div className="card-label">إجمالي {label}</div>
         <div className="card-value">
-          {fmt(summary.totalOutstanding)} <span className="currency">د.ك</span>
+          <PrivateAmount value={summary.totalOutstanding ?? 0} />
         </div>
       </div>
       <div className="summary-card red">
         <div className="card-label">حرج (+90 يوم)</div>
         <div className="card-value">
-          {fmt(summary.criticalOver90)} <span className="currency">د.ك</span>
+          <PrivateAmount value={summary.criticalOver90 ?? 0} />
         </div>
       </div>
       <div className="summary-card neutral">

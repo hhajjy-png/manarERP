@@ -6,10 +6,11 @@ import { useT } from '../lib/i18n';
 import almanarLogo from '../assets/almanar-logo.png';
 import Toast from './Toast';
 import './layout-polish.css';
+import './privacy.css';
 
 export default function Layout() {
   const { user, logout, hasPermission } = useAuth();
-  const { theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar, lang, setLang } = useUI();
+  const { theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar, lang, setLang, privacyMode, togglePrivacy } = useUI();
   const { t } = useT();
   const navigate = useNavigate();
 
@@ -52,6 +53,38 @@ export default function Layout() {
           <button className="icon-btn menu-toggle" onClick={toggleSidebar} aria-label={t('layout.menu')}>☰</button>
           <div className="search"><input placeholder={t('layout.search')} /></div>
           <div className="top-actions">
+            {/* Privacy Mode toggle — UI-only, hidden in print */}
+            <span className="pm-ui-only privacy-toggle-strip">
+              {privacyMode ? (
+                <button
+                  type="button"
+                  className="icon-btn privacy-btn privacy-btn--on"
+                  onClick={togglePrivacy}
+                  title={t('layout.privacy_on_title')}
+                >
+                  🔒 {t('layout.privacy_on')}
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="icon-btn privacy-btn privacy-btn--off"
+                    title={t('layout.privacy_off_title')}
+                    disabled
+                  >
+                    🔓 {t('layout.privacy_off')}
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn privacy-btn privacy-btn--rehide"
+                    onClick={togglePrivacy}
+                    title={t('layout.privacy_rehide_title')}
+                  >
+                    {t('layout.privacy_rehide')}
+                  </button>
+                </>
+              )}
+            </span>
             <button className="icon-btn" onClick={toggleTheme} title={t('layout.toggle_theme')}>{theme === 'dark' ? '☀️' : '🌙'}</button>
             <button
               className="icon-btn"

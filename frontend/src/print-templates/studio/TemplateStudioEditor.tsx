@@ -104,6 +104,9 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
   const [renaming, setRenaming]                 = useState<string | null>(null);
   const [renameVal, setRenameVal]               = useState('');
   const [deleteConfirmId, setDeleteConfirmId]   = useState<string | null>(null);
+  const [editingElementId, setEditingElementId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft]         = useState('');
+  const [dblClickMsg, setDblClickMsg]           = useState<{ id: string; msg: string } | null>(null);
 
   const dragRef     = useRef<DragState | null>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
@@ -211,6 +214,28 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
 
   function handleCanvasPointerUp() {
     dragRef.current = null;
+  }
+
+  function handleElementDblClick(e: React.MouseEvent, el: TemplateStudioElement) {
+    e.stopPropagation();
+    dragRef.current = null; // cancel any drag initiated by the first click of the dblclick
+    if (el.locked) return;
+    if (el.type === 'text') {
+      setSelectedElId(el.id);
+      setEditingElementId(el.id);
+      setEditingDraft((el as TextElement).content);
+      return;
+    }
+    if (el.type === 'dynamicField' || el.type === 'qr' || el.type === 'barcode') {
+      setDblClickMsg({ id: el.id, msg: 'هذا الحقل مرتبط ببيانات المستند — استخدم لوحة الخصائص لتغييره.' });
+      setTimeout(() => setDblClickMsg(null), 2500);
+    }
+  }
+
+  function commitInlineEdit() {
+    if (!editingElementId) return;
+    updateElement(editingElementId, { content: editingDraft });
+    setEditingElementId(null);
   }
 
   // ── Save ─────────────────────────────────────────────────────
@@ -1001,7 +1026,10 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
                     overflow:  'hidden',
                     flexShrink: 0,
                   }}
-                  onClick={() => setSelectedElId(null)}
+                  onClick={() => {
+                    setSelectedElId(null);
+                    commitInlineEdit();
+                  }}
                   onPointerMove={handleCanvasPointerMove}
                   onPointerUp={handleCanvasPointerUp}
                 >
@@ -1009,11 +1037,77 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
                     <div
                       key={el.id}
                       style={elementPreviewStyle(el)}
+                      title={el.type === 'text' && !el.locked ? 'انقر مرتين للتعديل المباشر' : undefined}
                       onPointerDown={(e) => handleElementPointerDown(e, el)}
+                      onDoubleClick={(e) => handleElementDblClick(e, el)}
                     >
                       {renderElementPreview(el)}
                     </div>
                   ))}
+
+                  {/* Inline text editor overlay */}
+                  {editingElementId && (() => {
+                    const editEl = currentTemplate.elements.find((e) => e.id === editingElementId) as TextElement | undefined;
+                    if (!editEl) return null;
+                    return (
+                      <textarea
+                        key={editingElementId}
+                        autoFocus
+                        style={{
+                          position:  'absolute',
+                          left:      editEl.x * EDITOR_PX_MM,
+                          top:       editEl.y * EDITOR_PX_MM,
+                          width:     editEl.w * EDITOR_PX_MM,
+                          height:    Math.max(editEl.h * EDITOR_PX_MM, 32),
+                          fontSize:  FONT_SIZE_PX[editEl.style?.fontSize ?? 'normal'],
+                          fontFamily: 'Cairo, sans-serif',
+                          direction: 'rtl',
+                          resize:    'none',
+                          zIndex:    200,
+                          padding:   '2px 4px',
+                          boxSizing: 'border-box',
+                          border:    '2px solid #1d4ed8',
+                          borderRadius: 2,
+                          background: 'rgba(255,255,255,0.97)',
+                          outline:   'none',
+                          overflow:  'hidden',
+                        }}
+                        value={editingDraft}
+                        onChange={(e) => setEditingDraft(e.target.value)}
+                        onBlur={commitInlineEdit}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') { e.preventDefault(); setEditingElementId(null); }
+                          if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitInlineEdit(); }
+                        }}
+                      />
+                    );
+                  })()}
+
+                  {/* Read-only tooltip for data-bound elements */}
+                  {dblClickMsg && (() => {
+                    const msgEl = currentTemplate.elements.find((e) => e.id === dblClickMsg.id);
+                    if (!msgEl) return null;
+                    return (
+                      <div style={{
+                        position:    'absolute',
+                        left:        msgEl.x * EDITOR_PX_MM,
+                        top:         (msgEl.y + msgEl.h) * EDITOR_PX_MM + 4,
+                        background:  '#1e293b',
+                        color:       '#e2e8f0',
+                        fontSize:    10,
+                        padding:     '4px 8px',
+                        borderRadius: 4,
+                        border:      '1px solid #475569',
+                        zIndex:      300,
+                        whiteSpace:  'nowrap',
+                        direction:   'rtl',
+                        fontFamily:  'Cairo, sans-serif',
+                        pointerEvents: 'none',
+                      }}>
+                        {dblClickMsg.msg}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </>

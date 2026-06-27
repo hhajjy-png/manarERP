@@ -3,6 +3,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
+import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import ResignationTemplate from '../forms/ResignationTemplate';
@@ -28,7 +29,7 @@ export default function Resignation() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
-  const [profile, setProfile] = useState<ProfileId>(() => getProfileIdFromSearch(search));
+  const [profile, setProfile] = usePrintProfileMemory(FORM_KEY, getProfileIdFromSearch(search));
   const [printFields, setPrintFields] = useState({ lastWorkingDay: '', noticePeriod: '', resignationReason: '', handoverObligations: '' });
 
   useEffect(() => {
@@ -80,6 +81,7 @@ export default function Resignation() {
 
   return (
     <FormLayout
+      formType={FORM_KEY}
       ready
       formNumber={formNumber}
       title="طلب استقالة"

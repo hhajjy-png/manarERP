@@ -24,20 +24,41 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function InlineError({ msg, onDismiss }: { msg: string; onDismiss: () => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 8, padding: '8px 12px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 6, fontSize: 13, color: '#B91C1C' }}>
+      <span style={{ flex: 1, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{msg}</span>
+      <button
+        type="button"
+        onClick={onDismiss}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B91C1C', padding: '0 2px', fontSize: 16, lineHeight: 1, flexShrink: 0 }}
+        aria-label="إغلاق"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 export default function AttachmentsPanel({ entityType, entityId, readOnly = false }: Props) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [titleInput, setTitleInput] = useState('');
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function load() {
     setLoading(true);
+    setListError(null);
     try {
       const r = await api.get<{ success: boolean; data: Attachment[] }>('/attachments', {
         params: { entityType, entityId },
       });
       setAttachments(r.data.data ?? []);
+    } catch (e) {
+      setListError(errorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -53,6 +74,7 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
     formData.append('title', titleInput || file.name);
 
     setUploading(true);
+    setUploadError(null);
     try {
       await api.post('/attachments', formData, {
         params: { entityType, entityId },
@@ -62,7 +84,7 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
       if (fileRef.current) fileRef.current.value = '';
       await load();
     } catch (e) {
-      alert(errorMessage(e));
+      setUploadError(errorMessage(e));
     } finally {
       setUploading(false);
     }
@@ -70,18 +92,19 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
 
   async function handleDelete(id: number) {
     if (!confirm('هل تريد حذف هذا المرفق؟')) return;
+    setListError(null);
     try {
       await api.delete(`/attachments/${id}`);
       await load();
     } catch (e) {
-      alert(errorMessage(e));
+      setListError(errorMessage(e));
     }
   }
 
   async function handleOpen(filePath: string) {
     if (window.manar?.openAttachment) {
       const err = await window.manar.openAttachment(filePath);
-      if (err) alert(`تعذّر فتح الملف: ${err}`);
+      if (err) setListError(`تعذّر فتح الملف: ${err}`);
     }
   }
 
@@ -90,25 +113,31 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
       <strong style={{ fontSize: 13, color: '#374151' }}>المرفقات ({attachments.length})</strong>
 
       {!readOnly && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <input
-            type="text"
-            placeholder="عنوان المرفق (اختياري)"
-            value={titleInput}
-            onChange={e => setTitleInput(e.target.value)}
-            style={{ flex: 1, minWidth: 140, fontSize: 13 }}
-          />
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf,.docx,.jpg,.jpeg,.png,.gif,.webp"
-            style={{ flex: 2, fontSize: 13 }}
-          />
-          <button onClick={handleUpload} disabled={uploading} className="btn-primary" style={{ fontSize: 13 }}>
-            {uploading ? 'جارٍ الرفع…' : 'رفع'}
-          </button>
-        </div>
+        <>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="عنوان المرفق (اختياري)"
+              value={titleInput}
+              onChange={e => setTitleInput(e.target.value)}
+              style={{ flex: 1, minWidth: 140, fontSize: 13 }}
+            />
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf,.docx,.jpg,.jpeg,.png,.gif,.webp"
+              title="اختر ملفاً للرفع"
+              style={{ flex: 2, fontSize: 13 }}
+            />
+            <button type="button" onClick={handleUpload} disabled={uploading} className="btn-primary" style={{ fontSize: 13 }}>
+              {uploading ? 'جارٍ الرفع…' : 'رفع'}
+            </button>
+          </div>
+          {uploadError && <InlineError msg={uploadError} onDismiss={() => setUploadError(null)} />}
+        </>
       )}
+
+      {listError && <InlineError msg={listError} onDismiss={() => setListError(null)} />}
 
       {loading ? (
         <div style={{ marginTop: 10, color: '#9CA3AF', fontSize: 13 }}>جارٍ التحميل…</div>
@@ -129,6 +158,7 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
               <tr key={att.id} style={{ borderBottom: '1px solid #F3F4F6' }}>
                 <td style={{ padding: '6px 8px' }}>
                   <button
+                    type="button"
                     onClick={() => handleOpen(att.filePath)}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#3B82F6', textAlign: 'right', padding: 0 }}
                   >
@@ -142,6 +172,7 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
                 <td style={{ padding: '6px 8px' }}>
                   {!readOnly && (
                     <button
+                      type="button"
                       onClick={() => handleDelete(att.id)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 13 }}
                     >

@@ -77,12 +77,44 @@ const STATUS_LABELS: Record<string, string> = {
   OVERDUE: 'متأخرة', CANCELLED: 'ملغاة',
 };
 
+const NETWORK_ERROR_STRINGS = ['network error', 'econnrefused', 'err_connection_refused', 'failed to fetch', 'networkerror'];
+
+const HTTP_STATUS_MESSAGES: Record<number, string> = {
+  400: 'البيانات المرسلة غير صحيحة — يرجى مراجعة الحقول والمحاولة مرة أخرى',
+  403: 'ليس لديك صلاحية لتنفيذ هذا الإجراء',
+  404: 'البيانات المطلوبة غير موجودة',
+  408: 'انتهت مهلة الاتصال بالخادم — حاول مرة أخرى',
+  409: 'تعارض في البيانات — قد يكون السجل موجوداً مسبقاً',
+  413: 'حجم الملف أكبر من الحد المسموح به',
+  422: 'البيانات لا تستوفي المتطلبات المطلوبة',
+  429: 'طلبات كثيرة جداً — يرجى الانتظار ثم المحاولة مرة أخرى',
+  500: 'حدث خطأ في الخادم — يرجى المحاولة مرة أخرى أو إعادة تشغيل التطبيق',
+  503: 'الخادم غير متاح مؤقتاً — تأكد من تشغيل التطبيق',
+};
+
 /** استخراج رسالة الخطأ العربية الموحّدة من الخادم. */
 export function errorMessage(err: unknown): string {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const e = err as any;
   const data = e?.response?.data;
-  if (!data) return e?.message ?? 'حدث خطأ غير متوقع';
+
+  // أخطاء الشبكة (لا اتصال بالخادم)
+  if (!e?.response) {
+    const msg = (e?.message ?? '').toLowerCase();
+    if (NETWORK_ERROR_STRINGS.some(s => msg.includes(s)) || e?.code === 'ECONNREFUSED' || e?.code === 'ERR_NETWORK') {
+      return 'تعذّر الاتصال بخادم التطبيق — تأكد من تشغيل نظام المنار وحاول مرة أخرى';
+    }
+    if (e?.code === 'ECONNABORTED' || msg.includes('timeout')) {
+      return 'انتهت مهلة الاتصال — يرجى المحاولة مرة أخرى';
+    }
+    return e?.message ?? 'حدث خطأ غير متوقع';
+  }
+
+  // رسالة الخادم إن وُجدت
+  if (!data) {
+    const status = e?.response?.status as number | undefined;
+    return (status !== undefined ? HTTP_STATUS_MESSAGES[status] : undefined) ?? 'حدث خطأ غير متوقع';
+  }
 
   const details = data.details;
 

@@ -1,6 +1,8 @@
+import { ReactNode } from 'react';
+
 interface Props {
   label: string;
-  value: string | number;
+  value: ReactNode;
   icon: string;
   color: string;
   bg: string;

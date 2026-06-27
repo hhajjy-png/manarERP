@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { financialApi, type DashboardSummary } from '../../api/financial';
+import PrivateAmount from '../PrivateAmount';
 
 function fmt(n: number) {
   return n.toLocaleString('ar-KW', { minimumFractionDigits: 3 });
@@ -36,27 +37,27 @@ export function FinancialDashboardTab() {
       <div className="financial-dashboard-cards">
         <div className="fin-dash-card">
           <div className="fin-dash-card-title">ذمم العملاء</div>
-          <div className="fin-dash-card-value">{fmt(data.arSummary.totalOutstanding)} <span>د.ك</span></div>
-          <div className="fin-dash-card-sub critical">حرج +90 يوم: {fmt(data.arSummary.criticalOver90)} د.ك</div>
+          <div className="fin-dash-card-value"><PrivateAmount value={data.arSummary.totalOutstanding} /></div>
+          <div className="fin-dash-card-sub critical">حرج +90 يوم: <PrivateAmount value={data.arSummary.criticalOver90} /></div>
           <button className="fin-dash-link" onClick={() => navigate('/financial?tab=aging&subTab=ar')}>
             عرض التفاصيل ←
           </button>
         </div>
         <div className="fin-dash-card">
           <div className="fin-dash-card-title">ذمم الموردين</div>
-          <div className="fin-dash-card-value">{fmt(data.apSummary.totalOutstanding)} <span>د.ك</span></div>
-          <div className="fin-dash-card-sub critical">حرج +90 يوم: {fmt(data.apSummary.criticalOver90)} د.ك</div>
+          <div className="fin-dash-card-value"><PrivateAmount value={data.apSummary.totalOutstanding} /></div>
+          <div className="fin-dash-card-sub critical">حرج +90 يوم: <PrivateAmount value={data.apSummary.criticalOver90} /></div>
           <button className="fin-dash-link" onClick={() => navigate('/financial?tab=aging&subTab=ap')}>
             عرض التفاصيل ←
           </button>
         </div>
         <div className="fin-dash-card">
           <div className="fin-dash-card-title">تحصيلات 30 يوم</div>
-          <div className="fin-dash-card-value green">{fmt(data.collectionsLast30)} <span>د.ك</span></div>
+          <div className="fin-dash-card-value green"><PrivateAmount value={data.collectionsLast30} /></div>
         </div>
         <div className="fin-dash-card">
           <div className="fin-dash-card-title">مدفوعات 30 يوم</div>
-          <div className="fin-dash-card-value">{fmt(data.paymentsLast30)} <span>د.ك</span></div>
+          <div className="fin-dash-card-value"><PrivateAmount value={data.paymentsLast30} /></div>
         </div>
       </div>
 
@@ -76,7 +77,7 @@ export function FinancialDashboardTab() {
                   onClick={() => navigate(`/financial?tab=statement&entityType=customer&entityId=${c.id}`)}
                 >
                   <td>{c.name}</td>
-                  <td className="num">{fmt(c.outstanding)}</td>
+                  <td className="num"><PrivateAmount value={c.outstanding} /></td>
                 </tr>
               ))}
               {data.topCustomers.length === 0 && (
@@ -99,7 +100,7 @@ export function FinancialDashboardTab() {
                   onClick={() => navigate(`/financial?tab=statement&entityType=supplier&entityId=${s.id}`)}
                 >
                   <td>{s.name}</td>
-                  <td className="num">{fmt(s.outstanding)}</td>
+                  <td className="num"><PrivateAmount value={s.outstanding} /></td>
                 </tr>
               ))}
               {data.topSuppliers.length === 0 && (

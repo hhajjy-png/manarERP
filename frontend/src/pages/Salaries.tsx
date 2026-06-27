@@ -9,6 +9,7 @@ import { useAuth } from '../stores/authStore';
 import { usePersistedState } from '../hooks/usePersistedState';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadBlob } from '../utils/exportUtils';
+import PrivateAmount from '../components/PrivateAmount';
 
 type EmployeeOption = { id: number; fullName: string; code: string };
 type PayrollLine = { id: number; type: string; label: string; amount: number };
@@ -289,8 +290,8 @@ export default function Salaries() {
 
           <div className="stats" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
             <StatCard label={t('stat.payroll_records')} value={totals.count} icon="PR" color="var(--blue)" bg="var(--blue-light)" />
-            <StatCard label={t('stat.gross_total')} value={money(totals.gross)} icon="GR" color="var(--green)" bg="var(--green-light)" />
-            <StatCard label={t('stat.net_total')} value={money(totals.net)} icon="NT" color="var(--amber)" bg="var(--amber-light)" />
+            <StatCard label={t('stat.gross_total')} value={<PrivateAmount value={totals.gross} />} icon="GR" color="var(--green)" bg="var(--green-light)" />
+            <StatCard label={t('stat.net_total')} value={<PrivateAmount value={totals.net} />} icon="NT" color="var(--amber)" bg="var(--amber-light)" />
             <StatCard label={t('stat.paid_records')} value={totals.paid} icon="PD" color="var(--green)" bg="var(--green-light)" />
           </div>
 

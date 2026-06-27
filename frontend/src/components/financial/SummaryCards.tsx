@@ -1,18 +1,14 @@
 import type { ReactNode } from 'react';
+import PrivateAmount from '../PrivateAmount';
 
 interface Card {
-  label:          string;
-  value?:         number;
+  label:           string;
+  value?:          number;
   formattedValue?: ReactNode;
-  variant?:       'neutral' | 'green' | 'red' | 'blue';
+  variant?:        'neutral' | 'green' | 'red' | 'blue';
 }
 
 interface Props { cards: Card[]; }
-
-function fmt(n?: number) {
-  if (n === undefined || n === null) return '—';
-  return n.toLocaleString('ar-KW', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-}
 
 export function SummaryCards({ cards }: Props) {
   return (
@@ -22,7 +18,9 @@ export function SummaryCards({ cards }: Props) {
           <div className="card-label">{c.label}</div>
           <div className="card-value">
             {c.formattedValue ?? (
-              <>{fmt(c.value)} <span className="currency">د.ك</span></>
+              c.value !== undefined
+                ? <PrivateAmount value={c.value} />
+                : '—'
             )}
           </div>
         </div>

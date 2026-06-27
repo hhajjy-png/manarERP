@@ -7,10 +7,12 @@ interface UIState {
   theme: Theme;
   sidebarOpen: boolean;
   lang: Lang;
+  privacyMode: boolean;
   toggleTheme: () => void;
   toggleSidebar: () => void;
   closeSidebar: () => void;
   setLang: (lang: Lang) => void;
+  togglePrivacy: () => void;
 }
 
 const THEME_KEY = 'manar.theme';
@@ -33,6 +35,7 @@ export const useUI = create<UIState>((set, get) => ({
   theme: initialTheme,
   sidebarOpen: false,
   lang: initialLang,
+  privacyMode: true, // always starts ON — no persistence, no localStorage
   toggleTheme() {
     const theme = get().theme === 'dark' ? 'light' : 'dark';
     localStorage.setItem(THEME_KEY, theme);
@@ -49,5 +52,8 @@ export const useUI = create<UIState>((set, get) => ({
     localStorage.setItem(LANG_KEY, lang);
     applyLang(lang);
     set({ lang });
+  },
+  togglePrivacy() {
+    set({ privacyMode: !get().privacyMode });
   },
 }));

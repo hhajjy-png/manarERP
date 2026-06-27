@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import { Skeleton } from './Skeleton';
 import { money } from '../../config/modules';
+import PrivateAmount from '../PrivateAmount';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -245,7 +246,7 @@ function AlertsSection({ alerts, loading }: { alerts: IntelAlert[]; loading: boo
             </div>
             {a.amount !== null && (
               <span style={{ color: SEV_COLOR[sev], fontSize: 13, fontWeight: 800, flexShrink: 0, marginRight: 12 }}>
-                {money(a.amount)}
+                <PrivateAmount value={a.amount} />
               </span>
             )}
           </div>
@@ -267,19 +268,19 @@ function ForecastSection({ forecast, loading }: { forecast: Forecast | null; loa
       <div className="db-kpi c-green">
         <div className="db-kpi-icon">📅</div>
         <div className="db-kpi-label">متوقع خلال 30 يوم</div>
-        <div className="db-kpi-val">{money(forecast.expectedCollections30)}</div>
+        <div className="db-kpi-val"><PrivateAmount value={forecast.expectedCollections30} /></div>
         <div className="db-kpi-sub">من الذمم الحديثة</div>
       </div>
       <div className="db-kpi c-amber">
         <div className="db-kpi-icon">⏳</div>
         <div className="db-kpi-label">متوقع 31–60 يوم</div>
-        <div className="db-kpi-val">{money(forecast.expectedCollections60)}</div>
+        <div className="db-kpi-val"><PrivateAmount value={forecast.expectedCollections60} /></div>
         <div className="db-kpi-sub">ذمم متوسطة</div>
       </div>
       <div className="db-kpi c-red">
         <div className="db-kpi-icon">⚠️</div>
         <div className="db-kpi-label">متوقع 61–90 يوم</div>
-        <div className="db-kpi-val">{money(forecast.expectedCollections90)}</div>
+        <div className="db-kpi-val"><PrivateAmount value={forecast.expectedCollections90} /></div>
         <div className="db-kpi-sub">ذمم متأخرة</div>
       </div>
       <div className="db-kpi" style={{ border: `1px solid ${riskColor}40` }}>
@@ -312,7 +313,7 @@ function KPIComparisonSection({ kpi, loading }: { kpi: KPIComparisons | null; lo
             {deltaBadge(item.pct, item.invert)}
           </div>
           <div className="db-kpi-label">{item.label} — هذا الشهر</div>
-          <div className="db-kpi-val" style={{ fontSize: 16 }}>{money(item.thisVal)}</div>
+          <div className="db-kpi-val" style={{ fontSize: 16 }}><PrivateAmount value={item.thisVal} /></div>
         </div>
       ))}
     </div>

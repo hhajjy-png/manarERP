@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
+import PrivateAmount from '../components/PrivateAmount';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
@@ -358,12 +359,12 @@ export default function BankStatementImport() {
           <div className="bg-white border border-gray-200 rounded-xl p-6">
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <p className="text-sm text-gray-500">إجمالي المدين (د.ك)</p>
-                <p className="text-lg font-bold text-red-600">{fmtAmount(preview.totalDebits)}</p>
+                <p className="text-sm text-gray-500">إجمالي المدين</p>
+                <p className="text-lg font-bold text-red-600"><PrivateAmount value={preview.totalDebits} /></p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">إجمالي الدائن (د.ك)</p>
-                <p className="text-lg font-bold text-green-600">{fmtAmount(preview.totalCredits)}</p>
+                <p className="text-sm text-gray-500">إجمالي الدائن</p>
+                <p className="text-lg font-bold text-green-600"><PrivateAmount value={preview.totalCredits} /></p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">المصاريف البنكية</p>
@@ -470,8 +471,8 @@ export default function BankStatementImport() {
             <div><p className="text-sm text-gray-500">الملف</p><p className="font-medium">{fileName}</p></div>
             <div><p className="text-sm text-gray-500">من تاريخ</p><p className="font-medium">{fmtDate(preview.fromDate)}</p></div>
             <div><p className="text-sm text-gray-500">إلى تاريخ</p><p className="font-medium">{fmtDate(preview.toDate)}</p></div>
-            <div><p className="text-sm text-gray-500">المدين الإجمالي (د.ك)</p><p className="font-bold text-red-600">{fmtAmount(preview.totalDebits)}</p></div>
-            <div><p className="text-sm text-gray-500">الدائن الإجمالي (د.ك)</p><p className="font-bold text-green-600">{fmtAmount(preview.totalCredits)}</p></div>
+            <div><p className="text-sm text-gray-500">المدين الإجمالي</p><p className="font-bold text-red-600"><PrivateAmount value={preview.totalDebits} /></p></div>
+            <div><p className="text-sm text-gray-500">الدائن الإجمالي</p><p className="font-bold text-green-600"><PrivateAmount value={preview.totalCredits} /></p></div>
           </div>
 
           <div className="flex gap-3">
@@ -498,8 +499,8 @@ export default function BankStatementImport() {
             <div className="space-y-3">
               <div className="flex justify-between"><span className="text-gray-500">البنك</span><span className="font-medium">{BANK_NAMES[result.bankName] ?? result.bankName}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">إجمالي الصفوف</span><span className="font-medium">{result.totalRows.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">المدين (د.ك)</span><span className="font-bold text-red-600">{fmtAmount(result.totalDebits)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">الدائن (د.ك)</span><span className="font-bold text-green-600">{fmtAmount(result.totalCredits)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">المدين</span><span className="font-bold text-red-600"><PrivateAmount value={result.totalDebits} /></span></div>
+              <div className="flex justify-between"><span className="text-gray-500">الدائن</span><span className="font-bold text-green-600"><PrivateAmount value={result.totalCredits} /></span></div>
             </div>
           </div>
           <div className="flex gap-3 justify-center">

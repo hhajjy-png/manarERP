@@ -1,4 +1,4 @@
-const NATIONALITY_EN: Record<string, string> = {
+export const BASE_NATIONALITY_EN: Record<string, string> = {
   'هندي': 'INDIAN',
   'هندية': 'INDIAN',
   'باكستاني': 'PAKISTANI',
@@ -45,7 +45,7 @@ const NATIONALITY_EN: Record<string, string> = {
   'غانية': 'GHANAIAN',
 };
 
-const JOB_TITLE_EN: Record<string, string> = {
+export const BASE_JOB_TITLE_EN: Record<string, string> = {
   'سائق شاحنة': 'HEAVY DRIVER',
   'سائق عموم آليات الطرق': 'GENERAL ROAD EQUIPMENT DRIVER',
   'سائق سيارة خصوصي': 'PRIVATE CAR DRIVER',
@@ -84,14 +84,27 @@ const JOB_TITLE_EN: Record<string, string> = {
   'مسؤول مشتريات': 'PROCUREMENT OFFICER',
 };
 
+let _natOverrides: Record<string, string> = {};
+let _jobOverrides: Record<string, string> = {};
+
+export function applyTranslationOverrides(
+  nat: Record<string, string>,
+  job: Record<string, string>,
+) {
+  _natOverrides = nat;
+  _jobOverrides = job;
+}
+
 export function getNationalityEn(ar: string | null | undefined): string {
   if (!ar) return '—';
-  return NATIONALITY_EN[ar.trim()] ?? ar;
+  const key = ar.trim();
+  return _natOverrides[key] ?? BASE_NATIONALITY_EN[key] ?? ar;
 }
 
 export function getJobTitleEn(ar: string | null | undefined): string {
   if (!ar) return '—';
-  return JOB_TITLE_EN[ar.trim()] ?? ar;
+  const key = ar.trim();
+  return _jobOverrides[key] ?? BASE_JOB_TITLE_EN[key] ?? ar;
 }
 
 const PRIORITY_EN: Record<string, string> = {
