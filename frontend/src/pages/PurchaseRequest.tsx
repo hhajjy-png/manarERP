@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
+import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
@@ -63,7 +64,7 @@ const lbl: React.CSSProperties = {
 };
 
 export default function PurchaseRequest() {
-  const [profile, setProfile] = useState<ProfileId>(DEFAULT_PROFILE_ID);
+  const [profile, setProfile] = usePrintProfileMemory(FORM_KEY);
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [printFields, setPrintFields] = useState<PurchaseRequestPrintFields>(makeInitial);
 
@@ -115,6 +116,7 @@ export default function PurchaseRequest() {
 
   return (
     <FormLayout
+      formType={FORM_KEY}
       ready={false}
       formNumber={printFields.requestNumber || generateFormNumber(FORM_KEY)}
       title={lang === 'ar' ? 'طلب شراء' : 'Purchase Request'}

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
+import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
@@ -86,7 +87,7 @@ const lbl: React.CSSProperties = {
 
 export default function Quotation() {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<ProfileId>(DEFAULT_PROFILE_ID);
+  const [profile, setProfile] = usePrintProfileMemory(FORM_KEY);
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [printFields, setPrintFields] = useState<QuotationPrintFields>(makeInitial);
   const [previewMode, setPreviewMode] = useState<'legacy' | 'engine'>('legacy');
@@ -477,6 +478,7 @@ export default function Quotation() {
   // ── LEGACY MODE (unchanged) ───────────────────────────────────────────────────
   return (
     <FormLayout
+      formType={FORM_KEY}
       ready={false}
       formNumber={printFields.quotationNumber || generateFormNumber(FORM_KEY)}
       title={lang === 'ar' ? 'عرض سعر' : 'Quotation'}

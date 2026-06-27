@@ -1,6 +1,7 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ProfileId, PRINT_PROFILES, getPrintProfileStyle } from './printProfiles';
+import { ProfileId, PRINT_PROFILES } from './printProfiles';
+import { loadCopies, saveCopies } from './usePrintProfileMemory';
 import FormHeader from './FormHeader';
 import FormQRCode, { QRData } from './FormQRCode';
 import ApprovalSection from './ApprovalSection';
@@ -13,6 +14,8 @@ interface FormLayoutProps {
   title: string;
   profile: ProfileId;
   qrData: QRData;
+  /** Form type key — used to persist copies preference per document type */
+  formType?: string;
   /** Extra controls rendered in the no-print toolbar (e.g. LanguageToggle, PrintProfileToggle) */
   toolbarExtra?: ReactNode;
 }
@@ -24,9 +27,37 @@ export default function FormLayout({
   title,
   profile,
   qrData,
+  formType,
   toolbarExtra,
 }: FormLayoutProps) {
   const navigate = useNavigate();
+
+  const [copies, setCopies] = useState(() =>
+    formType ? loadCopies(formType) : 1,
+  );
+  const copiesRef = useRef(copies);
+  copiesRef.current = copies;
+
+  function updateCopies(n: number) {
+    const clamped = Math.max(1, Math.min(10, n));
+    setCopies(clamped);
+    if (formType) saveCopies(formType, clamped);
+  }
+
+  function doPrint() {
+    const count = copiesRef.current;
+    if (count <= 1) {
+      window.print();
+      return;
+    }
+    let i = 0;
+    function next() {
+      window.print();
+      i++;
+      if (i < count) setTimeout(next, 1500);
+    }
+    next();
+  }
 
   useEffect(() => {
     if (!ready) return;
@@ -35,13 +66,19 @@ export default function FormLayout({
   }, [ready]);
 
   const activeProfile = PRINT_PROFILES[profile];
-  const padding = getPrintProfileStyle(activeProfile);
+  const { top: mt, right: mr, bottom: mb, left: ml } = activeProfile.margins;
 
   return (
     <>
       <style>{`
+        @media screen {
+          .form-page {
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+          }
+        }
         @media print {
-          @page { size: A4; margin: 0; }
+          @page { size: A4; margin: ${mt} ${mr} ${mb} ${ml}; }
           html, body {
             margin: 0 !important;
             padding: 0 !important;
@@ -49,13 +86,17 @@ export default function FormLayout({
           }
           .no-print { display: none !important; }
           .form-page {
-            width: 210mm !important;
-            height: 297mm !important;
-            padding: ${padding} !important;
+            width: 100% !important;
+            padding: 0 !important;
             box-sizing: border-box !important;
-            overflow: hidden !important;
+            overflow: visible !important;
             margin: 0 !important;
             max-width: none !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          .form-page-footer {
+            page-break-inside: avoid;
           }
         }
       `}</style>
@@ -65,22 +106,41 @@ export default function FormLayout({
         style={{
           padding: '18px 32px',
           fontFamily: '"Cairo", Arial, sans-serif',
-          maxWidth: 820,
+          maxWidth: 793,
           margin: '0 auto',
           color: '#0f172a',
           background: '#fff',
           direction: 'rtl',
+          borderRadius: 4,
         }}
       >
         {/* No-print toolbar */}
         <div
           className="no-print"
-          style={{ display: 'flex', gap: 10, marginBottom: 24, alignItems: 'center' }}
+          style={{ display: 'flex', gap: 10, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}
         >
-          <button className="btn" onClick={() => window.print()}>
+          <button type="button" className="btn" onClick={doPrint}>
             🖨️ طباعة / حفظ PDF
           </button>
-          <button className="btn secondary" onClick={() => navigate(-1)}>
+          {/* Copies control */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+            <button
+              type="button"
+              aria-label="نسخة أقل"
+              onClick={() => updateCopies(copies - 1)}
+              style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: copies > 1 ? 'pointer' : 'default', color: copies > 1 ? 'var(--text)' : 'var(--text-muted)', fontSize: 14, lineHeight: 1 }}
+            >−</button>
+            <span style={{ fontSize: 12, minWidth: 28, textAlign: 'center', padding: '0 2px', color: 'var(--text)' }} title="عدد النسخ">
+              {copies === 1 ? '١ نسخة' : `${copies} نسخ`}
+            </span>
+            <button
+              type="button"
+              aria-label="نسخة أكثر"
+              onClick={() => updateCopies(copies + 1)}
+              style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: copies < 10 ? 'pointer' : 'default', color: copies < 10 ? 'var(--text)' : 'var(--text-muted)', fontSize: 14, lineHeight: 1 }}
+            >+</button>
+          </div>
+          <button type="button" className="btn secondary" onClick={() => navigate(-1)}>
             رجوع
           </button>
           {toolbarExtra}
@@ -126,6 +186,7 @@ export default function FormLayout({
 
         {/* Bottom row: Approval (right/start in RTL) | QR (left/end in RTL) */}
         <div
+          className="form-page-footer"
           style={{
             marginTop: 14,
             paddingTop: 10,
