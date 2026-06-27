@@ -34,4 +34,8 @@ export const formsController = {
     await formsService.logFormPrint(req, req.body);
     ok(res, { logged: true });
   },
+  async generateReceiptVoucherNumber(_req: Request, res: Response) {
+    const rcvNumber = await formsService.generateReceiptVoucherNumber();
+    ok(res, { rcvNumber }, 'تم إنشاء رقم سند القبض');
+  },
 };

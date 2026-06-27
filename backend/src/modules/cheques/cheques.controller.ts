@@ -24,4 +24,8 @@ export const chequesController = {
   async cancel(req: Request, res: Response) {
     ok(res, await chequesService.cancel(Number(req.params.id), req), 'تم إلغاء الشيك');
   },
+  async generatePaymentVoucherNumber(req: Request, res: Response) {
+    const voucherNumber = await chequesService.getOrCreatePaymentVoucherNumber(Number(req.params.id));
+    ok(res, { voucherNumber }, 'تم إنشاء رقم سند الصرف');
+  },
 };

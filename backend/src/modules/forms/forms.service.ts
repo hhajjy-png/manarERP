@@ -69,6 +69,27 @@ export class FormsService {
     return { employee };
   }
 
+  /**
+   * Generates a receipt voucher sequence number (RCV-000001) and persists it
+   * in the Settings counter. The number is consumed the moment this method is
+   * called — even if the user cancels the browser print dialog afterward.
+   */
+  async generateReceiptVoucherNumber(): Promise<string> {
+    const SETTINGS_KEY = 'finance.receiptVoucher.lastSequence';
+    return prisma.$transaction(async (tx) => {
+      const setting = await tx.setting.findUnique({ where: { key: SETTINGS_KEY } });
+      const lastSeq = setting ? parseInt(setting.value, 10) : 0;
+      const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
+      const number = `RCV-${String(nextSeq).padStart(6, '0')}`;
+      await tx.setting.upsert({
+        where: { key: SETTINGS_KEY },
+        update: { value: String(nextSeq) },
+        create: { key: SETTINGS_KEY, value: String(nextSeq), group: 'finance' },
+      });
+      return number;
+    });
+  }
+
   async logFormPrint(
     req: Request,
     data: {

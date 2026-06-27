@@ -34,12 +34,30 @@
   font-size: 13.5px;
 }
 
+.app .topbar .user {
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.app .topbar .user-info {
+  min-width: 0;
+  max-width: 140px;
+}
+
 .app .topbar .user-info strong {
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
 }
 
 .app .topbar .user-info small {
   font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
 }
 
 /* ---- Sidebar: refined active item ---- */

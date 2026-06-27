@@ -17,5 +17,6 @@ router.post('/', requirePermission('cheques.create'), validate(createChequeSchem
 router.put('/:id', requirePermission('cheques.update'), validate(updateChequeSchema), asyncHandler(chequesController.update));
 router.post('/:id/mark-printed', requirePermission('cheques.print'), asyncHandler(chequesController.markPrinted));
 router.post('/:id/cancel', requirePermission('cheques.cancel'), asyncHandler(chequesController.cancel));
+router.post('/:id/payment-voucher-number', requirePermission('cheques.print'), asyncHandler(chequesController.generatePaymentVoucherNumber));
 
 export default router;

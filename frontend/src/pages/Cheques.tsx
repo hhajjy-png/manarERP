@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -34,6 +35,7 @@ interface Cheque {
   printedAt: string | null;
   cancelledAt: string | null;
   notes: string | null;
+  paymentVoucherNumber: string | null;
   createdAt: string;
 }
 
@@ -193,6 +195,7 @@ function ChequePrintOutput({ data, template }: { data: PreviewData; template: Ch
 export default function Cheques() {
   const { hasPermission } = useAuth();
   const { t } = useT();
+  const navigate = useNavigate();
 
   const [cheques, setCheques] = useState<Cheque[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -202,6 +205,7 @@ export default function Cheques() {
   const [printTarget, setPrintTarget] = useState<Cheque | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pvLoading, setPvLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatus, setHistoryStatus] = useState('');
@@ -360,13 +364,69 @@ export default function Cheques() {
 
   // ── Print ─────────────────────────────────────────────────────────────────
 
-  function handlePrint() {
+  async function handlePrint() {
+    // If no saved cheque yet, auto-save before printing.
+    // Abort if saving fails — never print unsaved data.
     if (!printTarget) {
-      setFormError(t('error.cheque.save_first'));
+      const err = validateForm();
+      if (err) { setFormError(err); return; }
+      setFormError('');
+      setSaving(true);
+      try {
+        const payload = {
+          chequeNumber: form.chequeNumber.trim(),
+          chequeDate: form.chequeDate,
+          beneficiaryName: form.beneficiaryName.trim(),
+          amount: Number(form.amount),
+          currency: form.currency.trim(),
+          description: form.description.trim() || null,
+          bankName: form.bankName.trim(),
+          notes: form.notes.trim() || null,
+        };
+        const res = await api.post('/cheques', payload);
+        const saved: Cheque = res.data.data;
+        setEditId(saved.id);
+        setPrintTarget(saved);
+        await loadData(page);
+        // previewData still uses form state at this point (same values as saved)
+        window.print();
+        setShowPrintConfirm(true);
+      } catch (e) {
+        setFormError(errorMessage(e));
+        // Abort — do not print
+      } finally {
+        setSaving(false);
+      }
       return;
     }
+
+    // Cheque is already saved — print directly.
     window.print();
-    setShowPrintConfirm(true);
+    // Show mark-as-printed confirm only for DRAFT cheques.
+    if (printTarget.status === 'DRAFT') {
+      setShowPrintConfirm(true);
+    }
+  }
+
+  // ── Print Payment Voucher ─────────────────────────────────────────────────
+
+  async function handlePrintPaymentVoucher() {
+    if (!printTarget) return;
+    if (pvLoading) return;
+    setPvLoading(true);
+    setFormError('');
+    try {
+      const res = await api.post(`/cheques/${printTarget.id}/payment-voucher-number`);
+      const { voucherNumber } = res.data.data as { voucherNumber: string };
+      // Refresh printTarget so the PV column shows the new number immediately
+      setPrintTarget((prev) => prev ? { ...prev, paymentVoucherNumber: voucherNumber } : prev);
+      setCheques((prev) => prev.map((c) => c.id === printTarget.id ? { ...c, paymentVoucherNumber: voucherNumber } : c));
+      navigate(`/forms/payment-voucher/${printTarget.id}`);
+    } catch (e) {
+      setFormError(errorMessage(e));
+    } finally {
+      setPvLoading(false);
+    }
   }
 
   async function handleMarkPrinted() {
@@ -471,7 +531,15 @@ export default function Cheques() {
       label: 'col.cheque.amount',
       render: (r: Cheque) => fmtAmount(r.amount, r.currency),
     },
-
+    {
+      key: 'paymentVoucherNumber',
+      label: 'col.cheque.pv_number',
+      render: (r: Cheque) => (
+        <span style={{ fontFamily: 'monospace', color: r.paymentVoucherNumber ? 'var(--accent)' : 'var(--text-muted)' }}>
+          {r.paymentVoucherNumber ?? '—'}
+        </span>
+      ),
+    },
     { key: 'bankName', label: 'col.cheque.bank' },
     { key: 'status', label: 'col.cheque.status', render: (r: Cheque) => statusPill(r.status, t) },
   ];
@@ -489,7 +557,12 @@ export default function Cheques() {
     </div>
   );
 
-  const isPrintable = !!printTarget && printTarget.status === 'DRAFT';
+  // Cheque can be printed when: saved and not cancelled (DRAFT = first print, PRINTED = reprint)
+  const isPrintable =
+    (!!printTarget && printTarget.status !== 'CANCELLED') ||
+    (!printTarget && !!form.chequeNumber && !!form.beneficiaryName && !!form.amount && !!form.bankName);
+
+  const isPrintedCheque = !!printTarget && printTarget.status === 'PRINTED';
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -667,14 +740,28 @@ export default function Cheques() {
           <ChequePrintOutput data={previewData} template={currentTemplate} />
 
           <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              className="btn"
-              style={{ flex: 1, minWidth: 120, fontSize: 15, padding: '10px 0' }}
-              onClick={handlePrint}
-              disabled={!isPrintable}
-            >
-              🖨️ {t('page.cheques.print')}
-            </button>
+            {canPrint && (
+              <button
+                type="button"
+                className="btn"
+                style={{ flex: 1, minWidth: 120, fontSize: 15, padding: '10px 0' }}
+                onClick={handlePrint}
+                disabled={!isPrintable || saving}
+              >
+                🖨️ {saving ? t('msg.saving') : 'طباعة الشيك'}
+              </button>
+            )}
+            {canPrint && isPrintedCheque && (
+              <button
+                type="button"
+                className="btn secondary"
+                style={{ flex: 1, minWidth: 140, fontSize: 15, padding: '10px 0' }}
+                onClick={handlePrintPaymentVoucher}
+                disabled={pvLoading}
+              >
+                📄 {pvLoading ? '...' : 'طباعة سند الصرف'}
+              </button>
+            )}
             {canCalibrate && (
               <button type="button" className="btn secondary" onClick={() => setShowCalibrator(true)}>
                 ⚙ معايرة الطباعة
@@ -715,7 +802,9 @@ export default function Cheques() {
           )}
           {printTarget?.status === 'PRINTED' && (
             <p style={{ margin: '8px 0 0', fontSize: 12, color: '#64748b', textAlign: 'center' }}>
-              {t('error.cheque.already_printed')}
+              {printTarget.paymentVoucherNumber
+                ? `رقم سند الصرف: ${printTarget.paymentVoucherNumber}`
+                : 'اضغط "طباعة سند الصرف" لإنشاء السند الرسمي'}
             </p>
           )}
         </div>

@@ -29,6 +29,20 @@ export const PRINT_PROFILES: Record<string, PrintProfile> = {
     page: { size: 'A4', orientation: 'portrait' },
     margins: { top: '40mm', right: '10mm', bottom: '20mm', left: '10mm' },
   },
+  'payment-voucher': {
+    id: 'payment-voucher',
+    labelAr: 'سند صرف',
+    labelEn: 'Payment Voucher',
+    page: { size: 'A4', orientation: 'portrait' },
+    margins: { top: '12mm', right: '15mm', bottom: '12mm', left: '15mm' },
+  },
+  'receipt-voucher': {
+    id: 'receipt-voucher',
+    labelAr: 'سند قبض',
+    labelEn: 'Receipt Voucher',
+    page: { size: 'A4', orientation: 'portrait' },
+    margins: { top: '12mm', right: '15mm', bottom: '12mm', left: '15mm' },
+  },
   // Future profiles are added here only. No API or component changes required.
   // 'letterhead-en': { ... },
   // 'invoice-template-a': { ... },

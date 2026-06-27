@@ -1200,19 +1200,20 @@ model ProjectPrice {
 // ─────────────────────────────────────────────────────────────────────────
 
 model Cheque {
-  id              Int       @id @default(autoincrement())
-  chequeNumber    String    @unique
-  chequeDate      DateTime
-  beneficiaryName String
-  amount          Float
-  currency        String    @default("KWD")
-  description     String?
-  bankName        String
-  templateName    String?
-  status          String    @default("DRAFT") // DRAFT | PRINTED | CANCELLED
-  printedAt       DateTime?
-  cancelledAt     DateTime?
-  notes           String?
+  id                   Int       @id @default(autoincrement())
+  chequeNumber         String    @unique
+  chequeDate           DateTime
+  beneficiaryName      String
+  amount               Float
+  currency             String    @default("KWD")
+  description          String?
+  bankName             String
+  templateName         String?
+  status               String    @default("DRAFT") // DRAFT | PRINTED | CANCELLED
+  printedAt            DateTime?
+  cancelledAt          DateTime?
+  notes                String?
+  paymentVoucherNumber String?   @unique // PV-000001 — set only on first Print Payment Voucher click
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

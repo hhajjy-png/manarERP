@@ -160,6 +160,55 @@ export class ChequesService {
     });
     return cheque;
   }
+
+  /**
+   * Returns the Payment Voucher number for a cheque, generating one on first call.
+   *
+   * Generation rules:
+   * - Number is generated ONLY when the user requests it (Print Payment Voucher).
+   * - Sequence is stored in the Setting key "finance.paymentVoucher.lastSequence".
+   * - Format: PV-000001 (global, never resets, never reuses deleted numbers).
+   * - The entire read-increment-write is atomic inside a Prisma transaction.
+   * - Subsequent calls for the same cheque return the already-stored number (idempotent).
+   */
+  async getOrCreatePaymentVoucherNumber(id: number): Promise<string> {
+    const cheque = await prisma.cheque.findUnique({ where: { id } });
+    if (!cheque) throw AppError.notFound('الشيك غير موجود');
+    if (cheque.status === 'CANCELLED') throw AppError.badRequest('لا يمكن إصدار سند صرف لشيك ملغي');
+
+    // Idempotent: return existing number without writing
+    if (cheque.paymentVoucherNumber) return cheque.paymentVoucherNumber;
+
+    const SETTINGS_KEY = 'finance.paymentVoucher.lastSequence';
+
+    const voucherNumber = await prisma.$transaction(async (tx) => {
+      // Re-read inside the transaction: two concurrent requests can both see null
+      // outside, but only the first one to acquire the write lock will find null here.
+      const fresh = await tx.cheque.findUnique({ where: { id } });
+      if (!fresh) throw AppError.notFound('الشيك غير موجود');
+      if (fresh.paymentVoucherNumber) return fresh.paymentVoucherNumber;
+
+      const setting = await tx.setting.findUnique({ where: { key: SETTINGS_KEY } });
+      const lastSeq = setting ? parseInt(setting.value, 10) : 0;
+      const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
+      const number = `PV-${String(nextSeq).padStart(6, '0')}`;
+
+      await tx.setting.upsert({
+        where: { key: SETTINGS_KEY },
+        update: { value: String(nextSeq) },
+        create: { key: SETTINGS_KEY, value: String(nextSeq), group: 'finance' },
+      });
+
+      await tx.cheque.update({
+        where: { id },
+        data: { paymentVoucherNumber: number },
+      });
+
+      return number;
+    });
+
+    return voucherNumber;
+  }
 }
 
 export const chequesService = new ChequesService();

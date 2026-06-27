@@ -47,6 +47,8 @@ import FinancialCenter from './pages/FinancialCenter';
 import Integrations from './pages/Integrations';
 import DocumentExpirationCenter from './pages/DocumentExpirationCenter';
 import DocumentVerify from './pages/DocumentVerify';
+import PaymentVoucher from './pages/PaymentVoucher';
+import ReceiptVoucher from './pages/ReceiptVoucher';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -74,6 +76,8 @@ export default function App() {
         <Route path="/forms/employment-contract/:employeeId" element={<ProtectedRoute><EmploymentContract /></ProtectedRoute>} />
         <Route path="/forms/quotation" element={<ProtectedRoute><Quotation /></ProtectedRoute>} />
         <Route path="/forms/purchase-request" element={<ProtectedRoute><PurchaseRequest /></ProtectedRoute>} />
+        <Route path="/forms/payment-voucher/:chequeId" element={<ProtectedRoute><PaymentVoucher /></ProtectedRoute>} />
+        <Route path="/forms/receipt-voucher" element={<ProtectedRoute><ReceiptVoucher /></ProtectedRoute>} />
         <Route
           element={
             <ProtectedRoute>

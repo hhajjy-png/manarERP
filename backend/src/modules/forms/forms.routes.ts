@@ -17,5 +17,6 @@ router.get('/employee-warning/:employeeId', requirePermission('forms.read'), asy
 router.get('/performance-evaluation/:employeeId', requirePermission('forms.read'), asyncHandler(formsController.getPerformanceEvaluation));
 router.get('/employment-contract/:employeeId', requirePermission('forms.read'), asyncHandler(formsController.getEmploymentContract));
 router.post('/print-log', requirePermission('forms.print'), asyncHandler(formsController.logPrint));
+router.post('/receipt-voucher-number', requirePermission('forms.print'), asyncHandler(formsController.generateReceiptVoucherNumber));
 
 export default router;

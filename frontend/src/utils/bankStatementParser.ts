@@ -132,7 +132,9 @@ function parseSignedAmt(raw: unknown): number {
 }
 
 function cell(row: Record<string, unknown>, key: string | undefined): unknown {
-  return key ? row[key] : undefined;
+  // Keys in rowDict are always lowercased (see parseExcelRowsClient / parseCsvRowsClient),
+  // so lowercase the lookup key to match regardless of how the bank named its columns.
+  return key ? row[key.toLowerCase()] : undefined;
 }
 
 function rowToTx(
@@ -192,7 +194,9 @@ export function parseExcelRowsClient(
   const headerRowData = sheetData[tpl.headerRow] ?? [];
   const colIdx: Record<string, number> = {};
   (headerRowData as unknown[]).forEach((h, i) => {
-    if (typeof h === 'string' && h.trim()) colIdx[h.trim()] = i;
+    // Lowercase all keys so cell() lookups are case-insensitive.
+    // Bank statement exports vary in capitalisation (e.g. 'DEBIT' vs 'Debit').
+    if (typeof h === 'string' && h.trim()) colIdx[h.trim().toLowerCase()] = i;
   });
 
   const results: StatementTransaction[] = [];
@@ -231,7 +235,7 @@ export function parseCsvRowsClient(
     const vals = split(lines[r]);
     if (vals.every((v) => !v)) continue;
     const rowDict: Record<string, unknown> = {};
-    headers.forEach((h, i) => { rowDict[h] = vals[i] ?? ''; });
+    headers.forEach((h, i) => { rowDict[h.toLowerCase()] = vals[i] ?? ''; });
     const tx = rowToTx(rowDict, tpl.columnMap, tpl.bankName, tpl.currencyDefault);
     if (!tx.description && tx.debit === 0 && tx.credit === 0) continue;
     results.push(tx);

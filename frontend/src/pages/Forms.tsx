@@ -113,6 +113,15 @@ const FORM_CARDS: FormCard[] = [
     icon: '🛒',
     requiresEmployee: false,
   },
+  {
+    key: 'receipt-voucher',
+    route: 'receipt-voucher',
+    titleAr: 'سند قبض',
+    titleEn: 'Receipt Voucher',
+    description: 'سند قبض رسمي لتوثيق المبالغ المستلمة نقداً أو بشيك أو تحويل بنكي.',
+    icon: '🧾',
+    requiresEmployee: false,
+  },
 ];
 
 const sel: React.CSSProperties = {
