@@ -1214,6 +1214,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // ── Statements ────────────────────────────────────────────────────────────
     'nav.statements': 'كشف الحساب',
+    'nav.financial': 'المركز المالي',
 
     // ── Forms & Templates ─────────────────────────────────────────────────────
     'nav.forms': 'النماذج الإدارية',
@@ -2457,6 +2458,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // ── Statements ────────────────────────────────────────────────────────────
     'nav.statements': 'Statement Center',
+    'nav.financial': 'Financial Center',
 
     // ── Forms & Templates ─────────────────────────────────────────────────────
     'nav.forms': 'Admin Forms',
