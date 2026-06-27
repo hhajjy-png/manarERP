@@ -40,7 +40,7 @@ class ContractsRepository extends BaseRepository<{ id: number }> {
         _sum: { total: true, paidAmount: true },
       }),
       prisma.expense.aggregate({
-        where: { contractId: id, status: { not: 'REJECTED' } },
+        where: { contractId: id, status: { notIn: ['REJECTED', 'CANCELLED'] } },
         _sum: { amount: true },
       }),
     ]);

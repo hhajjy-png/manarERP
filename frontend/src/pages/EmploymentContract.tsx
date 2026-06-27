@@ -10,7 +10,7 @@ import { ProfileId, DEFAULT_PROFILE_ID } from '../forms/shared/printProfiles';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 import { usePrintDraftStore } from '../stores/printDraftStore';
 import { usePrintLogStore } from '../stores/printLogStore';
-import { getNationalityEn, getJobTitleEn } from '../forms/shared/contractTranslations';
+import { getNationalityEn, getJobTitleEn, applyTranslationOverrides } from '../forms/shared/contractTranslations';
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -503,6 +503,19 @@ export default function EmploymentContract() {
   const saveDraft = usePrintDraftStore(s => s.saveDraft);
   const getDraft = usePrintDraftStore(s => s.getDraft);
   const addPrintLog = usePrintLogStore(s => s.addEntry);
+
+  // Load translation overrides from settings on mount
+  useEffect(() => {
+    api.get('/settings').then(res => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const list = (res.data.data.settings ?? []) as any[];
+      const natEntry = list.find((s: any) => s.key === 'dict.nationalities');
+      const jobEntry = list.find((s: any) => s.key === 'dict.jobTitles');
+      const nat = natEntry?.value ? JSON.parse(natEntry.value) : {};
+      const job = jobEntry?.value ? JSON.parse(jobEntry.value) : {};
+      applyTranslationOverrides(nat, job);
+    }).catch(() => {});
+  }, []);
 
   // Fetch when coming from Employees list with a URL param
   useEffect(() => {

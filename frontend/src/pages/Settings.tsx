@@ -3,6 +3,7 @@ import { api, errorMessage } from '../api/client';
 import { useUI } from '../stores/uiStore';
 import { useT, type Lang } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
+import { BASE_NATIONALITY_EN, BASE_JOB_TITLE_EN, applyTranslationOverrides } from '../forms/shared/contractTranslations';
 import BrandingLayoutDesigner from '../print-templates/components/BrandingLayoutDesigner';
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import { parseBrandingLayout, serializeBrandingLayout, DEFAULT_BRANDING_LAYOUT } from '../print-templates/utils/brandingLayout';
@@ -43,6 +44,10 @@ export default function Settings() {
   const [designerOpen, setDesignerOpen] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
   const [brandingLayout, setBrandingLayout] = useState<PrintBrandingLayoutSettings>(DEFAULT_BRANDING_LAYOUT);
+  const [natDict, setNatDict] = useState<{ ar: string; en: string }[]>([]);
+  const [jobDict, setJobDict] = useState<{ ar: string; en: string }[]>([]);
+  const [dictSaving, setDictSaving] = useState(false);
+  const [dictTab, setDictTab] = useState<'nat' | 'job'>('nat');
 
   useEffect(() => {
     (async () => {
@@ -55,6 +60,15 @@ export default function Settings() {
         setValues(v);
         const layoutEntry = list.find((s) => s.key === 'print.brandingLayout');
         if (layoutEntry?.value) setBrandingLayout(parseBrandingLayout(layoutEntry.value));
+
+        // Load translation dictionaries — fall back to built-in static dict
+        const natEntry = list.find((s) => s.key === 'dict.nationalities');
+        const jobEntry = list.find((s) => s.key === 'dict.jobTitles');
+        const natMap: Record<string, string> = natEntry?.value ? JSON.parse(natEntry.value) : BASE_NATIONALITY_EN;
+        const jobMap: Record<string, string> = jobEntry?.value ? JSON.parse(jobEntry.value) : BASE_JOB_TITLE_EN;
+        setNatDict(Object.entries(natMap).map(([ar, en]) => ({ ar, en })));
+        setJobDict(Object.entries(jobMap).map(([ar, en]) => ({ ar, en })));
+        applyTranslationOverrides(natMap, jobMap);
       } finally {
         setLoading(false);
       }
@@ -79,6 +93,26 @@ export default function Settings() {
       toast.error(errorMessage(err));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function saveDict() {
+    setDictSaving(true);
+    try {
+      const natMap = Object.fromEntries(natDict.filter(r => r.ar.trim()).map(r => [r.ar.trim(), r.en.trim()]));
+      const jobMap = Object.fromEntries(jobDict.filter(r => r.ar.trim()).map(r => [r.ar.trim(), r.en.trim()]));
+      await api.put('/settings', {
+        settings: [
+          { key: 'dict.nationalities', value: JSON.stringify(natMap), group: 'dict' },
+          { key: 'dict.jobTitles', value: JSON.stringify(jobMap), group: 'dict' },
+        ],
+      });
+      applyTranslationOverrides(natMap, jobMap);
+      toast.ok('تم حفظ قاموس الترجمة');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setDictSaving(false);
     }
   }
 
@@ -396,6 +430,101 @@ export default function Settings() {
           onClose={() => setDesignerOpen(false)}
         />
       )}
+
+      {/* Translation Dictionary */}
+      <div className="card panel" style={{ marginTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <h3 className="branding-section-title" style={{ marginBottom: 4 }}>قاموس الترجمة</h3>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+              ترجمات الجنسيات والمسميات الوظيفية المستخدمة في عقود العمل
+            </p>
+          </div>
+          <button type="button" className="btn" onClick={saveDict} disabled={dictSaving} style={{ flexShrink: 0 }}>
+            {dictSaving ? 'جارٍ الحفظ…' : 'حفظ القاموس'}
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '2px solid var(--border)' }}>
+          {([['nat', 'الجنسيات'], ['job', 'المسميات الوظيفية']] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setDictTab(key)}
+              style={{
+                padding: '6px 16px', fontSize: 13, fontWeight: 600,
+                background: 'none', border: 'none', cursor: 'pointer',
+                borderBottom: dictTab === key ? '2px solid var(--primary)' : '2px solid transparent',
+                color: dictTab === key ? 'var(--primary)' : 'var(--text-muted)',
+                marginBottom: -2,
+              }}
+            >
+              {label} ({(dictTab === 'nat' ? natDict : jobDict).length})
+            </button>
+          ))}
+        </div>
+
+        {/* Dictionary Table */}
+        {(() => {
+          const rows = dictTab === 'nat' ? natDict : jobDict;
+          const setRows = dictTab === 'nat' ? setNatDict : setJobDict;
+          return (
+            <>
+              <div style={{ maxHeight: 360, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 6 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: 'var(--surface-2)', position: 'sticky', top: 0, zIndex: 1 }}>
+                      <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid var(--border)', width: '45%' }}>عربي</th>
+                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid var(--border)', width: '45%' }}>English</th>
+                      <th style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', width: '10%' }} aria-label="حذف"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '4px 8px' }}>
+                          <input
+                            value={row.ar}
+                            onChange={e => setRows(prev => prev.map((r, j) => j === i ? { ...r, ar: e.target.value } : r))}
+                            style={{ width: '100%', fontSize: 13, border: 'none', background: 'transparent', textAlign: 'right' }}
+                            title="الجنسية أو المسمى بالعربي"
+                          />
+                        </td>
+                        <td style={{ padding: '4px 8px' }}>
+                          <input
+                            value={row.en}
+                            onChange={e => setRows(prev => prev.map((r, j) => j === i ? { ...r, en: e.target.value } : r))}
+                            style={{ width: '100%', fontSize: 13, border: 'none', background: 'transparent', direction: 'ltr' }}
+                            title="Translation in English"
+                          />
+                        </td>
+                        <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => setRows(prev => prev.filter((_, j) => j !== i))}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 16, lineHeight: 1 }}
+                            title="حذف"
+                          >
+                            ×
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRows(prev => [...prev, { ar: '', en: '' }])}
+                style={{ marginTop: 10, fontSize: 13, color: 'var(--primary)', background: 'none', border: '1px dashed var(--primary)', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', width: '100%' }}
+              >
+                + إضافة صف
+              </button>
+            </>
+          );
+        })()}
+      </div>
     </div>
   );
 }
