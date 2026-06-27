@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import FormLayout from '../forms/shared/FormLayout';
+import LanguageToggle from '../forms/shared/LanguageToggle';
 import PaymentVoucherTemplate from '../forms/PaymentVoucherTemplate';
 
 interface ChequeData {
@@ -20,6 +21,7 @@ export default function PaymentVoucher() {
   const { chequeId } = useParams<{ chequeId: string }>();
   const [cheque, setCheque] = useState<ChequeData | null>(null);
   const [error, setError] = useState('');
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
   useEffect(() => {
     if (!chequeId) return;
@@ -52,10 +54,12 @@ export default function PaymentVoucher() {
   return (
     <FormLayout
       formType="payment-voucher"
+      lang={lang}
       ready={false}
       formNumber={cheque.paymentVoucherNumber}
       title=""
       profile="payment-voucher"
+      toolbarExtra={<LanguageToggle lang={lang} onChange={setLang} />}
       qrData={{
         formType: 'payment-voucher',
         formNumber: cheque.paymentVoucherNumber,
@@ -72,6 +76,7 @@ export default function PaymentVoucher() {
         description={cheque.description}
         bankName={cheque.bankName}
         chequeNumber={cheque.chequeNumber}
+        lang={lang}
       />
     </FormLayout>
   );

@@ -37,19 +37,30 @@ interface LatestPayroll {
   snapshotBaseSalary: number;
 }
 
-interface PrintFields {
-  certPurpose?: string;
+export interface PrintOverrides {
+  purpose?: string;
+  jobTitle?: string;
+  department?: string;
+  salaryText?: string;
+  issueDate?: string;
+  notes?: string;
 }
 
 interface Props {
   employee: Employee;
   latestPayroll: LatestPayroll | null;
   lang?: 'ar' | 'en';
-  printFields?: PrintFields;
+  printOverrides?: PrintOverrides;
 }
 
-export default function SalaryCertificateTemplate({ employee: emp, latestPayroll, lang = 'ar', printFields }: Props) {
+function val(override: string | undefined, fallback: string | null | undefined, dash = '—'): string {
+  return override?.trim() || fallback || dash;
+}
+
+export default function SalaryCertificateTemplate({ employee: emp, latestPayroll, lang = 'ar', printOverrides }: Props) {
   const baseSalary = latestPayroll?.snapshotBaseSalary ?? emp.salary;
+  const salaryDisplay = printOverrides?.salaryText?.trim() || null;
+  const issueDateDisplay = printOverrides?.issueDate?.trim() || null;
 
   if (lang === 'en') {
     return (
@@ -81,11 +92,11 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Job Title</div>
-            <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+            <div style={valueCell}>{val(printOverrides?.jobTitle, emp.jobTitle)}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Department</div>
-            <div style={valueCell}>{emp.department ?? '—'}</div>
+            <div style={valueCell}>{val(printOverrides?.department, emp.department)}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Nationality</div>
@@ -98,8 +109,8 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Purpose</div>
             <div style={valueCell}>
-              {printFields?.certPurpose?.trim()
-                ? <span>{printFields.certPurpose}</span>
+              {printOverrides?.purpose?.trim()
+                ? <span>{printOverrides.purpose}</span>
                 : <span style={blankLine} />}
             </div>
           </div>
@@ -110,7 +121,7 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Monthly Basic Salary</div>
             <div style={{ ...valueCell, fontWeight: 700, fontSize: 15, color: '#065f46' }}>
-              {moneyEn(baseSalary)}
+              {salaryDisplay ?? moneyEn(baseSalary)}
             </div>
           </div>
           {latestPayroll && (
@@ -135,8 +146,14 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
           presented wherever needed, without any liability on the company's part.
         </p>
 
+        {printOverrides?.notes?.trim() && (
+          <p style={{ fontSize: 13, lineHeight: 2, marginBottom: 16, direction: 'ltr', color: '#374151', fontStyle: 'italic' }}>
+            <strong>Notes:</strong> {printOverrides.notes}
+          </p>
+        )}
+
         <div style={{ marginBottom: 16, fontSize: 13, color: '#374151', direction: 'ltr' }}>
-          <strong>Date of Issue:</strong> {issueDateStrEn()}
+          <strong>Date of Issue:</strong> {issueDateDisplay ?? issueDateStrEn()}
         </div>
       </>
     );
@@ -172,11 +189,11 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
         </div>
         <div style={tableRow}>
           <div style={labelCell}>المسمى الوظيفي</div>
-          <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+          <div style={valueCell}>{val(printOverrides?.jobTitle, emp.jobTitle)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>القسم / الإدارة</div>
-          <div style={valueCell}>{emp.department ?? '—'}</div>
+          <div style={valueCell}>{val(printOverrides?.department, emp.department)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>الجنسية</div>
@@ -189,8 +206,8 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
         <div style={tableRow}>
           <div style={labelCell}>الغرض</div>
           <div style={valueCell}>
-            {printFields?.certPurpose?.trim()
-              ? <span>{printFields.certPurpose}</span>
+            {printOverrides?.purpose?.trim()
+              ? <span>{printOverrides.purpose}</span>
               : <span style={blankLine} />}
           </div>
         </div>
@@ -202,7 +219,7 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
         <div style={tableRow}>
           <div style={labelCell}>الراتب الشهري</div>
           <div style={{ ...valueCell, fontWeight: 700, fontSize: 15, color: '#065f46' }}>
-            {money(baseSalary)}
+            {salaryDisplay ?? money(baseSalary)}
           </div>
         </div>
         {latestPayroll && (
@@ -227,8 +244,14 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
         دون أي مسؤولية على الشركة تجاه الجهة المقدَّمة إليها.
       </p>
 
+      {printOverrides?.notes?.trim() && (
+        <p style={{ fontSize: 13, lineHeight: 2, marginBottom: 16, color: '#374151', fontStyle: 'italic' }}>
+          <strong>ملاحظات:</strong> {printOverrides.notes}
+        </p>
+      )}
+
       <div style={{ marginBottom: 16, fontSize: 13, color: '#374151' }}>
-        <strong>تاريخ الإصدار:</strong> {issueDateStr()}
+        <strong>تاريخ الإصدار:</strong> {issueDateDisplay ?? issueDateStr()}
       </div>
 
     </>

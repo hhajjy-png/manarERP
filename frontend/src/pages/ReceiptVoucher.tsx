@@ -4,6 +4,7 @@ import { api, errorMessage } from '../api/client';
 import FormHeader from '../forms/shared/FormHeader';
 import ApprovalSection from '../forms/shared/ApprovalSection';
 import FormQRCode from '../forms/shared/FormQRCode';
+import LanguageToggle from '../forms/shared/LanguageToggle';
 import ReceiptVoucherTemplate, { PaymentMethod } from '../forms/ReceiptVoucherTemplate';
 
 interface FormState {
@@ -52,6 +53,7 @@ export default function ReceiptVoucher() {
   const [rcvNumber, setRcvNumber] = useState('');
   const [printing, setPrinting] = useState(false);
   const [formError, setFormError] = useState('');
+  const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
   // Trigger window.print() after React flushes the rcvNumber into the DOM.
   useEffect(() => {
@@ -124,12 +126,13 @@ export default function ReceiptVoucher() {
             <p>أدخل بيانات السند ثم اضغط «طباعة» لإصدار الرقم وطباعة المستند.</p>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <LanguageToggle lang={lang} onChange={setLang} />
             <button
               type="button"
               className="btn secondary"
               onClick={() => navigate(-1)}
             >
-              رجوع
+              {lang === 'en' ? 'Back' : 'رجوع'}
             </button>
             <button
               type="button"
@@ -138,7 +141,7 @@ export default function ReceiptVoucher() {
               onClick={handlePrint}
               style={{ minWidth: 120 }}
             >
-              {printing ? 'جارٍ الإصدار…' : '🖨️ طباعة'}
+              {printing ? (lang === 'en' ? 'Generating…' : 'جارٍ الإصدار…') : (lang === 'en' ? '🖨️ Print' : '🖨️ طباعة')}
             </button>
           </div>
         </div>
@@ -265,7 +268,7 @@ export default function ReceiptVoucher() {
           borderRadius: 4,
         }}
       >
-        <FormHeader isLetterhead={false} />
+        <FormHeader isLetterhead={false} lang={lang} />
 
         {/* Form number reference */}
         <div style={{ textAlign: 'center', marginBottom: 14 }}>
@@ -293,6 +296,7 @@ export default function ReceiptVoucher() {
           reason={form.reason}
           method={form.method}
           chequeBank={form.chequeBank}
+          lang={lang}
         />
 
         {/* Footer: ApprovalSection + QR */}
@@ -309,7 +313,7 @@ export default function ReceiptVoucher() {
           }}
         >
           <div style={{ flex: 1 }}>
-            <ApprovalSection />
+            <ApprovalSection lang={lang} />
           </div>
           <div style={{ flexShrink: 0 }}>
             <FormQRCode

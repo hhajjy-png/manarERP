@@ -9,6 +9,7 @@ interface Props {
   description: string | null;
   bankName: string;
   chequeNumber: string;
+  lang?: 'ar' | 'en';
 }
 
 function formatDate(iso: string): string {
@@ -51,6 +52,7 @@ export default function PaymentVoucherTemplate({
   description,
   bankName,
   chequeNumber,
+  lang = 'ar',
 }: Props) {
   const amountWords = useMemo(() => tafqeetKWD(amount), [amount]);
   const amountDisplay = amount.toLocaleString('en-US', {
@@ -82,8 +84,10 @@ export default function PaymentVoucherTemplate({
     printColorAdjust: 'exact',
   };
 
+  const isEn = lang === 'en';
+
   return (
-    <div style={{ fontFamily: '"Cairo", Arial, sans-serif', direction: 'rtl' }}>
+    <div style={{ fontFamily: '"Cairo", Arial, sans-serif', direction: isEn ? 'ltr' : 'rtl' }}>
       {/* Blue title box */}
       <div
         style={{

@@ -18,6 +18,8 @@ interface FormLayoutProps {
   formType?: string;
   /** Extra controls rendered in the no-print toolbar (e.g. LanguageToggle, PrintProfileToggle) */
   toolbarExtra?: ReactNode;
+  /** Language for FormHeader, ApprovalSection, and copy count labels */
+  lang?: 'ar' | 'en';
 }
 
 export default function FormLayout({
@@ -29,6 +31,7 @@ export default function FormLayout({
   qrData,
   formType,
   toolbarExtra,
+  lang = 'ar',
 }: FormLayoutProps) {
   const navigate = useNavigate();
 
@@ -110,7 +113,7 @@ export default function FormLayout({
           margin: '0 auto',
           color: '#0f172a',
           background: '#fff',
-          direction: 'rtl',
+          direction: lang === 'en' ? 'ltr' : 'rtl',
           borderRadius: 4,
         }}
       >
@@ -120,28 +123,30 @@ export default function FormLayout({
           style={{ display: 'flex', gap: 10, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}
         >
           <button type="button" className="btn" onClick={doPrint}>
-            🖨️ طباعة / حفظ PDF
+            🖨️ {lang === 'en' ? 'Print / Save PDF' : 'طباعة / حفظ PDF'}
           </button>
           {/* Copies control */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 2, border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
             <button
               type="button"
-              aria-label="نسخة أقل"
+              aria-label={lang === 'en' ? 'Fewer copies' : 'نسخة أقل'}
               onClick={() => updateCopies(copies - 1)}
               style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: copies > 1 ? 'pointer' : 'default', color: copies > 1 ? 'var(--text)' : 'var(--text-muted)', fontSize: 14, lineHeight: 1 }}
             >−</button>
-            <span style={{ fontSize: 12, minWidth: 28, textAlign: 'center', padding: '0 2px', color: 'var(--text)' }} title="عدد النسخ">
-              {copies === 1 ? '١ نسخة' : `${copies} نسخ`}
+            <span style={{ fontSize: 12, minWidth: 28, textAlign: 'center', padding: '0 2px', color: 'var(--text)' }} title={lang === 'en' ? 'Copies' : 'عدد النسخ'}>
+              {lang === 'en'
+                ? (copies === 1 ? '1 copy' : `${copies} copies`)
+                : (copies === 1 ? '١ نسخة' : `${copies} نسخ`)}
             </span>
             <button
               type="button"
-              aria-label="نسخة أكثر"
+              aria-label={lang === 'en' ? 'More copies' : 'نسخة أكثر'}
               onClick={() => updateCopies(copies + 1)}
               style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: copies < 10 ? 'pointer' : 'default', color: copies < 10 ? 'var(--text)' : 'var(--text-muted)', fontSize: 14, lineHeight: 1 }}
             >+</button>
           </div>
           <button type="button" className="btn secondary" onClick={() => navigate(-1)}>
-            رجوع
+            {lang === 'en' ? 'Back' : 'رجوع'}
           </button>
           {toolbarExtra}
           <span style={{ fontSize: 12, color: 'var(--text-muted)', marginRight: 'auto' }}>
@@ -150,7 +155,7 @@ export default function FormLayout({
         </div>
 
         {/* Company header — hidden in letterhead mode (space preserved) */}
-        <FormHeader isLetterhead={profile === 'letterhead'} />
+        <FormHeader isLetterhead={profile === 'letterhead'} lang={lang} />
 
         {/* Form number + title */}
         <div style={{ textAlign: 'center', marginBottom: 14 }}>
@@ -199,7 +204,7 @@ export default function FormLayout({
           }}
         >
           <div style={{ flex: 1 }}>
-            <ApprovalSection />
+            <ApprovalSection lang={lang} />
           </div>
           <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <FormQRCode data={qrData} size={80} />

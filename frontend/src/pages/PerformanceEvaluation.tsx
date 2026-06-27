@@ -91,6 +91,7 @@ export default function PerformanceEvaluation() {
   return (
     <FormLayout
       formType={FORM_KEY}
+      lang={lang}
       ready
       formNumber={formNumber}
       title="تقييم أداء الموظف"

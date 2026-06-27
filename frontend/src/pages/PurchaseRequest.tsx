@@ -117,6 +117,7 @@ export default function PurchaseRequest() {
   return (
     <FormLayout
       formType={FORM_KEY}
+      lang={lang}
       ready={false}
       formNumber={printFields.requestNumber || generateFormNumber(FORM_KEY)}
       title={lang === 'ar' ? 'طلب شراء' : 'Purchase Request'}

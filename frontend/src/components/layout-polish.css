@@ -89,3 +89,70 @@
 .db-page {
   min-height: calc(100vh - 49px);
 }
+
+/* ════════════════════════════════════════════════════════════════
+   Package A — Header UI Polish
+   Prevents overlap at 1024px, 125 %, 150 % zoom.
+   CSS-only where possible; no impact on page content or forms.
+   ════════════════════════════════════════════════════════════════ */
+
+/* top-actions: allow the flex item to compress and not overflow */
+.app .topbar .top-actions {
+  min-width: 0;
+  flex-shrink: 1;
+  gap: 8px; /* tighter than theme's 12 px */
+}
+
+/* search: may shrink but never disappear entirely */
+.app .topbar .search {
+  flex-shrink: 1;
+  min-width: 80px;
+}
+
+/* privacy button: icon + text, keep on one line */
+.app .topbar .privacy-btn {
+  white-space: nowrap;
+}
+
+/* sidebar nav link: allow text truncation when label is long */
+.sidebar .nav a {
+  overflow: hidden;
+}
+
+.sidebar .nav a .nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* sidebar group header: truncate if ever too long */
+.sidebar .nav .group {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- 1200 px: compress search and tighten top-actions gap ---- */
+@media (max-width: 1200px) {
+  .app .topbar .search {
+    max-width: 240px;
+  }
+  .app .topbar .top-actions {
+    gap: 6px;
+  }
+}
+
+/* ---- 1100 px: hide privacy label text; keep icon for affordance ---- */
+@media (max-width: 1100px) {
+  .app .topbar .search {
+    max-width: 160px;
+  }
+  .app .topbar .privacy-label {
+    display: none;
+  }
+  .app .topbar .privacy-btn {
+    padding: 4px 6px;
+  }
+}
