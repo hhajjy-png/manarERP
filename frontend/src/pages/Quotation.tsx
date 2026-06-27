@@ -479,6 +479,7 @@ export default function Quotation() {
   return (
     <FormLayout
       formType={FORM_KEY}
+      lang={lang}
       ready={false}
       formNumber={printFields.quotationNumber || generateFormNumber(FORM_KEY)}
       title={lang === 'ar' ? 'عرض سعر' : 'Quotation'}

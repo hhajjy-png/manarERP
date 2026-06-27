@@ -79,6 +79,7 @@ export default function ToWhomItMayConcern() {
   return (
     <FormLayout
       formType={FORM_KEY}
+      lang={lang}
       ready
       formNumber={formNumber}
       title={lang === 'en' ? 'To Whom It May Concern' : 'إلى من يهمه الأمر'}

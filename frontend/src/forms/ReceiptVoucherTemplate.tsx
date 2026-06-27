@@ -53,7 +53,8 @@ export default function ReceiptVoucherTemplate({
   reason,
   method,
   chequeBank,
-}: ReceiptVoucherData) {
+  lang = 'ar',
+}: ReceiptVoucherData & { lang?: 'ar' | 'en' }) {
   const amountWords = useMemo(() => (amount > 0 ? tafqeetKWD(amount) : ''), [amount]);
   const amountDisplay =
     amount > 0
@@ -84,8 +85,10 @@ export default function ReceiptVoucherTemplate({
       : {}),
   });
 
+  const isEn = lang === 'en';
+
   return (
-    <div style={{ fontFamily: '"Cairo", Arial, sans-serif', direction: 'rtl' }}>
+    <div style={{ fontFamily: '"Cairo", Arial, sans-serif', direction: isEn ? 'ltr' : 'rtl' }}>
       {/* Blue title box with subtitle */}
       <div
         style={{

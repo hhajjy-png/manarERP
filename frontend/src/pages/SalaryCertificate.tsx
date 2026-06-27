@@ -8,7 +8,7 @@ import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
-import SalaryCertificateTemplate from '../forms/SalaryCertificateTemplate';
+import SalaryCertificateTemplate, { PrintOverrides } from '../forms/SalaryCertificateTemplate';
 import { usePrintLogStore } from '../stores/printLogStore';
 import { usePrintDraftStore } from '../stores/printDraftStore';
 
@@ -16,7 +16,14 @@ type Lang = 'ar' | 'en';
 
 const FORM_KEY = 'salary-certificate';
 
-const INITIAL_PRINT_FIELDS = { certPurpose: '' };
+const INITIAL_PRINT_OVERRIDES: PrintOverrides = {
+  purpose: '',
+  jobTitle: '',
+  department: '',
+  salaryText: '',
+  issueDate: '',
+  notes: '',
+};
 
 export default function SalaryCertificate() {
   const { employeeId } = useParams<{ employeeId: string }>();
@@ -27,7 +34,7 @@ export default function SalaryCertificate() {
   const [error, setError] = useState('');
   const [lang, setLang] = useState<Lang>('ar');
   const [profile, setProfile] = usePrintProfileMemory(FORM_KEY, getProfileIdFromSearch(search));
-  const [printFields, setPrintFields] = useState({ certPurpose: '' });
+  const [printOverrides, setPrintOverrides] = useState<PrintOverrides>({ ...INITIAL_PRINT_OVERRIDES });
 
   useEffect(() => {
     if (!employeeId) return;
@@ -56,8 +63,8 @@ export default function SalaryCertificate() {
   const clearDraft = usePrintDraftStore((s) => s.clearDraft);
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  function resetPrintFields() { setShowClearConfirm(true); }
-  function executeClear() { setShowClearConfirm(false); setPrintFields({ ...INITIAL_PRINT_FIELDS }); }
+  function resetPrintOverrides() { setShowClearConfirm(true); }
+  function executeClear() { setShowClearConfirm(false); setPrintOverrides({ ...INITIAL_PRINT_OVERRIDES }); }
 
   const addPrintLog = usePrintLogStore((s) => s.addEntry);
   useEffect(() => {
@@ -80,6 +87,7 @@ export default function SalaryCertificate() {
   return (
     <FormLayout
       formType={FORM_KEY}
+      lang={lang}
       ready
       formNumber={formNumber}
       title={lang === 'en' ? 'Salary Certificate' : 'شـهـادة راتـب'}
@@ -93,7 +101,7 @@ export default function SalaryCertificate() {
             className="btn secondary"
             style={{ fontSize: 12, padding: '4px 8px' }}
             title="حفظ مسودة"
-            onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
+            onClick={() => saveDraft(FORM_KEY, printOverrides as unknown as Record<string, unknown>)}
           >
             💾
           </button>
@@ -103,7 +111,7 @@ export default function SalaryCertificate() {
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
               title="استعادة المسودة"
-              onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
+              onClick={() => setPrintOverrides(draftEntry.state as PrintOverrides)}
             >
               ↩
             </button>
@@ -130,24 +138,73 @@ export default function SalaryCertificate() {
       }}
     >
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
-        <div className="field" style={{ maxWidth: 400 }}>
-          <label>الغرض من الشهادة / Purpose</label>
-          <input
-            maxLength={120}
-            value={printFields.certPurpose}
-            onChange={(e) => setPrintFields(p => ({ ...p, certPurpose: e.target.value }))}
-            placeholder="مثال: للتقديم إلى البنك / For bank submission"
-          />
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+          تعديلات الطباعة — لن تُحفظ في قاعدة البيانات / Print Overrides — not saved
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', maxWidth: 700 }}>
+          <div className="field">
+            <label>الغرض / Purpose</label>
+            <input
+              maxLength={120}
+              value={printOverrides.purpose ?? ''}
+              onChange={(e) => setPrintOverrides(p => ({ ...p, purpose: e.target.value }))}
+              placeholder="مثال: للتقديم إلى البنك"
+            />
+          </div>
+          <div className="field">
+            <label>المسمى الوظيفي / Job Title</label>
+            <input
+              maxLength={100}
+              value={printOverrides.jobTitle ?? ''}
+              onChange={(e) => setPrintOverrides(p => ({ ...p, jobTitle: e.target.value }))}
+              placeholder={data.employee.jobTitle ?? ''}
+            />
+          </div>
+          <div className="field">
+            <label>القسم / Department</label>
+            <input
+              maxLength={100}
+              value={printOverrides.department ?? ''}
+              onChange={(e) => setPrintOverrides(p => ({ ...p, department: e.target.value }))}
+              placeholder={data.employee.department ?? ''}
+            />
+          </div>
+          <div className="field">
+            <label>نص الراتب / Salary Text</label>
+            <input
+              maxLength={120}
+              value={printOverrides.salaryText ?? ''}
+              onChange={(e) => setPrintOverrides(p => ({ ...p, salaryText: e.target.value }))}
+              placeholder="مثال: مئتان وخمسون دينارًا كويتيًا"
+            />
+          </div>
+          <div className="field">
+            <label>تاريخ الإصدار / Issue Date</label>
+            <input
+              maxLength={60}
+              value={printOverrides.issueDate ?? ''}
+              onChange={(e) => setPrintOverrides(p => ({ ...p, issueDate: e.target.value }))}
+              placeholder="اتركه فارغًا للتاريخ التلقائي"
+            />
+          </div>
+          <div className="field">
+            <label>ملاحظات / Notes</label>
+            <input
+              maxLength={200}
+              value={printOverrides.notes ?? ''}
+              onChange={(e) => setPrintOverrides(p => ({ ...p, notes: e.target.value }))}
+              placeholder="ملاحظات إضافية تظهر في الطباعة"
+            />
+          </div>
         </div>
         <div style={{ marginTop: 10 }}>
           <button
             type="button"
             className="btn secondary"
             style={{ fontSize: 12 }}
-            onClick={resetPrintFields}
+            onClick={resetPrintOverrides}
           >
-            ↺ مسح حقول الطباعة
+            ↺ مسح تعديلات الطباعة
           </button>
         </div>
       </div>
@@ -155,10 +212,10 @@ export default function SalaryCertificate() {
         employee={data.employee}
         latestPayroll={data.latestPayroll}
         lang={lang}
-        printFields={printFields}
+        printOverrides={printOverrides}
       />
       {showClearConfirm && (
-        <ConfirmModal message="سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+        <ConfirmModal message="سيتم مسح جميع تعديلات الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
   );

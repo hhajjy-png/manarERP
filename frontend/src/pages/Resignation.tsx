@@ -82,6 +82,7 @@ export default function Resignation() {
   return (
     <FormLayout
       formType={FORM_KEY}
+      lang={lang}
       ready
       formNumber={formNumber}
       title="طلب استقالة"

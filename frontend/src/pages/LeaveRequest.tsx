@@ -113,6 +113,7 @@ export default function LeaveRequest() {
   return (
     <FormLayout
       formType={FORM_KEY}
+      lang={lang}
       ready
       formNumber={formNumber}
       title="طلب إجازة"

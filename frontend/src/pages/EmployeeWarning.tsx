@@ -95,6 +95,7 @@ export default function EmployeeWarning() {
   return (
     <FormLayout
       formType={FORM_KEY}
+      lang={lang}
       ready
       formNumber={formNumber}
       title={t('page.warning.title')}

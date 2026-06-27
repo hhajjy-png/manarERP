@@ -91,6 +91,7 @@ export default function SalaryAdvance() {
   return (
     <FormLayout
       formType={FORM_KEY}
+      lang={lang}
       ready
       formNumber={formNumber}
       title="طلب سلفة راتب"

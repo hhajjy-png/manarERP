@@ -111,6 +111,7 @@ export default function ReturnToWork() {
   return (
     <FormLayout
       formType={FORM_KEY}
+      lang={lang}
       ready
       formNumber={formNumber}
       title="إشعار العودة إلى العمل"

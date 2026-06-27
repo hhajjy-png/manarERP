@@ -39,7 +39,7 @@ export default function Layout() {
                     className={({ isActive }) => (isActive ? 'active' : '')}
                     onClick={closeSidebar}
                   >
-                    <span className="material-symbols-outlined ic">{it.icon}</span> {t(it.label)}
+                    <span className="material-symbols-outlined ic">{it.icon}</span><span className="nav-label">{t(it.label)}</span>
                   </NavLink>
                 ))}
               </div>
@@ -62,7 +62,7 @@ export default function Layout() {
                   onClick={togglePrivacy}
                   title={t('layout.privacy_on_title')}
                 >
-                  🔒 {t('layout.privacy_on')}
+                  🔒 <span className="privacy-label">{t('layout.privacy_on')}</span>
                 </button>
               ) : (
                 <button
@@ -71,7 +71,7 @@ export default function Layout() {
                   onClick={togglePrivacy}
                   title={t('layout.privacy_rehide_title')}
                 >
-                  🔓 {t('layout.privacy_rehide')}
+                  🔓 <span className="privacy-label">{t('layout.privacy_rehide')}</span>
                 </button>
               )}
             </span>
