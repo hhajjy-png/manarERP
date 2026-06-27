@@ -32,8 +32,8 @@ class DashboardSummaryService {
         prisma.$queryRaw<TopEntitySummary[]>`
           SELECT c.id as id, c.name as name,
                  ROUND(SUM(i.total - i.paidAmount), 3) as outstanding
-          FROM Invoice i
-          JOIN Customer c ON i.customerId = c.id
+          FROM invoices i
+          JOIN customers c ON i.customerId = c.id
           WHERE i.direction = 'SALES'
             AND i.status NOT IN ('PAID','CANCELLED')
             AND (i.total - i.paidAmount) > 0
@@ -44,8 +44,8 @@ class DashboardSummaryService {
         prisma.$queryRaw<TopEntitySummary[]>`
           SELECT s.id as id, s.name as name,
                  ROUND(SUM(i.total - i.paidAmount), 3) as outstanding
-          FROM Invoice i
-          JOIN Supplier s ON i.supplierId = s.id
+          FROM invoices i
+          JOIN suppliers s ON i.supplierId = s.id
           WHERE i.direction = 'PURCHASE'
             AND i.status NOT IN ('PAID','CANCELLED')
             AND (i.total - i.paidAmount) > 0
