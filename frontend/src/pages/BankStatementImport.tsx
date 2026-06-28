@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PrivateAmount from '../components/PrivateAmount';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../stores/authStore';
@@ -11,7 +12,7 @@ import {
   type PreviewRow,
   type ImportResult,
 } from '../api/bankStatementImport';
-import { detectBankTemplateClient, parseExcelRowsClient, parseCsvRowsClient, detectCsvDelimiterClient, CLIENT_STATEMENT_CONFIGS } from '../utils/bankStatementParser';
+import { detectBankTemplateClient, parseExcelRowsClient, parseCsvRowsClient, detectCsvDelimiterClient } from '../utils/bankStatementParser';
 
 // ── Wizard steps ──────────────────────────────────────────────────────────────
 
@@ -63,7 +64,8 @@ const BANK_NAMES: Record<string, string> = {
 
 export default function BankStatementImport() {
   const { hasPermission } = useAuth();
-  const fileInputRef  = useRef<HTMLInputElement>(null);
+  const navigate          = useNavigate();
+  const fileInputRef      = useRef<HTMLInputElement>(null);
 
   const [step, setStep]           = useState<Step>('upload');
   const [loading, setLoading]     = useState(false);
@@ -214,308 +216,319 @@ export default function BankStatementImport() {
 
   if (!hasPermission('bankStatementImport.create')) {
     return (
-      <div className="p-8 text-center text-gray-500" dir="rtl">
+      <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }} dir="rtl">
         ليس لديك صلاحية لاستيراد كشوف الحسابات البنكية.
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6" dir="rtl">
+    <div dir="rtl">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">استيراد كشف الحساب البنكي</h1>
-        <p className="text-gray-500 mt-1">رفع كشف الحساب وإجراء المطابقة الذكية مع السجلات المالية</p>
+      <div className="page-head">
+        <div>
+          <h2>استيراد كشف الحساب البنكي</h2>
+          <p>رفع كشف الحساب وإجراء المطابقة الذكية مع السجلات المالية</p>
+        </div>
       </div>
 
-      {/* Step indicator */}
-      <div className="flex items-center gap-2 mb-8">
-        {STEPS.map((s, i) => (
-          <div key={s.id} className="flex items-center gap-2">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold
-              ${step === s.id ? 'bg-blue-600 text-white' :
-                STEPS.findIndex((x) => x.id === step) > i ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
-              {STEPS.findIndex((x) => x.id === step) > i ? '✓' : i + 1}
-            </div>
-            <span className={`text-sm ${step === s.id ? 'text-blue-600 font-semibold' : 'text-gray-400'}`}>
-              {s.labelAr}
-            </span>
-            {i < STEPS.length - 1 && <div className="w-8 h-px bg-gray-300 mx-1" />}
-          </div>
-        ))}
-      </div>
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '0 8px' }}>
 
-      {/* Error */}
-      {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {error}
-        </div>
-      )}
-
-      {/* ── Step: Upload ── */}
-      {step === 'upload' && (
-        <div
-          className="border-2 border-dashed border-gray-300 rounded-xl p-16 text-center cursor-pointer hover:border-blue-400 transition-colors"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={onDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <div className="text-5xl mb-4">📂</div>
-          <p className="text-lg font-medium text-gray-700">اسحب ملف كشف الحساب أو انقر للاختيار</p>
-          <p className="text-sm text-gray-400 mt-2">Excel (.xlsx) أو CSV — الحد الأقصى 10 ميغابايت، 10,000 صف</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={onFileChange}
-          />
-        </div>
-      )}
-
-      {/* ── Step: Detect template ── */}
-      {step === 'detect' && (
-        <div className="space-y-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <h2 className="text-lg font-semibold mb-4">نتيجة كشف البنك</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">الملف</p>
-                <p className="font-medium">{fileName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">البنك المكتشف</p>
-                <p className="font-medium text-blue-700">{BANK_NAMES[detectedBank] ?? detectedBank}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">عدد الصفوف</p>
-                <p className="font-medium">{parsedRows.length.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">النوع</p>
-                <p className="font-medium">{fileType === 'excel' ? 'Excel' : 'CSV'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Override bank selection */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <h3 className="font-medium mb-3">تغيير البنك يدوياً (اختياري)</h3>
-            <select
-              value={detectedBank}
-              onChange={(e) => setDetectedBank(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            >
-              {Object.entries(BANK_NAMES).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Column headers preview */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <h3 className="font-medium mb-3">أعمدة الكشف المكتشفة</h3>
-            <div className="flex flex-wrap gap-2">
-              {headers.map((h) => (
-                <span key={h} className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-700">{h}</span>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={handlePreview}
-              disabled={previewLoading || parsedRows.length === 0}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
-            >
-              {previewLoading ? 'جارٍ التحليل…' : 'تحليل الكشف'}
-            </button>
-            <button onClick={reset} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-              إعادة تعيين
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Step: Preview ── */}
-      {step === 'preview' && preview && (
-        <div className="space-y-6">
-          {/* Summary cards */}
-          <div className="grid grid-cols-4 gap-4">
-            {[
-              { label: 'إجمالي الصفوف', value: preview.totalRows.toLocaleString(), color: 'blue' },
-              { label: 'صالحة',         value: preview.valid.toLocaleString(),      color: 'green' },
-              { label: 'بها أخطاء',     value: preview.invalid.toLocaleString(),    color: 'red' },
-              { label: 'مطابقة',        value: preview.matched.toLocaleString(),    color: 'indigo' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className={`bg-${color}-50 border border-${color}-200 rounded-xl p-4`}>
-                <p className="text-sm text-gray-500">{label}</p>
-                <p className={`text-2xl font-bold text-${color}-700 mt-1`}>{value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Financial summary */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-gray-500">إجمالي المدين</p>
-                <p className="text-lg font-bold text-red-600"><PrivateAmount value={preview.totalDebits} /></p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">إجمالي الدائن</p>
-                <p className="text-lg font-bold text-green-600"><PrivateAmount value={preview.totalCredits} /></p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">المصاريف البنكية</p>
-                <p className="text-lg font-bold text-gray-700">{preview.bankFees}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Cannot import warning */}
-          {!preview.canImport && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
-              لا يمكن استيراد هذا الكشف — يوجد {preview.invalid} صف(وف) بها أخطاء. يرجى مراجعة الملف وإعادة رفعه.
-            </div>
-          )}
-
-          {/* Transaction preview table — virtualized at > 200 rows */}
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <div className="p-4 border-b border-gray-100">
-              <h3 className="font-medium">معاينة المعاملات ({preview.rows.length} صف)</h3>
-            </div>
-            <div className="overflow-auto max-h-96">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 sticky top-0">
-                  <tr>
-                    <th className="px-3 py-2 text-right font-medium text-gray-600">#</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-600">التاريخ</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-600">الوصف</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-600">مدين</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-600">دائن</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-600">حالة</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-600">مطابقة</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {preview.rows.slice(0, 500).map((row: PreviewRow) => (
-                    <tr key={row.rowIndex} className={row.errors.length > 0 ? 'bg-red-50' : row.warnings.length > 0 ? 'bg-yellow-50' : ''}>
-                      <td className="px-3 py-2 text-gray-400">{row.rowIndex + 1}</td>
-                      <td className="px-3 py-2">{fmtDate(row.statementDate)}</td>
-                      <td className="px-3 py-2 max-w-xs truncate" title={row.description}>{row.description}</td>
-                      <td className="px-3 py-2 text-red-600">{row.debit > 0 ? fmtAmount(row.debit) : ''}</td>
-                      <td className="px-3 py-2 text-green-600">{row.credit > 0 ? fmtAmount(row.credit) : ''}</td>
-                      <td className="px-3 py-2">
-                        {row.errors.length > 0 ? (
-                          <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs">خطأ</span>
-                        ) : row.warnings.length > 0 ? (
-                          <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">تحذير</span>
-                        ) : (
-                          <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">صالح</span>
-                        )}
-                        {row.isBankFee && (
-                          <span className="mr-1 px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs">رسوم</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {row.matchResult.best ? (
-                          <span className="text-xs text-blue-700">
-                            {row.matchResult.best.confidence}% — {row.matchResult.best.ref}
-                          </span>
-                        ) : <span className="text-xs text-gray-400">—</span>}
-                      </td>
-                    </tr>
-                  ))}
-                  {preview.rows.length > 500 && (
-                    <tr>
-                      <td colSpan={7} className="px-3 py-3 text-center text-gray-400 text-sm">
-                        يُعرض 500 من {preview.rows.length} صف — جميع الصفوف ستُستورد
-                      </td>
-                    </tr>
+        {/* Step indicator */}
+        <div className="card panel" style={{ marginBottom: 20, padding: '12px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0 }}>
+            {STEPS.map((s, i) => {
+              const currentIdx = STEPS.findIndex((x) => x.id === step);
+              const isDone = currentIdx > i;
+              const isActive = step === s.id;
+              return (
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', flex: i < STEPS.length - 1 ? 1 : 'none' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 700, fontSize: 13,
+                      background: isDone ? 'var(--success, #22c55e)' : isActive ? 'var(--primary)' : 'var(--surface-2)',
+                      color: isDone || isActive ? '#fff' : 'var(--text-muted)',
+                    }}>
+                      {isDone ? '✓' : i + 1}
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: isActive ? 700 : 400, color: isActive ? 'var(--primary)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      {s.labelAr}
+                    </span>
+                  </div>
+                  {i < STEPS.length - 1 && (
+                    <div style={{ flex: 1, height: 2, background: isDone ? 'var(--success, #22c55e)' : 'var(--border)', margin: '0 8px', marginBottom: 20 }} />
                   )}
-                </tbody>
-              </table>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="card panel" style={{ marginBottom: 16, background: '#FEF2F2', borderColor: '#FECACA', color: '#B91C1C', padding: '12px 16px', fontSize: 13 }}>
+            <span style={{ fontWeight: 600 }}>خطأ: </span>{error}
+          </div>
+        )}
+
+        {/* ── Step: Upload ── */}
+        {step === 'upload' && (
+          <div className="card panel" style={{ textAlign: 'center', padding: 48, cursor: 'pointer', border: '2px dashed var(--border)', transition: 'border-color 0.2s' }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={onDrop}
+            onClick={() => fileInputRef.current?.click()}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
+          >
+            <div style={{ fontSize: 52, marginBottom: 16 }}>📂</div>
+            <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>اسحب ملف كشف الحساب أو انقر للاختيار</p>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Excel (.xlsx) أو CSV — الحد الأقصى 10 ميغابايت، 10,000 صف</p>
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFileChange} />
+          </div>
+        )}
+
+        {/* ── Step: Detect template ── */}
+        {step === 'detect' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Detected info card */}
+            <div className="card panel">
+              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>نتيجة كشف البنك</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                {[
+                  { label: 'الملف', value: fileName },
+                  { label: 'البنك المكتشف', value: BANK_NAMES[detectedBank] ?? detectedBank, highlight: true },
+                  { label: 'عدد الصفوف', value: parsedRows.length.toLocaleString() },
+                  { label: 'نوع الملف', value: fileType === 'excel' ? 'Excel' : 'CSV' },
+                ].map(({ label, value, highlight }) => (
+                  <div key={label}>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: highlight ? 'var(--primary)' : 'var(--text)' }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Override bank */}
+            <div className="card panel">
+              <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>تغيير البنك يدوياً (اختياري)</h3>
+              <select
+                value={detectedBank}
+                onChange={(e) => setDetectedBank(e.target.value)}
+                style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', fontSize: 13, background: 'var(--surface)' }}
+                title="اختر البنك"
+              >
+                {Object.entries(BANK_NAMES).map(([key, label]) => (
+                  <option key={key} value={key}>{label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Column headers */}
+            <div className="card panel">
+              <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>الأعمدة المكتشفة في الكشف</h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {headers.map((h) => (
+                  <span key={h} style={{ padding: '4px 10px', background: 'var(--surface-2)', borderRadius: 20, fontSize: 12, color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{h}</span>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={handlePreview} disabled={previewLoading || parsedRows.length === 0} className="btn" style={{ minWidth: 140 }}>
+                {previewLoading ? 'جارٍ التحليل…' : 'تحليل الكشف'}
+              </button>
+              <button onClick={reset} className="btn btn-secondary">إعادة تعيين</button>
             </div>
           </div>
+        )}
 
-          <div className="flex gap-3">
-            <button
-              onClick={() => setStep('confirm')}
-              disabled={!preview.canImport}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
-            >
-              متابعة للتأكيد
-            </button>
-            <button onClick={reset} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-              إلغاء
-            </button>
-          </div>
-        </div>
-      )}
+        {/* ── Step: Preview ── */}
+        {step === 'preview' && preview && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* KPI summary cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+              {[
+                { label: 'إجمالي الصفوف', value: preview.totalRows.toLocaleString(), color: '#3B82F6' },
+                { label: 'صالحة',         value: preview.valid.toLocaleString(),      color: '#22C55E' },
+                { label: 'بها أخطاء',    value: preview.invalid.toLocaleString(),     color: '#EF4444' },
+                { label: 'مطابقة',       value: preview.matched.toLocaleString(),     color: '#6366F1' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="card panel" style={{ padding: '16px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>{label}</p>
+                  <p style={{ fontSize: 26, fontWeight: 800, color, margin: 0 }}>{value}</p>
+                </div>
+              ))}
+            </div>
 
-      {/* ── Step: Confirm ── */}
-      {step === 'confirm' && preview && (
-        <div className="space-y-6">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
-            <h2 className="text-lg font-bold text-amber-800 mb-2">تأكيد الاستيراد</h2>
-            <p className="text-amber-700 text-sm">
-              سيتم استيراد <strong>{preview.totalRows}</strong> معاملة بنكية من كشف{' '}
-              <strong>{BANK_NAMES[preview.bankName] ?? preview.bankName}</strong>.
-              لا يمكن التراجع عن هذه العملية بعد التأكيد.
-            </p>
-          </div>
+            {/* Financial summary */}
+            <div className="card panel">
+              <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>الملخص المالي</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                <div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>إجمالي المدين</p>
+                  <p style={{ fontSize: 18, fontWeight: 700, color: '#EF4444' }}><PrivateAmount value={preview.totalDebits} /></p>
+                </div>
+                <div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>إجمالي الدائن</p>
+                  <p style={{ fontSize: 18, fontWeight: 700, color: '#22C55E' }}><PrivateAmount value={preview.totalCredits} /></p>
+                </div>
+                <div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>المصاريف البنكية</p>
+                  <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>{preview.bankFees}</p>
+                </div>
+              </div>
+            </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-6 grid grid-cols-2 gap-4">
-            <div><p className="text-sm text-gray-500">البنك</p><p className="font-medium">{BANK_NAMES[preview.bankName] ?? preview.bankName}</p></div>
-            <div><p className="text-sm text-gray-500">الملف</p><p className="font-medium">{fileName}</p></div>
-            <div><p className="text-sm text-gray-500">من تاريخ</p><p className="font-medium">{fmtDate(preview.fromDate)}</p></div>
-            <div><p className="text-sm text-gray-500">إلى تاريخ</p><p className="font-medium">{fmtDate(preview.toDate)}</p></div>
-            <div><p className="text-sm text-gray-500">المدين الإجمالي</p><p className="font-bold text-red-600"><PrivateAmount value={preview.totalDebits} /></p></div>
-            <div><p className="text-sm text-gray-500">الدائن الإجمالي</p><p className="font-bold text-green-600"><PrivateAmount value={preview.totalCredits} /></p></div>
-          </div>
+            {!preview.canImport && (
+              <div className="card panel" style={{ background: '#FEF2F2', borderColor: '#FECACA', color: '#B91C1C', fontSize: 13, padding: '12px 16px' }}>
+                لا يمكن استيراد هذا الكشف — يوجد {preview.invalid} صف(وف) بها أخطاء. يرجى مراجعة الملف وإعادة رفعه.
+              </div>
+            )}
 
-          <div className="flex gap-3">
-            <button
-              onClick={handleExecute}
-              disabled={loading}
-              className="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 font-bold"
-            >
-              {loading ? 'جارٍ الاستيراد…' : 'تأكيد الاستيراد'}
-            </button>
-            <button onClick={() => setStep('preview')} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-              رجوع
-            </button>
-          </div>
-        </div>
-      )}
+            {/* Transaction table */}
+            <div className="card panel" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>معاينة المعاملات ({preview.rows.length} صف)</h3>
+              </div>
+              <div style={{ overflowX: 'auto', maxHeight: 380 }}>
+                <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                  <thead style={{ background: 'var(--surface-2)', position: 'sticky', top: 0 }}>
+                    <tr>
+                      {['#', 'التاريخ', 'الوصف', 'مدين', 'دائن', 'حالة', 'مطابقة'].map((h) => (
+                        <th key={h} style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.rows.slice(0, 500).map((row: PreviewRow) => (
+                      <tr key={row.rowIndex} style={{ borderBottom: '1px solid var(--border)', background: row.errors.length > 0 ? '#FEF2F2' : row.warnings.length > 0 ? '#FFFBEB' : 'transparent' }}>
+                        <td style={{ padding: '6px 10px', color: 'var(--text-muted)' }}>{row.rowIndex + 1}</td>
+                        <td style={{ padding: '6px 10px' }}>{fmtDate(row.statementDate)}</td>
+                        <td style={{ padding: '6px 10px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.description}>{row.description}</td>
+                        <td style={{ padding: '6px 10px', color: '#EF4444', fontWeight: row.debit > 0 ? 600 : 400 }}>{row.debit > 0 ? fmtAmount(row.debit) : ''}</td>
+                        <td style={{ padding: '6px 10px', color: '#22C55E', fontWeight: row.credit > 0 ? 600 : 400 }}>{row.credit > 0 ? fmtAmount(row.credit) : ''}</td>
+                        <td style={{ padding: '6px 10px' }}>
+                          {row.errors.length > 0
+                            ? <span style={{ padding: '2px 8px', background: '#FEE2E2', color: '#B91C1C', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>خطأ</span>
+                            : row.warnings.length > 0
+                            ? <span style={{ padding: '2px 8px', background: '#FEF9C3', color: '#92400E', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>تحذير</span>
+                            : <span style={{ padding: '2px 8px', background: '#DCFCE7', color: '#166534', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>صالح</span>}
+                          {row.isBankFee && <span style={{ marginInlineStart: 4, padding: '2px 8px', background: '#EDE9FE', color: '#5B21B6', borderRadius: 12, fontSize: 11 }}>رسوم</span>}
+                        </td>
+                        <td style={{ padding: '6px 10px', fontSize: 11, color: '#6366F1' }}>
+                          {row.matchResult.best ? `${row.matchResult.best.confidence}% — ${row.matchResult.best.ref}` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                    {preview.rows.length > 500 && (
+                      <tr>
+                        <td colSpan={7} style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>
+                          يُعرض 500 من {preview.rows.length} صف — جميع الصفوف ستُستورد
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-      {/* ── Step: Done ── */}
-      {step === 'done' && result && (
-        <div className="text-center space-y-6 py-8">
-          <div className="text-6xl">✅</div>
-          <h2 className="text-2xl font-bold text-green-700">تم الاستيراد بنجاح!</h2>
-          <div className="bg-white border border-gray-200 rounded-xl p-6 text-right max-w-md mx-auto">
-            <div className="space-y-3">
-              <div className="flex justify-between"><span className="text-gray-500">البنك</span><span className="font-medium">{BANK_NAMES[result.bankName] ?? result.bankName}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">إجمالي الصفوف</span><span className="font-medium">{result.totalRows.toLocaleString()}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">المدين</span><span className="font-bold text-red-600"><PrivateAmount value={result.totalDebits} /></span></div>
-              <div className="flex justify-between"><span className="text-gray-500">الدائن</span><span className="font-bold text-green-600"><PrivateAmount value={result.totalCredits} /></span></div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={() => setStep('confirm')} disabled={!preview.canImport} className="btn" style={{ minWidth: 160 }}>
+                متابعة للتأكيد
+              </button>
+              <button onClick={reset} className="btn btn-secondary">إلغاء</button>
             </div>
           </div>
-          <div className="flex gap-3 justify-center">
-            <a
-              href={`#/bank-reconciliation/${result.importId}`}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-            >
-              الانتقال إلى مساحة المطابقة
-            </a>
-            <button onClick={reset} className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-              استيراد كشف آخر
-            </button>
+        )}
+
+        {/* ── Step: Confirm ── */}
+        {step === 'confirm' && preview && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="card panel" style={{ background: '#FFFBEB', borderColor: '#FDE68A', padding: '20px 24px' }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700, color: '#92400E', marginBottom: 8 }}>تأكيد الاستيراد</h2>
+              <p style={{ fontSize: 13, color: '#78350F' }}>
+                سيتم استيراد <strong>{preview.totalRows}</strong> معاملة بنكية من كشف{' '}
+                <strong>{BANK_NAMES[preview.bankName] ?? preview.bankName}</strong>.{' '}
+                لا يمكن التراجع عن هذه العملية بعد التأكيد.
+              </p>
+            </div>
+
+            <div className="card panel">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                {[
+                  { label: 'البنك', value: BANK_NAMES[preview.bankName] ?? preview.bankName },
+                  { label: 'الملف', value: fileName },
+                  { label: 'من تاريخ', value: fmtDate(preview.fromDate) },
+                  { label: 'إلى تاريخ', value: fmtDate(preview.toDate) },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{label}</p>
+                    <p style={{ fontSize: 14, fontWeight: 600 }}>{value}</p>
+                  </div>
+                ))}
+                <div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>المدين الإجمالي</p>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: '#EF4444' }}><PrivateAmount value={preview.totalDebits} /></p>
+                </div>
+                <div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>الدائن الإجمالي</p>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: '#22C55E' }}><PrivateAmount value={preview.totalCredits} /></p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button onClick={handleExecute} disabled={loading} className="btn" style={{ minWidth: 160, background: '#16A34A', borderColor: '#16A34A' }}>
+                {loading ? 'جارٍ الاستيراد…' : 'تأكيد الاستيراد'}
+              </button>
+              <button onClick={() => setStep('preview')} className="btn btn-secondary">رجوع</button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* ── Step: Done ── */}
+        {step === 'done' && result && (
+          <div style={{ textAlign: 'center', padding: '40px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}>
+            <div style={{ fontSize: 64 }}>✅</div>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: '#15803D' }}>تم الاستيراد بنجاح!</h2>
+
+            <div className="card panel" style={{ textAlign: 'right', maxWidth: 400, width: '100%' }}>
+              {[
+                { label: 'البنك', value: BANK_NAMES[result.bankName] ?? result.bankName },
+                { label: 'إجمالي الصفوف', value: result.totalRows.toLocaleString() },
+              ].map(({ label, value }) => (
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{label}</span>
+                  <span style={{ fontWeight: 600, fontSize: 13 }}>{value}</span>
+                </div>
+              ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>المدين</span>
+                <span style={{ fontWeight: 700, color: '#EF4444', fontSize: 13 }}><PrivateAmount value={result.totalDebits} /></span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>الدائن</span>
+                <span style={{ fontWeight: 700, color: '#22C55E', fontSize: 13 }}><PrivateAmount value={result.totalCredits} /></span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+              <button
+                className="btn"
+                onClick={() => navigate(`/bank-reconciliation/${result.importId}`)}
+              >
+                الانتقال إلى مساحة المطابقة
+              </button>
+              <button onClick={reset} className="btn btn-secondary">استيراد كشف آخر</button>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
+
+// Suppress unused import warning — STATUS_BADGE is kept for future use
+void STATUS_BADGE;

@@ -62,7 +62,7 @@ export default function Layout() {
                   onClick={togglePrivacy}
                   title={t('layout.privacy_on_title')}
                 >
-                  🔒 <span className="privacy-label">{t('layout.privacy_on')}</span>
+                  🔒
                 </button>
               ) : (
                 <button
@@ -71,7 +71,7 @@ export default function Layout() {
                   onClick={togglePrivacy}
                   title={t('layout.privacy_rehide_title')}
                 >
-                  🔓 <span className="privacy-label">{t('layout.privacy_rehide')}</span>
+                  🔓
                 </button>
               )}
             </span>

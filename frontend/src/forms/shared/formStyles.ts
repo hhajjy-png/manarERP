@@ -1,7 +1,7 @@
 import { CSSProperties } from 'react';
 
 export const COMPANY_NAME =
-  'شركة المنار الدولية لإنشاء وصيانة الشوارع والأرصفة ومستلزمات الطرق ذ.م.م';
+  'شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م';
 
 export const tableRow: CSSProperties = {
   display: 'flex',

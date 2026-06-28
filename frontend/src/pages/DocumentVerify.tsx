@@ -62,7 +62,7 @@ export default function DocumentVerify() {
       {/* Company header */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, marginBottom: 4 }}>
-          شركة المنار الدولية لإنشاء وصيانة الشوارع والأرصفة ومستلزمات الطرق ذ.م.م
+          شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م
         </div>
         <div style={{ fontSize: 18, fontWeight: 800, color: '#1d4e6f', letterSpacing: 0.5 }}>
           بوابة التحقق من الوثائق

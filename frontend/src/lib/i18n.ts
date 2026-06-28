@@ -92,6 +92,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     // nav group labels
     'nav.group.core': 'العمليات الأساسية',
     'nav.group.financial': 'الإدارة المالية',
+    'nav.group.import_center': 'مركز الاستيراد',
     'nav.group.warehouse': 'المستودع',
     'nav.group.system': 'النظام',
 
@@ -858,7 +859,7 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // ── Phase 5: PayrollPayslip ───────────────────────────────────────────────
     'page.payslip.title': 'قسيمة الراتب',
-    'page.payslip.company': 'شركة المنار',
+    'page.payslip.company': 'شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م',
     'btn.payslip.print': 'طباعة',
     'btn.payslip.back': 'رجوع',
     'lbl.payslip.employee': 'الموظف',
@@ -938,7 +939,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'ph.cheque.bank': 'مثال: بنك الكويت الوطني',
     'ph.cheque.number': 'مثال: 123456',
     'empty.cheques': 'لا توجد شيكات',
-    'lbl.cheque.company': 'شركة المنار الدولية',
+    'lbl.cheque.company': 'شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م',
     'lbl.cheque.pay_to': 'ادفعوا بموجب هذا الشيك لأمر السيد/ة',
     'lbl.cheque.amount_label': 'مبلغ وقدره',
     'lbl.cheque.for': 'وذلك لقاء',
@@ -1342,6 +1343,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     // nav group labels
     'nav.group.core': 'Core Operations',
     'nav.group.financial': 'Financial Management',
+    'nav.group.import_center': 'Import Center',
     'nav.group.warehouse': 'Warehouse',
     'nav.group.system': 'System',
 
