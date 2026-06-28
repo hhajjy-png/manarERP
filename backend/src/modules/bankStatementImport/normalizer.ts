@@ -1,5 +1,9 @@
 import type { StatementTransaction } from './types.js';
 
+// Some Kuwaiti banks export the currency as 'KD' instead of the ISO code 'KWD'.
+// Normalise here so the currency validator sees a recognised code.
+const CURRENCY_ALIASES: Record<string, string> = { KD: 'KWD' };
+
 // ── Arabic normalization ───────────────────────────────────────────────────────
 
 function normalizeArabic(text: string): string {
@@ -45,7 +49,7 @@ export function normalizeRow(tx: StatementTransaction): StatementTransaction {
     chequeNumber:  tx.chequeNumber?.trim().substring(0, 64) ?? null,
     iban:          tx.iban?.trim().toUpperCase().substring(0, 34) ?? null,
     accountNumber: tx.accountNumber?.trim().substring(0, 64) ?? null,
-    currency:      tx.currency.trim().toUpperCase().substring(0, 8) || 'KWD',
+    currency:      (() => { const c = tx.currency.trim().toUpperCase().substring(0, 8) || 'KWD'; return CURRENCY_ALIASES[c] ?? c; })(),
     debit:         roundKwd(tx.debit),
     credit:        roundKwd(tx.credit),
     balance:       tx.balance != null ? roundKwd(tx.balance) : null,

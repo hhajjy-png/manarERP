@@ -50,9 +50,10 @@ export const CLIENT_STATEMENT_CONFIGS: Record<string, ClientBankTemplate> = {
   },
   GULF_BANK: {
     bankName: 'GULF_BANK', headerRow: 0, dataStartRow: 1, currencyDefault: 'KWD',
+    // Actual Gulf Bank export: Date | Description | Currency | Debit | Credit | Currency | Balance
     columnMap: {
-      statementDate: 'Txn Date', postingDate: 'Value Date', description: 'Transaction Description',
-      reference: 'Ref No', amount: 'Amount', balance: 'Balance', currency: 'CCY',
+      statementDate: 'Date', description: 'Description',
+      debit: 'Debit', credit: 'Credit', balance: 'Balance', currency: 'Currency',
     },
   },
   BOUBYAN: {
@@ -90,9 +91,13 @@ export const CLIENT_STATEMENT_CONFIGS: Record<string, ClientBankTemplate> = {
 
 export function detectBankTemplateClient(headers: string[]): ClientBankTemplate {
   const normalized = headers.map((h) => h.trim().toLowerCase());
-  if (normalized.includes('cheque no'))              return CLIENT_STATEMENT_CONFIGS.NBK;
+  if (normalized.some((h) => h === 'cheque no')) return CLIENT_STATEMENT_CONFIGS.NBK;
   if (normalized.includes('narration') || normalized.includes('debit amount')) return CLIENT_STATEMENT_CONFIGS.KFH;
-  if (normalized.includes('txn date') || normalized.includes('transaction description')) return CLIENT_STATEMENT_CONFIGS.GULF_BANK;
+  // Gulf Bank: actual export has a duplicate 'Currency' column (positions 2 and 5).
+  const currencyCount = normalized.filter((h) => h === 'currency').length;
+  if (currencyCount >= 2 && normalized.includes('debit') && normalized.includes('credit')) {
+    return CLIENT_STATEMENT_CONFIGS.GULF_BANK;
+  }
   if (normalized.includes('withdrawal') || normalized.includes('deposit'))    return CLIENT_STATEMENT_CONFIGS.BOUBYAN;
   if (normalized.includes('trans id') || normalized.includes('trans date'))   return CLIENT_STATEMENT_CONFIGS.AHLI_UNITED;
   return CLIENT_STATEMENT_CONFIGS.UNKNOWN;
@@ -337,6 +342,22 @@ export function detectCsvDelimiterClient(sample: string): string {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
 }
 
+// ── CSV preamble detection (mirrors backend findCsvTransactionHeaderRow) ────────
+
+export function findCsvTransactionHeaderRowClient(lines: string[], delimiter: string, maxLines = 30): number | null {
+  const split = (l: string): string[] => l.split(delimiter).map((c) => c.replace(/^"|"$/g, '').trim());
+  const limit = Math.min(maxLines, lines.length);
+  for (let i = 0; i < limit; i++) {
+    const norm = split(lines[i] ?? '').map((c) => c.toLowerCase());
+    const hasDate    = norm.some((c) => ['date','transaction date','trans date','txn date','statement date','التاريخ'].some((k) => c === k || c.includes(k)));
+    const hasDesc    = norm.some((c) => ['description','desc','narration','details','remarks','بيان','البيان','وصف'].some((k) => c === k || c.includes(k)));
+    const hasMoney   = norm.some((c) => ['debit','credit','withdrawal','deposit','amount','debit amount','credit amount','مدين','دائن'].some((k) => c === k || c.includes(k)));
+    const hasBalance = norm.some((c) => ['balance','running balance','closing balance','رصيد','الرصيد'].some((k) => c === k || c.includes(k)));
+    if (hasDate && hasDesc && hasMoney && hasBalance) return i;
+  }
+  return null;
+}
+
 export function parseCsvRowsClient(
   csvText: string,
   tpl: ClientBankTemplate,
@@ -346,9 +367,14 @@ export function parseCsvRowsClient(
   const delimiter = detectCsvDelimiterClient(lines[0]);
   const split = (l: string) => l.split(delimiter).map((c) => c.replace(/^"|"$/g, '').trim());
 
-  const headers = split(lines[tpl.headerRow] ?? lines[0]);
+  // Preamble-aware header detection (mirrors Excel behaviour)
+  const foundHeader = findCsvTransactionHeaderRowClient(lines, delimiter);
+  const effectiveHeader    = foundHeader !== null ? foundHeader : tpl.headerRow;
+  const effectiveDataStart = effectiveHeader + 1;
+
+  const headers = split(lines[effectiveHeader] ?? lines[0]);
   const results: StatementTransaction[] = [];
-  for (let r = tpl.dataStartRow; r < lines.length; r++) {
+  for (let r = effectiveDataStart; r < lines.length; r++) {
     const vals = split(lines[r]);
     if (vals.every((v) => !v)) continue;
     const rowDict: Record<string, unknown> = {};

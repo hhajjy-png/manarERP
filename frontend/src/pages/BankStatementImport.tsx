@@ -12,7 +12,13 @@ import {
   type PreviewRow,
   type ImportResult,
 } from '../api/bankStatementImport';
-import { detectBankTemplateClient, parseExcelRowsClient, parseCsvRowsClient, detectCsvDelimiterClient } from '../utils/bankStatementParser';
+import {
+  CLIENT_STATEMENT_CONFIGS,
+  detectBankTemplateClient,
+  parseExcelRowsClient,
+  parseCsvRowsClient,
+  detectCsvDelimiterClient,
+} from '../utils/bankStatementParser';
 
 // ── Wizard steps ──────────────────────────────────────────────────────────────
 
@@ -40,9 +46,35 @@ function fmtDate(iso: string | null) {
   return isNaN(d.getTime()) ? iso : d.toLocaleDateString('ar-KW');
 }
 
+// Arabic labels for validation rule codes shown in the preview table
+const VALIDATION_LABELS: Record<string, string> = {
+  INVALID_DATE:          'تاريخ غير صالح',
+  INVALID_CURRENCY:      'عملة غير معروفة',
+  NEGATIVE_AMOUNT:       'مبلغ سالب',
+  ZERO_AMOUNT:           'المبلغ صفر',
+  MISSING_DESCRIPTION:   'وصف مفقود',
+  BALANCE_BREAK:         'عدم تطابق الرصيد',
+  DUPLICATE_IN_FILE:     'مكرر في الملف',
+  MISSING_TRANSACTION_ID:'رقم معاملة مفقود',
+  DESCRIPTION_TOO_LONG:  'الوصف طويل جداً',
+};
+
+// Arabic labels for transaction category badges
+const CATEGORY_LABELS: Record<string, string> = {
+  CASH_WITHDRAWAL: 'سحب نقدي',
+  CHEQUE_PAYMENT:  'دفع شيك',
+  BANK_TRANSFER:   'تحويل بنكي',
+};
+
+function rowReasonLabel(row: PreviewRow): string {
+  const all = [...row.errors, ...row.warnings];
+  if (all.length === 0) return '';
+  return all.map((r) => VALIDATION_LABELS[r] ?? r).join('، ');
+}
+
 const STATUS_BADGE: Record<string, string> = {
-  KWD:     'bg-green-100 text-green-800',
-  USD:     'bg-blue-100  text-blue-800',
+  KWD:       'bg-green-100 text-green-800',
+  USD:       'bg-blue-100  text-blue-800',
   UNMATCHED: 'bg-gray-100   text-gray-700',
   MATCHED:   'bg-green-100  text-green-700',
   REVIEW:    'bg-yellow-100 text-yellow-700',
@@ -74,6 +106,10 @@ export default function BankStatementImport() {
   // File state
   const [fileName, setFileName]   = useState('');
   const [fileType, setFileType]   = useState<'excel' | 'csv' | null>(null);
+
+  // Raw data stored so we can re-parse when the user manually selects a bank
+  const [rawSheetData, setRawSheetData] = useState<unknown[][] | null>(null);
+  const [rawCsvText,   setRawCsvText]   = useState<string | null>(null);
 
   // Detected bank
   const [detectedBank, setDetectedBank] = useState<string>('UNKNOWN');
@@ -119,7 +155,10 @@ export default function BankStatementImport() {
         const ws   = wb.Sheets[wb.SheetNames[0]!]!;
         const data = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: null }) as unknown[][];
 
-        // Get headers from first non-empty row
+        setRawSheetData(data);
+        setRawCsvText(null);
+
+        // Use all non-empty cells from row 0 as detected headers (for display only)
         const headerRow = (data[0] ?? []) as unknown[];
         detectedHeaders = headerRow.map((h) => (h != null ? String(h).trim() : '')).filter(Boolean);
         const tpl = detectBankTemplateClient(detectedHeaders);
@@ -127,6 +166,9 @@ export default function BankStatementImport() {
         rows = parseExcelRowsClient(data, tpl);
       } else {
         const text = await file.text();
+        setRawCsvText(text);
+        setRawSheetData(null);
+
         const lines = text.split(/\r?\n/).filter((l) => l.trim());
         const delimiter = lines[0] ? detectCsvDelimiterClient(lines[0]) : ',';
         detectedHeaders = (lines[0] ?? '').split(delimiter).map((h) => h.replace(/^"|"$/g, '').trim());
@@ -198,6 +240,20 @@ export default function BankStatementImport() {
     }
   }, [preview, detectedBank, fileName, parsedRows]);
 
+  // ── Re-parse with a different bank template ─────────────────────────────────
+
+  const handleBankChange = useCallback((newBank: string) => {
+    setDetectedBank(newBank);
+    const tpl = CLIENT_STATEMENT_CONFIGS[newBank] ?? CLIENT_STATEMENT_CONFIGS.UNKNOWN!;
+    let rows: StatementTransaction[] = [];
+    if (fileType === 'excel' && rawSheetData) {
+      rows = parseExcelRowsClient(rawSheetData, tpl);
+    } else if (fileType === 'csv' && rawCsvText) {
+      rows = parseCsvRowsClient(rawCsvText, tpl);
+    }
+    if (rows.length > 0) setParsedRows(rows);
+  }, [fileType, rawSheetData, rawCsvText]);
+
   // ── Reset ───────────────────────────────────────────────────────────────────
 
   const reset = useCallback(() => {
@@ -207,6 +263,8 @@ export default function BankStatementImport() {
     setDetectedBank('UNKNOWN');
     setParsedRows([]);
     setHeaders([]);
+    setRawSheetData(null);
+    setRawCsvText(null);
     setPreview(null);
     setResult(null);
     setError(null);
@@ -314,7 +372,7 @@ export default function BankStatementImport() {
               <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>تغيير البنك يدوياً (اختياري)</h3>
               <select
                 value={detectedBank}
-                onChange={(e) => setDetectedBank(e.target.value)}
+                onChange={(e) => handleBankChange(e.target.value)}
                 style={{ border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', fontSize: 13, background: 'var(--surface)' }}
                 title="اختر البنك"
               >
@@ -334,6 +392,11 @@ export default function BankStatementImport() {
               </div>
             </div>
 
+            {parsedRows.length === 0 && (
+              <div style={{ padding: '12px 16px', background: '#FEF9C3', borderRadius: 8, fontSize: 13, color: '#78350F', border: '1px solid #FDE68A' }}>
+                لم يتم العثور على معاملات قابلة للتحليل داخل الملف. يرجى التحقق من نوع الملف والبنك المحدد.
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 12 }}>
               <button onClick={handlePreview} disabled={previewLoading || parsedRows.length === 0} className="btn" style={{ minWidth: 140 }}>
                 {previewLoading ? 'جارٍ التحليل…' : 'تحليل الكشف'}
@@ -395,32 +458,40 @@ export default function BankStatementImport() {
                 <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                   <thead style={{ background: 'var(--surface-2)', position: 'sticky', top: 0 }}>
                     <tr>
-                      {['#', 'التاريخ', 'الوصف', 'مدين', 'دائن', 'حالة', 'مطابقة'].map((h) => (
+                      {['#', 'التاريخ', 'الوصف', 'مدين', 'دائن', 'حالة', 'ملاحظة', 'مطابقة'].map((h) => (
                         <th key={h} style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {preview.rows.slice(0, 500).map((row: PreviewRow) => (
+                    {preview.rows.slice(0, 500).map((row: PreviewRow) => {
+                      const reason = rowReasonLabel(row);
+                      const categoryLabel = row.bankFeeType ? CATEGORY_LABELS[row.bankFeeType] : null;
+                      return (
                       <tr key={row.rowIndex} style={{ borderBottom: '1px solid var(--border)', background: row.errors.length > 0 ? '#FEF2F2' : row.warnings.length > 0 ? '#FFFBEB' : 'transparent' }}>
                         <td style={{ padding: '6px 10px', color: 'var(--text-muted)' }}>{row.rowIndex + 1}</td>
                         <td style={{ padding: '6px 10px' }}>{fmtDate(row.statementDate)}</td>
-                        <td style={{ padding: '6px 10px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.description}>{row.description}</td>
+                        <td style={{ padding: '6px 10px', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.description}>{row.description}</td>
                         <td style={{ padding: '6px 10px', color: '#EF4444', fontWeight: row.debit > 0 ? 600 : 400 }}>{row.debit > 0 ? fmtAmount(row.debit) : ''}</td>
                         <td style={{ padding: '6px 10px', color: '#22C55E', fontWeight: row.credit > 0 ? 600 : 400 }}>{row.credit > 0 ? fmtAmount(row.credit) : ''}</td>
-                        <td style={{ padding: '6px 10px' }}>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>
                           {row.errors.length > 0
                             ? <span style={{ padding: '2px 8px', background: '#FEE2E2', color: '#B91C1C', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>خطأ</span>
                             : row.warnings.length > 0
                             ? <span style={{ padding: '2px 8px', background: '#FEF9C3', color: '#92400E', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>تحذير</span>
                             : <span style={{ padding: '2px 8px', background: '#DCFCE7', color: '#166534', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>صالح</span>}
                           {row.isBankFee && <span style={{ marginInlineStart: 4, padding: '2px 8px', background: '#EDE9FE', color: '#5B21B6', borderRadius: 12, fontSize: 11 }}>رسوم</span>}
+                          {!row.isBankFee && categoryLabel && <span style={{ marginInlineStart: 4, padding: '2px 8px', background: '#F0F9FF', color: '#0369A1', borderRadius: 12, fontSize: 11 }}>{categoryLabel}</span>}
+                        </td>
+                        <td style={{ padding: '6px 10px', fontSize: 11, color: '#78350F', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={reason}>
+                          {reason || '—'}
                         </td>
                         <td style={{ padding: '6px 10px', fontSize: 11, color: '#6366F1' }}>
                           {row.matchResult.best ? `${row.matchResult.best.confidence}% — ${row.matchResult.best.ref}` : '—'}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                     {preview.rows.length > 500 && (
                       <tr>
                         <td colSpan={7} style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>

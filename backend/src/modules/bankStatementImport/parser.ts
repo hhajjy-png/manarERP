@@ -46,16 +46,18 @@ export const STATEMENT_CONFIGS: Record<string, BankTemplate> = {
     displayNameAr: 'بنك الخليج',
     headerRow: 0,
     dataStartRow: 1,
+    // Actual Gulf Bank export format:
+    // Date | Description | Currency | Debit | Credit | Currency | Balance
+    // The duplicate Currency column is handled by the first-occurrence-wins rule.
     columnMap: {
-      statementDate:  'Txn Date',
-      postingDate:    'Value Date',
-      description:    'Transaction Description',
-      reference:      'Ref No',
-      amount:         'Amount',
-      balance:        'Balance',
-      currency:       'CCY',
+      statementDate: 'Date',
+      description:   'Description',
+      debit:         'Debit',
+      credit:        'Credit',
+      balance:       'Balance',
+      currency:      'Currency',
     },
-    dateFormats: ['DD-MM-YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'],
+    dateFormats: ['DD/MM/YYYY', 'DD-MM-YYYY', 'YYYY-MM-DD'],
     currencyDefault: 'KWD',
   },
   BOUBYAN: {
@@ -132,15 +134,16 @@ export const STATEMENT_CONFIGS: Record<string, BankTemplate> = {
 export function detectBankTemplate(headers: string[]): BankTemplate {
   const normalized = headers.map((h) => h.trim().toLowerCase());
 
-  if (normalized.includes('cheque no') || normalized.includes('value date') && normalized.includes('debit')) {
-    // NBK has 'Cheque No' and separate Debit/Credit
-    const hasNBK = normalized.some((h) => h === 'cheque no');
-    if (hasNBK) return STATEMENT_CONFIGS.NBK;
+  if (normalized.some((h) => h === 'cheque no')) {
+    return STATEMENT_CONFIGS.NBK;
   }
   if (normalized.includes('narration') || normalized.includes('debit amount')) {
     return STATEMENT_CONFIGS.KFH;
   }
-  if (normalized.includes('txn date') || normalized.includes('transaction description')) {
+  // Gulf Bank: actual export has a duplicate 'Currency' column at positions 2 and 5.
+  // This double-Currency signature uniquely identifies the format.
+  const currencyCount = normalized.filter((h) => h === 'currency').length;
+  if (currencyCount >= 2 && normalized.includes('debit') && normalized.includes('credit')) {
     return STATEMENT_CONFIGS.GULF_BANK;
   }
   if (normalized.includes('withdrawal') || normalized.includes('deposit')) {
@@ -150,7 +153,6 @@ export function detectBankTemplate(headers: string[]): BankTemplate {
     return STATEMENT_CONFIGS.AHLI_UNITED;
   }
   if (normalized.includes('wording') || normalized.includes('montant')) {
-    // Generic Arabic fallback — Warba sometimes uses Arabic headers
     return STATEMENT_CONFIGS.WARBA;
   }
   return STATEMENT_CONFIGS.UNKNOWN;
@@ -451,6 +453,24 @@ export function detectCsvDelimiter(sample: string): string {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
 }
 
+// ── CSV preamble detection ─────────────────────────────────────────────────────
+// Scans lines until it finds a row whose cells match transaction-header keywords.
+// Returns the 0-based line index of that header row (or null if not found).
+export function findCsvTransactionHeaderRow(lines: string[], delimiter: string, maxLines = 30): number | null {
+  const split = (l: string): string[] => l.split(delimiter).map((c) => c.replace(/^"|"$/g, '').trim());
+  const limit = Math.min(maxLines, lines.length);
+  for (let i = 0; i < limit; i++) {
+    const cells = split(lines[i] ?? '');
+    const norm  = cells.map((c) => c.toLowerCase());
+    const hasDate    = norm.some((c) => ['date','transaction date','trans date','txn date','statement date','التاريخ'].some((k) => c === k || c.includes(k)));
+    const hasDesc    = norm.some((c) => ['description','desc','narration','details','remarks','بيان','البيان','وصف'].some((k) => c === k || c.includes(k)));
+    const hasMoney   = norm.some((c) => ['debit','credit','withdrawal','deposit','amount','debit amount','credit amount','مدين','دائن'].some((k) => c === k || c.includes(k)));
+    const hasBalance = norm.some((c) => ['balance','running balance','closing balance','رصيد','الرصيد'].some((k) => c === k || c.includes(k)));
+    if (hasDate && hasDesc && hasMoney && hasBalance) return i;
+  }
+  return null;
+}
+
 export function parseCsvRows(
   csvText: string,
   template: BankTemplate,
@@ -463,12 +483,19 @@ export function parseCsvRows(
   const splitRow = (line: string): string[] =>
     line.split(delimiter).map((c) => c.replace(/^"|"$/g, '').trim());
 
-  const headers = splitRow(lines[template.headerRow] ?? lines[0]);
+  // Preamble-aware header detection (mirrors Excel behaviour)
+  const foundHeaderLine = findCsvTransactionHeaderRow(lines, delimiter);
+  const effectiveHeaderLine = foundHeaderLine !== null ? foundHeaderLine : template.headerRow;
+  const effectiveDataStart  = effectiveHeaderLine + 1;
+
+  const headers = splitRow(lines[effectiveHeaderLine] ?? lines[0]);
   const colIndexMap: Record<string, number> = {};
-  headers.forEach((h, i) => { colIndexMap[h] = i; });
+  headers.forEach((h, i) => {
+    if (h && !(h in colIndexMap)) colIndexMap[h] = i;
+  });
 
   const results: StatementTransaction[] = [];
-  for (let r = template.dataStartRow; r < lines.length; r++) {
+  for (let r = effectiveDataStart; r < lines.length; r++) {
     const values = splitRow(lines[r]);
     if (values.every((v) => !v)) continue;
 

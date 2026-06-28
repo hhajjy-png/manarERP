@@ -5,7 +5,10 @@ import { api } from './client';
 export type ReconcileStatus = 'UNMATCHED' | 'MATCHED' | 'IGNORED' | 'DUPLICATE' | 'REVIEW';
 export type MatchedType     = 'invoice' | 'payment' | 'expense' | 'journal' | 'cheque' | 'payroll';
 export type MatchConfidence = 100 | 90 | 75 | 0;
-export type BankFeeType     = 'TRANSFER_FEE' | 'MONTHLY_FEE' | 'INTEREST' | 'CHARGE' | 'ATM_FEE' | 'CHEQUEBOOK_FEE' | 'OTHER_FEE';
+export type BankFeeType     =
+  | 'TRANSFER_FEE' | 'MONTHLY_FEE' | 'INTEREST' | 'CHARGE' | 'ATM_FEE' | 'CHEQUEBOOK_FEE' | 'OTHER_FEE'
+  // Transaction categories (isBankFee=false)
+  | 'CASH_WITHDRAWAL' | 'CHEQUE_PAYMENT' | 'BANK_TRANSFER';
 export type PostingSuggestionType = 'EXPENSE_LINK' | 'INVOICE_PAYMENT' | 'JOURNAL_ENTRY' | 'IGNORE';
 
 export interface StatementTransaction {

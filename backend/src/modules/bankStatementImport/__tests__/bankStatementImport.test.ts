@@ -72,8 +72,8 @@ describe('detectBankTemplate', () => {
     expect(tpl.bankName).toBe('KFH');
   });
 
-  it('detects GULF_BANK by Txn Date header', () => {
-    const tpl = detectBankTemplate(['Txn Date', 'Value Date', 'Transaction Description', 'Ref No', 'Amount', 'Balance', 'CCY']);
+  it('detects GULF_BANK by duplicate Currency column (actual export format)', () => {
+    const tpl = detectBankTemplate(['Date', 'Description', 'Currency', 'Debit', 'Credit', 'Currency', 'Balance']);
     expect(tpl.bankName).toBe('GULF_BANK');
   });
 
@@ -155,19 +155,21 @@ describe('rowToTransaction', () => {
     expect(tx.currency).toBe('KWD');
   });
 
-  it('handles signed amount column (GULF_BANK style)', () => {
+  it('parses Gulf Bank actual format (Debit/Credit columns)', () => {
     const gulfColMap = STATEMENT_CONFIGS.GULF_BANK.columnMap;
-    const raw = { 'Txn Date': '01/06/2026', 'Transaction Description': 'fee', 'Amount': '-200.000', 'Balance': '800' };
+    const raw = { 'Date': '01/06/2026', 'Description': 'Cash Withdrawal', 'Debit': '200.000', 'Credit': '', 'Balance': '4800.000', 'Currency': 'KWD' };
     const tx = rowToTransaction(raw, gulfColMap, 'GULF_BANK', 'KWD');
     expect(tx.debit).toBe(200);
     expect(tx.credit).toBe(0);
+    expect(tx.statementDate).toBe('2026-06-01');
+    expect(tx.description).toBe('Cash Withdrawal');
   });
 
-  it('handles positive signed amount as credit', () => {
+  it('parses Gulf Bank credit row', () => {
     const gulfColMap = STATEMENT_CONFIGS.GULF_BANK.columnMap;
-    const raw = { 'Txn Date': '01/06/2026', 'Transaction Description': 'deposit', 'Amount': '500.000', 'Balance': '1300' };
+    const raw = { 'Date': '05/06/2026', 'Description': 'Salary deposit', 'Debit': '', 'Credit': '1500.000', 'Balance': '6300.000', 'Currency': 'KWD' };
     const tx = rowToTransaction(raw, gulfColMap, 'GULF_BANK', 'KWD');
-    expect(tx.credit).toBe(500);
+    expect(tx.credit).toBe(1500);
     expect(tx.debit).toBe(0);
   });
 });
@@ -373,7 +375,7 @@ describe('detectFileDuplicates', () => {
 });
 
 describe('checkBalanceContinuity', () => {
-  it('detects balance break', () => {
+  it('detects genuine balance break (ascending order)', () => {
     const rows = [
       makeTx({ debit: 100, credit: 0, balance: 4900 }),
       makeTx({ debit: 0, credit: 50,  balance: 5000 }), // expected 4950, got 5000 → break
@@ -1022,5 +1024,227 @@ describe('parseExcelRows — preamble detection', () => {
     const results = parseExcelRows(sheet, STATEMENT_CONFIGS.UNKNOWN);
     expect(results).toHaveLength(2);
     expect(results[0].bankName).toBe('Headerless XML Statement');
+  });
+});
+
+// ── Gulf Bank actual format (duplicate Currency columns) ──────────────────────
+
+describe('Gulf Bank actual export format', () => {
+  const GULF_SHEET = [
+    ['Date', 'Description', 'Currency', 'Debit', 'Credit', 'Currency', 'Balance'],
+    ['01/06/2026', 'Cash Withdrawal',       'KWD', '200.000', '',         'KWD', '4800.000'],
+    ['03/06/2026', 'Cheque Payment',         'KWD', '500.000', '',         'KWD', '4300.000'],
+    ['05/06/2026', 'Transaction Charges',    'KWD', '5.000',   '',         'KWD', '4295.000'],
+    ['07/06/2026', 'Outgoing RTGS',          'KWD', '1000.000','',         'KWD', '3295.000'],
+    ['10/06/2026', 'Outgoing Clearing',      'KWD', '750.000', '',         'KWD', '2545.000'],
+    ['12/06/2026', 'Local Bank Charges',     'KWD', '2.500',   '',         'KWD', '2542.500'],
+    ['15/06/2026', 'Salary deposit',         'KWD', '',        '3000.000', 'KWD', '5542.500'],
+  ];
+
+  it('detects Gulf Bank template from duplicate Currency column', () => {
+    const headers = (GULF_SHEET[0] ?? []) as string[];
+    const tpl = detectBankTemplate(headers);
+    expect(tpl.bankName).toBe('GULF_BANK');
+  });
+
+  it('parses all 7 data rows from a Gulf Bank sheet', () => {
+    const tpl = STATEMENT_CONFIGS.GULF_BANK;
+    const rows = parseExcelRows(GULF_SHEET, tpl);
+    expect(rows).toHaveLength(7);
+  });
+
+  it('parses debit and credit amounts correctly', () => {
+    const tpl = STATEMENT_CONFIGS.GULF_BANK;
+    const rows = parseExcelRows(GULF_SHEET, tpl);
+    const cashRow = rows.find((r) => r.description === 'Cash Withdrawal');
+    expect(cashRow?.debit).toBeCloseTo(200);
+    expect(cashRow?.credit).toBe(0);
+    const salaryRow = rows.find((r) => r.description === 'Salary deposit');
+    expect(salaryRow?.credit).toBeCloseTo(3000);
+    expect(salaryRow?.debit).toBe(0);
+  });
+
+  it('parses balance from the correct column (col 6)', () => {
+    const tpl = STATEMENT_CONFIGS.GULF_BANK;
+    const rows = parseExcelRows(GULF_SHEET, tpl);
+    expect(rows[0]?.balance).toBeCloseTo(4800);
+    expect(rows[6]?.balance).toBeCloseTo(5542.5);
+  });
+
+  it('currency defaults to KWD', () => {
+    const tpl = STATEMENT_CONFIGS.GULF_BANK;
+    const rows = parseExcelRows(GULF_SHEET, tpl);
+    rows.forEach((r) => expect(r.currency).toBe('KWD'));
+  });
+
+  it('all 7 rows have ZERO validation errors (BALANCE_BREAK is now a warning)', () => {
+    const tpl = STATEMENT_CONFIGS.GULF_BANK;
+    const rows = parseExcelRows(GULF_SHEET, tpl);
+    const normalized = rows.map(normalizeRow);
+    const validations = validateRows(normalized);
+    const errorRows = validations.filter((v) => v.errors.length > 0);
+    expect(errorRows).toHaveLength(0);
+  });
+});
+
+// ── BALANCE_BREAK is a warning, not a fatal error ──────────────────────────────
+
+describe('validateRows — BALANCE_BREAK is a warning', () => {
+  it('puts BALANCE_BREAK in warnings, not errors', () => {
+    // Rows in descending order (newest first) — all balance checks fail the ascending formula
+    const rows = [
+      makeTx({ debit: 200, credit: 0, balance: 4800 }),
+      makeTx({ debit: 500, credit: 0, balance: 5000 }), // older row — balance higher than newer
+    ];
+    const [, val1] = validateRows(rows);
+    expect(val1.errors).not.toContain('BALANCE_BREAK');
+    expect(val1.warnings).toContain('BALANCE_BREAK');
+  });
+
+  it('structurally valid rows with balance discrepancy still have errors.length === 0', () => {
+    const rows = [
+      makeTx({ debit: 200, credit: 0, balance: 4800 }),
+      makeTx({ debit: 500, credit: 0, balance: 5000 }),
+      makeTx({ debit: 300, credit: 0, balance: 5500 }),
+    ];
+    const validations = validateRows(rows);
+    validations.forEach((v) => {
+      expect(v.errors).toHaveLength(0);
+    });
+  });
+});
+
+// ── Gulf Bank fee and transaction classification ────────────────────────────────
+
+describe('detectBankFee — Gulf Bank descriptions', () => {
+  it('classifies "Transaction Charges" as CHARGE fee', () => {
+    const r = detectBankFee('Transaction Charges', null);
+    expect(r.isBankFee).toBe(true);
+    expect(r.bankFeeType).toBe('CHARGE');
+  });
+
+  it('classifies "Local Bank Charges" as CHARGE fee', () => {
+    const r = detectBankFee('Local Bank Charges', null);
+    expect(r.isBankFee).toBe(true);
+    expect(r.bankFeeType).toBe('CHARGE');
+  });
+
+  it('classifies "Cheque Book Charges" as CHEQUEBOOK_FEE', () => {
+    const r = detectBankFee('Cheque Book Charges', null);
+    expect(r.isBankFee).toBe(true);
+    expect(r.bankFeeType).toBe('CHEQUEBOOK_FEE');
+  });
+
+  it('classifies "Cash Withdrawal" as CASH_WITHDRAWAL (not a fee)', () => {
+    const r = detectBankFee('Cash Withdrawal', null);
+    expect(r.isBankFee).toBe(false);
+    expect(r.bankFeeType).toBe('CASH_WITHDRAWAL');
+  });
+
+  it('classifies "Cash Withdrawal ATM" as CASH_WITHDRAWAL', () => {
+    const r = detectBankFee('Cash Withdrawal ATM', null);
+    expect(r.isBankFee).toBe(false);
+    expect(r.bankFeeType).toBe('CASH_WITHDRAWAL');
+  });
+
+  it('classifies "Cheque Payment" as CHEQUE_PAYMENT (not a fee)', () => {
+    const r = detectBankFee('Cheque Payment', null);
+    expect(r.isBankFee).toBe(false);
+    expect(r.bankFeeType).toBe('CHEQUE_PAYMENT');
+  });
+
+  it('classifies "Outgoing RTGS" as BANK_TRANSFER (not a fee)', () => {
+    const r = detectBankFee('Outgoing RTGS', null);
+    expect(r.isBankFee).toBe(false);
+    expect(r.bankFeeType).toBe('BANK_TRANSFER');
+  });
+
+  it('classifies "Outgoing Clearing" as BANK_TRANSFER', () => {
+    const r = detectBankFee('Outgoing Clearing', null);
+    expect(r.isBankFee).toBe(false);
+    expect(r.bankFeeType).toBe('BANK_TRANSFER');
+  });
+
+  it('does not confuse "Outgoing Clearing Cheque" (CHEQUE_PAYMENT) with BANK_TRANSFER', () => {
+    const r = detectBankFee('Outgoing Clearing Cheque', null);
+    expect(r.bankFeeType).toBe('CHEQUE_PAYMENT');
+  });
+
+  it('regular transaction returns isBankFee=false, bankFeeType=null', () => {
+    const r = detectBankFee('Salary payment to employee', null);
+    expect(r.isBankFee).toBe(false);
+    expect(r.bankFeeType).toBeNull();
+  });
+});
+
+// ── Normalizer: KD → KWD currency alias ───────────────────────────────────────
+
+describe('normalizeRow — currency alias', () => {
+  it('normalises KD to KWD', () => {
+    const tx = makeTx({ currency: 'KD' });
+    expect(normalizeRow(tx).currency).toBe('KWD');
+  });
+
+  it('leaves KWD unchanged', () => {
+    const tx = makeTx({ currency: 'KWD' });
+    expect(normalizeRow(tx).currency).toBe('KWD');
+  });
+});
+
+// ── CSV preamble detection ─────────────────────────────────────────────────────
+
+import { findCsvTransactionHeaderRow, parseCsvRows as parseCsv } from '../parser.js';
+
+describe('findCsvTransactionHeaderRow', () => {
+  it('returns 0 when header is at the first line', () => {
+    const lines = [
+      'Date,Description,Debit,Credit,Balance',
+      '01/06/2026,Payment,100,,900',
+    ];
+    expect(findCsvTransactionHeaderRow(lines, ',')).toBe(0);
+  });
+
+  it('returns the correct index when header follows preamble lines', () => {
+    const lines = [
+      'Statement Date,31 May 2026',
+      'Account,1000033732',
+      '',
+      'Date,Description,Debit,Credit,Balance',
+      '01/06/2026,Payment,100,,900',
+    ];
+    expect(findCsvTransactionHeaderRow(lines, ',')).toBe(3);
+  });
+
+  it('returns null when no valid transaction header found', () => {
+    const lines = ['Name,Value', 'Account,12345'];
+    expect(findCsvTransactionHeaderRow(lines, ',')).toBeNull();
+  });
+});
+
+describe('parseCsvRows — preamble support', () => {
+  it('parses CSV with preamble rows correctly', () => {
+    const csv = [
+      'Statement Date,31 May 2026',
+      'Account,1000033732',
+      '',
+      'Date,Description,Debit,Credit,Balance',
+      '01/06/2026,Cash Withdrawal,200,,4800',
+      '05/06/2026,Salary,,3000,7800',
+    ].join('\n');
+    const rows = parseCsv(csv, STATEMENT_CONFIGS.UNKNOWN);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.description).toBe('Cash Withdrawal');
+    expect(rows[0]?.debit).toBeCloseTo(200);
+    expect(rows[1]?.credit).toBeCloseTo(3000);
+  });
+
+  it('parses CSV with header at row 0 (no preamble)', () => {
+    const csv = [
+      'Date,Description,Debit,Credit,Balance',
+      '01/06/2026,Payment,100,,900',
+    ].join('\n');
+    const rows = parseCsv(csv, STATEMENT_CONFIGS.UNKNOWN);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.debit).toBeCloseTo(100);
   });
 });

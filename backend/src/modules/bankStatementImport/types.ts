@@ -11,7 +11,11 @@ export type BankFeeType =
   | 'CHARGE'
   | 'ATM_FEE'
   | 'CHEQUEBOOK_FEE'
-  | 'OTHER_FEE';
+  | 'OTHER_FEE'
+  // Transaction categories (isBankFee=false — not fees, but classified for UI clarity)
+  | 'CASH_WITHDRAWAL'
+  | 'CHEQUE_PAYMENT'
+  | 'BANK_TRANSFER';
 
 // ── Template / Parser ──────────────────────────────────────────────────────────
 

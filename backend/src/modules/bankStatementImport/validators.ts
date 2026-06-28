@@ -127,8 +127,6 @@ export function validateRows(rows: StatementTransaction[]): RowValidation[] {
     const zeroErr = checkZeroAmount(tx);
     if (zeroErr) errors.push(zeroErr);
 
-    if (balanceBreaks.has(i)) errors.push('BALANCE_BREAK');
-
     // Warnings (flagged but do not block import)
     const txIdWarn = checkMissingTransactionId(tx);
     if (txIdWarn) warnings.push(txIdWarn);
@@ -137,6 +135,11 @@ export function validateRows(rows: StatementTransaction[]): RowValidation[] {
     if (descLenWarn) warnings.push(descLenWarn);
 
     if (fileDuplicates.has(i)) warnings.push('DUPLICATE_IN_FILE');
+
+    // Balance continuity is a data-quality signal, not a structural validity check.
+    // Statements in descending order (newest-first) will always fail the ascending
+    // formula — this must never block import.
+    if (balanceBreaks.has(i)) warnings.push('BALANCE_BREAK');
 
     return { rowIndex: i, errors, warnings };
   });
