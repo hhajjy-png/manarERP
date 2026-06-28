@@ -10,6 +10,7 @@ import {
   UpdateStatusSchema,
   BulkUpdateStatusSchema,
   ReportExportSchema,
+  BulkDeleteImportSchema,
 } from './schema.js';
 import * as svc from './service.js';
 
@@ -145,4 +146,41 @@ export const exportReportHandler = asyncHandler(async (req: Request, res: Respon
   } else {
     res.send(result.buffer);
   }
+});
+
+// ── Delete single import ───────────────────────────────────────────────────────
+
+export const deleteHandler = asyncHandler(async (req: Request, res: Response) => {
+  const importId = parseInt(req.params.importId!, 10);
+  if (isNaN(importId)) throw AppError.badRequest('معرّف الاستيراد غير صحيح');
+
+  await svc.deleteImport(importId);
+
+  await recordAudit({
+    req,
+    action:   'DELETE',
+    module:   'bankStatementImport',
+    entityId: importId,
+  });
+
+  ok(res, { deleted: 1 });
+});
+
+// ── Bulk delete imports ────────────────────────────────────────────────────────
+
+export const bulkDeleteHandler = asyncHandler(async (req: Request, res: Response) => {
+  const parsed = BulkDeleteImportSchema.safeParse(req.body);
+  if (!parsed.success) throw AppError.badRequest(parsed.error.errors[0]?.message ?? 'بيانات غير صحيحة');
+
+  const result = await svc.bulkDeleteImports(parsed.data.ids);
+
+  await recordAudit({
+    req,
+    action:   'DELETE',
+    module:   'bankStatementImport',
+    entityId: 0,
+    newValue: { bulkCount: result.deleted, ids: parsed.data.ids },
+  });
+
+  ok(res, result);
 });

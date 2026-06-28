@@ -250,3 +250,54 @@ export async function getPostingSuggestions(
 export function getExportUrl(importId: number, format: 'excel' | 'pdf'): string {
   return `${api.defaults.baseURL}/bank-statement-import/${importId}/export?format=${format}`;
 }
+
+export async function downloadExport(importId: number, format: 'excel' | 'pdf'): Promise<void> {
+  const resp = await api.get<Blob>(
+    `/bank-statement-import/${importId}/export`,
+    { params: { format }, responseType: 'blob' },
+  );
+  const ext  = format === 'excel' ? 'xlsx' : 'pdf';
+  const mime = format === 'excel'
+    ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    : 'application/pdf';
+  const blob = new Blob([resp.data], { type: mime });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `bank-statement-${importId}.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+export function exportToCsv(transactions: ReconciliationTransaction[], filename: string): void {
+  const headers = ['التاريخ', 'الوصف', 'المرجع', 'مدين', 'دائن', 'الرصيد', 'العملة', 'النوع'];
+  const rows = transactions.map((t) => [
+    t.statementDate ?? '',
+    `"${t.description.replace(/"/g, '""')}"`,
+    t.reference ?? '',
+    t.debit  > 0 ? t.debit.toFixed(3)  : '',
+    t.credit > 0 ? t.credit.toFixed(3) : '',
+    t.balance != null ? t.balance.toFixed(3) : '',
+    t.currency,
+    t.bankFeeType ?? '',
+  ]);
+  const csv  = '﻿' + [headers, ...rows].map((r) => r.join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+export async function deleteImport(importId: number): Promise<void> {
+  await api.delete(`/bank-statement-import/${importId}`);
+}
+
+export async function bulkDeleteImports(ids: number[]): Promise<{ deleted: number }> {
+  const res = await api.post<{ data: { deleted: number } }>('/bank-statement-import/bulk-delete', { ids });
+  return res.data.data;
+}

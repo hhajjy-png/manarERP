@@ -83,3 +83,10 @@ export const ReportExportSchema = z.object({
   format: z.enum(['excel', 'pdf']),
 });
 export type ReportExportRequest = z.infer<typeof ReportExportSchema>;
+
+// ── Bulk delete imports ────────────────────────────────────────────────────────
+
+export const BulkDeleteImportSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1).max(100),
+});
+export type BulkDeleteImportRequest = z.infer<typeof BulkDeleteImportSchema>;

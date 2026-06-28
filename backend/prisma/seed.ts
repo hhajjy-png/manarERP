@@ -68,7 +68,7 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   // financialdashboard is seeded separately (compound module name)
   integrations:      ['read', 'configure', 'run'],
   payrollBankImport:    ['read', 'create', 'export'],
-  bankStatementImport:  ['read', 'create', 'export', 'reconcile'],
+  bankStatementImport:  ['read', 'create', 'export', 'reconcile', 'delete'],
   expirations:          ['read', 'export'],
   attachments:          ['read', 'create', 'delete'],
 };
@@ -168,6 +168,7 @@ async function main() {
       'bankStatementImport.create',
       'bankStatementImport.export',
       'bankStatementImport.reconcile',
+      'bankStatementImport.delete',
       'expirations.read',
       'attachments.read',
       'attachments.create',

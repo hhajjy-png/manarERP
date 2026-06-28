@@ -10,6 +10,8 @@ import {
   bulkUpdateStatusHandler,
   postingSuggestionsHandler,
   exportReportHandler,
+  deleteHandler,
+  bulkDeleteHandler,
 } from './controller.js';
 
 const router = Router();
@@ -55,6 +57,20 @@ router.get(
   '/:importId/export',
   requirePermission('bankStatementImport.export'),
   exportReportHandler,
+);
+
+// POST /api/bank-statement-import/bulk-delete  (must be before /:importId)
+router.post(
+  '/bulk-delete',
+  requirePermission('bankStatementImport.delete'),
+  bulkDeleteHandler,
+);
+
+// DELETE /api/bank-statement-import/:importId
+router.delete(
+  '/:importId',
+  requirePermission('bankStatementImport.delete'),
+  deleteHandler,
 );
 
 export default router;

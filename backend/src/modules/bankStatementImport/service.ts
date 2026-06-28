@@ -316,4 +316,19 @@ export async function listImports(page = 1, pageSize = 20) {
   return { total, page, pageSize, items };
 }
 
+// ── Delete imports ─────────────────────────────────────────────────────────────
+
+export async function deleteImport(importId: number): Promise<void> {
+  const imp = await prisma.bankStatementImport.findUnique({ where: { id: importId } });
+  if (!imp) throw AppError.notFound('الكشف البنكي غير موجود');
+  await prisma.bankStatementImport.delete({ where: { id: importId } });
+}
+
+export async function bulkDeleteImports(ids: number[]): Promise<{ deleted: number }> {
+  const result = await prisma.bankStatementImport.deleteMany({
+    where: { id: { in: ids } },
+  });
+  return { deleted: result.count };
+}
+
 export { updateStatus, bulkUpdateStatus };
