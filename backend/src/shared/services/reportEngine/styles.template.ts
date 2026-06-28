@@ -45,7 +45,7 @@ export function buildStyles(
         color: #94a3b8;
       }
       @bottom-right {
-        content: "${branding?.companyNameAr ?? 'شركة المنار'}";
+        content: "${branding?.companyNameAr ?? 'شركة المنار الدولية'}";
         font-family: 'Cairo', Arial, sans-serif;
         font-size: 9px;
         color: #94a3b8;

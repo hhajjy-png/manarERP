@@ -561,8 +561,7 @@ export default function InvoicePreview() {
           <div className="print-only inv-print-header" style={{
             borderBottom: '2px solid #1d4e6f', marginBottom: 12, paddingBottom: 8,
           }}>
-            <div style={{ fontWeight: 800, fontSize: 16, color: '#1d4e6f' }}>شركة المنار الدولية</div>
-            <div style={{ fontSize: 11, color: '#64748b' }}>لإنشاء وصيانة الشوارع والأرصفة ومستلزمات الطرق</div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: '#1d4e6f', lineHeight: 1.4 }}>شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م</div>
           </div>
 
           {/* ── Section 1: Invoice Details ── */}
@@ -784,7 +783,7 @@ export default function InvoicePreview() {
             {/* Column: المسؤول (our signature + stamp) */}
             <div key="mgr-sig" style={{ flex: 1, textAlign: 'center', minWidth: 130 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>المسؤول</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>شركة المنار الدولية</div>
+              <div style={{ fontSize: 10, color: '#64748b', marginBottom: 3 }}>شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م</div>
               {printShowSignature && branding.signatureUrl ? (() => {
                 const invLayout = getBrandingLayoutForDocument(effectiveBrandingLayout, 'invoice');
                 return (

@@ -24,7 +24,7 @@ export async function loadReportBranding(): Promise<ReportBranding> {
   const m: Record<string, string> = Object.fromEntries(rows.map((r) => [r.key, r.value]));
 
   return {
-    companyNameAr:  m['company.name']          ?? 'شركة المنار الدولية',
+    companyNameAr:  m['company.name']          ?? 'شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م',
     companyNameEn:  m['company.nameEn']         || undefined,
     address:        m['company.address']        || undefined,
     phone:          m['company.phone']          || undefined,

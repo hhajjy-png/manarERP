@@ -571,7 +571,7 @@ export default function Cheques() {
   }
 
   const calibPreviewData = {
-    beneficiaryName: printTarget?.beneficiaryName ?? 'شركة المنار الدولية',
+    beneficiaryName: printTarget?.beneficiaryName ?? 'شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م',
     chequeDate: (() => {
       const src = printTarget?.chequeDate ?? new Date().toISOString();
       const d = new Date(src);

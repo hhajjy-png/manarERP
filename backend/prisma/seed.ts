@@ -261,7 +261,7 @@ async function main() {
 
   // 5) إعدادات الشركة
   const settings = [
-    { key: 'company.name', value: 'شركة المنار لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م', group: 'company' },
+    { key: 'company.name', value: 'شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م', group: 'company' },
     { key: 'company.country', value: 'الكويت', group: 'company' },
     { key: 'company.phone', value: '', group: 'company' },
     { key: 'company.address', value: '', group: 'company' },
