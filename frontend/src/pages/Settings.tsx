@@ -9,6 +9,30 @@ import type { PrintBrandingLayoutSettings } from '../print-templates/engine/type
 import { parseBrandingLayout, serializeBrandingLayout, DEFAULT_BRANDING_LAYOUT } from '../print-templates/utils/brandingLayout';
 import TemplateStudioEditor from '../print-templates/studio/TemplateStudioEditor';
 
+interface SigSlot {
+  id: string;
+  name: string;
+  title: string;
+  imageUrl: string;
+  show: boolean;
+  isDefault: boolean;
+}
+
+function migrateLegacySig(values: Record<string, string>): SigSlot[] {
+  const raw = values['print.signatures'];
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as SigSlot[];
+      if (parsed.length > 0) return parsed;
+    } catch { /* fall through */ }
+  }
+  const legacy = values['print.signatureImage'];
+  if (legacy) {
+    return [{ id: 'sig-1', name: '', title: '', imageUrl: legacy, show: (values['print.showSignature'] ?? 'true') !== 'false', isDefault: true }];
+  }
+  return [];
+}
+
 const DEFAULT_VALUES: Record<string, string> = {
   'backup.auto.enabled': 'true',
   'backup.auto.time': '02:00',
@@ -116,7 +140,8 @@ export default function Settings() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const sigInputRef = useRef<HTMLInputElement>(null);
+  const [signatures, setSignatures] = useState<SigSlot[]>([]);
+  const sigFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const stmpInputRef = useRef<HTMLInputElement>(null);
   const [brandingError, setBrandingError] = useState('');
   const [brandingSaving, setBrandingSaving] = useState(false);
@@ -137,6 +162,7 @@ export default function Settings() {
         const v: Record<string, string> = { ...DEFAULT_VALUES };
         list.forEach((s) => (v[s.key] = s.value));
         setValues(v);
+        setSignatures(migrateLegacySig(v));
         const layoutEntry = list.find((s) => s.key === 'print.brandingLayout');
         if (layoutEntry?.value) setBrandingLayout(parseBrandingLayout(layoutEntry.value));
 
@@ -158,7 +184,6 @@ export default function Settings() {
     setSaving(true);
     try {
       const brandingSettings = [
-        { key: 'print.showSignature', value: values['print.showSignature'] ?? 'true', group: 'print' },
         { key: 'print.showStamp', value: values['print.showStamp'] ?? 'true', group: 'print' },
       ];
       const settings = [
@@ -166,6 +191,7 @@ export default function Settings() {
         ...brandingSettings,
       ];
       await api.put('/settings', { settings });
+      await saveSignatures(signatures);
       await window.manar?.backupReconfigure?.();
       toast.ok(t('page.settings.saved'));
     } catch (err) {
@@ -227,22 +253,6 @@ export default function Settings() {
     await api.put('/settings', { settings: [{ key, value, group: 'print' }] });
   }
 
-  async function handleSignatureUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { setBrandingError('يرجى اختيار ملف صورة'); return; }
-    if (file.size > 1_048_576) { setBrandingError('حجم الصورة يتجاوز 1 ميغابايت'); return; }
-    setBrandingError('');
-    setBrandingSaving(true);
-    try {
-      const dataUrl = await resizeImage(file, 500, 250);
-      setValues(p => ({ ...p, 'print.signatureImage': dataUrl }));
-      await saveBrandingKey('print.signatureImage', dataUrl);
-      toast.ok('تم حفظ التوقيع');
-    } catch (err) { setBrandingError(err instanceof Error ? err.message : 'فشل رفع التوقيع'); }
-    finally { setBrandingSaving(false); e.target.value = ''; }
-  }
-
   async function handleStampUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -257,16 +267,6 @@ export default function Settings() {
       toast.ok('تم حفظ الختم');
     } catch (err) { setBrandingError(err instanceof Error ? err.message : 'فشل رفع الختم'); }
     finally { setBrandingSaving(false); e.target.value = ''; }
-  }
-
-  async function handleDeleteSignature() {
-    setBrandingSaving(true);
-    try {
-      setValues(p => ({ ...p, 'print.signatureImage': '' }));
-      await saveBrandingKey('print.signatureImage', '');
-      toast.ok('تم حذف التوقيع');
-    } catch { setBrandingError('فشل حذف التوقيع'); }
-    finally { setBrandingSaving(false); }
   }
 
   async function handleDesignerSave(layout: PrintBrandingLayoutSettings) {
@@ -293,6 +293,63 @@ export default function Settings() {
       toast.ok('تم حذف الختم');
     } catch { setBrandingError('فشل حذف الختم'); }
     finally { setBrandingSaving(false); }
+  }
+
+  function addSignature() {
+    const id = `sig-${Date.now()}`;
+    const isFirst = signatures.length === 0;
+    setSignatures((prev) => [...prev, { id, name: '', title: '', imageUrl: '', show: true, isDefault: isFirst }]);
+  }
+
+  function removeSignature(id: string) {
+    setSignatures((prev) => {
+      const filtered = prev.filter((s) => s.id !== id);
+      if (filtered.length > 0 && !filtered.some((s) => s.isDefault)) {
+        filtered[0]!.isDefault = true;
+      }
+      return filtered;
+    });
+  }
+
+  function setAsDefault(id: string) {
+    setSignatures((prev) => prev.map((s) => ({ ...s, isDefault: s.id === id })));
+  }
+
+  function updateSigField(id: string, field: 'name' | 'title', value: string) {
+    setSignatures((prev) => prev.map((s) => s.id === id ? { ...s, [field]: value } : s));
+  }
+
+  function toggleSigShow(id: string) {
+    setSignatures((prev) => prev.map((s) => s.id === id ? { ...s, show: !s.show } : s));
+  }
+
+  async function handleSigFileUpload(id: string, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setBrandingError('يرجى اختيار ملف صورة'); return; }
+    if (file.size > 1_048_576) { setBrandingError('حجم الصورة يتجاوز 1 ميغابايت'); return; }
+    setBrandingError('');
+    setBrandingSaving(true);
+    try {
+      const dataUrl = await resizeImage(file, 500, 250);
+      setSignatures((prev) => prev.map((s) => s.id === id ? { ...s, imageUrl: dataUrl } : s));
+    } catch (err) {
+      setBrandingError(err instanceof Error ? err.message : 'فشل رفع التوقيع');
+    } finally {
+      setBrandingSaving(false);
+      e.target.value = '';
+    }
+  }
+
+  async function saveSignatures(sigs: SigSlot[]) {
+    const defaultSig = sigs.find((s) => s.isDefault && s.show) ?? sigs.find((s) => s.show) ?? sigs[0];
+    await api.put('/settings', {
+      settings: [
+        { key: 'print.signatures',     value: JSON.stringify(sigs), group: 'print' },
+        { key: 'print.signatureImage', value: defaultSig?.imageUrl ?? '', group: 'print' },
+        { key: 'print.showSignature',  value: defaultSig?.show ? 'true' : 'false', group: 'print' },
+      ],
+    });
   }
 
   if (loading) return <div className="center-msg"><div className="spinner" />{t('msg.loading')}</div>;
@@ -363,52 +420,129 @@ export default function Settings() {
       <div className="card panel">
         <h3 className="branding-section-title">طباعة المستندات</h3>
 
-        {/* Signature Row */}
-        <div className="branding-row">
-          <div className="branding-row-label">توقيع المدير</div>
-          <div className="branding-row-controls">
-            {values['print.signatureImage'] && (
-              <img
-                src={values['print.signatureImage']}
-                alt="توقيع المدير"
-                className="branding-preview-img"
-              />
-            )}
-            <input
-              type="file"
-              accept="image/*"
-              hidden
-              ref={sigInputRef}
-              onChange={handleSignatureUpload}
-            />
+        {/* Multiple Signatures */}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div className="branding-row-label">التوقيعات</div>
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={() => sigInputRef.current?.click()}
+              onClick={addSignature}
               disabled={brandingSaving}
+              style={{ fontSize: 13 }}
             >
-              رفع التوقيع
+              + إضافة توقيع
             </button>
-            {values['print.signatureImage'] && (
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={handleDeleteSignature}
-                disabled={brandingSaving}
-              >
-                حذف التوقيع
-              </button>
-            )}
-            <label className="branding-toggle-label">
-              <input
-                type="checkbox"
-                checked={(values['print.showSignature'] ?? 'true') !== 'false'}
-                onChange={(e) => setValues(p => ({ ...p, 'print.showSignature': e.target.checked ? 'true' : 'false' }))}
-              />
-              إظهار التوقيع في المستندات
-            </label>
           </div>
-          {brandingError && brandingError.includes('توقيع') && (
+
+          {signatures.length === 0 && (
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px' }}>
+              لا توجد توقيعات — انقر «إضافة توقيع» لإضافة الأول.
+            </p>
+          )}
+
+          {signatures.map((sig, idx) => (
+            <div
+              key={sig.id}
+              style={{
+                border: sig.isDefault ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 10,
+                background: sig.isDefault ? 'var(--primary-bg, #EFF6FF)' : 'var(--surface)',
+              }}
+            >
+              {/* Card header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', minWidth: 60 }}>
+                  توقيع {idx + 1}
+                </span>
+                {sig.isDefault && (
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, color: 'var(--primary)',
+                    background: 'var(--primary-bg, #DBEAFE)', padding: '2px 8px', borderRadius: 20,
+                  }}>
+                    افتراضي
+                  </span>
+                )}
+                <div style={{ flex: 1 }} />
+                {!sig.isDefault && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ fontSize: 11, padding: '3px 10px' }}
+                    onClick={() => setAsDefault(sig.id)}
+                    disabled={brandingSaving}
+                  >
+                    تعيين كافتراضي
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  style={{ fontSize: 11, padding: '3px 10px' }}
+                  onClick={() => removeSignature(sig.id)}
+                  disabled={brandingSaving}
+                >
+                  حذف
+                </button>
+              </div>
+
+              {/* Meta fields */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                <div className="field" style={{ margin: 0 }}>
+                  <label style={{ fontSize: 12 }}>الاسم (اختياري)</label>
+                  <input
+                    value={sig.name}
+                    onChange={(e) => updateSigField(sig.id, 'name', e.target.value)}
+                    placeholder="مثال: المدير العام"
+                    style={{ fontSize: 13 }}
+                  />
+                </div>
+                <div className="field" style={{ margin: 0 }}>
+                  <label style={{ fontSize: 12 }}>المسمى الوظيفي (اختياري)</label>
+                  <input
+                    value={sig.title}
+                    onChange={(e) => updateSigField(sig.id, 'title', e.target.value)}
+                    placeholder="مثال: General Manager"
+                    style={{ fontSize: 13 }}
+                  />
+                </div>
+              </div>
+
+              {/* Image row */}
+              <div className="branding-row-controls">
+                {sig.imageUrl && (
+                  <img src={sig.imageUrl} alt={`توقيع ${idx + 1}`} className="branding-preview-img" />
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  ref={(el) => { sigFileRefs.current[sig.id] = el; }}
+                  onChange={(e) => handleSigFileUpload(sig.id, e)}
+                />
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => sigFileRefs.current[sig.id]?.click()}
+                  disabled={brandingSaving}
+                >
+                  {sig.imageUrl ? 'تغيير الصورة' : 'رفع صورة'}
+                </button>
+                <label className="branding-toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={sig.show}
+                    onChange={() => toggleSigShow(sig.id)}
+                  />
+                  إظهار في المستندات
+                </label>
+              </div>
+            </div>
+          ))}
+
+          {brandingError && (
             <div className="branding-error">{brandingError}</div>
           )}
         </div>
@@ -458,7 +592,7 @@ export default function Settings() {
               إظهار الختم في المستندات
             </label>
           </div>
-          {brandingError && !brandingError.includes('توقيع') && (
+          {brandingError && brandingError.includes('ختم') && (
             <div className="branding-error">{brandingError}</div>
           )}
         </div>
@@ -502,7 +636,11 @@ export default function Settings() {
 
       {designerOpen && (
         <BrandingLayoutDesigner
-          signatureUrl={values['print.signatureImage'] || undefined}
+          signatureUrl={
+            (signatures.find((s) => s.isDefault && s.imageUrl) ?? signatures.find((s) => s.imageUrl))?.imageUrl
+            || values['print.signatureImage']
+            || undefined
+          }
           stampUrl={values['print.stampImage'] || undefined}
           initialLayout={brandingLayout}
           onSave={handleDesignerSave}
