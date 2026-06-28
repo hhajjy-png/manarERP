@@ -30,6 +30,85 @@ const FIELDS: { key: string; label: string; group: string; type?: FieldType }[] 
   { key: 'backup.auto.retention', label: 'field.settings.backup_auto_retention', group: 'backup', type: 'number' },
 ];
 
+function DictTable({
+  rows,
+  setRows,
+}: {
+  rows: { ar: string; en: string }[];
+  setRows: React.Dispatch<React.SetStateAction<{ ar: string; en: string }[]>>;
+}) {
+  const tbodyRef = useRef<HTMLTableSectionElement>(null);
+
+  function addRow() {
+    setRows((prev) => [...prev, { ar: '', en: '' }]);
+    requestAnimationFrame(() => {
+      const tbody = tbodyRef.current;
+      if (!tbody) return;
+      const lastRow = tbody.lastElementChild;
+      if (lastRow) {
+        lastRow.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        const input = lastRow.querySelector<HTMLInputElement>('input');
+        input?.focus();
+      }
+    });
+  }
+
+  return (
+    <>
+      <div style={{ maxHeight: 360, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 6 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: 'var(--surface-2)', position: 'sticky', top: 0, zIndex: 1 }}>
+              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid var(--border)', width: '45%' }}>عربي</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid var(--border)', width: '45%' }}>English</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', width: '10%' }} aria-label="حذف"></th>
+            </tr>
+          </thead>
+          <tbody ref={tbodyRef}>
+            {rows.map((row, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '4px 8px' }}>
+                  <input
+                    value={row.ar}
+                    onChange={(e) => setRows((prev) => prev.map((r, j) => j === i ? { ...r, ar: e.target.value } : r))}
+                    style={{ width: '100%', fontSize: 13, border: 'none', background: 'transparent', textAlign: 'right' }}
+                    title="الجنسية أو المسمى بالعربي"
+                  />
+                </td>
+                <td style={{ padding: '4px 8px' }}>
+                  <input
+                    value={row.en}
+                    onChange={(e) => setRows((prev) => prev.map((r, j) => j === i ? { ...r, en: e.target.value } : r))}
+                    style={{ width: '100%', fontSize: 13, border: 'none', background: 'transparent', direction: 'ltr' }}
+                    title="Translation in English"
+                  />
+                </td>
+                <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setRows((prev) => prev.filter((_, j) => j !== i))}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 16, lineHeight: 1 }}
+                    title="حذف"
+                  >
+                    ×
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button
+        type="button"
+        onClick={addRow}
+        style={{ marginTop: 10, fontSize: 13, color: 'var(--primary)', background: 'none', border: '1px dashed var(--primary)', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', width: '100%' }}
+      >
+        + إضافة صف
+      </button>
+    </>
+  );
+}
+
 export default function Settings() {
   const { lang, setLang } = useUI();
   const { t } = useT();
@@ -466,64 +545,10 @@ export default function Settings() {
         </div>
 
         {/* Dictionary Table */}
-        {(() => {
-          const rows = dictTab === 'nat' ? natDict : jobDict;
-          const setRows = dictTab === 'nat' ? setNatDict : setJobDict;
-          return (
-            <>
-              <div style={{ maxHeight: 360, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 6 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: 'var(--surface-2)', position: 'sticky', top: 0, zIndex: 1 }}>
-                      <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid var(--border)', width: '45%' }}>عربي</th>
-                      <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid var(--border)', width: '45%' }}>English</th>
-                      <th style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', width: '10%' }} aria-label="حذف"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '4px 8px' }}>
-                          <input
-                            value={row.ar}
-                            onChange={e => setRows(prev => prev.map((r, j) => j === i ? { ...r, ar: e.target.value } : r))}
-                            style={{ width: '100%', fontSize: 13, border: 'none', background: 'transparent', textAlign: 'right' }}
-                            title="الجنسية أو المسمى بالعربي"
-                          />
-                        </td>
-                        <td style={{ padding: '4px 8px' }}>
-                          <input
-                            value={row.en}
-                            onChange={e => setRows(prev => prev.map((r, j) => j === i ? { ...r, en: e.target.value } : r))}
-                            style={{ width: '100%', fontSize: 13, border: 'none', background: 'transparent', direction: 'ltr' }}
-                            title="Translation in English"
-                          />
-                        </td>
-                        <td style={{ padding: '4px 8px', textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            onClick={() => setRows(prev => prev.filter((_, j) => j !== i))}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 16, lineHeight: 1 }}
-                            title="حذف"
-                          >
-                            ×
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <button
-                type="button"
-                onClick={() => setRows(prev => [...prev, { ar: '', en: '' }])}
-                style={{ marginTop: 10, fontSize: 13, color: 'var(--primary)', background: 'none', border: '1px dashed var(--primary)', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', width: '100%' }}
-              >
-                + إضافة صف
-              </button>
-            </>
-          );
-        })()}
+        {dictTab === 'nat'
+          ? <DictTable rows={natDict} setRows={setNatDict} />
+          : <DictTable rows={jobDict} setRows={setJobDict} />
+        }
       </div>
     </div>
   );
