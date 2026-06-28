@@ -95,6 +95,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'nav.group.import_center': 'مركز الاستيراد',
     'nav.group.warehouse': 'المستودع',
     'nav.group.system': 'النظام',
+    'nav.group.ai': 'الذكاء الاصطناعي',
+    'nav.ai_assistant': 'المساعد الذكي',
 
     // status labels
     'status.active': 'نشط',
@@ -1346,6 +1348,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'nav.group.import_center': 'Import Center',
     'nav.group.warehouse': 'Warehouse',
     'nav.group.system': 'System',
+    'nav.group.ai': 'Artificial Intelligence',
+    'nav.ai_assistant': 'AI Assistant',
 
     // status labels
     'status.active': 'Active',

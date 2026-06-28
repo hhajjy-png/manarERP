@@ -49,6 +49,7 @@ import DocumentExpirationCenter from './pages/DocumentExpirationCenter';
 import DocumentVerify from './pages/DocumentVerify';
 import PaymentVoucher from './pages/PaymentVoucher';
 import ReceiptVoucher from './pages/ReceiptVoucher';
+import AIAssistant from './pages/AIAssistant';
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -118,6 +119,7 @@ export default function App() {
           <Route path="/bank-reconciliation" element={<BankReconciliation />} />
           <Route path="/bank-reconciliation/:importId" element={<BankReconciliation />} />
           <Route path="/expirations" element={<DocumentExpirationCenter />} />
+          <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

@@ -376,4 +376,7 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
   { group: 'nav.group.tools', items: [
     { key: 'import', label: 'nav.import', icon: 'upload', permission: 'import.read' },
   ] },
+  { group: 'nav.group.ai', items: [
+    { key: 'ai-assistant', label: 'nav.ai_assistant', icon: 'psychology', permission: 'reports.read' },
+  ] },
 ];
