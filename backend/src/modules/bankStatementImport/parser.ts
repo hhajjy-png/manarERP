@@ -229,6 +229,41 @@ export function isLikelyHeaderless(sheetData: unknown[][]): boolean {
   return parseDateString(firstRow[POSITIONAL_COL.DATE]) !== null;
 }
 
+// ── Preamble-aware transaction header detection ────────────────────────────────
+
+const DATE_KEYWORDS    = ['date', 'transaction date', 'trans date', 'txn date', 'statement date', 'التاريخ'];
+const DESC_KEYWORDS    = ['description', 'desc', 'narration', 'details', 'remarks', 'بيان', 'البيان', 'وصف'];
+const MONEY_KEYWORDS   = ['debit', 'credit', 'withdrawal', 'deposit', 'amount', 'debit amount', 'credit amount', 'مدين', 'دائن'];
+const BALANCE_KEYWORDS = ['balance', 'running balance', 'closing balance', 'رصيد', 'الرصيد'];
+
+function rowHasKeyword(cells: unknown[], keywords: string[]): boolean {
+  return cells.some((c) => {
+    if (c == null || c === '') return false;
+    const norm = String(c).trim().toLowerCase();
+    return keywords.some((k) => norm === k || norm.includes(k));
+  });
+}
+
+// Scans the first maxRows rows and returns the 0-based index of the first row
+// that looks like a transaction header (date + description + money + balance
+// keywords all present). Returns null if no such row is found within the limit.
+export function findTransactionHeaderRow(sheetData: unknown[][], maxRows = 30): number | null {
+  const limit = Math.min(maxRows, sheetData.length);
+  for (let i = 0; i < limit; i++) {
+    const row = sheetData[i];
+    if (!row || row.length < 3) continue;
+    if (
+      rowHasKeyword(row, DATE_KEYWORDS) &&
+      rowHasKeyword(row, DESC_KEYWORDS) &&
+      rowHasKeyword(row, MONEY_KEYWORDS) &&
+      rowHasKeyword(row, BALANCE_KEYWORDS)
+    ) {
+      return i;
+    }
+  }
+  return null;
+}
+
 export function parseExcelRowsPositional(sheetData: unknown[][]): StatementTransaction[] {
   const { DATE, DESC, DEBIT, CREDIT, BALANCE } = POSITIONAL_COL;
   const results: StatementTransaction[] = [];
@@ -371,17 +406,25 @@ export function parseExcelRows(
     return parseExcelRowsPositional(sheetData);
   }
 
-  const { headerRow, dataStartRow, columnMap, bankName, currencyDefault } = template;
+  // Preamble detection: actual transaction header may start after metadata rows.
+  const foundHeaderRow = findTransactionHeaderRow(sheetData);
+  const effectiveHeaderRow = foundHeaderRow !== null ? foundHeaderRow : template.headerRow;
+  const effectiveDataStart = effectiveHeaderRow + 1;
 
-  const headerRowData = sheetData[headerRow] ?? [];
+  const { columnMap, bankName, currencyDefault } = template;
+
+  const headerRowData = sheetData[effectiveHeaderRow] ?? [];
   const colIndexMap: Record<string, number> = {};
   headerRowData.forEach((h, i) => {
-    if (typeof h === 'string' && h.trim()) colIndexMap[h.trim()] = i;
+    // First occurrence wins — handles duplicate column names (e.g. Currency…Currency).
+    if (typeof h === 'string' && h.trim() && !(h.trim() in colIndexMap)) {
+      colIndexMap[h.trim()] = i;
+    }
   });
 
   // Build per-row dict using header names
   const results: StatementTransaction[] = [];
-  for (let r = dataStartRow; r < sheetData.length; r++) {
+  for (let r = effectiveDataStart; r < sheetData.length; r++) {
     const row = sheetData[r];
     if (!row || row.every((c) => c == null || c === '')) continue;
 

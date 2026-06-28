@@ -142,6 +142,38 @@ export function isLikelyHeaderless(sheetData: unknown[][]): boolean {
   return parseDateStr(firstRow[POSITIONAL_COL.DATE]) !== null;
 }
 
+// ── Preamble-aware transaction header detection ────────────────────────────────
+
+const DATE_KEYWORDS    = ['date', 'transaction date', 'trans date', 'txn date', 'statement date', 'التاريخ'];
+const DESC_KEYWORDS    = ['description', 'desc', 'narration', 'details', 'remarks', 'بيان', 'البيان', 'وصف'];
+const MONEY_KEYWORDS   = ['debit', 'credit', 'withdrawal', 'deposit', 'amount', 'debit amount', 'credit amount', 'مدين', 'دائن'];
+const BALANCE_KEYWORDS = ['balance', 'running balance', 'closing balance', 'رصيد', 'الرصيد'];
+
+function rowHasKeyword(cells: unknown[], keywords: string[]): boolean {
+  return cells.some((c) => {
+    if (c == null || c === '') return false;
+    const norm = String(c).trim().toLowerCase();
+    return keywords.some((k) => norm === k || norm.includes(k));
+  });
+}
+
+export function findTransactionHeaderRow(sheetData: unknown[][], maxRows = 30): number | null {
+  const limit = Math.min(maxRows, sheetData.length);
+  for (let i = 0; i < limit; i++) {
+    const row = sheetData[i] as unknown[];
+    if (!row || row.length < 3) continue;
+    if (
+      rowHasKeyword(row, DATE_KEYWORDS) &&
+      rowHasKeyword(row, DESC_KEYWORDS) &&
+      rowHasKeyword(row, MONEY_KEYWORDS) &&
+      rowHasKeyword(row, BALANCE_KEYWORDS)
+    ) {
+      return i;
+    }
+  }
+  return null;
+}
+
 export function parseExcelRowsPositionalClient(
   sheetData: unknown[][],
 ): StatementTransaction[] {
@@ -269,16 +301,23 @@ export function parseExcelRowsClient(
     return parseExcelRowsPositionalClient(sheetData);
   }
 
-  const headerRowData = sheetData[tpl.headerRow] ?? [];
+  // Preamble detection: actual transaction header may start after metadata rows.
+  const foundHeaderRow = findTransactionHeaderRow(sheetData);
+  const effectiveHeaderRow = foundHeaderRow !== null ? foundHeaderRow : tpl.headerRow;
+  const effectiveDataStart = effectiveHeaderRow + 1;
+
+  const headerRowData = (sheetData[effectiveHeaderRow] ?? []) as unknown[];
   const colIdx: Record<string, number> = {};
-  (headerRowData as unknown[]).forEach((h, i) => {
-    // Lowercase all keys so cell() lookups are case-insensitive.
-    // Bank statement exports vary in capitalisation (e.g. 'DEBIT' vs 'Debit').
-    if (typeof h === 'string' && h.trim()) colIdx[h.trim().toLowerCase()] = i;
+  headerRowData.forEach((h, i) => {
+    // Lowercase all keys for case-insensitive lookups; first occurrence wins
+    // to handle duplicate column names (e.g. Currency…Currency).
+    if (typeof h === 'string' && h.trim() && !(h.trim().toLowerCase() in colIdx)) {
+      colIdx[h.trim().toLowerCase()] = i;
+    }
   });
 
   const results: StatementTransaction[] = [];
-  for (let r = tpl.dataStartRow; r < sheetData.length; r++) {
+  for (let r = effectiveDataStart; r < sheetData.length; r++) {
     const row = sheetData[r];
     if (!row || (row as unknown[]).every((c) => c == null || c === '')) continue;
     const rowDict: Record<string, unknown> = {};

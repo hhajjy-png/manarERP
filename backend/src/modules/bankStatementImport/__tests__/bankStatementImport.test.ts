@@ -9,6 +9,7 @@ import {
   isLikelyHeaderless,
   parseExcelRowsPositional,
   POSITIONAL_COL,
+  findTransactionHeaderRow,
 } from '../parser.js';
 import { normalizeRow, buildNormalizedText } from '../normalizer.js';
 import {
@@ -882,5 +883,144 @@ describe('parseExcelRowsPositional — 145-row fixture produces ~140 results', (
     expect(POSITIONAL_COL.DEBIT).toBe(3);
     expect(POSITIONAL_COL.CREDIT).toBe(4);
     expect(POSITIONAL_COL.BALANCE).toBe(6);
+  });
+});
+
+// ── findTransactionHeaderRow ───────────────────────────────────────────────────
+
+describe('findTransactionHeaderRow', () => {
+  it('returns 0 when the transaction header is in row 0', () => {
+    const sheet = [
+      ['Date', 'Description', 'Debit', 'Credit', 'Balance'],
+      ['01/06/2026', 'Purchase', '100', '', '900'],
+    ];
+    expect(findTransactionHeaderRow(sheet)).toBe(0);
+  });
+
+  it('returns the correct index when the header follows preamble rows', () => {
+    const sheet = [
+      ['Date', '31 May 2026'],
+      ['Customer Name', 'ALMANAR INTERNATIONAL'],
+      ['Online Account', ''],
+      ['Statement for:', '1000033732'],
+      ['', ''],
+      ['Date', 'Description', 'Currency', 'Debit', 'Credit', 'Currency', 'Balance'],
+      ['01/06/2026', 'Wire transfer', 'KWD', '500.000', '', 'KWD', '4500.000'],
+    ];
+    expect(findTransactionHeaderRow(sheet)).toBe(5);
+  });
+
+  it('returns null when no valid transaction header is found', () => {
+    const sheet = [
+      ['Date', '31 May 2026'],
+      ['Customer Name', 'ALMANAR'],
+      ['Account Number', '123456'],
+    ];
+    expect(findTransactionHeaderRow(sheet)).toBe(null);
+  });
+
+  it('detects Arabic header keywords', () => {
+    const sheet = [
+      ['رقم الحساب', '1000033732'],
+      ['التاريخ', 'البيان', 'مدين', 'دائن', 'الرصيد'],
+    ];
+    expect(findTransactionHeaderRow(sheet)).toBe(1);
+  });
+
+  it('does not scan beyond maxRows', () => {
+    const preamble: unknown[][] = Array.from({ length: 30 }, (_, i) => [`Metadata ${i}`, '']);
+    const sheet: unknown[][] = [
+      ...preamble,
+      ['Date', 'Description', 'Debit', 'Credit', 'Balance'],
+      ['01/06/2026', 'test', '100', '', '900'],
+    ];
+    // Row 30 is exactly at maxRows=30 limit (indices 0..29 are scanned) — not found
+    expect(findTransactionHeaderRow(sheet, 30)).toBe(null);
+    // With maxRows=31, row index 30 is included — found
+    expect(findTransactionHeaderRow(sheet, 31)).toBe(30);
+  });
+});
+
+// ── parseExcelRows — preamble detection ───────────────────────────────────────
+
+describe('parseExcelRows — preamble detection', () => {
+  it('still works for header-at-row-0 files', () => {
+    const sheet = [
+      ['Date', 'Description', 'Debit', 'Credit', 'Balance'],
+      ['01/06/2026', 'Payment', '100', '', '900'],
+      ['02/06/2026', 'Deposit', '', '500', '1400'],
+    ];
+    const results = parseExcelRows(sheet, STATEMENT_CONFIGS.UNKNOWN);
+    expect(results).toHaveLength(2);
+    expect(results[0].debit).toBeCloseTo(100);
+    expect(results[1].credit).toBeCloseTo(500);
+    expect(results[0].bankName).toBe('UNKNOWN');
+  });
+
+  it('parses transactions when the transaction header follows a metadata preamble', () => {
+    const sheet = [
+      ['Date', '31 May 2026'],
+      ['Customer Name', 'ALMANAR INTERNATIONAL'],
+      ['Online Account', ''],
+      ['Statement for:', '1000033732'],
+      ['', ''],
+      ['Date', 'Description', 'Currency', 'Debit', 'Credit', 'Currency', 'Balance'],
+      ['01/06/2026', 'Wire transfer out', 'KWD', '500.000', '', 'KWD', '4500.000'],
+      ['05/06/2026', 'Salary deposit', 'KWD', '', '3000.000', 'KWD', '7500.000'],
+      ['', '', '', '', '', '', ''],
+    ];
+    const results = parseExcelRows(sheet, STATEMENT_CONFIGS.UNKNOWN);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].debit).toBeCloseTo(500);
+    expect(results[0].statementDate).toBe('2026-06-01');
+    expect(results[1].credit).toBeCloseTo(3000);
+    expect(results[1].statementDate).toBe('2026-06-05');
+  });
+
+  it('ignores preamble rows and counts only transaction data rows', () => {
+    const preamble: unknown[][] = [
+      ['Statement Date', '01 Jun 2026'],
+      ['Account', '1000033732'],
+      ['Bank', 'Commercial Bank of Kuwait'],
+      ['', ''],
+    ];
+    const dataRows: unknown[][] = Array.from({ length: 10 }, (_, i) => [
+      `${String(i + 1).padStart(2, '0')}/06/2026`,
+      `Transaction ${i + 1}`,
+      'KWD',
+      `${(i + 1) * 10}.000`,
+      '',
+      'KWD',
+      `${5000 - (i + 1) * 10}.000`,
+    ]);
+    const sheet: unknown[][] = [
+      ...preamble,
+      ['Date', 'Description', 'Currency', 'Debit', 'Credit', 'Currency', 'Balance'],
+      ...dataRows,
+    ];
+    const results = parseExcelRows(sheet, STATEMENT_CONFIGS.UNKNOWN);
+    expect(results.length).toBe(10);
+  });
+
+  it('handles duplicate Currency columns without breaking Debit/Credit/Balance mapping', () => {
+    const sheet = [
+      ['Date', 'Description', 'Currency', 'Debit', 'Credit', 'Currency', 'Balance'],
+      ['01/06/2026', 'Test TX', 'KWD', '250.000', '', 'KWD', '4750.000'],
+    ];
+    const results = parseExcelRows(sheet, STATEMENT_CONFIGS.UNKNOWN);
+    expect(results).toHaveLength(1);
+    expect(results[0].debit).toBeCloseTo(250);
+    expect(results[0].description).toBe('Test TX');
+    expect(results[0].balance).toBeCloseTo(4750);
+  });
+
+  it('headerless XML positional fallback still works when row 0 is a date row', () => {
+    const sheet = [
+      makeHeaderlessRow('01 Jun 2026', 'Opening balance', '', '5000.000', '5000.000'),
+      makeHeaderlessRow('05 Jun 2026', 'Payment out', '1000.000', '', '4000.000'),
+    ];
+    const results = parseExcelRows(sheet, STATEMENT_CONFIGS.UNKNOWN);
+    expect(results).toHaveLength(2);
+    expect(results[0].bankName).toBe('Headerless XML Statement');
   });
 });
