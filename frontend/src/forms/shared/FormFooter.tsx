@@ -2,7 +2,7 @@ import { CSSProperties } from 'react';
 import { PrintMode } from './printMode';
 
 const COMPANY_NAME =
-  'شركة المنار الدولية لإنشاء وصيانة الشوارع والأرصفة ومستلزمات الطرق ذ.م.م';
+  'شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م';
 
 export default function FormFooter({ printMode }: { printMode: PrintMode }) {
   const hidden = printMode === 'letterhead';

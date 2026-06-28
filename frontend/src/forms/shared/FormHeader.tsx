@@ -1,7 +1,7 @@
 import { CSSProperties } from 'react';
 
 const COMPANY_NAME_AR =
-  'شركة المنار الدولية لإنشاء وصيانة الشوارع والأرصفة ومستلزمات الطرق ذ.م.م';
+  'شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م';
 
 const COMPANY_NAME_EN =
   'ALAMANAR ALDAWLIYA FOR STREET CONSTRUCTION & MAINTENANCE CO., W.L.L.';

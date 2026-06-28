@@ -73,7 +73,7 @@ export default function ReportPrint() {
       </div>
       {rep.subtitle && <p style={{ textAlign: 'center', color: '#64748b', fontWeight: 600, margin: '2px 0' }}>{rep.subtitle}</p>}
       <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: 12, marginBottom: 18 }}>
-        شركة المنار · تاريخ التقرير: {formatDate(new Date())}
+        شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م · تاريخ التقرير: {formatDate(new Date())}
       </p>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
