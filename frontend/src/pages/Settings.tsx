@@ -305,7 +305,7 @@ export default function Settings() {
     setSignatures((prev) => {
       const filtered = prev.filter((s) => s.id !== id);
       if (filtered.length > 0 && !filtered.some((s) => s.isDefault)) {
-        filtered[0]!.isDefault = true;
+        filtered[0] = { ...filtered[0]!, isDefault: true };
       }
       return filtered;
     });
