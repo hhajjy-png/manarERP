@@ -4,8 +4,10 @@ import { api } from '../api/client';
 import { useUI } from '../stores/uiStore';
 import PrivateAmount from '../components/PrivateAmount';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from 'recharts';
+import './BankSalaryAnalytics.css';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -119,6 +121,21 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 10 }, (_, i) => CURRENT_YEAR - i);
 const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
+type QuickChip = 'all' | '1m' | '3m' | '6m' | 'year' | 'lastyear' | 'highest' | 'lowest' | 'newest' | 'oldest';
+
+const QUICK_CHIPS: { key: QuickChip; label: string }[] = [
+  { key: 'all',      label: 'الكل' },
+  { key: '1m',       label: 'آخر شهر' },
+  { key: '3m',       label: 'آخر 3 أشهر' },
+  { key: '6m',       label: 'آخر 6 أشهر' },
+  { key: 'year',     label: 'هذه السنة' },
+  { key: 'lastyear', label: 'السنة الماضية' },
+  { key: 'highest',  label: 'أعلى الرواتب' },
+  { key: 'lowest',   label: 'أدنى الرواتب' },
+  { key: 'newest',   label: 'أحدث التحويلات' },
+  { key: 'oldest',   label: 'أقدم التحويلات' },
+];
+
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const fmt3 = (n: number) => n.toLocaleString('ar-KW', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
@@ -165,52 +182,36 @@ function getActiveChips(f: Filters): FilterChip[] {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-const Skeleton = ({ w, h }: { w?: string; h?: string }) => {
-  const widthMap: Record<string, string> = { 'w-full': '100%', 'w-2/3': '67%', 'w-48': '192px', 'w-8': '32px' };
-  const heightMap: Record<string, string> = { 'h-4': '16px', 'h-6': '24px', 'h-8': '32px', 'h-10': '40px', 'h-14': '56px', 'h-3': '12px' };
+const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) => {
+  if (!active || !payload?.length) return null;
   return (
-    <div style={{
-      background: 'var(--surface-2, #e5e7eb)',
-      borderRadius: 6,
-      animation: 'pulse 1.5s ease-in-out infinite',
-      width: (w && widthMap[w]) ? widthMap[w] : '100%',
-      height: (h && heightMap[h]) ? heightMap[h] : '16px',
-    }} />
+    <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '10px 14px', fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', direction: 'rtl' }}>
+      <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6, marginTop: 0 }}>{label}</p>
+      <p style={{ color: '#60A5FA', fontSize: 13, fontWeight: 700, margin: 0 }}>{fmt3(Number(payload[0].value))} د.ك</p>
+    </div>
   );
 };
 
-function SortTh({ field, label, sortBy, sortDir, onSort, cls = '' }: {
+function Skel({ w, h }: { w?: string; h?: number }) {
+  return <div className="psa-skel" style={{ width: w ?? '100%', height: h ?? 13 }} />;
+}
+
+function SortTh({ field, label, sortBy, sortDir, onSort }: {
   field: string; label: string; sortBy: string; sortDir: 'asc' | 'desc';
-  onSort: (f: string) => void; cls?: string;
+  onSort: (f: string) => void;
 }) {
   const active = sortBy === field;
   return (
-    <th
-      style={{ textAlign: 'start', paddingBottom: 8, fontWeight: 500, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', userSelect: 'none' }}
-      className={cls}
-      onClick={() => onSort(field)}
-    >
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
+    <th className="psa-sort-th" onClick={() => onSort(field)}>
+      <span className="psa-sort-th-inner">
         {label}
-        <span className="material-symbols-outlined text-xs leading-none" style={{ fontSize: 12 }}>
+        <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
           {active ? (sortDir === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
         </span>
       </span>
     </th>
   );
 }
-
-// ── Section label style ────────────────────────────────────────────────────────
-
-const sectionLabelStyle: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  color: 'var(--text-muted)',
-  textTransform: 'uppercase',
-  letterSpacing: 1,
-  marginBottom: 10,
-  marginTop: 0,
-};
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -220,42 +221,58 @@ export default function BankSalaryAnalytics() {
   const navigate = useNavigate();
 
   const emptyFilters: Filters = {};
-  const [draftFilters, setDraftFilters] = useState<Filters>(emptyFilters);
+  const [draftFilters, setDraftFilters]     = useState<Filters>(emptyFilters);
   const [appliedFilters, setAppliedFilters] = useState<Filters>(emptyFilters);
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen]       = useState(false);
+  const [chartsOpen, setChartsOpen]         = useState(true);
+  const [quickChip, setQuickChip]           = useState<QuickChip>('all');
 
   const [analytics, setAnalytics] = useState<GlobalAnalytics | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
 
-  const [empQuery, setEmpQuery] = useState('');
-  const [empSuggestions, setEmpSuggestions] = useState<EmployeeOption[]>([]);
+  const [empQuery, setEmpQuery]               = useState('');
+  const [empSuggestions, setEmpSuggestions]   = useState<EmployeeOption[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeOption | null>(null);
-  const [empDetail, setEmpDetail] = useState<EmployeeDetail | null>(null);
+  const [empDetail, setEmpDetail]             = useState<EmployeeDetail | null>(null);
   const [empDetailLoading, setEmpDetailLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
-  const insightCardRef = useRef<HTMLDivElement>(null);
 
-  const [txPage, setTxPage] = useState(1);
+  const [txPage, setTxPage]       = useState(1);
   const [txPageSize, setTxPageSize] = useState<number>(25);
-  const [txSortBy, setTxSortBy] = useState('paymentDate');
+  const [txSortBy, setTxSortBy]   = useState('paymentDate');
   const [txSortDir, setTxSortDir] = useState<'asc' | 'desc'>('desc');
-  const [txData, setTxData] = useState<PaginatedResult<TransactionRow> | null>(null);
+  const [txData, setTxData]       = useState<PaginatedResult<TransactionRow> | null>(null);
   const [txLoading, setTxLoading] = useState(false);
 
-  const [monthQuickFilter, setMonthQuickFilter] = useState<'all' | '3m' | '6m' | 'year'>('all');
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
-  // ── Outside click for autocomplete ─────────────────────────────────────────
+  const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'error' } | null>(null);
+  const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Outside click handlers ─────────────────────────────────────────────────
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (autocompleteRef.current && !autocompleteRef.current.contains(e.target as Node)) {
         setEmpSuggestions([]);
       }
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // ── Toast helper ───────────────────────────────────────────────────────────
+
+  const showToast = useCallback((msg: string, type: 'ok' | 'error' = 'ok') => {
+    if (toastRef.current) clearTimeout(toastRef.current);
+    setToast({ msg, type });
+    toastRef.current = setTimeout(() => setToast(null), 3500);
   }, []);
 
   // ── Data loading ───────────────────────────────────────────────────────────
@@ -329,15 +346,11 @@ export default function BankSalaryAnalytics() {
     if (!emp) { delete newFilters.employeeId; delete newFilters.employeeName; }
     setDraftFilters(newFilters);
     setAppliedFilters(newFilters);
-    if (emp) {
-      loadEmployeeDetail(emp, newFilters);
-      setTimeout(() => insightCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
-    } else {
-      setEmpDetail(null);
-    }
+    if (emp) loadEmployeeDetail(emp, newFilters);
+    else setEmpDetail(null);
   }, [appliedFilters, loadEmployeeDetail]);
 
-  // ── Filters ────────────────────────────────────────────────────────────────
+  // ── Filter handlers ────────────────────────────────────────────────────────
 
   const applyFilters = () => {
     setAppliedFilters({ ...draftFilters });
@@ -352,7 +365,7 @@ export default function BankSalaryAnalytics() {
     setEmpQuery('');
     setSelectedEmployee(null);
     setEmpDetail(null);
-    setMonthQuickFilter('all');
+    setQuickChip('all');
   };
 
   const removeChip = (key: keyof Filters) => {
@@ -367,34 +380,72 @@ export default function BankSalaryAnalytics() {
     }
     setDraftFilters(newFilters);
     setAppliedFilters(newFilters);
-    setMonthQuickFilter('all');
+    setQuickChip('all');
   };
 
-  const handleMonthQuickFilter = (mode: 'all' | '3m' | '6m' | 'year') => {
-    setMonthQuickFilter(mode);
+  const handleQuickChip = (chip: QuickChip) => {
+    setQuickChip(chip);
     const now = new Date();
     const newF: Filters = { ...appliedFilters };
     delete newF.dateFrom;
     delete newF.dateTo;
     delete newF.payrollYear;
     delete newF.payrollMonth;
+    delete newF.status;
 
-    if (mode === '3m') {
-      const from = new Date(now);
-      from.setMonth(from.getMonth() - 3);
-      newF.dateFrom = from.toISOString().split('T')[0];
-      newF.dateTo = now.toISOString().split('T')[0];
-    } else if (mode === '6m') {
-      const from = new Date(now);
-      from.setMonth(from.getMonth() - 6);
-      newF.dateFrom = from.toISOString().split('T')[0];
-      newF.dateTo = now.toISOString().split('T')[0];
-    } else if (mode === 'year') {
-      newF.payrollYear = now.getFullYear();
+    let newSortBy = txSortBy;
+    let newSortDir: 'asc' | 'desc' = txSortDir;
+
+    switch (chip) {
+      case '1m': {
+        const from = new Date(now); from.setMonth(from.getMonth() - 1);
+        newF.dateFrom = from.toISOString().split('T')[0];
+        newF.dateTo   = now.toISOString().split('T')[0];
+        break;
+      }
+      case '3m': {
+        const from = new Date(now); from.setMonth(from.getMonth() - 3);
+        newF.dateFrom = from.toISOString().split('T')[0];
+        newF.dateTo   = now.toISOString().split('T')[0];
+        break;
+      }
+      case '6m': {
+        const from = new Date(now); from.setMonth(from.getMonth() - 6);
+        newF.dateFrom = from.toISOString().split('T')[0];
+        newF.dateTo   = now.toISOString().split('T')[0];
+        break;
+      }
+      case 'year':
+        newF.payrollYear = now.getFullYear();
+        break;
+      case 'lastyear':
+        newF.payrollYear = now.getFullYear() - 1;
+        break;
+      case 'highest':
+        newSortBy  = 'amount';
+        newSortDir = 'desc';
+        break;
+      case 'lowest':
+        newSortBy  = 'amount';
+        newSortDir = 'asc';
+        break;
+      case 'newest':
+        newSortBy  = 'paymentDate';
+        newSortDir = 'desc';
+        break;
+      case 'oldest':
+        newSortBy  = 'paymentDate';
+        newSortDir = 'asc';
+        break;
     }
 
     setDraftFilters(newF);
     setAppliedFilters(newF);
+    if (newSortBy !== txSortBy || newSortDir !== txSortDir) {
+      setTxSortBy(newSortBy);
+      setTxSortDir(newSortDir);
+      setTxPage(1);
+    }
   };
 
   // ── Sort ───────────────────────────────────────────────────────────────────
@@ -411,41 +462,256 @@ export default function BankSalaryAnalytics() {
 
   // ── Export ─────────────────────────────────────────────────────────────────
 
-  const handleExport = async (empId?: number) => {
+  const handleExport = async (empId?: number, format: 'excel' | 'print' | 'csv' = 'excel') => {
+    setExportMenuOpen(false);
+    if (format === 'print') { window.print(); return; }
+    if (format === 'csv') {
+      if (!txData?.data.length) { showToast('لا توجد بيانات للتصدير', 'error'); return; }
+      const headers = ['رقم المعاملة', 'الشهر', 'تاريخ الدفع', 'المستفيد', 'المبلغ', 'العملة', 'الرقم المدني', 'الحالة'];
+      const rows = txData.data.map((r) => [
+        `"${r.transactionId}"`,
+        r.sourceMonth ?? '',
+        r.paymentDate ?? '',
+        `"${r.beneficiaryName.replace(/"/g, '""')}"`,
+        r.amount.toFixed(3),
+        r.currency,
+        r.civilId ?? '',
+        r.status ?? '',
+      ]);
+      const csv  = '﻿' + [headers, ...rows].map((row) => row.join(',')).join('\r\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a    = document.createElement('a');
+      a.href     = URL.createObjectURL(blob);
+      a.download = empId ? `bank-analytics-employee-${empId}.csv` : 'bank-analytics.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('تم تصدير CSV بنجاح');
+      return;
+    }
     try {
       const params = buildParams(appliedFilters);
       if (empId) params.employeeId = String(empId);
       const res = await api.get('/salaries/bank-payments/export', { params, responseType: 'blob' });
       const url = URL.createObjectURL(res.data as Blob);
-      const a = document.createElement('a');
-      a.href = url;
+      const a   = document.createElement('a');
+      a.href     = url;
       a.download = empId ? `bank-analytics-employee-${empId}.xlsx` : 'bank-analytics.xlsx';
       a.click();
       URL.revokeObjectURL(url);
-    } catch { alert('فشل التصدير'); }
+      showToast('تم تصدير Excel بنجاح');
+    } catch {
+      showToast('فشل التصدير', 'error');
+    }
   };
 
-  // ── Styles ─────────────────────────────────────────────────────────────────
-
-  const inputCls = 'border border-neutral-300 dark:border-neutral-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-neutral-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full';
-  const thCls: React.CSSProperties = { textAlign: 'start', paddingBottom: 8, fontWeight: 500, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' };
-  const varCls = (v: number | null) => v === null ? 'text-neutral-400' : v >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400';
-  const varLabel = (v: number | null) => v === null ? '—' : (v >= 0 ? '+' : '') + fmt3(v);
+  // ── Derived ────────────────────────────────────────────────────────────────
 
   const activeChips = getActiveChips(appliedFilters);
+  const varCls  = (v: number | null) => v === null ? 'psa-var-nil' : v >= 0 ? 'psa-var-pos' : 'psa-var-neg';
+  const varLabel = (v: number | null) => v === null ? '—' : (v >= 0 ? '+' : '') + fmt3(v);
+
+  const maxMonthAmount = analytics ? Math.max(...analytics.months.map((m) => m.totalAmount), 0) : 0;
+  const maxHighest     = analytics ? Math.max(...analytics.months.map((m) => m.highest ?? 0), 0) : 0;
+  const minLowest      = analytics ? Math.min(...analytics.months.filter((m) => m.lowest != null).map((m) => m.lowest!), Infinity) : 0;
+  const avgSalary      = (analytics && analytics.totalPayments > 0) ? analytics.totalPayments > 0 ? analytics.totalAmount / analytics.totalPayments : 0 : 0;
+  const posMonths      = analytics ? analytics.months.filter((m) => m.varianceFromPrev !== null && m.varianceFromPrev > 0).length : 0;
+  const avgEmpCount    = analytics && analytics.months.length > 0
+    ? analytics.months.reduce((s, m) => s + (m.employeeCount ?? 0), 0) / analytics.months.filter((m) => m.employeeCount != null).length
+    : 0;
+
+  const cumulativeData = analytics
+    ? analytics.months.reduce<{ sourceMonth: string; cumulative: number }[]>((acc, m) => {
+        const prev = acc[acc.length - 1]?.cumulative ?? 0;
+        acc.push({ sourceMonth: m.sourceMonth, cumulative: prev + m.totalAmount });
+        return acc;
+      }, [])
+    : [];
+
+  const varianceData = analytics
+    ? analytics.months.filter((m) => m.varianceFromPrev !== null).map((m) => ({
+        sourceMonth: m.sourceMonth,
+        variance: m.varianceFromPrev,
+        isPositive: (m.varianceFromPrev ?? 0) >= 0,
+      }))
+    : [];
+
+  const qualityWarnings: { key: string; label: string }[] = [];
+  if (analytics) {
+    const unmatched = analytics.topEmployees.filter((e) => e.employeeId === null).length;
+    if (unmatched > 0) qualityWarnings.push({ key: 'unmatched', label: `${unmatched} مستفيد غير مرتبط بموظف` });
+    const noEmpMonths = analytics.months.filter((m) => !m.employeeCount).length;
+    if (noEmpMonths > 0) qualityWarnings.push({ key: 'noEmpMonths', label: `${noEmpMonths} شهر بدون إحصائيات موظفين` });
+    const bigDrop = analytics.months.filter((m) => m.varianceFromPrev !== null && m.varianceFromPrev < -5000).length;
+    if (bigDrop > 0) qualityWarnings.push({ key: 'bigDrop', label: `${bigDrop} شهر بانخفاض مبلغ كبير (> 5,000 د.ك)` });
+    if (analytics.months.length === 0 && analytics.totalPayments > 0) {
+      qualityWarnings.push({ key: 'noMonths', label: 'لا توجد بيانات شهرية مصنّفة' });
+    }
+  }
+
+  // ── KPI card data ──────────────────────────────────────────────────────────
+
+  const kpiCards = analytics ? [
+    {
+      label: 'إجمالي المبالغ المحوّلة',
+      value: <PrivateAmount value={fmt3(analytics.totalAmount)} />,
+      sub: 'د.ك',
+      icon: 'payments',
+      bg: 'rgba(59,130,246,0.12)',
+      color: '#3B82F6',
+    },
+    {
+      label: 'عدد عمليات التحويل',
+      value: analytics.totalPayments.toLocaleString('ar-KW'),
+      sub: 'عملية تحويل',
+      icon: 'receipt_long',
+      bg: 'rgba(139,92,246,0.12)',
+      color: '#8B5CF6',
+    },
+    {
+      label: 'الموظفون المدرجون',
+      value: analytics.uniqueEmployees.toLocaleString('ar-KW'),
+      sub: 'موظف فريد',
+      icon: 'group',
+      bg: 'rgba(16,185,129,0.12)',
+      color: '#10B981',
+      clickable: true,
+      onClick: () => { setFiltersOpen(true); },
+    },
+    {
+      label: 'الأشهر المرصودة',
+      value: analytics.months.length.toLocaleString('ar-KW'),
+      sub: 'شهر بيانات',
+      icon: 'calendar_month',
+      bg: 'rgba(99,102,241,0.12)',
+      color: '#6366F1',
+    },
+    {
+      label: 'متوسط الراتب',
+      value: <PrivateAmount value={fmt3(avgSalary)} />,
+      sub: 'د.ك لكل تحويل',
+      icon: 'calculate',
+      bg: 'rgba(20,184,166,0.12)',
+      color: '#14B8A6',
+    },
+    {
+      label: 'أعلى شهر مبلغاً',
+      value: <PrivateAmount value={fmt3(maxMonthAmount)} />,
+      sub: 'د.ك إجمالي شهري',
+      icon: 'trending_up',
+      bg: 'rgba(22,163,74,0.12)',
+      color: '#16A34A',
+    },
+    {
+      label: 'آخر استيراد',
+      value: analytics.latestImport ? fmtDate(analytics.latestImport.importedAt) : '—',
+      sub: analytics.latestImport ? `${analytics.latestImport.batchCount} دفعة` : 'لا يوجد',
+      icon: 'upload_file',
+      bg: 'var(--surface-2)',
+      color: 'var(--text-muted)',
+    },
+    {
+      label: 'أشهر بزيادة',
+      value: posMonths.toLocaleString('ar-KW'),
+      sub: `من ${analytics.months.length} شهر`,
+      icon: 'show_chart',
+      bg: posMonths > 0 ? 'rgba(22,163,74,0.12)' : 'rgba(239,68,68,0.08)',
+      color: posMonths > 0 ? '#16A34A' : '#ef4444',
+    },
+  ] : [];
+
+  // ── Insights data ──────────────────────────────────────────────────────────
+
+  const insightCards = analytics ? [
+    {
+      icon: 'arrow_upward',
+      iconColor: '#16A34A',
+      label: 'أكبر تحويل فردي',
+      value: <PrivateAmount value={maxHighest > 0 ? fmt3(maxHighest) : '—'} />,
+      sub: 'د.ك',
+    },
+    {
+      icon: 'arrow_downward',
+      iconColor: '#ef4444',
+      label: 'أصغر تحويل فردي',
+      value: <PrivateAmount value={minLowest < Infinity && minLowest > 0 ? fmt3(minLowest) : '—'} />,
+      sub: 'د.ك',
+    },
+    {
+      icon: 'workspace_premium',
+      iconColor: '#F59E0B',
+      label: 'أعلى موظف راتباً',
+      value: analytics.topEmployees[0]?.beneficiaryName ?? '—',
+      sub: analytics.topEmployees[0] ? fmt3(analytics.topEmployees[0].totalAmount) + ' د.ك' : '',
+    },
+    {
+      icon: 'emoji_events',
+      iconColor: '#8B5CF6',
+      label: 'أكثر موظف تحويلاً',
+      value: [...analytics.topEmployees].sort((a, b) => b.count - a.count)[0]?.beneficiaryName ?? '—',
+      sub: `${[...analytics.topEmployees].sort((a, b) => b.count - a.count)[0]?.count ?? 0} عملية`,
+    },
+    {
+      icon: 'trending_up',
+      iconColor: '#3B82F6',
+      label: 'الأشهر الإيجابية',
+      value: `${posMonths} / ${analytics.months.length}`,
+      sub: 'شهر بزيادة في الرواتب',
+    },
+    {
+      icon: 'people',
+      iconColor: '#6366F1',
+      label: 'متوسط الموظفين شهرياً',
+      value: Number.isFinite(avgEmpCount) ? Math.round(avgEmpCount).toLocaleString('ar-KW') : '—',
+      sub: 'موظف لكل شهر',
+    },
+    {
+      icon: 'schedule',
+      iconColor: '#14B8A6',
+      label: 'أحدث شهر بيانات',
+      value: analytics.months.length > 0 ? analytics.months[analytics.months.length - 1].sourceMonth : '—',
+      sub: analytics.months.length > 0 ? fmt3(analytics.months[analytics.months.length - 1].totalAmount) + ' د.ك' : '',
+    },
+    {
+      icon: 'change_history',
+      iconColor: posMonths >= analytics.months.length / 2 ? '#16A34A' : '#ef4444',
+      label: 'التغيير الإجمالي',
+      value: analytics.months.length >= 2
+        ? ((analytics.months[analytics.months.length - 1].totalAmount - analytics.months[0].totalAmount) / analytics.months[0].totalAmount * 100).toFixed(1) + '%'
+        : '—',
+      sub: analytics.months.length >= 2 ? `${analytics.months[0].sourceMonth} ← ${analytics.months[analytics.months.length - 1].sourceMonth}` : '',
+    },
+  ] : [];
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div dir={isRtl ? 'rtl' : 'ltr'} style={{ padding: '24px', maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="psa-ws" dir={isRtl ? 'rtl' : 'ltr'}>
 
-      {/* Header */}
-      <div className="page-head" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>تحليلات الرواتب البنكية</h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>تحليل تحويلات الرواتب المستوردة من البنك</p>
+      {/* ── Package A: Professional Page Header ─────────────────────────── */}
+      <div className="psa-header">
+        <div className="psa-header-meta">
+          <h1>تحليلات الرواتب البنكية</h1>
+          <p>تحليل وإدارة تحويلات الرواتب المستوردة من البنك</p>
+          <div className="psa-header-chips">
+            {analytics && (
+              <>
+                <span className="psa-header-tag blue">
+                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>payments</span>
+                  <PrivateAmount value={fmt3(analytics.totalAmount)} /> د.ك
+                </span>
+                <span className="psa-header-tag green">
+                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>group</span>
+                  {analytics.uniqueEmployees} موظف
+                </span>
+                <span className="psa-header-tag gray">
+                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>receipt_long</span>
+                  {analytics.totalPayments.toLocaleString('ar-KW')} عملية
+                </span>
+              </>
+            )}
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div className="psa-header-actions">
           <button
             type="button"
             onClick={() => navigate('/payroll/bank-import')}
@@ -453,89 +719,115 @@ export default function BankSalaryAnalytics() {
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>upload_file</span>
-            استيراد ملف جديد
+            استيراد ملف
           </button>
-          <button
-            type="button"
-            onClick={() => handleExport()}
-            className="btn"
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#16a34a', borderColor: '#16a34a' }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
-            تصدير Excel
-          </button>
+          {/* Package M: Export dropdown */}
+          <div className="psa-export-wrap" ref={exportMenuRef}>
+            <button
+              type="button"
+              className="btn"
+              style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#16a34a', borderColor: '#16a34a' }}
+              onClick={() => setExportMenuOpen((o) => !o)}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
+              تصدير
+              <span className="material-symbols-outlined" style={{ fontSize: 14, opacity: 0.8 }}>expand_more</span>
+            </button>
+            {exportMenuOpen && (
+              <div className="psa-export-menu">
+                <button className="psa-export-item" onClick={() => handleExport(undefined, 'excel')}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#16a34a' }}>table_chart</span>
+                  تصدير Excel
+                </button>
+                <button className="psa-export-item" onClick={() => handleExport(undefined, 'csv')}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#6366F1' }}>data_table</span>
+                  تصدير CSV
+                </button>
+                <div className="psa-export-divider" />
+                <button className="psa-export-item" onClick={() => handleExport(undefined, 'print')}>
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--text-muted)' }}>print</span>
+                  طباعة
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* F1 — KPI Cards (3 prominent cards) */}
-      {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="card panel" style={{ padding: '20px 24px' }}>
-              <Skeleton w="w-8" h="h-8" />
-              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <Skeleton h="h-3" />
-                <Skeleton w="w-2/3" h="h-6" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : analytics ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
-          {[
-            {
-              label: 'إجمالي المبالغ المحوّلة',
-              value: fmt3(analytics.totalAmount),
-              unit: 'د.ك',
-              icon: '💰',
-              color: '#3B82F6',
-            },
-            {
-              label: 'عدد عمليات التحويل',
-              value: analytics.totalPayments.toLocaleString(),
-              unit: 'عملية',
-              icon: '📋',
-              color: '#8B5CF6',
-            },
-            {
-              label: 'الموظفون المدرجون',
-              value: analytics.uniqueEmployees.toLocaleString(),
-              unit: 'موظف',
-              icon: '👥',
-              color: '#10B981',
-            },
-          ].map(({ label, value, unit, icon, color }) => (
-            <div key={label} className="card panel" style={{ padding: '20px 24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, fontWeight: 500, marginTop: 0 }}>{label}</p>
-                  <p style={{ fontSize: 30, fontWeight: 800, color, margin: 0, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}><PrivateAmount value={value} /></p>
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6, marginBottom: 0 }}>{unit}</p>
+      {/* ── Package B+L: KPI Dashboard (8 cards) ──────────────────────── */}
+      <div className="psa-kpi-grid">
+        {loading
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="psa-kpi-skel">
+                <div className="psa-skel" style={{ width: 50, height: 50, borderRadius: 14, flex: 'none' }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <Skel w="70%" h={11} />
+                  <Skel w="55%" h={22} />
+                  <Skel w="40%" h={10} />
                 </div>
-                <span style={{ fontSize: 32 }}>{icon}</span>
               </div>
-            </div>
-          ))}
-        </div>
-      ) : null}
+            ))
+          : kpiCards.map((kpi, i) => (
+              kpi.clickable
+                ? (
+                  <button
+                    key={i}
+                    type="button"
+                    className="psa-kpi clickable"
+                    onClick={kpi.onClick}
+                  >
+                    <div className="psa-kpi-icon" style={{ background: kpi.bg }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 22, color: kpi.color }}>{kpi.icon}</span>
+                    </div>
+                    <div className="psa-kpi-body">
+                      <div className="psa-kpi-label">{kpi.label}</div>
+                      <div className="psa-kpi-value" style={{ color: kpi.color }}>{kpi.value}</div>
+                      <div className="psa-kpi-sub">{kpi.sub}</div>
+                    </div>
+                  </button>
+                ) : (
+                  <div key={i} className="psa-kpi">
+                    <div className="psa-kpi-icon" style={{ background: kpi.bg }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: 22, color: kpi.color }}>{kpi.icon}</span>
+                    </div>
+                    <div className="psa-kpi-body">
+                      <div className="psa-kpi-label">{kpi.label}</div>
+                      <div className="psa-kpi-value" style={{ color: kpi.color }}>{kpi.value}</div>
+                      <div className="psa-kpi-sub">{kpi.sub}</div>
+                    </div>
+                  </div>
+                )
+            ))}
+      </div>
 
-      {/* F2 — Filter Panel */}
+      {/* ── Package D: Quick Filter Chips (10 chips) ──────────────────── */}
+      <div className="psa-chips">
+        {QUICK_CHIPS.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            className={`psa-chip${quickChip === key ? ' chip-active' : ''}`}
+            onClick={() => handleQuickChip(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Package C: Smart Collapsible Filter Panel ─────────────────── */}
       <div className="card panel">
-        {/* Toggle bar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button
             type="button"
+            className="psa-filter-toggle"
             onClick={() => setFiltersOpen((o) => !o)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>tune</span>
             {filtersOpen ? 'إخفاء الفلاتر' : 'إظهار الفلاتر'}
-            <span
-              className="material-symbols-outlined"
-              style={{ fontSize: 18, transition: 'transform 0.2s', transform: filtersOpen ? 'rotate(180deg)' : 'none' }}
-            >
-              expand_more
-            </span>
+            <span className="material-symbols-outlined" style={{ fontSize: 18, transition: 'transform 0.2s', transform: filtersOpen ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+            {activeChips.length > 0 && (
+              <span className="psa-chip-badge">{activeChips.length}</span>
+            )}
           </button>
           {activeChips.length > 0 && (
             <button
@@ -549,58 +841,53 @@ export default function BankSalaryAnalytics() {
           )}
         </div>
 
-        {/* Collapsible grouped filter fields */}
         {filtersOpen && (
-          <div style={{ marginTop: 20 }}>
+          <div className="psa-filter-body">
 
             {/* Group 1 — الموظف والفترة */}
-            <div style={{ marginBottom: 20 }}>
-              <p style={sectionLabelStyle}>الموظف والفترة</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
-
-                {/* Employee autocomplete */}
-                <div ref={autocompleteRef} style={{ position: 'relative' }}>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>الموظف</label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      type="text"
-                      placeholder="بحث باسم أو رقم مدني أو كود…"
-                      value={empQuery}
-                      onChange={(e) => { setEmpQuery(e.target.value); searchEmployees(e.target.value); }}
-                      className={inputCls}
-                    />
-                    {selectedEmployee && (
-                      <button
-                        type="button"
-                        onClick={() => selectEmployee(null)}
-                        style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', insetInlineEnd: 8, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
-                      </button>
-                    )}
-                  </div>
-                  {empSuggestions.length > 0 && (
-                    <div style={{ position: 'absolute', top: '100%', marginTop: 4, width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', zIndex: 50, maxHeight: 240, overflowY: 'auto' }}>
-                      {empSuggestions.map((e) => (
+            <div className="psa-filter-section">
+              <p className="psa-filter-section-title">الموظف والفترة</p>
+              <div className="psa-filter-row">
+                <div className="psa-filter-field" style={{ flex: 2 }}>
+                  <label>الموظف</label>
+                  <div className="psa-autocomplete-wrap" ref={autocompleteRef}>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="text"
+                        placeholder="بحث باسم أو رقم مدني أو كود…"
+                        value={empQuery}
+                        onChange={(e) => { setEmpQuery(e.target.value); searchEmployees(e.target.value); }}
+                      />
+                      {selectedEmployee && (
                         <button
                           type="button"
-                          key={e.id}
-                          onMouseDown={(ev) => { ev.preventDefault(); selectEmployee(e); setFiltersOpen(false); }}
-                          style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', fontSize: 13, background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                          onClick={() => selectEmployee(null)}
+                          style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', insetInlineEnd: 8, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
                         >
-                          <div style={{ fontWeight: 500 }}>{e.fullName}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{e.code} · {e.fullNameEn ?? ''} · {e.civilId ?? '—'}</div>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
                         </button>
-                      ))}
+                      )}
                     </div>
-                  )}
+                    {empSuggestions.length > 0 && (
+                      <div className="psa-autocomplete-dropdown">
+                        {empSuggestions.map((e) => (
+                          <button
+                            type="button"
+                            key={e.id}
+                            className="psa-autocomplete-item"
+                            onMouseDown={(ev) => { ev.preventDefault(); selectEmployee(e); setFiltersOpen(false); }}
+                          >
+                            <div className="psa-autocomplete-item-name">{e.fullName}</div>
+                            <div className="psa-autocomplete-item-meta">{e.code} · {e.fullNameEn ?? ''} · {e.civilId ?? '—'}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                {/* Year */}
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>السنة</label>
+                <div className="psa-filter-field">
+                  <label>السنة</label>
                   <select
-                    className={inputCls}
                     title="السنة"
                     value={draftFilters.payrollYear ?? ''}
                     onChange={(e) => setDraftFilters((f) => ({ ...f, payrollYear: e.target.value ? Number(e.target.value) : undefined, payrollMonth: undefined }))}
@@ -609,12 +896,9 @@ export default function BankSalaryAnalytics() {
                     {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
-
-                {/* Month */}
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>الشهر</label>
+                <div className="psa-filter-field">
+                  <label>الشهر</label>
                   <select
-                    className={inputCls}
                     title="الشهر"
                     value={draftFilters.payrollMonth ?? ''}
                     disabled={!draftFilters.payrollYear}
@@ -628,172 +912,80 @@ export default function BankSalaryAnalytics() {
             </div>
 
             {/* Group 2 — نطاق التاريخ */}
-            <div style={{ marginBottom: 20 }}>
-              <p style={sectionLabelStyle}>نطاق التاريخ</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>تاريخ من</label>
-                  <input
-                    type="date"
-                    title="تاريخ من"
-                    className={inputCls}
-                    value={draftFilters.dateFrom ?? ''}
-                    onChange={(e) => setDraftFilters((f) => ({ ...f, dateFrom: e.target.value || undefined }))}
-                  />
+            <div className="psa-filter-section">
+              <p className="psa-filter-section-title">نطاق التاريخ</p>
+              <div className="psa-filter-row">
+                <div className="psa-filter-field">
+                  <label>تاريخ من</label>
+                  <input type="date" title="تاريخ من" value={draftFilters.dateFrom ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, dateFrom: e.target.value || undefined }))} />
                 </div>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>تاريخ إلى</label>
-                  <input
-                    type="date"
-                    title="تاريخ إلى"
-                    className={inputCls}
-                    value={draftFilters.dateTo ?? ''}
-                    onChange={(e) => setDraftFilters((f) => ({ ...f, dateTo: e.target.value || undefined }))}
-                  />
+                <div className="psa-filter-field">
+                  <label>تاريخ إلى</label>
+                  <input type="date" title="تاريخ إلى" value={draftFilters.dateTo ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, dateTo: e.target.value || undefined }))} />
                 </div>
               </div>
             </div>
 
             {/* Group 3 — نطاق المبلغ */}
-            <div style={{ marginBottom: 20 }}>
-              <p style={sectionLabelStyle}>نطاق المبلغ (د.ك)</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>المبلغ من</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.001"
-                    className={inputCls}
-                    placeholder="0.000"
-                    value={draftFilters.amountFrom ?? ''}
-                    onChange={(e) => setDraftFilters((f) => ({ ...f, amountFrom: e.target.value || undefined }))}
-                  />
+            <div className="psa-filter-section">
+              <p className="psa-filter-section-title">نطاق المبلغ (د.ك)</p>
+              <div className="psa-filter-row">
+                <div className="psa-filter-field">
+                  <label>المبلغ من</label>
+                  <input type="number" min="0" step="0.001" placeholder="0.000" value={draftFilters.amountFrom ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, amountFrom: e.target.value || undefined }))} />
                 </div>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>المبلغ إلى</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.001"
-                    className={inputCls}
-                    placeholder="0.000"
-                    value={draftFilters.amountTo ?? ''}
-                    onChange={(e) => setDraftFilters((f) => ({ ...f, amountTo: e.target.value || undefined }))}
-                  />
+                <div className="psa-filter-field">
+                  <label>المبلغ إلى</label>
+                  <input type="number" min="0" step="0.001" placeholder="0.000" value={draftFilters.amountTo ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, amountTo: e.target.value || undefined }))} />
                 </div>
               </div>
             </div>
 
-            {/* Group 4 — بحث متقدم (transaction id, civil id, bank account, status, text search) */}
-            <div style={{ marginBottom: 20 }}>
-              <p style={sectionLabelStyle}>بحث متقدم</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>رقم المعاملة</label>
-                  <input
-                    type="text"
-                    className={inputCls}
-                    placeholder="TXN…"
-                    value={draftFilters.transactionId ?? ''}
-                    onChange={(e) => setDraftFilters((f) => ({ ...f, transactionId: e.target.value || undefined }))}
-                  />
+            {/* Group 4 — بحث متقدم */}
+            <div className="psa-filter-section">
+              <p className="psa-filter-section-title">بحث متقدم</p>
+              <div className="psa-filter-row">
+                <div className="psa-filter-field">
+                  <label>رقم المعاملة</label>
+                  <input type="text" placeholder="TXN…" value={draftFilters.transactionId ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, transactionId: e.target.value || undefined }))} />
                 </div>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>الرقم المدني</label>
-                  <input
-                    type="text"
-                    className={inputCls}
-                    placeholder="بحث في الرقم المدني"
-                    value={draftFilters.civilId ?? ''}
-                    onChange={(e) => setDraftFilters((f) => ({ ...f, civilId: e.target.value || undefined }))}
-                  />
+                <div className="psa-filter-field">
+                  <label>الرقم المدني</label>
+                  <input type="text" placeholder="بحث في الرقم المدني" value={draftFilters.civilId ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, civilId: e.target.value || undefined }))} />
                 </div>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>رقم الحساب</label>
-                  <input
-                    type="text"
-                    className={inputCls}
-                    placeholder="بحث في رقم الحساب"
-                    value={draftFilters.bankAccount ?? ''}
-                    onChange={(e) => setDraftFilters((f) => ({ ...f, bankAccount: e.target.value || undefined }))}
-                  />
+                <div className="psa-filter-field">
+                  <label>رقم الحساب</label>
+                  <input type="text" placeholder="بحث في رقم الحساب" value={draftFilters.bankAccount ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, bankAccount: e.target.value || undefined }))} />
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>الحالة</label>
-                  <select
-                    className={inputCls}
-                    title="الحالة"
-                    value={draftFilters.status ?? ''}
-                    onChange={(e) => setDraftFilters((f) => ({ ...f, status: e.target.value || undefined }))}
-                  >
+            </div>
+
+            {/* Group 5 — الحالة والبحث النصي */}
+            <div className="psa-filter-section">
+              <p className="psa-filter-section-title">الحالة والبحث</p>
+              <div className="psa-filter-row">
+                <div className="psa-filter-field" style={{ maxWidth: 200 }}>
+                  <label>الحالة</label>
+                  <select title="الحالة" value={draftFilters.status ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, status: e.target.value || undefined }))}>
                     <option value="">كل الحالات</option>
                     <option value="PROCESSED">PROCESSED</option>
                     <option value="PENDING">PENDING</option>
                     <option value="FAILED">FAILED</option>
                   </select>
                 </div>
-                <div>
-                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>بحث نصي</label>
-                  <input
-                    type="text"
-                    className={inputCls}
-                    placeholder="بحث في اسم المستفيد أو رقم المعاملة أو الرقم المدني…"
-                    value={draftFilters.search ?? ''}
-                    onChange={(e) => setDraftFilters((f) => ({ ...f, search: e.target.value || undefined }))}
-                  />
+                <div className="psa-filter-field">
+                  <label>بحث نصي</label>
+                  <input type="text" placeholder="اسم المستفيد أو رقم المعاملة أو الرقم المدني…" value={draftFilters.search ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, search: e.target.value || undefined }))} />
                 </div>
               </div>
             </div>
 
-            {/* Quick period chips */}
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>فترة سريعة:</span>
-              {[
-                { key: '3m' as const, label: 'آخر 3 أشهر' },
-                { key: '6m' as const, label: 'آخر 6 أشهر' },
-                { key: 'year' as const, label: 'هذه السنة' },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => handleMonthQuickFilter(key)}
-                  style={{
-                    padding: '4px 14px',
-                    borderRadius: 20,
-                    fontSize: 12,
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    border: monthQuickFilter === key ? '2px solid var(--primary)' : '1px solid var(--border)',
-                    background: monthQuickFilter === key ? 'var(--primary)' : 'transparent',
-                    color: monthQuickFilter === key ? '#fff' : 'var(--text)',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* Apply / Reset buttons */}
-            <div style={{ display: 'flex', gap: 10, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-              <button
-                type="button"
-                className="btn"
-                onClick={applyFilters}
-                style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 130 }}
-              >
+            <div className="psa-filter-actions">
+              <button type="button" className="btn" onClick={applyFilters} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>search</span>
                 تطبيق الفلاتر
               </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={clearAllFilters}
-                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-              >
+              <button type="button" className="btn btn-secondary" onClick={clearAllFilters} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>filter_alt_off</span>
                 إعادة تعيين
               </button>
@@ -803,19 +995,11 @@ export default function BankSalaryAnalytics() {
 
         {/* Active filter chips */}
         {activeChips.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: filtersOpen ? 16 : 12, paddingTop: filtersOpen ? 16 : 0, borderTop: filtersOpen ? '1px solid var(--border)' : 'none' }}>
+          <div className="psa-active-chips">
             {activeChips.map((chip) => (
-              <span
-                key={chip.key}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', background: 'rgba(59,130,246,0.1)', color: '#3B82F6', borderRadius: 20, fontSize: 12, fontWeight: 500 }}
-              >
+              <span key={chip.key} className="psa-active-chip">
                 {chip.label}
-                <button
-                  type="button"
-                  onClick={() => removeChip(chip.key)}
-                  style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
-                  aria-label={`إزالة فلتر ${chip.label}`}
-                >
+                <button type="button" onClick={() => removeChip(chip.key)} aria-label={`إزالة ${chip.label}`}>
                   <span className="material-symbols-outlined" style={{ fontSize: 12 }}>close</span>
                 </button>
               </span>
@@ -824,98 +1008,282 @@ export default function BankSalaryAnalytics() {
         )}
       </div>
 
-      {/* F6 — Error state */}
+      {/* ── Package E: Summary Bar ─────────────────────────────────────── */}
+      {analytics && !loading && (
+        <div className="psa-summary-bar">
+          <div className="psa-summary-stat">
+            <span className="psa-summary-label">العمليات</span>
+            <span className="psa-summary-value">{txData?.meta.total.toLocaleString('ar-KW') ?? '—'}</span>
+          </div>
+          <div className="psa-summary-divider" />
+          <div className="psa-summary-stat">
+            <span className="psa-summary-label">الموظفون</span>
+            <span className="psa-summary-value">{analytics.uniqueEmployees.toLocaleString('ar-KW')}</span>
+          </div>
+          <div className="psa-summary-divider" />
+          <div className="psa-summary-stat">
+            <span className="psa-summary-label">الأشهر</span>
+            <span className="psa-summary-value">{analytics.months.length}</span>
+          </div>
+          <div className="psa-summary-divider" />
+          <div className="psa-summary-stat">
+            <span className="psa-summary-label">متوسط الراتب</span>
+            <span className="psa-summary-value"><PrivateAmount value={fmt3(avgSalary)} /> د.ك</span>
+          </div>
+          <div className="psa-summary-divider" />
+          <div className="psa-summary-stat">
+            <span className="psa-summary-label">الإجمالي</span>
+            <span className="psa-summary-value"><PrivateAmount value={fmt3(analytics.totalAmount)} /> د.ك</span>
+          </div>
+          {activeChips.length > 0 && (
+            <>
+              <div className="psa-summary-divider" />
+              <div className="psa-summary-stat">
+                <span className="psa-summary-label">الفلاتر النشطة</span>
+                <span className="psa-summary-value" style={{ color: 'var(--accent)' }}>{activeChips.length}</span>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Error */}
       {error && (
-        <div className="card panel" style={{ padding: '16px 20px', border: '1px solid #fca5a5', background: 'rgba(254,226,226,0.5)', display: 'flex', alignItems: 'center', gap: 8, color: '#dc2626', fontSize: 13 }}>
+        <div className="psa-error-banner">
           <span className="material-symbols-outlined" style={{ fontSize: 18 }}>error</span>
           {error}
+        </div>
+      )}
+
+      {/* ── Package I: Smart Analytics Insights (8 cards) ─────────────── */}
+      {!loading && analytics && insightCards.length > 0 && (
+        <div className="psa-insights-grid">
+          {insightCards.map((c, i) => (
+            <div key={i} className="psa-insight-card">
+              <div className="psa-insight-icon">
+                <span className="material-symbols-outlined" style={{ color: c.iconColor }}>{c.icon}</span>
+              </div>
+              <div className="psa-insight-label">{c.label}</div>
+              <div className="psa-insight-value">{c.value}</div>
+              {c.sub && <div className="psa-insight-sub">{c.sub}</div>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Package J: Data Quality Center ───────────────────────────── */}
+      {!loading && qualityWarnings.length > 0 && (
+        <div className="psa-quality-panel">
+          <span className="material-symbols-outlined psa-quality-icon">warning</span>
+          <div className="psa-quality-body">
+            <p className="psa-quality-title">مركز جودة البيانات — {qualityWarnings.length} تنبيه</p>
+            <div className="psa-quality-list">
+              {qualityWarnings.map((w) => (
+                <span key={w.key} className="psa-quality-tag">
+                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>info</span>
+                  {w.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Package F: 6 Collapsible Charts ──────────────────────────── */}
+      {!loading && analytics && analytics.months.length > 0 && (
+        <div className="card panel">
+          <button type="button" className="psa-charts-toggle" onClick={() => setChartsOpen((o) => !o)}>
+            <div className="psa-charts-toggle-left">
+              <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--accent)' }}>bar_chart</span>
+              الرسوم البيانية
+              <span className="psa-chip-badge">{analytics.months.length} شهر</span>
+            </div>
+            <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--text-muted)', transition: 'transform 0.2s', transform: chartsOpen ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+          </button>
+          {chartsOpen && (
+            <div className="psa-charts-grid">
+              {/* Chart 1: Monthly totals */}
+              <div className="card panel psa-chart-card">
+                <h3 className="psa-chart-title">الرواتب الشهرية</h3>
+                <div className="psa-chart-wrap">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analytics.months} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <Tooltip content={<ChartTooltip />} />
+                      <Bar dataKey="totalAmount" name="المبلغ الإجمالي" fill="#3b82f6" radius={[4,4,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Chart 2: Employee count per month */}
+              <div className="card panel psa-chart-card">
+                <h3 className="psa-chart-title">عدد الموظفين شهرياً</h3>
+                <div className="psa-chart-wrap">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analytics.months.filter((m) => m.employeeCount != null)} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          return (
+                            <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 14px', direction: 'rtl' }}>
+                              <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6, marginTop: 0 }}>{label}</p>
+                              <p style={{ color: '#10B981', fontSize: 13, fontWeight: 700, margin: 0 }}>{Number(payload[0].value).toLocaleString('ar-KW')} موظف</p>
+                            </div>
+                          );
+                        }}
+                      />
+                      <Bar dataKey="employeeCount" name="الموظفون" fill="#10b981" radius={[4,4,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Chart 3: Monthly variance (pos=green, neg=red) */}
+              {varianceData.length > 0 && (
+                <div className="card panel psa-chart-card">
+                  <h3 className="psa-chart-title">الفروقات الشهرية</h3>
+                  <div className="psa-chart-wrap">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={varianceData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                        <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="variance" name="الفرق" radius={[4,4,0,0]}>
+                          {varianceData.map((d, i) => (
+                            <Cell key={i} fill={d.isPositive ? '#16a34a' : '#ef4444'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {/* Chart 4: Top 5 employees */}
+              {analytics.topEmployees.length > 0 && (
+                <div className="card panel psa-chart-card">
+                  <h3 className="psa-chart-title">أعلى 5 موظفين راتباً</h3>
+                  <div className="psa-chart-wrap">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={analytics.topEmployees.slice(0, 5)} layout="vertical" margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                        <XAxis type="number" tick={{ fontSize: 10 }} />
+                        <YAxis type="category" dataKey="beneficiaryName" tick={{ fontSize: 10 }} width={80} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="totalAmount" name="الإجمالي" fill="#8b5cf6" radius={[0,4,4,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {/* Chart 5: Highest/Average salary per month */}
+              <div className="card panel psa-chart-card">
+                <h3 className="psa-chart-title">نطاق الرواتب الشهرية</h3>
+                <div className="psa-chart-wrap">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analytics.months.filter((m) => m.highest != null && m.avg != null)} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                      <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <Tooltip
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          return (
+                            <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 14px', direction: 'rtl', fontFamily: '"IBM Plex Sans Arabic", Arial, sans-serif' }}>
+                              <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6, marginTop: 0 }}>{label}</p>
+                              {payload.map((p, i) => <p key={i} style={{ color: p.color as string, fontSize: 12, fontWeight: 700, margin: '2px 0' }}>{p.name}: {fmt3(Number(p.value))} د.ك</p>)}
+                            </div>
+                          );
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Bar dataKey="highest" name="الأعلى" fill="#16a34a" radius={[4,4,0,0]} />
+                      <Bar dataKey="avg"     name="المتوسط" fill="#3b82f6" radius={[4,4,0,0]} />
+                      <Bar dataKey="lowest"  name="الأدنى"  fill="#ef4444" radius={[4,4,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Chart 6: Cumulative total */}
+              {cumulativeData.length > 0 && (
+                <div className="card panel psa-chart-card">
+                  <h3 className="psa-chart-title">الإجمالي التراكمي</h3>
+                  <div className="psa-chart-wrap">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={cumulativeData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                        <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
+                        <YAxis tick={{ fontSize: 10 }} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="cumulative" name="الإجمالي التراكمي" fill="#14b8a6" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {/* Analytics content */}
       {!loading && analytics && (
         <>
-          {/* F3 — Monthly bar chart */}
-          {analytics.months.length > 0 && (
-            <div className="card panel" style={{ padding: '20px 24px' }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 16px 0' }}>الرواتب الشهرية</h2>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={analytics.months} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="sourceMonth" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (!active || !payload?.length) return null;
-                      return (
-                        <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '10px 14px', fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', direction: 'rtl' }}>
-                          <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6, marginTop: 0 }}>{label}</p>
-                          <p style={{ color: '#60A5FA', fontSize: 13, fontWeight: 700, margin: 0 }}>{fmt3(Number(payload[0].value))} د.ك</p>
-                        </div>
-                      );
-                    }}
-                  />
-                  <Bar dataKey="totalAmount" name="المبلغ الإجمالي (د.ك)" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-
           {/* Monthly summary table */}
           {analytics.months.length > 0 && (
-            <div className="card panel" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>ملخص شهري</h2>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {(['all', '3m', '6m', 'year'] as const).map((mode) => (
+            <div className="psa-section-card">
+              <div className="psa-section-head">
+                <h2>الملخص الشهري</h2>
+                <div className="psa-chips" style={{ margin: 0 }}>
+                  {(['all', '3m', '6m', 'year'] as const).map((k) => (
                     <button
-                      key={mode}
+                      key={k}
                       type="button"
-                      onClick={() => handleMonthQuickFilter(mode)}
-                      style={{
-                        padding: '4px 12px',
-                        fontSize: 12,
-                        borderRadius: 8,
-                        border: monthQuickFilter === mode ? '1px solid var(--primary)' : '1px solid var(--border)',
-                        background: monthQuickFilter === mode ? 'var(--primary)' : 'transparent',
-                        color: monthQuickFilter === mode ? '#fff' : 'var(--text)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s',
-                        fontWeight: 500,
-                      }}
+                      className={`psa-chip${quickChip === k ? ' chip-active' : ''}`}
+                      style={{ fontSize: 12, padding: '3px 10px' }}
+                      onClick={() => handleQuickChip(k)}
                     >
-                      {mode === 'all' ? 'الكل' : mode === '3m' ? 'آخر 3 أشهر' : mode === '6m' ? 'آخر 6 أشهر' : 'هذه السنة'}
+                      {k === 'all' ? 'الكل' : k === '3m' ? 'آخر 3 أشهر' : k === '6m' ? 'آخر 6 أشهر' : 'هذه السنة'}
                     </button>
                   ))}
                 </div>
               </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <div className="psa-table-wrap" style={{ borderRadius: 0, border: 'none', boxShadow: 'none' }}>
+                <table>
                   <thead>
-                    <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ ...thCls, padding: '10px 16px' }}>الشهر</th>
-                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>المبلغ (د.ك)</th>
-                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>المعاملات</th>
-                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>الموظفون</th>
-                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>المتوسط</th>
-                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>الأعلى</th>
-                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>الأدنى</th>
-                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>الفرق</th>
+                    <tr>
+                      <th>الشهر</th>
+                      <th style={{ textAlign: 'end' }}>المبلغ (د.ك)</th>
+                      <th style={{ textAlign: 'end' }}>المعاملات</th>
+                      <th style={{ textAlign: 'end' }}>الموظفون</th>
+                      <th style={{ textAlign: 'end' }}>المتوسط</th>
+                      <th style={{ textAlign: 'end' }}>الأعلى</th>
+                      <th style={{ textAlign: 'end' }}>الأدنى</th>
+                      <th style={{ textAlign: 'end' }}>الفرق</th>
                     </tr>
                   </thead>
                   <tbody>
                     {analytics.months.map((m) => (
-                      <tr key={m.sourceMonth} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '8px 16px', fontWeight: 500 }}>{m.sourceMonth}</td>
-                        <td style={{ padding: '8px 16px', textAlign: 'end', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{fmt3(m.totalAmount)}</td>
-                        <td style={{ padding: '8px 16px', textAlign: 'end' }}>{m.count.toLocaleString('ar-KW')}</td>
-                        <td style={{ padding: '8px 16px', textAlign: 'end', color: 'var(--text-muted)' }}>{m.employeeCount?.toLocaleString('ar-KW') ?? '—'}</td>
-                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{m.avg != null ? fmt3(m.avg) : '—'}</td>
-                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', color: '#16a34a', fontVariantNumeric: 'tabular-nums' }}>{m.highest != null ? fmt3(m.highest) : '—'}</td>
-                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', color: '#ef4444', fontVariantNumeric: 'tabular-nums' }}>{m.lowest != null ? fmt3(m.lowest) : '—'}</td>
-                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }} className={varCls(m.varianceFromPrev)}>
-                          {varLabel(m.varianceFromPrev)}
+                      <tr key={m.sourceMonth}>
+                        <td style={{ fontWeight: 700 }}>{m.sourceMonth}</td>
+                        <td style={{ textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>
+                          <PrivateAmount value={fmt3(m.totalAmount)} />
                         </td>
+                        <td style={{ textAlign: 'end' }}>{m.count.toLocaleString('ar-KW')}</td>
+                        <td style={{ textAlign: 'end', color: 'var(--text-muted)' }}>{m.employeeCount?.toLocaleString('ar-KW') ?? '—'}</td>
+                        <td style={{ textAlign: 'end', fontFamily: 'monospace', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{m.avg != null ? fmt3(m.avg) : '—'}</td>
+                        <td style={{ textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }} className="psa-var-pos">{m.highest != null ? fmt3(m.highest) : '—'}</td>
+                        <td style={{ textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }} className="psa-var-neg">{m.lowest != null ? fmt3(m.lowest) : '—'}</td>
+                        <td style={{ textAlign: 'end' }} className={varCls(m.varianceFromPrev)}>{varLabel(m.varianceFromPrev)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -924,204 +1292,50 @@ export default function BankSalaryAnalytics() {
             </div>
           )}
 
-          {/* Employee Insight Card */}
-          {selectedEmployee && (
-            <div ref={insightCardRef} className="card panel" style={{ padding: '20px 24px' }}>
-              {empDetailLoading ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <Skeleton h="h-6" w="w-48" />
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
-                    {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} h="h-14" />)}
-                  </div>
-                </div>
-              ) : empDetail ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  {/* Profile header */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                    <div>
-                      <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#3B82F6' }}>person</span>
-                        {empDetail.employee.fullName}
-                        {empDetail.employee.status !== 'active' && (
-                          <span style={{ fontSize: 11, padding: '2px 8px', background: '#fee2e2', color: '#dc2626', borderRadius: 20 }}>غير نشط</span>
-                        )}
-                      </h2>
-                      {empDetail.employee.fullNameEn && (
-                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>{empDetail.employee.fullNameEn}</div>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button
-                        type="button"
-                        onClick={() => navigate('/employees')}
-                        className="btn btn-secondary"
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
-                        عرض الموظف
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleExport(empDetail.employee.id)}
-                        className="btn"
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, background: '#16a34a', borderColor: '#16a34a' }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>download</span>
-                        تصدير سجله
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Profile info grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, fontSize: 13 }}>
-                    {[
-                      ['الكود', empDetail.employee.code],
-                      ['الرقم المدني', empDetail.employee.civilId ?? '—'],
-                      ['رقم الحساب', empDetail.employee.bankAccount ?? '—'],
-                      ['المسمى الوظيفي', empDetail.employee.jobTitle ?? '—'],
-                      ['القسم', empDetail.employee.department ?? '—'],
-                      ['الحالة', empDetail.employee.status === 'active' ? 'نشط' : 'غير نشط'],
-                    ].map(([k, v]) => (
-                      <div key={k} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px' }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{k}</div>
-                        <div style={{ fontWeight: 500, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v}>{v}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Stats grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
-                    {[
-                      { label: 'إجمالي التحويلات', value: empDetail.stats.totalPayments.toLocaleString('ar-KW'), cls: '' },
-                      { label: 'إجمالي المبالغ (د.ك)', value: fmt3(empDetail.stats.totalAmount), cls: '' },
-                      { label: 'الأشهر المميزة', value: empDetail.stats.distinctMonths.toLocaleString('ar-KW'), cls: '' },
-                      { label: 'متوسط شهري (د.ك)', value: fmt3(empDetail.stats.avgMonthlyAmount), cls: '' },
-                      { label: 'أعلى تحويل (د.ك)', value: fmt3(empDetail.stats.highestPayment), cls: 'text-green-600 dark:text-green-400' },
-                      { label: 'أدنى تحويل (د.ك)', value: fmt3(empDetail.stats.lowestPayment), cls: 'text-red-500 dark:text-red-400' },
-                    ].map((s) => (
-                      <div key={s.label} className="card panel" style={{ textAlign: 'center', padding: 12 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>{s.label}</div>
-                        <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4, fontVariantNumeric: 'tabular-nums', color: s.cls?.includes('green') ? '#16a34a' : s.cls?.includes('red') ? '#ef4444' : undefined }}>{s.value}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Salary change indicator */}
-                  {empDetail.stats.distinctMonths > 1 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 8 }}>
-                      <span className={`material-symbols-outlined`} style={{ fontSize: 20, color: empDetail.stats.salaryChangeAmount >= 0 ? '#16a34a' : '#ef4444' }}>
-                        {empDetail.stats.salaryChangeAmount >= 0 ? 'trending_up' : 'trending_down'}
-                      </span>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)' }}>تغيير الراتب (أول ← آخر):</span>{' '}
-                        <span style={{ fontWeight: 600, color: empDetail.stats.salaryChangeAmount >= 0 ? '#16a34a' : '#ef4444' }}>
-                          {empDetail.stats.salaryChangeAmount >= 0 ? '+' : ''}{fmt3(empDetail.stats.salaryChangeAmount)} د.ك
-                          {' '}({empDetail.stats.salaryChangePercent >= 0 ? '+' : ''}{empDetail.stats.salaryChangePercent.toFixed(1)}%)
-                        </span>
-                      </div>
-                      <div style={{ marginInlineStart: 'auto', color: 'var(--text-muted)', fontSize: 12 }}>
-                        {empDetail.stats.salaryChangeCount} تغيير في {empDetail.stats.distinctMonths} شهر
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Monthly salary timeline */}
-                  {empDetail.monthlyHistory.length > 0 && (
-                    <div>
-                      <h3 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px 0' }}>الجدول الزمني للرواتب</h3>
-                      <div style={{ overflowX: 'auto' }}>
-                        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
-                          <thead>
-                            <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                              <th style={{ ...thCls, padding: '8px 12px' }}>الشهر</th>
-                              <th style={{ ...thCls, padding: '8px 12px', textAlign: 'end' }}>المبلغ (د.ك)</th>
-                              <th style={{ ...thCls, padding: '8px 12px', textAlign: 'end' }}>المعاملات</th>
-                              <th style={{ ...thCls, padding: '8px 12px', textAlign: 'end' }}>الفرق</th>
-                              <th style={{ ...thCls, padding: '8px 12px' }} aria-label="الاتجاه"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {empDetail.monthlyHistory.map((m) => (
-                              <tr key={m.sourceMonth} style={{ borderBottom: '1px solid var(--border)' }}>
-                                <td style={{ padding: '8px 12px', fontWeight: 500 }}>{m.sourceMonth}</td>
-                                <td style={{ padding: '8px 12px', textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{fmt3(m.totalAmount)}</td>
-                                <td style={{ padding: '8px 12px', textAlign: 'end' }}>{m.count}</td>
-                                <td style={{ padding: '8px 12px', textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }} className={varCls(m.varianceFromPrev)}>
-                                  {varLabel(m.varianceFromPrev)}
-                                </td>
-                                <td style={{ padding: '8px 12px' }}>
-                                  {m.varianceFromPrev !== null && m.varianceFromPrev !== 0 && (
-                                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: m.varianceFromPrev > 0 ? '#16a34a' : '#ef4444' }}>
-                                      {m.varianceFromPrev > 0 ? 'trending_up' : 'trending_down'}
-                                    </span>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 13 }}>لا توجد مدفوعات لهذا الموظف في النطاق المحدد</div>
-              )}
-            </div>
-          )}
-
-          {/* F3 — Top employees */}
+          {/* Top employees table */}
           {!appliedFilters.employeeId && analytics.topEmployees.length > 0 && (
-            <div className="card panel" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{ padding: '16px 20px' }}>
-                <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>أعلى الموظفين مدفوعاتٍ</h2>
+            <div className="psa-section-card">
+              <div className="psa-section-head">
+                <h2>أعلى الموظفين مدفوعاتٍ</h2>
               </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+              <div className="psa-table-wrap" style={{ borderRadius: 0, border: 'none', boxShadow: 'none' }}>
+                <table>
                   <thead>
-                    <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ ...thCls, padding: '10px 16px' }}>#</th>
-                      <th style={{ ...thCls, padding: '10px 16px' }}>المستفيد</th>
-                      <th style={{ ...thCls, padding: '10px 16px' }}>الرقم المدني</th>
-                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>إجمالي (د.ك)</th>
-                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>المعاملات</th>
-                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>متوسط (د.ك)</th>
-                      <th style={{ ...thCls, padding: '10px 16px' }}>آخر دفعة</th>
+                    <tr>
+                      <th>#</th>
+                      <th>المستفيد</th>
+                      <th>الرقم المدني</th>
+                      <th style={{ textAlign: 'end' }}>إجمالي (د.ك)</th>
+                      <th style={{ textAlign: 'end' }}>المعاملات</th>
+                      <th style={{ textAlign: 'end' }}>متوسط (د.ك)</th>
+                      <th>آخر دفعة</th>
                     </tr>
                   </thead>
                   <tbody>
                     {analytics.topEmployees.map((e, i) => (
                       <tr
                         key={i}
+                        className={e.employeeId ? 'row-clickable' : ''}
                         onClick={() => {
                           if (e.employeeId) {
-                            const empOpt: EmployeeOption = {
-                              id: e.employeeId,
-                              code: '',
-                              fullName: e.beneficiaryName,
-                              fullNameEn: null,
-                              civilId: e.civilId,
-                              bankAccount: null,
-                            };
-                            selectEmployee(empOpt);
+                            selectEmployee({ id: e.employeeId, code: '', fullName: e.beneficiaryName, fullNameEn: null, civilId: e.civilId, bankAccount: null });
                           }
                         }}
-                        style={{ borderBottom: '1px solid var(--border)', cursor: e.employeeId ? 'pointer' : 'default', transition: 'background 0.15s' }}
                       >
-                        <td style={{ padding: '8px 16px', color: 'var(--text-muted)', fontFamily: 'monospace', textAlign: 'center' }}>{i + 1}</td>
-                        <td style={{ padding: '8px 16px', fontWeight: 500 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <td style={{ color: 'var(--text-muted)', fontFamily: 'monospace', textAlign: 'center', fontWeight: 400 }}>{i + 1}</td>
+                        <td style={{ fontWeight: 700 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                             {e.beneficiaryName}
-                            {e.employeeId && (
-                              <span className="material-symbols-outlined" style={{ fontSize: 12, color: '#60a5fa' }} title="انقر للتفاصيل">person_search</span>
-                            )}
+                            {e.employeeId && <span className="material-symbols-outlined" style={{ fontSize: 13, color: 'var(--accent)' }}>person_search</span>}
                           </div>
                         </td>
-                        <td style={{ padding: '8px 16px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 12 }}>{e.civilId ?? '—'}</td>
-                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{fmt3(e.totalAmount)}</td>
-                        <td style={{ padding: '8px 16px', textAlign: 'end' }}>{e.count.toLocaleString('ar-KW')}</td>
-                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmt3(e.avgAmount)}</td>
-                        <td style={{ padding: '8px 16px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{fmtDate(e.latestPaymentDate)}</td>
+                        <td style={{ color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 12 }}>{e.civilId ?? '—'}</td>
+                        <td style={{ textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
+                          <PrivateAmount value={fmt3(e.totalAmount)} />
+                        </td>
+                        <td style={{ textAlign: 'end' }}>{e.count.toLocaleString('ar-KW')}</td>
+                        <td style={{ textAlign: 'end', fontFamily: 'monospace', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmt3(e.avgAmount)}</td>
+                        <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{fmtDate(e.latestPaymentDate)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1130,120 +1344,302 @@ export default function BankSalaryAnalytics() {
             </div>
           )}
 
-          {/* F4 — Transactions table */}
-          <div className="card panel" style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>
-                المعاملات
-                {txData && <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 13, marginInlineStart: 8 }}>({txData.meta.total.toLocaleString('ar-KW')})</span>}
-              </h2>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>الصفوف:</label>
-                <select
-                  style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '4px 8px', fontSize: 13, background: 'var(--surface)', color: 'var(--text)' }}
-                  title="حجم الصفحة"
-                  value={txPageSize}
-                  onChange={(e) => { setTxPageSize(Number(e.target.value)); setTxPage(1); }}
-                >
-                  {PAGE_SIZE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
+          {/* ── Package G + H: Transactions + Employee Drawer ─────────── */}
+          <div className="psa-main-layout">
+
+            {/* Package G: Modern Transactions Table */}
+            <div className="psa-table-section">
+              <div className="psa-section-card">
+                <div className="psa-table-header">
+                  <h2 className="psa-table-title">
+                    <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--accent)' }}>receipt_long</span>
+                    المعاملات
+                    {txData && <span className="psa-table-count">({txData.meta.total.toLocaleString('ar-KW')})</span>}
+                  </h2>
+                  <div className="psa-page-size-row">
+                    <label>الصفوف:</label>
+                    <select
+                      title="حجم الصفحة"
+                      value={txPageSize}
+                      onChange={(e) => { setTxPageSize(Number(e.target.value)); setTxPage(1); }}
+                    >
+                      {PAGE_SIZE_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                {txLoading ? (
+                  <div style={{ padding: '8px 0' }}>
+                    {Array.from({ length: 7 }).map((_, i) => (
+                      <div key={i} className="psa-skel-row">
+                        <Skel w="10%" h={13} />
+                        <Skel w="15%" h={13} />
+                        <Skel w="20%" h={13} />
+                        <Skel w="25%" h={13} />
+                        <Skel w="12%" h={13} />
+                        <Skel w="10%" h={13} />
+                      </div>
+                    ))}
+                  </div>
+                ) : txData ? (
+                  <>
+                    {txData.data.length === 0 ? (
+                      /* Package K: Professional empty state */
+                      <div className="psa-empty">
+                        <span className="material-symbols-outlined psa-empty-icon">receipt_long</span>
+                        <div className="psa-empty-title">لا توجد معاملات</div>
+                        <div className="psa-empty-sub">لا توجد معاملات تطابق الفلاتر المحددة</div>
+                        <button type="button" className="btn btn-secondary" onClick={clearAllFilters} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>filter_alt_off</span>
+                          مسح الفلاتر
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="psa-table-wrap" style={{ borderRadius: 0, border: 'none', boxShadow: 'none' }}>
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>رقم المعاملة</th>
+                              <SortTh field="sourceMonth"     label="الشهر"        sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
+                              <SortTh field="paymentDate"     label="تاريخ الدفع"   sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
+                              <SortTh field="beneficiaryName" label="المستفيد"      sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
+                              <SortTh field="amount"          label="المبلغ (د.ك)"  sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
+                              <th>الرقم المدني</th>
+                              {appliedFilters.employeeId && <th>مطابقة بـ</th>}
+                              <th>الحالة</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {txData.data.map((row) => (
+                              <tr key={row.id}>
+                                <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.transactionId}>
+                                  {row.transactionId}
+                                </td>
+                                <td>{row.sourceMonth ?? '—'}</td>
+                                <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(row.paymentDate)}</td>
+                                <td style={{ fontWeight: 700 }}>{row.beneficiaryName}</td>
+                                <td style={{ fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
+                                  <PrivateAmount value={fmt3(row.amount)} />
+                                </td>
+                                <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>{row.civilId ?? '—'}</td>
+                                {appliedFilters.employeeId && (
+                                  <td>
+                                    {row.matchedBy
+                                      ? <span className="psa-match-badge">{row.matchedBy}</span>
+                                      : <span style={{ color: 'var(--text-muted)' }}>—</span>}
+                                  </td>
+                                )}
+                                <td>
+                                  <span className={`psa-status ${row.status ?? 'default'}`}>
+                                    {row.status ?? '—'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {/* Pagination */}
+                    {txData.meta.totalPages > 1 && (
+                      <div className="psa-pagination">
+                        <span className="psa-pagination-info">{txData.meta.total.toLocaleString('ar-KW')} معاملة</span>
+                        <div className="psa-pagination-controls">
+                          <button type="button" disabled={txPage <= 1} onClick={() => setTxPage((p) => p - 1)} className="btn btn-secondary" style={{ padding: '4px 12px', fontSize: 12, opacity: txPage <= 1 ? 0.4 : 1 }}>
+                            السابق
+                          </button>
+                          <span style={{ padding: '4px 12px', color: 'var(--text-muted)', fontSize: 13 }}>{txPage} / {txData.meta.totalPages}</span>
+                          <button type="button" disabled={txPage >= txData.meta.totalPages} onClick={() => setTxPage((p) => p + 1)} className="btn btn-secondary" style={{ padding: '4px 12px', fontSize: 12, opacity: txPage >= txData.meta.totalPages ? 0.4 : 1 }}>
+                            التالي
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : null}
               </div>
             </div>
 
-            {txLoading ? (
-              <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} h="h-10" />)}
-              </div>
-            ) : txData ? (
-              <>
-                {txData.data.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: 40, display: 'block', marginBottom: 8 }}>receipt_long</span>
-                    <div style={{ fontSize: 13 }}>لا توجد معاملات في النطاق المحدد</div>
-                  </div>
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
-                          <th style={{ ...thCls, padding: '10px 16px' }}>رقم المعاملة</th>
-                          <SortTh field="sourceMonth" label="الشهر" sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
-                          <SortTh field="paymentDate" label="تاريخ الدفع" sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
-                          <SortTh field="beneficiaryName" label="المستفيد" sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
-                          <SortTh field="amount" label="المبلغ (د.ك)" sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} cls="text-end" />
-                          <th style={{ ...thCls, padding: '10px 16px' }}>الرقم المدني</th>
-                          {appliedFilters.employeeId && <th style={{ ...thCls, padding: '10px 16px' }}>مطابقة بـ</th>}
-                          <th style={{ ...thCls, padding: '10px 16px' }}>الحالة</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {txData.data.map((row) => (
-                          <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                            <td style={{ padding: '8px 16px', fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)', maxWidth: 128, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.transactionId}>{row.transactionId}</td>
-                            <td style={{ padding: '8px 16px' }}>{row.sourceMonth ?? '—'}</td>
-                            <td style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>{fmtDate(row.paymentDate)}</td>
-                            <td style={{ padding: '8px 16px' }}>{row.beneficiaryName}</td>
-                            <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{fmt3(row.amount)}</td>
-                            <td style={{ padding: '8px 16px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 12 }}>{row.civilId ?? '—'}</td>
-                            {appliedFilters.employeeId && (
-                              <td style={{ padding: '8px 16px' }}>
-                                {row.matchedBy ? (
-                                  <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 11, background: 'rgba(59,130,246,0.1)', color: '#3B82F6', whiteSpace: 'nowrap' }}>
-                                    {row.matchedBy}
-                                  </span>
-                                ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-                              </td>
-                            )}
-                            <td style={{ padding: '8px 16px' }}>
-                              <span style={{
-                                display: 'inline-block',
-                                padding: '2px 8px',
-                                borderRadius: 12,
-                                fontSize: 11,
-                                background: row.status === 'PROCESSED' ? 'rgba(22,163,74,0.1)' : row.status === 'FAILED' ? 'rgba(239,68,68,0.1)' : 'rgba(0,0,0,0.06)',
-                                color: row.status === 'PROCESSED' ? '#16a34a' : row.status === 'FAILED' ? '#ef4444' : 'var(--text-muted)',
-                              }}>
-                                {row.status ?? '—'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+            {/* Package H: Employee Details Drawer */}
+            {selectedEmployee && (
+              <div className="psa-details-side">
+                <div className="psa-details-head">
+                  <h3>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--accent)', verticalAlign: 'middle', marginInlineEnd: 5 }}>person</span>
+                    تفاصيل الموظف
+                  </h3>
+                  <button type="button" className="psa-close-btn" onClick={() => selectEmployee(null)} aria-label="إغلاق">
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+                  </button>
+                </div>
 
-                {/* Pagination */}
-                {txData.meta.totalPages > 1 && (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--border)', fontSize: 13 }}>
-                    <span style={{ color: 'var(--text-muted)' }}>{txData.meta.total.toLocaleString('ar-KW')} معاملة</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button
-                        type="button"
-                        disabled={txPage <= 1}
-                        onClick={() => setTxPage((p) => p - 1)}
-                        className="btn btn-secondary"
-                        style={{ padding: '4px 12px', fontSize: 12, opacity: txPage <= 1 ? 0.4 : 1 }}
-                      >
-                        السابق
+                {empDetailLoading ? (
+                  <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <Skel h={20} w="70%" />
+                    <Skel h={14} w="50%" />
+                    {Array.from({ length: 4 }).map((_, i) => <Skel key={i} h={13} />)}
+                  </div>
+                ) : empDetail ? (
+                  <>
+                    {/* Profile section */}
+                    <div className="psa-details-section">
+                      <p className="psa-details-sec-title">بيانات الموظف</p>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{empDetail.employee.fullName}</div>
+                          {empDetail.employee.fullNameEn && (
+                            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{empDetail.employee.fullNameEn}</div>
+                          )}
+                          {empDetail.employee.status !== 'active' && (
+                            <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, padding: '2px 8px', background: 'var(--red-light)', color: 'var(--red)', borderRadius: 20 }}>غير نشط</span>
+                          )}
+                        </div>
+                      </div>
+                      {[
+                        ['الكود', empDetail.employee.code],
+                        ['الرقم المدني', empDetail.employee.civilId ?? '—'],
+                        ['رقم الحساب', empDetail.employee.bankAccount ?? '—'],
+                        ['المسمى الوظيفي', empDetail.employee.jobTitle ?? '—'],
+                        ['القسم', empDetail.employee.department ?? '—'],
+                      ].map(([k, v]) => (
+                        <div key={k} className="psa-detail-row">
+                          <span className="psa-detail-lbl">{k}</span>
+                          <span className="psa-detail-val">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Stats section */}
+                    <div className="psa-details-section">
+                      <p className="psa-details-sec-title">إحصائيات المدفوعات</p>
+                      <div className="psa-emp-stat-grid">
+                        <div className="psa-emp-stat">
+                          <div className="psa-emp-stat-lbl">إجمالي التحويلات</div>
+                          <div className="psa-emp-stat-val">{empDetail.stats.totalPayments.toLocaleString('ar-KW')}</div>
+                        </div>
+                        <div className="psa-emp-stat">
+                          <div className="psa-emp-stat-lbl">الأشهر</div>
+                          <div className="psa-emp-stat-val">{empDetail.stats.distinctMonths.toLocaleString('ar-KW')}</div>
+                        </div>
+                        <div className="psa-emp-stat">
+                          <div className="psa-emp-stat-lbl">الإجمالي (د.ك)</div>
+                          <div className="psa-emp-stat-val" style={{ fontSize: 12 }}><PrivateAmount value={fmt3(empDetail.stats.totalAmount)} /></div>
+                        </div>
+                        <div className="psa-emp-stat">
+                          <div className="psa-emp-stat-lbl">المتوسط (د.ك)</div>
+                          <div className="psa-emp-stat-val" style={{ fontSize: 12 }}><PrivateAmount value={fmt3(empDetail.stats.avgMonthlyAmount)} /></div>
+                        </div>
+                        <div className="psa-emp-stat">
+                          <div className="psa-emp-stat-lbl" style={{ color: '#16a34a' }}>الأعلى (د.ك)</div>
+                          <div className="psa-emp-stat-val psa-var-pos" style={{ fontSize: 12 }}><PrivateAmount value={fmt3(empDetail.stats.highestPayment)} /></div>
+                        </div>
+                        <div className="psa-emp-stat">
+                          <div className="psa-emp-stat-lbl" style={{ color: '#ef4444' }}>الأدنى (د.ك)</div>
+                          <div className="psa-emp-stat-val psa-var-neg" style={{ fontSize: 12 }}><PrivateAmount value={fmt3(empDetail.stats.lowestPayment)} /></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Salary change indicator */}
+                    {empDetail.stats.distinctMonths > 1 && (
+                      <div className="psa-details-section">
+                        <p className="psa-details-sec-title">تغيير الراتب</p>
+                        <div className="psa-salary-change">
+                          <span className="material-symbols-outlined psa-salary-change-icon" style={{ color: empDetail.stats.salaryChangeAmount >= 0 ? '#16a34a' : '#ef4444' }}>
+                            {empDetail.stats.salaryChangeAmount >= 0 ? 'trending_up' : 'trending_down'}
+                          </span>
+                          <div>
+                            <div className={`psa-salary-change-val ${empDetail.stats.salaryChangeAmount >= 0 ? 'psa-var-pos' : 'psa-var-neg'}`}>
+                              {empDetail.stats.salaryChangeAmount >= 0 ? '+' : ''}{fmt3(empDetail.stats.salaryChangeAmount)} د.ك
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                              {empDetail.stats.salaryChangePercent >= 0 ? '+' : ''}{empDetail.stats.salaryChangePercent.toFixed(1)}% خلال {empDetail.stats.distinctMonths} شهر
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Monthly timeline */}
+                    {empDetail.monthlyHistory.length > 0 && (
+                      <div className="psa-details-section">
+                        <p className="psa-details-sec-title">الجدول الزمني</p>
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                            <thead>
+                              <tr style={{ background: 'var(--surface-2)' }}>
+                                <th style={{ padding: '6px 8px', textAlign: 'start', fontWeight: 700, color: 'var(--text-muted)', fontSize: 10.5, textTransform: 'uppercase' }}>الشهر</th>
+                                <th style={{ padding: '6px 8px', textAlign: 'end',  fontWeight: 700, color: 'var(--text-muted)', fontSize: 10.5, textTransform: 'uppercase' }}>المبلغ</th>
+                                <th style={{ padding: '6px 8px', textAlign: 'end',  fontWeight: 700, color: 'var(--text-muted)', fontSize: 10.5, textTransform: 'uppercase' }}>الفرق</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {empDetail.monthlyHistory.map((m) => (
+                                <tr key={m.sourceMonth} style={{ borderTop: '1px solid var(--border)' }}>
+                                  <td style={{ padding: '6px 8px', fontWeight: 600 }}>{m.sourceMonth}</td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>
+                                    <PrivateAmount value={fmt3(m.totalAmount)} />
+                                  </td>
+                                  <td style={{ padding: '6px 8px', textAlign: 'end' }} className={varCls(m.varianceFromPrev)}>
+                                    {varLabel(m.varianceFromPrev)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="psa-details-actions">
+                      <button type="button" className="btn" onClick={() => handleExport(empDetail.employee.id, 'excel')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#16a34a', borderColor: '#16a34a', fontSize: 13 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 15 }}>download</span>
+                        تصدير سجله
                       </button>
-                      <span style={{ padding: '4px 12px', color: 'var(--text-muted)' }}>{txPage} / {txData.meta.totalPages}</span>
-                      <button
-                        type="button"
-                        disabled={txPage >= txData.meta.totalPages}
-                        onClick={() => setTxPage((p) => p + 1)}
-                        className="btn btn-secondary"
-                        style={{ padding: '4px 12px', fontSize: 12, opacity: txPage >= txData.meta.totalPages ? 0.4 : 1 }}
-                      >
-                        التالي
+                      <button type="button" className="btn btn-secondary" onClick={() => navigate('/employees')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 15 }}>open_in_new</span>
+                        عرض ملف الموظف
                       </button>
                     </div>
+                  </>
+                ) : (
+                  <div className="psa-empty" style={{ padding: '32px 20px' }}>
+                    <span className="material-symbols-outlined psa-empty-icon" style={{ fontSize: 36 }}>person_off</span>
+                    <div className="psa-empty-title" style={{ fontSize: 13 }}>لا توجد مدفوعات</div>
+                    <div className="psa-empty-sub" style={{ fontSize: 12 }}>لا توجد مدفوعات لهذا الموظف في النطاق المحدد</div>
                   </div>
                 )}
-              </>
-            ) : null}
+              </div>
+            )}
           </div>
         </>
+      )}
+
+      {/* Empty state when no analytics loaded yet */}
+      {!loading && !analytics && !error && (
+        <div className="card panel">
+          <div className="psa-empty">
+            <span className="material-symbols-outlined psa-empty-icon">analytics</span>
+            <div className="psa-empty-title">لا توجد بيانات</div>
+            <div className="psa-empty-sub">قم باستيراد ملف رواتب بنكي لبدء التحليل</div>
+            <button type="button" className="btn" onClick={() => navigate('/payroll/bank-import')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>upload_file</span>
+              استيراد ملف جديد
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Package M: Toast */}
+      {toast && (
+        <div className={`psa-toast ${toast.type}`}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
+            {toast.type === 'ok' ? 'check_circle' : 'error'}
+          </span>
+          {toast.msg}
+        </div>
       )}
     </div>
   );
