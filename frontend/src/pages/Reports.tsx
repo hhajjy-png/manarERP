@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import ExportExcelButton from '../components/ExportExcelButton';
@@ -7,6 +7,7 @@ import { exportReportAsPdf } from '../utils/pdfExport';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
+import './Reports.css';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -24,90 +25,123 @@ interface ReportType {
   label: string;
   icon: string;
   group: string;
+  groupAr: string;
   filters: FilterKey[];
   statuses?: [string, string][];
   statusLabel?: string;
+  descAr?: string;
+  statusType?: 'ready' | 'needs-filter' | 'live';
 }
 
 const REPORT_TYPES: ReportType[] = [
   {
-    key: 'invoices', label: 'report.type.invoices', icon: '🧾', group: 'report.group.financial',
+    key: 'invoices', label: 'report.type.invoices', icon: '🧾', group: 'report.group.financial', groupAr: 'المالية',
     filters: ['date', 'customer', 'direction', 'status'],
     statuses: [['UNPAID', 'inv.status.unpaid'], ['PARTIAL', 'inv.status.partial'], ['PAID', 'inv.status.paid'], ['OVERDUE', 'inv.status.overdue'], ['CANCELLED', 'inv.status.cancelled']],
+    descAr: 'تقرير شامل بجميع الفواتير المبيعات والمشتريات مع الحالات والمجاميع',
+    statusType: 'needs-filter',
   },
   {
-    key: 'expenses', label: 'report.type.expenses', icon: '💸', group: 'report.group.financial',
+    key: 'expenses', label: 'report.type.expenses', icon: '💸', group: 'report.group.financial', groupAr: 'المالية',
     filters: ['date', 'status'],
     statuses: [['PENDING', 'status.pending'], ['APPROVED', 'status.approved'], ['REJECTED', 'status.rejected']],
+    descAr: 'تقرير المصروفات المعتمدة والمعلقة للفترة المختارة',
+    statusType: 'needs-filter',
   },
   {
-    key: 'profit-loss', label: 'report.type.profit_loss', icon: '📈', group: 'report.group.financial',
+    key: 'profit-loss', label: 'report.type.profit_loss', icon: '📈', group: 'report.group.financial', groupAr: 'المالية',
     filters: ['date'],
+    descAr: 'تقرير الأرباح والخسائر للفترة المالية المحددة',
+    statusType: 'ready',
   },
   {
-    key: 'contracts', label: 'report.type.contracts', icon: '📄', group: 'report.group.business',
+    key: 'contracts', label: 'report.type.contracts', icon: '📄', group: 'report.group.business', groupAr: 'الأعمال',
     filters: ['customer', 'status'],
     statuses: [['ACTIVE', 'opt.contract.active'], ['EXPIRED', 'opt.contract.expired'], ['RENEWING', 'opt.contract.renewing'], ['SUSPENDED', 'opt.contract.suspended']],
+    descAr: 'قائمة العقود مع العملاء وحالاتها',
+    statusType: 'ready',
   },
   {
-    key: 'customers', label: 'report.type.customers', icon: '👥', group: 'report.group.business',
+    key: 'customers', label: 'report.type.customers', icon: '👥', group: 'report.group.business', groupAr: 'الأعمال',
     filters: ['status'],
     statuses: [['GOVERNMENT', 'opt.customer.government'], ['PRIVATE', 'opt.customer.private']],
     statusLabel: 'filter.customer_type',
+    descAr: 'قائمة جميع العملاء مصنفةً حسب النوع',
+    statusType: 'ready',
   },
   {
-    key: 'employees', label: 'report.type.employees', icon: '👷', group: 'report.group.hr',
+    key: 'employees', label: 'report.type.employees', icon: '👷', group: 'report.group.hr', groupAr: 'الموارد البشرية',
     filters: ['status'],
     statuses: [['ACTIVE', 'opt.emp.active'], ['ON_LEAVE', 'opt.emp.on_leave'], ['TERMINATED', 'opt.emp.terminated']],
+    descAr: 'قائمة الموظفين مع حالاتهم الوظيفية',
+    statusType: 'ready',
   },
   {
-    key: 'payroll', label: 'report.type.payroll', icon: '💵', group: 'report.group.hr',
+    key: 'payroll', label: 'report.type.payroll', icon: '💵', group: 'report.group.hr', groupAr: 'الموارد البشرية',
     filters: ['date', 'employee', 'status'],
     statuses: [['DRAFT', 'payroll.status.draft'], ['APPROVED', 'payroll.status.approved'], ['PAID', 'payroll.status.paid'], ['CANCELLED', 'payroll.status.cancelled']],
+    descAr: 'تقرير مسير الرواتب للموظفين',
+    statusType: 'needs-filter',
   },
   {
-    key: 'attendance', label: 'report.type.attendance', icon: '📅', group: 'report.group.hr',
+    key: 'attendance', label: 'report.type.attendance', icon: '📅', group: 'report.group.hr', groupAr: 'الموارد البشرية',
     filters: ['date', 'employee', 'status'],
     statuses: [['PRESENT', 'att.present'], ['ABSENT', 'att.absent'], ['LATE', 'att.late'], ['LEAVE', 'att.leave']],
+    descAr: 'سجل الحضور والغياب للموظفين',
+    statusType: 'needs-filter',
   },
   {
-    key: 'equipment', label: 'report.type.equipment', icon: '🚜', group: 'report.group.operations',
+    key: 'equipment', label: 'report.type.equipment', icon: '🚜', group: 'report.group.operations', groupAr: 'العمليات',
     filters: ['status'],
     statuses: [['WORKING', 'opt.eq.working'], ['NOT_WORKING', 'opt.eq.not_working']],
+    descAr: 'حالة المعدات والآليات العاملة والمتوقفة',
+    statusType: 'ready',
   },
   {
-    key: 'expenses-by-company', label: 'تقرير المصروفات حسب الشركة', icon: '🏗️', group: 'report.group.operational',
+    key: 'expenses-by-company', label: 'تقرير المصروفات حسب الشركة', icon: '🏗️', group: 'report.group.operational', groupAr: 'العمليات التشغيلية',
     filters: ['date', 'billingMonth', 'billingYear', 'company', 'status'],
     statuses: [['PENDING', 'status.pending'], ['APPROVED', 'status.approved'], ['REJECTED', 'status.rejected']],
+    descAr: 'تقرير المصروفات مصنفاً حسب الشركة أو المسؤول',
+    statusType: 'needs-filter',
   },
   {
-    key: 'invoices-by-customer', label: 'تقرير الفواتير حسب العميل', icon: '📊', group: 'report.group.operational',
+    key: 'invoices-by-customer', label: 'تقرير الفواتير حسب العميل', icon: '📊', group: 'report.group.operational', groupAr: 'العمليات التشغيلية',
     filters: ['date', 'billingMonth', 'billingYear', 'customer', 'direction', 'status'],
     statuses: [['UNPAID', 'inv.status.unpaid'], ['PARTIAL', 'inv.status.partial'], ['PAID', 'inv.status.paid'], ['OVERDUE', 'inv.status.overdue']],
+    descAr: 'تقرير الفواتير مجمعاً ومصنفاً لكل عميل',
+    statusType: 'needs-filter',
   },
   {
-    key: 'prices-usage', label: 'تقرير استخدام الاتفاقيات', icon: '🤝', group: 'report.group.operational',
+    key: 'prices-usage', label: 'تقرير استخدام الاتفاقيات', icon: '🤝', group: 'report.group.operational', groupAr: 'العمليات التشغيلية',
     filters: ['customer', 'company', 'workType'],
+    descAr: 'تقرير استخدام اتفاقيات الأسعار حسب العميل ونوع العمل',
+    statusType: 'ready',
   },
   {
-    key: 'customer-statement', label: 'report.type.customer_statement', icon: '📋', group: 'report.group.receivables',
+    key: 'customer-statement', label: 'report.type.customer_statement', icon: '📋', group: 'report.group.receivables', groupAr: 'المستحقات',
     filters: ['customer', 'date'],
+    descAr: 'كشف حساب تفصيلي لعميل محدد',
+    statusType: 'needs-filter',
   },
   {
-    key: 'receivables-aging', label: 'report.type.receivables_aging', icon: '⏳', group: 'report.group.receivables',
+    key: 'receivables-aging', label: 'report.type.receivables_aging', icon: '⏳', group: 'report.group.receivables', groupAr: 'المستحقات',
     filters: ['date', 'customer'],
+    descAr: 'تحليل عمر الذمم المدينة مصنفاً حسب الفترات الزمنية',
+    statusType: 'live',
   },
   {
-    key: 'customer-balances', label: 'report.type.customer_balances', icon: '⚖️', group: 'report.group.receivables',
+    key: 'customer-balances', label: 'report.type.customer_balances', icon: '⚖️', group: 'report.group.receivables', groupAr: 'المستحقات',
     filters: ['customer', 'date'],
+    descAr: 'أرصدة العملاء الإجمالية والمستحقة',
+    statusType: 'live',
   },
   {
-    key: 'collections-summary', label: 'report.type.collections_summary', icon: '💰', group: 'report.group.receivables',
+    key: 'collections-summary', label: 'report.type.collections_summary', icon: '💰', group: 'report.group.receivables', groupAr: 'المستحقات',
     filters: ['date', 'customer'],
+    descAr: 'ملخص تحصيلات الفترة المالية المختارة',
+    statusType: 'live',
   },
 ];
-
-const GROUPS = ['report.group.financial', 'report.group.business', 'report.group.hr', 'report.group.operations', 'report.group.operational', 'report.group.receivables'];
 
 const CONTRACT_UNITS = ['طن', 'درب', 'يومية', 'مقطوعية'];
 
@@ -118,6 +152,32 @@ const COMPANY_GROUPS = [
   { value: 'HAROON', label: 'مصروف عن طريق هارون' },
 ];
 
+const CHIP_GROUPS = [
+  { key: 'all', label: 'الكل', group: undefined },
+  { key: 'financial', label: 'المالية', group: 'report.group.financial' },
+  { key: 'business', label: 'الأعمال', group: 'report.group.business' },
+  { key: 'hr', label: 'الموارد البشرية', group: 'report.group.hr' },
+  { key: 'operations', label: 'العمليات', group: 'report.group.operations' },
+  { key: 'operational', label: 'التشغيلية', group: 'report.group.operational' },
+  { key: 'receivables', label: 'المستحقات', group: 'report.group.receivables' },
+  { key: 'favorites', label: '⭐ المفضلة', group: undefined },
+];
+
+const LS_FAVORITES = 'rc_favorites_v1';
+const LS_RECENT    = 'rc_recent_v1';
+
+function loadFavorites(): string[] {
+  try { return JSON.parse(localStorage.getItem(LS_FAVORITES) ?? '[]'); } catch { return []; }
+}
+function saveFavorites(ids: string[]) { localStorage.setItem(LS_FAVORITES, JSON.stringify(ids)); }
+function loadRecent(): string[] {
+  try { return JSON.parse(localStorage.getItem(LS_RECENT) ?? '[]'); } catch { return []; }
+}
+function pushRecent(key: string) {
+  const prev = loadRecent().filter((k) => k !== key);
+  localStorage.setItem(LS_RECENT, JSON.stringify([key, ...prev].slice(0, 5)));
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function fmt(v: unknown): string {
@@ -126,38 +186,55 @@ function fmt(v: unknown): string {
   return String(v);
 }
 
+function getStatusBadge(type: ReportType['statusType']) {
+  if (type === 'needs-filter') return { cls: 'needs-filter', label: '🟡 يحتاج فلاتر' };
+  if (type === 'live')         return { cls: 'live',         label: '🔵 تقرير مباشر' };
+  return                              { cls: 'ready',        label: '🟢 جاهز' };
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function Reports() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { t } = useT();
-  const canView = hasPermission('reports.read');
+  const canView   = hasPermission('reports.read');
   const canExport = hasPermission('reports.export');
 
-  const [selected, setSelected] = useState<string>('invoices');
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
-  const [customerId, setCustomerId] = useState('');
-  const [employeeId, setEmployeeId] = useState('');
-  const [status, setStatus] = useState('');
-  const [direction, setDirection] = useState('');
+  // Filter state — preserved exactly
+  const [selected, setSelected]       = useState<string>('invoices');
+  const [from, setFrom]               = useState('');
+  const [to, setTo]                   = useState('');
+  const [customerId, setCustomerId]   = useState('');
+  const [employeeId, setEmployeeId]   = useState('');
+  const [status, setStatus]           = useState('');
+  const [direction, setDirection]     = useState('');
   const [billingMonth, setBillingMonth] = useState('');
-  const [billingYear, setBillingYear] = useState('');
-  const [company, setCompany] = useState('');
-  const [workType, setWorkType] = useState('');
+  const [billingYear, setBillingYear]   = useState('');
+  const [company, setCompany]         = useState('');
+  const [workType, setWorkType]       = useState('');
 
-  const [preview, setPreview] = useState<ReportData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [excelBusy, setExcelBusy] = useState(false);
-  const [pdfBusy,   setPdfBusy]   = useState(false);
+  // Preview state — preserved exactly
+  const [preview, setPreview]         = useState<ReportData | null>(null);
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState('');
+  const [excelBusy, setExcelBusy]     = useState(false);
+  const [pdfBusy,   setPdfBusy]       = useState(false);
   const [generatedAt, setGeneratedAt] = useState<Date | null>(null);
 
+  // Dropdown data
   const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [employees, setEmployees] = useState<EmployeeItem[]>([]);
 
-  const currentType = REPORT_TYPES.find((rt) => rt.key === selected)!;
+  // Explorer state
+  const [search, setSearch]         = useState('');
+  const [activeChip, setActiveChip] = useState('all');
+  const [favorites, setFavorites]   = useState<string[]>(loadFavorites);
+  const [panelOpen, setPanelOpen]   = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
+
+  const currentType = useMemo(() => REPORT_TYPES.find((rt) => rt.key === selected)!, [selected]);
 
   // Load dropdowns once
   useEffect(() => {
@@ -179,6 +256,16 @@ export default function Reports() {
     setPreview(null); setError('');
   }, [selected]);
 
+  // Close export dropdown on outside click
+  useEffect(() => {
+    if (!exportOpen) return;
+    function onOutside(e: MouseEvent) {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) setExportOpen(false);
+    }
+    document.addEventListener('mousedown', onOutside);
+    return () => document.removeEventListener('mousedown', onOutside);
+  }, [exportOpen]);
+
   function resetFilters() {
     setFrom(''); setTo('');
     setCustomerId(''); setEmployeeId('');
@@ -190,16 +277,16 @@ export default function Reports() {
 
   function buildParams(): Record<string, string> {
     const p: Record<string, string> = {};
-    if (from) p.from = from;
-    if (to) p.to = to;
-    if (customerId) p.customerId = customerId;
-    if (employeeId) p.employeeId = employeeId;
-    if (status) p.status = status;
-    if (direction) p.direction = direction;
+    if (from)         p.from         = from;
+    if (to)           p.to           = to;
+    if (customerId)   p.customerId   = customerId;
+    if (employeeId)   p.employeeId   = employeeId;
+    if (status)       p.status       = status;
+    if (direction)    p.direction    = direction;
     if (billingMonth) p.billingMonth = billingMonth;
-    if (billingYear) p.billingYear = billingYear;
-    if (company) p.company = company;
-    if (workType) p.workType = workType;
+    if (billingYear)  p.billingYear  = billingYear;
+    if (company)      p.company      = company;
+    if (workType)     p.workType     = workType;
     return p;
   }
 
@@ -208,10 +295,12 @@ export default function Reports() {
     setLoading(true);
     setError('');
     setPreview(null);
+    setPanelOpen(false);
     try {
       const res = await api.get(`/reports/${selected}/preview`, { params: buildParams() });
       setPreview(res.data.data);
       setGeneratedAt(new Date());
+      pushRecent(selected);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -223,6 +312,7 @@ export default function Reports() {
   async function downloadExcel() {
     if (!canExport) return;
     setExcelBusy(true);
+    setExportOpen(false);
     try {
       const res = await api.get(`/reports/${selected}/export`, {
         params: { ...buildParams(), format: 'excel' },
@@ -239,6 +329,7 @@ export default function Reports() {
   async function downloadPdf() {
     if (!canExport) return;
     setPdfBusy(true);
+    setExportOpen(false);
     try {
       await exportReportAsPdf(
         `/reports/${selected}/export`,
@@ -255,66 +346,89 @@ export default function Reports() {
   function openPrint() {
     const params = new URLSearchParams(buildParams());
     const qs = params.toString();
+    setExportOpen(false);
     navigate(`/print/${selected}${qs ? `?${qs}` : ''}`);
   }
 
-  // ─── Sidebar: Type List ───────────────────────────────────────────────────
+  function toggleFavorite(key: string) {
+    setFavorites((prev) => {
+      const next = prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key];
+      saveFavorites(next);
+      return next;
+    });
+  }
 
-  const sidebar = (
-    <div className="card" style={{ width: 210, flexShrink: 0, padding: 0, overflow: 'hidden' }}>
-      {GROUPS.map((group) => {
-        const types = REPORT_TYPES.filter((rt) => rt.group === group);
-        return (
-          <div key={group}>
-            <div style={{ padding: '10px 14px 4px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>
-              {t(group)}
-            </div>
-            {types.map((rt) => (
-              <button
-                key={rt.key}
-                onClick={() => setSelected(rt.key)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 14px', border: 'none', cursor: 'pointer', textAlign: 'right',
-                  fontSize: 13, fontWeight: selected === rt.key ? 700 : 400,
-                  background: selected === rt.key ? 'var(--primary)' : 'transparent',
-                  color: selected === rt.key ? '#fff' : 'var(--text)',
-                  borderLeft: selected === rt.key ? '3px solid var(--primary-dark, #1d4e6f)' : '3px solid transparent',
-                  transition: 'background 0.15s',
-                }}
-              >
-                <span style={{ fontSize: 16 }}>{rt.icon}</span>
-                <span>{t(rt.label)}</span>
-              </button>
-            ))}
-          </div>
-        );
-      })}
-    </div>
-  );
+  function selectReport(key: string) {
+    setSelected(key);
+    setPreview(null);
+    setError('');
+  }
 
-  // ─── Filter Bar ───────────────────────────────────────────────────────────
+  // Filtered report list
+  const filteredReports = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return REPORT_TYPES.filter((rt) => {
+      if (activeChip === 'favorites') return favorites.includes(rt.key);
+      if (activeChip !== 'all') {
+        const chip = CHIP_GROUPS.find((c) => c.key === activeChip);
+        if (chip?.group && rt.group !== chip.group) return false;
+      }
+      if (!q) return true;
+      const label = t(rt.label).toLowerCase();
+      const desc  = (rt.descAr ?? '').toLowerCase();
+      const grp   = rt.groupAr.toLowerCase();
+      return label.includes(q) || desc.includes(q) || grp.includes(q) || rt.key.includes(q);
+    });
+  }, [search, activeChip, favorites, t]);
 
+  // KPI values
+  const kpi = useMemo(() => ({
+    total:       REPORT_TYPES.length,
+    ready:       REPORT_TYPES.filter((r) => r.statusType === 'ready').length,
+    needsFilter: REPORT_TYPES.filter((r) => r.statusType === 'needs-filter').length,
+    live:        REPORT_TYPES.filter((r) => r.statusType === 'live').length,
+    financial:   REPORT_TYPES.filter((r) => r.group === 'report.group.financial').length,
+    hr:          REPORT_TYPES.filter((r) => r.group === 'report.group.hr').length,
+    ops:         REPORT_TYPES.filter((r) => ['report.group.operations', 'report.group.operational'].includes(r.group)).length,
+    recv:        REPORT_TYPES.filter((r) => r.group === 'report.group.receivables').length,
+  }), []);
+
+  // Recent reports (recalculates after each successful run)
+  const recentReports = useMemo(() => {
+    return loadRecent()
+      .map((k) => REPORT_TYPES.find((r) => r.key === k))
+      .filter(Boolean) as ReportType[];
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [generatedAt]);
+
+  const groupCounts = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredReports.forEach((r) => { map[r.groupAr] = (map[r.groupAr] ?? 0) + 1; });
+    return map;
+  }, [filteredReports]);
+
+  const hasAnyFilter = !!(from || to || customerId || employeeId || status || direction || billingMonth || billingYear || company || workType);
   const f = currentType.filters;
-  const filterBar = (
-    <div className="card" style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
 
+  // ─── Filter fields (reused in both panel and inline) ──────────────────────
+
+  function renderFilterFields() {
+    return (
+      <>
         {f.includes('date') && (
           <>
-            <div className="field" style={{ margin: 0, minWidth: 140 }}>
+            <div className="rc-panel-field">
               <label>{t('filter.date_from')}</label>
               <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
             </div>
-            <div className="field" style={{ margin: 0, minWidth: 140 }}>
+            <div className="rc-panel-field">
               <label>{t('filter.date_to')}</label>
               <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
           </>
         )}
-
         {f.includes('customer') && customers.length > 0 && (
-          <div className="field" style={{ margin: 0, minWidth: 180 }}>
+          <div className="rc-panel-field">
             <label>{t('filter.customer')}</label>
             <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
               <option value="">{t('opt.all')}</option>
@@ -322,9 +436,8 @@ export default function Reports() {
             </select>
           </div>
         )}
-
         {f.includes('employee') && employees.length > 0 && (
-          <div className="field" style={{ margin: 0, minWidth: 180 }}>
+          <div className="rc-panel-field">
             <label>{t('filter.employee')}</label>
             <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
               <option value="">{t('opt.all')}</option>
@@ -332,9 +445,8 @@ export default function Reports() {
             </select>
           </div>
         )}
-
         {f.includes('direction') && (
-          <div className="field" style={{ margin: 0, minWidth: 140 }}>
+          <div className="rc-panel-field">
             <label>{t('filter.direction')}</label>
             <select value={direction} onChange={(e) => setDirection(e.target.value)}>
               <option value="">{t('opt.all')}</option>
@@ -343,9 +455,8 @@ export default function Reports() {
             </select>
           </div>
         )}
-
         {f.includes('status') && currentType.statuses && (
-          <div className="field" style={{ margin: 0, minWidth: 160 }}>
+          <div className="rc-panel-field">
             <label>{t(currentType.statusLabel ?? 'filter.status')}</label>
             <select value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">{t('opt.all')}</option>
@@ -353,9 +464,8 @@ export default function Reports() {
             </select>
           </div>
         )}
-
         {f.includes('billingMonth') && (
-          <div className="field" style={{ margin: 0, minWidth: 130 }}>
+          <div className="rc-panel-field">
             <label>شهر الحساب</label>
             <select value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)}>
               <option value="">الكل</option>
@@ -363,9 +473,8 @@ export default function Reports() {
             </select>
           </div>
         )}
-
         {f.includes('billingYear') && (
-          <div className="field" style={{ margin: 0, minWidth: 100 }}>
+          <div className="rc-panel-field">
             <label>السنة</label>
             <select value={billingYear} onChange={(e) => setBillingYear(e.target.value)}>
               <option value="">الكل</option>
@@ -375,9 +484,8 @@ export default function Reports() {
             </select>
           </div>
         )}
-
         {f.includes('company') && (
-          <div className="field" style={{ margin: 0, minWidth: 180 }}>
+          <div className="rc-panel-field">
             <label>الشركة / المسؤول</label>
             <select value={company} onChange={(e) => setCompany(e.target.value)}>
               <option value="">الكل</option>
@@ -385,9 +493,8 @@ export default function Reports() {
             </select>
           </div>
         )}
-
         {f.includes('workType') && (
-          <div className="field" style={{ margin: 0, minWidth: 140 }}>
+          <div className="rc-panel-field">
             <label>نوع العمل</label>
             <select value={workType} onChange={(e) => setWorkType(e.target.value)}>
               <option value="">الكل</option>
@@ -395,142 +502,385 @@ export default function Reports() {
             </select>
           </div>
         )}
+      </>
+    );
+  }
 
-        <div style={{ display: 'flex', gap: 8, marginRight: 'auto', alignItems: 'center', flexWrap: 'wrap' }}>
-          {canView && (
-            <button type="button" className="btn" onClick={loadPreview} disabled={loading}>
-              {loading ? t('page.reports.loading') : t('page.reports.view')}
-            </button>
-          )}
-          {(from || to || customerId || employeeId || status || direction || billingMonth || billingYear || company || workType) && (
-            <button type="button" className="btn secondary" onClick={resetFilters}>
-              {t('action.reset_filters')}
-            </button>
-          )}
-          {canExport && preview && (
-            <>
-              <ExportExcelButton onExport={downloadExcel} busy={excelBusy} />
-              {window.manar?.exportPdfFromHtml && (
-                <button
-                  type="button"
-                  className="btn secondary"
-                  onClick={downloadPdf}
-                  disabled={pdfBusy}
-                >
-                  {pdfBusy ? '...' : 'PDF'}
-                </button>
-              )}
-              <button type="button" className="btn secondary" onClick={openPrint}>
-                {t('btn.reports.print')}
-              </button>
-            </>
-          )}
+  // ─── Skeleton loading ─────────────────────────────────────────────────────
+
+  const skeleton = (
+    <div className="rc-skeleton-grid">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="rc-skeleton-card">
+          <div className="rc-skeleton-line rc-skeleton-shimmer" style={{ width: 48, height: 48, borderRadius: 12 }} />
+          <div className="rc-skeleton-line rc-skeleton-shimmer" style={{ height: 16, width: '70%', marginTop: 4 }} />
+          <div className="rc-skeleton-line rc-skeleton-shimmer" style={{ height: 12, width: '90%' }} />
+          <div className="rc-skeleton-line rc-skeleton-shimmer" style={{ height: 12, width: '60%' }} />
         </div>
-      </div>
-    </div>
-  );
-
-  // ─── Preview Table ────────────────────────────────────────────────────────
-
-  const previewTable = preview && (
-    <div className="card" style={{ padding: 0 }}>
-      {preview.subtitle && (
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600 }}>
-          {preview.subtitle}
-        </div>
-      )}
-      <div className="table-responsive">
-        <table>
-          <thead>
-            <tr>
-              {preview.columns.map((c) => <th key={c.key}>{c.header}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {preview.rows.length === 0 ? (
-              <tr><td colSpan={preview.columns.length}><div className="center-msg">{t('page.reports.no_data')}</div></td></tr>
-            ) : (
-              preview.rows.map((row, i) => (
-                <tr key={i}>
-                  {preview.columns.map((c) => <td key={c.key}>{fmt(row[c.key])}</td>)}
-                </tr>
-              ))
-            )}
-            {preview.totalsRow && (
-              <tr style={{ fontWeight: 800, background: '#e8f0f7', borderTop: '2px solid #1d4e6f', color: '#1d4e6f' }}>
-                {preview.columns.map((c) => <td key={c.key} style={{ padding: '9px 14px', fontSize: 13 }}>{fmt(preview.totalsRow[c.key])}</td>)}
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      ))}
     </div>
   );
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <h2>{t('page.reports.title')}</h2>
-          <p>{t('page.reports.subtitle')}</p>
-        </div>
-      </div>
+    <div className="rc-page">
 
-      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-        {sidebar}
-
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ marginBottom: 8 }}>
-            <span style={{ fontSize: 18, fontWeight: 700 }}>{currentType.icon} {t(currentType.label)}</span>
-          </div>
-
-          {filterBar}
-
-          {['invoices', 'expenses', 'payroll'].includes(selected) && !from && !to && (
-            <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 6 }}>
-              ℹ️ {t('page.reports.date_range_hint')}
+      {/* Side panel overlay */}
+      {panelOpen && (
+        <>
+          <div className="rc-overlay" onClick={() => setPanelOpen(false)} />
+          <div className="rc-panel">
+            <div className="rc-panel-header">
+              <div className="rc-panel-title">
+                <span>{currentType.icon}</span>
+                <span>{t(currentType.label)}</span>
+              </div>
+              <button type="button" className="rc-panel-close" onClick={() => setPanelOpen(false)}>✕</button>
             </div>
-          )}
-
-          {selected === 'customer-statement' && !customerId && (
-            <div style={{ color: 'var(--warning, #b45309)', fontSize: 13, marginBottom: 8, padding: '6px 10px', background: 'var(--surface-2)', borderRadius: 6 }}>
-              ⚠️ يجب اختيار عميل لعرض كشف الحساب
-            </div>
-          )}
-
-          {error && <div className="alert error" style={{ marginBottom: 16 }}>{error}</div>}
-
-          {loading && (
-            <div className="card" style={{ padding: 40 }}>
-              <div className="center-msg"><div className="spinner" />{t('page.reports.preparing')}</div>
-            </div>
-          )}
-
-          {!loading && !preview && !error && (
-            <div className="card" style={{ padding: 40, textAlign: 'center' }}>
-              <div style={{ fontSize: 32, marginBottom: 10 }}>{currentType.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>{t(currentType.label)}</div>
-              <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('page.reports.empty')}</div>
-            </div>
-          )}
-
-          {!loading && preview && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: 13, fontWeight: 600 }}>
-                {preview.rows.length} {t('page.reports.results_count')}
-              </span>
-              {generatedAt && (
-                <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-                  آخر تحديث: {generatedAt.toLocaleTimeString('ar')}
-                </span>
+            <div className="rc-panel-body">
+              {currentType.descAr && (
+                <div className="rc-panel-section">
+                  <div className="rc-panel-section-title">وصف التقرير</div>
+                  <div className="rc-panel-desc">{currentType.descAr}</div>
+                </div>
+              )}
+              <div className="rc-panel-section">
+                <div className="rc-panel-section-title">معلومات التقرير</div>
+                <div className="rc-panel-row">
+                  <span className="rc-panel-row-label">الفئة</span>
+                  <span className="rc-panel-row-value">{currentType.groupAr}</span>
+                </div>
+                <div className="rc-panel-row">
+                  <span className="rc-panel-row-label">الحالة</span>
+                  <span className={`rc-status-badge ${getStatusBadge(currentType.statusType).cls}`}>
+                    {getStatusBadge(currentType.statusType).label}
+                  </span>
+                </div>
+              </div>
+              {f.length > 0 && (
+                <div className="rc-panel-section">
+                  <div className="rc-panel-section-title">الفلاتر</div>
+                  <div className="rc-panel-filters">
+                    {renderFilterFields()}
+                  </div>
+                </div>
               )}
             </div>
+            <div className="rc-panel-footer">
+              {canView && (
+                <button type="button" className="btn" onClick={() => { setPanelOpen(false); loadPreview(); }}>
+                  ▶ تشغيل التقرير
+                </button>
+              )}
+              {hasAnyFilter && (
+                <button type="button" className="btn secondary" onClick={resetFilters}>مسح الفلاتر</button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Hero */}
+      <div className="rc-hero">
+        <div className="rc-hero-left">
+          <div className="rc-hero-icon">📊</div>
+          <h2 className="rc-hero-title">مركز التقارير</h2>
+          <p className="rc-hero-subtitle">استعرض وصدّر تقارير الأعمال والمالية والموارد البشرية</p>
+        </div>
+        <div className="rc-hero-chips">
+          <div className="rc-hero-chip">
+            <span className="rc-hero-chip-dot" />
+            <span>{kpi.total} تقرير</span>
+          </div>
+          <div className="rc-hero-chip green">
+            <span className="rc-hero-chip-dot green" />
+            <span>{kpi.ready} جاهز</span>
+          </div>
+          <div className="rc-hero-chip amber">
+            <span className="rc-hero-chip-dot amber" />
+            <span>{kpi.needsFilter} يحتاج فلاتر</span>
+          </div>
+          <div className="rc-hero-chip blue">
+            <span className="rc-hero-chip-dot blue" />
+            <span>{kpi.live} مباشر</span>
+          </div>
+          {favorites.length > 0 && (
+            <div className="rc-hero-chip">
+              <span>⭐</span>
+              <span>{favorites.length} مفضل</span>
+            </div>
           )}
-          {!loading && previewTable}
         </div>
       </div>
+
+      {/* KPI Cards */}
+      <div className="rc-kpi-grid">
+        <div className="rc-kpi-card">
+          <div className="rc-kpi-icon blue">📊</div>
+          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.total}</div><div className="rc-kpi-label">إجمالي التقارير</div></div>
+        </div>
+        <div className="rc-kpi-card">
+          <div className="rc-kpi-icon green">💰</div>
+          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.financial}</div><div className="rc-kpi-label">التقارير المالية</div></div>
+        </div>
+        <div className="rc-kpi-card">
+          <div className="rc-kpi-icon amber">👷</div>
+          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.hr}</div><div className="rc-kpi-label">الموارد البشرية</div></div>
+        </div>
+        <div className="rc-kpi-card">
+          <div className="rc-kpi-icon blue">🚜</div>
+          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.ops}</div><div className="rc-kpi-label">العمليات</div></div>
+        </div>
+        <div className="rc-kpi-card">
+          <div className="rc-kpi-icon green">⚖️</div>
+          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.recv}</div><div className="rc-kpi-label">المستحقات</div></div>
+        </div>
+        <div className="rc-kpi-card">
+          <div className="rc-kpi-icon green">🟢</div>
+          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.ready}</div><div className="rc-kpi-label">جاهز للتشغيل</div></div>
+        </div>
+        <div className="rc-kpi-card">
+          <div className="rc-kpi-icon amber">🟡</div>
+          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.needsFilter}</div><div className="rc-kpi-label">يحتاج فلاتر</div></div>
+        </div>
+        <div className="rc-kpi-card">
+          <div className="rc-kpi-icon blue">⭐</div>
+          <div className="rc-kpi-info"><div className="rc-kpi-value">{favorites.length}</div><div className="rc-kpi-label">المفضلة</div></div>
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="rc-toolbar">
+        <div className="rc-search-row">
+          <div className="rc-search-wrap">
+            <span className="rc-search-icon">🔍</span>
+            <input
+              className="rc-search-input"
+              type="text"
+              placeholder="البحث في التقارير..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            {search && (
+              <button type="button" className="rc-search-clear" onClick={() => setSearch('')}>✕</button>
+            )}
+          </div>
+          {recentReports.length > 0 && (
+            <div className="rc-summary-bar rc-recent-bar">
+              <span>الأخيرة:</span>
+              {recentReports.map((r) => (
+                <button
+                  type="button"
+                  key={r.key}
+                  className="rc-summary-badge rc-recent-btn"
+                  onClick={() => selectReport(r.key)}
+                >
+                  {r.icon} {t(r.label)}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="rc-filter-chips">
+          {CHIP_GROUPS.map((chip) => (
+            <button
+              type="button"
+              key={chip.key}
+              className={`rc-filter-chip${activeChip === chip.key ? ' active' : ''}`}
+              onClick={() => setActiveChip(chip.key)}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Summary bar */}
+      <div className="rc-summary-bar">
+        <span>يعرض <strong>{filteredReports.length}</strong> تقرير{search && <> · نتائج "{search}"</>}</span>
+        {Object.entries(groupCounts).map(([grp, cnt]) => (
+          <span key={grp} className="rc-summary-badge">{grp} ({cnt})</span>
+        ))}
+        {favorites.length > 0 && <span className="rc-summary-badge">⭐ {favorites.length} مفضل</span>}
+      </div>
+
+      {/* Report cards grid */}
+      <div className="rc-card-grid">
+        {filteredReports.length === 0 ? (
+          <div className="rc-empty">
+            <div className="rc-empty-icon">🔍</div>
+            <div className="rc-empty-title">لا توجد تقارير مطابقة</div>
+            <div className="rc-empty-desc">جرّب تعديل كلمة البحث أو اختيار فئة مختلفة</div>
+          </div>
+        ) : (
+          filteredReports.map((rt) => {
+            const badge  = getStatusBadge(rt.statusType);
+            const isFav  = favorites.includes(rt.key);
+            const isSel  = selected === rt.key;
+            return (
+              <div key={rt.key} className={`rc-card${isSel ? ' selected' : ''}`} onClick={() => selectReport(rt.key)}>
+                <div className="rc-card-top">
+                  <div className="rc-card-icon-wrap">{rt.icon}</div>
+                  <div className="rc-card-top-right">
+                    <button
+                      type="button"
+                      className={`rc-fav-btn${isFav ? ' active' : ''}`}
+                      title={isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(rt.key); }}
+                    >
+                      {isFav ? '⭐' : '☆'}
+                    </button>
+                  </div>
+                </div>
+                <div className="rc-card-body">
+                  <div className="rc-card-name">{t(rt.label)}</div>
+                  {rt.descAr && <div className="rc-card-desc">{rt.descAr}</div>}
+                </div>
+                <div className="rc-card-meta">
+                  <span className={`rc-status-badge ${badge.cls}`}>{badge.label}</span>
+                  <span className="rc-category-tag">{rt.groupAr}</span>
+                </div>
+                <div className="rc-card-actions">
+                  {canView && (
+                    <button
+                      type="button"
+                      className="rc-action-btn primary"
+                      onClick={(e) => { e.stopPropagation(); selectReport(rt.key); setTimeout(loadPreview, 0); }}
+                    >
+                      ▶ تشغيل
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="rc-action-btn"
+                    onClick={(e) => { e.stopPropagation(); selectReport(rt.key); setPanelOpen(true); }}
+                  >
+                    ⚙ إعدادات
+                  </button>
+                  <button
+                    type="button"
+                    className="rc-action-btn"
+                    onClick={(e) => { e.stopPropagation(); toggleFavorite(rt.key); }}
+                  >
+                    {isFav ? '★ مفضل' : '☆ مفضلة'}
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Selected report run section */}
+      <div className="rc-run-section">
+        <div className="rc-run-header">
+          <div className="rc-run-info">
+            <span className="rc-run-icon">{currentType.icon}</span>
+            <div>
+              <div className="rc-run-name">{t(currentType.label)}</div>
+              {currentType.descAr && <div className="rc-run-desc">{currentType.descAr}</div>}
+            </div>
+          </div>
+          <div className="rc-run-actions">
+            <button type="button" className="btn secondary" onClick={() => setPanelOpen(true)}>⚙ الفلاتر</button>
+            {canView && (
+              <button type="button" className="btn" onClick={loadPreview} disabled={loading}>
+                {loading ? t('page.reports.loading') : '▶ ' + t('page.reports.view')}
+              </button>
+            )}
+            {hasAnyFilter && (
+              <button type="button" className="btn secondary" onClick={resetFilters}>{t('action.reset_filters')}</button>
+            )}
+            {/* Export dropdown */}
+            {canExport && preview && (
+              <div className="rc-export-wrap" ref={exportRef}>
+                <button
+                  type="button"
+                  className="rc-export-btn"
+                  onClick={() => setExportOpen((o) => !o)}
+                  disabled={excelBusy || pdfBusy}
+                >
+                  <span>📤</span>
+                  <span>تصدير</span>
+                  <span className="rc-export-arrow">▾</span>
+                </button>
+                {exportOpen && (
+                  <div className="rc-export-menu">
+                    <ExportExcelButton onExport={downloadExcel} busy={excelBusy} />
+                    {window.manar?.exportPdfFromHtml && (
+                      <button type="button" className="rc-export-item" onClick={downloadPdf} disabled={pdfBusy}>
+                        📄 {pdfBusy ? '...' : 'تصدير PDF'}
+                      </button>
+                    )}
+                    <button type="button" className="rc-export-item" onClick={openPrint}>
+                      🖨️ طباعة
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Hints */}
+        {['invoices', 'expenses', 'payroll'].includes(selected) && !from && !to && (
+          <div className="rc-hint">ℹ️ {t('page.reports.date_range_hint')}</div>
+        )}
+        {selected === 'customer-statement' && !customerId && (
+          <div className="rc-hint warn">⚠️ يجب اختيار عميل لعرض كشف الحساب</div>
+        )}
+        {error && <div className="rc-hint error">⚠️ {error}</div>}
+
+        {/* Loading skeleton */}
+        {loading && skeleton}
+
+        {/* Results bar */}
+        {!loading && preview && (
+          <div className="rc-results-bar">
+            <span><strong>{preview.rows.length}</strong> {t('page.reports.results_count')}</span>
+            {generatedAt && <span>آخر تحديث: {generatedAt.toLocaleTimeString('ar')}</span>}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && !preview && !error && (
+          <div className="rc-run-empty">
+            <div className="rc-run-empty-icon">{currentType.icon}</div>
+            <div className="rc-run-empty-title">{t(currentType.label)}</div>
+            <div className="rc-run-empty-hint">{t('page.reports.empty')}</div>
+          </div>
+        )}
+
+        {/* Preview table */}
+        {!loading && preview && (
+          <div className="rc-preview-card">
+            {preview.subtitle && <div className="rc-preview-subtitle">{preview.subtitle}</div>}
+            <div className="table-responsive">
+              <table>
+                <thead>
+                  <tr>{preview.columns.map((c) => <th key={c.key}>{c.header}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {preview.rows.length === 0 ? (
+                    <tr><td colSpan={preview.columns.length}><div className="center-msg">{t('page.reports.no_data')}</div></td></tr>
+                  ) : (
+                    preview.rows.map((row, i) => (
+                      <tr key={i}>{preview.columns.map((c) => <td key={c.key}>{fmt(row[c.key])}</td>)}</tr>
+                    ))
+                  )}
+                  {preview.totalsRow && (
+                    <tr className="rc-totals-row">
+                      {preview.columns.map((c) => <td key={c.key}>{fmt(preview.totalsRow[c.key])}</td>)}
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
