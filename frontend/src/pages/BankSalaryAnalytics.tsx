@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useUI } from '../stores/uiStore';
+import PrivateAmount from '../components/PrivateAmount';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -164,9 +165,19 @@ function getActiveChips(f: Filters): FilterChip[] {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-const Skeleton = ({ w, h }: { w?: string; h?: string }) => (
-  <div className={`bg-neutral-200 dark:bg-neutral-700 animate-pulse rounded ${w ?? 'w-full'} ${h ?? 'h-4'}`} />
-);
+const Skeleton = ({ w, h }: { w?: string; h?: string }) => {
+  const widthMap: Record<string, string> = { 'w-full': '100%', 'w-2/3': '67%', 'w-48': '192px', 'w-8': '32px' };
+  const heightMap: Record<string, string> = { 'h-4': '16px', 'h-6': '24px', 'h-8': '32px', 'h-10': '40px', 'h-14': '56px', 'h-3': '12px' };
+  return (
+    <div style={{
+      background: 'var(--surface-2, #e5e7eb)',
+      borderRadius: 6,
+      animation: 'pulse 1.5s ease-in-out infinite',
+      width: (w && widthMap[w]) ? widthMap[w] : '100%',
+      height: (h && heightMap[h]) ? heightMap[h] : '16px',
+    }} />
+  );
+};
 
 function SortTh({ field, label, sortBy, sortDir, onSort, cls = '' }: {
   field: string; label: string; sortBy: string; sortDir: 'asc' | 'desc';
@@ -175,10 +186,11 @@ function SortTh({ field, label, sortBy, sortDir, onSort, cls = '' }: {
   const active = sortBy === field;
   return (
     <th
-      className={`text-start pb-2 font-medium text-neutral-500 text-xs uppercase tracking-wide cursor-pointer select-none hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors ${cls}`}
+      style={{ textAlign: 'start', paddingBottom: 8, fontWeight: 500, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', userSelect: 'none' }}
+      className={cls}
       onClick={() => onSort(field)}
     >
-      <span className="inline-flex items-center gap-0.5">
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
         {label}
         <span className="material-symbols-outlined text-xs leading-none" style={{ fontSize: 12 }}>
           {active ? (sortDir === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
@@ -187,6 +199,18 @@ function SortTh({ field, label, sortBy, sortDir, onSort, cls = '' }: {
     </th>
   );
 }
+
+// ── Section label style ────────────────────────────────────────────────────────
+
+const sectionLabelStyle: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: 'var(--text-muted)',
+  textTransform: 'uppercase',
+  letterSpacing: 1,
+  marginBottom: 10,
+  marginTop: 0,
+};
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
@@ -403,9 +427,8 @@ export default function BankSalaryAnalytics() {
 
   // ── Styles ─────────────────────────────────────────────────────────────────
 
-  const card = 'bg-white dark:bg-neutral-800 rounded-xl p-4 shadow-sm border border-neutral-200 dark:border-neutral-700';
   const inputCls = 'border border-neutral-300 dark:border-neutral-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-neutral-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full';
-  const thCls = 'text-start pb-2 font-medium text-neutral-500 text-xs uppercase tracking-wide';
+  const thCls: React.CSSProperties = { textAlign: 'start', paddingBottom: 8, fontWeight: 500, color: 'var(--text-muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em' };
   const varCls = (v: number | null) => v === null ? 'text-neutral-400' : v >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400';
   const varLabel = (v: number | null) => v === null ? '—' : (v >= 0 ? '+' : '') + fmt3(v);
 
@@ -414,262 +437,365 @@ export default function BankSalaryAnalytics() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div dir={isRtl ? 'rtl' : 'ltr'} className="p-6 space-y-5 max-w-7xl mx-auto">
+    <div dir={isRtl ? 'rtl' : 'ltr'} style={{ padding: '24px', maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* Header */}
-      <div className="flex items-start justify-between flex-wrap gap-3">
+      <div className="page-head" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 className="text-2xl font-bold text-neutral-800 dark:text-white">تحليلات الرواتب البنكية</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">تحليل تحويلات الرواتب المستوردة من البنك</p>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>تحليلات الرواتب البنكية</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, marginBottom: 0 }}>تحليل تحويلات الرواتب المستوردة من البنك</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => navigate('/payroll/bank-import')}
-            className="flex items-center gap-2 px-4 py-2 border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-200 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-700 text-sm font-medium transition-colors"
+            className="btn btn-secondary"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           >
-            <span className="material-symbols-outlined text-base">upload_file</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>upload_file</span>
             استيراد ملف جديد
           </button>
           <button
             type="button"
             onClick={() => handleExport()}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
+            className="btn"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#16a34a', borderColor: '#16a34a' }}
           >
-            <span className="material-symbols-outlined text-base">download</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
             تصدير Excel
           </button>
         </div>
       </div>
 
-      {/* Filters panel toggle */}
-      <div className={card}>
-        <div className="flex items-center justify-between mb-0">
+      {/* F1 — KPI Cards (3 prominent cards) */}
+      {loading ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="card panel" style={{ padding: '20px 24px' }}>
+              <Skeleton w="w-8" h="h-8" />
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <Skeleton h="h-3" />
+                <Skeleton w="w-2/3" h="h-6" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : analytics ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16 }}>
+          {[
+            {
+              label: 'إجمالي المبالغ المحوّلة',
+              value: fmt3(analytics.totalAmount),
+              unit: 'د.ك',
+              icon: '💰',
+              color: '#3B82F6',
+            },
+            {
+              label: 'عدد عمليات التحويل',
+              value: analytics.totalPayments.toLocaleString(),
+              unit: 'عملية',
+              icon: '📋',
+              color: '#8B5CF6',
+            },
+            {
+              label: 'الموظفون المدرجون',
+              value: analytics.uniqueEmployees.toLocaleString(),
+              unit: 'موظف',
+              icon: '👥',
+              color: '#10B981',
+            },
+          ].map(({ label, value, unit, icon, color }) => (
+            <div key={label} className="card panel" style={{ padding: '20px 24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, fontWeight: 500, marginTop: 0 }}>{label}</p>
+                  <p style={{ fontSize: 30, fontWeight: 800, color, margin: 0, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}><PrivateAmount value={value} /></p>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6, marginBottom: 0 }}>{unit}</p>
+                </div>
+                <span style={{ fontSize: 32 }}>{icon}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {/* F2 — Filter Panel */}
+      <div className="card panel">
+        {/* Toggle bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <button
             type="button"
             onClick={() => setFiltersOpen((o) => !o)}
-            className="flex items-center gap-2 text-sm font-medium text-neutral-700 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 500, color: 'var(--text)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           >
-            <span className="material-symbols-outlined text-base">tune</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>tune</span>
             {filtersOpen ? 'إخفاء الفلاتر' : 'إظهار الفلاتر'}
-            <span className="material-symbols-outlined text-base transition-transform" style={{ transform: filtersOpen ? 'rotate(180deg)' : 'none' }}>expand_more</span>
+            <span
+              className="material-symbols-outlined"
+              style={{ fontSize: 18, transition: 'transform 0.2s', transform: filtersOpen ? 'rotate(180deg)' : 'none' }}
+            >
+              expand_more
+            </span>
           </button>
           {activeChips.length > 0 && (
             <button
               type="button"
               onClick={clearAllFilters}
-              className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 transition-colors"
+              style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             >
-              <span className="material-symbols-outlined text-sm">filter_alt_off</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>filter_alt_off</span>
               مسح الكل
             </button>
           )}
         </div>
 
-        {/* Collapsible filter fields */}
+        {/* Collapsible grouped filter fields */}
         {filtersOpen && (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div style={{ marginTop: 20 }}>
 
-            {/* Employee autocomplete */}
-            <div ref={autocompleteRef} className="relative sm:col-span-2">
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">الموظف</label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="بحث باسم أو رقم مدني أو كود…"
-                  value={empQuery}
-                  onChange={(e) => { setEmpQuery(e.target.value); searchEmployees(e.target.value); }}
-                  className={inputCls}
-                />
-                {selectedEmployee && (
-                  <button
-                    type="button"
-                    onClick={() => selectEmployee(null)}
-                    className="absolute top-1/2 -translate-y-1/2 end-2 text-neutral-400 hover:text-red-500 transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-base leading-none">close</span>
-                  </button>
-                )}
-              </div>
-              {empSuggestions.length > 0 && (
-                <div className="absolute top-full mt-1 w-full bg-white dark:bg-neutral-700 border border-neutral-200 dark:border-neutral-600 rounded-xl shadow-xl z-50 max-h-60 overflow-y-auto">
-                  {empSuggestions.map((e) => (
-                    <button
-                      type="button"
-                      key={e.id}
-                      onMouseDown={(ev) => { ev.preventDefault(); selectEmployee(e); setFiltersOpen(false); }}
-                      className="w-full text-start px-3 py-2.5 text-sm hover:bg-neutral-50 dark:hover:bg-neutral-600 border-b border-neutral-100 dark:border-neutral-600 last:border-0 transition-colors"
-                    >
-                      <div className="font-medium dark:text-white">{e.fullName}</div>
-                      <div className="text-xs text-neutral-400 mt-0.5">{e.code} · {e.fullNameEn ?? ''} · {e.civilId ?? '—'}</div>
-                    </button>
-                  ))}
+            {/* Group 1 — الموظف والفترة */}
+            <div style={{ marginBottom: 20 }}>
+              <p style={sectionLabelStyle}>الموظف والفترة</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
+
+                {/* Employee autocomplete */}
+                <div ref={autocompleteRef} style={{ position: 'relative' }}>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>الموظف</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      placeholder="بحث باسم أو رقم مدني أو كود…"
+                      value={empQuery}
+                      onChange={(e) => { setEmpQuery(e.target.value); searchEmployees(e.target.value); }}
+                      className={inputCls}
+                    />
+                    {selectedEmployee && (
+                      <button
+                        type="button"
+                        onClick={() => selectEmployee(null)}
+                        style={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', insetInlineEnd: 8, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
+                      </button>
+                    )}
+                  </div>
+                  {empSuggestions.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', marginTop: 4, width: '100%', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', zIndex: 50, maxHeight: 240, overflowY: 'auto' }}>
+                      {empSuggestions.map((e) => (
+                        <button
+                          type="button"
+                          key={e.id}
+                          onMouseDown={(ev) => { ev.preventDefault(); selectEmployee(e); setFiltersOpen(false); }}
+                          style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', fontSize: 13, background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                        >
+                          <div style={{ fontWeight: 500 }}>{e.fullName}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{e.code} · {e.fullNameEn ?? ''} · {e.civilId ?? '—'}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Year */}
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>السنة</label>
+                  <select
+                    className={inputCls}
+                    title="السنة"
+                    value={draftFilters.payrollYear ?? ''}
+                    onChange={(e) => setDraftFilters((f) => ({ ...f, payrollYear: e.target.value ? Number(e.target.value) : undefined, payrollMonth: undefined }))}
+                  >
+                    <option value="">كل السنوات</option>
+                    {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+
+                {/* Month */}
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>الشهر</label>
+                  <select
+                    className={inputCls}
+                    title="الشهر"
+                    value={draftFilters.payrollMonth ?? ''}
+                    disabled={!draftFilters.payrollYear}
+                    onChange={(e) => setDraftFilters((f) => ({ ...f, payrollMonth: e.target.value ? Number(e.target.value) : undefined }))}
+                  >
+                    <option value="">كل الأشهر</option>
+                    {MONTHS_AR.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
             </div>
 
-            {/* Year */}
-            <div>
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">السنة</label>
-              <select
-                className={inputCls}
-                title="السنة"
-                value={draftFilters.payrollYear ?? ''}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, payrollYear: e.target.value ? Number(e.target.value) : undefined, payrollMonth: undefined }))}
-              >
-                <option value="">كل السنوات</option>
-                {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
+            {/* Group 2 — نطاق التاريخ */}
+            <div style={{ marginBottom: 20 }}>
+              <p style={sectionLabelStyle}>نطاق التاريخ</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>تاريخ من</label>
+                  <input
+                    type="date"
+                    title="تاريخ من"
+                    className={inputCls}
+                    value={draftFilters.dateFrom ?? ''}
+                    onChange={(e) => setDraftFilters((f) => ({ ...f, dateFrom: e.target.value || undefined }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>تاريخ إلى</label>
+                  <input
+                    type="date"
+                    title="تاريخ إلى"
+                    className={inputCls}
+                    value={draftFilters.dateTo ?? ''}
+                    onChange={(e) => setDraftFilters((f) => ({ ...f, dateTo: e.target.value || undefined }))}
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Month */}
-            <div>
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">الشهر</label>
-              <select
-                className={inputCls}
-                title="الشهر"
-                value={draftFilters.payrollMonth ?? ''}
-                disabled={!draftFilters.payrollYear}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, payrollMonth: e.target.value ? Number(e.target.value) : undefined }))}
-              >
-                <option value="">كل الأشهر</option>
-                {MONTHS_AR.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
-              </select>
+            {/* Group 3 — نطاق المبلغ */}
+            <div style={{ marginBottom: 20 }}>
+              <p style={sectionLabelStyle}>نطاق المبلغ (د.ك)</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>المبلغ من</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    className={inputCls}
+                    placeholder="0.000"
+                    value={draftFilters.amountFrom ?? ''}
+                    onChange={(e) => setDraftFilters((f) => ({ ...f, amountFrom: e.target.value || undefined }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>المبلغ إلى</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    className={inputCls}
+                    placeholder="0.000"
+                    value={draftFilters.amountTo ?? ''}
+                    onChange={(e) => setDraftFilters((f) => ({ ...f, amountTo: e.target.value || undefined }))}
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Date From */}
-            <div>
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">تاريخ من</label>
-              <input
-                type="date"
-                title="تاريخ من"
-                className={inputCls}
-                value={draftFilters.dateFrom ?? ''}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, dateFrom: e.target.value || undefined }))}
-              />
+            {/* Group 4 — بحث متقدم (transaction id, civil id, bank account, status, text search) */}
+            <div style={{ marginBottom: 20 }}>
+              <p style={sectionLabelStyle}>بحث متقدم</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>رقم المعاملة</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    placeholder="TXN…"
+                    value={draftFilters.transactionId ?? ''}
+                    onChange={(e) => setDraftFilters((f) => ({ ...f, transactionId: e.target.value || undefined }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>الرقم المدني</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    placeholder="بحث في الرقم المدني"
+                    value={draftFilters.civilId ?? ''}
+                    onChange={(e) => setDraftFilters((f) => ({ ...f, civilId: e.target.value || undefined }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>رقم الحساب</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    placeholder="بحث في رقم الحساب"
+                    value={draftFilters.bankAccount ?? ''}
+                    onChange={(e) => setDraftFilters((f) => ({ ...f, bankAccount: e.target.value || undefined }))}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>الحالة</label>
+                  <select
+                    className={inputCls}
+                    title="الحالة"
+                    value={draftFilters.status ?? ''}
+                    onChange={(e) => setDraftFilters((f) => ({ ...f, status: e.target.value || undefined }))}
+                  >
+                    <option value="">كل الحالات</option>
+                    <option value="PROCESSED">PROCESSED</option>
+                    <option value="PENDING">PENDING</option>
+                    <option value="FAILED">FAILED</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 4, display: 'block' }}>بحث نصي</label>
+                  <input
+                    type="text"
+                    className={inputCls}
+                    placeholder="بحث في اسم المستفيد أو رقم المعاملة أو الرقم المدني…"
+                    value={draftFilters.search ?? ''}
+                    onChange={(e) => setDraftFilters((f) => ({ ...f, search: e.target.value || undefined }))}
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Date To */}
-            <div>
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">تاريخ إلى</label>
-              <input
-                type="date"
-                title="تاريخ إلى"
-                className={inputCls}
-                value={draftFilters.dateTo ?? ''}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, dateTo: e.target.value || undefined }))}
-              />
+            {/* Quick period chips */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>فترة سريعة:</span>
+              {[
+                { key: '3m' as const, label: 'آخر 3 أشهر' },
+                { key: '6m' as const, label: 'آخر 6 أشهر' },
+                { key: 'year' as const, label: 'هذه السنة' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleMonthQuickFilter(key)}
+                  style={{
+                    padding: '4px 14px',
+                    borderRadius: 20,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    border: monthQuickFilter === key ? '2px solid var(--primary)' : '1px solid var(--border)',
+                    background: monthQuickFilter === key ? 'var(--primary)' : 'transparent',
+                    color: monthQuickFilter === key ? '#fff' : 'var(--text)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
-            {/* Amount From */}
-            <div>
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">المبلغ من (د.ك)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.001"
-                className={inputCls}
-                placeholder="0.000"
-                value={draftFilters.amountFrom ?? ''}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, amountFrom: e.target.value || undefined }))}
-              />
-            </div>
-
-            {/* Amount To */}
-            <div>
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">المبلغ إلى (د.ك)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.001"
-                className={inputCls}
-                placeholder="0.000"
-                value={draftFilters.amountTo ?? ''}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, amountTo: e.target.value || undefined }))}
-              />
-            </div>
-
-            {/* Transaction ID */}
-            <div>
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">رقم المعاملة</label>
-              <input
-                type="text"
-                className={inputCls}
-                placeholder="TXN…"
-                value={draftFilters.transactionId ?? ''}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, transactionId: e.target.value || undefined }))}
-              />
-            </div>
-
-            {/* Civil ID */}
-            <div>
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">الرقم المدني</label>
-              <input
-                type="text"
-                className={inputCls}
-                placeholder="بحث في الرقم المدني"
-                value={draftFilters.civilId ?? ''}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, civilId: e.target.value || undefined }))}
-              />
-            </div>
-
-            {/* Bank Account */}
-            <div>
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">رقم الحساب</label>
-              <input
-                type="text"
-                className={inputCls}
-                placeholder="بحث في رقم الحساب"
-                value={draftFilters.bankAccount ?? ''}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, bankAccount: e.target.value || undefined }))}
-              />
-            </div>
-
-            {/* Status */}
-            <div>
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">الحالة</label>
-              <select
-                className={inputCls}
-                title="الحالة"
-                value={draftFilters.status ?? ''}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, status: e.target.value || undefined }))}
-              >
-                <option value="">كل الحالات</option>
-                <option value="PROCESSED">PROCESSED</option>
-                <option value="PENDING">PENDING</option>
-                <option value="FAILED">FAILED</option>
-              </select>
-            </div>
-
-            {/* Search text */}
-            <div className="sm:col-span-2">
-              <label className="text-xs text-neutral-500 font-medium mb-1 block">بحث نصي</label>
-              <input
-                type="text"
-                className={inputCls}
-                placeholder="بحث في اسم المستفيد أو رقم المعاملة أو الرقم المدني…"
-                value={draftFilters.search ?? ''}
-                onChange={(e) => setDraftFilters((f) => ({ ...f, search: e.target.value || undefined }))}
-              />
-            </div>
-
-            {/* Action buttons */}
-            <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 flex items-center gap-3 pt-2 border-t border-neutral-100 dark:border-neutral-700">
+            {/* Apply / Reset buttons */}
+            <div style={{ display: 'flex', gap: 10, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
               <button
                 type="button"
+                className="btn"
                 onClick={applyFilters}
-                className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+                style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 130 }}
               >
-                <span className="material-symbols-outlined text-base">search</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>search</span>
                 تطبيق الفلاتر
               </button>
               <button
                 type="button"
+                className="btn btn-secondary"
                 onClick={clearAllFilters}
-                className="flex items-center gap-1 px-4 py-2 text-sm text-neutral-500 hover:text-red-500 border border-neutral-300 dark:border-neutral-600 rounded-lg transition-colors"
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                <span className="material-symbols-outlined text-base">filter_alt_off</span>
-                مسح الفلاتر
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>filter_alt_off</span>
+                إعادة تعيين
               </button>
             </div>
           </div>
@@ -677,17 +803,17 @@ export default function BankSalaryAnalytics() {
 
         {/* Active filter chips */}
         {activeChips.length > 0 && (
-          <div className={`flex flex-wrap gap-2 ${filtersOpen ? 'mt-4 pt-4 border-t border-neutral-100 dark:border-neutral-700' : 'mt-3'}`}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: filtersOpen ? 16 : 12, paddingTop: filtersOpen ? 16 : 0, borderTop: filtersOpen ? '1px solid var(--border)' : 'none' }}>
             {activeChips.map((chip) => (
               <span
                 key={chip.key}
-                className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', background: 'rgba(59,130,246,0.1)', color: '#3B82F6', borderRadius: 20, fontSize: 12, fontWeight: 500 }}
               >
                 {chip.label}
                 <button
                   type="button"
                   onClick={() => removeChip(chip.key)}
-                  className="hover:text-red-500 transition-colors leading-none"
+                  style={{ display: 'flex', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}
                   aria-label={`إزالة فلتر ${chip.label}`}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 12 }}>close</span>
@@ -698,90 +824,21 @@ export default function BankSalaryAnalytics() {
         )}
       </div>
 
-      {/* Error */}
+      {/* F6 — Error state */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-xl p-4 text-sm flex items-center gap-2">
-          <span className="material-symbols-outlined text-base">error</span>
+        <div className="card panel" style={{ padding: '16px 20px', border: '1px solid #fca5a5', background: 'rgba(254,226,226,0.5)', display: 'flex', alignItems: 'center', gap: 8, color: '#dc2626', fontSize: 13 }}>
+          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>error</span>
           {error}
-        </div>
-      )}
-
-      {/* Loading skeleton for KPIs */}
-      {loading && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className={card}>
-              <Skeleton w="w-8" h="h-8" />
-              <div className="mt-2 space-y-1">
-                <Skeleton h="h-3" />
-                <Skeleton w="w-2/3" h="h-6" />
-              </div>
-            </div>
-          ))}
         </div>
       )}
 
       {/* Analytics content */}
       {!loading && analytics && (
         <>
-          {/* KPI cards — 6 cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {[
-              {
-                label: 'إجمالي المبالغ',
-                value: `${fmt3(analytics.totalAmount)} د.ك`,
-                icon: 'payments',
-                color: 'text-blue-500',
-              },
-              {
-                label: 'عدد المعاملات',
-                value: analytics.totalPayments.toLocaleString('ar-KW'),
-                icon: 'receipt_long',
-                color: 'text-purple-500',
-              },
-              {
-                label: 'الموظفون الفريدون',
-                value: analytics.uniqueEmployees.toLocaleString('ar-KW'),
-                icon: 'group',
-                color: 'text-green-500',
-              },
-              {
-                label: 'عدد الأشهر',
-                value: analytics.months.length.toLocaleString('ar-KW'),
-                icon: 'calendar_month',
-                color: 'text-orange-500',
-              },
-              {
-                label: 'متوسط التحويل',
-                value: analytics.totalPayments > 0
-                  ? `${fmt3(analytics.totalAmount / analytics.totalPayments)} د.ك`
-                  : '—',
-                icon: 'avg_pace',
-                color: 'text-teal-500',
-              },
-              {
-                label: 'آخر استيراد',
-                value: analytics.latestImport ? fmtDate(analytics.latestImport.importedAt) : '—',
-                sub: analytics.latestImport ? `${analytics.latestImport.batchCount.toLocaleString('ar-KW')} سجل` : undefined,
-                icon: 'cloud_done',
-                color: 'text-emerald-500',
-              },
-            ].map((c) => (
-              <div key={c.label} className={card}>
-                <span className={`material-symbols-outlined text-2xl ${c.color}`}>{c.icon}</span>
-                <div className="mt-1">
-                  <div className="text-xs text-neutral-500 leading-snug">{c.label}</div>
-                  <div className="text-base font-bold dark:text-white mt-0.5 tabular-nums leading-tight">{c.value}</div>
-                  {c.sub && <div className="text-xs text-neutral-400 mt-0.5">{c.sub}</div>}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Monthly bar chart */}
+          {/* F3 — Monthly bar chart */}
           {analytics.months.length > 0 && (
-            <div className={card}>
-              <h2 className="text-base font-semibold mb-4 dark:text-white">الرواتب الشهرية</h2>
+            <div className="card panel" style={{ padding: '20px 24px' }}>
+              <h2 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 16px 0' }}>الرواتب الشهرية</h2>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={analytics.months} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -792,8 +849,8 @@ export default function BankSalaryAnalytics() {
                       if (!active || !payload?.length) return null;
                       return (
                         <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '10px 14px', fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', direction: 'rtl' }}>
-                          <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6 }}>{label}</p>
-                          <p style={{ color: '#60A5FA', fontSize: 13, fontWeight: 700 }}>{fmt3(Number(payload[0].value))} د.ك</p>
+                          <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6, marginTop: 0 }}>{label}</p>
+                          <p style={{ color: '#60A5FA', fontSize: 13, fontWeight: 700, margin: 0 }}>{fmt3(Number(payload[0].value))} د.ك</p>
                         </div>
                       );
                     }}
@@ -806,47 +863,57 @@ export default function BankSalaryAnalytics() {
 
           {/* Monthly summary table */}
           {analytics.months.length > 0 && (
-            <div className={card}>
-              <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-                <h2 className="text-base font-semibold dark:text-white">ملخص شهري</h2>
-                <div className="flex items-center gap-1">
+            <div className="card panel" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>ملخص شهري</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   {(['all', '3m', '6m', 'year'] as const).map((mode) => (
                     <button
                       key={mode}
                       type="button"
                       onClick={() => handleMonthQuickFilter(mode)}
-                      className={`px-3 py-1 text-xs rounded-lg border transition-colors ${monthQuickFilter === mode ? 'bg-blue-600 border-blue-600 text-white' : 'border-neutral-300 dark:border-neutral-600 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}
+                      style={{
+                        padding: '4px 12px',
+                        fontSize: 12,
+                        borderRadius: 8,
+                        border: monthQuickFilter === mode ? '1px solid var(--primary)' : '1px solid var(--border)',
+                        background: monthQuickFilter === mode ? 'var(--primary)' : 'transparent',
+                        color: monthQuickFilter === mode ? '#fff' : 'var(--text)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                        fontWeight: 500,
+                      }}
                     >
                       {mode === 'all' ? 'الكل' : mode === '3m' ? 'آخر 3 أشهر' : mode === '6m' ? 'آخر 6 أشهر' : 'هذه السنة'}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                      <th className={thCls}>الشهر</th>
-                      <th className={`${thCls} text-end`}>المبلغ (د.ك)</th>
-                      <th className={`${thCls} text-end`}>المعاملات</th>
-                      <th className={`${thCls} text-end`}>الموظفون</th>
-                      <th className={`${thCls} text-end`}>المتوسط</th>
-                      <th className={`${thCls} text-end`}>الأعلى</th>
-                      <th className={`${thCls} text-end`}>الأدنى</th>
-                      <th className={`${thCls} text-end`}>الفرق</th>
+                    <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ ...thCls, padding: '10px 16px' }}>الشهر</th>
+                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>المبلغ (د.ك)</th>
+                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>المعاملات</th>
+                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>الموظفون</th>
+                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>المتوسط</th>
+                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>الأعلى</th>
+                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>الأدنى</th>
+                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>الفرق</th>
                     </tr>
                   </thead>
                   <tbody>
                     {analytics.months.map((m) => (
-                      <tr key={m.sourceMonth} className="border-b border-neutral-100 dark:border-neutral-700/50 hover:bg-neutral-50 dark:hover:bg-neutral-700/30 transition-colors">
-                        <td className="py-2.5 dark:text-white font-medium">{m.sourceMonth}</td>
-                        <td className="py-2.5 text-end font-mono dark:text-white tabular-nums">{fmt3(m.totalAmount)}</td>
-                        <td className="py-2.5 text-end dark:text-white">{m.count.toLocaleString('ar-KW')}</td>
-                        <td className="py-2.5 text-end text-neutral-500">{m.employeeCount?.toLocaleString('ar-KW') ?? '—'}</td>
-                        <td className="py-2.5 text-end font-mono text-neutral-500 tabular-nums">{m.avg != null ? fmt3(m.avg) : '—'}</td>
-                        <td className="py-2.5 text-end font-mono text-green-600 dark:text-green-400 tabular-nums">{m.highest != null ? fmt3(m.highest) : '—'}</td>
-                        <td className="py-2.5 text-end font-mono text-red-500 dark:text-red-400 tabular-nums">{m.lowest != null ? fmt3(m.lowest) : '—'}</td>
-                        <td className={`py-2.5 text-end font-mono tabular-nums ${varCls(m.varianceFromPrev)}`}>
+                      <tr key={m.sourceMonth} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '8px 16px', fontWeight: 500 }}>{m.sourceMonth}</td>
+                        <td style={{ padding: '8px 16px', textAlign: 'end', fontVariantNumeric: 'tabular-nums', fontFamily: 'monospace' }}>{fmt3(m.totalAmount)}</td>
+                        <td style={{ padding: '8px 16px', textAlign: 'end' }}>{m.count.toLocaleString('ar-KW')}</td>
+                        <td style={{ padding: '8px 16px', textAlign: 'end', color: 'var(--text-muted)' }}>{m.employeeCount?.toLocaleString('ar-KW') ?? '—'}</td>
+                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{m.avg != null ? fmt3(m.avg) : '—'}</td>
+                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', color: '#16a34a', fontVariantNumeric: 'tabular-nums' }}>{m.highest != null ? fmt3(m.highest) : '—'}</td>
+                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', color: '#ef4444', fontVariantNumeric: 'tabular-nums' }}>{m.lowest != null ? fmt3(m.lowest) : '—'}</td>
+                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }} className={varCls(m.varianceFromPrev)}>
                           {varLabel(m.varianceFromPrev)}
                         </td>
                       </tr>
@@ -859,52 +926,54 @@ export default function BankSalaryAnalytics() {
 
           {/* Employee Insight Card */}
           {selectedEmployee && (
-            <div ref={insightCardRef} className={card}>
+            <div ref={insightCardRef} className="card panel" style={{ padding: '20px 24px' }}>
               {empDetailLoading ? (
-                <div className="space-y-4">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <Skeleton h="h-6" w="w-48" />
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
                     {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} h="h-14" />)}
                   </div>
                 </div>
               ) : empDetail ? (
-                <div className="space-y-5">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   {/* Profile header */}
-                  <div className="flex items-start justify-between flex-wrap gap-3">
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
                     <div>
-                      <h2 className="text-base font-semibold dark:text-white flex items-center gap-2">
-                        <span className="material-symbols-outlined text-blue-500">person</span>
+                      <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#3B82F6' }}>person</span>
                         {empDetail.employee.fullName}
                         {empDetail.employee.status !== 'active' && (
-                          <span className="text-xs px-2 py-0.5 bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 rounded-full">غير نشط</span>
+                          <span style={{ fontSize: 11, padding: '2px 8px', background: '#fee2e2', color: '#dc2626', borderRadius: 20 }}>غير نشط</span>
                         )}
                       </h2>
                       {empDetail.employee.fullNameEn && (
-                        <div className="text-sm text-neutral-400 mt-0.5 ms-7">{empDetail.employee.fullNameEn}</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>{empDetail.employee.fullNameEn}</div>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <button
                         type="button"
                         onClick={() => navigate('/employees')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-neutral-300 dark:border-neutral-600 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-200 transition-colors"
+                        className="btn btn-secondary"
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}
                       >
-                        <span className="material-symbols-outlined text-sm">open_in_new</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>open_in_new</span>
                         عرض الموظف
                       </button>
                       <button
                         type="button"
                         onClick={() => handleExport(empDetail.employee.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                        className="btn"
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, background: '#16a34a', borderColor: '#16a34a' }}
                       >
-                        <span className="material-symbols-outlined text-sm">download</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: 14 }}>download</span>
                         تصدير سجله
                       </button>
                     </div>
                   </div>
 
                   {/* Profile info grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-sm">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, fontSize: 13 }}>
                     {[
                       ['الكود', empDetail.employee.code],
                       ['الرقم المدني', empDetail.employee.civilId ?? '—'],
@@ -913,44 +982,44 @@ export default function BankSalaryAnalytics() {
                       ['القسم', empDetail.employee.department ?? '—'],
                       ['الحالة', empDetail.employee.status === 'active' ? 'نشط' : 'غير نشط'],
                     ].map(([k, v]) => (
-                      <div key={k} className="bg-neutral-50 dark:bg-neutral-700/50 rounded-lg p-3">
-                        <div className="text-xs text-neutral-500">{k}</div>
-                        <div className="font-medium dark:text-white mt-0.5 truncate" title={v}>{v}</div>
+                      <div key={k} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{k}</div>
+                        <div style={{ fontWeight: 500, marginTop: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={v}>{v}</div>
                       </div>
                     ))}
                   </div>
 
                   {/* Stats grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12 }}>
                     {[
-                      { label: 'إجمالي التحويلات', value: empDetail.stats.totalPayments.toLocaleString('ar-KW') },
-                      { label: 'إجمالي المبالغ (د.ك)', value: fmt3(empDetail.stats.totalAmount) },
-                      { label: 'الأشهر المميزة', value: empDetail.stats.distinctMonths.toLocaleString('ar-KW') },
-                      { label: 'متوسط شهري (د.ك)', value: fmt3(empDetail.stats.avgMonthlyAmount) },
+                      { label: 'إجمالي التحويلات', value: empDetail.stats.totalPayments.toLocaleString('ar-KW'), cls: '' },
+                      { label: 'إجمالي المبالغ (د.ك)', value: fmt3(empDetail.stats.totalAmount), cls: '' },
+                      { label: 'الأشهر المميزة', value: empDetail.stats.distinctMonths.toLocaleString('ar-KW'), cls: '' },
+                      { label: 'متوسط شهري (د.ك)', value: fmt3(empDetail.stats.avgMonthlyAmount), cls: '' },
                       { label: 'أعلى تحويل (د.ك)', value: fmt3(empDetail.stats.highestPayment), cls: 'text-green-600 dark:text-green-400' },
                       { label: 'أدنى تحويل (د.ك)', value: fmt3(empDetail.stats.lowestPayment), cls: 'text-red-500 dark:text-red-400' },
                     ].map((s) => (
-                      <div key={s.label} className={`${card} text-center !p-3`}>
-                        <div className="text-xs text-neutral-500 leading-snug">{s.label}</div>
-                        <div className={`text-base font-bold mt-1 tabular-nums ${s.cls ?? 'dark:text-white'}`}>{s.value}</div>
+                      <div key={s.label} className="card panel" style={{ textAlign: 'center', padding: 12 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>{s.label}</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, marginTop: 4, fontVariantNumeric: 'tabular-nums', color: s.cls?.includes('green') ? '#16a34a' : s.cls?.includes('red') ? '#ef4444' : undefined }}>{s.value}</div>
                       </div>
                     ))}
                   </div>
 
                   {/* Salary change indicator */}
                   {empDetail.stats.distinctMonths > 1 && (
-                    <div className="flex items-center gap-3 text-sm p-3 bg-neutral-50 dark:bg-neutral-700/40 rounded-lg">
-                      <span className={`material-symbols-outlined text-xl ${empDetail.stats.salaryChangeAmount >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 8 }}>
+                      <span className={`material-symbols-outlined`} style={{ fontSize: 20, color: empDetail.stats.salaryChangeAmount >= 0 ? '#16a34a' : '#ef4444' }}>
                         {empDetail.stats.salaryChangeAmount >= 0 ? 'trending_up' : 'trending_down'}
                       </span>
                       <div>
-                        <span className="text-neutral-500">تغيير الراتب (أول ← آخر):</span>{' '}
-                        <span className={`font-semibold ${empDetail.stats.salaryChangeAmount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                        <span style={{ color: 'var(--text-muted)' }}>تغيير الراتب (أول ← آخر):</span>{' '}
+                        <span style={{ fontWeight: 600, color: empDetail.stats.salaryChangeAmount >= 0 ? '#16a34a' : '#ef4444' }}>
                           {empDetail.stats.salaryChangeAmount >= 0 ? '+' : ''}{fmt3(empDetail.stats.salaryChangeAmount)} د.ك
                           {' '}({empDetail.stats.salaryChangePercent >= 0 ? '+' : ''}{empDetail.stats.salaryChangePercent.toFixed(1)}%)
                         </span>
                       </div>
-                      <div className="ms-auto text-neutral-400 text-xs">
+                      <div style={{ marginInlineStart: 'auto', color: 'var(--text-muted)', fontSize: 12 }}>
                         {empDetail.stats.salaryChangeCount} تغيير في {empDetail.stats.distinctMonths} شهر
                       </div>
                     </div>
@@ -959,30 +1028,30 @@ export default function BankSalaryAnalytics() {
                   {/* Monthly salary timeline */}
                   {empDetail.monthlyHistory.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-semibold mb-2 dark:text-white">الجدول الزمني للرواتب</h3>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                      <h3 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px 0' }}>الجدول الزمني للرواتب</h3>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
                           <thead>
-                            <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                              <th className={thCls}>الشهر</th>
-                              <th className={`${thCls} text-end`}>المبلغ (د.ك)</th>
-                              <th className={`${thCls} text-end`}>المعاملات</th>
-                              <th className={`${thCls} text-end`}>الفرق</th>
-                              <th className={thCls} aria-label="الاتجاه"></th>
+                            <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                              <th style={{ ...thCls, padding: '8px 12px' }}>الشهر</th>
+                              <th style={{ ...thCls, padding: '8px 12px', textAlign: 'end' }}>المبلغ (د.ك)</th>
+                              <th style={{ ...thCls, padding: '8px 12px', textAlign: 'end' }}>المعاملات</th>
+                              <th style={{ ...thCls, padding: '8px 12px', textAlign: 'end' }}>الفرق</th>
+                              <th style={{ ...thCls, padding: '8px 12px' }} aria-label="الاتجاه"></th>
                             </tr>
                           </thead>
                           <tbody>
                             {empDetail.monthlyHistory.map((m) => (
-                              <tr key={m.sourceMonth} className="border-b border-neutral-100 dark:border-neutral-700/50 hover:bg-neutral-50 dark:hover:bg-neutral-700/30 transition-colors">
-                                <td className="py-2.5 dark:text-white font-medium">{m.sourceMonth}</td>
-                                <td className="py-2.5 text-end font-mono dark:text-white tabular-nums">{fmt3(m.totalAmount)}</td>
-                                <td className="py-2.5 text-end dark:text-white">{m.count}</td>
-                                <td className={`py-2.5 text-end font-mono tabular-nums ${varCls(m.varianceFromPrev)}`}>
+                              <tr key={m.sourceMonth} style={{ borderBottom: '1px solid var(--border)' }}>
+                                <td style={{ padding: '8px 12px', fontWeight: 500 }}>{m.sourceMonth}</td>
+                                <td style={{ padding: '8px 12px', textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{fmt3(m.totalAmount)}</td>
+                                <td style={{ padding: '8px 12px', textAlign: 'end' }}>{m.count}</td>
+                                <td style={{ padding: '8px 12px', textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }} className={varCls(m.varianceFromPrev)}>
                                   {varLabel(m.varianceFromPrev)}
                                 </td>
-                                <td className="py-2.5">
+                                <td style={{ padding: '8px 12px' }}>
                                   {m.varianceFromPrev !== null && m.varianceFromPrev !== 0 && (
-                                    <span className={`material-symbols-outlined text-base leading-none ${m.varianceFromPrev > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: 16, color: m.varianceFromPrev > 0 ? '#16a34a' : '#ef4444' }}>
                                       {m.varianceFromPrev > 0 ? 'trending_up' : 'trending_down'}
                                     </span>
                                   )}
@@ -996,26 +1065,28 @@ export default function BankSalaryAnalytics() {
                   )}
                 </div>
               ) : (
-                <div className="text-neutral-400 text-sm py-6 text-center">لا توجد مدفوعات لهذا الموظف في النطاق المحدد</div>
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 13 }}>لا توجد مدفوعات لهذا الموظف في النطاق المحدد</div>
               )}
             </div>
           )}
 
-          {/* Top employees */}
+          {/* F3 — Top employees */}
           {!appliedFilters.employeeId && analytics.topEmployees.length > 0 && (
-            <div className={card}>
-              <h2 className="text-base font-semibold mb-3 dark:text-white">أعلى الموظفين مدفوعاتٍ</h2>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+            <div className="card panel" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ padding: '16px 20px' }}>
+                <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>أعلى الموظفين مدفوعاتٍ</h2>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                      <th className={thCls}>#</th>
-                      <th className={thCls}>المستفيد</th>
-                      <th className={thCls}>الرقم المدني</th>
-                      <th className={`${thCls} text-end`}>إجمالي (د.ك)</th>
-                      <th className={`${thCls} text-end`}>المعاملات</th>
-                      <th className={`${thCls} text-end`}>متوسط (د.ك)</th>
-                      <th className={thCls}>آخر دفعة</th>
+                    <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ ...thCls, padding: '10px 16px' }}>#</th>
+                      <th style={{ ...thCls, padding: '10px 16px' }}>المستفيد</th>
+                      <th style={{ ...thCls, padding: '10px 16px' }}>الرقم المدني</th>
+                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>إجمالي (د.ك)</th>
+                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>المعاملات</th>
+                      <th style={{ ...thCls, padding: '10px 16px', textAlign: 'end' }}>متوسط (د.ك)</th>
+                      <th style={{ ...thCls, padding: '10px 16px' }}>آخر دفعة</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1035,22 +1106,22 @@ export default function BankSalaryAnalytics() {
                             selectEmployee(empOpt);
                           }
                         }}
-                        className={`border-b border-neutral-100 dark:border-neutral-700/50 transition-colors ${e.employeeId ? 'hover:bg-blue-50 dark:hover:bg-blue-900/10 cursor-pointer' : 'hover:bg-neutral-50 dark:hover:bg-neutral-700/30'}`}
+                        style={{ borderBottom: '1px solid var(--border)', cursor: e.employeeId ? 'pointer' : 'default', transition: 'background 0.15s' }}
                       >
-                        <td className="py-2.5 text-neutral-400 font-mono text-center">{i + 1}</td>
-                        <td className="py-2.5 dark:text-white font-medium">
-                          <div className="flex items-center gap-1">
+                        <td style={{ padding: '8px 16px', color: 'var(--text-muted)', fontFamily: 'monospace', textAlign: 'center' }}>{i + 1}</td>
+                        <td style={{ padding: '8px 16px', fontWeight: 500 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             {e.beneficiaryName}
                             {e.employeeId && (
-                              <span className="material-symbols-outlined text-xs text-blue-400 leading-none" title="انقر للتفاصيل">person_search</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: 12, color: '#60a5fa' }} title="انقر للتفاصيل">person_search</span>
                             )}
                           </div>
                         </td>
-                        <td className="py-2.5 text-neutral-500 font-mono text-xs">{e.civilId ?? '—'}</td>
-                        <td className="py-2.5 text-end font-mono dark:text-white tabular-nums">{fmt3(e.totalAmount)}</td>
-                        <td className="py-2.5 text-end dark:text-white">{e.count.toLocaleString('ar-KW')}</td>
-                        <td className="py-2.5 text-end font-mono text-neutral-500 tabular-nums">{fmt3(e.avgAmount)}</td>
-                        <td className="py-2.5 text-neutral-500 whitespace-nowrap">{fmtDate(e.latestPaymentDate)}</td>
+                        <td style={{ padding: '8px 16px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 12 }}>{e.civilId ?? '—'}</td>
+                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{fmt3(e.totalAmount)}</td>
+                        <td style={{ padding: '8px 16px', textAlign: 'end' }}>{e.count.toLocaleString('ar-KW')}</td>
+                        <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmt3(e.avgAmount)}</td>
+                        <td style={{ padding: '8px 16px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{fmtDate(e.latestPaymentDate)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1059,17 +1130,17 @@ export default function BankSalaryAnalytics() {
             </div>
           )}
 
-          {/* Transactions table */}
-          <div className={card}>
-            <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-              <h2 className="text-base font-semibold dark:text-white">
+          {/* F4 — Transactions table */}
+          <div className="card panel" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <h2 style={{ fontSize: 15, fontWeight: 600, margin: 0 }}>
                 المعاملات
-                {txData && <span className="text-neutral-400 font-normal text-sm ms-2">({txData.meta.total.toLocaleString('ar-KW')})</span>}
+                {txData && <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: 13, marginInlineStart: 8 }}>({txData.meta.total.toLocaleString('ar-KW')})</span>}
               </h2>
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-neutral-500">الصفوف:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>الصفوف:</label>
                 <select
-                  className="border border-neutral-300 dark:border-neutral-600 rounded-lg px-2 py-1 text-sm bg-white dark:bg-neutral-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '4px 8px', fontSize: 13, background: 'var(--surface)', color: 'var(--text)' }}
                   title="حجم الصفحة"
                   value={txPageSize}
                   onChange={(e) => { setTxPageSize(Number(e.target.value)); setTxPage(1); }}
@@ -1080,51 +1151,58 @@ export default function BankSalaryAnalytics() {
             </div>
 
             {txLoading ? (
-              <div className="space-y-2">
+              <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} h="h-10" />)}
               </div>
             ) : txData ? (
               <>
                 {txData.data.length === 0 ? (
-                  <div className="text-center py-12 text-neutral-400">
-                    <span className="material-symbols-outlined text-4xl mb-2 block">receipt_long</span>
-                    <div className="text-sm">لا توجد معاملات في النطاق المحدد</div>
+                  <div style={{ textAlign: 'center', padding: '48px 0', color: 'var(--text-muted)' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: 40, display: 'block', marginBottom: 8 }}>receipt_long</span>
+                    <div style={{ fontSize: 13 }}>لا توجد معاملات في النطاق المحدد</div>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr className="border-b border-neutral-200 dark:border-neutral-700">
-                          <th className={thCls}>رقم المعاملة</th>
+                        <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ ...thCls, padding: '10px 16px' }}>رقم المعاملة</th>
                           <SortTh field="sourceMonth" label="الشهر" sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
                           <SortTh field="paymentDate" label="تاريخ الدفع" sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
                           <SortTh field="beneficiaryName" label="المستفيد" sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
                           <SortTh field="amount" label="المبلغ (د.ك)" sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} cls="text-end" />
-                          <th className={thCls}>الرقم المدني</th>
-                          {appliedFilters.employeeId && <th className={thCls}>مطابقة بـ</th>}
-                          <th className={thCls}>الحالة</th>
+                          <th style={{ ...thCls, padding: '10px 16px' }}>الرقم المدني</th>
+                          {appliedFilters.employeeId && <th style={{ ...thCls, padding: '10px 16px' }}>مطابقة بـ</th>}
+                          <th style={{ ...thCls, padding: '10px 16px' }}>الحالة</th>
                         </tr>
                       </thead>
                       <tbody>
                         {txData.data.map((row) => (
-                          <tr key={row.id} className="border-b border-neutral-100 dark:border-neutral-700/50 hover:bg-neutral-50 dark:hover:bg-neutral-700/30 transition-colors">
-                            <td className="py-2.5 font-mono text-xs text-neutral-500 dark:text-neutral-400 max-w-32 truncate" title={row.transactionId}>{row.transactionId}</td>
-                            <td className="py-2.5 dark:text-white">{row.sourceMonth ?? '—'}</td>
-                            <td className="py-2.5 dark:text-white whitespace-nowrap">{fmtDate(row.paymentDate)}</td>
-                            <td className="py-2.5 dark:text-white">{row.beneficiaryName}</td>
-                            <td className="py-2.5 text-end font-mono dark:text-white tabular-nums">{fmt3(row.amount)}</td>
-                            <td className="py-2.5 text-neutral-500 font-mono text-xs">{row.civilId ?? '—'}</td>
+                          <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '8px 16px', fontFamily: 'monospace', fontSize: 11, color: 'var(--text-muted)', maxWidth: 128, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.transactionId}>{row.transactionId}</td>
+                            <td style={{ padding: '8px 16px' }}>{row.sourceMonth ?? '—'}</td>
+                            <td style={{ padding: '8px 16px', whiteSpace: 'nowrap' }}>{fmtDate(row.paymentDate)}</td>
+                            <td style={{ padding: '8px 16px' }}>{row.beneficiaryName}</td>
+                            <td style={{ padding: '8px 16px', textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>{fmt3(row.amount)}</td>
+                            <td style={{ padding: '8px 16px', color: 'var(--text-muted)', fontFamily: 'monospace', fontSize: 12 }}>{row.civilId ?? '—'}</td>
                             {appliedFilters.employeeId && (
-                              <td className="py-2.5">
+                              <td style={{ padding: '8px 16px' }}>
                                 {row.matchedBy ? (
-                                  <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 whitespace-nowrap">
+                                  <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 12, fontSize: 11, background: 'rgba(59,130,246,0.1)', color: '#3B82F6', whiteSpace: 'nowrap' }}>
                                     {row.matchedBy}
                                   </span>
-                                ) : <span className="text-neutral-300">—</span>}
+                                ) : <span style={{ color: 'var(--text-muted)' }}>—</span>}
                               </td>
                             )}
-                            <td className="py-2.5">
-                              <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${row.status === 'PROCESSED' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-neutral-100 dark:bg-neutral-700 text-neutral-500'}`}>
+                            <td style={{ padding: '8px 16px' }}>
+                              <span style={{
+                                display: 'inline-block',
+                                padding: '2px 8px',
+                                borderRadius: 12,
+                                fontSize: 11,
+                                background: row.status === 'PROCESSED' ? 'rgba(22,163,74,0.1)' : row.status === 'FAILED' ? 'rgba(239,68,68,0.1)' : 'rgba(0,0,0,0.06)',
+                                color: row.status === 'PROCESSED' ? '#16a34a' : row.status === 'FAILED' ? '#ef4444' : 'var(--text-muted)',
+                              }}>
                                 {row.status ?? '—'}
                               </span>
                             </td>
@@ -1137,23 +1215,25 @@ export default function BankSalaryAnalytics() {
 
                 {/* Pagination */}
                 {txData.meta.totalPages > 1 && (
-                  <div className="flex items-center justify-between mt-4 text-sm">
-                    <span className="text-neutral-500">{txData.meta.total.toLocaleString('ar-KW')} معاملة</span>
-                    <div className="flex items-center gap-2">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--border)', fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-muted)' }}>{txData.meta.total.toLocaleString('ar-KW')} معاملة</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <button
                         type="button"
                         disabled={txPage <= 1}
                         onClick={() => setTxPage((p) => p - 1)}
-                        className="px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-600 disabled:opacity-40 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors dark:text-white"
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 12px', fontSize: 12, opacity: txPage <= 1 ? 0.4 : 1 }}
                       >
                         السابق
                       </button>
-                      <span className="px-3 py-1.5 text-neutral-600 dark:text-neutral-300">{txPage} / {txData.meta.totalPages}</span>
+                      <span style={{ padding: '4px 12px', color: 'var(--text-muted)' }}>{txPage} / {txData.meta.totalPages}</span>
                       <button
                         type="button"
                         disabled={txPage >= txData.meta.totalPages}
                         onClick={() => setTxPage((p) => p + 1)}
-                        className="px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-600 disabled:opacity-40 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors dark:text-white"
+                        className="btn btn-secondary"
+                        style={{ padding: '4px 12px', fontSize: 12, opacity: txPage >= txData.meta.totalPages ? 0.4 : 1 }}
                       >
                         التالي
                       </button>
