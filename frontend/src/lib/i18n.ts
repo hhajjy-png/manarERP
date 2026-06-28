@@ -92,6 +92,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     // nav group labels
     'nav.group.core': 'العمليات الأساسية',
     'nav.group.financial': 'الإدارة المالية',
+    'nav.group.import_center': 'مركز الاستيراد',
     'nav.group.warehouse': 'المستودع',
     'nav.group.system': 'النظام',
 
@@ -1342,6 +1343,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     // nav group labels
     'nav.group.core': 'Core Operations',
     'nav.group.financial': 'Financial Management',
+    'nav.group.import_center': 'Import Center',
     'nav.group.warehouse': 'Warehouse',
     'nav.group.system': 'System',
 
