@@ -6,6 +6,9 @@ import {
   parseCsvRows,
   detectCsvDelimiter,
   STATEMENT_CONFIGS,
+  isLikelyHeaderless,
+  parseExcelRowsPositional,
+  POSITIONAL_COL,
 } from '../parser.js';
 import { normalizeRow, buildNormalizedText } from '../normalizer.js';
 import {
@@ -710,5 +713,174 @@ describe('STATEMENT_CONFIGS', () => {
 
   it.each(requiredBanks)('%s has at least one date format', (bank) => {
     expect(STATEMENT_CONFIGS[bank].dateFormats.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Positional fallback: headerless XML Spreadsheet ───────────────────────────
+//
+// Fixture layout (0-indexed): col0=date | col1=description | col2=currency(skip)
+//                              col3=debit | col4=credit | col5=currency(skip) | col6=balance
+
+function makeHeaderlessRow(
+  date: string,
+  desc: string,
+  debit: string | number,
+  credit: string | number,
+  balance: string | number,
+): unknown[] {
+  return [date, desc, 'KWD', debit, credit, 'KWD', balance];
+}
+
+function makeHeaderlessSheet(n: number): unknown[][] {
+  return Array.from({ length: n }, (_, i) => {
+    const day = String((i % 28) + 1).padStart(2, '0');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mon = months[Math.floor(i / 28) % 12];
+    const year = 2026;
+    const isDebit = i % 3 !== 0;
+    return makeHeaderlessRow(
+      `${day} ${mon} ${year}`,
+      `Transaction ${i + 1}`,
+      isDebit ? `${(i + 1) * 10}.000` : '',
+      isDebit ? '' : `${(i + 1) * 20}.000`,
+      `${10000 + i * 5}.000`,
+    );
+  });
+}
+
+describe('isLikelyHeaderless', () => {
+  it('returns true when first cell is a verbose date', () => {
+    expect(isLikelyHeaderless([makeHeaderlessRow('29 May 2026', 'Wire', '500.000', '', '9500.000')])).toBe(true);
+  });
+
+  it('returns true when first cell is a DD/MM/YYYY date', () => {
+    expect(isLikelyHeaderless([['01/06/2026', 'Test', 'KWD', '100', '', 'KWD', '9900']])).toBe(true);
+  });
+
+  it('returns false when first cell is a text header', () => {
+    expect(isLikelyHeaderless([['Date', 'Description', 'Debit', 'Credit', 'Balance']])).toBe(false);
+  });
+
+  it('returns false for empty sheet', () => {
+    expect(isLikelyHeaderless([])).toBe(false);
+  });
+
+  it('returns false when row has fewer than 4 columns', () => {
+    expect(isLikelyHeaderless([['29 May 2026', 'desc']])).toBe(false);
+  });
+});
+
+describe('parseExcelRowsPositional', () => {
+  it('parses verbose date "29 May 2026" correctly', () => {
+    const sheet = [makeHeaderlessRow('29 May 2026', 'Wire transfer', '500.000', '', '9500.000')];
+    const [tx] = parseExcelRowsPositional(sheet);
+    expect(tx.statementDate).toBe('2026-05-29');
+  });
+
+  it('parses debit from column 3 and credit from column 4', () => {
+    const sheet = [makeHeaderlessRow('01 Jan 2026', 'Payment out', '250.500', '', '5000.000')];
+    const [tx] = parseExcelRowsPositional(sheet);
+    expect(tx.debit).toBeCloseTo(250.5);
+    expect(tx.credit).toBe(0);
+
+    const sheet2 = [makeHeaderlessRow('02 Jan 2026', 'Salary in', '', '1000.000', '6000.000')];
+    const [tx2] = parseExcelRowsPositional(sheet2);
+    expect(tx2.debit).toBe(0);
+    expect(tx2.credit).toBeCloseTo(1000);
+  });
+
+  it('parses balance from column 6', () => {
+    const sheet = [makeHeaderlessRow('03 Jan 2026', 'Test', '100.000', '', '8900.000')];
+    const [tx] = parseExcelRowsPositional(sheet);
+    expect(tx.balance).toBeCloseTo(8900);
+  });
+
+  it('sets bankName to "Headerless XML Statement"', () => {
+    const sheet = [makeHeaderlessRow('01 Jun 2026', 'Test', '10.000', '', '990.000')];
+    const [tx] = parseExcelRowsPositional(sheet);
+    expect(tx.bankName).toBe('Headerless XML Statement');
+    expect(tx.currency).toBe('KWD');
+  });
+
+  it('skips empty rows', () => {
+    const sheet = [
+      makeHeaderlessRow('01 Jan 2026', 'Real row', '100.000', '', '900.000'),
+      [null, null, null, null, null, null, null],
+      makeHeaderlessRow('02 Jan 2026', 'Another row', '', '200.000', '1100.000'),
+    ];
+    const results = parseExcelRowsPositional(sheet);
+    expect(results).toHaveLength(2);
+  });
+
+  it('skips rows where the date cell is not a valid date', () => {
+    const sheet = [
+      ['Statement Date', 'Description', 'CCY', 'Debit', 'Credit', 'CCY', 'Balance'],
+      makeHeaderlessRow('01 May 2026', 'First data row', '50.000', '', '950.000'),
+    ];
+    const results = parseExcelRowsPositional(sheet);
+    expect(results).toHaveLength(1);
+    expect(results[0].statementDate).toBe('2026-05-01');
+  });
+
+  it('skips rows with no description and zero amounts', () => {
+    const sheet = [
+      makeHeaderlessRow('01 Jan 2026', '', '', '', '10000.000'),
+    ];
+    expect(parseExcelRowsPositional(sheet)).toHaveLength(0);
+  });
+
+  it('parses all months correctly', () => {
+    const months = [
+      ['Jan','01'],['Feb','02'],['Mar','03'],['Apr','04'],['May','05'],['Jun','06'],
+      ['Jul','07'],['Aug','08'],['Sep','09'],['Oct','10'],['Nov','11'],['Dec','12'],
+    ];
+    for (const [mon, num] of months) {
+      const sheet = [makeHeaderlessRow(`15 ${mon} 2026`, 'Test', '100', '', '900')];
+      const [tx] = parseExcelRowsPositional(sheet);
+      expect(tx.statementDate).toBe(`2026-${num}-15`);
+    }
+  });
+});
+
+describe('parseExcelRows — positional fallback integration', () => {
+  it('falls back to positional parsing when row 0 is a date row', () => {
+    const sheet = [
+      makeHeaderlessRow('01 Jun 2026', 'Opening balance', '', '5000.000', '5000.000'),
+      makeHeaderlessRow('05 Jun 2026', 'Wire transfer out', '1000.000', '', '4000.000'),
+      makeHeaderlessRow('10 Jun 2026', 'Salary received', '', '2000.000', '6000.000'),
+    ];
+    const results = parseExcelRows(sheet, STATEMENT_CONFIGS.UNKNOWN);
+    expect(results).toHaveLength(3);
+    expect(results[0].bankName).toBe('Headerless XML Statement');
+    expect(results[1].debit).toBeCloseTo(1000);
+    expect(results[2].credit).toBeCloseTo(2000);
+  });
+
+  it('does NOT fall back when row 0 is a normal header row', () => {
+    const sheet = [
+      ['Date', 'Description', 'Debit', 'Credit', 'Balance'],
+      ['01/06/2026', 'Payment', '100', '', '900'],
+    ];
+    const results = parseExcelRows(sheet, STATEMENT_CONFIGS.UNKNOWN);
+    // header-based parse should succeed
+    expect(results).toHaveLength(1);
+    expect(results[0].bankName).toBe('UNKNOWN');
+  });
+});
+
+describe('parseExcelRowsPositional — 145-row fixture produces ~140 results', () => {
+  it('returns at least 140 parsed transactions from a 145-row headerless sheet', () => {
+    const sheet = makeHeaderlessSheet(145);
+    const results = parseExcelRowsPositional(sheet);
+    // All 145 rows have valid dates and non-empty descriptions
+    expect(results.length).toBeGreaterThanOrEqual(140);
+  });
+
+  it('POSITIONAL_COL constants match expected positions', () => {
+    expect(POSITIONAL_COL.DATE).toBe(0);
+    expect(POSITIONAL_COL.DESC).toBe(1);
+    expect(POSITIONAL_COL.DEBIT).toBe(3);
+    expect(POSITIONAL_COL.CREDIT).toBe(4);
+    expect(POSITIONAL_COL.BALANCE).toBe(6);
   });
 });

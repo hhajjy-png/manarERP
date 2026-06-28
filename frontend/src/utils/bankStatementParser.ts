@@ -100,6 +100,11 @@ export function detectBankTemplateClient(headers: string[]): ClientBankTemplate 
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+const MONTH_ABBR: Record<string, string> = {
+  jan:'01', feb:'02', mar:'03', apr:'04', may:'05', jun:'06',
+  jul:'07', aug:'08', sep:'09', oct:'10', nov:'11', dec:'12',
+};
+
 function parseDateStr(raw: unknown): string | null {
   if (raw == null || raw === '') return null;
   if (typeof raw === 'number') {
@@ -110,9 +115,77 @@ function parseDateStr(raw: unknown): string | null {
   const s = String(raw).trim();
   if (!s) return null;
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
-  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+  // "29 May 2026" — verbose month name (Excel 2003 XML Spreadsheet format)
+  const verbose = s.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
+  if (verbose) {
+    const m = MONTH_ABBR[verbose[2].slice(0, 3).toLowerCase()];
+    if (m) return `${verbose[3]}-${m}-${verbose[1].padStart(2, '0')}`;
+  }
   return null;
+}
+
+// ── Positional fallback for headerless XML Spreadsheet files ───────────────────
+
+const POSITIONAL_COL = {
+  DATE:    0,
+  DESC:    1,
+  DEBIT:   3,
+  CREDIT:  4,
+  BALANCE: 6,
+} as const;
+
+export function isLikelyHeaderless(sheetData: unknown[][]): boolean {
+  const firstRow = sheetData[0];
+  if (!firstRow || firstRow.length < 4) return false;
+  return parseDateStr(firstRow[POSITIONAL_COL.DATE]) !== null;
+}
+
+export function parseExcelRowsPositionalClient(
+  sheetData: unknown[][],
+): StatementTransaction[] {
+  const { DATE, DESC, DEBIT, CREDIT, BALANCE } = POSITIONAL_COL;
+  const results: StatementTransaction[] = [];
+
+  for (const row of sheetData) {
+    if (!row || (row as unknown[]).every((c) => c == null || c === '')) continue;
+    if ((row as unknown[]).length < BALANCE + 1) continue;
+
+    const dateStr = parseDateStr((row as unknown[])[DATE]);
+    if (!dateStr) continue;
+
+    const description = (row as unknown[])[DESC] != null
+      ? String((row as unknown[])[DESC]).trim() : '';
+    const debit  = parseAmt((row as unknown[])[DEBIT]);
+    const credit = parseAmt((row as unknown[])[CREDIT]);
+    const balRaw = (row as unknown[])[BALANCE];
+    const balance = balRaw != null && balRaw !== '' ? parseSignedAmt(balRaw) : null;
+
+    if (!description && debit === 0 && credit === 0) continue;
+
+    results.push({
+      transactionId: null,
+      bankName: 'Headerless XML Statement',
+      statementDate: dateStr,
+      postingDate: null,
+      description,
+      reference: null,
+      debit,
+      credit,
+      balance,
+      currency: 'KWD',
+      accountNumber: null,
+      iban: null,
+      chequeNumber: null,
+      rawRow: {
+        date: (row as unknown[])[DATE], description: (row as unknown[])[DESC],
+        debit: (row as unknown[])[DEBIT], credit: (row as unknown[])[CREDIT],
+        balance: (row as unknown[])[BALANCE],
+      },
+    });
+  }
+  return results;
 }
 
 function parseAmt(raw: unknown): number {
@@ -191,6 +264,11 @@ export function parseExcelRowsClient(
   sheetData: unknown[][],
   tpl: ClientBankTemplate,
 ): StatementTransaction[] {
+  // Headerless detection: if row 0 starts with a date the file has no header row.
+  if (isLikelyHeaderless(sheetData)) {
+    return parseExcelRowsPositionalClient(sheetData);
+  }
+
   const headerRowData = sheetData[tpl.headerRow] ?? [];
   const colIdx: Record<string, number> = {};
   (headerRowData as unknown[]).forEach((h, i) => {

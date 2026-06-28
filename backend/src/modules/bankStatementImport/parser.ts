@@ -158,6 +158,11 @@ export function detectBankTemplate(headers: string[]): BankTemplate {
 
 // ── Date parsing ───────────────────────────────────────────────────────────────
 
+const MONTH_ABBR: Record<string, string> = {
+  jan:'01', feb:'02', mar:'03', apr:'04', may:'05', jun:'06',
+  jul:'07', aug:'08', sep:'09', oct:'10', nov:'11', dec:'12',
+};
+
 function parseDateString(raw: unknown): string | null {
   if (raw == null || raw === '') return null;
 
@@ -195,7 +200,75 @@ function parseDateString(raw: unknown): string | null {
     return `${y}-${b.padStart(2, '0')}-${a.padStart(2, '0')}`;
   }
 
+  // "29 May 2026" — verbose month name (Excel 2003 XML Spreadsheet format)
+  const verboseM = s.match(/^(\d{1,2})\s+([A-Za-z]{3,9})\s+(\d{4})$/);
+  if (verboseM) {
+    const m = MONTH_ABBR[verboseM[2].slice(0, 3).toLowerCase()];
+    if (m) return `${verboseM[3]}-${m}-${verboseM[1].padStart(2, '0')}`;
+  }
+
   return null;
+}
+
+// ── Positional fallback for headerless XML Spreadsheet files ───────────────────
+
+// Column layout (0-indexed): date | description | currency | debit | credit | currency | balance
+export const POSITIONAL_COL = {
+  DATE:    0,
+  DESC:    1,
+  DEBIT:   3,
+  CREDIT:  4,
+  BALANCE: 6,
+} as const;
+
+// Returns true when the first cell of the sheet parses as a date — meaning row 0
+// is a data row, not a header row (headerless Excel 2003 XML Spreadsheet).
+export function isLikelyHeaderless(sheetData: unknown[][]): boolean {
+  const firstRow = sheetData[0];
+  if (!firstRow || firstRow.length < 4) return false;
+  return parseDateString(firstRow[POSITIONAL_COL.DATE]) !== null;
+}
+
+export function parseExcelRowsPositional(sheetData: unknown[][]): StatementTransaction[] {
+  const { DATE, DESC, DEBIT, CREDIT, BALANCE } = POSITIONAL_COL;
+  const results: StatementTransaction[] = [];
+
+  for (const row of sheetData) {
+    if (!row || row.every((c) => c == null || c === '')) continue;
+    if (row.length < BALANCE + 1) continue;
+
+    const dateStr = parseDateString(row[DATE]);
+    if (!dateStr) continue; // skip any non-date rows (header remnants, summary rows)
+
+    const description = row[DESC] != null ? String(row[DESC]).trim() : '';
+    const debit  = parseAmount(row[DEBIT]);
+    const credit = parseAmount(row[CREDIT]);
+    const balance = row[BALANCE] != null && row[BALANCE] !== ''
+      ? parseSignedAmount(row[BALANCE]) : null;
+
+    if (!description && debit === 0 && credit === 0) continue;
+
+    results.push({
+      transactionId: null,
+      bankName: 'Headerless XML Statement',
+      statementDate: dateStr,
+      postingDate: null,
+      description,
+      reference: null,
+      debit,
+      credit,
+      balance,
+      currency: 'KWD',
+      accountNumber: null,
+      iban: null,
+      chequeNumber: null,
+      rawRow: {
+        date: row[DATE], description: row[DESC],
+        debit: row[DEBIT], credit: row[CREDIT], balance: row[BALANCE],
+      },
+    });
+  }
+  return results;
 }
 
 // ── Amount parsing ─────────────────────────────────────────────────────────────
@@ -293,6 +366,11 @@ export function parseExcelRows(
   sheetData: unknown[][],
   template: BankTemplate,
 ): StatementTransaction[] {
+  // Headerless detection: if row 0 starts with a date the file has no header row.
+  if (isLikelyHeaderless(sheetData)) {
+    return parseExcelRowsPositional(sheetData);
+  }
+
   const { headerRow, dataStartRow, columnMap, bankName, currencyDefault } = template;
 
   const headerRowData = sheetData[headerRow] ?? [];
