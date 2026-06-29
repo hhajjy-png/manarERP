@@ -1,5 +1,20 @@
 /* ─── AI Assistant (AI) — .ai-* scoped styles ──────────────────────────────── */
 
+/* ─── Dev: Router decision panel — visible in DEV builds only ───────────────── */
+.ai-dev-router-panel {
+  border: 1px dashed #c084fc;
+  background: #f8f4ff;
+}
+.ai-dev-router-title {
+  color: #7c3aed;
+}
+.ai-dev-router-body {
+  font-family: monospace;
+  font-size: 11px;
+  direction: ltr;
+  text-align: left;
+}
+
 /* ─── Page ──────────────────────────────────────────────────────────────────── */
 .ai-page {
   display: flex;

@@ -1,6 +1,10 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './AIAssistant.css';
+import ResultCard from '../ai/ResultCard';
+import { route } from '../ai/router';
+import { executeSkill } from '../ai/registry';
+import type { SkillResult, RouterDecision } from '../ai/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -9,6 +13,8 @@ interface AiMessage {
   role: 'user' | 'assistant';
   text: string;
   skill?: string;
+  result?: SkillResult;
+  routerDecision?: RouterDecision;
   timestamp: Date;
 }
 
@@ -17,6 +23,8 @@ interface SerializedMsg {
   role: 'user' | 'assistant';
   text: string;
   skill?: string;
+  result?: SkillResult;
+  routerDecision?: RouterDecision;
   timestamp: number;
 }
 
@@ -129,14 +137,14 @@ const ARCH_NODES = [
 ] as const;
 
 const ROADMAP_ITEMS = [
-  { phase: 'AI-1',   name: 'UI Workspace',         desc: 'واجهة العمل الأساسية',           current: false },
-  { phase: 'AI-1.5', name: 'Smart Workspace',       desc: 'سجل، مثبتات، إجراءات سريعة',    current: true  },
-  { phase: 'AI-2',   name: 'Safe Query Templates',  desc: 'قوالب استعلام آمنة',             current: false },
-  { phase: 'AI-3',   name: 'SELECT-only SQL',       desc: 'طبقة SQL للقراءة فقط',           current: false },
-  { phase: 'AI-4',   name: 'Local LLM',             desc: 'نموذج ذكاء اصطناعي محلي',       current: false },
-  { phase: 'AI-5',   name: 'RAG',                   desc: 'استرجاع معزز من الوثائق',       current: false },
-  { phase: 'AI-6',   name: 'Document AI',           desc: 'الذكاء الاصطناعي للوثائق',      current: false },
-  { phase: 'AI-7',   name: 'Executive Insights',    desc: 'رؤى تنفيذية متقدمة',            current: false },
+  { phase: 'AI-1',   name: 'UI Workspace',              desc: 'واجهة العمل الأساسية',                    current: false },
+  { phase: 'AI-1.5', name: 'Smart Workspace',           desc: 'سجل، مثبتات، إجراءات سريعة',             current: false },
+  { phase: 'AI-2',   name: 'Safe Intelligence Engine',  desc: 'محرك مهارات محدد — بيانات حقيقية',       current: true  },
+  { phase: 'AI-3',   name: 'SELECT-only SQL',           desc: 'طبقة SQL للقراءة فقط',                   current: false },
+  { phase: 'AI-4',   name: 'Local LLM',                 desc: 'نموذج ذكاء اصطناعي محلي',               current: false },
+  { phase: 'AI-5',   name: 'RAG',                       desc: 'استرجاع معزز من الوثائق',               current: false },
+  { phase: 'AI-6',   name: 'Document AI',               desc: 'الذكاء الاصطناعي للوثائق',              current: false },
+  { phase: 'AI-7',   name: 'Executive Insights',        desc: 'رؤى تنفيذية متقدمة',                    current: false },
 ] as const;
 
 const SOURCE_ITEMS = [
@@ -152,16 +160,18 @@ const SOURCE_ITEMS = [
 const WHATS_NEW_AVAILABLE = [
   'واجهة المساعد الذكي',
   'أسئلة مقترحة تفاعلية',
-  'ردود تجريبية آمنة',
   'سجل محادثات محلي',
   'اقتراحات مثبتة ⭐',
   'إجراءات سريعة',
   'نسخ وتصدير الردود',
   'إحصائيات الجلسة',
+  'محرك مهارات محدد (AI-2) — بيانات حقيقية',
+  'توجيه ذكي للطلبات (Prompt Router)',
+  'نتائج هيكلية: إحصائيات، تنبيهات، بطاقات بيانات',
+  '6 مهارات جاهزة: بنك، رواتب، مصروفات، عقود، لوحة تحكم، تقارير',
 ] as const;
 
 const WHATS_NEW_SOON = [
-  'قوالب استعلام آمنة (AI-2)',
   'SQL للقراءة فقط (AI-3)',
   'نموذج AI محلي (AI-4)',
   'RAG — استرجاع من المستندات (AI-5)',
@@ -208,7 +218,15 @@ function savePinned(pins: Set<string>): void {
 }
 
 function serializeMsgs(msgs: AiMessage[]): SerializedMsg[] {
-  return msgs.map(m => ({ ...m, timestamp: m.timestamp.getTime() }));
+  return msgs.map(m => {
+    const s: SerializedMsg = { ...m, timestamp: m.timestamp.getTime() };
+    if (s.result) {
+      // Strip large optional arrays to keep localStorage compact
+      const { highlights: _h, cards: _c, ...compact } = s.result;
+      s.result = compact as SkillResult;
+    }
+    return s;
+  });
 }
 
 function deserializeMsgs(msgs: SerializedMsg[]): AiMessage[] {
@@ -217,12 +235,28 @@ function deserializeMsgs(msgs: SerializedMsg[]): AiMessage[] {
 
 // ─── Utility Helpers ──────────────────────────────────────────────────────────
 
-function detectSkill(text: string): string {
-  if (text.includes('كشف') || text.includes('بنك') || text.includes('سحب') || text.includes('رسوم') || text.includes('تنبيه')) return 'Bank Statement Skill';
-  if (text.includes('راتب') || text.includes('رواتب') || text.includes('أشهر') || text.includes('اشهر') || text.includes('معتاد')) return 'Payroll Skill';
-  if (text.includes('مصروف') || text.includes('مصاريف')) return 'Expense Skill';
-  if (text.includes('عقد') || text.includes('عقود') || text.includes('عميل') || text.includes('عملاء') || text.includes('انتهاء')) return 'Contract Skill';
-  return 'Reports Skill';
+function buildNoSkillResult(prompt: string): SkillResult {
+  const now = Date.now();
+  return {
+    skillId: 'none',
+    skillTitleAr: 'غير محدد',
+    intent: 'unknown',
+    prompt,
+    title: 'لم يتم التعرف على الطلب',
+    summary: 'لم أتمكن من تحديد المهارة المناسبة. جرب أن تكون أكثر تحديداً، أو اختر من الاقتراحات أدناه.',
+    statistics: [],
+    warnings: [{ message: 'استخدم الاقتراحات الموجودة أو أعد صياغة سؤالك.', severity: 'info' }],
+    sources: [],
+    suggestedQuestions: [
+      'لخّص آخر كشف حساب مستورد',
+      'أعلى الرواتب هذا الشهر',
+      'اعرض ملخص المصروفات',
+      'اعرض المؤشرات الرئيسية',
+    ],
+    isInsufficientData: true,
+    executedAt: now,
+    executionMs: 0,
+  };
 }
 
 function formatTime(d: Date): string {
@@ -231,19 +265,6 @@ function formatTime(d: Date): string {
 
 function formatDate(ts: number): string {
   return new Date(ts).toLocaleDateString('ar-KW', { month: 'short', day: 'numeric' });
-}
-
-const SKILL_RESPONSES: Record<string, string> = {
-  'Bank Statement Skill': 'مهارة كشف الحساب البنكي ستقوم بتحليل آخر كشف مستورد وعرض أكبر العمليات والرسوم والتنبيهات.',
-  'Payroll Skill':        'مهارة تحليل الرواتب ستعرض ملخص الرواتب الشهري وأعلى الرواتب ومقارنة الفترات.',
-  'Expense Skill':        'مهارة تحليل المصروفات ستحدد أكبر المصروفات والاتجاهات غير المعتادة.',
-  'Contract Skill':       'مهارة تحليل العقود ستعرض العقود النشطة والمنتهية قريباً وأكبر العملاء.',
-  'Reports Skill':        'مهارة شرح التقارير ستلخص نتائج التقرير وتقارن الفترات بلغة بسيطة.',
-};
-
-function buildResponse(query: string, skill: string): string {
-  const detail = SKILL_RESPONSES[skill] ?? `مهارة ${skill} ستعالج طلبك في المراحل القادمة.`;
-  return `تم استلام طلبك بنجاح.\n\nالطلب: "${query}"\n\n${detail}\n\n⚠️ كل الردود حالياً تجريبية — لا يتم تنفيذ SQL، لا تعديل للبيانات، لا اتصال خارجي.\n\nالمهارة المستقبلية: ${skill}`;
 }
 
 function downloadTxt(content: string, filename: string): void {
@@ -274,13 +295,13 @@ export default function AIAssistant() {
   const [renamingId,    setRenamingId]    = useState<string | null>(null);
   const [renameText,    setRenameText]    = useState('');
   const [currentConvId, setCurrentConvId] = useState<string | null>(null);
+  const [lastDecision,  setLastDecision]  = useState<RouterDecision | null>(null);
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const conversationRef  = useRef<HTMLDivElement>(null);
   const inputRef         = useRef<HTMLTextAreaElement>(null);
   const currentConvIdRef = useRef<string | null>(null);
   const toastTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const sendTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Effects ────────────────────────────────────────────────────────────────
 
@@ -320,7 +341,6 @@ export default function AIAssistant() {
   // Cleanup timers on unmount
   useEffect(() => () => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    if (sendTimerRef.current)  clearTimeout(sendTimerRef.current);
   }, []);
 
   // ── Derived ────────────────────────────────────────────────────────────────
@@ -344,26 +364,35 @@ export default function AIAssistant() {
   }, []);
 
   // Core send logic shared by handleSend + quick actions
-  const sendMessage = useCallback((text: string) => {
+  const sendMessage = useCallback(async (text: string) => {
     if (!text.trim() || sending) return;
-    const skill = detectSkill(text);
     const userMsg: AiMessage = { id: `u-${Date.now()}`, role: 'user', text, timestamp: new Date() };
     setInput('');
     setSending(true);
     setMessages(prev => [...prev, userMsg]);
-    if (sendTimerRef.current) clearTimeout(sendTimerRef.current);
-    sendTimerRef.current = setTimeout(() => {
-      const assistantMsg: AiMessage = {
-        id:        `a-${Date.now() + 1}`,
-        role:      'assistant',
-        text:      buildResponse(text, skill),
-        skill,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, assistantMsg]);
-      setSending(false);
-      inputRef.current?.focus();
-    }, 380);
+
+    const decision = route(text);
+    setLastDecision(decision);
+
+    let result: SkillResult;
+    if (decision.skillId) {
+      result = await executeSkill(decision.skillId, text, decision.intent);
+    } else {
+      result = buildNoSkillResult(text);
+    }
+
+    const assistantMsg: AiMessage = {
+      id:             `a-${Date.now() + 1}`,
+      role:           'assistant',
+      text:           result.summary,
+      skill:          result.skillTitleAr,
+      result,
+      routerDecision: decision,
+      timestamp:      new Date(),
+    };
+    setMessages(prev => [...prev, assistantMsg]);
+    setSending(false);
+    inputRef.current?.focus();
   }, [sending]);
 
   // ── Callbacks ──────────────────────────────────────────────────────────────
@@ -496,8 +525,8 @@ export default function AIAssistant() {
         <div className="ai-hero-right">
           <div className="ai-hero-phase-badge">
             <span className="ai-phase-label">المرحلة الحالية</span>
-            <span className="ai-phase-name">AI-1.5</span>
-            <span className="ai-phase-sub">Smart Workspace</span>
+            <span className="ai-phase-name">AI-2</span>
+            <span className="ai-phase-sub">Safe Intelligence Engine</span>
           </div>
         </div>
       </section>
@@ -722,16 +751,20 @@ export default function AIAssistant() {
                 <>
                   {messages.map(msg => (
                     <div key={msg.id} className={`ai-message ${msg.role}`}>
-                      <div className="ai-message-bubble">{msg.text}</div>
+                      <div className="ai-message-bubble">
+                        {msg.result
+                          ? <ResultCard result={msg.result} onFollowUp={handlePrompt} routerDecision={msg.routerDecision} />
+                          : msg.text
+                        }
+                      </div>
                       <div className="ai-message-meta">
                         <span className="ai-message-time">{formatTime(msg.timestamp)}</span>
-                        {msg.role === 'assistant' && msg.skill && (
+                        {msg.role === 'assistant' && msg.skill && !msg.result && (
                           <span className="ai-message-skill">
                             <span className="material-symbols-outlined">psychology</span>
                             {msg.skill}
                           </span>
                         )}
-                        {/* Copy actions (Package D) */}
                         {msg.role === 'assistant' && (
                           <div className="ai-msg-actions">
                             <button
@@ -1015,6 +1048,22 @@ export default function AIAssistant() {
               </div>
             )}
           </div>
+
+          {/* Dev: Router Decision Panel — DEV only */}
+          {import.meta.env.DEV && lastDecision && (
+            <div className="ai-panel ai-dev-router-panel">
+              <div className="ai-panel-header">
+                <div className="ai-panel-title ai-dev-router-title">🔧 Router Decision</div>
+              </div>
+              <div className="ai-panel-body ai-dev-router-body">
+                <div><b>Skill:</b> {lastDecision.skillId ?? 'none'}</div>
+                <div><b>Intent:</b> {lastDecision.intent}</div>
+                <div><b>Confidence:</b> {lastDecision.confidence}</div>
+                <div><b>Fallback:</b> {String(lastDecision.fallback)}</div>
+                <div><b>Keywords:</b> {lastDecision.matchedKeywords.join(', ') || '—'}</div>
+              </div>
+            </div>
+          )}
 
           {/* Source Preview */}
           <div className="ai-panel">
