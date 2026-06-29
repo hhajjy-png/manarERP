@@ -135,6 +135,9 @@ export interface ImportPreviewSummary {
   matched:      number;   // rows with confidence >= 75
   canImport:    boolean;  // invalid === 0
   rows:         PreviewRow[];
+  // Incremental import v2 additions
+  dedupSummary:    DedupSummary | null;
+  coverageSummary: CoverageSummary | null;
 }
 
 // ── Import execution ───────────────────────────────────────────────────────────
@@ -155,6 +158,71 @@ export interface ImportResult {
   totalDebits:  number;
   totalCredits: number;
   importedAt:   string;
+  // Incremental import v2 fields
+  accountKey:              string | null;
+  insertedNewCount:        number;
+  skippedDuplicateCount:   number;
+  potentialDuplicateCount: number;
+  duplicateRate:           number;
+  newDataRate:             number;
+  executionTimeMs:         number;
+}
+
+// ── Dedup Summary ──────────────────────────────────────────────────────────────
+
+export interface DedupSummary {
+  accountKey:           string;
+  totalInFile:          number;
+  wouldInsert:          number;
+  wouldSkipExact:       number;
+  wouldSkipPotential:   number;
+  duplicateRate:        number;
+  newDataRate:          number;
+}
+
+export interface CoverageSummary {
+  accountKey:    string;
+  hasExisting:   boolean;
+  existingFrom:  string | null;
+  existingTo:    string | null;
+  existingCount: number;
+}
+
+// ── Timeline ───────────────────────────────────────────────────────────────────
+
+export interface TimelineTransaction {
+  id:              number;
+  importId:        number;
+  importBatchLabel: string;      // "Import #12" or filename
+  fileName:        string;
+  importedAt:      string;
+  bankName:        string;
+  accountKey:      string | null;
+  statementDate:   string | null;
+  postingDate:     string | null;
+  description:     string;
+  reference:       string | null;
+  debit:           number;
+  credit:          number;
+  balance:         number | null;
+  currency:        string;
+  chequeNumber:    string | null;
+  reconcileStatus: ReconcileStatus;
+  matchedType:     MatchedType | null;
+  matchedRef:      string | null;
+  isDuplicate:     boolean;
+  isBankFee:       boolean;
+}
+
+export interface TimelineResult {
+  accountKey:   string;
+  totalCount:   number;
+  fromDate:     string | null;
+  toDate:       string | null;
+  importCount:  number;
+  transactions: TimelineTransaction[];
+  page:         number;
+  pageSize:     number;
 }
 
 // ── Reconciliation Workspace ───────────────────────────────────────────────────

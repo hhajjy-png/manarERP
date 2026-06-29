@@ -53,31 +53,93 @@ export interface PreviewRow extends StatementTransaction {
 }
 
 export interface ImportPreviewSummary {
-  bankName:     string;
-  fileName:     string;
-  fromDate:     string | null;
-  toDate:       string | null;
-  totalRows:    number;
-  totalDebits:  number;
-  totalCredits: number;
-  valid:        number;
-  invalid:      number;
-  warnings:     number;
-  duplicates:   number;
-  bankFees:     number;
-  matched:      number;
-  canImport:    boolean;
-  rows:         PreviewRow[];
+  bankName:        string;
+  fileName:        string;
+  fromDate:        string | null;
+  toDate:          string | null;
+  totalRows:       number;
+  totalDebits:     number;
+  totalCredits:    number;
+  valid:           number;
+  invalid:         number;
+  warnings:        number;
+  duplicates:      number;
+  bankFees:        number;
+  matched:         number;
+  canImport:       boolean;
+  rows:            PreviewRow[];
+  dedupSummary:    DedupSummary | null;
+  coverageSummary: CoverageSummary | null;
+}
+
+export interface DedupSummary {
+  accountKey:           string;
+  totalInFile:          number;
+  wouldInsert:          number;
+  wouldSkipExact:       number;
+  wouldSkipPotential:   number;
+  duplicateRate:        number;
+  newDataRate:          number;
+}
+
+export interface CoverageSummary {
+  accountKey:    string;
+  hasExisting:   boolean;
+  existingFrom:  string | null;
+  existingTo:    string | null;
+  existingCount: number;
 }
 
 export interface ImportResult {
-  importId:     number;
-  bankName:     string;
-  fileName:     string;
-  totalRows:    number;
-  totalDebits:  number;
-  totalCredits: number;
-  importedAt:   string;
+  importId:                number;
+  bankName:                string;
+  fileName:                string;
+  totalRows:               number;
+  totalDebits:             number;
+  totalCredits:            number;
+  importedAt:              string;
+  accountKey:              string | null;
+  insertedNewCount:        number;
+  skippedDuplicateCount:   number;
+  potentialDuplicateCount: number;
+  duplicateRate:           number;
+  newDataRate:             number;
+  executionTimeMs:         number;
+}
+
+export interface TimelineTransaction {
+  id:               number;
+  importId:         number;
+  importBatchLabel: string;
+  fileName:         string;
+  importedAt:       string;
+  bankName:         string;
+  accountKey:       string | null;
+  statementDate:    string | null;
+  postingDate:      string | null;
+  description:      string;
+  reference:        string | null;
+  debit:            number;
+  credit:           number;
+  balance:          number | null;
+  currency:         string;
+  chequeNumber:     string | null;
+  reconcileStatus:  ReconcileStatus;
+  matchedType:      MatchedType | null;
+  matchedRef:       string | null;
+  isDuplicate:      boolean;
+  isBankFee:        boolean;
+}
+
+export interface TimelineResult {
+  accountKey:   string;
+  totalCount:   number;
+  fromDate:     string | null;
+  toDate:       string | null;
+  importCount:  number;
+  transactions: TimelineTransaction[];
+  page:         number;
+  pageSize:     number;
 }
 
 export interface ReconciliationTransaction {
@@ -299,5 +361,17 @@ export async function deleteImport(importId: number): Promise<void> {
 
 export async function bulkDeleteImports(ids: number[]): Promise<{ deleted: number }> {
   const res = await api.post<{ data: { deleted: number } }>('/bank-statement-import/bulk-delete', { ids });
+  return res.data.data;
+}
+
+export async function getTimeline(
+  accountKey: string,
+  page     = 1,
+  pageSize = 50,
+): Promise<TimelineResult> {
+  const res = await api.get<{ data: TimelineResult }>(
+    `/bank-statement-import/timeline/${encodeURIComponent(accountKey)}`,
+    { params: { page, pageSize } },
+  );
   return res.data.data;
 }

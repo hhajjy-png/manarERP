@@ -2,12 +2,14 @@ import { normalizeRow, buildNormalizedText } from './normalizer.js';
 import { validateRows, detectFileDuplicates } from './validators.js';
 import { matchAllTransactions } from './matcher.js';
 import { detectBankFee } from './bankFeeDetector.js';
+import { buildDedupSummary, buildCoverageSummary } from './dedupDetector.js';
+import { buildAccountKey } from './fingerprint.js';
 import type { StatementTransaction, ImportPreviewSummary, PreviewRow } from './types.js';
 
 export async function buildPreview(
   bankName: string,
   fileName: string,
-  rawRows: StatementTransaction[],
+  rawRows:  StatementTransaction[],
 ): Promise<ImportPreviewSummary> {
   // 1. Normalize
   const rows = rawRows.map(normalizeRow);
@@ -68,6 +70,17 @@ export async function buildPreview(
     if (r.matchResult.best && r.matchResult.best.confidence >= 75) matched++;
   }
 
+  // Incremental import v2: dedup + coverage summary
+  const accountKey = rows.map(buildAccountKey).find((k) => !k.startsWith('BANK:')) ??
+                     (rows[0] ? buildAccountKey(rows[0]) : null);
+
+  const [dedupSummary, coverageSummary] = accountKey
+    ? await Promise.all([
+        buildDedupSummary(rows, bankName),
+        buildCoverageSummary(accountKey),
+      ])
+    : [null, null];
+
   return {
     bankName,
     fileName,
@@ -84,5 +97,7 @@ export async function buildPreview(
     matched,
     canImport:    invalid === 0,
     rows:         previewRows,
+    dedupSummary,
+    coverageSummary,
   };
 }

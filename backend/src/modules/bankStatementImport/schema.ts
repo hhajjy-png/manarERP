@@ -90,3 +90,11 @@ export const BulkDeleteImportSchema = z.object({
   ids: z.array(z.number().int().positive()).min(1).max(100),
 });
 export type BulkDeleteImportRequest = z.infer<typeof BulkDeleteImportSchema>;
+
+// ── Timeline query ─────────────────────────────────────────────────────────────
+
+export const TimelineQuerySchema = z.object({
+  page:     z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(200).default(50),
+});
+export type TimelineQuery = z.infer<typeof TimelineQuerySchema>;

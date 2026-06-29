@@ -12,6 +12,7 @@ import {
   exportReportHandler,
   deleteHandler,
   bulkDeleteHandler,
+  timelineHandler,
 } from './controller.js';
 
 const router = Router();
@@ -27,6 +28,9 @@ router.post('/execute',   requirePermission('bankStatementImport.create'), execu
 
 // GET  /api/bank-statement-import
 router.get('/',           requirePermission('bankStatementImport.read'),   listHandler);
+
+// GET  /api/bank-statement-import/timeline/:accountKey  — unified account timeline
+router.get('/timeline/:accountKey', requirePermission('bankStatementImport.read'), timelineHandler);
 
 // GET  /api/bank-statement-import/:importId/workspace
 router.get('/:importId/workspace',   requirePermission('bankStatementImport.read'),      workspaceHandler);

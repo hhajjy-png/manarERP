@@ -7,10 +7,12 @@ import { errorMessage } from '../api/client';
 import {
   previewImport,
   executeImport,
+  getTimeline,
   type StatementTransaction,
   type ImportPreviewSummary,
   type PreviewRow,
   type ImportResult,
+  type TimelineResult,
 } from '../api/bankStatementImport';
 import {
   CLIENT_STATEMENT_CONFIGS,
@@ -122,6 +124,11 @@ export default function BankStatementImport() {
 
   // Import result
   const [result, setResult]       = useState<ImportResult | null>(null);
+
+  // Timeline (unified account view)
+  const [timeline, setTimeline]        = useState<TimelineResult | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [showTimeline, setShowTimeline]  = useState(false);
 
   // ── File parsing ────────────────────────────────────────────────────────────
 
@@ -268,6 +275,21 @@ export default function BankStatementImport() {
     setPreview(null);
     setResult(null);
     setError(null);
+    setTimeline(null);
+    setShowTimeline(false);
+  }, []);
+
+  const handleLoadTimeline = useCallback(async (accountKey: string) => {
+    setTimelineLoading(true);
+    try {
+      const tl = await getTimeline(accountKey);
+      setTimeline(tl);
+      setShowTimeline(true);
+    } catch {
+      // Timeline load failure is non-blocking
+    } finally {
+      setTimelineLoading(false);
+    }
   }, []);
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -443,6 +465,45 @@ export default function BankStatementImport() {
               </div>
             </div>
 
+            {/* Coverage banner */}
+            {preview.coverageSummary?.hasExisting && (
+              <div className="card panel" style={{ background: '#EFF6FF', borderColor: '#BFDBFE', fontSize: 13, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 20 }}>📅</span>
+                <div>
+                  <strong style={{ color: '#1D4ED8' }}>يوجد بيانات مسبقة لهذا الحساب</strong>
+                  <span style={{ color: '#1E40AF', marginInlineStart: 8 }}>
+                    {preview.coverageSummary.existingCount.toLocaleString()} معاملة محفوظة
+                    {preview.coverageSummary.existingFrom && ` — من ${fmtDate(preview.coverageSummary.existingFrom)}`}
+                    {preview.coverageSummary.existingTo   && ` إلى ${fmtDate(preview.coverageSummary.existingTo)}`}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Dedup analysis card */}
+            {preview.dedupSummary && (
+              <div className="card panel">
+                <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>تحليل التكرارات</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                  {[
+                    { label: 'جديدة للاستيراد',    value: preview.dedupSummary.wouldInsert,        color: '#15803D', bg: '#DCFCE7' },
+                    { label: 'مكررة (تخطي)',        value: preview.dedupSummary.wouldSkipExact,      color: '#92400E', bg: '#FEF3C7' },
+                    { label: 'محتملة التكرار',      value: preview.dedupSummary.wouldSkipPotential,  color: '#9333EA', bg: '#F3E8FF' },
+                  ].map(({ label, value, color, bg }) => (
+                    <div key={label} style={{ background: bg, borderRadius: 8, padding: '12px 16px', textAlign: 'center' }}>
+                      <p style={{ fontSize: 11, color, marginBottom: 4 }}>{label}</p>
+                      <p style={{ fontSize: 22, fontWeight: 800, color, margin: 0 }}>{value.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 12, display: 'flex', gap: 24, fontSize: 12, color: 'var(--text-muted)' }}>
+                  <span>معدل الجدة: <strong style={{ color: '#15803D' }}>{Math.round(preview.dedupSummary.newDataRate * 100)}٪</strong></span>
+                  <span>معدل التكرار: <strong style={{ color: '#B45309' }}>{Math.round(preview.dedupSummary.duplicateRate * 100)}٪</strong></span>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>مفتاح الحساب: {preview.dedupSummary.accountKey}</span>
+                </div>
+              </div>
+            )}
+
             {!preview.canImport && (
               <div className="card panel" style={{ background: '#FEF2F2', borderColor: '#FECACA', color: '#B91C1C', fontSize: 13, padding: '12px 16px' }}>
                 لا يمكن استيراد هذا الكشف — يوجد {preview.invalid} صف(وف) بها أخطاء. يرجى مراجعة الملف وإعادة رفعه.
@@ -564,10 +625,9 @@ export default function BankStatementImport() {
             <div style={{ fontSize: 64 }}>✅</div>
             <h2 style={{ fontSize: 22, fontWeight: 800, color: '#15803D' }}>تم الاستيراد بنجاح!</h2>
 
-            <div className="card panel" style={{ textAlign: 'right', maxWidth: 400, width: '100%' }}>
+            <div className="card panel" style={{ textAlign: 'right', maxWidth: 460, width: '100%' }}>
               {[
                 { label: 'البنك', value: BANK_NAMES[result.bankName] ?? result.bankName },
-                { label: 'إجمالي الصفوف', value: result.totalRows.toLocaleString() },
               ].map(({ label, value }) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{label}</span>
@@ -578,20 +638,115 @@ export default function BankStatementImport() {
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>المدين</span>
                 <span style={{ fontWeight: 700, color: '#EF4444', fontSize: 13 }}><PrivateAmount value={result.totalDebits} /></span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>الدائن</span>
                 <span style={{ fontWeight: 700, color: '#22C55E', fontSize: 13 }}><PrivateAmount value={result.totalCredits} /></span>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>معاملات جديدة</span>
+                <span style={{ fontWeight: 700, color: '#15803D', fontSize: 13 }}>{result.insertedNewCount.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>مكررة (تم التخطي)</span>
+                <span style={{ fontWeight: 700, color: '#B45309', fontSize: 13 }}>{result.skippedDuplicateCount.toLocaleString()}</span>
+              </div>
+              {result.potentialDuplicateCount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>محتملة التكرار (للمراجعة)</span>
+                  <span style={{ fontWeight: 700, color: '#7C3AED', fontSize: 13 }}>{result.potentialDuplicateCount.toLocaleString()}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>معدل الجدة</span>
+                <span style={{ fontWeight: 700, color: '#15803D', fontSize: 13 }}>{Math.round(result.newDataRate * 100)}٪</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>وقت المعالجة</span>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{result.executionTimeMs} مللي ثانية</span>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
                 className="btn"
                 onClick={() => navigate(`/bank-reconciliation/${result.importId}`)}
               >
                 الانتقال إلى مساحة المطابقة
               </button>
+              {result.accountKey && (
+                <button
+                  className="btn btn-secondary"
+                  disabled={timelineLoading}
+                  onClick={() => handleLoadTimeline(result.accountKey!)}
+                >
+                  {timelineLoading ? 'جارٍ التحميل…' : '📅 عرض التايملاين الموحد'}
+                </button>
+              )}
               <button onClick={reset} className="btn btn-secondary">استيراد كشف آخر</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Unified Timeline ── */}
+        {showTimeline && timeline && (
+          <div style={{ marginTop: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>التايملاين الموحد للحساب</h3>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                  مفتاح الحساب: <code style={{ fontSize: 11 }}>{timeline.accountKey}</code>
+                  {' — '}{timeline.totalCount.toLocaleString()} معاملة من {timeline.importCount} استيراد
+                  {timeline.fromDate && ` — من ${fmtDate(timeline.fromDate)}`}
+                  {timeline.toDate   && ` إلى ${fmtDate(timeline.toDate)}`}
+                </p>
+              </div>
+              <button className="btn btn-secondary" style={{ fontSize: 12 }} onClick={() => setShowTimeline(false)}>إخفاء</button>
+            </div>
+            <div className="card panel" style={{ padding: 0, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border)' }}>
+                      {['التاريخ', 'الوصف', 'مدين', 'دائن', 'الرصيد', 'الدفعة', 'الملف', 'الحالة'].map(h => (
+                        <th key={h} style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {timeline.transactions.map((tx, i) => (
+                      <tr key={tx.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'var(--bg-subtle)' }}>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>{fmtDate(tx.statementDate)}</td>
+                        <td style={{ padding: '6px 10px', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={tx.description}>{tx.description}</td>
+                        <td style={{ padding: '6px 10px', color: '#EF4444', whiteSpace: 'nowrap', textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>
+                          {tx.debit > 0 ? <PrivateAmount value={tx.debit} /> : '—'}
+                        </td>
+                        <td style={{ padding: '6px 10px', color: '#16A34A', whiteSpace: 'nowrap', textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>
+                          {tx.credit > 0 ? <PrivateAmount value={tx.credit} /> : '—'}
+                        </td>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>
+                          {tx.balance != null ? <PrivateAmount value={tx.balance} /> : '—'}
+                        </td>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: '#6366F1', fontSize: 11 }}>{tx.importBatchLabel}</td>
+                        <td style={{ padding: '6px 10px', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-muted)', fontSize: 11 }} title={tx.fileName}>{tx.fileName}</td>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>
+                          <span style={{
+                            padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 600,
+                            background: tx.reconcileStatus === 'MATCHED' ? '#DCFCE7' : tx.reconcileStatus === 'DUPLICATE' ? '#FEF3C7' : tx.reconcileStatus === 'REVIEW' ? '#F3E8FF' : '#F1F5F9',
+                            color:      tx.reconcileStatus === 'MATCHED' ? '#15803D' : tx.reconcileStatus === 'DUPLICATE' ? '#B45309' : tx.reconcileStatus === 'REVIEW' ? '#7C3AED' : '#64748B',
+                          }}>
+                            {tx.reconcileStatus === 'MATCHED' ? 'مطابق' : tx.reconcileStatus === 'DUPLICATE' ? 'مكرر' : tx.reconcileStatus === 'REVIEW' ? 'مراجعة' : tx.reconcileStatus === 'IGNORED' ? 'متجاهل' : 'غير مطابق'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {timeline.totalCount > timeline.pageSize && (
+                <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+                  يُعرض {timeline.transactions.length} من {timeline.totalCount.toLocaleString()} معاملة
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -11,6 +11,7 @@ import {
   BulkUpdateStatusSchema,
   ReportExportSchema,
   BulkDeleteImportSchema,
+  TimelineQuerySchema,
 } from './schema.js';
 import * as svc from './service.js';
 
@@ -164,6 +165,19 @@ export const deleteHandler = asyncHandler(async (req: Request, res: Response) =>
   });
 
   ok(res, { deleted: 1 });
+});
+
+// ── Unified Timeline ───────────────────────────────────────────────────────────
+
+export const timelineHandler = asyncHandler(async (req: Request, res: Response) => {
+  const accountKey = decodeURIComponent(req.params.accountKey ?? '');
+  if (!accountKey) throw AppError.badRequest('مفتاح الحساب مطلوب');
+
+  const parsed = TimelineQuerySchema.safeParse(req.query);
+  if (!parsed.success) throw AppError.badRequest(parsed.error.errors[0]?.message ?? 'معامل غير صحيح');
+
+  const result = await svc.getTimeline(accountKey, parsed.data.page, parsed.data.pageSize);
+  ok(res, result);
 });
 
 // ── Bulk delete imports ────────────────────────────────────────────────────────

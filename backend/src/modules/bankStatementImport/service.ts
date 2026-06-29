@@ -5,6 +5,8 @@ import { normalizeRow, buildNormalizedText } from './normalizer.js';
 import { validateRows, detectFileDuplicates } from './validators.js';
 import { matchAllTransactions } from './matcher.js';
 import { detectBankFee } from './bankFeeDetector.js';
+import { classifyRows } from './dedupDetector.js';
+import { buildAccountKey, computeFingerprint } from './fingerprint.js';
 import {
   getWorkspace,
   updateStatus,
@@ -23,6 +25,8 @@ import type {
   ReconciliationReport,
   ReconciliationReportRow,
   ReconcileStatus,
+  TimelineResult,
+  TimelineTransaction,
 } from './types.js';
 import type {
   PreviewRequest,
@@ -37,14 +41,14 @@ export async function preview(req: PreviewRequest): Promise<ImportPreviewSummary
   return buildPreview(req.bankName, req.fileName, req.rows as StatementTransaction[]);
 }
 
-// ── Execute import (atomic) ────────────────────────────────────────────────────
+// ── Execute import — Incremental v2 ───────────────────────────────────────────
 
 export async function execute(req: ExecuteImportRequest, importedBy: string): Promise<ImportResult> {
-  const rows   = req.rows as StatementTransaction[];
-  const normalized = rows.map(normalizeRow);
+  const startMs = Date.now();
+  const rows        = req.rows as StatementTransaction[];
+  const normalized  = rows.map(normalizeRow);
   const validations = validateRows(normalized);
-  const dupSet = detectFileDuplicates(normalized);
-  const matchResults = await matchAllTransactions(normalized);
+  const dupSet      = detectFileDuplicates(normalized);
 
   // Re-validate: block import if any hard errors exist
   const invalid = validations.filter((v) => v.errors.length > 0);
@@ -52,13 +56,41 @@ export async function execute(req: ExecuteImportRequest, importedBy: string): Pr
     throw AppError.badRequest(`لا يمكن استيراد الكشف — يوجد ${invalid.length} صف(وف) بها أخطاء`);
   }
 
-  // Compute summary stats
+  // Incremental dedup: classify every row against the DB
+  const dedupResults = await classifyRows(normalized, req.bankName);
+
+  // Separate rows that need to be inserted from skipped duplicates
+  const insertIndices: number[]  = [];
+  const skipIndices:   number[]  = [];
+  const potentialIndices: number[] = [];
+
+  for (let i = 0; i < dedupResults.length; i++) {
+    const cat = dedupResults[i]!.category;
+    if (cat === 'NEW')                  insertIndices.push(i);
+    else if (cat === 'POTENTIAL_DUPLICATE') { insertIndices.push(i); potentialIndices.push(i); }
+    else                                skipIndices.push(i);
+  }
+
+  const matchResults = await matchAllTransactions(normalized.filter((_, i) => insertIndices.includes(i)));
+
+  // Summary stats over ALL rows (file totals stay unchanged)
   const totalDebits  = normalized.reduce((s, r) => s + r.debit,  0);
   const totalCredits = normalized.reduce((s, r) => s + r.credit, 0);
 
   const dates = normalized.map((r) => r.statementDate).filter((d): d is string => d != null).sort();
-  const fromDate = req.fromDate ? new Date(req.fromDate) : (dates[0] ? new Date(dates[0]) : undefined);
-  const toDate   = req.toDate   ? new Date(req.toDate)   : (dates[dates.length - 1] ? new Date(dates[dates.length - 1]) : undefined);
+  const fromDate = req.fromDate ? new Date(req.fromDate) : (dates[0]   ? new Date(dates[0])   : undefined);
+  const toDate   = req.toDate   ? new Date(req.toDate)   : (dates.at(-1) ? new Date(dates.at(-1)!) : undefined);
+
+  // Derive session-level accountKey
+  const accountKey = dedupResults[0]?.accountKey ??
+                     (normalized[0] ? buildAccountKey(normalized[0]) : null);
+
+  const insertedNewCount        = insertIndices.length - potentialIndices.length;
+  const skippedDuplicateCount   = skipIndices.length;
+  const potentialDuplicateCount = potentialIndices.length;
+  const total = normalized.length;
+
+  const potentialSet = new Set(potentialIndices);
 
   const importRecord = await prisma.$transaction(async (tx) => {
     const imp = await tx.bankStatementImport.create({
@@ -68,47 +100,67 @@ export async function execute(req: ExecuteImportRequest, importedBy: string): Pr
         importedBy,
         fromDate,
         toDate,
-        totalRows:    normalized.length,
+        totalRows:    total,
         totalDebits:  Math.round(totalDebits  * 1000) / 1000,
         totalCredits: Math.round(totalCredits * 1000) / 1000,
         status:       'ACTIVE',
+        accountKey,
+        insertedNewCount,
+        skippedDuplicateCount,
+        potentialDuplicateCount,
       },
     });
 
-    const txData = normalized.map((row, i) => {
-      const val       = validations[i];
-      const matchRes  = matchResults[i];
-      const feeInfo   = detectBankFee(row.description, row.reference);
-      const isDup     = dupSet.has(i);
-      const best      = matchRes.best;
+    // Build insertion data — only for NEW + POTENTIAL rows
+    let matchIdx = 0;
+    const txData = insertIndices.map((rowIdx) => {
+      const row      = normalized[rowIdx]!;
+      const val      = validations[rowIdx]!;
+      const dedupRes = dedupResults[rowIdx]!;
+      const matchRes = matchResults[matchIdx++];
+      const feeInfo  = detectBankFee(row.description, row.reference);
+      const isDup    = dupSet.has(rowIdx);
+      const best     = matchRes?.best ?? null;
+      const isPotential = potentialSet.has(rowIdx);
+
+      // Potential duplicates get REVIEW status + a warning flag
+      const autoStatus =
+        isPotential         ? 'REVIEW' as const :
+        best && best.confidence >= 90 ? 'MATCHED' as const :
+        'UNMATCHED' as const;
+
+      const warnings = [...val.warnings];
+      if (isPotential) warnings.push('POTENTIAL_CROSS_IMPORT_DUPLICATE' as never);
 
       return {
-        importId:        imp.id,
-        transactionId:   row.transactionId,
-        bankName:        row.bankName,
-        statementDate:   row.statementDate ? new Date(row.statementDate) : null,
-        postingDate:     row.postingDate   ? new Date(row.postingDate)   : null,
-        description:     row.description,
-        reference:       row.reference,
-        debit:           row.debit,
-        credit:          row.credit,
-        balance:         row.balance,
-        currency:        row.currency,
-        accountNumber:   row.accountNumber,
-        iban:            row.iban,
-        chequeNumber:    row.chequeNumber,
-        rawRow:          JSON.stringify(row.rawRow),
-        normalizedText:  buildNormalizedText(row),
-        reconcileStatus: (best && best.confidence >= 90) ? 'MATCHED' as const : 'UNMATCHED' as const,
-        matchedType:     best?.type    ?? null,
-        matchedId:       best?.id      ?? null,
-        matchedRef:      best?.ref     ?? null,
-        matchConfidence: best?.confidence ?? null,
-        isDuplicate:     isDup,
-        isBankFee:       feeInfo.isBankFee,
-        bankFeeType:     feeInfo.bankFeeType,
-        errors:          JSON.stringify(val.errors),
-        warnings:        JSON.stringify(val.warnings),
+        importId:              imp.id,
+        transactionId:         row.transactionId,
+        bankName:              row.bankName,
+        statementDate:         row.statementDate ? new Date(row.statementDate) : null,
+        postingDate:           row.postingDate   ? new Date(row.postingDate)   : null,
+        description:           row.description,
+        reference:             row.reference,
+        debit:                 row.debit,
+        credit:                row.credit,
+        balance:               row.balance,
+        currency:              row.currency,
+        accountNumber:         row.accountNumber,
+        iban:                  row.iban,
+        chequeNumber:          row.chequeNumber,
+        rawRow:                JSON.stringify(row.rawRow),
+        normalizedText:        buildNormalizedText(row),
+        reconcileStatus:       autoStatus,
+        matchedType:           best?.type ?? null,
+        matchedId:             best?.id   ?? null,
+        matchedRef:            best?.ref  ?? null,
+        matchConfidence:       best?.confidence ?? null,
+        isDuplicate:           isDup,
+        isBankFee:             feeInfo.isBankFee,
+        bankFeeType:           feeInfo.bankFeeType,
+        errors:                JSON.stringify(val.errors),
+        warnings:              JSON.stringify(warnings),
+        accountKey:            dedupRes.accountKey,
+        transactionFingerprint: dedupRes.fingerprint,
       };
     });
 
@@ -121,14 +173,23 @@ export async function execute(req: ExecuteImportRequest, importedBy: string): Pr
     return imp;
   });
 
+  const executionTimeMs = Date.now() - startMs;
+
   return {
-    importId:     importRecord.id,
-    bankName:     importRecord.bankName,
-    fileName:     importRecord.fileName,
-    totalRows:    importRecord.totalRows,
-    totalDebits:  importRecord.totalDebits,
-    totalCredits: importRecord.totalCredits,
-    importedAt:   importRecord.importedAt.toISOString(),
+    importId:                importRecord.id,
+    bankName:                importRecord.bankName,
+    fileName:                importRecord.fileName,
+    totalRows:               total,
+    totalDebits:             importRecord.totalDebits,
+    totalCredits:            importRecord.totalCredits,
+    importedAt:              importRecord.importedAt.toISOString(),
+    accountKey,
+    insertedNewCount,
+    skippedDuplicateCount,
+    potentialDuplicateCount,
+    duplicateRate:   total > 0 ? (skippedDuplicateCount + potentialDuplicateCount) / total : 0,
+    newDataRate:     total > 0 ? insertedNewCount / total : 0,
+    executionTimeMs,
   };
 }
 
@@ -290,6 +351,74 @@ export async function exportReport(
     html,
     filename:    `bank-reconciliation-${importId}.html`,
     contentType: 'text/html; charset=utf-8',
+  };
+}
+
+// ── Unified Timeline ───────────────────────────────────────────────────────────
+
+export async function getTimeline(
+  accountKey: string,
+  page     = 1,
+  pageSize = 50,
+): Promise<TimelineResult> {
+  const skip = (page - 1) * pageSize;
+
+  const [total, txs, agg] = await Promise.all([
+    prisma.bankStatementTransaction.count({ where: { accountKey } }),
+    prisma.bankStatementTransaction.findMany({
+      where:   { accountKey },
+      orderBy: { statementDate: 'asc' },
+      skip,
+      take:    pageSize,
+      include: {
+        import: {
+          select: { id: true, fileName: true, importedAt: true, bankName: true },
+        },
+      },
+    }),
+    prisma.bankStatementTransaction.aggregate({
+      where: { accountKey },
+      _min:  { statementDate: true },
+      _max:  { statementDate: true },
+    }),
+    prisma.bankStatementImport.count({ where: { accountKey } }),
+  ]);
+
+  const importCount = await prisma.bankStatementImport.count({ where: { accountKey } });
+
+  const transactions: TimelineTransaction[] = txs.map((t) => ({
+    id:               t.id,
+    importId:         t.importId,
+    importBatchLabel: `Import #${t.importId}`,
+    fileName:         t.import.fileName,
+    importedAt:       t.import.importedAt.toISOString(),
+    bankName:         t.bankName,
+    accountKey:       t.accountKey,
+    statementDate:    t.statementDate ? t.statementDate.toISOString().substring(0, 10) : null,
+    postingDate:      t.postingDate   ? t.postingDate.toISOString().substring(0, 10)   : null,
+    description:      t.description,
+    reference:        t.reference,
+    debit:            Number(t.debit),
+    credit:           Number(t.credit),
+    balance:          t.balance != null ? Number(t.balance) : null,
+    currency:         t.currency,
+    chequeNumber:     t.chequeNumber,
+    reconcileStatus:  t.reconcileStatus as ReconcileStatus,
+    matchedType:      t.matchedType as never,
+    matchedRef:       t.matchedRef,
+    isDuplicate:      Boolean(t.isDuplicate),
+    isBankFee:        Boolean(t.isBankFee),
+  }));
+
+  return {
+    accountKey,
+    totalCount:  total,
+    fromDate:    agg._min.statementDate ? agg._min.statementDate.toISOString().substring(0, 10) : null,
+    toDate:      agg._max.statementDate ? agg._max.statementDate.toISOString().substring(0, 10) : null,
+    importCount,
+    transactions,
+    page,
+    pageSize,
   };
 }
 

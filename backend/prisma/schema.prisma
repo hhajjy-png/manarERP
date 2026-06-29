@@ -1111,6 +1111,12 @@ model BankStatementImport {
   totalCredits Float     @default(0)
   status       String    @default("ACTIVE") // ACTIVE | ARCHIVED
 
+  // Incremental import v2 — session report fields
+  accountKey              String?
+  insertedNewCount        Int     @default(0)
+  skippedDuplicateCount   Int     @default(0)
+  potentialDuplicateCount Int     @default(0)
+
   transactions BankStatementTransaction[]
 
   createdAt DateTime @default(now())
@@ -1119,6 +1125,7 @@ model BankStatementImport {
   @@index([bankName])
   @@index([status])
   @@index([importedAt])
+  @@index([accountKey])
   @@map("bank_statement_imports")
 }
 
@@ -1157,6 +1164,10 @@ model BankStatementTransaction {
   errors      String  @default("[]") // JSON array
   warnings    String  @default("[]") // JSON array
 
+  // Incremental import v2 — fingerprint fields
+  accountKey             String? // Stable key: IBAN: | ACCT:<bank>:<acct> | BANK:<bank>
+  transactionFingerprint String? // SHA-256 hash (first 32 hex chars) of key transaction fields
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1165,6 +1176,8 @@ model BankStatementTransaction {
   @@index([transactionId])
   @@index([chequeNumber])
   @@index([statementDate])
+  @@index([accountKey])
+  @@index([accountKey, transactionFingerprint])
   @@map("bank_statement_transactions")
 }
 
