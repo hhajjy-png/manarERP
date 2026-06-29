@@ -66,7 +66,7 @@ export async function executeBankStatementSkill(prompt: string, intent: string):
     // 2. Workspace for latest import (up to 200 rows for analysis)
     const wsRes = await api.get<{ data: ReconciliationWorkspace }>(
       `/bank-statement-import/${latest.id}/workspace`,
-      { params: { pageSize: 200 } },
+      { params: { pageSize: 100 } },
     );
     const ws   = wsRes.data.data;
     const txns = ws.transactions;
