@@ -359,6 +359,7 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'payroll/bank-analytics', label: 'nav.bank_analytics', icon: 'bar_chart', permission: 'import.read' },
     { key: 'bank-statement-import', label: 'nav.bank_statement_import', icon: 'account_balance', permission: 'bankStatementImport.read' },
     { key: 'bank-reconciliation', label: 'nav.bank_reconciliation', icon: 'balance', permission: 'bankStatementImport.read' },
+    { key: 'bank-accounts', label: 'nav.bank_accounts', icon: 'account_balance_wallet', permission: 'bankStatementImport.read' },
   ] },
   { group: 'nav.group.warehouse', items: [
     { key: 'inventory', label: 'nav.inventory', icon: 'warehouse', permission: 'inventory.read' },
