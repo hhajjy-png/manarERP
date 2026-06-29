@@ -82,12 +82,18 @@ export interface DedupSummary {
   newDataRate:          number;
 }
 
+export type CoverageWarning = 'FULLY_DUPLICATE' | 'OVERLAPPING' | 'GAP_BEFORE' | 'GAP_AFTER';
+
 export interface CoverageSummary {
-  accountKey:    string;
-  hasExisting:   boolean;
-  existingFrom:  string | null;
-  existingTo:    string | null;
-  existingCount: number;
+  accountKey:       string;
+  hasExisting:      boolean;
+  existingFrom:     string | null;
+  existingTo:       string | null;
+  existingCount:    number;
+  coverageWarning:  CoverageWarning | null;
+  isFullyContained: boolean;
+  importFrom:       string | null;
+  importTo:         string | null;
 }
 
 export interface ImportResult {

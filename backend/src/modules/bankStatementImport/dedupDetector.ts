@@ -1,6 +1,6 @@
 import { prisma } from '@config/database.js';
 import { buildAccountKey, computeFingerprint, isSimilarDescription } from './fingerprint.js';
-import type { StatementTransaction, DedupSummary, CoverageSummary } from './types.js';
+import type { StatementTransaction, DedupSummary, CoverageSummary, CoverageWarning } from './types.js';
 
 // ── Duplicate category ─────────────────────────────────────────────────────────
 
@@ -195,7 +195,11 @@ export async function buildDedupSummary(
 
 // ── Coverage Summary (existing data range for accountKey) ─────────────────────
 
-export async function buildCoverageSummary(accountKey: string): Promise<CoverageSummary> {
+export async function buildCoverageSummary(
+  accountKey: string,
+  importFrom?: string | null,
+  importTo?:   string | null,
+): Promise<CoverageSummary> {
   const agg = await prisma.bankStatementTransaction.aggregate({
     where: { accountKey },
     _min: { statementDate: true },
@@ -203,13 +207,50 @@ export async function buildCoverageSummary(accountKey: string): Promise<Coverage
     _count: { id: true },
   });
 
-  const count = agg._count.id;
+  const count        = agg._count.id;
+  const existingFrom = agg._min.statementDate ? agg._min.statementDate.toISOString().substring(0, 10) : null;
+  const existingTo   = agg._max.statementDate ? agg._max.statementDate.toISOString().substring(0, 10) : null;
+  const hasExisting  = count > 0;
+
+  // Overlap / gap analysis
+  let coverageWarning: CoverageWarning | null  = null;
+  let isFullyContained                         = false;
+
+  if (hasExisting && existingFrom && existingTo && importFrom && importTo) {
+    const iFrom = importFrom;
+    const iTo   = importTo;
+    const eFrom = existingFrom;
+    const eTo   = existingTo;
+
+    // Fully contained: import range is entirely inside existing range
+    isFullyContained = iFrom >= eFrom && iTo <= eTo;
+
+    if (isFullyContained) {
+      coverageWarning = 'FULLY_DUPLICATE';
+    } else if (iFrom < eFrom) {
+      // Import starts before existing data — fills a gap before
+      coverageWarning = 'GAP_BEFORE';
+    } else if (iTo > eTo && iFrom <= eTo) {
+      // Import extends beyond existing end but overlaps
+      coverageWarning = 'OVERLAPPING';
+    } else if (iFrom > eTo) {
+      // Import starts after existing end — fills a gap after
+      coverageWarning = 'GAP_AFTER';
+    } else {
+      // Any other overlap
+      coverageWarning = 'OVERLAPPING';
+    }
+  }
 
   return {
     accountKey,
-    hasExisting:   count > 0,
-    existingFrom:  agg._min.statementDate ? agg._min.statementDate.toISOString().substring(0, 10) : null,
-    existingTo:    agg._max.statementDate ? agg._max.statementDate.toISOString().substring(0, 10) : null,
-    existingCount: count,
+    hasExisting,
+    existingFrom,
+    existingTo,
+    existingCount:    count,
+    coverageWarning,
+    isFullyContained,
+    importFrom:       importFrom ?? null,
+    importTo:         importTo   ?? null,
   };
 }

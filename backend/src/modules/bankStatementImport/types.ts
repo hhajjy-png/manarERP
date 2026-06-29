@@ -180,12 +180,23 @@ export interface DedupSummary {
   newDataRate:          number;
 }
 
+export type CoverageWarning =
+  | 'FULLY_DUPLICATE'    // every incoming row falls within existing coverage range — likely re-import
+  | 'OVERLAPPING'        // import date range overlaps existing — safe, duplicates will be skipped
+  | 'GAP_BEFORE'         // incoming data starts before existing coverage — fills historical gap
+  | 'GAP_AFTER';         // incoming data starts after existing coverage end — extends forward
+
 export interface CoverageSummary {
-  accountKey:    string;
-  hasExisting:   boolean;
-  existingFrom:  string | null;
-  existingTo:    string | null;
-  existingCount: number;
+  accountKey:       string;
+  hasExisting:      boolean;
+  existingFrom:     string | null;
+  existingTo:       string | null;
+  existingCount:    number;
+  // Overlap / gap analysis (populated when hasExisting && importFrom && importTo are known)
+  coverageWarning:  CoverageWarning | null;
+  isFullyContained: boolean; // import date range is fully inside existing range
+  importFrom:       string | null; // incoming statement start date
+  importTo:         string | null; // incoming statement end date
 }
 
 // ── Timeline ───────────────────────────────────────────────────────────────────

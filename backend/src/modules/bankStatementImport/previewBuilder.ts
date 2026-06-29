@@ -77,7 +77,7 @@ export async function buildPreview(
   const [dedupSummary, coverageSummary] = accountKey
     ? await Promise.all([
         buildDedupSummary(rows, bankName),
-        buildCoverageSummary(accountKey),
+        buildCoverageSummary(accountKey, fromDate, toDate),
       ])
     : [null, null];
 
