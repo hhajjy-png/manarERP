@@ -1177,6 +1177,7 @@ model BankStatementTransaction {
   @@index([chequeNumber])
   @@index([statementDate])
   @@index([accountKey])
+  @@index([accountKey, statementDate])
   @@index([accountKey, transactionFingerprint])
   @@map("bank_statement_transactions")
 }

@@ -225,8 +225,8 @@ async function getMonthlyStats(accountKey: string): Promise<MonthlyEntry[]> {
     ORDER BY month ASC
   `;
 
-  return rows.map((r) => {
-    const dep  = Number(r.totalDeposits);
+  const entries = rows.map((r) => {
+    const dep   = Number(r.totalDeposits);
     const with_ = Number(r.totalWithdrawals);
     return {
       month:             r.month,
@@ -238,4 +238,35 @@ async function getMonthlyStats(accountKey: string): Promise<MonthlyEntry[]> {
       largestWithdrawal: Number(r.largestWithdrawal),
     };
   });
+
+  return fillMonthlyGaps(entries);
+}
+
+// Fill zero-entry placeholders for months with no transactions so chart scale stays consistent.
+function fillMonthlyGaps(entries: MonthlyEntry[]): MonthlyEntry[] {
+  if (entries.length < 2) return entries;
+
+  const byMonth = new Map(entries.map((e) => [e.month, e]));
+  const first   = entries[0].month;
+  const last    = entries[entries.length - 1].month;
+
+  const result: MonthlyEntry[] = [];
+  let [y, m] = first.split('-').map(Number) as [number, number];
+  const [ly, lm] = last.split('-').map(Number) as [number, number];
+
+  while (y < ly || (y === ly && m <= lm)) {
+    const key = `${y}-${String(m).padStart(2, '0')}`;
+    result.push(byMonth.get(key) ?? {
+      month:             key,
+      totalDeposits:     0,
+      totalWithdrawals:  0,
+      netFlow:           0,
+      txCount:           0,
+      largestDeposit:    0,
+      largestWithdrawal: 0,
+    });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return result;
 }

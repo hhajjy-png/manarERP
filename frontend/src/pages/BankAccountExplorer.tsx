@@ -369,8 +369,14 @@ function TimelineTab({
     load(p, search, fromDate, toDate);
   }, [load, search, fromDate, toDate]);
 
-  const total     = result?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const total          = result?.totalCount ?? 0;
+  const totalPages     = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasActiveFilters = !!(search || fromDate || toDate);
+
+  const clearAllFilters = useCallback(() => {
+    handleSearch('');
+    handleDateChange('', '');
+  }, [handleSearch, handleDateChange]);
 
   return (
     <div className="bae-tab-content">
@@ -433,8 +439,28 @@ function TimelineTab({
       {loading && <div className="bae-loading"><span className="spinner" /> جارٍ التحميل…</div>}
       {!loading && error && <div className="bae-error">{error}</div>}
 
+      {/* Filtered empty state */}
+      {!loading && !error && result && result.transactions.length === 0 && hasActiveFilters && (
+        <div className="bae-filtered-empty">
+          <span className="material-icons-round">filter_alt_off</span>
+          <p>لا توجد نتائج مطابقة للفلاتر المحددة</p>
+          <p className="bae-filtered-empty-hint">
+            {search && <span>البحث: «{search}»</span>}
+            {(fromDate || toDate) && (
+              <span>
+                {fromDate && ` من ${fromDate}`}{toDate && ` إلى ${toDate}`}
+              </span>
+            )}
+          </p>
+          <button type="button" className="btn bae-clear-filters-btn" onClick={clearAllFilters}>
+            <span className="material-icons-round">close</span>
+            مسح جميع الفلاتر
+          </button>
+        </div>
+      )}
+
       {/* Table */}
-      {!loading && !error && result && (
+      {!loading && !error && result && result.transactions.length > 0 && (
         <>
           <div className="bae-table-wrap">
             <table className="bae-timeline-table">
@@ -451,11 +477,6 @@ function TimelineTab({
                 </tr>
               </thead>
               <tbody>
-                {result.transactions.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="bae-empty-row">لا توجد نتائج</td>
-                  </tr>
-                )}
                 {result.transactions.map((t) => (
                   <tr key={t.id} className={t.isBankFee ? 'bae-row-fee' : ''}>
                     <td className="bae-col-date">{fmtDate(t.statementDate)}</td>
@@ -551,10 +572,18 @@ function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard }) {
       <div className="bae-chart-section">
         <h4 className="bae-section-title">التدفق الشهري — إيداعات مقابل سحوبات</h4>
         <div className="bae-chart-wrap">
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={catData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+          <ResponsiveContainer width="100%" height={310}>
+            <BarChart data={catData} margin={{ top: 5, right: 20, left: 10, bottom: 60 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--muted)', fontFamily: 'IBM Plex Sans Arabic, Cairo, sans-serif' }} />
+              <XAxis
+                dataKey="name"
+                tickFormatter={fmtMonth}
+                angle={-35}
+                textAnchor="end"
+                height={70}
+                interval="preserveStartEnd"
+                tick={{ fontSize: 10, fill: 'var(--muted)', fontFamily: 'IBM Plex Sans Arabic, Cairo, sans-serif' }}
+              />
               <YAxis tick={{ fontSize: 11, fill: 'var(--muted)' }} />
               <Tooltip content={<ChartTooltip />} />
               <Legend wrapperStyle={{ fontFamily: 'IBM Plex Sans Arabic, Cairo, sans-serif', fontSize: 12, direction: 'rtl' }} />

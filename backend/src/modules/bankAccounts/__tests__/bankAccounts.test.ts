@@ -249,6 +249,55 @@ describe('getBankAccountDashboard', () => {
     expect(d!.monthly[1].netFlow).toBe(200);   // 300 - 100
   });
 
+  it('fills zero placeholder months for a multi-month gap account', async () => {
+    mockTx.count.mockResolvedValue(3);
+    mockTx.findFirst.mockResolvedValue({ bankName: 'NBK' });
+
+    mockTx.aggregate
+      .mockResolvedValueOnce({
+        _count: { id: 3 },
+        _min: { statementDate: new Date('2026-01-01') },
+        _max: { statementDate: new Date('2026-04-30') },
+      })
+      .mockResolvedValueOnce({
+        _count: { id: 2 }, _sum: { credit: makeDecimal(800) },
+        _max: { credit: makeDecimal(600) }, _avg: { credit: makeDecimal(400) },
+      })
+      .mockResolvedValueOnce({
+        _count: { id: 1 }, _sum: { debit: makeDecimal(200) },
+        _max: { debit: makeDecimal(200) }, _avg: { debit: makeDecimal(200) },
+      });
+
+    mockImp.count.mockResolvedValue(2);
+    // SQL returns only Jan and Apr — February and March are absent (gap)
+    mockRaw.mockResolvedValue([
+      { month: '2026-01', totalDeposits: 500, totalWithdrawals: 100, txCount: 2, largestDeposit: 300, largestWithdrawal: 100 },
+      { month: '2026-04', totalDeposits: 300, totalWithdrawals: 100, txCount: 1, largestDeposit: 300, largestWithdrawal: 100 },
+    ]);
+    mockTx.findMany.mockResolvedValue([]);
+
+    const d = await getBankAccountDashboard('BANK:NBK');
+
+    expect(d).not.toBeNull();
+    // Gap months should be filled in between Jan and Apr → 4 months total
+    expect(d!.monthly).toHaveLength(4);
+    expect(d!.monthly[0].month).toBe('2026-01');
+    expect(d!.monthly[1].month).toBe('2026-02');
+    expect(d!.monthly[2].month).toBe('2026-03');
+    expect(d!.monthly[3].month).toBe('2026-04');
+
+    // Gap months have zeros
+    expect(d!.monthly[1].totalDeposits).toBe(0);
+    expect(d!.monthly[1].totalWithdrawals).toBe(0);
+    expect(d!.monthly[1].netFlow).toBe(0);
+    expect(d!.monthly[1].txCount).toBe(0);
+    expect(d!.monthly[2].totalDeposits).toBe(0);
+
+    // Real months keep their values
+    expect(d!.monthly[0].totalDeposits).toBe(500);
+    expect(d!.monthly[3].totalDeposits).toBe(300);
+  });
+
   it('maps top deposits and withdrawals to TopTransaction', async () => {
     mockTx.count.mockResolvedValue(2);
     mockTx.findFirst.mockResolvedValue({ bankName: 'NBK' });
