@@ -38,6 +38,8 @@ import PayrollBankImport from './pages/PayrollBankImport';
 import BankStatementImport from './pages/BankStatementImport';
 import BankReconciliation from './pages/BankReconciliation';
 import BankSalaryAnalytics from './pages/BankSalaryAnalytics';
+import BankAccounts from './pages/BankAccounts';
+import BankAccountExplorer from './pages/BankAccountExplorer';
 import Quotation from './pages/Quotation';
 import PurchaseRequest from './pages/PurchaseRequest';
 import ExecutiveDecisionCenter from './pages/ExecutiveDecisionCenter';
@@ -118,6 +120,8 @@ export default function App() {
           <Route path="/bank-statement-import" element={<BankStatementImport />} />
           <Route path="/bank-reconciliation" element={<BankReconciliation />} />
           <Route path="/bank-reconciliation/:importId" element={<BankReconciliation />} />
+          <Route path="/bank-accounts" element={<BankAccounts />} />
+          <Route path="/bank-accounts/:accountKey" element={<BankAccountExplorer />} />
           <Route path="/expirations" element={<DocumentExpirationCenter />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />
           <Route path="*" element={<Navigate to="/" replace />} />
