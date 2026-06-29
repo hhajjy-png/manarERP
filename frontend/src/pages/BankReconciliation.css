@@ -1118,3 +1118,71 @@
   color: var(--text-muted);
   margin-bottom: 4px;
 }
+
+/* ── View mode toggle bar ────────────────────────────────────────────────────── */
+.recon-view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 4px;
+}
+
+.recon-chip-primary { font-weight: 700; }
+
+.recon-view-toggle-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-inline-start: 8px;
+}
+
+/* ── Timeline filter bar ─────────────────────────────────────────────────────── */
+.recon-tl-filter-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 0 6px;
+}
+
+.recon-tl-filter-bar label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.recon-tl-filter-bar input[type="date"],
+.recon-tl-filter-bar input[type="text"] {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.recon-tl-filter-bar input[type="date"] { width: 140px; }
+.recon-tl-filter-bar input[type="text"] { width: 200px; }
+
+.recon-tl-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Timeline status badges ──────────────────────────────────────────────────── */
+.recon-tl-status {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.recon-tl-status.unmatched { background: var(--yellow-light, #fef3c7); color: #92400e; }
+.recon-tl-status.matched   { background: var(--green-light);  color: var(--green);  }
+.recon-tl-status.ignored   { background: var(--surface-2);    color: var(--text-muted); }
+.recon-tl-status.duplicate { background: var(--red-light);    color: var(--red);    }
+.recon-tl-status.review    { background: #dbeafe;             color: #1d4ed8;       }

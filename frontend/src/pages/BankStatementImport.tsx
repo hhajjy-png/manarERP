@@ -297,7 +297,7 @@ export default function BankStatementImport() {
   if (!hasPermission('bankStatementImport.create')) {
     return (
       <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }} dir="rtl">
-        ليس لديك صلاحية لاستيراد كشوف الحسابات البنكية.
+        ليس لديك صلاحية لإضافة كشوف بنكية.
       </div>
     );
   }
@@ -307,8 +307,8 @@ export default function BankStatementImport() {
       {/* Header */}
       <div className="page-head">
         <div>
-          <h2>استيراد كشف الحساب البنكي</h2>
-          <p>رفع كشف الحساب وإجراء المطابقة الذكية مع السجلات المالية</p>
+          <h2>إضافة كشف إلى الحساب البنكي</h2>
+          <p>أضف كشوف بيانات بنكية لإثراء سجلك الزمني وتحليل عملياتك المالية</p>
         </div>
       </div>
 
@@ -671,7 +671,7 @@ export default function BankStatementImport() {
                 className="btn"
                 onClick={() => navigate(`/bank-reconciliation/${result.importId}`)}
               >
-                الانتقال إلى مساحة المطابقة
+                الانتقال إلى السجل الزمني
               </button>
               {result.accountKey && (
                 <button

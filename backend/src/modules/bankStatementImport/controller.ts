@@ -176,7 +176,14 @@ export const timelineHandler = asyncHandler(async (req: Request, res: Response) 
   const parsed = TimelineQuerySchema.safeParse(req.query);
   if (!parsed.success) throw AppError.badRequest(parsed.error.errors[0]?.message ?? 'معامل غير صحيح');
 
-  const result = await svc.getTimeline(accountKey, parsed.data.page, parsed.data.pageSize);
+  const result = await svc.getTimeline(
+    accountKey,
+    parsed.data.page,
+    parsed.data.pageSize,
+    parsed.data.fromDate,
+    parsed.data.toDate,
+    parsed.data.search,
+  );
   ok(res, result);
 });
 

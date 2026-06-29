@@ -133,6 +133,7 @@ export async function getWorkspace(filter: WorkspaceFilter): Promise<Reconciliat
     page,
     pageSize,
     total,
+    accountKey:   importRec.accountKey ?? null,
   };
 }
 

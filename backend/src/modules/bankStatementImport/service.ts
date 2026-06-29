@@ -358,15 +358,36 @@ export async function exportReport(
 
 export async function getTimeline(
   accountKey: string,
-  page     = 1,
-  pageSize = 50,
+  page       = 1,
+  pageSize   = 50,
+  fromDate?:   string,
+  toDate?:     string,
+  search?:     string,
 ): Promise<TimelineResult> {
   const skip = (page - 1) * pageSize;
 
-  const [total, txs, agg] = await Promise.all([
-    prisma.bankStatementTransaction.count({ where: { accountKey } }),
+  // Build filtered where clause
+  const where: {
+    accountKey:     string;
+    statementDate?: { gte?: Date; lte?: Date };
+    OR?: Array<{ description?: { contains: string }; reference?: { contains: string } }>;
+  } = { accountKey };
+  if (fromDate || toDate) {
+    where.statementDate = {};
+    if (fromDate) where.statementDate.gte = new Date(fromDate);
+    if (toDate)   where.statementDate.lte = new Date(toDate);
+  }
+  if (search) {
+    where.OR = [
+      { description: { contains: search } },
+      { reference:   { contains: search } },
+    ];
+  }
+
+  const [total, txs, agg, importCount] = await Promise.all([
+    prisma.bankStatementTransaction.count({ where }),
     prisma.bankStatementTransaction.findMany({
-      where:   { accountKey },
+      where,
       orderBy: { statementDate: 'asc' },
       skip,
       take:    pageSize,
@@ -377,14 +398,12 @@ export async function getTimeline(
       },
     }),
     prisma.bankStatementTransaction.aggregate({
-      where: { accountKey },
+      where: { accountKey },  // aggregate over the full account, not the filtered window
       _min:  { statementDate: true },
       _max:  { statementDate: true },
     }),
     prisma.bankStatementImport.count({ where: { accountKey } }),
   ]);
-
-  const importCount = await prisma.bankStatementImport.count({ where: { accountKey } });
 
   const transactions: TimelineTransaction[] = txs.map((t) => ({
     id:               t.id,
@@ -408,6 +427,7 @@ export async function getTimeline(
     matchedRef:       t.matchedRef,
     isDuplicate:      Boolean(t.isDuplicate),
     isBankFee:        Boolean(t.isBankFee),
+    bankFeeType:      (t.bankFeeType ?? null) as TimelineTransaction['bankFeeType'],
   }));
 
   return {
@@ -437,6 +457,7 @@ export async function listImports(page = 1, pageSize = 20) {
         id: true, bankName: true, fileName: true, importedBy: true,
         importedAt: true, fromDate: true, toDate: true,
         totalRows: true, totalDebits: true, totalCredits: true,
+        accountKey: true,
         _count: { select: { transactions: true } },
       },
     }),

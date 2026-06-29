@@ -191,27 +191,28 @@ export interface CoverageSummary {
 // ── Timeline ───────────────────────────────────────────────────────────────────
 
 export interface TimelineTransaction {
-  id:              number;
-  importId:        number;
-  importBatchLabel: string;      // "Import #12" or filename
-  fileName:        string;
-  importedAt:      string;
-  bankName:        string;
-  accountKey:      string | null;
-  statementDate:   string | null;
-  postingDate:     string | null;
-  description:     string;
-  reference:       string | null;
-  debit:           number;
-  credit:          number;
-  balance:         number | null;
-  currency:        string;
-  chequeNumber:    string | null;
-  reconcileStatus: ReconcileStatus;
-  matchedType:     MatchedType | null;
-  matchedRef:      string | null;
-  isDuplicate:     boolean;
-  isBankFee:       boolean;
+  id:               number;
+  importId:         number;
+  importBatchLabel: string;
+  fileName:         string;
+  importedAt:       string;
+  bankName:         string;
+  accountKey:       string | null;
+  statementDate:    string | null;
+  postingDate:      string | null;
+  description:      string;
+  reference:        string | null;
+  debit:            number;
+  credit:           number;
+  balance:          number | null;
+  currency:         string;
+  chequeNumber:     string | null;
+  reconcileStatus:  ReconcileStatus;
+  matchedType:      MatchedType | null;
+  matchedRef:       string | null;
+  isDuplicate:      boolean;
+  isBankFee:        boolean;
+  bankFeeType:      BankFeeType | null;
 }
 
 export interface TimelineResult {
@@ -268,6 +269,7 @@ export interface ReconciliationWorkspace {
   page:            number;
   pageSize:        number;
   total:           number;
+  accountKey:      string | null;
 }
 
 // ── Posting suggestions ────────────────────────────────────────────────────────

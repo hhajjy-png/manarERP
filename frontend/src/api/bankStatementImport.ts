@@ -129,6 +129,7 @@ export interface TimelineTransaction {
   matchedRef:       string | null;
   isDuplicate:      boolean;
   isBankFee:        boolean;
+  bankFeeType:      BankFeeType | null;
 }
 
 export interface TimelineResult {
@@ -183,6 +184,7 @@ export interface ReconciliationWorkspace {
   page:            number;
   pageSize:        number;
   total:           number;
+  accountKey:      string | null;
 }
 
 export interface PostingSuggestion {
@@ -206,6 +208,7 @@ export interface ImportListItem {
   totalRows:    number;
   totalDebits:  number;
   totalCredits: number;
+  accountKey:   string | null;
 }
 
 export interface ImportListResult {
@@ -366,12 +369,19 @@ export async function bulkDeleteImports(ids: number[]): Promise<{ deleted: numbe
 
 export async function getTimeline(
   accountKey: string,
-  page     = 1,
-  pageSize = 50,
+  page       = 1,
+  pageSize   = 50,
+  fromDate?:   string,
+  toDate?:     string,
+  search?:     string,
 ): Promise<TimelineResult> {
+  const params: Record<string, string | number> = { page, pageSize };
+  if (fromDate) params.fromDate = fromDate;
+  if (toDate)   params.toDate   = toDate;
+  if (search)   params.search   = search;
   const res = await api.get<{ data: TimelineResult }>(
     `/bank-statement-import/timeline/${encodeURIComponent(accountKey)}`,
-    { params: { page, pageSize } },
+    { params },
   );
   return res.data.data;
 }

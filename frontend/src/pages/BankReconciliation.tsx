@@ -11,6 +11,7 @@ import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
 import {
   getWorkspace,
+  getTimeline,
   listImports,
   deleteImport,
   bulkDeleteImports,
@@ -21,13 +22,15 @@ import {
   type ImportListItem,
   type WorkspaceFilter,
   type BankFeeType,
+  type TimelineTransaction,
+  type TimelineResult,
 } from '../api/bankStatementImport';
 import './BankReconciliation.css';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const PAGE_TITLE    = 'مستكشف كشف الحساب البنكي';
-const PAGE_SUBTITLE = 'استعراض وتحليل العمليات البنكية المستوردة مع إحصائيات ومرشحات متقدمة';
+const PAGE_TITLE    = 'الحساب البنكي';
+const PAGE_SUBTITLE = 'السجل الزمني الكامل لعمليات حسابك البنكي مع فلاتر وإحصائيات متقدمة';
 
 const BANK_NAMES: Record<string, string> = {
   NBK:         'بنك الكويت الوطني',
@@ -89,6 +92,14 @@ const WARNING_LABELS: Record<string, string> = {
   SUSPICIOUS_DESCRIPTION: 'وصف مشبوه',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  UNMATCHED: 'غير مطابق',
+  MATCHED:   'مطابق',
+  IGNORED:   'مستبعد',
+  DUPLICATE: 'مكرر',
+  REVIEW:    'قيد المراجعة',
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtAmount(v: number): string {
@@ -99,6 +110,41 @@ function fmtDate(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
   return isNaN(d.getTime()) ? iso : d.toLocaleDateString('ar-KW');
+}
+
+function exportTimelineCsv(
+  transactions: TimelineTransaction[],
+  bankName:    string,
+  accountKey:  string,
+  fromDate:    string | null,
+  toDate:      string | null,
+): void {
+  const headers = ['التاريخ', 'الوصف', 'المرجع', 'مدين', 'دائن', 'الرصيد', 'النوع', 'الدفعة', 'الملف', 'الحالة'];
+  const rows = transactions.map((t) => [
+    t.statementDate ?? '',
+    `"${t.description.replace(/"/g, '""')}"`,
+    t.reference ?? '',
+    t.debit  > 0 ? t.debit.toFixed(3)  : '',
+    t.credit > 0 ? t.credit.toFixed(3) : '',
+    t.balance != null ? t.balance.toFixed(3) : '',
+    t.bankFeeType ? (CAT_LABELS[t.bankFeeType] ?? t.bankFeeType) : '',
+    `"${t.importBatchLabel.replace(/"/g, '""')}"`,
+    `"${t.fileName.replace(/"/g, '""')}"`,
+    STATUS_LABELS[t.reconcileStatus] ?? t.reconcileStatus,
+  ]);
+  const csv      = '﻿' + [headers, ...rows].map((r) => r.join(',')).join('\r\n');
+  const blob     = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const bankSlug = bankName.toLowerCase().replace(/_/g, '-');
+  const today    = new Date().toISOString().substring(0, 10);
+  const from     = fromDate?.substring(0, 10) ?? today;
+  const to       = toDate?.substring(0, 10)   ?? today;
+  const a        = document.createElement('a');
+  a.href         = URL.createObjectURL(blob);
+  a.download     = `bank-account-timeline-${bankSlug}-${from}-to-${to}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
 }
 
 // ── Recharts tooltip ──────────────────────────────────────────────────────────
@@ -250,7 +296,7 @@ function ImportSelector({
       } else {
         await bulkDeleteImports(deleteIds);
       }
-      showToast(`تم حذف ${deleteIds.length === 1 ? 'الكشف' : `${deleteIds.length} كشوف`} بنجاح`);
+      showToast(`تم حذف ${deleteIds.length === 1 ? 'الدفعة' : `${deleteIds.length} دفعات`} بنجاح`);
       setDeleteIds(null);
       setSelectedIds(new Set());
       fetchImports();
@@ -307,16 +353,16 @@ function ImportSelector({
         <div className="page-head">
           <div><h2>{PAGE_TITLE}</h2><p>{PAGE_SUBTITLE}</p></div>
           <button type="button" className="btn secondary" onClick={() => navigate('/bank-statement-import')}>
-            + استيراد جديد
+            + إضافة كشف بنكي
           </button>
         </div>
         <div className="recon-empty" style={{ paddingTop: 80 }}>
           <div className="recon-empty-icon">🏦</div>
-          <p className="recon-empty-title">لا توجد كشوف بنكية مستوردة</p>
-          <p className="recon-empty-sub">استورد كشف حساب بنكي أولاً لتتمكن من استعراضه وتحليله هنا</p>
+          <p className="recon-empty-title">لا توجد بيانات عمليات بنكية مستوردة حتى الآن</p>
+          <p className="recon-empty-sub">أضف كشف حساب بنكي لبدء استعراض السجل الزمني وتحليل عملياتك المالية</p>
           <div style={{ marginTop: 20 }}>
             <button type="button" className="btn" onClick={() => navigate('/bank-statement-import')}>
-              استيراد كشف حساب
+              إضافة كشف بنكي
             </button>
           </div>
         </div>
@@ -336,14 +382,14 @@ function ImportSelector({
           <p>{PAGE_SUBTITLE}</p>
         </div>
         <button type="button" className="btn secondary" onClick={() => navigate('/bank-statement-import')}>
-          + استيراد جديد
+          + إضافة كشف بنكي
         </button>
       </div>
 
       {/* Multi-select action bar */}
       {selectedIds.size > 0 && (
         <div className="recon-bulk-bar" style={{ marginBottom: 14 }}>
-          <span className="recon-bulk-count">{selectionStats.count} كشف محدد</span>
+          <span className="recon-bulk-count">{selectionStats.count} دفعة محددة</span>
           <div className="recon-bulk-divider" />
           <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
             {selectionStats.rows.toLocaleString()} عملية
@@ -387,7 +433,7 @@ function ImportSelector({
           <div className="recon-import-select-header">
             <input
               type="checkbox"
-              aria-label="تحديد كل الكشوف"
+              aria-label="تحديد كل الدفعات"
               checked={selectedIds.size === imports.length && imports.length > 0}
               ref={(el) => {
                 if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < imports.length;
@@ -398,7 +444,7 @@ function ImportSelector({
             <span>
               {selectedIds.size === imports.length && imports.length > 0 ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
             </span>
-            <span style={{ marginInlineStart: 'auto', fontWeight: 600 }}>{imports.length} كشف</span>
+            <span style={{ marginInlineStart: 'auto', fontWeight: 600 }}>{imports.length} دفعة</span>
           </div>
         )}
 
@@ -470,7 +516,7 @@ function ImportSelector({
                     type="button"
                     className="recon-import-delete-btn"
                     onClick={(e) => { e.stopPropagation(); setDeleteIds([imp.id]); }}
-                    title="حذف هذا الكشف"
+                    title="حذف دفعة الاستيراد"
                     aria-label="حذف"
                   >
                     🗑
@@ -484,11 +530,11 @@ function ImportSelector({
 
       {deleteIds && (
         <ConfirmModal
-          title={deleteIds.length === 1 ? 'حذف الكشف البنكي' : `حذف ${deleteIds.length} كشوف بنكية`}
+          title={deleteIds.length === 1 ? 'حذف دفعة الاستيراد' : `حذف ${deleteIds.length} دفعات استيراد`}
           message={
             deleteIds.length === 1
-              ? 'هل أنت متأكد من حذف هذا الكشف البنكي؟ سيتم حذف جميع المعاملات المرتبطة به. هذا الإجراء لا يمكن التراجع عنه.'
-              : `هل أنت متأكد من حذف ${deleteIds.length} كشوف بنكية؟ سيتم حذف جميع المعاملات المرتبطة بها. هذا الإجراء لا يمكن التراجع عنه.`
+              ? 'سيؤدي حذف دفعة الاستيراد إلى إزالة جميع العمليات التي أضيفت من هذا الملف من السجل الزمني للحساب البنكي. لا يمكن التراجع عن هذا الإجراء.'
+              : `سيؤدي حذف ${deleteIds.length} دفعات استيراد إلى إزالة جميع العمليات التي أضيفت منها من السجل الزمني للحساب البنكي. لا يمكن التراجع عن هذا الإجراء.`
           }
           confirmLabel="حذف"
           onConfirm={handleDeleteConfirmed}
@@ -990,13 +1036,45 @@ export default function BankReconciliation() {
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
   const [deleting, setDeleting]           = useState(false);
 
+  // ── Timeline mode ───────────────────────────────────────────────────────────
+  const [viewMode, setViewMode]               = useState<'timeline' | 'batch'>('batch');
+  const [timeline, setTimeline]               = useState<TimelineResult | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError]     = useState<string | null>(null);
+  const [tlFromDate, setTlFromDate]           = useState('2024-01-01');
+  const [tlToDate, setTlToDate]               = useState(new Date().toISOString().substring(0, 10));
+  const [tlSearch, setTlSearch]               = useState('');
+  const [tlPage, setTlPage]                   = useState(1);
+  const tlSearchTimer                         = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasAutoSwitched                       = useRef(false);
+
   const showToast = useCallback((msg: string, type: 'ok' | 'error' = 'ok') => {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     setToast({ msg, type });
     toastTimer.current = setTimeout(() => setToast(null), 3200);
   }, []);
 
-  // ── Copy helper ─────────────────────────────────────────────────────────────
+  // ── Timeline loader ──────────────────────────────────────────────────────────
+  const loadTimeline = useCallback(async (
+    accountKey: string,
+    page:     number,
+    fromDate: string,
+    toDate:   string,
+    search:   string,
+  ) => {
+    setTimelineLoading(true);
+    setTimelineError(null);
+    try {
+      const tl = await getTimeline(accountKey, page, 50, fromDate, toDate, search || undefined);
+      setTimeline(tl);
+    } catch (e) {
+      setTimelineError(errorMessage(e));
+    } finally {
+      setTimelineLoading(false);
+    }
+  }, []);
+
+  // ── Copy helper ──────────────────────────────────────────────────────────────
   const copyText = useCallback((text: string, label: string) => {
     navigator.clipboard.writeText(text)
       .then(() => showToast(`تم نسخ ${label}`))
@@ -1027,13 +1105,16 @@ export default function BankReconciliation() {
     setDeleting(true);
     try {
       await deleteImport(deleteConfirm);
-      showToast('تم حذف الكشف البنكي بنجاح');
+      showToast('تم حذف دفعة الاستيراد بنجاح');
       setDeleteConfirm(null);
       setSelectedImportId(null);
       setImportMeta(null);
       setWorkspace(null);
+      setTimeline(null);
+      setViewMode('batch');
+      hasAutoSwitched.current = false;
     } catch (e) {
-      showToast(errorMessage(e) || 'فشل حذف الكشف', 'error');
+      showToast(errorMessage(e) || 'فشل حذف دفعة الاستيراد', 'error');
     } finally {
       setDeleting(false);
     }
@@ -1055,9 +1136,22 @@ export default function BankReconciliation() {
     }
   }, []);
 
+  // Auto-switch to timeline mode on first workspace load when accountKey is available
   useEffect(() => {
-    if (selectedImportId) loadWorkspace(selectedImportId, filter);
+    if (!selectedImportId) return;
+    loadWorkspace(selectedImportId, filter).then(() => {
+      // intentionally empty — auto-switch handled via workspace state below
+    });
   }, [selectedImportId, filter, loadWorkspace]);
+
+  useEffect(() => {
+    if (!workspace?.accountKey || hasAutoSwitched.current) return;
+    hasAutoSwitched.current = true;
+    setViewMode('timeline');
+    setTlPage(1);
+    loadTimeline(workspace.accountKey, 1, tlFromDate, tlToDate, tlSearch);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace?.accountKey]);
 
   // ── Search debounce ─────────────────────────────────────────────────────────
   const handleSearchChange = useCallback((val: string) => {
@@ -1246,8 +1340,21 @@ export default function BankReconciliation() {
           {workspace && (
             <div className="recon-ws-header-chips">
               <span className="recon-header-tag blue">🏦 {bankLabel}</span>
-              <span className="recon-header-tag gray">📄 {workspace.fileName}</span>
-              <span className="recon-header-tag gray">📊 {workspace.totalRows.toLocaleString()} عملية</span>
+              {viewMode === 'timeline' ? (
+                <>
+                  {workspace.accountKey && (
+                    <span className="recon-header-tag gray" title="معرّف الحساب">{workspace.accountKey}</span>
+                  )}
+                  {timeline && (
+                    <span className="recon-header-tag gray">📊 {timeline.totalCount.toLocaleString()} عملية</span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className="recon-header-tag gray">📄 {workspace.fileName}</span>
+                  <span className="recon-header-tag gray">📊 {workspace.totalRows.toLocaleString()} عملية في الدفعة</span>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -1277,14 +1384,21 @@ export default function BankReconciliation() {
             className="btn secondary sm"
             onClick={() => navigate('/bank-statement-import')}
           >
-            + استيراد جديد
+            + إضافة كشف بنكي
           </button>
           <button
             type="button"
             className="btn secondary sm"
-            onClick={() => { setSelectedImportId(null); setImportMeta(null); setWorkspace(null); }}
+            onClick={() => {
+              setSelectedImportId(null);
+              setImportMeta(null);
+              setWorkspace(null);
+              setTimeline(null);
+              setViewMode('batch');
+              hasAutoSwitched.current = false;
+            }}
           >
-            تغيير الكشف
+            ← الحسابات
           </button>
           {canExport && selectedImportId && (
             <div style={{ position: 'relative' }} ref={exportMenuRef}>
@@ -1328,7 +1442,7 @@ export default function BankReconciliation() {
                     className="recon-export-item"
                     onClick={() => {
                       setExportMenuOpen(false);
-                      exportToCsv(displayedTransactions, `bank-statement-${selectedImportId}.csv`);
+                      exportToCsv(displayedTransactions, `bank-import-batch-${selectedImportId}-${new Date().toISOString().substring(0, 10)}.csv`);
                       showToast('تم تصدير ملف CSV بنجاح');
                     }}
                   >
@@ -1352,13 +1466,49 @@ export default function BankReconciliation() {
               className="btn sm secondary"
               style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
               onClick={() => setDeleteConfirm(selectedImportId)}
-              title="حذف هذا الكشف البنكي"
+              title="حذف دفعة الاستيراد"
             >
               🗑 حذف
             </button>
           )}
         </div>
       </div>
+
+      {/* ── View mode toggle ─────────────────────────────────────────────────── */}
+      {workspace?.accountKey && (
+        <div className="recon-view-toggle">
+          <button
+            type="button"
+            className={`recon-chip recon-chip-primary${viewMode === 'timeline' ? ' chip-active' : ''}`}
+            onClick={() => {
+              if (viewMode !== 'timeline') {
+                setViewMode('timeline');
+                loadTimeline(workspace.accountKey!, tlPage, tlFromDate, tlToDate, tlSearch);
+              }
+            }}
+          >
+            📅 التسلسل الزمني الموحد
+          </button>
+          <button
+            type="button"
+            className={`recon-chip${viewMode === 'batch' ? ' chip-active' : ''}`}
+            onClick={() => setViewMode('batch')}
+          >
+            📄 دفعة الاستيراد الحالية
+          </button>
+          {viewMode === 'timeline' && timeline && (
+            <span className="recon-view-toggle-hint">
+              يعرض كل العمليات المستوردة لهذا الحساب من جميع الكشوف.
+              {timeline.importCount > 0 && ` (${timeline.importCount} دفعة · ${timeline.totalCount.toLocaleString()} عملية)`}
+            </span>
+          )}
+          {viewMode === 'batch' && (
+            <span className="recon-view-toggle-hint">
+              يعرض عمليات ملف الاستيراد المحدد فقط.
+            </span>
+          )}
+        </div>
+      )}
 
       {/* ── Error banner ───────────────────────────────────────────────────── */}
       {error && (
@@ -1370,6 +1520,254 @@ export default function BankReconciliation() {
           >×</button>
         </div>
       )}
+
+      {/* ── Timeline mode ────────────────────────────────────────────────────── */}
+      {viewMode === 'timeline' && workspace?.accountKey && (
+        <div>
+          {/* Timeline KPI cards */}
+          {timeline && (
+            <div className="recon-kpi-grid">
+              <div className="recon-kpi">
+                <div className="recon-kpi-icon" style={{ background: 'var(--blue-light)' }}>📊</div>
+                <div className="recon-kpi-body">
+                  <p className="recon-kpi-label">إجمالي العمليات</p>
+                  <p className="recon-kpi-value" style={{ color: 'var(--blue)' }}>
+                    {timeline.totalCount.toLocaleString()}
+                  </p>
+                  <p className="recon-kpi-sub">كل الكشوف</p>
+                </div>
+              </div>
+              <div className="recon-kpi">
+                <div className="recon-kpi-icon" style={{ background: 'var(--surface-2)' }}>📅</div>
+                <div className="recon-kpi-body">
+                  <p className="recon-kpi-label">أول عملية</p>
+                  <p className="recon-kpi-value" style={{ fontSize: 14 }}>
+                    {fmtDate(timeline.fromDate)}
+                  </p>
+                  <p className="recon-kpi-sub">بداية التسلسل</p>
+                </div>
+              </div>
+              <div className="recon-kpi">
+                <div className="recon-kpi-icon" style={{ background: 'var(--surface-2)' }}>📅</div>
+                <div className="recon-kpi-body">
+                  <p className="recon-kpi-label">آخر عملية</p>
+                  <p className="recon-kpi-value" style={{ fontSize: 14 }}>
+                    {fmtDate(timeline.toDate)}
+                  </p>
+                  <p className="recon-kpi-sub">نهاية التسلسل</p>
+                </div>
+              </div>
+              <div className="recon-kpi">
+                <div className="recon-kpi-icon" style={{ background: '#ede9fe' }}>📦</div>
+                <div className="recon-kpi-body">
+                  <p className="recon-kpi-label">دفعات الاستيراد</p>
+                  <p className="recon-kpi-value" style={{ color: '#5b21b6' }}>
+                    {timeline.importCount.toLocaleString()}
+                  </p>
+                  <p className="recon-kpi-sub">كشف مرتبط</p>
+                </div>
+              </div>
+              <div className="recon-kpi">
+                <div className="recon-kpi-icon" style={{ background: 'var(--red-light)' }}>↓</div>
+                <div className="recon-kpi-body">
+                  <p className="recon-kpi-label">إجمالي المدين</p>
+                  <p className="recon-kpi-value" style={{ color: 'var(--red)', fontSize: 17 }}>
+                    <PrivateAmount
+                      value={timeline.transactions.reduce((s, t) => s + t.debit, 0)}
+                      currency=""
+                    />
+                  </p>
+                  <p className="recon-kpi-sub">الصفحة الحالية</p>
+                </div>
+              </div>
+              <div className="recon-kpi">
+                <div className="recon-kpi-icon" style={{ background: 'var(--green-light)' }}>↑</div>
+                <div className="recon-kpi-body">
+                  <p className="recon-kpi-label">إجمالي الدائن</p>
+                  <p className="recon-kpi-value" style={{ color: 'var(--green)', fontSize: 17 }}>
+                    <PrivateAmount
+                      value={timeline.transactions.reduce((s, t) => s + t.credit, 0)}
+                      currency=""
+                    />
+                  </p>
+                  <p className="recon-kpi-sub">الصفحة الحالية</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Timeline filter bar */}
+          <div className="recon-tl-filter-bar">
+            <div className="recon-tl-filter-group">
+              <label>من</label>
+              <input
+                type="date"
+                value={tlFromDate}
+                onChange={(e) => setTlFromDate(e.target.value)}
+              />
+            </div>
+            <div className="recon-tl-filter-group">
+              <label>إلى</label>
+              <input
+                type="date"
+                value={tlToDate}
+                onChange={(e) => setTlToDate(e.target.value)}
+              />
+            </div>
+            <div className="recon-tl-filter-group">
+              <input
+                type="text"
+                placeholder="بحث في الوصف أو المرجع…"
+                value={tlSearch}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTlSearch(val);
+                  if (tlSearchTimer.current) clearTimeout(tlSearchTimer.current);
+                  tlSearchTimer.current = setTimeout(() => {
+                    setTlPage(1);
+                    loadTimeline(workspace.accountKey!, 1, tlFromDate, tlToDate, val);
+                  }, 400);
+                }}
+              />
+            </div>
+            <button
+              className="btn sm secondary"
+              onClick={() => {
+                setTlPage(1);
+                loadTimeline(workspace.accountKey!, 1, tlFromDate, tlToDate, tlSearch);
+              }}
+            >
+              تطبيق
+            </button>
+            {timeline && timeline.transactions.length > 0 && (
+              <button
+                className="btn sm secondary"
+                onClick={() => exportTimelineCsv(timeline.transactions, workspace.bankName, workspace.accountKey!, timeline.fromDate, timeline.toDate)}
+              >
+                ⬇ CSV
+              </button>
+            )}
+          </div>
+
+          {/* Loading / error */}
+          {timelineLoading && (
+            <div className="recon-empty" style={{ padding: '24px 0' }}>
+              <p className="recon-empty-sub">جارٍ تحميل التسلسل الزمني…</p>
+            </div>
+          )}
+          {timelineError && (
+            <div className="recon-error-banner">⚠ {timelineError}</div>
+          )}
+
+          {/* Timeline table */}
+          {!timelineLoading && timeline && (
+            <div className="recon-table-section">
+              <div className="recon-table-wrap">
+                {timeline.transactions.length === 0 ? (
+                  <div className="recon-empty">
+                    <div className="recon-empty-icon">🔍</div>
+                    <p className="recon-empty-title">لا توجد عمليات</p>
+                    <p className="recon-empty-sub">جرّب تعديل نطاق التاريخ أو مصطلح البحث</p>
+                  </div>
+                ) : (
+                  <table aria-label="التسلسل الزمني الموحد">
+                    <thead>
+                      <tr>
+                        <th>التاريخ</th>
+                        <th style={{ minWidth: 200 }}>الوصف</th>
+                        <th>المرجع</th>
+                        <th style={{ textAlign: 'end' }}>مدين (د.ك)</th>
+                        <th style={{ textAlign: 'end' }}>دائن (د.ك)</th>
+                        <th style={{ textAlign: 'end' }}>الرصيد</th>
+                        <th>الدفعة</th>
+                        <th>الحالة</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {timeline.transactions.map((tx) => {
+                        let rowClass = '';
+                        if (tx.bankFeeType === 'BANK_TRANSFER')   rowClass = 'tx-row-transfer';
+                        else if (tx.bankFeeType === 'CHEQUE_PAYMENT')  rowClass = 'tx-row-cheque';
+                        else if (tx.bankFeeType === 'CASH_WITHDRAWAL') rowClass = 'tx-row-withdrawal';
+                        else if (tx.isBankFee)                         rowClass = 'tx-row-fee';
+                        if (tx.isDuplicate)                            rowClass = 'tx-row-duplicate';
+                        return (
+                          <tr key={tx.id} className={rowClass}>
+                            <td>{fmtDate(tx.statementDate)}</td>
+                            <td>{tx.description}</td>
+                            <td>{tx.reference ?? '—'}</td>
+                            <td style={{ textAlign: 'end' }}>
+                              {tx.debit > 0
+                                ? <PrivateAmount value={tx.debit} currency="" />
+                                : '—'}
+                            </td>
+                            <td style={{ textAlign: 'end' }}>
+                              {tx.credit > 0
+                                ? <PrivateAmount value={tx.credit} currency="" />
+                                : '—'}
+                            </td>
+                            <td style={{ textAlign: 'end' }}>
+                              {tx.balance != null
+                                ? <PrivateAmount value={tx.balance} currency="" />
+                                : '—'}
+                            </td>
+                            <td title={tx.fileName} style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                              {tx.importBatchLabel}
+                            </td>
+                            <td>
+                              <span className={`recon-tl-status ${tx.reconcileStatus.toLowerCase()}`}>
+                                {STATUS_LABELS[tx.reconcileStatus] ?? tx.reconcileStatus}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Pagination */}
+              {timeline.totalCount > 50 && (
+                <div className="pagination" style={{ marginTop: 0, background: 'var(--surface)', borderRadius: '0 0 var(--radius) var(--radius)', border: '1px solid var(--border)', borderTop: 'none' }}>
+                  <span style={{ fontSize: 12.5, color: 'var(--text-muted)', fontWeight: 600 }}>
+                    عرض {(tlPage - 1) * 50 + 1}–
+                    {Math.min(tlPage * 50, timeline.totalCount)} من {timeline.totalCount.toLocaleString()} عملية
+                  </span>
+                  <div className="pg-btns">
+                    <button
+                      className="btn sm secondary"
+                      disabled={tlPage <= 1}
+                      onClick={() => {
+                        const p = tlPage - 1;
+                        setTlPage(p);
+                        loadTimeline(workspace.accountKey!, p, tlFromDate, tlToDate, tlSearch);
+                      }}
+                    >
+                      السابق
+                    </button>
+                    <button
+                      className="btn sm secondary"
+                      disabled={tlPage * 50 >= timeline.totalCount}
+                      onClick={() => {
+                        const p = tlPage + 1;
+                        setTlPage(p);
+                        loadTimeline(workspace.accountKey!, p, tlFromDate, tlToDate, tlSearch);
+                      }}
+                    >
+                      التالي
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Batch mode ────────────────────────────────────────────────────────── */}
+      {viewMode === 'batch' && (
+        <>
 
       {/* ── KPI Grid (analytical) ──────────────────────────────────────────── */}
       {workspace && (
@@ -2050,11 +2448,14 @@ export default function BankReconciliation() {
         </>
       )}
 
+        </>
+      )} {/* end batch mode */}
+
       {/* ── Delete current import confirmation (Package AD) ─────────────────── */}
       {deleteConfirm && (
         <ConfirmModal
-          title="حذف الكشف البنكي"
-          message="هل أنت متأكد من حذف هذا الكشف البنكي؟ سيتم حذف جميع المعاملات المرتبطة به. هذا الإجراء لا يمكن التراجع عنه."
+          title="حذف دفعة الاستيراد"
+          message="سيؤدي حذف دفعة الاستيراد إلى إزالة جميع العمليات التي أضيفت من هذا الملف من السجل الزمني للحساب البنكي. لا يمكن التراجع عن هذا الإجراء."
           confirmLabel="حذف"
           onConfirm={handleDeleteCurrentImport}
           onCancel={() => setDeleteConfirm(null)}
