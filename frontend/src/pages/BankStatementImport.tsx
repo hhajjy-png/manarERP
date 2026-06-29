@@ -13,6 +13,7 @@ import {
   type PreviewRow,
   type ImportResult,
   type TimelineResult,
+  type CoverageWarning,
 } from '../api/bankStatementImport';
 import {
   CLIENT_STATEMENT_CONFIGS,
@@ -94,6 +95,47 @@ const BANK_NAMES: Record<string, string> = {
   UNKNOWN:     'بنك غير معروف',
 };
 
+// ── Coverage warning helpers ──────────────────────────────────────────────────
+
+const COVERAGE_WARNING_CONFIG: Record<CoverageWarning, { icon: string; title: string; body: string; bg: string; border: string; titleColor: string; bodyColor: string }> = {
+  FULLY_DUPLICATE: {
+    icon:       '⚠️',
+    title:      'يبدو أن هذا الكشف مستورد بالفعل',
+    body:       'نطاق تواريخ هذا الكشف يقع بالكامل ضمن سجل الحساب الموجود. سيتم تخطي المعاملات المكررة تلقائياً، والمعاملات الجديدة ستُضاف بأمان.',
+    bg:         '#FFFBEB',
+    border:     '#FDE68A',
+    titleColor: '#92400E',
+    bodyColor:  '#78350F',
+  },
+  OVERLAPPING: {
+    icon:       '📅',
+    title:      'تداخل في الفترة الزمنية — آمن تماماً',
+    body:       'نطاق هذا الكشف يتداخل مع بيانات موجودة. النظام سيتخطى المعاملات المكررة تلقائياً ويضيف فقط المعاملات الجديدة — لا داعي للقلق.',
+    bg:         '#EFF6FF',
+    border:     '#BFDBFE',
+    titleColor: '#1D4ED8',
+    bodyColor:  '#1E40AF',
+  },
+  GAP_BEFORE: {
+    icon:       '📅',
+    title:      'بيانات تاريخية جديدة',
+    body:       'هذا الكشف يحتوي على بيانات أقدم من السجل الموجود، مما سيثري السجل الزمني للحساب بفترة إضافية.',
+    bg:         '#F0FDF4',
+    border:     '#BBF7D0',
+    titleColor: '#15803D',
+    bodyColor:  '#166534',
+  },
+  GAP_AFTER: {
+    icon:       '📅',
+    title:      'امتداد السجل للأمام',
+    body:       'هذا الكشف يمتد ما بعد نهاية السجل الموجود وسيضيف بيانات حديثة جديدة.',
+    bg:         '#F0FDF4',
+    border:     '#BBF7D0',
+    titleColor: '#15803D',
+    bodyColor:  '#166534',
+  },
+};
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function BankStatementImport() {
@@ -103,6 +145,7 @@ export default function BankStatementImport() {
 
   const [step, setStep]           = useState<Step>('upload');
   const [loading, setLoading]     = useState(false);
+  const [fileLoading, setFileLoading] = useState(false);
   const [error, setError]         = useState<string | null>(null);
 
   // File state
@@ -151,6 +194,7 @@ export default function BankStatementImport() {
 
     setFileName(file.name);
     setFileType(isExcel ? 'excel' : 'csv');
+    setFileLoading(true);
 
     try {
       let detectedHeaders: string[] = [];
@@ -189,6 +233,8 @@ export default function BankStatementImport() {
       setStep('detect');
     } catch (err) {
       setError(`فشل قراءة الملف: ${errorMessage(err)}`);
+    } finally {
+      setFileLoading(false);
     }
   }, []);
 
@@ -277,6 +323,8 @@ export default function BankStatementImport() {
     setError(null);
     setTimeline(null);
     setShowTimeline(false);
+    setFileLoading(false);
+    setLoading(false);
   }, []);
 
   const handleLoadTimeline = useCallback(async (accountKey: string) => {
@@ -354,17 +402,19 @@ export default function BankStatementImport() {
 
         {/* ── Step: Upload ── */}
         {step === 'upload' && (
-          <div className="card panel" style={{ textAlign: 'center', padding: 48, cursor: 'pointer', border: '2px dashed var(--border)', transition: 'border-color 0.2s' }}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={onDrop}
-            onClick={() => fileInputRef.current?.click()}
-            onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
+          <div className="card panel" style={{ textAlign: 'center', padding: 48, cursor: fileLoading ? 'wait' : 'pointer', border: '2px dashed var(--border)', transition: 'border-color 0.2s', opacity: fileLoading ? 0.7 : 1 }}
+            onDragOver={(e) => { if (!fileLoading) e.preventDefault(); }}
+            onDrop={(e) => { if (!fileLoading) onDrop(e); }}
+            onClick={() => { if (!fileLoading) fileInputRef.current?.click(); }}
+            onMouseEnter={(e) => { if (!fileLoading) e.currentTarget.style.borderColor = 'var(--primary)'; }}
             onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
           >
-            <div style={{ fontSize: 52, marginBottom: 16 }}>📂</div>
-            <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>اسحب ملف كشف الحساب أو انقر للاختيار</p>
+            <div style={{ fontSize: 52, marginBottom: 16 }}>{fileLoading ? '⏳' : '📂'}</div>
+            <p style={{ fontSize: 17, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
+              {fileLoading ? 'جارٍ قراءة الملف…' : 'اسحب ملف كشف الحساب أو انقر للاختيار'}
+            </p>
             <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Excel (.xlsx) أو CSV — الحد الأقصى 10 ميغابايت، 10,000 صف</p>
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFileChange} />
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFileChange} disabled={fileLoading} />
           </div>
         )}
 
@@ -420,10 +470,10 @@ export default function BankStatementImport() {
               </div>
             )}
             <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={handlePreview} disabled={previewLoading || parsedRows.length === 0} className="btn" style={{ minWidth: 140 }}>
+              <button onClick={handlePreview} disabled={previewLoading || loading || parsedRows.length === 0} className="btn" style={{ minWidth: 140 }}>
                 {previewLoading ? 'جارٍ التحليل…' : 'تحليل الكشف'}
               </button>
-              <button onClick={reset} className="btn btn-secondary">إعادة تعيين</button>
+              <button onClick={reset} disabled={previewLoading || loading} className="btn btn-secondary">إعادة تعيين</button>
             </div>
           </div>
         )}
@@ -466,19 +516,36 @@ export default function BankStatementImport() {
             </div>
 
             {/* Coverage banner */}
-            {preview.coverageSummary?.hasExisting && (
-              <div className="card panel" style={{ background: '#EFF6FF', borderColor: '#BFDBFE', fontSize: 13, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 20 }}>📅</span>
-                <div>
-                  <strong style={{ color: '#1D4ED8' }}>يوجد بيانات مسبقة لهذا الحساب</strong>
-                  <span style={{ color: '#1E40AF', marginInlineStart: 8 }}>
-                    {preview.coverageSummary.existingCount.toLocaleString()} معاملة محفوظة
-                    {preview.coverageSummary.existingFrom && ` — من ${fmtDate(preview.coverageSummary.existingFrom)}`}
-                    {preview.coverageSummary.existingTo   && ` إلى ${fmtDate(preview.coverageSummary.existingTo)}`}
-                  </span>
+            {preview.coverageSummary?.hasExisting && (() => {
+              const cs  = preview.coverageSummary!;
+              const cfg = cs.coverageWarning ? COVERAGE_WARNING_CONFIG[cs.coverageWarning] : null;
+              return (
+                <div className="card panel" style={{
+                  background: cfg?.bg ?? '#EFF6FF',
+                  borderColor: cfg?.border ?? '#BFDBFE',
+                  fontSize: 13,
+                  padding: '12px 16px',
+                  display: 'flex',
+                  gap: 10,
+                  alignItems: 'flex-start',
+                }}>
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>{cfg?.icon ?? '📅'}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, color: cfg?.titleColor ?? '#1D4ED8', marginBottom: 4 }}>
+                      {cfg?.title ?? 'يوجد بيانات مسبقة لهذا الحساب'}
+                    </div>
+                    {cfg?.body && (
+                      <div style={{ color: cfg.bodyColor, marginBottom: 6 }}>{cfg.body}</div>
+                    )}
+                    <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                      {cs.existingCount.toLocaleString()} معاملة في السجل
+                      {cs.existingFrom && ` — من ${fmtDate(cs.existingFrom)}`}
+                      {cs.existingTo   && ` إلى ${fmtDate(cs.existingTo)}`}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Dedup analysis card */}
             {preview.dedupSummary && (
@@ -611,10 +678,10 @@ export default function BankStatementImport() {
             </div>
 
             <div style={{ display: 'flex', gap: 12 }}>
-              <button onClick={handleExecute} disabled={loading} className="btn" style={{ minWidth: 160, background: '#16A34A', borderColor: '#16A34A' }}>
+              <button onClick={handleExecute} disabled={loading || !preview?.canImport} className="btn" style={{ minWidth: 160, background: '#16A34A', borderColor: '#16A34A' }}>
                 {loading ? 'جارٍ الاستيراد…' : 'تأكيد الاستيراد'}
               </button>
-              <button onClick={() => setStep('preview')} className="btn btn-secondary">رجوع</button>
+              <button onClick={() => setStep('preview')} disabled={loading} className="btn btn-secondary">رجوع</button>
             </div>
           </div>
         )}
