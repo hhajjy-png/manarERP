@@ -1,5 +1,62 @@
 /* ─── AI Assistant (AI) — .ai-* scoped styles ──────────────────────────────── */
 
+/* ─── Blocked card (informational — not an error) ───────────────────────────── */
+.ai-blocked-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: rgba(59, 130, 246, 0.06);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 10px;
+  direction: rtl;
+  text-align: right;
+}
+.ai-blocked-icon {
+  font-size: 18px;
+}
+.ai-blocked-message {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d4ed8;
+  line-height: 1.55;
+}
+.ai-blocked-suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+}
+.ai-blocked-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--primary, #2563eb);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  cursor: pointer;
+  transition: background 0.14s;
+  direction: rtl;
+}
+.ai-blocked-chip:hover {
+  background: rgba(37, 99, 235, 0.15);
+}
+
+/* ─── KPI enriched badge ─────────────────────────────────────────────────────── */
+.ai-kpi-badge--enriched {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  background: rgba(13, 148, 136, 0.10);
+  color: #0f766e;
+  border: 1px solid rgba(13, 148, 136, 0.22);
+  margin-right: 5px;
+}
+
 /* ─── Dev: Router decision panel — visible in DEV builds only ───────────────── */
 .ai-dev-router-panel {
   border: 1px dashed #c084fc;

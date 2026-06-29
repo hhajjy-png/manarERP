@@ -1,4 +1,4 @@
-// ─── AI-2 Safe Intelligence Engine — shared types ─────────────────────────────
+// ─── AI-2 / AI-2.5 Safe Intelligence Engine — shared types ────────────────────
 // All skills return SkillResult. No LLM, no SQL, no AI provider.
 
 export type SkillStatus   = 'stable' | 'experimental' | 'coming_soon';
@@ -60,6 +60,73 @@ export interface SkillDataCard {
   rows: SkillDataCardRow[];
 }
 
+// ── AI-2.5 expansion types ────────────────────────────────────────────────────
+
+export type CapabilityLevel = 'complete' | 'partial' | 'preview' | 'comingSoon';
+
+export type RichSourceType = 'primary' | 'derived' | 'aggregated' | 'historical';
+
+export interface RichSource {
+  module: string;
+  datasetName: string;
+  recordCount?: number;
+  dateRange?: string;
+  dataCompleteness: number;
+  sourceType: RichSourceType;
+}
+
+export interface ExplanationStep {
+  step: number;
+  labelAr: string;
+  detailAr?: string;
+}
+
+export interface QualityIssue {
+  severity: 'info' | 'warning' | 'danger';
+  messageAr: string;
+}
+
+export interface RelatedSkill {
+  skillId: string;
+  labelAr: string;
+  promptSuggestion: string;
+}
+
+export interface RelatedPage {
+  path: string;
+  labelAr: string;
+  icon: string;
+}
+
+export type ActionKind = 'openModule' | 'copySummary' | 'exportResult' | 'print' | 'placeholder';
+
+export interface SkillAction {
+  kind: ActionKind;
+  labelAr: string;
+  icon: string;
+  available: boolean;
+  payload?: string | Record<string, unknown>;
+}
+
+export type SkillGeneration = 'AI-2.5-deterministic' | 'AI-3-local-llm' | 'AI-4-rag' | 'AI-5-multimodal';
+
+export interface SkillMetadata {
+  version: string;
+  status: SkillStatus;
+  capabilities: string[];
+  dependentModules: string[];
+  lastUpdated: string;
+  skillGeneration: SkillGeneration;
+}
+
+export interface DevDiagnostics {
+  routerMs: number;
+  skillMs: number;
+  apiMs: number;
+  recordsAnalyzed: number;
+  cardsRendered: number;
+}
+
 // ── SkillResult — the universal return type for every skill ───────────────────
 // highlights and cards are optional so that compact snapshots stored in
 // localStorage (which strip these large arrays) still satisfy this type.
@@ -89,6 +156,18 @@ export interface SkillResult {
   isError?: boolean;
   errorMessage?: string;
 
+  // AI-2.5 enrichment fields (all optional — stripped in localStorage snapshot)
+  capabilityLevel?: CapabilityLevel;
+  richSources?: RichSource[];
+  explanationSteps?: ExplanationStep[];
+  qualityScore?: number;
+  qualityIssues?: QualityIssue[];
+  relatedSkills?: RelatedSkill[];
+  relatedPages?: RelatedPage[];
+  actions?: SkillAction[];
+  skillMetadata?: SkillMetadata;
+  diagnostics?: DevDiagnostics;
+
   executedAt: number;
   executionMs: number;
 }
@@ -101,4 +180,6 @@ export interface RouterDecision {
   matchedKeywords: string[];
   confidence: number;
   fallback: boolean;
+  blocked?: boolean;
+  blockedMessage?: string;
 }

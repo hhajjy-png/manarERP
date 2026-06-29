@@ -139,7 +139,7 @@ const ARCH_NODES = [
 const ROADMAP_ITEMS = [
   { phase: 'AI-1',   name: 'UI Workspace',              desc: 'واجهة العمل الأساسية',                    current: false },
   { phase: 'AI-1.5', name: 'Smart Workspace',           desc: 'سجل، مثبتات، إجراءات سريعة',             current: false },
-  { phase: 'AI-2',   name: 'Safe Intelligence Engine',  desc: 'محرك مهارات محدد — بيانات حقيقية',       current: true  },
+  { phase: 'AI-2.5', name: 'Professional Skills Engine', desc: 'مهارات مثرّاة — جودة، مصادر، إجراءات',    current: true  },
   { phase: 'AI-3',   name: 'SELECT-only SQL',           desc: 'طبقة SQL للقراءة فقط',                   current: false },
   { phase: 'AI-4',   name: 'Local LLM',                 desc: 'نموذج ذكاء اصطناعي محلي',               current: false },
   { phase: 'AI-5',   name: 'RAG',                       desc: 'استرجاع معزز من الوثائق',               current: false },
@@ -222,7 +222,13 @@ function serializeMsgs(msgs: AiMessage[]): SerializedMsg[] {
     const s: SerializedMsg = { ...m, timestamp: m.timestamp.getTime() };
     if (s.result) {
       // Strip large optional arrays to keep localStorage compact
-      const { highlights: _h, cards: _c, ...compact } = s.result;
+      const {
+        highlights: _h, cards: _c,
+        richSources: _rs, explanationSteps: _es,
+        relatedSkills: _rsk, relatedPages: _rp,
+        actions: _a, skillMetadata: _sm, diagnostics: _d,
+        ...compact
+      } = s.result;
       s.result = compact as SkillResult;
     }
     return s;
@@ -375,7 +381,20 @@ export default function AIAssistant() {
     setLastDecision(decision);
 
     let result: SkillResult;
-    if (decision.skillId) {
+    if (decision.blocked) {
+      // Informational blocked card — not an error
+      const now = Date.now();
+      result = {
+        skillId: 'blocked', skillTitleAr: 'غير مدعوم', intent: 'blocked', prompt: text,
+        title: 'هذا النطاق غير مدعوم حالياً',
+        summary: decision.blockedMessage ?? 'هذا النطاق خارج نطاق المساعد الذكي الحالي.',
+        statistics: [],
+        warnings: [{ message: 'يمكنني مساعدتك في استكشاف كشف الحساب وتحليله.', severity: 'info' }],
+        sources: [{ icon: '🏦', labelAr: 'مستكشف كشف الحساب', routePath: '/bank-reconciliation' }],
+        suggestedQuestions: ['لخّص آخر كشف حساب مستورد', 'اعرض أكبر السحوبات', 'اعرض رسوم البنك'],
+        executedAt: now, executionMs: 0,
+      };
+    } else if (decision.skillId) {
       result = await executeSkill(decision.skillId, text, decision.intent);
     } else {
       result = buildNoSkillResult(text);
