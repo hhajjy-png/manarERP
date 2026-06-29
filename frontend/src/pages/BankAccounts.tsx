@@ -57,7 +57,7 @@ function AccountCard({
     >
       <div className="bac-card-header">
         <div className="bac-bank-icon">
-          <span className="material-icons-round">account_balance</span>
+          <span className="material-symbols-outlined">account_balance</span>
         </div>
         <div className="bac-card-title">
           <h3>{account.bankName}</h3>
@@ -69,7 +69,7 @@ function AccountCard({
             <span className="bac-iban bac-iban-dim">{account.accountKey}</span>
           )}
         </div>
-        <span className="bac-arrow material-icons-round">chevron_left</span>
+        <span className="bac-arrow material-symbols-outlined">chevron_left</span>
       </div>
 
       <div className="bac-balance-row">
@@ -105,16 +105,16 @@ function AccountCard({
 
       <div className="bac-footer">
         <span className="bac-footer-item">
-          <span className="material-icons-round bac-footer-icon">swap_horiz</span>
+          <span className="material-symbols-outlined bac-footer-icon">swap_horiz</span>
           {account.transactionCount.toLocaleString()} معاملة
         </span>
         <span className="bac-footer-item">
-          <span className="material-icons-round bac-footer-icon">upload_file</span>
+          <span className="material-symbols-outlined bac-footer-icon">upload_file</span>
           {account.importCount} دفعة
         </span>
         {account.firstTransactionDate && (
           <span className="bac-footer-item">
-            <span className="material-icons-round bac-footer-icon">calendar_today</span>
+            <span className="material-symbols-outlined bac-footer-icon">calendar_today</span>
             {fmtDate(account.firstTransactionDate)} — {fmtDate(account.lastTransactionDate)}
           </span>
         )}
@@ -162,7 +162,7 @@ export default function BankAccounts() {
   if (!canView) {
     return (
       <div className="page-error" dir="rtl">
-        <span className="material-icons-round bac-lock-icon">lock</span>
+        <span className="material-symbols-outlined bac-lock-icon">lock</span>
         <p>ليس لديك صلاحية لعرض الحسابات البنكية.</p>
       </div>
     );
@@ -174,7 +174,7 @@ export default function BankAccounts() {
       <div className="bac-header">
         <div className="bac-header-text">
           <h1 className="bac-title">
-            <span className="material-icons-round bac-title-icon">account_balance</span>
+            <span className="material-symbols-outlined bac-title-icon">account_balance</span>
             الحسابات البنكية
           </h1>
           <p className="bac-subtitle">
@@ -183,7 +183,7 @@ export default function BankAccounts() {
         </div>
         <div className="bac-header-actions">
           <button type="button" className="btn secondary" onClick={() => navigate('/bank-statement-import')}>
-            <span className="material-icons-round">upload_file</span>
+            <span className="material-symbols-outlined">upload_file</span>
             إضافة كشف
           </button>
         </div>
@@ -192,7 +192,7 @@ export default function BankAccounts() {
       {/* ── Search ── */}
       {accounts.length > 1 && (
         <div className="bac-search-bar">
-          <span className="material-icons-round bac-search-icon">search</span>
+          <span className="material-symbols-outlined bac-search-icon">search</span>
           <input
             className="bac-search-input"
             type="text"
@@ -202,7 +202,7 @@ export default function BankAccounts() {
           />
           {search && (
             <button type="button" className="bac-search-clear" onClick={() => setSearch('')}>
-              <span className="material-icons-round">close</span>
+              <span className="material-symbols-outlined">close</span>
             </button>
           )}
         </div>
@@ -218,7 +218,7 @@ export default function BankAccounts() {
 
       {!loading && error && (
         <div className="bac-error">
-          <span className="material-icons-round">error_outline</span>
+          <span className="material-symbols-outlined">error_outline</span>
           <span>{error}</span>
           <button type="button" className="btn secondary" onClick={load}>إعادة المحاولة</button>
         </div>
@@ -226,11 +226,13 @@ export default function BankAccounts() {
 
       {!loading && !error && accounts.length === 0 && (
         <div className="bac-empty">
-          <span className="material-icons-round bac-empty-icon">account_balance</span>
+          <div className="bac-empty-illus">
+            <span className="material-symbols-outlined">account_balance</span>
+          </div>
           <h3>لا توجد حسابات بنكية</h3>
-          <p>أضف أول كشف بنكي لبدء استعراض حساباتك.</p>
+          <p>أضف أول كشف بنكي لبدء استعراض حساباتك ومعاملاتك المالية.</p>
           <button type="button" className="btn" onClick={() => navigate('/bank-statement-import')}>
-            <span className="material-icons-round">upload_file</span>
+            <span className="material-symbols-outlined">upload_file</span>
             إضافة كشف بنكي
           </button>
         </div>
@@ -238,8 +240,15 @@ export default function BankAccounts() {
 
       {!loading && !error && filtered.length === 0 && accounts.length > 0 && (
         <div className="bac-empty">
-          <span className="material-icons-round bac-empty-icon">search_off</span>
-          <p>لا توجد نتائج مطابقة لـ «{search}»</p>
+          <div className="bac-empty-illus">
+            <span className="material-symbols-outlined">search_off</span>
+          </div>
+          <h3>لا توجد نتائج</h3>
+          <p>لا يوجد حساب مطابق لـ «{search}»</p>
+          <button type="button" className="btn secondary" onClick={() => setSearch('')}>
+            <span className="material-symbols-outlined">close</span>
+            مسح البحث
+          </button>
         </div>
       )}
 
@@ -318,7 +327,7 @@ export default function BankAccounts() {
           padding: 0;
         }
         .bac-search-clear:hover { color: var(--text); }
-        .bac-search-clear .material-icons-round { font-size: 18px !important; }
+        .bac-search-clear .material-symbols-outlined { font-size: 18px !important; }
 
         .bac-loading, .bac-error {
           display: flex;
@@ -330,7 +339,7 @@ export default function BankAccounts() {
           font-size: 14px;
         }
         .bac-error { color: var(--red, #ef4444); }
-        .bac-error .material-icons-round { font-size: 40px !important; }
+        .bac-error .material-symbols-outlined { font-size: 40px !important; }
 
         .bac-empty {
           display: flex;
@@ -341,9 +350,23 @@ export default function BankAccounts() {
           color: var(--muted);
           text-align: center;
         }
-        .bac-empty-icon { font-size: 52px !important; opacity: .35; }
+        .bac-empty-illus {
+          width: 72px;
+          height: 72px;
+          border-radius: 20px;
+          background: var(--primary-faint, rgba(99,102,241,.10));
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 4px;
+        }
+        .bac-empty-illus .material-symbols-outlined {
+          font-size: 34px !important;
+          color: var(--primary);
+          opacity: .75;
+        }
         .bac-empty h3 { font-size: 18px; color: var(--text); margin: 0; }
-        .bac-empty p  { font-size: 14px; margin: 0; }
+        .bac-empty p  { font-size: 14px; margin: 0; max-width: 340px; line-height: 1.6; }
 
         .bac-grid {
           display: grid;
@@ -383,7 +406,7 @@ export default function BankAccounts() {
           display: flex; align-items: center; justify-content: center;
           flex-shrink: 0;
         }
-        .bac-bank-icon .material-icons-round {
+        .bac-bank-icon .material-symbols-outlined {
           color: var(--primary);
           font-size: 22px !important;
         }
