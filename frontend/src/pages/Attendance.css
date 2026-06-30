@@ -1,0 +1,29 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Attendance — page-specific styles (.attx-* prefix)
+   Composes with the shared Explorer Kit (explorer-kit.css / .xpl-*).
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.attx-metrics {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+@media (max-width: 1100px) { .attx-metrics { grid-template-columns: 1fr; } }
+
+/* read-only computed-hours pill inside the dialog */
+.attx-computed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 10px;
+  background: var(--xpl-bg);
+  color: var(--xpl-text);
+  font-weight: 700;
+  font-size: 13.5px;
+}
+.attx-computed .material-symbols-outlined { font-size: 18px !important; color: var(--xpl-primary); }
+
+.attx-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
