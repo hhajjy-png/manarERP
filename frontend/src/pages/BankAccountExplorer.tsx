@@ -119,19 +119,24 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: readonl
 // ── KPI Card ──────────────────────────────────────────────────────────────────
 
 function KpiCard({
-  label, value, icon, colorVariant, sub,
+  label, value, icon, colorVariant, sub, isPrimary,
 }: {
-  label:        string;
-  value:        string;
-  icon:         string;
-  colorVariant?: 'green' | 'red';
-  sub?:         string;
+  label:         string;
+  value:         string;
+  icon:          string;
+  colorVariant?: 'green' | 'red' | 'blue';
+  sub?:          string;
+  isPrimary?:    boolean;
 }) {
-  const cls = colorVariant ? ` bae-kpi-card--${colorVariant}` : '';
+  const cls = [
+    'bae-kpi-card',
+    colorVariant ? `bae-kpi-card--${colorVariant}` : '',
+    isPrimary    ? 'bae-kpi-card--primary'          : '',
+  ].filter(Boolean).join(' ');
   return (
-    <div className={`bae-kpi-card${cls}`}>
+    <div className={cls}>
       <div className="bae-kpi-icon">
-        <span className="material-icons-round">{icon}</span>
+        <span className="material-symbols-outlined">{icon}</span>
       </div>
       <div className="bae-kpi-body">
         <span className="bae-kpi-label">{label}</span>
@@ -139,6 +144,202 @@ function KpiCard({
         {sub && <span className="bae-kpi-sub">{sub}</span>}
       </div>
     </div>
+  );
+}
+
+// ── Account Health Card ───────────────────────────────────────────────────────
+
+function AccountHealthCard({ dashboard }: { dashboard: BankAccountDashboard }) {
+  const monthCount = useMemo(() => {
+    if (!dashboard.coverageStart || !dashboard.coverageEnd) return 0;
+    const s = new Date(dashboard.coverageStart);
+    const e = new Date(dashboard.coverageEnd);
+    return (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth()) + 1;
+  }, [dashboard.coverageStart, dashboard.coverageEnd]);
+
+  const daysSinceLast = useMemo(() => {
+    if (!dashboard.coverageEnd) return null;
+    return Math.floor((Date.now() - new Date(dashboard.coverageEnd).getTime()) / 86_400_000);
+  }, [dashboard.coverageEnd]);
+
+  const freshnessClass =
+    daysSinceLast == null ? '' :
+    daysSinceLast < 30   ? 'good' :
+    daysSinceLast < 90   ? 'warn' : 'bad';
+
+  const freshnessLabel =
+    daysSinceLast == null ? '—' :
+    daysSinceLast < 7    ? 'محدّث' :
+    daysSinceLast < 30   ? `${daysSinceLast} يوم` :
+    `${Math.floor(daysSinceLast / 30)} أشهر`;
+
+  const avgMonthlyTx = monthCount > 0
+    ? Math.round(dashboard.transactionCount / monthCount)
+    : dashboard.transactionCount;
+
+  return (
+    <div className="bae-health-card">
+      <h4 className="bae-health-title">
+        <span className="material-symbols-outlined">monitor_heart</span>
+        صحة الحساب وتغطية البيانات
+      </h4>
+      <div className="bae-health-grid">
+        <div className="bae-health-item">
+          <span className="bae-health-label">مدة التغطية</span>
+          <span className="bae-health-value">{monthCount > 0 ? `${monthCount} شهر` : '—'}</span>
+        </div>
+        <div className="bae-health-item">
+          <span className="bae-health-label">دفعات الاستيراد</span>
+          <span className="bae-health-value">{dashboard.importCount}</span>
+        </div>
+        <div className="bae-health-item">
+          <span className="bae-health-label">متوسط العمليات / شهر</span>
+          <span className="bae-health-value">{avgMonthlyTx.toLocaleString()}</span>
+        </div>
+        <div className="bae-health-item">
+          <span className="bae-health-label">عمليات الإيداع</span>
+          <span className="bae-health-value good">{dashboard.depositCount.toLocaleString()}</span>
+        </div>
+        <div className="bae-health-item">
+          <span className="bae-health-label">عمليات السحب</span>
+          <span className="bae-health-value">{dashboard.withdrawalCount.toLocaleString()}</span>
+        </div>
+        <div className="bae-health-item">
+          <span className="bae-health-label">حداثة البيانات</span>
+          <span className={`bae-health-value ${freshnessClass}`}>{freshnessLabel}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Transaction Drawer ────────────────────────────────────────────────────────
+
+function TransactionDrawer({
+  tx,
+  onClose,
+}: {
+  tx:      TimelineTransaction;
+  onClose: () => void;
+}) {
+  const hasDebit  = tx.debit  > 0;
+  const hasCredit = tx.credit > 0;
+
+  return (
+    <>
+      <div className="bae-drawer-overlay" onClick={onClose} />
+      <div className="bae-drawer" dir="rtl" role="dialog" aria-modal="true">
+        <div className="bae-drawer-header">
+          <h3 className="bae-drawer-title">تفاصيل المعاملة</h3>
+          <button type="button" className="bae-drawer-close" onClick={onClose} aria-label="إغلاق">
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div className="bae-drawer-body">
+          {/* Amounts */}
+          <div className="bae-drawer-amounts">
+            <div className="bae-drawer-amount-card">
+              <div className="bae-drawer-amount-label">مدين</div>
+              <div className={`bae-drawer-amount-value ${hasDebit ? 'bae-debit' : ''}`}>
+                {hasDebit ? tx.debit.toFixed(3) : '—'}
+              </div>
+            </div>
+            <div className="bae-drawer-amount-card">
+              <div className="bae-drawer-amount-label">دائن</div>
+              <div className={`bae-drawer-amount-value ${hasCredit ? 'bae-credit' : ''}`}>
+                {hasCredit ? tx.credit.toFixed(3) : '—'}
+              </div>
+            </div>
+          </div>
+
+          {/* Balance */}
+          {tx.balance != null && (
+            <div className="bae-drawer-field">
+              <span className="bae-drawer-field-label">الرصيد بعد العملية</span>
+              <span className="bae-drawer-field-value">{tx.balance.toFixed(3)} {tx.currency}</span>
+            </div>
+          )}
+
+          <div className="bae-drawer-divider" />
+          <div className="bae-drawer-section-title">بيانات المعاملة</div>
+
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">تاريخ الكشف</span>
+            <span className="bae-drawer-field-value">{fmtDate(tx.statementDate)}</span>
+          </div>
+          {tx.postingDate && tx.postingDate !== tx.statementDate && (
+            <div className="bae-drawer-field">
+              <span className="bae-drawer-field-label">تاريخ الترحيل</span>
+              <span className="bae-drawer-field-value">{fmtDate(tx.postingDate)}</span>
+            </div>
+          )}
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">الوصف</span>
+            <span className="bae-drawer-field-value">{tx.description}</span>
+          </div>
+          {tx.reference && (
+            <div className="bae-drawer-field">
+              <span className="bae-drawer-field-label">المرجع</span>
+              <span className="bae-drawer-field-value mono">{tx.reference}</span>
+            </div>
+          )}
+          {tx.chequeNumber && (
+            <div className="bae-drawer-field">
+              <span className="bae-drawer-field-label">رقم الشيك</span>
+              <span className="bae-drawer-field-value mono">{tx.chequeNumber}</span>
+            </div>
+          )}
+          {tx.bankFeeType && (
+            <div className="bae-drawer-field">
+              <span className="bae-drawer-field-label">تصنيف الرسوم</span>
+              <span className="bae-cat-badge">{CAT_LABELS[tx.bankFeeType] ?? tx.bankFeeType}</span>
+            </div>
+          )}
+
+          <div className="bae-drawer-divider" />
+          <div className="bae-drawer-section-title">جلسة الاستيراد</div>
+
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">الدفعة</span>
+            <span className="bae-drawer-field-value">{tx.importBatchLabel}</span>
+          </div>
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">الملف</span>
+            <span className="bae-drawer-field-value mono">{tx.fileName}</span>
+          </div>
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">تاريخ الاستيراد</span>
+            <span className="bae-drawer-field-value">{fmtDate(tx.importedAt)}</span>
+          </div>
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">رقم الدفعة</span>
+            <span className="bae-drawer-field-value mono">#{tx.importId}</span>
+          </div>
+
+          {(tx.isDuplicate || tx.isBankFee) && (
+            <>
+              <div className="bae-drawer-divider" />
+              {tx.isDuplicate && (
+                <div className="bae-drawer-field">
+                  <span className="bae-drawer-field-label">ملاحظة</span>
+                  <span className="bae-drawer-field-value bae-drawer-warn">
+                    معاملة مكررة محتملة
+                  </span>
+                </div>
+              )}
+              {tx.isBankFee && (
+                <div className="bae-drawer-field">
+                  <span className="bae-drawer-field-label">نوع الحركة</span>
+                  <span className="bae-drawer-field-value bae-drawer-primary">
+                    رسوم بنكية
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -157,6 +358,8 @@ function OverviewTab({ dashboard }: { dashboard: BankAccountDashboard }) {
           label="الرصيد الحالي"
           value={fmtAmount(d.currentBalance)}
           icon="account_balance_wallet"
+          colorVariant="blue"
+          isPrimary
         />
         <KpiCard
           label="إجمالي الإيداعات"
@@ -202,10 +405,13 @@ function OverviewTab({ dashboard }: { dashboard: BankAccountDashboard }) {
         />
       </div>
 
+      {/* Account Health */}
+      {d.transactionCount > 0 && <AccountHealthCard dashboard={d} />}
+
       {/* Coverage strip */}
       {(d.coverageStart || d.coverageEnd) && (
         <div className="bae-coverage-strip">
-          <span className="material-icons-round bae-coverage-icon">
+          <span className="material-symbols-outlined bae-coverage-icon">
             date_range
           </span>
           <span>
@@ -324,14 +530,15 @@ function TimelineTab({
 }) {
   const PAGE_SIZE = 50;
 
-  const [result, setResult]     = useState<TimelineResult | null>(null);
-  const [loading, setLoading]   = useState(false);
-  const [page, setPage]         = useState(1);
-  const [search, setSearch]     = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate]     = useState('');
-  const [error, setError]       = useState<string | null>(null);
-  const searchTimer             = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [result, setResult]         = useState<TimelineResult | null>(null);
+  const [loading, setLoading]       = useState(false);
+  const [page, setPage]             = useState(1);
+  const [search, setSearch]         = useState('');
+  const [fromDate, setFromDate]     = useState('');
+  const [toDate, setToDate]         = useState('');
+  const [error, setError]           = useState<string | null>(null);
+  const [drawerTx, setDrawerTx]     = useState<TimelineTransaction | null>(null);
+  const searchTimer                 = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback((p: number, q: string, fd: string, td: string) => {
     setLoading(true);
@@ -383,7 +590,7 @@ function TimelineTab({
       {/* Filters */}
       <div className="bae-filters-row">
         <div className="bae-search-wrap">
-          <span className="material-icons-round bae-filter-icon">search</span>
+          <span className="material-symbols-outlined bae-filter-icon">search</span>
           <input
             className="bae-filter-input"
             placeholder="بحث في الوصف أو المرجع…"
@@ -392,7 +599,7 @@ function TimelineTab({
           />
           {search && (
             <button type="button" className="bae-clear-btn" onClick={() => handleSearch('')}>
-              <span className="material-icons-round">close</span>
+              <span className="material-symbols-outlined">close</span>
             </button>
           )}
         </div>
@@ -421,7 +628,7 @@ function TimelineTab({
             onClick={() => result.transactions.length > 0 && exportTimelineCsv(result.transactions, bankName, accountKey)}
             disabled={!result.transactions.length}
           >
-            <span className="material-icons-round">download</span>
+            <span className="material-symbols-outlined">download</span>
             تصدير CSV
           </button>
         )}
@@ -442,7 +649,7 @@ function TimelineTab({
       {/* Filtered empty state */}
       {!loading && !error && result && result.transactions.length === 0 && hasActiveFilters && (
         <div className="bae-filtered-empty">
-          <span className="material-icons-round">filter_alt_off</span>
+          <span className="material-symbols-outlined">filter_alt_off</span>
           <p>لا توجد نتائج مطابقة للفلاتر المحددة</p>
           <p className="bae-filtered-empty-hint">
             {search && <span>البحث: «{search}»</span>}
@@ -453,11 +660,14 @@ function TimelineTab({
             )}
           </p>
           <button type="button" className="btn bae-clear-filters-btn" onClick={clearAllFilters}>
-            <span className="material-icons-round">close</span>
+            <span className="material-symbols-outlined">close</span>
             مسح جميع الفلاتر
           </button>
         </div>
       )}
+
+      {/* Transaction Drawer */}
+      {drawerTx && <TransactionDrawer tx={drawerTx} onClose={() => setDrawerTx(null)} />}
 
       {/* Table */}
       {!loading && !error && result && result.transactions.length > 0 && (
@@ -478,7 +688,11 @@ function TimelineTab({
               </thead>
               <tbody>
                 {result.transactions.map((t) => (
-                  <tr key={t.id} className={t.isBankFee ? 'bae-row-fee' : ''}>
+                  <tr
+                    key={t.id}
+                    className={t.isBankFee ? 'bae-row-fee' : ''}
+                    onClick={() => setDrawerTx(t)}
+                  >
                     <td className="bae-col-date">{fmtDate(t.statementDate)}</td>
                     <td className="bae-col-desc" title={t.description}>{t.description}</td>
                     <td className="bae-col-ref">{t.reference ?? '—'}</td>
@@ -560,7 +774,7 @@ function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard }) {
   if (monthly.length === 0) {
     return (
       <div className="bae-tab-content bae-empty-state">
-        <span className="material-icons-round">bar_chart</span>
+        <span className="material-symbols-outlined">bar_chart</span>
         <p>لا توجد بيانات كافية للرسوم البيانية.</p>
       </div>
     );
@@ -682,7 +896,7 @@ function ImportsTab({ accountKey }: { accountKey: string }) {
       {!loading && error && <div className="bae-error">{error}</div>}
       {!loading && !error && imports.length === 0 && (
         <div className="bae-empty-state">
-          <span className="material-icons-round">upload_file</span>
+          <span className="material-symbols-outlined">upload_file</span>
           <p>لا توجد دفعات استيراد لهذا الحساب.</p>
         </div>
       )}
@@ -767,7 +981,7 @@ function ExportTab({
   return (
     <div className="bae-tab-content bae-export-tab">
       <div className="bae-export-card">
-        <span className="material-icons-round bae-export-icon">download</span>
+        <span className="material-symbols-outlined bae-export-icon">download</span>
         <h3>تصدير بيانات الحساب</h3>
         <p>
           تصدير {dashboard.transactionCount.toLocaleString()} معاملة لحساب{' '}
@@ -786,11 +1000,11 @@ function ExportTab({
         >
           {loading
             ? <><span className="spinner bae-btn-spinner" />  جارٍ التصدير…</>
-            : <><span className="material-icons-round">download</span> تصدير CSV</>}
+            : <><span className="material-symbols-outlined">download</span> تصدير CSV</>}
         </button>
         {done && (
           <p className="bae-export-done">
-            <span className="material-icons-round">check_circle</span>
+            <span className="material-symbols-outlined">check_circle</span>
             تم تصدير الملف بنجاح
           </p>
         )}
@@ -841,7 +1055,7 @@ export default function BankAccountExplorer() {
   if (!canView) {
     return (
       <div className="bae-permission-error" dir="rtl">
-        <span className="material-icons-round">lock</span>
+        <span className="material-symbols-outlined">lock</span>
         <p>ليس لديك صلاحية لعرض بيانات الحساب البنكي.</p>
       </div>
     );
@@ -852,22 +1066,40 @@ export default function BankAccountExplorer() {
       {/* ── Header ── */}
       <div className="bae-header">
         <button type="button" className="bae-back-btn" onClick={() => navigate('/bank-accounts')}>
-          <span className="material-icons-round">arrow_forward_ios</span>
+          <span className="material-symbols-outlined">arrow_forward_ios</span>
         </button>
         <div className="bae-header-text">
           <h1 className="bae-title">
-            <span className="material-icons-round bae-title-icon">account_balance</span>
+            <span className="material-symbols-outlined bae-title-icon">account_balance</span>
             {loading ? 'جارٍ التحميل…' : (dashboard?.bankName ?? accountKey)}
           </h1>
           {dashboard && (
-            <p className="bae-subtitle">
-              <PrivateAmount value={dashboard.currentBalance ?? 0} currency="د.ك" />
-              {' · '}
-              {dashboard.transactionCount.toLocaleString()} معاملة
-              {dashboard.coverageStart && (
-                <> · {fmtDate(dashboard.coverageStart)} — {fmtDate(dashboard.coverageEnd)}</>
-              )}
-            </p>
+            <>
+              <div className="bae-exec-balance">
+                <PrivateAmount value={dashboard.currentBalance ?? 0} currency="د.ك" />
+              </div>
+              <div className="bae-meta-row">
+                {dashboard.coverageStart && (
+                  <span className="bae-meta-item">
+                    <span className="material-symbols-outlined">calendar_today</span>
+                    {fmtDate(dashboard.coverageStart)} — {fmtDate(dashboard.coverageEnd)}
+                  </span>
+                )}
+                <span className="bae-meta-dot">·</span>
+                <span className="bae-meta-item">
+                  <span className="material-symbols-outlined">receipt_long</span>
+                  {dashboard.transactionCount.toLocaleString()} معاملة
+                </span>
+                <span className="bae-meta-dot">·</span>
+                <span className="bae-meta-item">
+                  <span className="material-symbols-outlined">upload_file</span>
+                  {dashboard.importCount} {dashboard.importCount === 1 ? 'دفعة' : 'دفعات'} استيراد
+                </span>
+              </div>
+            </>
+          )}
+          {!dashboard && !loading && (
+            <p className="bae-subtitle">{accountKey}</p>
           )}
         </div>
         <button
@@ -875,7 +1107,7 @@ export default function BankAccountExplorer() {
           className="btn secondary"
           onClick={() => navigate('/bank-statement-import')}
         >
-          <span className="material-icons-round">upload_file</span>
+          <span className="material-symbols-outlined">upload_file</span>
           إضافة كشف
         </button>
       </div>
@@ -889,7 +1121,7 @@ export default function BankAccountExplorer() {
             className={`bae-tab-btn${tab === t.key ? ' active' : ''}`}
             onClick={() => setTab(t.key)}
           >
-            <span className="material-icons-round bae-tab-icon">{t.icon}</span>
+            <span className="material-symbols-outlined bae-tab-icon">{t.icon}</span>
             {t.label}
           </button>
         ))}
@@ -905,7 +1137,7 @@ export default function BankAccountExplorer() {
 
       {!loading && error && (
         <div className="bae-error-center">
-          <span className="material-icons-round">error_outline</span>
+          <span className="material-symbols-outlined">error_outline</span>
           <p>{error}</p>
           <button type="button" className="btn secondary" onClick={loadDashboard}>إعادة المحاولة</button>
         </div>
