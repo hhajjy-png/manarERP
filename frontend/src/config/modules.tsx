@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Column } from '../components/DataTable';
-import { FormField } from '../components/FormDialog';
+import { FormField, FormSection } from '../components/FormDialog';
 import { formatDate } from '../lib/date';
 
 // ===== أدوات عرض =====
@@ -57,6 +57,14 @@ export interface ModuleConfig {
   supportsArchive?: boolean;
   supportsExport?: boolean;
   statusFilter?: { param: string; options: { value: string; labelKey: string }[] };
+  /** Opt-in: render this module with the ExplorerKit executive layout (header,
+   *  KPIs, sticky toolbar, modern table, detail drawer, sectioned dialog).
+   *  Modules without this flag keep the classic ResourcePage layout unchanged. */
+  explorer?: boolean;
+  /** Material Symbols icon used by the explorer header / drawer / dialog. */
+  explorerIcon?: string;
+  /** Field grouping for the explorer create/edit dialog (sectioned cards). */
+  formSections?: FormSection[];
 }
 
 export const MODULES: Record<string, ModuleConfig> = {
@@ -126,6 +134,12 @@ export const MODULES: Record<string, ModuleConfig> = {
     title: 'mod.customers.title', subtitle: 'mod.customers.subtitle',
     icon: '👥', group: 'العمليات الأساسية', createLabel: 'mod.customers.create',
     emptyText: 'empty.customers', supportsArchive: true, supportsExport: true,
+    explorer: true, explorerIcon: 'groups',
+    formSections: [
+      { id: 'identity', title: 'هوية العميل', icon: 'badge' },
+      { id: 'contact', title: 'معلومات الاتصال', icon: 'contacts' },
+      { id: 'notes', title: 'ملاحظات', icon: 'sticky_note_2' },
+    ],
     statusFilter: {
       param: 'type',
       options: [
@@ -141,16 +155,16 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'contactName', label: 'col.contact_name' },
     ],
     fields: [
-      { name: 'code', label: 'field.customer_code', required: true, placeholder: 'مثال: C-001' },
-      { name: 'name', label: 'field.customer_name', required: true, placeholder: 'الاسم الرسمي للعميل' },
-      { name: 'type', label: 'field.type', type: 'select', defaultValue: 'PRIVATE', options: [
+      { name: 'code', label: 'field.customer_code', required: true, placeholder: 'مثال: C-001', section: 'identity' },
+      { name: 'name', label: 'field.customer_name', required: true, placeholder: 'الاسم الرسمي للعميل', section: 'identity' },
+      { name: 'type', label: 'field.type', type: 'select', defaultValue: 'PRIVATE', section: 'identity', options: [
         { value: 'GOVERNMENT', label: 'opt.customer.government' },
         { value: 'PRIVATE', label: 'opt.customer.private' }] },
-      { name: 'phone', label: 'field.phone', placeholder: '+965 XXXX XXXX' },
-      { name: 'email', label: 'field.email', placeholder: 'example@domain.com' },
-      { name: 'contactName', label: 'field.contact_name', placeholder: 'اسم الشخص المسؤول' },
-      { name: 'address', label: 'field.address', placeholder: 'العنوان التفصيلي' },
-      { name: 'notes', label: 'field.notes', type: 'textarea', half: false },
+      { name: 'phone', label: 'field.phone', placeholder: '+965 XXXX XXXX', section: 'contact' },
+      { name: 'email', label: 'field.email', placeholder: 'example@domain.com', section: 'contact' },
+      { name: 'contactName', label: 'field.contact_name', placeholder: 'اسم الشخص المسؤول', section: 'contact' },
+      { name: 'address', label: 'field.address', placeholder: 'العنوان التفصيلي', section: 'contact' },
+      { name: 'notes', label: 'field.notes', type: 'textarea', half: false, section: 'notes' },
     ],
   },
 
@@ -159,6 +173,12 @@ export const MODULES: Record<string, ModuleConfig> = {
     title: 'mod.suppliers.title', subtitle: 'mod.suppliers.subtitle',
     icon: '📦', group: 'المالية', createLabel: 'mod.suppliers.create',
     emptyText: 'empty.suppliers', supportsArchive: true, supportsExport: true,
+    explorer: true, explorerIcon: 'inventory_2',
+    formSections: [
+      { id: 'identity', title: 'هوية المورد', icon: 'badge' },
+      { id: 'contact', title: 'بيانات التواصل', icon: 'contacts' },
+      { id: 'notes', title: 'ملاحظات', icon: 'sticky_note_2' },
+    ],
     columns: [
       { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
       { key: 'name', label: 'col.supplier_name', render: (r) => <strong>{r.name}</strong> },
@@ -166,13 +186,13 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'contactName', label: 'col.contact_name' },
     ],
     fields: [
-      { name: 'code', label: 'field.supplier_code', required: true },
-      { name: 'name', label: 'field.supplier_name', required: true },
-      { name: 'phone', label: 'field.phone' },
-      { name: 'email', label: 'field.email' },
-      { name: 'contactName', label: 'field.contact_name' },
-      { name: 'address', label: 'field.address' },
-      { name: 'notes', label: 'field.notes', type: 'textarea', half: false },
+      { name: 'code', label: 'field.supplier_code', required: true, section: 'identity' },
+      { name: 'name', label: 'field.supplier_name', required: true, section: 'identity' },
+      { name: 'phone', label: 'field.phone', section: 'contact' },
+      { name: 'email', label: 'field.email', section: 'contact' },
+      { name: 'contactName', label: 'field.contact_name', section: 'contact' },
+      { name: 'address', label: 'field.address', section: 'contact' },
+      { name: 'notes', label: 'field.notes', type: 'textarea', half: false, section: 'notes' },
     ],
   },
 
@@ -181,6 +201,12 @@ export const MODULES: Record<string, ModuleConfig> = {
     title: 'mod.equipment.title', subtitle: 'mod.equipment.subtitle',
     icon: '🚜', group: 'العمليات الأساسية', createLabel: 'mod.equipment.create',
     emptyText: 'empty.equipment', supportsExport: true,
+    explorer: true, explorerIcon: 'construction',
+    formSections: [
+      { id: 'identity', title: 'بيانات المعدة', icon: 'badge' },
+      { id: 'ownership', title: 'الملكية والتشغيل', icon: 'person' },
+      { id: 'registration', title: 'الترخيص', icon: 'event' },
+    ],
     statusFilter: {
       param: 'status',
       options: [
@@ -207,15 +233,15 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'status', label: 'col.status', render: (r) => equipmentStatus(r.status) },
     ],
     fields: [
-      { name: 'code', label: 'field.equipment_no', required: true },
-      { name: 'type', label: 'field.eq_type', required: true },
-      { name: 'ownerName', label: 'field.owner_name' },
-      { name: 'driverName', label: 'field.driver_name' },
-      { name: 'plateNumber', label: 'field.plate_number' },
-      { name: 'registrationExpiry', label: 'field.reg_expiry', type: 'date' },
-      { name: 'status', label: 'field.vehicle_status', type: 'select', options: [
+      { name: 'code', label: 'field.equipment_no', required: true, section: 'identity' },
+      { name: 'type', label: 'field.eq_type', required: true, section: 'identity' },
+      { name: 'status', label: 'field.vehicle_status', type: 'select', section: 'identity', options: [
         { value: 'WORKING', label: 'opt.eq.working' },
         { value: 'NOT_WORKING', label: 'opt.eq.not_working' }] },
+      { name: 'ownerName', label: 'field.owner_name', section: 'ownership' },
+      { name: 'driverName', label: 'field.driver_name', section: 'ownership' },
+      { name: 'plateNumber', label: 'field.plate_number', section: 'ownership' },
+      { name: 'registrationExpiry', label: 'field.reg_expiry', type: 'date', section: 'registration' },
     ],
   },
 
@@ -224,6 +250,13 @@ export const MODULES: Record<string, ModuleConfig> = {
     title: 'mod.employees.title', subtitle: 'mod.employees.subtitle',
     icon: '👷', group: 'العمليات الأساسية', createLabel: 'mod.employees.create',
     emptyText: 'empty.employees', supportsExport: true,
+    explorer: true, explorerIcon: 'badge',
+    formSections: [
+      { id: 'identity', title: 'البيانات الشخصية', icon: 'badge' },
+      { id: 'job', title: 'الوظيفة والراتب', icon: 'work' },
+      { id: 'documents', title: 'الوثائق والصلاحيات', icon: 'description' },
+      { id: 'contact', title: 'العنوان', icon: 'contacts' },
+    ],
     statusFilter: {
       param: 'status',
       options: [
@@ -250,28 +283,28 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'status', label: 'col.status', render: (r) => employeeStatus(r.status) },
     ],
     fields: [
-      { name: 'code', label: 'field.emp_code', required: true },
-      { name: 'fullName', label: 'field.fullname_ar', required: true },
-      { name: 'fullNameEn', label: 'field.fullname_en' },
-      { name: 'civilId', label: 'field.civil_id' },
-      { name: 'jobTitle', label: 'field.job_title' },
-      { name: 'nationality', label: 'field.nationality' },
-      { name: 'passportNumber', label: 'field.passport_number' },
-      { name: 'passportExpiry', label: 'field.passport_expiry', type: 'date' },
-      { name: 'residencyExpiry', label: 'field.residency_expiry', type: 'date' },
-      { name: 'licenseExpiry', label: 'field.license_expiry', type: 'date' },
-      { name: 'vehiclePlate', label: 'field.vehicle_plate' },
-      { name: 'vehicleLicenseExpiry', label: 'field.vehicle_license_expiry', type: 'date' },
-      { name: 'birthDate', label: 'field.birth_date', type: 'date' },
-      { name: 'hireDate', label: 'field.hire_date', type: 'date' },
-      { name: 'company', label: 'field.company' },
-      { name: 'address', label: 'field.address' },
-      { name: 'bankAccount', label: 'field.bank_account' },
-      { name: 'salary', label: 'field.salary_kd', type: 'number' },
-      { name: 'status', label: 'field.status', type: 'select', options: [
+      { name: 'code', label: 'field.emp_code', required: true, section: 'identity' },
+      { name: 'fullName', label: 'field.fullname_ar', required: true, section: 'identity' },
+      { name: 'fullNameEn', label: 'field.fullname_en', section: 'identity' },
+      { name: 'civilId', label: 'field.civil_id', section: 'identity' },
+      { name: 'nationality', label: 'field.nationality', section: 'identity' },
+      { name: 'birthDate', label: 'field.birth_date', type: 'date', section: 'identity' },
+      { name: 'status', label: 'field.status', type: 'select', section: 'identity', options: [
         { value: 'ACTIVE', label: 'opt.emp.active' },
         { value: 'ON_LEAVE', label: 'opt.emp.on_leave' },
         { value: 'TERMINATED', label: 'opt.emp.terminated' }] },
+      { name: 'jobTitle', label: 'field.job_title', section: 'job' },
+      { name: 'company', label: 'field.company', section: 'job' },
+      { name: 'hireDate', label: 'field.hire_date', type: 'date', section: 'job' },
+      { name: 'salary', label: 'field.salary_kd', type: 'number', section: 'job' },
+      { name: 'bankAccount', label: 'field.bank_account', section: 'job' },
+      { name: 'passportNumber', label: 'field.passport_number', section: 'documents' },
+      { name: 'passportExpiry', label: 'field.passport_expiry', type: 'date', section: 'documents' },
+      { name: 'residencyExpiry', label: 'field.residency_expiry', type: 'date', section: 'documents' },
+      { name: 'licenseExpiry', label: 'field.license_expiry', type: 'date', section: 'documents' },
+      { name: 'vehiclePlate', label: 'field.vehicle_plate', section: 'documents' },
+      { name: 'vehicleLicenseExpiry', label: 'field.vehicle_license_expiry', type: 'date', section: 'documents' },
+      { name: 'address', label: 'field.address', section: 'contact' },
     ],
   },
 

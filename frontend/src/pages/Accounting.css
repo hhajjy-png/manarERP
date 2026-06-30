@@ -1,0 +1,111 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Accounting Center — page-specific styles (.accx-* prefix)
+   Composes with the shared Explorer Kit (explorer-kit.css / .xpl-*).
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Summary: two-panel grid ───────────────────────────────────────────────── */
+.accx-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 880px) { .accx-panels { grid-template-columns: 1fr; } }
+
+.accx-kv { display: flex; flex-direction: column; }
+.accx-kv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--xpl-border);
+  font-size: 13.5px;
+}
+.accx-kv-row:last-child { border-bottom: none; }
+.accx-kv-row.total { font-weight: 800; border-top: 2px solid var(--xpl-border); margin-top: 4px; }
+.accx-kv-label { color: var(--xpl-muted); }
+.accx-kv-val { font-weight: 700; color: var(--xpl-text); }
+.accx-kv-val.green { color: var(--xpl-green); }
+.accx-kv-val.red { color: var(--xpl-red); }
+
+/* ── Account / journal table cells ─────────────────────────────────────────── */
+.accx-code { font-family: "IBM Plex Mono", monospace; font-weight: 700; color: var(--xpl-text); }
+.accx-debit  { color: var(--xpl-red);   font-weight: 700; text-align: left; }
+.accx-credit { color: var(--xpl-green); font-weight: 700; text-align: left; }
+
+/* highlight a journal row navigated-to from a report */
+.xpl-scope .highlight-row td {
+  animation: accx-highlight 2.4s ease;
+}
+@keyframes accx-highlight {
+  0%, 30% { background: var(--xpl-faint); }
+  100% { background: transparent; }
+}
+
+/* ── Journal entry line editor ─────────────────────────────────────────────── */
+.accx-jline-head,
+.accx-jline {
+  display: grid;
+  grid-template-columns: 2.2fr 2fr 1fr 1fr 36px;
+  gap: 8px;
+  align-items: center;
+}
+.accx-jline-head {
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+.accx-jline-head span { font-size: 11px; font-weight: 800; color: var(--xpl-muted); }
+.accx-jline { margin-bottom: 8px; }
+.accx-jline .xpl-input,
+.accx-jline .xpl-select { height: 38px; }
+.accx-jline-remove {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--xpl-border);
+  background: var(--xpl-surface);
+  color: var(--xpl-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s ease;
+}
+.accx-jline-remove:hover { color: var(--xpl-red); border-color: var(--xpl-red); }
+.accx-jline-remove .material-symbols-outlined { font-size: 18px !important; }
+
+.accx-balance-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--xpl-border);
+  font-size: 13px;
+}
+.accx-balance-bar .lbl { color: var(--xpl-muted); }
+.accx-balance-bar .v-debit { color: var(--xpl-red); font-weight: 800; }
+.accx-balance-bar .v-credit { color: var(--xpl-green); font-weight: 800; }
+.accx-balance-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+.accx-balance-state .material-symbols-outlined { font-size: 17px !important; }
+.accx-balance-state.ok { color: var(--xpl-green); background: rgba(16, 185, 129, .10); }
+.accx-balance-state.bad { color: var(--xpl-red); background: rgba(239, 68, 68, .10); }
+
+/* journal detail table inside drawer */
+.accx-detail-table { width: 100%; border-collapse: collapse; font-size: 12.5px; direction: rtl; }
+.accx-detail-table th {
+  text-align: right; padding: 8px 6px; font-size: 10.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .03em; color: var(--xpl-muted);
+  border-bottom: 1px solid var(--xpl-border);
+}
+.accx-detail-table td { padding: 8px 6px; border-bottom: 1px solid var(--xpl-border); color: var(--xpl-text); }
+.accx-detail-table tr.total td { font-weight: 800; border-top: 2px solid var(--xpl-border); border-bottom: none; }

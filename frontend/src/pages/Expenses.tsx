@@ -5,15 +5,37 @@ import { ReturnToReportButton } from '../components/financial/ReturnToReportButt
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
-import DataTable, { PageMeta } from '../components/DataTable';
-import Modal from '../components/Modal';
+import { PageMeta } from '../components/DataTable';
 import ConfirmModal from '../components/ConfirmModal';
 import { money, dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
-import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadXlsx } from '../utils/exportUtils';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import AttachmentsPanel from '../components/AttachmentsPanel';
+import {
+  ExecutiveHeader,
+  IdChip,
+  HeroMetric,
+  MetricCard,
+  SectionCard,
+  StatusChip,
+  SearchBox,
+  FilterChip,
+  EmptyState,
+  ErrorBanner,
+  SkeletonRows,
+  Pagination,
+  Drawer,
+  DrawerSection,
+  DrawerField,
+  Dialog,
+  DialogSection,
+  Button,
+} from '../components/explorer/ExplorerKit';
+import '../components/explorer/explorer-kit.css';
+import './Expenses.css';
+
+type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
 const EXPENSE_CATEGORIES: { value: string; label: string }[] = [
   { value: 'FUEL', label: 'وقود' },
@@ -34,17 +56,20 @@ const EXPENSE_CATEGORIES: { value: string; label: string }[] = [
 
 const CAT_LABEL: Record<string, string> = Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.value, c.label]));
 
-const STATUS_PILL: Record<string, [string, string]> = {
-  PENDING:  ['exp.status.pending',   'amber'],
-  APPROVED: ['exp.status.approved',  'green'],
-  REJECTED: ['exp.status.rejected',  'red'],
-  REVERSED: ['exp.status.reversed',  'gray'],
-  CANCELLED:['exp.status.cancelled', 'gray'],
+const CAT_ICON: Record<string, string> = {
+  FUEL: 'local_gas_station', SALARIES: 'payments', MAINTENANCE: 'build', RENT: 'home_work',
+  PURCHASES: 'shopping_cart', EQUIPMENT: 'construction', SERVICES: 'handyman',
+  EQUIPMENT_RENT: 'agriculture', TRUCK_RENT: 'local_shipping', OTHER: 'receipt_long',
 };
-const STATUS_AR: Record<string, string> = {
-  PENDING: 'معلّق', APPROVED: 'معتمد', REJECTED: 'مرفوض', REVERSED: 'مُلغى الاعتماد', CANCELLED: 'ملغى',
-};
+function catIcon(c: string): string { return CAT_ICON[c] ?? 'receipt_long'; }
 
+const STATUS_META: Record<string, { key: string; tone: Tone; icon: string }> = {
+  PENDING:   { key: 'exp.status.pending',   tone: 'orange',  icon: 'schedule' },
+  APPROVED:  { key: 'exp.status.approved',  tone: 'green',   icon: 'check_circle' },
+  REJECTED:  { key: 'exp.status.rejected',  tone: 'red',     icon: 'cancel' },
+  REVERSED:  { key: 'exp.status.reversed',  tone: 'neutral', icon: 'undo' },
+  CANCELLED: { key: 'exp.status.cancelled', tone: 'neutral', icon: 'block' },
+};
 
 export default function Expenses() {
   const { hasPermission } = useAuth();
@@ -67,10 +92,11 @@ export default function Expenses() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [stats, setStats] = useState<any | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [viewing, setViewing] = useState<any | null>(null);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [error, setError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
@@ -128,6 +154,7 @@ export default function Expenses() {
       if (action === 'approve') { await api.patch(`/expenses/${id}/approve`); toast.ok('تمت الموافقة بنجاح'); }
       else if (action === 'reject') { await api.patch(`/expenses/${id}/reject`); toast.ok('تم الرفض'); }
       else { await api.delete(`/expenses/${id}`); toast.ok('تم الحذف بنجاح'); }
+      setViewing(null);
       load();
     } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
   }
@@ -146,7 +173,7 @@ export default function Expenses() {
         'المورد': r.supplier?.name ?? r.supplierName ?? '',
         'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : (r.date ? String(r.date).slice(0, 10) : ''),
         'المبلغ (د.ك)': Number(r.amount),
-        'الحالة': STATUS_AR[r.status] ?? r.status,
+        'الحالة': t(STATUS_META[r.status]?.key ?? '—'),
         'ملاحظات': r.notes ?? '',
       }));
       downloadXlsx(wsData, 'المصروفات', `expenses_${new Date().toISOString().slice(0, 10)}.xlsx`);
@@ -154,211 +181,241 @@ export default function Expenses() {
     finally { setExportingExcel(false); }
   }
 
-  const columns = [
-    {
-      key: 'code', label: 'col.code',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      render: (r: any) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span>,
-    },
-    {
-      key: 'category', label: 'col.category',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      render: (r: any) => CAT_LABEL[r.category] ?? r.category,
-    },
-    {
-      key: 'description', label: 'col.description',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      render: (r: any) => <strong>{r.description}</strong>,
-    },
-    {
-      key: 'supplier', label: 'field.supplier',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      render: (r: any) => r.supplier?.name ?? r.supplierName ?? '—',
-    },
-    {
-      key: 'billing', label: 'lbl.inv.billing_period',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      render: (r: any) => r.billingMonth && r.billingYear
-        ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}`
-        : dateText(r.date),
-    },
-    {
-      key: 'amount', label: 'col.amount',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      render: (r: any) => money(r.amount),
-    },
-    {
-      key: 'status', label: 'col.status',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      render: (r: any) => {
-        const [key, c] = STATUS_PILL[r.status as string] ?? ['—', 'gray'];
-        return <span className={`pill ${c}`}>{t(key)}</span>;
-      },
-    },
-  ];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function billingText(r: any): string {
+    return r.billingMonth && r.billingYear
+      ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}`
+      : dateText(r.date);
+  }
+
+  const canCreate = hasPermission('expenses.create');
 
   return (
-    <div>
+    <div className="xpl-scope xpl-page" dir="rtl">
       <ReturnToReportButton />
-      <div className="page-head">
-        <div>
-          <h2>{t('mod.expenses.title')}</h2>
-          <p>{t('mod.expenses.subtitle')}</p>
+
+      <ExecutiveHeader
+        icon="receipt_long"
+        title={t('mod.expenses.title')}
+        subtitle={t('mod.expenses.subtitle')}
+        chips={stats ? (
+          <>
+            <IdChip icon="tag" tone="indigo">{stats.count} مصروف</IdChip>
+            <IdChip icon="payments" tone="blue">{money(stats.total)}</IdChip>
+            {stats.pendingCount > 0 && <IdChip icon="schedule" tone="orange">{money(stats.pendingTotal)} معلّق</IdChip>}
+          </>
+        ) : undefined}
+        aside={canCreate ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('mod.expenses.create')}</Button> : undefined}
+      />
+
+      {/* ── KPI hero + secondary ── */}
+      {stats && (
+        <div className="expx-metrics">
+          <HeroMetric
+            icon="account_balance_wallet"
+            label="إجمالي المصروفات"
+            value={money(stats.total)}
+            sub={<><span className="material-symbols-outlined">receipt_long</span>{`${stats.count} مصروف`}</>}
+          />
+          <div className="xpl-kpi-grid">
+            <MetricCard icon="tag" tone="indigo" label="عدد المصروفات" value={stats.count} />
+            {stats.pendingCount > 0 && <MetricCard icon="schedule" tone="orange" label="بانتظار الاعتماد" value={money(stats.pendingTotal)} sub={`${stats.pendingCount} مصروف`} />}
+            {stats.periods?.currentMonth && <MetricCard icon="calendar_month" tone="blue" label={`${ARABIC_MONTHS[(stats.periods.currentMonth.month as number) - 1]} ${stats.periods.currentMonth.year}`} value={money(stats.periods.currentMonth.total)} sub={`${stats.periods.currentMonth.count} مصروف`} />}
+            {stats.periods?.currentYear && <MetricCard icon="event" tone="green" label={`سنة ${stats.periods.currentYear.year}`} value={money(stats.periods.currentYear.total)} sub={`${stats.periods.currentYear.count} مصروف`} />}
+          </div>
         </div>
-        {hasPermission('expenses.create') && (
-          <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('mod.expenses.create')}</button>
-        )}
+      )}
+
+      {/* ── Breakdown: categories + company groups + top suppliers ── */}
+      {stats && (!categoryFilter && stats.byCategory || stats.byCompanyGroup || stats.bySupplier) && (
+        <SectionCard title="التحليل حسب التصنيف والمورد" icon="insights">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {stats.byCompanyGroup && Object.keys(stats.byCompanyGroup as Record<string, number>).length > 0 && (
+              <div className="expx-breakdown">
+                {Object.entries(stats.byCompanyGroup as Record<string, number>).map(([grp, amt]) => (
+                  <span key={grp} className="expx-break-chip"><span className="k">{grp}</span><span className="v">{money(amt)}</span></span>
+                ))}
+              </div>
+            )}
+            {!categoryFilter && stats.byCategory && (
+              <div className="expx-breakdown">
+                {Object.entries(stats.byCategory as Record<string, number>)
+                  .sort(([, a], [, b]) => (b as number) - (a as number))
+                  .slice(0, 8)
+                  .map(([cat, amt]) => (
+                    <span key={cat} className="expx-break-chip">
+                      <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16, color: 'var(--xpl-primary)' }}>{catIcon(cat)}</span>
+                      <span className="k">{CAT_LABEL[cat] ?? cat}</span><span className="v">{money(amt as number)}</span>
+                    </span>
+                  ))}
+              </div>
+            )}
+            {stats.bySupplier && Object.keys(stats.bySupplier as Record<string, number>).length > 0 && (
+              <div className="expx-breakdown">
+                {Object.entries(stats.bySupplier as Record<string, number>)
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, 6)
+                  .map(([name, amt]) => (
+                    <span key={name} className="expx-break-chip">
+                      <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16, color: 'var(--xpl-muted)' }}>storefront</span>
+                      <span className="k">{name}</span><span className="v">{money(amt)}</span>
+                    </span>
+                  ))}
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      )}
+
+      {loadError && <ErrorBanner>{loadError} <button type="button" className="xpl-clear-link" onClick={load} disabled={loading}>تحديث</button></ErrorBanner>}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
+
+      {/* ── Sticky filters ── */}
+      <div className="xpl-toolbar xpl-toolbar--sticky">
+        <div className="xpl-toolbar-row">
+          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="بحث في الوصف…" ariaLabel="بحث في المصروفات" />
+          <div className="xpl-field" style={{ minWidth: 170 }}>
+            <span className="xpl-field-label">التصنيف</span>
+            <select className="xpl-select" aria-label="التصنيف" value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}>
+              <option value="">كل التصنيفات</option>
+              {EXPENSE_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+            </select>
+          </div>
+          <div className="xpl-field" style={{ minWidth: 150 }}>
+            <span className="xpl-field-label">المورد</span>
+            <select className="xpl-select" aria-label="المورد" value={supplierFilter} onChange={(e) => { setSupplierFilter(e.target.value); setPage(1); }}>
+              <option value="">كل الموردين</option>
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="xpl-field" style={{ minWidth: 120 }}>
+            <span className="xpl-field-label">الشهر</span>
+            <select className="xpl-select" aria-label="الشهر" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }}>
+              <option value="">الكل</option>
+              {ARABIC_MONTHS.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
+            </select>
+          </div>
+          <div className="xpl-field" style={{ minWidth: 100 }}>
+            <span className="xpl-field-label">السنة</span>
+            <select className="xpl-select" aria-label="السنة" value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}>
+              <option value="">الكل</option>
+              {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <Button variant="secondary" icon="table_view" busy={exportingExcel} onClick={exportExcel}>تصدير Excel</Button>
+        </div>
+        <div className="xpl-toolbar-row">
+          <FilterChip active={statusFilter === ''} onClick={() => { setStatusFilter(''); setPage(1); }}>كل الحالات</FilterChip>
+          {(['PENDING', 'APPROVED', 'REJECTED', 'REVERSED', 'CANCELLED'] as const).map((s) => (
+            <FilterChip key={s} active={statusFilter === s} onClick={() => { setStatusFilter(s); setPage(1); }} icon={STATUS_META[s].icon}>{t(STATUS_META[s].key)}</FilterChip>
+          ))}
+          {isFiltered && <button type="button" className="xpl-clear-link" onClick={resetFilters}>{t('action.reset_filters')}</button>}
+          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} نتيجة</span>
+        </div>
       </div>
 
-      {/* ── KPI Strip ── */}
-      {stats && (
-        <div className="inv-stats-strip">
-          <div className="inv-stat-chip">
-            <span className="inv-stat-label">عدد المصروفات</span>
-            <span className="inv-stat-value">{stats.count}</span>
-          </div>
-          <div className="inv-stat-chip blue">
-            <span className="inv-stat-label">إجمالي المصروفات</span>
-            <span className="inv-stat-value">{money(stats.total)}</span>
-          </div>
-          {stats.pendingCount > 0 && (
-            <div className="inv-stat-chip amber">
-              <span className="inv-stat-label">معلّق</span>
-              <span className="inv-stat-value">{money(stats.pendingTotal)}</span>
-            </div>
-          )}
-          {stats.byCompanyGroup && Object.entries(stats.byCompanyGroup as Record<string, number>).map(([grp, amt]) => (
-            <div key={grp} className="inv-stat-chip">
-              <span className="inv-stat-label">{grp}</span>
-              <span className="inv-stat-value">{money(amt)}</span>
-            </div>
-          ))}
-          {!categoryFilter && stats.byCategory && Object.entries(stats.byCategory as Record<string, number>)
-            .sort(([, a], [, b]) => (b as number) - (a as number))
-            .slice(0, 5)
-            .map(([cat, amt]) => (
-              <div key={cat} className="inv-stat-chip">
-                <span className="inv-stat-label">{CAT_LABEL[cat] ?? cat}</span>
-                <span className="inv-stat-value">{money(amt as number)}</span>
-              </div>
-            ))}
-        </div>
-      )}
-
-      {/* ── Period Cards ── */}
-      {stats?.periods && (
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '8px 0' }}>
-          {[
-            { label: `شهر الحساب الحالي (${ARABIC_MONTHS[(stats.periods.currentMonth.month as number) - 1]} ${stats.periods.currentMonth.year})`, data: stats.periods.currentMonth, color: '#1e40af', bg: '#eff6ff', border: '#bfdbfe' },
-            { label: `الشهر السابق (${ARABIC_MONTHS[(stats.periods.previousMonth.month as number) - 1]} ${stats.periods.previousMonth.year})`, data: stats.periods.previousMonth, color: '#374151', bg: '#f9fafb', border: '#e5e7eb' },
-            { label: `السنة الحالية ${stats.periods.currentYear.year}`, data: stats.periods.currentYear, color: '#065f46', bg: '#ecfdf5', border: '#a7f3d0' },
-          ].map(({ label, data, color, bg, border }) => (
-            <div key={label} style={{ background: bg, border: `1px solid ${border}`, borderRadius: 10, padding: '10px 16px', minWidth: 180, flex: '1 1 180px' }}>
-              <div style={{ fontSize: 11, color, fontWeight: 700, marginBottom: 4 }}>{label}</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color }}>{money(data.total)}</div>
-              <div style={{ fontSize: 11, color, opacity: 0.7 }}>{data.count} مصروف</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── Top Suppliers ── */}
-      {stats?.bySupplier && Object.keys(stats.bySupplier as Record<string, number>).length > 0 && (
-        <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', margin: '0 0 8px', fontSize: 13 }}>
-          <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 6, color: 'var(--text-muted)' }}>أعلى الموردين مصرفاً</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 20px' }}>
-            {Object.entries(stats.bySupplier as Record<string, number>)
-              .sort(([, a], [, b]) => b - a)
-              .slice(0, 6)
-              .map(([name, amt]) => (
-                <span key={name} style={{ fontSize: 12 }}>
-                  <strong>{name}</strong>: {money(amt)}
-                </span>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {loadError && (
-        <div className="alert error" role="alert">
-          <span>⚠️ {loadError}</span>
-          <button type="button" className="btn secondary sm" onClick={load} disabled={loading}>↻ تحديث</button>
-        </div>
-      )}
-      {error && <div className="alert error">⚠️ {error}</div>}
-
-      {/* ── Filters ── */}
-      <form className="toolbar" onSubmit={(e) => e.preventDefault()}>
-        <input
-          placeholder="بحث في الوصف…"
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={{ maxWidth: 240 }}
-        />
-        <select value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
-          <option value="">الحالة — الكل</option>
-          <option value="PENDING">{t('exp.status.pending')}</option>
-          <option value="APPROVED">{t('exp.status.approved')}</option>
-          <option value="REJECTED">{t('exp.status.rejected')}</option>
-          <option value="REVERSED">{t('exp.status.reversed')}</option>
-          <option value="CANCELLED">{t('exp.status.cancelled')}</option>
-        </select>
-        <select value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }} style={{ maxWidth: 220 }}>
-          <option value="">التصنيف — الكل</option>
-          {EXPENSE_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-        </select>
-        <select value={supplierFilter} onChange={(e) => { setSupplierFilter(e.target.value); setPage(1); }} style={{ maxWidth: 180 }}>
-          <option value="">المورد — الكل</option>
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-        <select value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }} style={{ maxWidth: 130 }}>
-          <option value="">الشهر — الكل</option>
-          {ARABIC_MONTHS.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
-        </select>
-        <select value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }} style={{ maxWidth: 100 }}>
-          <option value="">السنة — الكل</option>
-          {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
-        </select>
-        {isFiltered && (
-          <button type="button" className="btn secondary sm" onClick={resetFilters}>{t('action.reset_filters')}</button>
-        )}
-        <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
-        <ExportExcelButton onExport={exportExcel} busy={exportingExcel} />
-      </form>
-
-
-      <DataTable
-        columns={columns}
-        rows={rows}
-        loading={loading}
-        meta={meta}
-        onPage={setPage}
-        emptyText={t('empty.expenses')}
-        isFiltered={isFiltered}
-        onResetFilters={resetFilters}
-        getRowId={(row) => `row-${row.id}`}
-        emptyAction={hasPermission('expenses.create') ? (
-          <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('mod.expenses.create')}</button>
-        ) : undefined}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        actions={(row: any) => (
+      {/* ── Table ── */}
+      <section className="xpl-card" style={{ overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
+        ) : rows.length === 0 ? (
+          <EmptyState icon="receipt_long" tone="neutral" title={t('empty.expenses')}
+            message={isFiltered ? 'لا توجد مصروفات مطابقة للفلاتر.' : 'لم تتم إضافة أي مصروف بعد.'}
+            action={isFiltered ? <Button variant="secondary" icon="restart_alt" onClick={resetFilters}>{t('action.reset_filters')}</Button>
+              : canCreate ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('mod.expenses.create')}</Button> : undefined} />
+        ) : (
           <>
-            {hasPermission('expenses.update') && row.status !== 'APPROVED' && (
-              <button type="button" className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>
-            )}{' '}
-            {hasPermission('expenses.approve') && row.status === 'PENDING' && (
-              <button type="button" className="btn sm" onClick={() => approve(row.id)} disabled={actionBusy}>{t('action.approve')}</button>
-            )}{' '}
-            {hasPermission('expenses.approve') && row.status === 'PENDING' && (
-              <button type="button" className="btn secondary sm" onClick={() => reject(row.id)} disabled={actionBusy}>{t('action.reject')}</button>
-            )}{' '}
-            {hasPermission('expenses.delete') && row.status !== 'APPROVED' && (
-              <button type="button" className="btn danger sm" onClick={() => remove(row.id)} disabled={actionBusy}>{t('action.delete')}</button>
-            )}
+            <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="xpl-table">
+                <thead>
+                  <tr>
+                    <th>{t('col.code')}</th>
+                    <th>{t('col.category')}</th>
+                    <th>{t('col.description')}</th>
+                    <th>{t('field.supplier')}</th>
+                    <th>{t('lbl.inv.billing_period')}</th>
+                    <th>{t('col.amount')}</th>
+                    <th>{t('col.status')}</th>
+                    <th aria-label="فتح" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const sm = STATUS_META[r.status] ?? { key: '—', tone: 'neutral' as Tone, icon: 'help' };
+                    return (
+                      <tr key={r.id} id={`row-${r.id}`} className="xpl-row--click" tabIndex={0} role="button"
+                        aria-label={`تفاصيل المصروف ${r.code}`}
+                        onClick={() => setViewing(r)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
+                        <td><span className="expx-code">{r.code}</span></td>
+                        <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 17, color: 'var(--xpl-primary)' }}>{catIcon(r.category)}</span>{CAT_LABEL[r.category] ?? r.category}</span></td>
+                        <td><strong>{r.description}</strong></td>
+                        <td>{r.supplier?.name ?? r.supplierName ?? '—'}</td>
+                        <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{billingText(r)}</td>
+                        <td><span className="expx-amount">{money(r.amount)}</span></td>
+                        <td><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></td>
+                        <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <Pagination meta={meta} onPage={setPage} />
           </>
         )}
-      />
+      </section>
+
+      {/* ── Detail drawer ── */}
+      {viewing && (() => {
+        const sm = STATUS_META[viewing.status] ?? { key: '—', tone: 'neutral' as Tone, icon: 'help' };
+        const canEdit = hasPermission('expenses.update') && viewing.status !== 'APPROVED';
+        const canApprove = hasPermission('expenses.approve') && viewing.status === 'PENDING';
+        const canDelete = hasPermission('expenses.delete') && viewing.status !== 'APPROVED';
+        return (
+          <Drawer
+            title={`مصروف ${viewing.code}`}
+            onClose={() => setViewing(null)}
+            hero={
+              <div className="xpl-drawer-hero">
+                <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{catIcon(viewing.category)}</span></div>
+                <div className="xpl-drawer-hero-body">
+                  <span className="expx-drawer-amount">{money(viewing.amount)}</span>
+                  <span className="xpl-drawer-hero-sub">{viewing.description}</span>
+                  <div style={{ marginTop: 4 }}><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></div>
+                </div>
+              </div>
+            }
+            footer={
+              <>
+                {canEdit && <Button variant="primary" icon="edit" onClick={() => { setEditing(viewing); setViewing(null); }}>{t('action.edit')}</Button>}
+                {canApprove && <Button variant="secondary" icon="check" busy={actionBusy} onClick={() => approve(viewing.id)}>{t('action.approve')}</Button>}
+                {canApprove && <Button variant="ghost" icon="close" busy={actionBusy} onClick={() => reject(viewing.id)}>{t('action.reject')}</Button>}
+                {canDelete && <Button variant="danger" icon="delete" busy={actionBusy} onClick={() => remove(viewing.id)}>{t('action.delete')}</Button>}
+              </>
+            }
+          >
+            <DrawerSection title="تفاصيل المصروف">
+              <DrawerField label={t('col.code')} value={viewing.code} mono />
+              <DrawerField label={t('col.category')} value={CAT_LABEL[viewing.category] ?? viewing.category} />
+              <DrawerField label={t('col.description')} value={viewing.description} />
+              <DrawerField label={t('col.amount')} value={money(viewing.amount)} />
+            </DrawerSection>
+            <DrawerSection title="الدفع والمورد">
+              <DrawerField label="طريقة الدفع" value={viewing.paymentMethod === 'BANK' ? 'تحويل بنكي' : viewing.paymentMethod === 'ACCOUNTS_PAYABLE' ? 'ذمم الموردين' : 'نقداً'} />
+              <DrawerField label={t('field.supplier')} value={viewing.supplier?.name ?? viewing.supplierName ?? '—'} />
+              <DrawerField label={t('lbl.inv.billing_period')} value={billingText(viewing)} />
+              {viewing.date && <DrawerField label={t('col.date')} value={dateText(viewing.date)} />}
+            </DrawerSection>
+            {viewing.notes && (
+              <DrawerSection title={t('field.notes')}>
+                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--xpl-text)' }}>{viewing.notes}</p>
+              </DrawerSection>
+            )}
+          </Drawer>
+        );
+      })()}
 
       {creating && <ExpenseForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
       {editing && <ExpenseForm expense={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
@@ -446,74 +503,61 @@ function ExpenseForm({
   }
 
   return (
-    <Modal
+    <Dialog
+      icon="receipt_long"
       title={isEdit ? 'تعديل المصروف' : 'مصروف جديد'}
+      subtitle={isEdit ? String(expense?.code ?? '') : 'تسجيل مصروف جديد'}
       size="lg"
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
-          <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+          <Button variant="primary" icon="save" busy={saving} onClick={submit}>{t('action.save')}</Button>
+          <Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button>
         </>
       }
     >
-      {error && <div className="alert error">⚠️ {error}</div>}
-      <div className="form-grid">
-        <div className="field">
-          <label>التصنيف *</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value)}>
+      {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
+
+      <DialogSection title="المعلومات الأساسية" icon="info">
+        <div className="xpl-field">
+          <label>التصنيف <span className="req">*</span></label>
+          <select className="xpl-select" value={category} onChange={(e) => setCategory(e.target.value)} aria-label="التصنيف">
             {EXPENSE_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
         </div>
-        <div className="field" style={{ gridColumn: '1 / -1' }}>
-          <label>الوصف *</label>
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="وصف المصروف"
-          />
+        <div className="xpl-field">
+          <label>المبلغ (د.ك) <span className="req">*</span></label>
+          <input className="xpl-input" type="number" min="0.001" step="0.001" placeholder="0.000" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ direction: 'ltr' }} aria-label="المبلغ" />
         </div>
-        <div className="field">
-          <label>المبلغ (د.ك) *</label>
-          <input
-            type="number"
-            min="0.001"
-            step="0.001"
-            placeholder="0.000"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
+        <div className="xpl-field xpl-field--full">
+          <label>الوصف <span className="req">*</span></label>
+          <input className="xpl-input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف المصروف" aria-label="الوصف" />
         </div>
-        <div className="field">
+      </DialogSection>
+
+      <DialogSection title="الدفع والتاريخ" icon="payments">
+        <div className="xpl-field">
+          <label>طريقة الدفع</label>
+          <select className="xpl-select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label="طريقة الدفع">
+            <option value="CASH">نقداً</option>
+            <option value="BANK">تحويل بنكي</option>
+            <option value="ACCOUNTS_PAYABLE">ذمم الموردين</option>
+          </select>
+        </div>
+        <div className="xpl-field">
           <label>التاريخ</label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => {
-              const v = e.target.value;
-              setDate(v);
-              if (v) {
-                const d = new Date(v);
-                setBillingMonth(d.getMonth() + 1);
-                setBillingYear(d.getFullYear());
-              }
-            }}
-          />
+          <input className="xpl-input" type="date" value={date} onChange={(e) => {
+            const v = e.target.value;
+            setDate(v);
+            if (v) { const d = new Date(v); setBillingMonth(d.getMonth() + 1); setBillingYear(d.getFullYear()); }
+          }} aria-label="التاريخ" />
         </div>
-        <div className="field">
-          <label>شهر الحساب</label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <select value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} style={{ flex: 1 }}>
-              {ARABIC_MONTHS.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
-            </select>
-            <select value={billingYear} onChange={(e) => setBillingYear(Number(e.target.value))} style={{ width: 90 }}>
-              {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="field">
+      </DialogSection>
+
+      <DialogSection title="المورد" icon="storefront">
+        <div className="xpl-field">
           <label>{t('field.supplier')}</label>
-          <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+          <select className="xpl-select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} aria-label={t('field.supplier')}>
             <option value="">— بدون مورد —</option>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {(suppliers as any[]).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -521,38 +565,41 @@ function ExpenseForm({
           </select>
         </div>
         {supplierId === 'OTHER' && (
-          <div className="field">
+          <div className="xpl-field">
             <label>اسم المورد</label>
-            <input
-              value={supplierName}
-              onChange={(e) => setSupplierName(e.target.value)}
-              placeholder="اكتب اسم المورد"
-            />
+            <input className="xpl-input" value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="اكتب اسم المورد" aria-label="اسم المورد" />
           </div>
         )}
-        <div className="field">
-          <label>طريقة الدفع</label>
-          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} title="طريقة الدفع">
-            <option value="CASH">نقداً</option>
-            <option value="BANK">تحويل بنكي</option>
-            <option value="ACCOUNTS_PAYABLE">ذمم الموردين</option>
+      </DialogSection>
+
+      <DialogSection title="الفترة المحاسبية" icon="calendar_month">
+        <div className="xpl-field">
+          <label>شهر الحساب</label>
+          <select className="xpl-select" value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} aria-label="شهر الحساب">
+            {ARABIC_MONTHS.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
           </select>
         </div>
-        <div className="field" style={{ gridColumn: '1 / -1' }}>
-          <label>{t('field.notes')}</label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-            style={{ resize: 'vertical' }}
-            placeholder="ملاحظات (اختياري)"
-          />
+        <div className="xpl-field">
+          <label>سنة الحساب</label>
+          <select className="xpl-select" value={billingYear} onChange={(e) => setBillingYear(Number(e.target.value))} aria-label="سنة الحساب">
+            {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
         </div>
-      </div>
+      </DialogSection>
+
+      <DialogSection title={t('field.notes')} icon="sticky_note_2">
+        <div className="xpl-field xpl-field--full">
+          <label>{t('field.notes')}</label>
+          <textarea className="xpl-textarea" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="ملاحظات (اختياري)" aria-label={t('field.notes')} />
+        </div>
+      </DialogSection>
 
       {isEdit && expense?.id != null && (
-        <AttachmentsPanel entityType="EXPENSE" entityId={Number(expense.id as number)} />
+        <section className="xpl-dialog-section">
+          <div className="xpl-dialog-section-title"><span className="material-symbols-outlined">attach_file</span>المرفقات</div>
+          <AttachmentsPanel entityType="EXPENSE" entityId={Number(expense.id as number)} />
+        </section>
       )}
-    </Modal>
+    </Dialog>
   );
 }
