@@ -1,75 +1,43 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { formatDate } from '../lib/date';
-import DataTable, { PageMeta } from '../components/DataTable';
-import Modal from '../components/Modal';
+import { PageMeta } from '../components/DataTable';
 import { money } from '../config/modules';
 import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
 import ConfirmModal from '../components/ConfirmModal';
-import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadBlob } from '../utils/exportUtils';
+import {
+  ExecutiveHeader,
+  IdChip,
+  MetricCard,
+  SectionCard,
+  SearchBox,
+  FilterChip,
+  EmptyState,
+  ErrorBanner,
+  SkeletonRows,
+  Pagination,
+  Drawer,
+  DrawerSection,
+  DrawerField,
+  Dialog,
+  DialogSection,
+  Button,
+} from '../components/explorer/ExplorerKit';
+import '../components/explorer/explorer-kit.css';
+import './Prices.css';
 
 const contractUnits = ['طن', 'درب', 'يومية', 'مقطوعية'] as const;
 
-interface PricesStats {
-  count: number;
-  customerCount: number;
-  lastUpdatedAt: string | null;
-}
-
-interface UsageRow {
-  id: number;
-  asphaltPlant: string;
-  companyName: string;
-  contractLocation: string;
-  contractUnit: string;
-  unitPrice: number;
-  customer: { id: number; name: string } | null;
-  usageCount: number;
-  totalQuantity: number;
-  totalAmount: number;
-}
-
-interface UsageReport {
-  report: UsageRow[];
-  hasDirectTracking: boolean;
-  note: string;
-}
-
-interface CompanyUsageRow {
-  companyName: string;
-  agreementCount: number;
-  usageCount: number;
-  totalQuantity: number;
-  totalAmount: number;
-}
-
-interface AgreementsDashboard {
-  totalAgreements: number;
-  unusedCount: number;
-  expiringCount: number;
-  unused: AgreementRow[];
-  expiring: AgreementRow[];
-  top5: AgreementRow[];
-  least5: AgreementRow[];
-}
-
-interface AgreementRow {
-  id: number;
-  asphaltPlant: string;
-  companyName: string;
-  contractLocation: string;
-  contractUnit: string;
-  unitPrice: number;
-  validUntil: string | null;
-  customer: { id: number; name: string } | null;
-  usageCount: number;
-  totalQuantity: number;
-  totalAmount: number;
-}
+interface PricesStats { count: number; customerCount: number; lastUpdatedAt: string | null; }
+interface UsageRow { id: number; asphaltPlant: string; companyName: string; contractLocation: string; contractUnit: string; unitPrice: number; customer: { id: number; name: string } | null; usageCount: number; totalQuantity: number; totalAmount: number; }
+interface UsageReport { report: UsageRow[]; hasDirectTracking: boolean; note: string; }
+interface CompanyUsageRow { companyName: string; agreementCount: number; usageCount: number; totalQuantity: number; totalAmount: number; }
+interface AgreementRow { id: number; asphaltPlant: string; companyName: string; contractLocation: string; contractUnit: string; unitPrice: number; validUntil: string | null; customer: { id: number; name: string } | null; usageCount: number; totalQuantity: number; totalAmount: number; }
+interface AgreementsDashboard { totalAgreements: number; unusedCount: number; expiringCount: number; unused: AgreementRow[]; expiring: AgreementRow[]; top5: AgreementRow[]; least5: AgreementRow[]; }
 
 export default function Prices() {
   const { hasPermission, user } = useAuth();
@@ -91,6 +59,8 @@ export default function Prices() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [viewing, setViewing] = useState<any | null>(null);
   const [exportBusy, setExportBusy] = useState(false);
   const [forceDeleteCandidate, setForceDeleteCandidate] = useState<{ id: number; asphaltPlant: string } | null>(null);
   const [error, setError] = useState('');
@@ -108,38 +78,23 @@ export default function Prices() {
   const [dashboardTab, setDashboardTab] = useState<'unused' | 'expiring' | 'top5' | 'least5'>('unused');
 
   useEffect(() => {
-    api.get('/customers', { params: { pageSize: 200 } })
-      .then((res) => setCustomers(res.data.data.data ?? []))
-      .catch(() => {});
+    api.get('/customers', { params: { pageSize: 200 } }).then((res) => setCustomers(res.data.data.data ?? [])).catch(() => {});
   }, []);
 
   const loadStats = useCallback(() => {
-    api.get('/prices/stats')
-      .then((res) => setStats(res.data.data))
-      .catch(() => {});
+    api.get('/prices/stats').then((res) => setStats(res.data.data)).catch(() => {});
   }, []);
-
   useEffect(() => { loadStats(); }, [loadStats]);
 
   useEffect(() => {
-    api.get('/prices/agreements-dashboard')
-      .then((res) => setAgreementsDashboard(res.data.data ?? null))
-      .catch(() => {});
+    api.get('/prices/agreements-dashboard').then((res) => setAgreementsDashboard(res.data.data ?? null)).catch(() => {});
   }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/prices', {
-        params: {
-          page,
-          pageSize: 20,
-          search: search || undefined,
-          asphaltPlant: filterPlant || undefined,
-          companyName: filterCompany || undefined,
-          contractUnit: filterUnit || undefined,
-          customerId: filterCustomer || undefined,
-        },
+        params: { page, pageSize: 20, search: search || undefined, asphaltPlant: filterPlant || undefined, companyName: filterCompany || undefined, contractUnit: filterUnit || undefined, customerId: filterCustomer || undefined },
       });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
@@ -147,7 +102,6 @@ export default function Prices() {
       setLoading(false);
     }
   }, [page, search, filterPlant, filterCompany, filterUnit, filterCustomer]);
-
   useEffect(() => { load(); }, [load]);
 
   async function loadUsageReport() {
@@ -168,9 +122,7 @@ export default function Prices() {
     try {
       const res = await api.get('/prices/usage/by-company');
       setCompanyUsage(res.data.data ?? []);
-    } catch {
-      // silent
-    } finally {
+    } catch { /* silent */ } finally {
       setCompanyUsageLoading(false);
     }
   }, []);
@@ -179,10 +131,7 @@ export default function Prices() {
     if (!hasPermission('reports.export')) return;
     setExportBusy(true);
     try {
-      const res = await api.get('/reports/prices/export', {
-        params: { format: 'excel' },
-        responseType: 'blob',
-      });
+      const res = await api.get('/reports/prices/export', { params: { format: 'excel' }, responseType: 'blob' });
       downloadBlob(res.data as Blob, 'agreements-export.xlsx');
     } catch (e) {
       setError(errorMessage(e));
@@ -192,155 +141,177 @@ export default function Prices() {
   }
 
   function archiveRow(id: number) { setArchiveConfirmId(id); }
-
   async function executeArchive(id: number) {
     setArchiveConfirmId(null);
     if (busy) return; setBusy(true);
-    try { await api.delete(`/prices/${id}`); toast.ok('تم الأرشفة بنجاح'); load(); loadStats(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/prices/${id}`); toast.ok('تم الأرشفة بنجاح'); setViewing(null); load(); loadStats(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
-
-  const columns = [
-    { key: 'customer', label: 'العميل', render: (r: Record<string, unknown>) => {
-      const c = r.customer as { name: string } | null | undefined;
-      return c?.name ?? <span style={{ color: 'var(--text-muted)' }}>—</span>;
-    }},
-    { key: 'asphaltPlant', label: 'col.prices.plant', render: (r: Record<string, unknown>) => <strong>{String(r.asphaltPlant)}</strong> },
-    { key: 'companyName', label: 'col.prices.company' },
-    { key: 'contractLocation', label: 'col.prices.location' },
-    { key: 'contractUnit', label: 'col.prices.unit' },
-    { key: 'unitPrice', label: 'col.prices.unit_price', render: (r: Record<string, unknown>) => money(r.unitPrice) },
-  ];
 
   function resetFilters() {
     setSearch(''); setFilterPlant(''); setFilterCompany(''); setFilterUnit(''); setFilterCustomer(''); setPage(1);
   }
+  const hasFilters = !!(search || filterPlant || filterCompany || filterUnit || filterCustomer);
 
-  const hasFilters = search || filterPlant || filterCompany || filterUnit || filterCustomer;
+  const dashTabs = useMemo(() => ([
+    { key: 'unused' as const, label: `غير مستخدمة${agreementsDashboard ? ` (${agreementsDashboard.unusedCount})` : ''}` },
+    { key: 'expiring' as const, label: `تنتهي قريبًا${agreementsDashboard ? ` (${agreementsDashboard.expiringCount})` : ''}` },
+    { key: 'top5' as const, label: 'الأعلى استخدامًا' },
+    { key: 'least5' as const, label: 'الأقل استخدامًا' },
+  ]), [agreementsDashboard]);
 
   return (
-    <div>
-      <div className="page-head">
-        <div><h2>{t('page.prices.title')}</h2><p>{t('page.prices.subtitle')}</p></div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {hasPermission('prices.create') && (
-            <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('page.prices.create')}</button>
-          )}
-          {hasPermission('reports.export') && <ExportExcelButton onExport={exportExcel} busy={exportBusy} />}
-          <button type="button" className="btn secondary" onClick={loadUsageReport} disabled={usageLoading}>
-            {usageLoading ? 'جاري...' : t('agreements.usage.title')}
-          </button>
-        </div>
-      </div>
+    <div className="xpl-scope xpl-page" dir="rtl">
+      <ExecutiveHeader
+        icon="sell"
+        title={t('page.prices.title')}
+        subtitle={t('page.prices.subtitle')}
+        chips={stats ? (
+          <>
+            <IdChip icon="handshake" tone="indigo">{stats.count} اتفاقية</IdChip>
+            <IdChip icon="groups" tone="green">{stats.customerCount} عميل</IdChip>
+          </>
+        ) : undefined}
+        aside={
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {hasPermission('prices.create') && <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('page.prices.create')}</Button>}
+            <Button variant="secondary" icon="insights" busy={usageLoading} onClick={loadUsageReport}>{t('agreements.usage.title')}</Button>
+          </div>
+        }
+      />
 
-      {error && <div className="alert error">⚠️ {error}</div>}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
 
-      {/* ── Stats Dashboard ─────────────────────────────────────────────────── */}
       {stats && (
-        <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-          <StatCard label={t('agreements.stats.count')} value={stats.count} color="var(--accent)" />
-          <StatCard label={t('agreements.stats.customers')} value={stats.customerCount} color="var(--green)" />
-          <StatCard
-            label={t('agreements.stats.last_updated')}
-            value={stats.lastUpdatedAt ? formatDate(stats.lastUpdatedAt) : '—'}
-            color="var(--amber)"
-          />
+        <div className="xpl-kpi-grid">
+          <MetricCard icon="handshake" tone="indigo" label={t('agreements.stats.count')} value={stats.count} />
+          <MetricCard icon="groups" tone="green" label={t('agreements.stats.customers')} value={stats.customerCount} />
+          <MetricCard icon="update" tone="blue" label={t('agreements.stats.last_updated')} value={stats.lastUpdatedAt ? formatDate(stats.lastUpdatedAt) : '—'} />
         </div>
       )}
 
-      {/* ── Agreements Dashboard Panel ──────────────────────────────────────── */}
+      {/* Agreements dashboard */}
       {agreementsDashboard && (
-        <div style={{ marginBottom: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px' }}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontWeight: 700, fontSize: 14, marginLeft: 8 }}>لوحة الاتفاقيات</span>
-            {(['unused', 'expiring', 'top5', 'least5'] as const).map((tab) => {
-              const labels: Record<string, string> = {
-                unused: `غير مستخدمة (${agreementsDashboard.unusedCount})`,
-                expiring: `تنتهي قريبًا (${agreementsDashboard.expiringCount})`,
-                top5: 'الأعلى استخدامًا',
-                least5: 'الأقل استخدامًا',
-              };
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  className={dashboardTab === tab ? 'btn sm' : 'btn secondary sm'}
-                  onClick={() => setDashboardTab(tab)}
-                >
-                  {labels[tab]}
-                </button>
-              );
-            })}
+        <SectionCard title="لوحة الاتفاقيات" icon="dashboard">
+          <div className="xpl-toolbar-row" style={{ marginBottom: 12 }}>
+            {dashTabs.map((tb) => (
+              <FilterChip key={tb.key} active={dashboardTab === tb.key} onClick={() => setDashboardTab(tb.key)}>{tb.label}</FilterChip>
+            ))}
           </div>
           <AgreementMiniTable rows={agreementsDashboard[dashboardTab]} />
-        </div>
+        </SectionCard>
       )}
 
-      <div className="toolbar" style={{ marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-        <input
-          placeholder={t('page.prices.search')}
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-        />
-        <select
-          value={filterCustomer}
-          onChange={(e) => { setFilterCustomer(e.target.value); setPage(1); }}
-          title="العميل"
-          style={{ maxWidth: 200 }}
-        >
-          <option value="">كل العملاء</option>
-          {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <input
-          placeholder={t('filter.prices.plant')}
-          value={filterPlant}
-          onChange={(e) => { setFilterPlant(e.target.value); setPage(1); }}
-          style={{ maxWidth: 200 }}
-        />
-        <input
-          placeholder={t('filter.prices.company')}
-          value={filterCompany}
-          onChange={(e) => { setFilterCompany(e.target.value); setPage(1); }}
-          style={{ maxWidth: 200 }}
-        />
-        <select
-          value={filterUnit}
-          onChange={(e) => { setFilterUnit(e.target.value); setPage(1); }}
-          title={t('filter.prices.unit')}
-          style={{ maxWidth: 150 }}
-        >
-          <option value="">{t('opt.all')}</option>
-          {contractUnits.map((u) => <option key={u} value={u}>{u}</option>)}
-        </select>
-        {hasFilters && (
-          <button type="button" className="btn secondary sm" onClick={resetFilters}>
-            {t('action.reset_filters')}
-          </button>
-        )}
+      {/* Sticky filters */}
+      <div className="xpl-toolbar xpl-toolbar--sticky">
+        <div className="xpl-toolbar-row">
+          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('page.prices.search')} ariaLabel={t('page.prices.search')} />
+          <div className="xpl-field" style={{ minWidth: 170 }}>
+            <span className="xpl-field-label">العميل</span>
+            <select className="xpl-select" aria-label="العميل" value={filterCustomer} onChange={(e) => { setFilterCustomer(e.target.value); setPage(1); }}>
+              <option value="">كل العملاء</option>
+              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          <div className="xpl-field" style={{ minWidth: 150 }}>
+            <span className="xpl-field-label">{t('filter.prices.plant')}</span>
+            <input className="xpl-input" aria-label={t('filter.prices.plant')} value={filterPlant} onChange={(e) => { setFilterPlant(e.target.value); setPage(1); }} />
+          </div>
+          <div className="xpl-field" style={{ minWidth: 150 }}>
+            <span className="xpl-field-label">{t('filter.prices.company')}</span>
+            <input className="xpl-input" aria-label={t('filter.prices.company')} value={filterCompany} onChange={(e) => { setFilterCompany(e.target.value); setPage(1); }} />
+          </div>
+          {hasPermission('reports.export') && <Button variant="secondary" icon="table_view" busy={exportBusy} onClick={exportExcel}>تصدير Excel</Button>}
+        </div>
+        <div className="xpl-toolbar-row">
+          <FilterChip active={filterUnit === ''} onClick={() => { setFilterUnit(''); setPage(1); }}>{t('opt.all')}</FilterChip>
+          {contractUnits.map((u) => <FilterChip key={u} active={filterUnit === u} onClick={() => { setFilterUnit(u); setPage(1); }}>{u}</FilterChip>)}
+          {hasFilters && <button type="button" className="xpl-clear-link" onClick={resetFilters}>{t('action.reset_filters')}</button>}
+          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} نتيجة</span>
+        </div>
       </div>
 
-      <DataTable
-        columns={columns}
-        rows={rows}
-        loading={loading}
-        meta={meta}
-        onPage={setPage}
-        emptyText={t('empty.prices')}
-        isFiltered={!!hasFilters}
-        onResetFilters={resetFilters}
-        actions={(row) => (
+      {/* Table */}
+      <section className="xpl-card" style={{ overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
+        ) : rows.length === 0 ? (
+          <EmptyState icon="sell" tone="neutral" title={t('empty.prices')}
+            message={hasFilters ? 'لا توجد اتفاقيات مطابقة للفلاتر.' : undefined}
+            action={hasFilters ? <Button variant="secondary" icon="restart_alt" onClick={resetFilters}>{t('action.reset_filters')}</Button>
+              : hasPermission('prices.create') ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('page.prices.create')}</Button> : undefined} />
+        ) : (
           <>
-            {hasPermission('prices.update') && (
-              <button className="btn sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>
-            )}{' '}
-            {hasPermission('prices.delete') && (
-              <button className="btn secondary sm" onClick={() => archiveRow(row.id)} disabled={busy}>{t('action.delete')}</button>
-            )}{' '}
-            {isSystemAdmin && (
-              <button type="button" className="btn danger sm" onClick={() => setForceDeleteCandidate({ id: row.id, asphaltPlant: row.asphaltPlant })}>حذف نهائي</button>
-            )}
+            <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="xpl-table">
+                <thead>
+                  <tr>
+                    <th>العميل</th>
+                    <th>{t('col.prices.plant')}</th>
+                    <th>{t('col.prices.company')}</th>
+                    <th>{t('col.prices.location')}</th>
+                    <th>{t('col.prices.unit')}</th>
+                    <th>{t('col.prices.unit_price')}</th>
+                    <th aria-label="فتح" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
+                      aria-label={`تفاصيل اتفاقية ${r.asphaltPlant}`}
+                      onClick={() => setViewing(r)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
+                      <td>{r.customer?.name ?? <span style={{ color: 'var(--xpl-muted)' }}>—</span>}</td>
+                      <td><strong>{r.asphaltPlant}</strong></td>
+                      <td>{r.companyName}</td>
+                      <td>{r.contractLocation}</td>
+                      <td>{r.contractUnit}</td>
+                      <td style={{ fontWeight: 700 }}>{money(r.unitPrice)}</td>
+                      <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination meta={meta} onPage={setPage} />
           </>
         )}
-      />
+      </section>
+
+      {/* Price drawer */}
+      {viewing && (
+        <Drawer
+          title={viewing.asphaltPlant}
+          onClose={() => setViewing(null)}
+          hero={
+            <div className="xpl-drawer-hero">
+              <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">sell</span></div>
+              <div className="xpl-drawer-hero-body">
+                <span className="xpl-drawer-hero-title">{money(viewing.unitPrice)} / {viewing.contractUnit}</span>
+                <span className="xpl-drawer-hero-sub">{viewing.asphaltPlant} · {viewing.companyName}</span>
+              </div>
+            </div>
+          }
+          footer={
+            <>
+              {hasPermission('prices.update') && <Button variant="primary" icon="edit" onClick={() => { setEditing(viewing); setViewing(null); }}>{t('action.edit')}</Button>}
+              {hasPermission('prices.delete') && <Button variant="secondary" icon="archive" busy={busy} onClick={() => archiveRow(viewing.id)}>{t('action.delete')}</Button>}
+              {isSystemAdmin && <Button variant="danger" icon="delete_forever" onClick={() => setForceDeleteCandidate({ id: viewing.id, asphaltPlant: viewing.asphaltPlant })}>حذف نهائي</Button>}
+            </>
+          }
+        >
+          <DrawerSection title="المشروع والعميل">
+            <DrawerField label={t('col.prices.plant')} value={viewing.asphaltPlant} />
+            <DrawerField label="العميل" value={viewing.customer?.name ?? '—'} />
+            <DrawerField label={t('col.prices.company')} value={viewing.companyName} />
+            <DrawerField label={t('col.prices.location')} value={viewing.contractLocation} />
+          </DrawerSection>
+          <DrawerSection title="التسعير">
+            <DrawerField label={t('col.prices.unit')} value={viewing.contractUnit} />
+            <DrawerField label={t('col.prices.unit_price')} value={money(viewing.unitPrice)} />
+            {viewing.validUntil && <DrawerField label="صالح حتى" value={<span className="prx-valid">{String(viewing.validUntil).slice(0, 10)}</span>} />}
+          </DrawerSection>
+        </Drawer>
+      )}
 
       {creating && <PriceForm customers={customers} onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ السعر بنجاح'); load(); loadStats(); }} />}
       {editing && <PriceForm customers={customers} price={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ السعر بنجاح'); load(); loadStats(); }} />}
@@ -349,154 +320,135 @@ export default function Prices() {
         <ForceDeleteProjectPriceModal
           priceId={forceDeleteCandidate.id}
           onClose={() => setForceDeleteCandidate(null)}
-          onDeleted={() => { setForceDeleteCandidate(null); load(); loadStats(); }}
+          onDeleted={() => { setForceDeleteCandidate(null); setViewing(null); load(); loadStats(); }}
         />
       )}
 
-      {/* ── Usage Report Modal ──────────────────────────────────────────────── */}
+      {/* Usage report dialog */}
       {showUsage && usageReport && (
-        <Modal
+        <Dialog
+          icon="insights"
           title={t('agreements.usage.title')}
           size="xl"
           onClose={() => { setShowUsage(false); setGroupByCompany(false); }}
-          footer={<button className="btn secondary" onClick={() => { setShowUsage(false); setGroupByCompany(false); }}>{t('action.close')}</button>}
+          footer={<Button variant="ghost" icon="close" onClick={() => { setShowUsage(false); setGroupByCompany(false); }}>{t('action.close')}</Button>}
         >
-          <div style={{ marginBottom: 12, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 8, fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-            <div>⚠️ {t('agreements.usage.note')}</div>
-            {usageReport.hasDirectTracking && (
-              <div style={{ marginTop: 6, color: 'var(--green)', fontWeight: 600 }}>يعتمد هذا التقرير على الفواتير المنشأة بعد تفعيل تتبع اتفاقيات الأسعار.</div>
-            )}
+          <div className="prx-note">
+            <span className="material-symbols-outlined">info</span>
+            <div>
+              {t('agreements.usage.note')}
+              {usageReport.hasDirectTracking && <div className="prx-note-ok">يعتمد هذا التقرير على الفواتير المنشأة بعد تفعيل تتبع اتفاقيات الأسعار.</div>}
+            </div>
           </div>
 
-          {/* ── View Toggle ─────────────────────────────────────────────────── */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-            <button
-              type="button"
-              className={groupByCompany ? 'btn secondary sm' : 'btn sm'}
-              onClick={() => setGroupByCompany(false)}
-            >
-              تفصيل الاتفاقيات
-            </button>
-            <button
-              type="button"
-              className={groupByCompany ? 'btn sm' : 'btn secondary sm'}
-              onClick={() => { setGroupByCompany(true); loadCompanyUsage(); }}
-            >
-              تجميع حسب الشركة
-            </button>
+          <div className="xpl-toolbar-row">
+            <FilterChip active={!groupByCompany} onClick={() => setGroupByCompany(false)}>تفصيل الاتفاقيات</FilterChip>
+            <FilterChip active={groupByCompany} onClick={() => { setGroupByCompany(true); loadCompanyUsage(); }}>تجميع حسب الشركة</FilterChip>
           </div>
 
-          {/* ── Detail View ─────────────────────────────────────────────────── */}
-          {!groupByCompany && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'right' }}>
-                  <th style={th}>{t('agreements.usage.col.agreement')}</th>
-                  <th style={th}>{t('agreements.usage.col.customer')}</th>
-                  <th style={th}>{t('agreements.usage.col.unit')}</th>
-                  <th style={th}>{t('agreements.usage.col.price')}</th>
-                  <th style={{ ...th, textAlign: 'center' }}>{t('agreements.usage.col.count')}</th>
-                  <th style={{ ...th, textAlign: 'center' }}>{t('agreements.usage.col.qty')}</th>
-                  <th style={th}>{t('agreements.usage.col.amount')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usageReport.report.map((row) => (
-                  <tr key={row.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={td}>
-                      <div style={{ fontWeight: 600 }}>{row.asphaltPlant}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{row.contractLocation}</div>
-                    </td>
-                    <td style={td}>{row.customer?.name ?? <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
-                    <td style={td}>{row.contractUnit}</td>
-                    <td style={td}>{money(row.unitPrice)}</td>
-                    <td style={{ ...td, textAlign: 'center' }}>
-                      <span style={{
-                        display: 'inline-block', minWidth: 28, textAlign: 'center',
-                        background: row.usageCount > 0 ? 'var(--accent)' : 'var(--surface-2)',
-                        color: row.usageCount > 0 ? '#fff' : 'var(--text-muted)',
-                        borderRadius: 99, padding: '2px 8px', fontWeight: 700, fontSize: 12,
-                      }}>
-                        {row.usageCount}
-                      </span>
-                    </td>
-                    <td style={{ ...td, textAlign: 'center' }}>{row.usageCount > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
-                    <td style={td}>{row.usageCount > 0 ? money(row.totalAmount) : '—'}</td>
+          {!groupByCompany ? (
+            <div className="xpl-table-wrap" style={{ maxHeight: '52vh' }}>
+              <table className="prx-mini">
+                <thead>
+                  <tr>
+                    <th>{t('agreements.usage.col.agreement')}</th>
+                    <th>{t('agreements.usage.col.customer')}</th>
+                    <th>{t('agreements.usage.col.unit')}</th>
+                    <th>{t('agreements.usage.col.price')}</th>
+                    <th className="prx-center">{t('agreements.usage.col.count')}</th>
+                    <th className="prx-center">{t('agreements.usage.col.qty')}</th>
+                    <th>{t('agreements.usage.col.amount')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {/* ── Company Group View ──────────────────────────────────────────── */}
-          {groupByCompany && (
-            companyUsageLoading
-              ? <div style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>...</div>
-              : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'right' }}>
-                      <th style={th}>الشركة</th>
-                      <th style={{ ...th, textAlign: 'center' }}>عدد الاتفاقيات</th>
-                      <th style={{ ...th, textAlign: 'center' }}>مرات الاستخدام</th>
-                      <th style={{ ...th, textAlign: 'center' }}>إجمالي الكمية</th>
-                      <th style={th}>إجمالي الإيرادات</th>
+                </thead>
+                <tbody>
+                  {usageReport.report.map((row) => (
+                    <tr key={row.id}>
+                      <td><div style={{ fontWeight: 700 }}>{row.asphaltPlant}</div><div className="prx-mini-sub">{row.contractLocation}</div></td>
+                      <td>{row.customer?.name ?? '—'}</td>
+                      <td>{row.contractUnit}</td>
+                      <td>{money(row.unitPrice)}</td>
+                      <td className="prx-center"><span className={`prx-usage-badge${row.usageCount > 0 ? ' active' : ''}`}>{row.usageCount}</span></td>
+                      <td className="prx-center">{row.usageCount > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
+                      <td>{row.usageCount > 0 ? money(row.totalAmount) : '—'}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {companyUsage.map((row) => (
-                      <tr key={row.companyName} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ ...td, fontWeight: 600 }}>{row.companyName}</td>
-                        <td style={{ ...td, textAlign: 'center' }}>{row.agreementCount}</td>
-                        <td style={{ ...td, textAlign: 'center' }}>
-                          <span style={{
-                            display: 'inline-block', minWidth: 28, textAlign: 'center',
-                            background: row.usageCount > 0 ? 'var(--accent)' : 'var(--surface-2)',
-                            color: row.usageCount > 0 ? '#fff' : 'var(--text-muted)',
-                            borderRadius: 99, padding: '2px 8px', fontWeight: 700, fontSize: 12,
-                          }}>
-                            {row.usageCount}
-                          </span>
-                        </td>
-                        <td style={{ ...td, textAlign: 'center' }}>{row.totalQuantity > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
-                        <td style={td}>{row.totalAmount > 0 ? money(row.totalAmount) : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : companyUsageLoading ? (
+            <div style={{ padding: 16 }}><SkeletonRows rows={4} withAvatar={false} /></div>
+          ) : (
+            <div className="xpl-table-wrap" style={{ maxHeight: '52vh' }}>
+              <table className="prx-mini">
+                <thead>
+                  <tr>
+                    <th>الشركة</th>
+                    <th className="prx-center">عدد الاتفاقيات</th>
+                    <th className="prx-center">مرات الاستخدام</th>
+                    <th className="prx-center">إجمالي الكمية</th>
+                    <th>إجمالي الإيرادات</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {companyUsage.map((row) => (
+                    <tr key={row.companyName}>
+                      <td style={{ fontWeight: 700 }}>{row.companyName}</td>
+                      <td className="prx-center">{row.agreementCount}</td>
+                      <td className="prx-center"><span className={`prx-usage-badge${row.usageCount > 0 ? ' active' : ''}`}>{row.usageCount}</span></td>
+                      <td className="prx-center">{row.totalQuantity > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
+                      <td>{row.totalAmount > 0 ? money(row.totalAmount) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-        </Modal>
+        </Dialog>
       )}
+
       {archiveConfirmId !== null && (
-        <ConfirmModal
-          title="تأكيد الأرشفة"
-          message={t('confirm.archive_price')}
-          confirmLabel="أرشفة"
-          variant="warning"
-          onConfirm={() => executeArchive(archiveConfirmId)}
-          onCancel={() => setArchiveConfirmId(null)}
-        />
+        <ConfirmModal title="تأكيد الأرشفة" message={t('confirm.archive_price')} confirmLabel="أرشفة" variant="warning" onConfirm={() => executeArchive(archiveConfirmId)} onCancel={() => setArchiveConfirmId(null)} />
       )}
     </div>
   );
 }
 
-// ── Stats Card ──────────────────────────────────────────────────────────────
-function StatCard({ label, value, color }: { label: string; value: string | number; color: string }) {
+// ── Agreements mini table ──────────────────────────────────────────────────────
+function AgreementMiniTable({ rows }: { rows: AgreementRow[] }) {
+  if (!rows.length) return <div style={{ fontSize: 13, color: 'var(--xpl-muted)', padding: '8px 0' }}>لا توجد بيانات</div>;
   return (
-    <div style={{
-      flex: '1 1 160px', minWidth: 140,
-      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
-      padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 4,
-    }}>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 0.3 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color }}>{value}</div>
+    <div className="xpl-table-wrap" style={{ maxHeight: 320 }}>
+      <table className="prx-mini">
+        <thead>
+          <tr>
+            <th>المصنع</th>
+            <th>الشركة</th>
+            <th>العميل</th>
+            <th>السعر</th>
+            <th className="prx-center">الاستخدام</th>
+            <th>إجمالي الفاتورة</th>
+            <th>صالح حتى</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id}>
+              <td><strong>{r.asphaltPlant}</strong></td>
+              <td>{r.companyName}</td>
+              <td>{r.customer?.name ?? '—'}</td>
+              <td>{money(r.unitPrice)}</td>
+              <td className="prx-center"><span className={`prx-usage-badge${r.usageCount > 0 ? ' active' : ''}`}>{r.usageCount}</span></td>
+              <td>{r.totalAmount > 0 ? money(r.totalAmount) : '—'}</td>
+              <td>{r.validUntil ? <span className="prx-valid">{String(r.validUntil).slice(0, 10)}</span> : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-// ── نموذج إنشاء / تعديل اتفاقية ────────────────────────────────────────────
+// ── Price create / edit dialog ─────────────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function PriceForm({ price, customers, onClose, onSaved }: { price?: any; customers: any[]; onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
@@ -508,9 +460,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
   const [contractUnit, setContractUnit] = useState<(typeof contractUnits)[number]>((price?.contractUnit ?? 'درب') as (typeof contractUnits)[number]);
   const [unitPrice, setUnitPrice] = useState<number>(price?.unitPrice ?? 0);
   const [customerId, setCustomerId] = useState<number | ''>(price?.customerId ?? '');
-  const [validUntil, setValidUntil] = useState<string>(
-    price?.validUntil ? String(price.validUntil).slice(0, 10) : ''
-  );
+  const [validUntil, setValidUntil] = useState<string>(price?.validUntil ? String(price.validUntil).slice(0, 10) : '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -533,11 +483,8 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
         validUntil: validUntil || null,
         ...(customerId !== '' ? { customerId: Number(customerId) } : {}),
       };
-      if (isEdit) {
-        await api.patch(`/prices/${price.id}`, payload);
-      } else {
-        await api.post('/prices', payload);
-      }
+      if (isEdit) await api.patch(`/prices/${price.id}`, payload);
+      else await api.post('/prices', payload);
       onSaved();
       onClose();
     } catch (err) {
@@ -548,109 +495,68 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
   }
 
   return (
-    <Modal
+    <Dialog
+      icon="sell"
       title={isEdit ? t('modal.edit_price') : t('modal.new_price')}
+      subtitle={isEdit ? asphaltPlant : 'إضافة اتفاقية سعر جديدة'}
       size="lg"
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
-          <button className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
+          <Button variant="primary" icon="save" busy={saving} onClick={submit}>{t('action.save')}</Button>
+          <Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button>
         </>
       }
     >
-      {error && <div className="alert error">⚠️ {error}</div>}
-      <div className="form-grid">
-        <div className="field">
-          <label>العميل {!isEdit ? ' *' : ''}</label>
-          <select
-            value={customerId}
-            onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : '')}
-            title="العميل"
-          >
+      {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
+
+      <DialogSection title="المشروع" icon="factory">
+        <div className="xpl-field xpl-field--full">
+          <label>{t('col.prices.plant')} <span className="req">*</span></label>
+          <input className="xpl-input" value={asphaltPlant} onChange={(e) => setAsphaltPlant(e.target.value)} placeholder={t('ph.prices.plant')} autoFocus aria-label={t('col.prices.plant')} />
+        </div>
+      </DialogSection>
+
+      <DialogSection title="الشركة والعميل" icon="apartment">
+        <div className="xpl-field">
+          <label>العميل {!isEdit ? <span className="req">*</span> : null}</label>
+          <select className="xpl-select" value={customerId} onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : '')} aria-label="العميل">
             <option value="">— اختر عميل —</option>
             {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
-        <div className="field">
-          <label>{t('col.prices.plant')} *</label>
-          <input value={asphaltPlant} onChange={(e) => setAsphaltPlant(e.target.value)} placeholder={t('ph.prices.plant')} autoFocus />
+        <div className="xpl-field">
+          <label>{t('col.prices.company')} <span className="req">*</span></label>
+          <input className="xpl-input" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder={t('ph.prices.company')} aria-label={t('col.prices.company')} />
         </div>
-        <div className="field">
-          <label>{t('col.prices.company')} *</label>
-          <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder={t('ph.prices.company')} />
+      </DialogSection>
+
+      <DialogSection title="الموقع" icon="location_on">
+        <div className="xpl-field xpl-field--full">
+          <label>{t('col.prices.location')} <span className="req">*</span></label>
+          <input className="xpl-input" value={contractLocation} onChange={(e) => setContractLocation(e.target.value)} placeholder={t('ph.prices.location')} aria-label={t('col.prices.location')} />
         </div>
-        <div className="field">
-          <label>{t('col.prices.location')} *</label>
-          <input value={contractLocation} onChange={(e) => setContractLocation(e.target.value)} placeholder={t('ph.prices.location')} />
-        </div>
-        <div className="field">
+      </DialogSection>
+
+      <DialogSection title="التسعير" icon="payments">
+        <div className="xpl-field">
           <label>{t('col.prices.unit')}</label>
-          <select value={contractUnit} onChange={(e) => setContractUnit(e.target.value as (typeof contractUnits)[number])} title={t('col.prices.unit')}>
+          <select className="xpl-select" value={contractUnit} onChange={(e) => setContractUnit(e.target.value as (typeof contractUnits)[number])} aria-label={t('col.prices.unit')}>
             {contractUnits.map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
         </div>
-        <div className="field">
-          <label>{t('col.prices.unit_price')} *</label>
-          <input
-            type="number"
-            min="0"
-            step="0.001"
-            value={unitPrice}
-            onChange={(e) => setUnitPrice(Number(e.target.value))}
-            placeholder="0.000"
-          />
+        <div className="xpl-field">
+          <label>{t('col.prices.unit_price')} <span className="req">*</span></label>
+          <input className="xpl-input" type="number" min="0" step="0.001" value={unitPrice} onChange={(e) => setUnitPrice(Number(e.target.value))} placeholder="0.000" style={{ direction: 'ltr' }} aria-label={t('col.prices.unit_price')} />
         </div>
-        <div className="field">
+      </DialogSection>
+
+      <DialogSection title="بيانات إضافية" icon="event">
+        <div className="xpl-field">
           <label>صالح حتى (تاريخ انتهاء الاتفاقية)</label>
-          <input
-            type="date"
-            value={validUntil}
-            onChange={(e) => setValidUntil(e.target.value)}
-            title="تاريخ انتهاء الاتفاقية"
-          />
+          <input className="xpl-input" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} aria-label="تاريخ انتهاء الاتفاقية" />
         </div>
-      </div>
-    </Modal>
+      </DialogSection>
+    </Dialog>
   );
 }
-
-// ── Mini table for agreements dashboard panel ───────────────────────────────
-function AgreementMiniTable({ rows }: { rows: AgreementRow[] }) {
-  if (!rows.length) return <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>لا توجد بيانات</div>;
-  return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-      <thead>
-        <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'right' }}>
-          <th style={th}>المصنع</th>
-          <th style={th}>الشركة</th>
-          <th style={th}>العميل</th>
-          <th style={th}>السعر</th>
-          <th style={{ ...th, textAlign: 'center' }}>الاستخدام</th>
-          <th style={th}>إجمالي الفاتورة</th>
-          <th style={th}>صالح حتى</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => (
-          <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
-            <td style={td}><strong>{r.asphaltPlant}</strong></td>
-            <td style={td}>{r.companyName}</td>
-            <td style={td}>{r.customer?.name ?? '—'}</td>
-            <td style={td}>{money(r.unitPrice)}</td>
-            <td style={{ ...td, textAlign: 'center' }}>{r.usageCount}</td>
-            <td style={td}>{r.totalAmount > 0 ? money(r.totalAmount) : '—'}</td>
-            <td style={td}>
-              {r.validUntil
-                ? <span style={{ color: 'var(--amber)', fontWeight: 600 }}>{String(r.validUntil).slice(0, 10)}</span>
-                : <span style={{ color: 'var(--text-muted)' }}>—</span>}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-const th: React.CSSProperties = { padding: '8px 10px', fontWeight: 700, fontSize: 12, color: 'var(--text-muted)' };
-const td: React.CSSProperties = { padding: '10px 10px', verticalAlign: 'top' };

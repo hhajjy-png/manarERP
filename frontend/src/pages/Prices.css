@@ -1,0 +1,56 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Project Prices (Agreements) — page-specific styles (.prx-* prefix)
+   Composes with the shared Explorer Kit (explorer-kit.css / .xpl-*).
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* compact mini-table used in the agreements panel + usage dialog */
+.prx-mini {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  direction: rtl;
+}
+.prx-mini th {
+  text-align: right;
+  padding: 8px 10px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--xpl-muted);
+  border-bottom: 1px solid var(--xpl-border);
+  white-space: nowrap;
+}
+.prx-mini td { padding: 9px 10px; border-bottom: 1px solid var(--xpl-border); color: var(--xpl-text); vertical-align: top; }
+.prx-mini tbody tr:last-child td { border-bottom: none; }
+.prx-mini-sub { font-size: 11px; color: var(--xpl-muted); }
+.prx-center { text-align: center; }
+
+.prx-usage-badge {
+  display: inline-block;
+  min-width: 28px;
+  text-align: center;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-weight: 800;
+  font-size: 11.5px;
+  background: var(--xpl-surface-2);
+  color: var(--xpl-muted);
+}
+.prx-usage-badge.active { background: var(--xpl-primary); color: #fff; }
+
+.prx-valid { color: var(--xpl-orange); font-weight: 700; }
+
+.prx-note {
+  display: flex;
+  gap: 9px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--xpl-faint-2);
+  border: 1px solid rgba(99, 102, 241, .18);
+  font-size: 12.5px;
+  color: var(--xpl-muted);
+  line-height: 1.6;
+}
+.prx-note .material-symbols-outlined { font-size: 18px !important; color: var(--xpl-primary); flex-shrink: 0; margin-top: 1px; }
+.prx-note-ok { color: var(--xpl-green); font-weight: 600; margin-top: 4px; }

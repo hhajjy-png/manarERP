@@ -3,21 +3,35 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
-import DataTable, { PageMeta } from '../components/DataTable';
-import Modal from '../components/Modal';
+import { PageMeta } from '../components/DataTable';
 import ConfirmModal from '../components/ConfirmModal';
-import StatCard from '../components/StatCard';
 import { dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
+import {
+  ExecutiveHeader,
+  IdChip,
+  HeroMetric,
+  MetricCard,
+  StatusChip,
+  SearchBox,
+  FilterChip,
+  EmptyState,
+  ErrorBanner,
+  SkeletonRows,
+  Pagination,
+  Drawer,
+  DrawerSection,
+  DrawerField,
+  Dialog,
+  DialogSection,
+  Button,
+} from '../components/explorer/ExplorerKit';
+import '../components/explorer/explorer-kit.css';
+import './Attendance.css';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
-interface Employee {
-  id: number;
-  code: string;
-  fullName: string;
-}
-
+interface Employee { id: number; code: string; fullName: string; }
 interface AttendanceRecord {
   id: number;
   employeeId: number;
@@ -31,23 +45,16 @@ interface AttendanceRecord {
   createdAt: string;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-type PillCls = 'green' | 'amber' | 'red' | 'blue' | 'gray';
-function pill(label: string, cls: PillCls) {
-  return <span className={`pill ${cls}`}>{label}</span>;
-}
-
-const STATUS_KEYS: Record<string, [string, PillCls]> = {
-  PRESENT: ['att.present', 'green'],
-  ABSENT:  ['att.absent',  'red'],
-  LATE:    ['att.late',    'amber'],
-  LEAVE:   ['att.leave',   'blue'],
+const STATUS_META: Record<string, { key: string; tone: Tone; icon: string }> = {
+  PRESENT: { key: 'att.present', tone: 'green', icon: 'check_circle' },
+  ABSENT:  { key: 'att.absent', tone: 'red', icon: 'cancel' },
+  LATE:    { key: 'att.late', tone: 'orange', icon: 'schedule' },
+  LEAVE:   { key: 'att.leave', tone: 'blue', icon: 'beach_access' },
 };
 
-function statusBadge(val: string, t: (key: string) => string) {
-  const [key, cls] = STATUS_KEYS[val] ?? [val, 'gray'];
-  return pill(t(key), cls);
+function statusChip(val: string, t: (k: string) => string) {
+  const m = STATUS_META[val] ?? { key: val, tone: 'neutral' as Tone, icon: 'help' };
+  return <StatusChip tone={m.tone} icon={m.icon}>{t(m.key)}</StatusChip>;
 }
 
 function timeText(iso?: string | null): string {
@@ -63,169 +70,78 @@ function calcWorkHours(checkIn?: string | null, checkOut?: string | null): numbe
   return Math.max(0, Math.round(h * 100) / 100);
 }
 
-
-// ── KPI strip ─────────────────────────────────────────────────────────────────
-
-interface AttendanceStats {
-  total: number;
-  present: number;
-  absent: number;
-  late: number;
-  leave: number;
-}
-
+interface AttendanceStats { total: number; present: number; absent: number; late: number; leave: number; }
 const DEFAULT_STATS: AttendanceStats = { total: 0, present: 0, absent: 0, late: 0, leave: 0 };
 
-function SummaryKPIs({ stats }: { stats: AttendanceStats }) {
-  const { t } = useT();
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
-      <StatCard label={t('stat.att.total')}   value={stats.total}   icon="📋" color="#3b82f6" bg="#dbeafe" />
-      <StatCard label={t('stat.att.present')} value={stats.present} icon="✅" color="#10b981" bg="#d1fae5" />
-      <StatCard label={t('stat.att.absent')}  value={stats.absent}  icon="❌" color="#ef4444" bg="#fee2e2" />
-      <StatCard label={t('stat.att.late')}    value={stats.late}    icon="⏰" color="#f59e0b" bg="#fef3c7" />
-    </div>
-  );
-}
-
-// ── Attendance Form ───────────────────────────────────────────────────────────
-
-type FormData = {
-  employeeId: string;
-  date: string;
-  checkIn: string;
-  checkOut: string;
-  status: string;
-  notes: string;
-};
-
-const EMPTY_FORM: FormData = {
-  employeeId: '',
-  date: new Date().toISOString().slice(0, 10),
-  checkIn: '',
-  checkOut: '',
-  status: 'PRESENT',
-  notes: '',
-};
+type FormData = { employeeId: string; date: string; checkIn: string; checkOut: string; status: string; notes: string; };
+const EMPTY_FORM: FormData = { employeeId: '', date: new Date().toISOString().slice(0, 10), checkIn: '', checkOut: '', status: 'PRESENT', notes: '' };
 const EMPTY_FORM_JSON = JSON.stringify(EMPTY_FORM);
 
-function AttendanceForm({
-  id,
-  form,
-  setForm,
-  onSubmit,
-  saving,
-  employeeList,
-  isEdit,
-}: {
-  id: string;
-  form: FormData;
-  setForm: (f: FormData) => void;
-  onSubmit: (e: React.FormEvent) => void;
-  saving: boolean;
-  employeeList: Employee[];
-  isEdit: boolean;
+// ── Sectioned attendance form (shared by create + edit dialogs) ────────────────
+function AttendanceFormBody({ form, setForm, employeeList, isEdit }: {
+  form: FormData; setForm: (f: FormData) => void; employeeList: Employee[]; isEdit: boolean;
 }) {
   const { t } = useT();
-
   const computedHours = calcWorkHours(
     form.checkIn ? `${form.date}T${form.checkIn}` : null,
     form.checkOut ? `${form.date}T${form.checkOut}` : null,
   );
-
   return (
-    <form id={id} onSubmit={onSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+    <>
       {!isEdit && (
-        <div className="field" style={{ gridColumn: '1/-1' }}>
-          <label>{t('field.att.employee')} *</label>
-          <select required value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
-            <option value="">{t('ph.att.select_employee')}</option>
-            {employeeList.map((emp) => (
-              <option key={emp.id} value={emp.id}>{emp.fullName} ({emp.code})</option>
-            ))}
+        <DialogSection title={t('field.att.employee')} icon="badge">
+          <div className="xpl-field xpl-field--full">
+            <label>{t('field.att.employee')} <span className="req">*</span></label>
+            <select className="xpl-select" required value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} aria-label={t('field.att.employee')}>
+              <option value="">{t('ph.att.select_employee')}</option>
+              {employeeList.map((emp) => <option key={emp.id} value={emp.id}>{emp.fullName} ({emp.code})</option>)}
+            </select>
+          </div>
+        </DialogSection>
+      )}
+
+      <DialogSection title="الحضور" icon="event">
+        <div className="xpl-field">
+          <label>{t('field.date')} <span className="req">*</span></label>
+          <input className="xpl-input" type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={isEdit} autoFocus={!isEdit} aria-label={t('field.date')} />
+        </div>
+        <div className="xpl-field">
+          <label>{t('field.status')}</label>
+          <select className="xpl-select" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} aria-label={t('field.status')}>
+            <option value="PRESENT">{t('opt.att.present')}</option>
+            <option value="ABSENT">{t('opt.att.absent')}</option>
+            <option value="LATE">{t('opt.att.late')}</option>
+            <option value="LEAVE">{t('opt.att.leave')}</option>
           </select>
         </div>
-      )}
+      </DialogSection>
 
-      <div className="field">
-        <label>{t('field.date')} *</label>
-        <input type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={isEdit} autoFocus={!isEdit} />
-      </div>
-
-      <div className="field">
-        <label>{t('field.status')}</label>
-        <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-          <option value="PRESENT">{t('opt.att.present')}</option>
-          <option value="ABSENT">{t('opt.att.absent')}</option>
-          <option value="LATE">{t('opt.att.late')}</option>
-          <option value="LEAVE">{t('opt.att.leave')}</option>
-        </select>
-      </div>
-
-      <div className="field">
-        <label>{t('field.att.check_in')}</label>
-        <input type="time" value={form.checkIn} onChange={(e) => setForm({ ...form, checkIn: e.target.value })} />
-      </div>
-
-      <div className="field">
-        <label>{t('field.att.check_out')}</label>
-        <input type="time" value={form.checkOut} onChange={(e) => setForm({ ...form, checkOut: e.target.value })} />
-      </div>
-
-      {(form.checkIn && form.checkOut) && (
-        <div className="field" style={{ gridColumn: '1/-1' }}>
-          <label>{t('field.att.work_hours')}</label>
-          <div style={{ padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface-2)', color: 'var(--text-muted)', cursor: 'default', fontWeight: 600, fontSize: 14 }}>
-            {computedHours != null ? `${computedHours} ساعة` : '—'}
-          </div>
+      <DialogSection title="ساعات العمل" icon="schedule">
+        <div className="xpl-field">
+          <label>{t('field.att.check_in')}</label>
+          <input className="xpl-input" type="time" value={form.checkIn} onChange={(e) => setForm({ ...form, checkIn: e.target.value })} aria-label={t('field.att.check_in')} />
         </div>
-      )}
-
-      <div className="field" style={{ gridColumn: '1/-1' }}>
-        <label>{t('field.notes')}</label>
-        <textarea
-          style={{ minHeight: 64, resize: 'vertical' }}
-          value={form.notes}
-          onChange={(e) => setForm({ ...form, notes: e.target.value })}
-        />
-      </div>
-
-      <input type="submit" hidden disabled={saving} />
-    </form>
-  );
-}
-
-// ── Details Modal ─────────────────────────────────────────────────────────────
-
-function DetailsModal({ record, onClose }: { record: AttendanceRecord; onClose: () => void }) {
-  const { t } = useT();
-  const row = (label: string, value: React.ReactNode) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{label}</span>
-      <span style={{ fontWeight: 600 }}>{value}</span>
-    </div>
-  );
-  return (
-    <Modal title={t('modal.att.details_title')} size="lg" onClose={onClose}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        {row(t('col.att.employee'),  record.employee ? `${record.employee.fullName} (${record.employee.code})` : record.employeeId)}
-        {row(t('field.date'),        dateText(record.date))}
-        {row(t('field.status'),      statusBadge(record.status, t))}
-        {row(t('col.att.check_in'),  timeText(record.checkIn))}
-        {row(t('col.att.check_out'), timeText(record.checkOut))}
-        {row(t('col.att.work_hours'), record.workHours != null ? `${record.workHours} ساعة` : '—')}
-        {row(t('col.created_at'),    dateText(record.createdAt))}
-        {record.notes && (
-          <div style={{ gridColumn: '1/-1' }}>
-            {row(t('field.notes'), record.notes)}
+        <div className="xpl-field">
+          <label>{t('field.att.check_out')}</label>
+          <input className="xpl-input" type="time" value={form.checkOut} onChange={(e) => setForm({ ...form, checkOut: e.target.value })} aria-label={t('field.att.check_out')} />
+        </div>
+        {form.checkIn && form.checkOut && (
+          <div className="xpl-field xpl-field--full">
+            <label>{t('field.att.work_hours')}</label>
+            <div className="attx-computed"><span className="material-symbols-outlined">timer</span>{computedHours != null ? `${computedHours} ساعة` : '—'}</div>
           </div>
         )}
-      </div>
-    </Modal>
+      </DialogSection>
+
+      <DialogSection title={t('field.notes')} icon="sticky_note_2">
+        <div className="xpl-field xpl-field--full">
+          <label>{t('field.notes')}</label>
+          <textarea className="xpl-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} aria-label={t('field.notes')} />
+        </div>
+      </DialogSection>
+    </>
   );
 }
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Attendance() {
   const { t } = useT();
@@ -239,7 +155,6 @@ export default function Attendance() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Filters — persisted across navigation
   const [page, setPage] = usePersistedState<number>('att:page', 1);
   const [search, setSearch] = usePersistedState('att:search', '');
   const [filterEmployee, setFilterEmployee] = usePersistedState('att:employee', '');
@@ -247,15 +162,13 @@ export default function Attendance() {
   const [filterDateFrom, setFilterDateFrom] = usePersistedState('att:from', '');
   const [filterDateTo, setFilterDateTo] = usePersistedState('att:to', '');
 
-  // Modals
   const [showCreate, setShowCreate] = useState(false);
   const [showCreateUnsaved, setShowCreateUnsaved] = useState(false);
   const [showEditUnsaved, setShowEditUnsaved] = useState(false);
-  const [detailRecord, setDetailRecord] = useState<AttendanceRecord | null>(null);
+  const [viewing, setViewing] = useState<AttendanceRecord | null>(null);
   const [editRecord, setEditRecord] = useState<AttendanceRecord | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AttendanceRecord | null>(null);
 
-  // Form state
   const [createForm, setCreateForm] = useState<FormData>(EMPTY_FORM);
   const [editForm, setEditForm] = useState<FormData>(EMPTY_FORM);
   const editInitialRef = useRef<FormData>(EMPTY_FORM);
@@ -268,11 +181,11 @@ export default function Attendance() {
     setError('');
     try {
       const params: Record<string, string | number> = { page, pageSize: 20 };
-      if (search)         params.search     = search;
+      if (search) params.search = search;
       if (filterEmployee) params.employeeId = filterEmployee;
-      if (filterStatus)   params.status     = filterStatus;
-      if (filterDateFrom) params.from       = filterDateFrom;
-      if (filterDateTo)   params.to         = filterDateTo;
+      if (filterStatus) params.status = filterStatus;
+      if (filterDateFrom) params.from = filterDateFrom;
+      if (filterDateTo) params.to = filterDateTo;
       const res = await api.get('/employees/attendance', { params });
       const result = res.data.data;
       setRows(result.data ?? []);
@@ -284,7 +197,6 @@ export default function Attendance() {
       setLoading(false);
     }
   }, [page, search, filterEmployee, filterStatus, filterDateFrom, filterDateTo]);
-
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -293,19 +205,17 @@ export default function Attendance() {
       .catch(() => {});
   }, []);
 
-
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setFormError('');
     try {
-      const checkIn  = createForm.checkIn  ? new Date(`${createForm.date}T${createForm.checkIn}`)  : undefined;
+      const checkIn = createForm.checkIn ? new Date(`${createForm.date}T${createForm.checkIn}`) : undefined;
       const checkOut = createForm.checkOut ? new Date(`${createForm.date}T${createForm.checkOut}`) : undefined;
       await api.post('/employees/attendance', {
         employeeId: Number(createForm.employeeId),
         date: createForm.date,
-        checkIn,
-        checkOut,
+        checkIn, checkOut,
         status: createForm.status,
         notes: createForm.notes || undefined,
       });
@@ -325,7 +235,7 @@ export default function Attendance() {
     const initialForm: FormData = {
       employeeId: String(record.employeeId),
       date: dateStr,
-      checkIn:  record.checkIn  ? new Date(record.checkIn).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
+      checkIn: record.checkIn ? new Date(record.checkIn).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
       checkOut: record.checkOut ? new Date(record.checkOut).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', hour12: false }) : '',
       status: record.status,
       notes: record.notes ?? '',
@@ -342,11 +252,10 @@ export default function Attendance() {
     setFormError('');
     try {
       const dateStr = editRecord.date ? new Date(editRecord.date).toISOString().slice(0, 10) : editForm.date;
-      const checkIn  = editForm.checkIn  ? new Date(`${dateStr}T${editForm.checkIn}`)  : undefined;
+      const checkIn = editForm.checkIn ? new Date(`${dateStr}T${editForm.checkIn}`) : undefined;
       const checkOut = editForm.checkOut ? new Date(`${dateStr}T${editForm.checkOut}`) : undefined;
       await api.patch(`/employees/attendance/${editRecord.id}`, {
-        checkIn,
-        checkOut,
+        checkIn, checkOut,
         status: editForm.status,
         notes: editForm.notes || undefined,
       });
@@ -366,6 +275,7 @@ export default function Attendance() {
     try {
       await api.delete(`/employees/attendance/${deleteTarget.id}`);
       setDeleteTarget(null);
+      setViewing(null);
       toast.ok('تم الحذف بنجاح');
       load();
     } catch (e) {
@@ -375,188 +285,226 @@ export default function Attendance() {
     }
   }
 
-  const columns = [
-    {
-      key: 'employee',
-      label: t('col.att.employee'),
-      render: (r: AttendanceRecord) => (
-        <strong>{r.employee ? `${r.employee.fullName}` : r.employeeId}</strong>
-      ),
-    },
-    { key: 'date', label: t('field.date'), render: (r: AttendanceRecord) => dateText(r.date) },
-    { key: 'checkIn',  label: t('col.att.check_in'),   render: (r: AttendanceRecord) => timeText(r.checkIn) },
-    { key: 'checkOut', label: t('col.att.check_out'),  render: (r: AttendanceRecord) => timeText(r.checkOut) },
-    {
-      key: 'workHours',
-      label: t('col.att.work_hours'),
-      render: (r: AttendanceRecord) => r.workHours != null ? `${r.workHours} ساعة` : '—',
-    },
-    { key: 'status', label: t('field.status'), render: (r: AttendanceRecord) => statusBadge(r.status, t) },
-    { key: 'notes', label: t('field.notes'), render: (r: AttendanceRecord) => r.notes ?? '—' },
-    {
-      key: '_actions',
-      label: '',
-      render: (r: AttendanceRecord) => (
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className="btn secondary sm" onClick={() => setDetailRecord(r)}>{t('action.att.view_details')}</button>
-          {hasPermission('attendance.update') && (
-            <button className="btn secondary sm" onClick={() => openEdit(r)}>{t('action.att.edit')}</button>
-          )}
-          {hasPermission('attendance.delete') && (
-            <button className="btn secondary sm" style={{ color: 'var(--red)' }} onClick={() => setDeleteTarget(r)}>
-              {t('action.att.delete')}
-            </button>
-          )}
-        </div>
-      ),
-    },
-  ];
-
   function createGuardClose() {
     if (JSON.stringify(createForm) !== EMPTY_FORM_JSON) { setShowCreateUnsaved(true); return; }
     setShowCreate(false); setCreateForm(EMPTY_FORM); setFormError('');
   }
   function executeCreateClose() { setShowCreateUnsaved(false); setShowCreate(false); setCreateForm(EMPTY_FORM); setFormError(''); }
-
   function editGuardClose() {
     if (JSON.stringify(editForm) !== JSON.stringify(editInitialRef.current)) { setShowEditUnsaved(true); return; }
     setEditRecord(null);
   }
   function executeEditClose() { setShowEditUnsaved(false); setEditRecord(null); }
 
+  const hasFilters = !!(search || filterEmployee || filterStatus || filterDateFrom || filterDateTo);
+
+  const STATUS_CHIPS: { value: string; label: string }[] = [
+    { value: '', label: t('opt.att.all_statuses') },
+    { value: 'PRESENT', label: t('opt.att.present') },
+    { value: 'ABSENT', label: t('opt.att.absent') },
+    { value: 'LATE', label: t('opt.att.late') },
+    { value: 'LEAVE', label: t('opt.att.leave') },
+  ];
+
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <h2>{t('page.att.title')}</h2>
-          <p>{t('page.att.subtitle')}</p>
-        </div>
-        {hasPermission('attendance.create') && (
-          <button className="btn" onClick={() => { setShowCreate(true); setCreateForm(EMPTY_FORM); setFormError(''); }}>
-            {t('action.att.create')}
-          </button>
-        )}
-      </div>
-
-      <SummaryKPIs stats={stats} />
-
-      {/* Filters */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
-        <input
-          className="line-input"
-          style={{ width: 240 }}
-          placeholder={t('ph.att.search')}
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-        />
-        <select className="line-input" style={{ width: 200 }} value={filterEmployee} onChange={(e) => { setFilterEmployee(e.target.value); setPage(1); }}>
-          <option value="">{t('ph.att.select_employee')}</option>
-          {employeeList.map((emp) => (
-            <option key={emp.id} value={emp.id}>{emp.fullName} ({emp.code})</option>
-          ))}
-        </select>
-        <select className="line-input" style={{ width: 160 }} value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}>
-          <option value="">{t('opt.att.all_statuses')}</option>
-          <option value="PRESENT">{t('opt.att.present')}</option>
-          <option value="ABSENT">{t('opt.att.absent')}</option>
-          <option value="LATE">{t('opt.att.late')}</option>
-          <option value="LEAVE">{t('opt.att.leave')}</option>
-        </select>
-        <input className="line-input" style={{ width: 150 }} type="date" value={filterDateFrom} onChange={(e) => { setFilterDateFrom(e.target.value); setPage(1); }} title={t('filter.date_from')} />
-        <input className="line-input" style={{ width: 150 }} type="date" value={filterDateTo}   onChange={(e) => { setFilterDateTo(e.target.value);   setPage(1); }} title={t('filter.date_to')} />
-        {(search || filterEmployee || filterStatus || filterDateFrom || filterDateTo) && (
-          <button className="btn secondary sm" onClick={() => { setSearch(''); setFilterEmployee(''); setFilterStatus(''); setFilterDateFrom(''); setFilterDateTo(''); setPage(1); }}>
-            {t('action.cancel')} ✕
-          </button>
-        )}
-        <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
-      </div>
-
-      {error && <div className="alert error" style={{ marginBottom: 12 }}>⚠️ {error}</div>}
-
-      <DataTable
-        columns={columns}
-        rows={rows}
-        loading={loading}
-        meta={meta}
-        onPage={setPage}
-        emptyText={t('empty.att.records')}
+    <div className="xpl-scope xpl-page" dir="rtl">
+      <ExecutiveHeader
+        icon="fact_check"
+        title={t('page.att.title')}
+        subtitle={t('page.att.subtitle')}
+        chips={
+          <>
+            <IdChip icon="event_available" tone="indigo">{stats.total} سجل</IdChip>
+            <IdChip icon="check_circle" tone="green">{stats.present} حاضر</IdChip>
+            {stats.absent > 0 && <IdChip icon="cancel" tone="red">{stats.absent} غائب</IdChip>}
+          </>
+        }
+        aside={hasPermission('attendance.create') ? <Button variant="primary" icon="add" onClick={() => { setShowCreate(true); setCreateForm(EMPTY_FORM); setFormError(''); }}>{t('action.att.create')}</Button> : undefined}
       />
 
-      {/* Create Modal */}
+      <div className="attx-metrics">
+        <HeroMetric icon="fact_check" label={t('stat.att.total')} value={stats.total} sub={<><span className="material-symbols-outlined">check_circle</span>{`${stats.present} حاضر`}</>} />
+        <div className="xpl-kpi-grid">
+          <MetricCard icon="check_circle" tone="green" label={t('stat.att.present')} value={stats.present} />
+          <MetricCard icon="cancel" tone="red" label={t('stat.att.absent')} value={stats.absent} />
+          <MetricCard icon="schedule" tone="orange" label={t('stat.att.late')} value={stats.late} />
+          <MetricCard icon="beach_access" tone="blue" label={t('att.leave')} value={stats.leave} />
+        </div>
+      </div>
+
+      {/* Sticky toolbar */}
+      <div className="xpl-toolbar xpl-toolbar--sticky">
+        <div className="xpl-toolbar-row">
+          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('ph.att.search')} ariaLabel={t('ph.att.search')} />
+          <div className="xpl-field" style={{ minWidth: 170 }}>
+            <span className="xpl-field-label">{t('field.att.employee')}</span>
+            <select className="xpl-select" aria-label={t('field.att.employee')} value={filterEmployee} onChange={(e) => { setFilterEmployee(e.target.value); setPage(1); }}>
+              <option value="">{t('ph.att.select_employee')}</option>
+              {employeeList.map((emp) => <option key={emp.id} value={emp.id}>{emp.fullName} ({emp.code})</option>)}
+            </select>
+          </div>
+          <div className="xpl-field" style={{ minWidth: 140 }}>
+            <span className="xpl-field-label">{t('filter.date_from')}</span>
+            <input className="xpl-input" type="date" aria-label={t('filter.date_from')} value={filterDateFrom} onChange={(e) => { setFilterDateFrom(e.target.value); setPage(1); }} />
+          </div>
+          <div className="xpl-field" style={{ minWidth: 140 }}>
+            <span className="xpl-field-label">{t('filter.date_to')}</span>
+            <input className="xpl-input" type="date" aria-label={t('filter.date_to')} value={filterDateTo} onChange={(e) => { setFilterDateTo(e.target.value); setPage(1); }} />
+          </div>
+          <Button variant="ghost" icon="refresh" busy={loading} onClick={load}>{t('action.refresh')}</Button>
+        </div>
+        <div className="xpl-toolbar-row">
+          {STATUS_CHIPS.map((s) => (
+            <FilterChip key={s.value} active={filterStatus === s.value} onClick={() => { setFilterStatus(s.value); setPage(1); }}>{s.label}</FilterChip>
+          ))}
+          {hasFilters && <button type="button" className="xpl-clear-link" onClick={() => { setSearch(''); setFilterEmployee(''); setFilterStatus(''); setFilterDateFrom(''); setFilterDateTo(''); setPage(1); }}>{t('action.reset_filters')}</button>}
+          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} نتيجة</span>
+        </div>
+      </div>
+
+      {error && <ErrorBanner>{error}</ErrorBanner>}
+
+      {/* Table */}
+      <section className="xpl-card" style={{ overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
+        ) : rows.length === 0 ? (
+          <EmptyState icon="event_busy" tone="neutral" title={t('empty.att.records')}
+            message={hasFilters ? 'لا توجد سجلات مطابقة للفلاتر.' : undefined}
+            action={hasPermission('attendance.create') ? <Button variant="primary" icon="add" onClick={() => { setShowCreate(true); setCreateForm(EMPTY_FORM); setFormError(''); }}>{t('action.att.create')}</Button> : undefined} />
+        ) : (
+          <>
+            <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="xpl-table">
+                <thead>
+                  <tr>
+                    <th>{t('col.att.employee')}</th>
+                    <th>{t('field.date')}</th>
+                    <th>{t('col.att.check_in')}</th>
+                    <th>{t('col.att.check_out')}</th>
+                    <th>{t('col.att.work_hours')}</th>
+                    <th>{t('field.status')}</th>
+                    <th aria-label="فتح" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
+                      aria-label={`تفاصيل حضور ${r.employee?.fullName ?? r.employeeId}`}
+                      onClick={() => setViewing(r)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
+                      <td><strong>{r.employee ? r.employee.fullName : r.employeeId}</strong></td>
+                      <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
+                      <td className="attx-time">{timeText(r.checkIn)}</td>
+                      <td className="attx-time">{timeText(r.checkOut)}</td>
+                      <td>{r.workHours != null ? `${r.workHours} ساعة` : '—'}</td>
+                      <td>{statusChip(r.status, t)}</td>
+                      <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination meta={meta} onPage={setPage} />
+          </>
+        )}
+      </section>
+
+      {/* Detail drawer */}
+      {viewing && (
+        <Drawer
+          title={`${viewing.employee?.fullName ?? viewing.employeeId}`}
+          onClose={() => setViewing(null)}
+          hero={
+            <div className="xpl-drawer-hero">
+              <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">fact_check</span></div>
+              <div className="xpl-drawer-hero-body">
+                <span className="xpl-drawer-hero-title">{viewing.employee?.fullName ?? viewing.employeeId}</span>
+                <span className="xpl-drawer-hero-sub">{dateText(viewing.date)}</span>
+                <div style={{ marginTop: 4 }}>{statusChip(viewing.status, t)}</div>
+              </div>
+            </div>
+          }
+          footer={
+            <>
+              {hasPermission('attendance.update') && <Button variant="primary" icon="edit" onClick={() => { openEdit(viewing); setViewing(null); }}>{t('action.att.edit')}</Button>}
+              {hasPermission('attendance.delete') && <Button variant="danger" icon="delete" busy={deleting} onClick={() => setDeleteTarget(viewing)}>{t('action.att.delete')}</Button>}
+            </>
+          }
+        >
+          <DrawerSection title="بيانات الموظف">
+            <DrawerField label={t('col.att.employee')} value={viewing.employee ? `${viewing.employee.fullName} (${viewing.employee.code})` : viewing.employeeId} />
+            <DrawerField label={t('field.date')} value={dateText(viewing.date)} />
+            <DrawerField label={t('field.status')} value={statusChip(viewing.status, t)} />
+          </DrawerSection>
+          <DrawerSection title="ساعات العمل">
+            <DrawerField label={t('col.att.check_in')} value={timeText(viewing.checkIn)} />
+            <DrawerField label={t('col.att.check_out')} value={timeText(viewing.checkOut)} />
+            <DrawerField label={t('col.att.work_hours')} value={viewing.workHours != null ? `${viewing.workHours} ساعة` : '—'} />
+          </DrawerSection>
+          <DrawerSection title="معلومات إضافية">
+            <DrawerField label={t('col.created_at')} value={dateText(viewing.createdAt)} />
+            {viewing.notes && <DrawerField label={t('field.notes')} value={viewing.notes} />}
+          </DrawerSection>
+        </Drawer>
+      )}
+
+      {/* Create dialog */}
       {showCreate && (
-        <Modal
+        <Dialog
+          icon="add_task"
           title={t('modal.att.create_title')}
+          subtitle="تسجيل حضور جديد"
           size="lg"
           onClose={createGuardClose}
           footer={
             <>
-              <button className="btn" form="att-create-form" type="submit" disabled={saving}>{t('action.save')}</button>
-              <button className="btn secondary" onClick={createGuardClose}>{t('action.cancel')}</button>
+              <Button variant="primary" icon="save" busy={saving} onClick={() => { const f = document.getElementById('att-create-form') as HTMLFormElement | null; f?.requestSubmit(); }}>{t('action.save')}</Button>
+              <Button variant="ghost" onClick={createGuardClose}>{t('action.cancel')}</Button>
             </>
           }
         >
-          {formError && <div className="alert error">⚠️ {formError}</div>}
-          <AttendanceForm
-            id="att-create-form"
-            form={createForm}
-            setForm={setCreateForm}
-            onSubmit={handleCreate}
-            saving={saving}
-            employeeList={employeeList}
-            isEdit={false}
-          />
-        </Modal>
+          {formError && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{formError}</div>}
+          <form id="att-create-form" onSubmit={handleCreate}>
+            <AttendanceFormBody form={createForm} setForm={setCreateForm} employeeList={employeeList} isEdit={false} />
+            <input type="submit" hidden disabled={saving} />
+          </form>
+        </Dialog>
       )}
 
-      {/* Edit Modal */}
+      {/* Edit dialog */}
       {editRecord && (
-        <Modal
+        <Dialog
+          icon="edit_calendar"
           title={t('modal.att.edit_title')}
+          subtitle={`${editRecord.employee?.fullName ?? editRecord.employeeId} · ${dateText(editRecord.date)}`}
           size="lg"
           onClose={editGuardClose}
           footer={
             <>
-              <button className="btn" form="att-edit-form" type="submit" disabled={saving}>{t('action.save')}</button>
-              <button className="btn secondary" onClick={editGuardClose}>{t('action.cancel')}</button>
+              <Button variant="primary" icon="save" busy={saving} onClick={() => { const f = document.getElementById('att-edit-form') as HTMLFormElement | null; f?.requestSubmit(); }}>{t('action.save')}</Button>
+              <Button variant="ghost" onClick={editGuardClose}>{t('action.cancel')}</Button>
             </>
           }
         >
-          {formError && <div className="alert error">⚠️ {formError}</div>}
-          <AttendanceForm
-            id="att-edit-form"
-            form={editForm}
-            setForm={setEditForm}
-            onSubmit={handleEdit}
-            saving={saving}
-            employeeList={employeeList}
-            isEdit={true}
-          />
-        </Modal>
+          {formError && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{formError}</div>}
+          <form id="att-edit-form" onSubmit={handleEdit}>
+            <AttendanceFormBody form={editForm} setForm={setEditForm} employeeList={employeeList} isEdit={true} />
+            <input type="submit" hidden disabled={saving} />
+          </form>
+        </Dialog>
       )}
 
-      {/* Details Modal */}
-      {detailRecord && <DetailsModal record={detailRecord} onClose={() => setDetailRecord(null)} />}
-
-      {/* Delete Confirmation */}
+      {/* Delete confirm */}
       {deleteTarget && (
-        <Modal
+        <ConfirmModal
           title={t('action.att.delete')}
-          onClose={() => setDeleteTarget(null)}
-          footer={
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button className="btn secondary" onClick={() => setDeleteTarget(null)}>{t('action.cancel')}</button>
-              <button className="btn" style={{ background: 'var(--red)' }} onClick={handleDelete} disabled={deleting}>
-                {t('action.att.delete')}
-              </button>
-            </div>
-          }
-        >
-          <p style={{ margin: 0 }}>{t('action.att.confirm_delete')}</p>
-          <p style={{ margin: '8px 0 0', fontWeight: 600 }}>
-            {deleteTarget.employee?.fullName ?? deleteTarget.employeeId} — {dateText(deleteTarget.date)}
-          </p>
-        </Modal>
+          message={`${t('action.att.confirm_delete')}\n${deleteTarget.employee?.fullName ?? deleteTarget.employeeId} — ${dateText(deleteTarget.date)}`}
+          confirmLabel={t('action.att.delete')}
+          variant="danger"
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
       {showCreateUnsaved && (
         <ConfirmModal title="تغييرات غير محفوظة" message={t('msg.unsaved_changes')} confirmLabel="تجاهل" variant="warning" onConfirm={executeCreateClose} onCancel={() => setShowCreateUnsaved(false)} />
