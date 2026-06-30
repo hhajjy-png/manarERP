@@ -1,0 +1,29 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Maintenance — page-specific styles (.mntx-* prefix)
+   Composes with the shared Explorer Kit (explorer-kit.css / .xpl-*).
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.mntx-metrics {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+@media (max-width: 1100px) { .mntx-metrics { grid-template-columns: 1fr; } }
+
+.mntx-code { font-family: "IBM Plex Mono", monospace; font-weight: 700; color: var(--xpl-text); }
+.mntx-desc { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
+
+/* read-only plate field inside dialogs */
+.mntx-readonly {
+  height: 40px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 10px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--xpl-muted);
+  background: var(--xpl-bg);
+}
