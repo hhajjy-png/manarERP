@@ -242,19 +242,33 @@ async function getMonthlyStats(accountKey: string): Promise<MonthlyEntry[]> {
   return fillMonthlyGaps(entries);
 }
 
+// Hard cap on generated month buckets. A malformed/out-of-range statementDate
+// (e.g. a bad parse yielding year 0020 or 9999) could otherwise make the gap-fill
+// loop produce tens of thousands of entries, which then froze/crashed the Analytics
+// charts on the frontend. 600 months = 50 years, far beyond any real bank statement.
+const MAX_MONTHLY_BUCKETS = 600;
+
 // Fill zero-entry placeholders for months with no transactions so chart scale stays consistent.
-function fillMonthlyGaps(entries: MonthlyEntry[]): MonthlyEntry[] {
+// Exported for unit testing of the runaway-range / NaN guards.
+export function fillMonthlyGaps(entries: MonthlyEntry[]): MonthlyEntry[] {
   if (entries.length < 2) return entries;
 
   const byMonth = new Map(entries.map((e) => [e.month, e]));
   const first   = entries[0].month;
   const last    = entries[entries.length - 1].month;
 
-  const result: MonthlyEntry[] = [];
-  let [y, m] = first.split('-').map(Number) as [number, number];
-  const [ly, lm] = last.split('-').map(Number) as [number, number];
+  const [fy, fm] = first.split('-').map(Number);
+  const [ly, lm] = last.split('-').map(Number);
 
-  while (y < ly || (y === ly && m <= lm)) {
+  // If either bound is unparseable, skip gap-filling entirely and return the raw
+  // (already valid) entries rather than risk an infinite / runaway loop.
+  if (![fy, fm, ly, lm].every(Number.isFinite)) return entries;
+
+  const result: MonthlyEntry[] = [];
+  let y = fy;
+  let m = fm;
+
+  while ((y < ly || (y === ly && m <= lm)) && result.length < MAX_MONTHLY_BUCKETS) {
     const key = `${y}-${String(m).padStart(2, '0')}`;
     result.push(byMonth.get(key) ?? {
       month:             key,

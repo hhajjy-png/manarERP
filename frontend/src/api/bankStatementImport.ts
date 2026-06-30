@@ -136,6 +136,7 @@ export interface TimelineTransaction {
   isDuplicate:      boolean;
   isBankFee:        boolean;
   bankFeeType:      BankFeeType | null;
+  transactionFingerprint: string | null;
 }
 
 export interface TimelineResult {
@@ -373,18 +374,31 @@ export async function bulkDeleteImports(ids: number[]): Promise<{ deleted: numbe
   return res.data.data;
 }
 
+export type TimelineFilterType =
+  'all' | 'deposits' | 'withdrawals' | 'fees' | 'cheques' | 'transfers';
+
+export interface TimelineFilters {
+  fromDate?:  string;
+  toDate?:    string;
+  search?:    string;
+  type?:      TimelineFilterType;
+  minAmount?: number;
+  maxAmount?: number;
+}
+
 export async function getTimeline(
   accountKey: string,
   page       = 1,
   pageSize   = 50,
-  fromDate?:   string,
-  toDate?:     string,
-  search?:     string,
+  filters:   TimelineFilters = {},
 ): Promise<TimelineResult> {
   const params: Record<string, string | number> = { page, pageSize };
-  if (fromDate) params.fromDate = fromDate;
-  if (toDate)   params.toDate   = toDate;
-  if (search)   params.search   = search;
+  if (filters.fromDate)            params.fromDate  = filters.fromDate;
+  if (filters.toDate)              params.toDate    = filters.toDate;
+  if (filters.search)              params.search    = filters.search;
+  if (filters.type && filters.type !== 'all') params.type = filters.type;
+  if (filters.minAmount != null)   params.minAmount = filters.minAmount;
+  if (filters.maxAmount != null)   params.maxAmount = filters.maxAmount;
   const res = await api.get<{ data: TimelineResult }>(
     `/bank-statement-import/timeline/${encodeURIComponent(accountKey)}`,
     { params },
