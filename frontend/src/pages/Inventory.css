@@ -1,0 +1,95 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Inventory — page-specific styles (.invx-* prefix)
+   Composes with the shared Explorer Kit (explorer-kit.css / .xpl-*).
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.invx-metrics {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+@media (max-width: 1100px) { .invx-metrics { grid-template-columns: 1fr; } }
+
+.invx-code { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--xpl-muted); }
+.invx-stock { font-weight: 800; }
+.invx-stock--low { color: var(--xpl-red); }
+
+/* ── Line-item builder (inside dialogs) ────────────────────────────────────── */
+.invx-lines { display: flex; flex-direction: column; gap: 8px; }
+.invx-line {
+  display: grid;
+  gap: 8px;
+  align-items: center;
+}
+.invx-line--cost { grid-template-columns: 2.2fr 1fr 1fr 1fr 36px; }
+.invx-line--nocost { grid-template-columns: 3fr 1fr 36px; }
+.invx-line .xpl-input,
+.invx-line .xpl-select { height: 38px; }
+.invx-line-total {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 10px;
+  background: var(--xpl-bg);
+  color: var(--xpl-muted);
+  font-weight: 700;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.invx-line-remove {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--xpl-border);
+  background: var(--xpl-surface);
+  color: var(--xpl-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .2s ease;
+}
+.invx-line-remove:hover { color: var(--xpl-red); border-color: var(--xpl-red); }
+.invx-line-remove .material-symbols-outlined { font-size: 18px !important; }
+.invx-line-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--xpl-border);
+}
+.invx-line-grand { font-weight: 800; font-size: 13.5px; color: var(--xpl-text); }
+
+/* ── Detail items table (inside drawers) ───────────────────────────────────── */
+.invx-detail-table { width: 100%; border-collapse: collapse; font-size: 12.5px; direction: rtl; }
+.invx-detail-table th {
+  text-align: right;
+  padding: 8px 8px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--xpl-muted);
+  border-bottom: 1px solid var(--xpl-border);
+}
+.invx-detail-table td { padding: 9px 8px; border-bottom: 1px solid var(--xpl-border); color: var(--xpl-text); }
+.invx-detail-table tbody tr:last-child td { border-bottom: none; }
+.invx-detail-grand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 2px solid var(--xpl-border);
+  font-weight: 800;
+}
+
+/* checkbox row inside dialogs */
+.invx-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--xpl-text); }
+.invx-check input { width: 16px; height: 16px; accent-color: var(--xpl-primary); }
