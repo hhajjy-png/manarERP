@@ -491,6 +491,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
             }
             footer={
               <>
+                {cfg.key === 'contracts' && (
+                  <Button variant="secondary" icon="bar_chart" onClick={() => setFinancialSummaryContract({ id: viewing.id, code: viewing.code })}>{t('action.financial_summary')}</Button>
+                )}
                 {canUpdate && <Button variant="primary" icon="edit" onClick={() => { setEditing(viewing); setViewing(null); }}>{t('action.edit')}</Button>}
                 {canDelete && <Button variant="danger" icon="delete" busy={busy} onClick={() => onDelete(viewing)}>{t('action.delete')}</Button>}
               </>

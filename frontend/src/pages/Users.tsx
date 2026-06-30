@@ -1,9 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
-import Modal from '../components/Modal';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
+import {
+  ExecutiveHeader,
+  IdChip,
+  MetricCard,
+  Tabs,
+  StatusChip,
+  SearchBox,
+  SectionCard,
+  EmptyState,
+  SkeletonRows,
+  Drawer,
+  DrawerSection,
+  DrawerField,
+  Dialog,
+  DialogSection,
+  Button,
+} from '../components/explorer/ExplorerKit';
+import '../components/explorer/explorer-kit.css';
+import './Users.css';
 
 type UserRow = {
   id: number;
@@ -42,6 +60,7 @@ export default function Users() {
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [allPerms, setAllPerms] = useState<Record<string, Permission[]>>({});
@@ -49,6 +68,7 @@ export default function Users() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [viewing, setViewing] = useState<UserRow | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
@@ -131,6 +151,7 @@ export default function Users() {
     try {
       await api.put(`/users/${u.id}`, { isActive: !u.isActive });
       toast.ok(u.isActive ? t('msg.users.disabled') : t('msg.users.enabled'));
+      setViewing(null);
       loadUsers();
     } catch (err) { toast.error(errorMessage(err)); } finally { setBusy(false); }
   }
@@ -143,115 +164,143 @@ export default function Users() {
     } catch { /* ignore */ }
   }
 
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) =>
+      u.username.toLowerCase().includes(q) ||
+      u.fullName.toLowerCase().includes(q) ||
+      (u.email ?? '').toLowerCase().includes(q) ||
+      u.role.displayName.toLowerCase().includes(q));
+  }, [users, search]);
+
+  const kpi = useMemo(() => ({
+    total: users.length,
+    active: users.filter((u) => u.isActive).length,
+    roles: roles.length,
+    systemRoles: roles.filter((r) => r.isSystem).length,
+  }), [users, roles]);
+
+  const selectedRole = useMemo(() => roles.find((r) => String(r.id) === form.roleId), [roles, form.roleId]);
+
   return (
-    <div>
-      <div className="page-head">
-        <div>
-          <h2>{t('page.users.title')}</h2>
-          <p>{t('page.users.subtitle')}</p>
-        </div>
-        {tab === 'users' && canCreate && (
-          <button type="button" className="btn" onClick={openCreate}>{t('btn.users.new_user')}</button>
-        )}
+    <div className="xpl-scope xpl-page" dir="rtl">
+      <ExecutiveHeader
+        icon="admin_panel_settings"
+        title={t('page.users.title')}
+        subtitle={t('page.users.subtitle')}
+        chips={
+          <>
+            <IdChip icon="group" tone="indigo">{kpi.total} مستخدم</IdChip>
+            <IdChip icon="task_alt" tone="green">{kpi.active} نشط</IdChip>
+            <IdChip icon="shield" tone="orange">{kpi.roles} دور</IdChip>
+          </>
+        }
+        aside={tab === 'users' && canCreate ? <Button variant="primary" icon="person_add" onClick={openCreate}>{t('btn.users.new_user')}</Button> : undefined}
+      />
+
+      <div className="xpl-kpi-grid">
+        <MetricCard icon="group" tone="indigo" label={t('tab.users.users')} value={kpi.total} />
+        <MetricCard icon="task_alt" tone="green" label={t('status.active')} value={kpi.active} />
+        <MetricCard icon="shield" tone="blue" label={t('tab.users.roles')} value={kpi.roles} />
+        <MetricCard icon="verified_user" tone="orange" label={t('lbl.users.system_role')} value={kpi.systemRoles} />
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <button type="button" className={`btn ${tab === 'users' ? '' : 'secondary'}`} onClick={() => setTab('users')}>
-          👤 {t('tab.users.users')}
-        </button>
-        <button type="button" className={`btn ${tab === 'roles' ? '' : 'secondary'}`} onClick={() => setTab('roles')}>
-          🔑 {t('tab.users.roles')}
-        </button>
-      </div>
+      <Tabs<'users' | 'roles'>
+        active={tab}
+        onChange={setTab}
+        tabs={[
+          { key: 'users', label: t('tab.users.users'), icon: 'group' },
+          { key: 'roles', label: t('tab.users.roles'), icon: 'shield' },
+        ]}
+      />
 
       {tab === 'users' && (
-        <div className="card panel" style={{ padding: 0 }}>
-          <div className="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>{t('col.users.username')}</th>
-                  <th>{t('col.users.fullname')}</th>
-                  <th>{t('col.users.role')}</th>
-                  <th>{t('col.users.status')}</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {usersLoading ? (
-                  <tr><td colSpan={5}><div className="center-msg"><div className="spinner" />{t('msg.loading')}</div></td></tr>
-                ) : users.length === 0 ? (
-                  <tr><td colSpan={5}><div className="center-msg">{t('empty.users')}</div></td></tr>
-                ) : users.map((u) => (
-                  <tr key={u.id}>
-                    <td><strong style={{ fontFamily: 'monospace' }}>{u.username}</strong></td>
-                    <td>{u.fullName}</td>
-                    <td><span className="pill blue">{u.role.displayName}</span></td>
-                    <td>
-                      {u.isActive
-                        ? <span className="pill green">{t('status.active')}</span>
-                        : <span className="pill gray">{t('status.suspended')}</span>}
-                    </td>
-                    <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
-                      {canUpdate && (
-                        <button type="button" className="btn secondary sm" onClick={() => openEdit(u)}>{t('action.edit')}</button>
-                      )}{' '}
-                      {canUpdate && (
-                        <button
-                          type="button"
-                          className={`btn ${u.isActive ? 'secondary' : ''} sm`}
-                          style={u.isActive ? { color: 'var(--danger)' } : {}}
-                          onClick={() => toggleActive(u)}
-                          disabled={busy}
-                        >
-                          {u.isActive ? t('btn.users.disable') : t('btn.users.enable')}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <>
+          <div className="xpl-toolbar xpl-toolbar--sticky">
+            <div className="xpl-toolbar-row">
+              <SearchBox value={search} onChange={setSearch} placeholder="ابحث بالاسم أو اسم المستخدم أو الدور…" ariaLabel="بحث في المستخدمين" />
+              {canCreate && <Button variant="primary" icon="person_add" onClick={openCreate}>{t('btn.users.new_user')}</Button>}
+            </div>
           </div>
-        </div>
+
+          <section className="xpl-card" style={{ overflow: 'hidden' }}>
+            {usersLoading ? (
+              <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
+            ) : filteredUsers.length === 0 ? (
+              <EmptyState
+                icon="group_off"
+                tone="neutral"
+                title={search ? 'لا يوجد مستخدم مطابق' : t('empty.users')}
+                message={search ? 'جرّب كلمة بحث مختلفة.' : undefined}
+                action={!search && canCreate ? <Button variant="primary" icon="person_add" onClick={openCreate}>{t('btn.users.new_user')}</Button> : undefined}
+              />
+            ) : (
+              <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+                <table className="xpl-table">
+                  <thead>
+                    <tr>
+                      <th>{t('col.users.username')}</th>
+                      <th>{t('col.users.fullname')}</th>
+                      <th>{t('col.users.role')}</th>
+                      <th>{t('col.users.status')}</th>
+                      <th aria-label="فتح" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredUsers.map((u) => (
+                      <tr key={u.id} className="xpl-row--click" tabIndex={0} role="button"
+                        aria-label={`تفاصيل المستخدم ${u.fullName}`}
+                        onClick={() => setViewing(u)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(u); } }}>
+                        <td><strong style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{u.username}</strong></td>
+                        <td>{u.fullName}</td>
+                        <td><StatusChip tone="indigo" icon="shield">{u.role.displayName}</StatusChip></td>
+                        <td><StatusChip tone={u.isActive ? 'green' : 'neutral'}>{u.isActive ? t('status.active') : t('status.suspended')}</StatusChip></td>
+                        <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
       )}
 
       {tab === 'roles' && (
-        <div>
-          {roles.map((role) => (
-            <div key={role.id} className="card panel" style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <strong style={{ fontSize: 15 }}>{role.displayName}</strong>
-                  {role.isSystem && <span className="pill blue" style={{ fontSize: 11 }}>{t('lbl.users.system_role')}</span>}
-                  <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                    {t('lbl.users.role_stats', { users: role._count.users, perms: role._count.rolePermissions })}
-                  </span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {roles.length === 0 ? (
+            <SkeletonRows rows={4} />
+          ) : roles.map((role) => (
+            <SectionCard key={role.id}>
+              <div className="usrx-role-card-head">
+                <div className="usrx-role-id">
+                  <div className="usrx-role-icon"><span className="material-symbols-outlined" aria-hidden="true">shield</span></div>
+                  <div>
+                    <div className="usrx-role-name">{role.displayName}</div>
+                    <div className="usrx-role-meta">{t('lbl.users.role_stats', { users: role._count.users, perms: role._count.rolePermissions })}</div>
+                  </div>
+                  {role.isSystem && <StatusChip tone="blue" icon="verified_user">{t('lbl.users.system_role')}</StatusChip>}
                 </div>
-                <button type="button" className="btn secondary sm" onClick={() => toggleRoleExpand(role.id)}>
-                  {expandedRole?.id === role.id ? `▲ ${t('btn.users.hide_perms')}` : `▼ ${t('btn.users.show_perms')}`}
-                </button>
+                <Button variant="secondary" small icon={expandedRole?.id === role.id ? 'expand_less' : 'expand_more'} onClick={() => toggleRoleExpand(role.id)}>
+                  {expandedRole?.id === role.id ? t('btn.users.hide_perms') : t('btn.users.show_perms')}
+                </Button>
               </div>
 
               {expandedRole?.id === role.id && (
-                <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                <div className="usrx-role-perms">
                   {Object.entries(allPerms).map(([module, perms]) => {
                     if (perms.length === 0) return null;
                     return (
-                      <div key={module} style={{ marginBottom: 14 }}>
-                        <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--text-muted)', fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                          {t('perm.module.' + module)}
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      <div key={module} className="usrx-perm-group">
+                        <div className="usrx-perm-group-title">{t('perm.module.' + module)}</div>
+                        <div className="usrx-perm-chips">
                           {perms.map((p) => {
                             const granted = expandedRole.keys.includes(p.key);
                             return (
-                              <span
-                                key={p.key}
-                                className={`pill ${granted ? 'green' : 'gray'}`}
-                                style={{ opacity: granted ? 1 : 0.35, fontSize: 12 }}
-                              >
-                                {t('perm.action.' + p.action)}
+                              <span key={p.key} className={granted ? '' : 'usrx-perm-denied'}>
+                                <StatusChip tone={granted ? 'green' : 'neutral'} icon={granted ? 'check' : 'remove'}>{t('perm.action.' + p.action)}</StatusChip>
                               </span>
                             );
                           })}
@@ -261,68 +310,105 @@ export default function Users() {
                   })}
                 </div>
               )}
-            </div>
+            </SectionCard>
           ))}
         </div>
       )}
 
+      {/* ── User detail drawer ── */}
+      {viewing && (
+        <Drawer
+          title={viewing.fullName}
+          onClose={() => setViewing(null)}
+          hero={
+            <div className="xpl-drawer-hero">
+              <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">account_circle</span></div>
+              <div className="xpl-drawer-hero-body">
+                <span className="xpl-drawer-hero-title">{viewing.fullName}</span>
+                <span className="xpl-drawer-hero-sub">{viewing.username}</span>
+                <div style={{ marginTop: 4 }}>
+                  <StatusChip tone={viewing.isActive ? 'green' : 'neutral'}>{viewing.isActive ? t('status.active') : t('status.suspended')}</StatusChip>
+                </div>
+              </div>
+            </div>
+          }
+          footer={
+            canUpdate ? (
+              <>
+                <Button variant="primary" icon="edit" onClick={() => { openEdit(viewing); setViewing(null); }}>{t('action.edit')}</Button>
+                <Button variant={viewing.isActive ? 'danger' : 'secondary'} icon={viewing.isActive ? 'block' : 'check_circle'} busy={busy} onClick={() => toggleActive(viewing)}>
+                  {viewing.isActive ? t('btn.users.disable') : t('btn.users.enable')}
+                </Button>
+              </>
+            ) : undefined
+          }
+        >
+          <DrawerSection title="بيانات المستخدم">
+            <DrawerField label={t('col.users.username')} value={viewing.username} mono />
+            <DrawerField label={t('col.users.fullname')} value={viewing.fullName} />
+            <DrawerField label={t('field.email')} value={viewing.email || '—'} />
+          </DrawerSection>
+          <DrawerSection title={t('col.users.role')}>
+            <DrawerField label={t('col.users.role')} value={<StatusChip tone="indigo" icon="shield">{viewing.role.displayName}</StatusChip>} />
+            <DrawerField label={t('col.users.status')} value={<StatusChip tone={viewing.isActive ? 'green' : 'neutral'}>{viewing.isActive ? t('status.active') : t('status.suspended')}</StatusChip>} />
+          </DrawerSection>
+        </Drawer>
+      )}
+
+      {/* ── Create / edit dialog ── */}
       {showForm && (
-        <Modal
+        <Dialog
+          icon={editingUser ? 'manage_accounts' : 'person_add'}
           title={editingUser ? t('modal.users.edit_prefix') + editingUser.username : t('modal.users.new')}
-          size="lg"
+          subtitle={editingUser ? t('col.users.role') + ': ' + editingUser.role.displayName : 'إنشاء حساب مستخدم جديد'}
+          size="md"
           onClose={() => setShowForm(false)}
           footer={
             <>
-              <button type="button" className="btn" onClick={onSave} disabled={saving}>
-                {saving ? t('msg.saving') : t('action.save')}
-              </button>
-              <button type="button" className="btn secondary" onClick={() => setShowForm(false)}>{t('action.cancel')}</button>
+              <Button variant="primary" icon="save" busy={saving} onClick={onSave}>{t('action.save')}</Button>
+              <Button variant="ghost" onClick={() => setShowForm(false)}>{t('action.cancel')}</Button>
             </>
           }
         >
-          {formError && <div className="alert error">⚠️ {formError}</div>}
-          <div className="form-grid">
+          {formError && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{formError}</div>}
+
+          <DialogSection title="الهوية" icon="badge">
             {!editingUser && (
-              <div className="field">
-                <label>{t('col.users.username')} *</label>
-                <input
-                  value={form.username}
-                  onChange={(e) => setForm({ ...form, username: e.target.value })}
-                  autoComplete="username"
-                  autoFocus
-                />
+              <div className="xpl-field">
+                <label>{t('col.users.username')} <span className="req">*</span></label>
+                <input className="xpl-input" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} autoComplete="username" autoFocus aria-label={t('col.users.username')} />
               </div>
             )}
-            <div className="field">
-              <label>{editingUser ? t('field.users.new_password_opt') : `${t('field.users.password')} *`}</label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder="••••••••"
-                autoComplete="new-password"
-                autoFocus={!!editingUser}
-              />
+            <div className="xpl-field">
+              <label>{t('col.users.fullname')} <span className="req">*</span></label>
+              <input className="xpl-input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} aria-label={t('col.users.fullname')} />
             </div>
-            <div className="field">
-              <label>{t('col.users.fullname')} *</label>
-              <input value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
-            </div>
-            <div className="field">
+            <div className="xpl-field xpl-field--full">
               <label>{t('field.email')}</label>
-              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <input className="xpl-input" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} aria-label={t('field.email')} />
             </div>
-            <div className="field" style={{ gridColumn: '1 / -1' }}>
-              <label>{t('col.users.role')} *</label>
-              <select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })}>
+          </DialogSection>
+
+          <DialogSection title="الدور والصلاحيات" icon="shield">
+            <div className="xpl-field">
+              <label>{editingUser ? t('field.users.new_password_opt') : `${t('field.users.password')} `}{!editingUser && <span className="req">*</span>}</label>
+              <input className="xpl-input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" autoComplete="new-password" autoFocus={!!editingUser} aria-label={t('field.users.password')} />
+            </div>
+            <div className="xpl-field">
+              <label>{t('col.users.role')} <span className="req">*</span></label>
+              <select className="xpl-select" value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} aria-label={t('col.users.role')}>
                 <option value="">{t('msg.select_placeholder')}</option>
-                {roles.map((r) => (
-                  <option key={r.id} value={r.id}>{r.displayName}</option>
-                ))}
+                {roles.map((r) => <option key={r.id} value={r.id}>{r.displayName}</option>)}
               </select>
+              {selectedRole && (
+                <span className="usrx-role-hint">
+                  <span className="material-symbols-outlined">key</span>
+                  {t('lbl.users.role_stats', { users: selectedRole._count.users, perms: selectedRole._count.rolePermissions })}
+                </span>
+              )}
             </div>
-          </div>
-        </Modal>
+          </DialogSection>
+        </Dialog>
       )}
     </div>
   );
