@@ -1,12 +1,26 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
-import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadBlob } from '../utils/exportUtils';
 import { exportReportAsPdf } from '../utils/pdfExport';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
+import {
+  ExecutiveHeader,
+  IdChip,
+  HeroMetric,
+  MetricCard,
+  StatusChip,
+  FilterChip,
+  SearchBox,
+  SectionCard,
+  EmptyState,
+  Drawer,
+  DrawerSection,
+  Button,
+} from '../components/explorer/ExplorerKit';
+import '../components/explorer/explorer-kit.css';
 import './Reports.css';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -160,7 +174,7 @@ const CHIP_GROUPS = [
   { key: 'operations', label: 'العمليات', group: 'report.group.operations' },
   { key: 'operational', label: 'التشغيلية', group: 'report.group.operational' },
   { key: 'receivables', label: 'المستحقات', group: 'report.group.receivables' },
-  { key: 'favorites', label: '⭐ المفضلة', group: undefined },
+  { key: 'favorites', label: 'المفضلة', group: undefined },
 ];
 
 const LS_FAVORITES = 'rc_favorites_v1';
@@ -186,10 +200,11 @@ function fmt(v: unknown): string {
   return String(v);
 }
 
-function getStatusBadge(type: ReportType['statusType']) {
-  if (type === 'needs-filter') return { cls: 'needs-filter', label: '🟡 يحتاج فلاتر' };
-  if (type === 'live')         return { cls: 'live',         label: '🔵 تقرير مباشر' };
-  return                              { cls: 'ready',        label: '🟢 جاهز' };
+type StatusTone = 'green' | 'orange' | 'blue';
+function statusMeta(type: ReportType['statusType']): { tone: StatusTone; label: string; icon: string } {
+  if (type === 'needs-filter') return { tone: 'orange', label: 'يحتاج فلاتر', icon: 'tune' };
+  if (type === 'live')         return { tone: 'blue',   label: 'تقرير مباشر', icon: 'bolt' };
+  return                              { tone: 'green',  label: 'جاهز', icon: 'check_circle' };
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -401,54 +416,58 @@ export default function Reports() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [generatedAt]);
 
-  const groupCounts = useMemo(() => {
-    const map: Record<string, number> = {};
-    filteredReports.forEach((r) => { map[r.groupAr] = (map[r.groupAr] ?? 0) + 1; });
+  // Per-chip counts for filter chips
+  const chipCounts = useMemo(() => {
+    const map: Record<string, number> = { all: REPORT_TYPES.length, favorites: favorites.length };
+    CHIP_GROUPS.forEach((c) => {
+      if (c.group) map[c.key] = REPORT_TYPES.filter((r) => r.group === c.group).length;
+    });
     return map;
-  }, [filteredReports]);
+  }, [favorites]);
 
   const hasAnyFilter = !!(from || to || customerId || employeeId || status || direction || billingMonth || billingYear || company || workType);
   const f = currentType.filters;
+  const curStatus = statusMeta(currentType.statusType);
 
-  // ─── Filter fields (reused in both panel and inline) ──────────────────────
+  // ─── Filter fields (rendered inside the report drawer) ────────────────────
 
   function renderFilterFields() {
     return (
-      <>
+      <div className="rcx-drawer-filters">
         {f.includes('date') && (
           <>
-            <div className="rc-panel-field">
+            <div className="rcx-filter-field">
               <label>{t('filter.date_from')}</label>
-              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <input type="date" aria-label={t('filter.date_from')} value={from} onChange={(e) => setFrom(e.target.value)} />
             </div>
-            <div className="rc-panel-field">
+            <div className="rcx-filter-field">
               <label>{t('filter.date_to')}</label>
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              <input type="date" aria-label={t('filter.date_to')} value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
           </>
         )}
         {f.includes('customer') && customers.length > 0 && (
-          <div className="rc-panel-field">
+          <div className="rcx-filter-field">
             <label>{t('filter.customer')}</label>
-            <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+            <select aria-label={t('filter.customer')} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
               <option value="">{t('opt.all')}</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
         )}
         {f.includes('employee') && employees.length > 0 && (
-          <div className="rc-panel-field">
+          <div className="rcx-filter-field">
             <label>{t('filter.employee')}</label>
-            <select value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+            <select aria-label={t('filter.employee')} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
               <option value="">{t('opt.all')}</option>
               {employees.map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
             </select>
           </div>
         )}
         {f.includes('direction') && (
-          <div className="rc-panel-field">
+          <div className="rcx-filter-field">
             <label>{t('filter.direction')}</label>
-            <select value={direction} onChange={(e) => setDirection(e.target.value)}>
+            <select aria-label={t('filter.direction')} value={direction} onChange={(e) => setDirection(e.target.value)}>
               <option value="">{t('opt.all')}</option>
               <option value="SALES">{t('opt.direction.sales')}</option>
               <option value="PURCHASE">{t('opt.direction.purchase')}</option>
@@ -456,27 +475,27 @@ export default function Reports() {
           </div>
         )}
         {f.includes('status') && currentType.statuses && (
-          <div className="rc-panel-field">
+          <div className="rcx-filter-field">
             <label>{t(currentType.statusLabel ?? 'filter.status')}</label>
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <select aria-label={t(currentType.statusLabel ?? 'filter.status')} value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">{t('opt.all')}</option>
               {currentType.statuses.map(([val, lbl]) => <option key={val} value={val}>{t(lbl)}</option>)}
             </select>
           </div>
         )}
         {f.includes('billingMonth') && (
-          <div className="rc-panel-field">
+          <div className="rcx-filter-field">
             <label>شهر الحساب</label>
-            <select value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)}>
+            <select aria-label="شهر الحساب" value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)}>
               <option value="">الكل</option>
               {ARABIC_MONTHS.map((name, i) => <option key={i + 1} value={i + 1}>{name}</option>)}
             </select>
           </div>
         )}
         {f.includes('billingYear') && (
-          <div className="rc-panel-field">
+          <div className="rcx-filter-field">
             <label>السنة</label>
-            <select value={billingYear} onChange={(e) => setBillingYear(e.target.value)}>
+            <select aria-label="السنة" value={billingYear} onChange={(e) => setBillingYear(e.target.value)}>
               <option value="">الكل</option>
               {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map((y) => (
                 <option key={y} value={y}>{y}</option>
@@ -485,401 +504,388 @@ export default function Reports() {
           </div>
         )}
         {f.includes('company') && (
-          <div className="rc-panel-field">
+          <div className="rcx-filter-field">
             <label>الشركة / المسؤول</label>
-            <select value={company} onChange={(e) => setCompany(e.target.value)}>
+            <select aria-label="الشركة / المسؤول" value={company} onChange={(e) => setCompany(e.target.value)}>
               <option value="">الكل</option>
               {COMPANY_GROUPS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
             </select>
           </div>
         )}
         {f.includes('workType') && (
-          <div className="rc-panel-field">
+          <div className="rcx-filter-field">
             <label>نوع العمل</label>
-            <select value={workType} onChange={(e) => setWorkType(e.target.value)}>
+            <select aria-label="نوع العمل" value={workType} onChange={(e) => setWorkType(e.target.value)}>
               <option value="">الكل</option>
               {CONTRACT_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
           </div>
         )}
-      </>
+      </div>
     );
   }
 
-  // ─── Skeleton loading ─────────────────────────────────────────────────────
-
-  const skeleton = (
-    <div className="rc-skeleton-grid">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rc-skeleton-card">
-          <div className="rc-skeleton-line rc-skeleton-shimmer" style={{ width: 48, height: 48, borderRadius: 12 }} />
-          <div className="rc-skeleton-line rc-skeleton-shimmer" style={{ height: 16, width: '70%', marginTop: 4 }} />
-          <div className="rc-skeleton-line rc-skeleton-shimmer" style={{ height: 12, width: '90%' }} />
-          <div className="rc-skeleton-line rc-skeleton-shimmer" style={{ height: 12, width: '60%' }} />
-        </div>
-      ))}
-    </div>
-  );
+  function openReport(key: string) {
+    selectReport(key);
+    setPanelOpen(true);
+  }
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="rc-page">
+    <div className="xpl-scope xpl-page" dir="rtl">
 
-      {/* Side panel overlay */}
+      {/* ── Report Preview / Config Drawer ── */}
       {panelOpen && (
-        <>
-          <div className="rc-overlay" onClick={() => setPanelOpen(false)} />
-          <div className="rc-panel">
-            <div className="rc-panel-header">
-              <div className="rc-panel-title">
-                <span>{currentType.icon}</span>
-                <span>{t(currentType.label)}</span>
-              </div>
-              <button type="button" className="rc-panel-close" onClick={() => setPanelOpen(false)}>✕</button>
-            </div>
-            <div className="rc-panel-body">
-              {currentType.descAr && (
-                <div className="rc-panel-section">
-                  <div className="rc-panel-section-title">وصف التقرير</div>
-                  <div className="rc-panel-desc">{currentType.descAr}</div>
-                </div>
-              )}
-              <div className="rc-panel-section">
-                <div className="rc-panel-section-title">معلومات التقرير</div>
-                <div className="rc-panel-row">
-                  <span className="rc-panel-row-label">الفئة</span>
-                  <span className="rc-panel-row-value">{currentType.groupAr}</span>
-                </div>
-                <div className="rc-panel-row">
-                  <span className="rc-panel-row-label">الحالة</span>
-                  <span className={`rc-status-badge ${getStatusBadge(currentType.statusType).cls}`}>
-                    {getStatusBadge(currentType.statusType).label}
-                  </span>
+        <Drawer
+          title={t(currentType.label)}
+          onClose={() => setPanelOpen(false)}
+          hero={
+            <div className="xpl-drawer-hero">
+              <div className="xpl-drawer-hero-icon" style={{ fontSize: 24 }}>{currentType.icon}</div>
+              <div className="xpl-drawer-hero-body">
+                <span className="xpl-drawer-hero-title">{t(currentType.label)}</span>
+                <span className="xpl-drawer-hero-sub">{currentType.groupAr}</span>
+                <div style={{ marginTop: 4 }}>
+                  <StatusChip tone={curStatus.tone} icon={curStatus.icon}>{curStatus.label}</StatusChip>
                 </div>
               </div>
-              {f.length > 0 && (
-                <div className="rc-panel-section">
-                  <div className="rc-panel-section-title">الفلاتر</div>
-                  <div className="rc-panel-filters">
-                    {renderFilterFields()}
-                  </div>
-                </div>
-              )}
             </div>
-            <div className="rc-panel-footer">
+          }
+          footer={
+            <>
               {canView && (
-                <button type="button" className="btn" onClick={() => { setPanelOpen(false); loadPreview(); }}>
-                  ▶ تشغيل التقرير
-                </button>
+                <Button variant="primary" icon="play_arrow" busy={loading} onClick={loadPreview}>
+                  تشغيل التقرير
+                </Button>
               )}
               {hasAnyFilter && (
-                <button type="button" className="btn secondary" onClick={resetFilters}>مسح الفلاتر</button>
+                <Button variant="ghost" icon="restart_alt" onClick={resetFilters}>مسح الفلاتر</Button>
               )}
+            </>
+          }
+        >
+          {currentType.descAr && (
+            <DrawerSection title="وصف التقرير">
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--xpl-text)' }}>{currentType.descAr}</p>
+            </DrawerSection>
+          )}
+
+          <DrawerSection title="معلومات التقرير">
+            <div className="xpl-drawer-field">
+              <span className="xpl-drawer-field-label">الفئة</span>
+              <span className="xpl-drawer-field-value">{currentType.groupAr}</span>
             </div>
-          </div>
-        </>
+            <div className="xpl-drawer-field">
+              <span className="xpl-drawer-field-label">الحالة</span>
+              <span className="xpl-drawer-field-value">
+                <StatusChip tone={curStatus.tone} icon={curStatus.icon}>{curStatus.label}</StatusChip>
+              </span>
+            </div>
+            <div className="xpl-drawer-field">
+              <span className="xpl-drawer-field-label">عدد النتائج</span>
+              <span className="xpl-drawer-field-value">
+                {preview ? `${preview.rows.length} سجل` : '— شغّل التقرير لعرض النتائج'}
+              </span>
+            </div>
+            {generatedAt && preview && (
+              <div className="xpl-drawer-field">
+                <span className="xpl-drawer-field-label">آخر تشغيل</span>
+                <span className="xpl-drawer-field-value">{generatedAt.toLocaleTimeString('ar')}</span>
+              </div>
+            )}
+          </DrawerSection>
+
+          {f.length > 0 && (
+            <DrawerSection title="الفلاتر المطلوبة">
+              {renderFilterFields()}
+            </DrawerSection>
+          )}
+
+          {canExport && (
+            <DrawerSection title="التصدير والطباعة">
+              {preview ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <Button variant="secondary" icon="table_view" busy={excelBusy} onClick={downloadExcel} block>تصدير Excel</Button>
+                  {window.manar?.exportPdfFromHtml && (
+                    <Button variant="secondary" icon="picture_as_pdf" busy={pdfBusy} onClick={downloadPdf} block>تصدير PDF</Button>
+                  )}
+                  <Button variant="ghost" icon="print" onClick={openPrint} block>طباعة</Button>
+                </div>
+              ) : (
+                <p className="rcx-note" style={{ margin: 0 }}>
+                  <span className="material-symbols-outlined">info</span>
+                  شغّل التقرير أولاً لتفعيل خيارات التصدير والطباعة.
+                </p>
+              )}
+            </DrawerSection>
+          )}
+
+          <DrawerSection title="ملاحظات">
+            <p className="rcx-note" style={{ margin: 0 }}>
+              <span className="material-symbols-outlined">lightbulb</span>
+              {currentType.statusType === 'needs-filter'
+                ? 'هذا التقرير يحتاج تحديد فترة أو فلاتر للحصول على نتائج دقيقة.'
+                : currentType.statusType === 'live'
+                  ? 'تقرير مباشر يُحسب لحظياً من البيانات الحالية في النظام.'
+                  : 'تقرير جاهز للتشغيل مباشرة دون الحاجة لفلاتر إلزامية.'}
+            </p>
+          </DrawerSection>
+        </Drawer>
       )}
 
-      {/* Hero */}
-      <div className="rc-hero">
-        <div className="rc-hero-left">
-          <div className="rc-hero-icon">📊</div>
-          <h2 className="rc-hero-title">مركز التقارير</h2>
-          <p className="rc-hero-subtitle">استعرض وصدّر تقارير الأعمال والمالية والموارد البشرية</p>
-        </div>
-        <div className="rc-hero-chips">
-          <div className="rc-hero-chip">
-            <span className="rc-hero-chip-dot" />
-            <span>{kpi.total} تقرير</span>
-          </div>
-          <div className="rc-hero-chip green">
-            <span className="rc-hero-chip-dot green" />
-            <span>{kpi.ready} جاهز</span>
-          </div>
-          <div className="rc-hero-chip amber">
-            <span className="rc-hero-chip-dot amber" />
-            <span>{kpi.needsFilter} يحتاج فلاتر</span>
-          </div>
-          <div className="rc-hero-chip blue">
-            <span className="rc-hero-chip-dot blue" />
-            <span>{kpi.live} مباشر</span>
-          </div>
-          {favorites.length > 0 && (
-            <div className="rc-hero-chip">
-              <span>⭐</span>
-              <span>{favorites.length} مفضل</span>
-            </div>
-          )}
+      {/* ── Executive Header ── */}
+      <ExecutiveHeader
+        icon="assessment"
+        title="مركز التقارير"
+        subtitle="استعرض وصدّر تقارير الأعمال والمالية والموارد البشرية والعمليات"
+        chips={
+          <>
+            <IdChip icon="summarize" tone="indigo">{kpi.total} تقرير</IdChip>
+            <IdChip icon="check_circle" tone="green">{kpi.ready} جاهز</IdChip>
+            <IdChip icon="tune" tone="orange">{kpi.needsFilter} يحتاج فلاتر</IdChip>
+            <IdChip icon="bolt" tone="indigo">{kpi.live} مباشر</IdChip>
+            {favorites.length > 0 && <IdChip icon="star" tone="orange">{favorites.length} مفضل</IdChip>}
+          </>
+        }
+      />
+
+      {/* ── Summary hero + report statistics ── */}
+      <div className="rcx-metrics">
+        <HeroMetric
+          icon="analytics"
+          label="إجمالي التقارير المتاحة"
+          value={kpi.total}
+          sub={<><span className="material-symbols-outlined">category</span>{`${CHIP_GROUPS.length - 2} فئات رئيسية`}</>}
+        />
+        <div className="rcx-metrics-secondary">
+          <MetricCard icon="payments" tone="green" label="التقارير المالية" value={kpi.financial} />
+          <MetricCard icon="groups" tone="blue" label="الموارد البشرية" value={kpi.hr} />
+          <MetricCard icon="construction" tone="orange" label="العمليات" value={kpi.ops} />
+          <MetricCard icon="request_quote" tone="indigo" label="المستحقات" value={kpi.recv} />
+          <MetricCard icon="check_circle" tone="green" label="جاهز للتشغيل" value={kpi.ready} />
+          <MetricCard icon="star" tone="orange" label="المفضلة" value={favorites.length} />
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="rc-kpi-grid">
-        <div className="rc-kpi-card">
-          <div className="rc-kpi-icon blue">📊</div>
-          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.total}</div><div className="rc-kpi-label">إجمالي التقارير</div></div>
-        </div>
-        <div className="rc-kpi-card">
-          <div className="rc-kpi-icon green">💰</div>
-          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.financial}</div><div className="rc-kpi-label">التقارير المالية</div></div>
-        </div>
-        <div className="rc-kpi-card">
-          <div className="rc-kpi-icon amber">👷</div>
-          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.hr}</div><div className="rc-kpi-label">الموارد البشرية</div></div>
-        </div>
-        <div className="rc-kpi-card">
-          <div className="rc-kpi-icon blue">🚜</div>
-          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.ops}</div><div className="rc-kpi-label">العمليات</div></div>
-        </div>
-        <div className="rc-kpi-card">
-          <div className="rc-kpi-icon green">⚖️</div>
-          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.recv}</div><div className="rc-kpi-label">المستحقات</div></div>
-        </div>
-        <div className="rc-kpi-card">
-          <div className="rc-kpi-icon green">🟢</div>
-          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.ready}</div><div className="rc-kpi-label">جاهز للتشغيل</div></div>
-        </div>
-        <div className="rc-kpi-card">
-          <div className="rc-kpi-icon amber">🟡</div>
-          <div className="rc-kpi-info"><div className="rc-kpi-value">{kpi.needsFilter}</div><div className="rc-kpi-label">يحتاج فلاتر</div></div>
-        </div>
-        <div className="rc-kpi-card">
-          <div className="rc-kpi-icon blue">⭐</div>
-          <div className="rc-kpi-info"><div className="rc-kpi-value">{favorites.length}</div><div className="rc-kpi-label">المفضلة</div></div>
-        </div>
-      </div>
-
-      {/* Toolbar */}
-      <div className="rc-toolbar">
-        <div className="rc-search-row">
-          <div className="rc-search-wrap">
-            <span className="rc-search-icon">🔍</span>
-            <input
-              className="rc-search-input"
-              type="text"
-              placeholder="البحث في التقارير..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button type="button" className="rc-search-clear" onClick={() => setSearch('')}>✕</button>
-            )}
-          </div>
+      {/* ── Sticky toolbar: search + recent + filter chips ── */}
+      <div className="xpl-toolbar xpl-toolbar--sticky">
+        <div className="xpl-toolbar-row">
+          <SearchBox value={search} onChange={setSearch} placeholder="البحث في التقارير..." ariaLabel="البحث في التقارير" />
           {recentReports.length > 0 && (
-            <div className="rc-summary-bar rc-recent-bar">
-              <span>الأخيرة:</span>
+            <div className="rcx-recent">
+              <span className="rcx-recent-label"><span className="material-symbols-outlined">history</span>الأخيرة:</span>
               {recentReports.map((r) => (
-                <button
-                  type="button"
-                  key={r.key}
-                  className="rc-summary-badge rc-recent-btn"
-                  onClick={() => selectReport(r.key)}
-                >
-                  {r.icon} {t(r.label)}
+                <button type="button" key={r.key} className="rcx-recent-btn" onClick={() => selectReport(r.key)}>
+                  <span>{r.icon}</span>{t(r.label)}
                 </button>
               ))}
             </div>
           )}
         </div>
-        <div className="rc-filter-chips">
+        <div className="xpl-toolbar-row">
           {CHIP_GROUPS.map((chip) => (
-            <button
-              type="button"
+            <FilterChip
               key={chip.key}
-              className={`rc-filter-chip${activeChip === chip.key ? ' active' : ''}`}
+              active={activeChip === chip.key}
               onClick={() => setActiveChip(chip.key)}
+              icon={chip.key === 'favorites' ? 'star' : undefined}
+              count={chipCounts[chip.key]}
             >
               {chip.label}
-            </button>
+            </FilterChip>
           ))}
+        </div>
+        <div className="xpl-active-row">
+          <span className="xpl-result-count">
+            يعرض <strong style={{ color: 'var(--xpl-text)' }}>{filteredReports.length}</strong> تقرير
+            {search && <> · نتائج "{search}"</>}
+          </span>
         </div>
       </div>
 
-      {/* Summary bar */}
-      <div className="rc-summary-bar">
-        <span>يعرض <strong>{filteredReports.length}</strong> تقرير{search && <> · نتائج "{search}"</>}</span>
-        {Object.entries(groupCounts).map(([grp, cnt]) => (
-          <span key={grp} className="rc-summary-badge">{grp} ({cnt})</span>
-        ))}
-        {favorites.length > 0 && <span className="rc-summary-badge">⭐ {favorites.length} مفضل</span>}
-      </div>
-
-      {/* Report cards grid */}
-      <div className="rc-card-grid">
-        {filteredReports.length === 0 ? (
-          <div className="rc-empty">
-            <div className="rc-empty-icon">🔍</div>
-            <div className="rc-empty-title">لا توجد تقارير مطابقة</div>
-            <div className="rc-empty-desc">جرّب تعديل كلمة البحث أو اختيار فئة مختلفة</div>
-          </div>
-        ) : (
-          filteredReports.map((rt) => {
-            const badge  = getStatusBadge(rt.statusType);
-            const isFav  = favorites.includes(rt.key);
-            const isSel  = selected === rt.key;
+      {/* ── Report cards grid ── */}
+      {filteredReports.length === 0 ? (
+        <EmptyState
+          icon="search_off"
+          tone="neutral"
+          title="لا توجد تقارير مطابقة"
+          message="جرّب تعديل كلمة البحث أو اختيار فئة مختلفة من الأعلى."
+          action={<Button variant="secondary" icon="restart_alt" onClick={() => { setSearch(''); setActiveChip('all'); }}>إعادة التعيين</Button>}
+        />
+      ) : (
+        <div className="rcx-card-grid">
+          {filteredReports.map((rt) => {
+            const meta  = statusMeta(rt.statusType);
+            const isFav = favorites.includes(rt.key);
+            const isSel = selected === rt.key;
             return (
-              <div key={rt.key} className={`rc-card${isSel ? ' selected' : ''}`} onClick={() => selectReport(rt.key)}>
-                <div className="rc-card-top">
-                  <div className="rc-card-icon-wrap">{rt.icon}</div>
-                  <div className="rc-card-top-right">
-                    <button
-                      type="button"
-                      className={`rc-fav-btn${isFav ? ' active' : ''}`}
-                      title={isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
-                      onClick={(e) => { e.stopPropagation(); toggleFavorite(rt.key); }}
-                    >
-                      {isFav ? '⭐' : '☆'}
-                    </button>
-                  </div>
-                </div>
-                <div className="rc-card-body">
-                  <div className="rc-card-name">{t(rt.label)}</div>
-                  {rt.descAr && <div className="rc-card-desc">{rt.descAr}</div>}
-                </div>
-                <div className="rc-card-meta">
-                  <span className={`rc-status-badge ${badge.cls}`}>{badge.label}</span>
-                  <span className="rc-category-tag">{rt.groupAr}</span>
-                </div>
-                <div className="rc-card-actions">
-                  {canView && (
-                    <button
-                      type="button"
-                      className="rc-action-btn primary"
-                      onClick={(e) => { e.stopPropagation(); selectReport(rt.key); setTimeout(loadPreview, 0); }}
-                    >
-                      ▶ تشغيل
-                    </button>
-                  )}
+              <div
+                key={rt.key}
+                className={`rcx-card${isSel ? ' selected' : ''}`}
+                onClick={() => openReport(rt.key)}
+              >
+                <div className="rcx-card-top">
+                  <div className="rcx-card-emoji">{rt.icon}</div>
                   <button
                     type="button"
-                    className="rc-action-btn"
-                    onClick={(e) => { e.stopPropagation(); selectReport(rt.key); setPanelOpen(true); }}
-                  >
-                    ⚙ إعدادات
-                  </button>
-                  <button
-                    type="button"
-                    className="rc-action-btn"
+                    className={`rcx-fav-btn${isFav ? ' active' : ''}`}
+                    title={isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
+                    aria-label={isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
+                    aria-pressed={isFav ? 'true' : 'false'}
                     onClick={(e) => { e.stopPropagation(); toggleFavorite(rt.key); }}
                   >
-                    {isFav ? '★ مفضل' : '☆ مفضلة'}
+                    <span className="material-symbols-outlined" style={{ fontVariationSettings: isFav ? "'FILL' 1" : undefined }}>star</span>
                   </button>
+                </div>
+                <div className="rcx-card-body">
+                  <div className="rcx-card-name">{t(rt.label)}</div>
+                  {rt.descAr && <div className="rcx-card-desc">{rt.descAr}</div>}
+                </div>
+                <div className="rcx-card-meta">
+                  <StatusChip tone={meta.tone} icon={meta.icon}>{meta.label}</StatusChip>
+                  <StatusChip tone="neutral">{rt.groupAr}</StatusChip>
+                </div>
+                <div className="rcx-card-actions">
+                  {canView && (
+                    <Button
+                      variant="primary"
+                      icon="play_arrow"
+                      small
+                      onClick={(e) => { e.stopPropagation(); selectReport(rt.key); setTimeout(loadPreview, 0); }}
+                    >
+                      تشغيل
+                    </Button>
+                  )}
+                  <Button
+                    variant="secondary"
+                    icon="tune"
+                    small
+                    onClick={(e) => { e.stopPropagation(); openReport(rt.key); }}
+                  >
+                    تهيئة
+                  </Button>
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
 
-      {/* Selected report run section */}
-      <div className="rc-run-section">
-        <div className="rc-run-header">
-          <div className="rc-run-info">
-            <span className="rc-run-icon">{currentType.icon}</span>
-            <div>
-              <div className="rc-run-name">{t(currentType.label)}</div>
-              {currentType.descAr && <div className="rc-run-desc">{currentType.descAr}</div>}
-            </div>
-          </div>
-          <div className="rc-run-actions">
-            <button type="button" className="btn secondary" onClick={() => setPanelOpen(true)}>⚙ الفلاتر</button>
+      {/* ── Selected report run / preview section ── */}
+      <SectionCard
+        title={t(currentType.label)}
+        icon="play_circle"
+        padded={false}
+        actions={
+          <>
+            <Button variant="secondary" icon="tune" small onClick={() => setPanelOpen(true)}>الفلاتر</Button>
             {canView && (
-              <button type="button" className="btn" onClick={loadPreview} disabled={loading}>
-                {loading ? t('page.reports.loading') : '▶ ' + t('page.reports.view')}
-              </button>
+              <Button variant="primary" icon="play_arrow" small busy={loading} onClick={loadPreview}>
+                {t('page.reports.view')}
+              </Button>
             )}
             {hasAnyFilter && (
-              <button type="button" className="btn secondary" onClick={resetFilters}>{t('action.reset_filters')}</button>
+              <Button variant="ghost" icon="restart_alt" small onClick={resetFilters}>{t('action.reset_filters')}</Button>
             )}
-            {/* Export dropdown */}
             {canExport && preview && (
-              <div className="rc-export-wrap" ref={exportRef}>
-                <button
-                  type="button"
-                  className="rc-export-btn"
-                  onClick={() => setExportOpen((o) => !o)}
-                  disabled={excelBusy || pdfBusy}
-                >
-                  <span>📤</span>
-                  <span>تصدير</span>
-                  <span className="rc-export-arrow">▾</span>
-                </button>
+              <div className="rcx-export-wrap" ref={exportRef}>
+                <Button variant="secondary" icon="ios_share" small onClick={() => setExportOpen((o) => !o)} disabled={excelBusy || pdfBusy}>
+                  تصدير
+                  <span className="material-symbols-outlined" aria-hidden="true">expand_more</span>
+                </Button>
                 {exportOpen && (
-                  <div className="rc-export-menu">
-                    <ExportExcelButton onExport={downloadExcel} busy={excelBusy} />
+                  <div className="rcx-export-menu rcx-export-menu--down">
+                    <button type="button" className="rcx-export-item" onClick={downloadExcel} disabled={excelBusy}>
+                      <span className="material-symbols-outlined">table_view</span>{excelBusy ? 'جاري...' : 'تصدير Excel'}
+                    </button>
                     {window.manar?.exportPdfFromHtml && (
-                      <button type="button" className="rc-export-item" onClick={downloadPdf} disabled={pdfBusy}>
-                        📄 {pdfBusy ? '...' : 'تصدير PDF'}
+                      <button type="button" className="rcx-export-item" onClick={downloadPdf} disabled={pdfBusy}>
+                        <span className="material-symbols-outlined">picture_as_pdf</span>{pdfBusy ? 'جاري...' : 'تصدير PDF'}
                       </button>
                     )}
-                    <button type="button" className="rc-export-item" onClick={openPrint}>
-                      🖨️ طباعة
+                    <button type="button" className="rcx-export-item" onClick={openPrint}>
+                      <span className="material-symbols-outlined">print</span>طباعة
                     </button>
                   </div>
                 )}
               </div>
             )}
-          </div>
-        </div>
+          </>
+        }
+      >
+        <div className="xpl-card--pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {currentType.descAr && <p style={{ margin: 0, fontSize: 13, color: 'var(--xpl-muted)', lineHeight: 1.6 }}>{currentType.descAr}</p>}
 
-        {/* Hints */}
-        {['invoices', 'expenses', 'payroll'].includes(selected) && !from && !to && (
-          <div className="rc-hint">ℹ️ {t('page.reports.date_range_hint')}</div>
-        )}
-        {selected === 'customer-statement' && !customerId && (
-          <div className="rc-hint warn">⚠️ يجب اختيار عميل لعرض كشف الحساب</div>
-        )}
-        {error && <div className="rc-hint error">⚠️ {error}</div>}
+          {/* Hints */}
+          {['invoices', 'expenses', 'payroll'].includes(selected) && !from && !to && (
+            <div className="rcx-hint"><span className="material-symbols-outlined">info</span>{t('page.reports.date_range_hint')}</div>
+          )}
+          {selected === 'customer-statement' && !customerId && (
+            <div className="rcx-hint warn"><span className="material-symbols-outlined">warning</span>يجب اختيار عميل لعرض كشف الحساب</div>
+          )}
+          {error && <div className="xpl-error-banner"><span className="material-symbols-outlined">error</span><span>{error}</span></div>}
 
-        {/* Loading skeleton */}
-        {loading && skeleton}
-
-        {/* Results bar */}
-        {!loading && preview && (
-          <div className="rc-results-bar">
-            <span><strong>{preview.rows.length}</strong> {t('page.reports.results_count')}</span>
-            {generatedAt && <span>آخر تحديث: {generatedAt.toLocaleTimeString('ar')}</span>}
-          </div>
-        )}
-
-        {/* Empty state */}
-        {!loading && !preview && !error && (
-          <div className="rc-run-empty">
-            <div className="rc-run-empty-icon">{currentType.icon}</div>
-            <div className="rc-run-empty-title">{t(currentType.label)}</div>
-            <div className="rc-run-empty-hint">{t('page.reports.empty')}</div>
-          </div>
-        )}
-
-        {/* Preview table */}
-        {!loading && preview && (
-          <div className="rc-preview-card">
-            {preview.subtitle && <div className="rc-preview-subtitle">{preview.subtitle}</div>}
-            <div className="table-responsive">
-              <table>
-                <thead>
-                  <tr>{preview.columns.map((c) => <th key={c.key}>{c.header}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {preview.rows.length === 0 ? (
-                    <tr><td colSpan={preview.columns.length}><div className="center-msg">{t('page.reports.no_data')}</div></td></tr>
-                  ) : (
-                    preview.rows.map((row, i) => (
-                      <tr key={i}>{preview.columns.map((c) => <td key={c.key}>{fmt(row[c.key])}</td>)}</tr>
-                    ))
-                  )}
-                  {preview.totalsRow && (
-                    <tr className="rc-totals-row">
-                      {preview.columns.map((c) => <td key={c.key}>{fmt(preview.totalsRow[c.key])}</td>)}
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+          {/* Loading skeleton */}
+          {loading && (
+            <div className="xpl-skeleton">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div className="xpl-skeleton-row" key={i}>
+                  <div className="xpl-skeleton-cell xpl-sk-lg" />
+                  <div className="xpl-skeleton-cell xpl-sk-md" />
+                  <div className="xpl-skeleton-cell xpl-sk-sm" />
+                </div>
+              ))}
             </div>
-          </div>
-        )}
-      </div>
+          )}
+
+          {/* Results bar */}
+          {!loading && preview && (
+            <div className="rcx-results-bar">
+              <span><strong>{preview.rows.length}</strong> {t('page.reports.results_count')}</span>
+              {generatedAt && <span>آخر تحديث: {generatedAt.toLocaleTimeString('ar')}</span>}
+            </div>
+          )}
+
+          {/* Empty state */}
+          {!loading && !preview && !error && (
+            <EmptyState
+              icon="bar_chart"
+              title={t(currentType.label)}
+              message={t('page.reports.empty')}
+              action={canView ? <Button variant="primary" icon="play_arrow" onClick={loadPreview}>{t('page.reports.view')}</Button> : undefined}
+            />
+          )}
+
+          {/* Preview table */}
+          {!loading && preview && (
+            <div>
+              {preview.subtitle && <div className="rcx-preview-subtitle">{preview.subtitle}</div>}
+              <div className="xpl-table-wrap rcx-table-scroll">
+                <table className="xpl-table">
+                  <thead>
+                    <tr>{preview.columns.map((c) => <th key={c.key}>{c.header}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {preview.rows.length === 0 ? (
+                      <tr><td colSpan={preview.columns.length} style={{ textAlign: 'center', color: 'var(--xpl-muted)', padding: 28 }}>{t('page.reports.no_data')}</td></tr>
+                    ) : (
+                      preview.rows.map((row, i) => (
+                        <tr key={i}>{preview.columns.map((c) => <td key={c.key}>{fmt(row[c.key])}</td>)}</tr>
+                      ))
+                    )}
+                    {preview.totalsRow && (
+                      <tr className="rcx-totals-row">
+                        {preview.columns.map((c) => <td key={c.key}>{fmt(preview.totalsRow[c.key])}</td>)}
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </SectionCard>
 
     </div>
   );
