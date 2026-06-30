@@ -90,6 +90,69 @@ function exportTimelineCsv(
   URL.revokeObjectURL(a.href);
 }
 
+// ── Transaction type badge ────────────────────────────────────────────────────
+
+type TxBadgeKind = 'deposit' | 'withdrawal' | 'fee' | 'cheque' | 'transfer';
+
+interface TxBadge { kind: TxBadgeKind; label: string; }
+
+// Derive a semantic transaction-type badge from the already-available flags.
+// Display-only — no reconciliation/accounting logic.
+function txTypeBadge(t: TimelineTransaction): TxBadge {
+  if (t.bankFeeType === 'BANK_TRANSFER') return { kind: 'transfer', label: 'تحويل' };
+  if (t.chequeNumber || t.bankFeeType === 'CHEQUE_PAYMENT') return { kind: 'cheque', label: 'شيك' };
+  if (t.isBankFee) return { kind: 'fee', label: 'رسوم' };
+  if (safeNum(t.credit) > 0) return { kind: 'deposit', label: 'إيداع' };
+  return { kind: 'withdrawal', label: 'سحب' };
+}
+
+// ── Copy-to-clipboard button (with transient confirmation) ─────────────────────
+
+function CopyButton({
+  value, label, className,
+}: {
+  value:      string;
+  label:      string;
+  className?: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  const onCopy = useCallback(() => {
+    navigator.clipboard?.writeText(value).then(() => {
+      setCopied(true);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 1600);
+    }).catch(() => { /* clipboard unavailable — silent, non-critical */ });
+  }, [value]);
+
+  return (
+    <button type="button" className={`btn secondary bae-copy-btn${className ? ` ${className}` : ''}`} onClick={onCopy}>
+      <span className="material-symbols-outlined">{copied ? 'check' : 'content_copy'}</span>
+      {copied ? 'تم النسخ' : label}
+    </button>
+  );
+}
+
+// ── Collapsible long description (banking-app style) ───────────────────────────
+
+function CollapsibleDescription({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = text.length > 90;
+  return (
+    <div className="bae-collapsible-desc">
+      <span className={expanded || !isLong ? '' : 'bae-desc-clamp'}>{text}</span>
+      {isLong && (
+        <button type="button" className="bae-desc-toggle" onClick={() => setExpanded((v) => !v)}>
+          {expanded ? 'عرض أقل' : 'عرض المزيد'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Recharts tooltip (same pattern as BankReconciliation) ─────────────────────
 
 interface ChartEntry { name?: string; value?: number; fill?: string; }
@@ -116,7 +179,7 @@ function KpiCard({
   label:         string;
   value:         string;
   icon:          string;
-  colorVariant?: 'green' | 'red' | 'blue';
+  colorVariant?: 'green' | 'red' | 'blue' | 'orange' | 'indigo';
   sub?:          string;
   isPrimary?:    boolean;
 }) {
@@ -205,6 +268,149 @@ function AccountHealthCard({ dashboard }: { dashboard: BankAccountDashboard }) {
   );
 }
 
+// ── Executive Header ──────────────────────────────────────────────────────────
+
+// Render the accountKey as a human-readable account identifier. The dashboard API
+// does not return a separate IBAN/account number, so we surface the stable key
+// (which encodes IBAN/ACCT/BANK) without inventing data.
+function accountIdentifier(accountKey: string): string {
+  if (accountKey.startsWith('IBAN:')) return accountKey.slice(5);
+  if (accountKey.startsWith('ACCT:')) return accountKey.slice(5).replace(/:/g, ' · ');
+  if (accountKey.startsWith('BANK:')) return accountKey.slice(5);
+  return accountKey;
+}
+
+function ExecutiveHeader({
+  dashboard,
+  accountKey,
+  onBack,
+  onAddStatement,
+}: {
+  dashboard:      BankAccountDashboard;
+  accountKey:     string;
+  onBack:         () => void;
+  onAddStatement: () => void;
+}) {
+  const d = dashboard;
+  const netVariant: 'green' | 'red' = safeNum(d.netCashFlow) >= 0 ? 'green' : 'red';
+  const identifier = accountIdentifier(accountKey);
+
+  return (
+    <div className="bae-exec-header">
+      <button type="button" className="bae-back-btn" onClick={onBack} aria-label="رجوع">
+        <span className="material-symbols-outlined">arrow_forward_ios</span>
+      </button>
+
+      {/* Identity block */}
+      <div className="bae-exec-identity">
+        <div className="bae-bank-logo" aria-hidden="true">
+          <span className="material-symbols-outlined">account_balance</span>
+        </div>
+        <div className="bae-exec-id-text">
+          <h1 className="bae-exec-name">{d.bankName || accountKey}</h1>
+          <div className="bae-exec-account">
+            <span className="bae-exec-iban mono">{identifier}</span>
+            <CopyButton value={identifier} label="نسخ" className="bae-copy-inline" />
+          </div>
+          <div className="bae-exec-chips">
+            <span className="bae-id-chip">
+              <span className="material-symbols-outlined">payments</span>
+              KWD · د.ك
+            </span>
+            <span className="bae-id-chip">
+              <span className="material-symbols-outlined">key</span>
+              {d.bankName || accountKey}
+            </span>
+            <span className="bae-id-chip bae-id-chip--active">
+              <span className="bae-status-dot" />
+              نشط
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Hero balance block */}
+      <div className="bae-exec-balance-block">
+        <span className="bae-exec-balance-label">الرصيد الحالي</span>
+        <div className="bae-exec-hero-balance">
+          <PrivateAmount value={d.currentBalance ?? 0} currency="د.ك" />
+        </div>
+        <div className={`bae-exec-net bae-exec-net--${netVariant}`}>
+          <span className="material-symbols-outlined">
+            {netVariant === 'green' ? 'trending_up' : 'trending_down'}
+          </span>
+          صافي التدفق النقدي {fmtAmount(d.netCashFlow)} د.ك
+        </div>
+        <div className="bae-exec-meta">
+          {(d.coverageStart || d.coverageEnd) && (
+            <span className="bae-exec-meta-item">
+              <span className="material-symbols-outlined">calendar_today</span>
+              {fmtDate(d.coverageStart)} — {fmtDate(d.coverageEnd)}
+            </span>
+          )}
+          <span className="bae-exec-meta-item">
+            <span className="material-symbols-outlined">upload_file</span>
+            {d.importCount} {d.importCount === 1 ? 'كشف' : 'كشوف'} مستوردة
+          </span>
+        </div>
+        <button type="button" className="btn secondary bae-exec-add" onClick={onAddStatement}>
+          <span className="material-symbols-outlined">upload_file</span>
+          إضافة كشف
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── KPI Row (executive metrics) ───────────────────────────────────────────────
+
+// Mockup shows: statements · withdrawals · deposits · net · (fees).
+// The dashboard API exposes no fee aggregate, so the 5th card surfaces the
+// real "total transactions" metric (no API change, no fabricated data).
+function KpiRow({ dashboard }: { dashboard: BankAccountDashboard }) {
+  const d = dashboard;
+  const netVariant: 'green' | 'red' = safeNum(d.netCashFlow) >= 0 ? 'green' : 'red';
+  return (
+    <div className="bae-kpi-grid bae-kpi-grid--exec">
+      <KpiCard
+        label="عدد الكشوف"
+        value={d.importCount.toLocaleString()}
+        icon="description"
+        colorVariant="indigo"
+        sub="كشوف مستوردة"
+      />
+      <KpiCard
+        label="إجمالي السحوبات"
+        value={fmtAmount(d.totalWithdrawals)}
+        icon="trending_down"
+        colorVariant="red"
+        sub={`${d.withdrawalCount.toLocaleString()} عملية`}
+      />
+      <KpiCard
+        label="إجمالي الإيداعات"
+        value={fmtAmount(d.totalDeposits)}
+        icon="trending_up"
+        colorVariant="green"
+        sub={`${d.depositCount.toLocaleString()} عملية`}
+      />
+      <KpiCard
+        label="صافي الحركة"
+        value={fmtAmount(d.netCashFlow)}
+        icon="insights"
+        colorVariant={netVariant}
+        sub="صافي التدفق النقدي"
+      />
+      <KpiCard
+        label="إجمالي المعاملات"
+        value={d.transactionCount.toLocaleString()}
+        icon="receipt_long"
+        colorVariant="orange"
+        sub="عملية"
+      />
+    </div>
+  );
+}
+
 // ── Transaction Drawer ────────────────────────────────────────────────────────
 
 const RECONCILE_LABELS: Record<string, string> = {
@@ -248,6 +454,11 @@ function TransactionDrawer({
 
   const hasDebit  = safeNum(tx.debit)  > 0;
   const hasCredit = safeNum(tx.credit) > 0;
+  const badge     = txTypeBadge(tx);
+  const isIncoming = hasCredit;
+  const heroAmount = isIncoming ? safeNum(tx.credit) : safeNum(tx.debit);
+  const reconcileClass = tx.reconcileStatus === 'MATCHED' ? 'good'
+    : tx.reconcileStatus === 'UNMATCHED' ? 'warn' : 'neutral';
 
   return (
     <>
@@ -262,41 +473,37 @@ function TransactionDrawer({
         ref={panelRef}
       >
         <div className="bae-drawer-header">
-          <h3 className="bae-drawer-title" id={DRAWER_TITLE_ID}>تفاصيل المعاملة</h3>
+          <h3 className="bae-drawer-title" id={DRAWER_TITLE_ID}>تفاصيل العملية</h3>
           <button type="button" className="bae-drawer-close" onClick={onClose} aria-label="إغلاق">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
+
         <div className="bae-drawer-body">
-          {/* Amounts */}
-          <div className="bae-drawer-amounts">
-            <div className="bae-drawer-amount-card">
-              <div className="bae-drawer-amount-label">مدين</div>
-              <div className={`bae-drawer-amount-value ${hasDebit ? 'bae-debit' : ''}`}>
-                {hasDebit ? safeNum(tx.debit).toFixed(3) : '—'}
-              </div>
+          {/* ── Hero ── */}
+          <div className="bae-drawer-hero">
+            <div className={`bae-drawer-hero-icon ${isIncoming ? 'in' : 'out'}`}>
+              <span className="material-symbols-outlined">
+                {isIncoming ? 'south_west' : 'north_east'}
+              </span>
             </div>
-            <div className="bae-drawer-amount-card">
-              <div className="bae-drawer-amount-label">دائن</div>
-              <div className={`bae-drawer-amount-value ${hasCredit ? 'bae-credit' : ''}`}>
-                {hasCredit ? safeNum(tx.credit).toFixed(3) : '—'}
+            <div className="bae-drawer-hero-body">
+              <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
+              <div className={`bae-drawer-hero-amount ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
+                {isIncoming ? '+' : '−'}{heroAmount.toFixed(3)} <span className="bae-drawer-hero-cur">د.ك</span>
               </div>
+              {tx.balance != null && (
+                <div className="bae-drawer-hero-balance">
+                  الرصيد بعد العملية {safeNum(tx.balance).toFixed(3)} د.ك
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Balance */}
-          {tx.balance != null && (
-            <div className="bae-drawer-field">
-              <span className="bae-drawer-field-label">الرصيد بعد العملية</span>
-              <span className="bae-drawer-field-value">{safeNum(tx.balance).toFixed(3)} {tx.currency}</span>
-            </div>
-          )}
-
-          <div className="bae-drawer-divider" />
-          <div className="bae-drawer-section-title">بيانات المعاملة</div>
-
+          {/* ── Basic information ── */}
+          <div className="bae-drawer-section-title">المعلومات الأساسية</div>
           <div className="bae-drawer-field">
-            <span className="bae-drawer-field-label">تاريخ الكشف</span>
+            <span className="bae-drawer-field-label">التاريخ</span>
             <span className="bae-drawer-field-value">{fmtDate(tx.statementDate)}</span>
           </div>
           {tx.postingDate && tx.postingDate !== tx.statementDate && (
@@ -305,53 +512,20 @@ function TransactionDrawer({
               <span className="bae-drawer-field-value">{fmtDate(tx.postingDate)}</span>
             </div>
           )}
-          <div className="bae-drawer-field">
-            <span className="bae-drawer-field-label">الوصف</span>
-            <span className="bae-drawer-field-value">{tx.description}</span>
-          </div>
           {tx.reference && (
             <div className="bae-drawer-field">
               <span className="bae-drawer-field-label">المرجع</span>
               <span className="bae-drawer-field-value mono">{tx.reference}</span>
             </div>
           )}
-          {tx.chequeNumber && (
-            <div className="bae-drawer-field">
-              <span className="bae-drawer-field-label">رقم الشيك</span>
-              <span className="bae-drawer-field-value mono">{tx.chequeNumber}</span>
-            </div>
-          )}
-          {tx.bankFeeType && (
-            <div className="bae-drawer-field">
-              <span className="bae-drawer-field-label">تصنيف الرسوم</span>
-              <span className="bae-cat-badge">{CAT_LABELS[tx.bankFeeType] ?? tx.bankFeeType}</span>
-            </div>
-          )}
-
-          <div className="bae-drawer-divider" />
-          <div className="bae-drawer-section-title">جلسة الاستيراد</div>
-
-          <div className="bae-drawer-field">
-            <span className="bae-drawer-field-label">الدفعة</span>
-            <span className="bae-drawer-field-value">{tx.importBatchLabel}</span>
+          <div className="bae-drawer-field bae-drawer-field--col">
+            <span className="bae-drawer-field-label">الوصف</span>
+            <CollapsibleDescription text={tx.description} />
           </div>
           <div className="bae-drawer-field">
-            <span className="bae-drawer-field-label">الملف</span>
-            <span className="bae-drawer-field-value mono">{tx.fileName}</span>
+            <span className="bae-drawer-field-label">نوع العملية</span>
+            <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
           </div>
-          <div className="bae-drawer-field">
-            <span className="bae-drawer-field-label">تاريخ الاستيراد</span>
-            <span className="bae-drawer-field-value">{fmtDate(tx.importedAt)}</span>
-          </div>
-          <div className="bae-drawer-field">
-            <span className="bae-drawer-field-label">رقم الدفعة</span>
-            <span className="bae-drawer-field-value mono">#{tx.importId}</span>
-          </div>
-
-          {/* Metadata (display-only — no reconciliation workflow) */}
-          <div className="bae-drawer-divider" />
-          <div className="bae-drawer-section-title">بيانات إضافية</div>
-
           <div className="bae-drawer-field">
             <span className="bae-drawer-field-label">العملة</span>
             <span className="bae-drawer-field-value">{tx.currency}</span>
@@ -362,221 +536,105 @@ function TransactionDrawer({
               <span className="bae-drawer-field-value mono">{tx.accountKey}</span>
             </div>
           )}
+
+          {/* ── Amounts ── */}
+          <div className="bae-drawer-divider" />
+          <div className="bae-drawer-section-title">المبالغ</div>
           <div className="bae-drawer-field">
-            <span className="bae-drawer-field-label">حالة المطابقة</span>
-            <span className="bae-drawer-field-value">
-              {RECONCILE_LABELS[tx.reconcileStatus] ?? tx.reconcileStatus}
+            <span className="bae-drawer-field-label">دائن</span>
+            <span className={`bae-drawer-field-value ${hasCredit ? 'bae-credit' : ''}`}>
+              {hasCredit ? `+ ${safeNum(tx.credit).toFixed(3)}` : '—'}
             </span>
           </div>
-          {tx.transactionFingerprint && (
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">مدين</span>
+            <span className={`bae-drawer-field-value ${hasDebit ? 'bae-debit' : ''}`}>
+              {hasDebit ? safeNum(tx.debit).toFixed(3) : '0.000'} د.ك
+            </span>
+          </div>
+          {tx.balance != null && (
             <div className="bae-drawer-field">
-              <span className="bae-drawer-field-label">البصمة</span>
-              <span className="bae-drawer-field-value mono bae-drawer-fingerprint">
-                {tx.transactionFingerprint}
-              </span>
+              <span className="bae-drawer-field-label">الرصيد بعد العملية</span>
+              <span className="bae-drawer-field-value">{safeNum(tx.balance).toFixed(3)} د.ك</span>
+            </div>
+          )}
+          {tx.chequeNumber && (
+            <div className="bae-drawer-field">
+              <span className="bae-drawer-field-label">رقم الشيك</span>
+              <span className="bae-drawer-field-value mono">{tx.chequeNumber}</span>
             </div>
           )}
 
-          {(tx.isDuplicate || tx.isBankFee) && (
+          {/* ── Import information ── */}
+          <div className="bae-drawer-divider" />
+          <div className="bae-drawer-section-title">بيانات الاستيراد</div>
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">رقم الاستيراد</span>
+            <span className="bae-drawer-field-value">{tx.importBatchLabel}</span>
+          </div>
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">اسم الملف</span>
+            <span className="bae-drawer-field-value mono">{tx.fileName}</span>
+          </div>
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">تاريخ الاستيراد</span>
+            <span className="bae-drawer-field-value">{fmtDate(tx.importedAt)}</span>
+          </div>
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">البنك</span>
+            <span className="bae-drawer-field-value">{tx.bankName}</span>
+          </div>
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">الجلسة / الدفعة</span>
+            <span className="bae-drawer-field-value mono">#{tx.importId}</span>
+          </div>
+
+          {/* ── Technical ── */}
+          {tx.transactionFingerprint && (
             <>
               <div className="bae-drawer-divider" />
-              {tx.isDuplicate && (
-                <div className="bae-drawer-field">
-                  <span className="bae-drawer-field-label">ملاحظة</span>
-                  <span className="bae-drawer-field-value bae-drawer-warn">
-                    معاملة مكررة محتملة
-                  </span>
-                </div>
-              )}
-              {tx.isBankFee && (
-                <div className="bae-drawer-field">
-                  <span className="bae-drawer-field-label">نوع الحركة</span>
-                  <span className="bae-drawer-field-value bae-drawer-primary">
-                    رسوم بنكية
-                  </span>
-                </div>
-              )}
+              <div className="bae-drawer-section-title">بيانات تقنية</div>
+              <div className="bae-drawer-field bae-drawer-field--col">
+                <span className="bae-drawer-field-label">البصمة (Fingerprint · SHA-256)</span>
+                <span className="bae-drawer-field-value mono bae-drawer-fingerprint">
+                  {tx.transactionFingerprint}
+                </span>
+              </div>
             </>
           )}
+
+          {/* ── Status ── */}
+          <div className="bae-drawer-divider" />
+          <div className="bae-drawer-section-title">الحالة</div>
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">حالة المطابقة</span>
+            <span className={`bae-status-badge bae-status-badge--${reconcileClass}`}>
+              {RECONCILE_LABELS[tx.reconcileStatus] ?? tx.reconcileStatus}
+            </span>
+          </div>
+          <div className="bae-drawer-field">
+            <span className="bae-drawer-field-label">حالة الاستيراد</span>
+            <span className="bae-status-badge bae-status-badge--good">مستورد</span>
+          </div>
+          {(tx.isDuplicate || tx.isBankFee) && (
+            <div className="bae-drawer-field">
+              <span className="bae-drawer-field-label">ملاحظات</span>
+              <span className="bae-drawer-flags">
+                {tx.isDuplicate && <span className="bae-status-badge bae-status-badge--warn">مكررة محتملة</span>}
+                {tx.isBankFee   && <span className="bae-status-badge bae-status-badge--neutral">رسوم بنكية</span>}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="bae-drawer-footer">
+          {tx.reference && <CopyButton value={tx.reference} label="نسخ المرجع" />}
+          {tx.transactionFingerprint && <CopyButton value={tx.transactionFingerprint} label="نسخ البصمة" />}
+          <button type="button" className="btn bae-drawer-close-btn" onClick={onClose}>إغلاق</button>
         </div>
       </div>
     </>
-  );
-}
-
-// ── Tab: Overview ─────────────────────────────────────────────────────────────
-
-function OverviewTab({ dashboard }: { dashboard: BankAccountDashboard }) {
-  const d = dashboard;
-
-  const netVariant: 'green' | 'red' = d.netCashFlow >= 0 ? 'green' : 'red';
-
-  return (
-    <div className="bae-tab-content">
-      {/* KPIs */}
-      <div className="bae-kpi-grid">
-        <KpiCard
-          label="الرصيد الحالي"
-          value={fmtAmount(d.currentBalance)}
-          icon="account_balance_wallet"
-          colorVariant="blue"
-          isPrimary
-        />
-        <KpiCard
-          label="إجمالي الإيداعات"
-          value={fmtAmount(d.totalDeposits)}
-          icon="trending_up"
-          colorVariant="green"
-          sub={`${d.depositCount} عملية — متوسط ${fmtAmount(d.avgDeposit)}`}
-        />
-        <KpiCard
-          label="إجمالي السحوبات"
-          value={fmtAmount(d.totalWithdrawals)}
-          icon="trending_down"
-          colorVariant="red"
-          sub={`${d.withdrawalCount} عملية — متوسط ${fmtAmount(d.avgWithdrawal)}`}
-        />
-        <KpiCard
-          label="صافي التدفق النقدي"
-          value={fmtAmount(d.netCashFlow)}
-          icon="swap_vert"
-          colorVariant={netVariant}
-        />
-        <KpiCard
-          label="أكبر إيداع"
-          value={fmtAmount(d.largestDeposit)}
-          icon="arrow_upward"
-          colorVariant="green"
-        />
-        <KpiCard
-          label="أكبر سحب"
-          value={fmtAmount(d.largestWithdrawal)}
-          icon="arrow_downward"
-          colorVariant="red"
-        />
-        <KpiCard
-          label="إجمالي المعاملات"
-          value={d.transactionCount.toLocaleString()}
-          icon="receipt_long"
-        />
-        <KpiCard
-          label="دفعات الاستيراد"
-          value={d.importCount.toString()}
-          icon="upload_file"
-        />
-      </div>
-
-      {/* Account Health */}
-      {d.transactionCount > 0 && <AccountHealthCard dashboard={d} />}
-
-      {/* Coverage strip */}
-      {(d.coverageStart || d.coverageEnd) && (
-        <div className="bae-coverage-strip">
-          <span className="material-symbols-outlined bae-coverage-icon">
-            date_range
-          </span>
-          <span>
-            تغطية الكشف: <strong>{fmtDate(d.coverageStart)}</strong> — <strong>{fmtDate(d.coverageEnd)}</strong>
-          </span>
-          {d.openingBalance != null && (
-            <span className="bae-coverage-bal">
-              رصيد الافتتاح: <strong>{fmtAmount(d.openingBalance)}</strong>
-            </span>
-          )}
-          {d.closingBalance != null && (
-            <span className="bae-coverage-bal">
-              رصيد الختام: <strong>{fmtAmount(d.closingBalance)}</strong>
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Top deposits / withdrawals */}
-      {d.topDeposits.length > 0 && (
-        <div className="bae-top-section">
-          <h4 className="bae-section-title">أعلى الإيداعات</h4>
-          <table className="bae-top-table">
-            <thead>
-              <tr>
-                <th>التاريخ</th>
-                <th>الوصف</th>
-                <th>المرجع</th>
-                <th>المبلغ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {d.topDeposits.map((t) => (
-                <tr key={t.id}>
-                  <td>{fmtDate(t.statementDate)}</td>
-                  <td className="bae-desc-cell" title={t.description}>{t.description}</td>
-                  <td>{t.reference ?? '—'}</td>
-                  <td className="bae-amount-green">{fmtAmount(t.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {d.topWithdrawals.length > 0 && (
-        <div className="bae-top-section">
-          <h4 className="bae-section-title">أعلى السحوبات</h4>
-          <table className="bae-top-table">
-            <thead>
-              <tr>
-                <th>التاريخ</th>
-                <th>الوصف</th>
-                <th>المرجع</th>
-                <th>المبلغ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {d.topWithdrawals.map((t) => (
-                <tr key={t.id}>
-                  <td>{fmtDate(t.statementDate)}</td>
-                  <td className="bae-desc-cell" title={t.description}>{t.description}</td>
-                  <td>{t.reference ?? '—'}</td>
-                  <td className="bae-amount-red">{fmtAmount(t.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Monthly summary table */}
-      {d.monthly.length > 0 && (
-        <div className="bae-top-section">
-          <h4 className="bae-section-title">الملخص الشهري</h4>
-          <div className="bae-monthly-scroll">
-            <table className="bae-top-table">
-              <thead>
-                <tr>
-                  <th>الشهر</th>
-                  <th>إيداعات</th>
-                  <th>سحوبات</th>
-                  <th>صافي</th>
-                  <th>عدد العمليات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...d.monthly].reverse().map((m: MonthlyEntry) => (
-                  <tr key={m.month}>
-                    <td>{fmtMonth(m.month)}</td>
-                    <td className="bae-amount-green">{fmtAmount(m.totalDeposits)}</td>
-                    <td className="bae-amount-red">{fmtAmount(m.totalWithdrawals)}</td>
-                    <td className={m.netFlow >= 0 ? 'bae-amount-green' : 'bae-amount-red'}>
-                      {fmtAmount(m.netFlow)}
-                    </td>
-                    <td>{m.txCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -826,8 +884,20 @@ export function TimelineTab({
         )}
       </div>
 
-      {/* Loading / error */}
-      {loading && <div className="bae-loading"><span className="spinner" /> جارٍ التحميل…</div>}
+      {/* Loading skeleton */}
+      {loading && (
+        <div className="bae-skeleton-table" aria-busy="true" aria-label="جارٍ التحميل">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bae-skeleton-row">
+              <span className="bae-skeleton-cell bae-sk-sm" />
+              <span className="bae-skeleton-cell bae-sk-md" />
+              <span className="bae-skeleton-cell bae-sk-sm" />
+              <span className="bae-skeleton-cell bae-sk-lg" />
+              <span className="bae-skeleton-cell bae-sk-sm" />
+            </div>
+          ))}
+        </div>
+      )}
       {!loading && error && (
         <div className="bae-error">
           <span>{error}</span>
@@ -866,21 +936,22 @@ export function TimelineTab({
             <table className="bae-timeline-table">
               <thead>
                 <tr>
-                  <th className="bae-col-dir" aria-label="الاتجاه" />
-                  <th>التاريخ</th>
-                  <th>الوصف</th>
+                  <th className="bae-col-source">المصدر</th>
+                  <th>الرصيد بعد العملية</th>
+                  <th>دائن (د.ك)</th>
+                  <th>مدين (د.ك)</th>
                   <th>المرجع</th>
-                  <th>مدين</th>
-                  <th>دائن</th>
-                  <th>الرصيد</th>
                   <th>النوع</th>
-                  <th>الدفعة</th>
+                  <th>الوصف</th>
+                  <th>التاريخ</th>
+                  <th className="bae-col-chevron" aria-label="فتح" />
                 </tr>
               </thead>
               <tbody>
                 {result.transactions.map((t) => {
-                  const isDeposit = safeNum(t.credit) > 0;
+                  const isDeposit  = safeNum(t.credit) > 0;
                   const isSelected = drawerTx?.id === t.id;
+                  const badge      = txTypeBadge(t);
                   const rowClass = [
                     t.isBankFee ? 'bae-row-fee' : '',
                     isSelected ? 'bae-row-selected' : '',
@@ -897,31 +968,32 @@ export function TimelineTab({
                       role="button"
                       aria-label={`تفاصيل معاملة ${t.description}`}
                     >
-                      <td className="bae-col-dir">
-                        <span className={`material-symbols-outlined bae-dir-icon ${isDeposit ? 'bae-dir-in' : 'bae-dir-out'}`}>
-                          {isDeposit ? 'south_west' : 'north_east'}
+                      <td className="bae-col-source">
+                        <span className="bae-source-cell">
+                          <span className={`material-symbols-outlined bae-dir-icon ${isDeposit ? 'bae-dir-in' : 'bae-dir-out'}`}>
+                            {isDeposit ? 'south_west' : 'north_east'}
+                          </span>
+                          <span className="bae-source-badge">{t.importBatchLabel}</span>
                         </span>
-                      </td>
-                      <td className="bae-col-date">{fmtDate(t.statementDate)}</td>
-                      <td className="bae-col-desc" title={t.description}>{t.description}</td>
-                      <td className="bae-col-ref">{t.reference ?? '—'}</td>
-                      <td className="bae-col-debit">
-                        {safeNum(t.debit) > 0 ? <span className="bae-debit">{safeNum(t.debit).toFixed(3)}</span> : '—'}
-                      </td>
-                      <td className="bae-col-credit">
-                        {safeNum(t.credit) > 0 ? <span className="bae-credit">{safeNum(t.credit).toFixed(3)}</span> : '—'}
                       </td>
                       <td className="bae-col-balance">
                         {t.balance != null ? safeNum(t.balance).toFixed(3) : '—'}
                       </td>
-                      <td className="bae-col-type">
-                        {t.bankFeeType ? (
-                          <span className="bae-cat-badge" title={CAT_LABELS[t.bankFeeType] ?? t.bankFeeType}>
-                            {CAT_LABELS[t.bankFeeType] ?? t.bankFeeType}
-                          </span>
-                        ) : '—'}
+                      <td className="bae-col-credit">
+                        {safeNum(t.credit) > 0 ? <span className="bae-credit">{safeNum(t.credit).toFixed(3)}</span> : '—'}
                       </td>
-                      <td className="bae-col-batch" title={t.fileName}>{t.importBatchLabel}</td>
+                      <td className="bae-col-debit">
+                        {safeNum(t.debit) > 0 ? <span className="bae-debit">{safeNum(t.debit).toFixed(3)}</span> : '—'}
+                      </td>
+                      <td className="bae-col-ref mono" title={t.reference ?? ''}>{t.reference ?? '—'}</td>
+                      <td className="bae-col-type">
+                        <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
+                      </td>
+                      <td className="bae-col-desc" title={t.description}>{t.description}</td>
+                      <td className="bae-col-date">{fmtDate(t.statementDate)}</td>
+                      <td className="bae-col-chevron">
+                        <span className="material-symbols-outlined">chevron_left</span>
+                      </td>
                     </tr>
                   );
                 })}
@@ -1032,6 +1104,9 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
 
   return (
     <div className="bae-tab-content">
+      {/* Account health (relocated from the former Overview tab) */}
+      {dashboard.transactionCount > 0 && <AccountHealthCard dashboard={dashboard} />}
+
       {/* Running balance */}
       <div className="bae-chart-section">
         <h4 className="bae-section-title">
@@ -1347,14 +1422,16 @@ function ExportTab({
 
 // ── BankAccountExplorer ───────────────────────────────────────────────────────
 
-type Tab = 'overview' | 'timeline' | 'analytics' | 'imports' | 'export';
+type Tab = 'timeline' | 'analytics' | 'imports' | 'export';
 
+// Secondary slim tabs — the executive header + KPI row + timeline form the
+// primary landing experience; Analytics / Imports / Export remain accessible
+// here so no existing functionality is lost.
 const TABS: { key: Tab; label: string; icon: string }[] = [
-  { key: 'overview',   label: 'نظرة عامة',    icon: 'dashboard' },
-  { key: 'timeline',   label: 'السجل الزمني', icon: 'receipt_long' },
-  { key: 'analytics',  label: 'التحليلات',    icon: 'bar_chart' },
+  { key: 'timeline',   label: 'السجل الزمني',    icon: 'receipt_long' },
+  { key: 'analytics',  label: 'التحليلات',       icon: 'bar_chart' },
   { key: 'imports',    label: 'دفعات الاستيراد', icon: 'upload_file' },
-  { key: 'export',     label: 'تصدير',        icon: 'download' },
+  { key: 'export',     label: 'تصدير',           icon: 'download' },
 ];
 
 export default function BankAccountExplorer() {
@@ -1364,7 +1441,7 @@ export default function BankAccountExplorer() {
 
   const accountKey = rawKey ? decodeURIComponent(rawKey) : '';
 
-  const [tab, setTab]             = useState<Tab>('overview');
+  const [tab, setTab]             = useState<Tab>('timeline');
   const [dashboard, setDashboard] = useState<BankAccountDashboard | null>(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);
@@ -1394,71 +1471,7 @@ export default function BankAccountExplorer() {
 
   return (
     <div className="bae-root" dir="rtl">
-      {/* ── Header ── */}
-      <div className="bae-header">
-        <button type="button" className="bae-back-btn" onClick={() => navigate('/bank-accounts')}>
-          <span className="material-symbols-outlined">arrow_forward_ios</span>
-        </button>
-        <div className="bae-header-text">
-          <h1 className="bae-title">
-            <span className="material-symbols-outlined bae-title-icon">account_balance</span>
-            {loading ? 'جارٍ التحميل…' : (dashboard?.bankName ?? accountKey)}
-          </h1>
-          {dashboard && (
-            <>
-              <div className="bae-exec-balance">
-                <PrivateAmount value={dashboard.currentBalance ?? 0} currency="د.ك" />
-              </div>
-              <div className="bae-meta-row">
-                {dashboard.coverageStart && (
-                  <span className="bae-meta-item">
-                    <span className="material-symbols-outlined">calendar_today</span>
-                    {fmtDate(dashboard.coverageStart)} — {fmtDate(dashboard.coverageEnd)}
-                  </span>
-                )}
-                <span className="bae-meta-dot">·</span>
-                <span className="bae-meta-item">
-                  <span className="material-symbols-outlined">receipt_long</span>
-                  {dashboard.transactionCount.toLocaleString()} معاملة
-                </span>
-                <span className="bae-meta-dot">·</span>
-                <span className="bae-meta-item">
-                  <span className="material-symbols-outlined">upload_file</span>
-                  {dashboard.importCount} {dashboard.importCount === 1 ? 'دفعة' : 'دفعات'} استيراد
-                </span>
-              </div>
-            </>
-          )}
-          {!dashboard && !loading && (
-            <p className="bae-subtitle">{accountKey}</p>
-          )}
-        </div>
-        <button
-          type="button"
-          className="btn secondary"
-          onClick={() => navigate('/bank-statement-import')}
-        >
-          <span className="material-symbols-outlined">upload_file</span>
-          إضافة كشف
-        </button>
-      </div>
-
-      {/* ── Tab bar ── */}
-      <div className="bae-tab-bar">
-        {TABS.map((t) => (
-          <button
-            type="button"
-            key={t.key}
-            className={`bae-tab-btn${tab === t.key ? ' active' : ''}`}
-            onClick={() => setTab(t.key)}
-          >
-            <span className="material-symbols-outlined bae-tab-icon">{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Content ── */}
+      {/* ── Loading skeleton for the whole shell ── */}
       {loading && (
         <div className="bae-loading-center">
           <span className="spinner" />
@@ -1475,17 +1488,47 @@ export default function BankAccountExplorer() {
       )}
 
       {!loading && !error && dashboard && (
-        <ErrorBoundary
-          resetKey={tab}
-          onReset={() => setTab('overview')}
-          resetLabel="العودة للنظرة العامة"
-        >
-          {tab === 'overview'  && <OverviewTab  dashboard={dashboard} />}
-          {tab === 'timeline'  && <TimelineTab  accountKey={accountKey} bankName={dashboard.bankName} />}
-          {tab === 'analytics' && <AnalyticsTab dashboard={dashboard} />}
-          {tab === 'imports'   && <ImportsTab   accountKey={accountKey} />}
-          {tab === 'export'    && <ExportTab    accountKey={accountKey} bankName={dashboard.bankName} dashboard={dashboard} />}
-        </ErrorBoundary>
+        <>
+          {/* ── Executive header ── */}
+          <ExecutiveHeader
+            dashboard={dashboard}
+            accountKey={accountKey}
+            onBack={() => navigate('/bank-accounts')}
+            onAddStatement={() => navigate('/bank-statement-import')}
+          />
+
+          {/* ── KPI row ── */}
+          <KpiRow dashboard={dashboard} />
+
+          {/* ── Slim secondary tabs ── */}
+          <div className="bae-tab-bar bae-tab-bar--slim" role="tablist">
+            {TABS.map((t) => (
+              <button
+                type="button"
+                key={t.key}
+                role="tab"
+                aria-selected={tab === t.key ? 'true' : 'false'}
+                className={`bae-tab-btn${tab === t.key ? ' active' : ''}`}
+                onClick={() => setTab(t.key)}
+              >
+                <span className="material-symbols-outlined bae-tab-icon">{t.icon}</span>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Tab content ── */}
+          <ErrorBoundary
+            resetKey={tab}
+            onReset={() => setTab('timeline')}
+            resetLabel="العودة للسجل الزمني"
+          >
+            {tab === 'timeline'  && <TimelineTab  accountKey={accountKey} bankName={dashboard.bankName} />}
+            {tab === 'analytics' && <AnalyticsTab dashboard={dashboard} />}
+            {tab === 'imports'   && <ImportsTab   accountKey={accountKey} />}
+            {tab === 'export'    && <ExportTab    accountKey={accountKey} bankName={dashboard.bankName} dashboard={dashboard} />}
+          </ErrorBoundary>
+        </>
       )}
     </div>
   );
