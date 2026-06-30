@@ -183,6 +183,9 @@ export const timelineHandler = asyncHandler(async (req: Request, res: Response) 
     parsed.data.fromDate,
     parsed.data.toDate,
     parsed.data.search,
+    parsed.data.type,
+    parsed.data.minAmount,
+    parsed.data.maxAmount,
   );
   ok(res, result);
 });

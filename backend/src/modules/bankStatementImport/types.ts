@@ -224,6 +224,7 @@ export interface TimelineTransaction {
   isDuplicate:      boolean;
   isBankFee:        boolean;
   bankFeeType:      BankFeeType | null;
+  transactionFingerprint: string | null;
 }
 
 export interface TimelineResult {

@@ -94,10 +94,13 @@ export type BulkDeleteImportRequest = z.infer<typeof BulkDeleteImportSchema>;
 // ── Timeline query ─────────────────────────────────────────────────────────────
 
 export const TimelineQuerySchema = z.object({
-  page:     z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(200).default(50),
-  fromDate: z.string().max(32).optional(),
-  toDate:   z.string().max(32).optional(),
-  search:   z.string().max(128).optional(),
+  page:      z.coerce.number().int().positive().default(1),
+  pageSize:  z.coerce.number().int().positive().max(200).default(50),
+  fromDate:  z.string().max(32).optional(),
+  toDate:    z.string().max(32).optional(),
+  search:    z.string().max(128).optional(),
+  type:      z.enum(['all', 'deposits', 'withdrawals', 'fees', 'cheques', 'transfers']).optional(),
+  minAmount: z.coerce.number().nonnegative().optional(),
+  maxAmount: z.coerce.number().nonnegative().optional(),
 });
 export type TimelineQuery = z.infer<typeof TimelineQuerySchema>;

@@ -1065,7 +1065,7 @@ export default function BankReconciliation() {
     setTimelineLoading(true);
     setTimelineError(null);
     try {
-      const tl = await getTimeline(accountKey, page, 50, fromDate, toDate, search || undefined);
+      const tl = await getTimeline(accountKey, page, 50, { fromDate, toDate, search: search || undefined });
       setTimeline(tl);
     } catch (e) {
       setTimelineError(errorMessage(e));

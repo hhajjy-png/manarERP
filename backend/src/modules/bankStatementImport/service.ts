@@ -1,4 +1,5 @@
 import { prisma } from '@config/database.js';
+import type { Prisma } from '@prisma/client';
 import { AppError } from '@core/errors/AppError.js';
 import { buildPreview } from './previewBuilder.js';
 import { normalizeRow, buildNormalizedText } from './normalizer.js';
@@ -356,6 +357,63 @@ export async function exportReport(
 
 // ── Unified Timeline ───────────────────────────────────────────────────────────
 
+export type TimelineFilterType =
+  'all' | 'deposits' | 'withdrawals' | 'fees' | 'cheques' | 'transfers';
+
+// Pure builder for the timeline Prisma where clause. Extracted so the filter
+// composition (date + type + amount range + text search) is unit-testable
+// without a database.
+export function buildTimelineWhere(
+  accountKey: string,
+  opts: {
+    fromDate?:  string;
+    toDate?:    string;
+    search?:    string;
+    type?:      TimelineFilterType;
+    minAmount?: number;
+    maxAmount?: number;
+  } = {},
+): Prisma.BankStatementTransactionWhereInput {
+  const where: Prisma.BankStatementTransactionWhereInput = { accountKey };
+  const and: Prisma.BankStatementTransactionWhereInput[] = [];
+
+  if (opts.fromDate || opts.toDate) {
+    where.statementDate = {};
+    if (opts.fromDate) where.statementDate.gte = new Date(opts.fromDate);
+    if (opts.toDate)   where.statementDate.lte = new Date(opts.toDate);
+  }
+
+  switch (opts.type) {
+    case 'deposits':    where.credit = { gt: 0 }; break;
+    case 'withdrawals': where.debit  = { gt: 0 }; break;
+    case 'fees':        where.isBankFee = true; break;
+    case 'cheques':     where.chequeNumber = { not: null }; break;
+    case 'transfers':   where.bankFeeType = 'BANK_TRANSFER'; break;
+    default: break; // 'all' / undefined → no type constraint
+  }
+
+  // Amount range matches the non-zero side of the transaction (debit OR credit).
+  if (opts.minAmount != null) {
+    and.push({ OR: [{ debit: { gte: opts.minAmount } }, { credit: { gte: opts.minAmount } }] });
+  }
+  if (opts.maxAmount != null) {
+    and.push({ OR: [
+      { debit:  { gt: 0, lte: opts.maxAmount } },
+      { credit: { gt: 0, lte: opts.maxAmount } },
+    ] });
+  }
+
+  if (opts.search) {
+    and.push({ OR: [
+      { description: { contains: opts.search } },
+      { reference:   { contains: opts.search } },
+    ] });
+  }
+
+  if (and.length) where.AND = and;
+  return where;
+}
+
 export async function getTimeline(
   accountKey: string,
   page       = 1,
@@ -363,26 +421,15 @@ export async function getTimeline(
   fromDate?:   string,
   toDate?:     string,
   search?:     string,
+  type?:       TimelineFilterType,
+  minAmount?:  number,
+  maxAmount?:  number,
 ): Promise<TimelineResult> {
   const skip = (page - 1) * pageSize;
 
-  // Build filtered where clause
-  const where: {
-    accountKey:     string;
-    statementDate?: { gte?: Date; lte?: Date };
-    OR?: Array<{ description?: { contains: string }; reference?: { contains: string } }>;
-  } = { accountKey };
-  if (fromDate || toDate) {
-    where.statementDate = {};
-    if (fromDate) where.statementDate.gte = new Date(fromDate);
-    if (toDate)   where.statementDate.lte = new Date(toDate);
-  }
-  if (search) {
-    where.OR = [
-      { description: { contains: search } },
-      { reference:   { contains: search } },
-    ];
-  }
+  const where = buildTimelineWhere(accountKey, {
+    fromDate, toDate, search, type, minAmount, maxAmount,
+  });
 
   const [total, txs, agg, importCount] = await Promise.all([
     prisma.bankStatementTransaction.count({ where }),
@@ -428,6 +475,7 @@ export async function getTimeline(
     isDuplicate:      Boolean(t.isDuplicate),
     isBankFee:        Boolean(t.isBankFee),
     bankFeeType:      (t.bankFeeType ?? null) as TimelineTransaction['bankFeeType'],
+    transactionFingerprint: t.transactionFingerprint ?? null,
   }));
 
   return {
