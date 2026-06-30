@@ -41,16 +41,16 @@ describe('TimelineTab — drawer & filters', () => {
     render(<TimelineTab accountKey="A" bankName="بنك" />);
 
     const row = await screen.findByRole('button', { name: /تفاصيل معاملة راتب يونيو/ });
-    expect(screen.queryByText('تفاصيل المعاملة')).not.toBeInTheDocument();
+    expect(screen.queryByText('تفاصيل العملية')).not.toBeInTheDocument();
 
     fireEvent.click(row);
-    expect(await screen.findByText('تفاصيل المعاملة')).toBeInTheDocument();
+    expect(await screen.findByText('تفاصيل العملية')).toBeInTheDocument();
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
     // Provenance field exposed in Phase C.
     expect(screen.getByText('abc123')).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByText('تفاصيل المعاملة')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('تفاصيل العملية')).not.toBeInTheDocument());
   });
 
   it('opens the drawer via keyboard (Enter) on a focused row', async () => {
@@ -58,7 +58,7 @@ describe('TimelineTab — drawer & filters', () => {
     render(<TimelineTab accountKey="A" bankName="بنك" />);
     const row = await screen.findByRole('button', { name: /تفاصيل معاملة/ });
     fireEvent.keyDown(row, { key: 'Enter' });
-    expect(await screen.findByText('تفاصيل المعاملة')).toBeInTheDocument();
+    expect(await screen.findByText('تفاصيل العملية')).toBeInTheDocument();
   });
 
   it('shows an active filter chip when a quick range is applied, and clears it', async () => {
