@@ -6,7 +6,7 @@ import { ReturnToReportButton } from '../components/financial/ReturnToReportButt
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
-import DataTable, { PageMeta } from '../components/DataTable';
+import { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import ForceDeleteInvoiceModal from '../components/ForceDeleteInvoiceModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -20,11 +20,43 @@ import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadXlsx } from '../utils/exportUtils';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import AttachmentsPanel from '../components/AttachmentsPanel';
+import {
+  ExecutiveHeader,
+  IdChip,
+  HeroMetric,
+  MetricCard,
+  StatusChip,
+  SearchBox,
+  FilterChip,
+  EmptyState,
+  ErrorBanner,
+  SkeletonRows,
+  Pagination,
+  Drawer,
+  DrawerSection,
+  DrawerField,
+  Button,
+} from '../components/explorer/ExplorerKit';
+import '../components/explorer/explorer-kit.css';
+import './Invoices.css';
 
-const statusPill: Record<string, [string, string]> = {
-  UNPAID: ['inv.status.unpaid', 'red'], PARTIAL: ['inv.status.partial', 'amber'], PAID: ['inv.status.paid', 'green'],
-  OVERDUE: ['inv.status.overdue', 'red'], CANCELLED: ['inv.status.cancelled', 'gray'],
+type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
+const STATUS_META: Record<string, { key: string; tone: Tone; icon: string }> = {
+  UNPAID: { key: 'inv.status.unpaid', tone: 'red', icon: 'pending' },
+  PARTIAL: { key: 'inv.status.partial', tone: 'orange', icon: 'incomplete_circle' },
+  PAID: { key: 'inv.status.paid', tone: 'green', icon: 'check_circle' },
+  OVERDUE: { key: 'inv.status.overdue', tone: 'red', icon: 'event_busy' },
+  CANCELLED: { key: 'inv.status.cancelled', tone: 'neutral', icon: 'block' },
 };
+function invStatusChip(status: string, t: (k: string) => string) {
+  const m = STATUS_META[status] ?? { key: status, tone: 'neutral' as Tone, icon: 'help' };
+  return <StatusChip tone={m.tone} icon={m.icon}>{t(m.key)}</StatusChip>;
+}
+function directionLabel(d: string, t: (k: string) => string): string {
+  if (d === 'SALES') return t('opt.direction.sales');
+  if (d === 'PURCHASE') return t('opt.direction.purchase');
+  return d || '—';
+}
 
 const invoiceTypes = ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت', 'أخرى'] as const;
 const STANDARD_UNITS = ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'] as const;
@@ -98,6 +130,8 @@ export default function Invoices() {
   const [stats, setStats] = useState<InvStats | null>(null);
   const [showMonthlyReport, setShowMonthlyReport] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [viewing, setViewing] = useState<any | null>(null);
 
   const isFiltered = !!(search || statusFilter || directionFilter || customerFilter || monthFilter || yearFilter);
 
@@ -197,71 +231,53 @@ export default function Invoices() {
     }
   }
 
-  const columns = [
-    { key: 'invoiceNumber', label: 'col.inv.number', render: (r: Record<string, unknown>) => <strong style={{ fontFamily: 'monospace' }}>{String(r.invoiceNumber ?? r.number)}</strong> },
-    { key: 'invoiceType', label: 'col.inv.type', render: (r: Record<string, unknown>) => String(r.invoiceType ?? '—') },
-    { key: 'direction', label: 'col.inv.direction', render: (r: Record<string, unknown>) => {
-      if (r.direction === 'SALES') return t('opt.direction.sales');
-      if (r.direction === 'PURCHASE') return t('opt.direction.purchase');
-      return String(r.direction ?? '—');
-    } },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { key: 'party', label: 'col.inv.party', render: (r: any) => r.customer?.name ?? r.supplier?.name ?? '—' },
-    { key: 'issueDate', label: 'col.date', render: (r: Record<string, unknown>) => dateText(r.issueDate) },
-    {
-      key: 'billingPeriod',
-      label: 'lbl.inv.billing_period',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      render: (row: any) =>
-        row.billingMonth && row.billingYear
-          ? `${ARABIC_MONTHS[row.billingMonth - 1]} ${row.billingYear}`
-          : '—',
-    },
-    { key: 'total', label: 'col.inv.total', render: (r: Record<string, unknown>) => money(r.total) },
-    { key: 'paidAmount', label: 'col.inv.paid', render: (r: Record<string, unknown>) => money(r.paidAmount) },
-    {
-      key: 'remaining',
-      label: 'lbl.inv.remaining_amount',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      render: (row: any) => money(Math.max(0, row.total - (row.paidAmount ?? 0))),
-    },
-    { key: 'status', label: 'col.status', render: (r: Record<string, unknown>) => { const [key, c] = statusPill[String(r.status)] ?? ['—', 'gray']; return <span className={`pill ${c}`}>{t(key)}</span>; } },
-  ];
+  // Row-action eligibility (mirrors the prior table actions exactly — UI gating only).
+  const canEditRow = (r: { status?: string; paidAmount?: number }) =>
+    hasPermission('invoices.update') && (r.status === 'UNPAID' || (r.status === 'OVERDUE' && Number(r.paidAmount) === 0));
+  const canCollectRow = (r: { status?: string }) =>
+    hasPermission('invoices.update') && r.status !== 'PAID' && r.status !== 'CANCELLED';
+  const canCancelRow = (r: { status?: string; paidAmount?: number }) =>
+    hasPermission('invoices.update') && r.status !== 'CANCELLED' && Number(r.paidAmount) === 0;
 
   return (
-    <div>
+    <div className="xpl-scope xpl-page" dir="rtl">
       <ReturnToReportButton />
-      <div className="page-head">
-        <div><h2>{t('page.invoices.title')}</h2><p>{t('page.invoices.subtitle')}</p></div>
-        {hasPermission('invoices.create') && <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>}
-      </div>
+      <ExecutiveHeader
+        icon="receipt_long"
+        title={t('page.invoices.title')}
+        subtitle={t('page.invoices.subtitle')}
+        chips={stats ? (
+          <>
+            <IdChip icon="receipt_long" tone="indigo">{stats.count} {t('inv.stats.count')}</IdChip>
+            <IdChip icon="payments" tone="green">{money(stats.totalCollected)}</IdChip>
+            {stats.totalRemaining > 0 && <IdChip icon="pending_actions" tone="orange">{money(stats.totalRemaining)}</IdChip>}
+          </>
+        ) : undefined}
+        aside={hasPermission('invoices.create')
+          ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('page.invoices.create')}</Button>
+          : undefined}
+      />
+
+      {loadError && (
+        <ErrorBanner>
+          {loadError}{' '}
+          <button type="button" className="xpl-clear-link" onClick={load} disabled={loading}>{t('action.refresh')}</button>
+        </ErrorBanner>
+      )}
 
       {stats && (
-        <div className="inv-stats-strip">
-          <div className="inv-stat-chip">
-            <span className="inv-stat-icon">📄</span>
-            <span className="inv-stat-label">{t('inv.stats.count')}</span>
-            <span className="inv-stat-value">{stats.count}</span>
-          </div>
-          <div className="inv-stat-chip blue">
-            <span className="inv-stat-icon">💼</span>
-            <span className="inv-stat-label">{t('inv.stats.total_sales')}</span>
-            <span className="inv-stat-value">{money(stats.totalSales)}</span>
-          </div>
-          <div className="inv-stat-chip green">
-            <span className="inv-stat-icon">✅</span>
-            <span className="inv-stat-label">{t('inv.stats.collected')}</span>
-            <span className="inv-stat-value">{money(stats.totalCollected)}</span>
-          </div>
-          <div className="inv-stat-chip red">
-            <span className="inv-stat-icon">🔴</span>
-            <span className="inv-stat-label">{t('inv.stats.remaining')}</span>
-            <span className="inv-stat-value">{money(stats.totalRemaining)}</span>
-          </div>
-          <div className="inv-stat-chip amber">
-            <span className="inv-stat-icon">📊</span>
-            <span className="inv-stat-label">{t('inv.stats.average')}</span>
-            <span className="inv-stat-value">{money(stats.average)}</span>
+        <div className="invcx-metrics">
+          <HeroMetric
+            icon="account_balance_wallet"
+            label={t('inv.stats.total_sales')}
+            value={money(stats.totalSales)}
+            sub={<><span className="material-symbols-outlined" aria-hidden="true">receipt_long</span>{`${stats.count} ${t('inv.stats.count')}`}</>}
+          />
+          <div className="xpl-kpi-grid">
+            <MetricCard icon="description" tone="blue" label={t('inv.stats.count')} value={stats.count} />
+            <MetricCard icon="task_alt" tone="green" label={t('inv.stats.collected')} value={money(stats.totalCollected)} />
+            <MetricCard icon="pending_actions" tone="red" label={t('inv.stats.remaining')} value={money(stats.totalRemaining)} />
+            <MetricCard icon="functions" tone="indigo" label={t('inv.stats.average')} value={money(stats.average)} />
           </div>
         </div>
       )}
@@ -269,125 +285,208 @@ export default function Invoices() {
       {customerFilter && stats && (() => {
         const customer = customers.find((c) => String(c.id) === customerFilter);
         return customer ? (
-          <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 16px', marginBottom: 12, display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap', fontSize: 13 }}>
-            <strong style={{ color: 'var(--text)' }}>📊 {customer.name}</strong>
-            <span style={{ color: 'var(--text-muted)' }}>{stats.count} فاتورة</span>
+          <div className="invcx-customer-strip">
+            <span className="name"><span className="material-symbols-outlined" aria-hidden="true">badge</span>{customer.name}</span>
+            <span>{stats.count} فاتورة</span>
             <span>إجمالي: <strong>{money(stats.totalSales)}</strong></span>
-            <span>محصل: <strong style={{ color: '#16a34a' }}>{money(stats.totalCollected)}</strong></span>
-            <span>متبقي: <strong style={{ color: stats.totalRemaining > 0 ? '#dc2626' : '#16a34a' }}>{money(stats.totalRemaining)}</strong></span>
+            <span>محصل: <strong className="invcx-paid">{money(stats.totalCollected)}</strong></span>
+            <span>متبقي: <strong className={stats.totalRemaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}>{money(stats.totalRemaining)}</strong></span>
           </div>
         ) : null;
       })()}
 
-      {loadError && (
-        <div className="alert error" role="alert" aria-live="assertive" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ flex: 1 }}>⚠️ {loadError}</span>
-          <button type="button" className="btn secondary sm" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
+      {/* Sticky filters */}
+      <div className="xpl-toolbar xpl-toolbar--sticky">
+        <div className="xpl-toolbar-row">
+          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('page.invoices.search')} ariaLabel={t('page.invoices.search')} />
+          <select className="xpl-select" value={customerFilter} onChange={(e) => { setCustomerFilter(e.target.value); setPage(1); }} aria-label="الجهة">
+            <option value="">الجهة — الكل</option>
+            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          <select className="xpl-select" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }} aria-label="شهر الحساب">
+            <option value="">الشهر — الكل</option>
+            {ARABIC_MONTHS.map((name, idx) => <option key={idx + 1} value={idx + 1}>{name}</option>)}
+          </select>
+          <select className="xpl-select" value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }} aria-label="سنة الفوترة">
+            <option value="">السنة — الكل</option>
+            {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
+          </select>
+          {isFiltered && <button type="button" className="xpl-clear-link" onClick={resetFilters}>{t('action.reset_filters')}</button>}
+          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{(meta?.total ?? rows.length)} فاتورة</span>
         </div>
-      )}
-      <form className="toolbar" onSubmit={(e) => e.preventDefault()}>
-        <input
-          placeholder={t('page.invoices.search')}
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          style={{ maxWidth: 280 }}
-        />
-        <select
-          value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-          title={t('filter.status')}
-          style={{ maxWidth: 180 }}
-        >
-          <option value="">{t('opt.all')}</option>
-          <option value="UNPAID">{t('inv.status.unpaid')}</option>
-          <option value="PARTIAL">{t('inv.status.partial')}</option>
-          <option value="PAID">{t('inv.status.paid')}</option>
-          <option value="OVERDUE">{t('inv.status.overdue')}</option>
-          <option value="CANCELLED">{t('inv.status.cancelled')}</option>
-        </select>
-        <select
-          value={directionFilter}
-          onChange={(e) => { setDirectionFilter(e.target.value); setPage(1); }}
-          title={t('filter.direction')}
-          style={{ maxWidth: 180 }}
-        >
-          <option value="">{t('opt.all')}</option>
-          <option value="SALES">{t('opt.direction.sales')}</option>
-          <option value="PURCHASE">{t('opt.direction.purchase')}</option>
-        </select>
-        <select
-          value={customerFilter}
-          onChange={(e) => { setCustomerFilter(e.target.value); setPage(1); }}
-          title="الجهة"
-          style={{ maxWidth: 200 }}
-        >
-          <option value="">الجهة — الكل</option>
-          {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select
-          value={monthFilter}
-          onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }}
-          title="شهر الحساب"
-          style={{ maxWidth: 140 }}
-        >
-          <option value="">الشهر — الكل</option>
-          {ARABIC_MONTHS.map((name, idx) => <option key={idx + 1} value={idx + 1}>{name}</option>)}
-        </select>
-        <select
-          value={yearFilter}
-          onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}
-          title="سنة الفوترة"
-          style={{ maxWidth: 100 }}
-        >
-          <option value="">السنة — الكل</option>
-          {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
-        </select>
-        {isFiltered && (
-          <button type="button" className="btn secondary sm" onClick={resetFilters}>
-            {t('action.reset_filters')}
-          </button>
-        )}
-        <button type="button" className="btn secondary" onClick={load} disabled={loading}>↻ {t('action.refresh')}</button>
-        <ExportExcelButton onExport={exportExcel} busy={exportingExcel} />
-        <button type="button" className="btn secondary sm" onClick={() => setShowMonthlyReport(true)}>
-          📅 {t('inv.monthly_report')}
-        </button>
-      </form>
+        <div className="xpl-toolbar-row">
+          <FilterChip active={!statusFilter} onClick={() => { setStatusFilter(''); setPage(1); }}>{t('opt.all')}</FilterChip>
+          <FilterChip active={statusFilter === 'UNPAID'} onClick={() => { setStatusFilter('UNPAID'); setPage(1); }}>{t('inv.status.unpaid')}</FilterChip>
+          <FilterChip active={statusFilter === 'PARTIAL'} onClick={() => { setStatusFilter('PARTIAL'); setPage(1); }}>{t('inv.status.partial')}</FilterChip>
+          <FilterChip active={statusFilter === 'PAID'} onClick={() => { setStatusFilter('PAID'); setPage(1); }}>{t('inv.status.paid')}</FilterChip>
+          <FilterChip active={statusFilter === 'OVERDUE'} onClick={() => { setStatusFilter('OVERDUE'); setPage(1); }}>{t('inv.status.overdue')}</FilterChip>
+          <FilterChip active={statusFilter === 'CANCELLED'} onClick={() => { setStatusFilter('CANCELLED'); setPage(1); }}>{t('inv.status.cancelled')}</FilterChip>
+          <span className="invcx-chip-divider" aria-hidden="true" />
+          <FilterChip active={!directionFilter} onClick={() => { setDirectionFilter(''); setPage(1); }}>{t('opt.all')}</FilterChip>
+          <FilterChip active={directionFilter === 'SALES'} onClick={() => { setDirectionFilter('SALES'); setPage(1); }}>{t('opt.direction.sales')}</FilterChip>
+          <FilterChip active={directionFilter === 'PURCHASE'} onClick={() => { setDirectionFilter('PURCHASE'); setPage(1); }}>{t('opt.direction.purchase')}</FilterChip>
+          <span style={{ marginInlineStart: 'auto', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+            <Button variant="ghost" icon="refresh" small busy={loading} onClick={load}>{t('action.refresh')}</Button>
+            <ExportExcelButton onExport={exportExcel} busy={exportingExcel} />
+            <Button variant="ghost" icon="calendar_month" small onClick={() => setShowMonthlyReport(true)}>{t('inv.monthly_report')}</Button>
+          </span>
+        </div>
+      </div>
 
-
-      <DataTable
-        columns={columns}
-        rows={rows}
-        loading={loading}
-        meta={meta}
-        onPage={setPage}
-        emptyText={t('empty.invoices')}
-        isFiltered={isFiltered}
-        onResetFilters={resetFilters}
-        getRowId={(row) => `row-${row.id}`}
-        emptyAction={hasPermission('invoices.create') ? (
-          <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t('page.invoices.create')}</button>
-        ) : undefined}
-        actions={(row) => (
+      {/* Invoice table */}
+      <section className="xpl-card" style={{ overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 16 }}><SkeletonRows rows={8} /></div>
+        ) : rows.length === 0 ? (
+          <EmptyState
+            icon="receipt_long"
+            tone="neutral"
+            title={t('empty.invoices')}
+            message={isFiltered ? 'لا توجد فواتير مطابقة للفلاتر.' : undefined}
+            action={isFiltered
+              ? <Button variant="secondary" icon="restart_alt" onClick={resetFilters}>{t('action.reset_filters')}</Button>
+              : hasPermission('invoices.create')
+                ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('page.invoices.create')}</Button>
+                : undefined}
+          />
+        ) : (
           <>
-            {hasPermission('invoices.read') && (
-              <button type="button" className="btn secondary sm" onClick={() => navigate(`/invoices/${row.id}/preview?print=1`)}>{t('btn.inv.print_invoice')}</button>
-            )}{' '}
-            {hasPermission('invoices.update') && (row.status === 'UNPAID' || (row.status === 'OVERDUE' && Number(row.paidAmount) === 0)) && (
-              <button type="button" className="btn secondary sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>
-            )}{' '}
-            {hasPermission('invoices.update') && row.status !== 'PAID' && row.status !== 'CANCELLED' && (
-              <button type="button" className="btn sm" onClick={() => setPaying(row)}>{t('page.invoices.collect')}</button>
-            )}{' '}
-            {hasPermission('invoices.update') && row.status !== 'CANCELLED' && Number(row.paidAmount) === 0 && (
-              <button type="button" className="btn secondary sm" onClick={() => cancel(row.id)} disabled={cancelBusy}>{t('page.invoices.cancel_inv')}</button>
-            )}{' '}
-            {isSystemAdmin && (
-              <button type="button" className="btn danger sm" title="حذف نهائي" onClick={() => setForceDeleteId(row.id as number)}>🗑️</button>
-            )}
+            <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="xpl-table">
+                <thead>
+                  <tr>
+                    <th>{t('col.inv.number')}</th>
+                    <th>{t('col.inv.party')}</th>
+                    <th>{t('col.inv.type')}</th>
+                    <th>{t('col.inv.direction')}</th>
+                    <th>{t('col.date')}</th>
+                    <th>{t('col.inv.total')}</th>
+                    <th>{t('col.inv.paid')}</th>
+                    <th>{t('lbl.inv.remaining_amount')}</th>
+                    <th>{t('col.status')}</th>
+                    <th aria-label="فتح" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const remaining = Math.max(0, Number(r.total) - Number(r.paidAmount ?? 0));
+                    return (
+                      <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
+                        aria-label={`تفاصيل الفاتورة ${r.invoiceNumber ?? r.number}`}
+                        onClick={() => setViewing(r)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
+                        <td><span className="invcx-mono"><strong>{r.invoiceNumber ?? r.number}</strong></span></td>
+                        <td><strong>{r.customer?.name ?? r.supplier?.name ?? '—'}</strong></td>
+                        <td>{r.invoiceType ?? '—'}</td>
+                        <td>{directionLabel(r.direction ?? '', t)}</td>
+                        <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.issueDate)}</td>
+                        <td><span className="invcx-amount">{money(r.total)}</span></td>
+                        <td><span className="invcx-paid">{money(r.paidAmount)}</span></td>
+                        <td><span className={remaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}>{money(remaining)}</span></td>
+                        <td>{invStatusChip(String(r.status), t)}</td>
+                        <td style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <Pagination meta={meta} onPage={setPage} />
           </>
         )}
-      />
+      </section>
+
+      {/* Invoice drawer (read-only detail) */}
+      {viewing && (() => {
+        const remaining = Math.max(0, Number(viewing.total) - Number(viewing.paidAmount ?? 0));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const items: any[] = Array.isArray(viewing.items) ? viewing.items : [];
+        return (
+          <Drawer
+            title={`${t('col.inv.number')} ${viewing.invoiceNumber ?? viewing.number}`}
+            onClose={() => setViewing(null)}
+            hero={
+              <div className="xpl-drawer-hero">
+                <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">receipt_long</span></div>
+                <div className="xpl-drawer-hero-body">
+                  <span className="xpl-drawer-hero-title">{money(viewing.total)}</span>
+                  <span className="xpl-drawer-hero-sub">{(viewing.customer?.name ?? viewing.supplier?.name ?? '—')} · {t('lbl.inv.remaining_amount')} {money(remaining)}</span>
+                  <div style={{ marginTop: 4 }}>{invStatusChip(String(viewing.status), t)}</div>
+                </div>
+              </div>
+            }
+            footer={
+              <>
+                {hasPermission('invoices.read') && (
+                  <Button variant="primary" icon="print" onClick={() => navigate(`/invoices/${viewing.id}/preview?print=1`)}>{t('btn.inv.print_invoice')}</Button>
+                )}
+                {canEditRow(viewing) && (
+                  <Button variant="secondary" icon="edit" onClick={() => { const row = viewing; setViewing(null); setEditing(row); }}>{t('action.edit')}</Button>
+                )}
+                {canCollectRow(viewing) && (
+                  <Button variant="secondary" icon="payments" onClick={() => { const row = viewing; setViewing(null); setPaying(row); }}>{t('page.invoices.collect')}</Button>
+                )}
+                {canCancelRow(viewing) && (
+                  <Button variant="danger" icon="block" busy={cancelBusy} onClick={() => { const id = viewing.id; setViewing(null); cancel(id); }}>{t('page.invoices.cancel_inv')}</Button>
+                )}
+                {isSystemAdmin && (
+                  <Button variant="danger" icon="delete_forever" onClick={() => { const id = viewing.id as number; setViewing(null); setForceDeleteId(id); }}>حذف نهائي</Button>
+                )}
+              </>
+            }
+          >
+            <DrawerSection title="المعلومات الأساسية">
+              <DrawerField label={t('col.inv.number')} value={viewing.invoiceNumber ?? viewing.number} mono />
+              <DrawerField label={t('col.inv.party')} value={viewing.customer?.name ?? viewing.supplier?.name ?? '—'} />
+              <DrawerField label={t('col.date')} value={dateText(viewing.issueDate)} />
+              <DrawerField label={t('col.inv.type')} value={viewing.invoiceType ?? '—'} />
+              <DrawerField label={t('col.inv.direction')} value={directionLabel(viewing.direction ?? '', t)} />
+              <DrawerField label="فترة الحساب" value={viewing.billingMonth && viewing.billingYear ? `${ARABIC_MONTHS[Number(viewing.billingMonth) - 1]} ${viewing.billingYear}` : '—'} />
+            </DrawerSection>
+
+            <DrawerSection title="الملخص المالي">
+              <div className="invcx-fin">
+                {viewing.subtotal != null && <div className="invcx-fin-row"><span className="invcx-fin-label">الإجمالي الفرعي</span><span className="invcx-fin-val">{money(viewing.subtotal)}</span></div>}
+                {Number(viewing.discount) > 0 && <div className="invcx-fin-row"><span className="invcx-fin-label">الخصم</span><span className="invcx-fin-val">{money(viewing.discount)}</span></div>}
+                {Number(viewing.taxAmount) > 0 && <div className="invcx-fin-row"><span className="invcx-fin-label">الضريبة</span><span className="invcx-fin-val">{money(viewing.taxAmount)}</span></div>}
+                <div className="invcx-fin-row total"><span className="invcx-fin-label">الإجمالي</span><span className="invcx-fin-val">{money(viewing.total)}</span></div>
+                <div className="invcx-fin-row"><span className="invcx-fin-label">{t('col.inv.paid')}</span><span className="invcx-fin-val invcx-paid">{money(viewing.paidAmount)}</span></div>
+                <div className="invcx-fin-row"><span className="invcx-fin-label">{t('lbl.inv.remaining_amount')}</span><span className={`invcx-fin-val ${remaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}`}>{money(remaining)}</span></div>
+              </div>
+            </DrawerSection>
+
+            {items.length > 0 && (
+              <DrawerSection title="بنود الفاتورة">
+                <table className="invcx-detail-table">
+                  <thead>
+                    <tr><th>الوصف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>
+                  </thead>
+                  <tbody>
+                    {items.map((it, idx) => (
+                      <tr key={it.id ?? idx}>
+                        <td>{it.description ?? it.workType ?? '—'}</td>
+                        <td>{it.quantity ?? '—'}</td>
+                        <td>{it.unitPrice != null ? money(it.unitPrice) : '—'}</td>
+                        <td><strong>{it.total != null ? money(it.total) : (it.quantity != null && it.unitPrice != null ? money(Number(it.quantity) * Number(it.unitPrice)) : '—')}</strong></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </DrawerSection>
+            )}
+
+            {viewing.notes && (
+              <DrawerSection title="ملاحظات">
+                <DrawerField label="ملاحظات" value={viewing.notes} />
+              </DrawerSection>
+            )}
+
+            <DrawerSection title="بيانات تقنية">
+              <DrawerField label="المعرّف الداخلي" value={`#${viewing.id}`} mono />
+            </DrawerSection>
+          </Drawer>
+        );
+      })()}
 
       {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ الفاتورة بنجاح'); load(); }} />}
       {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ الفاتورة بنجاح'); load(); }} />}
