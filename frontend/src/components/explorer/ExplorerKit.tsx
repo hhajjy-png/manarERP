@@ -25,6 +25,55 @@ const Icon = ({ name, className }: { name: string; className?: string }) => (
   </span>
 );
 
+// ─── Shared dismissable-surface hook (focus trap + escape + focus return) ───────
+// Used by both Drawer and Dialog: moves focus into the panel on mount, traps Tab
+// inside it (both directions), closes on Escape, locks body scroll, and returns
+// focus to the previously-focused element on unmount.
+function useFocusTrap(onClose: () => void) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    panel?.focus();
+
+    const focusable = (): HTMLElement[] =>
+      Array.from(
+        panel?.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ) ?? [],
+      ).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+      if (e.key === 'Tab') {
+        const items = focusable();
+        if (items.length === 0) { e.preventDefault(); panel?.focus(); return; }
+        const first = items[0];
+        const last = items[items.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey && (active === first || active === panel)) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', onKey);
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+      previouslyFocused?.focus?.();
+    };
+  }, [onClose]);
+
+  return panelRef;
+}
+
 // ─── Executive header ──────────────────────────────────────────────────────────
 
 export function ExecutiveHeader({
@@ -337,46 +386,7 @@ export function Drawer({
   hero?: ReactNode;
   labelledById?: string;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const panel = panelRef.current;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    panel?.focus();
-
-    const focusable = (): HTMLElement[] =>
-      Array.from(
-        panel?.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      ).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
-      if (e.key === 'Tab') {
-        const items = focusable();
-        if (items.length === 0) { e.preventDefault(); panel?.focus(); return; }
-        const first = items[0];
-        const last = items[items.length - 1];
-        const active = document.activeElement as HTMLElement | null;
-        if (e.shiftKey && (active === first || active === panel)) {
-          e.preventDefault(); last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault(); first.focus();
-        }
-      }
-    };
-    document.addEventListener('keydown', onKey);
-
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-      previouslyFocused?.focus?.();
-    };
-  }, [onClose]);
+  const panelRef = useFocusTrap(onClose);
 
   return (
     <>
@@ -420,6 +430,136 @@ export function DrawerField({ label, value, mono }: { label: string; value: Reac
     <div className="xpl-drawer-field">
       <span className="xpl-drawer-field-label">{label}</span>
       <span className={`xpl-drawer-field-value${mono ? ' mono' : ''}`}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Dialog (modal standard: header icon/title/subtitle → body sections → footer) ──
+
+export function Dialog({
+  icon,
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+  size = 'md',
+  labelledById = 'xpl-dialog-title',
+}: {
+  icon?: string;
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  labelledById?: string;
+}) {
+  const panelRef = useFocusTrap(onClose);
+  return (
+    <div className="xpl-dialog-overlay" onClick={onClose}>
+      <div
+        className={`xpl-dialog xpl-dialog--${size}`}
+        dir="rtl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledById}
+        tabIndex={-1}
+        ref={panelRef}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="xpl-dialog-header">
+          <div className="xpl-dialog-header-id">
+            {icon && <div className="xpl-dialog-header-icon"><Icon name={icon} /></div>}
+            <div className="xpl-dialog-header-text">
+              <h3 className="xpl-dialog-title" id={labelledById}>{title}</h3>
+              {subtitle && <p className="xpl-dialog-subtitle">{subtitle}</p>}
+            </div>
+          </div>
+          <button type="button" className="xpl-drawer-close" onClick={onClose} aria-label="إغلاق">
+            <Icon name="close" />
+          </button>
+        </div>
+        <div className="xpl-dialog-body">{children}</div>
+        {footer && <div className="xpl-dialog-footer">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+export function DialogSection({ title, icon, children }: { title?: string; icon?: string; children: ReactNode }) {
+  return (
+    <section className="xpl-dialog-section">
+      {title && (
+        <div className="xpl-dialog-section-title">
+          {icon && <Icon name={icon} />}
+          {title}
+        </div>
+      )}
+      <div className="xpl-form-grid">{children}</div>
+    </section>
+  );
+}
+
+// ─── Slim tab bar ──────────────────────────────────────────────────────────────
+
+export function Tabs<T extends string>({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { key: T; label: string; icon?: string }[];
+  active: T;
+  onChange: (key: T) => void;
+}) {
+  return (
+    <div className="xpl-tabs" role="tablist">
+      {tabs.map((tb) => (
+        <button
+          key={tb.key}
+          type="button"
+          role="tab"
+          aria-selected={active === tb.key ? 'true' : 'false'}
+          className={`xpl-tab${active === tb.key ? ' active' : ''}`}
+          onClick={() => onChange(tb.key)}
+        >
+          {tb.icon && <Icon name={tb.icon} className="xpl-tab-icon" />}
+          {tb.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Pagination ────────────────────────────────────────────────────────────────
+
+export function Pagination({
+  meta,
+  onPage,
+}: {
+  meta: { page: number; pageSize: number; total: number; totalPages: number } | null | undefined;
+  onPage: (page: number) => void;
+}) {
+  if (!meta || meta.total === 0) return null;
+  const from = (meta.page - 1) * meta.pageSize + 1;
+  const to = Math.min(meta.page * meta.pageSize, meta.total);
+  return (
+    <div className="xpl-pagination">
+      <span className="xpl-pagination-info">
+        {meta.totalPages > 1
+          ? <>عرض {from}–{to} من {meta.total} · صفحة {meta.page} من {meta.totalPages}</>
+          : <>الإجمالي {meta.total}</>}
+      </span>
+      {meta.totalPages > 1 && (
+        <div className="xpl-pagination-btns">
+          <button type="button" className="xpl-btn xpl-btn--secondary xpl-btn--sm" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)}>
+            <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>السابق
+          </button>
+          <button type="button" className="xpl-btn xpl-btn--secondary xpl-btn--sm" disabled={meta.page >= meta.totalPages} onClick={() => onPage(meta.page + 1)}>
+            التالي<span className="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

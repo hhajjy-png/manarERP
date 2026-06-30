@@ -1,31 +1,60 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
-import StatCard from '../components/StatCard';
-import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
-import DataTable, { PageMeta } from '../components/DataTable';
+import { PageMeta } from '../components/DataTable';
 import { money, dateText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { useToast } from '../stores/toastStore';
 import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
+import {
+  ExecutiveHeader,
+  Tabs,
+  HeroMetric,
+  MetricCard,
+  SectionCard,
+  StatusChip,
+  SearchBox,
+  FilterChip,
+  EmptyState,
+  ErrorBanner,
+  SkeletonRows,
+  Pagination,
+  Drawer,
+  DrawerSection,
+  DrawerField,
+  Dialog,
+  DialogSection,
+  Button,
+} from '../components/explorer/ExplorerKit';
+import '../components/explorer/explorer-kit.css';
+import './Accounting.css';
 
 type Tab = 'summary' | 'accounts' | 'journal' | 'payments';
+type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
 const accountTypeKey: Record<string, string> = {
   ASSET: 'acc.type.asset', LIABILITY: 'acc.type.liability', EQUITY: 'acc.type.equity',
   REVENUE: 'acc.type.revenue', EXPENSE: 'acc.type.expense',
 };
+const ACC_TYPE_TONE: Record<string, Tone> = {
+  ASSET: 'blue', LIABILITY: 'orange', EQUITY: 'indigo', REVENUE: 'green', EXPENSE: 'red',
+};
+const ACC_TYPE_ICON: Record<string, string> = {
+  ASSET: 'account_balance_wallet', LIABILITY: 'credit_card', EQUITY: 'savings',
+  REVENUE: 'trending_up', EXPENSE: 'trending_down',
+};
 const normalBalanceKey: Record<string, string> = { DEBIT: 'acc.balance.debit', CREDIT: 'acc.balance.credit' };
-const journalStatusKey: Record<string, [string, string]> = {
-  POSTED: ['acc.journal.posted', 'green'], DRAFT: ['acc.journal.draft', 'amber'], CANCELLED: ['acc.journal.cancelled', 'gray'],
+const journalStatusMeta: Record<string, { key: string; tone: Tone; icon: string }> = {
+  POSTED:    { key: 'acc.journal.posted',    tone: 'green',   icon: 'check_circle' },
+  DRAFT:     { key: 'acc.journal.draft',     tone: 'orange',  icon: 'edit_note' },
+  CANCELLED: { key: 'acc.journal.cancelled', tone: 'neutral', icon: 'block' },
 };
 const paymentMethodKey: Record<string, string> = {
   CASH: 'opt.payment.cash', BANK: 'opt.payment.bank', CHEQUE: 'opt.payment.cheque', TRANSFER: 'opt.payment.transfer',
 };
-
 
 export default function Accounting() {
   const [tab, setTab] = usePersistedState<Tab>('acc:tab', 'summary');
@@ -34,34 +63,24 @@ export default function Accounting() {
   const canCreate = hasPermission('transactions.create');
 
   return (
-    <div>
+    <div className="xpl-scope xpl-page" dir="rtl">
       <ReturnToReportButton />
-      <div className="page-head">
-        <div><h2>{t('page.accounting.title')}</h2><p>{t('page.accounting.subtitle')}</p></div>
-      </div>
+      <ExecutiveHeader
+        icon="account_balance"
+        title={t('page.accounting.title')}
+        subtitle={t('page.accounting.subtitle')}
+      />
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '2px solid var(--border)', paddingBottom: 0 }}>
-        {([
-          ['summary', '📊', 'tab.accounting.summary'],
-          ['accounts', '🗂️', 'tab.accounting.accounts'],
-          ['journal', '📒', 'tab.accounting.journal'],
-          ['payments', '💳', 'tab.accounting.payments'],
-        ] as [Tab, string, string][]).map(([key, icon, labelKey]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setTab(key)}
-            style={{
-              padding: '10px 20px', border: 'none', background: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', fontSize: 14, fontWeight: 700, color: tab === key ? 'var(--primary)' : 'var(--text-muted)',
-              borderBottom: tab === key ? '3px solid var(--primary)' : '3px solid transparent',
-              marginBottom: -2, transition: 'all 0.15s',
-            }}
-          >
-            {icon} {t(labelKey)}
-          </button>
-        ))}
-      </div>
+      <Tabs<Tab>
+        active={tab}
+        onChange={setTab}
+        tabs={[
+          { key: 'summary', label: t('tab.accounting.summary'), icon: 'monitoring' },
+          { key: 'accounts', label: t('tab.accounting.accounts'), icon: 'account_tree' },
+          { key: 'journal', label: t('tab.accounting.journal'), icon: 'menu_book' },
+          { key: 'payments', label: t('tab.accounting.payments'), icon: 'payments' },
+        ]}
+      />
 
       {tab === 'summary' && <SummaryTab />}
       {tab === 'accounts' && <AccountsTab canCreate={canCreate} />}
@@ -95,43 +114,47 @@ function SummaryTab() {
     })();
   }, []);
 
-  if (loading) return <div className="center-msg"><div className="spinner" />{t('msg.loading')}</div>;
+  if (loading) return <SkeletonRows rows={4} />;
+
+  const net = Number(summary?.netProfit ?? 0);
 
   return (
-    <div>
-      <div className="stats" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-        <StatCard label={t('stat.acc.total_revenue')} value={money(summary?.totalRevenue)} icon="📈" color="var(--green)" bg="var(--green-light)" />
-        <StatCard label={t('stat.acc.total_collected')} value={money(summary?.totalCollected)} icon="✅" color="var(--green)" bg="var(--green-light)" />
-        <StatCard label={t('stat.acc.total_expenses')} value={money(summary?.totalExpenses)} icon="📉" color="var(--red)" bg="var(--red-light)" />
-        <StatCard label={t('stat.acc.net_profit')} value={money(summary?.netProfit)} icon="💰" color="var(--green)" bg="var(--green-light)" dir="up" />
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8 }}>
-        <div className="card panel">
-          <h3>{t('section.acc.journal_summary')}</h3>
-          <div className="ph-sub">{t('section.acc.journal_from')}</div>
-          <table style={{ width: '100%', marginTop: 12 }}>
-            <tbody>
-              <tr><td style={{ padding: '6px 0', color: 'var(--text-muted)' }}>{t('col.acc.journal_count')}</td><td style={{ fontWeight: 700, textAlign: 'end' }}>{summary?.journalEntryCount ?? 0}</td></tr>
-              <tr><td style={{ padding: '6px 0', color: 'var(--text-muted)' }}>{t('col.acc.total_debit_lbl')}</td><td style={{ fontWeight: 700, textAlign: 'end', color: 'var(--red)' }}>{money(summary?.totalJournalDebit)}</td></tr>
-              <tr><td style={{ padding: '6px 0', color: 'var(--text-muted)' }}>{t('col.acc.total_credit_lbl')}</td><td style={{ fontWeight: 700, textAlign: 'end', color: 'var(--green)' }}>{money(summary?.totalJournalCredit)}</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div className="card panel">
-          <h3>{t('section.acc.pl')}</h3>
-          <div className="ph-sub">{t('section.acc.pl_from')}</div>
-          <table style={{ width: '100%', marginTop: 12 }}>
-            <tbody>
-              <tr><td style={{ padding: '6px 0', color: 'var(--text-muted)' }}>{t('col.acc.revenue_lbl')}</td><td style={{ fontWeight: 700, textAlign: 'end', color: 'var(--green)' }}>{money(pl?.totalRevenue)}</td></tr>
-              <tr><td style={{ padding: '6px 0', color: 'var(--text-muted)' }}>{t('col.acc.expense_lbl')}</td><td style={{ fontWeight: 700, textAlign: 'end', color: 'var(--red)' }}>{money(pl?.totalExpense)}</td></tr>
-              <tr><td style={{ padding: '6px 0', color: 'var(--text-muted)', fontWeight: 700 }}>{t('col.acc.net_profit_lbl')}</td><td style={{ fontWeight: 700, textAlign: 'end', color: (pl?.netProfit ?? 0) >= 0 ? 'var(--green)' : 'var(--red)' }}>{money(pl?.netProfit)}</td></tr>
-            </tbody>
-          </table>
+    <>
+      <div className="rcx-metrics" style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: 14, alignItems: 'stretch' }}>
+        <HeroMetric
+          icon="savings"
+          label={t('stat.acc.net_profit')}
+          value={money(summary?.netProfit)}
+          sub={<><span className="material-symbols-outlined">{net >= 0 ? 'trending_up' : 'trending_down'}</span>{net >= 0 ? 'صافي ربح موجب' : 'صافي خسارة'}</>}
+        />
+        <div className="xpl-kpi-grid">
+          <MetricCard icon="trending_up" tone="green" label={t('stat.acc.total_revenue')} value={money(summary?.totalRevenue)} />
+          <MetricCard icon="task_alt" tone="green" label={t('stat.acc.total_collected')} value={money(summary?.totalCollected)} />
+          <MetricCard icon="trending_down" tone="red" label={t('stat.acc.total_expenses')} value={money(summary?.totalExpenses)} />
+          <MetricCard icon="menu_book" tone="indigo" label={t('col.acc.journal_count')} value={summary?.journalEntryCount ?? 0} />
         </div>
       </div>
-    </div>
+
+      <div className="accx-panels">
+        <SectionCard title={t('section.acc.journal_summary')} icon="menu_book">
+          <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--xpl-muted)' }}>{t('section.acc.journal_from')}</p>
+          <div className="accx-kv">
+            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.journal_count')}</span><span className="accx-kv-val">{summary?.journalEntryCount ?? 0}</span></div>
+            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.total_debit_lbl')}</span><span className="accx-kv-val red">{money(summary?.totalJournalDebit)}</span></div>
+            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.total_credit_lbl')}</span><span className="accx-kv-val green">{money(summary?.totalJournalCredit)}</span></div>
+          </div>
+        </SectionCard>
+
+        <SectionCard title={t('section.acc.pl')} icon="assessment">
+          <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--xpl-muted)' }}>{t('section.acc.pl_from')}</p>
+          <div className="accx-kv">
+            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.revenue_lbl')}</span><span className="accx-kv-val green">{money(pl?.totalRevenue)}</span></div>
+            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.expense_lbl')}</span><span className="accx-kv-val red">{money(pl?.totalExpense)}</span></div>
+            <div className="accx-kv-row total"><span className="accx-kv-label">{t('col.acc.net_profit_lbl')}</span><span className={`accx-kv-val ${(pl?.netProfit ?? 0) >= 0 ? 'green' : 'red'}`}>{money(pl?.netProfit)}</span></div>
+          </div>
+        </SectionCard>
+      </div>
+    </>
   );
 }
 
@@ -150,6 +173,8 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [viewing, setViewing] = useState<any | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -174,45 +199,111 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
     setDeleteConfirmId(null);
     if (busy) return;
     setBusy(true);
-    try { await api.delete(`/accounting/accounts/${id}`); toast.ok('تم حذف الحساب بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/accounting/accounts/${id}`); toast.ok('تم حذف الحساب بنجاح'); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
-  const columns = [
-    { key: 'code', label: 'col.acc.code', render: (r: Record<string, unknown>) => <strong style={{ fontFamily: 'monospace' }}>{String(r.code)}</strong> },
-    { key: 'name', label: 'col.acc.name', render: (r: Record<string, unknown>) => <strong>{String(r.name)}</strong> },
-    { key: 'type', label: 'col.acc.type', render: (r: Record<string, unknown>) => <span className="pill blue">{t(accountTypeKey[String(r.type)] ?? 'acc.type.asset')}</span> },
-    { key: 'normalBalance', label: 'col.acc.normal_balance', render: (r: Record<string, unknown>) => t(normalBalanceKey[String(r.normalBalance)] ?? 'acc.balance.debit') },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { key: 'parent', label: 'col.acc.parent', render: (r: any) => r.parent ? `${r.parent.code} - ${r.parent.name}` : '—' },
-    { key: 'isActive', label: 'col.status', render: (r: Record<string, unknown>) => <span className={`pill ${r.isActive ? 'green' : 'gray'}`}>{r.isActive ? t('status.active') : t('status.suspended')}</span> },
-  ];
+  const isFiltered = !!(search || typeFilter);
 
   return (
-    <div>
-      <div className="toolbar">
-        <input placeholder={t('ph.acc.search_account')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ maxWidth: 240 }} />
-        <select value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}>
-          <option value="">{t('opt.acc.all_types')}</option>
-          {Object.entries(accountTypeKey).map(([v, k]) => <option key={v} value={v}>{t(k)}</option>)}
-        </select>
-        {canCreate && <button type="button" className="btn" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(true)}>{t('btn.acc.new_account')}</button>}
+    <>
+      <div className="xpl-toolbar xpl-toolbar--sticky">
+        <div className="xpl-toolbar-row">
+          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('ph.acc.search_account')} ariaLabel={t('ph.acc.search_account')} />
+          {canCreate && <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('btn.acc.new_account')}</Button>}
+        </div>
+        <div className="xpl-toolbar-row">
+          <FilterChip active={typeFilter === ''} onClick={() => { setTypeFilter(''); setPage(1); }}>{t('opt.acc.all_types')}</FilterChip>
+          {Object.entries(accountTypeKey).map(([v, k]) => (
+            <FilterChip key={v} active={typeFilter === v} onClick={() => { setTypeFilter(v); setPage(1); }} icon={ACC_TYPE_ICON[v]}>{t(k)}</FilterChip>
+          ))}
+        </div>
       </div>
 
-      {error && <div className="alert error">⚠️ {error}</div>}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
 
-      <DataTable
-        columns={columns}
-        rows={rows}
-        loading={loading}
-        meta={meta}
-        onPage={setPage}
-        actions={(row) => (
+      <section className="xpl-card" style={{ overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
+        ) : rows.length === 0 ? (
+          <EmptyState icon="account_tree" tone="neutral" title="لا توجد حسابات"
+            message={isFiltered ? 'لا توجد حسابات مطابقة للبحث أو التصنيف.' : 'لم تتم إضافة أي حسابات بعد.'}
+            action={canCreate ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('btn.acc.new_account')}</Button> : undefined} />
+        ) : (
           <>
-            <button type="button" className="btn sm" onClick={() => setEditing(row)}>{t('action.edit')}</button>{' '}
-            <button type="button" className="btn secondary sm" onClick={() => deleteAccount(row.id)} disabled={busy}>{t('action.delete')}</button>
+            <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="xpl-table">
+                <thead>
+                  <tr>
+                    <th>{t('col.acc.code')}</th>
+                    <th>{t('col.acc.name')}</th>
+                    <th>{t('col.acc.type')}</th>
+                    <th>{t('col.acc.normal_balance')}</th>
+                    <th>{t('col.acc.parent')}</th>
+                    <th>{t('col.status')}</th>
+                    <th aria-label="فتح" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
+                      aria-label={`تفاصيل الحساب ${r.code} ${r.name}`}
+                      onClick={() => setViewing(r)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
+                      <td><span className="accx-code">{String(r.code)}</span></td>
+                      <td><strong>{String(r.name)}</strong></td>
+                      <td><StatusChip tone={ACC_TYPE_TONE[String(r.type)] ?? 'neutral'} icon={ACC_TYPE_ICON[String(r.type)]}>{t(accountTypeKey[String(r.type)] ?? 'acc.type.asset')}</StatusChip></td>
+                      <td>{t(normalBalanceKey[String(r.normalBalance)] ?? 'acc.balance.debit')}</td>
+                      <td>{r.parent ? `${r.parent.code} - ${r.parent.name}` : '—'}</td>
+                      <td><StatusChip tone={r.isActive ? 'green' : 'neutral'}>{r.isActive ? t('status.active') : t('status.suspended')}</StatusChip></td>
+                      <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination meta={meta} onPage={setPage} />
           </>
         )}
-      />
+      </section>
+
+      {viewing && (
+        <Drawer
+          title={`${t('col.acc.code')}: ${viewing.code}`}
+          onClose={() => setViewing(null)}
+          hero={
+            <div className="xpl-drawer-hero">
+              <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{ACC_TYPE_ICON[String(viewing.type)] ?? 'account_tree'}</span></div>
+              <div className="xpl-drawer-hero-body">
+                <span className="xpl-drawer-hero-title">{viewing.name}</span>
+                <span className="xpl-drawer-hero-sub">{viewing.code}</span>
+                <div style={{ marginTop: 4 }}>
+                  <StatusChip tone={ACC_TYPE_TONE[String(viewing.type)] ?? 'neutral'} icon={ACC_TYPE_ICON[String(viewing.type)]}>{t(accountTypeKey[String(viewing.type)] ?? 'acc.type.asset')}</StatusChip>
+                </div>
+              </div>
+            </div>
+          }
+          footer={
+            <>
+              <Button variant="primary" icon="edit" onClick={() => { setEditing(viewing); setViewing(null); }}>{t('action.edit')}</Button>
+              <Button variant="danger" icon="delete" busy={busy} onClick={() => deleteAccount(viewing.id)}>{t('action.delete')}</Button>
+            </>
+          }
+        >
+          <DrawerSection title="بيانات الحساب">
+            <DrawerField label={t('col.acc.code')} value={viewing.code} mono />
+            <DrawerField label={t('col.acc.name')} value={viewing.name} />
+            <DrawerField label={t('col.acc.type')} value={t(accountTypeKey[String(viewing.type)] ?? 'acc.type.asset')} />
+            <DrawerField label={t('col.acc.normal_balance')} value={t(normalBalanceKey[String(viewing.normalBalance)] ?? 'acc.balance.debit')} />
+            <DrawerField label={t('col.acc.parent')} value={viewing.parent ? `${viewing.parent.code} - ${viewing.parent.name}` : '—'} />
+            <DrawerField label={t('col.status')} value={<StatusChip tone={viewing.isActive ? 'green' : 'neutral'}>{viewing.isActive ? t('status.active') : t('status.suspended')}</StatusChip>} />
+          </DrawerSection>
+          {viewing.notes && (
+            <DrawerSection title={t('field.notes')}>
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.6, color: 'var(--xpl-text)' }}>{viewing.notes}</p>
+            </DrawerSection>
+          )}
+        </Drawer>
+      )}
 
       {creating && <AccountForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ الحساب بنجاح'); load(); }} />}
       {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ الحساب بنجاح'); load(); }} />}
@@ -226,7 +317,7 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
           onCancel={() => setDeleteConfirmId(null)}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -262,39 +353,55 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
   }
 
   return (
-    <Modal title={isEdit ? t('modal.acc.edit_account') : t('modal.acc.new_account')} size="lg" onClose={onClose} footer={
-      <>
-        <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('action.save')}</button>
-        <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
-      </>
-    }>
-      {error && <div className="alert error">⚠️ {error}</div>}
-      <div className="form-grid">
-        <div className="field"><label>{t('field.acc.code')} *</label><input value={code} onChange={(e) => setCode(e.target.value)} placeholder="1100" style={{ direction: 'ltr' }} autoFocus /></div>
-        <div className="field"><label>{t('field.acc.name')} *</label><input value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div className="field">
+    <Dialog
+      icon="account_tree"
+      title={isEdit ? t('modal.acc.edit_account') : t('modal.acc.new_account')}
+      subtitle={isEdit ? account.code : 'إضافة حساب جديد لدليل الحسابات'}
+      size="md"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="primary" icon="save" busy={saving} onClick={submit}>{t('action.save')}</Button>
+          <Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button>
+        </>
+      }
+    >
+      {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
+      <DialogSection title="بيانات الحساب" icon="badge">
+        <div className="xpl-field">
+          <label>{t('field.acc.code')} <span className="req">*</span></label>
+          <input className="xpl-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="1100" style={{ direction: 'ltr' }} autoFocus aria-label={t('field.acc.code')} />
+        </div>
+        <div className="xpl-field">
+          <label>{t('field.acc.name')} <span className="req">*</span></label>
+          <input className="xpl-input" value={name} onChange={(e) => setName(e.target.value)} aria-label={t('field.acc.name')} />
+        </div>
+        <div className="xpl-field">
           <label>{t('field.acc.type')}</label>
-          <select value={type} onChange={(e) => setType(e.target.value)}>
+          <select className="xpl-select" value={type} onChange={(e) => setType(e.target.value)} aria-label={t('field.acc.type')}>
             {Object.entries(accountTypeKey).map(([v, k]) => <option key={v} value={v}>{t(k)}</option>)}
           </select>
         </div>
-        <div className="field">
+        <div className="xpl-field">
           <label>{t('field.acc.normal_balance')}</label>
-          <select value={normalBalance} onChange={(e) => setNormalBalance(e.target.value)}>
+          <select className="xpl-select" value={normalBalance} onChange={(e) => setNormalBalance(e.target.value)} aria-label={t('field.acc.normal_balance')}>
             <option value="DEBIT">{t('acc.balance.debit')}</option>
             <option value="CREDIT">{t('acc.balance.credit')}</option>
           </select>
         </div>
-        <div className="field">
+        <div className="xpl-field">
           <label>{t('field.acc.active_status')}</label>
-          <select value={String(isActive)} onChange={(e) => setIsActive(e.target.value === 'true')}>
+          <select className="xpl-select" value={String(isActive)} onChange={(e) => setIsActive(e.target.value === 'true')} aria-label={t('field.acc.active_status')}>
             <option value="true">{t('status.active')}</option>
             <option value="false">{t('status.suspended')}</option>
           </select>
         </div>
-        <div className="field" style={{ gridColumn: '1 / -1' }}><label>{t('field.notes')}</label><input value={notes} onChange={(e) => setNotes(e.target.value)} /></div>
-      </div>
-    </Modal>
+        <div className="xpl-field xpl-field--full">
+          <label>{t('field.notes')}</label>
+          <input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} aria-label={t('field.notes')} />
+        </div>
+      </DialogSection>
+    </Dialog>
   );
 }
 
@@ -345,46 +452,77 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
     setCancelConfirmId(null);
     if (busy) return;
     setBusy(true);
-    try { await api.patch(`/accounting/journal/${id}/cancel`); toast.ok('تم إلغاء القيد بنجاح'); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.patch(`/accounting/journal/${id}/cancel`); toast.ok('تم إلغاء القيد بنجاح'); setExpanded(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
-  const columns = [
-    { key: 'entryNumber', label: 'col.acc.entry_number', render: (r: Record<string, unknown>) => <strong style={{ fontFamily: 'monospace' }}>{String(r.entryNumber)}</strong> },
-    { key: 'date', label: 'col.date', render: (r: Record<string, unknown>) => dateText(r.date) },
-    { key: 'description', label: 'col.acc.description', render: (r: Record<string, unknown>) => String(r.description) },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { key: 'total', label: 'col.acc.total_debit_lbl', render: (r: any) => money((r.lines ?? []).reduce((s: number, l: any) => s + l.debit, 0)) },
-    { key: 'status', label: 'col.status', render: (r: Record<string, unknown>) => { const [k, c] = journalStatusKey[String(r.status)] ?? ['acc.journal.draft', 'gray']; return <span className={`pill ${c}`}>{t(k)}</span>; } },
-  ];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const entryTotal = (r: any) => (r.lines ?? []).reduce((s: number, l: { debit: number }) => s + l.debit, 0);
 
   return (
-    <div>
-      <div className="toolbar">
-        <input placeholder={t('ph.acc.search_journal')} value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} style={{ maxWidth: 280 }} />
-        {canCreate && <button type="button" className="btn" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(true)}>{t('btn.acc.new_entry')}</button>}
+    <>
+      <div className="xpl-toolbar xpl-toolbar--sticky">
+        <div className="xpl-toolbar-row">
+          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('ph.acc.search_journal')} ariaLabel={t('ph.acc.search_journal')} />
+          {canCreate && <Button variant="primary" icon="post_add" onClick={() => setCreating(true)}>{t('btn.acc.new_entry')}</Button>}
+        </div>
       </div>
 
-      {error && <div className="alert error">⚠️ {error}</div>}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
 
-      <DataTable
-        columns={columns}
-        rows={rows}
-        loading={loading}
-        meta={meta}
-        onPage={setPage}
-        getRowId={row => `row-${row.id}`}
-        actions={(row) => (
+      <section className="xpl-card" style={{ overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
+        ) : rows.length === 0 ? (
+          <EmptyState icon="menu_book" tone="neutral" title="لا توجد قيود" message="لم يتم تسجيل أي قيود يومية بعد."
+            action={canCreate ? <Button variant="primary" icon="post_add" onClick={() => setCreating(true)}>{t('btn.acc.new_entry')}</Button> : undefined} />
+        ) : (
           <>
-            <button type="button" className="btn sm" onClick={() => setExpanded(row)}>{t('action.view')}</button>{' '}
-            {row.status === 'POSTED' && row.referenceType === 'MANUAL' && (
-              <button type="button" className="btn secondary sm" onClick={() => cancelEntry(row.id)} disabled={busy}>{t('action.cancel')}</button>
-            )}
+            <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="xpl-table">
+                <thead>
+                  <tr>
+                    <th>{t('col.acc.entry_number')}</th>
+                    <th>{t('col.date')}</th>
+                    <th>{t('col.acc.description')}</th>
+                    <th>{t('col.acc.total_debit_lbl')}</th>
+                    <th>{t('col.status')}</th>
+                    <th aria-label="فتح" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => {
+                    const sm = journalStatusMeta[String(r.status)] ?? journalStatusMeta.DRAFT;
+                    return (
+                      <tr key={r.id} id={`row-${r.id}`} className="xpl-row--click" tabIndex={0} role="button"
+                        aria-label={`تفاصيل القيد ${r.entryNumber}`}
+                        onClick={() => setExpanded(r)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(r); } }}>
+                        <td><span className="accx-code">{String(r.entryNumber)}</span></td>
+                        <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
+                        <td>{String(r.description)}</td>
+                        <td style={{ fontWeight: 700 }}>{money(entryTotal(r))}</td>
+                        <td><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></td>
+                        <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <Pagination meta={meta} onPage={setPage} />
           </>
         )}
-      />
+      </section>
 
       {creating && <JournalEntryForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم ترحيل القيد بنجاح'); load(); }} />}
-      {expanded && <JournalEntryDetails entry={expanded} onClose={() => setExpanded(null)} />}
+      {expanded && (
+        <JournalEntryDrawer
+          entry={expanded}
+          onClose={() => setExpanded(null)}
+          onCancelEntry={expanded.status === 'POSTED' && expanded.referenceType === 'MANUAL' ? () => cancelEntry(expanded.id) : undefined}
+          busy={busy}
+        />
+      )}
       {cancelConfirmId !== null && (
         <ConfirmModal
           title="تأكيد إلغاء القيد"
@@ -395,39 +533,56 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
           onCancel={() => setCancelConfirmId(null)}
         />
       )}
-    </div>
+    </>
   );
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function JournalEntryDetails({ entry, onClose }: { entry: any; onClose: () => void }) {
+function JournalEntryDrawer({ entry, onClose, onCancelEntry, busy }: { entry: any; onClose: () => void; onCancelEntry?: () => void; busy: boolean }) {
   const { t } = useT();
   const totalDebit = (entry.lines ?? []).reduce((s: number, l: { debit: number }) => s + l.debit, 0);
   const totalCredit = (entry.lines ?? []).reduce((s: number, l: { credit: number }) => s + l.credit, 0);
+  const sm = journalStatusMeta[String(entry.status)] ?? journalStatusMeta.DRAFT;
   return (
-    <Modal title={`${t('col.acc.entry_number')}: ${entry.entryNumber}`} size="lg" onClose={onClose} footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.close')}</button>}>
-      <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>{dateText(entry.date)} — {entry.description}</p>
-      <div className="table-responsive">
-        <table>
-          <thead><tr><th>{t('col.acc.account')}</th><th>{t('col.acc.description')}</th><th>{t('col.acc.debit')}</th><th>{t('col.acc.credit')}</th></tr></thead>
+    <Drawer
+      title={`${t('col.acc.entry_number')}: ${entry.entryNumber}`}
+      onClose={onClose}
+      hero={
+        <div className="xpl-drawer-hero">
+          <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">menu_book</span></div>
+          <div className="xpl-drawer-hero-body">
+            <span className="xpl-drawer-hero-title">{entry.entryNumber}</span>
+            <span className="xpl-drawer-hero-sub">{dateText(entry.date)}</span>
+            <div style={{ marginTop: 4 }}><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></div>
+          </div>
+        </div>
+      }
+      footer={onCancelEntry ? <Button variant="danger" icon="block" busy={busy} onClick={onCancelEntry}>{t('action.cancel')}</Button> : <Button variant="ghost" icon="close" onClick={onClose}>{t('action.close')}</Button>}
+    >
+      <DrawerSection title="تفاصيل القيد">
+        <DrawerField label={t('col.acc.description')} value={entry.description} />
+        <DrawerField label={t('col.date')} value={dateText(entry.date)} />
+      </DrawerSection>
+      <DrawerSection title="بنود القيد">
+        <table className="accx-detail-table">
+          <thead><tr><th>{t('col.acc.account')}</th><th>{t('col.acc.debit')}</th><th>{t('col.acc.credit')}</th></tr></thead>
           <tbody>
             {(entry.lines ?? []).map((l: { id: number; account?: { code: string; name: string }; description?: string; debit: number; credit: number }) => (
               <tr key={l.id}>
-                <td>{l.account ? `${l.account.code} - ${l.account.name}` : '—'}</td>
-                <td>{l.description ?? '—'}</td>
-                <td style={{ color: 'var(--red)', fontWeight: 700 }}>{l.debit > 0 ? money(l.debit) : '—'}</td>
-                <td style={{ color: 'var(--green)', fontWeight: 700 }}>{l.credit > 0 ? money(l.credit) : '—'}</td>
+                <td>{l.account ? `${l.account.code} - ${l.account.name}` : '—'}{l.description ? <div style={{ fontSize: 11, color: 'var(--xpl-muted)' }}>{l.description}</div> : null}</td>
+                <td className="accx-debit">{l.debit > 0 ? money(l.debit) : '—'}</td>
+                <td className="accx-credit">{l.credit > 0 ? money(l.credit) : '—'}</td>
               </tr>
             ))}
-            <tr style={{ fontWeight: 700, borderTop: '2px solid var(--border)' }}>
-              <td colSpan={2}>{t('lbl.acc.total_debit')}</td>
-              <td style={{ color: 'var(--red)' }}>{money(totalDebit)}</td>
-              <td style={{ color: 'var(--green)' }}>{money(totalCredit)}</td>
+            <tr className="total">
+              <td>{t('lbl.acc.total_debit')}</td>
+              <td className="accx-debit">{money(totalDebit)}</td>
+              <td className="accx-credit">{money(totalCredit)}</td>
             </tr>
           </tbody>
         </table>
-      </div>
-    </Modal>
+      </DrawerSection>
+    </Drawer>
   );
 }
 
@@ -482,50 +637,64 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
   }
 
   return (
-    <Modal title={t('modal.acc.new_entry')} size="xl" onClose={onClose} footer={
-      <>
-        <button type="button" className="btn" onClick={submit} disabled={saving || !balanced}>{saving ? t('msg.saving') : t('btn.acc.post_entry')}</button>
-        <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
-      </>
-    }>
-      {error && <div className="alert error">⚠️ {error}</div>}
-      <div className="form-grid">
-        <div className="field"><label>{t('field.acc.desc')} *</label><input value={description} onChange={(e) => setDescription(e.target.value)} autoFocus /></div>
-        <div className="field"><label>{t('col.date')}</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-      </div>
+    <Dialog
+      icon="post_add"
+      title={t('modal.acc.new_entry')}
+      subtitle="قيد يومية متوازن (مدين = دائن)"
+      size="xl"
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="primary" icon="check_circle" busy={saving} disabled={!balanced} onClick={submit}>{t('btn.acc.post_entry')}</Button>
+          <Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button>
+        </>
+      }
+    >
+      {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
+      <DialogSection title="معلومات القيد" icon="description">
+        <div className="xpl-field xpl-field--full">
+          <label>{t('field.acc.desc')} <span className="req">*</span></label>
+          <input className="xpl-input" value={description} onChange={(e) => setDescription(e.target.value)} autoFocus aria-label={t('field.acc.desc')} />
+        </div>
+        <div className="xpl-field">
+          <label>{t('col.date')}</label>
+          <input className="xpl-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t('col.date')} />
+        </div>
+      </DialogSection>
 
-      <div style={{ marginTop: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr auto', gap: 6, marginBottom: 6 }}>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>{t('col.acc.account')}</span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>{t('col.acc.desc_opt')}</span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>{t('col.acc.debit')}</span>
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>{t('col.acc.credit')}</span>
+      <section className="xpl-dialog-section">
+        <div className="xpl-dialog-section-title"><span className="material-symbols-outlined">table_rows</span>بنود القيد</div>
+        <div className="accx-jline-head">
+          <span>{t('col.acc.account')}</span>
+          <span>{t('col.acc.desc_opt')}</span>
+          <span>{t('col.acc.debit')}</span>
+          <span>{t('col.acc.credit')}</span>
           <span />
         </div>
         {lines.map((l, i) => (
-          <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr auto', gap: 6, marginBottom: 6, alignItems: 'center' }}>
-            <select value={l.accountId} onChange={(e) => setLine(i, 'accountId', e.target.value)} className="line-input" style={{ fontSize: 13 }}>
+          <div key={i} className="accx-jline">
+            <select className="xpl-select" value={l.accountId} onChange={(e) => setLine(i, 'accountId', e.target.value)} aria-label={t('col.acc.account')}>
               <option value="">{t('msg.select_placeholder')}</option>
               {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
             </select>
-            <input value={l.description} onChange={(e) => setLine(i, 'description', e.target.value)} className="line-input" style={{ fontSize: 13 }} placeholder={t('ph.acc.line_desc')} />
-            <input type="number" min="0" step="0.001" value={l.debit} onChange={(e) => setLine(i, 'debit', e.target.value)} className="line-input" style={{ fontSize: 13, direction: 'ltr' }} placeholder="0" />
-            <input type="number" min="0" step="0.001" value={l.credit} onChange={(e) => setLine(i, 'credit', e.target.value)} className="line-input" style={{ fontSize: 13, direction: 'ltr' }} placeholder="0" />
+            <input className="xpl-input" value={l.description} onChange={(e) => setLine(i, 'description', e.target.value)} placeholder={t('ph.acc.line_desc')} aria-label={t('col.acc.desc_opt')} />
+            <input className="xpl-input" type="number" min="0" step="0.001" value={l.debit} onChange={(e) => setLine(i, 'debit', e.target.value)} style={{ direction: 'ltr' }} placeholder="0" aria-label={`${t('col.acc.debit')} ${i + 1}`} />
+            <input className="xpl-input" type="number" min="0" step="0.001" value={l.credit} onChange={(e) => setLine(i, 'credit', e.target.value)} style={{ direction: 'ltr' }} placeholder="0" aria-label={`${t('col.acc.credit')} ${i + 1}`} />
             {lines.length > 2
-              ? <button type="button" className="btn secondary sm" onClick={() => setLines((p) => p.filter((_, idx) => idx !== i))}>×</button>
+              ? <button type="button" className="accx-jline-remove" onClick={() => setLines((p) => p.filter((_, idx) => idx !== i))} aria-label="حذف البند"><span className="material-symbols-outlined">close</span></button>
               : <span />}
           </div>
         ))}
-        <button type="button" className="btn secondary sm" style={{ marginTop: 4 }} onClick={() => setLines((p) => [...p, { accountId: '', description: '', debit: '', credit: '' }])}>{t('btn.acc.add_line')}</button>
-      </div>
+        <Button variant="ghost" icon="add" small onClick={() => setLines((p) => [...p, { accountId: '', description: '', debit: '', credit: '' }])}>{t('btn.acc.add_line')}</Button>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 24, marginTop: 12, padding: '8px 0', borderTop: '1px solid var(--border)' }}>
-        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('lbl.acc.total_debit')}: <strong style={{ color: 'var(--red)' }}>{money(totalDebit)}</strong></span>
-        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{t('lbl.acc.total_credit')}: <strong style={{ color: 'var(--green)' }}>{money(totalCredit)}</strong></span>
-        {!balanced && totalDebit + totalCredit > 0 && <span style={{ color: 'var(--red)', fontWeight: 700, fontSize: 13 }}>⚠ {t('lbl.acc.unbalanced')}</span>}
-        {balanced && totalDebit > 0 && <span style={{ color: 'var(--green)', fontWeight: 700, fontSize: 13 }}>✓ {t('lbl.acc.balanced')}</span>}
-      </div>
-    </Modal>
+        <div className="accx-balance-bar">
+          <span><span className="lbl">{t('lbl.acc.total_debit')}: </span><span className="v-debit">{money(totalDebit)}</span></span>
+          <span><span className="lbl">{t('lbl.acc.total_credit')}: </span><span className="v-credit">{money(totalCredit)}</span></span>
+          {!balanced && totalDebit + totalCredit > 0 && <span className="accx-balance-state bad"><span className="material-symbols-outlined">error</span>{t('lbl.acc.unbalanced')}</span>}
+          {balanced && totalDebit > 0 && <span className="accx-balance-state ok"><span className="material-symbols-outlined">check_circle</span>{t('lbl.acc.balanced')}</span>}
+        </div>
+      </section>
+    </Dialog>
   );
 }
 
@@ -554,27 +723,56 @@ function PaymentsTab() {
   }, [page, methodFilter]);
   useEffect(() => { load(); }, [load]);
 
-  const columns = [
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { key: 'invoice', label: 'col.acc.invoice_no', render: (r: any) => <strong style={{ fontFamily: 'monospace' }}>{r.invoice?.invoiceNumber ?? '—'}</strong> },
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { key: 'direction', label: 'col.inv.direction', render: (r: any) => r.invoice?.direction === 'SALES' ? t('opt.direction.sales') : r.invoice?.direction === 'PURCHASE' ? t('opt.direction.purchase') : '—' },
-    { key: 'amount', label: 'col.amount', render: (r: Record<string, unknown>) => <strong style={{ color: 'var(--green)' }}>{money(r.amount)}</strong> },
-    { key: 'method', label: 'col.acc.method', render: (r: Record<string, unknown>) => t(paymentMethodKey[String(r.method)] ?? 'opt.payment.cash') },
-    { key: 'date', label: 'col.date', render: (r: Record<string, unknown>) => dateText(r.date) },
-    { key: 'reference', label: 'col.acc.reference', render: (r: Record<string, unknown>) => r.reference ? String(r.reference) : '—' },
-    { key: 'notes', label: 'field.notes', render: (r: Record<string, unknown>) => r.notes ? String(r.notes) : '—' },
-  ];
-
   return (
-    <div>
-      <div className="toolbar">
-        <select value={methodFilter} onChange={(e) => { setMethodFilter(e.target.value); setPage(1); }}>
-          <option value="">{t('opt.acc.all_methods')}</option>
-          {Object.entries(paymentMethodKey).map(([v, k]) => <option key={v} value={v}>{t(k)}</option>)}
-        </select>
+    <>
+      <div className="xpl-toolbar xpl-toolbar--sticky">
+        <div className="xpl-toolbar-row">
+          <FilterChip active={methodFilter === ''} onClick={() => { setMethodFilter(''); setPage(1); }}>{t('opt.acc.all_methods')}</FilterChip>
+          {Object.entries(paymentMethodKey).map(([v, k]) => (
+            <FilterChip key={v} active={methodFilter === v} onClick={() => { setMethodFilter(v); setPage(1); }}>{t(k)}</FilterChip>
+          ))}
+        </div>
       </div>
-      <DataTable columns={columns} rows={rows} loading={loading} meta={meta} onPage={setPage} />
-    </div>
+
+      <section className="xpl-card" style={{ overflow: 'hidden' }}>
+        {loading ? (
+          <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
+        ) : rows.length === 0 ? (
+          <EmptyState icon="payments" tone="neutral" title="لا توجد دفعات" message="لا توجد دفعات مطابقة." />
+        ) : (
+          <>
+            <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+              <table className="xpl-table">
+                <thead>
+                  <tr>
+                    <th>{t('col.acc.invoice_no')}</th>
+                    <th>{t('col.inv.direction')}</th>
+                    <th>{t('col.amount')}</th>
+                    <th>{t('col.acc.method')}</th>
+                    <th>{t('col.date')}</th>
+                    <th>{t('col.acc.reference')}</th>
+                    <th>{t('field.notes')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.id}>
+                      <td><span className="accx-code">{r.invoice?.invoiceNumber ?? '—'}</span></td>
+                      <td>{r.invoice?.direction === 'SALES' ? t('opt.direction.sales') : r.invoice?.direction === 'PURCHASE' ? t('opt.direction.purchase') : '—'}</td>
+                      <td><strong style={{ color: 'var(--xpl-green)' }}>{money(r.amount)}</strong></td>
+                      <td>{t(paymentMethodKey[String(r.method)] ?? 'opt.payment.cash')}</td>
+                      <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
+                      <td className="xpl-mono">{r.reference ? String(r.reference) : '—'}</td>
+                      <td>{r.notes ? String(r.notes) : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination meta={meta} onPage={setPage} />
+          </>
+        )}
+      </section>
+    </>
   );
 }
