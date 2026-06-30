@@ -1079,3 +1079,149 @@
   .bae-exec-balance-block { align-items: flex-start; text-align: right; width: 100%; }
   .bae-drawer { width: 100%; max-width: 100vw; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Phase E — Premium Executive Experience (final polish)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Executive header — identity-focused + meta block ─────────────────────── */
+.bae-exec-header {
+  background: linear-gradient(135deg, var(--surface) 0%, var(--bg, var(--surface2)) 140%);
+}
+.bae-exec-meta-block {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 12px;
+  flex-shrink: 0;
+}
+.bae-exec-meta-grid {
+  display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
+}
+.bae-exec-meta-cell { display: flex; flex-direction: column; gap: 2px; align-items: flex-end; text-align: left; }
+.bae-exec-meta-k { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.bae-exec-meta-k .material-symbols-outlined { font-size: 14px !important; }
+.bae-exec-meta-v { font-size: 13.5px; font-weight: 700; color: var(--text); }
+
+/* ── KPI hierarchy — dominant current balance + secondary ─────────────────── */
+.bae-kpi-exec {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+  align-items: stretch;
+}
+.bae-balance-hero {
+  display: flex; align-items: center; gap: 16px;
+  padding: 22px 24px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--primary) 0%, #4f46e5 100%);
+  color: #fff;
+  box-shadow: 0 8px 28px rgba(79,70,229,.22);
+}
+.bae-balance-hero-icon {
+  width: 56px; height: 56px; border-radius: 16px;
+  background: rgba(255,255,255,.16);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.bae-balance-hero-icon .material-symbols-outlined { font-size: 30px !important; color: #fff; }
+.bae-balance-hero-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.bae-balance-hero-label { font-size: 12.5px; color: rgba(255,255,255,.82); }
+.bae-balance-hero-value { font-size: 30px; font-weight: 800; letter-spacing: -.5px; line-height: 1.05; color: #fff; }
+.bae-balance-hero-value > span { font-size: inherit; font-weight: inherit; color: inherit; }
+.bae-balance-hero-net { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: rgba(255,255,255,.92); margin-top: 2px; }
+.bae-balance-hero-net .material-symbols-outlined { font-size: 16px !important; }
+
+.bae-kpi-grid--secondary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 12px;
+}
+@media (max-width: 1100px) {
+  .bae-kpi-exec { grid-template-columns: 1fr; }
+  .bae-kpi-grid--secondary { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}
+
+/* ── Filter toolbar — sticky + premium ────────────────────────────────────── */
+.bae-filterbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  box-shadow: 0 1px 3px rgba(16,24,40,.04);
+  backdrop-filter: saturate(1.2);
+}
+.bae-active-chip { animation: bae-chip-in .2s ease both; }
+@keyframes bae-chip-in { from { opacity: 0; transform: translateY(-3px) scale(.96); } to { opacity: 1; transform: none; } }
+.bae-chip-btn { transition: all .2s ease; }
+.bae-chip-btn:active { transform: scale(.96); }
+
+/* ── Executive timeline rows ──────────────────────────────────────────────── */
+.bae-timeline-table--exec td { padding-top: 13px; padding-bottom: 13px; }
+.bae-tx-cell { display: inline-flex; align-items: center; gap: 11px; min-width: 0; }
+.bae-tx-dir {
+  width: 34px; height: 34px; border-radius: 11px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.bae-tx-dir.in  { background: rgba(16,185,129,.10); }
+.bae-tx-dir.out { background: rgba(239,68,68,.10); }
+.bae-tx-dir.in  .material-symbols-outlined { color: var(--green, #10b981); font-size: 19px !important; }
+.bae-tx-dir.out .material-symbols-outlined { color: var(--red, #ef4444);   font-size: 19px !important; }
+.bae-tx-cell-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bae-tx-desc {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.bae-tx-sub { display: inline-flex; align-items: center; gap: 8px; }
+.bae-tx-ref { font-size: 11px; color: var(--muted); letter-spacing: .2px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bae-col-amount { text-align: left; font-weight: 700; font-size: 13.5px; white-space: nowrap; }
+.bae-col-status { width: 56px; text-align: center; }
+.bae-status-dot-cell { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.bae-status-dot-cell--good    { background: var(--green, #10b981);  box-shadow: 0 0 0 3px rgba(16,185,129,.16); }
+.bae-status-dot-cell--warn    { background: var(--orange, #f59e0b); box-shadow: 0 0 0 3px rgba(245,158,11,.16); }
+.bae-status-dot-cell--neutral { background: var(--muted);           box-shadow: 0 0 0 3px rgba(148,163,184,.16); }
+
+/* ── Drawer — grouped section panels ──────────────────────────────────────── */
+.bae-drawer-section {
+  background: var(--bg, var(--surface2));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.bae-drawer-section .bae-drawer-section-title {
+  margin: 0 0 8px;
+  padding: 0;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: .3px;
+  color: var(--muted);
+  text-transform: none;
+}
+.bae-drawer-section .bae-drawer-field { padding: 7px 0; border-bottom: 1px solid var(--border); }
+.bae-drawer-section .bae-drawer-field:last-child { border-bottom: none; padding-bottom: 0; }
+.bae-drawer-section .bae-drawer-field:first-of-type { padding-top: 0; }
+.bae-drawer-hero { background: var(--bg, var(--surface2)); border: 1px solid var(--border); }
+
+/* ── Empty states — large illustration + explanation + action ─────────────── */
+.bae-empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; text-align: center; padding: 56px 24px;
+}
+.bae-empty-illus--lg { width: 96px; height: 96px; border-radius: 26px; margin-bottom: 4px; }
+.bae-empty-illus--lg .material-symbols-outlined { font-size: 46px !important; }
+.bae-empty-state h3 { margin: 0; font-size: 19px; color: var(--text); }
+.bae-empty-msg { margin: 0; font-size: 13.5px; color: var(--muted); max-width: 420px; line-height: 1.7; }
+
+/* ── Motion & consistency (200–250ms) ─────────────────────────────────────── */
+.bae-drawer { animation: bae-drawer-slide-in .24s cubic-bezier(.22,.61,.36,1); }
+.bae-drawer-overlay { animation: bae-fade-in .2s ease; }
+@keyframes bae-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.bae-kpi-card, .bae-balance-hero, .bae-tx-badge, .bae-status-badge,
+.bae-id-chip, .bae-active-chip, .bae-copy-btn { transition: all .22s ease; }
+.bae-timeline-table--exec tbody tr { transition: background .2s ease, box-shadow .2s ease; }
+.bae-balance-hero { transition: transform .22s ease, box-shadow .22s ease; }
+.bae-balance-hero:hover { transform: translateY(-2px); box-shadow: 0 12px 34px rgba(79,70,229,.28); }
+
+/* Respect reduced-motion preferences. */
+@media (prefers-reduced-motion: reduce) {
+  .bae-drawer, .bae-drawer-overlay, .bae-active-chip, .bae-skeleton-cell { animation: none !important; }
+  .bae-kpi-card, .bae-balance-hero, .bae-timeline-table--exec tbody tr { transition: none !important; }
+}
