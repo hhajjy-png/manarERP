@@ -1,0 +1,76 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Invoices — page-specific styles (.invcx-* prefix)
+   Composes with the shared Explorer Kit (explorer-kit.css / .xpl-*).
+   NOTE: distinct from Inventory's `.invx-*` to avoid a global class collision.
+   Only the Invoices list chrome + drawer are styled here; the create/edit/
+   payment/monthly dialogs are left on the existing Modal and are NOT styled.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.invcx-metrics {
+  display: grid;
+  grid-template-columns: minmax(280px, 360px) 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+@media (max-width: 1100px) { .invcx-metrics { grid-template-columns: 1fr; } }
+
+.invcx-chip-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 20px;
+  background: var(--xpl-border);
+  margin-inline: 4px;
+}
+
+.invcx-mono { font-family: "IBM Plex Mono", monospace; }
+.invcx-amount { font-weight: 800; white-space: nowrap; }
+.invcx-paid { color: var(--xpl-green); font-weight: 700; }
+.invcx-remaining { color: var(--xpl-red); font-weight: 700; }
+.invcx-remaining--zero { color: var(--xpl-green); font-weight: 700; }
+
+/* customer summary strip */
+.invcx-customer-strip {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--xpl-faint-2);
+  border: 1px solid rgba(99, 102, 241, .18);
+  font-size: 13px;
+}
+.invcx-customer-strip .name { font-weight: 800; color: var(--xpl-text); display: inline-flex; align-items: center; gap: 6px; }
+.invcx-customer-strip .name .material-symbols-outlined { font-size: 18px !important; color: var(--xpl-primary); }
+
+/* read-only line-items table in the drawer */
+.invcx-detail-table { width: 100%; border-collapse: collapse; font-size: 12.5px; direction: rtl; }
+.invcx-detail-table th {
+  text-align: right;
+  padding: 7px 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: var(--xpl-muted);
+  border-bottom: 1px solid var(--xpl-border);
+  white-space: nowrap;
+}
+.invcx-detail-table td { padding: 8px 6px; border-bottom: 1px solid var(--xpl-border); color: var(--xpl-text); }
+.invcx-detail-table tbody tr:last-child td { border-bottom: none; }
+
+/* financial summary rows in drawer */
+.invcx-fin { display: flex; flex-direction: column; }
+.invcx-fin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--xpl-border);
+  font-size: 13px;
+}
+.invcx-fin-row:last-child { border-bottom: none; }
+.invcx-fin-row.total { font-weight: 800; border-top: 2px solid var(--xpl-border); }
+.invcx-fin-label { color: var(--xpl-muted); }
+.invcx-fin-val { font-weight: 700; color: var(--xpl-text); }
