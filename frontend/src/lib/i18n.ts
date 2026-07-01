@@ -294,6 +294,14 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // ── Phase 3: dashboard ────────────────────────────────────────────────────
     'page.dashboard.greeting': 'مرحباً، {name} 👋',
+    'page.dashboard.today_summary': 'ملخص اليوم',
+    'today.unpaid': '{count} فاتورة غير مسددة',
+    'today.overdue': '{count} فاتورة متأخرة',
+    'today.expiring_contracts': '{count} عقد ينتهي قريباً',
+    'today.no_expiring_contracts': 'لا توجد عقود منتهية قريباً',
+    'today.expiry_warnings': '{count} تنبيه انتهاء وثيقة',
+    'today.pending_review': '{count} عملية معلّقة',
+    'today.all_clear': 'لا توجد تنبيهات عاجلة اليوم',
     'page.dashboard.refresh': '↻ تحديث',
     'page.dashboard.last_update': 'آخر تحديث:',
     'page.dashboard.retry': 'إعادة المحاولة',
@@ -1548,6 +1556,14 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // ── Phase 3: dashboard ────────────────────────────────────────────────────
     'page.dashboard.greeting': 'Hello, {name} 👋',
+    'page.dashboard.today_summary': "Today's Summary",
+    'today.unpaid': '{count} unpaid invoices',
+    'today.overdue': '{count} overdue',
+    'today.expiring_contracts': '{count} contracts expiring soon',
+    'today.no_expiring_contracts': 'No contracts expiring soon',
+    'today.expiry_warnings': '{count} document expiry alerts',
+    'today.pending_review': '{count} pending operations',
+    'today.all_clear': 'No urgent alerts today',
     'page.dashboard.refresh': '↻ Refresh',
     'page.dashboard.last_update': 'Last update:',
     'page.dashboard.retry': 'Retry',

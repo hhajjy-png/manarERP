@@ -186,6 +186,18 @@ function GeneralDashboardContent() {
   const invStatusTotal =
     (iStatus as ApiAny[]).reduce((s: number, x: ApiAny) => s + x.count, 0) || 1;
 
+  // ── Executive daily summary (derived from existing state only — no new fetches)
+  const overdueInvoices =
+    (iStatus as ApiAny[]).find((s: ApiAny) => s.status === 'OVERDUE')?.count ?? 0;
+  const pendingReview = ops
+    ? (ops.pendingExpensesCount ?? 0) + (ops.draftPayrollCount ?? 0) +
+      (ops.unprintedChequesCount ?? 0) + (ops.outstandingInvoicesCount ?? 0) +
+      (ops.expiringAgreementsCount ?? 0)
+    : 0;
+  const daySummaryAllClear =
+    (inv.unpaid ?? 0) === 0 && overdueInvoices === 0 &&
+    expiringContracts === 0 && alerts.length === 0 && pendingReview === 0;
+
   return (
     <div className="db-page">
       {/* ══════════════════════════════════════════════════
@@ -296,6 +308,47 @@ function GeneralDashboardContent() {
           </div>
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════
+          EXECUTIVE DAILY SUMMARY (existing data only)
+      ══════════════════════════════════════════════════ */}
+      {!initialLoading && exec && (
+        <div className="db-today" role="status" aria-label={t('page.dashboard.today_summary')}>
+          <span className="db-today-label">{t('page.dashboard.today_summary')}</span>
+          <div className="db-today-chips">
+            {daySummaryAllClear ? (
+              <span className="db-today-chip ok">
+                <span className="db-today-dot" />{t('today.all_clear')}
+              </span>
+            ) : (
+              <>
+                <span className={`db-today-chip ${(inv.unpaid ?? 0) > 0 ? 'warn' : 'ok'}`}>
+                  <span className="db-today-dot" />{t('today.unpaid', { count: inv.unpaid ?? 0 })}
+                </span>
+                <span className={`db-today-chip ${overdueInvoices > 0 ? 'crit' : 'ok'}`}>
+                  <span className="db-today-dot" />{t('today.overdue', { count: overdueInvoices })}
+                </span>
+                <span className={`db-today-chip ${expiringContracts > 0 ? 'warn' : 'ok'}`}>
+                  <span className="db-today-dot" />
+                  {expiringContracts > 0
+                    ? t('today.expiring_contracts', { count: expiringContracts })
+                    : t('today.no_expiring_contracts')}
+                </span>
+                {alerts.length > 0 && (
+                  <span className="db-today-chip warn">
+                    <span className="db-today-dot" />{t('today.expiry_warnings', { count: alerts.length })}
+                  </span>
+                )}
+                {pendingReview > 0 && (
+                  <span className="db-today-chip warn">
+                    <span className="db-today-dot" />{t('today.pending_review', { count: pendingReview })}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Error State ────────────────────────────────────────────────────── */}
       {error && (
@@ -461,7 +514,7 @@ function GeneralDashboardContent() {
               </div>
             )}
             {ops.draftPayrollCount > 0 && (
-              <div className="db-aw aw-warning" onClick={() => navigate('/payroll')}>
+              <div className="db-aw aw-warning" onClick={() => navigate('/salaries')}>
                 <div className="db-aw-icon">💼</div>
                 <div className="db-aw-body">
                   <div className="db-aw-val">{ops.draftPayrollCount}</div>
