@@ -6,6 +6,7 @@ import { loadCopies, saveCopies } from './usePrintProfileMemory';
 import FormHeader from './FormHeader';
 import FormQRCode, { QRData } from './FormQRCode';
 import ApprovalSection from './ApprovalSection';
+import { PrintWorkspace } from '../../components/print-workspace';
 
 interface FormLayoutProps {
   children: ReactNode;
@@ -21,6 +22,39 @@ interface FormLayoutProps {
   toolbarExtra?: ReactNode;
   /** Language for FormHeader, ApprovalSection, and copy count labels */
   lang?: 'ar' | 'en';
+}
+
+/** Shared −/count/+ copies stepper, reused in the workspace toolbar and sidebar. */
+function CopiesControl({
+  copies,
+  onChange,
+  lang,
+}: {
+  copies: number;
+  onChange: (n: number) => void;
+  lang: 'ar' | 'en';
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 2, border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
+      <button
+        type="button"
+        aria-label={lang === 'en' ? 'Fewer copies' : 'نسخة أقل'}
+        onClick={() => onChange(copies - 1)}
+        style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: copies > 1 ? 'pointer' : 'default', color: copies > 1 ? 'var(--text)' : 'var(--text-muted)', fontSize: 14, lineHeight: 1 }}
+      >−</button>
+      <span style={{ fontSize: 12, minWidth: 28, textAlign: 'center', padding: '0 2px', color: 'var(--text)' }} title={lang === 'en' ? 'Copies' : 'عدد النسخ'}>
+        {lang === 'en'
+          ? (copies === 1 ? '1 copy' : `${copies} copies`)
+          : (copies === 1 ? '١ نسخة' : `${copies} نسخ`)}
+      </span>
+      <button
+        type="button"
+        aria-label={lang === 'en' ? 'More copies' : 'نسخة أكثر'}
+        onClick={() => onChange(copies + 1)}
+        style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: copies < 10 ? 'pointer' : 'default', color: copies < 10 ? 'var(--text)' : 'var(--text-muted)', fontSize: 14, lineHeight: 1 }}
+      >+</button>
+    </div>
+  );
 }
 
 export default function FormLayout({
@@ -63,6 +97,23 @@ export default function FormLayout({
     next();
   }
 
+  /**
+   * "Save PDF" — reuses the EXISTING native bridge `window.manar.exportPdf`
+   * (the same API used by Reports / ReportPrint). It exports the current page,
+   * so the untouched `@media print` rules produce the identical A4 document.
+   * Falls back to the standard print dialog (which offers "Save as PDF")
+   * outside Electron or if the bridge is unavailable.
+   */
+  function doExportPdf() {
+    const name = formNumber || formType || 'document';
+    const exportPdf = window.manar?.exportPdf;
+    if (exportPdf) {
+      exportPdf(name).catch(() => {});
+    } else {
+      printCurrentView();
+    }
+  }
+
   useEffect(() => {
     if (!ready) return;
     const t = setTimeout(() => printCurrentView(), 600);
@@ -71,9 +122,82 @@ export default function FormLayout({
 
   const activeProfile = PRINT_PROFILES[profile];
   const { top: mt, right: mr, bottom: mb, left: ml } = activeProfile.margins;
+  const paperLabel = lang === 'en' ? activeProfile.labelEn : activeProfile.labelAr;
+
+  const toolbar = (
+    <>
+      <button type="button" className="btn" onClick={doPrint}>
+        🖨️ {lang === 'en' ? 'Print' : 'طباعة'}
+      </button>
+      <button type="button" className="btn secondary" onClick={doExportPdf}>
+        📄 {lang === 'en' ? 'Save PDF' : 'حفظ PDF'}
+      </button>
+      <span className="pw-toolbar-divider" />
+      <div className="pw-tb-field">
+        <span className="pw-tb-label">{lang === 'en' ? 'Copies' : 'عدد النسخ'}</span>
+        <CopiesControl copies={copies} onChange={updateCopies} lang={lang} />
+      </div>
+      <div className="pw-toolbar-group">{toolbarExtra}</div>
+      <span className="pw-toolbar-spacer" />
+      <button type="button" className="btn secondary" onClick={() => navigate(-1)}>
+        {lang === 'en' ? '‹ Back' : 'رجوع ›'}
+      </button>
+    </>
+  );
+
+  const sidebar = (
+    <>
+      <div className="pw-sidebar-section">
+        <span className="pw-sidebar-label">{lang === 'en' ? 'Copies' : 'عدد النسخ'}</span>
+        <CopiesControl copies={copies} onChange={updateCopies} lang={lang} />
+      </div>
+      <div className="pw-sidebar-section">
+        <span className="pw-sidebar-label">{lang === 'en' ? 'Paper' : 'الورق'}</span>
+        <div className="pw-readonly-field">
+          <span>{activeProfile.page.size}</span>
+          <small>210 × 297 {lang === 'en' ? 'mm' : 'مم'}</small>
+        </div>
+      </div>
+      <div className="pw-sidebar-section">
+        <span className="pw-sidebar-label">{lang === 'en' ? 'Print profile' : 'قالب الطباعة'}</span>
+        <div className="pw-readonly-field">
+          <span>{paperLabel}</span>
+        </div>
+      </div>
+      <div className="pw-sidebar-section">
+        <span className="pw-sidebar-label">{lang === 'en' ? 'Document info' : 'معلومات المستند'}</span>
+        <div className="pw-info-row">
+          <span>{lang === 'en' ? 'Number' : 'رقم المستند'}</span>
+          <span style={{ direction: 'ltr' }}>{formNumber}</span>
+        </div>
+        <div className="pw-info-row">
+          <span>{lang === 'en' ? 'Language' : 'اللغة'}</span>
+          <span>{lang === 'en' ? 'English' : 'عربي'}</span>
+        </div>
+      </div>
+      <div className="pw-sidebar-section">
+        <div className="pw-ready-box">
+          <span className="pw-ready-icon" aria-hidden="true">✓</span>
+          <div>
+            <div className="pw-ready-title">{lang === 'en' ? 'Ready to print' : 'جاهز للطباعة'}</div>
+            <div className="pw-ready-sub">
+              {lang === 'en' ? 'All settings match the printout.' : 'جميع الإعدادات مطابقة للطباعة.'}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 
   return (
-    <>
+    <PrintWorkspace
+      lang={lang}
+      toolbar={toolbar}
+      sidebar={sidebar}
+      documentName={title || formNumber}
+      paperLabel={paperLabel}
+      paperSize={activeProfile.page.size}
+    >
       <style>{`
         @media screen {
           .form-page {
@@ -118,43 +242,6 @@ export default function FormLayout({
           borderRadius: 4,
         }}
       >
-        {/* No-print toolbar */}
-        <div
-          className="no-print"
-          style={{ display: 'flex', gap: 10, marginBottom: 24, alignItems: 'center', flexWrap: 'wrap' }}
-        >
-          <button type="button" className="btn" onClick={doPrint}>
-            🖨️ {lang === 'en' ? 'Print / Save PDF' : 'طباعة / حفظ PDF'}
-          </button>
-          {/* Copies control */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2, border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-            <button
-              type="button"
-              aria-label={lang === 'en' ? 'Fewer copies' : 'نسخة أقل'}
-              onClick={() => updateCopies(copies - 1)}
-              style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: copies > 1 ? 'pointer' : 'default', color: copies > 1 ? 'var(--text)' : 'var(--text-muted)', fontSize: 14, lineHeight: 1 }}
-            >−</button>
-            <span style={{ fontSize: 12, minWidth: 28, textAlign: 'center', padding: '0 2px', color: 'var(--text)' }} title={lang === 'en' ? 'Copies' : 'عدد النسخ'}>
-              {lang === 'en'
-                ? (copies === 1 ? '1 copy' : `${copies} copies`)
-                : (copies === 1 ? '١ نسخة' : `${copies} نسخ`)}
-            </span>
-            <button
-              type="button"
-              aria-label={lang === 'en' ? 'More copies' : 'نسخة أكثر'}
-              onClick={() => updateCopies(copies + 1)}
-              style={{ padding: '4px 8px', border: 'none', background: 'transparent', cursor: copies < 10 ? 'pointer' : 'default', color: copies < 10 ? 'var(--text)' : 'var(--text-muted)', fontSize: 14, lineHeight: 1 }}
-            >+</button>
-          </div>
-          <button type="button" className="btn secondary" onClick={() => navigate(-1)}>
-            {lang === 'en' ? 'Back' : 'رجوع'}
-          </button>
-          {toolbarExtra}
-          <span style={{ fontSize: 12, color: 'var(--text-muted)', marginRight: 'auto' }}>
-            {PRINT_PROFILES[profile].labelAr} — {formNumber}
-          </span>
-        </div>
-
         {/* Company header — hidden in letterhead mode (space preserved) */}
         <FormHeader isLetterhead={profile === 'letterhead'} lang={lang} />
 
@@ -212,6 +299,6 @@ export default function FormLayout({
           </div>
         </div>
       </div>
-    </>
+    </PrintWorkspace>
   );
 }
