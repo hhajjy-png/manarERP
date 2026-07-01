@@ -1,0 +1,457 @@
+/*
+ * Print Workspace shell — screen-only UX chrome around existing print documents.
+ *
+ * IMPORTANT: This file styles the on-screen workspace ONLY. The printed output
+ * is produced entirely by the wrapped document (e.g. `.form-page`) and its own
+ * print CSS. In `@media print` every chrome region is hidden and every structural
+ * wrapper collapses to `display: contents`, so the document prints EXACTLY as it
+ * did before the workspace existed. Never add print-affecting rules here.
+ *
+ * All classes are scoped under `.print-workspace` to avoid global CSS pollution.
+ * Visual language follows ExplorerKit (soft layered shadows, rounded surfaces).
+ */
+
+.print-workspace {
+  --pw-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --pw-shadow: 0 1px 3px rgba(16, 24, 40, 0.06), 0 10px 28px rgba(16, 24, 40, 0.06);
+  --pw-paper-shadow: 0 2px 6px rgba(16, 24, 40, 0.08), 0 18px 46px rgba(16, 24, 40, 0.12);
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--bg, #f8fafc);
+  color: var(--text, #0f172a);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────── */
+.print-workspace .pw-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 10px 18px;
+  background: var(--surface, #fff);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  box-shadow: var(--pw-shadow-sm);
+}
+
+.print-workspace .pw-toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Labelled control (label sits above the control, as in the mockup). */
+.print-workspace .pw-tb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.print-workspace .pw-tb-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+  text-align: center;
+}
+
+.print-workspace .pw-toolbar-spacer {
+  flex: 1 1 12px;
+}
+
+.print-workspace .pw-toolbar-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 0;
+  background: var(--border, #e2e8f0);
+}
+
+/* ── More (⋮) view menu ──────────────────────────────────────────────── */
+.print-workspace .pw-more {
+  position: relative;
+}
+
+.print-workspace .pw-more-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.print-workspace .pw-more-btn:hover {
+  background: var(--surface-hover, rgba(59, 130, 246, 0.06));
+}
+
+.print-workspace .pw-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-start: 0;
+  z-index: 40;
+  min-width: 220px;
+  padding: 6px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: var(--pw-shadow);
+}
+
+.print-workspace .pw-more-item {
+  display: block;
+  width: 100%;
+  text-align: start;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text, #0f172a);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.print-workspace .pw-more-item:hover {
+  background: var(--surface-hover, rgba(59, 130, 246, 0.06));
+}
+
+/* ── Status bar ──────────────────────────────────────────────────────── */
+.print-workspace .pw-statusbar {
+  position: sticky;
+  top: 55px;
+  z-index: 19;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 18px;
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+  background: var(--surface-2, #f1f5f9);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.print-workspace .pw-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+}
+
+.print-workspace .pw-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+  flex-shrink: 0;
+}
+
+.print-workspace .pw-status-muted {
+  color: var(--text-muted, #64748b);
+  font-weight: 400;
+}
+
+.print-workspace .pw-status-hint {
+  margin-inline-start: auto;
+}
+
+/* ── Body: sidebar + preview ─────────────────────────────────────────── */
+.print-workspace .pw-body {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+  min-height: 0;
+}
+
+/* ── Sidebar ─────────────────────────────────────────────────────────── */
+.print-workspace .pw-sidebar {
+  flex-shrink: 0;
+  width: 280px;
+  padding: 16px;
+  overflow: auto;
+  background: var(--surface, #fff);
+  border-inline-end: 1px solid var(--border, #e2e8f0);
+}
+
+.print-workspace .pw-sidebar.pw-collapsed {
+  width: 46px;
+  padding: 12px 7px;
+  text-align: center;
+}
+
+.print-workspace .pw-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+}
+
+.print-workspace .pw-sidebar-head-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.print-workspace .pw-sidebar-toggle {
+  border: 1px solid var(--border, #e2e8f0);
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 3px 9px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-muted, #64748b);
+}
+
+.print-workspace .pw-sidebar-toggle:hover {
+  background: var(--surface-hover, rgba(59, 130, 246, 0.06));
+}
+
+.print-workspace .pw-sidebar-section {
+  padding: 12px 0;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.print-workspace .pw-sidebar-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.print-workspace .pw-sidebar-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+}
+
+/* Read-only "field" that looks like a control but only reflects current state. */
+.print-workspace .pw-readonly-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  background: var(--surface-2, #f1f5f9);
+  font-size: 12.5px;
+  color: var(--text, #0f172a);
+}
+
+.print-workspace .pw-readonly-field small {
+  color: var(--text-muted, #64748b);
+  font-size: 11px;
+}
+
+.print-workspace .pw-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.print-workspace .pw-info-row span:first-child {
+  color: var(--text-muted, #64748b);
+}
+
+.print-workspace .pw-info-row span:last-child {
+  color: var(--text, #0f172a);
+  font-weight: 600;
+}
+
+.print-workspace .pw-ready-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.print-workspace .pw-ready-box .pw-ready-icon {
+  color: #16a34a;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.print-workspace .pw-ready-box .pw-ready-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.print-workspace .pw-ready-box .pw-ready-sub {
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
+  margin-top: 2px;
+}
+
+/* ── Preview area ────────────────────────────────────────────────────── */
+.print-workspace .pw-preview {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Floating zoom pill, centred over the canvas (Acrobat / Figma style). */
+.print-workspace .pw-preview-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  pointer-events: none;
+}
+
+.print-workspace .pw-zoom-pill {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 7px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  box-shadow: var(--pw-shadow);
+}
+
+.print-workspace .pw-zoom-btn {
+  min-width: 30px;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text, #0f172a);
+  font-size: 12.5px;
+  cursor: pointer;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.print-workspace .pw-zoom-btn:hover {
+  background: var(--surface-hover, rgba(59, 130, 246, 0.06));
+}
+
+.print-workspace .pw-zoom-btn[aria-pressed='true'] {
+  background: var(--primary, #0f172a);
+  color: #fff;
+}
+
+.print-workspace .pw-zoom-value {
+  min-width: 54px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text, #0f172a);
+  font-variant-numeric: tabular-nums;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.print-workspace .pw-zoom-divider {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--border, #e2e8f0);
+}
+
+/* Scrollable canvas backdrop that mimics a print-preview surface. */
+.print-workspace .pw-canvas {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px 40px 48px;
+  background: var(--surface-2, #eef2f6);
+}
+
+/* The scaler carries the on-screen zoom. It NEVER affects print. */
+.print-workspace .pw-scaler {
+  transform-origin: top center;
+  transition: transform 0.12s ease-out;
+}
+
+/* A slightly richer paper shadow on screen only (print CSS clears it). */
+.print-workspace .pw-canvas .form-page {
+  box-shadow: var(--pw-paper-shadow) !important;
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────── */
+.print-workspace .pw-footer {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px;
+  font-size: 11.5px;
+  color: var(--text-muted, #64748b);
+  background: var(--surface, #fff);
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.print-workspace .pw-footer-start {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text, #0f172a);
+  font-weight: 600;
+}
+
+.print-workspace .pw-footer-center {
+  justify-self: center;
+}
+
+.print-workspace .pw-footer-end {
+  justify-self: end;
+}
+
+/* ── Print: collapse the shell, print only the document ──────────────── */
+@media print {
+  /* Structural wrappers vanish from layout so the wrapped document prints
+     exactly as if the workspace were never here. */
+  .print-workspace,
+  .print-workspace .pw-body,
+  .print-workspace .pw-preview,
+  .print-workspace .pw-canvas,
+  .print-workspace .pw-scaler {
+    display: contents !important;
+  }
+
+  /* Zoom transform and screen-only paper shadow must not reach the page. */
+  .print-workspace .pw-scaler {
+    transform: none !important;
+  }
+  .print-workspace .pw-canvas .form-page {
+    box-shadow: none !important;
+  }
+
+  /* Every piece of workspace chrome is removed from print. */
+  .print-workspace .pw-chrome {
+    display: none !important;
+  }
+}
