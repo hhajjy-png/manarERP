@@ -31,6 +31,12 @@ const Icon = ({ name, className }: { name: string; className?: string }) => (
 // focus to the previously-focused element on unmount.
 function useFocusTrap(onClose: () => void) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Keep the latest `onClose` in a ref so the effect below can run exactly once
+  // (on open) without re-subscribing when the caller passes a new function
+  // identity on every render. Re-running the effect would call `panel.focus()`
+  // again and steal focus from whatever input the user is typing into.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const panel = panelRef.current;
@@ -45,7 +51,7 @@ function useFocusTrap(onClose: () => void) {
       ).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
+      if (e.key === 'Escape') { e.stopPropagation(); onCloseRef.current(); return; }
       if (e.key === 'Tab') {
         const items = focusable();
         if (items.length === 0) { e.preventDefault(); panel?.focus(); return; }
@@ -69,7 +75,10 @@ function useFocusTrap(onClose: () => void) {
       document.body.style.overflow = prevOverflow;
       previouslyFocused?.focus?.();
     };
-  }, [onClose]);
+    // Runs once on open; `onClose` is read via `onCloseRef` so a changing
+    // callback identity never re-triggers focus management.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return panelRef;
 }
