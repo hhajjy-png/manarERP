@@ -1,0 +1,108 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Settings Center — ExplorerKit composition layer
+   --------------------------------------------------------------------------
+   Page-specific chrome for the Company Settings page (Settings.tsx). Reuses
+   the shared .xpl-* design language; only adds the metric grid, the sticky
+   in-page navigation, section scroll anchoring and the Template Studio card.
+   Theme-token driven → works in light & dark, RTL & LTR.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* xpl-page hard-codes direction:rtl; honour the language toggle in LTR mode */
+.settings-center[dir='ltr'] { direction: ltr; }
+
+/* ── Status metric grid ──────────────────────────────────────────────────── */
+.settings-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+/* ── Sticky in-page navigation ───────────────────────────────────────────── */
+.settings-nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--xpl-surface);
+  border: 1px solid var(--xpl-border);
+  border-radius: 14px;
+  box-shadow: var(--xpl-shadow-sm);
+  backdrop-filter: saturate(1.2);
+}
+.settings-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--xpl-muted);
+  background: var(--xpl-bg);
+  border: 1px solid var(--xpl-border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: color .18s ease, border-color .18s ease, background .18s ease;
+}
+.settings-nav-item:hover {
+  color: var(--xpl-primary);
+  border-color: var(--xpl-primary);
+  background: var(--xpl-faint);
+}
+.settings-nav-item .material-symbols-outlined { font-size: 16px !important; }
+
+/* ── Section scroll anchoring (clear the sticky nav) ─────────────────────── */
+.settings-section { scroll-margin-top: 84px; }
+
+/* ── Signature meta grid inside cards ────────────────────────────────────── */
+.settings-sig-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+@media (max-width: 640px) { .settings-sig-meta { grid-template-columns: 1fr; } }
+
+/* ── Template Studio call-out card ───────────────────────────────────────── */
+.settings-studio-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 18px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--xpl-faint), var(--xpl-faint-2));
+}
+.settings-studio-icon {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--xpl-surface);
+  border: 1px solid var(--xpl-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.settings-studio-icon .material-symbols-outlined { font-size: 24px !important; color: var(--xpl-primary); }
+.settings-studio-body { flex: 1; min-width: 200px; }
+.settings-studio-title { margin: 0 0 3px; font-size: 14px; font-weight: 800; color: var(--xpl-text); }
+.settings-studio-desc { margin: 0; font-size: 12.5px; color: var(--xpl-muted); }
+
+/* ── Dictionary toolbar ──────────────────────────────────────────────────── */
+.settings-dict-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.settings-dict-toolbar .xpl-search { flex: 1; min-width: 200px; }
+.settings-dict-count { font-size: 12.5px; color: var(--xpl-muted); white-space: nowrap; }
+
+/* A plain wrapper so the branding rows keep their spacing inside xpl cards */
+.settings-print-row + .settings-print-row { margin-top: 14px; }

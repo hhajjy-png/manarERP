@@ -62,8 +62,8 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // settings page
     'page.settings.title': 'إعدادات الشركة',
-    'page.settings.subtitle': 'بيانات الشركة والإعدادات المالية (لا يوجد نظام ضريبي — الكويت)',
-    'page.settings.save': '💾 حفظ التغييرات',
+    'page.settings.subtitle': 'إدارة هوية الشركة، الطباعة، النسخ الاحتياطي، القوالب، الترجمة، والإعدادات العامة.',
+    'page.settings.save': 'حفظ التغييرات',
     'page.settings.saving': 'جارٍ الحفظ…',
     'page.settings.saved': 'تم حفظ الإعدادات بنجاح ✓',
     'page.settings.language': 'لغة الواجهة',
@@ -1316,8 +1316,8 @@ const DICT: Record<Lang, Record<string, string>> = {
 
     // settings page
     'page.settings.title': 'Company Settings',
-    'page.settings.subtitle': 'Company data and financial settings (no tax system — Kuwait)',
-    'page.settings.save': '💾 Save Changes',
+    'page.settings.subtitle': 'Manage company identity, printing, backup, templates, translation, and general settings.',
+    'page.settings.save': 'Save Changes',
     'page.settings.saving': 'Saving…',
     'page.settings.saved': 'Settings saved successfully ✓',
     'page.settings.language': 'Interface Language',
