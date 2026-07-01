@@ -145,7 +145,12 @@ tbody tr:nth-child(even) .td-actions { background: var(--surface-2); }
 .line-input:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* Modal */
-.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 50; overflow-y: auto; }
+/* z-index 500: the legacy Modal / ConfirmModal is used as a secondary/confirm
+   surface on top of ExplorerKit Drawer (400) and Dialog (410) — e.g. the
+   "unsaved changes" confirmation when cancelling an add/edit form. It must
+   out-stack those overlays so its buttons stay clickable. Stays below toasts
+   (9999) and the skip link (10000). */
+.modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 500; overflow-y: auto; }
 .modal { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); width: 100%; max-width: 640px; }
 .modal-head { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; cursor: move; -webkit-user-select: none; user-select: none; }
 .modal-head h3 { font-size: 18px; font-weight: 800; }
