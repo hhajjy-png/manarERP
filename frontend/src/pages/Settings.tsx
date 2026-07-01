@@ -8,6 +8,17 @@ import BrandingLayoutDesigner from '../print-templates/components/BrandingLayout
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import { parseBrandingLayout, serializeBrandingLayout, DEFAULT_BRANDING_LAYOUT } from '../print-templates/utils/brandingLayout';
 import TemplateStudioEditor from '../print-templates/studio/TemplateStudioEditor';
+import {
+  ExecutiveHeader,
+  MetricCard,
+  SectionCard,
+  StatusChip,
+  SearchBox,
+  FilterChip,
+  Button,
+} from '../components/explorer/ExplorerKit';
+import '../components/explorer/explorer-kit.css';
+import './Settings.css';
 
 interface SigSlot {
   id: string;
@@ -54,14 +65,52 @@ const FIELDS: { key: string; label: string; group: string; type?: FieldType }[] 
   { key: 'backup.auto.retention', label: 'field.settings.backup_auto_retention', group: 'backup', type: 'number' },
 ];
 
+const IDENTITY_FIELDS = FIELDS.filter((f) => f.group === 'company' || f.group === 'finance');
+const BACKUP_FIELDS = FIELDS.filter((f) => f.group === 'backup');
+
+const NAV_SECTIONS: { id: string; icon: string; label: string }[] = [
+  { id: 'sec-identity', icon: 'corporate_fare', label: 'هوية الشركة' },
+  { id: 'sec-backup', icon: 'backup', label: 'النسخ الاحتياطي' },
+  { id: 'sec-signatures', icon: 'draw', label: 'التواقيع' },
+  { id: 'sec-stamp', icon: 'approval', label: 'ختم الشركة' },
+  { id: 'sec-print', icon: 'print', label: 'الطباعة والقوالب' },
+  { id: 'sec-dict', icon: 'translate', label: 'قاموس الترجمة' },
+];
+
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function DictTable({
   rows,
   setRows,
+  query,
+  modifiedOnly,
+  baseMap,
 }: {
   rows: { ar: string; en: string }[];
   setRows: React.Dispatch<React.SetStateAction<{ ar: string; en: string }[]>>;
+  query: string;
+  modifiedOnly: boolean;
+  baseMap: Record<string, string>;
 }) {
   const tbodyRef = useRef<HTMLTableSectionElement>(null);
+  const filtering = modifiedOnly || query.trim().length > 0;
+
+  const q = query.trim().toLowerCase();
+  // Keep the ORIGINAL index so edit/delete handlers stay correct while filtering.
+  const visible = rows
+    .map((row, i) => ({ row, i }))
+    .filter(({ row }) => {
+      if (modifiedOnly) {
+        if (!row.ar.trim() && !row.en.trim()) return false;
+        const base = baseMap[row.ar];
+        const isModified = base === undefined || base !== row.en;
+        if (!isModified) return false;
+      }
+      if (!q) return true;
+      return row.ar.toLowerCase().includes(q) || row.en.toLowerCase().includes(q);
+    });
 
   function addRow() {
     setRows((prev) => [...prev, { ar: '', en: '' }]);
@@ -89,7 +138,7 @@ function DictTable({
             </tr>
           </thead>
           <tbody ref={tbodyRef}>
-            {rows.map((row, i) => (
+            {visible.map(({ row, i }) => (
               <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '4px 8px' }}>
                   <input
@@ -119,16 +168,25 @@ function DictTable({
                 </td>
               </tr>
             ))}
+            {visible.length === 0 && (
+              <tr>
+                <td colSpan={3} style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                  لا توجد نتائج مطابقة
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
-      <button
-        type="button"
-        onClick={addRow}
-        style={{ marginTop: 10, fontSize: 13, color: 'var(--primary)', background: 'none', border: '1px dashed var(--primary)', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', width: '100%' }}
-      >
-        + إضافة صف
-      </button>
+      {!filtering && (
+        <button
+          type="button"
+          onClick={addRow}
+          style={{ marginTop: 10, fontSize: 13, color: 'var(--primary)', background: 'none', border: '1px dashed var(--primary)', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', width: '100%' }}
+        >
+          + إضافة صف
+        </button>
+      )}
     </>
   );
 }
@@ -152,6 +210,8 @@ export default function Settings() {
   const [jobDict, setJobDict] = useState<{ ar: string; en: string }[]>([]);
   const [dictSaving, setDictSaving] = useState(false);
   const [dictTab, setDictTab] = useState<'nat' | 'job'>('nat');
+  const [dictSearch, setDictSearch] = useState('');
+  const [dictModifiedOnly, setDictModifiedOnly] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -352,89 +412,164 @@ export default function Settings() {
     });
   }
 
+  function renderField(f: { key: string; label: string; group: string; type?: FieldType }) {
+    return (
+      <div className="field" key={f.key}>
+        <label htmlFor={f.key}>{t(f.label)}</label>
+        {f.type === 'checkbox' ? (
+          <input
+            id={f.key}
+            type="checkbox"
+            title={t(f.label)}
+            checked={(values[f.key] ?? DEFAULT_VALUES[f.key] ?? 'true') !== 'false'}
+            onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.checked ? 'true' : 'false' }))}
+          />
+        ) : f.type === 'time' ? (
+          <input
+            id={f.key}
+            type="time"
+            title={t(f.label)}
+            value={values[f.key] ?? DEFAULT_VALUES[f.key] ?? '02:00'}
+            onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))}
+          />
+        ) : f.type === 'number' ? (
+          <input
+            id={f.key}
+            type="number"
+            title={t(f.label)}
+            min={1}
+            max={365}
+            value={values[f.key] ?? DEFAULT_VALUES[f.key] ?? '30'}
+            onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))}
+          />
+        ) : (
+          <input
+            id={f.key}
+            title={t(f.label)}
+            value={values[f.key] ?? ''}
+            onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))}
+          />
+        )}
+      </div>
+    );
+  }
+
   if (loading) return <div className="center-msg"><div className="spinner" />{t('msg.loading')}</div>;
 
+  const backupEnabled = (values['backup.auto.enabled'] ?? DEFAULT_VALUES['backup.auto.enabled']) !== 'false';
+  const backupTime = values['backup.auto.time'] ?? DEFAULT_VALUES['backup.auto.time'];
+  const hasStamp = Boolean(values['print.stampImage']);
+  const stampVisible = (values['print.showStamp'] ?? 'true') !== 'false';
+  const visibleSigs = signatures.filter((s) => s.show).length;
+  const dictRows = dictTab === 'nat' ? natDict : jobDict;
+  const dictBase = dictTab === 'nat' ? BASE_NATIONALITY_EN : BASE_JOB_TITLE_EN;
+  const dictVisible = dictRows.filter((row) => {
+    if (dictModifiedOnly) {
+      if (!row.ar.trim() && !row.en.trim()) return false;
+      const base = dictBase[row.ar];
+      if (!(base === undefined || base !== row.en)) return false;
+    }
+    const q = dictSearch.trim().toLowerCase();
+    if (!q) return true;
+    return row.ar.toLowerCase().includes(q) || row.en.toLowerCase().includes(q);
+  }).length;
+
   return (
-    <div>
-      <div className="page-head">
-        <div><h2>{t('page.settings.title')}</h2><p>{t('page.settings.subtitle')}</p></div>
-        <button type="button" className="btn" onClick={save} disabled={saving}>{saving ? t('page.settings.saving') : t('page.settings.save')}</button>
+    <div className={`xpl-scope xpl-page settings-center`} dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      {/* ── Executive header ── */}
+      <ExecutiveHeader
+        icon="settings"
+        title={t('page.settings.title')}
+        subtitle={t('page.settings.subtitle')}
+        aside={
+          <Button variant="primary" icon="save" busy={saving} onClick={save}>
+            {saving ? t('page.settings.saving') : t('page.settings.save')}
+          </Button>
+        }
+      />
+
+      {/* ── Status metrics (existing state only) ── */}
+      <div className="settings-metrics">
+        <MetricCard icon="translate" tone="indigo" label="لغة الواجهة" value={lang === 'ar' ? 'العربية' : 'English'} />
+        <MetricCard
+          icon="backup"
+          tone={backupEnabled ? 'green' : 'neutral'}
+          label="النسخ الاحتياطي"
+          value={backupEnabled ? 'مفعّل' : 'متوقف'}
+          sub={backupEnabled ? `يومياً · ${backupTime}` : undefined}
+        />
+        <MetricCard icon="draw" tone="blue" label="عدد التواقيع" value={signatures.length} sub={`${visibleSigs} يظهر في المستندات`} />
+        <MetricCard
+          icon="approval"
+          tone={hasStamp ? 'green' : 'neutral'}
+          label="الختم"
+          value={hasStamp ? 'مُحمَّل' : 'غير مُحمَّل'}
+          sub={hasStamp ? (stampVisible ? 'يظهر في المستندات' : 'مخفي') : undefined}
+        />
+        <MetricCard
+          icon="dashboard_customize"
+          tone="orange"
+          label="Template Studio"
+          value="فتح"
+          onClick={() => setStudioOpen(true)}
+          ariaLabel="فتح Template Studio"
+        />
       </div>
 
-      <div className="card panel" style={{ marginBottom: 20 }}>
-        <div className="form-grid">
-          <div className="field">
-            <label>{t('page.settings.language')}</label>
-            <select value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
-              <option value="ar">العربية</option>
-              <option value="en">English</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      {/* ── Sticky in-page navigation ── */}
+      <nav className="settings-nav" aria-label="التنقل داخل الإعدادات">
+        {NAV_SECTIONS.map((n) => (
+          <button key={n.id} type="button" className="settings-nav-item" onClick={() => scrollToSection(n.id)}>
+            <span className="material-symbols-outlined" aria-hidden="true">{n.icon}</span>
+            {n.label}
+          </button>
+        ))}
+      </nav>
 
-      <div className="card panel">
-        <div className="form-grid">
-          {FIELDS.map((f) => (
-            <div className="field" key={f.key}>
-              <label htmlFor={f.key}>{t(f.label)}</label>
-              {f.type === 'checkbox' ? (
-                <input
-                  id={f.key}
-                  type="checkbox"
-                  title={t(f.label)}
-                  checked={(values[f.key] ?? DEFAULT_VALUES[f.key] ?? 'true') !== 'false'}
-                  onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.checked ? 'true' : 'false' }))}
-                />
-              ) : f.type === 'time' ? (
-                <input
-                  id={f.key}
-                  type="time"
-                  title={t(f.label)}
-                  value={values[f.key] ?? DEFAULT_VALUES[f.key] ?? '02:00'}
-                  onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))}
-                />
-              ) : f.type === 'number' ? (
-                <input
-                  id={f.key}
-                  type="number"
-                  title={t(f.label)}
-                  min={1}
-                  max={365}
-                  value={values[f.key] ?? DEFAULT_VALUES[f.key] ?? '30'}
-                  onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))}
-                />
-              ) : (
-                <input
-                  id={f.key}
-                  title={t(f.label)}
-                  value={values[f.key] ?? ''}
-                  onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))}
-                />
-              )}
+      {/* ── 1 · Company identity ── */}
+      <div id="sec-identity" className="settings-section">
+        <SectionCard title="هوية الشركة" icon="corporate_fare">
+          <div className="form-grid">
+            {IDENTITY_FIELDS.map(renderField)}
+            <div className="field">
+              <label htmlFor="ui-lang">{t('page.settings.language')}</label>
+              <select id="ui-lang" value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
+                <option value="ar">العربية</option>
+                <option value="en">English</option>
+              </select>
             </div>
-          ))}
-        </div>
+          </div>
+        </SectionCard>
       </div>
 
-      <div className="card panel">
-        <h3 className="branding-section-title">طباعة المستندات</h3>
-
-        {/* Multiple Signatures */}
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div className="branding-row-label">التوقيعات</div>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={addSignature}
-              disabled={brandingSaving}
-              style={{ fontSize: 13 }}
-            >
-              + إضافة توقيع
-            </button>
+      {/* ── 2 · Backup settings ── */}
+      <div id="sec-backup" className="settings-section">
+        <SectionCard
+          title="النسخ الاحتياطي"
+          icon="backup"
+          actions={
+            <StatusChip tone={backupEnabled ? 'green' : 'neutral'} icon={backupEnabled ? 'check_circle' : 'pause_circle'}>
+              {backupEnabled ? `مفعّل يومياً · ${backupTime}` : 'غير مفعّل'}
+            </StatusChip>
+          }
+        >
+          <div className="form-grid">
+            {BACKUP_FIELDS.map(renderField)}
           </div>
+        </SectionCard>
+      </div>
 
+      {/* ── 3 · Signatures ── */}
+      <div id="sec-signatures" className="settings-section">
+        <SectionCard
+          title="التواقيع"
+          icon="draw"
+          actions={
+            <Button variant="secondary" icon="add" small onClick={addSignature} disabled={brandingSaving}>
+              إضافة توقيع
+            </Button>
+          }
+        >
           {signatures.length === 0 && (
             <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px' }}>
               لا توجد توقيعات — انقر «إضافة توقيع» لإضافة الأول.
@@ -453,7 +588,7 @@ export default function Settings() {
               }}
             >
               {/* Card header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', minWidth: 60 }}>
                   توقيع {idx + 1}
                 </span>
@@ -465,6 +600,9 @@ export default function Settings() {
                     افتراضي
                   </span>
                 )}
+                <StatusChip tone={sig.show ? 'green' : 'neutral'} icon={sig.show ? 'visibility' : 'visibility_off'}>
+                  {sig.show ? 'يظهر في المستندات' : 'مخفي'}
+                </StatusChip>
                 <div style={{ flex: 1 }} />
                 {!sig.isDefault && (
                   <button
@@ -489,7 +627,7 @@ export default function Settings() {
               </div>
 
               {/* Meta fields */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+              <div className="settings-sig-meta">
                 <div className="field" style={{ margin: 0 }}>
                   <label style={{ fontSize: 12 }}>الاسم (اختياري)</label>
                   <input
@@ -545,11 +683,20 @@ export default function Settings() {
           {brandingError && (
             <div className="branding-error">{brandingError}</div>
           )}
-        </div>
+        </SectionCard>
+      </div>
 
-        {/* Stamp Row */}
-        <div className="branding-row">
-          <div className="branding-row-label">ختم الشركة</div>
+      {/* ── 4 · Company stamp ── */}
+      <div id="sec-stamp" className="settings-section">
+        <SectionCard
+          title="ختم الشركة"
+          icon="approval"
+          actions={
+            <StatusChip tone={hasStamp ? (stampVisible ? 'green' : 'orange') : 'neutral'} icon={hasStamp ? 'approval' : 'block'}>
+              {hasStamp ? (stampVisible ? 'يظهر في المستندات' : 'مخفي') : 'غير مُحمّل'}
+            </StatusChip>
+          }
+        >
           <div className="branding-row-controls">
             {values['print.stampImage'] && (
               <img
@@ -571,7 +718,7 @@ export default function Settings() {
               onClick={() => stmpInputRef.current?.click()}
               disabled={brandingSaving}
             >
-              رفع الختم
+              {values['print.stampImage'] ? 'تغيير الختم' : 'رفع الختم'}
             </button>
             {values['print.stampImage'] && (
               <button
@@ -595,12 +742,16 @@ export default function Settings() {
           {brandingError && brandingError.includes('ختم') && (
             <div className="branding-error">{brandingError}</div>
           )}
-        </div>
+        </SectionCard>
+      </div>
 
-        {/* Position designer */}
-        <div className="branding-row" style={{ marginTop: 12 }}>
-          <div className="branding-row-label">موضع التوقيع والختم</div>
-          <div className="branding-row-controls">
+      {/* ── 5 · Print & Template Studio ── */}
+      <div id="sec-print" className="settings-section">
+        <SectionCard title="الطباعة والقوالب" icon="print">
+          <div className="settings-print-row branding-row-controls">
+            <div className="branding-row-label" style={{ marginBottom: 0, flex: 1, minWidth: 180 }}>
+              معايرة موضع التوقيع والختم على المستندات المطبوعة
+            </div>
             <button
               type="button"
               className="btn btn-secondary"
@@ -610,24 +761,71 @@ export default function Settings() {
               معايرة التوقيع والختم
             </button>
           </div>
-        </div>
 
-        {/* Template Studio */}
-        <div className="branding-row" style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
-          <div className="branding-row-label">Template Studio</div>
-          <div className="branding-row-controls">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => setStudioOpen(true)}
-            >
+          <div className="settings-print-row settings-studio-card">
+            <div className="settings-studio-icon">
+              <span className="material-symbols-outlined" aria-hidden="true">dashboard_customize</span>
+            </div>
+            <div className="settings-studio-body">
+              <p className="settings-studio-title">Template Studio</p>
+              <p className="settings-studio-desc">بناء قوالب طباعة مخصصة بدون برمجة.</p>
+            </div>
+            <Button variant="primary" icon="open_in_new" onClick={() => setStudioOpen(true)}>
               فتح Template Studio
-            </button>
-            <span style={{ fontSize: 12, color: '#64748b', marginInlineStart: 8 }}>
-              بناء قوالب طباعة مخصصة بدون برمجة
-            </span>
+            </Button>
           </div>
-        </div>
+        </SectionCard>
+      </div>
+
+      {/* ── 6 · Translation dictionary ── */}
+      <div id="sec-dict" className="settings-section">
+        <SectionCard
+          title="قاموس الترجمة"
+          icon="translate"
+          actions={
+            <Button variant="primary" icon="save" busy={dictSaving} onClick={saveDict}>
+              حفظ القاموس
+            </Button>
+          }
+        >
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px' }}>
+            ترجمات الجنسيات والمسميات الوظيفية المستخدمة في عقود العمل
+          </p>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '2px solid var(--border)' }}>
+            {([['nat', 'الجنسيات'], ['job', 'المسميات الوظيفية']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setDictTab(key)}
+                style={{
+                  padding: '6px 16px', fontSize: 13, fontWeight: 600,
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  borderBottom: dictTab === key ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: dictTab === key ? 'var(--primary)' : 'var(--text-muted)',
+                  marginBottom: -2,
+                }}
+              >
+                {label} ({(key === 'nat' ? natDict : jobDict).length})
+              </button>
+            ))}
+          </div>
+
+          {/* Search + filter toolbar */}
+          <div className="settings-dict-toolbar">
+            <SearchBox value={dictSearch} onChange={setDictSearch} placeholder="ابحث في القاموس (عربي أو English)..." ariaLabel="بحث في القاموس" />
+            <FilterChip active={!dictModifiedOnly} onClick={() => setDictModifiedOnly(false)}>الكل</FilterChip>
+            <FilterChip active={dictModifiedOnly} onClick={() => setDictModifiedOnly(true)} icon="edit">المعدلة فقط</FilterChip>
+            <span className="settings-dict-count">{dictVisible} / {dictRows.length}</span>
+          </div>
+
+          {/* Dictionary Table */}
+          {dictTab === 'nat'
+            ? <DictTable rows={natDict} setRows={setNatDict} query={dictSearch} modifiedOnly={dictModifiedOnly} baseMap={BASE_NATIONALITY_EN} />
+            : <DictTable rows={jobDict} setRows={setJobDict} query={dictSearch} modifiedOnly={dictModifiedOnly} baseMap={BASE_JOB_TITLE_EN} />
+          }
+        </SectionCard>
       </div>
 
       {studioOpen && (
@@ -647,47 +845,6 @@ export default function Settings() {
           onClose={() => setDesignerOpen(false)}
         />
       )}
-
-      {/* Translation Dictionary */}
-      <div className="card panel" style={{ marginTop: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div>
-            <h3 className="branding-section-title" style={{ marginBottom: 4 }}>قاموس الترجمة</h3>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
-              ترجمات الجنسيات والمسميات الوظيفية المستخدمة في عقود العمل
-            </p>
-          </div>
-          <button type="button" className="btn" onClick={saveDict} disabled={dictSaving} style={{ flexShrink: 0 }}>
-            {dictSaving ? 'جارٍ الحفظ…' : 'حفظ القاموس'}
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '2px solid var(--border)' }}>
-          {([['nat', 'الجنسيات'], ['job', 'المسميات الوظيفية']] as const).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setDictTab(key)}
-              style={{
-                padding: '6px 16px', fontSize: 13, fontWeight: 600,
-                background: 'none', border: 'none', cursor: 'pointer',
-                borderBottom: dictTab === key ? '2px solid var(--primary)' : '2px solid transparent',
-                color: dictTab === key ? 'var(--primary)' : 'var(--text-muted)',
-                marginBottom: -2,
-              }}
-            >
-              {label} ({(dictTab === 'nat' ? natDict : jobDict).length})
-            </button>
-          ))}
-        </div>
-
-        {/* Dictionary Table */}
-        {dictTab === 'nat'
-          ? <DictTable rows={natDict} setRows={setNatDict} />
-          : <DictTable rows={jobDict} setRows={setJobDict} />
-        }
-      </div>
     </div>
   );
 }
