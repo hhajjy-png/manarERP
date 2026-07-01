@@ -27,10 +27,10 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `e38f65e` — *docs: update PROJECT_STATE for Executive Dashboard Polish Pack release* | High |
-| **Current stable tag** | `stable-executive-dashboard-polish-phase1-v1` (points at `e38f65e`) | High |
-| **Previous stable tag** | `stable-settings-center-refresh-v1` (`2543101`) | High |
-| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` synced to `e38f65e` | High |
+| **Current HEAD** | `d01e714` — *fix(print): route print actions through Electron native bridge* | High |
+| **Current stable tag** | `stable-print-native-bridge-routing-v1` (points at `d01e714`) | High |
+| **Previous stable tag** | `stable-executive-dashboard-polish-phase1-v1` (`e38f65e`) | High |
+| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` synced to `d01e714` | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -40,23 +40,23 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 
 | Metric | Value |
 |---|---|
-| Total tags | **338** |
-| — Stable (`stable-*`) | **220** |
+| Total tags | **339** |
+| — Stable (`stable-*`) | **221** |
 | — Pre-release (`pre-*`) | **115** |
 | — Checkpoint (`checkpoint-*`) | **2** |
 | — Other | **1** (`before-next-feature`) |
-| **Stable tags on `production` line** | **220 / 220 (100%)** |
+| **Stable tags on `production` line** | **221 / 221 (100%)** |
 | Stable tags NOT on production | **0** |
-| Commits on `production` | **786** |
+| Commits on `production` | **787** |
 | Backend modules | **36** |
 | Frontend pages | **~49** |
 | Prisma models | **49** |
 | Prisma migrations | **37** |
 | Release window | **2026-06-07 → 2026-07-01** |
 | Releases in 2026-06 | **218** |
-| Releases in 2026-07 | **2** |
+| Releases in 2026-07 | **3** |
 
-> **Key integrity fact:** every one of the 220 stable tags is an ancestor of `production`. There is no un-merged, divergent, or "experimental-only" tagged work. What is tagged is shipped. *Confidence: High.*
+> **Key integrity fact:** every one of the 221 stable tags is an ancestor of `production`. There is no un-merged, divergent, or "experimental-only" tagged work. What is tagged is shipped. *Confidence: High.*
 
 ### Workflow (as practiced, from CLAUDE.md + tag evidence)
 
@@ -191,7 +191,7 @@ All 220 stable tags, `date | tag | commit`. All are on `production`. Within phas
 2026-06-21 | stable-executive-intelligence-bundle-phase2-v1 | 9f64c22
 2026-06-22 | stable-executive-decision-center-phase1-v1 | d257db0
 2026-06-27 | stable-dashboard-financial-fix-v1        | b27e489   (fix)
-2026-07-01 | stable-executive-dashboard-polish-phase1-v1 | e38f65e (CURRENT HEAD)
+2026-07-01 | stable-executive-dashboard-polish-phase1-v1 | e38f65e
 ```
 
 ### Security / RBAC / Backup / Audit
@@ -320,6 +320,7 @@ All 220 stable tags, `date | tag | commit`. All are on `production`. Within phas
 2026-06-25 | stable-arabic-pdf-chromium-fix-v1        | 90dccc8
 2026-06-25 | stable-print-polish-batch1-v1            | 4c58c8d
 2026-06-25 | stable-print-designer-phase7a-docx-import-v1 | f5dcfc5
+2026-07-01 | stable-print-native-bridge-routing-v1     | d01e714   (Quick Fix — native print routing) (CURRENT HEAD)
 ```
 
 ### Data Import
