@@ -27,10 +27,10 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `5b8b8f6` — *fix(forms): hide voucher print profiles from general forms* | High |
-| **Current stable tag** | `stable-print-profile-toggle-voucher-isolation-v1` (points at `5b8b8f6`) | High |
-| **Previous stable tag** | `stable-print-native-bridge-routing-v1` (`d01e714`) | High |
-| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` synced to `5b8b8f6` | High |
+| **Current HEAD** | `3003d5b` — *Merge Print Workspace UX Refresh Phase 1* | High |
+| **Current stable tag** | `stable-print-workspace-ux-phase1-v1` (points at `3003d5b`) | High |
+| **Previous stable tag** | `stable-print-profile-toggle-voucher-isolation-v1` (`5b8b8f6`) | High |
+| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` synced to `3003d5b` | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
