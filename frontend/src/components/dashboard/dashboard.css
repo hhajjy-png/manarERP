@@ -1296,3 +1296,76 @@
   border-inline-start: 3px solid var(--db-blue);
   padding-inline-start: 10px;
 }
+
+/* ================================================================
+   EXECUTIVE DASHBOARD POLISH PACK
+   ================================================================ */
+
+/* ── Executive daily summary (compact operational signal strip) ── */
+.db-today {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: var(--db-radius);
+  padding: 12px 18px;
+  margin-bottom: 18px;
+}
+.db-today-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--db-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-inline-start: 3px solid var(--db-blue);
+  padding-inline-start: 10px;
+  white-space: nowrap;
+}
+.db-today-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.db-today-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--db-text);
+  border: 1px solid var(--db-border);
+  white-space: nowrap;
+}
+.db-today-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--db-muted);
+  flex-shrink: 0;
+}
+.db-today-chip.ok .db-today-dot { background: var(--db-green); }
+.db-today-chip.warn .db-today-dot { background: var(--db-amber); }
+.db-today-chip.crit .db-today-dot { background: var(--db-red); }
+.db-today-chip.warn { border-color: rgba(245, 158, 11, 0.28); }
+.db-today-chip.crit { border-color: rgba(239, 68, 68, 0.32); }
+@media (max-width: 700px) {
+  .db-today { flex-direction: column; align-items: flex-start; gap: 10px; }
+}
+
+/* ── Density polish — tighter, more consistent vertical rhythm ── */
+.db-kpi { padding: 18px 20px; gap: 10px; }
+.db-stat { padding: 16px 18px; }
+.db-card-body { padding: 14px 18px 18px; }
+.db-section-label { margin: 4px 0 10px; }
+
+/* ── Empty-state polish — compact, less blank vertical space ── */
+.db-empty { padding: 20px 16px; gap: 8px; }
+.db-empty-icon { font-size: 26px; }
+
+/* ── Chart balance — align both charts in the first charts row ── */
+.db-chart-wrap-sm { height: 240px; }
