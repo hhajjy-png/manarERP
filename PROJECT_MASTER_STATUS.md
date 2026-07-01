@@ -27,10 +27,10 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `d01e714` — *fix(print): route print actions through Electron native bridge* | High |
-| **Current stable tag** | `stable-print-native-bridge-routing-v1` (points at `d01e714`) | High |
-| **Previous stable tag** | `stable-executive-dashboard-polish-phase1-v1` (`e38f65e`) | High |
-| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` synced to `d01e714` | High |
+| **Current HEAD** | `5b8b8f6` — *fix(forms): hide voucher print profiles from general forms* | High |
+| **Current stable tag** | `stable-print-profile-toggle-voucher-isolation-v1` (points at `5b8b8f6`) | High |
+| **Previous stable tag** | `stable-print-native-bridge-routing-v1` (`d01e714`) | High |
+| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` synced to `5b8b8f6` | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -40,23 +40,23 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 
 | Metric | Value |
 |---|---|
-| Total tags | **339** |
-| — Stable (`stable-*`) | **221** |
+| Total tags | **340** |
+| — Stable (`stable-*`) | **222** |
 | — Pre-release (`pre-*`) | **115** |
 | — Checkpoint (`checkpoint-*`) | **2** |
 | — Other | **1** (`before-next-feature`) |
-| **Stable tags on `production` line** | **221 / 221 (100%)** |
+| **Stable tags on `production` line** | **222 / 222 (100%)** |
 | Stable tags NOT on production | **0** |
-| Commits on `production` | **787** |
+| Commits on `production` | **788** |
 | Backend modules | **36** |
 | Frontend pages | **~49** |
 | Prisma models | **49** |
 | Prisma migrations | **37** |
 | Release window | **2026-06-07 → 2026-07-01** |
 | Releases in 2026-06 | **218** |
-| Releases in 2026-07 | **3** |
+| Releases in 2026-07 | **4** |
 
-> **Key integrity fact:** every one of the 221 stable tags is an ancestor of `production`. There is no un-merged, divergent, or "experimental-only" tagged work. What is tagged is shipped. *Confidence: High.*
+> **Key integrity fact:** every one of the 222 stable tags is an ancestor of `production`. There is no un-merged, divergent, or "experimental-only" tagged work. What is tagged is shipped. *Confidence: High.*
 
 ### Workflow (as practiced, from CLAUDE.md + tag evidence)
 
@@ -320,7 +320,8 @@ All 220 stable tags, `date | tag | commit`. All are on `production`. Within phas
 2026-06-25 | stable-arabic-pdf-chromium-fix-v1        | 90dccc8
 2026-06-25 | stable-print-polish-batch1-v1            | 4c58c8d
 2026-06-25 | stable-print-designer-phase7a-docx-import-v1 | f5dcfc5
-2026-07-01 | stable-print-native-bridge-routing-v1     | d01e714   (Quick Fix — native print routing) (CURRENT HEAD)
+2026-07-01 | stable-print-native-bridge-routing-v1     | d01e714   (Quick Fix — native print routing)
+2026-07-01 | stable-print-profile-toggle-voucher-isolation-v1 | 5b8b8f6   (Quick Fix — hide voucher profiles from forms) (CURRENT HEAD)
 ```
 
 ### Data Import
