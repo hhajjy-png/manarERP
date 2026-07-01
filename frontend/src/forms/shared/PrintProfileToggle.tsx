@@ -1,4 +1,4 @@
-import { PRINT_PROFILES, ProfileId } from './printProfiles';
+import { PRINT_PROFILES, ProfileId, SELECTABLE_PROFILE_IDS } from './printProfiles';
 
 interface Props {
   profile: ProfileId;
@@ -17,7 +17,7 @@ export default function PrintProfileToggle({ profile, onChange }: Props) {
         overflow: 'hidden',
       }}
     >
-      {(Object.keys(PRINT_PROFILES) as ProfileId[]).map((id) => {
+      {SELECTABLE_PROFILE_IDS.map((id) => {
         const p = PRINT_PROFILES[id];
         const active = profile === id;
         return (
