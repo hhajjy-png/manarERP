@@ -1,4 +1,5 @@
 import { CSSProperties, useEffect, useState } from 'react';
+import { printCurrentView } from '../utils/print';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import FormHeader from '../forms/shared/FormHeader';
@@ -58,7 +59,7 @@ export default function ReceiptVoucher() {
   // Trigger window.print() after React flushes the rcvNumber into the DOM.
   useEffect(() => {
     if (printing && rcvNumber) {
-      window.print();
+      printCurrentView();
       setPrinting(false);
     }
   }, [printing, rcvNumber]);

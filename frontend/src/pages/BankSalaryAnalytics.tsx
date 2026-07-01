@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { printCurrentView } from '../utils/print';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useUI } from '../stores/uiStore';
@@ -464,7 +465,7 @@ export default function BankSalaryAnalytics() {
 
   const handleExport = async (empId?: number, format: 'excel' | 'print' | 'csv' = 'excel') => {
     setExportMenuOpen(false);
-    if (format === 'print') { window.print(); return; }
+    if (format === 'print') { printCurrentView(); return; }
     if (format === 'csv') {
       if (!txData?.data.length) { showToast('لا توجد بيانات للتصدير', 'error'); return; }
       const headers = ['رقم المعاملة', 'الشهر', 'تاريخ الدفع', 'المستفيد', 'المبلغ', 'العملة', 'الرقم المدني', 'الحالة'];

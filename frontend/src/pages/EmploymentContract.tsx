@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { printCurrentView } from '../utils/print';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { generateFormNumber } from '../forms/shared/formNumber';
@@ -555,7 +556,7 @@ export default function EmploymentContract() {
       });
     }
     setPrintCount(c => c + 1);
-    window.print();
+    printCurrentView();
   }
 
   function restoreLastDraft() {

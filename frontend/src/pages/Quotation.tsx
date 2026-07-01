@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { printCurrentView } from '../utils/print';
 import ConfirmModal from '../components/ConfirmModal';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
@@ -296,7 +297,7 @@ export default function Quotation() {
           className="no-print"
           style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '10px 18px', background: '#fff', borderBottom: '1px solid var(--border)', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }}
         >
-          <button type="button" className="btn" onClick={() => window.print()}>
+          <button type="button" className="btn" onClick={() => printCurrentView()}>
             🖨️ طباعة
           </button>
           <button

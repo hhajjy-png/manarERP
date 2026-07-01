@@ -1,4 +1,5 @@
 import { useEffect, useState, CSSProperties } from 'react';
+import { printCurrentView } from '../utils/print';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { formatDate } from '../lib/date';
@@ -42,7 +43,7 @@ export default function ReportPrint() {
   // فتح حوار الطباعة تلقائيًا بعد جاهزية المحتوى
   useEffect(() => {
     if (rep) {
-      const t = setTimeout(() => window.print(), 500);
+      const t = setTimeout(() => printCurrentView(), 500);
       return () => clearTimeout(t);
     }
   }, [rep]);
@@ -60,7 +61,7 @@ export default function ReportPrint() {
             if (window.manar?.exportPdf) {
               await window.manar.exportPdf(`report-${type ?? 'report'}`);
             } else {
-              window.print();
+              printCurrentView();
             }
           }}
         >🖨️ حفظ PDF</button>

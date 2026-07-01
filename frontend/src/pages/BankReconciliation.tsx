@@ -2,6 +2,7 @@ import {
   Fragment, useState, useEffect, useCallback, useRef, useMemo,
 } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { printCurrentView } from '../utils/print';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
@@ -1452,7 +1453,7 @@ export default function BankReconciliation() {
                   <button
                     type="button"
                     className="recon-export-item"
-                    onClick={() => { setExportMenuOpen(false); window.print(); }}
+                    onClick={() => { setExportMenuOpen(false); printCurrentView(); }}
                   >
                     🖨 طباعة
                   </button>

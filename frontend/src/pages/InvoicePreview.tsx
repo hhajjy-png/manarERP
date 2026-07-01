@@ -1,4 +1,5 @@
 import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { printCurrentView } from '../utils/print';
 import type { ComponentType } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
@@ -120,7 +121,7 @@ export default function InvoicePreview() {
   useEffect(() => {
     if (data && autoPrint && !printFiredRef.current) {
       printFiredRef.current = true;
-      const timer = setTimeout(() => window.print(), 500);
+      const timer = setTimeout(() => printCurrentView(), 500);
       return () => clearTimeout(timer);
     }
   }, [data, autoPrint]);
@@ -375,7 +376,7 @@ export default function InvoicePreview() {
           <button type="button" className="btn secondary" onClick={() => navigate('/invoices')}>
             ← {t('btn.inv.back')}
           </button>
-          <button type="button" className="btn" onClick={() => window.print()}>
+          <button type="button" className="btn" onClick={() => printCurrentView()}>
             🖨️ {t('btn.inv.print_invoice')}
           </button>
           <button

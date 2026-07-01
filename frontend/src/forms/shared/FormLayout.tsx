@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
+import { printCurrentView } from '../../utils/print';
 import { useNavigate } from 'react-router-dom';
 import { ProfileId, PRINT_PROFILES } from './printProfiles';
 import { loadCopies, saveCopies } from './usePrintProfileMemory';
@@ -50,12 +51,12 @@ export default function FormLayout({
   function doPrint() {
     const count = copiesRef.current;
     if (count <= 1) {
-      window.print();
+      printCurrentView();
       return;
     }
     let i = 0;
     function next() {
-      window.print();
+      printCurrentView();
       i++;
       if (i < count) setTimeout(next, 1500);
     }
@@ -64,7 +65,7 @@ export default function FormLayout({
 
   useEffect(() => {
     if (!ready) return;
-    const t = setTimeout(() => window.print(), 600);
+    const t = setTimeout(() => printCurrentView(), 600);
     return () => clearTimeout(t);
   }, [ready]);
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { printCurrentView } from '../utils/print';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
@@ -345,7 +346,7 @@ export default function Cheques() {
         setEditId(saved.id);
         setPrintTarget(saved);
         await loadData(page);
-        window.print();
+        printCurrentView();
         setShowPrintConfirm(true);
       } catch (e) {
         setFormError(errorMessage(e));
@@ -354,7 +355,7 @@ export default function Cheques() {
       }
       return;
     }
-    window.print();
+    printCurrentView();
     if (printTarget.status === 'DRAFT') setShowPrintConfirm(true);
   }
 

@@ -1,5 +1,6 @@
 import './ResultCard.css';
 import { useState } from 'react';
+import { printCurrentView } from '../utils/print';
 import { useNavigate } from 'react-router-dom';
 import type {
   SkillResult, SkillStatistic, SkillHighlight, SkillDataCard, SkillWarning,
@@ -231,7 +232,7 @@ function ActionCards({
         downloadResultTxt(result);
         break;
       case 'print':
-        window.print();
+        printCurrentView();
         break;
     }
   };

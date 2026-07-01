@@ -1,4 +1,5 @@
 import { CSSProperties, useEffect, useState } from 'react';
+import { printCurrentView } from '../utils/print';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { money } from '../config/modules';
@@ -62,7 +63,7 @@ export default function PayrollPayslip() {
 
   useEffect(() => {
     if (data) {
-      const timer = setTimeout(() => window.print(), 500);
+      const timer = setTimeout(() => printCurrentView(), 500);
       return () => clearTimeout(timer);
     }
   }, [data]);
@@ -94,7 +95,7 @@ export default function PayrollPayslip() {
       }}
     >
       <div className="no-print" style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
-        <button className="btn" onClick={() => window.print()}>
+        <button className="btn" onClick={() => printCurrentView()}>
           {t('btn.payslip.print')}
         </button>
         <button className="btn secondary" onClick={() => navigate(-1)}>
