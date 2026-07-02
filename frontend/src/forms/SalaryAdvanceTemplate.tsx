@@ -127,13 +127,10 @@ export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, la
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, fontSize: 13, color: '#374151', direction: 'ltr' }}>
-          <div>
+        {/* HR / Finance approval is provided by the shared ApprovalSection footer — not repeated here. */}
+        <div style={{ marginBottom: 8, fontSize: 13, color: '#374151', direction: 'ltr' }}>
+          <div style={{ width: '48%' }}>
             <strong>Employee Signature:</strong>
-            <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
-          </div>
-          <div>
-            <strong>HR / Finance Approval:</strong>
             <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
           </div>
         </div>
@@ -222,13 +219,10 @@ export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, la
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, fontSize: 13, color: '#374151' }}>
-        <div>
+      {/* اعتماد الموارد البشرية / المالية يظهر في قسم الاعتماد المشترك بالتذييل (ApprovalSection) — لا يُكرَّر هنا. */}
+      <div style={{ marginBottom: 8, fontSize: 13, color: '#374151' }}>
+        <div style={{ width: '48%' }}>
           <strong>توقيع الموظف:</strong>
-          <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
-        </div>
-        <div>
-          <strong>اعتماد الموارد البشرية / المالية:</strong>
           <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
         </div>
       </div>

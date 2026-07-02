@@ -131,13 +131,10 @@ export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang 
           <strong>Notice Date:</strong> {issueDateStrEn()}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, fontSize: 13, color: '#374151', direction: 'ltr' }}>
-          <div>
+        {/* Manager confirmation is provided by the shared ApprovalSection footer — not repeated here. */}
+        <div style={{ marginBottom: 8, fontSize: 13, color: '#374151', direction: 'ltr' }}>
+          <div style={{ width: '48%' }}>
             <strong>Employee Signature (Return Confirmation):</strong>
-            <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
-          </div>
-          <div>
-            <strong>Manager Confirmation:</strong>
             <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
           </div>
         </div>
@@ -216,13 +213,10 @@ export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang 
         <strong>تاريخ الإشعار:</strong> {issueDateStr()}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 8, fontSize: 13, color: '#374151' }}>
-        <div>
+      {/* تأكيد المدير المباشر يظهر في قسم الاعتماد المشترك بالتذييل (ApprovalSection) — لا يُكرَّر هنا. */}
+      <div style={{ marginBottom: 8, fontSize: 13, color: '#374151' }}>
+        <div style={{ width: '48%' }}>
           <strong>توقيع الموظف (تأكيد العودة):</strong>
-          <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
-        </div>
-        <div>
-          <strong>تأكيد المدير المباشر:</strong>
           <div style={{ marginTop: 22, borderBottom: '1px solid #64748b', width: '100%' }} />
         </div>
       </div>
