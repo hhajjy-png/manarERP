@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import RootErrorBoundary from './components/RootErrorBoundary';
 // Offline fonts — no CDN required
 import './styles/fonts.css';
 import '@fontsource/cairo/400.css';
@@ -13,6 +14,8 @@ import './styles/financial.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <RootErrorBoundary scope="root">
+      <App />
+    </RootErrorBoundary>
   </React.StrictMode>,
 );
