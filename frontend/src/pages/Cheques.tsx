@@ -496,7 +496,12 @@ export default function Cheques() {
       <style>{`
         @page { size: A4 landscape; }
         @media print {
-          body > * { visibility: hidden !important; }
+          /* Collapse the in-flow app shell to zero height so only the fixed cheque
+             occupies the print layout. visibility:hidden alone kept #root at full
+             height, which paginated an extra blank page. #root is not a fixed-
+             positioning containing block, so overflow:hidden here does NOT clip the
+             position:fixed cheque below. */
+          body > * { visibility: hidden !important; height: 0 !important; overflow: hidden !important; }
           .cheque-print-only {
             display: block !important;
             visibility: visible !important;
