@@ -209,6 +209,104 @@ export class ChequesService {
 
     return voucherNumber;
   }
+
+  /**
+   * معاينة الحذف النهائي (SYSTEM_ADMIN فقط عبر الراوت).
+   * لا تحذف شيئاً — تُرجع بيانات الشيك وما سيتأثر لعرضها في نافذة التأكيد.
+   */
+  async forceRemovePreview(id: number) {
+    const cheque = await prisma.cheque.findUnique({ where: { id } });
+    if (!cheque) throw AppError.notFound('الشيك غير موجود');
+
+    // حركات كشف الحساب البنكي المطابَقة بهذا الشيك (مرجع تسوية، بلا FK)
+    const bankMatchesCount = await prisma.bankStatementTransaction.count({
+      where: { matchedType: 'cheque', matchedId: id },
+    });
+
+    const willBeDeleted: string[] = ['سجل الشيك'];
+
+    const warnings: string[] = [];
+    if (cheque.status === 'CANCELLED') {
+      warnings.push('هذا الشيك ملغى بالفعل — الإلغاء هو الإجراء المعتاد، والحذف النهائي استثنائي لا يمكن التراجع عنه');
+    }
+    if (cheque.status === 'PRINTED') {
+      warnings.push('هذا الشيك مطبوع — الحذف النهائي يزيل سجله بالكامل من النظام');
+    }
+    if (cheque.paymentVoucherNumber) {
+      warnings.push(`صدر لهذا الشيك سند صرف رقم ${cheque.paymentVoucherNumber} — لن يُعاد استخدام هذا الرقم بعد الحذف`);
+    }
+    if (bankMatchesCount > 0) {
+      warnings.push(`هذا الشيك مطابَق بـ ${bankMatchesCount} حركة في كشف حساب بنكي — سيتم فك ارتباطها (تُحفظ الحركات وتعود «غير مطابَقة» ولا تُحذف)`);
+    }
+
+    return {
+      id: cheque.id,
+      chequeNumber: cheque.chequeNumber,
+      beneficiaryName: cheque.beneficiaryName,
+      amount: cheque.amount,
+      currency: cheque.currency,
+      bankName: cheque.bankName,
+      chequeDate: cheque.chequeDate,
+      status: cheque.status,
+      printedAt: cheque.printedAt,
+      cancelledAt: cheque.cancelledAt,
+      paymentVoucherNumber: cheque.paymentVoucherNumber,
+      hasPaymentVoucher: !!cheque.paymentVoucherNumber,
+      bankMatchesCount,
+      willBeDeleted,
+      warnings,
+    };
+  }
+
+  /**
+   * الحذف النهائي للشيك (SYSTEM_ADMIN فقط عبر الراوت).
+   * يتطلب تطابق رقم الشيك للتأكيد. يفك ارتباط حركات كشف الحساب البنكي المطابَقة
+   * (دون حذفها) ثم يحذف سجل الشيك داخل معاملة واحدة، ويسجّل الحدث في سجل التدقيق.
+   */
+  async forceRemove(id: number, confirmation: string, req: Request) {
+    const cheque = await prisma.cheque.findUnique({ where: { id } });
+    if (!cheque) throw AppError.notFound('الشيك غير موجود');
+
+    if (confirmation !== cheque.chequeNumber) {
+      throw AppError.badRequest('يجب كتابة رقم الشيك بشكل مطابق للتأكيد');
+    }
+
+    const bankMatchesCount = await prisma.bankStatementTransaction.count({
+      where: { matchedType: 'cheque', matchedId: id },
+    });
+
+    await prisma.$transaction(async (tx) => {
+      // فك ارتباط حركات كشف الحساب المطابَقة بهذا الشيك — نحفظ السجلات البنكية المستوردة ولا نحذفها
+      if (bankMatchesCount > 0) {
+        await tx.bankStatementTransaction.updateMany({
+          where: { matchedType: 'cheque', matchedId: id },
+          data: { reconcileStatus: 'UNMATCHED', matchedType: null, matchedId: null, matchedRef: null, matchConfidence: null },
+        });
+      }
+      await tx.cheque.delete({ where: { id } });
+    });
+
+    await recordAudit({
+      req,
+      action: 'DELETE',
+      module: 'cheques',
+      entityId: id,
+      newValue: {
+        forceDelete: true,
+        chequeNumber: cheque.chequeNumber,
+        beneficiaryName: cheque.beneficiaryName,
+        amount: cheque.amount,
+        currency: cheque.currency,
+        bankName: cheque.bankName,
+        status: cheque.status,
+        hadPaymentVoucher: !!cheque.paymentVoucherNumber,
+        paymentVoucherNumber: cheque.paymentVoucherNumber,
+        bankMatchesCleared: bankMatchesCount,
+      },
+    });
+
+    return { deleted: true };
+  }
 }
 
 export const chequesService = new ChequesService();

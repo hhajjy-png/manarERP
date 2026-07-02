@@ -8,6 +8,7 @@ import { tafqeetKWD } from '../lib/tafqeet';
 import { formatDate } from '../lib/date';
 import { PageMeta } from '../components/DataTable';
 import ConfirmModal from '../components/ConfirmModal';
+import ForceDeleteChequeModal from '../components/ForceDeleteChequeModal';
 import ChequeCalibrator from '../components/ChequeCalibrator';
 import gulfBankImg from '../assets/cheakv1.png';
 import {
@@ -166,7 +167,7 @@ function ChequePrintOutput({ data, template }: { data: PreviewData; template: Ch
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Cheques() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const { t } = useT();
   const navigate = useNavigate();
 
@@ -193,9 +194,11 @@ export default function Cheques() {
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [viewing, setViewing] = useState<Cheque | null>(null);
+  const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
   const canCreate = hasPermission('cheques.create');
   const canUpdate = hasPermission('cheques.update');
   const canPrint = hasPermission('cheques.print');
+  const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
   const canCancel = hasPermission('cheques.cancel');
   const canCalibrate = hasPermission('settings.update');
 
@@ -496,7 +499,12 @@ export default function Cheques() {
       <style>{`
         @page { size: A4 landscape; }
         @media print {
-          body > * { visibility: hidden !important; }
+          /* Collapse the in-flow app shell to zero height so only the fixed cheque
+             occupies the print layout. visibility:hidden alone kept #root at full
+             height, which paginated an extra blank page. #root is not a fixed-
+             positioning containing block, so overflow:hidden here does NOT clip the
+             position:fixed cheque below. */
+          body > * { visibility: hidden !important; height: 0 !important; overflow: hidden !important; }
           .cheque-print-only {
             display: block !important;
             visibility: visible !important;
@@ -641,6 +649,7 @@ export default function Cheques() {
               <Button variant="primary" icon="visibility" onClick={() => selectForPreview(viewing)}>معاينة وطباعة</Button>
               {((canUpdate) && viewing.status !== 'CANCELLED') && <Button variant="secondary" icon="edit" onClick={() => openEditor(viewing)}>{t('action.edit')}</Button>}
               {canCancel && viewing.status === 'DRAFT' && <Button variant="danger" icon="block" busy={busy} onClick={() => setCancelConfirmCheque(viewing)}>{t('page.cheques.cancel_cheque')}</Button>}
+              {isSystemAdmin && <Button variant="danger" icon="delete_forever" onClick={() => { const id = viewing.id; setViewing(null); setForceDeleteId(id); }}>حذف نهائي</Button>}
             </>
           }
         >
@@ -768,6 +777,14 @@ export default function Cheques() {
           onCancel={() => setShowPrintConfirm(false)}
         />
       )}
+      {forceDeleteId !== null && (
+        <ForceDeleteChequeModal
+          chequeId={forceDeleteId}
+          onClose={() => setForceDeleteId(null)}
+          onDeleted={() => { setForceDeleteId(null); setSuccess('تم حذف الشيك نهائياً'); loadData(page); }}
+        />
+      )}
+
       {cancelConfirmCheque !== null && (
         <ConfirmModal title={t('page.cheques.cancel_cheque')} message={t('page.cheques.confirm_cancel')} variant="warning" onConfirm={() => executeCancel(cancelConfirmCheque)} onCancel={() => setCancelConfirmCheque(null)} />
       )}
