@@ -27,10 +27,10 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `b7a4988` — *Merge Print Templates Cleanup Phase 1* | High |
-| **Current stable tag** | `stable-print-templates-cleanup-phase1-v1` (points at `b7a4988`) | High |
-| **Previous stable tag** | `stable-cheques-force-delete-print-fix-v1` (`76bc928`) | High |
-| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` synced to `b7a4988` | High |
+| **Current HEAD** | `d6ec309` — *Merge Stability & UX Safety Pack Phase 1 + Frontend Performance Pack Phase 1* | High |
+| **Current stable tag** | `stable-stability-performance-pack-v1` (points at `d6ec309`) | High |
+| **Previous stable tag** | `stable-print-templates-cleanup-phase1-v1` (`b7a4988`) | High |
+| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` last synced to `b7a4988` — **push of `d6ec309` pending** (offline environment; see release note below) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -57,6 +57,16 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Releases in 2026-07 | **4** |
 
 > **Key integrity fact:** every one of the 222 stable tags is an ancestor of `production`. There is no un-merged, divergent, or "experimental-only" tagged work. What is tagged is shipped. *Confidence: High.*
+
+### Latest Release — `stable-stability-performance-pack-v1` (`d6ec309`, 2026-07-02)
+
+Frontend-only release of two independently Gemini-APPROVED packages, merged `--no-ff`.
+
+- **Stability & UX Safety Pack – Phase 1 (Error Boundaries):** new `RootErrorBoundary` (ExplorerKit fallback — Retry, Back-to-Home, Copy technical details, developer details, console logging, dark/light, a11y) wired at app root (`main.tsx`) and page level (`Layout.tsx` `<Outlet/>`, `resetKey={pathname}` → auto-recovery on navigation). Pre-existing scoped `ErrorBoundary` untouched.
+- **Frontend Performance Pack – Phase 1 (route code-splitting):** all ~55 routes → `React.lazy` + `Suspense` (ExplorerKit `PageLoader`); Login/Layout/ProtectedRoute eager. Vite `manualChunks` (`vendor-react/charts/xlsx/docx/zip/qrcode`). **Initial startup JS 3.25 MB → ~356 KB raw (−89%; 846 KB → ~110 KB gzip); 81 chunks; ~1.32 MB of libraries deferred.**
+- **Scope guarantee:** zero business-logic / DB / Prisma / backend / API / auth / RBAC / printing / Electron / dependency changes. **Files: 10** (+657/−121). Feature commit `f4aeff6`; checkpoint (rollback) tag `pre-stability-performance-pack-v1` @ `473c724`.
+- **Validation:** frontend tsc ✅ · frontend vitest 638/638 ✅ · build:front ✅. Backend/electron untouched (not re-run).
+- **Remote:** push of `d6ec309` + tags **pending** — finalized locally in an offline environment. *Confidence: High.*
 
 ### Workflow (as practiced, from CLAUDE.md + tag evidence)
 
