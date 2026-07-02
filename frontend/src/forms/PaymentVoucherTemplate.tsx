@@ -192,29 +192,24 @@ export default function PaymentVoucherTemplate({
         </tbody>
       </table>
 
-      {/* Three-column signatures */}
+      {/* Receiver signature — Manager Approval + Official Stamp are provided by the
+          shared ApprovalSection footer (FormLayout), so they are not repeated here. */}
       <div style={{ display: 'flex', gap: 24, marginTop: 38 }}>
-        {[
-          { ar: 'المُستلِم', en: 'Receiver' },
-          { ar: 'أعدّه', en: 'Prepared by' },
-          { ar: 'اعتمده', en: 'Approved by' },
-        ].map(({ ar, en }) => (
-          <div key={ar} style={{ flex: 1, textAlign: 'center' }}>
-            <div
-              style={{
-                borderTop: '1.5px solid #555',
-                marginTop: 44,
-                paddingTop: 6,
-                fontWeight: 700,
-                color: BRAND,
-                fontSize: 12,
-              }}
-            >
-              {ar}
-              <small style={{ display: 'block', color: '#999', fontWeight: 400, fontSize: 10 }}>{en}</small>
-            </div>
+        <div style={{ width: '32%', textAlign: 'center' }}>
+          <div
+            style={{
+              borderTop: '1.5px solid #555',
+              marginTop: 44,
+              paddingTop: 6,
+              fontWeight: 700,
+              color: BRAND,
+              fontSize: 12,
+            }}
+          >
+            المُستلِم
+            <small style={{ display: 'block', color: '#999', fontWeight: 400, fontSize: 10 }}>Receiver</small>
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );

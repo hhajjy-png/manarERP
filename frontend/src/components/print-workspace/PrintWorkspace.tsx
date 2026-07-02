@@ -110,8 +110,11 @@ export default function PrintWorkspace({
   const [collapsed, setCollapsed] = useState(sidebarCollapsed);
 
   // Screen-only zoom state (owned here so the footer / More menu can share it).
-  const [scale, setScale] = useState(1);
-  const [fitMode, setFitMode] = useState<FitMode>('width');
+  // Default preview zoom is a fixed 75% (session-only; every fresh mount — i.e.
+  // opening another template — resets to 75%). Not persisted anywhere. The user
+  // can still zoom with +/−, Ctrl/⌘+wheel, Fit width/page, and Reset (100%).
+  const [scale, setScale] = useState(0.75);
+  const [fitMode, setFitMode] = useState<FitMode>(null);
   const [pageCount, setPageCount] = useState(1);
 
   const onScale = useCallback((n: number) => setScale(n), []);

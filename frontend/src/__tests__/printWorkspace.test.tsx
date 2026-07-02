@@ -59,14 +59,15 @@ describe('PrintWorkspace shell', () => {
       </PrintWorkspace>,
     );
     const scaler = screen.getByTestId('pw-scaler');
-    expect(scaler).toHaveStyle({ transform: 'scale(1)' });
+    // Default preview zoom is a fixed 75%.
+    expect(scaler).toHaveStyle({ transform: 'scale(0.75)' });
 
     fireEvent.click(screen.getByRole('button', { name: 'تكبير' }));
-    expect(scaler.style.transform).toBe('scale(1.1)');
+    expect(scaler.style.transform).toBe('scale(0.85)');
 
     fireEvent.click(screen.getByRole('button', { name: 'تصغير' }));
     fireEvent.click(screen.getByRole('button', { name: 'تصغير' }));
-    expect(scaler.style.transform).toBe('scale(0.9)');
+    expect(scaler.style.transform).toBe('scale(0.65)');
 
     // Reset (100%) restores scale.
     fireEvent.click(screen.getByRole('button', { name: 'إعادة التكبير إلى 100%' }));
@@ -85,10 +86,10 @@ describe('PrintWorkspace shell', () => {
     const scaler = screen.getByTestId('pw-scaler');
     const canvas = container.querySelector('.pw-canvas')!;
     fireEvent.wheel(canvas, { ctrlKey: true, deltaY: -100 });
-    expect(scaler.style.transform).toBe('scale(1.1)');
+    expect(scaler.style.transform).toBe('scale(0.85)');
     // A plain wheel (no Ctrl) must NOT change zoom.
     fireEvent.wheel(canvas, { ctrlKey: false, deltaY: -100 });
-    expect(scaler.style.transform).toBe('scale(1.1)');
+    expect(scaler.style.transform).toBe('scale(0.85)');
   });
 
   it('collapses and restores the settings sidebar', () => {
