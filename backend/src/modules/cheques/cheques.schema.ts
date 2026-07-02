@@ -44,5 +44,12 @@ export const updateChequeSchema = z.object({
   }),
 });
 
+export const forceDeleteChequeSchema = z.object({
+  body: z.object({
+    confirmation: z.string().min(1, 'التأكيد مطلوب'),
+  }),
+});
+
 export type CreateChequeInput = z.infer<typeof createChequeSchema>['body'];
 export type UpdateChequeInput = z.infer<typeof updateChequeSchema>['body'];
+export type ForceDeleteChequeInput = z.infer<typeof forceDeleteChequeSchema>['body'];

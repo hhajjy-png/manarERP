@@ -28,4 +28,10 @@ export const chequesController = {
     const voucherNumber = await chequesService.getOrCreatePaymentVoucherNumber(Number(req.params.id));
     ok(res, { voucherNumber }, 'تم إنشاء رقم سند الصرف');
   },
+  async forceRemovePreview(req: Request, res: Response) {
+    ok(res, await chequesService.forceRemovePreview(Number(req.params.id)));
+  },
+  async forceRemove(req: Request, res: Response) {
+    ok(res, await chequesService.forceRemove(Number(req.params.id), req.body.confirmation as string, req), 'تم الحذف الإجباري بنجاح');
+  },
 };
