@@ -27,10 +27,10 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `76bc928` — *Merge Cheques Force Delete and Print Fix* | High |
-| **Current stable tag** | `stable-cheques-force-delete-print-fix-v1` (points at `76bc928`) | High |
-| **Previous stable tag** | `stable-print-workspace-ux-phase1-v1` (`3003d5b`) | High |
-| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` synced to `76bc928` | High |
+| **Current HEAD** | `b7a4988` — *Merge Print Templates Cleanup Phase 1* | High |
+| **Current stable tag** | `stable-print-templates-cleanup-phase1-v1` (points at `b7a4988`) | High |
+| **Previous stable tag** | `stable-cheques-force-delete-print-fix-v1` (`76bc928`) | High |
+| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` synced to `b7a4988` | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -322,7 +322,8 @@ All 220 stable tags, `date | tag | commit`. All are on `production`. Within phas
 2026-06-25 | stable-print-polish-batch1-v1            | 4c58c8d
 2026-06-25 | stable-print-designer-phase7a-docx-import-v1 | f5dcfc5
 2026-07-01 | stable-print-native-bridge-routing-v1     | d01e714   (Quick Fix — native print routing)
-2026-07-01 | stable-print-profile-toggle-voucher-isolation-v1 | 5b8b8f6   (Quick Fix — hide voucher profiles from forms) (CURRENT HEAD)
+2026-07-01 | stable-print-profile-toggle-voucher-isolation-v1 | 5b8b8f6   (Quick Fix — hide voucher profiles from forms)
+2026-07-02 | stable-print-templates-cleanup-phase1-v1 | b7a4988   (default 75% workspace zoom + de-duplicated HR/voucher approval blocks, bilingual)
 ```
 
 ### Data Import
