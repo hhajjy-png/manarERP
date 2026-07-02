@@ -1,0 +1,42 @@
+/* PageLoader.css — .pld-* prefix. ExplorerKit lazy-route loading state. */
+
+.pld-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 60vh;
+  width: 100%;
+  padding: 32px 20px;
+  color: var(--text-muted, #64748b);
+  font-family: "IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif;
+}
+
+.pld-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid var(--border, #e2e8f0);
+  border-top-color: var(--accent, #3b82f6);
+  animation: pld-spin 0.7s linear infinite;
+}
+
+.pld-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+@keyframes pld-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Respect users who prefer reduced motion — show a static ring, no spin. */
+@media (prefers-reduced-motion: reduce) {
+  .pld-spinner {
+    animation: none;
+    border-top-color: var(--accent, #3b82f6);
+    opacity: 0.7;
+  }
+}

@@ -1,5 +1,8 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Suspense } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { NAV } from '../config/modules';
+import RootErrorBoundary from './RootErrorBoundary';
+import PageLoader from './PageLoader';
 import { useAuth } from '../stores/authStore';
 import { useUI } from '../stores/uiStore';
 import { useT } from '../lib/i18n';
@@ -13,6 +16,7 @@ export default function Layout() {
   const { theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar, lang, setLang, privacyMode, togglePrivacy } = useUI();
   const { t } = useT();
   const navigate = useNavigate();
+  const location = useLocation();
 
   async function onLogout() {
     await logout();
@@ -93,7 +97,13 @@ export default function Layout() {
             </div>
           </div>
         </header>
-        <main className="content"><Outlet /></main>
+        <main className="content">
+          <RootErrorBoundary scope="page" resetKey={location.pathname}>
+            <Suspense fallback={<PageLoader />}>
+              <Outlet />
+            </Suspense>
+          </RootErrorBoundary>
+        </main>
       </div>
       <Toast />
     </div>
