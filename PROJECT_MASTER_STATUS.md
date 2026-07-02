@@ -27,10 +27,10 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `3003d5b` — *Merge Print Workspace UX Refresh Phase 1* | High |
-| **Current stable tag** | `stable-print-workspace-ux-phase1-v1` (points at `3003d5b`) | High |
-| **Previous stable tag** | `stable-print-profile-toggle-voucher-isolation-v1` (`5b8b8f6`) | High |
-| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` synced to `3003d5b` | High |
+| **Current HEAD** | `76bc928` — *Merge Cheques Force Delete and Print Fix* | High |
+| **Current stable tag** | `stable-cheques-force-delete-print-fix-v1` (points at `76bc928`) | High |
+| **Previous stable tag** | `stable-print-workspace-ux-phase1-v1` (`3003d5b`) | High |
+| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` synced to `76bc928` | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -117,7 +117,7 @@ ResourcePage-driven (ExplorerKit `explorer:true`): customers, suppliers, contrac
 `equipment` (+plate integration, force-delete), `maintenance` (completion), `inventory` (phases A/B/C + system). ExplorerKit-migrated. **100%.**
 
 ## Cheques — ✅ Production
-Management, tafqeet (spelled amount), print output, Gulf Bank calibration, professional calibration pack, calibration UX phase 2. ExplorerKit-migrated + `ChequeCalibrator`. **100%** (per-bank template stubs for beneficiary master / printer prefs are future).
+Management, tafqeet (spelled amount), print output, Gulf Bank calibration, professional calibration pack, calibration UX phase 2. ExplorerKit-migrated + `ChequeCalibrator`. **100%** (per-bank template stubs for beneficiary master / printer prefs are future). Single-page print fix (collapse in-flow app shell in `@media print` so only the fixed cheque paginates) + **SYSTEM_ADMIN force delete** workflow (`GET/DELETE /cheques/:id/force`, exact cheque-number confirmation, transactional delete, bank-statement match rows un-matched not broken, audit `DELETE`+`forceDelete:true`, `ForceDeleteChequeModal`) — `stable-cheques-force-delete-print-fix-v1`.
 
 ## Reports — ✅ Production
 Reports Center v1 → phase 7, export standardization, Unified Report Engine phase 3 (7 pure template modules). **100%.**
@@ -278,6 +278,7 @@ All 220 stable tags, `date | tag | commit`. All are on `production`. Within phas
 2026-06-11 | stable-gulf-bank-cheque-calibration-v1   | 3fcd7c7
 2026-06-18 | stable-cheques-professional-calibration-pack-v1 | 207f603
 2026-06-18 | stable-cheques-calibration-ux-phase2-v1  | 66459b3
+2026-07-02 | stable-cheques-force-delete-print-fix-v1 | 76bc928
 ```
 
 ### Forms / HR Documents
