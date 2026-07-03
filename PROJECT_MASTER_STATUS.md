@@ -27,10 +27,10 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `d6ec309` — *Merge Stability & UX Safety Pack Phase 1 + Frontend Performance Pack Phase 1* | High |
-| **Current stable tag** | `stable-stability-performance-pack-v1` (points at `d6ec309`) | High |
-| **Previous stable tag** | `stable-print-templates-cleanup-phase1-v1` (`b7a4988`) | High |
-| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` last synced to `b7a4988` — **push of `d6ec309` pending** (offline environment; see release note below) | High |
+| **Current HEAD** | `c6edcf9` — *Merge Forms PDF Standalone Export* | High |
+| **Current stable tag** | `stable-forms-pdf-standalone-export-v1` (points at merge commit `c6edcf9`) | High |
+| **Previous stable tag** | `stable-stability-performance-pack-v1` (`d6ec309`) | High |
+| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` **synced to `c6edcf9`** (merge + stable tag pushed; docs commit pushed on top) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
