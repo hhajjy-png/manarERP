@@ -7,7 +7,7 @@ import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { transactionsService } from '../transactions/transactions.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
-import { round3, computeTotals, nextStatus, overpaymentExceeds } from './invoices.calc';
+import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySettledPurchase } from './invoices.calc';
 import { postInvoiceToGL, postPurchaseInvoiceToGL, postPaymentToGL, postPurchasePaymentToGL, reversePurchasePaymentGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
 
 /**
@@ -210,6 +210,10 @@ export class InvoicesService {
     const { lines, subtotal, taxAmount, total } = computeTotals(input.items, input.taxRate, input.discount);
     const invoiceNumber = input.invoiceNumber.trim();
 
+    // فاتورة شراء نقدية/بنكية تُسدَّد لحظة الإنشاء (القيد يُدائن الصندوق/البنك مباشرة)،
+    // لذا تُحفظ مدفوعة بالكامل لمنع تسجيل دفعة تسوية ثانية تُدائن النقد مرتين (خطأ C1).
+    const settled = isImmediatelySettledPurchase(input.direction, input.paymentMethod);
+
     // تُعاد المحاولة حتى مرتين عند تعارض entryNumber فقط (race condition على رقم القيد).
     // أي خطأ آخر (تعارض invoiceNumber، AppError، إلخ) يُرمى مباشرةً دون إعادة محاولة.
     let lastErr: unknown;
@@ -254,8 +258,8 @@ export class InvoicesService {
               taxAmount,
               discount: input.discount,
               total,
-              paidAmount: 0,
-              status: 'UNPAID',
+              paidAmount: settled ? total : 0,
+              status: settled ? 'PAID' : 'UNPAID',
               notes: input.notes ?? null,
               verificationUuid: randomUUID(),
               items: { create: lines },
@@ -381,6 +385,13 @@ export class InvoicesService {
     const invoice = await prisma.invoice.findUnique({ where: { id } });
     if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');
     if (invoice.status === 'CANCELLED') throw AppError.badRequest('لا يمكن تحصيل فاتورة ملغاة');
+
+    // لا رصيد مستحق (فاتورة مسددة بالكامل — بما فيها الشراء النقدي/البنكي المُسوّى فورًا).
+    // يمنع تسجيل دفعة زائدة تُنشئ قيدًا محاسبيًا مكررًا (خطأ C1).
+    const remainingDue = round3(invoice.total - invoice.paidAmount);
+    if (remainingDue <= 0) {
+      throw AppError.badRequest('الفاتورة مسددة بالكامل — لا يوجد مبلغ مستحق');
+    }
 
     const newPaid = round3(invoice.paidAmount + input.amount);
     if (overpaymentExceeds(invoice.total, newPaid)) {

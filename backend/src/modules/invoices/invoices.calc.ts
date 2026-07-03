@@ -30,6 +30,20 @@ export function nextStatus(total: number, paid: number): string {
 }
 
 /**
+ * A PURCHASE invoice whose paymentMethod is CASH or BANK is settled at creation time:
+ * its GL entry credits Cash/Bank directly (Dr Purchases / Cr Cash·Bank), so there is no
+ * outstanding payable. Such an invoice must therefore be recorded as fully PAID
+ * (paidAmount = total). Leaving it UNPAID invites a second settling payment that would
+ * debit AP and credit Cash again — double-crediting Cash and driving AP negative (bug C1).
+ *
+ * ACCOUNTS_PAYABLE (or an unset method) posts to AP and stays UNPAID until a payment
+ * settles it — the normal deferred-purchase flow, which is unaffected.
+ */
+export function isImmediatelySettledPurchase(direction: string, paymentMethod?: string | null): boolean {
+  return direction === 'PURCHASE' && (paymentMethod === 'CASH' || paymentMethod === 'BANK');
+}
+
+/**
  * Returns true if a new payment would exceed the invoice total beyond the 0.001 KWD tolerance.
  * The +0.001 tolerance absorbs floating-point drift at 3dp precision.
  */

@@ -441,12 +441,16 @@ export class GoodsReceiptsService {
         });
       }
 
-      // 2. Post accounting entry: debit Inventory, credit Accounts Payable (Suppliers)
+      // 2. Post accounting entry: debit Inventory (asset acquisition, NOT an operating expense).
+      // استلام المخزون هو حركة أصول (شراء مخزون)، وليس مصروفًا تشغيليًا — يُصرف لاحقًا عند
+      // الصرف (MATERIAL_ISSUE). تصنيفه EXPENSE كان يُحتسبه مصروفًا مرتين في لوحة القيادة:
+      // مرة عند الاستلام ومرة عند الصرف (خطأ C4). النوع TRANSFER يُبقيه في الدفتر كحركة
+      // ميزانية لا تدخل في مجاميع الأرباح/الخسائر (REVENUE/EXPENSE فقط).
       const entry = await transactionsService.postEntry(
         {
           date: receipt.date,
           description: `استلام بضاعة ${receipt.number}`,
-          type: 'EXPENSE',
+          type: 'TRANSFER',
           debit: receipt.totalCost,
           account: 'مخزون - مواد',
           referenceType: 'GOODS_RECEIPT',

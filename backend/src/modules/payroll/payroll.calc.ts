@@ -8,6 +8,18 @@ export function round3(n: number): number {
   return Math.round((Number(n || 0) + Number.EPSILON) * 1000) / 1000;
 }
 
+/**
+ * Regular (non-overtime) working hours for the month.
+ *
+ * PRESENT and LATE are both normal working days: an employee who arrived late but still
+ * logged check-in/out worked a normal day, so their hours must count toward the regular
+ * baseline. Excluding LATE days here would reclassify their logged hours as overtime and
+ * overpay them at 1.25× (bug C2).
+ */
+export function computeRegularHours(presentDays: number, lateDays: number): number {
+  return round3((presentDays + lateDays) * WORK_HOURS_PER_DAY);
+}
+
 export function monthRange(month: number, year: number) {
   const start = new Date(year, month - 1, 1);
   const end = new Date(year, month, 0, 23, 59, 59, 999);
@@ -98,7 +110,7 @@ export function computePayroll(
   const leaveDays   = attendance.filter((a) => a.status === 'LEAVE').length;
   const lateDays    = attendance.filter((a) => a.status === 'LATE').length;
   const actualHours  = round3(attendance.reduce((sum, a) => sum + Number(a.workHours ?? 0), 0));
-  const regularHours = round3(presentDays * WORK_HOURS_PER_DAY);
+  const regularHours = computeRegularHours(presentDays, lateDays);
   const overtimeHours = round3(Math.max(0, actualHours - regularHours));
   const hourlyRate    = days > 0 ? baseSalary / days / WORK_HOURS_PER_DAY : 0;
   const overtimeRate  = round3(hourlyRate * OVERTIME_MULTIPLIER);

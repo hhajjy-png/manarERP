@@ -181,6 +181,10 @@ export class ExpensesService {
     if (expense.status !== 'APPROVED') throw AppError.badRequest('لا يمكن إلغاء اعتماد مصروف غير معتمد');
 
     const updated = await prisma.$transaction(async (tx) => {
+      // الاعتماد يُرحّل للنظامين (القيد المفرد القديم + GL المزدوج)، فالعكس يجب أن ينظّف الاثنين
+      // وإلا بقي القيد القديم يُحتسب في لوحة القيادة رغم عكس المصروف (خطأ C4).
+      // يماثل سلوك إلغاء الفاتورة (clearByReference + reverse GL).
+      await transactionsService.clearByReference('EXPENSE', id, tx);
       await reverseExpenseFromGL(tx, id);
       return tx.expense.update({
         where: { id },

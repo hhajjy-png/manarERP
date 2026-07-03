@@ -4,6 +4,8 @@ import {
   monthRange,
   inPeriod,
   computePayroll,
+  computeRegularHours,
+  WORK_HOURS_PER_DAY,
 } from '../payroll.calc';
 
 // ── round3 ───────────────────────────────────────────────────────────────────
@@ -314,5 +316,67 @@ describe('computePayroll — combined scenario', () => {
     const result = computePayroll(1, 1, 6, 2026, attendance, [], [], [], [], []);
     expect(result.netSalary).toBe(round3(1 - 1 / 30));
     expect(Number.isFinite(result.netSalary)).toBe(true);
+  });
+});
+
+// ── C2 regression: LATE days must NOT become overtime ─────────────────────────
+
+describe('computeRegularHours (bug C2)', () => {
+  it('counts PRESENT days at 8h each', () => {
+    expect(computeRegularHours(20, 0)).toBe(20 * WORK_HOURS_PER_DAY);
+  });
+
+  it('counts LATE days as normal working days (8h each), not overtime', () => {
+    expect(computeRegularHours(20, 2)).toBe(22 * WORK_HOURS_PER_DAY);
+  });
+
+  it('is zero when there are no worked days', () => {
+    expect(computeRegularHours(0, 0)).toBe(0);
+  });
+});
+
+describe('computePayroll — LATE days and overtime (bug C2)', () => {
+  const present = (n: number, hours = 8) =>
+    Array.from({ length: n }, () => ({ status: 'PRESENT', workHours: hours }));
+  const late = (n: number, hours = 8) =>
+    Array.from({ length: n }, () => ({ status: 'LATE', workHours: hours }));
+
+  it('20 PRESENT + 2 LATE, all 8h → overtime is ZERO (Phase B reproduction)', () => {
+    const attendance = [...present(20), ...late(2)];
+    const result = computePayroll(1, 300, 6, 2026, attendance, [], [], [], [], []);
+    expect(result.presentDays).toBe(20);
+    expect(result.lateDays).toBe(2);
+    expect(result.actualHours).toBe(176);
+    expect(result.regularHours).toBe(176); // includes the 2 LATE days
+    expect(result.overtimeHours).toBe(0);
+    expect(result.overtimeAmount).toBe(0);
+    expect(result.netSalary).toBe(300); // base only — no phantom overtime
+  });
+
+  it('does NOT add an OVERTIME line when LATE days only fill the regular baseline', () => {
+    const attendance = [...present(20), ...late(2)];
+    const result = computePayroll(1, 300, 6, 2026, attendance, [], [], [], [], []);
+    expect(result.lines.some((l) => l.type === 'OVERTIME')).toBe(false);
+  });
+
+  it('only genuine hours ABOVE the regular baseline count as overtime', () => {
+    // 20 PRESENT×8 + 2 LATE×8 = 176 regular baseline (22 days).
+    // One PRESENT day works 12h instead of 8 → +4 real overtime hours.
+    const attendance = [...present(19), { status: 'PRESENT', workHours: 12 }, ...late(2)];
+    const result = computePayroll(1, 300, 6, 2026, attendance, [], [], [], [], []);
+    expect(result.presentDays).toBe(20);
+    expect(result.lateDays).toBe(2);
+    expect(result.regularHours).toBe(176);
+    expect(result.actualHours).toBe(180);
+    expect(result.overtimeHours).toBe(4);
+    expect(result.overtimeAmount).toBeGreaterThan(0);
+  });
+
+  it('a LATE day with fewer than 8 logged hours never produces negative/overtime hours', () => {
+    // 1 LATE day, only 5 hours worked. Regular baseline = 8. actual = 5. OT = max(0, 5-8) = 0.
+    const attendance = [{ status: 'LATE', workHours: 5 }];
+    const result = computePayroll(1, 300, 6, 2026, attendance, [], [], [], [], []);
+    expect(result.overtimeHours).toBe(0);
+    expect(result.overtimeAmount).toBe(0);
   });
 });
