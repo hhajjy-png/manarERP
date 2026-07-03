@@ -9,6 +9,16 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // Force ONLY the Cairo TTF used by the form PDF export to inline as a base64
+    // data URI, so the standalone HTML handed to the hidden-window printToPDF
+    // pipeline (window.manar.exportPdfFromHtml) is fully self-contained — no
+    // file:// font resolution, works offline exactly like the backend report
+    // engine's embedded @font-face. Every other asset keeps the default 4 KB
+    // inline threshold (return undefined → Vite's normal size-based decision).
+    assetsInlineLimit(filePath) {
+      if (filePath.endsWith('Cairo-Regular.ttf')) return true;
+      return undefined;
+    },
     rollupOptions: {
       output: {
         // Split large, stable third-party libraries into dedicated cacheable

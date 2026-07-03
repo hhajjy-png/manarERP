@@ -76,6 +76,10 @@ export default function FormLayout({
   const copiesRef = useRef(copies);
   copiesRef.current = copies;
 
+  // Ref to the printable `.form-page` — its outerHTML is the ONLY content sent to
+  // the PDF export, isolated from the surrounding PrintWorkspace shell.
+  const formPageRef = useRef<HTMLDivElement>(null);
+
   function updateCopies(n: number) {
     const clamped = Math.max(1, Math.min(10, n));
     setCopies(clamped);
@@ -98,18 +102,47 @@ export default function FormLayout({
   }
 
   /**
-   * "Save PDF" — reuses the EXISTING native bridge `window.manar.exportPdf`
-   * (the same API used by Reports / ReportPrint). It exports the current page,
-   * so the untouched `@media print` rules produce the identical A4 document.
-   * Falls back to the standard print dialog (which offers "Save as PDF")
-   * outside Electron or if the bridge is unavailable.
+   * "Save PDF" — exports ONLY the printable `.form-page` through the same
+   * hidden-window `printToPDF` pipeline the Reports export uses
+   * (`window.manar.exportPdfFromHtml` → `pdf:exportHtml`). The live PrintWorkspace
+   * shell, dark theme, zoom transform and preview canvas never reach the PDF, so
+   * the output matches the physical printout (and the Invoice Report PDF) with no
+   * black frame. Physical printing (`doPrint`/`printCurrentView`) is untouched.
+   *
+   * Falls back to the native print dialog (which offers "Save as PDF") outside
+   * Electron, if the bridge is unavailable, or if anything in the HTML build fails.
    */
-  function doExportPdf() {
+  async function doExportPdf() {
     const name = formNumber || formType || 'document';
-    const exportPdf = window.manar?.exportPdf;
-    if (exportPdf) {
-      exportPdf(name).catch(() => {});
-    } else {
+    const exportFromHtml = window.manar?.exportPdfFromHtml;
+    const pageEl = formPageRef.current;
+
+    if (!exportFromHtml || !pageEl) {
+      printCurrentView();
+      return;
+    }
+
+    try {
+      // Clone the page and strip the screen-only controls that physical print
+      // already hides, so the PDF mirrors the printout exactly. `.no-print` is the
+      // same marker FormLayout's @media print rules key off (it wraps every
+      // "print-fields only" override panel — headers, date inputs, selects and the
+      // reset button); the data-attribute variants are defensive. Real document
+      // content is never marked no-print, so only the override panels are removed.
+      const clone = pageEl.cloneNode(true) as HTMLElement;
+      clone
+        .querySelectorAll('.no-print, [data-no-print], [data-print-hidden]')
+        .forEach((el) => el.remove());
+
+      const { buildFormPdfDocument } = await import('./formPdfDocument');
+      const html = buildFormPdfDocument({
+        formPageHtml: clone.outerHTML,
+        title: title || name,
+        lang,
+        margins: activeProfile.margins,
+      });
+      await exportFromHtml(html, name);
+    } catch {
       printCurrentView();
     }
   }
@@ -230,6 +263,7 @@ export default function FormLayout({
       `}</style>
 
       <div
+        ref={formPageRef}
         className="form-page"
         style={{
           padding: '18px 32px',
