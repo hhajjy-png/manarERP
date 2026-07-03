@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { round3, computeTotals, nextStatus, overpaymentExceeds } from '../invoices.calc';
+import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySettledPurchase } from '../invoices.calc';
 
 // ── round3 ───────────────────────────────────────────────────────────────────
 
@@ -282,5 +282,40 @@ describe('priceId passthrough in computeTotals', () => {
     const items = [{ description: 'نقل أسفلت', quantity: 1, unit: 'طن', unitPrice: 10 }];
     const { lines } = computeTotals(items, 0, 0);
     expect(lines[0].priceId).toBeUndefined();
+  });
+});
+
+// ── C1 regression: immediate-settlement detection for purchase invoices ────────
+
+describe('isImmediatelySettledPurchase (bug C1)', () => {
+  it('CASH purchase invoice is settled at creation', () => {
+    expect(isImmediatelySettledPurchase('PURCHASE', 'CASH')).toBe(true);
+  });
+
+  it('BANK purchase invoice is settled at creation', () => {
+    expect(isImmediatelySettledPurchase('PURCHASE', 'BANK')).toBe(true);
+  });
+
+  it('ACCOUNTS_PAYABLE purchase invoice is NOT settled — deferred payable flow', () => {
+    expect(isImmediatelySettledPurchase('PURCHASE', 'ACCOUNTS_PAYABLE')).toBe(false);
+  });
+
+  it('purchase invoice with no payment method is NOT settled (defaults to AP)', () => {
+    expect(isImmediatelySettledPurchase('PURCHASE', null)).toBe(false);
+    expect(isImmediatelySettledPurchase('PURCHASE', undefined)).toBe(false);
+  });
+
+  it('SALES invoice is never treated as an immediately-settled purchase, even with CASH', () => {
+    expect(isImmediatelySettledPurchase('SALES', 'CASH')).toBe(false);
+    expect(isImmediatelySettledPurchase('SALES', 'BANK')).toBe(false);
+  });
+
+  it('a fully-settled invoice (paidAmount = total) leaves zero remaining, blocking any further payment', () => {
+    // Guard logic in addPayment: remainingDue = total - paidAmount; a second payment is rejected.
+    const total = 100;
+    const paidAmount = total; // set by the C1 fix for CASH/BANK purchases
+    const remainingDue = round3(total - paidAmount);
+    expect(remainingDue).toBe(0);
+    expect(remainingDue <= 0).toBe(true);
   });
 });

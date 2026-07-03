@@ -20,6 +20,7 @@ import {
   round3,
   monthRange,
   inPeriod,
+  computeRegularHours,
   PayrollLineDraft,
 } from './payroll.calc';
 
@@ -126,6 +127,31 @@ export class PayrollService {
     const recurringDeductionByEmployee = byEmployee(recurringDeductions.filter((d) => inPeriod(d, start, end)));
     const advanceByEmployee = byEmployee(advances);
 
+    // ── منع خصم السلفة مرتين عبر مسيّرات مفتوحة (خطأ C3) ─────────────────────────
+    // remainingAmount في جدول السلف لا يُخفَّض إلا عند الدفع (markPaid)، لذا مسيّر DRAFT/APPROVED
+    // غير مدفوع يكون قد "حجز" جزءًا من السلفة في سطوره دون أن ينعكس على remainingAmount.
+    // نحسب المبلغ المحجوز فعليًا في المسيّرات المفتوحة الأخرى (باستثناء الفترة الحالية التي
+    // يُعاد توليدها) ونطرحه من remainingAmount للحصول على الرصيد الفعّال القابل للخصم.
+    const advanceIds = advances.map((a) => a.id);
+    const openAdvanceLines = advanceIds.length
+      ? await prisma.payrollLine.findMany({
+          where: {
+            sourceType: 'ADVANCE',
+            sourceId: { in: advanceIds },
+            payroll: {
+              status: { in: ['DRAFT', 'APPROVED'] },
+              NOT: { month: input.month, year: input.year },
+            },
+          },
+          select: { sourceId: true, amount: true },
+        })
+      : [];
+    const committedByAdvance = new Map<number, number>();
+    for (const line of openAdvanceLines) {
+      if (line.sourceId == null) continue;
+      committedByAdvance.set(line.sourceId, round3((committedByAdvance.get(line.sourceId) ?? 0) + Math.abs(line.amount)));
+    }
+
     return employees.map((employee) => {
       const lines: PayrollLineDraft[] = [];
       const baseSalary = round3(employee.salary);
@@ -137,7 +163,7 @@ export class PayrollService {
       const leaveDays = empAttendance.filter((a) => a.status === 'LEAVE').length;
       const lateDays = empAttendance.filter((a) => a.status === 'LATE').length;
       const actualHours = round3(empAttendance.reduce((sum, a) => sum + Number(a.workHours ?? 0), 0));
-      const regularHours = round3(presentDays * WORK_HOURS_PER_DAY);
+      const regularHours = computeRegularHours(presentDays, lateDays);
       const overtimeHours = round3(Math.max(0, actualHours - regularHours));
       const hourlyRate = days > 0 ? baseSalary / days / WORK_HOURS_PER_DAY : 0;
       const overtimeRate = round3(hourlyRate * OVERTIME_MULTIPLIER);
@@ -213,7 +239,11 @@ export class PayrollService {
       let grossBeforeAdvances = round3(lines.reduce((sum, line) => sum + line.amount, 0));
       for (const advance of advanceByEmployee.get(employee.id) ?? []) {
         if (grossBeforeAdvances <= 0) break;
-        const applied = round3(Math.min(advance.remainingAmount, grossBeforeAdvances));
+        // الرصيد الفعّال = المتبقي المسجَّل ناقص ما حُجز في مسيّرات مفتوحة أخرى (خطأ C3).
+        const committed = committedByAdvance.get(advance.id) ?? 0;
+        const effectiveRemaining = round3(Math.max(0, advance.remainingAmount - committed));
+        if (effectiveRemaining <= 0) continue;
+        const applied = round3(Math.min(effectiveRemaining, grossBeforeAdvances));
         if (applied <= 0) continue;
         lines.push({
           employeeId: employee.id,
