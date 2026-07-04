@@ -93,6 +93,22 @@ const api = {
   /** فتح ملف مرفق بالتطبيق الافتراضي للنظام — يُعيد null عند النجاح أو رسالة الخطأ. */
   openAttachment: (filePath: string): Promise<string | null> =>
     ipcRenderer.invoke('attachments:openPath', filePath),
+
+  // ─── Google Drive Backup (نسخة خارجية اختيارية — إعداد OAuth في المرحلة 2) ──
+  googleDrive: {
+    status: (): Promise<{ secureStorageAvailable: boolean; hasToken: boolean; oauthConfigured: boolean }> =>
+      ipcRenderer.invoke('googleDrive:status'),
+    connect: (): Promise<{ ok: boolean; needsSetup?: boolean; message?: string; error?: string }> =>
+      ipcRenderer.invoke('googleDrive:connect'),
+    disconnect: (): Promise<{ ok: boolean; error?: string }> =>
+      ipcRenderer.invoke('googleDrive:disconnect'),
+    test: (): Promise<{ connected: boolean; oauthConfigured: boolean; message?: string }> =>
+      ipcRenderer.invoke('googleDrive:test'),
+    uploadLatest: (): Promise<{ ok: boolean; needsSetup?: boolean; message?: string; error?: string }> =>
+      ipcRenderer.invoke('googleDrive:uploadLatest'),
+    openFolder: (folderId?: string): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('googleDrive:openFolder', folderId),
+  },
 };
 
 contextBridge.exposeInMainWorld('manar', api);

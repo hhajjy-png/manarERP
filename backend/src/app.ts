@@ -22,6 +22,7 @@ import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import settingsRoutes from './modules/settings/settings.routes';
 import auditRoutes from './modules/audit/audit.routes';
 import backupsRoutes from './modules/backups/backups.routes';
+import googleDriveBackupRoutes from './modules/googleDriveBackup/googleDriveBackup.routes';
 import reportsRoutes from './modules/reports/reports.routes';
 import accountingRoutes from './modules/accounting/accounting.routes';
 import inventoryRoutes from './modules/inventory/inventory.routes';
@@ -101,6 +102,7 @@ export function createApp(): Application {
   app.use('/api/settings', settingsRoutes);
   app.use('/api/audit', auditRoutes);
   app.use('/api/backups', backupsRoutes);
+  app.use('/api/google-drive-backup', googleDriveBackupRoutes);
   app.use('/api/reports', reportsRoutes);
   app.use('/api/accounting', accountingRoutes);
   app.use('/api/inventory', inventoryRoutes);

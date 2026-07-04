@@ -35,6 +35,15 @@ declare global {
       // ─── Attachments IPC ────────────────────────────────────────────────────────
       openFileDialog: () => Promise<string | null>;
       openAttachment: (filePath: string) => Promise<string | null>;
+      // ─── Google Drive Backup IPC (optional external copy; OAuth in Phase 2) ──────
+      googleDrive: {
+        status: () => Promise<{ secureStorageAvailable: boolean; hasToken: boolean; oauthConfigured: boolean }>;
+        connect: () => Promise<{ ok: boolean; needsSetup?: boolean; message?: string; error?: string }>;
+        disconnect: () => Promise<{ ok: boolean; error?: string }>;
+        test: () => Promise<{ connected: boolean; oauthConfigured: boolean; message?: string }>;
+        uploadLatest: () => Promise<{ ok: boolean; needsSetup?: boolean; message?: string; error?: string }>;
+        openFolder: (folderId?: string) => Promise<{ ok: boolean }>;
+      };
     };
   }
 }

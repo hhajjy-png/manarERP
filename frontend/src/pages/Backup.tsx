@@ -30,6 +30,147 @@ function fmt(bytes: number): string {
   return `${(bytes / 1048576).toFixed(2)} م.ب`;
 }
 
+// ── Google Drive Backup card (optional external copy; OAuth wired in Phase 2) ──
+interface GDConfig {
+  enabled: boolean;
+  connected: boolean;
+  folderId: string;
+  lastUploadAt: string;
+  lastUploadStatus: '' | 'SUCCESS' | 'FAILED';
+  uploadAfterManualBackup: boolean;
+  uploadAfterAutoBackup: boolean;
+}
+
+function GoogleDriveBackupCard() {
+  const { hasPermission } = useAuth();
+  const toast = useToast();
+  const canManage = hasPermission('backups.update');
+  const canUpload = hasPermission('backups.create');
+  const elec = typeof window !== 'undefined' && !!window.manar;
+
+  const [cfg, setCfg] = useState<GDConfig | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    try {
+      const res = await api.get('/google-drive-backup/status');
+      setCfg(res.data.data.config as GDConfig);
+    } catch {
+      /* status is best-effort */
+    }
+  }
+  useEffect(() => { void load(); }, []);
+
+  async function patch(p: Partial<Pick<GDConfig, 'enabled' | 'uploadAfterManualBackup' | 'uploadAfterAutoBackup'>>) {
+    if (!canManage) return;
+    setBusy(true);
+    try {
+      const res = await api.put('/google-drive-backup/config', p);
+      setCfg(res.data.data as GDConfig);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function connect() {
+    if (!elec) { toast.error('الاتصال متاح فقط في تطبيق سطح المكتب'); return; }
+    setBusy(true);
+    try {
+      const r = await window.manar!.googleDrive.connect();
+      if (r.ok) { toast.ok('تم الاتصال بـ Google Drive'); await load(); }
+      else toast.warn(r.message ?? 'يتطلب إعداد Google (المرحلة 2)');
+    } finally { setBusy(false); }
+  }
+
+  async function disconnect() {
+    setBusy(true);
+    try {
+      if (elec) {
+        const r = await window.manar!.googleDrive.disconnect();
+        if (!r.ok) { toast.error(r.error ?? 'تعذّر حذف الرمز المحلي'); return; }
+      }
+      await api.post('/google-drive-backup/disconnect');
+      toast.ok('تم قطع الاتصال بـ Google Drive');
+      await load();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally { setBusy(false); }
+  }
+
+  async function testConnection() {
+    if (!elec) { toast.warn('الاختبار متاح فقط في تطبيق سطح المكتب'); return; }
+    setBusy(true);
+    try {
+      const r = await window.manar!.googleDrive.test();
+      if (r.connected) toast.ok('الاتصال يعمل');
+      else toast.warn(r.message ?? 'غير متصل بـ Google Drive');
+    } finally { setBusy(false); }
+  }
+
+  async function uploadLatest() {
+    if (!elec) { toast.warn('الرفع متاح فقط في تطبيق سطح المكتب'); return; }
+    setBusy(true);
+    try {
+      const r = await window.manar!.googleDrive.uploadLatest();
+      if (r.ok) { toast.ok('تم رفع أحدث نسخة إلى Google Drive'); await load(); }
+      else toast.warn(r.message ?? 'تعذّر رفع النسخة');
+    } finally { setBusy(false); }
+  }
+
+  function openFolder() {
+    if (elec) void window.manar!.googleDrive.openFolder(cfg?.folderId || undefined);
+  }
+
+  const connected = !!cfg?.connected;
+
+  return (
+    <div className="card panel" style={{ marginBottom: 16, background: 'var(--surface-2)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+        <h3 style={{ margin: 0 }}>☁️ نسخة Google Drive الاحتياطية</h3>
+        <span className={`pill ${connected ? 'green' : 'gray'}`}>{connected ? 'متصل' : 'غير متصل'}</span>
+        {cfg?.lastUploadStatus === 'SUCCESS' && <span className="pill green">آخر رفع ناجح ✓</span>}
+        {cfg?.lastUploadStatus === 'FAILED' && <span className="pill red">فشل آخر رفع ✗</span>}
+      </div>
+
+      <div className="alert" style={{ marginBottom: 12, fontSize: 13 }}>
+        ℹ️ Google Drive نسخة <strong>إضافية اختيارية</strong> — النُّسخ المحلية تبقى مفعّلة وهي المصدر الأساسي. رفع النسخة السحابية لا يؤثر على النسخ المحلي إطلاقاً.
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12, fontSize: 14 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="checkbox" checked={!!cfg?.enabled} disabled={!canManage || busy} onChange={(e) => patch({ enabled: e.target.checked })} />
+          تفعيل النسخ الاحتياطي إلى Google Drive
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="checkbox" checked={!!cfg?.uploadAfterManualBackup} disabled={!canManage || busy} onChange={(e) => patch({ uploadAfterManualBackup: e.target.checked })} />
+          رفع النسخة بعد كل نسخة احتياطية يدوية
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="checkbox" checked={!!cfg?.uploadAfterAutoBackup} disabled={!canManage || busy} onChange={(e) => patch({ uploadAfterAutoBackup: e.target.checked })} />
+          رفع النسخة بعد كل نسخة احتياطية تلقائية
+        </label>
+      </div>
+
+      {cfg?.lastUploadAt && (
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-muted)' }}>
+          آخر محاولة رفع: {dateText(cfg.lastUploadAt)}
+        </p>
+      )}
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {!connected
+          ? <button type="button" className="btn" onClick={connect} disabled={!canManage || busy}>🔗 ربط Google Drive</button>
+          : <button type="button" className="btn secondary" onClick={disconnect} disabled={!canManage || busy}>✖ قطع الاتصال</button>}
+        <button type="button" className="btn secondary" onClick={testConnection} disabled={busy}>🧪 اختبار الاتصال</button>
+        <button type="button" className="btn secondary" onClick={uploadLatest} disabled={!canUpload || busy}>⤴ رفع أحدث نسخة</button>
+        <button type="button" className="btn secondary" onClick={openFolder} disabled={busy}>📁 فتح مجلد Drive</button>
+      </div>
+    </div>
+  );
+}
+
 export default function Backup() {
   const { hasPermission } = useAuth();
   const { t } = useT();
@@ -333,6 +474,8 @@ export default function Backup() {
           </div>
         )}
       </div>
+
+      <GoogleDriveBackupCard />
 
       <div className="card panel" style={{ padding: 0 }}>
         <div className="table-responsive">
