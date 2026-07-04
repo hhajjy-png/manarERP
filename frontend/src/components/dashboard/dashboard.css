@@ -1369,3 +1369,595 @@
 
 /* ── Chart balance — align both charts in the first charts row ── */
 .db-chart-wrap-sm { height: 240px; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Executive Command Center — layout shell (Phase B)
+   Structure only: responsive grid + titled placeholder cards. Widgets land in
+   later phases. Uses --db-* tokens (theme-aware) and min-height/auto — no fixed
+   heights. Scoped under .db-page so nothing else is affected.
+   ════════════════════════════════════════════════════════════════════════════ */
+.db-command-center {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+/* Top grid: side column (health + action center) | main area. Under RTL the
+   340px column naturally sits on the right, matching the reference. */
+.db-cc-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 340px) 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.db-cc-side,
+.db-cc-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Analytics sub-row: performance chart | revenue distribution */
+.db-cc-analytics {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Full-width band below the grid (recommendations) */
+.db-cc-full {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Section card: reuses .db-card theming; body grows with content */
+.db-cc-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.db-cc-card-body {
+  padding: 16px 20px;
+  min-height: 96px;
+}
+
+/* Per-section minimum presence in the shell (min-height only — cards still grow) */
+.db-cc-health .db-cc-card-body,
+.db-cc-performance .db-cc-card-body,
+.db-cc-revenue-dist .db-cc-card-body { min-height: 260px; }
+.db-cc-action-center .db-cc-card-body { min-height: 200px; }
+.db-cc-kpi .db-cc-card-body { min-height: 120px; }
+.db-cc-recent-activity .db-cc-card-body,
+.db-cc-recommendations .db-cc-card-body { min-height: 160px; }
+
+/* Responsive — desktop-first, collapses gracefully on laptops */
+@media (max-width: 1200px) {
+  .db-cc-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+  .db-cc-analytics { grid-template-columns: 1fr; }
+}
+
+/* ─── Command Center: title bar (Phase C; refresh moved in Phase H) ───────── */
+.db-cc-titlebar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 4px 2px;
+}
+.db-cc-titlebar-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.db-cc-titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.db-cc-updated {
+  font-size: 11.5px;
+  color: var(--db-muted);
+}
+.db-cc-refresh {
+  padding: 7px 16px;
+  border: 1px solid var(--db-border);
+  border-radius: 9px;
+  background: var(--db-card);
+  color: var(--db-text);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.db-cc-refresh:hover:not(:disabled) {
+  border-color: var(--db-blue);
+  color: var(--db-blue);
+}
+.db-cc-refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.db-cc-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--db-text);
+  letter-spacing: 0.01em;
+}
+.db-cc-subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--db-muted);
+}
+
+/* ─── Command Center: Health Gauge section (Phase C) ──────────────────────── */
+.db-hg {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.db-hg-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.db-hg-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.db-hg-ring-center {
+  position: absolute;
+  text-align: center;
+}
+.db-hg-score {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+}
+.db-hg-outof {
+  font-size: 11px;
+  color: var(--db-muted);
+  margin-top: 2px;
+}
+.db-hg-badge {
+  padding: 3px 14px;
+  border-radius: 999px;
+  border: 1px solid;
+  font-size: 13px;
+  font-weight: 700;
+}
+.db-hg-explain {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--db-muted);
+  max-width: 300px;
+}
+
+/* Reasons checklist */
+.db-hg-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.db-hg-reason {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+  color: var(--db-text);
+}
+.db-hg-reason-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.db-hg-reason.ok .db-hg-reason-icon {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.14);
+}
+.db-hg-reason.warn .db-hg-reason-icon {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.16);
+}
+.db-hg-reason.warn .db-hg-reason-label {
+  color: var(--db-text);
+  font-weight: 600;
+}
+
+/* Top-risk footer */
+.db-hg-risk {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--db-border);
+}
+.db-hg-risk.has-risk {
+  background: rgba(245, 158, 11, 0.09);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.db-hg-risk.clear {
+  background: rgba(16, 185, 129, 0.09);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.db-hg-risk-tag {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #b45309;
+}
+.db-hg-risk-tag.ok { color: #047857; }
+.db-hg-risk-text {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--db-text);
+}
+
+/* ─── Command Center: KPI row (Phase D) ───────────────────────────────────── */
+.db-cc-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 14px;
+}
+/* KPI cards inside the command center manage their own padding; the section body
+   needs none of the default 96px min-height once populated. */
+.db-cc-kpi .db-cc-card-body { min-height: 0; }
+
+/* ─── Command Center: analytics (Phase E) ─────────────────────────────────── */
+/* Chart canvases need an explicit height for Recharts ResponsiveContainer.
+   These are reasonable min-height-style canvas heights, not content clipping. */
+.db-cc-chart {
+  direction: ltr;
+  width: 100%;
+  height: 260px;
+}
+
+/* Revenue donut: chart + legend, stacked and centered */
+.db-cc-donut {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.db-cc-donut-chart {
+  position: relative;
+  direction: ltr;
+  width: 100%;
+  height: 210px;
+}
+.db-cc-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  text-align: center;
+}
+.db-cc-donut-total {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--db-text);
+  line-height: 1.1;
+}
+.db-cc-donut-caption {
+  font-size: 11px;
+  color: var(--db-muted);
+  margin-top: 2px;
+}
+
+/* Legend list under the donut */
+.db-cc-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.db-cc-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+}
+.db-cc-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.db-cc-legend-name {
+  color: var(--db-text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-cc-legend-pct {
+  color: var(--db-muted);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ─── Command Center: Action Center (Phase F) ─────────────────────────────── */
+.db-ac {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.db-ac-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--db-border);
+  border-inline-start: 3px solid var(--ac-color, var(--db-border));
+  border-radius: 10px;
+  background: var(--db-inner);
+}
+.db-ac-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ac-color, #9ca3af);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.db-ac-body { flex: 1; min-width: 0; }
+.db-ac-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.db-ac-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--db-text);
+}
+.db-ac-pri {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.db-ac-explain {
+  font-size: 11.5px;
+  color: var(--db-muted);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+.db-ac-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 5px;
+  align-items: center;
+}
+.db-ac-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--db-text);
+}
+.db-ac-hint {
+  font-size: 11px;
+  color: var(--db-muted);
+}
+.db-ac-btn {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 6px 14px;
+  border: 1px solid var(--db-border);
+  border-radius: 8px;
+  background: var(--db-card);
+  color: var(--db-text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.db-ac-btn:hover {
+  border-color: var(--ac-color, var(--db-blue));
+  color: var(--ac-color, var(--db-blue));
+}
+
+/* ─── Command Center: Quick Actions (Phase F) ─────────────────────────────── */
+.db-qa-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+}
+.db-qa-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 10px;
+  border: 1px solid var(--db-border);
+  border-radius: 12px;
+  background: var(--db-inner);
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.db-qa-tile:hover {
+  transform: translateY(-2px);
+  border-color: var(--qa-tone);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+.db-qa-icon {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 20px;
+  background: color-mix(in srgb, var(--qa-tone) 15%, transparent);
+}
+.db-qa-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--db-text);
+  text-align: center;
+}
+
+/* ─── Command Center: Recent Activity feed (Phase F) ──────────────────────── */
+.db-af {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.db-af-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--db-border);
+}
+.db-af-row:last-child { border-bottom: none; }
+.db-af-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.db-af-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.db-af-text {
+  font-size: 12.5px;
+  color: var(--db-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.db-af-action { color: var(--db-text); font-weight: 700; }
+.db-af-user { color: var(--db-muted); }
+.db-af-time {
+  font-size: 11px;
+  color: var(--db-muted);
+  flex-shrink: 0;
+}
+
+/* ─── Command Center: Smart Recommendations (Phase G) ─────────────────────── */
+.db-rec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.db-rec-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--db-border);
+  border-top: 3px solid var(--rec-color, var(--db-border));
+  border-radius: 12px;
+  background: var(--db-inner);
+}
+.db-rec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.db-rec-icon { font-size: 18px; }
+.db-rec-pri {
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+.db-rec-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--db-text);
+}
+.db-rec-msg {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--db-muted);
+  flex: 1;
+}
+.db-rec-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--db-border);
+}
+.db-rec-metric {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--rec-color, var(--db-text));
+}
+.db-rec-hint {
+  font-size: 11.5px;
+  color: var(--db-muted);
+  line-height: 1.5;
+}
+
+/* ─── Command Center: a11y focus states + responsive polish (Phase H) ─────── */
+/* Visible keyboard focus for all interactive Command Center controls. */
+.db-cc-refresh:focus-visible,
+.db-qa-tile:focus-visible,
+.db-ac-btn:focus-visible {
+  outline: 2px solid var(--db-blue);
+  outline-offset: 2px;
+}
+
+/* Prevent any accidental horizontal overflow inside the command center. */
+.db-command-center { max-width: 100%; }
+.db-command-center * { min-width: 0; }
+
+/* 1440 → 1366: keep the two-column layout but let the side column shrink a touch
+   so the analytics charts and KPI cards keep comfortable width. */
+@media (max-width: 1440px) {
+  .db-cc-grid { grid-template-columns: minmax(280px, 320px) 1fr; }
+  .db-cc-analytics { grid-template-columns: 1.4fr 1fr; }
+}
+
+/* Respect reduced-motion for the card hover lift. */
+@media (prefers-reduced-motion: reduce) {
+  .db-qa-tile,
+  .db-cc-refresh,
+  .db-ac-btn { transition: none; }
+  .db-qa-tile:hover { transform: none; }
+}

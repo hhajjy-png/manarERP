@@ -8,7 +8,6 @@ import PrivateAmount from '../components/PrivateAmount';
 
 import '../components/dashboard/dashboard.css';
 
-import KPICard from '../components/dashboard/KPICard';
 import OpsCard from '../components/dashboard/OpsCard';
 import AlertPanel from '../components/dashboard/AlertPanel';
 import type { DashAlert } from '../components/dashboard/AlertPanel';
@@ -18,7 +17,6 @@ import ContractStatusChart from '../components/dashboard/ContractStatusChart';
 import LatestInvoicesTable from '../components/dashboard/LatestInvoicesTable';
 import LatestExpensesTable from '../components/dashboard/LatestExpensesTable';
 import {
-  KPISkeletons,
   StatsSkeletons,
   Skeleton,
   TableRowSkeletons,
@@ -30,6 +28,8 @@ import type { FinV2Data } from '../components/dashboard/FinancialIntelPanel';
 import ExecutiveIntelligenceV2Panel from '../components/dashboard/ExecutiveIntelligenceV2Panel';
 import type { IntelV2Data } from '../components/dashboard/ExecutiveIntelligenceV2Panel';
 import { FinancialDashboardTab } from '../components/financial/FinancialDashboardTab';
+import CommandCenter from '../components/dashboard/command/CommandCenter';
+import { useDashboardCommandData } from '../components/dashboard/command/useDashboardCommandData';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ApiAny = any;
@@ -59,6 +59,9 @@ function GeneralDashboardContent() {
   const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshAt, setRefreshAt] = useState<Date | null>(null);
+
+  // Executive Command Center data (existing endpoints; isolated failure — never breaks the board)
+  const commandData = useDashboardCommandData(refreshKey);
 
   // ── State slices populated from /dashboard/executive ─────────────────────
   const [exec, setExec] = useState<ApiAny>(null);
@@ -201,116 +204,20 @@ function GeneralDashboardContent() {
   return (
     <div className="db-page">
       {/* ══════════════════════════════════════════════════
-          EXECUTIVE HERO PANEL
+          EXECUTIVE COMMAND CENTER (Phases A–G). The old Hero panel + old KPI grid
+          + old quick actions were removed in Phase H — the Command Center title bar,
+          KPI row and Quick Actions now cover them (refresh control moved into the title bar).
       ══════════════════════════════════════════════════ */}
-      <div className="db-exec-header">
-        {/* Topbar: system tagline + refresh control */}
-        <div className="db-exec-topbar">
-          <span className="db-exec-system-label">{t('layout.tagline')}</span>
-          <div className="db-exec-topbar-end">
-            {refreshAt && !initialLoading && (
-              <span className="db-refresh-time">
-                {t('page.dashboard.last_update')} {refreshAt.toLocaleTimeString('ar')}
-              </span>
-            )}
-            <button
-              type="button"
-              className="btn secondary db-refresh-btn"
-              onClick={() => setRefreshKey((k) => k + 1)}
-              disabled={initialLoading || refreshing}
-            >
-              {refreshing ? '⏳' : t('page.dashboard.refresh')}
-            </button>
-          </div>
-        </div>
-
-        <div className="db-exec-hero-layout">
-          {/* INFO: greeting, date, snapshot metrics, status chips */}
-          <div className="db-exec-hero-info">
-            <h2 className="db-exec-greeting">
-              {t('page.dashboard.greeting', { name: user?.fullName ?? '—' })}
-            </h2>
-            <p className="db-exec-date">📅 {today}</p>
-
-            {/* Executive snapshot metrics strip */}
-            {initialLoading ? (
-              <div className="db-exec-hero-metrics">
-                <Skeleton height={42} width="120px" style={{ borderRadius: 8 }} />
-                <Skeleton height={42} width="120px" style={{ borderRadius: 8 }} />
-                <Skeleton height={42} width="120px" style={{ borderRadius: 8 }} />
-              </div>
-            ) : exec ? (
-              <div className="db-exec-hero-metrics">
-                <div className="db-exec-hm-item">
-                  <span className="db-exec-hm-label">{t('kpi.total_revenue')}</span>
-                  <span className="db-exec-hm-val db-exec-hm-green"><PrivateAmount value={f.totalRevenue} /></span>
-                </div>
-                <div className="db-exec-hm-sep" />
-                <div className="db-exec-hm-item">
-                  <span className="db-exec-hm-label">{t('kpi.net_profit')}</span>
-                  <span className={`db-exec-hm-val ${profitPositive ? 'db-exec-hm-green' : 'db-exec-hm-red'}`}>
-                    <PrivateAmount value={f.netProfit} />
-                  </span>
-                </div>
-                <div className="db-exec-hm-sep" />
-                <div className="db-exec-hm-item">
-                  <span className="db-exec-hm-label">{t('kpi.unpaid_invoices')}</span>
-                  <span className={`db-exec-hm-val ${(inv.unpaidAmount ?? 0) > 0 ? 'db-exec-hm-amber' : 'db-exec-hm-green'}`}>
-                    <PrivateAmount value={inv.unpaidAmount} />
-                  </span>
-                </div>
-              </div>
-            ) : null}
-
-            {!initialLoading && (
-              <div className="db-exec-chips">
-                <span className="db-exec-chip blue">
-                  <span className="db-exec-chip-dot" />
-                  {t('page.dashboard.chip_contracts')} {c.active ?? 0}
-                </span>
-                <span className="db-exec-chip amber">
-                  <span className="db-exec-chip-dot" />
-                  {t('page.dashboard.chip_equipment')} {workingEquipment}
-                </span>
-                <span className="db-exec-chip red">
-                  <span className="db-exec-chip-dot" />
-                  {t('page.dashboard.chip_invoices')} {inv.unpaid ?? 0}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* ACTIONS: section label + quick action buttons */}
-          <div className="db-exec-hero-actions">
-            <div className="db-exec-section-label">{t('section.quick_actions')}</div>
-            <div className="db-actions">
-              {hasPermission('invoices.create') && (
-                <button type="button" className="db-action-btn primary" onClick={() => navigate('/invoices')}>
-                  {t('page.dashboard.new_invoice')}
-                </button>
-              )}
-              {hasPermission('contracts.create') && (
-                <button type="button" className="db-action-btn green" onClick={() => navigate('/contracts')}>
-                  {t('page.dashboard.new_contract')}
-                </button>
-              )}
-              {hasPermission('customers.create') && (
-                <button type="button" className="db-action-btn purple" onClick={() => navigate('/customers')}>
-                  {t('page.dashboard.new_customer')}
-                </button>
-              )}
-              {hasPermission('expenses.create') && (
-                <button type="button" className="db-action-btn amber" onClick={() => navigate('/expenses')}>
-                  {t('page.dashboard.new_expense')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <CommandCenter
+        data={commandData}
+        trend={trend}
+        onRefresh={() => setRefreshKey((k) => k + 1)}
+        refreshing={initialLoading || refreshing}
+        refreshAt={!initialLoading ? refreshAt : null}
+      />
 
       {/* ══════════════════════════════════════════════════
-          EXECUTIVE DAILY SUMMARY (existing data only)
+          EXECUTIVE DAILY SUMMARY (existing data only — unique operational glance, kept)
       ══════════════════════════════════════════════════ */}
       {!initialLoading && exec && (
         <div className="db-today" role="status" aria-label={t('page.dashboard.today_summary')}>
@@ -365,72 +272,38 @@ function GeneralDashboardContent() {
       )}
 
       {/* ══════════════════════════════════════════════════
-          ROW 1 — FINANCIAL KPIs
+          FINANCIAL DATA-SOURCE NOTE
+          (kept — unique explanation of where the financial figures come from;
+          the old ROW 1 KPI grid was removed in Phase H, now covered by the
+          Command Center KPI row.)
       ══════════════════════════════════════════════════ */}
-      <div className="db-section-label">{t('section.financial_kpis')}</div>
-      {initialLoading ? (
-        <KPISkeletons />
-      ) : (
-        <>
-          <div className="db-kpi-grid">
-            <KPICard
-              label={t('kpi.total_revenue')}
-              value={<PrivateAmount value={f.totalRevenue} />}
-              icon="💰"
-              color="green"
-              sub="من مبيعات الفواتير المحصّلة (سجل المعاملات)"
-            />
-            <KPICard
-              label={t('kpi.total_expenses')}
-              value={<PrivateAmount value={f.totalExpense} />}
-              icon="📉"
-              color="red"
-              sub="مجموع المصروفات المعتمدة (سجل المعاملات)"
-            />
-            <KPICard
-              label={t('kpi.net_profit')}
-              value={<PrivateAmount value={f.netProfit} />}
-              icon="📈"
-              color={profitPositive ? 'blue' : 'red'}
-              sub={profitPositive ? `الإيرادات − المصروفات` : `⚠ خسارة: المصروفات تتجاوز الإيرادات`}
-            />
-            <KPICard
-              label={t('kpi.unpaid_invoices')}
-              value={<PrivateAmount value={inv.unpaidAmount} />}
-              icon="🧾"
-              color="amber"
-              sub={inv.unpaid ? `${inv.unpaid} فاتورة نقليات غير مسددة` : 'لا توجد فواتير معلّقة'}
-            />
+      {!initialLoading && exec && (
+        <div style={{
+          marginTop: 8, padding: '10px 16px', background: 'var(--surface-2)',
+          border: '1px solid var(--border)', borderRadius: 8, fontSize: 12,
+        }}>
+          <div style={{ fontWeight: 700, marginBottom: 7, color: 'var(--text)', fontSize: 12 }}>
+            ℹ مصدر البيانات المالية
           </div>
-          {exec && (
-            <div style={{
-              marginTop: 8, padding: '10px 16px', background: 'var(--surface-2)',
-              border: '1px solid var(--border)', borderRadius: 8, fontSize: 12,
-            }}>
-              <div style={{ fontWeight: 700, marginBottom: 7, color: 'var(--text)', fontSize: 12 }}>
-                ℹ مصدر البيانات المالية
-              </div>
-              <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                <span>
-                  <span style={{ color: '#16a34a', fontWeight: 700 }}>الإيرادات</span>
-                  {' '}— دفعات الفواتير المحصّلة من سجل المعاملات
-                </span>
-                <span>
-                  <span style={{ color: '#dc2626', fontWeight: 700 }}>المصروفات</span>
-                  {' '}— المصروفات المعتمدة من سجل المعاملات
-                </span>
-                <span>
-                  <span style={{ color: '#1d4e6f', fontWeight: 700 }}>الربح الصافي</span>
-                  {' '}= الإيرادات − المصروفات (قد يكون سالباً)
-                </span>
-                <span>
-                  <span style={{ color: '#d97706', fontWeight: 700 }}>الفواتير المعلّقة</span>
-                  {' '}— بحالة غير مدفوعة أو جزئية أو متأخرة
-                </span>
-              </div>
-            </div>
-          )}
-        </>
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            <span>
+              <span style={{ color: '#16a34a', fontWeight: 700 }}>الإيرادات</span>
+              {' '}— دفعات الفواتير المحصّلة من سجل المعاملات
+            </span>
+            <span>
+              <span style={{ color: '#dc2626', fontWeight: 700 }}>المصروفات</span>
+              {' '}— المصروفات المعتمدة من سجل المعاملات
+            </span>
+            <span>
+              <span style={{ color: '#1d4e6f', fontWeight: 700 }}>الربح الصافي</span>
+              {' '}= الإيرادات − المصروفات (قد يكون سالباً)
+            </span>
+            <span>
+              <span style={{ color: '#d97706', fontWeight: 700 }}>الفواتير المعلّقة</span>
+              {' '}— بحالة غير مدفوعة أو جزئية أو متأخرة
+            </span>
+          </div>
+        </div>
       )}
 
       {/* ══════════════════════════════════════════════════
