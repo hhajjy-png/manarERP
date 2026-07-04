@@ -17,6 +17,7 @@ import type { ExpenseFKMaps } from './validators/expenses';
 import type { InvoiceFKMaps } from './validators/invoices';
 import type { PayrollFKMaps } from './validators/payroll';
 import type { EntityType, ExecuteSummary, PreviewSummary, RowResult } from './import.types';
+import { buildWarningsForBatch, type WarnInput } from './warnings';
 
 // ── FK resolver ───────────────────────────────────────────────────────────────
 
@@ -184,14 +185,20 @@ function getEntityKey(entityType: EntityType, normalized: Record<string, unknown
 
 // ── core logic ────────────────────────────────────────────────────────────────
 
-function buildPreviewRows(
+// Exported for unit testing (pure — no DB). Warnings are opt-in via `computeWarnings`.
+export function buildPreviewRows(
   entityType: EntityType,
   rows: Record<string, unknown>[],
   existingCodes: Set<string>,
   fkMaps: FKMaps = {},
+  // Smart Import Validation (Phase 1): warnings are computed ONLY when requested
+  // (preview). Execute leaves this false so its behavior is byte-identical to before.
+  computeWarnings = false,
+  now: Date = new Date(),
 ): RowResult[] {
   const seenInBatch = new Set<string>();
   const results: RowResult[] = [];
+  const validForWarnings: WarnInput[] = [];
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -221,6 +228,17 @@ function buildPreviewRows(
     } else {
       seenInBatch.add(key);
       results.push({ rowIndex: i, status: 'valid', data: row });
+      if (computeWarnings) validForWarnings.push({ rowIndex: i, raw: row, normalized });
+    }
+  }
+
+  // Attach advisory warnings to valid rows only (never changes any row's status).
+  if (computeWarnings && validForWarnings.length) {
+    const warnMap = buildWarningsForBatch(entityType, validForWarnings, now);
+    for (const rr of results) {
+      if (rr.status !== 'valid') continue;
+      const ws = warnMap.get(rr.rowIndex);
+      if (ws && ws.length) rr.warnings = ws;
     }
   }
 
@@ -237,11 +255,21 @@ export async function previewImport(
     loadExistingCodes(entityType),
     loadFKMaps(entityType),
   ]);
-  const rowResults = buildPreviewRows(entityType, rows, existingCodes, fkMaps);
+  // Preview computes advisory warnings (Phase 1). Status logic is unchanged.
+  const rowResults = buildPreviewRows(entityType, rows, existingCodes, fkMaps, true);
 
   const validRows = rowResults.filter((r) => r.status === 'valid').length;
   const invalidRows = rowResults.filter((r) => r.status === 'invalid').length;
   const duplicateRows = rowResults.filter((r) => r.status === 'duplicate').length;
+
+  // Warning tallies — count valid rows that carry ≥1 warning + a per-code breakdown.
+  let warningRows = 0;
+  const warningsByCode: Record<string, number> = {};
+  for (const r of rowResults) {
+    if (!r.warnings || r.warnings.length === 0) continue;
+    warningRows++;
+    for (const w of r.warnings) warningsByCode[w.code] = (warningsByCode[w.code] ?? 0) + 1;
+  }
 
   return {
     entityType,
@@ -250,6 +278,8 @@ export async function previewImport(
     invalidRows,
     duplicateRows,
     rows: rowResults,
+    warningRows,
+    warningsByCode,
   };
 }
 

@@ -21,6 +21,17 @@ import './DataImport.css';
 type ImportStep = 'idle' | 'file_loaded' | 'validating' | 'previewed' | 'executing' | 'done';
 type RowStatus = 'valid' | 'invalid' | 'duplicate';
 
+// Smart Import Validation (Phase 1) — advisory, non-blocking warnings.
+type WarningSeverity = 'info' | 'warning' | 'danger';
+interface ImportWarning {
+  code: string;
+  severity: WarningSeverity;
+  field?: string;
+  messageAr: string;
+  messageEn: string;
+  suggestedFix?: string;
+}
+
 interface RowResult {
   rowIndex: number;
   status: RowStatus;
@@ -28,6 +39,7 @@ interface RowResult {
   errors?: string[];
   duplicateKey?: string;
   duplicateValue?: string;
+  warnings?: ImportWarning[];
 }
 
 interface PreviewSummary {
@@ -37,6 +49,8 @@ interface PreviewSummary {
   invalidRows: number;
   duplicateRows: number;
   rows: RowResult[];
+  warningRows?: number;
+  warningsByCode?: Record<string, number>;
 }
 
 interface ExecuteSummary {
@@ -108,6 +122,9 @@ export default function DataImport() {
   const [result, setResult] = useState<ExecuteSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  // Smart Import Validation (Phase 1) — preview-only UI state (never affects import gating).
+  const [rowFilter, setRowFilter] = useState<'all' | 'valid' | 'warning' | 'invalid' | 'duplicate'>('all');
+  const [confirmWarn, setConfirmWarn] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -208,8 +225,11 @@ export default function DataImport() {
     }
   }
 
-  async function handleExecute() {
+  async function handleExecute(confirmed = false) {
     if (!preview || preview.validRows === 0) { setError(t('import.no_valid_rows')); return; }
+    // Warnings never block import; they only prompt a one-time confirmation.
+    if ((preview.warningRows ?? 0) > 0 && !confirmed) { setConfirmWarn(true); return; }
+    setConfirmWarn(false);
     setError(null);
     setStep('executing');
     try {
@@ -229,6 +249,8 @@ export default function DataImport() {
     setPreview(null);
     setResult(null);
     setError(null);
+    setRowFilter('all');
+    setConfirmWarn(false);
     if (fileRef.current) fileRef.current.value = '';
   }
 
@@ -386,7 +408,14 @@ export default function DataImport() {
                   <MetricCard icon="check_circle" tone="green" label={t('import.summary.valid')} value={preview.validRows} />
                   <MetricCard icon="error" tone="red" label={t('import.summary.invalid')} value={preview.invalidRows} />
                   <MetricCard icon="content_copy" tone="orange" label={t('import.summary.duplicate')} value={preview.duplicateRows} />
+                  <MetricCard icon="warning" tone="orange" label="تحذيرات" value={preview.warningRows ?? 0} />
                 </div>
+                {(preview.warningRows ?? 0) > 0 && (
+                  <div className="dicx-notice dicx-notice--warn">
+                    <span className="material-symbols-outlined" aria-hidden="true">warning</span>
+                    <span>يوجد {preview.warningRows} صف يحمل تحذيرات (بيانات صالحة لكنها مشبوهة). التحذيرات <strong>لا تمنع الاستيراد</strong> — راجعها في الجدول أدناه.</span>
+                  </div>
+                )}
               </SectionCard>
 
               {/* Ready status + import button */}
@@ -404,15 +433,50 @@ export default function DataImport() {
                   </span>
                 </div>
                 {hasPermission('import.create') && (
-                  <Button variant="primary" icon="upload" busy={step === 'executing'} onClick={handleExecute} disabled={!canImport}>
+                  <Button variant="primary" icon="upload" busy={step === 'executing'} onClick={() => handleExecute()} disabled={!canImport}>
                     {t('import.btn.execute')}
                   </Button>
                 )}
               </div>
 
+              {/* Confirmation before executing when warnings exist (non-blocking) */}
+              {confirmWarn && (
+                <div className="dicx-warn-confirm" role="alertdialog" aria-label="تأكيد الاستيراد مع وجود تحذيرات">
+                  <span className="material-symbols-outlined" aria-hidden="true">warning</span>
+                  <div className="dicx-warn-confirm-body">
+                    <strong>يوجد {preview.warningRows} صف يحمل تحذيرات</strong>
+                    <span>التحذيرات لا تمنع الاستيراد، لكنها قد تشير إلى بيانات مشبوهة. هل تريد المتابعة؟</span>
+                  </div>
+                  <div className="dicx-warn-confirm-actions">
+                    <Button variant="secondary" icon="fact_check" onClick={() => setConfirmWarn(false)}>مراجعة التحذيرات</Button>
+                    <Button variant="primary" icon="upload" busy={step === 'executing'} onClick={() => handleExecute(true)}>تأكيد الاستيراد رغم التحذيرات</Button>
+                  </div>
+                </div>
+              )}
+
               {/* Preview table */}
               <SectionCard title="معاينة الصفوف" icon="table_view" padded={false}>
-                <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
+                {/* Row filter chips (view-only — never changes what gets imported) */}
+                <div className="dicx-filters" role="group" aria-label="تصفية الصفوف">
+                  {([
+                    { key: 'all',       label: 'الكل',    count: preview.rows.length },
+                    { key: 'valid',     label: 'صالحة',   count: preview.validRows },
+                    { key: 'warning',   label: 'تحذيرات', count: preview.warningRows ?? 0 },
+                    { key: 'invalid',   label: 'أخطاء',   count: preview.invalidRows },
+                    { key: 'duplicate', label: 'مكرر',    count: preview.duplicateRows },
+                  ] as const).map((f) => (
+                    <button
+                      key={f.key}
+                      type="button"
+                      className={`dicx-filter-chip${rowFilter === f.key ? ' active' : ''}`}
+                      aria-pressed={rowFilter === f.key}
+                      onClick={() => setRowFilter(f.key)}
+                    >
+                      {f.label} <span className="dicx-filter-count">{f.count}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="xpl-table-wrap dicx-table-wrap">
                   <table className="xpl-table">
                     <thead>
                       <tr>
@@ -420,22 +484,51 @@ export default function DataImport() {
                         <th>{t('import.col.status')}</th>
                         <th>{cfg.previewPrimaryHeader}</th>
                         <th>{cfg.previewSecondaryHeader}</th>
-                        <th>{t('import.col.errors')}</th>
+                        <th>{t('import.col.errors')} / تحذيرات</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {preview.rows.map((row) => (
-                        <tr key={row.rowIndex} className={row.status !== 'valid' ? `dicx-row--${row.status}` : ''}>
-                          <td>{row.rowIndex + 1}</td>
-                          <td><StatusPill status={row.status} /></td>
-                          <td className="xpl-mono">{cfg.previewPrimary(row.data)}</td>
-                          <td>{cfg.previewSecondary(row.data)}</td>
-                          <td className="dicx-cell-err">
-                            {row.status === 'invalid' && row.errors?.join(' / ')}
-                            {row.status === 'duplicate' && `مكرر: ${row.duplicateValue}`}
-                          </td>
-                        </tr>
-                      ))}
+                      {preview.rows
+                        .filter((row) =>
+                          rowFilter === 'all' ? true
+                          : rowFilter === 'warning' ? !!(row.warnings && row.warnings.length)
+                          : row.status === rowFilter,
+                        )
+                        .map((row) => {
+                          const hasWarn = !!(row.warnings && row.warnings.length);
+                          const rowCls = row.status !== 'valid'
+                            ? `dicx-row--${row.status}`
+                            : hasWarn ? 'dicx-row--warning' : '';
+                          return (
+                            <tr key={row.rowIndex} className={rowCls}>
+                              <td>{row.rowIndex + 1}</td>
+                              <td>
+                                <StatusPill status={row.status} />
+                                {hasWarn && (
+                                  <span className="dicx-warn-count" title="عدد التحذيرات">
+                                    <span className="material-symbols-outlined" aria-hidden="true">warning</span>
+                                    {row.warnings!.length}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="xpl-mono">{cfg.previewPrimary(row.data)}</td>
+                              <td>{cfg.previewSecondary(row.data)}</td>
+                              <td className="dicx-cell-err">
+                                {row.status === 'invalid' && row.errors?.join(' / ')}
+                                {row.status === 'duplicate' && `مكرر: ${row.duplicateValue}`}
+                                {hasWarn && (
+                                  <div className="dicx-cell-warn">
+                                    {row.warnings!.map((w, i) => (
+                                      <span key={i} className={`dicx-warn-badge sev-${w.severity}`} title={w.suggestedFix ?? ''}>
+                                        {w.messageAr}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>
