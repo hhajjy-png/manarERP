@@ -6,6 +6,7 @@ import type { ParsedBankRow, PreviewInput, PreviewSummary, ImportReport } from '
 import { validateRow, buildPayloadTxCount } from './validators';
 import { buildEmployeeIndex, matchEmployee } from './matcher';
 import { buildPreview } from './previewBuilder';
+import { runAssistant } from './assistant';
 import { formatSourceMonth } from './excelParser';
 
 const MAX_ROWS = 2000;
@@ -18,24 +19,33 @@ class PayrollBankImportService {
     if (!rows || rows.length === 0) throw AppError.badRequest('لا توجد صفوف للمعاينة');
     if (rows.length > MAX_ROWS) throw AppError.badRequest(`الحد الأقصى ${MAX_ROWS} صف لكل استيراد`);
 
-    // Load all employees for matching
+    // Load all employees for matching (+ salary for anomaly detection).
     const employees = await prisma.employee.findMany({
-      select: { id: true, code: true, fullName: true, civilId: true, bankAccount: true, status: true },
+      select: { id: true, code: true, fullName: true, civilId: true, bankAccount: true, salary: true, status: true },
     });
     const index = buildEmployeeIndex(employees);
 
-    // Load existing transaction IDs for duplicate detection
-    const existingTxIds = new Set(
-      (await prisma.salaryPayment.findMany({ select: { transactionId: true } }))
-        .map((r) => r.transactionId),
-    );
+    // Load existing salary payments once — used for both the transactionId hard
+    // duplicate guard and the assistant's variance / duplicate-payroll baselines.
+    const existingPayments = await prisma.salaryPayment.findMany({
+      select: { transactionId: true, civilId: true, sourceMonth: true, amount: true },
+    });
+    const existingTxIds = new Set(existingPayments.map((r) => r.transactionId));
 
     const payloadTxCount = buildPayloadTxCount(rows);
 
     const matches     = rows.map((row) => matchEmployee(row, index));
     const validations = rows.map((row) => validateRow(row, existingTxIds, payloadTxCount));
 
-    return buildPreview({ templateName, rows, matches, validations, existingTxIds });
+    const summary = buildPreview({ templateName, rows, matches, validations, existingTxIds });
+
+    // Assistant (v1): preview-only, non-blocking enrichment. Does not affect canExecute.
+    return runAssistant(summary, {
+      employees,
+      existingPayments: existingPayments.map((p) => ({
+        civilId: p.civilId, sourceMonth: p.sourceMonth, amount: p.amount,
+      })),
+    });
   }
 
   // ── Execute ────────────────────────────────────────────────────────────────

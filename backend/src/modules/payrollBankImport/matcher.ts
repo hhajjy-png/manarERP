@@ -108,6 +108,17 @@ function makeResult(emp: EmployeeRecord, confidence: MatchResult['confidence']):
   };
 }
 
+/** Numeric confidence percentage for a match level (null when unmatched). */
+export function confidencePct(c: MatchResult['confidence']): number | null {
+  switch (c) {
+    case 'CODE_100':
+    case 'CIVIL_ID_100':    return 100;
+    case 'BANK_ACCOUNT_90': return 90;
+    case 'MANUAL':          return 50;
+    default:                return null;
+  }
+}
+
 /** Human-readable Arabic label for a confidence level. */
 export function confidenceLabel(c: MatchResult['confidence']): string {
   switch (c) {

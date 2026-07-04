@@ -47,6 +47,79 @@ export interface PreviewRow {
   isValid: boolean;
   isDuplicate: boolean;
   status: PreviewRowStatus;
+  matchConfidencePct: number | null;
+  assistantWarnings: AssistantWarning[];
+}
+
+// ── Assistant (v1) — preview-only, non-blocking ───────────────────────────────
+export type AssistantSeverity = 'info' | 'warning' | 'danger';
+
+export interface AssistantWarning {
+  code: string;
+  severity: AssistantSeverity;
+  messageAr: string;
+  field?: string;
+}
+
+export interface PeriodSummary {
+  label: string;
+  month: number;
+  year: number;
+  rowCount: number;
+  totalAmount: number;
+  existingInPeriod: number;
+}
+
+export interface MissingEmployee {
+  employeeId: number;
+  code: string;
+  fullName: string;
+  lastAmount: number | null;
+}
+
+export interface VarianceReport {
+  totalImported: number;
+  totalMatched: number;
+  totalUnmatched: number;
+  employeesInFile: number;
+  matchedCount: number;
+  unmatchedCount: number;
+  rowCount: number;
+  previousPeriodLabel: string | null;
+  previousTotal: number | null;
+  varianceAmount: number | null;
+  variancePercent: number | null;
+  byPeriod: PeriodSummary[];
+  missingEmployees: MissingEmployee[];
+}
+
+export interface QualityBreakdown {
+  score: number;
+  matchScore: number;
+  errorPenalty: number;
+  unmatchedPenalty: number;
+  warningPenalty: number;
+  duplicatePenalty: number;
+  ibanPenalty: number;
+  anomalyPenalty: number;
+  missingPenalty: number;
+}
+
+export interface CollisionReport {
+  civilId: string[];
+  bankAccount: string[];
+  employeeCode: string[];
+  ibanInFile: string[];
+}
+
+export interface AssistantSummary {
+  variance: VarianceReport;
+  quality: QualityBreakdown;
+  collisions: CollisionReport;
+  warningCounts: Record<string, number>;
+  ibanChecked: number;
+  ibanValid: number;
+  ibanInvalid: number;
 }
 
 export interface PreviewSummary {
@@ -61,6 +134,7 @@ export interface PreviewSummary {
   totalAmount: number;
   canExecute: boolean;
   rows: PreviewRow[];
+  assistant?: AssistantSummary;
 }
 
 export interface ImportReportRow {
