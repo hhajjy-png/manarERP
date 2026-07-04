@@ -27,6 +27,14 @@ export interface RowResult {
   warnings?: ImportWarning[];
 }
 
+// ── Smart Import Assistant (Phase 2) — analytics + quality, additive ──────────
+export interface ImportAnalyticsEntry { key: string; count: number }
+export interface ImportAnalytics {
+  topWarningCodes: ImportAnalyticsEntry[];
+  topErrorReasons: ImportAnalyticsEntry[];
+  topAffectedFields: ImportAnalyticsEntry[];
+}
+
 export interface PreviewSummary {
   entityType: EntityType;
   totalRows: number;
@@ -38,6 +46,10 @@ export interface PreviewSummary {
   warningRows?: number;
   /** Tally of warnings by code (for the summary card). */
   warningsByCode?: Record<string, number>;
+  /** Informational file-quality score 0–100 (Phase 2). */
+  qualityScore?: number;
+  /** Preview analytics summary (Phase 2). */
+  analytics?: ImportAnalytics;
 }
 
 export interface ExecuteSummary {

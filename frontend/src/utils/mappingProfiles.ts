@@ -1,0 +1,75 @@
+// Smart Import Assistant (Phase 2B-G) — saved mapping profiles.
+// Frontend-only, localStorage. NO backend sync. Stores ONLY headers + field mapping
+// (never file contents or row data). Keyed by entity + normalized header signature.
+
+import { normalizeHeader } from './headerIntelligence';
+
+const STORAGE_KEY = 'manar.import.mapping_profiles';
+
+export interface MappingProfile {
+  entity: string;
+  headerSignature: string;
+  mapping: Record<string, string>;   // excelHeader → system field key (or '__ignore__')
+  createdAt: string;
+  updatedAt: string;
+  profileName?: string;
+}
+
+/** Order-independent signature of a header set for a given entity. */
+export function headerSignature(headers: string[]): string {
+  return headers.map((h) => normalizeHeader(h)).filter(Boolean).sort().join('|');
+}
+
+function readAll(): MappingProfile[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as MappingProfile[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeAll(profiles: MappingProfile[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+  } catch {
+    /* storage full / unavailable — profiles are a convenience, ignore */
+  }
+}
+
+export function listProfiles(entity: string): MappingProfile[] {
+  return readAll().filter((p) => p.entity === entity);
+}
+
+/** Exact profile for this entity + header signature, if saved. */
+export function getProfile(entity: string, signature: string): MappingProfile | null {
+  return readAll().find((p) => p.entity === entity && p.headerSignature === signature) ?? null;
+}
+
+/** Create or update the profile for entity + signature. Returns the saved profile. */
+export function saveProfile(
+  entity: string,
+  signature: string,
+  mapping: Record<string, string>,
+  profileName?: string,
+): MappingProfile {
+  const all = readAll();
+  const now = new Date().toISOString();
+  const idx = all.findIndex((p) => p.entity === entity && p.headerSignature === signature);
+  let profile: MappingProfile;
+  if (idx >= 0) {
+    profile = { ...all[idx], mapping, updatedAt: now, profileName: profileName ?? all[idx].profileName };
+    all[idx] = profile;
+  } else {
+    profile = { entity, headerSignature: signature, mapping, createdAt: now, updatedAt: now, profileName };
+    all.push(profile);
+  }
+  writeAll(all);
+  return profile;
+}
+
+export function deleteProfile(entity: string, signature: string): void {
+  writeAll(readAll().filter((p) => !(p.entity === entity && p.headerSignature === signature)));
+}
