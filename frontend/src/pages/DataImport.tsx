@@ -13,12 +13,20 @@ import {
   ErrorBanner,
   Button,
 } from '../components/explorer/ExplorerKit';
+import {
+  analyzeHeaders, needsMapping, applyMapping, IGNORE_FIELD,
+  type HeaderAnalysis,
+} from '../utils/headerIntelligence';
+import {
+  headerSignature, getProfile, saveProfile, deleteProfile,
+  type MappingProfile,
+} from '../utils/mappingProfiles';
 import '../components/explorer/explorer-kit.css';
 import './DataImport.css';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type ImportStep = 'idle' | 'file_loaded' | 'validating' | 'previewed' | 'executing' | 'done';
+type ImportStep = 'idle' | 'file_loaded' | 'mapping' | 'validating' | 'previewed' | 'executing' | 'done';
 type RowStatus = 'valid' | 'invalid' | 'duplicate';
 
 // Smart Import Validation (Phase 1) — advisory, non-blocking warnings.
@@ -42,6 +50,14 @@ interface RowResult {
   warnings?: ImportWarning[];
 }
 
+// Smart Import Assistant (Phase 2) — analytics + quality (additive).
+interface AnalyticsEntry { key: string; count: number }
+interface ImportAnalytics {
+  topWarningCodes: AnalyticsEntry[];
+  topErrorReasons: AnalyticsEntry[];
+  topAffectedFields: AnalyticsEntry[];
+}
+
 interface PreviewSummary {
   entityType: string;
   totalRows: number;
@@ -51,6 +67,8 @@ interface PreviewSummary {
   rows: RowResult[];
   warningRows?: number;
   warningsByCode?: Record<string, number>;
+  qualityScore?: number;
+  analytics?: ImportAnalytics;
 }
 
 interface ExecuteSummary {
@@ -75,6 +93,27 @@ const ENTITY_ICON: Record<string, string> = {
   expenses:  'payments',
   invoices:  'receipt_long',
   payroll:   'account_balance_wallet',
+};
+
+// Arabic labels for warning codes (analytics display). Falls back to the raw code.
+const WARNING_LABEL: Record<string, string> = {
+  IDENTICAL_DATES: 'تواريخ متطابقة',
+  DATE_EXPIRED: 'وثيقة/تاريخ منتهٍ',
+  DATE_EXPIRING_SOON: 'قرب انتهاء',
+  ENUM_DEFAULTED: 'قيمة غير معروفة (افتراضية)',
+  MISSING_IMPORTANT_OPTIONAL: 'حقول مهمة فارغة',
+  DATE_RANGE_INVALID: 'ترتيب تواريخ غير صحيح',
+  AMOUNT_ZERO_SUSPICIOUS: 'قيمة صفرية مشبوهة',
+  NET_NEGATIVE: 'صافي سالب',
+  VALUE_OUT_OF_RANGE: 'قيمة خارج النطاق',
+  DUP_SECONDARY_KEY: 'احتمال تكرار',
+  ROW_IDENTICAL: 'صف مكرر بالكامل',
+  FUTURE_DATE: 'تاريخ في المستقبل',
+  AGE_TOO_LOW: 'عمر صغير جداً',
+  AGE_OUT_OF_RANGE: 'عمر غير معتاد',
+  DATE_ORDER_SUSPICIOUS: 'ترتيب تواريخ مشبوه',
+  YEAR_INVALID: 'سنة غير صحيحة',
+  DATE_FAR_OFF: 'تاريخ بعيد جداً',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -125,6 +164,11 @@ export default function DataImport() {
   // Smart Import Validation (Phase 1) — preview-only UI state (never affects import gating).
   const [rowFilter, setRowFilter] = useState<'all' | 'valid' | 'warning' | 'invalid' | 'duplicate'>('all');
   const [confirmWarn, setConfirmWarn] = useState(false);
+  // Smart Import Assistant (Phase 2) — header mapping state (only used when needed).
+  const [headerAnalysis, setHeaderAnalysis] = useState<HeaderAnalysis[]>([]);
+  const [mapping, setMapping] = useState<Record<string, string>>({});
+  const [mappingActive, setMappingActive] = useState(false); // rows must be re-keyed before send
+  const [savedProfile, setSavedProfile] = useState<MappingProfile | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -148,6 +192,10 @@ export default function DataImport() {
     setPreview(null);
     setResult(null);
     setError(null);
+    setHeaderAnalysis([]);
+    setMapping({});
+    setMappingActive(false);
+    setSavedProfile(null);
     if (fileRef.current) fileRef.current.value = '';
   }
 
@@ -190,7 +238,27 @@ export default function DataImport() {
         setFileName(file.name);
         setPreview(null);
         setResult(null);
-        setStep('file_loaded');
+
+        // ── Phase 2: header intelligence + saved mapping profile ──
+        const headers = Object.keys(rows[0] ?? {});
+        const analysis = analyzeHeaders(headers, entityKey);
+        setHeaderAnalysis(analysis);
+        const profile = getProfile(entityKey, headerSignature(headers));
+        setSavedProfile(profile);
+        // Initial mapping: saved profile takes precedence, else auto-detected suggestions.
+        const initial: Record<string, string> = {};
+        for (const a of analysis) initial[a.header] = a.field ?? IGNORE_FIELD;
+        if (profile) for (const [h, f] of Object.entries(profile.mapping)) if (h in initial) initial[h] = f;
+        setMapping(initial);
+
+        // Show the mapping step only when it's useful; otherwise keep the frictionless flow.
+        if (needsMapping(analysis) || profile) {
+          setMappingActive(true);
+          setStep('mapping');
+        } else {
+          setMappingActive(false);
+          setStep('file_loaded');
+        }
       } catch {
         setError('تعذّر قراءة الملف — تأكد أنه ملف Excel صحيح (.xlsx / .xls)');
       }
@@ -212,16 +280,22 @@ export default function DataImport() {
     if (file) processFile(file);
   }
 
+  // Rows sent to the server: re-keyed to system fields only when the mapping step was used;
+  // otherwise byte-identical to the parsed rows (existing flow preserved).
+  function rowsForServer(): Record<string, unknown>[] {
+    return mappingActive ? applyMapping(rawRows, mapping) : rawRows;
+  }
+
   async function handleValidate() {
     setError(null);
     setStep('validating');
     try {
-      const res = await api.post<{ data: PreviewSummary }>('/import/preview', { entityType: entityKey, rows: rawRows });
+      const res = await api.post<{ data: PreviewSummary }>('/import/preview', { entityType: entityKey, rows: rowsForServer() });
       setPreview(res.data.data);
       setStep('previewed');
     } catch (err) {
       setError(errorMessage(err));
-      setStep('file_loaded');
+      setStep(mappingActive ? 'mapping' : 'file_loaded');
     }
   }
 
@@ -233,7 +307,7 @@ export default function DataImport() {
     setError(null);
     setStep('executing');
     try {
-      const res = await api.post<{ data: ExecuteSummary }>('/import/execute', { entityType: entityKey, rows: rawRows });
+      const res = await api.post<{ data: ExecuteSummary }>('/import/execute', { entityType: entityKey, rows: rowsForServer() });
       setResult(res.data.data);
       setStep('done');
     } catch (err) {
@@ -251,6 +325,10 @@ export default function DataImport() {
     setError(null);
     setRowFilter('all');
     setConfirmWarn(false);
+    setHeaderAnalysis([]);
+    setMapping({});
+    setMappingActive(false);
+    setSavedProfile(null);
     if (fileRef.current) fileRef.current.value = '';
   }
 
@@ -376,15 +454,85 @@ export default function DataImport() {
                     </Button>
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <Button variant="primary" icon="fact_check" busy={step === 'validating'} onClick={handleValidate} disabled={rawRows.length === 0}>
-                      {t('import.btn.validate')}
-                    </Button>
+                    {step !== 'mapping' && (
+                      <Button variant="primary" icon="fact_check" busy={step === 'validating'} onClick={handleValidate} disabled={rawRows.length === 0}>
+                        {t('import.btn.validate')}
+                      </Button>
+                    )}
                     <Button variant="secondary" icon="download" onClick={() => downloadTemplate(entityKey)} disabled={isLoading}>
                       {t('import.btn.template')}
                     </Button>
                   </div>
                 </div>
               )}
+            </SectionCard>
+          )}
+
+          {/* Step 2.5 — Header mapping review (Phase 2, only when needed) */}
+          {step === 'mapping' && (
+            <SectionCard title="مراجعة ربط الأعمدة" icon="table_chart">
+              {savedProfile && (
+                <div className="dicx-notice dicx-notice--info dicx-map-saved">
+                  <span className="material-symbols-outlined" aria-hidden="true">bookmark</span>
+                  <span>تم العثور على ربط محفوظ لهذا النوع من الملفات — تم تطبيقه تلقائياً.</span>
+                  <div className="dicx-map-saved-actions">
+                    <Button variant="ghost" small icon="delete" onClick={() => {
+                      deleteProfile(entityKey, headerSignature(headerAnalysis.map((a) => a.header)));
+                      setSavedProfile(null);
+                    }}>حذف المحفوظ</Button>
+                  </div>
+                </div>
+              )}
+              <p className="dicx-map-hint">
+                طابقنا أعمدة الملف مع حقول النظام تلقائياً. راجع الربط وعدّله عند الحاجة، أو اختر «تجاهل العمود».
+                الملفات المطابقة تماماً لا تمرّ بهذه الخطوة.
+              </p>
+              <div className="xpl-table-wrap dicx-table-wrap">
+                <table className="xpl-table dicx-map-table">
+                  <thead>
+                    <tr>
+                      <th>عمود الملف</th>
+                      <th>الحقل في النظام</th>
+                      <th>الثقة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {headerAnalysis.map((a) => (
+                      <tr key={a.header} className={a.status === 'unknown' ? 'dicx-row--warning' : ''}>
+                        <td className="xpl-mono">{a.header}</td>
+                        <td>
+                          <select
+                            className="dicx-map-select"
+                            value={mapping[a.header] ?? IGNORE_FIELD}
+                            onChange={(e) => setMapping((m) => ({ ...m, [a.header]: e.target.value }))}
+                            aria-label={`ربط العمود ${a.header}`}
+                          >
+                            <option value={IGNORE_FIELD}>— تجاهل العمود —</option>
+                            {cfg.columns.map((c) => (
+                              <option key={c.key} value={c.key}>{c.labelAr} ({c.key})</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td>
+                          {a.status === 'exact' && <span className="dicx-conf dicx-conf--ok">مطابقة</span>}
+                          {a.status === 'suggested' && <span className="dicx-conf dicx-conf--maybe">مقترح {Math.round(a.confidence * 100)}%</span>}
+                          {a.status === 'unknown' && <span className="dicx-conf dicx-conf--no">غير معروف</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="dicx-map-actions">
+                <Button variant="primary" icon="fact_check" onClick={handleValidate}>
+                  متابعة إلى المعاينة
+                </Button>
+                <Button variant="secondary" icon="bookmark_add" onClick={() => {
+                  saveProfile(entityKey, headerSignature(headerAnalysis.map((a) => a.header)), mapping);
+                  setSavedProfile(getProfile(entityKey, headerSignature(headerAnalysis.map((a) => a.header))));
+                }}>حفظ هذا الربط</Button>
+                <Button variant="ghost" icon="swap_horiz" onClick={() => fileRef.current?.click()}>تغيير الملف</Button>
+              </div>
             </SectionCard>
           )}
 
@@ -409,11 +557,47 @@ export default function DataImport() {
                   <MetricCard icon="error" tone="red" label={t('import.summary.invalid')} value={preview.invalidRows} />
                   <MetricCard icon="content_copy" tone="orange" label={t('import.summary.duplicate')} value={preview.duplicateRows} />
                   <MetricCard icon="warning" tone="orange" label="تحذيرات" value={preview.warningRows ?? 0} />
+                  {preview.qualityScore !== undefined && (
+                    <MetricCard
+                      icon="verified"
+                      tone={preview.qualityScore >= 90 ? 'green' : preview.qualityScore >= 70 ? 'orange' : 'red'}
+                      label="جودة الملف"
+                      value={`${preview.qualityScore}/100`}
+                    />
+                  )}
                 </div>
                 {(preview.warningRows ?? 0) > 0 && (
                   <div className="dicx-notice dicx-notice--warn">
                     <span className="material-symbols-outlined" aria-hidden="true">warning</span>
                     <span>يوجد {preview.warningRows} صف يحمل تحذيرات (بيانات صالحة لكنها مشبوهة). التحذيرات <strong>لا تمنع الاستيراد</strong> — راجعها في الجدول أدناه.</span>
+                  </div>
+                )}
+                {preview.analytics && (preview.analytics.topWarningCodes.length > 0 || preview.analytics.topErrorReasons.length > 0) && (
+                  <div className="dicx-analytics">
+                    {preview.analytics.topWarningCodes.length > 0 && (
+                      <div className="dicx-analytics-col">
+                        <div className="dicx-analytics-title">أكثر التحذيرات</div>
+                        {preview.analytics.topWarningCodes.map((e) => (
+                          <div key={e.key} className="dicx-analytics-row"><span>{WARNING_LABEL[e.key] ?? e.key}</span><span className="dicx-analytics-count">{e.count}</span></div>
+                        ))}
+                      </div>
+                    )}
+                    {preview.analytics.topAffectedFields.length > 0 && (
+                      <div className="dicx-analytics-col">
+                        <div className="dicx-analytics-title">أكثر الحقول تأثراً</div>
+                        {preview.analytics.topAffectedFields.map((e) => (
+                          <div key={e.key} className="dicx-analytics-row"><span>{e.key}</span><span className="dicx-analytics-count">{e.count}</span></div>
+                        ))}
+                      </div>
+                    )}
+                    {preview.analytics.topErrorReasons.length > 0 && (
+                      <div className="dicx-analytics-col">
+                        <div className="dicx-analytics-title">أكثر أسباب الأخطاء</div>
+                        {preview.analytics.topErrorReasons.map((e) => (
+                          <div key={e.key} className="dicx-analytics-row"><span className="dicx-analytics-reason">{e.key}</span><span className="dicx-analytics-count">{e.count}</span></div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </SectionCard>

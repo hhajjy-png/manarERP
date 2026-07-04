@@ -18,6 +18,7 @@ import type { InvoiceFKMaps } from './validators/invoices';
 import type { PayrollFKMaps } from './validators/payroll';
 import type { EntityType, ExecuteSummary, PreviewSummary, RowResult } from './import.types';
 import { buildWarningsForBatch, type WarnInput } from './warnings';
+import { computeQualityScore, buildAnalytics } from './warnings/quality';
 
 // ── FK resolver ───────────────────────────────────────────────────────────────
 
@@ -271,6 +272,10 @@ export async function previewImport(
     for (const w of r.warnings) warningsByCode[w.code] = (warningsByCode[w.code] ?? 0) + 1;
   }
 
+  // Phase 2 — informational quality score + analytics (never affects gating).
+  const qualityScore = computeQualityScore(rows.length, invalidRows, duplicateRows, warningRows);
+  const analytics = buildAnalytics(rowResults);
+
   return {
     entityType,
     totalRows: rows.length,
@@ -280,6 +285,8 @@ export async function previewImport(
     rows: rowResults,
     warningRows,
     warningsByCode,
+    qualityScore,
+    analytics,
   };
 }
 
