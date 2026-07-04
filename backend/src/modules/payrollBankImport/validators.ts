@@ -64,13 +64,8 @@ export function validateRow(
     }
   }
 
-  // IBAN format check (Kuwait IBAN: KW + 28 chars = 30 total)
-  if (row.iban) {
-    const iban = row.iban.replace(/\s/g, '');
-    if (!/^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/.test(iban)) {
-      warnings.push(`صيغة IBAN قد تكون غير صحيحة: ${row.iban}`);
-    }
-  }
+  // IBAN validity is handled by the assistant (proper mod-97 check in ibanValidator.ts),
+  // so no crude format warning is raised here.
 
   // Beneficiary name
   if (!row.beneficiaryName) {

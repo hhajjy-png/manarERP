@@ -574,6 +574,164 @@ function UploadStep({ onParsed }: UploadStepProps) {
   );
 }
 
+// ── Assistant (v1) — preview-only, non-blocking ───────────────────────────────
+
+const WARNING_LABELS: Record<string, string> = {
+  IBAN_INVALID:            'IBAN غير صالح',
+  WEAK_MATCH:              'مطابقة ضعيفة (بالاسم)',
+  INDEX_COLLISION_CIVILID: 'تعارض رقم مدني',
+  INDEX_COLLISION_ACCOUNT: 'تعارض رقم حساب',
+  DUP_IBAN_IN_FILE:        'IBAN مكرر في الملف',
+  SALARY_ANOMALY_HIGH:     'مبلغ مرتفع بشكل غير معتاد',
+  SALARY_ANOMALY_LOW:      'مبلغ منخفض بشكل غير معتاد',
+  DUP_PAYROLL_DB:          'راتب مسجّل مسبقاً لنفس الشهر',
+  DUP_EMPLOYEE_IN_FILE:    'موظف مكرّر لنفس الشهر بالملف',
+  MONTH_REIMPORT:          'شهر سبق استيراده',
+};
+
+function warningLabel(code: string): string {
+  return WARNING_LABELS[code] ?? code;
+}
+
+function qualityColor(score: number): string {
+  if (score >= 85) return '#16a34a';
+  if (score >= 60) return '#d97706';
+  return '#dc2626';
+}
+
+function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['assistant']> }) {
+  const { variance: v, quality: q, collisions } = assistant;
+  const warnEntries = Object.entries(assistant.warningCounts).sort((a, b) => b[1] - a[1]);
+  const [showMissing, setShowMissing] = useState(false);
+  const hasCollisions =
+    collisions.civilId.length + collisions.bankAccount.length + collisions.employeeCode.length + collisions.ibanInFile.length > 0;
+
+  const card: React.CSSProperties = {
+    background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e5e7eb)',
+    borderRadius: 8, padding: '12px 16px', minWidth: 150, flex: '1 1 150px',
+  };
+  const cardLabel: React.CSSProperties = { fontSize: 12, color: 'var(--text-muted, #6b7280)', marginBottom: 4 };
+  const cardValue: React.CSSProperties = { fontSize: 20, fontWeight: 700, fontFamily: 'monospace' };
+
+  return (
+    <div style={{
+      background: 'var(--bg-subtle, #f8fafc)', border: '1px solid var(--border, #e5e7eb)',
+      borderRadius: 10, padding: '16px 18px', marginBottom: 20,
+    }}>
+      <p style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'var(--text-primary, #111827)' }}>
+        🤖 مساعد استيراد الرواتب
+      </p>
+
+      {/* Assistant cards */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
+        <div style={card}>
+          <div style={cardLabel}>جودة الملف</div>
+          <div style={{ ...cardValue, color: qualityColor(q.score) }}>{q.score}<span style={{ fontSize: 13 }}> / 100</span></div>
+        </div>
+        <div style={card}>
+          <div style={cardLabel}>صحة IBAN</div>
+          <div style={cardValue}>
+            {assistant.ibanChecked === 0
+              ? <span style={{ color: '#9ca3af' }}>—</span>
+              : <span style={{ color: assistant.ibanInvalid > 0 ? '#dc2626' : '#16a34a' }}>{assistant.ibanValid}/{assistant.ibanChecked}</span>}
+          </div>
+        </div>
+        <div style={card}>
+          <div style={cardLabel}>موظفون في الملف</div>
+          <div style={cardValue}>{v.employeesInFile.toLocaleString('ar')}</div>
+        </div>
+        <div style={card}>
+          <div style={cardLabel}>موظفون غير مطابقين</div>
+          <div style={{ ...cardValue, color: v.unmatchedCount > 0 ? '#dc2626' : '#9ca3af' }}>{v.unmatchedCount.toLocaleString('ar')}</div>
+        </div>
+      </div>
+
+      {/* Variance panel */}
+      <div style={{ background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 8, padding: '12px 16px', marginBottom: 14 }}>
+        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>تقرير الفروقات (Variance)</p>
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 13 }}>
+          <span>الإجمالي المستورد: <strong style={{ fontFamily: 'monospace' }}>{fmtAmount(v.totalImported)}</strong> د.ك</span>
+          <span>المطابق: <strong style={{ fontFamily: 'monospace' }}>{fmtAmount(v.totalMatched)}</strong></span>
+          <span>غير المطابق: <strong style={{ fontFamily: 'monospace', color: v.totalUnmatched > 0 ? '#dc2626' : undefined }}>{fmtAmount(v.totalUnmatched)}</strong></span>
+          {v.previousPeriodLabel && v.previousTotal != null && (
+            <>
+              <span style={{ color: 'var(--text-muted, #6b7280)' }}>|</span>
+              <span>الشهر السابق ({v.previousPeriodLabel}): <strong style={{ fontFamily: 'monospace' }}>{fmtAmount(v.previousTotal)}</strong></span>
+              <span>
+                الفرق:{' '}
+                <strong style={{ fontFamily: 'monospace', color: (v.varianceAmount ?? 0) < 0 ? '#dc2626' : '#16a34a' }}>
+                  {fmtAmount(v.varianceAmount ?? 0)}
+                  {v.variancePercent != null && ` (${v.variancePercent > 0 ? '+' : ''}${v.variancePercent.toFixed(1)}%)`}
+                </strong>
+              </span>
+            </>
+          )}
+          {!v.previousPeriodLabel && (
+            <span style={{ color: 'var(--text-muted, #9ca3af)' }}>لا توجد بيانات شهر سابق للمقارنة</span>
+          )}
+        </div>
+
+        {/* By-period breakdown */}
+        {v.byPeriod.length > 1 && (
+          <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {v.byPeriod.map((p) => (
+              <span key={p.label} style={{ background: 'var(--bg-subtle, #f1f5f9)', borderRadius: 4, padding: '3px 10px', fontSize: 12 }}>
+                {p.label}: {p.rowCount.toLocaleString('ar')} صف · {fmtAmount(p.totalAmount)}
+                {p.existingInPeriod > 0 && <span style={{ color: '#d97706' }}> ⚠ سبق استيراده</span>}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Grouped warnings */}
+      {warnEntries.length > 0 && (
+        <div style={{ marginBottom: hasCollisions || v.missingEmployees.length > 0 ? 14 : 0 }}>
+          <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700 }}>التنبيهات حسب النوع (غير مانعة للاستيراد):</p>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {warnEntries.map(([code, count]) => (
+              <span key={code} style={{ background: '#fffbeb', border: '1px solid #fcd34d', color: '#78350f', borderRadius: 4, padding: '3px 10px', fontSize: 12 }}>
+                {warningLabel(code)}: <strong>{count.toLocaleString('ar')}</strong>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Collisions */}
+      {hasCollisions && (
+        <div style={{ marginBottom: v.missingEmployees.length > 0 ? 14 : 0, fontSize: 12, color: '#92400e' }}>
+          ⚠ تعارضات محتملة في فهرس الموظفين:
+          {collisions.civilId.length > 0 && ` أرقام مدنية مكررة (${collisions.civilId.length})`}
+          {collisions.bankAccount.length > 0 && ` · حسابات مكررة (${collisions.bankAccount.length})`}
+          {collisions.ibanInFile.length > 0 && ` · IBAN مكرر بالملف (${collisions.ibanInFile.length})`}
+        </div>
+      )}
+
+      {/* Missing expected employees */}
+      {v.missingEmployees.length > 0 && (
+        <div style={{ fontSize: 13 }}>
+          <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#b45309' }}>
+            موظفون متوقعون وغير موجودين في الملف ({v.missingEmployees.length.toLocaleString('ar')}):
+          </p>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {(showMissing ? v.missingEmployees : v.missingEmployees.slice(0, 12)).map((m) => (
+              <span key={m.employeeId} style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 4, padding: '2px 8px', fontSize: 12 }}>
+                {m.fullName} ({m.code})
+              </span>
+            ))}
+          </div>
+          {v.missingEmployees.length > 12 && !showMissing && (
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: '#2563eb', cursor: 'pointer' }} onClick={() => setShowMissing(true)}>
+              ↓ عرض الكل ({v.missingEmployees.length.toLocaleString('ar')})
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Preview + Validation step ─────────────────────────────────────────────────
 
 interface PreviewStepProps {
@@ -615,6 +773,9 @@ function PreviewStep({ summary, templateName, fileName, onConfirm, onBack }: Pre
         <KpiCard label="المبلغ الكلي (د.ك)" value={fmtAmount(summary.totalAmount)} color="#1d4ed8" />
       </div>
 
+      {/* Assistant (v1) — preview-only, non-blocking */}
+      {summary.assistant && <AssistantPanel assistant={summary.assistant} />}
+
       {/* Cannot execute warning */}
       {!summary.canExecute && (
         <div style={{
@@ -647,7 +808,17 @@ function PreviewStep({ summary, templateName, fileName, onConfirm, onBack }: Pre
                       ? <span style={{ color: '#16a34a', fontWeight: 600 }}>{row.matchedEmployeeName}</span>
                       : <span style={{ color: '#dc2626' }}>غير محدد</span>}
                   </td>
-                  <td style={TD}><MatchBadge confidence={row.matchConfidence} /></td>
+                  <td style={TD}>
+                    <MatchBadge confidence={row.matchConfidence} />
+                    {row.assistantWarnings.length > 0 && (
+                      <span
+                        title={row.assistantWarnings.map((w) => w.messageAr).join('\n')}
+                        style={{ marginInlineStart: 4, cursor: 'help' }}
+                      >
+                        🤖
+                      </span>
+                    )}
+                  </td>
                   <td style={{ ...TD, fontFamily: 'monospace', fontSize: 12 }}>{row.civilId ?? '—'}</td>
                   <td style={{ ...TD, fontFamily: 'monospace', fontSize: 11 }}>{row.iban ?? '—'}</td>
                   <td style={{ ...TD, fontFamily: 'monospace', fontSize: 11 }}>{row.bankAccount ?? '—'}</td>
@@ -657,7 +828,7 @@ function PreviewStep({ summary, templateName, fileName, onConfirm, onBack }: Pre
                   <td style={TD}>{fmtDate(row.paymentDate)}</td>
                   <td style={{ ...TD, fontFamily: 'monospace', fontSize: 11 }}>{row.transactionId ?? '—'}</td>
                   <td style={TD}>
-                    <StatusPill status={row.status} errors={[...row.errors, ...row.warnings]} />
+                    <StatusPill status={row.status} errors={[...row.errors, ...row.warnings, ...row.assistantWarnings.map((w) => w.messageAr)]} />
                   </td>
                 </tr>
               );

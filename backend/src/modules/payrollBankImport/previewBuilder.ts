@@ -1,4 +1,5 @@
 import type { ParsedBankRow, PreviewRow, PreviewSummary, MatchResult, RowValidation } from './types';
+import { confidencePct } from './matcher';
 
 interface BuildPreviewArgs {
   templateName: string;
@@ -59,6 +60,8 @@ export function buildPreview(args: BuildPreviewArgs): PreviewSummary {
       isValid,
       isDuplicate,
       status,
+      matchConfidencePct: confidencePct(match.confidence),
+      assistantWarnings: [],
     };
   });
 
