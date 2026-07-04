@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { salariesService } from './salaries.service';
-import { salariesBankImportService } from './salaries.bankImport.service';
 import { bankAnalyticsService } from './salaries.bankAnalytics.service';
 import { authenticate } from '../../core/middleware/auth.middleware';
 import { requirePermission } from '../../core/middleware/rbac.middleware';
@@ -12,22 +11,14 @@ router.use(authenticate);
 
 const canRead = requirePermission('payroll.read');
 const canImportRead = requirePermission('import.read');
-const canImportCreate = requirePermission('import.create');
 
 router.get('/', canRead, asyncHandler(async (req, res) => ok(res, await salariesService.list(req.query))));
 router.get('/summary', canRead, asyncHandler(async (_req, res) => ok(res, await salariesService.summary())));
 
-router.post(
-  '/bank-import/preview',
-  canImportRead,
-  asyncHandler(async (req, res) => ok(res, await salariesBankImportService.preview(req.body.rows))),
-);
-
-router.post(
-  '/bank-import/execute',
-  canImportCreate,
-  asyncHandler(async (req, res) => ok(res, await salariesBankImportService.execute(req.body.rows, req))),
-);
+// NOTE: Legacy payroll bank-import routes (POST /bank-import/preview, /bank-import/execute)
+// were retired in Phase 1 of the Payroll Bank Import legacy retirement. Bank-file imports now
+// go exclusively through the payrollBankImport module (/api/payroll-bank-import/*), gated by the
+// payrollBankImport.* permission set. The read-only bank-payments analytics routes below stay.
 
 router.get(
   '/bank-payments/analytics',
