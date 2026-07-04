@@ -1,5 +1,5 @@
 import { prisma } from '../../config/database';
-import { formatSourceMonth } from './salaries.bankImport.service';
+import { formatSourceMonth } from './salaries.dateHelpers';
 import { getPagination, buildPaginatedResult } from '../../core/utils/pagination';
 import ExcelJS from 'exceljs';
 

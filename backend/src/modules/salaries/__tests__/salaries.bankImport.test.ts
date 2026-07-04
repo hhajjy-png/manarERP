@@ -12,11 +12,13 @@ vi.mock('../../../config/database', () => ({
 import { prisma } from '../../../config/database';
 import {
   salariesBankImportService,
+  BankImportInputRow,
+} from '../salaries.bankImport.service';
+import {
   parseSheetMonth,
   parseMonthColumn,
   formatSourceMonth,
-  BankImportInputRow,
-} from '../salaries.bankImport.service';
+} from '../salaries.dateHelpers';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
