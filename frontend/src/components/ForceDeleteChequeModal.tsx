@@ -28,8 +28,7 @@ const STATUS_AR: Record<string, string> = {
 };
 
 function fmtAmount(v: number, currency = 'KWD'): string {
-  const n = Number(v ?? 0);
-  return formatNumber(n) + ' ' + currency;
+  return formatNumber(v) + ' ' + currency;
 }
 
 function fmtDate(v: string | null): string {

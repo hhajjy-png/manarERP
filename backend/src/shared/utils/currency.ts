@@ -29,19 +29,21 @@ export function formatInteger(value: unknown): string {
   return integerFormatter.format(Math.round(toNumber(value)));
 }
 
-// Cached formatter for the common default (1 fraction digit); other precisions build on demand.
-const percentFormatter = new Intl.NumberFormat(currencyConfig.locale, {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
+// Percent formatters memoized by fraction-digit count (reused across calls).
+const percentFormatters = new Map<number, Intl.NumberFormat>();
+function percentFormatter(fractionDigits: number): Intl.NumberFormat {
+  let formatter = percentFormatters.get(fractionDigits);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(currencyConfig.locale, {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    });
+    percentFormatters.set(fractionDigits, formatter);
+  }
+  return formatter;
+}
 
 /** Percentage: "12.5%". */
 export function formatPercent(value: unknown, fractionDigits = 1): string {
-  const formatter = fractionDigits === 1
-    ? percentFormatter
-    : new Intl.NumberFormat(currencyConfig.locale, {
-        minimumFractionDigits: fractionDigits,
-        maximumFractionDigits: fractionDigits,
-      });
-  return `${formatter.format(toNumber(value))}%`;
+  return `${percentFormatter(fractionDigits).format(toNumber(value))}%`;
 }

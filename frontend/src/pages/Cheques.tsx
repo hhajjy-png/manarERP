@@ -106,8 +106,7 @@ function fmtDate(v: string | null | undefined): string {
 }
 
 function fmtAmount(v: number | string, currency = 'KWD'): string {
-  const n = Number(v ?? 0);
-  return formatNumber(n) + ' ' + currency;
+  return formatNumber(v) + ' ' + currency;
 }
 
 // ── ChequePrintOutput (print engine — UNCHANGED) ───────────────────────────────

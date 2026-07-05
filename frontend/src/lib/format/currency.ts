@@ -30,21 +30,41 @@ export function formatInteger(value: unknown): string {
   return integerFormatter.format(Math.round(toNumber(value)));
 }
 
-// Cached formatter for the common default (1 fraction digit); other precisions build on demand.
-const percentFormatter = new Intl.NumberFormat(currencyConfig.locale, {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
+// Percent formatters memoized by fraction-digit count (reused across calls/renders).
+const percentFormatters = new Map<number, Intl.NumberFormat>();
+function percentFormatter(fractionDigits: number): Intl.NumberFormat {
+  let formatter = percentFormatters.get(fractionDigits);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(currencyConfig.locale, {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    });
+    percentFormatters.set(fractionDigits, formatter);
+  }
+  return formatter;
+}
 
 /** Percentage: "12.5%" (default 1 fraction digit). */
 export function formatPercent(value: unknown, fractionDigits = 1): string {
-  const formatter = fractionDigits === 1
-    ? percentFormatter
-    : new Intl.NumberFormat(currencyConfig.locale, {
-        minimumFractionDigits: fractionDigits,
-        maximumFractionDigits: fractionDigits,
-      });
-  return `${formatter.format(toNumber(value))}%`;
+  return `${percentFormatter(fractionDigits).format(toNumber(value))}%`;
+}
+
+// Report/print table cells: 0–3 decimals, no forced trailing zeros (for non-currency numeric columns).
+const reportCellNumberFormatter = new Intl.NumberFormat(currencyConfig.locale, {
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 3,
+});
+
+/**
+ * Format a report/print table cell: money columns (`format:'currency'`) render "144,922.400 KWD";
+ * other numeric cells render plain en-US (0–3 decimals); empty/null → "".
+ * Shared by Reports.tsx and ReportPrint.tsx so the currency-column convention lives in one place.
+ */
+export function formatReportCell(value: unknown, col: { format?: 'currency' }): string {
+  if (value == null || value === '') return '';
+  if (col.format === 'currency') return formatCurrency(value);
+  if (typeof value === 'number') return reportCellNumberFormatter.format(value);
+  return String(value);
 }
 
 // Compact notation for chart AXIS ticks ONLY (e.g. "1.2K", "25K", "2.5M", "1.1B"). No currency suffix.

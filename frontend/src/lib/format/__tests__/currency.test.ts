@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatCurrency, formatNumber, formatInteger, formatPercent, formatCompact } from '../currency';
+import { formatCurrency, formatNumber, formatInteger, formatPercent, formatCompact, formatReportCell } from '../currency';
 import { currencyConfig } from '../currencyConfig';
 
 describe('currencyConfig', () => {
@@ -92,5 +92,23 @@ describe('formatCompact (axis ticks)', () => {
   });
   it('nullish → 0', () => {
     expect(formatCompact(null)).toBe('0');
+  });
+});
+
+describe('formatReportCell (shared report/print cell)', () => {
+  it('currency column → full KWD', () => {
+    expect(formatReportCell(1500.5, { format: 'currency' })).toBe('1,500.500 KWD');
+  });
+  it('non-currency numeric column → plain en-US, 0–3 decimals, no forced trailing zeros', () => {
+    expect(formatReportCell(1500.5, {})).toBe('1,500.5');
+    expect(formatReportCell(1500, {})).toBe('1,500');
+    expect(formatReportCell(1500.125, {})).toBe('1,500.125');
+  });
+  it('empty/null → ""', () => {
+    expect(formatReportCell(null, { format: 'currency' })).toBe('');
+    expect(formatReportCell('', {})).toBe('');
+  });
+  it('non-numeric string passes through', () => {
+    expect(formatReportCell('نشط', {})).toBe('نشط');
   });
 });
