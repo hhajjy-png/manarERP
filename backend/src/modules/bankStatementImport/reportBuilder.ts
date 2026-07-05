@@ -2,12 +2,8 @@ import ExcelJS from 'exceljs';
 import { buildReportHtml } from '../../shared/services/reportEngine/html.service.js';
 import type { ReportInput } from '../../shared/services/reportEngine/excel.service.js';
 import type { ReconciliationReport, ReconciliationReportRow, ReconcileStatus } from './types.js';
+import { formatNumber } from '../../shared/utils/currency';
 
-// ── Formatting ─────────────────────────────────────────────────────────────────
-
-function fmtAmount(v: number): string {
-  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
@@ -92,8 +88,8 @@ export async function buildReconciliationReportExcel(report: ReconciliationRepor
     ['تاريخ الاستيراد', fmtDate(report.importedAt.substring(0, 10))],
     ['تاريخ التقرير',   fmtDate(report.generatedAt.substring(0, 10))],
     ['إجمالي الصفوف',   String(report.totalRows)],
-    ['إجمالي المدين (د.ك)', fmtAmount(report.totalDebits)],
-    ['إجمالي الدائن (د.ك)', fmtAmount(report.totalCredits)],
+    ['إجمالي المدين (KWD)', formatNumber(report.totalDebits)],
+    ['إجمالي الدائن (KWD)', formatNumber(report.totalCredits)],
     ['المطابقة',       String(report.matched.length)],
     ['غير المطابقة',   String(report.unmatched.length)],
     ['رسوم بنكية',     String(report.bankFees.length)],
@@ -107,7 +103,7 @@ export async function buildReconciliationReportExcel(report: ReconciliationRepor
   ws1.columns = [{ width: 28 }, { width: 36 }, { width: 20 }, { width: 20 }];
 
   // ── Shared columns for detail sheets ──
-  const TX_HEADERS = ['التاريخ', 'الوصف', 'المرجع', 'مدين (د.ك)', 'دائن (د.ك)', 'الحالة', 'النوع المرتبط', 'المرجع المرتبط', 'الثقة'];
+  const TX_HEADERS = ['التاريخ', 'الوصف', 'المرجع', 'مدين (KWD)', 'دائن (KWD)', 'الحالة', 'النوع المرتبط', 'المرجع المرتبط', 'الثقة'];
   const TX_WIDTHS  = [14, 40, 20, 14, 14, 16, 16, 20, 10];
 
   function txRow(r: ReconciliationReportRow): (string | number | null)[] {
@@ -152,8 +148,8 @@ export function buildReconciliationReportHtml(report: ReconciliationReport): str
       { header: 'التاريخ',        key: 'statementDate',   width: 14 },
       { header: 'الوصف',          key: 'description',     width: 40 },
       { header: 'المرجع',         key: 'reference',       width: 20 },
-      { header: 'مدين (د.ك)',     key: 'debit',           width: 14, numFmt: '#,##0.000' },
-      { header: 'دائن (د.ك)',     key: 'credit',          width: 14, numFmt: '#,##0.000' },
+      { header: 'مدين',           key: 'debit',           width: 14, numFmt: '#,##0.000', format: 'currency' },
+      { header: 'دائن',           key: 'credit',          width: 14, numFmt: '#,##0.000', format: 'currency' },
       { header: 'الحالة',         key: 'reconcileStatus', width: 16 },
       { header: 'النوع المرتبط',  key: 'matchedType',     width: 16 },
       { header: 'المرجع المرتبط', key: 'matchedRef',      width: 20 },
@@ -162,8 +158,8 @@ export function buildReconciliationReportHtml(report: ReconciliationReport): str
       statementDate:   fmtDate(r.statementDate),
       description:     r.description.substring(0, 80),
       reference:       r.reference ?? '—',
-      debit:           r.debit  > 0 ? fmtAmount(r.debit)  : '—',
-      credit:          r.credit > 0 ? fmtAmount(r.credit) : '—',
+      debit:           r.debit  > 0 ? r.debit  : null,
+      credit:          r.credit > 0 ? r.credit : null,
       reconcileStatus: STATUS_AR[r.reconcileStatus],
       matchedType:     r.matchedType ? (MATCH_TYPE_AR[r.matchedType] ?? r.matchedType) : '—',
       matchedRef:      r.matchedRef ?? '—',
@@ -172,8 +168,8 @@ export function buildReconciliationReportHtml(report: ReconciliationReport): str
       statementDate:   'الإجمالي',
       description:     '',
       reference:       '',
-      debit:           fmtAmount(allRows.reduce((s, r) => s + r.debit,  0)),
-      credit:          fmtAmount(allRows.reduce((s, r) => s + r.credit, 0)),
+      debit:           allRows.reduce((s, r) => s + r.debit,  0),
+      credit:          allRows.reduce((s, r) => s + r.credit, 0),
       reconcileStatus: '',
       matchedType:     '',
       matchedRef:      '',

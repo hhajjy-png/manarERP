@@ -3,11 +3,6 @@ import PrivateAmount from '../PrivateAmount';
 
 interface Props { summary: FinancialSummary; type: 'ar' | 'ap'; }
 
-function fmt(n?: number) {
-  if (n === undefined || n === null) return '0.000';
-  return n.toLocaleString('ar-KW', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-}
-
 export function AgingSummaryCards({ summary, type }: Props) {
   const label = type === 'ar' ? 'ذمم العملاء' : 'ذمم الموردين';
   return (

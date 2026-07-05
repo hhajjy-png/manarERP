@@ -5,6 +5,7 @@ import {
 import { Skeleton } from './Skeleton';
 import { money } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
+import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -96,11 +97,6 @@ const HLTH_COLOR: Record<string, string> = { HEALTHY: '#10B981', WATCH: '#F59E0B
 const HLTH_LABEL: Record<string, string> = { HEALTHY: 'سليم', WATCH: 'مراقبة', RISK: 'خطر' };
 const PRI_COLOR:  Record<string, string> = { HIGH: '#EF4444', MEDIUM: '#F59E0B', LOW: '#9CA3AF' };
 
-function formatPct(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return '—';
-  return `${value.toFixed(3)}%`;
-}
-
 function deltaBadge(pct: number | null, invert = false) {
   if (pct === null || !Number.isFinite(pct)) return <span style={{ color: '#6B7280', fontSize: 11 }}>—</span>;
   const positive = invert ? pct < 0 : pct > 0;
@@ -108,7 +104,7 @@ function deltaBadge(pct: number | null, invert = false) {
   const arrow = pct > 0 ? '↑' : '↓';
   return (
     <span style={{ color, fontSize: 12, fontWeight: 800 }}>
-      {arrow} {Math.abs(pct).toFixed(1)}%
+      {arrow} {formatPercent(Math.abs(pct), 1)}
     </span>
   );
 }
@@ -138,7 +134,7 @@ function TrendTooltip({ active, payload, label }: TrendTooltipProps) {
           <span style={{ color: '#F9FAFB', fontSize: 12, fontWeight: 700 }}>
             {labels[p.dataKey ?? ''] ?? p.dataKey}:{' '}
             <span style={{ color: p.color ?? p.fill }}>
-              {Number(p.value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} د.ك
+              {formatCurrency(p.value ?? 0)}
             </span>
           </span>
         </div>
@@ -168,7 +164,7 @@ function TrendChart({ data, loading }: { data: TrendPoint[]; loading: boolean })
           <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
           <XAxis dataKey="month" tick={{ fill: '#9CA3AF', fontSize: 10, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif' }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fill: '#9CA3AF', fontSize: 10 }} axisLine={false} tickLine={false} width={62}
-            tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+            tickFormatter={(v: number) => formatCompact(v)} />
           <Tooltip content={<TrendTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
           <Legend formatter={(value: string) => (
             <span style={{ color: '#9CA3AF', fontSize: 11, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif', fontWeight: 700 }}>

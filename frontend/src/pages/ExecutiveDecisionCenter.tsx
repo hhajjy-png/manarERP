@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { formatCurrency, formatPercent } from '../lib/format';
 import { Skeleton } from '../components/dashboard/Skeleton';
 import CompanyHealthScore from '../components/dashboard/CompanyHealthScore';
 import ExecutiveDecisionCards, { DecisionCard } from '../components/dashboard/ExecutiveDecisionCards';
@@ -47,13 +48,9 @@ interface DecisionCenterData {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function money(v: number): string {
-  return `${v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} د.ك`;
-}
-
 function pct(v: number | null): string {
   if (v == null || !Number.isFinite(v)) return '—';
-  return `${v.toFixed(1)}%`;
+  return formatPercent(v, 1);
 }
 
 function changeBadge(v: number | null, invertColor = false) {
@@ -62,7 +59,7 @@ function changeBadge(v: number | null, invertColor = false) {
   const color = (up !== invertColor) ? '#10B981' : '#EF4444';
   return (
     <span style={{ fontSize: 11, fontWeight: 700, color, marginRight: 6 }}>
-      {up ? '↑' : '↓'} {Math.abs(v).toFixed(1)}%
+      {up ? '↑' : '↓'} {formatPercent(Math.abs(v), 1)}
     </span>
   );
 }
@@ -71,11 +68,11 @@ function changeBadge(v: number | null, invertColor = false) {
 
 function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
   const kpis = [
-    { label: 'إجمالي الإيرادات',  value: money(data.totalRevenue),   color: '#3B82F6', icon: '💰', change: data.monthOnMonthChanges.revenue, invertColor: false },
-    { label: 'إجمالي المصروفات',  value: money(data.totalExpenses),  color: '#EF4444', icon: '💸', change: data.monthOnMonthChanges.expenses, invertColor: true },
-    { label: 'صافي الربح',         value: money(data.netProfit),      color: data.netProfit >= 0 ? '#10B981' : '#EF4444', icon: '📊', change: data.monthOnMonthChanges.profit, invertColor: false },
-    { label: 'إجمالي التحصيلات',  value: money(data.totalCollected), color: '#10B981', icon: '✅', change: data.monthOnMonthChanges.collections, invertColor: false },
-    { label: 'الذمم المستحقة',    value: money(data.totalOutstanding), color: '#F59E0B', icon: '⏳', change: null, invertColor: true },
+    { label: 'إجمالي الإيرادات',  value: formatCurrency(data.totalRevenue),   color: '#3B82F6', icon: '💰', change: data.monthOnMonthChanges.revenue, invertColor: false },
+    { label: 'إجمالي المصروفات',  value: formatCurrency(data.totalExpenses),  color: '#EF4444', icon: '💸', change: data.monthOnMonthChanges.expenses, invertColor: true },
+    { label: 'صافي الربح',         value: formatCurrency(data.netProfit),      color: data.netProfit >= 0 ? '#10B981' : '#EF4444', icon: '📊', change: data.monthOnMonthChanges.profit, invertColor: false },
+    { label: 'إجمالي التحصيلات',  value: formatCurrency(data.totalCollected), color: '#10B981', icon: '✅', change: data.monthOnMonthChanges.collections, invertColor: false },
+    { label: 'الذمم المستحقة',    value: formatCurrency(data.totalOutstanding), color: '#F59E0B', icon: '⏳', change: null, invertColor: true },
     { label: 'هامش الربح',        value: pct(data.overallProfitMargin), color: '#A855F7', icon: '📈', change: null, invertColor: false },
     { label: 'معدل التحصيل',      value: pct(data.overallCollectionRate), color: '#06B6D4', icon: '🎯', change: null, invertColor: false },
     { label: 'العقود النشطة',      value: `${data.activeContracts} / ${data.totalContracts}`, color: '#F97316', icon: '📄', change: null, invertColor: false },
@@ -119,7 +116,7 @@ function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
             ].map(({ l, v }) => (
               <div key={l} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
                 <span style={{ color: 'var(--db-muted)' }}>{l}</span>
-                <span style={{ color: v < 0 ? '#EF4444' : 'var(--db-text)', fontWeight: 600 }}>{money(v)}</span>
+                <span style={{ color: v < 0 ? '#EF4444' : 'var(--db-text)', fontWeight: 600 }}>{formatCurrency(v)}</span>
               </div>
             ))}
           </div>
@@ -134,7 +131,7 @@ function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
           {data.topDebtors.map(d => (
             <div key={d.customerId} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
               <span style={{ color: 'var(--db-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{d.name}</span>
-              <span style={{ color: '#F59E0B', fontWeight: 700 }}>{money(d.outstanding)}</span>
+              <span style={{ color: '#F59E0B', fontWeight: 700 }}>{formatCurrency(d.outstanding)}</span>
             </div>
           ))}
         </div>
@@ -144,7 +141,7 @@ function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
           {data.topContractsByProfit.map(c => (
             <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
               <span style={{ color: 'var(--db-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '55%' }}>{c.code} — {c.asphaltPlant}</span>
-              <span style={{ color: c.profit >= 0 ? '#10B981' : '#EF4444', fontWeight: 700 }}>{money(c.profit)}</span>
+              <span style={{ color: c.profit >= 0 ? '#10B981' : '#EF4444', fontWeight: 700 }}>{formatCurrency(c.profit)}</span>
             </div>
           ))}
         </div>

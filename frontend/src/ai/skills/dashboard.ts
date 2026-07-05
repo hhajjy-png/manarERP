@@ -3,6 +3,7 @@
 // Read-only. No backend changes.
 
 import { api } from '../../api/client';
+import { formatCurrency, formatPercent } from '../../lib/format';
 import type { SkillResult } from '../types';
 import { computeQuality } from '../qualityEngine';
 
@@ -83,8 +84,8 @@ interface OperationalSummary {
   overdueInvoices?: number;
 }
 
-const kd  = (n: number) => `${Number(n).toFixed(3)} د.ك`;
-const pct = (a: number, b: number) => b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '—';
+const kd  = (n: number) => formatCurrency(n);
+const pct = (a: number, b: number) => b > 0 ? formatPercent((a / b) * 100, 1) : '—';
 
 function errResult(prompt: string, intent: string, err: unknown, t0: number): SkillResult {
   const msg = err instanceof Error ? err.message : 'خطأ غير معروف';

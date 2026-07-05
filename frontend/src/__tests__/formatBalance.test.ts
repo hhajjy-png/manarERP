@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { formatBalance } from '../components/financial/BalanceDisplay';
+import { formatNumber } from '../lib/format';
 
-// Use the same locale the function uses so tests pass in any Node.js locale config
-const fmt = (n: number) => Math.abs(n).toLocaleString('ar-KW', { minimumFractionDigits: 3 });
+// Use the same shared formatter the function uses so tests pass in any Node.js locale config
+const fmt = (n: number) => formatNumber(Math.abs(n));
 
 describe('formatBalance', () => {
   it('positive value shows debit indicator', () => {

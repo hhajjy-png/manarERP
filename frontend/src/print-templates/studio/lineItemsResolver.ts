@@ -3,6 +3,7 @@ import type {
   NormalizedLineRow,
   TemplateStudioDocumentType,
 } from './templateStudioTypes';
+import { formatNumber } from '../../lib/format';
 
 // ─── Document-level totals ────────────────────────────────────────────────────
 export interface DocumentTotals {
@@ -20,7 +21,7 @@ function safeFmtStr(val: unknown): string {
   const s = String(val).replace(/,/g, '');
   const n = parseFloat(s);
   if (!isFinite(n)) return '0.000';
-  return n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  return formatNumber(n);
 }
 
 // ─── Document-level totals resolvers ─────────────────────────────────────────
@@ -49,7 +50,7 @@ export function resolveQuotationDocumentTotals(data: Record<string, string>): Do
 function fmtNum(n: unknown): string {
   const num = typeof n === 'number' ? n : parseFloat(String(n ?? ''));
   if (!isFinite(num)) return '0.000';
-  return num.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  return formatNumber(num);
 }
 
 function fmtStr(s: unknown): string {

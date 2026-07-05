@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { financialApi } from '../../api/financial';
 import { exportReportAsPdf } from '../../utils/pdfExport';
+import { formatNumber } from '../../lib/format';
 import { FilterBar } from './FilterBar';
 import { ExportBar } from './ExportBar';
 
 function fmt(n?: number) {
-  return (n ?? 0).toLocaleString('ar-KW', { minimumFractionDigits: 3 });
+  return formatNumber(n ?? 0);
 }
 
 interface Props {
@@ -63,19 +64,19 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
           <div className="financial-summary-cards">
             <div className="summary-card green">
               <div className="card-label">الإيرادات</div>
-              <div className="card-value">{fmt(meta.totalRevenue as number)} <span className="currency">د.ك</span></div>
+              <div className="card-value">{fmt(meta.totalRevenue as number)} <span className="currency">KWD</span></div>
             </div>
             <div className="summary-card blue">
               <div className="card-label">التحصيلات</div>
-              <div className="card-value">{fmt(meta.totalCollected as number)} <span className="currency">د.ك</span></div>
+              <div className="card-value">{fmt(meta.totalCollected as number)} <span className="currency">KWD</span></div>
             </div>
             <div className="summary-card red">
               <div className="card-label">المصاريف</div>
-              <div className="card-value">{fmt(meta.totalExpenses as number)} <span className="currency">د.ك</span></div>
+              <div className="card-value">{fmt(meta.totalExpenses as number)} <span className="currency">KWD</span></div>
             </div>
             <div className="summary-card neutral">
               <div className="card-label">صافي الدخل</div>
-              <div className="card-value">{fmt(meta.netIncome as number)} <span className="currency">د.ك</span></div>
+              <div className="card-value">{fmt(meta.netIncome as number)} <span className="currency">KWD</span></div>
             </div>
           </div>
           <div className="accounting-disclaimer">

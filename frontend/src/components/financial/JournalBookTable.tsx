@@ -2,9 +2,10 @@ import { useState } from 'react';
 import type { JournalBookRow } from '../../types/financial.types';
 import { DrillDownLink } from './DrillDownLink';
 import type { FinancialDrillDownState } from './DrillDownLink';
+import { formatCurrency } from '../../lib/format';
 
 function fmt(n: number) {
-  return n.toLocaleString('ar-KW', { minimumFractionDigits: 3 });
+  return formatCurrency(n);
 }
 
 interface Props {

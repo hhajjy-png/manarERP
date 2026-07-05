@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import Modal from './Modal';
+import { formatNumber } from '../lib/format';
 
 interface PreviewData {
   id: number;
@@ -27,8 +28,7 @@ const STATUS_AR: Record<string, string> = {
 };
 
 function fmtAmount(v: number, currency = 'KWD'): string {
-  const n = Number(v ?? 0);
-  return n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' ' + currency;
+  return formatNumber(v) + ' ' + currency;
 }
 
 function fmtDate(v: string | null): string {

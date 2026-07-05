@@ -6,6 +6,7 @@ import {
 import { api } from '../api/client';
 import { Skeleton } from '../components/dashboard/Skeleton';
 import KPITimeline from '../components/dashboard/KPITimeline';
+import { formatCurrency, formatPercent, formatCompact } from '../lib/format';
 import '../components/dashboard/dashboard.css';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -43,12 +44,8 @@ interface CustomerAnalyticsRow {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function money(v: number): string {
-  return `${v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} د.ك`;
-}
-
 function pct(v: number | null): string {
-  return v == null ? '—' : `${v.toFixed(1)}%`;
+  return v == null ? '—' : formatPercent(v, 1);
 }
 
 const CATEGORY_AR: Record<string, string> = {
@@ -125,10 +122,10 @@ function ContractProfitabilityTab() {
               <td><code style={{ fontSize: 12 }}>{r.code}</code></td>
               <td>{r.asphaltPlant}</td>
               <td>{r.customerName ?? '—'}</td>
-              <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>{money(r.revenue)}</td>
-              <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>{money(r.expenses)}</td>
+              <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(r.revenue)}</td>
+              <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(r.expenses)}</td>
               <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', color: r.profit < 0 ? '#ef4444' : 'inherit' }}>
-                {money(r.profit)}
+                {formatCurrency(r.profit)}
               </td>
               <td style={{ color: marginColor(r.profitMargin), fontWeight: 600 }}>{pct(r.profitMargin)}</td>
               <td>{pct(r.collectionRate)}</td>
@@ -175,12 +172,12 @@ function ExpenseBreakdownTab() {
             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
             <XAxis
               type="number"
-              tickFormatter={(v: number) => v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              tickFormatter={(v: number) => formatCompact(v)}
               tick={{ fontSize: 11 }}
             />
             <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={76} />
             <Tooltip
-              formatter={(value) => [money(Number(value ?? 0)), 'الإجمالي']}
+              formatter={(value) => [formatCurrency(Number(value ?? 0)), 'الإجمالي']}
               contentStyle={{ fontFamily: 'inherit', fontSize: 12 }}
             />
             <Bar dataKey="total" radius={[0, 4, 4, 0]}>
@@ -209,9 +206,9 @@ function ExpenseBreakdownTab() {
                   <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: COLORS[i % COLORS.length], marginLeft: 6 }} />
                   {catLabel(r.category)}
                 </td>
-                <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>{money(r.total)}</td>
+                <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(r.total)}</td>
                 <td>{r.count}</td>
-                <td>{r.pct.toFixed(1)}%</td>
+                <td>{formatPercent(r.pct, 1)}</td>
               </tr>
             ))}
           </tbody>
@@ -256,10 +253,10 @@ function CustomerAnalyticsTab() {
             <tr key={r.id}>
               <td>{r.name}</td>
               <td><code style={{ fontSize: 12 }}>{r.code}</code></td>
-              <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>{money(r.revenue)}</td>
-              <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>{money(r.collected)}</td>
+              <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(r.revenue)}</td>
+              <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(r.collected)}</td>
               <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums', color: r.outstanding > 0 ? '#ef4444' : 'inherit' }}>
-                {money(r.outstanding)}
+                {formatCurrency(r.outstanding)}
               </td>
               <td style={{ textAlign: 'center' }}>{r.invoiceCount}</td>
               <td>{pct(r.collectionRate)}</td>

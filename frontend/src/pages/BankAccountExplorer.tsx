@@ -24,6 +24,7 @@ import {
   quickRangeToDates, QUICK_RANGE_LABELS, TYPE_LABELS, safeAmount, safeNum,
   type QuickRange,
 } from './bankTimelineFilters';
+import { formatCurrency, formatNumber } from '../lib/format';
 import './BankAccountExplorer.css';
 
 // ── Constants (mirrors BankReconciliation patterns) ────────────────────────────
@@ -45,7 +46,7 @@ const CAT_LABELS: Record<string, string> = {
 
 function fmtAmount(v: number | null | undefined): string {
   if (v == null) return '—';
-  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  return formatNumber(v);
 }
 
 function fmtDate(iso: string | null | undefined): string {
@@ -164,7 +165,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: readonl
     <div className="bae-chart-tooltip">
       <p style={{ color: p.fill ?? 'var(--text)' }}>
         {p.name}: {typeof p.value === 'number'
-          ? p.value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 })
+          ? formatCurrency(p.value)
           : p.value}
       </p>
     </div>
@@ -314,7 +315,7 @@ function ExecutiveHeader({
           <div className="bae-exec-chips">
             <span className="bae-id-chip">
               <span className="material-symbols-outlined">payments</span>
-              KWD · د.ك
+              KWD
             </span>
             <span className="bae-id-chip bae-id-chip--active">
               <span className="bae-status-dot" />
@@ -371,13 +372,13 @@ function KpiRow({ dashboard }: { dashboard: BankAccountDashboard }) {
         <div className="bae-balance-hero-body">
           <span className="bae-balance-hero-label">الرصيد الحالي</span>
           <div className="bae-balance-hero-value">
-            <PrivateAmount value={d.currentBalance ?? 0} currency="د.ك" />
+            <PrivateAmount value={d.currentBalance ?? 0} />
           </div>
           <div className={`bae-balance-hero-net bae-balance-hero-net--${netVariant}`}>
             <span className="material-symbols-outlined">
               {netVariant === 'green' ? 'trending_up' : 'trending_down'}
             </span>
-            صافي التدفق النقدي {fmtAmount(d.netCashFlow)} د.ك
+            صافي التدفق النقدي {formatCurrency(d.netCashFlow)}
           </div>
         </div>
       </div>
@@ -521,11 +522,11 @@ function TransactionDrawer({
             <div className="bae-drawer-hero-body">
               <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
               <div className={`bae-drawer-hero-amount ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
-                {isIncoming ? '+' : '−'}{heroAmount.toFixed(3)} <span className="bae-drawer-hero-cur">د.ك</span>
+                {isIncoming ? '+' : '−'}{formatNumber(heroAmount)} <span className="bae-drawer-hero-cur">KWD</span>
               </div>
               {tx.balance != null && (
                 <div className="bae-drawer-hero-balance">
-                  الرصيد بعد العملية <strong>{safeNum(tx.balance).toFixed(3)} د.ك</strong>
+                  الرصيد بعد العملية <strong>{formatCurrency(safeNum(tx.balance))}</strong>
                 </div>
               )}
             </div>
@@ -952,7 +953,7 @@ export function TimelineTab({
                   <th className="bae-col-source">المعاملة</th>
                   <th>النوع</th>
                   <th>التاريخ</th>
-                  <th className="bae-col-amount">المبلغ (د.ك)</th>
+                  <th className="bae-col-amount">المبلغ (KWD)</th>
                   <th>الرصيد بعد العملية</th>
                   <th className="bae-col-status">الحالة</th>
                   <th className="bae-col-chevron" aria-label="فتح" />
@@ -1005,11 +1006,11 @@ export function TimelineTab({
                       <td className="bae-col-date">{fmtDate(t.statementDate)}</td>
                       <td className="bae-col-amount">
                         <span className={isDeposit ? 'bae-credit' : 'bae-debit'}>
-                          {isDeposit ? '+' : '−'}{amount.toFixed(3)}
+                          {isDeposit ? '+' : '−'}{formatNumber(amount)}
                         </span>
                       </td>
                       <td className="bae-col-balance">
-                        {t.balance != null ? safeNum(t.balance).toFixed(3) : '—'}
+                        {t.balance != null ? formatNumber(safeNum(t.balance)) : '—'}
                       </td>
                       <td className="bae-col-status">
                         <span

@@ -3,6 +3,7 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { Skeleton } from '../Skeleton';
+import { formatCurrency, formatCompact } from '../../../lib/format';
 
 export interface TrendPoint { label: string; revenue: number; expense: number }
 
@@ -34,7 +35,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color, flexShrink: 0 }} />
           <p style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 700 }}>
             {SERIES_LABEL[p.dataKey ?? ''] ?? p.dataKey}:{' '}
-            <span style={{ color: p.color }}>{Number(p.value).toLocaleString('en-US')} د.ك</span>
+            <span style={{ color: p.color }}>{formatCurrency(p.value)}</span>
           </p>
         </div>
       ))}
@@ -102,7 +103,7 @@ export default function PerformanceChartSection({
             axisLine={false}
             tickLine={false}
             width={64}
-            tickFormatter={(v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
+            tickFormatter={(v: number) => formatCompact(v)}
           />
           <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
           <Legend formatter={(value: string) => (
