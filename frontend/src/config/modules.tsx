@@ -2,11 +2,11 @@ import { ReactNode } from 'react';
 import { Column } from '../components/DataTable';
 import { FormField, FormSection } from '../components/FormDialog';
 import { formatDate } from '../lib/date';
+import { formatCurrency } from '../lib/format';
 
 // ===== أدوات عرض =====
 export function money(v: unknown): string {
-  const n = Number(v ?? 0);
-  return n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' د.ك';
+  return formatCurrency(v);
 }
 
 export function dateText(v: unknown): string {
@@ -106,7 +106,7 @@ export const MODULES: Record<string, ModuleConfig> = {
         type: 'select',
         optionsEndpoint: '/prices?pageSize=100',
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        optionLabelFn: (x: any) => `${x.asphaltPlant} — ${x.companyName} — ${x.contractLocation} — ${x.contractUnit} — ${x.unitPrice} د.ك`,
+        optionLabelFn: (x: any) => `${x.asphaltPlant} — ${x.companyName} — ${x.contractLocation} — ${x.contractUnit} — ${formatCurrency(x.unitPrice)}`,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onSelectRaw: (raw: any) => ({
           asphaltPlant: raw.asphaltPlant ?? '',

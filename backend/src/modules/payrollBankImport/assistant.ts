@@ -19,6 +19,7 @@ import { validateKuwaitIban, ibanReasonAr, normalizeIban } from './ibanValidator
 import { computeVariance, type ExistingPayment } from './variance';
 import { computeQuality } from './quality';
 import { formatSourceMonth } from './excelParser';
+import { formatCurrency } from '../../shared/utils/currency';
 
 export interface AssistantEmployee {
   id: number;
@@ -170,10 +171,10 @@ export function runAssistant(summary: PreviewSummary, ctx: AssistantContext): Pr
       if (baseline > 0) {
         const dev = (row.amount - baseline) / baseline;
         if (dev > SALARY_ANOMALY_THRESHOLD) {
-          w.push({ code: 'SALARY_ANOMALY_HIGH', severity: 'warning', field: 'amount', messageAr: `المبلغ أعلى من المتوقع بنسبة ${Math.round(dev * 100)}% (المرجع ${baseline.toFixed(3)} د.ك)` });
+          w.push({ code: 'SALARY_ANOMALY_HIGH', severity: 'warning', field: 'amount', messageAr: `المبلغ أعلى من المتوقع بنسبة ${Math.round(dev * 100)}% (المرجع ${formatCurrency(baseline)})` });
           bump('SALARY_ANOMALY_HIGH'); anomalyCount++;
         } else if (dev < -SALARY_ANOMALY_THRESHOLD) {
-          w.push({ code: 'SALARY_ANOMALY_LOW', severity: 'warning', field: 'amount', messageAr: `المبلغ أقل من المتوقع بنسبة ${Math.round(Math.abs(dev) * 100)}% (المرجع ${baseline.toFixed(3)} د.ك)` });
+          w.push({ code: 'SALARY_ANOMALY_LOW', severity: 'warning', field: 'amount', messageAr: `المبلغ أقل من المتوقع بنسبة ${Math.round(Math.abs(dev) * 100)}% (المرجع ${formatCurrency(baseline)})` });
           bump('SALARY_ANOMALY_LOW'); anomalyCount++;
         }
       }

@@ -4,6 +4,7 @@
 import { api } from '../../api/client';
 import type { SkillResult } from '../types';
 import { computeQuality } from '../qualityEngine';
+import { formatCurrency } from '../../lib/format';
 
 const SKILL_ID    = 'contracts';
 const SKILL_TITLE = 'مهارة تحليل العقود';
@@ -82,7 +83,7 @@ interface ContractListResponse {
   total: number;
 }
 
-const kd = (n: number) => `${Number(n).toFixed(3)} د.ك`;
+const kd = (n: number) => formatCurrency(n);
 
 function daysUntil(dateStr: string | null | undefined): number | null {
   if (!dateStr) return null;

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
+import { formatNumber } from '../lib/format';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -447,7 +448,7 @@ export default function BankImport() {
           <SummaryCard label="غير مطابقين" value={preview.unmatched} color={preview.unmatched > 0 ? '#dc2626' : 'var(--text-muted)'} />
           <SummaryCard label="أخطاء" value={preview.invalid} color={preview.invalid > 0 ? '#dc2626' : 'var(--text-muted)'} />
           <SummaryCard label="مكررة" value={preview.duplicate} color={preview.duplicate > 0 ? '#ca8a04' : 'var(--text-muted)'} />
-          <SummaryCard label="المبلغ الكلي (د.ك)" value={preview.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} color="var(--primary, #1d4ed8)" />
+          <SummaryCard label="المبلغ الكلي (KWD)" value={formatNumber(preview.totalAmount)} color="var(--primary, #1d4ed8)" />
         </div>
       )}
 
@@ -477,7 +478,7 @@ export default function BankImport() {
                   <td style={tdStyle}>{row.employeeName ?? <span style={{ color: '#dc2626' }}>غير محدد</span>}</td>
                   <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11 }}>{row.beneficiaryAccount ?? '—'}</td>
                   <td style={tdStyle}>{row.beneficiaryName}</td>
-                  <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{row.amount.toLocaleString('en-US', { minimumFractionDigits: 3 })}</td>
+                  <td style={{ ...tdStyle, fontFamily: 'monospace' }}>{formatNumber(row.amount)}</td>
                   <td style={tdStyle}>{row.currency}</td>
                   <td style={tdStyle}>{fmtDate(row.paymentDate)}</td>
                   <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11 }}>{row.transactionId}</td>
@@ -500,7 +501,7 @@ export default function BankImport() {
           <h3 style={{ margin: '0 0 16px', color: '#16a34a' }}>✅ تم الاستيراد بنجاح</h3>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
             <SummaryCard label="تم استيراده" value={result.imported} color="#16a34a" />
-            <SummaryCard label="إجمالي المبالغ (د.ك)" value={result.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 3 })} color="var(--primary, #1d4ed8)" />
+            <SummaryCard label="إجمالي المبالغ (KWD)" value={formatNumber(result.totalAmount)} color="var(--primary, #1d4ed8)" />
           </div>
           <button onClick={handleReset} style={btnStyle('primary', false)}>＋ استيراد جديد</button>
         </div>

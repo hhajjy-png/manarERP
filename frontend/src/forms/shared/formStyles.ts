@@ -1,4 +1,5 @@
 import { CSSProperties } from 'react';
+import { formatNumber } from '../../lib/format';
 
 export const COMPANY_NAME =
   'شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م';
@@ -70,7 +71,7 @@ export function issueDateStr(): string {
 }
 
 export function money(v: number): string {
-  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' د.ك';
+  return formatNumber(v) + ' د.ك';
 }
 
 export function fmtDateEn(v: string | Date | null | undefined): string {
@@ -86,7 +87,7 @@ export function issueDateStrEn(): string {
 }
 
 export function moneyEn(v: number): string {
-  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' KWD';
+  return formatNumber(v) + ' KWD';
 }
 
 export const blankLine: CSSProperties = {

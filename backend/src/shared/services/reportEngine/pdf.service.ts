@@ -1,7 +1,11 @@
 import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
-import { ReportInput } from './excel.service';
+import { ReportInput, ReportColumn } from './excel.service';
+import { formatCurrency } from '../../utils/currency';
+
+const cellText = (col: ReportColumn, v: unknown): string =>
+  col.format === 'currency' && v != null && v !== '' ? formatCurrency(v) : String(v ?? '');
 
 /**
  * توليد تقرير PDF جدولي.
@@ -59,13 +63,13 @@ export function buildPdf(input: ReportInput): Promise<Buffer> {
       };
 
       drawRow(cols.map((c) => c.header), { header: true });
-      input.rows.forEach((row, idx) => drawRow(cols.map((c) => String(row[c.key] ?? '')), { zebra: idx % 2 === 1 }));
+      input.rows.forEach((row, idx) => drawRow(cols.map((c) => cellText(c, row[c.key])), { zebra: idx % 2 === 1 }));
       if (input.totalsRow) {
         doc.rect(startX, y, pageWidth, rowHeight).fill('#f0f3f7');
         doc.fillColor('#1f2933').fontSize(9.5);
         cols.forEach((c, i) => {
           const x = startX + pageWidth - (i + 1) * colWidth + 4;
-          doc.text(String(input.totalsRow![c.key] ?? ''), x, y + 6, { width: colWidth - 8, align: 'right', lineBreak: false });
+          doc.text(cellText(c, input.totalsRow![c.key]), x, y + 6, { width: colWidth - 8, align: 'right', lineBreak: false });
         });
       }
 

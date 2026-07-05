@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { api, errorMessage } from '../api/client';
+import { formatCurrency, formatPercent, formatCompact } from '../lib/format';
 import Modal from './Modal';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -88,12 +89,12 @@ interface Props {
 
 function kwd(n: number | null | undefined): string {
   if (n == null) return '—';
-  return n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' د.ك';
+  return formatCurrency(n);
 }
 
 function pct(n: number | null | undefined): string {
   if (n == null) return '—';
-  return n.toFixed(1) + '%';
+  return formatPercent(n, 1);
 }
 
 function fmtDate(d: string | null | undefined): string {
@@ -420,7 +421,7 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
                     tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
                     axisLine={false}
                     tickLine={false}
-                    tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+                    tickFormatter={(v) => formatCompact(v)}
                   />
                   <Tooltip content={<ChartTooltip />} />
                   <Legend

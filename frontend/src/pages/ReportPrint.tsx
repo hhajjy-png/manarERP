@@ -3,19 +3,15 @@ import { printCurrentView } from '../utils/print';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { formatDate } from '../lib/date';
+import { formatReportCell } from '../lib/format';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string }[]; rows: any[]; totalsRow?: any };
+type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string; format?: 'currency' }[]; rows: any[]; totalsRow?: any };
 
 const th: CSSProperties = { border: '1px solid #cbd5e1', padding: '4px 8px', background: '#1d4e6f', color: '#fff', textAlign: 'right', fontSize: 10.5, fontWeight: 700, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' };
 const td: CSSProperties = { border: '1px solid #e2e8f0', padding: '4px 8px', textAlign: 'right', fontSize: 9.5, fontWeight: 400 };
 const tdNum: CSSProperties = { fontVariantNumeric: 'tabular-nums', fontWeight: 600 };
 
-function fmt(v: unknown): string {
-  if (v == null || v === '') return '';
-  if (typeof v === 'number') return v.toLocaleString('en-US', { maximumFractionDigits: 3 });
-  return String(v);
-}
 
 export default function ReportPrint() {
   const { type } = useParams();
@@ -98,12 +94,12 @@ export default function ReportPrint() {
         <tbody>
           {rep.rows.map((row, i) => (
             <tr key={i} style={{ background: i % 2 ? '#f8fafc' : '#fff' }}>
-              {rep.columns.map((c) => <td key={c.key} style={typeof row[c.key] === 'number' ? { ...td, ...tdNum } : td}>{fmt(row[c.key])}</td>)}
+              {rep.columns.map((c) => <td key={c.key} style={c.format === 'currency' ? { ...td, ...tdNum } : td}>{formatReportCell(row[c.key], c)}</td>)}
             </tr>
           ))}
           {rep.totalsRow && (
             <tr>
-              {rep.columns.map((c) => <td key={c.key} style={{ ...td, fontSize: 10.5, fontWeight: 700, background: '#f0f3f7', WebkitPrintColorAdjust: 'exact', ...(typeof rep.totalsRow[c.key] === 'number' ? { fontVariantNumeric: 'tabular-nums' as const } : {}) }}>{fmt(rep.totalsRow[c.key])}</td>)}
+              {rep.columns.map((c) => <td key={c.key} style={{ ...td, fontSize: 10.5, fontWeight: 700, background: '#f0f3f7', WebkitPrintColorAdjust: 'exact', ...(c.format === 'currency' ? { fontVariantNumeric: 'tabular-nums' as const } : {}) }}>{formatReportCell(rep.totalsRow[c.key], c)}</td>)}
             </tr>
           )}
         </tbody>

@@ -3,10 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { financialApi, type DashboardSummary } from '../../api/financial';
 import PrivateAmount from '../PrivateAmount';
 
-function fmt(n: number) {
-  return n.toLocaleString('ar-KW', { minimumFractionDigits: 3 });
-}
-
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('ar-KW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 }

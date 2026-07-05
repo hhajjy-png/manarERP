@@ -3,6 +3,7 @@ import type { ImportReport, BankTemplate } from './types';
 import { buildReportHtml } from '../../shared/services/reportEngine/html.service';
 import type { ReportColumn } from '../../shared/services/reportEngine/excel.service';
 import { BANK_CONFIGS } from './excelParser';
+import { formatCurrency, formatNumber } from '../../shared/utils/currency';
 
 const MONTH_AR = ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
@@ -10,9 +11,6 @@ function monthAr(m: number): string {
   return MONTH_AR[Math.min(Math.max(m - 1, 0), 11)] ?? String(m);
 }
 
-function fmtAmount(v: number): string {
-  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
-}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
@@ -55,7 +53,7 @@ export async function buildImportReportExcel(report: ImportReport): Promise<Buff
   ws.getCell('A6').value = 'إجمالي الصفوف:';      ws.getCell('B6').value = report.imported + report.skipped;
   ws.getCell('A7').value = 'تم استيراده:';         ws.getCell('B7').value = report.imported;
   ws.getCell('A8').value = 'تم تجاهله:';           ws.getCell('B8').value = report.skipped;
-  ws.getCell('A9').value = 'إجمالي المبالغ (د.ك):'; ws.getCell('B9').value = fmtAmount(report.totalAmount);
+  ws.getCell('A9').value = 'إجمالي المبالغ (KWD):'; ws.getCell('B9').value = formatNumber(report.totalAmount);
 
   for (let r = 3; r <= 9; r++) {
     ws.getCell(`A${r}`).font = { bold: true };
@@ -73,7 +71,7 @@ export async function buildImportReportExcel(report: ImportReport): Promise<Buff
     { header: 'رقم الموظف', key: 'code', width: 14 },
     { header: 'اسم الموظف', key: 'name', width: 28 },
     { header: 'الرقم المدني', key: 'civil', width: 14 },
-    { header: 'المبلغ (د.ك)', key: 'amount', width: 14 },
+    { header: 'المبلغ (KWD)', key: 'amount', width: 14 },
     { header: 'العملة', key: 'currency', width: 10 },
     { header: 'رقم المعاملة', key: 'txId', width: 22 },
     { header: 'تاريخ الدفع', key: 'date', width: 14 },
@@ -98,7 +96,7 @@ export async function buildImportReportExcel(report: ImportReport): Promise<Buff
       code:     row.employeeCode ?? '—',
       name:     row.employeeName ?? '—',
       civil:    row.civilId ?? '—',
-      amount:   fmtAmount(row.amount),
+      amount:   formatNumber(row.amount),
       currency: row.currency,
       txId:     row.transactionId ?? '—',
       date:     fmtDate(row.paymentDate),
@@ -125,7 +123,7 @@ const REPORT_COLUMNS: ReportColumn[] = [
   { header: 'رقم الموظف', key: 'code',     width: 14 },
   { header: 'الاسم',       key: 'name',     width: 28 },
   { header: 'الرقم المدني', key: 'civil',   width: 14 },
-  { header: 'المبلغ (د.ك)', key: 'amount',  width: 14 },
+  { header: 'المبلغ',       key: 'amount',  width: 14, format: 'currency' },
   { header: 'العملة',       key: 'currency', width: 10 },
   { header: 'رقم المعاملة', key: 'txId',    width: 22 },
   { header: 'تاريخ الدفع', key: 'date',     width: 14 },
@@ -139,7 +137,7 @@ export function buildImportReportHtml(report: ImportReport): string {
     code:     r.employeeCode ?? '—',
     name:     r.employeeName ?? '—',
     civil:    r.civilId ?? '—',
-    amount:   fmtAmount(r.amount),
+    amount:   r.amount,
     currency: r.currency,
     txId:     r.transactionId ?? '—',
     date:     fmtDate(r.paymentDate),
@@ -150,12 +148,12 @@ export function buildImportReportHtml(report: ImportReport): string {
 
   return buildReportHtml({
     title: `تقرير استيراد رواتب البنك — ${bankNameAr(report.templateName)}`,
-    subtitle: `المستورد: ${report.importedBy} | التاريخ: ${new Date(report.importedAt).toLocaleString('ar-KW')} | مستورد: ${report.imported} | مجموع المبالغ: ${fmtAmount(report.totalAmount)} د.ك`,
+    subtitle: `المستورد: ${report.importedBy} | التاريخ: ${new Date(report.importedAt).toLocaleString('ar-KW')} | مستورد: ${report.imported} | مجموع المبالغ: ${formatCurrency(report.totalAmount)}`,
     columns: REPORT_COLUMNS,
     rows,
     totalsRow: {
       code: '', name: `الإجمالي: ${report.imported + report.skipped} صف`,
-      civil: '', amount: fmtAmount(report.totalAmount), currency: 'KWD',
+      civil: '', amount: report.totalAmount, currency: 'KWD',
       txId: '', date: '', month: '',
       status: `مستورد: ${report.imported}`,
       reason: `تجاهل: ${report.skipped}`,

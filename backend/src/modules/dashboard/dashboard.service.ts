@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database';
+import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 
 /** تجميع بيانات لوحة التحكم الرئيسية في استعلام واحد. */
 export class DashboardService {
@@ -355,10 +356,10 @@ export class DashboardService {
     // ── Financial Alerts ───────────────────────────────────────────────────────
     const financialAlerts: { type: string; level: 'warning' | 'danger'; messageAr: string }[] = [];
     if (agingSummary.bucket90Plus > 0) {
-      financialAlerts.push({ type: 'aging_90plus', level: 'danger',  messageAr: `مديونيات متأخرة أكثر من 90 يوم: ${agingSummary.bucket90Plus.toFixed(3)} د.ك` });
+      financialAlerts.push({ type: 'aging_90plus', level: 'danger',  messageAr: `مديونيات متأخرة أكثر من 90 يوم: ${formatCurrency(agingSummary.bucket90Plus)}` });
     }
     if (agingSummary.bucket61_90 > 0) {
-      financialAlerts.push({ type: 'aging_61_90', level: 'warning', messageAr: `مديونيات 61–90 يوم: ${agingSummary.bucket61_90.toFixed(3)} د.ك` });
+      financialAlerts.push({ type: 'aging_61_90', level: 'warning', messageAr: `مديونيات 61–90 يوم: ${formatCurrency(agingSummary.bucket61_90)}` });
     }
 
     return {
@@ -615,7 +616,7 @@ export class DashboardService {
         id: `low-col-${c.id}`,
         severity: ((c.collectionRate ?? 0) < 25 ? 'HIGH' : 'MEDIUM') as 'HIGH' | 'MEDIUM' | 'LOW',
         type: 'LOW_COLLECTION', title: `تحصيل منخفض: ${c.code}`,
-        description: `نسبة التحصيل ${(c.collectionRate ?? 0).toFixed(1)}%`,
+        description: `نسبة التحصيل ${formatPercent(c.collectionRate ?? 0, 1)}`,
         amount: c.outstanding, relatedId: c.id, relatedType: 'CONTRACT',
         actionLabel: 'متابعة التحصيل',
       }));
@@ -628,7 +629,7 @@ export class DashboardService {
         id: `high-exp-${c.id}`,
         severity: ((c.expenseRatio ?? 0) > 100 ? 'HIGH' : 'MEDIUM') as 'HIGH' | 'MEDIUM' | 'LOW',
         type: 'HIGH_EXPENSE_RATIO', title: `مصروفات مرتفعة: ${c.code}`,
-        description: `نسبة المصروفات ${(c.expenseRatio ?? 0).toFixed(1)}%`,
+        description: `نسبة المصروفات ${formatPercent(c.expenseRatio ?? 0, 1)}`,
         amount: c.expenses, relatedId: c.id, relatedType: 'CONTRACT',
         actionLabel: 'مراجعة المصروفات',
       }));
@@ -791,15 +792,15 @@ export class DashboardService {
     overdueCustomers.slice(0, 2).forEach(a => recs.push({
       id: `rec-${a.id}`, priority: 'HIGH',
       title: 'متابعة ذمة متأخرة',
-      message: `${a.title.replace('ذمة متأخرة: ', '')} لديه ذمم متأخرة بقيمة ${a.amount?.toFixed(3) ?? '0.000'} د.ك منذ أكثر من 90 يوم.`,
-      metric: `${a.amount?.toFixed(3) ?? '0.000'} د.ك`, actionHint: 'أرسل كشف حساب محدث وتواصل مع العميل.',
+      message: `${a.title.replace('ذمة متأخرة: ', '')} لديه ذمم متأخرة بقيمة ${formatCurrency(a.amount)} منذ أكثر من 90 يوم.`,
+      metric: formatCurrency(a.amount), actionHint: 'أرسل كشف حساب محدث وتواصل مع العميل.',
     }));
 
     lossMaking.slice(0, 2).forEach(a => recs.push({
       id: `rec-${a.id}`, priority: 'HIGH',
       title: 'عقد يحقق خسارة',
       message: `العقد ${a.title.replace('عقد خاسر: ', '')} يظهر هامش ربح سلبي.`,
-      metric: `خسارة ${a.amount?.toFixed(3) ?? '0.000'} د.ك`, actionHint: 'راجع تفاصيل المصروفات للعقد.',
+      metric: `خسارة ${formatCurrency(a.amount)}`, actionHint: 'راجع تفاصيل المصروفات للعقد.',
     }));
 
     lowCollection.slice(0, 1).forEach(a => recs.push({
@@ -813,16 +814,16 @@ export class DashboardService {
     if (colChg !== null && colChg < -10) recs.push({
       id: 'rec-col-drop', priority: 'HIGH',
       title: 'انخفاض التحصيلات',
-      message: `التحصيل هذا الشهر أقل من الشهر السابق بنسبة ${Math.abs(colChg).toFixed(1)}%.`,
-      metric: `${Math.abs(colChg).toFixed(1)}% انخفاض`, actionHint: 'راجع الفواتير المستحقة وتابع مع العملاء.',
+      message: `التحصيل هذا الشهر أقل من الشهر السابق بنسبة ${formatPercent(Math.abs(colChg), 1)}.`,
+      metric: `${formatPercent(Math.abs(colChg), 1)} انخفاض`, actionHint: 'راجع الفواتير المستحقة وتابع مع العملاء.',
     });
 
     const expChg = kpiComparisons.expensesChangePct;
     if (expChg !== null && expChg > 15) recs.push({
       id: 'rec-exp-surge', priority: 'MEDIUM',
       title: 'ارتفاع المصاريف',
-      message: `المصاريف هذا الشهر أعلى من الشهر السابق بنسبة ${expChg.toFixed(1)}%.`,
-      metric: `${expChg.toFixed(1)}% ارتفاع`, actionHint: 'راجع المصاريف المرتفعة وقارن مع الميزانية.',
+      message: `المصاريف هذا الشهر أعلى من الشهر السابق بنسبة ${formatPercent(expChg, 1)}.`,
+      metric: `${formatPercent(expChg, 1)} ارتفاع`, actionHint: 'راجع المصاريف المرتفعة وقارن مع الميزانية.',
     });
 
     highExpenseRatio.slice(0, 1).forEach(a => recs.push({

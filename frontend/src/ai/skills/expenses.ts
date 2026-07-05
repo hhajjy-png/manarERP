@@ -4,6 +4,7 @@
 import { api } from '../../api/client';
 import type { SkillResult } from '../types';
 import { computeQuality } from '../qualityEngine';
+import { formatCurrency } from '../../lib/format';
 
 const SKILL_ID    = 'expenses';
 const SKILL_TITLE = 'مهارة تحليل المصروفات';
@@ -69,7 +70,7 @@ interface ExpenseStats {
   bySupplier?: Record<string, number>;
 }
 
-const kd = (n: number) => `${Number(n).toFixed(3)} د.ك`;
+const kd = (n: number) => formatCurrency(n);
 
 function errResult(prompt: string, intent: string, err: unknown, t0: number): SkillResult {
   const msg = err instanceof Error ? err.message : 'خطأ غير معروف';

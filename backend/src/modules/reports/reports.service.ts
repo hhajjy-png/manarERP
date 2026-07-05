@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { ReportInput } from '../../shared/services/reportEngine/excel.service';
+import { formatCurrency } from '../../shared/utils/currency';
 
 const num = (n: number | null | undefined) => Number(n ?? 0);
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
@@ -114,13 +115,13 @@ export class ReportsService {
     const totalMonthly = rows.reduce((s, c) => s + num(c.monthlyTransportValue), 0);
     return {
       title: 'تقرير العقود',
-      subtitle: `عدد العقود: ${rows.length} — إجمالي النقل الشهري: ${totalMonthly.toLocaleString('ar')} د.ك`,
+      subtitle: `عدد العقود: ${rows.length} — إجمالي النقل الشهري: ${formatCurrency(totalMonthly)}`,
       columns: [
         { header: 'رقم العقد', key: 'code', width: 16 },
         { header: 'العميل', key: 'customer', width: 24 },
         { header: 'مصنع الأسفلت', key: 'plant', width: 28 },
         { header: 'مكان العقد', key: 'location', width: 24 },
-        { header: 'قيمة النقل الشهري', key: 'monthly', width: 20, numFmt: '#,##0.000' },
+        { header: 'قيمة النقل الشهري', key: 'monthly', width: 20, numFmt: '#,##0.000', format: 'currency' },
         { header: 'الحالة', key: 'status', width: 14 },
       ],
       rows: rows.map((c) => ({
@@ -155,15 +156,15 @@ export class ReportsService {
     const remaining = total - paid;
     return {
       title: 'تقرير الفواتير',
-      subtitle: `العدد: ${rows.length} — الإجمالي: ${total.toLocaleString('ar')} — المحصّل: ${paid.toLocaleString('ar')} — المتبقي: ${remaining.toLocaleString('ar')}`,
+      subtitle: `العدد: ${rows.length} — الإجمالي: ${formatCurrency(total)} — المحصّل: ${formatCurrency(paid)} — المتبقي: ${formatCurrency(remaining)}`,
       columns: [
         { header: 'رقم الفاتورة', key: 'invoiceNumber', width: 22 },
         { header: 'الاتجاه', key: 'direction', width: 16 },
         { header: 'الجهة', key: 'party', width: 28 },
         { header: 'شهر الحساب', key: 'billingPeriod', width: 18 },
-        { header: 'الإجمالي', key: 'total', width: 16, numFmt: '#,##0.000' },
-        { header: 'المسدّد', key: 'paid', width: 16, numFmt: '#,##0.000' },
-        { header: 'المتبقي', key: 'remaining', width: 16, numFmt: '#,##0.000' },
+        { header: 'الإجمالي', key: 'total', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'المسدّد', key: 'paid', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'المتبقي', key: 'remaining', width: 16, numFmt: '#,##0.000', format: 'currency' },
       ],
       rows: rows.map((i) => ({
         invoiceNumber: i.invoiceNumber,
@@ -208,14 +209,14 @@ export class ReportsService {
     const total = rows.reduce((s, e) => s + num(e.amount), 0);
     return {
       title: 'تقرير المصروفات',
-      subtitle: `العدد: ${rows.length} — الإجمالي: ${total.toLocaleString('ar')}`,
+      subtitle: `العدد: ${rows.length} — الإجمالي: ${formatCurrency(total)}`,
       columns: [
         { header: 'الرقم', key: 'code', width: 16 },
         { header: 'التصنيف', key: 'category', width: 18 },
         { header: 'الوصف', key: 'description', width: 32 },
         { header: 'المورد', key: 'supplier', width: 22 },
         { header: 'العقد', key: 'contract', width: 22 },
-        { header: 'المبلغ', key: 'amount', width: 16, numFmt: '#,##0.000' },
+        { header: 'المبلغ', key: 'amount', width: 16, numFmt: '#,##0.000', format: 'currency' },
         { header: 'التاريخ', key: 'date', width: 16 },
         { header: 'شهر الحساب', key: 'billingPeriod', width: 18 },
         { header: 'الحالة', key: 'status', width: 16 },
@@ -280,7 +281,7 @@ export class ReportsService {
         { header: 'الجنسية', key: 'nat', width: 14 },
         { header: 'انتهاء الإقامة', key: 'residency', width: 16 },
         { header: 'انتهاء الجواز', key: 'passport', width: 16 },
-        { header: 'الراتب الشهري', key: 'salary', width: 16, numFmt: '#,##0.000' },
+        { header: 'الراتب الشهري', key: 'salary', width: 16, numFmt: '#,##0.000', format: 'currency' },
         { header: 'تاريخ التعيين', key: 'hireDate', width: 16 },
         { header: 'الحالة', key: 'status', width: 14 },
       ],
@@ -314,19 +315,19 @@ export class ReportsService {
     const totalNet = rows.reduce((s, p) => s + num(p.netSalary), 0);
     return {
       title: 'تقرير الرواتب',
-      subtitle: `عدد الكشوف: ${rows.length} — إجمالي الصافي: ${totalNet.toLocaleString('ar')}`,
+      subtitle: `عدد الكشوف: ${rows.length} — إجمالي الصافي: ${formatCurrency(totalNet)}`,
       columns: [
         { header: 'رمز الموظف', key: 'employeeCode', width: 14 },
         { header: 'الموظف', key: 'name', width: 30 },
         { header: 'الشهر', key: 'month', width: 8 },
         { header: 'السنة', key: 'year', width: 8 },
-        { header: 'الأساسي', key: 'baseSalary', width: 16, numFmt: '#,##0.000' },
-        { header: 'بدلات', key: 'totalAllowances', width: 14, numFmt: '#,##0.000' },
-        { header: 'إضافي', key: 'overtimeAmount', width: 14, numFmt: '#,##0.000' },
-        { header: 'خصومات', key: 'totalDeductions', width: 14, numFmt: '#,##0.000' },
-        { header: 'سلف', key: 'totalAdvances', width: 14, numFmt: '#,##0.000' },
-        { header: 'الإجمالي', key: 'grossSalary', width: 16, numFmt: '#,##0.000' },
-        { header: 'الصافي', key: 'netSalary', width: 16, numFmt: '#,##0.000' },
+        { header: 'الأساسي', key: 'baseSalary', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'بدلات', key: 'totalAllowances', width: 14, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'إضافي', key: 'overtimeAmount', width: 14, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'خصومات', key: 'totalDeductions', width: 14, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'سلف', key: 'totalAdvances', width: 14, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'الإجمالي', key: 'grossSalary', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'الصافي', key: 'netSalary', width: 16, numFmt: '#,##0.000', format: 'currency' },
         { header: 'الحالة', key: 'status', width: 14 },
         { header: 'ملاحظات', key: 'notes', width: 24 },
       ],
@@ -438,7 +439,7 @@ export class ReportsService {
         { header: 'اسم الشركة', key: 'companyName', width: 28 },
         { header: 'مكان العقد', key: 'contractLocation', width: 24 },
         { header: 'وحدة العقد', key: 'contractUnit', width: 14 },
-        { header: 'سعر الوحدة', key: 'unitPrice', width: 16, numFmt: '#,##0.000' },
+        { header: 'سعر الوحدة', key: 'unitPrice', width: 16, numFmt: '#,##0.000', format: 'currency' },
       ],
       rows: rows.map((p) => ({
         customer: p.customer?.name ?? '',
@@ -471,7 +472,7 @@ export class ReportsService {
       subtitle: q.from || q.to ? `الفترة: ${q.from ?? '—'} إلى ${q.to ?? '—'}` : 'كل الفترات',
       columns: [
         { header: 'البند', key: 'item', width: 40 },
-        { header: 'المبلغ', key: 'amount', width: 22, numFmt: '#,##0.000' },
+        { header: 'المبلغ', key: 'amount', width: 22, numFmt: '#,##0.000', format: 'currency' },
       ],
       rows: [
         { item: 'إجمالي الإيرادات', amount: totalRevenue },
@@ -553,16 +554,16 @@ export class ReportsService {
     return {
       title: `كشف حساب العميل — ${customer.name}`,
       subtitle: q.from || q.to
-        ? `الفترة: ${q.from ?? '—'} إلى ${q.to ?? '—'} | الرصيد الافتتاحي: ${openingBalance.toFixed(3)} د.ك`
+        ? `الفترة: ${q.from ?? '—'} إلى ${q.to ?? '—'} | الرصيد الافتتاحي: ${formatCurrency(openingBalance)}`
         : `إجمالي المعاملات: ${entries.length}`,
       columns: [
         { header: 'التاريخ', key: 'date', width: 14 },
         { header: 'النوع', key: 'type', width: 10 },
         { header: 'المرجع', key: 'reference', width: 26 },
         { header: 'البيان', key: 'description', width: 34 },
-        { header: 'مدين (د.ك)', key: 'debit', width: 16, numFmt: '#,##0.000' },
-        { header: 'دائن (د.ك)', key: 'credit', width: 16, numFmt: '#,##0.000' },
-        { header: 'الرصيد (د.ك)', key: 'balance', width: 18, numFmt: '#,##0.000' },
+        { header: 'مدين', key: 'debit', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'دائن', key: 'credit', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'الرصيد', key: 'balance', width: 18, numFmt: '#,##0.000', format: 'currency' },
       ],
       rows,
       totalsRow: { reference: 'الإجمالي', debit: totalDebit, credit: totalCredit, balance: closingBalance },
@@ -650,15 +651,15 @@ export class ReportsService {
 
     return {
       title: 'تقرير أعمار الديون (الذمم المدينة)',
-      subtitle: `كما في: ${asOfDate.toLocaleDateString('ar')} — إجمالي المستحق: ${totals.totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك`,
+      subtitle: `كما في: ${asOfDate.toLocaleDateString('ar')} — إجمالي المستحق: ${formatCurrency(totals.totalOutstanding)}`,
       columns: [
         { header: 'العميل', key: 'customerName', width: 28 },
-        { header: 'حالي', key: 'current', width: 16, numFmt: '#,##0.000' },
-        { header: '1-30 يوم', key: 'bucket0_30', width: 16, numFmt: '#,##0.000' },
-        { header: '31-60 يوم', key: 'bucket31_60', width: 16, numFmt: '#,##0.000' },
-        { header: '61-90 يوم', key: 'bucket61_90', width: 16, numFmt: '#,##0.000' },
-        { header: '+90 يوم', key: 'bucket90Plus', width: 16, numFmt: '#,##0.000' },
-        { header: 'إجمالي المستحق', key: 'totalOutstanding', width: 18, numFmt: '#,##0.000' },
+        { header: 'حالي', key: 'current', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: '1-30 يوم', key: 'bucket0_30', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: '31-60 يوم', key: 'bucket31_60', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: '61-90 يوم', key: 'bucket61_90', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: '+90 يوم', key: 'bucket90Plus', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'إجمالي المستحق', key: 'totalOutstanding', width: 18, numFmt: '#,##0.000', format: 'currency' },
         { header: 'آخر فاتورة', key: 'lastInvoiceDate', width: 14 },
         { header: 'آخر دفعة', key: 'lastPaymentDate', width: 14 },
       ],
@@ -739,13 +740,13 @@ export class ReportsService {
 
     return {
       title: 'ملخص أرصدة العملاء',
-      subtitle: `إجمالي المفوتر: ${grandTotalInvoiced.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك — المحصّل: ${grandTotalPaid.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك — الرصيد: ${grandBalance.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك`,
+      subtitle: `إجمالي المفوتر: ${formatCurrency(grandTotalInvoiced)} — المحصّل: ${formatCurrency(grandTotalPaid)} — الرصيد: ${formatCurrency(grandBalance)}`,
       columns: [
         { header: 'الرمز', key: 'code', width: 12 },
         { header: 'العميل', key: 'name', width: 28 },
-        { header: 'إجمالي المفوتر', key: 'totalInvoiced', width: 18, numFmt: '#,##0.000' },
-        { header: 'إجمالي المحصّل', key: 'totalPaid', width: 18, numFmt: '#,##0.000' },
-        { header: 'الرصيد', key: 'balance', width: 18, numFmt: '#,##0.000' },
+        { header: 'إجمالي المفوتر', key: 'totalInvoiced', width: 18, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'إجمالي المحصّل', key: 'totalPaid', width: 18, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'الرصيد', key: 'balance', width: 18, numFmt: '#,##0.000', format: 'currency' },
         { header: 'عدد الفواتير', key: 'invoiceCount', width: 14 },
         { header: 'فواتير مفتوحة', key: 'unpaidCount', width: 14 },
         { header: 'آخر فاتورة', key: 'lastInvoiceDate', width: 14 },
@@ -789,15 +790,15 @@ export class ReportsService {
     return {
       title: 'ملخص التحصيلات',
       subtitle: q.from || q.to
-        ? `الفترة: ${q.from ?? '—'} إلى ${q.to ?? '—'} — إجمالي التحصيل: ${total.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك — عدد الدفعات: ${payments.length}`
-        : `إجمالي التحصيل: ${total.toLocaleString('en-US', { minimumFractionDigits: 3 })} د.ك — عدد الدفعات: ${payments.length}`,
+        ? `الفترة: ${q.from ?? '—'} إلى ${q.to ?? '—'} — إجمالي التحصيل: ${formatCurrency(total)} — عدد الدفعات: ${payments.length}`
+        : `إجمالي التحصيل: ${formatCurrency(total)} — عدد الدفعات: ${payments.length}`,
       columns: [
         { header: 'التاريخ', key: 'date', width: 14 },
         { header: 'العميل', key: 'customerName', width: 28 },
         { header: 'رقم الفاتورة', key: 'invoiceNumber', width: 24 },
         { header: 'طريقة الدفع', key: 'method', width: 16 },
         { header: 'المرجع', key: 'reference', width: 20 },
-        { header: 'المبلغ (د.ك)', key: 'amount', width: 18, numFmt: '#,##0.000' },
+        { header: 'المبلغ', key: 'amount', width: 18, numFmt: '#,##0.000', format: 'currency' },
       ],
       rows: payments.map((p) => ({
         date: dateAr(p.date),
