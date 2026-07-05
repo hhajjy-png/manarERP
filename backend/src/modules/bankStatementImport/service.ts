@@ -414,6 +414,18 @@ export function buildTimelineWhere(
   return where;
 }
 
+// Default ordering for the Bank Account / Transaction Explorer list:
+// newest transaction date first, then — for rows sharing the same date — the
+// most recently imported statement batch (importId is monotonic with import
+// time, so it stands in for "imported batch date descending"), then the newest
+// row id as a stable final tiebreaker. Exported so the rule is unit-testable
+// without a database.
+export const TIMELINE_ORDER_BY: Prisma.BankStatementTransactionOrderByWithRelationInput[] = [
+  { statementDate: 'desc' },
+  { importId:      'desc' },
+  { id:            'desc' },
+];
+
 export async function getTimeline(
   accountKey: string,
   page       = 1,
@@ -435,7 +447,7 @@ export async function getTimeline(
     prisma.bankStatementTransaction.count({ where }),
     prisma.bankStatementTransaction.findMany({
       where,
-      orderBy: { statementDate: 'asc' },
+      orderBy: TIMELINE_ORDER_BY,
       skip,
       take:    pageSize,
       include: {
