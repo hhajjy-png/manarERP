@@ -1,14 +1,15 @@
 /**
  * buildTimelineWhere — Phase C server-side timeline filters
  * (date range + transaction type + amount range + text search composition).
+ * TIMELINE_ORDER_BY — default Bank Account/Transaction Explorer sort order.
  */
 
 import { describe, it, expect, vi } from 'vitest';
 
-// service.ts imports prisma at load time; stub it (the function under test is pure).
+// service.ts imports prisma at load time; stub it (the values under test are pure).
 vi.mock('@config/database.js', () => ({ prisma: {} }));
 
-import { buildTimelineWhere } from '../service.js';
+import { buildTimelineWhere, TIMELINE_ORDER_BY } from '../service.js';
 
 describe('buildTimelineWhere', () => {
   it('filters by accountKey only when no options given', () => {
@@ -57,5 +58,19 @@ describe('buildTimelineWhere', () => {
     expect(w.statementDate).toEqual({ gte: new Date('2026-01-01') });
     expect(w.credit).toEqual({ gt: 0 });
     expect(w.AND).toHaveLength(2); // maxAmount + search
+  });
+});
+
+describe('TIMELINE_ORDER_BY (default transaction explorer ordering)', () => {
+  it('shows newest transaction date first, then latest import batch, then newest id', () => {
+    expect(TIMELINE_ORDER_BY).toEqual([
+      { statementDate: 'desc' },
+      { importId:      'desc' },
+      { id:            'desc' },
+    ]);
+  });
+
+  it('uses statementDate descending as the primary sort key', () => {
+    expect(TIMELINE_ORDER_BY[0]).toEqual({ statementDate: 'desc' });
   });
 });
