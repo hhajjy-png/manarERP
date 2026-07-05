@@ -4,11 +4,6 @@ import type { ReportInput } from '../../shared/services/reportEngine/excel.servi
 import type { ReconciliationReport, ReconciliationReportRow, ReconcileStatus } from './types.js';
 import { formatNumber } from '../../shared/utils/currency';
 
-// ── Formatting ─────────────────────────────────────────────────────────────────
-
-function fmtAmount(v: number): string {
-  return formatNumber(v);
-}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
@@ -93,8 +88,8 @@ export async function buildReconciliationReportExcel(report: ReconciliationRepor
     ['تاريخ الاستيراد', fmtDate(report.importedAt.substring(0, 10))],
     ['تاريخ التقرير',   fmtDate(report.generatedAt.substring(0, 10))],
     ['إجمالي الصفوف',   String(report.totalRows)],
-    ['إجمالي المدين (KWD)', fmtAmount(report.totalDebits)],
-    ['إجمالي الدائن (KWD)', fmtAmount(report.totalCredits)],
+    ['إجمالي المدين (KWD)', formatNumber(report.totalDebits)],
+    ['إجمالي الدائن (KWD)', formatNumber(report.totalCredits)],
     ['المطابقة',       String(report.matched.length)],
     ['غير المطابقة',   String(report.unmatched.length)],
     ['رسوم بنكية',     String(report.bankFees.length)],

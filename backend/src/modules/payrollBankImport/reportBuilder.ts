@@ -11,9 +11,6 @@ function monthAr(m: number): string {
   return MONTH_AR[Math.min(Math.max(m - 1, 0), 11)] ?? String(m);
 }
 
-function fmtAmount(v: number): string {
-  return formatNumber(v);
-}
 
 function fmtDate(iso: string | null): string {
   if (!iso) return '—';
@@ -56,7 +53,7 @@ export async function buildImportReportExcel(report: ImportReport): Promise<Buff
   ws.getCell('A6').value = 'إجمالي الصفوف:';      ws.getCell('B6').value = report.imported + report.skipped;
   ws.getCell('A7').value = 'تم استيراده:';         ws.getCell('B7').value = report.imported;
   ws.getCell('A8').value = 'تم تجاهله:';           ws.getCell('B8').value = report.skipped;
-  ws.getCell('A9').value = 'إجمالي المبالغ (KWD):'; ws.getCell('B9').value = fmtAmount(report.totalAmount);
+  ws.getCell('A9').value = 'إجمالي المبالغ (KWD):'; ws.getCell('B9').value = formatNumber(report.totalAmount);
 
   for (let r = 3; r <= 9; r++) {
     ws.getCell(`A${r}`).font = { bold: true };
@@ -99,7 +96,7 @@ export async function buildImportReportExcel(report: ImportReport): Promise<Buff
       code:     row.employeeCode ?? '—',
       name:     row.employeeName ?? '—',
       civil:    row.civilId ?? '—',
-      amount:   fmtAmount(row.amount),
+      amount:   formatNumber(row.amount),
       currency: row.currency,
       txId:     row.transactionId ?? '—',
       date:     fmtDate(row.paymentDate),
