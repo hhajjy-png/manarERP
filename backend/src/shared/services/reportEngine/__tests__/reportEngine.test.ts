@@ -487,13 +487,13 @@ describe('Migration compatibility', () => {
 
 describe('resolveTablePadding', () => {
   it('returns compact padding for compact density', () =>
-    expect(resolveTablePadding('compact')).toBe('3px 6px'));
+    expect(resolveTablePadding('compact')).toBe('2px 6px'));
   it('returns normal padding for normal density', () =>
-    expect(resolveTablePadding('normal')).toBe('6px 10px'));
+    expect(resolveTablePadding('normal')).toBe('4px 8px'));
   it('returns comfortable padding for comfortable density', () =>
-    expect(resolveTablePadding('comfortable')).toBe('8px 14px'));
+    expect(resolveTablePadding('comfortable')).toBe('6px 12px'));
   it('returns normal padding when undefined (default)', () =>
-    expect(resolveTablePadding(undefined)).toBe('6px 10px'));
+    expect(resolveTablePadding(undefined)).toBe('4px 8px'));
 });
 
 describe('resolveLogoWidth', () => {
@@ -517,14 +517,14 @@ describe('resolveLogoJustify', () => {
 describe('buildStyles — profile density CSS', () => {
   it('statement profile generates comfortable table padding in CSS', () => {
     const css = buildStyles('statement');
-    expect(css).toContain('8px 14px');
+    expect(css).toContain('6px 12px');
   });
   it('a4-landscape profile generates compact table padding in CSS', () => {
     const css = buildStyles('a4-landscape');
-    expect(css).toContain('3px 6px');
+    expect(css).toContain('2px 6px');
   });
   it('a4-portrait profile generates normal table padding in CSS', () => {
     const css = buildStyles('a4-portrait');
-    expect(css).toContain('6px 10px');
+    expect(css).toContain('4px 8px');
   });
 });
