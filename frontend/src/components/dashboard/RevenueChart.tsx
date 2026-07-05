@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import { Skeleton } from './Skeleton';
 import { useT } from '../../lib/i18n';
+import { formatCurrency, formatCompact } from '../../lib/format';
 
 interface TrendPoint { label: string; revenue: number; expense: number; }
 interface Props { data: TrendPoint[]; loading: boolean; }
@@ -41,7 +42,7 @@ function DarkTooltip({ active, payload, label, revenueLabel = '', expensesLabel 
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.fill, flexShrink: 0 }} />
           <p style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 700 }}>
             {p.dataKey === 'revenue' ? revenueLabel : expensesLabel}:{' '}
-            <span style={{ color: p.fill }}>{Number(p.value).toLocaleString('en-US')} د.ك</span>
+            <span style={{ color: p.fill }}>{formatCurrency(p.value)}</span>
           </p>
         </div>
       ))}
@@ -91,7 +92,7 @@ export default function RevenueChart({ data, loading }: Props) {
             axisLine={false}
             tickLine={false}
             width={72}
-            tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+            tickFormatter={(v: number) => formatCompact(v)}
           />
           <Tooltip content={<DarkTooltip revenueLabel={revenueLabel} expensesLabel={expensesLabel} />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
           <Legend formatter={(value: string) => (

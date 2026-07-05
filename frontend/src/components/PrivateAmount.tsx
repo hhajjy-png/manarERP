@@ -1,11 +1,12 @@
 import React from 'react';
 import { useUI } from '../stores/uiStore';
+import { formatNumber as formatSharedNumber, currencyConfig } from '../lib/format';
 import './privacy.css';
 
 export interface PrivateAmountProps {
   /** Numeric value (will be formatted) or pre-formatted string (used as-is). */
   value: number | string;
-  /** Currency symbol appended when value is numeric. Default: 'د.ك' */
+  /** Currency symbol appended when value is numeric. Default: shared currencyConfig.code ('KWD') */
   currency?: string;
   /**
    * Masking level:
@@ -31,10 +32,7 @@ export interface PrivateAmountProps {
 const CURRENCY_INDICATORS = ['د.ك', 'KWD', '$', '€', '£', '¥'];
 
 function formatNumber(value: number, currency: string): string {
-  const formatted = value.toLocaleString('en-US', {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  });
+  const formatted = formatSharedNumber(value);
   return `${formatted} ${currency}`;
 }
 
@@ -66,7 +64,7 @@ export function usePrivacyMode(): boolean {
 
 export default function PrivateAmount({
   value,
-  currency = 'د.ك',
+  currency = currencyConfig.code,
   level = 1,
   masked,
   noPrint = false,

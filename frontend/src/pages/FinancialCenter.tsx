@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { financialApi } from '../api/financial';
 import { exportReportAsPdf } from '../utils/pdfExport';
+import { formatCurrency } from '../lib/format';
 import type {
   FinancialResponse, StatementRow, ArAgingRow, ApAgingRow,
   GlStatementRow, GlReportResponse,
@@ -61,7 +62,7 @@ function saveBlob(blob: Blob, filename: string) {
 
 function fmtKwd(n?: number) {
   if (n === undefined || n === null) return '';
-  return n.toLocaleString('ar-KW', { minimumFractionDigits: 3 });
+  return formatCurrency(n);
 }
 
 export default function FinancialCenter() {

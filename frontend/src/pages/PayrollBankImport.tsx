@@ -2,6 +2,7 @@ import { useRef, useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
+import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
 import {
   previewImport, executeImport, exportReportExcel, exportReportPdf,
   type BankTemplate, type ParsedBankRow, type PreviewSummary, type ImportReport,
@@ -351,7 +352,7 @@ function fmtDate(iso: string | null): string {
 }
 
 function fmtAmount(n: number): string {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  return formatNumber(n);
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -650,7 +651,7 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
       <div style={{ background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 8, padding: '12px 16px', marginBottom: 14 }}>
         <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>تقرير الفروقات (Variance)</p>
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 13 }}>
-          <span>الإجمالي المستورد: <strong style={{ fontFamily: 'monospace' }}>{fmtAmount(v.totalImported)}</strong> د.ك</span>
+          <span>الإجمالي المستورد: <strong style={{ fontFamily: 'monospace' }}>{formatCurrency(v.totalImported)}</strong></span>
           <span>المطابق: <strong style={{ fontFamily: 'monospace' }}>{fmtAmount(v.totalMatched)}</strong></span>
           <span>غير المطابق: <strong style={{ fontFamily: 'monospace', color: v.totalUnmatched > 0 ? '#dc2626' : undefined }}>{fmtAmount(v.totalUnmatched)}</strong></span>
           {v.previousPeriodLabel && v.previousTotal != null && (
@@ -661,7 +662,7 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
                 الفرق:{' '}
                 <strong style={{ fontFamily: 'monospace', color: (v.varianceAmount ?? 0) < 0 ? '#dc2626' : '#16a34a' }}>
                   {fmtAmount(v.varianceAmount ?? 0)}
-                  {v.variancePercent != null && ` (${v.variancePercent > 0 ? '+' : ''}${v.variancePercent.toFixed(1)}%)`}
+                  {v.variancePercent != null && ` (${v.variancePercent > 0 ? '+' : ''}${formatPercent(v.variancePercent, 1)})`}
                 </strong>
               </span>
             </>
@@ -770,7 +771,7 @@ function PreviewStep({ summary, templateName, fileName, onConfirm, onBack }: Pre
         <KpiCard label="تحذيرات"             value={summary.withWarnings}        color={summary.withWarnings > 0 ? '#d97706' : '#9ca3af'} />
         <KpiCard label="أخطاء"               value={summary.invalid}             color={summary.invalid      > 0 ? '#dc2626' : '#9ca3af'} />
         <KpiCard label="مكررة"               value={summary.duplicates}          color={summary.duplicates   > 0 ? '#ca8a04' : '#9ca3af'} />
-        <KpiCard label="المبلغ الكلي (د.ك)" value={fmtAmount(summary.totalAmount)} color="#1d4ed8" />
+        <KpiCard label="المبلغ الكلي (KWD)" value={fmtAmount(summary.totalAmount)} color="#1d4ed8" />
       </div>
 
       {/* Assistant (v1) — preview-only, non-blocking */}
@@ -891,7 +892,7 @@ function ConfirmStep({ summary, templateName, canExecute, executing, onExecute, 
             { label: 'البنك', value: BANK_CONFIGS[templateName as BankTemplate]?.nameAr ?? templateName },
             { label: 'إجمالي الصفوف', value: summary.totalRows },
             { label: 'الصفوف الصالحة', value: summary.valid + summary.withWarnings },
-            { label: 'المبلغ الإجمالي (د.ك)', value: fmtAmount(summary.totalAmount) },
+            { label: 'المبلغ الإجمالي (KWD)', value: fmtAmount(summary.totalAmount) },
           ].map(({ label, value }) => (
             <div key={label} style={{ fontSize: 13 }}>
               <span style={{ color: '#6b7280' }}>{label}: </span>
@@ -986,7 +987,7 @@ function DoneStep({ report, canExport, onNewImport }: DoneStepProps) {
         <KpiCard label="تم استيراده"          value={report.imported}              color="#16a34a" />
         <KpiCard label="تم تخطيه"             value={report.skipped}               color={report.skipped > 0 ? '#dc2626' : '#9ca3af'} />
         <KpiCard label="بتحذيرات"             value={report.withWarnings}           color={report.withWarnings > 0 ? '#d97706' : '#9ca3af'} />
-        <KpiCard label="المبلغ الكلي (د.ك)"  value={fmtAmount(report.totalAmount)} color="#1d4ed8" />
+        <KpiCard label="المبلغ الكلي (KWD)"  value={fmtAmount(report.totalAmount)} color="#1d4ed8" />
       </div>
 
       {/* Export + actions */}
@@ -1012,7 +1013,7 @@ function DoneStep({ report, canExport, onNewImport }: DoneStepProps) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr>
-              {['رقم الموظف', 'الاسم', 'الرقم المدني', 'المبلغ (د.ك)', 'العملة', 'رقم المعاملة', 'تاريخ الدفع', 'الشهر/السنة', 'الحالة', 'الملاحظة'].map((h) => (
+              {['رقم الموظف', 'الاسم', 'الرقم المدني', 'المبلغ (KWD)', 'العملة', 'رقم المعاملة', 'تاريخ الدفع', 'الشهر/السنة', 'الحالة', 'الملاحظة'].map((h) => (
                 <th key={h} style={TH}>{h}</th>
               ))}
             </tr>

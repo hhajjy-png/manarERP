@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { StatementRow } from '../../types/financial.types';
 import type { FinancialDrillDownState } from './DrillDownLink';
 import { DrillDownLink } from './DrillDownLink';
+import { formatCurrency } from '../../lib/format';
 
 interface Props {
   rows: StatementRow[];
@@ -38,7 +39,7 @@ function monthSum(rows: StatementRow[]) {
 }
 
 function fmt(n: number) {
-  return n ? n.toLocaleString('ar-KW', { minimumFractionDigits: 3 }) : '';
+  return n ? formatCurrency(n) : '';
 }
 
 export function GroupedTable({ rows, currentState, highlightId }: Props) {

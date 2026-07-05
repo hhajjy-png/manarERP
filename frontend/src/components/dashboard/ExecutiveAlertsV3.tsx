@@ -1,3 +1,5 @@
+import { formatCurrency } from '../../lib/format';
+
 export interface AlertV3 {
   id: string;
   severity: 'HIGH' | 'MEDIUM' | 'LOW';
@@ -73,7 +75,7 @@ export default function ExecutiveAlertsV3({ alerts, maxVisible = 12 }: Props) {
                 <div style={{ fontSize: 12, color: 'var(--db-muted)', marginTop: 2 }}>{alert.description}</div>
                 {alert.amount != null && (
                   <div style={{ fontSize: 11, color, fontWeight: 700, marginTop: 3 }}>
-                    {alert.amount.toFixed(3)} د.ك
+                    {formatCurrency(alert.amount)}
                   </div>
                 )}
                 <div style={{ fontSize: 11, color: '#60A5FA', marginTop: 4 }}>→ {alert.actionLabel}</div>

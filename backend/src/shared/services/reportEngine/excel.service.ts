@@ -6,6 +6,8 @@ export interface ReportColumn {
   width?: number;
   /** تنسيق رقمي/عملة اختياري. */
   numFmt?: string;
+  /** Presentation-only: mark a monetary column so HTML/PDF render it as "144,922.400 KWD". Excel ignores this (uses numFmt + raw numeric). */
+  format?: 'currency';
 }
 
 export interface ReportInput {

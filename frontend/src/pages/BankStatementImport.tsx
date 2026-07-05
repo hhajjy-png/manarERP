@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PrivateAmount from '../components/PrivateAmount';
+import { formatNumber } from '../lib/format';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
@@ -40,7 +41,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtAmount(v: number) {
-  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  return formatNumber(v);
 }
 
 function fmtDate(iso: string | null) {

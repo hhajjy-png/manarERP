@@ -10,6 +10,7 @@ import {
   blankLine,
   longTextCell,
 } from './shared/formStyles';
+import { formatNumber } from '../lib/format';
 
 // ─── Exported interfaces ──────────────────────────────────────────────────────
 // Future integration notes:
@@ -66,7 +67,7 @@ function grandTotal(items: QuotationItem[]): number {
 }
 
 function fmtAmt(v: number, currency: string, lang: 'ar' | 'en'): string {
-  return `${v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} ${currSym(currency, lang)}`;
+  return `${formatNumber(v)} ${currSym(currency, lang)}`;
 }
 
 // ─── Table styles ─────────────────────────────────────────────────────────────

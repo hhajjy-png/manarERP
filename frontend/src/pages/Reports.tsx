@@ -6,6 +6,7 @@ import { exportReportAsPdf } from '../utils/pdfExport';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
+import { formatReportCell } from '../lib/format';
 import {
   ExecutiveHeader,
   IdChip,
@@ -26,7 +27,7 @@ import './Reports.css';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string }[]; rows: any[]; totalsRow?: any };
+type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string; format?: 'currency' }[]; rows: any[]; totalsRow?: any };
 type CustomerItem = { id: number; name: string };
 type EmployeeItem = { id: number; fullName: string };
 
@@ -193,12 +194,6 @@ function pushRecent(key: string) {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function fmt(v: unknown): string {
-  if (v == null || v === '') return '';
-  if (typeof v === 'number') return v.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
-  return String(v);
-}
 
 type StatusTone = 'green' | 'orange' | 'blue';
 function statusMeta(type: ReportType['statusType']): { tone: StatusTone; label: string; icon: string } {
@@ -871,12 +866,12 @@ export default function Reports() {
                       <tr><td colSpan={preview.columns.length} style={{ textAlign: 'center', color: 'var(--xpl-muted)', padding: 28 }}>{t('page.reports.no_data')}</td></tr>
                     ) : (
                       preview.rows.map((row, i) => (
-                        <tr key={i}>{preview.columns.map((c) => <td key={c.key}>{fmt(row[c.key])}</td>)}</tr>
+                        <tr key={i}>{preview.columns.map((c) => <td key={c.key}>{formatReportCell(row[c.key], c)}</td>)}</tr>
                       ))
                     )}
                     {preview.totalsRow && (
                       <tr className="rcx-totals-row">
-                        {preview.columns.map((c) => <td key={c.key}>{fmt(preview.totalsRow[c.key])}</td>)}
+                        {preview.columns.map((c) => <td key={c.key}>{formatReportCell(preview.totalsRow[c.key], c)}</td>)}
                       </tr>
                     )}
                   </tbody>

@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
+import { formatCurrency, formatNumber } from '../lib/format';
 import {
   getWorkspace,
   getTimeline,
@@ -104,7 +105,7 @@ const STATUS_LABELS: Record<string, string> = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtAmount(v: number): string {
-  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  return formatNumber(v);
 }
 
 function fmtDate(iso: string | null | undefined): string {
@@ -163,7 +164,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: readonl
       direction: 'rtl', boxShadow: 'var(--shadow)',
     }}>
       <p style={{ color: p.fill ?? 'var(--text)', fontSize: 12, fontWeight: 700 }}>
-        {p.name}: {typeof p.value === 'number' ? p.value.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 3 }) : p.value}
+        {p.name}: {typeof p.value === 'number' ? formatCurrency(p.value) : p.value}
       </p>
     </div>
   );
@@ -1677,8 +1678,8 @@ export default function BankReconciliation() {
                         <th>التاريخ</th>
                         <th style={{ minWidth: 200 }}>الوصف</th>
                         <th>المرجع</th>
-                        <th style={{ textAlign: 'end' }}>مدين (د.ك)</th>
-                        <th style={{ textAlign: 'end' }}>دائن (د.ك)</th>
+                        <th style={{ textAlign: 'end' }}>مدين (KWD)</th>
+                        <th style={{ textAlign: 'end' }}>دائن (KWD)</th>
                         <th style={{ textAlign: 'end' }}>الرصيد</th>
                         <th>الدفعة</th>
                         <th>الحالة</th>
@@ -2066,7 +2067,7 @@ export default function BankReconciliation() {
             </div>
 
             <div className="recon-filter-section">
-              <p className="recon-filter-section-title">نطاق المبلغ (د.ك)</p>
+              <p className="recon-filter-section-title">نطاق المبلغ (KWD)</p>
               <div className="recon-filter-row">
                 <div className="recon-filter-field">
                   <label>من مبلغ</label>
@@ -2242,8 +2243,8 @@ export default function BankReconciliation() {
                     <th>التاريخ</th>
                     <th style={{ minWidth: 200 }}>الوصف</th>
                     <th>المرجع</th>
-                    <th style={{ textAlign: 'end' }}>مدين (د.ك)</th>
-                    <th style={{ textAlign: 'end' }}>دائن (د.ك)</th>
+                    <th style={{ textAlign: 'end' }}>مدين (KWD)</th>
+                    <th style={{ textAlign: 'end' }}>دائن (KWD)</th>
                     <th style={{ textAlign: 'end' }}>الرصيد</th>
                     <th>العملة</th>
                     <th style={{ width: 36 }}>⚠</th>

@@ -5,6 +5,7 @@ import {
 import { Skeleton } from './Skeleton';
 import { money } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
+import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ function CollectionTooltip({ active, payload, label }: TooltipProps) {
         <p style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 700 }}>
           التحصيلات:{' '}
           <span style={{ color: payload[0]?.fill }}>
-            {Number(payload[0]?.value ?? 0).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} د.ك
+            {formatCurrency(payload[0]?.value ?? 0)}
           </span>
         </p>
       </div>
@@ -129,7 +130,7 @@ function CollectionChart({ data, loading }: { data: TrendPoint[]; loading: boole
             axisLine={false}
             tickLine={false}
             width={64}
-            tickFormatter={(v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)}
+            tickFormatter={(v: number) => formatCompact(v)}
           />
           <Tooltip content={<CollectionTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
           <Bar dataKey="collected" fill="url(#gradCollect)" radius={[6, 6, 0, 0]} maxBarSize={34} />
@@ -250,7 +251,7 @@ function ContractProfitRow({ c, rank }: { c: ContractProfit; rank: 'top' | 'low'
       </div>
       <div style={{ textAlign: 'left', flexShrink: 0, marginRight: 8 }}>
         {margin !== null ? (
-          <span style={{ color: marginColor, fontSize: 13, fontWeight: 800 }}>{margin.toFixed(1)}%</span>
+          <span style={{ color: marginColor, fontSize: 13, fontWeight: 800 }}>{formatPercent(margin, 1)}</span>
         ) : (
           <span style={{ color: '#6B7280', fontSize: 12 }}>—</span>
         )}

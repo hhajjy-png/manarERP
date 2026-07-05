@@ -1,5 +1,6 @@
 import type { StatementRow } from '../../types/financial.types';
 import { DrillDownLink, type FinancialDrillDownState } from './DrillDownLink';
+import { formatCurrency } from '../../lib/format';
 
 interface Props {
   rows: StatementRow[];
@@ -8,7 +9,7 @@ interface Props {
 }
 
 function fmt(n: number) {
-  return n ? n.toLocaleString('ar-KW', { minimumFractionDigits: 3 }) : '';
+  return n ? formatCurrency(n) : '';
 }
 
 export function StatementTable({ rows, currentState, highlightId }: Props) {

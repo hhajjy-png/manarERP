@@ -308,6 +308,13 @@ describe('buildTable', () => {
     const html = buildTable(numCols, numRows);
     expect(html).toContain('1,500.5');
   });
+
+  it('formats money columns (format: currency) as "… KWD"', () => {
+    const moneyCols = [{ header: 'المبلغ', key: 'amount', format: 'currency' as const }];
+    const moneyRows = [{ amount: 1500.5 }];
+    const html = buildTable(moneyCols, moneyRows);
+    expect(html).toContain('1,500.500 KWD');
+  });
 });
 
 // ─── buildWatermark ───────────────────────────────────────────────────────────
@@ -422,6 +429,14 @@ describe('fmtCell', () => {
 
   it('escapes HTML in string values', () => {
     expect(fmtCell('<b>test</b>')).toBe('&lt;b&gt;test&lt;/b&gt;');
+  });
+
+  it('formats currency columns with formatCurrency ("… KWD")', () => {
+    expect(fmtCell(1500.5, { format: 'currency' })).toBe('1,500.500 KWD');
+  });
+
+  it('keeps generic numeric formatting when no col/format is passed (unchanged)', () => {
+    expect(fmtCell(1500.5)).toBe('1,500.5');
   });
 });
 

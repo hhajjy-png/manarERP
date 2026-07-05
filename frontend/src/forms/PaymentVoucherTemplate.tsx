@@ -1,5 +1,6 @@
 import { CSSProperties, useMemo } from 'react';
 import { tafqeetKWD } from '../lib/tafqeet';
+import { formatNumber } from '../lib/format';
 
 interface Props {
   voucherNumber: string;
@@ -55,10 +56,7 @@ export default function PaymentVoucherTemplate({
   lang = 'ar',
 }: Props) {
   const amountWords = useMemo(() => tafqeetKWD(amount), [amount]);
-  const amountDisplay = amount.toLocaleString('en-US', {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  });
+  const amountDisplay = formatNumber(amount);
 
   const metaBox: CSSProperties = {
     flex: 1,

@@ -1,3 +1,5 @@
+import { formatInteger, formatNumber } from '../lib/format';
+
 export type FieldKey = 'beneficiary' | 'date' | 'tafqeet' | 'numeric';
 
 export interface FieldConfig {
@@ -160,7 +162,7 @@ export interface ChequePrinterPreference {
 export function fmtChequeAmount(amount: number): string {
   const fils = Math.round(amount * 1000) % 1000;
   if (fils === 0) {
-    return `#${Math.floor(amount).toLocaleString('en-US')}#`;
+    return `#${formatInteger(Math.floor(amount))}#`;
   }
-  return `#${amount.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}#`;
+  return `#${formatNumber(amount)}#`;
 }

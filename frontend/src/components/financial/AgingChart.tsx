@@ -1,4 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { formatCurrency, formatCompact } from '../../lib/format';
 
 export interface AgingBucketData { key: string; label: string; amount: number; }
 
@@ -15,8 +16,8 @@ const BUCKET_FILL: Record<string, string> = {
 
 function fmt(v: unknown) {
   const n = Number(v);
-  if (isNaN(n)) return '0.000';
-  return `${n.toLocaleString('ar-KW', { minimumFractionDigits: 3 })} د.ك`;
+  if (isNaN(n)) return formatCurrency(0);
+  return formatCurrency(n);
 }
 
 export function AgingChart({ data }: Props) {
@@ -28,7 +29,7 @@ export function AgingChart({ data }: Props) {
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top: 10, right: 20, left: 20, bottom: 5 }}>
           <XAxis dataKey="label" tick={{ fontSize: 12, fontFamily: 'inherit' }} />
-          <YAxis tick={{ fontSize: 11, fontFamily: 'inherit' }} tickFormatter={v => Number(v).toLocaleString()} />
+          <YAxis tick={{ fontSize: 11, fontFamily: 'inherit' }} tickFormatter={v => formatCompact(v)} />
           <Tooltip formatter={(v: unknown) => fmt(v)} />
           <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
             {data.map((entry, i) => (

@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database';
+import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -289,7 +290,7 @@ export class ExecutiveService {
       cards.push({
         id: 'dc-highest-outstanding',
         title: 'أعلى ذمة مستحقة',
-        value: `${topDebtor.outstanding.toFixed(3)} د.ك`,
+        value: formatCurrency(topDebtor.outstanding),
         explanation: `${topDebtor.name} لديه أعلى رصيد مستحق (${topDebtor.oldestDays} يوم منذ أقدم فاتورة)`,
         priority: topDebtor.outstanding > 5000 ? 'HIGH' : 'MEDIUM',
         recommendedAction: 'إرسال كشف حساب محدث والتواصل المباشر لترتيب جدول السداد',
@@ -303,8 +304,8 @@ export class ExecutiveService {
       cards.push({
         id: 'dc-largest-profit',
         title: 'أعلى ربحية عقد',
-        value: `${largestProfit.profit.toFixed(3)} د.ك`,
-        explanation: `العقد ${largestProfit.code} (${largestProfit.asphaltPlant}) — هامش ربح ${(largestProfit.profitMargin ?? 0).toFixed(1)}%`,
+        value: formatCurrency(largestProfit.profit),
+        explanation: `العقد ${largestProfit.code} (${largestProfit.asphaltPlant}) — هامش ربح ${formatPercent(largestProfit.profitMargin ?? 0, 1)}`,
         priority: 'LOW',
         recommendedAction: 'دراسة نموذج هذا العقد وتطبيقه على العقود المستقبلية',
         relatedId: largestProfit.id, relatedType: 'CONTRACT', amount: largestProfit.profit,
@@ -317,8 +318,8 @@ export class ExecutiveService {
       cards.push({
         id: 'dc-largest-loss',
         title: 'أكبر عقد خاسر',
-        value: `${Math.abs(largestLoss.profit).toFixed(3)} د.ك خسارة`,
-        explanation: `العقد ${largestLoss.code} (${largestLoss.asphaltPlant}) — هامش ربح ${(largestLoss.profitMargin ?? 0).toFixed(1)}%`,
+        value: `${formatCurrency(Math.abs(largestLoss.profit))} خسارة`,
+        explanation: `العقد ${largestLoss.code} (${largestLoss.asphaltPlant}) — هامش ربح ${formatPercent(largestLoss.profitMargin ?? 0, 1)}`,
         priority: 'HIGH',
         recommendedAction: 'مراجعة عاجلة لبنود مصروفات العقد ومقارنتها بالإيرادات',
         relatedId: largestLoss.id, relatedType: 'CONTRACT', amount: Math.abs(largestLoss.profit),
@@ -345,7 +346,7 @@ export class ExecutiveService {
       cards.push({
         id: 'dc-weak-collections',
         title: 'تحصيل ضعيف',
-        value: `${totalWeakOS.toFixed(3)} د.ك معلّق`,
+        value: `${formatCurrency(totalWeakOS)} معلّق`,
         explanation: `${weakCollections.length} عقود بنسبة تحصيل أقل من 40%`,
         priority: 'HIGH',
         recommendedAction: 'متابعة مكثفة لتحصيل الذمم ومراجعة إجراءات الدفع مع العملاء',
@@ -363,7 +364,7 @@ export class ExecutiveService {
       cards.push({
         id: 'dc-top-expense-project',
         title: 'أعلى مصروفات عقد',
-        value: `${r3(expAmt).toFixed(3)} د.ك`,
+        value: formatCurrency(r3(expAmt)),
         explanation: `العقد ${topExpContractInfo.code} (${topExpContractInfo.asphaltPlant}) يمثل أعلى مصروفات في النظام`,
         priority: 'MEDIUM',
         recommendedAction: 'مراجعة تفاصيل المصروفات ومدى توافقها مع الميزانية التقديرية',
@@ -402,11 +403,12 @@ export class ExecutiveService {
       .map(([id, d]) => ({ customerId: id, ...d }))
       .sort((a, b) => b.revenue - a.revenue)[0];
     if (topRevGenerator) {
+      const topRevCollectionRate = safe(topRevGenerator.collected, topRevGenerator.revenue);
       cards.push({
         id: 'dc-top-revenue',
         title: 'أعلى مولّد إيرادات',
-        value: `${topRevGenerator.revenue.toFixed(3)} د.ك`,
-        explanation: `${topRevGenerator.name} — أعلى إجمالي إيرادات، تحصيل ${safe(topRevGenerator.collected, topRevGenerator.revenue)?.toFixed(1) ?? '—'}%`,
+        value: formatCurrency(topRevGenerator.revenue),
+        explanation: `${topRevGenerator.name} — أعلى إجمالي إيرادات، تحصيل ${topRevCollectionRate != null ? formatPercent(topRevCollectionRate, 1) : '—%'}`,
         priority: 'LOW',
         recommendedAction: 'الحفاظ على هذه العلاقة وتطوير التعاون',
         relatedId: topRevGenerator.customerId, relatedType: 'CUSTOMER', amount: topRevGenerator.revenue,
@@ -427,7 +429,7 @@ export class ExecutiveService {
         severity: thisMonthExp > thisMonthCol * 2 ? 'HIGH' : 'MEDIUM',
         type: 'CASH_FLOW_WARNING',
         title: 'تحذير تدفق نقدي',
-        description: `التحصيلات هذا الشهر (${thisMonthCol.toFixed(3)}) أقل من المصروفات (${thisMonthExp.toFixed(3)})`,
+        description: `التحصيلات هذا الشهر (${formatCurrency(thisMonthCol)}) أقل من المصروفات (${formatCurrency(thisMonthExp)})`,
         amount: r3(thisMonthExp - thisMonthCol),
         actionLabel: 'تسريع التحصيل',
       });
@@ -441,7 +443,7 @@ export class ExecutiveService {
         severity: thisMonthCol < lastMonthCol * 0.5 ? 'HIGH' : 'MEDIUM',
         type: 'COLLECTION_DETERIORATION',
         title: 'تراجع التحصيلات',
-        description: `انخفاض التحصيل بنسبة ${drop?.toFixed(1) ?? '—'}% مقارنة بالشهر الماضي`,
+        description: `انخفاض التحصيل بنسبة ${drop != null ? formatPercent(drop, 1) : '—%'} مقارنة بالشهر الماضي`,
         amount: r3(lastMonthCol - thisMonthCol),
         actionLabel: 'مراجعة ملفات التحصيل',
       });
@@ -455,7 +457,7 @@ export class ExecutiveService {
         severity: thisMonthExp > lastMonthExp * 1.5 ? 'HIGH' : 'MEDIUM',
         type: 'EXPENSE_SPIKE',
         title: 'ارتفاع غير مألوف في المصروفات',
-        description: `المصروفات هذا الشهر أعلى بنسبة ${rise?.toFixed(1) ?? '—'}% من الشهر الماضي`,
+        description: `المصروفات هذا الشهر أعلى بنسبة ${rise != null ? formatPercent(rise, 1) : '—%'} من الشهر الماضي`,
         amount: r3(thisMonthExp - lastMonthExp),
         actionLabel: 'مراجعة المصروفات',
       });
@@ -469,7 +471,7 @@ export class ExecutiveService {
         severity: thisMonthProfit < 0 ? 'HIGH' : 'MEDIUM',
         type: 'PROFITABILITY_DECLINE',
         title: 'تراجع الربحية',
-        description: `صافي الربح هذا الشهر انخفض بنسبة ${drop?.toFixed(1) ?? '—'}%`,
+        description: `صافي الربح هذا الشهر انخفض بنسبة ${drop != null ? formatPercent(drop, 1) : '—%'}`,
         amount: r3(lastMonthProfit - thisMonthProfit),
         actionLabel: 'تحليل أسباب الانخفاض',
       });
@@ -482,7 +484,7 @@ export class ExecutiveService {
         severity: totalOutstanding > totalRevenue * 0.7 ? 'HIGH' : 'MEDIUM',
         type: 'HIGH_RECEIVABLES',
         title: 'ذمم مرتفعة',
-        description: `إجمالي الذمم المستحقة ${((totalOutstanding / totalRevenue) * 100).toFixed(1)}% من الإيرادات الكلية`,
+        description: `إجمالي الذمم المستحقة ${formatPercent((totalOutstanding / totalRevenue) * 100, 1)} من الإيرادات الكلية`,
         amount: totalOutstanding,
         actionLabel: 'مراجعة خطة التحصيل الشاملة',
       });
@@ -496,7 +498,7 @@ export class ExecutiveService {
         severity: 'HIGH',
         type: 'LOSS_MAKING_CONTRACT',
         title: `عقد خاسر: ${c.code}`,
-        description: `${c.asphaltPlant} — خسارة ${Math.abs(c.profit).toFixed(3)} د.ك`,
+        description: `${c.asphaltPlant} — خسارة ${formatCurrency(Math.abs(c.profit))}`,
         amount: Math.abs(c.profit),
         relatedId: c.id, relatedType: 'CONTRACT',
         actionLabel: 'مراجعة المصروفات',
@@ -526,7 +528,7 @@ export class ExecutiveService {
         severity: d.oldestDays > 180 ? 'HIGH' : 'MEDIUM',
         type: 'OVERDUE_CUSTOMER',
         title: `ذمة متأخرة: ${d.name}`,
-        description: `مستحق منذ ${d.oldestDays} يوم — ${d.outstanding.toFixed(3)} د.ك`,
+        description: `مستحق منذ ${d.oldestDays} يوم — ${formatCurrency(d.outstanding)}`,
         amount: d.outstanding,
         relatedId: d.customerId, relatedType: 'CUSTOMER',
         actionLabel: 'متابعة التحصيل',
@@ -739,7 +741,7 @@ export class ExecutiveService {
         priority: hasColDrop ? 'HIGH' : 'MEDIUM',
         title: 'تكثيف جهود التحصيل',
         reason: hasColDrop
-          ? `التحصيل هذا الشهر انخفض بمقدار ${r3(lastMonthCol - thisMonthCol).toFixed(3)} د.ك`
+          ? `التحصيل هذا الشهر انخفض بمقدار ${formatCurrency(r3(lastMonthCol - thisMonthCol))}`
           : `${overdueCount} عملاء لديهم ذمم متأخرة أكثر من 90 يوم`,
         expectedImpact: `تحسين التدفق النقدي وتقليل الذمم المتراكمة`,
         suggestedAction: 'مراجعة قائمة العملاء المتأخرين يومياً وتعيين مسؤول متابعة مخصص',
@@ -798,7 +800,7 @@ export class ExecutiveService {
         reason: `${overdueAbove180.length} عملاء لديهم ذمم أكثر من 180 يوم`,
         expectedImpact: 'استرداد الديون المتعثرة وتجنب الشطب',
         suggestedAction: 'التواصل الرسمي مع العملاء المتعثرين وتقييم اللجوء للإجراءات القانونية عند الاقتضاء',
-        metric: `${r3(overdueAbove180.reduce((s, d) => s + d.outstanding, 0)).toFixed(3)} د.ك متعثرة`,
+        metric: `${formatCurrency(r3(overdueAbove180.reduce((s, d) => s + d.outstanding, 0)))} متعثرة`,
       });
     }
 
@@ -812,7 +814,7 @@ export class ExecutiveService {
         reason: `المصروفات هذا الشهر أعلى بنسبة ملحوظة من الشهر الماضي`,
         expectedImpact: 'تحسين صافي الربح وإعادة التوازن للتدفق النقدي',
         suggestedAction: 'مراجعة مصروفات الشهر الحالي بالتفصيل وتحديد البنود غير الضرورية',
-        metric: `${r3(thisMonthExp - lastMonthExp).toFixed(3)} د.ك زيادة`,
+        metric: `${formatCurrency(r3(thisMonthExp - lastMonthExp))} زيادة`,
       });
     }
 
@@ -822,10 +824,10 @@ export class ExecutiveService {
         id: 'rec-v2-high-receivables',
         priority: 'HIGH',
         title: 'خطة تحصيل شاملة',
-        reason: `الذمم المستحقة تمثل ${((totalOutstanding / totalRevenue) * 100).toFixed(1)}% من إجمالي الإيرادات`,
+        reason: `الذمم المستحقة تمثل ${formatPercent((totalOutstanding / totalRevenue) * 100, 1)} من إجمالي الإيرادات`,
         expectedImpact: 'تحسين جوهري في السيولة وتقليل مخاطر التعثر',
         suggestedAction: 'وضع خطة تحصيل شاملة مع جدول زمني محدد لكل عميل',
-        metric: `${totalOutstanding.toFixed(3)} د.ك ذمم`,
+        metric: `${formatCurrency(totalOutstanding)} ذمم`,
       });
     }
 

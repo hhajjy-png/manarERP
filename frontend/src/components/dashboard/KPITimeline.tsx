@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { api } from '../../api/client';
 import { Skeleton } from './Skeleton';
+import { formatCurrency, formatNumber, formatCompact } from '../../lib/format';
 
 type Period = '1m' | '3m' | '6m' | '12m';
 
@@ -23,10 +24,6 @@ const PERIOD_LABELS: Record<Period, string> = {
   '6m':  'آخر 6 أشهر',
   '12m': 'آخر 12 شهر',
 };
-
-function formatKD(v: number) {
-  return `${v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} د.ك`;
-}
 
 export default function KPITimeline() {
   const [period, setPeriod] = useState<Period>('6m');
@@ -88,11 +85,11 @@ export default function KPITimeline() {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
               <XAxis dataKey="period" tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#9CA3AF', fontSize: 11 }} axisLine={false} tickLine={false}
-                tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
+                tickFormatter={v => formatCompact(v)} />
               <Tooltip
                 contentStyle={{ background: '#1f2937', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, fontSize: 12 }}
                 labelStyle={{ color: '#F9FAFB', fontWeight: 700 }}
-                formatter={(v) => typeof v === 'number' ? formatKD(v) : String(v)}
+                formatter={(v) => typeof v === 'number' ? formatCurrency(v) : String(v)}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: '#9CA3AF' }} />
               <Area type="monotone" dataKey="revenue"    name="الإيرادات"   stroke="#3B82F6" fill="url(#kpi-rev)" strokeWidth={2} dot={false} />
@@ -119,7 +116,7 @@ export default function KPITimeline() {
                   }}>
                     <div style={{ fontSize: 10, color: 'var(--db-muted)', marginBottom: 2 }}>{item.label}</div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: item.color }}>
-                      {item.value.toFixed(3)}
+                      {formatNumber(item.value)}
                     </div>
                   </div>
                 ))}
