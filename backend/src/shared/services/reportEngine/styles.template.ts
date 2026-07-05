@@ -2,9 +2,9 @@ import type { PrintProfile, ReportBranding } from './reportTypes';
 import { PRINT_PROFILES } from './printProfiles';
 
 export function resolveTablePadding(density?: 'compact' | 'normal' | 'comfortable'): string {
-  if (density === 'compact')     return '3px 6px';
-  if (density === 'comfortable') return '8px 14px';
-  return '6px 10px';
+  if (density === 'compact')     return '2px 6px';
+  if (density === 'comfortable') return '6px 12px';
+  return '4px 8px';
 }
 
 export function resolveLogoWidth(size?: 'small' | 'medium' | 'large'): string {
@@ -41,13 +41,7 @@ export function buildStyles(
       @bottom-center {
         content: "صفحة " counter(page) " من " counter(pages);
         font-family: 'Cairo', Arial, sans-serif;
-        font-size: 9px;
-        color: #94a3b8;
-      }
-      @bottom-right {
-        content: "${branding?.companyNameAr ?? 'شركة المنار الدولية'}";
-        font-family: 'Cairo', Arial, sans-serif;
-        font-size: 9px;
+        font-size: 7px;
         color: #94a3b8;
       }
     }
@@ -72,11 +66,11 @@ export function buildStyles(
     .company-header {
       display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 10px 14px;
+      gap: 12px;
+      padding: 7px 12px;
       background: ${headerBg};
       border-radius: 6px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       border-right: 4px solid ${primary};
     }
 
@@ -104,20 +98,20 @@ export function buildStyles(
     .company-info { flex: 1; }
 
     .company-name-ar {
-      font-size: 13px;
-      font-weight: 800;
+      font-size: 17.5px;
+      font-weight: 700;
       color: ${primary};
-      line-height: 1.3;
+      line-height: 1.25;
     }
 
     .company-name-en {
-      font-size: 10px;
+      font-size: 8px;
       color: #475569;
       margin-top: 1px;
     }
 
     .company-contact {
-      font-size: 9.5px;
+      font-size: 7.5px;
       color: #64748b;
       margin-top: 3px;
     }
@@ -125,36 +119,39 @@ export function buildStyles(
     .company-divider {
       border: none;
       border-top: 1.5px solid ${primary}33;
-      margin: 0 0 10px 0;
+      margin: 0 0 8px 0;
     }
 
     /* ── Report Header ── */
     .report-header {
       text-align: center;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
     .report-title {
-      font-size: 17px;
-      font-weight: 700;
+      font-size: 10.5px;
+      font-weight: 800;
       color: ${primary};
-      margin: 0 0 4px 0;
-    }
-
-    .report-subtitle {
-      font-size: 11px;
-      color: #64748b;
       margin: 0 0 3px 0;
     }
 
+    .report-subtitle {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: #334155;
+      margin: 0 0 2px 0;
+    }
+
     .report-date-range {
-      font-size: 10px;
+      font-size: 9.5px;
+      font-weight: 400;
       color: #475569;
       margin: 0 0 2px 0;
     }
 
     .report-generated {
-      font-size: 10px;
+      font-size: 9.5px;
+      font-weight: 400;
       color: #94a3b8;
       margin: 0;
     }
@@ -182,6 +179,7 @@ export function buildStyles(
     thead th {
       padding: 7px 8px;
       text-align: right;
+      font-size: 10.5px;
       font-weight: 700;
       border: 1px solid ${primary}cc;
       white-space: nowrap;
@@ -190,7 +188,15 @@ export function buildStyles(
     tbody td {
       padding: 6px 8px;
       text-align: right;
+      font-size: 9.5px;
+      font-weight: 400;
       border: 1px solid #e2e8f0;
+    }
+
+    /* Numeric values: aligned digits, semibold */
+    td.num {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
     }
 
     tbody tr.zebra {
@@ -204,11 +210,16 @@ export function buildStyles(
     tfoot tr.totals td {
       padding: 7px 8px;
       text-align: right;
+      font-size: 10.5px;
       font-weight: 700;
       background: ${primary}18;
       border: 1px solid ${primary}66;
       border-top: 2px solid ${primary};
       color: ${primary};
+    }
+
+    tfoot tr.totals td.num {
+      font-weight: 700;
     }
 
     /* ── Notes ── */
