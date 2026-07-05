@@ -10,7 +10,7 @@ export function toSummaryReportInput(response: FinancialResponse<FinancialRow>) 
     subtitle: buildSubtitle(String(meta.fromDate ?? '') || undefined, String(meta.toDate ?? '') || undefined),
     columns: [
       { header: 'البند',  key: 'label',  width: 28 },
-      { header: 'المبلغ', key: 'amount', width: 18, numFmt: '#,##0.000' },
+      { header: 'المبلغ', key: 'amount', width: 18, numFmt: '#,##0.000', format: 'currency' as const },
     ],
     rows: [
       { label: 'إجمالي الإيرادات', amount: fmt(meta.totalRevenue   as number) },

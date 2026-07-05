@@ -3,15 +3,17 @@ import { printCurrentView } from '../utils/print';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { formatDate } from '../lib/date';
+import { formatCurrency } from '../lib/format';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string }[]; rows: any[]; totalsRow?: any };
+type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string; format?: 'currency' }[]; rows: any[]; totalsRow?: any };
 
 const th: CSSProperties = { border: '1px solid #cbd5e1', padding: '8px 10px', background: '#1d4e6f', color: '#fff', textAlign: 'right', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' };
 const td: CSSProperties = { border: '1px solid #e2e8f0', padding: '7px 10px', textAlign: 'right' };
 
-function fmt(v: unknown): string {
+function fmtCell(v: unknown, col: { format?: 'currency' }): string {
   if (v == null || v === '') return '';
+  if (col.format === 'currency') return formatCurrency(v);
   if (typeof v === 'number') return v.toLocaleString('en-US', { maximumFractionDigits: 3 });
   return String(v);
 }
@@ -84,12 +86,12 @@ export default function ReportPrint() {
         <tbody>
           {rep.rows.map((row, i) => (
             <tr key={i} style={{ background: i % 2 ? '#f8fafc' : '#fff' }}>
-              {rep.columns.map((c) => <td key={c.key} style={td}>{fmt(row[c.key])}</td>)}
+              {rep.columns.map((c) => <td key={c.key} style={td}>{fmtCell(row[c.key], c)}</td>)}
             </tr>
           ))}
           {rep.totalsRow && (
             <tr>
-              {rep.columns.map((c) => <td key={c.key} style={{ ...td, fontWeight: 800, background: '#f0f3f7', WebkitPrintColorAdjust: 'exact' }}>{fmt(rep.totalsRow[c.key])}</td>)}
+              {rep.columns.map((c) => <td key={c.key} style={{ ...td, fontWeight: 800, background: '#f0f3f7', WebkitPrintColorAdjust: 'exact' }}>{fmtCell(rep.totalsRow[c.key], c)}</td>)}
             </tr>
           )}
         </tbody>

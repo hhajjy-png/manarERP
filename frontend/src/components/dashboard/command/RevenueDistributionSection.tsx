@@ -1,13 +1,10 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Skeleton } from '../Skeleton';
 import type { RevenueSlice } from './types';
+import { formatCurrency, formatInteger, formatPercent } from '../../../lib/format';
 
 // Distinct palette; the last colour is reserved for the aggregated "أخرى" slice.
 const SLICE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#A855F7', '#06B6D4', '#9CA3AF'];
-
-function fmt(v: number): string {
-  return `${v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })} د.ك`;
-}
 
 /** Donut tooltip (element form so Recharts injects active/payload; total passed in). */
 function DonutTooltip({
@@ -30,7 +27,7 @@ function DonutTooltip({
       fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', direction: 'rtl',
     }}>
       <p style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 700, margin: 0 }}>{p.name}</p>
-      <p style={{ color: '#9CA3AF', fontSize: 12, margin: '4px 0 0' }}>{fmt(val)} · {pct.toFixed(1)}%</p>
+      <p style={{ color: '#9CA3AF', fontSize: 12, margin: '4px 0 0' }}>{formatCurrency(val)} · {formatPercent(pct, 1)}</p>
     </div>
   );
 }
@@ -86,7 +83,7 @@ export default function RevenueDistributionSection({
           </PieChart>
         </ResponsiveContainer>
         <div className="db-cc-donut-center">
-          <div className="db-cc-donut-total">{total.toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
+          <div className="db-cc-donut-total">{formatInteger(total)}</div>
           <div className="db-cc-donut-caption">إجمالي الإيرادات</div>
         </div>
       </div>
@@ -98,7 +95,7 @@ export default function RevenueDistributionSection({
             <li key={s.name} className="db-cc-legend-row">
               <span className="db-cc-legend-dot" style={{ background: s.fill }} />
               <span className="db-cc-legend-name">{s.name}</span>
-              <span className="db-cc-legend-pct">{pct.toFixed(0)}%</span>
+              <span className="db-cc-legend-pct">{formatPercent(pct, 0)}</span>
             </li>
           );
         })}

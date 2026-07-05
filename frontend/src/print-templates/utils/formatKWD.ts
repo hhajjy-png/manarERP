@@ -3,6 +3,8 @@
  * KWD has 3 decimal places: 1.500 KD = 1 dinar + 500 fils.
  */
 
+import { formatNumber } from '../../lib/format';
+
 export interface KWDParts {
   dinars: number;
   fils: number;
@@ -32,10 +34,7 @@ export function splitKWD(total: number): KWDParts {
  * formatKWD(28)      // "28.000"
  */
 export function formatKWD(total: number): string {
-  return Math.abs(total).toLocaleString('en-US', {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  });
+  return formatNumber(Math.abs(total));
 }
 
 /**

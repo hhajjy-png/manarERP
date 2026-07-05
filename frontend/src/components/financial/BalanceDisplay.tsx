@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { formatNumber } from '../../lib/format';
 
 type NormalBalance = 'DEBIT' | 'CREDIT';
 
@@ -15,7 +16,7 @@ export function formatBalance(
   showIndicator = true
 ): string {
   const abs    = Math.abs(value ?? 0);
-  const fmtAbs = abs.toLocaleString('ar-KW', { minimumFractionDigits: 3 });
+  const fmtAbs = formatNumber(abs);
   if (!showIndicator || abs < 0.0005) return fmtAbs;
   const indicator = value > 0 ? 'مدين' : value < 0 ? 'دائن' : '';
   return indicator ? `${fmtAbs} ${indicator}` : fmtAbs;
@@ -39,7 +40,7 @@ export function BalanceDisplay({ value, showIndicator = true, className }: Props
     return <span className={`balance-display balance-zero ${className ?? ''}`}>0.000</span>;
   }
 
-  const fmtAbs    = abs.toLocaleString('ar-KW', { minimumFractionDigits: 3 });
+  const fmtAbs    = formatNumber(abs);
   const side      = value > 0 ? 'debit' : 'credit';
   const indicator = value > 0 ? 'مدين' : 'دائن';
 

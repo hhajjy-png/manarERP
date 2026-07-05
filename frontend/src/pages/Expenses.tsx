@@ -172,7 +172,7 @@ export default function Expenses() {
         'الوصف': r.description,
         'المورد': r.supplier?.name ?? r.supplierName ?? '',
         'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : (r.date ? String(r.date).slice(0, 10) : ''),
-        'المبلغ (د.ك)': Number(r.amount),
+        'المبلغ (KWD)': Number(r.amount),
         'الحالة': t(STATUS_META[r.status]?.key ?? '—'),
         'ملاحظات': r.notes ?? '',
       }));

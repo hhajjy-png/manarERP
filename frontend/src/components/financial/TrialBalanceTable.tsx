@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import type { TrialBalanceAsOfRow, TrialBalancePeriodRow } from '../../types/financial.types';
 import { BalanceDisplay } from './BalanceDisplay';
+import { formatCurrency } from '../../lib/format';
 
 type AnyRow = TrialBalanceAsOfRow | TrialBalancePeriodRow;
 
 function fmt(n: number | undefined) {
   if (n === undefined || n === null || n === 0) return '';
-  return n.toLocaleString('ar-KW', { minimumFractionDigits: 3 });
+  return formatCurrency(n);
 }
 
 interface Props {

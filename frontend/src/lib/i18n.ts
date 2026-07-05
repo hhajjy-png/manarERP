@@ -357,7 +357,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'section.urgent_alerts': 'التنبيهات العاجلة',
     'section.expiry_30': 'انتهاء الصلاحيات خلال 30 يوم',
     'section.revenue_flow': 'التدفق المالي',
-    'section.revenue_6m': 'الإيرادات والمصروفات — آخر 6 أشهر (د.ك)',
+    'section.revenue_6m': 'الإيرادات والمصروفات — آخر 6 أشهر (KWD)',
     'section.contract_status': 'حالة العقود',
     'section.contract_dist': 'توزيع العقود حسب الحالة',
     'section.invoice_status': 'حالة الفواتير',

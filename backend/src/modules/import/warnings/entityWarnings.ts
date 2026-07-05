@@ -3,6 +3,7 @@
 // no dependency on bankStatementImport.
 
 import { ENUMS } from '../../../config/constants';
+import { formatCurrency } from '../../../shared/utils/currency';
 import type { ImportWarning } from '../import.types';
 import { asDate, daysUntil, rawField, strOf, warn, SOON_DAYS } from './helpers';
 
@@ -236,7 +237,7 @@ export function payrollWarnings(n: Row, _raw: Row, _now: Date): ImportWarning[] 
   const w: ImportWarning[] = [];
   if (Number(n.netSalary) < 0) {
     w.push(warn('NET_NEGATIVE', 'warning',
-      `صافي الراتب سالب (${Number(n.netSalary).toFixed(3)})`,
+      `صافي الراتب سالب (${formatCurrency(n.netSalary)})`,
       'Computed net salary is negative',
       { field: 'netSalary', suggestedFix: 'راجع الخصومات والسلف مقابل الإجمالي' }));
   }

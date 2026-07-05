@@ -36,6 +36,7 @@ import type { AllLayoutOverrides } from '../print-templates/designer/layoutOverr
 import { useTemplateStudio } from '../print-templates/studio/useTemplateStudio';
 import TemplateStudioRenderer from '../print-templates/studio/TemplateStudioRenderer';
 import { resolveQuotationLineItems } from '../print-templates/studio/lineItemsResolver';
+import { formatNumber } from '../lib/format';
 
 const FORM_KEY = 'quotation';
 
@@ -423,10 +424,10 @@ export default function Quotation() {
 
         {/* Template Studio renderer (optional, default OFF) */}
         {useStudio && studioTemplate && (() => {
-          const qtTotal = printFields.items.reduce(
+          const qtTotal = formatNumber(printFields.items.reduce(
             (sum, item) => sum + (parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0),
             0,
-          ).toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+          ));
           return (
             <TemplateStudioRenderer
               template={studioTemplate}
@@ -713,7 +714,7 @@ export default function Quotation() {
                     </td>
                     <td style={{ border: '1px solid var(--border)', padding: '3px 6px', textAlign: 'end', fontWeight: 600, color: '#1d4e6f' }}>
                       {total > 0
-                        ? total.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+                        ? formatNumber(total)
                         : '—'}
                     </td>
                     <td style={{ border: '1px solid var(--border)', padding: 3, textAlign: 'center' }}>

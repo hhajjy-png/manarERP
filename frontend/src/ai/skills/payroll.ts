@@ -4,6 +4,7 @@
 import { api } from '../../api/client';
 import type { SkillResult } from '../types';
 import { computeQuality } from '../qualityEngine';
+import { formatCurrency } from '../../lib/format';
 
 const SKILL_ID    = 'payroll';
 const SKILL_TITLE = 'مهارة تحليل الرواتب';
@@ -72,7 +73,7 @@ interface PayrollRecord {
   employee?: { id: number; code: string; fullName: string; department?: string | null };
 }
 
-const kd   = (n: number) => `${Number(n).toFixed(3)} د.ك`;
+const kd   = (n: number) => formatCurrency(n);
 const mStr = (r: PayrollRecord) => `${ARABIC_MONTHS[r.month] ?? r.month} ${r.year}`;
 
 function errResult(prompt: string, intent: string, err: unknown, t0: number): SkillResult {

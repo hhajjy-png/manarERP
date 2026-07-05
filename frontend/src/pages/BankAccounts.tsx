@@ -4,12 +4,13 @@ import { useAuth } from '../stores/authStore';
 import { listBankAccounts, type BankAccountSummary } from '../api/bankAccounts';
 import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
+import { formatNumber } from '../lib/format';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtAmount(v: number | null): string {
   if (v == null) return '—';
-  return v.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+  return formatNumber(v);
 }
 
 function fmtDate(iso: string | null | undefined): string {
@@ -77,7 +78,6 @@ function AccountCard({
         <span className="bac-balance-value">
           <PrivateAmount
             value={account.currentBalance ?? 0}
-            currency="د.ك"
           />
         </span>
       </div>

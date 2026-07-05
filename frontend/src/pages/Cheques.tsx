@@ -6,6 +6,7 @@ import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { tafqeetKWD } from '../lib/tafqeet';
 import { formatDate } from '../lib/date';
+import { formatNumber } from '../lib/format';
 import { PageMeta } from '../components/DataTable';
 import ConfirmModal from '../components/ConfirmModal';
 import ForceDeleteChequeModal from '../components/ForceDeleteChequeModal';
@@ -106,7 +107,7 @@ function fmtDate(v: string | null | undefined): string {
 
 function fmtAmount(v: number | string, currency = 'KWD'): string {
   const n = Number(v ?? 0);
-  return n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + ' ' + currency;
+  return formatNumber(n) + ' ' + currency;
 }
 
 // ── ChequePrintOutput (print engine — UNCHANGED) ───────────────────────────────

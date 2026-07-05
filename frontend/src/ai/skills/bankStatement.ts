@@ -4,6 +4,7 @@
 // No backend changes. No SQL. Read-only.
 
 import { api } from '../../api/client';
+import { formatCurrency } from '../../lib/format';
 import type { SkillResult, SkillHighlight, SkillDataCard } from '../types';
 import type { ImportListResult, ReconciliationWorkspace } from '../../api/bankStatementImport';
 import { computeQuality } from '../qualityEngine';
@@ -26,7 +27,7 @@ const FOLLOW_UPS = [
   'اعرض نظرة عامة على الكشف',
 ];
 
-const kd = (n: number) => `${n.toFixed(3)} د.ك`;
+const kd = (n: number) => formatCurrency(n);
 
 const RELATED_SKILLS = [
   { skillId: 'payroll',   labelAr: 'تحليل الرواتب',    promptSuggestion: 'لخّص رواتب هذا الشهر' },
@@ -425,7 +426,6 @@ export async function executeBankStatementSkill(prompt: string, intent: string):
 
     // ── intent: summary (default) ─────────────────────────────────────────────
     const importedDate = new Date(latest.importedAt).toLocaleDateString('ar-KW');
-    const balance      = (latest.totalCredits - latest.totalDebits).toFixed(3);
 
     return {
       skillId: SKILL_ID, skillTitleAr: SKILL_TITLE, intent: 'summary', prompt,
@@ -441,7 +441,7 @@ export async function executeBankStatementSkill(prompt: string, intent: string):
       statistics: [
         { labelAr: 'إجمالي السحوبات',  value: kd(latest.totalDebits),  kind: 'money' },
         { labelAr: 'إجمالي الإيداعات', value: kd(latest.totalCredits), kind: 'money' },
-        { labelAr: 'الرصيد الصافي',    value: `${balance} د.ك`,        kind: 'money' },
+        { labelAr: 'الرصيد الصافي',    value: kd(latest.totalCredits - latest.totalDebits),        kind: 'money' },
         { labelAr: 'عدد العمليات',     value: latest.totalRows,        kind: 'count' },
       ],
       cards: [{
