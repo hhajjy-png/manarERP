@@ -27,11 +27,13 @@ import {
   ErrorBanner,
   SkeletonRows,
   Pagination,
+  Tabs,
   Drawer,
   DrawerSection,
   Button,
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
+import EmployeeFinancialTab from '../components/employee/EmployeeFinancialTab';
 
 type AlertItem = { id: number; code: string; label: string; severity: 'warn' | 'error' };
 type ContractStats = { totalContracts: number; activeContracts: number; monthlyTransportTotal: number };
@@ -58,6 +60,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [creating, setCreating] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [viewing, setViewing] = useState<any | null>(null);
+  // Employee drawer only: which detail tab is active. Reset to 'basic' on every
+  // employee change so payroll data is never fetched until the user opens مالية.
+  const [drawerTab, setDrawerTab] = useState<'basic' | 'financial'>('basic');
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [contractStats, setContractStats] = useState<ContractStats | null>(null);
   const [equipmentStats, setEquipmentStats] = useState<EquipmentStats | null>(null);
@@ -100,6 +105,11 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   }, [cfg.endpoint, page, query, filterValue, cfg.statusFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Reset the employee drawer to the basic tab whenever a different employee is
+  // opened (or the drawer closes), so switching employees never shows stale
+  // payroll data and مالية only fetches once the user actively selects it.
+  useEffect(() => { setDrawerTab('basic'); }, [viewing?.id]);
 
   // State resets on module change are handled by usePersistedState key switching.
 
@@ -368,6 +378,20 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     const useHero = kpis.length >= 3;
     function resetAll() { setSearch(''); setQuery(''); setFilterValue(''); setPage(1); }
 
+    // Shared "basic info" panel for the detail drawer — the default body for
+    // every module, and the البيانات الأساسية tab for employees. Hoisted so the
+    // two drawer branches below don't duplicate the field-rendering markup.
+    const basicSection = viewing ? (
+      <DrawerSection title={t(cfg.title)}>
+        {cfg.columns.map((c) => (
+          <div className="xpl-drawer-field" key={c.key}>
+            <span className="xpl-drawer-field-label">{t(c.label)}</span>
+            <span className="xpl-drawer-field-value">{c.render ? c.render(viewing) : (viewing[c.key] ?? '—')}</span>
+          </div>
+        ))}
+      </DrawerSection>
+    ) : null;
+
     return (
       <div className="xpl-scope xpl-page" dir="rtl">
         <ExecutiveHeader
@@ -499,14 +523,23 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
               </>
             }
           >
-            <DrawerSection title={t(cfg.title)}>
-              {cfg.columns.map((c) => (
-                <div className="xpl-drawer-field" key={c.key}>
-                  <span className="xpl-drawer-field-label">{t(c.label)}</span>
-                  <span className="xpl-drawer-field-value">{c.render ? c.render(viewing) : (viewing[c.key] ?? '—')}</span>
-                </div>
-              ))}
-            </DrawerSection>
+            {cfg.key === 'employees' ? (
+              <>
+                <Tabs
+                  tabs={[
+                    { key: 'basic', label: 'البيانات الأساسية', icon: 'badge' },
+                    { key: 'financial', label: 'المالية', icon: 'payments' },
+                  ]}
+                  active={drawerTab}
+                  onChange={setDrawerTab}
+                />
+                {drawerTab === 'basic' ? basicSection : (
+                  // Keyed by employee id → remounts per employee (no stale payroll);
+                  // only mounts here, so payroll fetch is lazy to the مالية tab.
+                  <EmployeeFinancialTab key={viewing.id} employee={viewing} />
+                )}
+              </>
+            ) : basicSection}
           </Drawer>
         )}
 
