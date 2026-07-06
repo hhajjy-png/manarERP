@@ -22,6 +22,15 @@ interface FormLayoutProps {
   toolbarExtra?: ReactNode;
   /** Language for FormHeader, ApprovalSection, and copy count labels */
   lang?: 'ar' | 'en';
+  /**
+   * Opt-in (letterhead profile only): reclaim the generous 20mm bottom margin down
+   * to 10mm so a single-page form that overflows the official-letterhead printable
+   * band by only a few millimetres stays on one page. Top/header clearance is
+   * unchanged. Off by default — only forms that actually overflow set this, so no
+   * other form, multi-page template, or future layout is affected. Does not touch
+   * the shared PRINT_PROFILES margins (the Employment Contract stays byte-identical).
+   */
+  letterheadCompactFooter?: boolean;
 }
 
 /** Shared −/count/+ copies stepper, reused in the workspace toolbar and sidebar. */
@@ -67,6 +76,7 @@ export default function FormLayout({
   formType,
   toolbarExtra,
   lang = 'ar',
+  letterheadCompactFooter = false,
 }: FormLayoutProps) {
   const navigate = useNavigate();
 
@@ -79,6 +89,17 @@ export default function FormLayout({
   // Ref to the printable `.form-page` — its outerHTML is the ONLY content sent to
   // the PDF export, isolated from the surrounding PrintWorkspace shell.
   const formPageRef = useRef<HTMLDivElement>(null);
+
+  const activeProfile = PRINT_PROFILES[profile];
+  // Letterhead-only, opt-in bottom-margin trim: when a form sets
+  // `letterheadCompactFooter`, reclaim the generous 20mm bottom margin to 10mm so it
+  // stays on one page (top/header clearance untouched — see the prop's JSDoc). Feeds
+  // BOTH the @page print rules and the Save-PDF export so print and PDF can't drift.
+  const formMargins =
+    profile === 'letterhead' && letterheadCompactFooter
+      ? { ...activeProfile.margins, bottom: '10mm' }
+      : activeProfile.margins;
+  const { top: mt, right: mr, bottom: mb, left: ml } = formMargins;
 
   function updateCopies(n: number) {
     const clamped = Math.max(1, Math.min(10, n));
@@ -139,7 +160,7 @@ export default function FormLayout({
         formPageHtml: clone.outerHTML,
         title: title || name,
         lang,
-        margins: activeProfile.margins,
+        margins: formMargins,
       });
       await exportFromHtml(html, name);
     } catch {
@@ -153,8 +174,6 @@ export default function FormLayout({
     return () => clearTimeout(t);
   }, [ready]);
 
-  const activeProfile = PRINT_PROFILES[profile];
-  const { top: mt, right: mr, bottom: mb, left: ml } = activeProfile.margins;
   const paperLabel = lang === 'en' ? activeProfile.labelEn : activeProfile.labelAr;
 
   const toolbar = (

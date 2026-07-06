@@ -12,8 +12,11 @@ interface Props {
 }
 
 export default function FormHeader({ isLetterhead, lang = 'ar' }: Props) {
-  // visibility:hidden preserves the physical space so letterhead content stays aligned
-  const style: CSSProperties = isLetterhead ? { visibility: 'hidden' } : {};
+  // Letterhead's `@page { margin-top: 40mm }` (FormLayout) already clears the
+  // physically pre-printed header. `visibility:hidden` would still keep this
+  // banner's ~18–20mm box in flow — a redundant second clearance that spilled the
+  // footer onto page 2 — so `display:none` collapses it entirely.
+  const style: CSSProperties = isLetterhead ? { display: 'none' } : {};
 
   return (
     <div

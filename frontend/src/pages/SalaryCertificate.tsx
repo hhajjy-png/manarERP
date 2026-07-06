@@ -92,6 +92,9 @@ export default function SalaryCertificate() {
       formNumber={formNumber}
       title={lang === 'en' ? 'Salary Certificate' : 'شـهـادة راتـب'}
       profile={profile}
+      // Overflows the official-letterhead band by a few mm — reclaim the 10mm
+      // bottom margin so it stays on one page (letterhead only; top unchanged).
+      letterheadCompactFooter
       toolbarExtra={
         <>
           <LanguageToggle lang={lang} onChange={setLang} />
