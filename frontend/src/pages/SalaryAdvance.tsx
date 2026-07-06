@@ -96,6 +96,9 @@ export default function SalaryAdvance() {
       formNumber={formNumber}
       title="طلب سلفة راتب"
       profile={profile}
+      // Overflows the official-letterhead band by a few mm — reclaim the 10mm
+      // bottom margin so it stays on one page (letterhead only; top unchanged).
+      letterheadCompactFooter
       toolbarExtra={
         <>
           <LanguageToggle lang={lang} onChange={setLang} />
