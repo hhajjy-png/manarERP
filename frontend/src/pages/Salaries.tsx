@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useT } from '../lib/i18n';
 import { PageMeta } from '../components/DataTable';
@@ -76,8 +76,14 @@ export default function Salaries() {
   const { hasPermission } = useAuth();
   const { t } = useT();
   const navigate = useNavigate();
+  const location = useLocation();
   const [tab, setTab] = usePersistedState<'payroll' | 'history'>('sal:tab', 'payroll');
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  // A deep-linked employee (e.g. on-leave/terminated) may be absent from the
+  // ACTIVE-only `employees` dropdown; keep it here so the filter shows the real
+  // name instead of falling back to "all employees". Separate state so the async
+  // employees fetch can't clobber it.
+  const [pinnedEmployee, setPinnedEmployee] = useState<EmployeeOption | null>(null);
   const [rows, setRows] = useState<PayrollRow[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
@@ -149,6 +155,20 @@ export default function Salaries() {
       .then((res) => setEmployees(res.data.data.data ?? []))
       .catch(() => {});
   }, []);
+
+  // Deep-link from the employee drawer's "عرض جميع الرواتب" button: preselect that
+  // employee and land on the payroll tab. The payroll loader reacts to employeeId.
+  useEffect(() => {
+    const incoming = location.state as { employeeId?: number | string; employeeName?: string } | null;
+    if (incoming?.employeeId != null && incoming.employeeId !== '') {
+      setEmployeeId(String(incoming.employeeId));
+      setTab('payroll');
+      if (incoming.employeeName) {
+        setPinnedEmployee({ id: Number(incoming.employeeId), fullName: incoming.employeeName, code: '' });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   useEffect(() => {
     loadPayroll().catch((e) => setError(errorMessage(e)));
@@ -295,7 +315,10 @@ export default function Salaries() {
                 <span className="xpl-field-label">{t('page.salaries.all_employees')}</span>
                 <select className="xpl-select" value={employeeId} onChange={(e) => { setEmployeeId(e.target.value); setPage(1); }} aria-label={t('page.salaries.all_employees')}>
                   <option value="">{t('page.salaries.all_employees')}</option>
-                  {employees.map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
+                  {(pinnedEmployee && !employees.some((e) => e.id === pinnedEmployee.id)
+                    ? [pinnedEmployee, ...employees]
+                    : employees
+                  ).map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
                 </select>
               </div>
               {canExport && <Button variant="secondary" icon="table_view" busy={excelBusy} onClick={downloadPayrollExcel}>تصدير Excel</Button>}
