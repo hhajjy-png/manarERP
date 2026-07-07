@@ -23,11 +23,13 @@ export function buildInfoItems(
   cfg: ModuleConfig,
   entity: Record<string, any>,
   t: (k: string) => string,
+  omitKeys: string[] = [],
 ): InfoItem[] {
   const renderByKey = new Map<string, (row: any) => ReactNode>();
   cfg.columns.forEach((c) => { if (c.render) renderByKey.set(c.key, c.render); });
   return cfg.fields
     .filter((f) => f.name !== 'name' && f.name !== 'fullName') // shown as the header title
+    .filter((f) => !omitKeys.includes(f.name)) // already shown elsewhere in the header card
     .map((f) => ({
       label: t(f.label),
       value: renderByKey.has(f.name) ? renderByKey.get(f.name)!(entity) : (entity[f.name] ?? null),

@@ -438,7 +438,7 @@ export default function Invoices() {
         const quickActions: QuickAction[] = [];
         if (canCollect) quickActions.push({ key: 'collect', icon: 'payments', label: t('page.invoices.collect'), onClick: openCollect });
         if (hasPermission('invoices.read')) quickActions.push({ key: 'print', icon: 'print', label: t('btn.inv.print_invoice'), onClick: goPrint });
-        quickActions.push({ key: 'pdf', icon: 'picture_as_pdf', label: 'PDF', onClick: goPdf });
+        if (hasPermission('invoices.read')) quickActions.push({ key: 'pdf', icon: 'picture_as_pdf', label: 'PDF', onClick: goPdf });
         if (canEdit) quickActions.push({ key: 'edit', icon: 'edit', label: t('action.edit'), tone: 'primary', onClick: openEdit });
         if (canCancel) quickActions.push({ key: 'cancel', icon: 'block', label: t('page.invoices.cancel_inv'), onClick: runCancel });
         if (isSystemAdmin) quickActions.push({ key: 'delete', icon: 'delete_forever', label: 'حذف نهائي', tone: 'danger', onClick: runDelete });

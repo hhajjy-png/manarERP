@@ -80,9 +80,9 @@ describe('EquipmentHub', () => {
       entity={{ id: 5, code: 'EQ-5', type: 'شاحنة', status: 'WORKING', registration: { remainingText: '183 يوم', expiry: '2027-01-06' } }}
       cfg={eqCfg} onEdit={vi.fn()} onDelete={vi.fn()} canUpdate canDelete busy={false}
     /></MemoryRouter>);
-    // Header title and the info-grid's `code` field both render "EQ-5" (same
-    // convention as CustomerHub, whose subtitle/info-grid also duplicate `code`),
-    // so scope the query to the header title element to avoid ambiguity.
+    // buildInfoItems omits code/type/plateNumber here since they're already shown
+    // in the header title/subtitle, so "EQ-5" is unique — but scope to the header
+    // title element anyway to keep the assertion resilient to future info-grid fields.
     expect(await screen.findByText('EQ-5', { selector: '.xpl-drawer-headcard-title' })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText('سجل الصيانة')).toBeNull();

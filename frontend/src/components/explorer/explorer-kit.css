@@ -783,10 +783,12 @@
   .xpl-table tbody tr,
   .xpl-filter-chip,
   .xpl-tab,
-  .xpl-back-btn { transition: none !important; }
+  .xpl-back-btn,
+  .xpl-quick-action { transition: none !important; }
   .xpl-metric--click:hover,
   .xpl-hero:hover,
-  .xpl-btn--primary:hover:not(:disabled) { transform: none !important; }
+  .xpl-btn--primary:hover:not(:disabled),
+  .xpl-quick-action:active { transform: none !important; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════════

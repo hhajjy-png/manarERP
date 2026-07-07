@@ -15,7 +15,7 @@ interface CustomerStats {
   totalRemaining?: number;
 }
 
-export default function CustomerHub({ entity, cfg, onEdit, onDelete, canUpdate, canDelete }: EntityHubProps) {
+export default function CustomerHub({ entity, cfg, onEdit, onDelete, canUpdate, canDelete, busy }: EntityHubProps) {
   const { t } = useT();
   const navigate = useNavigate();
   const id = entity.id as number;
@@ -96,7 +96,7 @@ export default function CustomerHub({ entity, cfg, onEdit, onDelete, canUpdate, 
     { key: 'new-invoice', icon: 'note_add', label: 'إنشاء فاتورة', onClick: () => navigate('/invoices') },
     { key: 'add-contract', icon: 'description', label: 'إضافة عقد', onClick: () => navigate('/contracts') },
     ...(canUpdate ? [{ key: 'edit', icon: 'edit', label: 'تعديل', tone: 'primary' as const, onClick: onEdit }] : []),
-    ...(canDelete ? [{ key: 'delete', icon: 'delete', label: 'حذف', tone: 'danger' as const, onClick: onDelete }] : []),
+    ...(canDelete ? [{ key: 'delete', icon: 'delete', label: 'حذف', tone: 'danger' as const, onClick: onDelete, disabled: busy }] : []),
   ];
 
   const invoiceItems: RelatedItem[] = invoices.map((inv) => ({
@@ -119,7 +119,7 @@ export default function CustomerHub({ entity, cfg, onEdit, onDelete, canUpdate, 
         kpis={kpis}
       />
       <DrawerQuickActions actions={actions} />
-      <DrawerInfoGrid title={t('nav.customers')} items={buildInfoItems(cfg, entity, t)} />
+      <DrawerInfoGrid title={t('nav.customers')} items={buildInfoItems(cfg, entity, t, ['code'])} />
       <DrawerRelated title="أحدث الفواتير" loading={loading} items={invoiceItems} />
       <DrawerRelated title="العقود" loading={loading} items={contractItems} />
       <DrawerActivity loading={loading} items={activity} />

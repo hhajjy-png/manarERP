@@ -38,7 +38,7 @@ const MAINTENANCE_STATUS_LABEL: Record<string, string> = {
   CANCELLED: 'ملغاة',
 };
 
-export default function EquipmentHub({ entity, cfg, onEdit, onDelete, canUpdate, canDelete }: EntityHubProps) {
+export default function EquipmentHub({ entity, cfg, onEdit, onDelete, canUpdate, canDelete, busy }: EntityHubProps) {
   const { t } = useT();
   const navigate = useNavigate();
   const id = entity.id as number;
@@ -91,7 +91,7 @@ export default function EquipmentHub({ entity, cfg, onEdit, onDelete, canUpdate,
     { key: 'request-maintenance', icon: 'build_circle', label: 'طلب صيانة', onClick: () => navigate('/maintenance') },
     { key: 'log-fuel', icon: 'local_gas_station', label: 'تسجيل وقود', onClick: () => navigate('/maintenance') },
     ...(canUpdate ? [{ key: 'edit', icon: 'edit', label: 'تعديل', tone: 'primary' as const, onClick: onEdit }] : []),
-    ...(canDelete ? [{ key: 'delete', icon: 'delete', label: 'حذف', tone: 'danger' as const, onClick: onDelete }] : []),
+    ...(canDelete ? [{ key: 'delete', icon: 'delete', label: 'حذف', tone: 'danger' as const, onClick: onDelete, disabled: busy }] : []),
   ];
 
   const maintenanceItems: RelatedItem[] = records.map((r) => ({
@@ -142,7 +142,7 @@ export default function EquipmentHub({ entity, cfg, onEdit, onDelete, canUpdate,
         kpis={kpis}
       />
       <DrawerQuickActions actions={actions} />
-      <DrawerInfoGrid title={t('nav.equipment')} items={buildInfoItems(cfg, entity, t)} />
+      <DrawerInfoGrid title={t('nav.equipment')} items={buildInfoItems(cfg, entity, t, ['code', 'type', 'plateNumber'])} />
       <DrawerRelated title="سجل الصيانة" loading={loading} items={maintenanceItems} />
       <DrawerRelated title="سجل الوقود" loading={loading} items={fuelItems} />
       <DrawerActivity loading={loading} items={activity} />
