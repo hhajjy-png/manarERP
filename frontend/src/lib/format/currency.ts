@@ -1,4 +1,5 @@
 import { currencyConfig } from './currencyConfig';
+import { CurrencyLanguage } from './currencyLanguage';
 
 // Formatter instances created ONCE at module load and reused (performance requirement).
 const numberFormatter = new Intl.NumberFormat(currencyConfig.locale, {
@@ -10,6 +11,21 @@ const integerFormatter = new Intl.NumberFormat(currencyConfig.locale, {
   maximumFractionDigits: 0,
 });
 
+// Monetary number formatters per display language (built once). English keeps the
+// existing en-US digits/separators; Arabic uses Arabic-Indic digits + separators.
+// The suffix follows: English "KWD", Arabic "د.ك". Exactly 3 decimals in both.
+const currencyNumberFormatters: Record<CurrencyLanguage, Intl.NumberFormat> = {
+  english: numberFormatter,
+  arabic: new Intl.NumberFormat('ar-KW-u-nu-arab', {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  }),
+};
+const currencySuffix: Record<CurrencyLanguage, string> = {
+  english: currencyConfig.code, // 'KWD'
+  arabic: 'د.ك',
+};
+
 function toNumber(value: unknown): number {
   const n = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -20,9 +36,16 @@ export function formatNumber(value: unknown): string {
   return numberFormatter.format(toNumber(value));
 }
 
-/** Full monetary format: "144,922.400 KWD" — all app UI, HTML reports, non-designed PDF. */
-export function formatCurrency(value: unknown): string {
-  return `${numberFormatter.format(toNumber(value))} ${currencyConfig.code}`;
+/**
+ * Full monetary format — a PURE function of its arguments (deterministic; no hidden state):
+ *   English: "144,922.400 KWD"   ·   Arabic: "١٤٤٬٩٢٢٫٤٠٠ د.ك"
+ * Exactly 3 decimals, KWD currency. `language` defaults SAFELY to English when omitted.
+ * The active company setting is resolved at app-level entry points (money / report cells)
+ * and passed in explicitly — this module holds no mutable currency-language state.
+ */
+export function formatCurrency(value: unknown, opts?: { language?: CurrencyLanguage }): string {
+  const language = opts?.language ?? 'english';
+  return `${currencyNumberFormatters[language].format(toNumber(value))} ${currencySuffix[language]}`;
 }
 
 /** Whole number, no decimals: "144,922" — counts. */
@@ -60,9 +83,9 @@ const reportCellNumberFormatter = new Intl.NumberFormat(currencyConfig.locale, {
  * other numeric cells render plain en-US (0–3 decimals); empty/null → "".
  * Shared by Reports.tsx and ReportPrint.tsx so the currency-column convention lives in one place.
  */
-export function formatReportCell(value: unknown, col: { format?: 'currency' }): string {
+export function formatReportCell(value: unknown, col: { format?: 'currency' }, opts?: { language?: CurrencyLanguage }): string {
   if (value == null || value === '') return '';
-  if (col.format === 'currency') return formatCurrency(value);
+  if (col.format === 'currency') return formatCurrency(value, opts);
   if (typeof value === 'number') return reportCellNumberFormatter.format(value);
   return String(value);
 }
