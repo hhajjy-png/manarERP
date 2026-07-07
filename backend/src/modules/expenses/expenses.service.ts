@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
@@ -264,6 +265,148 @@ export class ExpensesService {
     await prisma.expense.delete({ where: { id } });
     await recordAudit({ req, action: 'DELETE', module: 'expenses', entityId: id });
     return { deleted: true };
+  }
+
+  /**
+   * معاينة الحذف النهائي (SYSTEM_ADMIN فقط): لقطة عن المصروف + عدّ السجلات المرتبطة
+   * التي ستُحذف/تُلغى مطابقتها، دون تنفيذ أي حذف. تُستخدم لعرض نافذة التأكيد.
+   */
+  async forceRemovePreview(id: number) {
+    const expense = await prisma.expense.findUnique({
+      where: { id },
+      include: { supplier: { select: { name: true } } },
+    });
+    if (!expense) throw AppError.notFound('المصروف غير موجود');
+
+    const journalEntries = await prisma.journalEntry.findMany({
+      where: { referenceType: { in: ['EXPENSE', 'EXPENSE_REVERSAL'] }, referenceId: id },
+      select: { id: true },
+    });
+    const journalIds = journalEntries.map((j) => j.id);
+
+    const [legacyTransactionsCount, attachmentsCount, bankMatchesCount] = await Promise.all([
+      prisma.transaction.count({ where: { referenceType: 'EXPENSE', referenceId: id } }),
+      prisma.attachment.count({ where: { entityType: 'EXPENSE', entityId: id } }),
+      prisma.bankStatementTransaction.count({
+        where: {
+          OR: [
+            { matchedType: 'expense', matchedId: id },
+            ...(journalIds.length ? [{ matchedType: 'journal', matchedId: { in: journalIds } }] : []),
+          ],
+        },
+      }),
+    ]);
+
+    const journalEntriesCount = journalEntries.length;
+
+    const willBeDeleted: string[] = ['المصروف'];
+    if (journalEntriesCount > 0) willBeDeleted.push(`${journalEntriesCount} قيد يومية محاسبي`);
+    if (legacyTransactionsCount > 0) willBeDeleted.push(`${legacyTransactionsCount} قيد (سجل مفرد)`);
+    if (attachmentsCount > 0) willBeDeleted.push(`${attachmentsCount} مرفق`);
+
+    const warnings: string[] = [];
+    if (expense.status === 'APPROVED') warnings.push('هذا المصروف معتمد ومُرحَّل محاسبيًا — سيُحذف قيده المحاسبي نهائيًا');
+    if (expense.status === 'REVERSED') warnings.push('هذا المصروف معكوس — سيُحذف قيد العكس نهائيًا');
+    if (bankMatchesCount > 0) warnings.push(`مرتبط بـ ${bankMatchesCount} عملية في كشوف البنك — ستُلغى المطابقة وتعود «غير مطابقة»`);
+    if (journalEntriesCount === 0 && legacyTransactionsCount === 0) warnings.push('لا توجد قيود محاسبية مرتبطة بهذا المصروف');
+
+    return {
+      id: expense.id,
+      code: expense.code,
+      category: expense.category,
+      amount: expense.amount,
+      date: expense.date,
+      status: expense.status,
+      paymentMethod: expense.paymentMethod,
+      supplierName: expense.supplier?.name ?? expense.supplierName ?? null,
+      journalEntriesCount,
+      legacyTransactionsCount,
+      attachmentsCount,
+      bankMatchesCount,
+      willBeDeleted,
+      warnings,
+    };
+  }
+
+  /**
+   * الحذف النهائي (SYSTEM_ADMIN فقط) لمصروف — بما فيها المعتمد/المُرحَّل.
+   * يتطلب تأكيدًا نصيًا مطابقًا لرمز المصروف. يعمل داخل معاملة واحدة ولا يترك سجلات معلّقة:
+   * يُلغي مطابقة كشوف البنك، ويحذف القيد المفرد القديم وقيود اليومية المزدوجة (البنود Cascade)
+   * وسجلات المرفقات ثم المصروف. لا يغيّر منطق الترحيل/الاعتماد/التقارير — حذفٌ فقط.
+   */
+  async forceRemove(id: number, confirmation: string, req: Request) {
+    const expense = await prisma.expense.findUnique({ where: { id } });
+    if (!expense) throw AppError.notFound('المصروف غير موجود');
+    if (confirmation !== expense.code) {
+      throw AppError.badRequest('يجب كتابة رمز المصروف بشكل مطابق للتأكيد');
+    }
+
+    // نجمع المرفقات (لحذف ملفاتها بعد نجاح المعاملة) وقيود اليومية (لإلغاء مطابقة البنك)
+    const [attachments, journalEntries] = await Promise.all([
+      prisma.attachment.findMany({ where: { entityType: 'EXPENSE', entityId: id }, select: { id: true, filePath: true } }),
+      prisma.journalEntry.findMany({ where: { referenceType: { in: ['EXPENSE', 'EXPENSE_REVERSAL'] }, referenceId: id }, select: { id: true } }),
+    ]);
+    const journalIds = journalEntries.map((j) => j.id);
+
+    const counts = await prisma.$transaction(async (tx) => {
+      // 1) إلغاء أي مطابقة بنكية تشير إلى هذا المصروف أو قيوده (لا FK — منعًا للمراجع المعلّقة)
+      const unlinked = await tx.bankStatementTransaction.updateMany({
+        where: {
+          OR: [
+            { matchedType: 'expense', matchedId: id },
+            ...(journalIds.length ? [{ matchedType: 'journal', matchedId: { in: journalIds } }] : []),
+          ],
+        },
+        data: { reconcileStatus: 'UNMATCHED', matchedType: null, matchedId: null, matchedRef: null, matchConfidence: null },
+      });
+
+      // 2) حذف القيد المفرد القديم (Legacy Transaction)
+      const legacy = await tx.transaction.deleteMany({ where: { referenceType: 'EXPENSE', referenceId: id } });
+
+      // 3) حذف قيود اليومية المزدوجة (EXPENSE + EXPENSE_REVERSAL) — بنودها تُحذف تلقائيًا (Cascade)
+      const journals = await tx.journalEntry.deleteMany({ where: { referenceType: { in: ['EXPENSE', 'EXPENSE_REVERSAL'] }, referenceId: id } });
+
+      // 4) حذف سجلات المرفقات (Polymorphic — لا FK)
+      const atts = await tx.attachment.deleteMany({ where: { entityType: 'EXPENSE', entityId: id } });
+
+      // 5) حذف المصروف نفسه
+      await tx.expense.delete({ where: { id } });
+
+      return {
+        bankMatchesUnlinked: unlinked.count,
+        legacyTransactionsCleared: legacy.count,
+        journalEntriesDeleted: journals.count,
+        attachmentsDeleted: atts.count,
+      };
+    });
+
+    // حذف ملفات المرفقات من القرص (أفضل جهد — خارج المعاملة، غير قاتل)
+    for (const att of attachments) {
+      try {
+        if (att.filePath && fs.existsSync(att.filePath)) fs.unlinkSync(att.filePath);
+      } catch {
+        // تجاهل فشل حذف الملف — السجلات في قاعدة البيانات حُذفت بالفعل
+      }
+    }
+
+    await recordAudit({
+      req,
+      action: 'FORCE_DELETE_EXPENSE',
+      module: 'expenses',
+      entityId: id,
+      oldValue: { code: expense.code, category: expense.category, amount: expense.amount, status: expense.status, date: expense.date },
+      newValue: {
+        forceDelete: true,
+        code: expense.code,
+        category: expense.category,
+        amount: expense.amount,
+        status: expense.status,
+        date: expense.date,
+        ...counts,
+      },
+    });
+
+    return { deleted: true, ...counts };
   }
 
   async stats(query: { category?: string; status?: string; supplierId?: string; billingMonth?: string; billingYear?: string; from?: string; to?: string }) {

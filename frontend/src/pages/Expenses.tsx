@@ -13,10 +13,11 @@ import { downloadXlsx } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import AttachmentsPanel from '../components/AttachmentsPanel';
+import ForceDeleteExpenseModal from '../components/ForceDeleteExpenseModal';
+import FastMonthlyExpenseDialog from '../components/FastMonthlyExpenseDialog';
 import SearchableSelect, { SearchableOption } from '../components/SearchableSelect';
 import {
-  EXPENSE_CATEGORIES,
-  EXPENSE_CATEGORY_GROUP_LABELS,
+  EXPENSE_CATEGORY_SELECT_OPTIONS,
   expenseCategoryLabel,
   expenseCategoryIcon,
 } from '../config/expenseCategories';
@@ -45,15 +46,8 @@ import './Expenses.css';
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
-// خيارات القائمة القابلة للبحث — مبنية من المصدر الموحّد expenseCategories.ts
-// مع تسميات المجموعات كعناوين فاصلة. البحث يتم في الاسم العربي + الإنجليزي فقط.
-const CATEGORY_OPTIONS: SearchableOption[] = EXPENSE_CATEGORIES.map((c) => ({
-  value: c.value,
-  label: c.labelAr,
-  keywords: c.labelEn,
-  icon: c.icon,
-  group: EXPENSE_CATEGORY_GROUP_LABELS[c.group],
-}));
+// خيارات القائمة القابلة للبحث — من المصدر الموحّد (تُشارَك مع حوار الإدخال الشهري السريع).
+const CATEGORY_OPTIONS: SearchableOption[] = EXPENSE_CATEGORY_SELECT_OPTIONS;
 
 const STATUS_META: Record<string, { key: string; tone: Tone; icon: string }> = {
   PENDING:   { key: 'exp.status.pending',   tone: 'orange',  icon: 'schedule' },
@@ -64,7 +58,8 @@ const STATUS_META: Record<string, { key: string; tone: Tone; icon: string }> = {
 };
 
 export default function Expenses() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
   const { t } = useT();
   const toast = useToast();
   useHighlight();
@@ -85,6 +80,7 @@ export default function Expenses() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [stats, setStats] = useState<any | null>(null);
   const [creating, setCreating] = useState(false);
+  const [fastEntry, setFastEntry] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,6 +89,7 @@ export default function Expenses() {
   const [error, setError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
   const [expenseConfirm, setExpenseConfirm] = useState<{ id: number; action: 'approve' | 'reject' | 'delete' } | null>(null);
+  const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
 
   const isFiltered = !!(search || statusFilter || categoryFilter || supplierFilter || monthFilter || yearFilter);
 
@@ -197,7 +194,12 @@ export default function Expenses() {
             {stats.pendingCount > 0 && <IdChip icon="schedule" tone="orange">{money(stats.pendingTotal)} معلّق</IdChip>}
           </>
         ) : undefined}
-        aside={canCreate ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('mod.expenses.create')}</Button> : undefined}
+        aside={canCreate ? (
+          <>
+            <Button variant="secondary" icon="calendar_month" onClick={() => setFastEntry(true)}>تسجيل مصروفات شهرية</Button>
+            <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('mod.expenses.create')}</Button>
+          </>
+        ) : undefined}
       />
 
       {/* ── KPI hero + secondary ── */}
@@ -389,6 +391,7 @@ export default function Expenses() {
                 {canApprove && <Button variant="secondary" icon="check" busy={actionBusy} onClick={() => approve(viewing.id)}>{t('action.approve')}</Button>}
                 {canApprove && <Button variant="ghost" icon="close" busy={actionBusy} onClick={() => reject(viewing.id)}>{t('action.reject')}</Button>}
                 {canDelete && <Button variant="danger" icon="delete" busy={actionBusy} onClick={() => remove(viewing.id)}>{t('action.delete')}</Button>}
+                {isSystemAdmin && <Button variant="danger" icon="delete_forever" onClick={() => { setForceDeleteId(viewing.id); setViewing(null); }}>حذف نهائي</Button>}
               </>
             }
           >
@@ -413,6 +416,7 @@ export default function Expenses() {
         );
       })()}
 
+      {fastEntry && <FastMonthlyExpenseDialog onClose={() => setFastEntry(false)} onSaved={load} suppliers={suppliers as { id: number; name: string }[]} />}
       {creating && <ExpenseForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
       {editing && <ExpenseForm expense={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
       {expenseConfirm && (
@@ -423,6 +427,13 @@ export default function Expenses() {
           variant={expenseConfirm.action === 'delete' ? 'danger' : 'warning'}
           onConfirm={() => executeExpenseAction(expenseConfirm.id, expenseConfirm.action)}
           onCancel={() => setExpenseConfirm(null)}
+        />
+      )}
+      {forceDeleteId != null && (
+        <ForceDeleteExpenseModal
+          expenseId={forceDeleteId}
+          onClose={() => setForceDeleteId(null)}
+          onDeleted={() => { setForceDeleteId(null); toast.ok('تم الحذف النهائي بنجاح'); load(); }}
         />
       )}
     </div>
