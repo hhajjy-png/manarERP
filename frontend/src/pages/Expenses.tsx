@@ -13,6 +13,13 @@ import { downloadXlsx } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import AttachmentsPanel from '../components/AttachmentsPanel';
+import SearchableSelect, { SearchableOption } from '../components/SearchableSelect';
+import {
+  EXPENSE_CATEGORIES,
+  EXPENSE_CATEGORY_GROUP_LABELS,
+  expenseCategoryLabel,
+  expenseCategoryIcon,
+} from '../config/expenseCategories';
 import {
   ExecutiveHeader,
   IdChip,
@@ -38,31 +45,15 @@ import './Expenses.css';
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
-const EXPENSE_CATEGORIES: { value: string; label: string }[] = [
-  { value: 'FUEL', label: 'وقود' },
-  { value: 'SALARIES', label: 'رواتب' },
-  { value: 'MAINTENANCE', label: 'صيانة' },
-  { value: 'RENT', label: 'إيجارات' },
-  { value: 'PURCHASES', label: 'مشتريات' },
-  { value: 'EQUIPMENT', label: 'معدات' },
-  { value: 'SERVICES', label: 'خدمات' },
-  { value: 'EQUIPMENT_RENT', label: 'إيجار معدات' },
-  { value: 'TRUCK_RENT', label: 'إيجار شاحنات' },
-  { value: 'HASSAN', label: 'مصروف عن طريق حسن' },
-  { value: 'GHANEM', label: 'مصروف عن طريق غانم' },
-  { value: 'NATHEER', label: 'مصروف عن طريق نظير' },
-  { value: 'HAROON', label: 'مصروف عن طريق هارون' },
-  { value: 'OTHER', label: 'أخرى' },
-];
-
-const CAT_LABEL: Record<string, string> = Object.fromEntries(EXPENSE_CATEGORIES.map((c) => [c.value, c.label]));
-
-const CAT_ICON: Record<string, string> = {
-  FUEL: 'local_gas_station', SALARIES: 'payments', MAINTENANCE: 'build', RENT: 'home_work',
-  PURCHASES: 'shopping_cart', EQUIPMENT: 'construction', SERVICES: 'handyman',
-  EQUIPMENT_RENT: 'agriculture', TRUCK_RENT: 'local_shipping', OTHER: 'receipt_long',
-};
-function catIcon(c: string): string { return CAT_ICON[c] ?? 'receipt_long'; }
+// خيارات القائمة القابلة للبحث — مبنية من المصدر الموحّد expenseCategories.ts
+// مع تسميات المجموعات كعناوين فاصلة. البحث يتم في الاسم العربي + الإنجليزي فقط.
+const CATEGORY_OPTIONS: SearchableOption[] = EXPENSE_CATEGORIES.map((c) => ({
+  value: c.value,
+  label: c.labelAr,
+  keywords: c.labelEn,
+  icon: c.icon,
+  group: EXPENSE_CATEGORY_GROUP_LABELS[c.group],
+}));
 
 const STATUS_META: Record<string, { key: string; tone: Tone; icon: string }> = {
   PENDING:   { key: 'exp.status.pending',   tone: 'orange',  icon: 'schedule' },
@@ -169,10 +160,10 @@ export default function Expenses() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const wsData = all.map((r: any) => ({
         'الرقم': r.code,
-        'التصنيف': CAT_LABEL[r.category] ?? r.category,
+        'التصنيف': expenseCategoryLabel(r.category),
         'الوصف': r.description,
         'المورد': r.supplier?.name ?? r.supplierName ?? '',
-        'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : (r.date ? String(r.date).slice(0, 10) : ''),
+        'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : (r.date ? dateText(r.date) : ''),
         'المبلغ (KWD)': Number(r.amount),
         'الحالة': t(STATUS_META[r.status]?.key ?? '—'),
         'ملاحظات': r.notes ?? '',
@@ -245,8 +236,8 @@ export default function Expenses() {
                   .slice(0, 8)
                   .map(([cat, amt]) => (
                     <span key={cat} className="expx-break-chip">
-                      <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16, color: 'var(--xpl-primary)' }}>{catIcon(cat)}</span>
-                      <span className="k">{CAT_LABEL[cat] ?? cat}</span><span className="v">{money(amt as number)}</span>
+                      <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16, color: 'var(--xpl-primary)' }}>{expenseCategoryIcon(cat)}</span>
+                      <span className="k">{expenseCategoryLabel(cat)}</span><span className="v">{money(amt as number)}</span>
                     </span>
                   ))}
               </div>
@@ -275,12 +266,16 @@ export default function Expenses() {
       <div className="xpl-toolbar xpl-toolbar--sticky">
         <div className="xpl-toolbar-row">
           <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="بحث في الوصف…" ariaLabel="بحث في المصروفات" />
-          <div className="xpl-field" style={{ minWidth: 170 }}>
+          <div className="xpl-field" style={{ minWidth: 190 }}>
             <span className="xpl-field-label">التصنيف</span>
-            <select className="xpl-select" aria-label="التصنيف" value={categoryFilter} onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}>
-              <option value="">كل التصنيفات</option>
-              {EXPENSE_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
+            <SearchableSelect
+              options={CATEGORY_OPTIONS}
+              value={categoryFilter}
+              onChange={(v) => { setCategoryFilter(v); setPage(1); }}
+              emptyLabel="كل التصنيفات"
+              ariaLabel="التصنيف"
+              searchPlaceholder="ابحث في التصنيفات…"
+            />
           </div>
           <div className="xpl-field" style={{ minWidth: 150 }}>
             <span className="xpl-field-label">المورد</span>
@@ -350,7 +345,7 @@ export default function Expenses() {
                         onClick={() => setViewing(r)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                         <td><span className="expx-code">{r.code}</span></td>
-                        <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 17, color: 'var(--xpl-primary)' }}>{catIcon(r.category)}</span>{CAT_LABEL[r.category] ?? r.category}</span></td>
+                        <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 17, color: 'var(--xpl-primary)' }}>{expenseCategoryIcon(r.category)}</span>{expenseCategoryLabel(r.category)}</span></td>
                         <td><strong>{r.description}</strong></td>
                         <td>{r.supplier?.name ?? r.supplierName ?? '—'}</td>
                         <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{billingText(r)}</td>
@@ -380,7 +375,7 @@ export default function Expenses() {
             onClose={() => setViewing(null)}
             hero={
               <div className="xpl-drawer-hero">
-                <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{catIcon(viewing.category)}</span></div>
+                <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{expenseCategoryIcon(viewing.category)}</span></div>
                 <div className="xpl-drawer-hero-body">
                   <span className="expx-drawer-amount">{money(viewing.amount)}</span>
                   <span className="xpl-drawer-hero-sub">{viewing.description}</span>
@@ -399,7 +394,7 @@ export default function Expenses() {
           >
             <DrawerSection title="تفاصيل المصروف">
               <DrawerField label={t('col.code')} value={viewing.code} mono />
-              <DrawerField label={t('col.category')} value={CAT_LABEL[viewing.category] ?? viewing.category} />
+              <DrawerField label={t('col.category')} value={expenseCategoryLabel(viewing.category)} />
               <DrawerField label={t('col.description')} value={viewing.description} />
               <DrawerField label={t('col.amount')} value={money(viewing.amount)} />
             </DrawerSection>
@@ -522,9 +517,14 @@ function ExpenseForm({
       <DialogSection title="المعلومات الأساسية" icon="info">
         <div className="xpl-field">
           <label>التصنيف <span className="req">*</span></label>
-          <select className="xpl-select" value={category} onChange={(e) => setCategory(e.target.value)} aria-label="التصنيف">
-            {EXPENSE_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
+          <SearchableSelect
+            options={CATEGORY_OPTIONS}
+            value={category}
+            onChange={setCategory}
+            ariaLabel="التصنيف"
+            placeholder="اختر التصنيف…"
+            searchPlaceholder="ابحث في التصنيفات…"
+          />
         </div>
         <div className="xpl-field">
           <label>المبلغ (د.ك) <span className="req">*</span></label>

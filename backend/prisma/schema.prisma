@@ -681,7 +681,7 @@ model Payment {
 model Expense {
   id           Int       @id @default(autoincrement())
   code         String    @unique
-  category     String // FUEL | SALARIES | MAINTENANCE | RENT | PURCHASES | EQUIPMENT | SERVICES | EQUIPMENT_RENT | TRUCK_RENT | HASSAN | GHANEM | NATHEER | HAROON | OTHER
+  category     String // قيمة نصية من ENUMS.expenseCategory (config/constants.ts) — لا enum على مستوى DB
   description  String
   amount       Float
   date         DateTime  @default(now())

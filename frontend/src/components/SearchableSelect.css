@@ -1,0 +1,113 @@
+/* ── SearchableSelect — قائمة اختيار قابلة للبحث (مكوّن موحّد) ──────────────
+   يعتمد على متغيّرات الثيم العامة مع قيم احتياطية، ويطابق مظهر .xpl-select. */
+
+.msel {
+  --msel-surface: var(--surface, #ffffff);
+  --msel-border:  var(--border, #e2e8f0);
+  --msel-text:    var(--text, #0f172a);
+  --msel-muted:   var(--text-muted, #64748b);
+  --msel-primary: var(--primary, #6366f1);
+  --msel-faint:   rgba(99, 102, 241, .10);
+  position: relative;
+  min-width: 0;
+}
+
+/* الزر المُشغِّل — يرث حدود/ارتفاع .xpl-select ويضيف تخطيطًا أفقيًا */
+.msel-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  cursor: pointer;
+  text-align: start;
+}
+.msel-trigger:disabled { cursor: not-allowed; opacity: .6; }
+.msel-trigger-icon { font-size: 18px !important; color: var(--msel-primary); flex: 0 0 auto; }
+.msel-trigger-label {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.msel-placeholder { color: var(--msel-muted); }
+.msel-chevron { font-size: 20px !important; color: var(--msel-muted); flex: 0 0 auto; transition: transform .15s ease; }
+.msel-trigger[aria-expanded="true"] .msel-chevron { transform: rotate(180deg); }
+
+/* اللوحة المنسدلة */
+.msel-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  inset-inline: 0;
+  z-index: 60;
+  background: var(--msel-surface);
+  border: 1px solid var(--msel-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, .16), 0 2px 8px rgba(16, 24, 40, .08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 300px;
+}
+
+/* حقل البحث */
+.msel-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--msel-border);
+  flex: 0 0 auto;
+}
+.msel-search .material-symbols-outlined { font-size: 18px; color: var(--msel-muted); }
+.msel-search-input {
+  flex: 1 1 auto;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--msel-text);
+  min-width: 0;
+}
+.msel-search-input::placeholder { color: var(--msel-muted); }
+
+/* القائمة */
+.msel-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+.msel-group {
+  padding: 6px 10px 3px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .3px;
+  color: var(--msel-muted);
+  text-transform: none;
+}
+.msel-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: var(--msel-text);
+  cursor: pointer;
+}
+.msel-opt-icon { font-size: 18px !important; color: var(--msel-primary); flex: 0 0 auto; }
+.msel-opt-label { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msel-muted { color: var(--msel-muted); }
+.msel-check { font-size: 18px !important; color: var(--msel-primary); flex: 0 0 auto; }
+.msel-opt--active { background: var(--msel-faint); }
+.msel-opt--selected { font-weight: 700; }
+.msel-noresult {
+  padding: 14px 10px;
+  text-align: center;
+  color: var(--msel-muted);
+  font-size: 12.5px;
+}
+
+.msel--disabled { opacity: .7; }

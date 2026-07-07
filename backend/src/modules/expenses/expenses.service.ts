@@ -8,20 +8,48 @@ import { transactionsService } from '../transactions/transactions.service';
 import { postExpenseToGL, reverseExpenseFromGL } from './expenses.accounting';
 import { CreateExpenseInput, UpdateExpenseInput } from './expenses.schema';
 
+// أسماء التصنيفات بالعربية — تُستخدم لوسم القيود المحاسبية وتجميع الإحصائيات.
+// يجب أن تبقى المفاتيح متطابقة مع ENUMS.expenseCategory وملف الواجهة expenseCategories.ts.
 const CATEGORY_AR: Record<string, string> = {
+  // تشغيل عام
   FUEL: 'وقود',
-  SALARIES: 'رواتب',
-  MAINTENANCE: 'صيانة',
-  RENT: 'إيجارات',
+  OILS: 'زيوت وتشحيم',
   PURCHASES: 'مشتريات',
-  EQUIPMENT: 'معدات',
   SERVICES: 'خدمات',
+  RENT: 'إيجارات',
+  EQUIPMENT: 'معدات',
   EQUIPMENT_RENT: 'إيجار معدات',
   TRUCK_RENT: 'إيجار شاحنات',
+  SALARIES: 'رواتب',
+  // مركبات
+  MAINTENANCE: 'صيانة',
+  TIRES: 'إطارات وتواير',
+  BATTERY: 'شراء بطارية',
+  VEHICLE_PAINT: 'صبغ سيارة',
+  VEHICLE_BODYWORK: 'حدادة سيارة',
+  VEHICLE_ELECTRICAL: 'كهرباء سيارة',
+  TOW_TRUCK: 'كرين سحب',
+  VEHICLE_INSURANCE: 'رسوم تأمين دفتر مركبة',
+  VEHICLE_REGISTRATION: 'رسوم تجديد دفتر مركبة',
+  // رسوم حكومية
+  GOVERNMENT_FEES: 'رسوم شؤون',
+  RESIDENCY: 'رسوم إقامة',
+  LABOR_INSURANCE: 'رسوم تأمين عمالة',
+  TOLL: 'رسوم مرور',
+  TRAFFIC_VIOLATIONS: 'مخالفات مرورية',
+  COURT_FEES: 'رسوم قضائية',
+  // عن طريق أشخاص
   HASSAN: 'مصروف عن طريق حسن',
   GHANEM: 'مصروف عن طريق غانم',
   NATHEER: 'مصروف عن طريق نظير',
   HAROON: 'مصروف عن طريق هارون',
+  BILLS_NAZEER: 'فواتير عن طريق نظير',
+  DRIVER_EXPENSES: 'مصروف عن طريق سائق',
+  DRIVER_MEALS: 'أكل للسواق',
+  // أخرى
+  CHARITY: 'صدقة شهرية',
+  GIFTS: 'هدايا',
+  MISC: 'مصروفات متفرقة',
   OTHER: 'أخرى',
 };
 
@@ -35,8 +63,16 @@ export class ExpensesService {
   private async generateCode(client: Prisma.TransactionClient | typeof prisma = prisma) {
     const year = new Date().getFullYear();
     const prefix = `EXP-${year}-`;
-    const count = await client.expense.count({ where: { code: { startsWith: prefix } } });
-    return `${prefix}${String(count + 1).padStart(5, '0')}`;
+    // استخدام أعلى تسلسل موجود (آخر سجل حسب id) بدلاً من COUNT لتجنّب التعارض
+    // عند وجود فجوات في التسلسل (حذف مصروف وسطي أو استيراد) — يماثل transactions/accounting.
+    const last = await client.expense.findFirst({
+      where: { code: { startsWith: prefix } },
+      orderBy: { id: 'desc' },
+      select: { code: true },
+    });
+    const lastSeq = last ? parseInt(last.code.slice(prefix.length), 10) : 0;
+    const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
+    return `${prefix}${String(nextSeq).padStart(5, '0')}`;
   }
 
   async list(query: PaginationQuery & { category?: string; status?: string; contractId?: string; supplierId?: string; billingMonth?: string; billingYear?: string; from?: string; to?: string }) {

@@ -102,20 +102,50 @@ export const ENUMS = {
   invoiceType: ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت'] as const,
   invoiceUnit: ['طن', 'درب', 'يومية', 'مقطوعية'] as const,
   invoiceStatus: ['UNPAID', 'PARTIAL', 'PAID', 'OVERDUE', 'CANCELLED'] as const,
+  // مصنّفة منطقيًا لتسهيل الصيانة (تشغيل / مركبات / رسوم حكومية / عن طريق أشخاص / أخرى).
+  // القيمة تُخزَّن كنص (String) في قاعدة البيانات — لا يوجد enum على مستوى DB، فإعادة الترتيب
+  // وإضافة بنود جديدة عملية آمنة رجعيًا ولا تؤثر على السجلات القائمة.
+  // ملاحظة: يجب أن تبقى هذه القائمة متطابقة مع frontend/src/config/expenseCategories.ts.
   expenseCategory: [
+    // ── تشغيل عام ──
     'FUEL',
-    'SALARIES',
-    'MAINTENANCE',
-    'RENT',
+    'OILS',
     'PURCHASES',
-    'EQUIPMENT',
     'SERVICES',
+    'RENT',
+    'EQUIPMENT',
     'EQUIPMENT_RENT',
     'TRUCK_RENT',
+    'SALARIES',
+    // ── مركبات ──
+    'MAINTENANCE',
+    'TIRES',
+    'BATTERY',
+    'VEHICLE_PAINT',
+    'VEHICLE_BODYWORK',
+    'VEHICLE_ELECTRICAL',
+    'TOW_TRUCK',
+    'VEHICLE_INSURANCE',
+    'VEHICLE_REGISTRATION',
+    // ── رسوم حكومية ──
+    'GOVERNMENT_FEES',
+    'RESIDENCY',
+    'LABOR_INSURANCE',
+    'TOLL',
+    'TRAFFIC_VIOLATIONS',
+    'COURT_FEES',
+    // ── عن طريق أشخاص ──
     'HASSAN',
     'GHANEM',
     'NATHEER',
     'HAROON',
+    'BILLS_NAZEER',
+    'DRIVER_EXPENSES',
+    'DRIVER_MEALS',
+    // ── أخرى ──
+    'CHARITY',
+    'GIFTS',
+    'MISC',
     'OTHER',
   ] as const,
   expenseStatus: ['PENDING', 'APPROVED', 'REJECTED', 'REVERSED', 'CANCELLED'] as const,

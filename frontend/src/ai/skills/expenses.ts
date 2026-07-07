@@ -5,6 +5,7 @@ import { api } from '../../api/client';
 import type { SkillResult } from '../types';
 import { computeQuality } from '../qualityEngine';
 import { formatCurrency } from '../../lib/format';
+import { expenseCategoryArMap } from '../../config/expenseCategories';
 
 const SKILL_ID    = 'expenses';
 const SKILL_TITLE = 'مهارة تحليل المصروفات';
@@ -21,13 +22,8 @@ const FOLLOW_UPS = [
   'اعرض مصروفات حسب المورد',
 ];
 
-const CATEGORY_AR: Record<string, string> = {
-  FUEL: 'وقود', SALARIES: 'رواتب', MAINTENANCE: 'صيانة', RENT: 'إيجارات',
-  PURCHASES: 'مشتريات', EQUIPMENT: 'معدات', SERVICES: 'خدمات',
-  EQUIPMENT_RENT: 'إيجار معدات', TRUCK_RENT: 'إيجار شاحنات',
-  HASSAN: 'مصروف حسن', GHANEM: 'مصروف غانم',
-  NATHEER: 'مصروف نظير', HAROON: 'مصروف هارون', OTHER: 'أخرى',
-};
+// مشتقّة من المصدر الموحّد للتصنيفات (config/expenseCategories.ts).
+const CATEGORY_AR: Record<string, string> = expenseCategoryArMap;
 
 const RELATED_SKILLS = [
   { skillId: 'dashboard', labelAr: 'لوحة التحكم',  promptSuggestion: 'اعرض المؤشرات الرئيسية' },
