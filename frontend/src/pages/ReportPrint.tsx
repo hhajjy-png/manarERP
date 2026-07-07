@@ -4,6 +4,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { formatDate } from '../lib/date';
 import { formatReportCell } from '../lib/format';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string; format?: 'currency' }[]; rows: any[]; totalsRow?: any };
@@ -59,7 +60,7 @@ export default function ReportPrint() {
           className="btn"
           onClick={async () => {
             if (window.manar?.exportPdf) {
-              await window.manar.exportPdf(`report-${type ?? 'report'}`);
+              await window.manar.exportPdf(generateExportFileName({ reportName: ReportName.Report, identifier: type ?? null, extension: 'pdf' }));
             } else {
               printCurrentView();
             }
