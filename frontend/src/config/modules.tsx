@@ -3,11 +3,12 @@ import { Column } from '../components/DataTable';
 import { FormField, FormSection } from '../components/FormDialog';
 import { formatDate } from '../lib/date';
 import { formatCurrency } from '../lib/format';
+import { currentCurrencyLanguage } from '../stores/settingsStore';
 import { expenseCategoryArMap } from './expenseCategories';
 
 // ===== أدوات عرض =====
 export function money(v: unknown): string {
-  return formatCurrency(v);
+  return formatCurrency(v, { language: currentCurrencyLanguage() });
 }
 
 export function dateText(v: unknown): string {
