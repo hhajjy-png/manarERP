@@ -163,7 +163,7 @@ export default function Expenses() {
         'التصنيف': expenseCategoryLabel(r.category),
         'الوصف': r.description,
         'المورد': r.supplier?.name ?? r.supplierName ?? '',
-        'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : (r.date ? String(r.date).slice(0, 10) : ''),
+        'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : (r.date ? dateText(r.date) : ''),
         'المبلغ (KWD)': Number(r.amount),
         'الحالة': t(STATUS_META[r.status]?.key ?? '—'),
         'ملاحظات': r.notes ?? '',
