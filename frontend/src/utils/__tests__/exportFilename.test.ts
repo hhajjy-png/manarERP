@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   generateExportFileName,
   sanitizeFilenameSegment,
+  resourceReportName,
   ReportName,
 } from '../exportFilename';
 
@@ -133,5 +134,34 @@ describe('generateExportFileName', () => {
         extension: 'xlsx',
       }),
     ).toBe('manarERP_PayrollReport_2026-07_2026-07-07.xlsx');
+  });
+});
+
+describe('resourceReportName', () => {
+  const date = '2026-07-07';
+
+  it('maps known data-module keys to their canonical PascalCase ReportName', () => {
+    expect(resourceReportName('customers')).toBe(ReportName.Customers);
+    expect(resourceReportName('suppliers')).toBe(ReportName.Suppliers);
+    expect(resourceReportName('equipment')).toBe(ReportName.Equipment);
+    expect(resourceReportName('employees')).toBe(ReportName.Employees);
+    expect(resourceReportName('contracts')).toBe(ReportName.Contracts);
+    expect(resourceReportName('expenses')).toBe(ReportName.Expenses);
+    expect(resourceReportName('users')).toBe(ReportName.Users);
+  });
+
+  it('falls back to PascalCase for an unmapped (future) module key', () => {
+    expect(resourceReportName('bank-accounts')).toBe('BankAccounts');
+    expect(resourceReportName('purchase_orders')).toBe('PurchaseOrders');
+  });
+
+  it('produces a canonical CRUD export filename end-to-end', () => {
+    expect(
+      generateExportFileName({
+        reportName: resourceReportName('customers'),
+        date,
+        extension: 'xlsx',
+      }),
+    ).toBe('manarERP_Customers_2026-07-07.xlsx');
   });
 });

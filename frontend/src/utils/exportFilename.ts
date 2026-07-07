@@ -32,9 +32,50 @@ export const ReportName = {
   InvoicesList: 'InvoicesList', // list/table export, distinct from single-invoice `Invoice`
   MonthlyReport: 'MonthlyReport',
   PriceAgreements: 'PriceAgreements',
+  // Generic data-module (ResourcePage) list exports:
+  Customers: 'Customers',
+  Suppliers: 'Suppliers',
+  Equipment: 'Equipment',
+  Employees: 'Employees',
+  Contracts: 'Contracts',
+  Users: 'Users',
 } as const;
 
 export type ReportNameValue = (typeof ReportName)[keyof typeof ReportName];
+
+/**
+ * Maps a data-module key (as used by ResourcePage / the reports export endpoint)
+ * to its canonical ReportName. Keeps generic-CRUD exports in the same PascalCase
+ * vocabulary as every other report, instead of leaking raw lowercase module keys.
+ */
+const RESOURCE_REPORT_NAMES: Record<string, string> = {
+  contracts: ReportName.Contracts,
+  customers: ReportName.Customers,
+  suppliers: ReportName.Suppliers,
+  equipment: ReportName.Equipment,
+  employees: ReportName.Employees,
+  expenses: ReportName.Expenses,
+  users: ReportName.Users,
+};
+
+/** PascalCase a module key: 'bank-accounts' → 'BankAccounts'. */
+function pascalCaseKey(key: string): string {
+  return key
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join('');
+}
+
+/**
+ * Resolve a data-module key to a canonical report name for ResourcePage exports.
+ * Known modules map to a fixed ReportName; any unmapped (e.g. future) module
+ * falls back to a PascalCase of its key so the export is never left with a raw
+ * lowercase key or an empty report-name segment.
+ */
+export function resourceReportName(moduleKey: string): string {
+  return RESOURCE_REPORT_NAMES[moduleKey] ?? pascalCaseKey(moduleKey);
+}
 
 export interface ExportFileNameParts {
   /** Canonical report name. Prefer a ReportName.* value. */
