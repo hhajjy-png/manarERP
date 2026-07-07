@@ -36,6 +36,7 @@ import {
 import '../components/explorer/explorer-kit.css';
 import EmployeeFinancialTab from '../components/employee/EmployeeFinancialTab';
 import CustomerHub from '../components/explorer/hubs/CustomerHub';
+import EquipmentHub from '../components/explorer/hubs/EquipmentHub';
 import type { HubComponent } from '../components/explorer/hubs/hubTypes';
 
 type AlertItem = { id: number; code: string; label: string; severity: 'warn' | 'error' };
@@ -46,7 +47,7 @@ type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 // Modules with a dedicated Information Hub drawer body (registered opt-in).
 // Every module NOT listed here keeps today's exact flat-section drawer body.
 // Typed Partial so a lookup miss is `undefined` (not falsely narrowed to always-defined).
-const DRAWER_HUBS: Partial<Record<string, HubComponent>> = { customers: CustomerHub };
+const DRAWER_HUBS: Partial<Record<string, HubComponent>> = { customers: CustomerHub, equipment: EquipmentHub };
 
 export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const cfg = MODULES[moduleKey];

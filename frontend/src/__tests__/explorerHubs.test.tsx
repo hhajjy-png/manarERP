@@ -9,6 +9,7 @@ vi.mock('../api/client', () => ({
 }));
 import { api } from '../api/client';
 import CustomerHub from '../components/explorer/hubs/CustomerHub';
+import EquipmentHub from '../components/explorer/hubs/EquipmentHub';
 import type { EntityHubProps } from '../components/explorer/hubs/hubTypes';
 
 const cfg = {
@@ -57,5 +58,51 @@ describe('CustomerHub', () => {
     (api.get as any).mockRejectedValue(new Error('boom'));
     renderHub();
     expect(await screen.findByText('عميل تجريبي')).toBeInTheDocument();
+  });
+});
+
+const eqCfg = {
+  key: 'equipment', title: 'nav.equipment', explorerIcon: 'construction',
+  columns: [{ key: 'status', label: 'col.status', render: () => 'تعمل' }],
+  fields: [
+    { name: 'code', label: 'field.code' },
+    { name: 'type', label: 'field.type' },
+    { name: 'plateNumber', label: 'field.plate' },
+  ],
+} as any;
+
+describe('EquipmentHub', () => {
+  beforeEach(() => { (api.get as any).mockReset(); });
+
+  it('hides Related/Activity when maintenance & fuel are empty', async () => {
+    (api.get as any).mockResolvedValue({ data: { data: [] } });
+    render(<MemoryRouter><EquipmentHub
+      entity={{ id: 5, code: 'EQ-5', type: 'شاحنة', status: 'WORKING', registration: { remainingText: '183 يوم', expiry: '2027-01-06' } }}
+      cfg={eqCfg} onEdit={vi.fn()} onDelete={vi.fn()} canUpdate canDelete busy={false}
+    /></MemoryRouter>);
+    // Header title and the info-grid's `code` field both render "EQ-5" (same
+    // convention as CustomerHub, whose subtitle/info-grid also duplicate `code`),
+    // so scope the query to the header title element to avoid ambiguity.
+    expect(await screen.findByText('EQ-5', { selector: '.xpl-drawer-headcard-title' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText('سجل الصيانة')).toBeNull();
+      expect(screen.queryByText('سجل الوقود')).toBeNull();
+    });
+  });
+
+  it('renders maintenance records when the endpoint returns rows', async () => {
+    // Envelope verified against Maintenance.tsx load(): `res.data.data ?? []` is
+    // the plain array (findMany result wrapped once by successResponse), not a
+    // paginated `{ data: { data: [] } }` shape.
+    (api.get as any).mockImplementation((url: string) => {
+      if (url.includes('/maintenance/records'))
+        return Promise.resolve({ data: { data: [{ id: 3, type: 'زيت', date: '2026-06-17', status: 'DONE' }] } });
+      return Promise.resolve({ data: { data: [] } });
+    });
+    render(<MemoryRouter><EquipmentHub
+      entity={{ id: 5, code: 'EQ-5', status: 'WORKING', registration: { remainingText: '183 يوم' } }}
+      cfg={eqCfg} onEdit={vi.fn()} onDelete={vi.fn()} canUpdate canDelete busy={false}
+    /></MemoryRouter>);
+    expect(await screen.findByText('سجل الصيانة')).toBeInTheDocument();
   });
 });
