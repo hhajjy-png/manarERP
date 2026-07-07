@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AppError } from '../../../core/errors/AppError';
 
 vi.mock('../../../config/database', () => ({
-  prisma: { expense: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn() } },
+  prisma: { expense: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn() } },
 }));
 vi.mock('../../../core/middleware/audit', () => ({ recordAudit: vi.fn() }));
 vi.mock('../../transactions/transactions.service', () => ({ transactionsService: { postEntry: vi.fn() } }));
@@ -14,6 +14,7 @@ import { prisma } from '../../../config/database';
 const mockPrisma = prisma as unknown as {
   expense: {
     findUnique: ReturnType<typeof vi.fn>;
+    findFirst: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
@@ -149,6 +150,61 @@ describe('ExpensesService.cancel — guards', () => {
     mockPrisma.expense.update.mockResolvedValue({ ...pendingExpense, status: 'CANCELLED' });
     const result = await service.cancel(1, fakeReq);
     expect(result).toMatchObject({ status: 'CANCELLED' });
+  });
+});
+
+describe('ExpensesService.create — code generation (collision-safe)', () => {
+  let service: ExpensesService;
+
+  beforeEach(() => {
+    service = new ExpensesService();
+    vi.clearAllMocks();
+  });
+
+  const baseInput = {
+    category: 'FUEL', description: 'وقود', amount: 100,
+  } as unknown as import('../expenses.schema').CreateExpenseInput;
+
+  it('derives next code from the last row sequence, not the row count', async () => {
+    // Reproduces the deletion-collision bug: 3 rows created (…00001–00003),
+    // the MIDDLE one deleted → only 2 rows remain but max sequence is 00003.
+    // count()+1 would have produced EXP-<year>-00003 (collides). The id-desc
+    // approach must produce …00004.
+    const year = new Date().getFullYear();
+    mockPrisma.expense.findFirst.mockResolvedValue({ code: `EXP-${year}-00003` });
+    let createdCode = '';
+    mockPrisma.expense.create.mockImplementation(({ data }: { data: { code: string } }) => {
+      createdCode = data.code;
+      return Promise.resolve({ id: 4, ...data });
+    });
+
+    await service.create(baseInput, fakeReq);
+    expect(createdCode).toBe(`EXP-${year}-00004`);
+  });
+
+  it('starts at 00001 when no expenses exist for the year', async () => {
+    const year = new Date().getFullYear();
+    mockPrisma.expense.findFirst.mockResolvedValue(null);
+    let createdCode = '';
+    mockPrisma.expense.create.mockImplementation(({ data }: { data: { code: string } }) => {
+      createdCode = data.code;
+      return Promise.resolve({ id: 1, ...data });
+    });
+
+    await service.create(baseInput, fakeReq);
+    expect(createdCode).toBe(`EXP-${year}-00001`);
+  });
+
+  it('honours a client-supplied code without auto-generating', async () => {
+    let createdCode = '';
+    mockPrisma.expense.create.mockImplementation(({ data }: { data: { code: string } }) => {
+      createdCode = data.code;
+      return Promise.resolve({ id: 9, ...data });
+    });
+
+    await service.create({ ...baseInput, code: 'EXP-CUSTOM-1' }, fakeReq);
+    expect(createdCode).toBe('EXP-CUSTOM-1');
+    expect(mockPrisma.expense.findFirst).not.toHaveBeenCalled();
   });
 });
 
