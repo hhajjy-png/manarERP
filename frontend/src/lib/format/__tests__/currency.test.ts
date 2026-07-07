@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { formatCurrency, formatNumber, formatInteger, formatPercent, formatCompact, formatReportCell } from '../currency';
 import { currencyConfig } from '../currencyConfig';
+import { normalizeCurrencyLanguage } from '../currencyLanguage';
 
 describe('currencyConfig', () => {
   it('defaults to en-US / KWD', () => {
@@ -76,6 +77,39 @@ describe('Invoice module reference standard', () => {
   });
 });
 
+describe('Currency Display Language — pure formatCurrency (deterministic, no hidden state)', () => {
+  it('defaults SAFELY to english when no language is provided', () => {
+    expect(formatCurrency(1250)).toBe('1,250.000 KWD');
+    expect(formatCurrency(0)).toBe('0.000 KWD');
+  });
+
+  it('normalizeCurrencyLanguage falls back safely to english', () => {
+    expect(normalizeCurrencyLanguage('arabic')).toBe('arabic');
+    expect(normalizeCurrencyLanguage('english')).toBe('english');
+    expect(normalizeCurrencyLanguage('')).toBe('english');
+    expect(normalizeCurrencyLanguage(undefined)).toBe('english');
+    expect(normalizeCurrencyLanguage('AR')).toBe('english');
+  });
+
+  it('english (explicit) — en-US digits + KWD', () => {
+    expect(formatCurrency(1250, { language: 'english' })).toBe('1,250.000 KWD');
+    expect(formatCurrency(144922.4, { language: 'english' })).toBe('144,922.400 KWD');
+  });
+
+  it('arabic: Arabic-Indic digits + separators + د.ك suffix, 3 decimals', () => {
+    expect(formatCurrency(1250, { language: 'arabic' })).toBe('١٬٢٥٠٫٠٠٠ د.ك');
+    expect(formatCurrency(144922.4, { language: 'arabic' })).toBe('١٤٤٬٩٢٢٫٤٠٠ د.ك');
+    expect(formatCurrency(0, { language: 'arabic' })).toBe('٠٫٠٠٠ د.ك');
+    expect(formatCurrency(null, { language: 'arabic' })).toBe('٠٫٠٠٠ د.ك');
+  });
+
+  it('is deterministic — identical args always produce identical output; the default is never affected by prior arabic calls', () => {
+    expect(formatCurrency(15.25, { language: 'arabic' })).toBe(formatCurrency(15.25, { language: 'arabic' }));
+    formatCurrency(999, { language: 'arabic' });
+    expect(formatCurrency(15.25)).toBe('15.250 KWD'); // default path unchanged
+  });
+});
+
 describe('formatCompact (axis ticks)', () => {
   it.each([
     [0, '0'],
@@ -96,8 +130,11 @@ describe('formatCompact (axis ticks)', () => {
 });
 
 describe('formatReportCell (shared report/print cell)', () => {
-  it('currency column → full KWD', () => {
+  it('currency column → full KWD (default english)', () => {
     expect(formatReportCell(1500.5, { format: 'currency' })).toBe('1,500.500 KWD');
+  });
+  it('currency column respects an explicit arabic language', () => {
+    expect(formatReportCell(1500.5, { format: 'currency' }, { language: 'arabic' })).toBe('١٬٥٠٠٫٥٠٠ د.ك');
   });
   it('non-currency numeric column → plain en-US, 0–3 decimals, no forced trailing zeros', () => {
     expect(formatReportCell(1500.5, {})).toBe('1,500.5');

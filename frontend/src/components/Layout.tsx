@@ -1,10 +1,11 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { NAV } from '../config/modules';
 import RootErrorBoundary from './RootErrorBoundary';
 import PageLoader from './PageLoader';
 import { useAuth } from '../stores/authStore';
 import { useUI } from '../stores/uiStore';
+import { useSettings } from '../stores/settingsStore';
 import { useT } from '../lib/i18n';
 import almanarLogo from '../assets/almanar-logo.png';
 import Toast from './Toast';
@@ -17,6 +18,15 @@ export default function Layout() {
   const { t } = useT();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // تحميل إعدادات الشركة بعد المصادقة (لغة عرض العملة). قراءة currencyLanguage تُشترِك
+  // في المخزن فتُعاد صياغة كل المبالغ فورًا عند تغيير الإعداد.
+  const loadCompanySettings = useSettings((s) => s.loadCompanySettings);
+  const settingsLoaded = useSettings((s) => s.loaded);
+  useSettings((s) => s.currencyLanguage); // اشتراك لإعادة الرسم عند التغيير
+  useEffect(() => {
+    if (user && !settingsLoaded) loadCompanySettings();
+  }, [user, settingsLoaded, loadCompanySettings]);
 
   async function onLogout() {
     await logout();

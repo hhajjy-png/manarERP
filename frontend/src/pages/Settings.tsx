@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useUI } from '../stores/uiStore';
+import { useSettings } from '../stores/settingsStore';
+import type { CurrencyLanguage } from '../lib/format';
 import { useT, type Lang } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { BASE_NATIONALITY_EN, BASE_JOB_TITLE_EN, applyTranslationOverrides } from '../forms/shared/contractTranslations';
@@ -48,17 +50,22 @@ const DEFAULT_VALUES: Record<string, string> = {
   'backup.auto.enabled': 'true',
   'backup.auto.time': '02:00',
   'backup.auto.retention': '30',
+  'finance.currencyDisplayLanguage': 'english',
 };
 
-type FieldType = 'text' | 'checkbox' | 'time' | 'number';
+type FieldType = 'text' | 'checkbox' | 'time' | 'number' | 'select';
 
-const FIELDS: { key: string; label: string; group: string; type?: FieldType }[] = [
+const FIELDS: { key: string; label: string; group: string; type?: FieldType; options?: { value: string; label: string }[] }[] = [
   { key: 'company.name', label: 'field.company_name', group: 'company' },
   { key: 'company.country', label: 'field.settings.country', group: 'company' },
   { key: 'company.phone', label: 'field.phone', group: 'company' },
   { key: 'company.address', label: 'field.address', group: 'company' },
   { key: 'finance.currencyLabel', label: 'field.settings.currency_label', group: 'finance' },
   { key: 'finance.decimals', label: 'field.settings.decimals', group: 'finance' },
+  { key: 'finance.currencyDisplayLanguage', label: 'field.settings.currency_display_language', group: 'finance', type: 'select', options: [
+    { value: 'english', label: 'opt.currency_lang.english' },
+    { value: 'arabic', label: 'opt.currency_lang.arabic' },
+  ] },
   { key: 'backup.cron', label: 'field.settings.backup_cron', group: 'backup' },
   { key: 'backup.auto.enabled', label: 'field.settings.backup_auto_enabled', group: 'backup', type: 'checkbox' },
   { key: 'backup.auto.time', label: 'field.settings.backup_auto_time', group: 'backup', type: 'time' },
@@ -251,6 +258,8 @@ export default function Settings() {
         ...brandingSettings,
       ];
       await api.put('/settings', { settings });
+      // طبّق لغة عرض العملة فورًا على المُنسّق المشترك (بلا إعادة تحميل).
+      useSettings.getState().setCurrencyLanguage(values['finance.currencyDisplayLanguage'] as CurrencyLanguage);
       await saveSignatures(signatures);
       await window.manar?.backupReconfigure?.();
       toast.ok(t('page.settings.saved'));
@@ -412,7 +421,7 @@ export default function Settings() {
     });
   }
 
-  function renderField(f: { key: string; label: string; group: string; type?: FieldType }) {
+  function renderField(f: { key: string; label: string; group: string; type?: FieldType; options?: { value: string; label: string }[] }) {
     return (
       <div className="field" key={f.key}>
         <label htmlFor={f.key}>{t(f.label)}</label>
@@ -442,6 +451,15 @@ export default function Settings() {
             value={values[f.key] ?? DEFAULT_VALUES[f.key] ?? '30'}
             onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))}
           />
+        ) : f.type === 'select' ? (
+          <select
+            id={f.key}
+            title={t(f.label)}
+            value={values[f.key] ?? DEFAULT_VALUES[f.key] ?? ''}
+            onChange={(e) => setValues((p) => ({ ...p, [f.key]: e.target.value }))}
+          >
+            {(f.options ?? []).map((o) => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
+          </select>
         ) : (
           <input
             id={f.key}
