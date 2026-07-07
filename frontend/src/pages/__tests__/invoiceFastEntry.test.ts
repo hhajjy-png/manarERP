@@ -12,6 +12,7 @@ import {
   InvoiceSharedFields,
   InvoiceRowFields,
 } from '../invoiceFastEntry';
+import { DEFAULT_WORK_TYPE } from '../../utils/invoiceDescription';
 
 const shared = (over: Partial<InvoiceSharedFields> = {}): InvoiceSharedFields => ({
   entryMode: 'SINGLE',
@@ -114,7 +115,7 @@ describe('invoiceFastEntry — number, reset, summary, dirty', () => {
     expect(clientNextInvoiceNumber('MN-INV-2026-00152')).toBe('MN-INV-2026-00153');
     expect(clientNextInvoiceNumber('MN-INV-2026-00099')).toBe('MN-INV-2026-00100');
   });
-  it('makeEmptyRow carries the suggested number and one empty item', () => {
+  it('makeEmptyRow carries the suggested number and one default item', () => {
     const r = makeEmptyRow('MN-INV-2026-00200');
     expect(r.invoiceNumber).toBe('MN-INV-2026-00200');
     expect(r.items).toHaveLength(1);
@@ -122,8 +123,8 @@ describe('invoiceFastEntry — number, reset, summary, dirty', () => {
     expect(r.deliveryDate).toBe('');
     expect(r.customerId).toBe('');
   });
-  it('makeEmptyItem is blank', () => {
-    expect(makeEmptyItem()).toMatchObject({ description: '', quantity: 1, unitPrice: 0 });
+  it('makeEmptyItem seeds the default work type (matches the normal form) with price 0', () => {
+    expect(makeEmptyItem()).toMatchObject({ description: DEFAULT_WORK_TYPE, workType: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0 });
   });
   it('addToInvoiceSummary accumulates and records last/next', () => {
     const s1 = addToInvoiceSummary(EMPTY_INVOICE_SUMMARY, 75, 'MN-INV-2026-00152', 'شركة أ', 'MN-INV-2026-00153');

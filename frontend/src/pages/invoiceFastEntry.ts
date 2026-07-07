@@ -10,15 +10,17 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import { toInvoiceItemPayload } from '../utils/invoicePayload';
+import { DEFAULT_WORK_TYPE } from '../utils/invoiceDescription';
 
 export type InvoiceEntryMode = 'SINGLE' | 'MULTI';
 
+/** يطابق بنيويًا نوع Item في محرّر البنود (أرقام)، مع إبقاء هذه الوحدة صافية. */
 export interface InvoiceFastItem {
   uid: string;
   description: string;
-  quantity: number | string;
+  quantity: number;
   unit: string;
-  unitPrice: number | string;
+  unitPrice: number;
   workType?: string;
   location?: string;
   priceTouched?: boolean;
@@ -63,9 +65,9 @@ export const EMPTY_INVOICE_SUMMARY: InvoiceSessionSummary = {
 
 const INVOICE_NUMBER_RE = /^MN-INV-\d{4}-[A-Za-z0-9]+$/;
 
-/** بند فارغ جديد (الوحدة الافتراضية «درب» كما في النموذج العادي). */
+/** بند فارغ جديد — مطابق للبند الابتدائي في النموذج العادي (نوع العمل الافتراضي، الوحدة «درب»). */
 export function makeEmptyItem(): InvoiceFastItem {
-  return { uid: crypto.randomUUID(), description: '', quantity: 1, unit: 'درب', unitPrice: 0, workType: '', location: '' };
+  return { uid: crypto.randomUUID(), description: DEFAULT_WORK_TYPE, quantity: 1, unit: 'درب', unitPrice: 0, workType: DEFAULT_WORK_TYPE, location: '' };
 }
 
 /** صف فاتورة فارغ يحمل الرقم المقترح وبندًا واحدًا فارغًا. */
@@ -143,10 +145,13 @@ export function addToInvoiceSummary(
   };
 }
 
-/** هل يوجد إدخال غير محفوظ في الصف الحالي؟ (لتأكيد الإغلاق). */
+/**
+ * هل يوجد إدخال غير محفوظ ذو معنى في الصف الحالي؟ (لتأكيد الإغلاق).
+ * الصف الافتراضي (بند واحد بنوع العمل الافتراضي دون موقع/سعر) يُعدّ «نظيفًا».
+ */
 export function isInvoiceRowDirty(row: InvoiceRowFields): boolean {
   const dirtyItems =
     row.items.length > 1 ||
-    row.items.some((it) => String(it.description).trim() !== '' || Number(it.unitPrice) > 0);
+    row.items.some((it) => Number(it.unitPrice) > 0 || String(it.location ?? '').trim() !== '');
   return !!(dirtyItems || Number(row.discount) > 0 || row.deliveryDate || row.customerId);
 }

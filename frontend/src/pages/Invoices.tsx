@@ -9,6 +9,7 @@ import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
 import Modal from '../components/Modal';
 import ForceDeleteInvoiceModal from '../components/ForceDeleteInvoiceModal';
+import InvoiceFastEntryDialog from '../components/InvoiceFastEntryDialog';
 import ConfirmModal from '../components/ConfirmModal';
 import { money, dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -119,6 +120,7 @@ export default function Invoices() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [customers, setCustomers] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
+  const [fastEntry, setFastEntry] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [paying, setPaying] = useState<any | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -252,7 +254,12 @@ export default function Invoices() {
           </>
         ) : undefined}
         aside={hasPermission('invoices.create')
-          ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('page.invoices.create')}</Button>
+          ? (
+            <>
+              <Button variant="secondary" icon="bolt" onClick={() => setFastEntry(true)}>إدخال فواتير سريع</Button>
+              <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('page.invoices.create')}</Button>
+            </>
+          )
           : undefined}
       />
 
@@ -534,6 +541,7 @@ export default function Invoices() {
         );
       })()}
 
+      {fastEntry && <InvoiceFastEntryDialog onClose={() => setFastEntry(false)} onSaved={load} />}
       {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ الفاتورة بنجاح'); load(); }} />}
       {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ الفاتورة بنجاح'); load(); }} />}
       {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={() => { toast.ok('تم تسجيل الدفعة بنجاح'); load(); }} />}
