@@ -513,7 +513,7 @@ export default function FinancialCenter() {
                     await exportReportAsPdf(
                       `/financial/${agingSubTab}-aging/export`,
                       { asOfDate: agingAsOfDate || undefined },
-                      `${agingSubTab}-aging`,
+                      generateExportFileName({ reportName: agingSubTab === 'ap' ? ReportName.APAging : ReportName.ARAging, extension: 'pdf' }),
                     );
                   } finally { setAgingExporting(false); }
                 }}
@@ -581,7 +581,7 @@ export default function FinancialCenter() {
                         await exportReportAsPdf(
                           `/financial/gl-statement/${glAccountId}/export`,
                           { fromDate: glFrom || undefined, toDate: glTo || undefined },
-                          `gl-statement-${glAccountId}`,
+                          generateExportFileName({ reportName: ReportName.GeneralLedger, identifier: glAccountId, extension: 'pdf' }),
                         );
                       } finally { setGlExporting(false); }
                     }}
@@ -671,7 +671,7 @@ export default function FinancialCenter() {
                         await exportReportAsPdf(
                           '/financial/gl-report/export',
                           { fromDate: glFrom || undefined, toDate: glTo || undefined },
-                          'gl-report',
+                          generateExportFileName({ reportName: ReportName.GeneralLedgerReport, extension: 'pdf' }),
                         );
                       } finally { setGlReportExporting(false); }
                     }}
@@ -794,7 +794,7 @@ export default function FinancialCenter() {
                         fromDate: trialMode === 'period' ? (trialFrom  || undefined) : undefined,
                         toDate:   trialMode === 'period' ? (trialTo    || undefined) : undefined,
                       },
-                      'trial-balance',
+                      generateExportFileName({ reportName: ReportName.TrialBalance, extension: 'pdf' }),
                     );
                   } finally { setTrialExporting(false); }
                 }}
@@ -873,7 +873,7 @@ export default function FinancialCenter() {
                     await exportReportAsPdf(
                       '/financial/journal-book/export',
                       { fromDate: jFrom || undefined, toDate: jTo || undefined, status: jStatus || undefined, search: jSearch || undefined },
-                      'journal-book',
+                      generateExportFileName({ reportName: ReportName.JournalBook, extension: 'pdf' }),
                     );
                   } finally { setJournalExporting(false); }
                 }}
