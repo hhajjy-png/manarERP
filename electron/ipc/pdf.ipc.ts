@@ -7,7 +7,9 @@ export function registerPdfIpc() {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return { success: false, error: 'تعذّر الوصول إلى نافذة التطبيق' };
 
-    const safeDefault = suggestedName ? `${suggestedName}.pdf` : 'report.pdf';
+    const safeDefault = suggestedName
+      ? (suggestedName.toLowerCase().endsWith('.pdf') ? suggestedName : `${suggestedName}.pdf`)
+      : 'report.pdf';
 
     const saveResult = await dialog.showSaveDialog(win, {
       title:      'حفظ PDF',
@@ -72,7 +74,9 @@ export function registerPdfIpc() {
       return { success: false, error: 'تعذّر الوصول إلى نافذة التطبيق' };
     }
 
-    const safeDefault = suggestedName ? `${suggestedName}.pdf` : 'document.pdf';
+    const safeDefault = suggestedName
+      ? (suggestedName.toLowerCase().endsWith('.pdf') ? suggestedName : `${suggestedName}.pdf`)
+      : 'document.pdf';
 
     const saveResult = await dialog.showSaveDialog(win, {
       title: 'حفظ PDF',
