@@ -11,6 +11,7 @@ import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatCurrency, formatNumber } from '../lib/format';
+import { formatDate } from '../lib/date';
 import {
   getWorkspace,
   getTimeline,
@@ -109,9 +110,7 @@ function fmtAmount(v: number): string {
 }
 
 function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('ar-KW');
+  return formatDate(iso);
 }
 
 function exportTimelineCsv(

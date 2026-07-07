@@ -1667,7 +1667,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
               <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
                 <span>عدد الدفعات: <strong style={{ color: 'var(--text)' }}>{payments.length}</strong></span>
                 {latestPmt && <span>آخر دفعة: <strong style={{ color: 'var(--text)' }}>{money(latestPmt.amount)}</strong></span>}
-                {latestPmt?.date && <span>تاريخ آخر دفعة: <strong style={{ color: 'var(--text)' }}>{new Date(latestPmt.date).toLocaleDateString('ar-KW')}</strong></span>}
+                {latestPmt?.date && <span>تاريخ آخر دفعة: <strong style={{ color: 'var(--text)' }}>{dateText(latestPmt.date)}</strong></span>}
               </div>
             )}
           </div>

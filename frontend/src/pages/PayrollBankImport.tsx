@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
 import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
+import { formatDate, formatDateTime } from '../lib/date';
 import {
   previewImport, executeImport, exportReportExcel, exportReportPdf,
   type BankTemplate, type ParsedBankRow, type PreviewSummary, type ImportReport,
@@ -27,10 +28,7 @@ function downloadBlob(blob: Blob, filename: string) {
 const MONTH_AR = ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('ar-KW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return formatDate(iso);
 }
 
 function fmtAmount(n: number): string {
@@ -660,7 +658,7 @@ function DoneStep({ report, canExport, onNewImport }: DoneStepProps) {
       }}>
         <p style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: '#16a34a' }}>✅ اكتمل الاستيراد بنجاح</p>
         <p style={{ margin: 0, fontSize: 13, color: '#15803d' }}>
-          تم تنفيذ الاستيراد في {new Date(report.importedAt).toLocaleString('ar-KW')} بواسطة {report.importedBy}
+          تم تنفيذ الاستيراد في {formatDateTime(report.importedAt)} بواسطة {report.importedBy}
         </p>
       </div>
 

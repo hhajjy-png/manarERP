@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { formatNumber } from '../lib/format';
+import { formatDate } from '../lib/date';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -254,10 +255,7 @@ function btnStyle(variant: 'primary' | 'danger' | 'secondary', disabled: boolean
 const MONTH_AR = ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString('ar-KW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return formatDate(iso);
 }
 
 // ── Main component ────────────────────────────────────────────────────────────

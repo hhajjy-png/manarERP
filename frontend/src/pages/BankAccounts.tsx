@@ -5,6 +5,7 @@ import { listBankAccounts, type BankAccountSummary } from '../api/bankAccounts';
 import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatNumber } from '../lib/format';
+import { formatDate } from '../lib/date';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -14,9 +15,7 @@ function fmtAmount(v: number | null): string {
 }
 
 function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('ar-KW');
+  return formatDate(iso);
 }
 
 function parseAccountKey(key: string): { bank: string; acct: string; type: string } {

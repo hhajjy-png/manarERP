@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { api, errorMessage } from '../api/client';
+import { formatDate } from '../lib/date';
 
 interface Attachment {
   id: number;
@@ -167,7 +168,7 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
                 </td>
                 <td style={{ padding: '6px 8px', color: '#6B7280' }}>{formatBytes(att.fileSize)}</td>
                 <td style={{ padding: '6px 8px', color: '#6B7280' }}>
-                  {new Date(att.uploadedAt).toLocaleDateString('ar-KW')}
+                  {formatDate(att.uploadedAt)}
                 </td>
                 <td style={{ padding: '6px 8px' }}>
                   {!readOnly && (

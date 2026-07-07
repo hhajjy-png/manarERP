@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { useUI } from '../stores/uiStore';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
+import { formatDate } from '../lib/date';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
@@ -141,7 +142,7 @@ const QUICK_CHIPS: { key: QuickChip; label: string }[] = [
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const fmt3 = (n: number) => formatNumber(n);
-const fmtDate = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString('ar-KW') : '—');
+const fmtDate = (iso: string | null) => formatDate(iso);
 
 function buildParams(f: Filters, extra: Record<string, unknown> = {}): Record<string, string> {
   const p: Record<string, string> = {};
