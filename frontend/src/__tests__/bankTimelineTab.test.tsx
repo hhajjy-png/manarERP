@@ -46,7 +46,8 @@ describe('TimelineTab — drawer & filters', () => {
     fireEvent.click(row);
     expect(await screen.findByText('تفاصيل العملية')).toBeInTheDocument();
     expect(screen.getByRole('dialog')).toHaveAttribute('aria-modal', 'true');
-    // Provenance field exposed in Phase C.
+    // Provenance field (fingerprint) lives on the Audit tab of the Information Hub.
+    fireEvent.click(screen.getByRole('tab', { name: /التدقيق/ }));
     expect(screen.getByText('abc123')).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape' });
