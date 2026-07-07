@@ -9,6 +9,7 @@ import { money } from '../config/modules';
 import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
 import ConfirmModal from '../components/ConfirmModal';
 import { downloadBlob } from '../utils/exportUtils';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import {
   ExecutiveHeader,
   IdChip,
@@ -132,7 +133,7 @@ export default function Prices() {
     setExportBusy(true);
     try {
       const res = await api.get('/reports/prices/export', { params: { format: 'excel' }, responseType: 'blob' });
-      downloadBlob(res.data as Blob, 'agreements-export.xlsx');
+      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.PriceAgreements, extension: 'xlsx' }));
     } catch (e) {
       setError(errorMessage(e));
     } finally {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { downloadBlob } from '../utils/exportUtils';
 import { exportReportAsPdf } from '../utils/pdfExport';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
@@ -328,7 +329,7 @@ export default function Reports() {
         params: { ...buildParams(), format: 'excel' },
         responseType: 'blob',
       });
-      downloadBlob(res.data as Blob, `report-${selected}.xlsx`);
+      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.Report, identifier: selected, extension: 'xlsx' }));
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -344,7 +345,7 @@ export default function Reports() {
       await exportReportAsPdf(
         `/reports/${selected}/export`,
         { ...buildParams(), format: 'html' },
-        `report-${selected}`,
+        generateExportFileName({ reportName: ReportName.Report, identifier: selected, extension: 'pdf' }),
       );
     } catch (e) {
       setError(errorMessage(e));

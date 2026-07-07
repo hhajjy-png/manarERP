@@ -9,6 +9,7 @@ import {
   type BankTemplate, type ParsedBankRow, type PreviewSummary, type ImportReport,
 } from '../api/payrollBankImport';
 import { parseWorkbook, BANK_CONFIGS, MAX_ROWS } from './payrollBankImportParser';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 
 // ── Wizard state ──────────────────────────────────────────────────────────────
 
@@ -637,10 +638,10 @@ function DoneStep({ report, canExport, onNewImport }: DoneStepProps) {
     try {
       if (format === 'excel') {
         const blob = await exportReportExcel(report);
-        downloadBlob(blob, `import-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
+        downloadBlob(blob, generateExportFileName({ reportName: ReportName.PayrollImport, extension: 'xlsx' }));
       } else {
         const blob = await exportReportPdf(report);
-        downloadBlob(blob, `import-report-${new Date().toISOString().slice(0, 10)}.pdf`);
+        downloadBlob(blob, generateExportFileName({ reportName: ReportName.PayrollImport, extension: 'pdf' }));
       }
     } catch {
       // silently ignore export errors — user can retry

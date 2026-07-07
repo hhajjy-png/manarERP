@@ -8,7 +8,7 @@ import ExecutiveAlertsV3, { AlertV3 } from '../components/dashboard/ExecutiveAle
 import ExecutiveRecommendationsPanel, { RecommendationV2 } from '../components/dashboard/ExecutiveRecommendationsPanel';
 import KPITimeline from '../components/dashboard/KPITimeline';
 import '../components/dashboard/dashboard.css';
-import { buildFilenameFromDate } from '../utils/pdfFilename';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -172,7 +172,7 @@ export default function ExecutiveDecisionCenter() {
     if (!window.manar?.exportPdf) { setPdfErr('تصدير PDF غير متاح في هذه البيئة'); return; }
     setPdfBusy(true); setPdfMsg(''); setPdfErr('');
     try {
-      const name = buildFilenameFromDate('executive-report');
+      const name = generateExportFileName({ reportName: ReportName.ExecutiveReport, identifier: 'Dashboard', extension: 'pdf' });
       const result = await window.manar.exportPdf(name);
       if (result?.canceled) { return; }
       if (result?.success && result.path) {

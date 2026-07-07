@@ -7,6 +7,7 @@ import { dateText, money } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { downloadBlob } from '../utils/exportUtils';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import PrivateAmount from '../components/PrivateAmount';
 import {
   ExecutiveHeader,
@@ -243,7 +244,11 @@ export default function Salaries() {
         params: { month, year, employeeId: employeeId || undefined, status: status || undefined, format: 'excel' },
         responseType: 'blob',
       });
-      downloadBlob(res.data as Blob, `payroll-${month}-${year}.xlsx`);
+      downloadBlob(res.data as Blob, generateExportFileName({
+        reportName: ReportName.PayrollReport,
+        identifier: `${year}-${String(month).padStart(2, '0')}`,
+        extension: 'xlsx',
+      }));
     } catch (e) {
       setError(errorMessage(e));
     } finally {

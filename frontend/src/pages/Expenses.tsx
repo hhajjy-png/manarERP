@@ -10,6 +10,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { money, dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { downloadXlsx } from '../utils/exportUtils';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import AttachmentsPanel from '../components/AttachmentsPanel';
 import {
@@ -176,7 +177,7 @@ export default function Expenses() {
         'الحالة': t(STATUS_META[r.status]?.key ?? '—'),
         'ملاحظات': r.notes ?? '',
       }));
-      downloadXlsx(wsData, 'المصروفات', `expenses_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      downloadXlsx(wsData, 'المصروفات', generateExportFileName({ reportName: ReportName.Expenses, extension: 'xlsx' }));
     } catch (e) { setError(errorMessage(e)); }
     finally { setExportingExcel(false); }
   }

@@ -6,6 +6,7 @@ import { useUI } from '../stores/uiStore';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
 import { formatDate } from '../lib/date';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
@@ -485,7 +486,7 @@ export default function BankSalaryAnalytics() {
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const a    = document.createElement('a');
       a.href     = URL.createObjectURL(blob);
-      a.download = empId ? `bank-analytics-employee-${empId}.csv` : 'bank-analytics.csv';
+      a.download = generateExportFileName({ reportName: ReportName.BankAnalytics, identifier: empId ?? null, extension: 'csv' });
       a.click();
       URL.revokeObjectURL(a.href);
       showToast('تم تصدير CSV بنجاح');
@@ -498,7 +499,7 @@ export default function BankSalaryAnalytics() {
       const url = URL.createObjectURL(res.data as Blob);
       const a   = document.createElement('a');
       a.href     = url;
-      a.download = empId ? `bank-analytics-employee-${empId}.xlsx` : 'bank-analytics.xlsx';
+      a.download = generateExportFileName({ reportName: ReportName.BankAnalytics, identifier: empId ?? null, extension: 'xlsx' });
       a.click();
       URL.revokeObjectURL(url);
       showToast('تم تصدير Excel بنجاح');

@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { financialApi } from '../api/financial';
 import { exportReportAsPdf } from '../utils/pdfExport';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { formatCurrency } from '../lib/format';
 import type {
   FinancialResponse, StatementRow, ArAgingRow, ApAgingRow,
@@ -174,11 +175,12 @@ export default function FinancialCenter() {
     setExporting(true);
     try {
       const entity = entities.find(e => e.id === entityId);
+      const statementReportName = entityType === 'supplier' ? ReportName.SupplierStatement : ReportName.CustomerStatement;
       if (format === 'pdf') {
         await exportReportAsPdf(
           `/financial/statements/${entityType}/${entityId}/export`,
           { fromDate: fromDate || undefined, toDate: toDate || undefined, search: search || undefined },
-          `statement-${entity?.code ?? entityId}`,
+          generateExportFileName({ reportName: statementReportName, identifier: entity?.code ?? entity?.name ?? entityId, extension: 'pdf' }),
         );
       } else {
         const blob = await financialApi.exportStatement(entityType, entityId, {
@@ -187,7 +189,7 @@ export default function FinancialCenter() {
           search:   search   || undefined,
           format,
         });
-        saveBlob(blob, `statement-${entity?.code ?? entityId}.xlsx`);
+        saveBlob(blob, generateExportFileName({ reportName: statementReportName, identifier: entity?.code ?? entity?.name ?? entityId, extension: 'xlsx' }));
       }
     } finally {
       setExporting(false);
@@ -502,7 +504,7 @@ export default function FinancialCenter() {
                     const blob = agingSubTab === 'ar'
                       ? await financialApi.exportArAging({ asOfDate: agingAsOfDate || undefined, format: 'excel' })
                       : await financialApi.exportApAging({ asOfDate: agingAsOfDate || undefined, format: 'excel' });
-                    saveBlob(blob, `${agingSubTab}-aging.xlsx`);
+                    saveBlob(blob, generateExportFileName({ reportName: agingSubTab === 'ap' ? ReportName.APAging : ReportName.ARAging, extension: 'xlsx' }));
                   } finally { setAgingExporting(false); }
                 }}
                 onPdfExport={async () => {
@@ -511,7 +513,7 @@ export default function FinancialCenter() {
                     await exportReportAsPdf(
                       `/financial/${agingSubTab}-aging/export`,
                       { asOfDate: agingAsOfDate || undefined },
-                      `${agingSubTab}-aging`,
+                      generateExportFileName({ reportName: agingSubTab === 'ap' ? ReportName.APAging : ReportName.ARAging, extension: 'pdf' }),
                     );
                   } finally { setAgingExporting(false); }
                 }}
@@ -569,7 +571,7 @@ export default function FinancialCenter() {
                       setGlExporting(true);
                       try {
                         const blob = await financialApi.exportGlStatement(glAccountId, { fromDate: glFrom || undefined, toDate: glTo || undefined, format: 'excel' });
-                        saveBlob(blob, `gl-statement-${glAccountId}.xlsx`);
+                        saveBlob(blob, generateExportFileName({ reportName: ReportName.GeneralLedger, identifier: glAccountId, extension: 'xlsx' }));
                       } finally { setGlExporting(false); }
                     }}
                     onPdfExport={async () => {
@@ -579,7 +581,7 @@ export default function FinancialCenter() {
                         await exportReportAsPdf(
                           `/financial/gl-statement/${glAccountId}/export`,
                           { fromDate: glFrom || undefined, toDate: glTo || undefined },
-                          `gl-statement-${glAccountId}`,
+                          generateExportFileName({ reportName: ReportName.GeneralLedger, identifier: glAccountId, extension: 'pdf' }),
                         );
                       } finally { setGlExporting(false); }
                     }}
@@ -660,7 +662,7 @@ export default function FinancialCenter() {
                       setGlReportExporting(true);
                       try {
                         const blob = await financialApi.exportGlReport({ fromDate: glFrom || undefined, toDate: glTo || undefined, format: 'excel' });
-                        saveBlob(blob, 'gl-report.xlsx');
+                        saveBlob(blob, generateExportFileName({ reportName: ReportName.GeneralLedgerReport, extension: 'xlsx' }));
                       } finally { setGlReportExporting(false); }
                     }}
                     onPdfExport={async () => {
@@ -669,7 +671,7 @@ export default function FinancialCenter() {
                         await exportReportAsPdf(
                           '/financial/gl-report/export',
                           { fromDate: glFrom || undefined, toDate: glTo || undefined },
-                          'gl-report',
+                          generateExportFileName({ reportName: ReportName.GeneralLedgerReport, extension: 'pdf' }),
                         );
                       } finally { setGlReportExporting(false); }
                     }}
@@ -778,7 +780,7 @@ export default function FinancialCenter() {
                       toDate:   trialMode === 'period' ? (trialTo     || undefined) : undefined,
                       format: 'excel',
                     });
-                    saveBlob(blob, 'trial-balance.xlsx');
+                    saveBlob(blob, generateExportFileName({ reportName: ReportName.TrialBalance, extension: 'xlsx' }));
                   } finally { setTrialExporting(false); }
                 }}
                 onPdfExport={async () => {
@@ -792,7 +794,7 @@ export default function FinancialCenter() {
                         fromDate: trialMode === 'period' ? (trialFrom  || undefined) : undefined,
                         toDate:   trialMode === 'period' ? (trialTo    || undefined) : undefined,
                       },
-                      'trial-balance',
+                      generateExportFileName({ reportName: ReportName.TrialBalance, extension: 'pdf' }),
                     );
                   } finally { setTrialExporting(false); }
                 }}
@@ -862,7 +864,7 @@ export default function FinancialCenter() {
                   setJournalExporting(true);
                   try {
                     const blob = await financialApi.exportJournalBook({ fromDate: jFrom || undefined, toDate: jTo || undefined, status: jStatus || undefined, search: jSearch || undefined, format: 'excel' });
-                    saveBlob(blob, 'journal-book.xlsx');
+                    saveBlob(blob, generateExportFileName({ reportName: ReportName.JournalBook, extension: 'xlsx' }));
                   } finally { setJournalExporting(false); }
                 }}
                 onPdfExport={async () => {
@@ -871,7 +873,7 @@ export default function FinancialCenter() {
                     await exportReportAsPdf(
                       '/financial/journal-book/export',
                       { fromDate: jFrom || undefined, toDate: jTo || undefined, status: jStatus || undefined, search: jSearch || undefined },
-                      'journal-book',
+                      generateExportFileName({ reportName: ReportName.JournalBook, extension: 'pdf' }),
                     );
                   } finally { setJournalExporting(false); }
                 }}

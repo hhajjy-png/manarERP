@@ -12,6 +12,7 @@ import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatCurrency, formatNumber } from '../lib/format';
 import { formatDate } from '../lib/date';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import {
   getWorkspace,
   getTimeline,
@@ -141,7 +142,7 @@ function exportTimelineCsv(
   const to       = toDate?.substring(0, 10)   ?? today;
   const a        = document.createElement('a');
   a.href         = URL.createObjectURL(blob);
-  a.download     = `bank-account-timeline-${bankSlug}-${from}-to-${to}.csv`;
+  a.download     = generateExportFileName({ reportName: ReportName.BankAccountTimeline, identifier: bankSlug, extension: 'csv' });
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -1443,7 +1444,7 @@ export default function BankReconciliation() {
                     className="recon-export-item"
                     onClick={() => {
                       setExportMenuOpen(false);
-                      exportToCsv(displayedTransactions, `bank-import-batch-${selectedImportId}-${new Date().toISOString().substring(0, 10)}.csv`);
+                      exportToCsv(displayedTransactions, generateExportFileName({ reportName: ReportName.BankStatement, identifier: selectedImportId, extension: 'csv' }));
                       showToast('تم تصدير ملف CSV بنجاح');
                     }}
                   >
