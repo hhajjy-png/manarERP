@@ -17,7 +17,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 
-type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
+export type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
 const Icon = ({ name, className }: { name: string; className?: string }) => (
   <span className={`material-symbols-outlined${className ? ` ${className}` : ''}`} aria-hidden="true">
@@ -440,6 +440,94 @@ export function DrawerField({ label, value, mono }: { label: string; value: Reac
       <span className="xpl-drawer-field-label">{label}</span>
       <span className={`xpl-drawer-field-value${mono ? ' mono' : ''}`}>{value}</span>
     </div>
+  );
+}
+
+// ─── Information Hub drawer primitives (presentation-only, additive) ──────────────
+
+export interface DrawerKpi { label: string; value: ReactNode; sub?: ReactNode; tone?: Tone; }
+
+export function DrawerHeaderCard({
+  icon, title, subtitle, status, kpis,
+}: {
+  icon: string;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  status?: { tone?: Tone; icon?: string; label: string };
+  kpis?: DrawerKpi[];
+}) {
+  return (
+    <div className="xpl-drawer-headcard">
+      <div className="xpl-drawer-headcard-top">
+        <div className="xpl-drawer-headcard-icon"><Icon name={icon} /></div>
+        <div className="xpl-drawer-headcard-id">
+          <span className="xpl-drawer-headcard-title">{title}</span>
+          {subtitle != null && <span className="xpl-drawer-headcard-sub">{subtitle}</span>}
+        </div>
+        {status && <StatusChip tone={status.tone} icon={status.icon}>{status.label}</StatusChip>}
+      </div>
+      {kpis && kpis.length > 0 && (
+        <div className="xpl-drawer-kpis">
+          {kpis.map((k, i) => (
+            <div className={`xpl-drawer-kpi${k.tone ? ` xpl-drawer-kpi--${k.tone}` : ''}`} key={i}>
+              <span className="xpl-drawer-kpi-label">{k.label}</span>
+              <span className="xpl-drawer-kpi-value">{k.value}</span>
+              {k.sub != null && <span className="xpl-drawer-kpi-sub">{k.sub}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export interface QuickAction {
+  key: string;
+  icon: string;
+  label: string;
+  onClick: () => void;
+  tone?: 'default' | 'primary' | 'danger';
+  disabled?: boolean;
+}
+
+export function DrawerQuickActions({ actions }: { actions: QuickAction[] }) {
+  if (!actions.length) return null;
+  return (
+    <div className="xpl-quick-actions">
+      {actions.map((a) => (
+        <button
+          type="button"
+          key={a.key}
+          className={`xpl-quick-action${a.tone && a.tone !== 'default' ? ` xpl-quick-action--${a.tone}` : ''}`}
+          onClick={a.onClick}
+          disabled={a.disabled}
+          aria-label={a.label}
+        >
+          <span className="xpl-quick-action-icon"><Icon name={a.icon} /></span>
+          <span className="xpl-quick-action-label">{a.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export interface InfoItem { label: string; value: ReactNode; mono?: boolean; }
+
+function infoValueIsEmpty(v: ReactNode): boolean {
+  return v == null || v === '' || v === '—';
+}
+
+export function DrawerInfoGrid({ title, items }: { title?: string; items: InfoItem[] }) {
+  const shown = items.filter((it) => !infoValueIsEmpty(it.value));
+  if (!shown.length) return null;
+  return (
+    <DrawerSection title={title}>
+      <div className="xpl-info-grid">
+        {shown.map((it, i) => (
+          <DrawerField key={i} label={it.label} value={it.value} mono={it.mono} />
+        ))}
+      </div>
+    </DrawerSection>
   );
 }
 
