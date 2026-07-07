@@ -1,4 +1,5 @@
 import { api } from './client';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 
 // ── Types (mirrors backend types.ts) ──────────────────────────────────────────
 
@@ -335,7 +336,11 @@ export async function downloadExport(importId: number, format: 'excel' | 'pdf'):
   const blob = new Blob([resp.data], { type: mime });
   const a    = document.createElement('a');
   a.href     = URL.createObjectURL(blob);
-  a.download = `bank-statement-${importId}.${ext}`;
+  a.download = generateExportFileName({
+    reportName: ReportName.BankStatement,
+    identifier: importId,
+    extension: ext,
+  });
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

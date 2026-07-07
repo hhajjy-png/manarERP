@@ -1,5 +1,6 @@
 import { api } from './client';
 import { downloadBlob } from '../utils/exportUtils';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 
 export type StatementReferenceType = 'INVOICE' | 'PAYMENT' | 'EXPENSE';
 
@@ -64,7 +65,11 @@ export const statementsApi = {
     });
     downloadBlob(
       new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-      `statement-${entityName}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      generateExportFileName({
+        reportName: ReportName.CustomerStatement,
+        identifier: entityName,
+        extension: 'xlsx',
+      }),
     );
   },
 
@@ -75,7 +80,11 @@ export const statementsApi = {
     });
     downloadBlob(
       new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-      `statement-${entityName}-${new Date().toISOString().slice(0, 10)}.xlsx`,
+      generateExportFileName({
+        reportName: ReportName.SupplierStatement,
+        identifier: entityName,
+        extension: 'xlsx',
+      }),
     );
   },
 };
