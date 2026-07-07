@@ -215,7 +215,7 @@ export default function Invoices() {
         'نوع الفاتورة': r.invoiceType ?? '',
         'الاتجاه': dirLabel(r.direction ?? ''),
         'الطرف': r.customer?.name ?? r.supplier?.name ?? '',
-        'تاريخ الإصدار': r.issueDate ? String(r.issueDate).slice(0, 10) : '',
+        'تاريخ الإصدار': r.issueDate ? dateText(r.issueDate) : '',
         'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : '',
         'الإجمالي': Number(r.total),
         'المسدد': Number(r.paidAmount),

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import Modal from './Modal';
 import { formatNumber } from '../lib/format';
+import { formatDate } from '../lib/date';
 
 interface PreviewData {
   id: number;
@@ -31,10 +32,9 @@ function fmtAmount(v: number, currency = 'KWD'): string {
   return formatNumber(v) + ' ' + currency;
 }
 
+// عرض تاريخ للمستخدم — يمرّ عبر المُنسّق المشترك (DD/MM/YYYY، أرقام إنجليزية).
 function fmtDate(v: string | null): string {
-  if (!v) return '—';
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? '—' : d.toISOString().slice(0, 10);
+  return formatDate(v);
 }
 
 interface Props {
