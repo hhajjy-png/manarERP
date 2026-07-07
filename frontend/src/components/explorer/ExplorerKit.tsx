@@ -17,7 +17,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 
-type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
+export type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
 const Icon = ({ name, className }: { name: string; className?: string }) => (
   <span className={`material-symbols-outlined${className ? ` ${className}` : ''}`} aria-hidden="true">
@@ -439,6 +439,234 @@ export function DrawerField({ label, value, mono }: { label: string; value: Reac
     <div className="xpl-drawer-field">
       <span className="xpl-drawer-field-label">{label}</span>
       <span className={`xpl-drawer-field-value${mono ? ' mono' : ''}`}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Information Hub drawer primitives (presentation-only, additive) ──────────────
+
+export interface DrawerKpi { label: string; value: ReactNode; sub?: ReactNode; tone?: Tone; }
+
+export function DrawerHeaderCard({
+  icon, title, subtitle, status, kpis,
+}: {
+  icon: string;
+  title: ReactNode;
+  subtitle?: ReactNode;
+  status?: { tone?: Tone; icon?: string; label: string };
+  kpis?: DrawerKpi[];
+}) {
+  return (
+    <div className="xpl-drawer-headcard">
+      <div className="xpl-drawer-headcard-top">
+        <div className="xpl-drawer-headcard-icon"><Icon name={icon} /></div>
+        <div className="xpl-drawer-headcard-id">
+          <span className="xpl-drawer-headcard-title">{title}</span>
+          {subtitle != null && <span className="xpl-drawer-headcard-sub">{subtitle}</span>}
+        </div>
+        {status && <StatusChip tone={status.tone} icon={status.icon}>{status.label}</StatusChip>}
+      </div>
+      {kpis && kpis.length > 0 && (
+        <div className="xpl-drawer-kpis">
+          {kpis.map((k, i) => (
+            <div className={`xpl-drawer-kpi${k.tone ? ` xpl-drawer-kpi--${k.tone}` : ''}`} key={i}>
+              <span className="xpl-drawer-kpi-label">{k.label}</span>
+              <span className="xpl-drawer-kpi-value">{k.value}</span>
+              {k.sub != null && <span className="xpl-drawer-kpi-sub">{k.sub}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export interface QuickAction {
+  key: string;
+  icon: string;
+  label: string;
+  onClick: () => void;
+  tone?: 'default' | 'primary' | 'danger';
+  disabled?: boolean;
+}
+
+export function DrawerQuickActions({ actions }: { actions: QuickAction[] }) {
+  if (!actions.length) return null;
+  return (
+    <div className="xpl-quick-actions">
+      {actions.map((a) => (
+        <button
+          type="button"
+          key={a.key}
+          className={`xpl-quick-action${a.tone && a.tone !== 'default' ? ` xpl-quick-action--${a.tone}` : ''}`}
+          onClick={a.onClick}
+          disabled={a.disabled}
+          aria-label={a.label}
+        >
+          <span className="xpl-quick-action-icon"><Icon name={a.icon} /></span>
+          <span className="xpl-quick-action-label">{a.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export interface InfoItem { label: string; value: ReactNode; mono?: boolean; }
+
+function infoValueIsEmpty(v: ReactNode): boolean {
+  return v == null || v === '' || v === '—';
+}
+
+export function DrawerInfoGrid({ title, items }: { title?: string; items: InfoItem[] }) {
+  const shown = items.filter((it) => !infoValueIsEmpty(it.value));
+  if (!shown.length) return null;
+  return (
+    <DrawerSection title={title}>
+      <div className="xpl-info-grid">
+        {shown.map((it, i) => (
+          <DrawerField key={i} label={it.label} value={it.value} mono={it.mono} />
+        ))}
+      </div>
+    </DrawerSection>
+  );
+}
+
+export interface RelatedItem {
+  key: string;
+  icon?: string;
+  primary: ReactNode;
+  secondary?: ReactNode;
+  trailing?: ReactNode;
+  tone?: Tone;
+  onClick?: () => void;
+}
+
+export function DrawerRelated({
+  title, loading, error, items, onSeeAll,
+}: {
+  title: string;
+  loading?: boolean;
+  error?: string;
+  items?: RelatedItem[];
+  onSeeAll?: () => void;
+}) {
+  if (!loading && !error && (!items || items.length === 0)) return null; // hide when empty
+  return (
+    <DrawerSection title={title}>
+      {error ? (
+        <ErrorBanner>{error}</ErrorBanner>
+      ) : loading ? (
+        <SkeletonRows rows={3} />
+      ) : (
+        <div className="xpl-related">
+          {items!.map((it) =>
+            it.onClick ? (
+              <button type="button" key={it.key} className="xpl-related-row xpl-related-row--click" onClick={it.onClick}>
+                {it.icon && <span className={`xpl-related-icon${it.tone ? ` xpl-dot--${it.tone}` : ''}`}><Icon name={it.icon} /></span>}
+                <span className="xpl-related-text">
+                  <span className="xpl-related-primary">{it.primary}</span>
+                  {it.secondary != null && <span className="xpl-related-secondary">{it.secondary}</span>}
+                </span>
+                {it.trailing != null && <span className="xpl-related-trailing">{it.trailing}</span>}
+              </button>
+            ) : (
+              <div key={it.key} className="xpl-related-row">
+                {it.icon && <span className={`xpl-related-icon${it.tone ? ` xpl-dot--${it.tone}` : ''}`}><Icon name={it.icon} /></span>}
+                <span className="xpl-related-text">
+                  <span className="xpl-related-primary">{it.primary}</span>
+                  {it.secondary != null && <span className="xpl-related-secondary">{it.secondary}</span>}
+                </span>
+                {it.trailing != null && <span className="xpl-related-trailing">{it.trailing}</span>}
+              </div>
+            ),
+          )}
+          {onSeeAll && <button type="button" className="xpl-related-seeall" onClick={onSeeAll}>عرض الكل</button>}
+        </div>
+      )}
+    </DrawerSection>
+  );
+}
+
+export interface ActivityItem {
+  key: string;
+  icon?: string;
+  tone?: Tone;
+  title: ReactNode;
+  meta?: ReactNode;
+  timestamp?: string;
+}
+
+export function DrawerActivity({
+  title = 'آخر النشاط', loading, items,
+}: {
+  title?: string;
+  loading?: boolean;
+  items?: ActivityItem[];
+}) {
+  if (!loading && (!items || items.length === 0)) return null;
+  return (
+    <DrawerSection title={title}>
+      {loading ? (
+        <SkeletonRows rows={3} />
+      ) : (
+        <ul className="xpl-timeline">
+          {items!.map((it) => (
+            <li className="xpl-timeline-item" key={it.key}>
+              <span className={`xpl-timeline-dot${it.tone ? ` xpl-dot--${it.tone}` : ''}`}>
+                {it.icon && <Icon name={it.icon} />}
+              </span>
+              <div className="xpl-timeline-body">
+                <span className="xpl-timeline-title">{it.title}</span>
+                {it.meta != null && <span className="xpl-timeline-meta">{it.meta}</span>}
+              </div>
+              {it.timestamp && <span className="xpl-timeline-time">{it.timestamp}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </DrawerSection>
+  );
+}
+
+export interface ActionBtn {
+  key: string;
+  label: string;
+  icon?: string;
+  onClick: () => void;
+  busy?: boolean;
+  disabled?: boolean;
+}
+
+export function DrawerActionBar({
+  primary, secondary, danger,
+}: {
+  primary?: ActionBtn;
+  secondary?: ActionBtn[];
+  danger?: ActionBtn[];
+}) {
+  return (
+    <div className="xpl-actionbar">
+      <div className="xpl-actionbar-main">
+        {primary && (
+          <Button variant="primary" icon={primary.icon} busy={primary.busy} disabled={primary.disabled} onClick={primary.onClick}>
+            {primary.label}
+          </Button>
+        )}
+        {secondary?.map((b) => (
+          <Button key={b.key} variant="secondary" icon={b.icon} busy={b.busy} disabled={b.disabled} onClick={b.onClick}>
+            {b.label}
+          </Button>
+        ))}
+      </div>
+      {danger && danger.length > 0 && (
+        <div className="xpl-actionbar-danger">
+          {danger.map((b) => (
+            <Button key={b.key} variant="danger" icon={b.icon} busy={b.busy} disabled={b.disabled} onClick={b.onClick}>
+              {b.label}
+            </Button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

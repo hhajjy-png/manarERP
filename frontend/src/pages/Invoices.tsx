@@ -36,7 +36,17 @@ import {
   Drawer,
   DrawerSection,
   DrawerField,
+  DrawerHeaderCard,
+  DrawerQuickActions,
+  DrawerRelated,
+  DrawerActivity,
+  DrawerActionBar,
   Button,
+  type DrawerKpi,
+  type QuickAction,
+  type RelatedItem,
+  type ActivityItem,
+  type ActionBtn,
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Invoices.css';
@@ -402,38 +412,83 @@ export default function Invoices() {
         const remaining = Math.max(0, Number(viewing.total) - Number(viewing.paidAmount ?? 0));
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const items: any[] = Array.isArray(viewing.items) ? viewing.items : [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const payments: any[] = Array.isArray(viewing.payments) ? viewing.payments : [];
+        const statusMeta = STATUS_META[String(viewing.status)] ?? { key: viewing.status, tone: 'neutral' as Tone, icon: 'help' };
+        const ageDays = viewing.issueDate ? Math.floor((Date.now() - new Date(viewing.issueDate).getTime()) / 86_400_000) : null;
+
+        const openCollect = () => { const row = viewing; setViewing(null); setPaying(row); };
+        const openEdit = () => { const row = viewing; setViewing(null); setEditing(row); };
+        const goPrint = () => navigate(`/invoices/${viewing.id}/preview?print=1`);
+        const goPdf = () => navigate(`/invoices/${viewing.id}/preview`);
+        const runCancel = () => { const id = viewing.id; setViewing(null); cancel(id); };
+        const runDelete = () => { const id = viewing.id as number; setViewing(null); setForceDeleteId(id); };
+
+        const canCollect = canCollectRow(viewing);
+        const canEdit = canEditRow(viewing);
+        const canCancel = canCancelRow(viewing);
+
+        const kpis: DrawerKpi[] = [
+          { label: t('col.inv.total'), value: money(viewing.total) },
+          { label: t('col.inv.paid'), value: money(viewing.paidAmount), tone: 'green' },
+          { label: t('lbl.inv.remaining_amount'), value: money(remaining), tone: 'red' },
+          { label: 'العمر', value: ageDays != null ? `${ageDays} يوم` : '—' },
+        ];
+
+        const quickActions: QuickAction[] = [];
+        if (canCollect) quickActions.push({ key: 'collect', icon: 'payments', label: t('page.invoices.collect'), onClick: openCollect });
+        if (hasPermission('invoices.read')) quickActions.push({ key: 'print', icon: 'print', label: t('btn.inv.print_invoice'), onClick: goPrint });
+        if (hasPermission('invoices.read')) quickActions.push({ key: 'pdf', icon: 'picture_as_pdf', label: 'PDF', onClick: goPdf });
+        if (canEdit) quickActions.push({ key: 'edit', icon: 'edit', label: t('action.edit'), tone: 'primary', onClick: openEdit });
+        if (canCancel) quickActions.push({ key: 'cancel', icon: 'block', label: t('page.invoices.cancel_inv'), onClick: runCancel });
+        if (isSystemAdmin) quickActions.push({ key: 'delete', icon: 'delete_forever', label: 'حذف نهائي', tone: 'danger', onClick: runDelete });
+
+        const relatedPayments: RelatedItem[] = payments.map((p, idx) => ({
+          key: String(p.id ?? idx),
+          icon: 'payments',
+          primary: money(p.amount),
+          secondary: `${dateText(p.date)}${p.method ? ' · ' + p.method : ''}`,
+        }));
+
+        const activityItems: ActivityItem[] = [];
+        if (viewing.issueDate) activityItems.push({ key: 'created', icon: 'receipt_long', tone: 'blue', title: 'أُنشئت الفاتورة', timestamp: dateText(viewing.issueDate) });
+        payments.forEach((p, idx) => {
+          activityItems.push({ key: `pmt-${p.id ?? idx}`, icon: 'payments', tone: 'green', title: `دفعة ${money(p.amount)}`, timestamp: dateText(p.date) });
+        });
+        if (String(viewing.status) === 'CANCELLED') activityItems.push({ key: 'cancelled', icon: 'block', tone: 'neutral', title: 'أُلغيت الفاتورة' });
+
+        const primaryAction: ActionBtn | undefined = canCollect
+          ? { key: 'collect', label: t('page.invoices.collect'), icon: 'payments', onClick: openCollect }
+          : canEdit
+            ? { key: 'edit', label: t('action.edit'), icon: 'edit', onClick: openEdit }
+            : undefined;
+
+        const secondaryActions: ActionBtn[] = [];
+        if (hasPermission('invoices.read')) secondaryActions.push({ key: 'print', label: t('btn.inv.print_invoice'), icon: 'print', onClick: goPrint });
+        if (canEdit && primaryAction?.key !== 'edit') secondaryActions.push({ key: 'edit', label: t('action.edit'), icon: 'edit', onClick: openEdit });
+
+        const dangerActions: ActionBtn[] = [];
+        if (canCancel) dangerActions.push({ key: 'cancel', label: t('page.invoices.cancel_inv'), icon: 'block', busy: cancelBusy, onClick: runCancel });
+        if (isSystemAdmin) dangerActions.push({ key: 'delete', label: 'حذف نهائي', icon: 'delete_forever', onClick: runDelete });
+
         return (
           <Drawer
             title={`${t('col.inv.number')} ${viewing.invoiceNumber ?? viewing.number}`}
             onClose={() => setViewing(null)}
             hero={
-              <div className="xpl-drawer-hero">
-                <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">receipt_long</span></div>
-                <div className="xpl-drawer-hero-body">
-                  <span className="xpl-drawer-hero-title">{money(viewing.total)}</span>
-                  <span className="xpl-drawer-hero-sub">{(viewing.customer?.name ?? viewing.supplier?.name ?? '—')} · {t('lbl.inv.remaining_amount')} {money(remaining)}</span>
-                  <div style={{ marginTop: 4 }}>{invStatusChip(String(viewing.status), t)}</div>
-                </div>
-              </div>
+              <>
+                <DrawerHeaderCard
+                  icon="receipt_long"
+                  title={viewing.invoiceNumber ?? viewing.number}
+                  subtitle={viewing.customer?.name ?? viewing.supplier?.name ?? '—'}
+                  status={{ tone: statusMeta.tone, icon: statusMeta.icon, label: t(statusMeta.key) }}
+                  kpis={kpis}
+                />
+                <DrawerQuickActions actions={quickActions} />
+              </>
             }
             footer={
-              <>
-                {hasPermission('invoices.read') && (
-                  <Button variant="primary" icon="print" onClick={() => navigate(`/invoices/${viewing.id}/preview?print=1`)}>{t('btn.inv.print_invoice')}</Button>
-                )}
-                {canEditRow(viewing) && (
-                  <Button variant="secondary" icon="edit" onClick={() => { const row = viewing; setViewing(null); setEditing(row); }}>{t('action.edit')}</Button>
-                )}
-                {canCollectRow(viewing) && (
-                  <Button variant="secondary" icon="payments" onClick={() => { const row = viewing; setViewing(null); setPaying(row); }}>{t('page.invoices.collect')}</Button>
-                )}
-                {canCancelRow(viewing) && (
-                  <Button variant="danger" icon="block" busy={cancelBusy} onClick={() => { const id = viewing.id; setViewing(null); cancel(id); }}>{t('page.invoices.cancel_inv')}</Button>
-                )}
-                {isSystemAdmin && (
-                  <Button variant="danger" icon="delete_forever" onClick={() => { const id = viewing.id as number; setViewing(null); setForceDeleteId(id); }}>حذف نهائي</Button>
-                )}
-              </>
+              <DrawerActionBar primary={primaryAction} secondary={secondaryActions} danger={dangerActions} />
             }
           >
             <DrawerSection title="المعلومات الأساسية">
@@ -481,6 +536,9 @@ export default function Invoices() {
                 <DrawerField label="ملاحظات" value={viewing.notes} />
               </DrawerSection>
             )}
+
+            <DrawerRelated title="الدفعات" items={relatedPayments} />
+            <DrawerActivity items={activityItems} />
 
             <DrawerSection title="بيانات تقنية">
               <DrawerField label="المعرّف الداخلي" value={`#${viewing.id}`} mono />

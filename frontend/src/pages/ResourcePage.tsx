@@ -35,11 +35,19 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import EmployeeFinancialTab from '../components/employee/EmployeeFinancialTab';
+import CustomerHub from '../components/explorer/hubs/CustomerHub';
+import EquipmentHub from '../components/explorer/hubs/EquipmentHub';
+import type { HubComponent } from '../components/explorer/hubs/hubTypes';
 
 type AlertItem = { id: number; code: string; label: string; severity: 'warn' | 'error' };
 type ContractStats = { totalContracts: number; activeContracts: number; monthlyTransportTotal: number };
 type EquipmentStats = { total: number; byStatus: { status: string; count: number }[] };
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
+
+// Modules with a dedicated Information Hub drawer body (registered opt-in).
+// Every module NOT listed here keeps today's exact flat-section drawer body.
+// Typed Partial so a lookup miss is `undefined` (not falsely narrowed to always-defined).
+const DRAWER_HUBS: Partial<Record<string, HubComponent>> = { customers: CustomerHub, equipment: EquipmentHub };
 
 export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const cfg = MODULES[moduleKey];
@@ -379,6 +387,11 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     const useHero = kpis.length >= 3;
     function resetAll() { setSearch(''); setQuery(''); setFilterValue(''); setPage(1); }
 
+    // Information Hub for this module, if one is registered (currently: customers
+    // only). When present it replaces the drawer body and draws its own header
+    // card, so the slim hero below is suppressed for it.
+    const Hub = DRAWER_HUBS[cfg.key];
+
     // Shared "basic info" panel for the detail drawer — the default body for
     // every module, and the البيانات الأساسية tab for employees. Hoisted so the
     // two drawer branches below don't duplicate the field-rendering markup.
@@ -506,13 +519,15 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
             title={String(viewing.name ?? viewing.fullName ?? viewing.code ?? t(cfg.title))}
             onClose={() => setViewing(null)}
             hero={
-              <div className="xpl-drawer-hero">
-                <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{cfg.explorerIcon ?? 'category'}</span></div>
-                <div className="xpl-drawer-hero-body">
-                  <span className="xpl-drawer-hero-title">{String(viewing.name ?? viewing.fullName ?? viewing.code ?? '')}</span>
-                  {viewing.code && <span className="xpl-drawer-hero-sub">{viewing.code}</span>}
+              Hub ? undefined : (
+                <div className="xpl-drawer-hero">
+                  <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{cfg.explorerIcon ?? 'category'}</span></div>
+                  <div className="xpl-drawer-hero-body">
+                    <span className="xpl-drawer-hero-title">{String(viewing.name ?? viewing.fullName ?? viewing.code ?? '')}</span>
+                    {viewing.code && <span className="xpl-drawer-hero-sub">{viewing.code}</span>}
+                  </div>
                 </div>
-              </div>
+              )
             }
             footer={
               <>
@@ -524,7 +539,17 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
               </>
             }
           >
-            {cfg.key === 'employees' ? (
+            {Hub ? (
+              <Hub
+                entity={viewing}
+                cfg={cfg}
+                onEdit={() => { setEditing(viewing); setViewing(null); }}
+                onDelete={() => onDelete(viewing)}
+                canUpdate={canUpdate}
+                canDelete={canDelete}
+                busy={busy}
+              />
+            ) : cfg.key === 'employees' ? (
               <>
                 <Tabs
                   tabs={[
