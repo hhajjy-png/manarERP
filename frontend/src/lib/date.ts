@@ -45,3 +45,12 @@ export function formatDateTimeWithSeconds(value: unknown): string {
 export function formatMonthYear(month: number, year: number): string {
   return `${ARABIC_MONTHS[month - 1] ?? ''} ${year}`;
 }
+
+/** 2026-07-07 — filesystem-safe, LOCAL date (never UTC). Defaults to today. */
+export function formatFileDate(value?: unknown): string {
+  const d = value === undefined || value === null ? new Date() : parse(value) ?? new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
