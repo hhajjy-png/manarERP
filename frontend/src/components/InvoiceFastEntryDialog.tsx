@@ -55,11 +55,14 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
   const [prices, setPrices] = useState<PriceOption[]>([]);
   const [contracts, setContracts] = useState<ContractLite[]>([]);
   const [saving, setSaving] = useState(false);
+  const [pricesLoading, setPricesLoading] = useState(false);
   const [error, setError] = useState('');
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  const activeCustomerId = shared.customerId; // v1 SINGLE mode
-  const activeContract = contracts.find((c) => String(c.id) === shared.contractId);
+  const isMulti = shared.entryMode === 'MULTI';
+  const activeCustomerId = isMulti ? row.customerId : shared.customerId;
+  const activeContractId = isMulti ? row.contractId : shared.contractId;
+  const activeContract = contracts.find((c) => String(c.id) === activeContractId);
   const filterAsphaltPlant = activeContract?.asphaltPlant ?? null;
   const displayPrices = filterAsphaltPlant ? prices.filter((p) => p.asphaltPlant === filterAsphaltPlant) : prices;
 
@@ -83,17 +86,17 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // عند تغيّر العميل المشترك: جلب اتفاقيات الأسعار والعقود وإعادة تصفير أسعار البنود.
+  // عند تغيّر العميل الفعّال (المشترك أو لكل فاتورة): جلب الأسعار/العقود وإعادة تصفير
+  // أسعار البنود وعقد التصفية. يُفعَّل قفل الحفظ حتى تُحمَّل أسعار العميل (منعًا لأسعار قديمة).
   useEffect(() => {
     setShared((s) => ({ ...s, contractId: '' }));
-    setRow((r) => ({ ...r, items: r.items.map((it) => ({ ...it, unitPrice: 0, priceTouched: false })) }));
-    if (!activeCustomerId) { setPrices([]); setContracts([]); return; }
-    api.get('/prices/for-invoice', { params: { customerId: activeCustomerId } })
-      .then((res) => setPrices(res.data?.data ?? []))
-      .catch(() => {});
-    api.get('/contracts', { params: { customerId: activeCustomerId, pageSize: 100 } })
-      .then((res) => setContracts(res.data?.data?.data ?? []))
-      .catch(() => {});
+    setRow((r) => ({ ...r, contractId: '', items: r.items.map((it) => ({ ...it, unitPrice: 0, priceTouched: false })) }));
+    if (!activeCustomerId) { setPrices([]); setContracts([]); setPricesLoading(false); return; }
+    setPricesLoading(true);
+    Promise.allSettled([
+      api.get('/prices/for-invoice', { params: { customerId: activeCustomerId } }).then((res) => setPrices(res.data?.data ?? [])),
+      api.get('/contracts', { params: { customerId: activeCustomerId, pageSize: 100 } }).then((res) => setContracts(res.data?.data?.data ?? [])),
+    ]).finally(() => setPricesLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCustomerId]);
 
@@ -106,6 +109,13 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
   };
 
   function patchShared(p: Partial<InvoiceSharedFields>) { setShared((s) => ({ ...s, ...p })); }
+  function switchMode(mode: InvoiceSharedFields['entryMode']) {
+    if (mode === shared.entryMode) return;
+    if (isInvoiceRowDirty(row) && !window.confirm('تغيير نمط الإدخال سيتجاهل الفاتورة الحالية غير المحفوظة. هل تريد المتابعة؟')) return;
+    // انقل موقع حقل العميل حسب الوضع وأعد ضبط سياق العميل.
+    setShared((s) => ({ ...s, entryMode: mode, customerId: '', contractId: '' }));
+    setRow((r) => ({ ...r, customerId: '', contractId: '', items: r.items.map((it) => ({ ...it, unitPrice: 0, priceTouched: false })) }));
+  }
   function focusFirstItem() {
     setTimeout(() => bodyRef.current?.querySelector<HTMLElement>('.quantity-cell input, .description-cell select')?.focus(), 30);
   }
@@ -124,6 +134,7 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
     setError('');
     const validationError = validateInvoiceRow(shared, row);
     if (validationError) { setError(validationError); return { ok: false, nextNumber: row.invoiceNumber }; }
+    if (pricesLoading) { setError('يرجى الانتظار حتى تحميل أسعار العميل'); return { ok: false, nextNumber: row.invoiceNumber }; }
     if (saving) return { ok: false, nextNumber: row.invoiceNumber };
     setSaving(true);
     try {
@@ -180,13 +191,13 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
     <Dialog
       icon="receipt_long"
       title="إدخال فواتير سريع"
-      subtitle="مبيعات · عميل واحد للجلسة — كل فاتورة تُحفظ كفاتورة عادية"
+      subtitle={`مبيعات · ${isMulti ? 'عملاء متعددون' : 'عميل واحد للجلسة'} — كل فاتورة تُحفظ كفاتورة عادية`}
       size="xl"
       onClose={requestClose}
       footer={
         <>
-          <Button variant="primary" icon="playlist_add" busy={saving} onClick={saveAndNext}>حفظ وإضافة التالي</Button>
-          <Button variant="secondary" icon="save" busy={saving} onClick={saveAndFinish}>حفظ وإنهاء</Button>
+          <Button variant="primary" icon="playlist_add" busy={saving} disabled={pricesLoading} onClick={saveAndNext}>حفظ وإضافة التالي</Button>
+          <Button variant="secondary" icon="save" busy={saving} disabled={pricesLoading} onClick={saveAndFinish}>حفظ وإنهاء</Button>
           <Button variant="ghost" onClick={requestClose}>إلغاء</Button>
         </>
       }
@@ -194,20 +205,45 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
       <div onKeyDown={onKeyDown} ref={bodyRef}>
         {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
 
+        {/* ── نمط الإدخال (اختيار أول) ── */}
+        <DialogSection title="اختر نمط الإدخال" icon="tune">
+          <div className="xpl-field xpl-field--full">
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="radio" name="fe-mode" checked={!isMulti} onChange={() => switchMode('SINGLE')} />
+                <span>عميل واحد <span style={{ color: 'var(--xpl-muted)', fontSize: 12 }}>(موصى به)</span></span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="radio" name="fe-mode" checked={isMulti} onChange={() => switchMode('MULTI')} />
+                <span>عملاء متعددون</span>
+              </label>
+              <span className="xpl-chip xpl-chip--indigo" style={{ marginInlineStart: 'auto' }}>
+                {isMulti
+                  ? 'عملاء متعددون'
+                  : (customers.find((c) => String(c.id) === shared.customerId)?.name
+                      ? `عميل: ${customers.find((c) => String(c.id) === shared.customerId)?.name}`
+                      : 'عميل واحد')}
+              </span>
+            </div>
+          </div>
+        </DialogSection>
+
         {/* ── حقول مشتركة ثابتة ── */}
         <DialogSection title="حقول مشتركة (ثابتة للجلسة)" icon="push_pin">
-          <div className="xpl-field xpl-field--full">
-            <label>العميل (ثابت للجلسة) <span className="req">*</span></label>
-            <SearchableSelect
-              options={customerOptions}
-              value={shared.customerId}
-              onChange={(v) => patchShared({ customerId: v })}
-              ariaLabel="العميل"
-              placeholder="اختر العميل…"
-              searchPlaceholder="ابحث عن عميل…"
-            />
-          </div>
-          {contracts.length > 0 && (
+          {!isMulti && (
+            <div className="xpl-field xpl-field--full">
+              <label>العميل (ثابت للجلسة) <span className="req">*</span></label>
+              <SearchableSelect
+                options={customerOptions}
+                value={shared.customerId}
+                onChange={(v) => patchShared({ customerId: v })}
+                ariaLabel="العميل"
+                placeholder="اختر العميل…"
+                searchPlaceholder="ابحث عن عميل…"
+              />
+            </div>
+          )}
+          {!isMulti && contracts.length > 0 && (
             <div className="xpl-field">
               <label>العقد (لتصفية الأسعار)</label>
               <select className="xpl-select" value={shared.contractId} onChange={(e) => patchShared({ contractId: e.target.value })} aria-label="العقد">
@@ -247,6 +283,28 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
 
         {/* ── الفاتورة الحالية ── */}
         <DialogSection title="الفاتورة الحالية" icon="receipt_long">
+          {isMulti && (
+            <div className="xpl-field xpl-field--full">
+              <label>العميل (لهذه الفاتورة) <span className="req">*</span></label>
+              <SearchableSelect
+                options={customerOptions}
+                value={row.customerId}
+                onChange={(v) => setRow((r) => ({ ...r, customerId: v }))}
+                ariaLabel="العميل"
+                placeholder="اختر العميل…"
+                searchPlaceholder="ابحث عن عميل…"
+              />
+            </div>
+          )}
+          {isMulti && contracts.length > 0 && (
+            <div className="xpl-field">
+              <label>العقد (لتصفية الأسعار)</label>
+              <select className="xpl-select" value={row.contractId} onChange={(e) => setRow((r) => ({ ...r, contractId: e.target.value }))} aria-label="العقد">
+                <option value="">كل العقود</option>
+                {contracts.map((c) => <option key={c.id} value={c.id}>{c.asphaltPlant ?? `#${c.id}`}</option>)}
+              </select>
+            </div>
+          )}
           <div className="xpl-field">
             <label>رقم الفاتورة <span className="req">*</span></label>
             <input className="xpl-input" value={row.invoiceNumber} onChange={(e) => setRow((r) => ({ ...r, invoiceNumber: e.target.value }))} placeholder="MN-INV-YYYY-…" style={{ direction: 'ltr' }} aria-label="رقم الفاتورة" />
