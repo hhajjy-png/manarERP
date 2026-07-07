@@ -329,7 +329,7 @@ export default function Reports() {
         params: { ...buildParams(), format: 'excel' },
         responseType: 'blob',
       });
-      downloadBlob(res.data as Blob, `report-${selected}.xlsx`);
+      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.Report, identifier: selected, extension: 'xlsx' }));
     } catch (e) {
       setError(errorMessage(e));
     } finally {

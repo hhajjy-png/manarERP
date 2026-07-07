@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import {
   ExecutiveHeader,
   IdChip,
@@ -192,7 +193,7 @@ export default function DocumentExpirationCenter() {
       .then(blob => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = 'expirations.xlsx';
+        a.download = generateExportFileName({ reportName: ReportName.DocumentExpirations, extension: 'xlsx' });
         a.click();
         URL.revokeObjectURL(a.href);
       })

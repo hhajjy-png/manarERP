@@ -27,6 +27,7 @@ import {
 import { presentTransaction, CONFIDENCE_LABELS } from './bankTransactionPresentation';
 import { formatCurrency, formatNumber } from '../lib/format';
 import { formatDate } from '../lib/date';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import './BankAccountExplorer.css';
 
 // ── Constants (mirrors BankReconciliation patterns) ────────────────────────────
@@ -82,10 +83,9 @@ function exportTimelineCsv(
   const csv  = '﻿' + [headers, ...rows].map((r) => r.join(',')).join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const slug = bankName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-  const today = new Date().toISOString().substring(0, 10);
   const a    = document.createElement('a');
   a.href     = URL.createObjectURL(blob);
-  a.download = `bank-account-${slug}-${today}.csv`;
+  a.download = generateExportFileName({ reportName: ReportName.BankAccountLedger, identifier: slug, extension: 'csv' });
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
