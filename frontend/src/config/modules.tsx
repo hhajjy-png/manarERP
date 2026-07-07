@@ -3,6 +3,7 @@ import { Column } from '../components/DataTable';
 import { FormField, FormSection } from '../components/FormDialog';
 import { formatDate } from '../lib/date';
 import { formatCurrency } from '../lib/format';
+import { expenseCategoryArMap } from './expenseCategories';
 
 // ===== أدوات عرض =====
 export function money(v: unknown): string {
@@ -34,11 +35,9 @@ const expenseStatus = mapPill({ PENDING: ['معلّق', 'amber'], APPROVED: ['م
 const customerType = mapPill({ GOVERNMENT: ['حكومي', 'blue'], PRIVATE: ['خاص', 'gray'] });
 
 
-// ==== تعريف تصنيفات المصروفات (مرفوع للأعلى لتجنب الخطأ) ====
-export const expenseCategoryAr: Record<string, string> = {
-  FUEL: 'وقود', SALARIES: 'رواتب', MAINTENANCE: 'صيانة', RENT: 'إيجارات',
-  PURCHASES: 'مشتريات', EQUIPMENT: 'معدات', SERVICES: 'خدمات', OTHER: 'أخرى',
-};
+// ==== تصنيفات المصروفات — مشتقّة من المصدر الموحّد (config/expenseCategories.ts) ====
+// إعادة تصدير للحفاظ على التوافق مع المستهلكين الحاليين (مثل LatestExpensesTable).
+export const expenseCategoryAr: Record<string, string> = expenseCategoryArMap;
 // ============================================================
 
 export interface ModuleConfig {
