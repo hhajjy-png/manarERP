@@ -16,6 +16,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { usePersistedState } from '../hooks/usePersistedState';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadBlob } from '../utils/exportUtils';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import {
   ExecutiveHeader,
   IdChip,
@@ -172,7 +173,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         params: { format: 'excel' },
         responseType: 'blob',
       });
-      downloadBlob(res.data as Blob, `${cfg.key}-export.xlsx`);
+      downloadBlob(res.data as Blob, generateExportFileName({ reportName: cfg.key, extension: 'xlsx' }));
     } catch (e) {
       setError(errorMessage(e));
     } finally {

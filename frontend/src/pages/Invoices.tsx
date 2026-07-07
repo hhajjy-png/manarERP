@@ -18,6 +18,7 @@ import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription, parseDescription } f
 import { toInvoiceItemPayload } from '../utils/invoicePayload';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadXlsx } from '../utils/exportUtils';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import AttachmentsPanel from '../components/AttachmentsPanel';
 import {
@@ -223,7 +224,7 @@ export default function Invoices() {
         'الحالة': statusAr[r.status] ?? r.status,
         'ملاحظات': r.notes ?? '',
       }));
-      downloadXlsx(wsData, 'الفواتير', `invoices_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      downloadXlsx(wsData, 'الفواتير', generateExportFileName({ reportName: ReportName.InvoicesList, extension: 'xlsx' }));
     } catch (e) {
       setLoadError(errorMessage(e));
     } finally {
@@ -1708,7 +1709,7 @@ function MonthlyReportModal({
       'إجمالي المحصل': r.totalCollected,
       'إجمالي المتبقي': r.totalRemaining,
     }));
-    downloadXlsx(wsData, 'التقرير الشهري', `monthly-report_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    downloadXlsx(wsData, 'التقرير الشهري', generateExportFileName({ reportName: ReportName.MonthlyReport, extension: 'xlsx' }));
   }
 
   const thStyle: React.CSSProperties = { padding: '8px 12px', borderBottom: '2px solid var(--border)', textAlign: 'start', background: 'var(--surface-2)', fontWeight: 700, fontSize: 13 };

@@ -28,6 +28,10 @@ export const ReportName = {
   ExecutiveReport: 'ExecutiveReport',
   DocumentExpirations: 'DocumentExpirations',
   Report: 'Report',
+  Expenses: 'Expenses',
+  InvoicesList: 'InvoicesList', // list/table export, distinct from single-invoice `Invoice`
+  MonthlyReport: 'MonthlyReport',
+  PriceAgreements: 'PriceAgreements',
 } as const;
 
 export type ReportNameValue = (typeof ReportName)[keyof typeof ReportName];

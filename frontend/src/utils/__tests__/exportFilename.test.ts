@@ -113,4 +113,25 @@ describe('generateExportFileName', () => {
       }),
     ).toBe('manarERP_CustomerStatement_CUST001A_2026-07-07.xlsx');
   });
+
+  it('builds the Expenses report filename', () => {
+    expect(
+      generateExportFileName({
+        reportName: ReportName.Expenses,
+        date,
+        extension: 'xlsx',
+      }),
+    ).toBe('manarERP_Expenses_2026-07-07.xlsx');
+  });
+
+  it('builds the PayrollReport filename with a period identifier', () => {
+    expect(
+      generateExportFileName({
+        reportName: ReportName.PayrollReport,
+        identifier: '2026-07',
+        date,
+        extension: 'xlsx',
+      }),
+    ).toBe('manarERP_PayrollReport_2026-07_2026-07-07.xlsx');
+  });
 });
