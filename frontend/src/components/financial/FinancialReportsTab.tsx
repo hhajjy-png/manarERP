@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { financialApi } from '../../api/financial';
 import { exportReportAsPdf } from '../../utils/pdfExport';
+import { generateExportFileName, ReportName } from '../../utils/exportFilename';
 import { formatNumber } from '../../lib/format';
 import { FilterBar } from './FilterBar';
 import { ExportBar } from './ExportBar';
@@ -35,7 +36,7 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
       await exportReportAsPdf(
         '/financial/summary/export',
         { fromDate: fromDate || undefined, toDate: toDate || undefined },
-        'financial-summary',
+        generateExportFileName({ reportName: ReportName.FinancialSummary, extension: 'pdf' }),
       );
       return;
     }
@@ -45,7 +46,7 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
       format,
     });
     const url = URL.createObjectURL(blob);
-    Object.assign(document.createElement('a'), { href: url, download: 'financial-summary.xlsx' }).click();
+    Object.assign(document.createElement('a'), { href: url, download: generateExportFileName({ reportName: ReportName.FinancialSummary, extension: 'xlsx' }) }).click();
     URL.revokeObjectURL(url);
   }
 
