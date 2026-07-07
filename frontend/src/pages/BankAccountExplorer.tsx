@@ -24,6 +24,7 @@ import {
   quickRangeToDates, QUICK_RANGE_LABELS, TYPE_LABELS, safeAmount, safeNum,
   type QuickRange,
 } from './bankTimelineFilters';
+import { presentTransaction, CONFIDENCE_LABELS } from './bankTransactionPresentation';
 import { formatCurrency, formatNumber } from '../lib/format';
 import './BankAccountExplorer.css';
 
@@ -115,101 +116,6 @@ const TX_ICONS: Record<TxBadgeKind, string> = {
   cheque:     'description',
   transfer:   'swap_horiz',
 };
-
-// ── Display-only description parser ────────────────────────────────────────────
-// Turns the bank's raw statement description into a clean two-line label:
-//   primary   → the transaction category / action
-//   secondary → the most useful extracted detail (name, cheque no, channel, …)
-// PURE PRESENTATION: nothing is stored, no import/normalization logic is touched,
-// bank text (Arabic or English) is preserved verbatim, and any low-confidence
-// input safely falls back to the original description. Exported for unit tests.
-
-export interface TxDisplayDesc { primary: string; secondary?: string; }
-
-// Tokens that are never a person/company name on their own.
-const NAME_STOPWORDS = new Set([
-  'CIVIL', 'ID', 'CHEQUE', 'NUMBER', 'PAID', 'INWARD', 'CLEARING', 'PRESENTED',
-  'IN', 'BANK', 'CHARGES', 'CHARGE', 'MONTHLY', 'FEE', 'FEES', 'TRANSFER',
-  'DEPOSIT', 'WITHDRAWAL', 'CREDIT', 'DEBIT', 'ATM', 'POS', 'REF', 'REFERENCE',
-  'MOBILE', 'NUMBER', 'NO', 'TO', 'FROM', 'VIA', 'KWD',
-]);
-
-function tidyDetail(s: string): string {
-  return s.replace(/^[\s,،|:–-]+/, '').replace(/[\s,،|:–-]+$/, '').replace(/\s+/g, ' ').trim();
-}
-
-// Extract an ALL-CAPS person/company name (2–5 tokens), skipping stopwords.
-function extractPersonName(raw: string): string | null {
-  const matches = raw.match(/[A-Z]{2,}(?:\s+[A-Z]{2,}){1,4}/g);
-  if (!matches) return null;
-  for (const cand of matches) {
-    const words = cand.split(/\s+/).filter((w) => !NAME_STOPWORDS.has(w));
-    if (words.length >= 2) return words.join(' ');
-  }
-  return null;
-}
-
-// Split a mixed "Latin … Arabic …" string into Latin (primary) + Arabic (secondary).
-function splitByScript(raw: string): TxDisplayDesc | null {
-  const hasArabic = /[؀-ۿ]/.test(raw);
-  const hasLatin  = /[A-Za-z]/.test(raw);
-  if (!hasArabic || !hasLatin) return null;
-  const m = raw.match(/^([^؀-ۿ]+?)\s*([؀-ۿ][\s\S]*)$/);
-  if (!m) return null;
-  const primary = tidyDetail(m[1]);
-  const secondary = tidyDetail(m[2]);
-  if (!primary || !secondary) return null;
-  return { primary, secondary };
-}
-
-export function describeTransaction(t: TimelineTransaction): TxDisplayDesc {
-  const raw = (t.description ?? '').replace(/\s+/g, ' ').trim();
-  if (!raw) return { primary: txTypeBadge(t).label };
-
-  // 1) Cheque Paid — cheque number stays on line 1, beneficiary name on line 2.
-  let m = raw.match(/cheque\s+paid.*?cheque\s+number:?\s*([0-9]+)/i);
-  if (m) {
-    const name = extractPersonName(raw);
-    return { primary: `Cheque Paid — Cheque Number: ${m[1]}`, secondary: name ?? undefined };
-  }
-
-  // 2) Inward Clearing Cheque NNNN [Presented in XXX]
-  m = raw.match(/inward\s+clearing\s+cheque\s*([0-9]+)?/i);
-  if (m) {
-    const num = m[1] ? ` ${m[1]}` : '';
-    const pres = raw.match(/presented\s+in\s*([^\s,،]+)/i);
-    return {
-      primary: `Inward Clearing Cheque${num}`.trim(),
-      secondary: pres ? `Presented in ${pres[1]}` : undefined,
-    };
-  }
-
-  // 3) Bank Charges / Fees — category on line 1, specific fee on line 2.
-  m = raw.match(/^(?:bank\s+charges|charges?|fees?)\b[\s:–-]*(.*)$/i);
-  if (m) {
-    const rest = tidyDetail(m[1]);
-    return { primary: 'Bank Charges', secondary: rest || undefined };
-  }
-
-  // 4) Mixed Latin/Arabic → Latin on line 1, Arabic on line 2.
-  const bilingual = splitByScript(raw);
-  if (bilingual) return bilingual;
-
-  // 5) Generic separator split (" - ", " | ", ", ").
-  const parts = raw.split(/\s+[-–|]\s+|,\s+/).map(tidyDetail).filter(Boolean);
-  if (parts.length > 1) {
-    const primary = parts[0];
-    let secondary = parts.slice(1).join(' · ');
-    if (secondary.length > 64) secondary = `${secondary.slice(0, 63)}…`;
-    if (secondary && !primary.includes(secondary)) return { primary, secondary };
-  }
-
-  // 6) Reference as last-resort detail; otherwise a single clean line.
-  if (t.reference && !raw.includes(t.reference)) {
-    return { primary: raw, secondary: t.reference };
-  }
-  return { primary: raw };
-}
 
 // ── Copy-to-clipboard button (with transient confirmation) ─────────────────────
 
@@ -624,11 +530,10 @@ function TransactionDrawer({
   const beforeBalance = afterBalance - credit + debit;
   const impactClass   = impact >= 0 ? 'bae-credit' : 'bae-debit';
 
-  // Parsed two-line description (display-only). Raw text is still shown below when
-  // it carries more than the parsed primary line.
-  const desc      = describeTransaction(tx);
-  const rawDesc   = (tx.description ?? '').replace(/\s+/g, ' ').trim();
-  const rawIsExtra = rawDesc.length > 0 && rawDesc !== desc.primary;
+  // Smart presentation (display-only): structured category + safe detail. The raw
+  // bank text is still shown below when it carries more than the category label.
+  const pres      = presentTransaction(tx);
+  const rawIsExtra = pres.raw.length > 0 && pres.raw !== pres.category.label;
 
   return (
     <>
@@ -741,9 +646,9 @@ function TransactionDrawer({
                 <section className="bae-drawer-section">
                   <div className="bae-drawer-section-title">الوصف</div>
                   <div className="bae-drawer-desc">
-                    <span className="bae-drawer-desc-primary">{desc.primary}</span>
-                    {desc.secondary && (
-                      <span className="bae-drawer-desc-secondary">{desc.secondary}</span>
+                    <span className="bae-drawer-desc-primary">{pres.category.label}</span>
+                    {pres.detail && (
+                      <span className="bae-drawer-desc-secondary">{pres.detail.text}</span>
                     )}
                   </div>
                   {rawIsExtra && (
@@ -831,31 +736,71 @@ function TransactionDrawer({
 
             {/* Audit */}
             {drawerTab === 'audit' && (
-              <section className="bae-drawer-section">
-                <div className="bae-drawer-section-title">التدقيق والمصدر</div>
-                <div className="bae-drawer-field">
-                  <span className="bae-drawer-field-label">تاريخ الإدخال</span>
-                  <span className="bae-drawer-field-value">{fmtDate(tx.importedAt)}</span>
-                </div>
-                <div className="bae-drawer-field bae-drawer-field--col">
-                  <span className="bae-drawer-field-label">المصدر</span>
-                  <span className="bae-drawer-field-value mono">{tx.fileName}</span>
-                </div>
-                {tx.accountKey && (
-                  <div className="bae-drawer-field bae-drawer-field--col">
-                    <span className="bae-drawer-field-label">مفتاح الحساب</span>
-                    <span className="bae-drawer-field-value mono">{tx.accountKey}</span>
+              <>
+                <section className="bae-drawer-section">
+                  <div className="bae-drawer-section-title">التدقيق والمصدر</div>
+                  <div className="bae-drawer-field">
+                    <span className="bae-drawer-field-label">تاريخ الإدخال</span>
+                    <span className="bae-drawer-field-value">{fmtDate(tx.importedAt)}</span>
                   </div>
-                )}
-                {tx.transactionFingerprint && (
                   <div className="bae-drawer-field bae-drawer-field--col">
-                    <span className="bae-drawer-field-label">البصمة (Fingerprint · SHA-256)</span>
-                    <span className="bae-drawer-field-value mono bae-drawer-fingerprint">
-                      {tx.transactionFingerprint}
-                    </span>
+                    <span className="bae-drawer-field-label">المصدر</span>
+                    <span className="bae-drawer-field-value mono">{tx.fileName}</span>
                   </div>
-                )}
-              </section>
+                  {tx.accountKey && (
+                    <div className="bae-drawer-field bae-drawer-field--col">
+                      <span className="bae-drawer-field-label">مفتاح الحساب</span>
+                      <span className="bae-drawer-field-value mono">{tx.accountKey}</span>
+                    </div>
+                  )}
+                  {tx.transactionFingerprint && (
+                    <div className="bae-drawer-field bae-drawer-field--col">
+                      <span className="bae-drawer-field-label">البصمة (Fingerprint · SHA-256)</span>
+                      <span className="bae-drawer-field-value mono bae-drawer-fingerprint">
+                        {tx.transactionFingerprint}
+                      </span>
+                    </div>
+                  )}
+                </section>
+
+                {/* Smart-presentation provenance (how the display label was derived) */}
+                <section className="bae-drawer-section">
+                  <div className="bae-drawer-section-title">التصنيف الذكي (كيفية العرض)</div>
+                  <div className="bae-drawer-field">
+                    <span className="bae-drawer-field-label">التصنيف</span>
+                    <span className="bae-drawer-field-value">{pres.category.label}</span>
+                  </div>
+                  <div className="bae-drawer-field">
+                    <span className="bae-drawer-field-label">مستوى الثقة</span>
+                    <span className="bae-drawer-field-value">{CONFIDENCE_LABELS[pres.category.confidence]}</span>
+                  </div>
+                  <div className="bae-drawer-field bae-drawer-field--col">
+                    <span className="bae-drawer-field-label">القاعدة المطبَّقة</span>
+                    <span className="bae-drawer-field-value mono">{pres.provenance.rule}</span>
+                  </div>
+                  {pres.provenance.matchedOn && (
+                    <div className="bae-drawer-field bae-drawer-field--col">
+                      <span className="bae-drawer-field-label">المصدر المطابق</span>
+                      <span className="bae-drawer-field-value mono">{pres.provenance.matchedOn}</span>
+                    </div>
+                  )}
+                  {pres.detail && (
+                    <div className="bae-drawer-field">
+                      <span className="bae-drawer-field-label">التفصيل المعروض</span>
+                      <span className="bae-drawer-field-value">
+                        {pres.detail.text}
+                        <span className="bae-drawer-txid"> · {CONFIDENCE_LABELS[pres.detail.confidence]}</span>
+                      </span>
+                    </div>
+                  )}
+                  {pres.raw && (
+                    <div className="bae-drawer-field bae-drawer-field--col">
+                      <span className="bae-drawer-field-label">النص الأصلي (كما ورد من البنك)</span>
+                      <span className="bae-drawer-field-value mono">{pres.raw}</span>
+                    </div>
+                  )}
+                </section>
+              </>
             )}
 
             {/* Attachments — feature not supported: elegant empty state */}
@@ -1260,7 +1205,7 @@ export function TimelineTab({
                   const isDeposit  = safeNum(t.credit) > 0;
                   const isSelected = drawerTx?.id === t.id;
                   const badge      = txTypeBadge(t);
-                  const desc       = describeTransaction(t);
+                  const pres       = presentTransaction(t);
                   const amount     = isDeposit ? safeNum(t.credit) : safeNum(t.debit);
                   const statusClass = t.reconcileStatus === 'MATCHED' ? 'good'
                     : t.reconcileStatus === 'UNMATCHED' ? 'warn' : 'neutral';
@@ -1296,12 +1241,12 @@ export function TimelineTab({
                       <td className="bae-col-type">
                         <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
                       </td>
-                      {/* Description: parsed category (line 1) + extracted detail (line 2) */}
+                      {/* Description: structured category (line 1) + safe detail (line 2) */}
                       <td className="bae-col-desc-main">
                         <span className="bae-tx-cell-text">
-                          <span className="bae-tx-desc" title={t.description}>{desc.primary}</span>
-                          {desc.secondary && (
-                            <span className="bae-tx-sub" title={desc.secondary}>{desc.secondary}</span>
+                          <span className="bae-tx-desc" title={t.description}>{pres.category.label}</span>
+                          {pres.detail && (
+                            <span className="bae-tx-sub" title={pres.detail.text}>{pres.detail.text}</span>
                           )}
                         </span>
                       </td>
