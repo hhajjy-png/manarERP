@@ -99,3 +99,15 @@ export function expenseCategoryIcon(value: string | null | undefined): string {
 export const expenseCategoryArMap: Record<string, string> = Object.fromEntries(
   EXPENSE_CATEGORIES.map((c) => [c.value, c.labelAr]),
 );
+
+/**
+ * خيارات جاهزة لقائمة SearchableSelect (بحث في العربي + الإنجليزي، عناوين مجموعات).
+ * يستهلكها صفحة المصروفات وحوار الإدخال الشهري السريع — مصدر واحد لتفادي التكرار.
+ */
+export const EXPENSE_CATEGORY_SELECT_OPTIONS = EXPENSE_CATEGORIES.map((c) => ({
+  value: c.value,
+  label: c.labelAr,
+  keywords: c.labelEn,
+  icon: c.icon,
+  group: EXPENSE_CATEGORY_GROUP_LABELS[c.group],
+}));
