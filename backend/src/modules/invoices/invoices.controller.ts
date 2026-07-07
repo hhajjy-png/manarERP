@@ -15,6 +15,10 @@ export const invoicesController = {
   async getById(req: Request, res: Response) {
     ok(res, await invoicesService.getById(Number(req.params.id)));
   },
+  async nextNumber(req: Request, res: Response) {
+    const year = Number(req.query.year) || new Date().getFullYear();
+    ok(res, { nextNumber: await invoicesService.getNextInvoiceNumber(year) });
+  },
   async create(req: Request, res: Response) {
     created(res, await invoicesService.create(req.body, req));
   },

@@ -44,6 +44,29 @@ export class InvoicesService {
     return `${prefix}${String(count + 1).padStart(5, '0')}`;
   }
 
+  /**
+   * يقترح رقم الفاتورة التالي بصيغة MN-INV-<السنة>-NNNNN — للقراءة فقط.
+   * آمن ضد التعارض: يعتمد على أعلى لاحقة رقمية موجودة (MAX) لا على COUNT
+   * (الذي يتعارض عند وجود فجوات/حذف). اللواحق غير الرقمية (إدخال يدوي) تُتجاهل
+   * عند حساب الاقتراح — يبقى المستخدم قادرًا على كتابة أي رقم صالح يدويًا.
+   */
+  async getNextInvoiceNumber(year: number): Promise<string> {
+    const prefix = `MN-INV-${year}-`;
+    const rows = await prisma.invoice.findMany({
+      where: { number: { startsWith: prefix } },
+      select: { number: true },
+    });
+    let max = 0;
+    for (const r of rows) {
+      const suffix = r.number.slice(prefix.length);
+      if (/^\d+$/.test(suffix)) {
+        const n = parseInt(suffix, 10);
+        if (n > max) max = n;
+      }
+    }
+    return `${prefix}${String(max + 1).padStart(5, '0')}`;
+  }
+
   /** ترحيل القيد المحاسبي للفاتورة (داخل معاملة). */
   private async postJournal(
     client: Prisma.TransactionClient,
