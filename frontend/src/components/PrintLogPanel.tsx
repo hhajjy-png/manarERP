@@ -1,12 +1,6 @@
 import { useState } from 'react';
 import { usePrintLogStore, FORM_LABELS, PROFILE_LABELS } from '../stores/printLogStore';
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  const date = d.toLocaleDateString('ar-KW', { year: 'numeric', month: '2-digit', day: '2-digit' });
-  const time = d.toLocaleTimeString('ar-KW', { hour: '2-digit', minute: '2-digit' });
-  return `${date} — ${time}`;
-}
+import { formatDateTime } from '../lib/date';
 
 export default function PrintLogPanel() {
   const entries = usePrintLogStore((s) => s.entries);

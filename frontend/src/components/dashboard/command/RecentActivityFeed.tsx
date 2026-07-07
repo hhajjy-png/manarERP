@@ -1,4 +1,5 @@
 import { Skeleton } from '../Skeleton';
+import { formatDate } from '../../../lib/date';
 import type { ActivityRow } from './types';
 
 // Audit action → Arabic label + icon + accent (schema: CREATE|UPDATE|DELETE|LOGIN|LOGOUT|RESTORE…).
@@ -36,7 +37,7 @@ function relativeTime(iso: string): string {
   if (hr < 24) return `منذ ${hr} ساعة`;
   const day = Math.floor(hr / 24);
   if (day < 30) return `منذ ${day} يوم`;
-  return new Date(iso).toLocaleDateString('ar-KW');
+  return formatDate(iso);
 }
 
 /**

@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import { api, errorMessage } from '../api/client';
 import { formatCurrency, formatPercent, formatCompact } from '../lib/format';
+import { formatDate } from '../lib/date';
 import Modal from './Modal';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -98,8 +99,7 @@ function pct(n: number | null | undefined): string {
 }
 
 function fmtDate(d: string | null | undefined): string {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('ar-KW', { year: 'numeric', month: 'short', day: 'numeric' });
+  return formatDate(d);
 }
 
 function clampPct(value: number | null | undefined): number {

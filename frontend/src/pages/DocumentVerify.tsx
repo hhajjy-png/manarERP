@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import { formatDate } from '../lib/date';
 
 interface VerificationResult {
   found: boolean;
@@ -14,13 +15,6 @@ interface VerificationResult {
   isApproved?: boolean;
 }
 
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ar-KW', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
 
 const STATUS_COLOR: Record<string, string> = {
   PAID: '#16a34a',

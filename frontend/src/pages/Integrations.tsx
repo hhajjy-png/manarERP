@@ -7,6 +7,7 @@ import {
   type IntegrationSettingsUpdate,
 } from '../api/integrations';
 import { useAuth } from '../stores/authStore';
+import { formatDate } from '../lib/date';
 import './Integrations.css';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -453,7 +454,7 @@ function IntegrationCardView({
         {statusText}
         {card.lastRunAt && (
           <span className="ic-status-last-run">
-            آخر تشغيل: {new Date(card.lastRunAt).toLocaleDateString('ar-KW')}
+            آخر تشغيل: {formatDate(card.lastRunAt)}
           </span>
         )}
       </div>
@@ -665,7 +666,7 @@ export default function Integrations() {
               </p>
               <p className="ic-kpi-sub">
                 {kpiValues.lastRun
-                  ? `آخر تشغيل: ${new Date(kpiValues.lastRun).toLocaleDateString('ar-KW')}`
+                  ? `آخر تشغيل: ${formatDate(kpiValues.lastRun)}`
                   : 'لا توجد عمليات سابقة'}
               </p>
             </div>

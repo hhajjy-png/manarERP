@@ -26,6 +26,7 @@ import {
 } from './bankTimelineFilters';
 import { presentTransaction, CONFIDENCE_LABELS } from './bankTransactionPresentation';
 import { formatCurrency, formatNumber } from '../lib/format';
+import { formatDate } from '../lib/date';
 import './BankAccountExplorer.css';
 
 // ── Constants (mirrors BankReconciliation patterns) ────────────────────────────
@@ -50,10 +51,9 @@ function fmtAmount(v: number | null | undefined): string {
   return formatNumber(v);
 }
 
+// Canonical DD/MM/YYYY (English digits) via the shared formatter.
 function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('ar-KW');
+  return formatDate(iso);
 }
 
 function fmtMonth(ym: string): string {

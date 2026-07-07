@@ -2,6 +2,7 @@ import { useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatNumber } from '../lib/format';
+import { formatDate } from '../lib/date';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
@@ -45,9 +46,7 @@ function fmtAmount(v: number) {
 }
 
 function fmtDate(iso: string | null) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('ar-KW');
+  return formatDate(iso);
 }
 
 // Arabic labels for validation rule codes shown in the preview table
