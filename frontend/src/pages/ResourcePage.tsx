@@ -16,7 +16,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { usePersistedState } from '../hooks/usePersistedState';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadBlob } from '../utils/exportUtils';
-import { generateExportFileName, ReportName } from '../utils/exportFilename';
+import { generateExportFileName } from '../utils/exportFilename';
 import {
   ExecutiveHeader,
   IdChip,
