@@ -531,6 +531,146 @@ export function DrawerInfoGrid({ title, items }: { title?: string; items: InfoIt
   );
 }
 
+export interface RelatedItem {
+  key: string;
+  icon?: string;
+  primary: ReactNode;
+  secondary?: ReactNode;
+  trailing?: ReactNode;
+  tone?: Tone;
+  onClick?: () => void;
+}
+
+export function DrawerRelated({
+  title, loading, error, items, onSeeAll,
+}: {
+  title: string;
+  loading?: boolean;
+  error?: string;
+  items?: RelatedItem[];
+  onSeeAll?: () => void;
+}) {
+  if (!loading && !error && (!items || items.length === 0)) return null; // hide when empty
+  return (
+    <DrawerSection title={title}>
+      {error ? (
+        <ErrorBanner>{error}</ErrorBanner>
+      ) : loading ? (
+        <SkeletonRows rows={3} />
+      ) : (
+        <div className="xpl-related">
+          {items!.map((it) =>
+            it.onClick ? (
+              <button type="button" key={it.key} className="xpl-related-row xpl-related-row--click" onClick={it.onClick}>
+                {it.icon && <span className={`xpl-related-icon${it.tone ? ` xpl-dot--${it.tone}` : ''}`}><Icon name={it.icon} /></span>}
+                <span className="xpl-related-text">
+                  <span className="xpl-related-primary">{it.primary}</span>
+                  {it.secondary != null && <span className="xpl-related-secondary">{it.secondary}</span>}
+                </span>
+                {it.trailing != null && <span className="xpl-related-trailing">{it.trailing}</span>}
+              </button>
+            ) : (
+              <div key={it.key} className="xpl-related-row">
+                {it.icon && <span className={`xpl-related-icon${it.tone ? ` xpl-dot--${it.tone}` : ''}`}><Icon name={it.icon} /></span>}
+                <span className="xpl-related-text">
+                  <span className="xpl-related-primary">{it.primary}</span>
+                  {it.secondary != null && <span className="xpl-related-secondary">{it.secondary}</span>}
+                </span>
+                {it.trailing != null && <span className="xpl-related-trailing">{it.trailing}</span>}
+              </div>
+            ),
+          )}
+          {onSeeAll && <button type="button" className="xpl-related-seeall" onClick={onSeeAll}>عرض الكل</button>}
+        </div>
+      )}
+    </DrawerSection>
+  );
+}
+
+export interface ActivityItem {
+  key: string;
+  icon?: string;
+  tone?: Tone;
+  title: ReactNode;
+  meta?: ReactNode;
+  timestamp?: string;
+}
+
+export function DrawerActivity({
+  title = 'آخر النشاط', loading, items,
+}: {
+  title?: string;
+  loading?: boolean;
+  items?: ActivityItem[];
+}) {
+  if (!loading && (!items || items.length === 0)) return null;
+  return (
+    <DrawerSection title={title}>
+      {loading ? (
+        <SkeletonRows rows={3} />
+      ) : (
+        <ul className="xpl-timeline">
+          {items!.map((it) => (
+            <li className="xpl-timeline-item" key={it.key}>
+              <span className={`xpl-timeline-dot${it.tone ? ` xpl-dot--${it.tone}` : ''}`}>
+                {it.icon && <Icon name={it.icon} />}
+              </span>
+              <div className="xpl-timeline-body">
+                <span className="xpl-timeline-title">{it.title}</span>
+                {it.meta != null && <span className="xpl-timeline-meta">{it.meta}</span>}
+              </div>
+              {it.timestamp && <span className="xpl-timeline-time">{it.timestamp}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </DrawerSection>
+  );
+}
+
+export interface ActionBtn {
+  key: string;
+  label: string;
+  icon?: string;
+  onClick: () => void;
+  busy?: boolean;
+  disabled?: boolean;
+}
+
+export function DrawerActionBar({
+  primary, secondary, danger,
+}: {
+  primary?: ActionBtn;
+  secondary?: ActionBtn[];
+  danger?: ActionBtn[];
+}) {
+  return (
+    <div className="xpl-actionbar">
+      <div className="xpl-actionbar-main">
+        {primary && (
+          <Button variant="primary" icon={primary.icon} busy={primary.busy} disabled={primary.disabled} onClick={primary.onClick}>
+            {primary.label}
+          </Button>
+        )}
+        {secondary?.map((b) => (
+          <Button key={b.key} variant="secondary" icon={b.icon} busy={b.busy} disabled={b.disabled} onClick={b.onClick}>
+            {b.label}
+          </Button>
+        ))}
+      </div>
+      {danger && danger.length > 0 && (
+        <div className="xpl-actionbar-danger">
+          {danger.map((b) => (
+            <Button key={b.key} variant="danger" icon={b.icon} busy={b.busy} disabled={b.disabled} onClick={b.onClick}>
+              {b.label}
+            </Button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Dialog (modal standard: header icon/title/subtitle → body sections → footer) ──
 
 export function Dialog({

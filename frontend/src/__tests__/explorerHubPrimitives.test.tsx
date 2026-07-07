@@ -5,6 +5,9 @@ import {
   DrawerHeaderCard,
   DrawerQuickActions,
   DrawerInfoGrid,
+  DrawerRelated,
+  DrawerActivity,
+  DrawerActionBar,
 } from '../components/explorer/ExplorerKit';
 
 describe('DrawerHeaderCard', () => {
@@ -86,5 +89,68 @@ describe('DrawerInfoGrid', () => {
       <DrawerInfoGrid items={[{ label: 'أ', value: '' }, { label: 'ب', value: null }]} />,
     );
     expect(container.firstChild).toBeNull();
+  });
+});
+
+describe('DrawerRelated', () => {
+  it('renders nothing when not loading and items are empty', () => {
+    const { container } = render(<DrawerRelated title="فواتير" items={[]} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('shows a skeleton while loading', () => {
+    const { container } = render(<DrawerRelated title="فواتير" loading />);
+    expect(container.querySelector('.xpl-skeleton-row')).not.toBeNull();
+  });
+
+  it('renders rows and fires onClick', () => {
+    const onClick = vi.fn();
+    render(
+      <DrawerRelated
+        title="فواتير"
+        items={[{ key: '1', primary: 'INV-1', secondary: '2026-07-07', trailing: 'KWD 5.000', onClick }]}
+      />,
+    );
+    expect(screen.getByText('INV-1')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('INV-1'));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('DrawerActivity', () => {
+  it('renders nothing when empty', () => {
+    const { container } = render(<DrawerActivity items={[]} />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('renders timeline items in order', () => {
+    render(
+      <DrawerActivity
+        items={[
+          { key: 'a', title: 'أُنشئت', timestamp: '2026-07-01' },
+          { key: 'b', title: 'دفعة', timestamp: '2026-07-05' },
+        ]}
+      />,
+    );
+    const items = screen.getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('أُنشئت');
+    expect(items[1]).toHaveTextContent('دفعة');
+  });
+});
+
+describe('DrawerActionBar', () => {
+  it('renders primary, secondary and danger in order', () => {
+    render(
+      <DrawerActionBar
+        primary={{ key: 'edit', label: 'تعديل', onClick: () => {} }}
+        secondary={[{ key: 'print', label: 'طباعة', onClick: () => {} }]}
+        danger={[{ key: 'del', label: 'حذف', onClick: () => {} }]}
+      />,
+    );
+    const buttons = screen.getAllByRole('button');
+    expect(buttons[0]).toHaveTextContent('تعديل');
+    expect(buttons[1]).toHaveTextContent('طباعة');
+    expect(buttons[2]).toHaveTextContent('حذف');
   });
 });
