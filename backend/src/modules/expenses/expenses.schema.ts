@@ -23,5 +23,12 @@ export const updateExpenseSchema = z.object({
   body: createExpenseSchema.shape.body.partial(),
 });
 
+export const forceDeleteExpenseSchema = z.object({
+  body: z.object({
+    confirmation: z.string().min(1, 'التأكيد مطلوب'), // يجب أن يطابق رمز المصروف
+  }),
+});
+
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>['body'];
 export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>['body'];
+export type ForceDeleteExpenseInput = z.infer<typeof forceDeleteExpenseSchema>['body'];

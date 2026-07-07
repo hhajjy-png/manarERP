@@ -13,6 +13,7 @@ import { downloadXlsx } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import AttachmentsPanel from '../components/AttachmentsPanel';
+import ForceDeleteExpenseModal from '../components/ForceDeleteExpenseModal';
 import SearchableSelect, { SearchableOption } from '../components/SearchableSelect';
 import {
   EXPENSE_CATEGORIES,
@@ -64,7 +65,8 @@ const STATUS_META: Record<string, { key: string; tone: Tone; icon: string }> = {
 };
 
 export default function Expenses() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
+  const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
   const { t } = useT();
   const toast = useToast();
   useHighlight();
@@ -93,6 +95,7 @@ export default function Expenses() {
   const [error, setError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
   const [expenseConfirm, setExpenseConfirm] = useState<{ id: number; action: 'approve' | 'reject' | 'delete' } | null>(null);
+  const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
 
   const isFiltered = !!(search || statusFilter || categoryFilter || supplierFilter || monthFilter || yearFilter);
 
@@ -389,6 +392,7 @@ export default function Expenses() {
                 {canApprove && <Button variant="secondary" icon="check" busy={actionBusy} onClick={() => approve(viewing.id)}>{t('action.approve')}</Button>}
                 {canApprove && <Button variant="ghost" icon="close" busy={actionBusy} onClick={() => reject(viewing.id)}>{t('action.reject')}</Button>}
                 {canDelete && <Button variant="danger" icon="delete" busy={actionBusy} onClick={() => remove(viewing.id)}>{t('action.delete')}</Button>}
+                {isSystemAdmin && <Button variant="danger" icon="delete_forever" onClick={() => { setForceDeleteId(viewing.id); setViewing(null); }}>حذف نهائي</Button>}
               </>
             }
           >
@@ -423,6 +427,13 @@ export default function Expenses() {
           variant={expenseConfirm.action === 'delete' ? 'danger' : 'warning'}
           onConfirm={() => executeExpenseAction(expenseConfirm.id, expenseConfirm.action)}
           onCancel={() => setExpenseConfirm(null)}
+        />
+      )}
+      {forceDeleteId != null && (
+        <ForceDeleteExpenseModal
+          expenseId={forceDeleteId}
+          onClose={() => setForceDeleteId(null)}
+          onDeleted={() => { setForceDeleteId(null); toast.ok('تم الحذف النهائي بنجاح'); load(); }}
         />
       )}
     </div>

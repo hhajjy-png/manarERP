@@ -30,6 +30,12 @@ export const expensesController = {
   async remove(req: Request, res: Response) {
     ok(res, await expensesService.remove(Number(req.params.id), req), 'تم الحذف');
   },
+  async forceRemovePreview(req: Request, res: Response) {
+    ok(res, await expensesService.forceRemovePreview(Number(req.params.id)));
+  },
+  async forceRemove(req: Request, res: Response) {
+    ok(res, await expensesService.forceRemove(Number(req.params.id), req.body.confirmation as string, req), 'تم الحذف النهائي بنجاح');
+  },
   async stats(req: Request, res: Response) {
     ok(res, await expensesService.stats(req.query as Record<string, string>));
   },
