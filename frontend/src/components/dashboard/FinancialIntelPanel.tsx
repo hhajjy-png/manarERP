@@ -6,6 +6,7 @@ import { Skeleton } from './Skeleton';
 import { money } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
 import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
+import { formatMonthShort, formatMonthLabel } from '../../lib/date';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -89,7 +90,7 @@ function CollectionTooltip({ active, payload, label }: TooltipProps) {
       minWidth: 160,
       boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
     }}>
-      <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 8 }}>{label}</p>
+      <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 8 }}>{formatMonthLabel(label)}</p>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 8, height: 8, borderRadius: 2, background: payload[0]?.fill, flexShrink: 0 }} />
         <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
@@ -118,21 +119,23 @@ function CollectionChart({ data, loading }: { data: TrendPoint[]; loading: boole
               <stop offset="100%" stopColor="#2563EB" stopOpacity={0.72} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
+          <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.18)" />
           <XAxis
             dataKey="label"
-            tick={{ fill: '#9CA3AF', fontSize: 11, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif' }}
+            tickFormatter={formatMonthShort}
+            tick={{ fill: 'var(--db-muted)', fontSize: 11, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif' }}
             axisLine={false}
             tickLine={false}
+            minTickGap={4}
           />
           <YAxis
-            tick={{ fill: '#9CA3AF', fontSize: 11 }}
+            tick={{ fill: 'var(--db-muted)', fontSize: 11 }}
             axisLine={false}
             tickLine={false}
             width={64}
             tickFormatter={(v: number) => formatCompact(v)}
           />
-          <Tooltip content={<CollectionTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+          <Tooltip content={<CollectionTooltip />} cursor={{ fill: 'rgba(148,163,184,0.12)' }} />
           <Bar dataKey="collected" fill="url(#gradCollect)" radius={[6, 6, 0, 0]} maxBarSize={34} />
         </BarChart>
       </ResponsiveContainer>
@@ -360,7 +363,7 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
           <div className="db-card-head">
             <div>
               <h3>اتجاه التحصيلات</h3>
-              <p>آخر 6 أشهر</p>
+              <p>منذ بداية العام</p>
             </div>
           </div>
           <div className="db-card-body">

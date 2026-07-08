@@ -5,6 +5,7 @@ import {
 import { Skeleton } from './Skeleton';
 import { useT } from '../../lib/i18n';
 import { formatCurrency, formatCompact } from '../../lib/format';
+import { formatMonthShort, formatMonthLabel } from '../../lib/date';
 
 interface TrendPoint { label: string; revenue: number; expense: number; }
 interface Props { data: TrendPoint[]; loading: boolean; }
@@ -36,7 +37,7 @@ function DarkTooltip({ active, payload, label, revenueLabel = '', expensesLabel 
       minWidth: 185,
       boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
     }}>
-      <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</p>
+      <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10, letterSpacing: '0.06em' }}>{formatMonthLabel(label)}</p>
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '5px 0' }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.fill, flexShrink: 0 }} />
@@ -80,21 +81,23 @@ export default function RevenueChart({ data, loading }: Props) {
               <stop offset="100%" stopColor="#DC2626" stopOpacity={0.72} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
+          <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.18)" />
           <XAxis
             dataKey="label"
-            tick={{ fill: '#9CA3AF', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif' }}
+            tickFormatter={formatMonthShort}
+            tick={{ fill: 'var(--db-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif' }}
             axisLine={false}
             tickLine={false}
+            minTickGap={4}
           />
           <YAxis
-            tick={{ fill: '#9CA3AF', fontSize: 11 }}
+            tick={{ fill: 'var(--db-muted)', fontSize: 11 }}
             axisLine={false}
             tickLine={false}
             width={72}
             tickFormatter={(v: number) => formatCompact(v)}
           />
-          <Tooltip content={<DarkTooltip revenueLabel={revenueLabel} expensesLabel={expensesLabel} />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+          <Tooltip content={<DarkTooltip revenueLabel={revenueLabel} expensesLabel={expensesLabel} />} cursor={{ fill: 'rgba(148,163,184,0.12)' }} />
           <Legend formatter={(value: string) => (
             <span style={{ color: 'var(--db-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
               {value === 'revenue' ? revenueLabel : expensesLabel}

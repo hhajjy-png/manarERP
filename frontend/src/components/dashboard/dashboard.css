@@ -8,8 +8,8 @@
   display: flex;
   gap: 4px;
   padding: 8px 16px 0;
-  border-bottom: 2px solid #e5e7eb;
-  background: #fff;
+  border-bottom: 2px solid var(--border);
+  background: var(--surface);
   direction: rtl;
 }
 .db-tab-btn {
@@ -21,16 +21,21 @@
   cursor: pointer;
   font-family: inherit;
   font-size: 0.95rem;
-  font-weight: 400;
-  color: #6b7280;
-  transition: all 0.15s;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: color 0.15s, border-color 0.15s;
 }
 .db-tab-btn.active {
   font-weight: 700;
-  color: #1d4e6f;
-  border-bottom-color: #1d4e6f;
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
-.db-tab-btn:hover:not(.active) { color: #374151; }
+.db-tab-btn:hover:not(.active) { color: var(--text); }
+.db-tab-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px 6px 0 0;
+}
 
 .db-page {
   /* Design tokens — live only inside this subtree */
@@ -688,148 +693,7 @@
 }
 .db-chart-wrap .recharts-cartesian-grid-horizontal line,
 .db-chart-wrap .recharts-cartesian-grid-vertical line {
-  stroke: rgba(255, 255, 255, 0.055);
-}
-
-/* ================================================================
-   EXECUTIVE HEADER
-   ================================================================ */
-.db-exec-header {
-  background:
-    linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, transparent 55%),
-    rgba(31, 41, 55, 0.65);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: var(--db-radius);
-  padding: 24px 28px;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.35);
-}
-.db-exec-greeting {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--db-text);
-  margin: 0 0 8px;
-  line-height: 1.2;
-}
-.db-exec-date {
-  font-size: 13px;
-  color: var(--db-muted);
-  font-weight: 600;
-  margin: 0 0 14px;
-}
-.db-exec-chips {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.db-exec-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 13px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  border: 1px solid;
-}
-.db-exec-chip.blue {
-  background: rgba(37, 99, 235, 0.12);
-  color: var(--db-blue);
-  border-color: rgba(37, 99, 235, 0.25);
-}
-.db-exec-chip.amber {
-  background: rgba(245, 158, 11, 0.12);
-  color: var(--db-amber);
-  border-color: rgba(245, 158, 11, 0.25);
-}
-.db-exec-chip.red {
-  background: rgba(239, 68, 68, 0.12);
-  color: var(--db-red);
-  border-color: rgba(239, 68, 68, 0.25);
-}
-.db-exec-chip.green {
-  background: rgba(16, 185, 129, 0.12);
-  color: var(--db-green);
-  border-color: rgba(16, 185, 129, 0.25);
-}
-.db-exec-chip-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
-}
-
-/* ================================================================
-   QUICK ACTIONS ROW
-   ================================================================ */
-.db-actions {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: var(--db-radius);
-  padding: 12px 16px;
-}
-.db-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 20px;
-  border-radius: 24px;
-  font-size: 13.5px;
-  font-weight: 700;
-  font-family: "IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif;
-  cursor: pointer;
-  border: 1px solid;
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    background 0.18s ease;
-  white-space: nowrap;
-  background: var(--db-card);
-  color: var(--db-text);
-  border-color: var(--db-border);
-}
-.db-action-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-}
-.db-action-btn.primary {
-  background: rgba(37, 99, 235, 0.15);
-  color: var(--db-blue);
-  border-color: rgba(37, 99, 235, 0.3);
-}
-.db-action-btn.primary:hover {
-  background: rgba(37, 99, 235, 0.25);
-}
-.db-action-btn.green {
-  background: rgba(16, 185, 129, 0.12);
-  color: var(--db-green);
-  border-color: rgba(16, 185, 129, 0.28);
-}
-.db-action-btn.green:hover {
-  background: rgba(16, 185, 129, 0.22);
-}
-.db-action-btn.purple {
-  background: rgba(139, 92, 246, 0.12);
-  color: #a78bfa;
-  border-color: rgba(139, 92, 246, 0.28);
-}
-.db-action-btn.purple:hover {
-  background: rgba(139, 92, 246, 0.22);
-}
-.db-action-btn.amber {
-  background: rgba(245, 158, 11, 0.12);
-  color: var(--db-amber);
-  border-color: rgba(245, 158, 11, 0.28);
-}
-.db-action-btn.amber:hover {
-  background: rgba(245, 158, 11, 0.22);
+  stroke: rgba(148, 163, 184, 0.18);
 }
 
 /* ================================================================
@@ -994,133 +858,6 @@
 }
 
 /* ================================================================
-   EXECUTIVE HEADER — TOP ACCENT STRIP
-   ================================================================ */
-.db-exec-header {
-  border-top-color: rgba(37, 99, 235, 0.5);
-  border-top-width: 3px;
-}
-
-/* ================================================================
-   EXECUTIVE TOPBAR (Phase 3B)
-   ================================================================ */
-.db-exec-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 14px;
-  margin-bottom: 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.db-exec-system-label {
-  font-size: 10.5px;
-  font-weight: 800;
-  color: var(--db-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-.db-exec-topbar-end {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* ================================================================
-   HERO SNAPSHOT METRICS STRIP (Phase 3B)
-   ================================================================ */
-.db-exec-hero-metrics {
-  display: flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin: 14px 0 12px;
-  gap: 0;
-  flex-wrap: wrap;
-}
-.db-exec-hm-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 0 16px;
-  flex: 1;
-  min-width: 100px;
-}
-.db-exec-hm-item:first-child {
-  padding-inline-start: 0;
-}
-.db-exec-hm-sep {
-  width: 1px;
-  height: 36px;
-  background: rgba(255, 255, 255, 0.08);
-  flex-shrink: 0;
-  align-self: center;
-}
-.db-exec-hm-label {
-  font-size: 10.5px;
-  color: var(--db-muted);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
-.db-exec-hm-val {
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.15;
-  white-space: nowrap;
-}
-.db-exec-hm-green { color: var(--db-green); }
-.db-exec-hm-red   { color: var(--db-red); }
-.db-exec-hm-amber { color: var(--db-amber); }
-.db-exec-hm-blue  { color: var(--db-blue); }
-
-@media (max-width: 900px) {
-  .db-exec-hero-metrics {
-    gap: 4px;
-    padding: 10px 12px;
-  }
-  .db-exec-hm-item {
-    padding: 6px 10px;
-    flex: 0 0 auto;
-  }
-  .db-exec-hm-item:first-child {
-    padding-inline-start: 10px;
-  }
-  .db-exec-hm-sep {
-    display: none;
-  }
-}
-
-/* ================================================================
-   EXEC HEADER LAYOUT HELPERS
-   ================================================================ */
-.db-exec-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-.db-exec-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.db-refresh-time {
-  font-size: 11px;
-  color: var(--db-muted);
-  font-weight: 600;
-}
-.db-refresh-btn {
-  padding: 7px 14px !important;
-  font-size: 13px !important;
-}
-
-/* ================================================================
    ATTENDANCE MINI CARDS
    ================================================================ */
 .db-att-grid {
@@ -1225,65 +962,6 @@
 }
 
 /* ================================================================
-   HERO TWO-COLUMN LAYOUT
-   ================================================================ */
-.db-exec-hero-layout {
-  display: grid;
-  grid-template-columns: 1fr 240px;
-  align-items: start;
-}
-.db-exec-hero-actions {
-  border-inline-start: 1px solid rgba(255, 255, 255, 0.08);
-  padding-inline-start: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-@media (max-width: 1100px) {
-  .db-exec-hero-layout {
-    grid-template-columns: 1fr;
-  }
-  .db-exec-hero-actions {
-    border-inline-start: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    padding-inline-start: 0;
-    padding-top: 16px;
-  }
-}
-.db-exec-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-/* Quick actions in hero panel — full-width single column */
-.db-exec-hero-actions .db-actions {
-  background: none;
-  border: none;
-  padding: 0;
-  margin-bottom: 0;
-  border-radius: 0;
-  flex-direction: column;
-  gap: 8px;
-}
-.db-exec-hero-actions .db-action-btn {
-  width: 100%;
-  justify-content: flex-start;
-}
-
-/* ================================================================
-   EXEC SECTION LABEL (inside hero panel)
-   ================================================================ */
-.db-exec-section-label {
-  font-size: 10.5px;
-  font-weight: 800;
-  color: var(--db-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-/* ================================================================
    SECTION LABELS (between row groups)
    ================================================================ */
 .db-section-label {
@@ -1307,18 +985,18 @@
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--db-card);
+  border: 1px solid var(--db-border);
   border-radius: var(--db-radius);
-  padding: 12px 18px;
+  padding: 14px 20px;
   margin-bottom: 18px;
+  box-shadow: var(--db-shadow);
 }
 .db-today-label {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
-  color: var(--db-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--db-text);
+  letter-spacing: 0.02em;
   border-inline-start: 3px solid var(--db-blue);
   padding-inline-start: 10px;
   white-space: nowrap;
@@ -1336,7 +1014,7 @@
   font-weight: 700;
   padding: 5px 12px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--db-inner);
   color: var(--db-text);
   border: 1px solid var(--db-border);
   white-space: nowrap;
@@ -1449,7 +1127,9 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 4px 2px;
+  padding: 0 2px 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--db-border);
 }
 .db-cc-titlebar-main {
   display: flex;
@@ -1487,10 +1167,21 @@
 }
 .db-cc-title {
   margin: 0;
-  font-size: 22px;
+  font-size: 23px;
   font-weight: 800;
   color: var(--db-text);
   letter-spacing: 0.01em;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.db-cc-title::before {
+  content: '';
+  width: 5px;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--db-blue);
+  flex-shrink: 0;
 }
 .db-cc-subtitle {
   margin: 0;
@@ -1976,3 +1667,82 @@
    overrides the inline fill attribute so ticks are readable in light AND dark themes). */
 .db-page .recharts-cartesian-axis-tick-value,
 .db-page .recharts-legend-item-text { fill: var(--db-muted) !important; }
+
+/* ================================================================
+   EXECUTIVE POLISH PACK v1 — button reset, expiration widget,
+   responsive refinements. (No section moved; presentation only.)
+   ================================================================ */
+
+/* Operational-alert cards rendered as <button> for keyboard a11y —
+   reset native chrome so they render identically to the div variant. */
+.db-aw-btn {
+  width: 100%;
+  text-align: start;
+  font-family: inherit;
+  color: inherit;
+  appearance: none;
+  cursor: pointer;
+}
+.db-aw-btn:focus-visible {
+  outline: 2px solid var(--db-blue);
+  outline-offset: 2px;
+}
+
+/* Document-expiration widget — aligned to the db-* card system
+   (replaces the previous generic .card shell + inline styles). */
+.db-exp-widget {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+}
+.db-exp-widget-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.db-exp-widget-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--db-text);
+}
+.db-exp-widget-link {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--db-blue);
+  text-decoration: none;
+}
+.db-exp-widget-link:hover { text-decoration: underline; }
+.db-exp-chips {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.db-exp-chip {
+  min-width: 76px;
+  text-align: center;
+  padding: 8px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--chip) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--chip) 32%, transparent);
+}
+.db-exp-chip-val {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--chip);
+}
+.db-exp-chip-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--db-muted);
+  margin-top: 2px;
+}
+
+/* Responsive — tablet / small-laptop range. The uneven two-column
+   rows (main/charts) get cramped below ~1200px; collapse them a step
+   earlier so each card keeps executive breathing room. No mobile
+   redesign; symmetric tables-row keeps its existing 1100px rule. */
+@media (max-width: 1200px) {
+  .db-main-row,
+  .db-charts-row { grid-template-columns: 1fr; }
+}

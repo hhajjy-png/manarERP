@@ -60,14 +60,15 @@ export default function ContractStatusChart({ data, loading }: Props) {
             const p = payload[0] as unknown as PieEntry;
             return (
               <div style={{
-                background: '#1a2535',
-                border: '1px solid rgba(255,255,255,0.10)',
+                background: 'var(--db-card)',
+                border: '1px solid var(--db-border)',
                 borderRadius: 10,
                 padding: '10px 14px',
                 fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
                 direction: 'rtl',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
               }}>
-                <p style={{ color: p.fill ?? '#fff', fontSize: 13, fontWeight: 700 }}>
+                <p style={{ color: p.fill ?? 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
                   {t('contract.status.' + (p.name ?? '').toLowerCase())}: {p.value} {contractUnit}
                 </p>
               </div>

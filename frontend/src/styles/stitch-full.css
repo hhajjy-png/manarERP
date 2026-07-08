@@ -182,51 +182,6 @@ html:not([data-theme="dark"]) .stitch-full-theme .db-page {
   background-size: 1200px 100% !important;
 }
 
-/* Executive Header */
-.stitch-full-theme .db-exec-header {
-  background: var(--surface) !important;
-  border: 1px solid var(--border) !important;
-  border-top: 3px solid var(--accent) !important;
-  box-shadow: var(--shadow) !important;
-}
-
-.stitch-full-theme .db-exec-greeting {
-  color: var(--text) !important;
-}
-
-.stitch-full-theme .db-exec-date {
-  color: var(--text-muted) !important;
-}
-
-.stitch-full-theme .db-exec-system-label {
-  color: var(--text-muted) !important;
-}
-
-.stitch-full-theme .db-exec-topbar {
-  border-bottom-color: var(--border) !important;
-}
-
-/* Hero Metrics strip */
-.stitch-full-theme .db-exec-hero-metrics {
-  background: var(--surface-2) !important;
-  border-color: var(--border) !important;
-}
-
-.stitch-full-theme .db-exec-hm-label {
-  color: var(--text-muted) !important;
-}
-
-.stitch-full-theme .db-exec-hm-sep {
-  background: var(--border) !important;
-}
-
-/* Chips */
-.stitch-full-theme .db-exec-chip {
-  background: var(--surface-2) !important;
-  border-color: var(--border) !important;
-  color: var(--text) !important;
-}
-
 /* KPI cards — actual class is .db-kpi (hardcoded rgba bg in dashboard.css) */
 .stitch-full-theme .db-kpi {
   background: var(--surface) !important;
@@ -324,12 +279,6 @@ html:not([data-theme="dark"]) .stitch-full-theme .db-page {
   color: var(--text) !important;
 }
 
-/* Quick actions bar (hardcoded transparent in dashboard.css) */
-.stitch-full-theme .db-actions {
-  background: var(--surface-2) !important;
-  border-color: var(--border) !important;
-}
-
 /* Zebra rows and scrollbar in light mode */
 .stitch-full-theme .db-table tbody tr:nth-child(even) td {
   background: rgba(0, 0, 0, 0.015) !important;
@@ -388,32 +337,6 @@ html:not([data-theme="dark"]) .stitch-full-theme .db-page {
 .stitch-full-theme .db-attendance-card {
   background: var(--surface) !important;
   border: 1px solid var(--border) !important;
-}
-
-/* Quick action buttons */
-.stitch-full-theme .db-action-btn {
-  border: 1px solid var(--border) !important;
-  color: var(--text) !important;
-}
-
-.stitch-full-theme .db-action-btn:not(.primary):not(.green):not(.purple):not(.amber) {
-  background: var(--surface-2) !important;
-}
-
-/* Section labels */
-.stitch-full-theme .db-exec-section-label {
-  color: var(--text-muted) !important;
-}
-
-/* Refresh button */
-.stitch-full-theme .db-refresh-btn {
-  background: var(--surface) !important;
-  border-color: var(--border) !important;
-  color: var(--text) !important;
-}
-
-.stitch-full-theme .db-refresh-time {
-  color: var(--text-muted) !important;
 }
 
 /* ================================================================

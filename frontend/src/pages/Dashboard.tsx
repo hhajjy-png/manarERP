@@ -93,13 +93,6 @@ function GeneralDashboardContent() {
   const [intelV2, setIntelV2] = useState<IntelV2Data | null>(null);
   const [intelV2Loading, setIntelV2Loading] = useState(true);
 
-  const today = new Date().toLocaleDateString('ar-KW', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-
   useEffect(() => {
     let cancelled = false;
 
@@ -240,12 +233,12 @@ function GeneralDashboardContent() {
               <>
                 {thisMonthProfit != null && (
                   <span className={`db-today-chip ${thisMonthProfit >= 0 ? 'ok' : 'crit'}`}>
-                    <span className="db-today-dot" />{thisMonthProfit >= 0 ? 'ربح صافٍ هذا الشهر' : 'خسارة صافية هذا الشهر'}
+                    <span className="db-today-dot" />{thisMonthProfit >= 0 ? t('today.net_profit_month') : t('today.net_loss_month')}
                   </span>
                 )}
-                <TrendChip label="الإيرادات" pct={momRevenue} higherIsBetter />
-                <TrendChip label="التحصيلات" pct={momCollections} higherIsBetter />
-                <TrendChip label="المصروفات" pct={momExpenses} higherIsBetter={false} />
+                <TrendChip label={t('today.revenue')} pct={momRevenue} higherIsBetter />
+                <TrendChip label={t('today.collections')} pct={momCollections} higherIsBetter />
+                <TrendChip label={t('today.expenses')} pct={momExpenses} higherIsBetter={false} />
               </>
             )}
             {daySummaryAllClear ? (
@@ -393,60 +386,85 @@ function GeneralDashboardContent() {
       ══════════════════════════════════════════════════ */}
       {!initialLoading && ops && (ops.pendingExpensesCount > 0 || ops.draftPayrollCount > 0 || ops.unprintedChequesCount > 0 || ops.outstandingInvoicesCount > 0 || ops.expiringAgreementsCount > 0) && (
         <>
-          <div className="db-section-label">عمليات معلّقة تستحق المراجعة</div>
+          <div className="db-section-label">{t('ops.pending.title')}</div>
           <div className="db-alert-widgets">
             {ops.pendingExpensesCount > 0 && (
-              <div className="db-aw aw-warning" onClick={() => navigate('/expenses')}>
-                <div className="db-aw-icon">🧾</div>
+              <button
+                type="button"
+                className="db-aw db-aw-btn aw-warning"
+                onClick={() => navigate('/expenses')}
+                aria-label={`${t('ops.pending.expenses')}: ${ops.pendingExpensesCount}`}
+              >
+                <div className="db-aw-icon" aria-hidden="true">🧾</div>
                 <div className="db-aw-body">
                   <div className="db-aw-val">{ops.pendingExpensesCount}</div>
-                  <div className="db-aw-label">مصاريف معلّقة</div>
+                  <div className="db-aw-label">{t('ops.pending.expenses')}</div>
                   <div className="db-aw-sub"><PrivateAmount value={ops.pendingExpensesTotal} /></div>
                 </div>
-                <span className="db-aw-tag">مصروف</span>
-              </div>
+                <span className="db-aw-tag">{t('ops.pending.expense_unit')}</span>
+              </button>
             )}
             {ops.draftPayrollCount > 0 && (
-              <div className="db-aw aw-warning" onClick={() => navigate('/salaries')}>
-                <div className="db-aw-icon">💼</div>
+              <button
+                type="button"
+                className="db-aw db-aw-btn aw-warning"
+                onClick={() => navigate('/salaries')}
+                aria-label={`${t('ops.pending.draft_payroll')}: ${ops.draftPayrollCount}`}
+              >
+                <div className="db-aw-icon" aria-hidden="true">💼</div>
                 <div className="db-aw-body">
                   <div className="db-aw-val">{ops.draftPayrollCount}</div>
-                  <div className="db-aw-label">مسيرات مسودة</div>
+                  <div className="db-aw-label">{t('ops.pending.draft_payroll')}</div>
                 </div>
-                <span className="db-aw-tag">راتب</span>
-              </div>
+                <span className="db-aw-tag">{t('ops.pending.salary_unit')}</span>
+              </button>
             )}
             {ops.unprintedChequesCount > 0 && (
-              <div className="db-aw aw-warning" onClick={() => navigate('/cheques')}>
-                <div className="db-aw-icon">🖨️</div>
+              <button
+                type="button"
+                className="db-aw db-aw-btn aw-warning"
+                onClick={() => navigate('/cheques')}
+                aria-label={`${t('ops.pending.unprinted_cheques')}: ${ops.unprintedChequesCount}`}
+              >
+                <div className="db-aw-icon" aria-hidden="true">🖨️</div>
                 <div className="db-aw-body">
                   <div className="db-aw-val">{ops.unprintedChequesCount}</div>
-                  <div className="db-aw-label">شيكات غير مطبوعة</div>
+                  <div className="db-aw-label">{t('ops.pending.unprinted_cheques')}</div>
                 </div>
-                <span className="db-aw-tag">شيك</span>
-              </div>
+                <span className="db-aw-tag">{t('ops.pending.cheque_unit')}</span>
+              </button>
             )}
             {ops.outstandingInvoicesCount > 0 && (
-              <div className="db-aw aw-critical" onClick={() => navigate('/invoices')}>
-                <div className="db-aw-icon">📄</div>
+              <button
+                type="button"
+                className="db-aw db-aw-btn aw-critical"
+                onClick={() => navigate('/invoices')}
+                aria-label={`${t('ops.pending.outstanding_invoices')}: ${ops.outstandingInvoicesCount}`}
+              >
+                <div className="db-aw-icon" aria-hidden="true">📄</div>
                 <div className="db-aw-body">
                   <div className="db-aw-val">{ops.outstandingInvoicesCount}</div>
-                  <div className="db-aw-label">فواتير مستحقة</div>
+                  <div className="db-aw-label">{t('ops.pending.outstanding_invoices')}</div>
                   <div className="db-aw-sub"><PrivateAmount value={ops.outstandingInvoicesTotal} /></div>
                 </div>
-                <span className="db-aw-tag">فاتورة</span>
-              </div>
+                <span className="db-aw-tag">{t('ops.pending.invoice_unit')}</span>
+              </button>
             )}
             {ops.expiringAgreementsCount > 0 && (
-              <div className="db-aw aw-warning" onClick={() => navigate('/prices')}>
-                <div className="db-aw-icon">⏰</div>
+              <button
+                type="button"
+                className="db-aw db-aw-btn aw-warning"
+                onClick={() => navigate('/prices')}
+                aria-label={`${t('ops.pending.expiring_agreements')}: ${ops.expiringAgreementsCount}`}
+              >
+                <div className="db-aw-icon" aria-hidden="true">⏰</div>
                 <div className="db-aw-body">
                   <div className="db-aw-val">{ops.expiringAgreementsCount}</div>
-                  <div className="db-aw-label">اتفاقيات تنتهي قريبًا</div>
-                  <div className="db-aw-sub">خلال 30 يومًا</div>
+                  <div className="db-aw-label">{t('ops.pending.expiring_agreements')}</div>
+                  <div className="db-aw-sub">{t('ops.pending.within_30')}</div>
                 </div>
-                <span className="db-aw-tag">اتفاقية</span>
-              </div>
+                <span className="db-aw-tag">{t('ops.pending.agreement_unit')}</span>
+              </button>
             )}
           </div>
         </>
@@ -797,6 +815,7 @@ function GeneralDashboardContent() {
 
 export default function Dashboard() {
   const { hasPermission } = useAuth();
+  const { t } = useT();
   const [dashTab, setDashTab] = useState<'general' | 'financial'>(
     (localStorage.getItem('dashboard.tab') as 'general' | 'financial') ?? 'general'
   );
@@ -809,7 +828,7 @@ export default function Dashboard() {
           className={`db-tab-btn${dashTab === 'general' ? ' active' : ''}`}
           onClick={() => { setDashTab('general'); localStorage.setItem('dashboard.tab', 'general'); }}
         >
-          عام
+          {t('dash.tab.general')}
         </button>
         {hasPermission('financialdashboard.read') && (
           <button
@@ -817,7 +836,7 @@ export default function Dashboard() {
             className={`db-tab-btn${dashTab === 'financial' ? ' active' : ''}`}
             onClick={() => { setDashTab('financial'); localStorage.setItem('dashboard.tab', 'financial'); }}
           >
-            مالي
+            {t('dash.tab.financial')}
           </button>
         )}
       </div>

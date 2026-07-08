@@ -74,7 +74,7 @@ export default function CommandCenter({
     },
     {
       id: 'performance',
-      title: 'الأداء المالي (آخر ٦ أشهر)',
+      title: 'الأداء المالي (منذ بداية العام)',
       region: 'analytics',
       node: <PerformanceChartSection trend={trend} loading={data.loading} />,
     },
