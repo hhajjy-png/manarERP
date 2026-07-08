@@ -74,3 +74,8 @@
 .invcx-fin-row.total { font-weight: 800; border-top: 2px solid var(--xpl-border); }
 .invcx-fin-label { color: var(--xpl-muted); }
 .invcx-fin-val { font-weight: 700; color: var(--xpl-text); }
+
+/* زر تصحيح تاريخ التحصيل داخل صف الدفعة (مدير النظام فقط). */
+.invcx-pmt-correct { padding: 4px 10px; font-size: 12px; white-space: nowrap; }
+/* رسالة تأكيد داخل نافذة تصحيح تاريخ التحصيل. */
+.invcx-correct-note { margin-bottom: 16px; }

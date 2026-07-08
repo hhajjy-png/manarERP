@@ -11,6 +11,7 @@ import customersRoutes from './modules/customers/customers.routes';
 import contractsRoutes from './modules/contracts/contracts.routes';
 import suppliersRoutes from './modules/suppliers/suppliers.routes';
 import invoicesRoutes from './modules/invoices/invoices.routes';
+import paymentsRoutes from './modules/payments/payments.routes';
 import expensesRoutes from './modules/expenses/expenses.routes';
 import transactionsRoutes from './modules/transactions/transactions.routes';
 import equipmentRoutes from './modules/equipment/equipment.routes';
@@ -90,6 +91,7 @@ export function createApp(): Application {
   app.use('/api/contracts', contractsRoutes);
   app.use('/api/suppliers', suppliersRoutes);
   app.use('/api/invoices', invoicesRoutes);
+  app.use('/api/payments', paymentsRoutes);
   app.use('/api/expenses', expensesRoutes);
   app.use('/api/transactions', transactionsRoutes);
   app.use('/api/equipment', equipmentRoutes);
