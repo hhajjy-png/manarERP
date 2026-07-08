@@ -7,6 +7,7 @@ import PrivateAmount from '../components/PrivateAmount';
 import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
 import { formatDate } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
+import { downloadBlob } from '../utils/exportUtils';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
@@ -496,12 +497,7 @@ export default function BankSalaryAnalytics() {
       const params = buildParams(appliedFilters);
       if (empId) params.employeeId = String(empId);
       const res = await api.get('/salaries/bank-payments/export', { params, responseType: 'blob' });
-      const url = URL.createObjectURL(res.data as Blob);
-      const a   = document.createElement('a');
-      a.href     = url;
-      a.download = generateExportFileName({ reportName: ReportName.BankAnalytics, identifier: empId ?? null, extension: 'xlsx' });
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.BankAnalytics, identifier: empId ?? null, extension: 'xlsx' }));
       showToast('تم تصدير Excel بنجاح');
     } catch {
       showToast('فشل التصدير', 'error');

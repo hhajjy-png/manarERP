@@ -9,7 +9,7 @@ import { PageMeta } from '../components/DataTable';
 import ConfirmModal from '../components/ConfirmModal';
 import { money, dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
-import { downloadXlsx } from '../utils/exportUtils';
+import { downloadBlob } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import AttachmentsPanel from '../components/AttachmentsPanel';
@@ -151,21 +151,11 @@ export default function Expenses() {
   async function exportExcel() {
     setExportingExcel(true);
     try {
-      const res = await api.get('/expenses', { params: { pageSize: 9999, page: 1, ...filterParams } });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const all = res.data.data.data ?? [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const wsData = all.map((r: any) => ({
-        'الرقم': r.code,
-        'التصنيف': expenseCategoryLabel(r.category),
-        'الوصف': r.description,
-        'المورد': r.supplier?.name ?? r.supplierName ?? '',
-        'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : (r.date ? dateText(r.date) : ''),
-        'المبلغ (KWD)': Number(r.amount),
-        'الحالة': t(STATUS_META[r.status]?.key ?? '—'),
-        'ملاحظات': r.notes ?? '',
-      }));
-      downloadXlsx(wsData, 'المصروفات', generateExportFileName({ reportName: ReportName.Expenses, extension: 'xlsx' }));
+      const res = await api.get('/reports/expenses/export', {
+        params: { format: 'excel', ...filterParams },
+        responseType: 'blob',
+      });
+      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.Expenses, extension: 'xlsx' }));
     } catch (e) { setError(errorMessage(e)); }
     finally { setExportingExcel(false); }
   }
@@ -301,7 +291,9 @@ export default function Expenses() {
               {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          <Button variant="secondary" icon="table_view" busy={exportingExcel} onClick={exportExcel}>تصدير Excel</Button>
+          {hasPermission('reports.export') && (
+            <Button variant="secondary" icon="table_view" busy={exportingExcel} onClick={exportExcel}>تصدير Excel</Button>
+          )}
         </div>
         <div className="xpl-toolbar-row">
           <FilterChip active={statusFilter === ''} onClick={() => { setStatusFilter(''); setPage(1); }}>كل الحالات</FilterChip>

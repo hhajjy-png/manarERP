@@ -10,21 +10,13 @@ import {
 } from '../api/payrollBankImport';
 import { parseWorkbook, BANK_CONFIGS, MAX_ROWS } from './payrollBankImportParser';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
+import { downloadBlob } from '../utils/exportUtils';
 
 // ── Wizard state ──────────────────────────────────────────────────────────────
 
 type WizardStep = 'upload' | 'preview' | 'confirm' | 'done';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function downloadBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const a   = document.createElement('a');
-  a.href    = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
 const MONTH_AR = ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 

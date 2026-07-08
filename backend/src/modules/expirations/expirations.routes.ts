@@ -3,6 +3,7 @@ import { authenticate } from '@core/middleware/auth.middleware';
 import { requirePermission } from '@core/middleware/rbac.middleware';
 import { asyncHandler } from '@core/utils/asyncHandler';
 import { ok } from '@core/utils/response';
+import { sendExcel } from '@core/utils/excelResponse';
 import { expirationsService } from './expirations.service';
 import { expirationFiltersSchema } from './expirations.schema';
 
@@ -32,9 +33,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const filters = expirationFiltersSchema.parse(req.query);
     const buf = await expirationsService.exportExcel(filters);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="expirations.xlsx"');
-    res.send(buf);
+    sendExcel(res, buf, 'expirations.xlsx');
   }),
 );
 

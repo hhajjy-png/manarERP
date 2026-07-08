@@ -8,6 +8,7 @@ import { authenticate } from '../../core/middleware/auth.middleware';
 import { requirePermission } from '../../core/middleware/rbac.middleware';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ok } from '../../core/utils/response';
+import { sendExcel } from '../../core/utils/excelResponse';
 import { recordAudit } from '../../core/middleware/audit';
 import { AppError } from '../../core/errors/AppError';
 import { ROLES } from '../../config/constants';
@@ -73,9 +74,7 @@ router.get(
     }
 
     const buf = await buildExcel(data);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="report-${type}.xlsx"`);
-    res.send(buf);
+    sendExcel(res, buf, `report-${type}.xlsx`);
   }),
 );
 

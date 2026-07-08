@@ -1,6 +1,7 @@
 import { prisma } from '@config/database';
 import type { ExpirationFilters } from './expirations.schema';
-import ExcelJS from 'exceljs';
+import { buildExcel } from '@shared/services/reportEngine/excel.service';
+import type { ReportColumn } from '@shared/services/reportEngine/excel.service';
 
 export type DocCategory =
   | 'EMPLOYEE_RESIDENCY'
@@ -147,23 +148,29 @@ export class ExpirationsService {
 
   async exportExcel(filters: ExpirationFilters): Promise<Buffer> {
     const records = await this.list(filters);
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet('Expirations');
 
-    ws.columns = [
-      { header: 'Category',       key: 'category',      width: 28 },
-      { header: 'Name',           key: 'entityName',    width: 28 },
-      { header: 'Code',           key: 'entityCode',    width: 14 },
-      { header: 'Expiry Date',    key: 'expiryDate',    width: 14 },
-      { header: 'Days Remaining', key: 'daysRemaining', width: 14 },
-      { header: 'Urgency',        key: 'urgency',       width: 10 },
+    const columns: ReportColumn[] = [
+      { header: 'التصنيف',        key: 'category',      width: 28 },
+      { header: 'الاسم',          key: 'entityName',    width: 28 },
+      { header: 'الرمز',          key: 'entityCode',    width: 14 },
+      { header: 'تاريخ الانتهاء', key: 'expiryDate',    width: 14 },
+      { header: 'الأيام المتبقية', key: 'daysRemaining', width: 14, type: 'number' },
+      { header: 'الأولوية',       key: 'urgency',       width: 10 },
     ];
 
-    for (const r of records) {
-      ws.addRow(r);
-    }
-
-    return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+    return buildExcel({
+      title:     'تقرير الوثائق منتهية الصلاحية',
+      sheetName: 'الوثائق المنتهية',
+      columns,
+      rows: records.map((r) => ({
+        category:      r.category,
+        entityName:    r.entityName,
+        entityCode:    r.entityCode,
+        expiryDate:    r.expiryDate,
+        daysRemaining: r.daysRemaining,
+        urgency:       r.urgency,
+      })),
+    });
   }
 }
 

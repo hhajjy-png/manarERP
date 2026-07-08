@@ -5,6 +5,7 @@ import { authenticate } from '../../core/middleware/auth.middleware';
 import { requirePermission } from '../../core/middleware/rbac.middleware';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ok } from '../../core/utils/response';
+import { sendExcel } from '../../core/utils/excelResponse';
 
 const router = Router();
 router.use(authenticate);
@@ -91,9 +92,7 @@ router.get(
       employeeId: req.query.employeeId ? Number(req.query.employeeId) : undefined,
     };
     const buffer = await bankAnalyticsService.exportAnalytics(filters);
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="bank-analytics.xlsx"');
-    res.send(buffer);
+    sendExcel(res, buffer, 'bank-analytics.xlsx');
   }),
 );
 

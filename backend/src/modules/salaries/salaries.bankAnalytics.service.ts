@@ -1,7 +1,8 @@
 import { prisma } from '../../config/database';
 import { formatSourceMonth } from './salaries.dateHelpers';
 import { getPagination, buildPaginatedResult } from '../../core/utils/pagination';
-import ExcelJS from 'exceljs';
+import { buildExcelWorkbook } from '../../shared/services/reportEngine/excel.service';
+import type { ReportInput } from '../../shared/services/reportEngine/excel.service';
 
 export function round3(n: number): number {
   return Math.round(n * 1000) / 1000;
@@ -472,34 +473,55 @@ class BankAnalyticsService {
 
     const rows = await prisma.salaryPayment.findMany({ where, orderBy: [{ paymentDate: 'desc' }, { createdAt: 'desc' }] });
 
-    const wb = new ExcelJS.Workbook();
-    wb.creator = 'نظام المنار';
+    const metaRows: Record<string, unknown>[] = [
+      { label: 'تاريخ التصدير', value: new Date().toLocaleString('ar-KW') },
+    ];
+    if (filters.payrollYear) metaRows.push({ label: 'السنة', value: String(filters.payrollYear) });
+    if (filters.payrollMonth) metaRows.push({ label: 'الشهر', value: String(filters.payrollMonth) });
+    if (empMatch) metaRows.push({ label: 'الموظف', value: empMatch.fullName });
+    metaRows.push({ label: 'إجمالي السجلات', value: String(rows.length) });
+    metaRows.push({ label: 'إجمالي المبالغ (د.ك)', value: round3(rows.reduce((s, r) => s + r.amount, 0)) });
 
-    const metaSheet = wb.addWorksheet('معلومات التصدير');
-    metaSheet.addRow(['تاريخ التصدير', new Date().toLocaleString('ar-KW')]);
-    if (filters.payrollYear) metaSheet.addRow(['السنة', filters.payrollYear]);
-    if (filters.payrollMonth) metaSheet.addRow(['الشهر', filters.payrollMonth]);
-    if (empMatch) metaSheet.addRow(['الموظف', empMatch.fullName]);
-    metaSheet.addRow(['إجمالي السجلات', rows.length]);
-    metaSheet.addRow(['إجمالي المبالغ (د.ك)', round3(rows.reduce((s, r) => s + r.amount, 0))]);
+    const metaSheet: ReportInput = {
+      title:     'معلومات تصدير كشوف رواتب البنك',
+      sheetName: 'معلومات التصدير',
+      columns: [
+        { header: 'البند',  key: 'label', width: 24 },
+        { header: 'القيمة', key: 'value', width: 32, type: 'currency' },
+      ],
+      rows: metaRows,
+      autoFilter: false,
+      zebra: false,
+    };
 
-    const dataSheet = wb.addWorksheet('المعاملات');
-    dataSheet.addRow(['رقم المعاملة', 'الشهر', 'تاريخ الدفع', 'المستفيد', 'رقم الحساب', 'الرقم المدني', 'المبلغ (د.ك)', 'العملة', 'الحالة']);
-    for (const r of rows) {
-      dataSheet.addRow([
-        r.transactionId,
-        r.sourceMonth ?? '',
-        r.paymentDate ? r.paymentDate.toLocaleDateString('ar-KW') : '',
-        r.beneficiaryName,
-        r.beneficiaryAccount ?? '',
-        r.civilId ?? '',
-        round3(r.amount),
-        r.currency,
-        r.status ?? '',
-      ]);
-    }
+    const dataSheet: ReportInput = {
+      title:     'معاملات كشوف رواتب البنك',
+      sheetName: 'المعاملات',
+      columns: [
+        { header: 'رقم المعاملة',  key: 'transactionId',        width: 22 },
+        { header: 'الشهر',          key: 'sourceMonth',          width: 12 },
+        { header: 'تاريخ الدفع',    key: 'paymentDate',          width: 14, type: 'date' },
+        { header: 'المستفيد',       key: 'beneficiaryName',      width: 28 },
+        { header: 'رقم الحساب',     key: 'beneficiaryAccount',   width: 20 },
+        { header: 'الرقم المدني',   key: 'civilId',              width: 14 },
+        { header: 'المبلغ (د.ك)',   key: 'amount',                width: 14, type: 'currency' },
+        { header: 'العملة',         key: 'currency',              width: 10 },
+        { header: 'الحالة',         key: 'status',                width: 14 },
+      ],
+      rows: rows.map((r) => ({
+        transactionId:      r.transactionId,
+        sourceMonth:        r.sourceMonth ?? '',
+        paymentDate:        r.paymentDate ?? null,
+        beneficiaryName:    r.beneficiaryName,
+        beneficiaryAccount: r.beneficiaryAccount ?? '',
+        civilId:            r.civilId ?? '',
+        amount:             round3(r.amount),
+        currency:           r.currency,
+        status:             r.status ?? '',
+      })),
+    };
 
-    return wb.xlsx.writeBuffer() as unknown as Promise<Buffer>;
+    return buildExcelWorkbook([metaSheet, dataSheet]);
   }
 }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
+import { downloadBlob } from '../utils/exportUtils';
 import {
   ExecutiveHeader,
   IdChip,
@@ -175,30 +176,21 @@ export default function DocumentExpirationCenter() {
     loadList();
   }, [loadList]);
 
-  function handleExport() {
+  async function handleExport() {
     setExporting(true);
-    const params = new URLSearchParams();
-    if (urgency)  params.set('urgency',  urgency);
-    if (category) params.set('category', category);
-    if (search)   params.set('search',   search);
+    const params: Record<string, string> = {};
+    if (urgency)  params.urgency  = urgency;
+    if (category) params.category = category;
+    if (search)   params.search   = search;
 
-    const baseUrl = (window as Window & typeof globalThis & { manar?: { apiBaseUrl?: string } })
-      .manar?.apiBaseUrl ?? 'http://127.0.0.1:48211/api';
-    const token = localStorage.getItem('manar.token');
-    const qs = params.toString();
-    const url = `${baseUrl}/expirations/export${qs ? `?${qs}` : ''}`;
-
-    fetch(url, { headers: { Authorization: `Bearer ${token ?? ''}` } })
-      .then(res => res.blob())
-      .then(blob => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = generateExportFileName({ reportName: ReportName.DocumentExpirations, extension: 'xlsx' });
-        a.click();
-        URL.revokeObjectURL(a.href);
-      })
-      .catch(() => setError('فشل التصدير'))
-      .finally(() => setExporting(false));
+    try {
+      const res = await api.get('/expirations/export', { params, responseType: 'blob' });
+      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.DocumentExpirations, extension: 'xlsx' }));
+    } catch {
+      setError('فشل التصدير');
+    } finally {
+      setExporting(false);
+    }
   }
 
   function resetFilters() {

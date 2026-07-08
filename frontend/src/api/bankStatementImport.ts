@@ -1,5 +1,6 @@
 import { api } from './client';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
+import { downloadBlob } from '../utils/exportUtils';
 
 // ── Types (mirrors backend types.ts) ──────────────────────────────────────────
 
@@ -334,17 +335,11 @@ export async function downloadExport(importId: number, format: 'excel' | 'pdf'):
     ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     : 'application/pdf';
   const blob = new Blob([resp.data], { type: mime });
-  const a    = document.createElement('a');
-  a.href     = URL.createObjectURL(blob);
-  a.download = generateExportFileName({
+  downloadBlob(blob, generateExportFileName({
     reportName: ReportName.BankStatement,
     identifier: importId,
     extension: ext,
-  });
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
+  }));
 }
 
 export function exportToCsv(transactions: ReconciliationTransaction[], filename: string): void {

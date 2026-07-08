@@ -3,6 +3,7 @@ import { payrollBankImportService } from './service';
 import { buildImportReportExcel, buildImportReportHtml } from './reportBuilder';
 import { PreviewInputSchema, ExecuteInputSchema, ReportExportSchema } from './schema';
 import { ok } from '../../core/utils/response';
+import { sendExcel } from '../../core/utils/excelResponse';
 import { AppError } from '../../core/errors/AppError';
 
 export async function previewHandler(req: Request, res: Response): Promise<void> {
@@ -23,9 +24,7 @@ export async function reportExcelHandler(req: Request, res: Response): Promise<v
   const parsed = ReportExportSchema.safeParse(req.body);
   if (!parsed.success) throw AppError.badRequest(parsed.error.errors[0]?.message ?? 'بيانات التقرير غير صحيحة');
   const buffer = await buildImportReportExcel(parsed.data.report);
-  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', 'attachment; filename="payroll-import-report.xlsx"');
-  res.send(buffer);
+  sendExcel(res, buffer, 'payroll-import-report.xlsx');
 }
 
 export async function reportPdfHandler(req: Request, res: Response): Promise<void> {
