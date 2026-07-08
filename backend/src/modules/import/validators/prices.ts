@@ -8,7 +8,7 @@ const ARABIC_HEADER_MAP: Record<string, string> = {
 };
 
 // Allowed values for contractUnit — must match Arabic values used in DB
-const VALID_UNITS = ['طن', 'درب', 'يومية', 'مقطوعية'] as const;
+const VALID_UNITS = ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'] as const;
 type ContractUnit = (typeof VALID_UNITS)[number];
 
 function normalizeHeaders(row: Record<string, unknown>): Record<string, unknown> {

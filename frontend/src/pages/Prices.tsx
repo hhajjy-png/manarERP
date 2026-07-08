@@ -31,7 +31,7 @@ import {
 import '../components/explorer/explorer-kit.css';
 import './Prices.css';
 
-const contractUnits = ['طن', 'درب', 'يومية', 'مقطوعية'] as const;
+const contractUnits = ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'] as const;
 
 interface PricesStats { count: number; customerCount: number; lastUpdatedAt: string | null; }
 interface UsageRow { id: number; asphaltPlant: string; companyName: string; contractLocation: string; contractUnit: string; unitPrice: number; customer: { id: number; name: string } | null; usageCount: number; totalQuantity: number; totalAmount: number; }

@@ -100,7 +100,7 @@ export const ENUMS = {
   contractStatus: ['ACTIVE', 'EXPIRED', 'RENEWING', 'SUSPENDED'] as const,
   invoiceDirection: ['SALES', 'PURCHASE'] as const,
   invoiceType: ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت'] as const,
-  invoiceUnit: ['طن', 'درب', 'يومية', 'مقطوعية'] as const,
+  invoiceUnit: ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'] as const,
   invoiceStatus: ['UNPAID', 'PARTIAL', 'PAID', 'OVERDUE', 'CANCELLED'] as const,
   // مصنّفة منطقيًا لتسهيل الصيانة (تشغيل / مركبات / رسوم حكومية / عن طريق أشخاص / أخرى).
   // القيمة تُخزَّن كنص (String) في قاعدة البيانات — لا يوجد enum على مستوى DB، فإعادة الترتيب
