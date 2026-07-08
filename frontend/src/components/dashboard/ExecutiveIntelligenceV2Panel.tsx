@@ -6,6 +6,7 @@ import { Skeleton } from './Skeleton';
 import { money } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
 import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
+import { formatMonthShort, formatMonthLabel } from '../../lib/date';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -127,7 +128,7 @@ function TrendTooltip({ active, payload, label }: TrendTooltipProps) {
       fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif',
       direction: 'rtl', minWidth: 190, boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
     }}>
-      <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10 }}>{label}</p>
+      <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10 }}>{formatMonthLabel(label)}</p>
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 0' }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color ?? p.fill, flexShrink: 0 }} />
@@ -161,11 +162,11 @@ function TrendChart({ data, loading }: { data: TrendPoint[]; loading: boolean })
     <div style={{ height: 240 }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={safe} barCategoryGap="25%" barGap={2}>
-          <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-          <XAxis dataKey="month" tick={{ fill: 'var(--db-muted)', fontSize: 10, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif' }} axisLine={false} tickLine={false} />
+          <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.18)" />
+          <XAxis dataKey="month" tickFormatter={formatMonthShort} minTickGap={4} tick={{ fill: 'var(--db-muted)', fontSize: 10, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif' }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fill: 'var(--db-muted)', fontSize: 10 }} axisLine={false} tickLine={false} width={62}
             tickFormatter={(v: number) => formatCompact(v)} />
-          <Tooltip content={<TrendTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+          <Tooltip content={<TrendTooltip />} cursor={{ fill: 'rgba(148,163,184,0.12)' }} />
           <Legend formatter={(value: string) => (
             <span style={{ color: 'var(--db-muted)', fontSize: 11, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif', fontWeight: 700 }}>
               {legendLabels[value] ?? value}
@@ -487,7 +488,7 @@ export default function ExecutiveIntelligenceV2Panel({ data, loading }: Props) {
       {/* Row 4: Trends + Contract Health */}
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16 }}>
         <div className="db-card">
-          <div className="db-card-head"><div><h3>الاتجاهات الشهرية</h3><p>إيرادات، مصروفات، تحصيلات — آخر 6 أشهر</p></div></div>
+          <div className="db-card-head"><div><h3>الاتجاهات الشهرية</h3><p>إيرادات، مصروفات، تحصيلات — منذ بداية العام</p></div></div>
           <div className="db-card-body">
             <TrendChart data={data?.monthlyTrends ?? []} loading={loading} />
           </div>

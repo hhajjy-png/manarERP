@@ -46,6 +46,28 @@ export function formatMonthYear(month: number, year: number): string {
   return `${ARABIC_MONTHS[month - 1] ?? ''} ${year}`;
 }
 
+/**
+ * محوّل وسم شهر رسم بياني بصيغة YYYY-MM إلى عربي — عرض فقط، لا يغيّر البيانات.
+ * يعيد القيمة كما هي إن لم تطابق YYYY-MM (آمن لأي وسم مُنسّق مسبقًا).
+ */
+function formatMonth(value: unknown, withYear: boolean): string {
+  if (typeof value !== 'string') return value == null ? '' : String(value);
+  const m = /^(\d{4})-(\d{2})$/.exec(value.trim());
+  if (!m) return value;
+  const month = Number(m[2]);
+  if (month < 1 || month > 12) return value;
+  return withYear ? formatMonthYear(month, Number(m[1])) : ARABIC_MONTHS[month - 1];
+}
+
+/** وسم شهر رسم بياني: '2026-01' → 'يناير 2026' (للتلميحات). */
+export const formatMonthLabel = (value: unknown): string => formatMonth(value, true);
+
+/**
+ * اسم الشهر فقط لمحور الرسم: '2026-01' → 'يناير' (نافذة YTD ضمن سنة واحدة،
+ * فحذف السنة المكرّرة يقلّل الازدحام).
+ */
+export const formatMonthShort = (value: unknown): string => formatMonth(value, false);
+
 /** 2026-07-07 — filesystem-safe, LOCAL date (never UTC). Defaults to today. */
 export function formatFileDate(value?: unknown): string {
   const d = value === undefined || value === null ? new Date() : parse(value) ?? new Date();
