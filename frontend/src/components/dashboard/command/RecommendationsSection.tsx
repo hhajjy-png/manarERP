@@ -2,9 +2,9 @@ import { Skeleton } from '../Skeleton';
 import type { RecommendationV2 } from './types';
 
 const PRI_META: Record<RecommendationV2['priority'], { color: string; icon: string; label: string }> = {
-  HIGH:   { color: '#EF4444', icon: '⚠️', label: 'أولوية عالية' },
-  MEDIUM: { color: '#F59E0B', icon: '📌', label: 'أولوية متوسطة' },
-  LOW:    { color: '#10B981', icon: '💡', label: 'للمتابعة' },
+  HIGH:   { color: 'var(--db-red)', icon: '⚠️', label: 'أولوية عالية' },
+  MEDIUM: { color: 'var(--db-amber)', icon: '📌', label: 'أولوية متوسطة' },
+  LOW:    { color: 'var(--db-green)', icon: '💡', label: 'للمتابعة' },
 };
 const PRI_RANK: Record<RecommendationV2['priority'], number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 
@@ -50,7 +50,7 @@ export default function RecommendationsSection({
           <div key={rec.id} className="db-rec-card" style={{ ['--rec-color' as string]: meta.color }}>
             <div className="db-rec-head">
               <span className="db-rec-icon">{meta.icon}</span>
-              <span className="db-rec-pri" style={{ color: meta.color, background: `${meta.color}1c` }}>
+              <span className="db-rec-pri" style={{ color: meta.color, background: `color-mix(in srgb, ${meta.color} 11%, transparent)` }}>
                 {meta.label}
               </span>
             </div>

@@ -49,6 +49,21 @@ const CONTRACT_STATUS_CLS: Record<string, string> = {
   SUSPENDED: 'red',
 };
 
+/**
+ * شريحة اتجاه شهري للملخّص التنفيذي — تُعرض فقط عند توفّر نسبة تغيّر حقيقية (لا تُختلق قيمة).
+ * higherIsBetter: هل ارتفاع القيمة إيجابي (الإيرادات/التحصيلات) أم سلبي (المصروفات).
+ */
+function TrendChip({ label, pct, higherIsBetter }: { label: string; pct: number | null; higherIsBetter: boolean }) {
+  if (pct == null || !Number.isFinite(pct)) return null;
+  const up = pct >= 0;
+  const good = higherIsBetter ? up : !up;
+  return (
+    <span className={`db-today-chip ${good ? 'ok' : 'warn'}`}>
+      <span className="db-today-dot" />{label} {up ? '▲' : '▼'} {Math.abs(pct).toFixed(1)}%
+    </span>
+  );
+}
+
 function GeneralDashboardContent() {
   const { user, hasPermission } = useAuth();
   const navigate = useNavigate();
@@ -201,28 +216,38 @@ function GeneralDashboardContent() {
     (inv.unpaid ?? 0) === 0 && overdueInvoices === 0 &&
     expiringContracts === 0 && alerts.length === 0 && pendingReview === 0;
 
+  // ── Executive financial glance (existing data only — from the decision-center summary) ──
+  const finSummary = commandData.decisionCenter?.financialSummary ?? null;
+  const momRevenue = finSummary?.monthOnMonthChanges?.revenue ?? null;
+  const momExpenses = finSummary?.monthOnMonthChanges?.expenses ?? null;
+  const momCollections = finSummary?.monthOnMonthChanges?.collections ?? null;
+  const thisMonthProfit = finSummary?.thisMonth?.profit ?? null;
+  const hasFinancialGlance = finSummary != null &&
+    (momRevenue != null || momExpenses != null || momCollections != null || thisMonthProfit != null);
+
   return (
     <div className="db-page">
       {/* ══════════════════════════════════════════════════
-          EXECUTIVE COMMAND CENTER (Phases A–G). The old Hero panel + old KPI grid
-          + old quick actions were removed in Phase H — the Command Center title bar,
-          KPI row and Quick Actions now cover them (refresh control moved into the title bar).
-      ══════════════════════════════════════════════════ */}
-      <CommandCenter
-        data={commandData}
-        trend={trend}
-        onRefresh={() => setRefreshKey((k) => k + 1)}
-        refreshing={initialLoading || refreshing}
-        refreshAt={!initialLoading ? refreshAt : null}
-      />
-
-      {/* ══════════════════════════════════════════════════
-          EXECUTIVE DAILY SUMMARY (existing data only — unique operational glance, kept)
+          PRIORITY 1 — EXECUTIVE SUMMARY (existing data only — quick company-status glance).
+          Reordered to lead the page ahead of the KPI/charts hub (Command Center), which now
+          sits lower with the analytics panels. All widgets preserved; no component redesign.
       ══════════════════════════════════════════════════ */}
       {!initialLoading && exec && (
         <div className="db-today" role="status" aria-label={t('page.dashboard.today_summary')}>
           <span className="db-today-label">{t('page.dashboard.today_summary')}</span>
           <div className="db-today-chips">
+            {hasFinancialGlance && (
+              <>
+                {thisMonthProfit != null && (
+                  <span className={`db-today-chip ${thisMonthProfit >= 0 ? 'ok' : 'crit'}`}>
+                    <span className="db-today-dot" />{thisMonthProfit >= 0 ? 'ربح صافٍ هذا الشهر' : 'خسارة صافية هذا الشهر'}
+                  </span>
+                )}
+                <TrendChip label="الإيرادات" pct={momRevenue} higherIsBetter />
+                <TrendChip label="التحصيلات" pct={momCollections} higherIsBetter />
+                <TrendChip label="المصروفات" pct={momExpenses} higherIsBetter={false} />
+              </>
+            )}
             {daySummaryAllClear ? (
               <span className="db-today-chip ok">
                 <span className="db-today-dot" />{t('today.all_clear')}
@@ -278,28 +303,23 @@ function GeneralDashboardContent() {
           Command Center KPI row.)
       ══════════════════════════════════════════════════ */}
       {!initialLoading && exec && (
-        <div style={{
-          marginTop: 8, padding: '10px 16px', background: 'var(--surface-2)',
-          border: '1px solid var(--border)', borderRadius: 8, fontSize: 12,
-        }}>
-          <div style={{ fontWeight: 700, marginBottom: 7, color: 'var(--text)', fontSize: 12 }}>
-            ℹ مصدر البيانات المالية
-          </div>
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+        <div className="db-src-note">
+          <div className="db-src-note-title">ℹ مصدر البيانات المالية</div>
+          <div className="db-src-note-items">
             <span>
-              <span style={{ color: '#16a34a', fontWeight: 700 }}>الإيرادات</span>
+              <span className="db-src-note-rev">الإيرادات</span>
               {' '}— دفعات الفواتير المحصّلة من سجل المعاملات
             </span>
             <span>
-              <span style={{ color: '#dc2626', fontWeight: 700 }}>المصروفات</span>
+              <span className="db-src-note-exp">المصروفات</span>
               {' '}— المصروفات المعتمدة من سجل المعاملات
             </span>
             <span>
-              <span style={{ color: '#1d4e6f', fontWeight: 700 }}>الربح الصافي</span>
+              <span className="db-src-note-profit">الربح الصافي</span>
               {' '}= الإيرادات − المصروفات (قد يكون سالباً)
             </span>
             <span>
-              <span style={{ color: '#d97706', fontWeight: 700 }}>الفواتير المعلّقة</span>
+              <span className="db-src-note-pending">الفواتير المعلّقة</span>
               {' '}— بحالة غير مدفوعة أو جزئية أو متأخرة
             </span>
           </div>
@@ -747,6 +767,20 @@ function GeneralDashboardContent() {
           </tbody>
         </table>
       </div>
+
+      {/* ══════════════════════════════════════════════════
+          PRIORITY 7 — EXECUTIVE KPIs / COMMAND CENTER
+          (KPI row, health, action-needed, quick actions, recommendations + internal charts).
+          Relocated here from the top so operational essentials lead; the deep analytics
+          panels follow. Component unchanged — only its page position moved.
+      ══════════════════════════════════════════════════ */}
+      <CommandCenter
+        data={commandData}
+        trend={trend}
+        onRefresh={() => setRefreshKey((k) => k + 1)}
+        refreshing={initialLoading || refreshing}
+        refreshAt={!initialLoading ? refreshAt : null}
+      />
 
       {/* ══════════════════════════════════════════════════
           FINANCIAL INTELLIGENCE PANEL V2

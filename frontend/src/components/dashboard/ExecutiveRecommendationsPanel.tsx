@@ -54,7 +54,7 @@ export default function ExecutiveRecommendationsPanel({ recommendations }: Props
                   background: `${color}22`, padding: '1px 7px', borderRadius: 10,
                 }}>{PRI_LABEL[rec.priority]}</span>
                 {rec.metric && (
-                  <span style={{ fontSize: 11, color: '#9CA3AF', marginRight: 'auto' }}>{rec.metric}</span>
+                  <span style={{ fontSize: 11, color: 'var(--db-muted)', marginRight: 'auto' }}>{rec.metric}</span>
                 )}
               </div>
 

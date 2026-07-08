@@ -22,12 +22,12 @@ function DonutTooltip({
   const pct = total > 0 ? (val / total) * 100 : 0;
   return (
     <div style={{
-      background: 'rgba(15, 23, 40, 0.94)', backdropFilter: 'blur(14px)',
+      background: 'var(--db-card)', backdropFilter: 'blur(14px)',
       border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 14px',
       fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', direction: 'rtl',
     }}>
-      <p style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 700, margin: 0 }}>{p.name}</p>
-      <p style={{ color: '#9CA3AF', fontSize: 12, margin: '4px 0 0' }}>{formatCurrency(val)} · {formatPercent(pct, 1)}</p>
+      <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700, margin: 0 }}>{p.name}</p>
+      <p style={{ color: 'var(--db-muted)', fontSize: 12, margin: '4px 0 0' }}>{formatCurrency(val)} · {formatPercent(pct, 1)}</p>
     </div>
   );
 }

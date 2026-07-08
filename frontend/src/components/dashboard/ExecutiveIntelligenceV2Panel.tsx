@@ -88,19 +88,19 @@ function safeNum(v: number | null | undefined): number {
   return v;
 }
 
-const SEV_COLOR: Record<string, string> = { HIGH: '#EF4444', MEDIUM: '#F59E0B', LOW: '#9CA3AF' };
+const SEV_COLOR: Record<string, string> = { HIGH: 'var(--db-red)', MEDIUM: 'var(--db-amber)', LOW: 'var(--db-muted)' };
 const SEV_BG:    Record<string, string> = { HIGH: 'rgba(239,68,68,0.10)', MEDIUM: 'rgba(245,158,11,0.10)', LOW: 'rgba(156,163,175,0.10)' };
 const SEV_LABEL: Record<string, string> = { HIGH: 'عالٍ', MEDIUM: 'متوسط', LOW: 'منخفض' };
-const RISK_COLOR: Record<string, string> = { LOW: '#10B981', MEDIUM: '#F59E0B', HIGH: '#EF4444' };
+const RISK_COLOR: Record<string, string> = { LOW: 'var(--db-green)', MEDIUM: 'var(--db-amber)', HIGH: 'var(--db-red)' };
 const RISK_LABEL: Record<string, string> = { LOW: 'منخفض', MEDIUM: 'متوسط', HIGH: 'مرتفع' };
-const HLTH_COLOR: Record<string, string> = { HEALTHY: '#10B981', WATCH: '#F59E0B', RISK: '#EF4444' };
+const HLTH_COLOR: Record<string, string> = { HEALTHY: 'var(--db-green)', WATCH: 'var(--db-amber)', RISK: 'var(--db-red)' };
 const HLTH_LABEL: Record<string, string> = { HEALTHY: 'سليم', WATCH: 'مراقبة', RISK: 'خطر' };
-const PRI_COLOR:  Record<string, string> = { HIGH: '#EF4444', MEDIUM: '#F59E0B', LOW: '#9CA3AF' };
+const PRI_COLOR:  Record<string, string> = { HIGH: 'var(--db-red)', MEDIUM: 'var(--db-amber)', LOW: 'var(--db-muted)' };
 
 function deltaBadge(pct: number | null, invert = false) {
-  if (pct === null || !Number.isFinite(pct)) return <span style={{ color: '#6B7280', fontSize: 11 }}>—</span>;
+  if (pct === null || !Number.isFinite(pct)) return <span style={{ color: 'var(--db-muted)', fontSize: 11 }}>—</span>;
   const positive = invert ? pct < 0 : pct > 0;
-  const color = positive ? '#10B981' : '#EF4444';
+  const color = positive ? 'var(--db-green)' : 'var(--db-red)';
   const arrow = pct > 0 ? '↑' : '↓';
   return (
     <span style={{ color, fontSize: 12, fontWeight: 800 }}>
@@ -122,16 +122,16 @@ function TrendTooltip({ active, payload, label }: TrendTooltipProps) {
   const labels: Record<string, string> = { revenue: 'الإيرادات', expenses: 'المصروفات', collections: 'التحصيلات', profit: 'الربح' };
   return (
     <div style={{
-      background: 'rgba(15,23,40,0.94)', backdropFilter: 'blur(14px)',
+      background: 'var(--db-card)', backdropFilter: 'blur(14px)',
       border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '12px 16px',
       fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif',
       direction: 'rtl', minWidth: 190, boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
     }}>
-      <p style={{ color: '#6B7280', fontSize: 11, fontWeight: 700, marginBottom: 10 }}>{label}</p>
+      <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10 }}>{label}</p>
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '4px 0' }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color ?? p.fill, flexShrink: 0 }} />
-          <span style={{ color: '#F9FAFB', fontSize: 12, fontWeight: 700 }}>
+          <span style={{ color: 'var(--db-text)', fontSize: 12, fontWeight: 700 }}>
             {labels[p.dataKey ?? ''] ?? p.dataKey}:{' '}
             <span style={{ color: p.color ?? p.fill }}>
               {formatCurrency(p.value ?? 0)}
@@ -162,12 +162,12 @@ function TrendChart({ data, loading }: { data: TrendPoint[]; loading: boolean })
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={safe} barCategoryGap="25%" barGap={2}>
           <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.04)" />
-          <XAxis dataKey="month" tick={{ fill: '#9CA3AF', fontSize: 10, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif' }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fill: '#9CA3AF', fontSize: 10 }} axisLine={false} tickLine={false} width={62}
+          <XAxis dataKey="month" tick={{ fill: 'var(--db-muted)', fontSize: 10, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif' }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fill: 'var(--db-muted)', fontSize: 10 }} axisLine={false} tickLine={false} width={62}
             tickFormatter={(v: number) => formatCompact(v)} />
           <Tooltip content={<TrendTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: '#9CA3AF', fontSize: 11, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif', fontWeight: 700 }}>
+            <span style={{ color: 'var(--db-muted)', fontSize: 11, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif', fontWeight: 700 }}>
               {legendLabels[value] ?? value}
             </span>
           )} />
@@ -213,7 +213,7 @@ function ListSkeleton({ rows = 4 }: { rows?: number }) {
 
 function AlertsSection({ alerts, loading }: { alerts: IntelAlert[]; loading: boolean }) {
   if (loading) return <ListSkeleton rows={3} />;
-  if (!alerts.length) return <p style={{ color: '#6B7280', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>لا تنبيهات حالية</p>;
+  if (!alerts.length) return <p style={{ color: 'var(--db-muted)', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>لا تنبيهات حالية</p>;
 
   const grouped = {
     HIGH:   alerts.filter(a => a.severity === 'HIGH'),
@@ -228,7 +228,7 @@ function AlertsSection({ alerts, loading }: { alerts: IntelAlert[]; loading: boo
           <div key={a.id} style={{
             display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
             padding: '10px 14px', borderRadius: 10,
-            background: SEV_BG[sev], border: `1px solid ${SEV_COLOR[sev]}30`,
+            background: SEV_BG[sev], border: `1px solid color-mix(in srgb, ${SEV_COLOR[sev]} 19%, transparent)`,
           }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
@@ -236,9 +236,9 @@ function AlertsSection({ alerts, loading }: { alerts: IntelAlert[]; loading: boo
                   background: SEV_COLOR[sev], color: '#fff', fontSize: 10, fontWeight: 800,
                   padding: '2px 7px', borderRadius: 20,
                 }}>{SEV_LABEL[sev]}</span>
-                <span style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 700 }}>{a.title}</span>
+                <span style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>{a.title}</span>
               </div>
-              <p style={{ color: '#9CA3AF', fontSize: 11, margin: 0 }}>{a.description}</p>
+              <p style={{ color: 'var(--db-muted)', fontSize: 11, margin: 0 }}>{a.description}</p>
             </div>
             {a.amount !== null && (
               <span style={{ color: SEV_COLOR[sev], fontSize: 13, fontWeight: 800, flexShrink: 0, marginRight: 12 }}>
@@ -256,7 +256,26 @@ function AlertsSection({ alerts, loading }: { alerts: IntelAlert[]; loading: boo
 
 function ForecastSection({ forecast, loading }: { forecast: Forecast | null; loading: boolean }) {
   if (loading) return <CardRowSkeleton count={4} />;
-  if (!forecast) return null;
+  // تعذّر الحساب (لم تصل بيانات التوقّع) — حالة صريحة بدل بطاقة فارغة.
+  if (!forecast) {
+    return (
+      <div className="db-empty">
+        <div className="db-empty-icon">🔮</div>
+        <div className="db-empty-text">تعذّر حساب التوقّعات المالية حالياً</div>
+      </div>
+    );
+  }
+  // لا ذمم مستحقة ضمن نطاق التوقّع — حالة «لا بيانات» متميّزة عن تعذّر الحساب.
+  const totalExpected =
+    forecast.expectedCollections30 + forecast.expectedCollections60 + forecast.expectedCollections90;
+  if (totalExpected <= 0) {
+    return (
+      <div className="db-empty">
+        <div className="db-empty-icon">📭</div>
+        <div className="db-empty-text">لا توجد ذمم مستحقة ضمن نطاق التوقّع (حتى 90 يوماً)</div>
+      </div>
+    );
+  }
   const riskColor = RISK_COLOR[forecast.cashRisk];
   const riskLabel = RISK_LABEL[forecast.cashRisk];
   return (
@@ -265,21 +284,21 @@ function ForecastSection({ forecast, loading }: { forecast: Forecast | null; loa
         <div className="db-kpi-icon">📅</div>
         <div className="db-kpi-label">متوقع خلال 30 يوم</div>
         <div className="db-kpi-val"><PrivateAmount value={forecast.expectedCollections30} /></div>
-        <div className="db-kpi-sub">من الذمم الحديثة</div>
+        <div className="db-kpi-sub">متأخرة + مستحقة قريباً</div>
       </div>
       <div className="db-kpi c-amber">
         <div className="db-kpi-icon">⏳</div>
         <div className="db-kpi-label">متوقع 31–60 يوم</div>
         <div className="db-kpi-val"><PrivateAmount value={forecast.expectedCollections60} /></div>
-        <div className="db-kpi-sub">ذمم متوسطة</div>
+        <div className="db-kpi-sub">مستحقة 31–60 يوماً</div>
       </div>
       <div className="db-kpi c-red">
         <div className="db-kpi-icon">⚠️</div>
         <div className="db-kpi-label">متوقع 61–90 يوم</div>
         <div className="db-kpi-val"><PrivateAmount value={forecast.expectedCollections90} /></div>
-        <div className="db-kpi-sub">ذمم متأخرة</div>
+        <div className="db-kpi-sub">مستحقة 61–90 يوماً</div>
       </div>
-      <div className="db-kpi" style={{ border: `1px solid ${riskColor}40` }}>
+      <div className="db-kpi" style={{ border: `1px solid color-mix(in srgb, ${riskColor} 25%, transparent)` }}>
         <div className="db-kpi-icon">🛡️</div>
         <div className="db-kpi-label">مخاطر السيولة</div>
         <div className="db-kpi-val" style={{ color: riskColor, fontSize: 22 }}>{riskLabel}</div>
@@ -293,7 +312,14 @@ function ForecastSection({ forecast, loading }: { forecast: Forecast | null; loa
 
 function KPIComparisonSection({ kpi, loading }: { kpi: KPIComparisons | null; loading: boolean }) {
   if (loading) return <CardRowSkeleton count={4} />;
-  if (!kpi) return null;
+  if (!kpi) {
+    return (
+      <div className="db-empty">
+        <div className="db-empty-icon">📊</div>
+        <div className="db-empty-text">لا تتوفر مقارنات المؤشرات حالياً</div>
+      </div>
+    );
+  }
   const items = [
     { label: 'الإيرادات', thisVal: kpi.thisMonth.revenue, pct: kpi.revenueChangePct, icon: '📈', invert: false },
     { label: 'المصروفات', thisVal: kpi.thisMonth.expenses, pct: kpi.expensesChangePct, icon: '📤', invert: true },
@@ -329,7 +355,7 @@ function HealthRow({ h }: { h: HealthEntry }) {
             {HLTH_LABEL[h.status]}
           </span>
         </div>
-        <p style={{ color: '#9CA3AF', fontSize: 11, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <p style={{ color: 'var(--db-muted)', fontSize: 11, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {h.reason}
         </p>
       </div>
@@ -345,7 +371,7 @@ function HealthRow({ h }: { h: HealthEntry }) {
 
 function ContractHealthSection({ health, loading }: { health: IntelV2Data['contractHealth'] | null; loading: boolean }) {
   if (loading) return <ListSkeleton rows={4} />;
-  if (!health || health.summary.total === 0) return <p style={{ color: '#6B7280', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>لا عقود نشطة</p>;
+  if (!health || health.summary.total === 0) return <p style={{ color: 'var(--db-muted)', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>لا عقود نشطة</p>;
 
   const { summary, riskContracts, watchContracts } = health;
   return (
@@ -353,24 +379,24 @@ function ContractHealthSection({ health, loading }: { health: IntelV2Data['contr
       {/* Summary chips */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         {[
-          { label: `سليم (${summary.healthy})`, color: '#10B981' },
-          { label: `مراقبة (${summary.watch})`, color: '#F59E0B' },
-          { label: `خطر (${summary.risk})`, color: '#EF4444' },
+          { label: `سليم (${summary.healthy})`, color: 'var(--db-green)' },
+          { label: `مراقبة (${summary.watch})`, color: 'var(--db-amber)' },
+          { label: `خطر (${summary.risk})`, color: 'var(--db-red)' },
         ].map(chip => (
-          <span key={chip.label} style={{ background: `${chip.color}20`, color: chip.color, fontSize: 12, fontWeight: 800, padding: '4px 12px', borderRadius: 20 }}>
+          <span key={chip.label} style={{ background: `color-mix(in srgb, ${chip.color} 14%, transparent)`, color: chip.color, fontSize: 12, fontWeight: 800, padding: '4px 12px', borderRadius: 20 }}>
             {chip.label}
           </span>
         ))}
       </div>
       {riskContracts.length > 0 && (
         <div>
-          <p style={{ color: '#EF4444', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>▼ عقود في خطر</p>
+          <p style={{ color: 'var(--db-red)', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>▼ عقود في خطر</p>
           {riskContracts.map(h => <HealthRow key={h.contractId} h={h} />)}
         </div>
       )}
       {watchContracts.length > 0 && (
         <div style={{ marginTop: riskContracts.length > 0 ? 16 : 0 }}>
-          <p style={{ color: '#F59E0B', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>● عقود تحت المراقبة</p>
+          <p style={{ color: 'var(--db-amber)', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>● عقود تحت المراقبة</p>
           {watchContracts.slice(0, 3).map(h => <HealthRow key={h.contractId} h={h} />)}
         </div>
       )}
@@ -382,7 +408,7 @@ function ContractHealthSection({ health, loading }: { health: IntelV2Data['contr
 
 function RecommendationsSection({ recs, loading }: { recs: Recommendation[]; loading: boolean }) {
   if (loading) return <ListSkeleton rows={4} />;
-  if (!recs.length) return <p style={{ color: '#6B7280', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>لا توصيات حالياً</p>;
+  if (!recs.length) return <p style={{ color: 'var(--db-muted)', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>لا توصيات حالياً</p>;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {recs.map(r => (
@@ -392,13 +418,13 @@ function RecommendationsSection({ recs, loading }: { recs: Recommendation[]; loa
           borderRight: `3px solid ${PRI_COLOR[r.priority]}`,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-            <span style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 800 }}>{r.title}</span>
+            <span style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 800 }}>{r.title}</span>
             <span style={{ background: `${PRI_COLOR[r.priority]}20`, color: PRI_COLOR[r.priority], fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, flexShrink: 0, marginRight: 8 }}>
               {r.priority === 'HIGH' ? 'عالي' : r.priority === 'MEDIUM' ? 'متوسط' : 'منخفض'}
             </span>
           </div>
-          <p style={{ color: '#9CA3AF', fontSize: 12, margin: '0 0 6px' }}>{r.message}</p>
-          <p style={{ color: '#60A5FA', fontSize: 11, margin: 0 }}>💡 {r.actionHint}</p>
+          <p style={{ color: 'var(--db-muted)', fontSize: 12, margin: '0 0 6px' }}>{r.message}</p>
+          <p style={{ color: 'var(--db-blue)', fontSize: 11, margin: 0 }}>💡 {r.actionHint}</p>
         </div>
       ))}
     </div>
@@ -418,7 +444,7 @@ export default function ExecutiveIntelligenceV2Panel({ data, loading }: Props) {
     <div style={{ marginTop: 40 }}>
       {/* Section header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <h2 style={{ color: '#F9FAFB', fontSize: 18, fontWeight: 800, margin: 0 }}>
+        <h2 style={{ color: 'var(--db-text)', fontSize: 18, fontWeight: 800, margin: 0 }}>
           الذكاء التنفيذي
         </h2>
         {highAlerts > 0 && !loading && (

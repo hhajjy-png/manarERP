@@ -437,7 +437,7 @@
 }
 .db-pill.blue {
   background: rgba(37, 99, 235, 0.12);
-  color: #60a5fa;
+  color: var(--db-blue);
 }
 .db-pill.blue::before {
   background: #60a5fa;
@@ -602,7 +602,7 @@
   color: var(--db-amber);
 }
 .db-alert-item.priority-blue .db-alert-desc {
-  color: #60a5fa;
+  color: var(--db-blue);
 }
 
 /* ================================================================
@@ -736,7 +736,7 @@
 }
 .db-exec-chip.blue {
   background: rgba(37, 99, 235, 0.12);
-  color: #60a5fa;
+  color: var(--db-blue);
   border-color: rgba(37, 99, 235, 0.25);
 }
 .db-exec-chip.amber {
@@ -801,7 +801,7 @@
 }
 .db-action-btn.primary {
   background: rgba(37, 99, 235, 0.15);
-  color: #60a5fa;
+  color: var(--db-blue);
   border-color: rgba(37, 99, 235, 0.3);
 }
 .db-action-btn.primary:hover {
@@ -1075,7 +1075,7 @@
 .db-exec-hm-green { color: var(--db-green); }
 .db-exec-hm-red   { color: var(--db-red); }
 .db-exec-hm-amber { color: var(--db-amber); }
-.db-exec-hm-blue  { color: #60a5fa; }
+.db-exec-hm-blue  { color: var(--db-blue); }
 
 @media (max-width: 900px) {
   .db-exec-hero-metrics {
@@ -1571,11 +1571,11 @@
   font-weight: 800;
 }
 .db-hg-reason.ok .db-hg-reason-icon {
-  color: #10b981;
+  color: var(--db-green);
   background: rgba(16, 185, 129, 0.14);
 }
 .db-hg-reason.warn .db-hg-reason-icon {
-  color: #f59e0b;
+  color: var(--db-amber);
   background: rgba(245, 158, 11, 0.16);
 }
 .db-hg-reason.warn .db-hg-reason-label {
@@ -1604,9 +1604,10 @@
   font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.04em;
-  color: #b45309;
+  /* استخدام الرموز الساطعة بدل درجات 700 الداكنة (b45309/047857) لضمان تباين كافٍ على السطح الداكن */
+  color: var(--db-amber);
 }
-.db-hg-risk-tag.ok { color: #047857; }
+.db-hg-risk-tag.ok { color: var(--db-green); }
 .db-hg-risk-text {
   font-size: 12.5px;
   font-weight: 600;
@@ -1961,3 +1962,17 @@
   .db-ac-btn { transition: none; }
   .db-qa-tile:hover { transform: none; }
 }
+
+/* ملاحظة مصدر البيانات المالية — على رموز db-* الداكنة بدل رموز الثيم الفاتح (تباين متسق) */
+.db-src-note { margin-top: 8px; padding: 10px 16px; background: var(--db-card); border: 1px solid var(--db-border); border-radius: 8px; font-size: 12px; }
+.db-src-note-title { font-weight: 700; margin-bottom: 7px; color: var(--db-text); font-size: 12px; }
+.db-src-note-items { display: flex; gap: 20px; flex-wrap: wrap; color: var(--db-muted); line-height: 1.6; }
+.db-src-note-rev { color: var(--db-green); font-weight: 700; }
+.db-src-note-exp { color: var(--db-red); font-weight: 700; }
+.db-src-note-profit { color: var(--db-blue); font-weight: 700; }
+.db-src-note-pending { color: var(--db-amber); font-weight: 700; }
+
+/* Recharts axis ticks & legend — theme-aware (SVG fill via CSS property resolves var();
+   overrides the inline fill attribute so ticks are readable in light AND dark themes). */
+.db-page .recharts-cartesian-axis-tick-value,
+.db-page .recharts-legend-item-text { fill: var(--db-muted) !important; }

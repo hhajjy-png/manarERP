@@ -79,7 +79,7 @@ function CollectionTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: 'rgba(15,23,40,0.94)',
+      background: 'var(--db-card)',
       backdropFilter: 'blur(14px)',
       border: '1px solid rgba(255,255,255,0.12)',
       borderRadius: 12,
@@ -89,10 +89,10 @@ function CollectionTooltip({ active, payload, label }: TooltipProps) {
       minWidth: 160,
       boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
     }}>
-      <p style={{ color: '#6B7280', fontSize: 11, fontWeight: 700, marginBottom: 8 }}>{label}</p>
+      <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 8 }}>{label}</p>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 8, height: 8, borderRadius: 2, background: payload[0]?.fill, flexShrink: 0 }} />
-        <p style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 700 }}>
+        <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
           التحصيلات:{' '}
           <span style={{ color: payload[0]?.fill }}>
             {formatCurrency(payload[0]?.value ?? 0)}
@@ -154,7 +154,7 @@ function DebtorList({ debtors, loading }: { debtors: DebtorEntry[]; loading: boo
     );
   }
   if (!debtors.length) {
-    return <p style={{ color: '#6B7280', fontSize: 13, margin: '16px 0 0', textAlign: 'center' }}>لا توجد ذمم مدينة</p>;
+    return <p style={{ color: 'var(--db-muted)', fontSize: 13, margin: '16px 0 0', textAlign: 'center' }}>لا توجد ذمم مدينة</p>;
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -172,16 +172,16 @@ function DebtorList({ debtors, loading }: { debtors: DebtorEntry[]; loading: boo
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <span style={{
               width: 24, height: 24, borderRadius: 6, background: 'rgba(59,130,246,0.15)',
-              color: '#60A5FA', fontSize: 11, fontWeight: 800,
+              color: 'var(--db-blue)', fontSize: 11, fontWeight: 800,
               display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
             }}>
               {i + 1}
             </span>
-            <span style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {d.name}
             </span>
           </div>
-          <span style={{ color: '#EF4444', fontSize: 13, fontWeight: 800, flexShrink: 0, marginRight: 8 }}>
+          <span style={{ color: 'var(--db-red)', fontSize: 13, fontWeight: 800, flexShrink: 0, marginRight: 8 }}>
             <PrivateAmount value={d.outstanding} />
           </span>
         </div>
@@ -195,8 +195,8 @@ function AgingBar({ label, amount, total, color }: { label: string; amount: numb
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={{ color: '#9CA3AF', fontSize: 12, fontWeight: 600 }}>{label}</span>
-        <span style={{ color: '#F9FAFB', fontSize: 12, fontWeight: 700 }}><PrivateAmount value={amount} /></span>
+        <span style={{ color: 'var(--db-muted)', fontSize: 12, fontWeight: 600 }}>{label}</span>
+        <span style={{ color: 'var(--db-text)', fontSize: 12, fontWeight: 700 }}><PrivateAmount value={amount} /></span>
       </div>
       <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.06)' }}>
         <div style={{ height: '100%', width: `${width}%`, background: color, borderRadius: 999, transition: 'width 0.5s ease' }} />
@@ -221,7 +221,14 @@ function AgingSummaryBars({ aging, loading }: { aging: AgingSummary | null; load
       </div>
     );
   }
-  if (!aging) return null;
+  if (!aging) {
+    return (
+      <div className="db-empty">
+        <div className="db-empty-icon">📊</div>
+        <div className="db-empty-text">لا تتوفر بيانات أعمار الذمم حالياً</div>
+      </div>
+    );
+  }
   const total = aging.totalOutstanding || 1;
   return (
     <div>
@@ -230,8 +237,8 @@ function AgingSummaryBars({ aging, loading }: { aging: AgingSummary | null; load
       <AgingBar label="61 – 90 يوم" amount={aging.bucket61_90}  total={total} color="#F97316" />
       <AgingBar label="+90 يوم"     amount={aging.bucket90Plus} total={total} color="#EF4444" />
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12, marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
-        <span style={{ color: '#9CA3AF', fontSize: 12, fontWeight: 600 }}>إجمالي الذمم</span>
-        <span style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 800 }}><PrivateAmount value={aging.totalOutstanding} /></span>
+        <span style={{ color: 'var(--db-muted)', fontSize: 12, fontWeight: 600 }}>إجمالي الذمم</span>
+        <span style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 800 }}><PrivateAmount value={aging.totalOutstanding} /></span>
       </div>
     </div>
   );
@@ -246,16 +253,16 @@ function ContractProfitRow({ c, rank }: { c: ContractProfit; rank: 'top' | 'low'
       padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)',
     }}>
       <div style={{ minWidth: 0 }}>
-        <p style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.code}</p>
-        <p style={{ color: '#9CA3AF', fontSize: 11, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.asphaltPlant}</p>
+        <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.code}</p>
+        <p style={{ color: 'var(--db-muted)', fontSize: 11, margin: '2px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.asphaltPlant}</p>
       </div>
       <div style={{ textAlign: 'left', flexShrink: 0, marginRight: 8 }}>
         {margin !== null ? (
           <span style={{ color: marginColor, fontSize: 13, fontWeight: 800 }}>{formatPercent(margin, 1)}</span>
         ) : (
-          <span style={{ color: '#6B7280', fontSize: 12 }}>—</span>
+          <span style={{ color: 'var(--db-muted)', fontSize: 12 }}>—</span>
         )}
-        <p style={{ color: '#9CA3AF', fontSize: 10, margin: '2px 0 0', textAlign: 'left' }}>ربح <PrivateAmount value={c.profit} /></p>
+        <p style={{ color: 'var(--db-muted)', fontSize: 10, margin: '2px 0 0', textAlign: 'left' }}>ربح <PrivateAmount value={c.profit} /></p>
       </div>
     </div>
   );
@@ -283,7 +290,7 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
     <div style={{ marginTop: 32 }}>
       {/* Section header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-        <h2 style={{ color: '#F9FAFB', fontSize: 18, fontWeight: 800, margin: 0 }}>
+        <h2 style={{ color: 'var(--db-text)', fontSize: 18, fontWeight: 800, margin: 0 }}>
           المؤشرات المالية التنفيذية
         </h2>
         {alerts.length > 0 && !loading && (
@@ -302,7 +309,7 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
                 border: `1px solid ${a.level === 'danger' ? 'rgba(239,68,68,0.25)' : 'rgba(245,158,11,0.25)'}`,
                 borderRadius: 10,
                 padding: '10px 16px',
-                color: a.level === 'danger' ? '#FCA5A5' : '#FDE68A',
+                color: a.level === 'danger' ? 'var(--db-red)' : 'var(--db-amber)',
                 fontSize: 13,
                 fontWeight: 600,
               }}
@@ -411,16 +418,16 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                 <div>
-                  <p style={{ color: '#10B981', fontSize: 12, fontWeight: 800, marginBottom: 10 }}>▲ الأعلى ربحية</p>
+                  <p style={{ color: 'var(--db-green)', fontSize: 12, fontWeight: 800, marginBottom: 10 }}>▲ الأعلى ربحية</p>
                   {topContracts.length === 0
-                    ? <p style={{ color: '#6B7280', fontSize: 12 }}>—</p>
+                    ? <p style={{ color: 'var(--db-muted)', fontSize: 12 }}>—</p>
                     : topContracts.slice(0, 3).map((c) => <ContractProfitRow key={c.id} c={c} rank="top" />)
                   }
                 </div>
                 <div>
-                  <p style={{ color: '#EF4444', fontSize: 12, fontWeight: 800, marginBottom: 10 }}>▼ الأدنى ربحية</p>
+                  <p style={{ color: 'var(--db-red)', fontSize: 12, fontWeight: 800, marginBottom: 10 }}>▼ الأدنى ربحية</p>
                   {lowContracts.length === 0
-                    ? <p style={{ color: '#6B7280', fontSize: 12 }}>—</p>
+                    ? <p style={{ color: 'var(--db-muted)', fontSize: 12 }}>—</p>
                     : lowContracts.slice(0, 3).map((c) => <ContractProfitRow key={c.id} c={c} rank="low" />)
                   }
                 </div>

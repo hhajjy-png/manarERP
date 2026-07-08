@@ -88,10 +88,10 @@ export default function KPITimeline() {
                 tickFormatter={v => formatCompact(v)} />
               <Tooltip
                 contentStyle={{ background: '#1f2937', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, fontSize: 12 }}
-                labelStyle={{ color: '#F9FAFB', fontWeight: 700 }}
+                labelStyle={{ color: 'var(--db-text)', fontWeight: 700 }}
                 formatter={(v) => typeof v === 'number' ? formatCurrency(v) : String(v)}
               />
-              <Legend wrapperStyle={{ fontSize: 12, color: '#9CA3AF' }} />
+              <Legend wrapperStyle={{ fontSize: 12, color: 'var(--db-muted)' }} />
               <Area type="monotone" dataKey="revenue"    name="الإيرادات"   stroke="#3B82F6" fill="url(#kpi-rev)" strokeWidth={2} dot={false} />
               <Area type="monotone" dataKey="expenses"   name="المصروفات"   stroke="#EF4444" fill="url(#kpi-exp)" strokeWidth={2} dot={false} />
               <Area type="monotone" dataKey="collections" name="التحصيلات" stroke="#10B981" fill="url(#kpi-col)" strokeWidth={2} dot={false} />

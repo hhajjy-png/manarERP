@@ -59,7 +59,8 @@ describe('executiveIntelligenceV2', () => {
 
     expect(result.alerts).toHaveLength(0);
     expect(result.recommendations).toHaveLength(0);
-    expect(result.monthlyTrends).toHaveLength(6);
+    // نافذة YTD: شهر لكل شهر من يناير حتى الشهر الحالي (شاملًا).
+    expect(result.monthlyTrends).toHaveLength(new Date().getMonth() + 1);
     expect(result.forecast.expectedCollections30).toBe(0);
     expect(result.forecast.expectedCollections60).toBe(0);
     expect(result.forecast.expectedCollections90).toBe(0);
@@ -147,7 +148,7 @@ describe('executiveIntelligenceV2', () => {
     expect(result.forecast.expectedCollections90).toBeCloseTo(3000, 3);
   });
 
-  it('monthly trends cover last 6 months in chronological order', async () => {
+  it('monthly trends cover year-to-date (Jan → current month) in chronological order', async () => {
     const now = new Date();
 
     // Invoice in current month
@@ -167,7 +168,10 @@ describe('executiveIntelligenceV2', () => {
 
     const result = await dashboardService.executiveIntelligenceV2();
 
-    expect(result.monthlyTrends).toHaveLength(6);
+    // نافذة YTD: عدد الأشهر = رقم الشهر الحالي (يناير=1 … الشهر الحالي).
+    expect(result.monthlyTrends).toHaveLength(now.getMonth() + 1);
+    // أول شهر يجب أن يكون يناير (لم يعد يبدأ من فبراير).
+    expect(result.monthlyTrends[0].month).toBe(`${now.getFullYear()}-01`);
     const currentLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const currentMonth = result.monthlyTrends.find(m => m.month === currentLabel);
     expect(currentMonth?.revenue).toBeCloseTo(5000, 3);
@@ -339,12 +343,12 @@ describe('executiveIntelligenceV2', () => {
     expect(result.forecast.expectedCollections90).toBeCloseTo(800 + 1600, 3);   // boundary-61 + boundary-90
   });
 
-  it('overdue invoices (past dueDate) excluded from all forecast buckets', async () => {
+  it('overdue invoices (past dueDate) are counted in the 30-day expected bucket', async () => {
     mp.invoice.findMany
       .mockResolvedValueOnce([
-        // dueDate in the past → overdue
+        // dueDate in the past → overdue → treated as expected within 30 days
         { customerId: 1, total: 9000, paidAmount: 0, issueDate: daysAgo(100), dueDate: daysAgo(10), contractId: null, customer: { id: 1, name: 'أ' } },
-        // dueDate in future → valid forecast
+        // dueDate in future (≤30) → also in the 30-day bucket
         { customerId: 2, total: 500,  paidAmount: 0, issueDate: daysAgo(5),   dueDate: daysFromNow(25), contractId: null, customer: { id: 2, name: 'ب' } },
       ])
       .mockResolvedValueOnce([])
@@ -352,10 +356,10 @@ describe('executiveIntelligenceV2', () => {
 
     const result = await dashboardService.executiveIntelligenceV2();
 
-    // Only the 500 invoice is in forecast; overdue 9000 is excluded
-    expect(result.forecast.expectedCollections30).toBeCloseTo(500, 3);
-    const total = result.forecast.expectedCollections30 + result.forecast.expectedCollections60 + result.forecast.expectedCollections90;
-    expect(total).toBeCloseTo(500, 3);
+    // Overdue 9000 + due-within-30 500 both land in the 30-day expected bucket.
+    expect(result.forecast.expectedCollections30).toBeCloseTo(9500, 3);
+    expect(result.forecast.expectedCollections60).toBeCloseTo(0, 3);
+    expect(result.forecast.expectedCollections90).toBeCloseTo(0, 3);
   });
 
   it('no invoice counted in more than one forecast bucket', async () => {

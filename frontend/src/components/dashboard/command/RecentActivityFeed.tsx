@@ -4,13 +4,13 @@ import type { ActivityRow } from './types';
 
 // Audit action → Arabic label + icon + accent (schema: CREATE|UPDATE|DELETE|LOGIN|LOGOUT|RESTORE…).
 const ACTION_META: Record<string, { label: string; icon: string; color: string }> = {
-  CREATE:  { label: 'إنشاء',        icon: '➕', color: '#10B981' },
-  UPDATE:  { label: 'تعديل',        icon: '✏️', color: '#3B82F6' },
-  DELETE:  { label: 'حذف',          icon: '🗑️', color: '#EF4444' },
-  RESTORE: { label: 'استعادة',      icon: '♻️', color: '#10B981' },
-  APPROVE: { label: 'اعتماد',       icon: '✅', color: '#10B981' },
-  LOGIN:   { label: 'تسجيل دخول',   icon: '🔑', color: '#9CA3AF' },
-  LOGOUT:  { label: 'تسجيل خروج',   icon: '🚪', color: '#9CA3AF' },
+  CREATE:  { label: 'إنشاء',        icon: '➕', color: 'var(--db-green)' },
+  UPDATE:  { label: 'تعديل',        icon: '✏️', color: 'var(--db-blue)' },
+  DELETE:  { label: 'حذف',          icon: '🗑️', color: 'var(--db-red)' },
+  RESTORE: { label: 'استعادة',      icon: '♻️', color: 'var(--db-green)' },
+  APPROVE: { label: 'اعتماد',       icon: '✅', color: 'var(--db-green)' },
+  LOGIN:   { label: 'تسجيل دخول',   icon: '🔑', color: 'var(--db-muted)' },
+  LOGOUT:  { label: 'تسجيل خروج',   icon: '🚪', color: 'var(--db-muted)' },
   PRINT:   { label: 'طباعة',        icon: '🖨️', color: '#6366F1' },
   AUTO_BACKUP: { label: 'نسخ احتياطي تلقائي', icon: '💾', color: '#0EA5E9' },
   BACKUP:  { label: 'نسخ احتياطي',  icon: '💾', color: '#0EA5E9' },
@@ -73,11 +73,11 @@ export default function RecentActivityFeed({
   return (
     <ul className="db-af">
       {rows.map((r) => {
-        const meta = ACTION_META[r.action] ?? { label: r.action, icon: '•', color: '#9CA3AF' };
+        const meta = ACTION_META[r.action] ?? { label: r.action, icon: '•', color: 'var(--db-muted)' };
         const moduleAr = MODULE_AR[r.module] ?? r.module;
         return (
           <li key={r.id} className="db-af-row">
-            <span className="db-af-icon" style={{ color: meta.color, background: `${meta.color}1c` }}>{meta.icon}</span>
+            <span className="db-af-icon" style={{ color: meta.color, background: `color-mix(in srgb, ${meta.color} 11%, transparent)` }}>{meta.icon}</span>
             <div className="db-af-body">
               <div className="db-af-text">
                 <span className="db-af-action">{meta.label}</span> — {moduleAr}

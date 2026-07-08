@@ -9,7 +9,7 @@ interface Props { data: StatusPoint[]; loading: boolean; }
 
 const COLORS: Record<string, string> = {
   ACTIVE:    '#2563EB',
-  EXPIRED:   '#6B7280',
+  EXPIRED:   'var(--db-muted)',
   RENEWING:  '#F59E0B',
   SUSPENDED: '#EF4444',
 };
@@ -34,7 +34,7 @@ export default function ContractStatusChart({ data, loading }: Props) {
   const chartData = data.map((d) => ({
     name: d.status,
     value: d.count,
-    fill: COLORS[d.status] ?? '#6B7280',
+    fill: COLORS[d.status] ?? 'var(--db-muted)',
   }));
 
   return (
@@ -74,7 +74,7 @@ export default function ContractStatusChart({ data, loading }: Props) {
             );
           }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
+            <span style={{ color: 'var(--db-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
               {t('contract.status.' + value.toLowerCase())}
             </span>
           )} />

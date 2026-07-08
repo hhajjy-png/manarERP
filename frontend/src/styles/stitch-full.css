@@ -155,6 +155,22 @@ html[dir="ltr"] .stitch-full-theme .sidebar .nav a:not(.active):hover {
   color: var(--text) !important;
 }
 
+/* Darker semantic tones — LIGHT THEME ONLY (html without data-theme="dark").
+   Keeps amber/green/red/blue text AA-readable on the light card surfaces while
+   the dark theme retains its bright base tones. Scoped to the dashboard only.
+   Covers both the --db-* tokens and the base --amber/--green/--red/--accent tokens. */
+html:not([data-theme="dark"]) .stitch-full-theme .db-page {
+  --db-red: #dc2626;
+  --db-amber: #b45309;
+  --db-green: #047857;
+  --db-blue: #1d4ed8;
+  --red: #dc2626;
+  --amber: #b45309;
+  --green: #047857;
+  --blue: #1d4ed8;
+  --accent: #1d4ed8;
+}
+
 /* Skeleton shimmer — light variant */
 .stitch-full-theme .db-skeleton {
   background: linear-gradient(

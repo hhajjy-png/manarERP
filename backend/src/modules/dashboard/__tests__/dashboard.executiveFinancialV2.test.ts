@@ -66,7 +66,8 @@ describe('executiveFinancialV2', () => {
     expect(result.topDebtors).toHaveLength(0);
     expect(result.agingSummary.totalOutstanding).toBe(0);
     expect(result.topProfitableContracts).toHaveLength(0);
-    expect(result.collectionTrend).toHaveLength(6);
+    // نافذة YTD: شهر لكل شهر من يناير حتى الشهر الحالي (شاملًا).
+    expect(result.collectionTrend).toHaveLength(new Date().getMonth() + 1);
 
     // Verify no NaN / Infinity in numeric fields
     for (const entry of result.collectionTrend) {
