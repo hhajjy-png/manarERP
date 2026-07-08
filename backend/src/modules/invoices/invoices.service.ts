@@ -421,13 +421,19 @@ export class InvoicesService {
       throw AppError.badRequest('المبلغ يتجاوز المتبقي على الفاتورة');
     }
 
+    // تاريخ التحصيل — official collection date (drives the GL entry date + all collection
+    // reports). Defaults to now() when the user keeps today's date. Resolved once so the
+    // persisted value and the audit record can never diverge. `createdAt` is set
+    // automatically by the DB as the system-entry audit stamp.
+    const collectionDate = input.date ?? new Date();
+
     const updated = await prisma.$transaction(async (tx) => {
       const payment = await tx.payment.create({
         data: {
           invoiceId: id,
           amount: input.amount,
           method: input.method,
-          date: input.date ?? new Date(),
+          date: collectionDate,
           reference: input.reference ?? null,
           notes: input.notes ?? null,
         },
@@ -444,7 +450,7 @@ export class InvoicesService {
       });
     });
 
-    await recordAudit({ req, action: 'PAYMENT', module: 'invoices', entityId: id, newValue: { amount: input.amount, method: input.method } });
+    await recordAudit({ req, action: 'PAYMENT', module: 'invoices', entityId: id, newValue: { amount: input.amount, method: input.method, collectionDate } });
     return updated;
   }
 

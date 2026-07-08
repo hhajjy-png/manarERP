@@ -12,6 +12,7 @@ import ForceDeleteInvoiceModal from '../components/ForceDeleteInvoiceModal';
 import InvoiceFastEntryDialog from '../components/InvoiceFastEntryDialog';
 import ConfirmModal from '../components/ConfirmModal';
 import { money, dateText } from '../config/modules';
+import { formatFileDate } from '../lib/date';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription, parseDescription } from '../utils/invoiceDescription';
 import { toInvoiceItemPayload } from '../utils/invoicePayload';
@@ -1487,14 +1488,14 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
   const [error, setError] = useState('');
   const [chequeNumber, setChequeNumber] = useState('');
   const [recipientName, setRecipientName] = useState('');
-  const [transferDate, setTransferDate] = useState('');
   const [transferNumber, setTransferNumber] = useState('');
+  // تاريخ التحصيل — official collection date, defaults to today (shared local, timezone-safe formatter).
+  const [collectionDate, setCollectionDate] = useState(() => formatFileDate());
 
   function handleMethodChange(newMethod: string) {
     setMethod(newMethod);
     setChequeNumber('');
     setRecipientName('');
-    setTransferDate('');
     setTransferNumber('');
   }
 
@@ -1504,17 +1505,18 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
     if (Number(amount) > remaining) { setError('المبلغ المدخل أكبر من المتبقي للفاتورة'); return; }
     if (method === 'CHEQUE' && !chequeNumber.trim()) { setError('رقم الشيك مطلوب'); return; }
     if (method === 'CASH' && !recipientName.trim()) { setError('اسم المستلم مطلوب'); return; }
-    if (method === 'TRANSFER' && !transferDate) { setError('تاريخ الحوالة مطلوب'); return; }
     if (method === 'TRANSFER' && !transferNumber.trim()) { setError('رقم التحويل مطلوب'); return; }
+    if (!collectionDate) { setError('تاريخ التحصيل مطلوب'); return; }
     if (saving) return;
     setSaving(true);
     try {
       await api.post(`/invoices/${invoice.id}/payments`, {
         amount: Number(amount),
         method,
+        date: collectionDate,
         ...(method === 'CHEQUE'   && { reference: chequeNumber }),
         ...(method === 'CASH'     && { notes: recipientName }),
-        ...(method === 'TRANSFER' && { reference: transferNumber, date: transferDate }),
+        ...(method === 'TRANSFER' && { reference: transferNumber }),
       });
       onSaved();
       onClose();
@@ -1545,6 +1547,10 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
             <option value="TRANSFER">{t('opt.payment.transfer')}</option>
           </select>
         </div>
+        <div className="field">
+          <label>{t('field.collection_date')} *</label>
+          <input type="date" value={collectionDate} onChange={(e) => setCollectionDate(e.target.value)} aria-label={t('field.collection_date')} />
+        </div>
       </div>
       {method === 'CHEQUE' && (
         <div className="field">
@@ -1559,16 +1565,10 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
         </div>
       )}
       {method === 'TRANSFER' && (
-        <>
-          <div className="field">
-            <label>تاريخ الحوالة *</label>
-            <input type="date" className="line-input" value={transferDate} onChange={(e) => setTransferDate(e.target.value)} />
-          </div>
-          <div className="field">
-            <label>رقم التحويل *</label>
-            <input className="line-input" value={transferNumber} onChange={(e) => setTransferNumber(e.target.value)} />
-          </div>
-        </>
+        <div className="field">
+          <label>رقم التحويل *</label>
+          <input className="line-input" value={transferNumber} onChange={(e) => setTransferNumber(e.target.value)} />
+        </div>
       )}
     </Modal>
   );

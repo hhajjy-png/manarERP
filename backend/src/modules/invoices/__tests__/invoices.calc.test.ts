@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySettledPurchase } from '../invoices.calc';
+import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySettledPurchase, effectiveCollectionDate } from '../invoices.calc';
 
 // ── round3 ───────────────────────────────────────────────────────────────────
 
@@ -317,5 +317,36 @@ describe('isImmediatelySettledPurchase (bug C1)', () => {
     const remainingDue = round3(total - paidAmount);
     expect(remainingDue).toBe(0);
     expect(remainingDue <= 0).toBe(true);
+  });
+});
+
+// ── effectiveCollectionDate — collection date resolution (Invoice Collection Date v1) ──
+
+describe('effectiveCollectionDate', () => {
+  it('returns the collection date (date) when present — the normal case for every current row', () => {
+    const collected = new Date('2026-05-10T00:00:00.000Z');
+    const entered = new Date('2026-05-14T09:30:00.000Z'); // later system-entry time
+    expect(effectiveCollectionDate({ date: collected, createdAt: entered })).toBe(collected);
+  });
+
+  it('uses date even when it precedes createdAt (backdated collection)', () => {
+    const collected = new Date('2026-01-01T00:00:00.000Z');
+    const entered = new Date('2026-07-08T12:00:00.000Z');
+    expect(effectiveCollectionDate({ date: collected, createdAt: entered })).toBe(collected);
+  });
+
+  it('falls back to createdAt for a legacy/edge row whose date is null', () => {
+    const entered = new Date('2026-06-01T00:00:00.000Z');
+    expect(effectiveCollectionDate({ date: null, createdAt: entered })).toBe(entered);
+  });
+
+  it('falls back to createdAt when date is undefined', () => {
+    const entered = new Date('2026-06-02T00:00:00.000Z');
+    expect(effectiveCollectionDate({ createdAt: entered })).toBe(entered);
+  });
+
+  it('returns null when neither date nor createdAt is available', () => {
+    expect(effectiveCollectionDate({ date: null, createdAt: null })).toBeNull();
+    expect(effectiveCollectionDate({})).toBeNull();
   });
 });

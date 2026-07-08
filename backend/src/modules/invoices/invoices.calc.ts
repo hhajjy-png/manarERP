@@ -50,3 +50,24 @@ export function isImmediatelySettledPurchase(direction: string, paymentMethod?: 
 export function overpaymentExceeds(total: number, newPaid: number): boolean {
   return newPaid > total + 0.001;
 }
+
+/**
+ * Resolves the effective collection date of a payment for read-side use (display,
+ * ad-hoc grouping over an in-memory payment list).
+ *
+ * `date` is the official, user-editable collection date (تاريخ التحصيل); it carries a
+ * DB default of now() and is non-null on every current row, so the `date` branch wins
+ * in practice. `createdAt` is a pure system-entry audit stamp kept only as a defensive
+ * fallback for a legacy or externally-inserted row whose `date` is somehow null.
+ *
+ * Collection reports and GL posting key on the `date` column directly (via Prisma
+ * where-clauses) rather than through this helper — they do not need the fallback
+ * because `date` is non-null. This helper exists to express and test that fallback
+ * contract for any future read-side consumer.
+ */
+export function effectiveCollectionDate(payment: {
+  date?: Date | null;
+  createdAt?: Date | null;
+}): Date | null {
+  return payment.date ?? payment.createdAt ?? null;
+}
