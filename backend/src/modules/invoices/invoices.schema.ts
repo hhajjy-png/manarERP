@@ -74,7 +74,7 @@ export const addPaymentSchema = z.object({
   body: z.object({
     amount: z.coerce.number().positive('المبلغ يجب أن يكون موجبًا'),
     method: z.enum(ENUMS.paymentMethod).default('CASH'),
-    date: z.coerce.date().optional(),
+    date: z.coerce.date().optional(), // تاريخ التحصيل — official collection date; falls back to now() when omitted
     reference: z.string().optional(),
     notes: z.string().optional(),
   }),

@@ -180,6 +180,26 @@ describe('Invoice GL Posting (double-entry)', () => {
     expect(ar.credit).toBe(300);
   });
 
+  it('dates the collection GL entry by Payment.date, not entry time (Invoice Collection Date v1)', async () => {
+    // A collection recorded today but backdated to an earlier collection date: the GL
+    // journal entry must carry the collection date so accounting, bank reconciliation,
+    // trial balance, and collection reports all stay aligned to when the cash moved.
+    const collectionDate = new Date('2026-03-05T00:00:00.000Z');
+    mockTx.payment.findUnique.mockResolvedValue({
+      id: 8,
+      amount: 400,
+      method: 'CASH',
+      date: collectionDate,
+      createdAt: new Date('2026-07-08T10:00:00.000Z'), // later system-entry time — must NOT be used
+      invoice: { direction: 'SALES', invoiceNumber: 'INV-2026-00008' },
+    });
+
+    await postPaymentToGL(mockTx as any, 8);
+
+    const call = mockTx.journalEntry.create.mock.calls[0][0];
+    expect(call.data.date).toEqual(collectionDate);
+  });
+
   it('debits the Bank account for a BANK payment', async () => {
     mockTx.payment.findUnique.mockResolvedValue({
       id: 6, amount: 250, method: 'BANK', date: new Date(),

@@ -664,7 +664,8 @@ model Payment {
   invoiceId Int
   amount    Float
   method    String   @default("CASH") // CASH | BANK | CHEQUE | TRANSFER
-  date      DateTime @default(now())
+  date      DateTime @default(now()) // تاريخ التحصيل — official collection date (user-editable); drives GL entry date + all collection reports
+  createdAt DateTime @default(now()) // system audit timestamp — when the payment was entered; never user-editable
   reference String?
   notes     String?
 
