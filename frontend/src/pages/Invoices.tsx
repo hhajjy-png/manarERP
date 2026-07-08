@@ -133,6 +133,9 @@ export default function Invoices() {
   const [exportingExcel, setExportingExcel] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [viewing, setViewing] = useState<any | null>(null);
+  // تصحيح تاريخ التحصيل الرسمي لدفعة تاريخية — مدير النظام فقط.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [correcting, setCorrecting] = useState<any | null>(null);
 
   const isFiltered = !!(search || statusFilter || directionFilter || customerFilter || monthFilter || yearFilter);
 
@@ -443,6 +446,20 @@ export default function Invoices() {
           icon: 'payments',
           primary: money(p.amount),
           secondary: `${dateText(p.date)}${p.method ? ' · ' + p.method : ''}`,
+          // مدير النظام فقط: تصحيح تاريخ التحصيل الرسمي لهذه الدفعة (يتطلب معرّف دفعة صالحًا).
+          trailing: isSystemAdmin && p.id != null ? (
+            <button
+              type="button"
+              className="btn secondary invcx-pmt-correct"
+              onClick={() => {
+                const inv = viewing;
+                setViewing(null);
+                setCorrecting({ id: p.id, date: p.date, amount: p.amount, method: p.method, invoiceId: inv.id, invoiceNumber: inv.invoiceNumber ?? inv.number });
+              }}
+            >
+              تصحيح تاريخ التحصيل
+            </button>
+          ) : undefined,
         }));
 
         const activityItems: ActivityItem[] = [];
@@ -546,6 +563,7 @@ export default function Invoices() {
       {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ الفاتورة بنجاح'); load(); }} />}
       {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ الفاتورة بنجاح'); load(); }} />}
       {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={() => { toast.ok('تم تسجيل الدفعة بنجاح'); load(); }} />}
+      {correcting && <CorrectCollectionDate payment={correcting} onClose={() => setCorrecting(null)} onSaved={(msg) => { toast.ok(msg || 'تم تصحيح تاريخ التحصيل بنجاح'); load(); }} />}
       {showMonthlyReport && (
         <MonthlyReportModal
           filters={{
@@ -1483,7 +1501,8 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
   const { t } = useT();
   const remaining = Number(invoice.total) - Number(invoice.paidAmount);
   const [amount, setAmount] = useState(remaining);
-  const [method, setMethod] = useState('CASH');
+  // الطريقة الافتراضية = شيك (CHEQUE) — تغيير اختيار افتراضي فقط؛ تبقى جميع الطرق متاحة.
+  const [method, setMethod] = useState('CHEQUE');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [chequeNumber, setChequeNumber] = useState('');
@@ -1570,6 +1589,67 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
           <input className="line-input" value={transferNumber} onChange={(e) => setTransferNumber(e.target.value)} />
         </div>
       )}
+    </Modal>
+  );
+}
+
+/**
+ * تصحيح تاريخ التحصيل الرسمي لدفعة تاريخية — مدير النظام فقط.
+ * إجراء إداري تصحيحي بحت: يُعدّل تاريخ التحصيل الرسمي فقط (Payment.date) دون المساس
+ * بالمبلغ أو طريقة الدفع أو حالة الفاتورة. تُسجَّل العملية بالكامل في سجل التدقيق.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function CorrectCollectionDate({ payment, onClose, onSaved }: { payment: any; onClose: () => void; onSaved: (message?: string) => void }) {
+  const currentDate = formatFileDate(payment.date);
+  const [newDate, setNewDate] = useState(currentDate);
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit() {
+    setError('');
+    if (!newDate) { setError('تاريخ التحصيل الجديد مطلوب'); return; }
+    if (saving) return;
+    setSaving(true);
+    try {
+      const res = await api.patch(`/payments/${payment.id}/collection-date`, {
+        date: newDate,
+        ...(reason.trim() && { reason: reason.trim() }),
+      });
+      onSaved(res?.data?.message);
+      onClose();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal title={`تصحيح تاريخ التحصيل${payment.invoiceNumber ? ' — ' + payment.invoiceNumber : ''}`} size="md" onClose={onClose} footer={
+      <>
+        <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? 'جارٍ الحفظ…' : 'حفظ'}</button>
+        <button type="button" className="btn secondary" onClick={onClose}>إلغاء</button>
+      </>
+    }>
+      {error && <div className="alert error">⚠️ {error}</div>}
+      <div className="alert invcx-correct-note">
+        سيتم تعديل تاريخ التحصيل الرسمي فقط.<br />
+        لن يتم تعديل مبلغ التحصيل أو حالة الفاتورة أو بيانات السداد.<br />
+        سيتم تسجيل العملية بالكامل في سجل التدقيق.
+      </div>
+      <div className="field">
+        <label>تاريخ التحصيل الحالي</label>
+        <input type="date" value={currentDate} readOnly disabled aria-label="تاريخ التحصيل الحالي" />
+      </div>
+      <div className="field">
+        <label>تاريخ التحصيل الجديد *</label>
+        <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} aria-label="تاريخ التحصيل الجديد" />
+      </div>
+      <div className="field">
+        <label>السبب (اختياري)</label>
+        <textarea value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} rows={3} aria-label="سبب التصحيح" />
+      </div>
     </Modal>
   );
 }
