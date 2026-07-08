@@ -51,7 +51,7 @@ export default function ExpirationWidget() {
             }}
           >
             <div style={{ fontSize: 20, fontWeight: 700, color: item.color }}>{item.count}</div>
-            <div style={{ fontSize: 11, color: '#6B7280' }}>{item.label}</div>
+            <div style={{ fontSize: 11, color: 'var(--db-muted)' }}>{item.label}</div>
           </div>
         ))}
       </div>

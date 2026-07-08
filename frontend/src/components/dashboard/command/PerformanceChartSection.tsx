@@ -24,16 +24,16 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: 'rgba(15, 23, 40, 0.94)', backdropFilter: 'blur(14px)',
+      background: 'var(--db-card)', backdropFilter: 'blur(14px)',
       border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '12px 16px',
       fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
       direction: 'rtl', minWidth: 190, boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
     }}>
-      <p style={{ color: '#6B7280', fontSize: 11, fontWeight: 700, marginBottom: 10, letterSpacing: '0.06em' }}>{label}</p>
+      <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10, letterSpacing: '0.06em' }}>{label}</p>
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '5px 0' }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color, flexShrink: 0 }} />
-          <p style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 700 }}>
+          <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
             {SERIES_LABEL[p.dataKey ?? ''] ?? p.dataKey}:{' '}
             <span style={{ color: p.color }}>{formatCurrency(p.value)}</span>
           </p>
@@ -107,7 +107,7 @@ export default function PerformanceChartSection({
           />
           <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(148,163,184,0.08)' }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
+            <span style={{ color: 'var(--db-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
               {SERIES_LABEL[value] ?? value}
             </span>
           )} />

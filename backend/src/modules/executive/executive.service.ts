@@ -108,6 +108,7 @@ export class ExecutiveService {
       recentInvoiceActivity,
       topExpenseContracts,
       contractGroupCounts,
+      salesRevByCustomer,
     ] = await Promise.all([
       // Total revenue (all-time, SALES invoices)
       prisma.invoice.aggregate({
@@ -212,6 +213,13 @@ export class ExecutiveService {
       }),
       // Contract status breakdown
       prisma.contract.groupBy({ by: ['status'], _count: { _all: true } }),
+      // إيرادات كل العملاء (جميع فواتير المبيعات غير الملغاة) — مصدر رسم «توزيع الإيرادات حسب العميل».
+      // مستقل عن ربط العقود حتى تظهر إيرادات العملاء غير المرتبطة بعقد نشط.
+      prisma.invoice.groupBy({
+        by: ['customerId'],
+        where: { direction: 'SALES', status: { not: 'CANCELLED' }, customerId: { not: null } },
+        _sum: { total: true, paidAmount: true },
+      }),
     ]);
 
     // ── Compute base values ────────────────────────────────────────────────
@@ -570,10 +578,30 @@ export class ExecutiveService {
 
     // ── Part 1: Executive Financial Summary ────────────────────────────────
     const topDebtors = debtorList.slice(0, 5);
-    const topCustomersByRevenue = [...customerRevMap.entries()]
-      .map(([id, d]) => ({ customerId: id, ...d }))
+    // «توزيع الإيرادات حسب العميل» — من إجمالي فواتير المبيعات لكل عميل (لا من العقود النشطة فقط)،
+    // فتظهر إيرادات حقيقية موجودة على مستوى الفاتورة حتى لو لم ترتبط بعقد نشط.
+    const revByCustomerSorted = salesRevByCustomer
+      .filter((g) => g.customerId != null && n(g._sum.total) > 0)
+      .map((g) => ({
+        customerId: g.customerId as number,
+        revenue: r3(n(g._sum.total)),
+        collected: r3(n(g._sum.paidAmount)),
+      }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
+    const revCustomerNames = revByCustomerSorted.length
+      ? await prisma.customer.findMany({
+          where: { id: { in: revByCustomerSorted.map((r) => r.customerId) } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const revNameById = new Map(revCustomerNames.map((c) => [c.id, c.name]));
+    const topCustomersByRevenue = revByCustomerSorted.map((r) => ({
+      customerId: r.customerId,
+      name: revNameById.get(r.customerId) ?? '—',
+      revenue: r.revenue,
+      collected: r.collected,
+    }));
     const topContractsByProfit = [...contractStats]
       .filter(c => c.revenue > 0)
       .sort((a, b) => b.profit - a.profit)

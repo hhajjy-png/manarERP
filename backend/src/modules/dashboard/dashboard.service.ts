@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
+import { ytdMonths } from '../../core/utils/dateWindows';
 
 /** تجميع بيانات لوحة التحكم الرئيسية في استعلام واحد. */
 export class DashboardService {
@@ -63,22 +64,14 @@ export class DashboardService {
     };
   }
 
-  /** سلسلة الإيرادات/المصروفات لآخر 6 أشهر. */
+  /** سلسلة الإيرادات/المصروفات — منذ بداية السنة حتى الشهر الحالي (YTD، تتضمّن يناير). */
   async monthlyTrend() {
-    const now = new Date();
-    const months: { label: string; year: number; month: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      months.push({ label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, year: d.getFullYear(), month: d.getMonth() + 1 });
-    }
-
+    const months = ytdMonths();
     return Promise.all(
       months.map(async (m) => {
-        const start = new Date(m.year, m.month - 1, 1);
-        const end = new Date(m.year, m.month, 0, 23, 59, 59);
         const [rev, exp] = await Promise.all([
-          prisma.transaction.aggregate({ where: { type: 'REVENUE', date: { gte: start, lte: end } }, _sum: { credit: true } }),
-          prisma.transaction.aggregate({ where: { type: 'EXPENSE', date: { gte: start, lte: end } }, _sum: { debit: true } }),
+          prisma.transaction.aggregate({ where: { type: 'REVENUE', date: { gte: m.start, lte: m.end } }, _sum: { credit: true } }),
+          prisma.transaction.aggregate({ where: { type: 'EXPENSE', date: { gte: m.start, lte: m.end } }, _sum: { debit: true } }),
         ]);
         return { label: m.label, revenue: rev._sum.credit ?? 0, expense: exp._sum.debit ?? 0 };
       }),
@@ -109,15 +102,8 @@ export class DashboardService {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd   = new Date(todayStart.getTime() + 86_400_000);
 
-    // آخر 6 أشهر (نطاق بداية/نهاية لكل شهر)
-    const months = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-      return {
-        label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        start: d,
-        end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999),
-      };
-    });
+    // منذ بداية السنة حتى الشهر الحالي (YTD) — نافذة موحّدة تتضمّن يناير دائمًا
+    const months = ytdMonths(now);
 
     // ── جميع الاستعلامات الأساسية بشكل متوازٍ ──────────────────────────────
     const [core, trend] = await Promise.all([
@@ -238,14 +224,8 @@ export class DashboardService {
     const r3 = (v: number) => Math.round(v * 1000) / 1000;
     const n = (v: unknown) => Number(v ?? 0);
 
-    const months = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-      return {
-        label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-        start: d,
-        end: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999),
-      };
-    });
+    // منذ بداية السنة حتى الشهر الحالي (YTD) — نافذة موحّدة تتضمّن يناير دائمًا
+    const months = ytdMonths(now);
 
     const [
       collectionsThisMonthAgg,
@@ -426,17 +406,15 @@ export class DashboardService {
       return Math.round((num / den) * 100 * 1000) / 1000;
     };
 
-    const sixMonthsAgo  = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    // منذ بداية السنة حتى الشهر الحالي (YTD) — نافذة الاتجاهات الموحّدة (تتضمّن يناير).
+    // yearStart يطابق أول شهر في `months` فتتوافق نافذة الجلب مع أوعية التجميع (لا تُجلب يناير ثم تُهمَل).
+    const months = ytdMonths(now);
+    const yearStart = months[0].start;
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 86_400_000);
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
     const thirtyDaysAgo  = new Date(now.getTime() - 30 * 86_400_000);
-
-    const months = Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-      return { label: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` };
-    });
 
     const [
       activeContracts,
@@ -477,17 +455,17 @@ export class DashboardService {
         },
       }),
       prisma.invoice.findMany({
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: sixMonthsAgo } },
+        where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: yearStart } },
         take: 2000,
         select: { issueDate: true, total: true },
       }),
       prisma.expense.findMany({
-        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, date: { gte: sixMonthsAgo } },
+        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, date: { gte: yearStart } },
         take: 2000,
         select: { date: true, amount: true },
       }),
       prisma.payment.findMany({
-        where: { date: { gte: sixMonthsAgo }, invoice: { direction: 'SALES' } },
+        where: { date: { gte: yearStart }, invoice: { direction: 'SALES' } },
         take: 2000,
         select: { date: true, amount: true },
       }),
@@ -649,6 +627,9 @@ export class DashboardService {
     const alerts = [...overdueCustomers, ...highOutstanding, ...lossMaking, ...lowCollection, ...highExpenseRatio, ...noActivity];
 
     // ── Part 2: Forecast ───────────────────────────────────────────────────
+    // تقدير التحصيلات المتوقّعة حسب أجل الاستحقاق. المستحقّات المتأخّرة (تجاوزت تاريخ
+    // استحقاقها) تُحتسب ضمن نافذة الـ 30 يومًا القادمة — فهي أقرب ما يُتوقّع تحصيله (افتراض
+    // تدفّق نقدي قاعدي معتاد)، وإلا لظلّ التوقّع صفرًا لأي محفظة ذمم متأخّرة بالكامل.
     let exp30 = 0, exp60 = 0, exp90 = 0;
     for (const inv of outstandingInvoices) {
       const os = Math.max(0, n(inv.total) - n(inv.paidAmount));
@@ -657,11 +638,10 @@ export class DashboardService {
       const refDate = inv.dueDate
         ?? new Date(new Date(inv.issueDate).getTime() + 30 * 86_400_000);
       const daysUntilDue = Math.ceil((new Date(refDate).getTime() - now.getTime()) / 86_400_000);
-      if (daysUntilDue < 0)   continue;          // overdue — not a future forecast
-      if (daysUntilDue <= 30)  exp30 += os;      // due within 0–30 days
-      else if (daysUntilDue <= 60) exp60 += os;  // due in 31–60 days
-      else if (daysUntilDue <= 90) exp90 += os;  // due in 61–90 days
-      // > 90 days: out of phase-1 forecast range
+      if (daysUntilDue <= 30)  exp30 += os;      // متأخّر أو مستحق خلال 0–30 يومًا
+      else if (daysUntilDue <= 60) exp60 += os;  // مستحق خلال 31–60 يومًا
+      else if (daysUntilDue <= 90) exp90 += os;  // مستحق خلال 61–90 يومًا
+      // > 90 يومًا: خارج نطاق التوقّع (المرحلة 1)
     }
 
     const thisCol  = n(thisMonthColAgg._sum.amount);

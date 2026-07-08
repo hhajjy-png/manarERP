@@ -26,7 +26,7 @@ function DarkTooltip({ active, payload, label, revenueLabel = '', expensesLabel 
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: 'rgba(15, 23, 40, 0.94)',
+      background: 'var(--db-card)',
       backdropFilter: 'blur(14px)',
       border: '1px solid rgba(255,255,255,0.12)',
       borderRadius: 12,
@@ -36,11 +36,11 @@ function DarkTooltip({ active, payload, label, revenueLabel = '', expensesLabel 
       minWidth: 185,
       boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
     }}>
-      <p style={{ color: '#6B7280', fontSize: 11, fontWeight: 700, marginBottom: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</p>
+      <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</p>
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '5px 0' }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.fill, flexShrink: 0 }} />
-          <p style={{ color: '#F9FAFB', fontSize: 13, fontWeight: 700 }}>
+          <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
             {p.dataKey === 'revenue' ? revenueLabel : expensesLabel}:{' '}
             <span style={{ color: p.fill }}>{formatCurrency(p.value)}</span>
           </p>
@@ -96,7 +96,7 @@ export default function RevenueChart({ data, loading }: Props) {
           />
           <Tooltip content={<DarkTooltip revenueLabel={revenueLabel} expensesLabel={expensesLabel} />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: '#9CA3AF', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
+            <span style={{ color: 'var(--db-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
               {value === 'revenue' ? revenueLabel : expensesLabel}
             </span>
           )} />

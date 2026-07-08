@@ -3,9 +3,9 @@ import { Skeleton } from '../Skeleton';
 import type { DecisionCard } from './types';
 
 const PRI_COLOR: Record<DecisionCard['priority'], string> = {
-  HIGH: '#EF4444',
-  MEDIUM: '#F59E0B',
-  LOW: '#10B981',
+  HIGH: 'var(--db-red)',
+  MEDIUM: 'var(--db-amber)',
+  LOW: 'var(--db-green)',
 };
 const PRI_LABEL: Record<DecisionCard['priority'], string> = {
   HIGH: 'عاجل',
@@ -67,7 +67,7 @@ export default function ActionCenterSection({
             <div className="db-ac-body">
               <div className="db-ac-title-row">
                 <span className="db-ac-title">{card.title}</span>
-                <span className="db-ac-pri" style={{ color, background: `${color}1c` }}>{PRI_LABEL[card.priority]}</span>
+                <span className="db-ac-pri" style={{ color, background: `color-mix(in srgb, ${color} 11%, transparent)` }}>{PRI_LABEL[card.priority]}</span>
               </div>
               {card.explanation && <div className="db-ac-explain">{card.explanation}</div>}
               <div className="db-ac-meta">
