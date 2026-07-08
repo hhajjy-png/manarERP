@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
+import { formatDate } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { downloadBlob } from '../utils/exportUtils';
 import {
@@ -116,11 +117,10 @@ function daysClass(u: string): string {
   return 'decx-days--ok';
 }
 
-function urgencyHex(u: string): string {
-  if (u === 'expired' || u === '7') return '#ef4444';
-  if (u === '30' || u === '60')     return '#f59e0b';
-  if (u === '90')                   return '#3b82f6';
-  return '#10b981';
+// اللون مشتقّ من نفس سلّم الأولوية (urgencyTone) ورموز ExplorerKit (--xpl-*) —
+// يتفادى سلّم ألوان مكرّرًا ويضمن اتساق الثيم بين الوضعين الفاتح والداكن.
+function urgencyVar(u: string): string {
+  return `var(--xpl-${urgencyTone(u)})`;
 }
 
 function daysLabel(d: number): string {
@@ -255,11 +255,11 @@ export default function DocumentExpirationCenter() {
           <DrawerSection title="الصلاحية والمدة">
             <div className="xpl-drawer-field">
               <span className="xpl-drawer-field-label">تاريخ الانتهاء</span>
-              <span className="xpl-drawer-field-value">{selected.expiryDate}</span>
+              <span className="xpl-drawer-field-value">{formatDate(selected.expiryDate)}</span>
             </div>
             <div className="xpl-drawer-field">
               <span className="xpl-drawer-field-label">الأيام المتبقية</span>
-              <span className={`xpl-drawer-field-value ${daysClass(selected.urgency)}`} style={{ color: urgencyHex(selected.urgency) }}>
+              <span className={`xpl-drawer-field-value ${daysClass(selected.urgency)}`} style={{ color: urgencyVar(selected.urgency) }}>
                 {daysLabel(selected.daysRemaining)}
               </span>
             </div>
@@ -270,7 +270,7 @@ export default function DocumentExpirationCenter() {
                   className="decx-gauge-fill"
                   style={{
                     width: `${Math.max(4, Math.min(100, (selected.daysRemaining / 90) * 100))}%`,
-                    background: urgencyHex(selected.urgency),
+                    background: urgencyVar(selected.urgency),
                   }}
                 />
               </div>
@@ -435,10 +435,10 @@ export default function DocumentExpirationCenter() {
                         {r.entityCode && <span className="decx-entity-code">{r.entityCode}</span>}
                       </span>
                     </td>
-                    <td style={{ whiteSpace: 'nowrap' }}>{r.expiryDate}</td>
+                    <td style={{ whiteSpace: 'nowrap' }}>{formatDate(r.expiryDate)}</td>
                     <td><span className={`decx-days ${daysClass(r.urgency)}`}>{daysLabel(r.daysRemaining)}</span></td>
                     <td><StatusChip tone={urgencyTone(r.urgency)}>{URGENCY_AR[r.urgency] ?? r.urgency}</StatusChip></td>
-                    <td className="decx-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
+                    <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
                   </tr>
                 ))}
               </tbody>

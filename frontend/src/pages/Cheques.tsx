@@ -538,31 +538,41 @@ export default function Cheques() {
       {formError && <ErrorBanner>{formError} <button type="button" className="xpl-clear-link" onClick={() => setFormError('')}>إغلاق</button></ErrorBanner>}
       {success && <div className="chqx-success"><span className="material-symbols-outlined">check_circle</span>{success}<button type="button" className="xpl-clear-link" onClick={() => setSuccess('')}>إغلاق</button></div>}
 
-      {/* Hero + KPIs */}
+      {/* Hero + KPIs
+          ملاحظة نطاق: قيمة الإجمالي/الأعلى/المتوسط تُحسب من الشيكات المحمّلة في هذه الصفحة فقط
+          (valueKpis)، بينما عدّادات الحالة (مسودة/مطبوع/ملغى) إجمالية من الخادم (stats).
+          نوضّح ذلك في العناوين حتى لا تُقرأ الأرقام كإجمالي عام. */}
       <div className="chqx-metrics">
-        <HeroMetric icon="account_balance_wallet" label="إجمالي قيمة الشيكات المعروضة" value={fmtAmount(valueKpis.totalValue)} sub={<><span className="material-symbols-outlined">receipt_long</span>{`${stats.total} شيك إجمالاً`}</>} />
+        <HeroMetric icon="account_balance_wallet" label="قيمة الشيكات في هذه الصفحة" value={fmtAmount(valueKpis.totalValue)} sub={<><span className="material-symbols-outlined">receipt_long</span>{`${cheques.length} شيك معروض · ${stats.total} إجمالاً`}</>} />
         <div className="xpl-kpi-grid">
           <MetricCard icon="edit_note" tone="orange" label={t('stat.cheques.draft')} value={stats.draft} />
           <MetricCard icon="print" tone="green" label={t('stat.cheques.printed')} value={stats.printed} />
           <MetricCard icon="block" tone="red" label={t('stat.cheques.cancelled')} value={stats.cancelled} />
-          <MetricCard icon="trending_up" tone="blue" label="أعلى شيك معروض" value={fmtAmount(valueKpis.highest)} />
-          <MetricCard icon="functions" tone="indigo" label="متوسط الشيك المعروض" value={fmtAmount(valueKpis.average)} />
+          <MetricCard icon="trending_up" tone="blue" label="أعلى شيك (هذه الصفحة)" value={fmtAmount(valueKpis.highest)} />
+          <MetricCard icon="functions" tone="indigo" label="متوسط الشيك (هذه الصفحة)" value={fmtAmount(valueKpis.average)} />
         </div>
       </div>
 
       {/* Preview workspace */}
       <SectionCard title="معاينة الشيك" icon="visibility" actions={printTarget ? chequeChip(printTarget.status, t) : undefined}>
         <ChequePrintOutput data={previewData} template={currentTemplate} />
+        {/* تجميع بصري فقط: إجراءات الإصدار الأساسية مقابل أدوات الطباعة/المعايرة —
+            لا تغيير على المعالِجات (handlePrint / printCurrentView / المعايرة). */}
         <div className="chqx-preview-actions">
-          {canPrint && <Button variant="primary" icon="print" busy={saving} disabled={!isPrintable} onClick={handlePrint}>طباعة الشيك</Button>}
-          {canPrint && isPrintedCheque && <Button variant="secondary" icon="receipt_long" busy={pvLoading} onClick={handlePrintPaymentVoucher}>طباعة سند الصرف</Button>}
-          {canCalibrate && <Button variant="ghost" icon="tune" onClick={() => setShowCalibrator(true)}>معايرة الطباعة</Button>}
-          {canCalibrate && <Button variant="ghost" icon="restart_alt" busy={restoringDefault} onClick={() => setShowRestoreConfirm(true)}>استعادة الافتراضي</Button>}
-          {canCancel && printTarget && printTarget.status === 'DRAFT' && <Button variant="danger" icon="block" busy={busy} onClick={() => setCancelConfirmCheque(printTarget)}>{t('page.cheques.cancel_cheque')}</Button>}
+          <div className="chqx-action-group">
+            {canPrint && <Button variant="primary" icon="print" busy={saving} disabled={!isPrintable} onClick={handlePrint}>طباعة الشيك</Button>}
+            {canPrint && isPrintedCheque && <Button variant="secondary" icon="receipt_long" busy={pvLoading} onClick={handlePrintPaymentVoucher}>طباعة سند الصرف</Button>}
+          </div>
+          <div className="chqx-action-group chqx-action-group--tools">
+            {canCalibrate && <Button variant="ghost" icon="tune" onClick={() => setShowCalibrator(true)}>معايرة الطباعة</Button>}
+            {canCalibrate && <Button variant="ghost" icon="restart_alt" busy={restoringDefault} onClick={() => setShowRestoreConfirm(true)}>استعادة الافتراضي</Button>}
+            {canCancel && printTarget && printTarget.status === 'DRAFT' && <Button variant="danger" icon="block" busy={busy} onClick={() => setCancelConfirmCheque(printTarget)}>{t('page.cheques.cancel_cheque')}</Button>}
+          </div>
         </div>
-        {!printTarget && <p className="chqx-preview-hint">{t('error.cheque.save_first')}</p>}
+        {!printTarget && <p className="chqx-preview-hint">احفظ الشيك أولاً لتفعيل الطباعة الرسمية وإنشاء سند الصرف.</p>}
+        {printTarget?.status === 'DRAFT' && <p className="chqx-preview-hint">تلميح: تأكّد من محاذاة الطباعة على ورق الشيك عبر «معايرة الطباعة» قبل الطباعة الفعلية.</p>}
         {printTarget?.status === 'CANCELLED' && <p className="chqx-preview-hint warn">{t('error.cheque.is_cancelled')}</p>}
-        {printTarget?.status === 'PRINTED' && <p className="chqx-preview-hint">{printTarget.paymentVoucherNumber ? `رقم سند الصرف: ${printTarget.paymentVoucherNumber}` : 'اضغط "طباعة سند الصرف" لإنشاء السند الرسمي'}</p>}
+        {printTarget?.status === 'PRINTED' && <p className="chqx-preview-hint">{printTarget.paymentVoucherNumber ? `رقم سند الصرف: ${printTarget.paymentVoucherNumber}` : 'اضغط «طباعة سند الصرف» لإنشاء السند الرسمي المرتبط بهذا الشيك.'}</p>}
       </SectionCard>
 
       {/* Sticky filters */}
@@ -618,7 +628,7 @@ export default function Cheques() {
                         {r.printedAt && <span className="chqx-print-badge" style={{ marginInlineStart: 6 }}><span className="material-symbols-outlined">print</span></span>}
                       </td>
                       <td>{r.paymentVoucherNumber ? <span className="chqx-pv-badge"><span className="material-symbols-outlined">receipt_long</span>{r.paymentVoucherNumber}</span> : <span style={{ color: 'var(--xpl-muted)' }}>—</span>}</td>
-                      <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                      <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
                     </tr>
                   ))}
                 </tbody>

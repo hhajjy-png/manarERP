@@ -3,6 +3,16 @@
    Composes with the shared Explorer Kit (explorer-kit.css / .xpl-*).
    ════════════════════════════════════════════════════════════════════════════ */
 
+/* ── Summary: dominant hero + secondary KPI grid ───────────────────────────── */
+/* Matches the sibling Explorer pages' metrics layout (.expx-/.chqx-/.decx-metrics). */
+.accx-metrics {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+@media (max-width: 1100px) { .accx-metrics { grid-template-columns: 1fr; } }
+
 /* ── Summary: two-panel grid ───────────────────────────────────────────────── */
 .accx-panels {
   display: grid;
@@ -24,14 +34,14 @@
 .accx-kv-row:last-child { border-bottom: none; }
 .accx-kv-row.total { font-weight: 800; border-top: 2px solid var(--xpl-border); margin-top: 4px; }
 .accx-kv-label { color: var(--xpl-muted); }
-.accx-kv-val { font-weight: 700; color: var(--xpl-text); }
+.accx-kv-val { font-weight: 700; color: var(--xpl-text); font-variant-numeric: tabular-nums; }
 .accx-kv-val.green { color: var(--xpl-green); }
 .accx-kv-val.red { color: var(--xpl-red); }
 
 /* ── Account / journal table cells ─────────────────────────────────────────── */
-.accx-code { font-family: "IBM Plex Mono", monospace; font-weight: 700; color: var(--xpl-text); }
-.accx-debit  { color: var(--xpl-red);   font-weight: 700; text-align: left; }
-.accx-credit { color: var(--xpl-green); font-weight: 700; text-align: left; }
+.accx-code { font-family: "IBM Plex Mono", monospace; font-weight: 700; color: var(--xpl-text); font-variant-numeric: tabular-nums; }
+.accx-debit  { color: var(--xpl-red);   font-weight: 700; text-align: left; font-variant-numeric: tabular-nums; }
+.accx-credit { color: var(--xpl-green); font-weight: 700; text-align: left; font-variant-numeric: tabular-nums; }
 
 /* highlight a journal row navigated-to from a report */
 .xpl-scope .highlight-row td {
@@ -86,8 +96,8 @@
   font-size: 13px;
 }
 .accx-balance-bar .lbl { color: var(--xpl-muted); }
-.accx-balance-bar .v-debit { color: var(--xpl-red); font-weight: 800; }
-.accx-balance-bar .v-credit { color: var(--xpl-green); font-weight: 800; }
+.accx-balance-bar .v-debit { color: var(--xpl-red); font-weight: 800; font-variant-numeric: tabular-nums; }
+.accx-balance-bar .v-credit { color: var(--xpl-green); font-weight: 800; font-variant-numeric: tabular-nums; }
 .accx-balance-state {
   display: inline-flex;
   align-items: center;

@@ -22,7 +22,7 @@
 /* ── Timeline table cells ──────────────────────────────────────────────────── */
 .decx-entity { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .decx-entity-name { font-size: 13.5px; font-weight: 700; color: var(--xpl-text); }
-.decx-entity-code { font-size: 11.5px; color: var(--xpl-muted); font-family: "IBM Plex Mono", monospace; }
+.decx-entity-code { font-size: 11.5px; color: var(--xpl-muted); font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
 
 .decx-cat-cell { display: inline-flex; align-items: center; gap: 8px; }
 .decx-cat-icon {
@@ -37,14 +37,12 @@
 }
 .decx-cat-icon .material-symbols-outlined { font-size: 18px !important; color: var(--xpl-primary); }
 
-.decx-days { font-weight: 800; white-space: nowrap; font-size: 13.5px; }
+.decx-days { font-weight: 800; white-space: nowrap; font-size: 13.5px; font-variant-numeric: tabular-nums; }
 .decx-days--expired { color: var(--xpl-red); }
 .decx-days--soon    { color: var(--xpl-orange); }
 .decx-days--ok      { color: var(--xpl-green); }
 
-.decx-col-chevron { width: 32px; text-align: center; }
-.decx-col-chevron .material-symbols-outlined { font-size: 18px !important; color: var(--xpl-muted); opacity: .55; }
-.xpl-table tbody tr:hover .decx-col-chevron .material-symbols-outlined { opacity: 1; color: var(--xpl-primary); }
+/* .decx-col-chevron moved to the shared kit (explorer-kit.css) — kept as an alias there. */
 
 /* ── Drawer timeline bar (visual days-remaining gauge) ─────────────────────── */
 .decx-gauge {
