@@ -27,7 +27,7 @@ import {
   type PriceOption,
 } from '../components/invoices/InvoiceLineItemsEditor';
 import ExportExcelButton from '../components/ExportExcelButton';
-import { downloadXlsx } from '../utils/exportUtils';
+import { downloadBlob } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import AttachmentsPanel from '../components/AttachmentsPanel';
@@ -196,9 +196,9 @@ export default function Invoices() {
   async function exportExcel() {
     setExportingExcel(true);
     try {
-      const res = await api.get('/invoices', {
+      const res = await api.get('/reports/invoices/export', {
         params: {
-          pageSize: 9999, page: 1,
+          format: 'excel',
           search: search || undefined,
           status: statusFilter || undefined,
           direction: directionFilter || undefined,
@@ -206,28 +206,9 @@ export default function Invoices() {
           billingMonth: monthFilter || undefined,
           billingYear: yearFilter || undefined,
         },
+        responseType: 'blob',
       });
-      const all = res.data.data.data ?? [];
-      const dirLabel = (d: string) => d === 'SALES' ? 'نقليات عميل' : d === 'PURCHASE' ? 'مشتريات مورد' : d;
-      const statusAr: Record<string, string> = {
-        UNPAID: 'غير مسدد', PARTIAL: 'مسدد جزئياً', PAID: 'مسدد',
-        OVERDUE: 'متأخر', CANCELLED: 'ملغي',
-      };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const wsData = all.map((r: any) => ({
-        'رقم الفاتورة': r.invoiceNumber ?? r.number,
-        'نوع الفاتورة': r.invoiceType ?? '',
-        'الاتجاه': dirLabel(r.direction ?? ''),
-        'الطرف': r.customer?.name ?? r.supplier?.name ?? '',
-        'تاريخ الإصدار': r.issueDate ? dateText(r.issueDate) : '',
-        'شهر الحساب': r.billingMonth && r.billingYear ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}` : '',
-        'الإجمالي': Number(r.total),
-        'المسدد': Number(r.paidAmount),
-        'المتبقي': Number(r.total) - Number(r.paidAmount),
-        'الحالة': statusAr[r.status] ?? r.status,
-        'ملاحظات': r.notes ?? '',
-      }));
-      downloadXlsx(wsData, 'الفواتير', generateExportFileName({ reportName: ReportName.InvoicesList, extension: 'xlsx' }));
+      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.InvoicesList, extension: 'xlsx' }));
     } catch (e) {
       setLoadError(errorMessage(e));
     } finally {
@@ -336,7 +317,7 @@ export default function Invoices() {
           <FilterChip active={directionFilter === 'PURCHASE'} onClick={() => { setDirectionFilter('PURCHASE'); setPage(1); }}>{t('opt.direction.purchase')}</FilterChip>
           <span style={{ marginInlineStart: 'auto', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
             <Button variant="ghost" icon="refresh" small busy={loading} onClick={load}>{t('action.refresh')}</Button>
-            <ExportExcelButton onExport={exportExcel} busy={exportingExcel} />
+            {hasPermission('reports.export') && <ExportExcelButton onExport={exportExcel} busy={exportingExcel} />}
             <Button variant="ghost" icon="calendar_month" small onClick={() => setShowMonthlyReport(true)}>{t('inv.monthly_report')}</Button>
           </span>
         </div>
@@ -1425,9 +1406,11 @@ function MonthlyReportModal({
   onClose: () => void;
 }) {
   const { t } = useT();
+  const { hasPermission } = useAuth();
   const [rows, setRows] = useState<MonthlyRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [exportBusy, setExportBusy] = useState(false);
 
   useEffect(() => {
     api.get('/invoices/monthly-report', { params: filters })
@@ -1437,15 +1420,19 @@ function MonthlyReportModal({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function exportMonthlyExcel() {
-    const wsData = rows.map((r) => ({
-      'الفترة': r.month && r.year ? `${ARABIC_MONTHS[r.month - 1]} ${r.year}` : '—',
-      'عدد الفواتير': r.count,
-      'إجمالي المبالغ': r.totalSales,
-      'إجمالي المحصل': r.totalCollected,
-      'إجمالي المتبقي': r.totalRemaining,
-    }));
-    downloadXlsx(wsData, 'التقرير الشهري', generateExportFileName({ reportName: ReportName.MonthlyReport, extension: 'xlsx' }));
+  async function exportMonthlyExcel() {
+    setExportBusy(true);
+    try {
+      const res = await api.get('/invoices/monthly-report/export', {
+        params: filters,
+        responseType: 'blob',
+      });
+      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.MonthlyReport, extension: 'xlsx' }));
+    } catch (e) {
+      setError(errorMessage(e));
+    } finally {
+      setExportBusy(false);
+    }
   }
 
   const thStyle: React.CSSProperties = { padding: '8px 12px', borderBottom: '2px solid var(--border)', textAlign: 'start', background: 'var(--surface-2)', fontWeight: 700, fontSize: 13 };
@@ -1454,7 +1441,7 @@ function MonthlyReportModal({
   return (
     <Modal title={t('inv.monthly_report')} size="xl" onClose={onClose} footer={
       <>
-        {rows.length > 0 && <ExportExcelButton onExport={exportMonthlyExcel} busy={false} />}
+        {rows.length > 0 && hasPermission('invoices.read') && <ExportExcelButton onExport={exportMonthlyExcel} busy={exportBusy} />}
         <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
       </>
     }>

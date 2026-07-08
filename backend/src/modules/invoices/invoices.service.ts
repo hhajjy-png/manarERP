@@ -5,6 +5,8 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
+import type { ReportInput } from '../../shared/services/reportEngine/excel.service';
 import { transactionsService } from '../transactions/transactions.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
 import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySettledPurchase } from './invoices.calc';
@@ -221,6 +223,35 @@ export class InvoicesService {
           totalRemaining: g.totalSales - g.totalCollected,
         };
       });
+  }
+
+  /** نفس بيانات التقرير الشهري JSON، لكن مُعاد تشكيلها كـ ReportInput جاهز لتصدير Excel احترافي (نفس أعمدة الواجهة). */
+  async monthlyReportExcelInput(query: {
+    direction?: string;
+    status?: string;
+    customerId?: string;
+    billingYear?: string;
+  }): Promise<ReportInput> {
+    const data = await this.monthlyReport(query);
+    const rows = data.map((r) => ({
+      period: r.month && r.year ? `${ARABIC_MONTHS[r.month - 1]} ${r.year}` : '—',
+      count: r.count,
+      totalSales: r.totalSales,
+      totalCollected: r.totalCollected,
+      totalRemaining: r.totalRemaining,
+    }));
+    return {
+      title: 'التقرير الشهري للفواتير',
+      subtitle: `عدد الفترات: ${rows.length}`,
+      columns: [
+        { header: 'الفترة', key: 'period', width: 20 },
+        { header: 'عدد الفواتير', key: 'count', width: 14, type: 'number' },
+        { header: 'إجمالي المبالغ', key: 'totalSales', width: 18, type: 'currency' },
+        { header: 'إجمالي المحصل', key: 'totalCollected', width: 18, type: 'currency' },
+        { header: 'إجمالي المتبقي', key: 'totalRemaining', width: 18, type: 'currency' },
+      ],
+      rows,
+    };
   }
 
   async getById(id: number) {

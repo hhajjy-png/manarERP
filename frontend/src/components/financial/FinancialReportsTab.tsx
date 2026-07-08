@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { financialApi } from '../../api/financial';
 import { exportReportAsPdf } from '../../utils/pdfExport';
 import { generateExportFileName, ReportName } from '../../utils/exportFilename';
+import { downloadBlob } from '../../utils/exportUtils';
 import { formatNumber } from '../../lib/format';
 import { FilterBar } from './FilterBar';
 import { ExportBar } from './ExportBar';
@@ -45,9 +46,7 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
       toDate:   toDate   || undefined,
       format,
     });
-    const url = URL.createObjectURL(blob);
-    Object.assign(document.createElement('a'), { href: url, download: generateExportFileName({ reportName: ReportName.FinancialSummary, extension: 'xlsx' }) }).click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, generateExportFileName({ reportName: ReportName.FinancialSummary, extension: 'xlsx' }));
   }
 
   const meta = data?.metadata ?? {};

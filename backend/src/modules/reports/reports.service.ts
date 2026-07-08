@@ -3,11 +3,12 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { ReportInput } from '../../shared/services/reportEngine/excel.service';
 import { formatCurrency } from '../../shared/utils/currency';
+import { translateInvoiceStatusAr } from '../../shared/utils/arabicLabels';
+import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 
 const num = (n: number | null | undefined) => Number(n ?? 0);
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 const dateAr = (d: Date | null) => (d ? new Date(d).toLocaleDateString('ar') : '');
-const ARABIC_MONTHS_RPT = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
 function endOfDay(dateStr: string): Date {
   const d = new Date(dateStr);
@@ -32,6 +33,13 @@ interface ReportQuery {
   direction?: string;
   month?: string;
   year?: string;
+  /** إضافي (تطابق فلاتر صفحة الفواتير): شهر/سنة الحساب وبحث نصي حر. */
+  billingMonth?: string;
+  billingYear?: string;
+  search?: string;
+  /** إضافي (تطابق فلاتر صفحة المصروفات): التصنيف والمورد. */
+  category?: string;
+  supplierId?: string;
 }
 
 /** يبني محتوى التقرير (أعمدة + صفوف) حسب النوع. التنسيق (PDF/Excel) منفصل. */
@@ -143,6 +151,14 @@ export class ReportsService {
     if (q.customerId) where.customerId = Number(q.customerId);
     if (q.status) where.status = q.status;
     if (q.direction) where.direction = q.direction as 'SALES' | 'PURCHASE';
+    if (q.billingMonth) where.billingMonth = Number(q.billingMonth);
+    if (q.billingYear) where.billingYear = Number(q.billingYear);
+    if (q.search) {
+      where.OR = [
+        { invoiceNumber: { contains: q.search } },
+        { number: { contains: q.search } },
+      ];
+    }
     const rows = await prisma.invoice.findMany({
       where,
       orderBy: { issueDate: 'desc' },
@@ -159,23 +175,31 @@ export class ReportsService {
       subtitle: `العدد: ${rows.length} — الإجمالي: ${formatCurrency(total)} — المحصّل: ${formatCurrency(paid)} — المتبقي: ${formatCurrency(remaining)}`,
       columns: [
         { header: 'رقم الفاتورة', key: 'invoiceNumber', width: 22 },
+        { header: 'نوع الفاتورة', key: 'invoiceType', width: 20 },
         { header: 'الاتجاه', key: 'direction', width: 16 },
         { header: 'الجهة', key: 'party', width: 28 },
         { header: 'شهر الحساب', key: 'billingPeriod', width: 18 },
+        { header: 'تاريخ الإصدار', key: 'issueDate', width: 16, type: 'date' },
         { header: 'الإجمالي', key: 'total', width: 16, numFmt: '#,##0.000', format: 'currency' },
         { header: 'المسدّد', key: 'paid', width: 16, numFmt: '#,##0.000', format: 'currency' },
         { header: 'المتبقي', key: 'remaining', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'الحالة', key: 'status', width: 16 },
+        { header: 'ملاحظات', key: 'notes', width: 28 },
       ],
       rows: rows.map((i) => ({
         invoiceNumber: i.invoiceNumber,
+        invoiceType: i.invoiceType ?? '',
         direction: i.direction === 'SALES' ? 'نقليات عميل' : i.direction === 'PURCHASE' ? 'مشتريات مورد' : i.direction,
         party: i.customer?.name ?? i.supplier?.name ?? '',
         billingPeriod: i.billingMonth && i.billingYear
-          ? `${ARABIC_MONTHS_RPT[(i.billingMonth as number) - 1]} ${i.billingYear}`
+          ? `${ARABIC_MONTHS[(i.billingMonth as number) - 1]} ${i.billingYear}`
           : dateAr(i.issueDate),
+        issueDate: i.issueDate,
         total: num(i.total),
         paid: num(i.paidAmount),
         remaining: num(i.total) - num(i.paidAmount),
+        status: translateInvoiceStatusAr(i.status),
+        notes: i.notes ?? '',
       })),
       totalsRow: { party: 'الإجمالي', total, paid, remaining },
     };
@@ -198,6 +222,17 @@ export class ReportsService {
       ...dateWhere(q.from, q.to) as Prisma.ExpenseWhereInput,
     };
     if (q.status) where.status = q.status;
+    if (q.category) where.category = q.category;
+    if (q.supplierId) where.supplierId = Number(q.supplierId);
+    if (q.billingMonth) where.billingMonth = Number(q.billingMonth);
+    if (q.billingYear) where.billingYear = Number(q.billingYear);
+    if (q.search) {
+      where.OR = [
+        { description: { contains: q.search } },
+        { code: { contains: q.search } },
+        { supplierName: { contains: q.search } },
+      ];
+    }
     const rows = await prisma.expense.findMany({
       where,
       orderBy: { date: 'desc' },
@@ -220,6 +255,7 @@ export class ReportsService {
         { header: 'التاريخ', key: 'date', width: 16 },
         { header: 'شهر الحساب', key: 'billingPeriod', width: 18 },
         { header: 'الحالة', key: 'status', width: 16 },
+        { header: 'ملاحظات', key: 'notes', width: 26 },
       ],
       rows: rows.map((e) => ({
         code: e.code,
@@ -230,9 +266,10 @@ export class ReportsService {
         amount: num(e.amount),
         date: dateAr(e.date),
         billingPeriod: e.billingMonth && e.billingYear
-          ? `${ARABIC_MONTHS_RPT[(e.billingMonth as number) - 1]} ${e.billingYear}`
+          ? `${ARABIC_MONTHS[(e.billingMonth as number) - 1]} ${e.billingYear}`
           : '',
         status: STATUS_AR[e.status] ?? e.status,
+        notes: e.notes ?? '',
       })),
       totalsRow: { description: 'الإجمالي', amount: total },
     };

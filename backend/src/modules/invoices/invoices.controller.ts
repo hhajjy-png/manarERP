@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { invoicesService } from './invoices.service';
 import { ok, created } from '../../core/utils/response';
+import { buildExcel } from '../../shared/services/reportEngine/excel.service';
+import { sendExcel } from '../../core/utils/excelResponse';
 
 export const invoicesController = {
   async list(req: Request, res: Response) {
@@ -11,6 +13,12 @@ export const invoicesController = {
   },
   async getMonthlyReport(req: Request, res: Response) {
     ok(res, await invoicesService.monthlyReport(req.query));
+  },
+  /** نفس بيانات التقرير الشهري JSON، لكن مُصدَّرة كملف Excel احترافي (نفس أعمدة الواجهة). */
+  async getMonthlyReportExport(req: Request, res: Response) {
+    const input = await invoicesService.monthlyReportExcelInput(req.query);
+    const buf = await buildExcel(input);
+    sendExcel(res, buf, 'monthly-report.xlsx');
   },
   async getById(req: Request, res: Response) {
     ok(res, await invoicesService.getById(Number(req.params.id)));

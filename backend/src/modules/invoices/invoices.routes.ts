@@ -13,6 +13,8 @@ router.use(authenticate);
 router.get('/', requirePermission('invoices.read'), asyncHandler(invoicesController.list));
 router.get('/stats', requirePermission('invoices.read'), asyncHandler(invoicesController.getStats));
 router.get('/monthly-report', requirePermission('invoices.read'), asyncHandler(invoicesController.getMonthlyReport));
+// تصدير التقرير الشهري كـ Excel — مُسجَّل قبل مسار /:id العام لتجنّب التظليل.
+router.get('/monthly-report/export', requirePermission('invoices.read'), asyncHandler(invoicesController.getMonthlyReportExport));
 // اقتراح رقم الفاتورة التالي (للقراءة فقط) — مُسجَّل قبل مسار /:id العام لتجنّب التظليل.
 router.get('/next-number', requirePermission('invoices.create'), asyncHandler(invoicesController.nextNumber));
 router.get('/:id/force', requireRole(ROLES.SYSTEM_ADMIN), asyncHandler(invoicesController.forceRemovePreview));
