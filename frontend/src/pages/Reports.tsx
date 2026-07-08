@@ -160,7 +160,7 @@ const REPORT_TYPES: ReportType[] = [
   },
 ];
 
-const CONTRACT_UNITS = ['طن', 'درب', 'يومية', 'مقطوعية'];
+const CONTRACT_UNITS = ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'];
 
 const COMPANY_GROUPS = [
   { value: 'HASSAN', label: 'مصروف عن طريق حسن' },
