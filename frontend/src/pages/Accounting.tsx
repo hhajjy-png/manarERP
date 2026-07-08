@@ -120,7 +120,7 @@ function SummaryTab() {
 
   return (
     <>
-      <div className="rcx-metrics" style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: 14, alignItems: 'stretch' }}>
+      <div className="accx-metrics">
         <HeroMetric
           icon="savings"
           label={t('stat.acc.net_profit')}
@@ -255,7 +255,7 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
                       <td>{t(normalBalanceKey[String(r.normalBalance)] ?? 'acc.balance.debit')}</td>
                       <td>{r.parent ? `${r.parent.code} - ${r.parent.name}` : '—'}</td>
                       <td><StatusChip tone={r.isActive ? 'green' : 'neutral'}>{r.isActive ? t('status.active') : t('status.suspended')}</StatusChip></td>
-                      <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                      <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -502,7 +502,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
                         <td>{String(r.description)}</td>
                         <td style={{ fontWeight: 700 }}>{money(entryTotal(r))}</td>
                         <td><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></td>
-                        <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                        <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
                       </tr>
                     );
                   })}

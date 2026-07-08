@@ -12,13 +12,24 @@
 }
 @media (max-width: 1100px) { .chqx-metrics { grid-template-columns: 1fr; } }
 
-.chqx-mono { font-family: "IBM Plex Mono", monospace; }
-.chqx-amount { font-weight: 800; white-space: nowrap; }
-.chqx-pv { font-family: "IBM Plex Mono", monospace; }
+.chqx-mono { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+.chqx-amount { font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.chqx-pv { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
 .chqx-pv--set { color: var(--xpl-primary); font-weight: 700; }
 
-/* preview workspace */
-.chqx-preview-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+/* preview workspace — grouped action bar (primary issuance vs print tools) */
+.chqx-preview-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--xpl-border);
+}
+.chqx-action-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chqx-action-group--tools { margin-inline-start: auto; }
 .chqx-preview-hint { margin: 10px 0 0; font-size: 12px; color: var(--xpl-muted); text-align: center; }
 .chqx-preview-hint.warn { color: var(--xpl-red); }
 

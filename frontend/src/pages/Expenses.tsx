@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useHighlight } from '../hooks/useHighlight';
 import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
@@ -169,6 +169,14 @@ export default function Expenses() {
 
   const canCreate = hasPermission('expenses.create');
 
+  // خيارات المورد بنفس نمط فلتر التصنيف (قائمة قابلة للبحث) — اتساق بصري.
+  // هويّة ثابتة عبر useMemo حتى لا نُبطل الميمو الداخلي لـ SearchableSelect عند كل تحديث.
+  const supplierOptions: SearchableOption[] = useMemo(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    () => suppliers.map((s: any) => ({ value: String(s.id), label: String(s.name) })),
+    [suppliers],
+  );
+
   return (
     <div className="xpl-scope xpl-page" dir="rtl">
       <ReturnToReportButton />
@@ -179,8 +187,8 @@ export default function Expenses() {
         subtitle={t('mod.expenses.subtitle')}
         chips={stats ? (
           <>
+            {/* الإجمالي معروض في البطاقة الرئيسية أدناه — نتجنّب تكراره كشريحة في الترويسة. */}
             <IdChip icon="tag" tone="indigo">{stats.count} مصروف</IdChip>
-            <IdChip icon="payments" tone="blue">{money(stats.total)}</IdChip>
             {stats.pendingCount > 0 && <IdChip icon="schedule" tone="orange">{money(stats.pendingTotal)} معلّق</IdChip>}
           </>
         ) : undefined}
@@ -269,13 +277,16 @@ export default function Expenses() {
               searchPlaceholder="ابحث في التصنيفات…"
             />
           </div>
-          <div className="xpl-field" style={{ minWidth: 150 }}>
+          <div className="xpl-field" style={{ minWidth: 190 }}>
             <span className="xpl-field-label">المورد</span>
-            <select className="xpl-select" aria-label="المورد" value={supplierFilter} onChange={(e) => { setSupplierFilter(e.target.value); setPage(1); }}>
-              <option value="">كل الموردين</option>
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              {suppliers.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+            <SearchableSelect
+              options={supplierOptions}
+              value={supplierFilter}
+              onChange={(v) => { setSupplierFilter(v); setPage(1); }}
+              emptyLabel="كل الموردين"
+              ariaLabel="المورد"
+              searchPlaceholder="ابحث في الموردين…"
+            />
           </div>
           <div className="xpl-field" style={{ minWidth: 120 }}>
             <span className="xpl-field-label">الشهر</span>
@@ -345,7 +356,7 @@ export default function Expenses() {
                         <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{billingText(r)}</td>
                         <td><span className="expx-amount">{money(r.amount)}</span></td>
                         <td><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></td>
-                        <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                        <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
                       </tr>
                     );
                   })}

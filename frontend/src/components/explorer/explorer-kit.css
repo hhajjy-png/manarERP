@@ -170,7 +170,7 @@
 .xpl-metric-icon .material-symbols-outlined { font-size: 21px !important; color: var(--xpl-primary); }
 .xpl-metric-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .xpl-metric-label { font-size: 11.5px; color: var(--xpl-muted); }
-.xpl-metric-value { font-size: 19px; font-weight: 800; color: var(--xpl-text); letter-spacing: -.3px; }
+.xpl-metric-value { font-size: 19px; font-weight: 800; color: var(--xpl-text); letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
 .xpl-metric-sub   { font-size: 10.5px; color: var(--xpl-muted); }
 
 /* Tones */
@@ -213,7 +213,7 @@
 .xpl-hero-icon .material-symbols-outlined { font-size: 30px !important; color: #fff; }
 .xpl-hero-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .xpl-hero-label { font-size: 12.5px; color: rgba(255, 255, 255, .82); }
-.xpl-hero-value { font-size: 30px; font-weight: 800; letter-spacing: -.5px; line-height: 1.05; color: #fff; }
+.xpl-hero-value { font-size: 30px; font-weight: 800; letter-spacing: -.5px; line-height: 1.05; color: #fff; font-variant-numeric: tabular-nums; }
 .xpl-hero-sub   { font-size: 12px; color: rgba(255, 255, 255, .9); margin-top: 2px; display: inline-flex; align-items: center; gap: 5px; }
 .xpl-hero-sub .material-symbols-outlined { font-size: 16px !important; }
 
@@ -511,7 +511,18 @@
   background: var(--xpl-faint) !important;
   box-shadow: inset 2px 0 0 var(--xpl-primary), inset -2px 0 0 var(--xpl-primary);
 }
-.xpl-mono { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--xpl-muted); }
+.xpl-mono { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--xpl-muted); font-variant-numeric: tabular-nums; }
+
+/* Shared row-affordance chevron (last table cell).
+   Previously defined only in DocumentExpirationCenter.css yet consumed by ~12 pages
+   (cross-page CSS coupling). Hosted here in the always-loaded kit; the .decx-col-chevron
+   alias keeps out-of-scope pages working unchanged. */
+.xpl-col-chevron,
+.decx-col-chevron { width: 32px; text-align: center; }
+.xpl-col-chevron .material-symbols-outlined,
+.decx-col-chevron .material-symbols-outlined { font-size: 18px !important; color: var(--xpl-muted); opacity: .55; }
+.xpl-table tbody tr:hover .xpl-col-chevron .material-symbols-outlined,
+.xpl-table tbody tr:hover .decx-col-chevron .material-symbols-outlined { opacity: 1; color: var(--xpl-primary); }
 
 /* ════════════════════════════════════════════════════════════════════════════
    Empty / loading states
