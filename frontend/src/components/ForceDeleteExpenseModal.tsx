@@ -3,6 +3,7 @@ import { api, errorMessage } from '../api/client';
 import Modal from './Modal';
 import { money, dateText } from '../config/modules';
 import { expenseCategoryLabel } from '../config/expenseCategories';
+import { expenseStatusAr } from '../config/expensePresentation';
 
 interface PreviewData {
   id: number;
@@ -20,14 +21,6 @@ interface PreviewData {
   willBeDeleted: string[];
   warnings: string[];
 }
-
-const STATUS_AR: Record<string, string> = {
-  PENDING: 'معلّق',
-  APPROVED: 'معتمد',
-  REJECTED: 'مرفوض',
-  REVERSED: 'معكوس',
-  CANCELLED: 'ملغى',
-};
 
 interface Props {
   expenseId: number;
@@ -119,7 +112,7 @@ export default function ForceDeleteExpenseModal({ expenseId, onClose, onDeleted 
               </tr>
               <tr>
                 <td style={tdLabel}>الحالة</td>
-                <td>{STATUS_AR[preview.status] ?? preview.status}</td>
+                <td>{expenseStatusAr(preview.status)}</td>
               </tr>
               {preview.supplierName && (
                 <tr>

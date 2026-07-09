@@ -4,6 +4,7 @@ import { AppError } from '../../core/errors/AppError';
 import { ReportInput } from '../../shared/services/reportEngine/excel.service';
 import { formatCurrency } from '../../shared/utils/currency';
 import { translateInvoiceStatusAr } from '../../shared/utils/arabicLabels';
+import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLabels';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 
 const num = (n: number | null | undefined) => Number(n ?? 0);
@@ -206,18 +207,6 @@ export class ReportsService {
   }
 
   private async expenses(q: ReportQuery): Promise<ReportInput> {
-    const CATEGORY_AR: Record<string, string> = {
-      FUEL: 'وقود', SALARIES: 'رواتب', MAINTENANCE: 'صيانة', RENT: 'إيجارات',
-      PURCHASES: 'مشتريات', EQUIPMENT: 'معدات', SERVICES: 'خدمات',
-      EQUIPMENT_RENT: 'إيجار معدات', TRUCK_RENT: 'إيجار شاحنات',
-      HASSAN: 'مصروف عن طريق حسن', GHANEM: 'مصروف عن طريق غانم',
-      NATHEER: 'مصروف عن طريق نظير', HAROON: 'مصروف عن طريق هارون',
-      OTHER: 'أخرى',
-    };
-    const STATUS_AR: Record<string, string> = {
-      PENDING: 'معلّق', APPROVED: 'معتمد', REJECTED: 'مرفوض',
-      REVERSED: 'مُلغى الاعتماد', CANCELLED: 'ملغى',
-    };
     const where: Prisma.ExpenseWhereInput = {
       ...dateWhere(q.from, q.to) as Prisma.ExpenseWhereInput,
     };
@@ -259,7 +248,7 @@ export class ReportsService {
       ],
       rows: rows.map((e) => ({
         code: e.code,
-        category: CATEGORY_AR[e.category] ?? e.category,
+        category: expenseCategoryAr(e.category),
         description: e.description,
         supplier: e.supplier?.name ?? (e.supplierName ?? ''),
         contract: e.contract?.asphaltPlant ?? '',
@@ -268,7 +257,7 @@ export class ReportsService {
         billingPeriod: e.billingMonth && e.billingYear
           ? `${ARABIC_MONTHS[(e.billingMonth as number) - 1]} ${e.billingYear}`
           : '',
-        status: STATUS_AR[e.status] ?? e.status,
+        status: expenseStatusAr(e.status),
         notes: e.notes ?? '',
       })),
       totalsRow: { description: 'الإجمالي', amount: total },

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   postExpenseToGL,
   reverseExpenseFromGL,
+  repostExpenseToGL,
   createBalancedJournalEntry,
 } from '../expenses.accounting';
 import {
@@ -287,6 +288,42 @@ describe('Expense GL Posting — paymentMethod routing (T3)', () => {
     const { lines } = lineTotals(call);
     const cashLine = lines.find((l: any) => l.accountId === 30)!;
     expect(cashLine.credit).toBeCloseTo(250.500, 3);
+  });
+});
+
+describe('Expense GL Re-post (amendment re-approval)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearAccountCache();
+    mockTx.journalEntry.findFirst.mockResolvedValue(null);
+    mockTx.journalEntry.count.mockResolvedValue(0);
+    mockTx.journalEntry.create.mockResolvedValue({ id: 1, lines: [] });
+    mockTx.journalEntry.deleteMany.mockResolvedValue({ count: 2 });
+    mockTx.account.upsert.mockResolvedValue({});
+    mockTx.account.findMany.mockResolvedValue(ACCOUNT_ROWS);
+    mockTx.expense.findUnique.mockResolvedValue(baseExpense);
+  });
+
+  it('deletes the netted EXPENSE + EXPENSE_REVERSAL pair before re-posting', async () => {
+    await repostExpenseToGL(mockTx as any, 1);
+
+    expect(mockTx.journalEntry.deleteMany).toHaveBeenCalledOnce();
+    const delArg = mockTx.journalEntry.deleteMany.mock.calls[0][0];
+    expect(delArg.where.referenceType.in).toEqual(
+      expect.arrayContaining(['EXPENSE', 'EXPENSE_REVERSAL']),
+    );
+    expect(delArg.where.referenceId).toBe(1);
+  });
+
+  it('posts a fresh balanced journal after clearing the old pair', async () => {
+    await repostExpenseToGL(mockTx as any, 1);
+
+    expect(mockTx.journalEntry.create).toHaveBeenCalledOnce();
+    const call = mockTx.journalEntry.create.mock.calls[0][0];
+    const { totalDebit, totalCredit } = lineTotals(call);
+    expect(totalDebit).toBeCloseTo(totalCredit, 3);
+    expect(call.data.referenceType).toBe('EXPENSE');
+    expect(call.data.referenceId).toBe(1);
   });
 });
 

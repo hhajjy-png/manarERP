@@ -6,53 +6,10 @@ import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { transactionsService } from '../transactions/transactions.service';
-import { postExpenseToGL, reverseExpenseFromGL } from './expenses.accounting';
+import { repostExpenseToGL, reverseExpenseFromGL } from './expenses.accounting';
 import { CreateExpenseInput, UpdateExpenseInput } from './expenses.schema';
-
-// أسماء التصنيفات بالعربية — تُستخدم لوسم القيود المحاسبية وتجميع الإحصائيات.
-// يجب أن تبقى المفاتيح متطابقة مع ENUMS.expenseCategory وملف الواجهة expenseCategories.ts.
-const CATEGORY_AR: Record<string, string> = {
-  // تشغيل عام
-  FUEL: 'وقود',
-  OILS: 'زيوت وتشحيم',
-  PURCHASES: 'مشتريات',
-  SERVICES: 'خدمات',
-  RENT: 'إيجارات',
-  EQUIPMENT: 'معدات',
-  EQUIPMENT_RENT: 'إيجار معدات',
-  TRUCK_RENT: 'إيجار شاحنات',
-  SALARIES: 'رواتب',
-  // مركبات
-  MAINTENANCE: 'صيانة',
-  TIRES: 'إطارات وتواير',
-  BATTERY: 'شراء بطارية',
-  VEHICLE_PAINT: 'صبغ سيارة',
-  VEHICLE_BODYWORK: 'حدادة سيارة',
-  VEHICLE_ELECTRICAL: 'كهرباء سيارة',
-  TOW_TRUCK: 'كرين سحب',
-  VEHICLE_INSURANCE: 'رسوم تأمين دفتر مركبة',
-  VEHICLE_REGISTRATION: 'رسوم تجديد دفتر مركبة',
-  // رسوم حكومية
-  GOVERNMENT_FEES: 'رسوم شؤون',
-  RESIDENCY: 'رسوم إقامة',
-  LABOR_INSURANCE: 'رسوم تأمين عمالة',
-  TOLL: 'رسوم مرور',
-  TRAFFIC_VIOLATIONS: 'مخالفات مرورية',
-  COURT_FEES: 'رسوم قضائية',
-  // عن طريق أشخاص
-  HASSAN: 'مصروف عن طريق حسن',
-  GHANEM: 'مصروف عن طريق غانم',
-  NATHEER: 'مصروف عن طريق نظير',
-  HAROON: 'مصروف عن طريق هارون',
-  BILLS_NAZEER: 'فواتير عن طريق نظير',
-  DRIVER_EXPENSES: 'مصروف عن طريق سائق',
-  DRIVER_MEALS: 'أكل للسواق',
-  // أخرى
-  CHARITY: 'صدقة شهرية',
-  GIFTS: 'هدايا',
-  MISC: 'مصروفات متفرقة',
-  OTHER: 'أخرى',
-};
+// المصدر الموحّد لأسماء التصنيفات بالعربية (وسم القيود المحاسبية وتجميع الإحصائيات).
+import { expenseCategoryAr } from '../../shared/utils/expenseLabels';
 
 const FULL_INCLUDE = {
   contract: { select: { id: true, asphaltPlant: true } },
@@ -102,7 +59,21 @@ export class ExpensesService {
       prisma.expense.findMany({ where, skip: pagination.skip, take: pagination.take, orderBy: { date: 'desc' }, include: FULL_INCLUDE }),
       prisma.expense.count({ where }),
     ]);
-    return buildPaginatedResult(data, total, pagination);
+
+    // علامة عرض فقط: هل للمصروف قيود محاسبية مرتبطة؟ تُمكّن الواجهة من إخفاء زر الحذف
+    // العادي حين يرفضه الخادم (مصروف فُتح للتعديل يحمل زوج قيد) وتوجيه المستخدم للحذف النهائي.
+    // استعلام واحد لكامل الصفحة (لا N+1). لا يغيّر أي منطق حذف/محاسبة على الخادم.
+    const ids = data.map((e) => e.id);
+    const journalRefs = ids.length
+      ? await prisma.journalEntry.findMany({
+          where: { referenceType: { in: ['EXPENSE', 'EXPENSE_REVERSAL'] }, referenceId: { in: ids } },
+          select: { referenceId: true },
+        })
+      : [];
+    const withJournals = new Set(journalRefs.map((j) => j.referenceId));
+    const rows = data.map((e) => ({ ...e, hasJournalEntries: withJournals.has(e.id) }));
+
+    return buildPaginatedResult(rows, total, pagination);
   }
 
   async getById(id: number) {
@@ -180,20 +151,24 @@ export class ExpensesService {
         data: { status: 'APPROVED', approvedById: user?.employeeId ?? null, approvedAt: new Date() },
         include: FULL_INCLUDE,
       });
+      // النظام القديم (سجل مفرد): امسح أي قيد سابق قبل الترحيل حتى تكون إعادة الاعتماد
+      // بعد التعديل الآمن (Amendment) خالية من التكرار — على المصروف الجديد لا يمسح شيئًا.
+      await transactionsService.clearByReference('EXPENSE', exp.id, tx);
       await transactionsService.postEntry(
         {
           date: exp.date,
-          description: `مصروف ${CATEGORY_AR[exp.category] ?? exp.category}: ${exp.description}`,
+          description: `مصروف ${expenseCategoryAr(exp.category)}: ${exp.description}`,
           type: 'EXPENSE',
           debit: exp.amount,
-          account: `مصروفات - ${CATEGORY_AR[exp.category] ?? exp.category}`,
+          account: `مصروفات - ${expenseCategoryAr(exp.category)}`,
           referenceType: 'EXPENSE',
           referenceId: exp.id,
         },
         tx,
       );
-      // ترحيل قيد مزدوج إلى GL (Phase B) — بالتوازي مع Legacy Transaction
-      await postExpenseToGL(tx, exp.id);
+      // ترحيل قيد مزدوج إلى GL (Phase B) — repost يتعامل مع الاعتماد الأول وإعادة الاعتماد
+      // بعد التعديل (يزيل زوج القيد المتعادل ثم يُرحّل بالقيمة الجديدة). يماثل الفواتير.
+      await repostExpenseToGL(tx, exp.id);
       return exp;
     });
 
@@ -241,6 +216,46 @@ export class ExpensesService {
     return updated;
   }
 
+  /**
+   * فتح مصروف معتمد للتعديل بأمان (Safe Amendment): APPROVED → PENDING.
+   * لا يعدّل المصروف مباشرة — يعكس الأثر المحاسبي فقط ثم يعيده معلّقًا ليُعدَّل ويُعاد اعتماده.
+   *
+   * ضمن معاملة واحدة:
+   *  1) يمسح القيد المفرد القديم (Legacy) حتى لا يبقى محسوبًا في لوحة القيادة.
+   *  2) يُنشئ قيد عكس متوازن (EXPENSE_REVERSAL) — لا يحذف/يعدّل القيد الأصلي (حفظ الأثر).
+   *  3) يُعيد الحالة إلى PENDING.
+   * بعدها: يُعدّل المستخدم المصروف عبر update العادي (يسمح لـ PENDING) ثم يُعيد الاعتماد،
+   * فيُعيد approve الترحيل بالقيمة الجديدة (repostExpenseToGL). يماثل دورة تعديل الفواتير.
+   * الصلاحية: expenses.approve (سلطة عكس الترحيل) — إضافةً لصلاحية expenses.update للتعديل لاحقًا.
+   */
+  async amend(id: number, req: Request) {
+    const expense = await prisma.expense.findUnique({ where: { id } });
+    if (!expense) throw AppError.notFound('المصروف غير موجود');
+    if (expense.status !== 'APPROVED') {
+      throw AppError.badRequest('يمكن فتح التعديل الآمن للمصاريف المعتمدة فقط');
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      await transactionsService.clearByReference('EXPENSE', id, tx);
+      await reverseExpenseFromGL(tx, id);
+      return tx.expense.update({
+        where: { id },
+        data: { status: 'PENDING', approvedById: null, approvedAt: null },
+        include: FULL_INCLUDE,
+      });
+    });
+
+    await recordAudit({
+      req,
+      action: 'AMEND_UNLOCK',
+      module: 'expenses',
+      entityId: id,
+      oldValue: { status: 'APPROVED', amount: expense.amount },
+      newValue: { status: 'PENDING' },
+    });
+    return updated;
+  }
+
   /** إلغاء إداري لمصروف معلّق (PENDING → CANCELLED) — بدون ترحيل GL. */
   async cancel(id: number, req: Request) {
     const expense = await prisma.expense.findUnique({ where: { id } });
@@ -261,6 +276,15 @@ export class ExpensesService {
     if (!expense) throw AppError.notFound('المصروف غير موجود');
     if (expense.status === 'APPROVED') throw AppError.conflict('لا يمكن حذف مصروف معتمد — ارفض اعتماده أولًا');
     if (expense.status === 'REVERSED') throw AppError.conflict('لا يمكن حذف مصروف معكوس — يحتوي على قيد محاسبي');
+
+    // مصروف فُتح للتعديل الآمن (amend) يعود PENDING لكنه يحمل زوج قيد متعادلًا — حذفه العادي
+    // يترك قيودًا يتيمة. امنع الحذف واطلب الحذف النهائي (يُنظّف القيود) لتفادي المراجع المعلّقة.
+    const journalCount = await prisma.journalEntry.count({
+      where: { referenceType: { in: ['EXPENSE', 'EXPENSE_REVERSAL'] }, referenceId: id },
+    });
+    if (journalCount > 0) {
+      throw AppError.conflict('لا يمكن حذف مصروف له قيود محاسبية مرتبطة — استخدم الحذف النهائي');
+    }
 
     await prisma.expense.delete({ where: { id } });
     await recordAudit({ req, action: 'DELETE', module: 'expenses', entityId: id });
@@ -448,7 +472,7 @@ export class ExpensesService {
     const PERSON_CATS = new Set(['HASSAN', 'GHANEM', 'NATHEER', 'HAROON']);
     const byCompanyGroup: Record<string, number> = {};
     for (const r of rows) {
-      const group = PERSON_CATS.has(r.category) ? CATEGORY_AR[r.category] ?? r.category : 'عمليات';
+      const group = PERSON_CATS.has(r.category) ? expenseCategoryAr(r.category) : 'عمليات';
       byCompanyGroup[group] = (byCompanyGroup[group] ?? 0) + Number(r.amount);
     }
 
