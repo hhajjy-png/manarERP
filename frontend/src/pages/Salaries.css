@@ -32,3 +32,19 @@
 
 /* pay-method block inside the drawer */
 .salx-pay { display: flex; flex-direction: column; gap: 8px; }
+
+/* ── Payroll Bank Export (.pbx-*) — NBK salary file. Theme-tokened (dark-safe), RTL. ── */
+.pbx-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.pbx-controls .xpl-field { min-width: 160px; }
+.pbx-validation { display: flex; flex-direction: column; gap: 6px; border-radius: 10px; padding: 12px 14px; font-size: 13px; font-weight: 600; }
+.pbx-validation .material-symbols-outlined { font-size: 18px; vertical-align: middle; margin-inline-end: 6px; }
+.pbx-validation--ok  { background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.25); color: var(--xpl-green, #10b981); }
+.pbx-validation--err { background: rgba(239,68,68,.07);  border: 1px solid rgba(239,68,68,.25);  color: var(--xpl-red, #ef4444); }
+.pbx-validation-head { display: flex; align-items: center; }
+.pbx-errors { margin: 4px 0 0; padding-inline-start: 22px; font-weight: 500; line-height: 1.7; }
+.pbx-totals { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 12px 14px; background: var(--xpl-surface, var(--surface)); border: 1px solid var(--xpl-border, var(--border)); border-radius: 12px; }
+.pbx-total-cell { display: flex; flex-direction: column; gap: 2px; }
+.pbx-total-label { font-size: 11.5px; color: var(--xpl-muted, var(--muted)); font-weight: 600; }
+.pbx-total-value { font-size: 18px; font-weight: 800; color: var(--xpl-text, var(--text)); font-variant-numeric: tabular-nums; }
+.pbx-totals .btn, .pbx-totals .xpl-btn { margin-inline-start: auto; }
+.pbx-table .pbx-num { font-variant-numeric: tabular-nums; text-align: left; direction: ltr; }
