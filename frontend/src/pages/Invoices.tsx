@@ -11,7 +11,8 @@ import Modal from '../components/Modal';
 import ForceDeleteInvoiceModal from '../components/ForceDeleteInvoiceModal';
 import InvoiceFastEntryDialog from '../components/InvoiceFastEntryDialog';
 import ConfirmModal from '../components/ConfirmModal';
-import { money, dateText } from '../config/modules';
+import { money, moneyParts, dateText } from '../config/modules';
+import { KpiStat, KpiStatGrid } from '../components/KpiStat';
 import { formatFileDate } from '../lib/date';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription, parseDescription } from '../utils/invoiceDescription';
@@ -36,7 +37,6 @@ import {
   ExecutiveHeader,
   IdChip,
   HeroMetric,
-  MetricCard,
   StatusChip,
   SearchBox,
   FilterChip,
@@ -286,12 +286,12 @@ export default function Invoices() {
             value={money(stats.totalSales)}
             sub={<><span className="material-symbols-outlined" aria-hidden="true">receipt_long</span>{`${stats.count} ${t('inv.stats.count')}`}</>}
           />
-          <div className="xpl-kpi-grid">
-            <MetricCard icon="description" tone="blue" label={t('inv.stats.count')} value={stats.count} />
-            <MetricCard icon="task_alt" tone="green" label={t('inv.stats.collected')} value={money(stats.totalCollected)} />
-            <MetricCard icon="pending_actions" tone="red" label={t('inv.stats.remaining')} value={money(stats.totalRemaining)} />
-            <MetricCard icon="functions" tone="indigo" label={t('inv.stats.average')} value={money(stats.average)} />
-          </div>
+          <KpiStatGrid>
+            <KpiStat icon="description" tone="blue" label={t('inv.stats.count')} value={stats.count.toLocaleString()} />
+            <KpiStat icon="task_alt" tone="green" label={t('inv.stats.collected')} value={moneyParts(stats.totalCollected).number} unit={moneyParts(stats.totalCollected).currency} />
+            <KpiStat icon="pending_actions" tone="red" label={t('inv.stats.remaining')} value={moneyParts(stats.totalRemaining).number} unit={moneyParts(stats.totalRemaining).currency} />
+            <KpiStat icon="functions" tone="indigo" label={t('inv.stats.average')} value={moneyParts(stats.average).number} unit={moneyParts(stats.average).currency} />
+          </KpiStatGrid>
         </div>
       )}
 

@@ -28,6 +28,21 @@ export const TYPE_LABELS: Record<TimelineFilterType, string> = {
   transfers:   'تحويلات',
 };
 
+/** Label for the dynamic filtered-total shown beside the result count, per active type filter. */
+export const TIMELINE_TOTAL_LABELS: Record<TimelineFilterType, string> = {
+  all:         'الإجمالي',
+  deposits:    'إجمالي الإيداعات',
+  withdrawals: 'إجمالي السحوبات',
+  fees:        'إجمالي الرسوم',
+  cheques:     'إجمالي الشيكات',
+  transfers:   'إجمالي التحويلات',
+};
+
+/** Resolve the filtered-total label for the active type filter (defaults to «الإجمالي»). */
+export function timelineTotalLabel(type: TimelineFilterType | undefined): string {
+  return TIMELINE_TOTAL_LABELS[type ?? 'all'] ?? TIMELINE_TOTAL_LABELS.all;
+}
+
 /** Local-date → YYYY-MM-DD (no timezone shift, unlike toISOString). */
 export function toIsoDate(d: Date): string {
   const y   = d.getFullYear();

@@ -1,0 +1,81 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   KpiStat — shared KPI card baseline. Values replicate the Bank Account Explorer
+   cards (.bae-kpi-card / .bae-kpi-grid--secondary) one-to-one so the adopting
+   modules match that baseline exactly: card box, icon, label/value/sub
+   typography, density, radius, and responsive behaviour. Theme tokens (var(--*))
+   preserve dark mode; grid/flex are direction-agnostic (RTL-safe). Single source
+   for every adopting module — no per-page duplication.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.kpistat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.kpistat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  transition: all .22s ease;
+}
+.kpistat-card:hover { transform: translateY(-1px); }
+
+.kpistat-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.kpistat-label { font-size: 11.5px; color: var(--muted); font-weight: 600; line-height: 1.3; }
+
+.kpistat-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: rgba(99, 102, 241, .10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.kpistat-icon .material-symbols-outlined { font-size: 17px !important; color: var(--primary); }
+
+/* Value + inline currency label. nowrap keeps the currency label beside the amount
+   (never stacked / wrapped) at the baseline number size. */
+.kpistat-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -.2px;
+}
+.kpistat-unit { font-size: 10.5px; font-weight: 600; color: var(--muted); }
+.kpistat-sub  { font-size: 10.5px; color: var(--muted); }
+
+/* Tone variants — icon tint + value colour (mirror the baseline). */
+.kpistat-card--green  .kpistat-icon { background: rgba(16, 185, 129, .10); }
+.kpistat-card--green  .kpistat-icon .material-symbols-outlined { color: var(--green, #10b981); }
+.kpistat-card--green  .kpistat-value { color: var(--green, #10b981); }
+
+.kpistat-card--red    .kpistat-icon { background: rgba(239, 68, 68, .10); }
+.kpistat-card--red    .kpistat-icon .material-symbols-outlined { color: var(--red, #ef4444); }
+.kpistat-card--red    .kpistat-value { color: var(--red, #ef4444); }
+
+.kpistat-card--blue   .kpistat-icon { background: rgba(59, 130, 246, .10); }
+.kpistat-card--blue   .kpistat-icon .material-symbols-outlined { color: #3b82f6; }
+.kpistat-card--blue   .kpistat-value { color: #3b82f6; }
+
+.kpistat-card--orange .kpistat-icon { background: rgba(245, 158, 11, .12); }
+.kpistat-card--orange .kpistat-icon .material-symbols-outlined { color: var(--orange, #f59e0b); }
+.kpistat-card--orange .kpistat-value { color: var(--orange, #f59e0b); }
+
+.kpistat-card--indigo .kpistat-icon { background: rgba(99, 102, 241, .12); }
+.kpistat-card--indigo .kpistat-icon .material-symbols-outlined { color: var(--primary); }
+
+@media (prefers-reduced-motion: reduce) {
+  .kpistat-card { transition: none !important; }
+}

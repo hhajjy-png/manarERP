@@ -21,7 +21,7 @@ import {
   type BankAccountDashboard, type MonthlyEntry,
 } from '../api/bankAccounts';
 import {
-  quickRangeToDates, QUICK_RANGE_LABELS, TYPE_LABELS, safeAmount, safeNum,
+  quickRangeToDates, QUICK_RANGE_LABELS, TYPE_LABELS, timelineTotalLabel, safeAmount, safeNum,
   type QuickRange,
 } from './bankTimelineFilters';
 import { presentTransaction, CONFIDENCE_LABELS } from './bankTransactionPresentation';
@@ -1128,6 +1128,10 @@ export function TimelineTab({
               <span className="bae-result-count">
                 {total.toLocaleString()} نتيجة
                 {result.fromDate && <> · {fmtDate(result.fromDate)} — {fmtDate(result.toDate)}</>}
+                {' · '}
+                <span className="bae-result-total">
+                  {timelineTotalLabel(filters.type)}: {formatCurrency(result.filteredTotal)}
+                </span>
               </span>
             )}
           </div>

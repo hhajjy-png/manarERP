@@ -25,8 +25,26 @@ describe('buildTimelineWhere', () => {
     expect(buildTimelineWhere('A', { type: 'deposits' }).credit).toEqual({ gt: 0 });
     expect(buildTimelineWhere('A', { type: 'withdrawals' }).debit).toEqual({ gt: 0 });
     expect(buildTimelineWhere('A', { type: 'fees' }).isBankFee).toBe(true);
-    expect(buildTimelineWhere('A', { type: 'cheques' }).chequeNumber).toEqual({ not: null });
     expect(buildTimelineWhere('A', { type: 'transfers' }).bankFeeType).toBe('BANK_TRANSFER');
+  });
+
+  it('matches cheques by cheque number OR cheque-payment category (mirrors the display badge)', () => {
+    // Fix: a cheque-payment row without a parsed cheque number (shown as «شيك») must be included.
+    const w = buildTimelineWhere('A', { type: 'cheques' });
+    expect(w.chequeNumber).toBeUndefined(); // no longer a bare chequeNumber constraint
+    expect(w.AND).toContainEqual({
+      OR: [{ chequeNumber: { not: null } }, { bankFeeType: 'CHEQUE_PAYMENT' }],
+    });
+  });
+
+  it('composes the cheque filter together with date + amount + search', () => {
+    const w = buildTimelineWhere('A', {
+      type: 'cheques', fromDate: '2026-01-01', minAmount: 100, search: 'x',
+    });
+    expect(w.statementDate).toEqual({ gte: new Date('2026-01-01') });
+    expect(w.AND).toContainEqual({ OR: [{ chequeNumber: { not: null } }, { bankFeeType: 'CHEQUE_PAYMENT' }] });
+    expect(w.AND).toContainEqual({ OR: [{ debit: { gte: 100 } }, { credit: { gte: 100 } }] });
+    expect(w.AND).toContainEqual({ OR: [{ description: { contains: 'x' } }, { reference: { contains: 'x' } }] });
   });
 
   it('treats type "all" as no constraint', () => {
