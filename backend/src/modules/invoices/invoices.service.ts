@@ -344,6 +344,12 @@ export class InvoicesService {
     const current = await prisma.invoice.findUnique({ where: { id }, include: { items: true } });
     if (!current) throw AppError.notFound('الفاتورة غير موجودة');
     if (current.status === 'CANCELLED') throw AppError.badRequest('لا يمكن تعديل فاتورة ملغاة');
+    // حوكمة الفواتير المسددة: الفاتورة المسددة بالكامل (PAID) للعرض فقط عبر مسار التعديل العادي.
+    // لتصحيح تاريخ التحصيل استخدم أداة تصحيح تاريخ التحصيل المخصّصة (مدير النظام فقط) — لا عبر تعديل
+    // الفاتورة. حارس خادمي حقيقي (لا يكفي إخفاء زر التعديل في الواجهة).
+    if (current.status === 'PAID') {
+      throw AppError.badRequest('لا يمكن تعديل فاتورة مسددة بالكامل — الفاتورة للعرض فقط');
+    }
 
     if (current.paidAmount > 0) {
       const directionChanged = input.direction !== undefined && input.direction !== current.direction;

@@ -16,6 +16,7 @@ import { validateInvoicePrintData } from '../print-templates/integration/invoice
 import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
 import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../print-templates/utils/brandingLayout';
 import { buildInvoicePdfName } from '../utils/pdfFilename';
+import { canEditInvoice } from '../utils/invoiceGovernance';
 import { useBrandingDesigner } from '../print-templates/hooks/useBrandingDesigner';
 import { useTextStyleDesigner } from '../print-templates/designer/useTextStyleDesigner';
 import { useStaticTextDesigner } from '../print-templates/designer/useStaticTextDesigner';
@@ -273,7 +274,7 @@ export default function InvoicePreview() {
   const collectionPct = data.total > 0
     ? ((Number(data.paidAmount) / Number(data.total)) * 100).toFixed(1)
     : '0.0';
-  const canEdit = data.status === 'UNPAID' || (data.status === 'OVERDUE' && Number(data.paidAmount) === 0);
+  const canEdit = canEditInvoice(data.status, data.paidAmount);
   const canCollect = data.status !== 'PAID' && data.status !== 'CANCELLED';
   const canCancel = data.status !== 'CANCELLED' && Number(data.paidAmount) === 0;
   const hasPayments = data.payments.length > 0;
