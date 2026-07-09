@@ -693,7 +693,7 @@
 }
 .db-chart-wrap .recharts-cartesian-grid-horizontal line,
 .db-chart-wrap .recharts-cartesian-grid-vertical line {
-  stroke: rgba(148, 163, 184, 0.18);
+  stroke: var(--xpl-border);
 }
 
 /* ================================================================
@@ -933,6 +933,13 @@
   border-radius: 4px;
   transition: width 0.6s ease;
 }
+/* Invoice-status colours — ExplorerKit tokens (resolve under .db-page.xpl-scope).
+   UNPAID + OVERDUE share the red token; CANCELLED is muted. */
+.db-inv-fill--unpaid    { background: var(--xpl-red); }
+.db-inv-fill--overdue   { background: var(--xpl-red); }
+.db-inv-fill--partial   { background: var(--xpl-orange); }
+.db-inv-fill--paid      { background: var(--xpl-green); }
+.db-inv-fill--cancelled { background: var(--xpl-muted); }
 
 /* ================================================================
    MISC UTILITY
@@ -1745,4 +1752,202 @@
 @media (max-width: 1200px) {
   .db-main-row,
   .db-charts-row { grid-template-columns: 1fr; }
+}
+
+/* ================================================================
+   EXECUTIVE DASHBOARD COHESION PACK v1 — Phase 2
+   ExplorerKit spine (SectionCard / MetricCard) on the forced-dark
+   db-* subtree. Presentation-only; tokens only.
+   ================================================================ */
+
+/* The dashboard is a forced-dark subtree (db-page hardcodes a dark bg + light text).
+   Remap ExplorerKit surface/text/border tokens onto the db dark palette so kit
+   components match the surrounding dark widgets in EVERY global theme. Accent tokens
+   (green/red/orange/blue/primary/faint) keep their ExplorerKit values. */
+.db-page.xpl-scope {
+  --xpl-surface: var(--db-card);
+  --xpl-surface-2: var(--db-inner);
+  --xpl-bg: var(--db-bg);
+  --xpl-text: var(--db-text);
+  --xpl-muted: var(--db-muted);
+  --xpl-border: var(--db-border);
+}
+
+/* Vertical rhythm — db-page is block flow (no flex-gap); grid rows already carry
+   their own margin, so only the top-level kit cards/grids/wrappers need it. */
+.db-page.xpl-scope > .xpl-card,
+.db-page.xpl-scope > .xpl-kpi-grid,
+.db-page.xpl-scope > .db-advanced,
+.db-page.xpl-scope > .db-kpi-hero,
+.db-page.xpl-scope > .db-reco-emphasis { margin-bottom: 18px; }
+
+/* §1 — Executive header (title + refresh + last-updated) */
+.db-exec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.db-exec-head-title { font-size: 20px; font-weight: 800; color: var(--xpl-text); letter-spacing: -.4px; margin: 0; }
+.db-exec-head-sub { font-size: 12.5px; color: var(--xpl-muted); margin: 2px 0 0; }
+.db-exec-head-actions { display: flex; align-items: center; gap: 12px; }
+.db-exec-updated { font-size: 11.5px; color: var(--xpl-muted); }
+
+/* §9 — Advanced-analytics expander (progressive disclosure) */
+.db-advanced {
+  border: 1px solid var(--xpl-border);
+  border-radius: 14px;
+  background: var(--xpl-surface);
+  box-shadow: var(--xpl-shadow-sm);
+  overflow: hidden;
+}
+.db-advanced-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 18px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--xpl-text);
+  list-style: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.db-advanced-summary::-webkit-details-marker { display: none; }
+.db-advanced-summary:hover { background: var(--xpl-faint-2); }
+.db-advanced-summary:focus-visible { outline: 2px solid var(--xpl-primary); outline-offset: -2px; }
+.db-advanced-chevron { margin-inline-start: auto; transition: transform .2s ease; color: var(--xpl-muted); }
+.db-advanced[open] .db-advanced-chevron { transform: rotate(180deg); }
+.db-advanced-body { display: flex; flex-direction: column; gap: 18px; padding: 4px 18px 18px; }
+
+/* ================================================================
+   EXECUTIVE DASHBOARD POLISH PACK v1 — presentation-only refinement.
+   Reduce border noise · premium KPI hero · density · smart empties.
+   All scoped to .db-page.xpl-scope; tokens only.
+   ================================================================ */
+
+/* 1 — Reduce border noise: section cards defined by surface + soft elevation,
+       not stacked outlines (the surface contrasts the darker page background). */
+.db-page.xpl-scope .xpl-card {
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .28), 0 8px 22px rgba(0, 0, 0, .16);
+}
+
+/* 2 — Unified MetricCard system: overflow-safe, consistent mini-card rhythm, tiered.
+       Base = overflow safety + balanced spacing; hero = prominent; ops strip = compact.
+       Grid items stretch to equal height, so keeping labels/helper text to ONE line stops
+       any single card growing taller than its group. */
+.db-page.xpl-scope .xpl-metric {
+  padding: 15px 16px;
+  border-radius: 15px;
+  gap: 13px;
+  overflow: hidden;          /* never let content escape the card */
+  align-items: center;       /* balanced icon / text alignment */
+}
+.db-page.xpl-scope .xpl-metric-body { min-width: 0; }
+.db-page.xpl-scope .xpl-metric-icon { width: 44px; height: 44px; border-radius: 13px; flex-shrink: 0; }
+.db-page.xpl-scope .xpl-metric-icon .material-symbols-outlined { font-size: 23px !important; }
+/* Labels + helper text: strictly one line (ellipsis) — the key to equal card heights */
+.db-page.xpl-scope .xpl-metric-label,
+.db-page.xpl-scope .xpl-metric-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.db-page.xpl-scope .xpl-metric-label { font-size: 12px; letter-spacing: .1px; }
+/* Value: prominent but adaptive. Default wrapping breaks ONLY at spaces (so a date can fall
+   to two balanced lines) — never mid-token, which previously split "105,590.400 KWD" and,
+   in RTL, rendered the tail as a broken "KWD 0". Monetary hero values are kept on one line
+   (nowrap) in the hero tier below so the currency always stays attached to its number. */
+.db-page.xpl-scope .xpl-metric-value {
+  min-width: 0;
+  font-size: clamp(16px, 1.1vw + 8px, 21px);
+}
+.db-page.xpl-scope .xpl-metric-trend { font-size: 11.5px; }
+.db-page.xpl-scope .xpl-metric--click:hover,
+.db-page.xpl-scope .xpl-metric--click:focus-visible { transform: translateY(-3px); }
+
+/* ── Hero — the primary financial KPI row: the single dominant element on the page ──
+   Dense cards (shorter), smaller icon circles, value-first weight, cards fill the FULL
+   width (auto-fit — no trailing empty column / whitespace), generous inter-card spacing,
+   a stronger section title, and money kept on one intact line. Prominence comes from the
+   composition (title + spacing + value weight), NOT from larger cards. */
+.db-kpi-hero .xpl-card {
+  background: linear-gradient(180deg, var(--xpl-faint-2), transparent 60%), var(--xpl-surface);
+}
+.db-page.xpl-scope .db-kpi-hero .xpl-card-title { font-size: 15.5px; font-weight: 800; letter-spacing: -.2px; }
+.db-page.xpl-scope .db-kpi-hero .xpl-card-head { padding-bottom: 15px; }
+.db-page.xpl-scope .db-kpi-hero .xpl-kpi-grid {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));  /* fill width, no empty track */
+  gap: 22px;                                                    /* cards breathe (#7) */
+}
+.db-page.xpl-scope .db-kpi-hero .xpl-metric { padding: 12px 16px; }         /* ~20% shorter (#4) */
+.db-page.xpl-scope .db-kpi-hero .xpl-metric-icon { width: 36px; height: 36px; border-radius: 11px; }  /* smaller circle (#5) */
+.db-page.xpl-scope .db-kpi-hero .xpl-metric-icon .material-symbols-outlined { font-size: 20px !important; }
+.db-page.xpl-scope .db-kpi-hero .xpl-metric-value {
+  white-space: nowrap;                       /* number + currency never separate (#3) */
+  font-size: clamp(15px, 1.1vw + 7px, 20px);
+  font-weight: 800;                          /* value is the primary focus */
+}
+
+/* Compact operational summary strip — ~25% shorter, tighter, still perfectly aligned */
+.db-page.xpl-scope .db-ops-summary { grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.db-page.xpl-scope .db-ops-summary .xpl-metric { padding: 11px 13px; gap: 11px; }
+.db-page.xpl-scope .db-ops-summary .xpl-metric-icon { width: 36px; height: 36px; border-radius: 10px; }
+.db-page.xpl-scope .db-ops-summary .xpl-metric-icon .material-symbols-outlined { font-size: 19px !important; }
+.db-page.xpl-scope .db-ops-summary .xpl-metric-label { font-size: 10.5px; }
+.db-page.xpl-scope .db-ops-summary .xpl-metric-value { font-size: clamp(14px, 1vw + 5px, 17px); }
+.db-page.xpl-scope .db-ops-summary .xpl-metric-sub { font-size: 9.5px; }
+
+/* Critical alerts (يحتاج إجراءً الآن) — compact executive rows: one line each, ~35% shorter */
+.db-page.xpl-scope .db-ac { gap: 8px; }
+.db-page.xpl-scope .db-ac-item { padding: 7px 12px; align-items: center; }
+.db-page.xpl-scope .db-ac-title { min-width: 0; }
+.db-page.xpl-scope .db-ac-title,
+.db-page.xpl-scope .db-ac-explain,
+.db-page.xpl-scope .db-ac-value,
+.db-page.xpl-scope .db-ac-hint {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.db-page.xpl-scope .db-ac-explain { display: block; margin-top: 1px; line-height: 1.35; }
+.db-page.xpl-scope .db-ac-meta { flex-wrap: nowrap; margin-top: 2px; min-width: 0; overflow: hidden; }
+
+/* 3 — Executive header: stronger title hierarchy + period indicator badge */
+.db-exec-head-title { font-size: 24px; }
+.db-exec-period {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--xpl-text);
+  background: var(--xpl-faint);
+  border: 1px solid var(--xpl-border);
+  padding: 6px 12px;
+  border-radius: 10px;
+}
+.db-exec-period .material-symbols-outlined { font-size: 16px !important; color: var(--xpl-primary); }
+
+/* 4 — Density + smart empty states: compact placeholders and tighter fixed heights so
+       empty/short widgets stop reserving large blank rectangles. */
+.db-page.xpl-scope .db-empty { padding: 18px 16px; gap: 6px; }
+.db-page.xpl-scope .db-empty-icon { font-size: 24px; }
+.db-page.xpl-scope .db-chart-wrap { height: 210px; }
+.db-page.xpl-scope .db-chart-wrap-sm { height: 195px; }
+.db-page.xpl-scope .db-card-body.scrollable { max-height: 220px; }
+
+/* 5 — Activity feed: tighter row rhythm for higher information density */
+.db-page.xpl-scope .db-af-row { padding-block: 8px; }
+
+/* 6 — Executive recommendations: elevated importance via a primary accent + subtle wash */
+.db-reco-emphasis .xpl-card {
+  border-inline-start: 3px solid var(--xpl-primary);
+  background: linear-gradient(180deg, var(--xpl-faint-2), transparent 55%), var(--xpl-surface);
 }

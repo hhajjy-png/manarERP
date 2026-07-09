@@ -173,6 +173,12 @@
 .xpl-metric-value { font-size: 19px; font-weight: 800; color: var(--xpl-text); letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
 .xpl-metric-sub   { font-size: 10.5px; color: var(--xpl-muted); }
 
+/* Optional month-on-month trend indicator (arrow = real direction, colour = good/bad) */
+.xpl-metric-trend { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; margin-top: 1px; font-variant-numeric: tabular-nums; }
+.xpl-metric-trend .material-symbols-outlined { font-size: 13px !important; }
+.xpl-metric-trend--up   { color: var(--xpl-green); }
+.xpl-metric-trend--down { color: var(--xpl-red); }
+
 /* Tones */
 .xpl-metric--green  .xpl-metric-icon { background: rgba(16, 185, 129, .12); }
 .xpl-metric--green  .xpl-metric-icon .material-symbols-outlined { color: var(--xpl-green); }

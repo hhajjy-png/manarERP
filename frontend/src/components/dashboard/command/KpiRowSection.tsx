@@ -1,15 +1,19 @@
-import KPICard from '../KPICard';
+import { MetricCard } from '../../explorer/ExplorerKit';
 import { Skeleton } from '../Skeleton';
 import PrivateAmount from '../../PrivateAmount';
 import type { FinancialSummary } from './types';
 
 /**
- * Build a month-on-month badge from a REAL change percentage.
+ * Build a month-on-month trend indicator from a REAL change percentage.
  * Returns undefined when no real comparison exists (null/NaN) — we never invent a growth rate.
+ * `invert` flips only the colour for cost-type metrics (rising expenses read red, not green).
  */
-function momBadge(v: number | null | undefined): { dir: 'up' | 'down'; text: string } | undefined {
+function momTrend(
+  v: number | null | undefined,
+  invert = false,
+): { dir: 'up' | 'down'; text: string; invert?: boolean } | undefined {
   if (v == null || !Number.isFinite(v)) return undefined;
-  return { dir: v >= 0 ? 'up' : 'down', text: `${Math.abs(v).toFixed(1)}%` };
+  return { dir: v >= 0 ? 'up' : 'down', text: `${Math.abs(v).toFixed(1)}%`, invert };
 }
 
 /**
@@ -31,7 +35,7 @@ export default function KpiRowSection({
 }) {
   if (loading) {
     return (
-      <div className="db-cc-kpi-grid">
+      <div className="xpl-kpi-grid">
         {[0, 1, 2, 3, 4].map((i) => (
           <Skeleton key={i} height={120} style={{ borderRadius: 14 }} />
         ))}
@@ -55,44 +59,43 @@ export default function KpiRowSection({
   const cashPositive = cash >= 0;
 
   return (
-    <div className="db-cc-kpi-grid">
-      <KPICard
+    <div className="xpl-kpi-grid">
+      <MetricCard
         label="إجمالي الإيرادات"
         value={<PrivateAmount value={f.totalRevenue} />}
-        icon="💰"
-        color="green"
-        badge={momBadge(mom.revenue)}
+        icon="payments"
+        tone="green"
+        trend={momTrend(mom.revenue)}
         sub="إجمالي الإيرادات المسجّلة"
       />
-      <KPICard
+      <MetricCard
         label="صافي الربح"
         value={<PrivateAmount value={f.netProfit} />}
-        icon="📈"
-        color={profitPositive ? 'blue' : 'red'}
-        badge={momBadge(mom.profit)}
+        icon="trending_up"
+        tone={profitPositive ? 'blue' : 'red'}
+        trend={momTrend(mom.profit)}
         sub={profitPositive ? 'الإيرادات − المصروفات' : '⚠ المصروفات تتجاوز الإيرادات'}
       />
-      <KPICard
+      <MetricCard
         label="إجمالي المصروفات"
         value={<PrivateAmount value={f.totalExpenses} />}
-        icon="📉"
-        color="red"
-        badge={momBadge(mom.expenses)}
-        badgeInvert
+        icon="trending_down"
+        tone="red"
+        trend={momTrend(mom.expenses, true)}
         sub="إجمالي المصروفات المعتمدة"
       />
-      <KPICard
+      <MetricCard
         label="صافي النقد لهذا الشهر"
         value={<PrivateAmount value={cash} />}
-        icon="💵"
-        color={cashPositive ? 'green' : 'red'}
+        icon="account_balance_wallet"
+        tone={cashPositive ? 'green' : 'red'}
         sub={`${cashPositive ? 'فائض نقدي' : 'عجز نقدي'} — تحصيلات الشهر − مصروفات الشهر`}
       />
-      <KPICard
+      <MetricCard
         label="الذمم المستحقة"
         value={<PrivateAmount value={f.totalOutstanding} />}
-        icon="⏳"
-        color="amber"
+        icon="hourglass_empty"
+        tone="orange"
         sub="مبالغ لم تُحصَّل بعد"
       />
     </div>
