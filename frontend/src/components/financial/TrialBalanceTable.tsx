@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import type { TrialBalanceAsOfRow, TrialBalancePeriodRow } from '../../types/financial.types';
 import { BalanceDisplay } from './BalanceDisplay';
-import { formatCurrency } from '../../lib/format';
+import { fcCurrency, accountTypeAr } from './financialLabels';
 
 type AnyRow = TrialBalanceAsOfRow | TrialBalancePeriodRow;
 
 function fmt(n: number | undefined) {
   if (n === undefined || n === null || n === 0) return '';
-  return formatCurrency(n);
+  return fcCurrency(n);
 }
 
 interface Props {
@@ -45,7 +45,7 @@ export function TrialBalanceTable({ rows, mode, totals }: Props) {
                     {row.accountName}
                   </button>
                 </td>
-                <td>{row.accountType}</td>
+                <td>{accountTypeAr(row.accountType)}</td>
                 <td className="num">{fmt(row.totalDebit)}</td>
                 <td className="num">{fmt(row.totalCredit)}</td>
                 <td className={`num ${(row.balance ?? 0) < 0 ? 'negative' : ''}`}>

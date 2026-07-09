@@ -2,10 +2,11 @@ import { useState } from 'react';
 import type { JournalBookRow } from '../../types/financial.types';
 import { DrillDownLink } from './DrillDownLink';
 import type { FinancialDrillDownState } from './DrillDownLink';
-import { formatCurrency } from '../../lib/format';
+import { formatDate } from '../../lib/date';
+import { fcCurrency, referenceTypeAr, journalStatusAr } from './financialLabels';
 
 function fmt(n: number) {
-  return formatCurrency(n);
+  return fcCurrency(n);
 }
 
 interface Props {
@@ -60,16 +61,16 @@ export function JournalBookTable({ rows, currentState }: Props) {
                 >
                   <td className="journal-expand-icon">{expanded.has(row.id) ? '▼' : '▶'}</td>
                   <td><strong>{row.entryNumber}</strong></td>
-                  <td>{row.date.slice(0, 10)}</td>
+                  <td>{formatDate(row.date)}</td>
                   <td>{row.description}</td>
                   <td>
                     <DrillDownLink drillDown={row.drillDown} currentState={currentState}>
-                      {row.referenceType}
+                      {referenceTypeAr(row.referenceType)}
                     </DrillDownLink>
                   </td>
                   <td>
                     <span className={`journal-status journal-status-${row.status.toLowerCase()}`}>
-                      {row.status}
+                      {journalStatusAr(row.status)}
                     </span>
                   </td>
                   <td className="num">{fmt(row.totalDebit)}</td>

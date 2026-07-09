@@ -5,7 +5,8 @@ import { financialApi } from '../api/financial';
 import { exportReportAsPdf } from '../utils/pdfExport';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { downloadBlob } from '../utils/exportUtils';
-import { formatCurrency } from '../lib/format';
+import { formatDate } from '../lib/date';
+import { fcCurrency, referenceTypeAr, accountTypeAr } from '../components/financial/financialLabels';
 import type {
   FinancialResponse, StatementRow, ArAgingRow, ApAgingRow,
   GlStatementRow, GlReportResponse,
@@ -32,6 +33,10 @@ import { TrialBalanceTable }    from '../components/financial/TrialBalanceTable'
 import { JournalBookTable }     from '../components/financial/JournalBookTable';
 import { BalanceDisplay }       from '../components/financial/BalanceDisplay';
 import { FinancialReportsTab } from '../components/financial/FinancialReportsTab';
+// ExplorerKit tokens/styles — the Financial Center root carries `xpl-scope` so its
+// refreshed shell/tables/cards resolve `--xpl-*` tokens (cohesion with the Executive
+// Dashboard). Presentation only; the kit CSS is already bundled app-wide.
+import '../components/explorer/explorer-kit.css';
 
 interface EntityOption { id: number; name: string; code: string; }
 
@@ -55,7 +60,7 @@ const AGING_BUCKETS: AgingBucketData[] = [
 
 function fmtKwd(n?: number) {
   if (n === undefined || n === null) return '';
-  return formatCurrency(n);
+  return fcCurrency(n);
 }
 
 export default function FinancialCenter() {
@@ -326,7 +331,7 @@ export default function FinancialCenter() {
   const visibleTabs = FINANCIAL_TABS.filter(t => hasPermission(t.permission));
   if (visibleTabs.length === 0) {
     return (
-      <div className="financial-center" dir="rtl">
+      <div className="financial-center xpl-scope" dir="rtl">
         <p className="fc-no-permission">لا توجد صلاحيات لعرض هذا القسم.</p>
       </div>
     );
@@ -380,12 +385,15 @@ export default function FinancialCenter() {
   const trialDifference = trialData?.metadata?.difference as number | undefined;
 
   return (
-    <div className="financial-center" dir="rtl">
+    <div className="financial-center xpl-scope" dir="rtl">
       <ReturnToReportButton />
 
       <div className="fc-header">
         <span className="material-symbols-outlined fc-header-icon">account_balance</span>
-        <h1 className="fc-title">المركز المالي</h1>
+        <div className="fc-header-text">
+          <h1 className="fc-title">المركز المالي</h1>
+          <p className="fc-subtitle">الكشوف المحاسبية والتقارير المالية — مركز عمل المحاسب</p>
+        </div>
       </div>
 
       <FinancialTabs
@@ -435,7 +443,26 @@ export default function FinancialCenter() {
             {result && <ExportBar onExcelExport={() => doExport('excel')} onPdfExport={() => doExport('pdf')} loading={exporting} />}
           </div>
 
-          {error && <p className="fc-error">{error}</p>}
+          {error && (
+            <div className="fc-error" role="alert">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">error</span>
+              {error}
+            </div>
+          )}
+
+          {/* Statement context — selected entity + period (shown once loaded) */}
+          {result && (
+            <div className="fc-statement-context" aria-label="سياق كشف الحساب">
+              <span className="fc-statement-context-entity">
+                <span className="material-symbols-outlined" aria-hidden="true">{entityType === 'customer' ? 'person' : 'store'}</span>
+                كشف حساب {entities.find(e => String(e.id) === String(entityId))?.name ?? (entityType === 'customer' ? 'العميل' : 'المورد')}
+              </span>
+              <span className="fc-statement-context-period">
+                <span className="material-symbols-outlined" aria-hidden="true">event</span>
+                {fromDate ? formatDate(fromDate) : 'من البداية'} — {toDate ? formatDate(toDate) : 'حتى اليوم'}
+              </span>
+            </div>
+          )}
 
           {result?.summary && (
             <SummaryCards cards={[
@@ -453,10 +480,51 @@ export default function FinancialCenter() {
               : <StatementTable rows={displayRows} currentState={statementDrillDown} />
           )}
           {result && displayRows.length === 0 && !loading && (
-            <p className="fc-empty">لا توجد حركات بالمعايير المحددة.</p>
+            <div className="fc-empty">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">search_off</span>
+              لا توجد حركات بالمعايير المحددة.
+            </div>
           )}
-          {!entityId && !result && (
-            <p className="fc-hint">اختر {entityType === 'customer' ? 'عميلاً' : 'موردًا'} ثم اضغط «تحميل».</p>
+
+          {/* Manual-load experience — never a bare empty area */}
+          {!result && loading && (
+            <div className="fc-hint">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
+              جارٍ تحميل كشف الحساب…
+            </div>
+          )}
+          {!result && !loading && !entityId && (
+            <div className="fc-empty">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">person_search</span>
+              اختر {entityType === 'customer' ? 'عميلاً' : 'موردًا'} من القائمة أعلاه لعرض كشف حسابه.
+            </div>
+          )}
+          {!result && !loading && entityId && (
+            <div className="fc-load-card" role="region" aria-label="جاهز لتحميل كشف الحساب">
+              <span className="material-symbols-outlined fc-load-card-icon" aria-hidden="true">description</span>
+              <div className="fc-load-card-body">
+                <h3 className="fc-load-card-title">
+                  كشف حساب {entities.find(e => String(e.id) === String(entityId))?.name ?? (entityType === 'customer' ? 'العميل' : 'المورد')}
+                </h3>
+                <p className="fc-load-card-period">
+                  الفترة: {fromDate ? formatDate(fromDate) : 'من البداية'} — {toDate ? formatDate(toDate) : 'حتى اليوم'}
+                  {search ? ` · بحث: «${search}»` : ''}
+                </p>
+                <p className="fc-load-card-hint">
+                  اضغط «تحميل الكشف» لعرض جميع الحركات والأرصدة (افتتاحي، مدين، دائن، ختامي) للفترة المحددة.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="fc-load-btn fc-load-card-btn"
+                onClick={loadStatement}
+                disabled={loading}
+                aria-label="تحميل كشف الحساب"
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">download</span>
+                تحميل الكشف
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -514,17 +582,40 @@ export default function FinancialCenter() {
             )}
           </div>
 
-          {agingError && <p className="fc-error">{agingError}</p>}
+          {agingError && (
+            <div className="fc-error" role="alert">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">error</span>
+              {agingError}
+            </div>
+          )}
           {activeAgingData && (
             <>
+              <div className="fc-statement-context" aria-label="سياق أعمار الذمم">
+                <span className="fc-statement-context-entity">
+                  <span className="material-symbols-outlined" aria-hidden="true">{agingSubTab === 'ar' ? 'groups' : 'store'}</span>
+                  أعمار {agingSubTab === 'ar' ? 'ذمم العملاء' : 'ذمم الموردين'}
+                </span>
+                <span className="fc-statement-context-period">
+                  <span className="material-symbols-outlined" aria-hidden="true">event</span>
+                  حتى {agingAsOfDate ? formatDate(agingAsOfDate) : 'اليوم'}
+                </span>
+              </div>
               <AgingSummaryCards summary={activeAgingData.summary} type={agingSubTab} />
               <AgingChart data={agingChartData} />
               <AgingTable rows={activeAgingData.rows} type={agingSubTab} currentState={agingDrillDown} />
             </>
           )}
-          {agingLoading && !activeAgingData && <p className="fc-hint">جارٍ تحميل أعمار الذمم...</p>}
+          {agingLoading && !activeAgingData && (
+            <div className="fc-hint">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
+              جارٍ تحميل أعمار الذمم…
+            </div>
+          )}
           {!agingLoading && !activeAgingData && !agingError && (
-            <p className="fc-hint">اضغط «تحديث» لتحميل أعمار الذمم.</p>
+            <div className="fc-empty">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_disabled</span>
+              اضغط «تحديث» لتحميل أعمار الذمم للفترة المحددة.
+            </div>
           )}
         </div>
       )}
@@ -582,7 +673,25 @@ export default function FinancialCenter() {
                 )}
               </div>
 
-              {glError && <p className="fc-error">{glError}</p>}
+              {glError && (
+                <div className="fc-error" role="alert">
+                  <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">error</span>
+                  {glError}
+                </div>
+              )}
+
+              {glStatData && (
+                <div className="fc-statement-context" aria-label="سياق كشف الأستاذ">
+                  <span className="fc-statement-context-entity">
+                    <span className="material-symbols-outlined" aria-hidden="true">account_tree</span>
+                    كشف حساب الأستاذ
+                  </span>
+                  <span className="fc-statement-context-period">
+                    <span className="material-symbols-outlined" aria-hidden="true">event</span>
+                    {glFrom ? formatDate(glFrom) : 'من البداية'} — {glTo ? formatDate(glTo) : 'حتى اليوم'}
+                  </span>
+                </div>
+              )}
 
               {glStatData?.summary && (
                 <SummaryCards cards={[
@@ -607,13 +716,13 @@ export default function FinancialCenter() {
                     <tbody>
                       {glStatData.rows.map(row => (
                         <tr key={row.id} id={`row-${row.id}`}>
-                          <td>{row.date.slice(0, 10)}</td>
+                          <td>{formatDate(row.date)}</td>
                           <td>
                             <DrillDownLink drillDown={row.drillDown} currentState={glStatDrillDown}>
                               {row.journalNumber}
                             </DrillDownLink>
                           </td>
-                          <td>{row.referenceType}</td>
+                          <td>{referenceTypeAr(row.referenceType)}</td>
                           <td>{row.description}</td>
                           <td className="num">{fmtKwd(row.debit)}</td>
                           <td className="num">{fmtKwd(row.credit)}</td>
@@ -627,10 +736,41 @@ export default function FinancialCenter() {
                 </div>
               )}
               {glStatData && glStatData.rows.length === 0 && !glLoading && (
-                <p className="fc-empty">لا توجد حركات بالمعايير المحددة.</p>
+                <div className="fc-empty">
+                  <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">search_off</span>
+                  لا توجد حركات بالمعايير المحددة.
+                </div>
               )}
-              {!glAccountId && !glStatData && (
-                <p className="fc-hint">اختر حسابًا من القائمة أعلاه.</p>
+              {!glStatData && glLoading && (
+                <div className="fc-hint">
+                  <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
+                  جارٍ تحميل كشف الأستاذ…
+                </div>
+              )}
+              {!glStatData && !glLoading && !glAccountId && (
+                <div className="fc-empty">
+                  <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">account_balance_wallet</span>
+                  اختر حسابًا من القائمة أعلاه لعرض كشف الأستاذ.
+                </div>
+              )}
+              {!glStatData && !glLoading && glAccountId && (
+                <div className="fc-load-card" role="region" aria-label="جاهز لتحميل كشف الأستاذ">
+                  <span className="material-symbols-outlined fc-load-card-icon" aria-hidden="true">account_tree</span>
+                  <div className="fc-load-card-body">
+                    <h3 className="fc-load-card-title">كشف حساب الأستاذ</h3>
+                    <p className="fc-load-card-period">
+                      الفترة: {glFrom ? formatDate(glFrom) : 'من البداية'} — {glTo ? formatDate(glTo) : 'حتى اليوم'}
+                      {glSearch ? ` · بحث: «${glSearch}»` : ''}
+                    </p>
+                    <p className="fc-load-card-hint">
+                      اضغط «تحميل» لعرض حركات الحساب والأرصدة (افتتاحي، مدين، دائن، ختامي) للفترة المحددة.
+                    </p>
+                  </div>
+                  <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadGlStatement} disabled={glLoading} aria-label="تحميل كشف الأستاذ">
+                    <span className="material-symbols-outlined" aria-hidden="true">download</span>
+                    تحميل
+                  </button>
+                </div>
               )}
             </>
           )}
@@ -672,9 +812,14 @@ export default function FinancialCenter() {
                 )}
               </div>
 
-              {glReportError && <p className="fc-error">{glReportError}</p>}
+              {glReportError && (
+                <div className="fc-error" role="alert">
+                  <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">error</span>
+                  {glReportError}
+                </div>
+              )}
 
-              {glReportData && (
+              {glReportData && glReportData.accounts.length > 0 && (
                 <>
                   <div className="table-responsive">
                     <table className="financial-table gl-report-table" dir="rtl">
@@ -702,7 +847,7 @@ export default function FinancialCenter() {
                                 {acc.accountName}
                               </button>
                             </td>
-                            <td>{acc.accountType}</td>
+                            <td>{accountTypeAr(acc.accountType)}</td>
                             <td className="num"><BalanceDisplay value={acc.openingBalance} /></td>
                             <td className="num">{fmtKwd(acc.totalDebit)}</td>
                             <td className="num">{fmtKwd(acc.totalCredit)}</td>
@@ -727,8 +872,35 @@ export default function FinancialCenter() {
                   )}
                 </>
               )}
+              {glReportData && glReportData.accounts.length === 0 && !glReportLoading && (
+                <div className="fc-empty">
+                  <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">search_off</span>
+                  لا توجد حسابات بالمعايير المحددة.
+                </div>
+              )}
+              {glReportLoading && !glReportData && (
+                <div className="fc-hint">
+                  <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
+                  جارٍ تحميل دفتر الأستاذ العام…
+                </div>
+              )}
               {!glReportLoading && !glReportData && !glReportError && (
-                <p className="fc-hint">اضغط «تحميل» لعرض دفتر الأستاذ العام.</p>
+                <div className="fc-load-card" role="region" aria-label="جاهز لتحميل دفتر الأستاذ العام">
+                  <span className="material-symbols-outlined fc-load-card-icon" aria-hidden="true">menu_book</span>
+                  <div className="fc-load-card-body">
+                    <h3 className="fc-load-card-title">دفتر الأستاذ العام</h3>
+                    <p className="fc-load-card-period">
+                      الفترة: {glFrom ? formatDate(glFrom) : 'من البداية'} — {glTo ? formatDate(glTo) : 'حتى اليوم'}
+                    </p>
+                    <p className="fc-load-card-hint">
+                      اضغط «تحميل» لعرض جميع الحسابات مع أرصدة الافتتاح والإقفال وإجماليات المدين والدائن.
+                    </p>
+                  </div>
+                  <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadGlReport} disabled={glReportLoading} aria-label="تحميل دفتر الأستاذ العام">
+                    <span className="material-symbols-outlined" aria-hidden="true">download</span>
+                    تحميل
+                  </button>
+                </div>
               )}
             </>
           )}
@@ -795,7 +967,31 @@ export default function FinancialCenter() {
             )}
           </div>
 
-          {trialError && <p className="fc-error">{trialError}</p>}
+          {trialError && (
+            <div className="fc-error" role="alert">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">error</span>
+              {trialError}
+            </div>
+          )}
+
+          {trialData && (
+            <div className="fc-statement-context" aria-label="سياق ميزان المراجعة">
+              <span className="fc-statement-context-entity">
+                <span className="material-symbols-outlined" aria-hidden="true">balance</span>
+                ميزان المراجعة
+              </span>
+              <span className="fc-statement-context-period">
+                <span className="material-symbols-outlined" aria-hidden="true">event</span>
+                {trialMode === 'as-of'
+                  ? `حتى ${trialAsOf ? formatDate(trialAsOf) : 'اليوم'}`
+                  : `${trialFrom ? formatDate(trialFrom) : 'من البداية'} — ${trialTo ? formatDate(trialTo) : 'حتى اليوم'}`}
+              </span>
+              <span className={`fc-balance-chip ${trialIsBalanced ? 'ok' : 'bad'}`}>
+                <span className="material-symbols-outlined" aria-hidden="true">{trialIsBalanced ? 'check_circle' : 'error'}</span>
+                {trialIsBalanced ? 'متوازن' : 'غير متوازن'}
+              </span>
+            </div>
+          )}
 
           <ImbalanceAlert isBalanced={trialIsBalanced} difference={trialDifference} />
 
@@ -814,10 +1010,36 @@ export default function FinancialCenter() {
             />
           )}
           {trialData && trialData.rows.length === 0 && !trialLoading && (
-            <p className="fc-empty">لا توجد بيانات بالمعايير المحددة.</p>
+            <div className="fc-empty">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">search_off</span>
+              لا توجد بيانات بالمعايير المحددة.
+            </div>
+          )}
+          {trialLoading && !trialData && (
+            <div className="fc-hint">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
+              جارٍ تحميل ميزان المراجعة…
+            </div>
           )}
           {!trialLoading && !trialData && !trialError && (
-            <p className="fc-hint">اضغط «تحميل» لعرض ميزان المراجعة.</p>
+            <div className="fc-load-card" role="region" aria-label="جاهز لتحميل ميزان المراجعة">
+              <span className="material-symbols-outlined fc-load-card-icon" aria-hidden="true">balance</span>
+              <div className="fc-load-card-body">
+                <h3 className="fc-load-card-title">ميزان المراجعة</h3>
+                <p className="fc-load-card-period">
+                  {trialMode === 'as-of'
+                    ? `حتى تاريخ: ${trialAsOf ? formatDate(trialAsOf) : 'اليوم'}`
+                    : `الفترة: ${trialFrom ? formatDate(trialFrom) : 'من البداية'} — ${trialTo ? formatDate(trialTo) : 'حتى اليوم'}`}
+                </p>
+                <p className="fc-load-card-hint">
+                  اضغط «تحميل» لعرض أرصدة جميع الحسابات مع إجماليات المدين والدائن والتحقق من التوازن.
+                </p>
+              </div>
+              <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadTrialBalance} disabled={trialLoading} aria-label="تحميل ميزان المراجعة">
+                <span className="material-symbols-outlined" aria-hidden="true">download</span>
+                تحميل
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -874,7 +1096,26 @@ export default function FinancialCenter() {
             )}
           </div>
 
-          {journalError && <p className="fc-error">{journalError}</p>}
+          {journalError && (
+            <div className="fc-error" role="alert">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">error</span>
+              {journalError}
+            </div>
+          )}
+
+          {journalData && (
+            <div className="fc-statement-context" aria-label="سياق دفتر اليومية">
+              <span className="fc-statement-context-entity">
+                <span className="material-symbols-outlined" aria-hidden="true">menu_book</span>
+                دفتر اليومية
+              </span>
+              <span className="fc-statement-context-period">
+                <span className="material-symbols-outlined" aria-hidden="true">event</span>
+                {jFrom ? formatDate(jFrom) : 'من البداية'} — {jTo ? formatDate(jTo) : 'حتى اليوم'}
+                {jStatus ? ` · ${jStatus === 'POSTED' ? 'المرحّلة' : 'المسودات'}` : ''}
+              </span>
+            </div>
+          )}
 
           {journalData?.summary && (
             <SummaryCards cards={[
@@ -888,7 +1129,10 @@ export default function FinancialCenter() {
             <JournalBookTable rows={journalData.rows} currentState={journalDrillDown} />
           )}
           {journalData && journalData.rows.length === 0 && !journalLoading && (
-            <p className="fc-empty">لا توجد قيود بالمعايير المحددة.</p>
+            <div className="fc-empty">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">search_off</span>
+              لا توجد قيود بالمعايير المحددة.
+            </div>
           )}
 
           {journalData?.pagination && journalData.pagination.totalPages > 1 && (
@@ -901,8 +1145,31 @@ export default function FinancialCenter() {
             </div>
           )}
 
+          {journalLoading && !journalData && (
+            <div className="fc-hint">
+              <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
+              جارٍ تحميل دفتر اليومية…
+            </div>
+          )}
           {!journalLoading && !journalData && !journalError && (
-            <p className="fc-hint">اضغط «تحميل» لعرض دفتر اليومية.</p>
+            <div className="fc-load-card" role="region" aria-label="جاهز لتحميل دفتر اليومية">
+              <span className="material-symbols-outlined fc-load-card-icon" aria-hidden="true">menu_book</span>
+              <div className="fc-load-card-body">
+                <h3 className="fc-load-card-title">دفتر اليومية</h3>
+                <p className="fc-load-card-period">
+                  الفترة: {jFrom ? formatDate(jFrom) : 'من البداية'} — {jTo ? formatDate(jTo) : 'حتى اليوم'}
+                  {jStatus ? ` · ${jStatus === 'POSTED' ? 'المرحّلة' : 'المسودات'}` : ''}
+                  {jSearch ? ` · بحث: «${jSearch}»` : ''}
+                </p>
+                <p className="fc-load-card-hint">
+                  اضغط «تحميل» لعرض القيود مع إجماليات المدين والدائن؛ يمكن توسيع كل قيد لعرض بنوده التفصيلية.
+                </p>
+              </div>
+              <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadJournalBook} disabled={journalLoading} aria-label="تحميل دفتر اليومية">
+                <span className="material-symbols-outlined" aria-hidden="true">download</span>
+                تحميل
+              </button>
+            </div>
           )}
         </div>
       )}

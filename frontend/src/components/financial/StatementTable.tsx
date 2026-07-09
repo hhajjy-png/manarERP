@@ -1,6 +1,7 @@
 import type { StatementRow } from '../../types/financial.types';
 import { DrillDownLink, type FinancialDrillDownState } from './DrillDownLink';
-import { formatCurrency } from '../../lib/format';
+import { formatDate } from '../../lib/date';
+import { fcCurrency, referenceTypeAr } from './financialLabels';
 
 interface Props {
   rows: StatementRow[];
@@ -9,7 +10,7 @@ interface Props {
 }
 
 function fmt(n: number) {
-  return n ? formatCurrency(n) : '';
+  return n ? fcCurrency(n) : '';
 }
 
 export function StatementTable({ rows, currentState, highlightId }: Props) {
@@ -34,13 +35,13 @@ export function StatementTable({ rows, currentState, highlightId }: Props) {
               id={`row-${row.id}`}
               className={highlightId === row.id ? 'highlight-row' : ''}
             >
-              <td>{row.date.slice(0, 10)}</td>
+              <td>{formatDate(row.date)}</td>
               <td>
                 <DrillDownLink drillDown={row.drillDown} currentState={currentState}>
                   {row.reference}
                 </DrillDownLink>
               </td>
-              <td>{row.referenceType}</td>
+              <td>{referenceTypeAr(row.referenceType)}</td>
               <td>{row.description}</td>
               <td className="num">{fmt(row.debit)}</td>
               <td className="num">{fmt(row.credit)}</td>
