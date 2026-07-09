@@ -152,6 +152,7 @@ export function MetricCard({
   onClick,
   active,
   ariaLabel,
+  trend,
 }: {
   icon: string;
   label: string;
@@ -161,14 +162,30 @@ export function MetricCard({
   onClick?: () => void;
   active?: boolean;
   ariaLabel?: string;
+  /**
+   * Optional month-on-month style indicator. `dir` sets the arrow (real direction);
+   * `invert` flips only the COLOUR for cost-type metrics where an increase is negative
+   * (e.g. expenses rising reads red, not green). Omit entirely for no indicator —
+   * existing MetricCard callers are unaffected.
+   */
+  trend?: { dir: 'up' | 'down'; text: string; invert?: boolean };
 }) {
   const cls = `xpl-metric xpl-metric--${tone}${onClick ? ' xpl-metric--click' : ''}${active ? ' xpl-metric--active' : ''}`;
+  const trendTone = trend ? (trend.invert ? (trend.dir === 'up' ? 'down' : 'up') : trend.dir) : null;
   const inner = (
     <>
       <div className="xpl-metric-icon"><Icon name={icon} /></div>
       <div className="xpl-metric-body">
         <span className="xpl-metric-label">{label}</span>
         <span className="xpl-metric-value">{value}</span>
+        {trend && (
+          <span className={`xpl-metric-trend xpl-metric-trend--${trendTone}`}>
+            <span className="material-symbols-outlined" aria-hidden="true">
+              {trend.dir === 'up' ? 'arrow_upward' : 'arrow_downward'}
+            </span>
+            {trend.text}
+          </span>
+        )}
         {sub != null && <span className="xpl-metric-sub">{sub}</span>}
       </div>
     </>

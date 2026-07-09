@@ -5,10 +5,11 @@ import { money } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import PrivateAmount from '../components/PrivateAmount';
+import { MetricCard, SectionCard, StatusChip, Button } from '../components/explorer/ExplorerKit';
 
 import '../components/dashboard/dashboard.css';
+import '../components/explorer/explorer-kit.css';
 
-import OpsCard from '../components/dashboard/OpsCard';
 import AlertPanel from '../components/dashboard/AlertPanel';
 import type { DashAlert } from '../components/dashboard/AlertPanel';
 import ContractProgressList from '../components/dashboard/ContractProgressCard';
@@ -28,19 +29,21 @@ import type { FinV2Data } from '../components/dashboard/FinancialIntelPanel';
 import ExecutiveIntelligenceV2Panel from '../components/dashboard/ExecutiveIntelligenceV2Panel';
 import type { IntelV2Data } from '../components/dashboard/ExecutiveIntelligenceV2Panel';
 import { FinancialDashboardTab } from '../components/financial/FinancialDashboardTab';
-import CommandCenter from '../components/dashboard/command/CommandCenter';
+// Command Center is DECOMPOSED into the executive spine below — its former sections
+// are rendered directly (same components, same props, same data) instead of via the
+// composite wrapper, so the primary KPI row leads and the deep panels collapse.
+import HealthGaugeSection from '../components/dashboard/command/HealthGaugeSection';
+import ActionCenterSection from '../components/dashboard/command/ActionCenterSection';
+import KpiRowSection from '../components/dashboard/command/KpiRowSection';
+import PerformanceChartSection from '../components/dashboard/command/PerformanceChartSection';
+import RevenueDistributionSection from '../components/dashboard/command/RevenueDistributionSection';
+import QuickActionsSection from '../components/dashboard/command/QuickActionsSection';
+import RecentActivityFeed from '../components/dashboard/command/RecentActivityFeed';
+import RecommendationsSection from '../components/dashboard/command/RecommendationsSection';
 import { useDashboardCommandData } from '../components/dashboard/command/useDashboardCommandData';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ApiAny = any;
-
-const INVOICE_STATUS_COLOR: Record<string, string> = {
-  UNPAID: '#EF4444',
-  PARTIAL: '#F59E0B',
-  PAID: '#10B981',
-  OVERDUE: '#DC2626',
-  CANCELLED: '#6B7280',
-};
 
 const CONTRACT_STATUS_CLS: Record<string, string> = {
   ACTIVE: 'green',
@@ -180,7 +183,6 @@ function GeneralDashboardContent() {
 
   const workingEquipment = eq.active ?? 0;
   const brokenEquipment = (eq.total ?? 0) - workingEquipment;
-  const profitPositive = (f.netProfit ?? 0) >= 0;
 
   // Kuwait weekend: Friday (5) and Saturday (6)
   const isWeekend = (() => { const d = new Date().getDay(); return d === 5 || d === 6; })();
@@ -218,13 +220,70 @@ function GeneralDashboardContent() {
   const hasFinancialGlance = finSummary != null &&
     (momRevenue != null || momExpenses != null || momCollections != null || thisMonthProfit != null);
 
+  const hasPending = !initialLoading && ops && (
+    ops.pendingExpensesCount > 0 || ops.draftPayrollCount > 0 || ops.unprintedChequesCount > 0 ||
+    ops.outstandingInvoicesCount > 0 || ops.expiringAgreementsCount > 0
+  );
+
+  // Display-only period label for the executive header (no control, no new data).
+  const periodLabel = new Date().toLocaleDateString('ar', { month: 'long', year: 'numeric' });
+
   return (
-    <div className="db-page">
-      {/* ══════════════════════════════════════════════════
-          PRIORITY 1 — EXECUTIVE SUMMARY (existing data only — quick company-status glance).
-          Reordered to lead the page ahead of the KPI/charts hub (Command Center), which now
-          sits lower with the analytics panels. All widgets preserved; no component redesign.
-      ══════════════════════════════════════════════════ */}
+    // xpl-scope makes ExplorerKit tokens (--xpl-*) + kit component styles resolve for the
+    // canonical SectionCard / MetricCard spine and the tokenised charts. Tokens/font only —
+    // no layout side-effects; existing db-* markup is unaffected.
+    <div className="db-page xpl-scope">
+      {/* ═══════════════ §1 — EXECUTIVE HEADER (title · period · refresh) ═══════════════ */}
+      <div className="db-exec-head">
+        <div className="db-exec-head-main">
+          <h2 className="db-exec-head-title">لوحة التحكم</h2>
+          <p className="db-exec-head-sub">نظرة عامة على أداء الشركة</p>
+        </div>
+        <div className="db-exec-head-actions">
+          <span className="db-exec-period">
+            <span className="material-symbols-outlined" aria-hidden="true">calendar_month</span>
+            {periodLabel}
+          </span>
+          {!initialLoading && refreshAt && (
+            <span className="db-exec-updated">آخر تحديث {refreshAt.toLocaleTimeString('ar')}</span>
+          )}
+          <Button
+            variant="secondary"
+            icon="refresh"
+            busy={initialLoading || refreshing}
+            onClick={() => setRefreshKey((k) => k + 1)}
+          >
+            {t('page.dashboard.retry')}
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Error State ────────────────────────────────────────────────────── */}
+      {error && (
+        <div className="alert error db-alert-error">
+          ⚠️ {error}
+          <button
+            type="button"
+            className="btn secondary db-retry-btn"
+            onClick={() => setRefreshKey((k) => k + 1)}
+          >
+            {t('page.dashboard.retry')}
+          </button>
+        </div>
+      )}
+
+      {/* ═══════════════ §2 — PRIMARY KPI ROW (financial results — the hero) ═══════════════ */}
+      <div className="db-kpi-hero">
+        <SectionCard title="المؤشرات المالية الرئيسية" icon="query_stats">
+          <KpiRowSection
+            financial={commandData.decisionCenter?.financialSummary ?? null}
+            cashFlow={commandData.cashFlowThisMonth}
+            loading={commandData.loading}
+          />
+        </SectionCard>
+      </div>
+
+      {/* ═══════════════ §3 — QUICK INSIGHTS (company-status glance) ═══════════════ */}
       {!initialLoading && exec && (
         <div className="db-today" role="status" aria-label={t('page.dashboard.today_summary')}>
           <span className="db-today-label">{t('page.dashboard.today_summary')}</span>
@@ -275,59 +334,15 @@ function GeneralDashboardContent() {
         </div>
       )}
 
-      {/* ── Error State ────────────────────────────────────────────────────── */}
-      {error && (
-        <div className="alert error db-alert-error">
-          ⚠️ {error}
-          <button
-            type="button"
-            className="btn secondary db-retry-btn"
-            onClick={() => setRefreshKey((k) => k + 1)}
-          >
-            {t('page.dashboard.retry')}
-          </button>
-        </div>
-      )}
+      {/* ═══════════════ §4 — CRITICAL ALERTS & ACTIONS ═══════════════ */}
+      <div className="db-section-label">التنبيهات والإجراءات</div>
 
-      {/* ══════════════════════════════════════════════════
-          FINANCIAL DATA-SOURCE NOTE
-          (kept — unique explanation of where the financial figures come from;
-          the old ROW 1 KPI grid was removed in Phase H, now covered by the
-          Command Center KPI row.)
-      ══════════════════════════════════════════════════ */}
-      {!initialLoading && exec && (
-        <div className="db-src-note">
-          <div className="db-src-note-title">ℹ مصدر البيانات المالية</div>
-          <div className="db-src-note-items">
-            <span>
-              <span className="db-src-note-rev">الإيرادات</span>
-              {' '}— دفعات الفواتير المحصّلة من سجل المعاملات
-            </span>
-            <span>
-              <span className="db-src-note-exp">المصروفات</span>
-              {' '}— المصروفات المعتمدة من سجل المعاملات
-            </span>
-            <span>
-              <span className="db-src-note-profit">الربح الصافي</span>
-              {' '}= الإيرادات − المصروفات (قد يكون سالباً)
-            </span>
-            <span>
-              <span className="db-src-note-pending">الفواتير المعلّقة</span>
-              {' '}— بحالة غير مدفوعة أو جزئية أو متأخرة
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════
-          DOCUMENT EXPIRATION WIDGET
-      ══════════════════════════════════════════════════ */}
       <ExpirationWidget />
 
-      {/* ══════════════════════════════════════════════════
-          EXECUTIVE ALERT WIDGETS
-      ══════════════════════════════════════════════════ */}
-      <div className="db-section-label">{t('section.operation_alerts')}</div>
+      <SectionCard title="يحتاج إجراءً الآن" icon="priority_high">
+        <ActionCenterSection cards={commandData.decisionCenter?.decisionCards ?? []} loading={commandData.loading} />
+      </SectionCard>
+
       {initialLoading ? (
         <div className="db-alert-widgets">
           {[0, 1, 2, 3].map((i) => (
@@ -381,10 +396,7 @@ function GeneralDashboardContent() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════
-          OPERATIONAL PENDING SUMMARY
-      ══════════════════════════════════════════════════ */}
-      {!initialLoading && ops && (ops.pendingExpensesCount > 0 || ops.draftPayrollCount > 0 || ops.unprintedChequesCount > 0 || ops.outstandingInvoicesCount > 0 || ops.expiringAgreementsCount > 0) && (
+      {hasPending && (
         <>
           <div className="db-section-label">{t('ops.pending.title')}</div>
           <div className="db-alert-widgets">
@@ -470,57 +482,132 @@ function GeneralDashboardContent() {
         </>
       )}
 
-      {/* ══════════════════════════════════════════════════
-          ROW 2 — OPERATIONAL STATS (6 cards)
-      ══════════════════════════════════════════════════ */}
+      <SectionCard
+        title={t('section.urgent_alerts')}
+        icon="warning"
+        padded={false}
+        actions={!initialLoading && alerts.length > 0 ? <StatusChip tone="red">{alerts.length}</StatusChip> : undefined}
+      >
+        <div className="db-card-body scrollable">
+          <AlertPanel alerts={alerts} loading={initialLoading} />
+        </div>
+      </SectionCard>
+
+      {/* ═══════════════ §5 — EXECUTIVE RECOMMENDATIONS (high priority — promoted) ═══════════════ */}
+      <div className="db-reco-emphasis">
+        <SectionCard title="التوصيات الذكية" icon="lightbulb">
+          <RecommendationsSection recommendations={commandData.decisionCenter?.recommendations ?? []} loading={commandData.loading} />
+        </SectionCard>
+      </div>
+
+      {/* ═══════════════ §6 — FINANCIAL ANALYTICS ═══════════════ */}
+      <div className="db-section-label">التحليلات المالية</div>
+
+      <div className="db-charts-row">
+        <SectionCard title={t('section.revenue_flow')} icon="bar_chart">
+          <RevenueChart data={trend} loading={initialLoading} />
+        </SectionCard>
+        <SectionCard title="توزيع الإيرادات حسب العميل" icon="donut_small">
+          <RevenueDistributionSection slices={commandData.revenueDistribution} loading={commandData.loading} />
+        </SectionCard>
+      </div>
+
+      <div className="db-charts-row">
+        <SectionCard title={t('section.invoice_status')} icon="request_quote">
+          {initialLoading ? (
+            <div className="db-inv-rows">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} height={36} style={{ borderRadius: 8 }} />
+              ))}
+            </div>
+          ) : iStatus.length === 0 ? (
+            <div className="db-empty">
+              <div className="db-empty-icon">🧾</div>
+              <div className="db-empty-text">{t('empty.no_invoices')}</div>
+            </div>
+          ) : (
+            <div className="db-inv-rows">
+              {(iStatus as ApiAny[])
+                .sort((a: ApiAny, b: ApiAny) => b.count - a.count)
+                .map((s: ApiAny) => {
+                  const pct = Math.round((s.count / invStatusTotal) * 100);
+                  return (
+                    <div key={s.status}>
+                      <div className="db-inv-row-head">
+                        <span className="db-inv-row-label">
+                          {t('inv.status.' + s.status.toLowerCase())}
+                        </span>
+                        <span className="db-inv-row-count">
+                          {s.count} ({pct}%)
+                        </span>
+                      </div>
+                      <div className="db-inv-track">
+                        <div
+                          className={`db-inv-fill db-inv-fill--${s.status.toLowerCase()}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard
+          title={t('section.latest_invoices')}
+          icon="receipt_long"
+          padded={false}
+          actions={!initialLoading && invoices.length > 0
+            ? <Button variant="secondary" onClick={() => navigate('/invoices')}>{t('page.dashboard.view_all')}</Button>
+            : undefined}
+        >
+          <LatestInvoicesTable invoices={invoices} loading={initialLoading} />
+        </SectionCard>
+      </div>
+
+      {/* ═══════════════ §7 — OPERATIONAL ANALYTICS ═══════════════ */}
       <div className="db-section-label">{t('section.data_summary')}</div>
       {initialLoading ? (
         <StatsSkeletons />
       ) : (
-        <div className="db-stats-grid">
-          <OpsCard
+        <div className="xpl-kpi-grid db-ops-summary">
+          <MetricCard
+            tone="indigo"
             label={t('stat.registered_customers')}
             value={exec?.customers?.total ?? 0}
-            icon="👥"
-            iconBg="rgba(99,102,241,0.14)"
+            icon="groups"
           />
-          <OpsCard
-            label={t('stat.active_contracts')}
-            value={`${c.active ?? 0} / ${c.total ?? 0}`}
-            icon="📄"
-            iconBg="rgba(37,99,235,0.14)"
-            sub={t('stat.of_total_contracts')}
-          />
-          <OpsCard
+          <MetricCard
+            tone="indigo"
             label={t('stat.total_invoices')}
             value={inv.total ?? 0}
-            icon="🧾"
-            iconBg="rgba(245,158,11,0.14)"
+            icon="receipt_long"
             sub={inv.unpaid ? t('stat.unpaid', { count: inv.unpaid }) : t('stat.all_paid')}
           />
-          <OpsCard
+          <MetricCard
+            tone="indigo"
             label={t('stat.active_employees')}
             value={`${emp.active ?? 0} / ${emp.total ?? 0}`}
-            icon="👷"
-            iconBg="rgba(16,185,129,0.14)"
+            icon="badge"
             sub={t('stat.of_total_employees')}
           />
-          <OpsCard
+          <MetricCard
+            tone="indigo"
             label={t('stat.working_equipment')}
             value={`${workingEquipment} / ${eq.total ?? 0}`}
-            icon="🚜"
-            iconBg="rgba(234,88,12,0.14)"
+            icon="construction"
             sub={
               brokenEquipment > 0
                 ? t('stat.out_of_service', { count: brokenEquipment })
                 : t('stat.all_working')
             }
           />
-          <OpsCard
+          <MetricCard
+            tone="indigo"
             label={t('stat.today_attendance')}
             value={att.present ?? 0}
-            icon="📅"
-            iconBg="rgba(16,185,129,0.12)"
+            icon="event_available"
             sub={
               att.total > 0
                 ? `${t('stat.absent_lbl')} ${att.absent ?? 0} · ${t('stat.late_lbl')} ${att.late ?? 0} · ${t('stat.leave_lbl')} ${att.leave ?? 0}`
@@ -531,216 +618,120 @@ function GeneralDashboardContent() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════════
-          MAIN ROW — Active Contracts  |  Urgent Alerts
-      ══════════════════════════════════════════════════ */}
-      <div className="db-main-row">
-        <div className="db-card">
-          <div className="db-card-head">
-            <div>
-              <h3>{t('section.latest_contracts')}</h3>
-              <p>{t('section.latest_5')}</p>
+      <SectionCard title="حالة الشركة اليوم" icon="health_and_safety">
+        <HealthGaugeSection health={commandData.decisionCenter?.healthScore ?? null} loading={commandData.loading} />
+      </SectionCard>
+
+      <SectionCard
+        title={t('section.latest_expenses')}
+        icon="payments"
+        padded={false}
+        actions={!initialLoading && expenses.length > 0
+          ? <Button variant="secondary" onClick={() => navigate('/expenses')}>{t('page.dashboard.view_all')}</Button>
+          : undefined}
+      >
+        <LatestExpensesTable expenses={expenses} loading={initialLoading} />
+      </SectionCard>
+
+      {/* ═══════════════ §8 — RECENT ACTIVITY ═══════════════ */}
+      <SectionCard title="آخر النشاطات" icon="history">
+        <RecentActivityFeed rows={commandData.activity} loading={commandData.loading} />
+      </SectionCard>
+
+      {/* ═══════════════ §9 — ADVANCED ANALYTICS (progressive disclosure — before contracts) ═══════════════
+          Deep / secondary panels are preserved verbatim but collapsed by default so the
+          executive spine stays calm. Nothing removed — the duplicate YTD performance chart,
+          quick actions, the financial-source note, and the two deep intelligence panels
+          simply live behind the expander. */}
+      <details className="db-advanced">
+        <summary className="db-advanced-summary">
+          <span className="material-symbols-outlined" aria-hidden="true">insights</span>
+          تحليلات متقدمة
+          <span className="material-symbols-outlined db-advanced-chevron" aria-hidden="true">expand_more</span>
+        </summary>
+        <div className="db-advanced-body">
+          {!initialLoading && exec && (
+            <div className="db-src-note">
+              <div className="db-src-note-title">ℹ مصدر البيانات المالية</div>
+              <div className="db-src-note-items">
+                <span>
+                  <span className="db-src-note-rev">الإيرادات</span>
+                  {' '}— دفعات الفواتير المحصّلة من سجل المعاملات
+                </span>
+                <span>
+                  <span className="db-src-note-exp">المصروفات</span>
+                  {' '}— المصروفات المعتمدة من سجل المعاملات
+                </span>
+                <span>
+                  <span className="db-src-note-profit">الربح الصافي</span>
+                  {' '}= الإيرادات − المصروفات (قد يكون سالباً)
+                </span>
+                <span>
+                  <span className="db-src-note-pending">الفواتير المعلّقة</span>
+                  {' '}— بحالة غير مدفوعة أو جزئية أو متأخرة
+                </span>
+              </div>
             </div>
-            {!initialLoading && contracts.length > 0 && (
-              <span className="db-pill blue">
-                {contracts.length} {t('page.dashboard.contract_unit')}
-              </span>
-            )}
-          </div>
+          )}
+
+          <SectionCard title="الأداء المالي (منذ بداية العام)" icon="show_chart">
+            <PerformanceChartSection trend={trend} loading={commandData.loading} />
+          </SectionCard>
+
+          <SectionCard title="إجراءات سريعة" icon="bolt">
+            <QuickActionsSection />
+          </SectionCard>
+
+          <FinancialIntelPanel data={finV2} loading={initialLoading} />
+
+          <ExecutiveIntelligenceV2Panel data={intelV2} loading={intelV2Loading} />
+        </div>
+      </details>
+
+      {/* ═══════════════ §10 — CONTRACTS (low priority — relocated to the bottom) ═══════════════
+          The company rarely uses Contracts, so every contracts surface is de-prioritised to
+          the tail of the dashboard. Nothing removed — only visual priority reduced. */}
+      <div className="db-section-label">العقود</div>
+
+      {/* Active-contracts KPI preserved here (relocated from the operational stats row so
+          contracts stay low-priority without dropping the insight). */}
+      {!initialLoading && (
+        <div className="xpl-kpi-grid">
+          <MetricCard
+            tone="indigo"
+            label={t('stat.active_contracts')}
+            value={`${c.active ?? 0} / ${c.total ?? 0}`}
+            icon="description"
+            sub={t('stat.of_total_contracts')}
+          />
+        </div>
+      )}
+
+      <div className="db-charts-row">
+        <SectionCard
+          title={t('section.latest_contracts')}
+          icon="description"
+          padded={false}
+          actions={!initialLoading && contracts.length > 0
+            ? <StatusChip tone="blue">{contracts.length} {t('page.dashboard.contract_unit')}</StatusChip>
+            : undefined}
+        >
           <div className="db-card-body scrollable">
             <ContractProgressList contracts={contracts} loading={initialLoading} />
           </div>
-        </div>
-        <div className="db-card">
-          <div className="db-card-head">
-            <div>
-              <h3>{t('section.urgent_alerts')}</h3>
-              <p>{t('section.expiry_30')}</p>
-            </div>
-            {!initialLoading && alerts.length > 0 && <span className="db-pill red">{alerts.length}</span>}
-          </div>
-          <div className="db-card-body scrollable">
-            <AlertPanel alerts={alerts} loading={initialLoading} />
-          </div>
-        </div>
+        </SectionCard>
+
+        <SectionCard title={t('section.contract_status')} icon="pie_chart">
+          <ContractStatusChart data={cStatus} loading={initialLoading} />
+        </SectionCard>
       </div>
 
-      {/* ══════════════════════════════════════════════════
-          CHARTS ROW — Revenue Bar  |  Contract Pie
-      ══════════════════════════════════════════════════ */}
-      <div className="db-charts-row">
-        <div className="db-card">
-          <div className="db-card-head">
-            <div>
-              <h3>{t('section.revenue_flow')}</h3>
-              <p>{t('section.revenue_6m')}</p>
-            </div>
-          </div>
-          <div className="db-card-body">
-            <RevenueChart data={trend} loading={initialLoading} />
-          </div>
-        </div>
-        <div className="db-card">
-          <div className="db-card-head">
-            <div>
-              <h3>{t('section.contract_status')}</h3>
-              <p>{t('section.contract_dist')}</p>
-            </div>
-          </div>
-          <div className="db-card-body">
-            <ContractStatusChart data={cStatus} loading={initialLoading} />
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════
-          SECOND ROW — Invoice Status  |  Attendance Today
-      ══════════════════════════════════════════════════ */}
-      <div className="db-charts-row">
-        {/* Invoice Status progress bars */}
-        <div className="db-card">
-          <div className="db-card-head">
-            <div>
-              <h3>{t('section.invoice_status')}</h3>
-              <p>{t('section.invoice_status_sub', { count: inv.total ?? 0 })}</p>
-            </div>
-          </div>
-          <div className="db-card-body">
-            {initialLoading ? (
-              <div className="db-inv-rows">
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <Skeleton key={i} height={36} style={{ borderRadius: 8 }} />
-                ))}
-              </div>
-            ) : iStatus.length === 0 ? (
-              <div className="db-empty">
-                <div className="db-empty-icon">🧾</div>
-                <div className="db-empty-text">{t('empty.no_invoices')}</div>
-              </div>
-            ) : (
-              <div className="db-inv-rows">
-                {(iStatus as ApiAny[])
-                  .sort((a: ApiAny, b: ApiAny) => b.count - a.count)
-                  .map((s: ApiAny) => {
-                    const pct = Math.round((s.count / invStatusTotal) * 100);
-                    const color = INVOICE_STATUS_COLOR[s.status] ?? '#6B7280';
-                    return (
-                      <div key={s.status}>
-                        <div className="db-inv-row-head">
-                          <span className="db-inv-row-label">
-                            {t('inv.status.' + s.status.toLowerCase())}
-                          </span>
-                          <span className="db-inv-row-count">
-                            {s.count} ({pct}%)
-                          </span>
-                        </div>
-                        <div className="db-inv-track">
-                          <div
-                            className="db-inv-fill"
-                            style={{ width: `${pct}%`, background: color }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Attendance Today */}
-        <div className="db-card">
-          <div className="db-card-head">
-            <div>
-              <h3>{t('section.today_attendance')}</h3>
-              <p>{t('section.attendance_records')}</p>
-            </div>
-          </div>
-          <div className="db-card-body">
-            {initialLoading ? (
-              <div className="db-att-grid">
-                {[0, 1, 2, 3].map((i) => (
-                  <Skeleton key={i} height={88} style={{ borderRadius: 12 }} />
-                ))}
-              </div>
-            ) : (att.total ?? 0) === 0 ? (
-              <div className="db-empty">
-                <div className="db-empty-icon">{isWeekend ? '🏖️' : '📅'}</div>
-                <div className="db-empty-text">{isWeekend ? t('att.weekend') : t('empty.no_attendance')}</div>
-              </div>
-            ) : (
-              <div className="db-att-grid">
-                {[
-                  { key: 'present', label: t('att.present'), val: att.present, icon: '✅' },
-                  { key: 'absent', label: t('att.absent'), val: att.absent, icon: '❌' },
-                  { key: 'late', label: t('att.late'), val: att.late, icon: '⏰' },
-                  { key: 'leave', label: t('att.leave'), val: att.leave, icon: '🏖️' },
-                ].map((item) => (
-                  <div key={item.key} className={`db-att-item ${item.key}`}>
-                    <span className="db-att-icon">{item.icon}</span>
-                    <div className="db-att-body">
-                      <div className="db-att-val">{item.val ?? 0}</div>
-                      <div className="db-att-label">{item.label}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════
-          BOTTOM — Latest Invoices  |  Latest Expenses
-      ══════════════════════════════════════════════════ */}
-      <div className="db-tables-row">
-        <div className="db-card">
-          <div className="db-card-head">
-            <div>
-              <h3>{t('section.latest_invoices')}</h3>
-              <p>{t('section.latest_inv_sub')}</p>
-            </div>
-            {!initialLoading && invoices.length > 0 && (
-              <button type="button" className="btn secondary db-card-btn" onClick={() => navigate('/invoices')}>
-                {t('page.dashboard.view_all')}
-              </button>
-            )}
-          </div>
-          <LatestInvoicesTable invoices={invoices} loading={initialLoading} />
-        </div>
-        <div className="db-card">
-          <div className="db-card-head">
-            <div>
-              <h3>{t('section.latest_expenses')}</h3>
-              <p>{t('section.latest_exp_sub')}</p>
-            </div>
-            {!initialLoading && expenses.length > 0 && (
-              <button type="button" className="btn secondary db-card-btn" onClick={() => navigate('/expenses')}>
-                {t('page.dashboard.view_all')}
-              </button>
-            )}
-          </div>
-          <LatestExpensesTable expenses={expenses} loading={initialLoading} />
-        </div>
-      </div>
-
-      {/* ══════════════════════════════════════════════════
-          LATEST CONTRACTS TABLE
-      ══════════════════════════════════════════════════ */}
-      <div className="db-card db-card-top">
-        <div className="db-card-head">
-          <div>
-            <h3>{t('section.added_contracts')}</h3>
-            <p>{t('section.latest_5')}</p>
-          </div>
-          <button
-            type="button"
-            className="btn secondary db-card-btn"
-            onClick={() => navigate('/contracts')}
-          >
-            {t('page.dashboard.view_all')}
-          </button>
-        </div>
+      <SectionCard
+        title={t('section.added_contracts')}
+        icon="table_rows"
+        padded={false}
+        actions={<Button variant="secondary" onClick={() => navigate('/contracts')}>{t('page.dashboard.view_all')}</Button>}
+      >
         <table className="db-table">
           <thead>
             <tr>
@@ -784,31 +775,40 @@ function GeneralDashboardContent() {
             )}
           </tbody>
         </table>
-      </div>
+      </SectionCard>
 
-      {/* ══════════════════════════════════════════════════
-          PRIORITY 7 — EXECUTIVE KPIs / COMMAND CENTER
-          (KPI row, health, action-needed, quick actions, recommendations + internal charts).
-          Relocated here from the top so operational essentials lead; the deep analytics
-          panels follow. Component unchanged — only its page position moved.
-      ══════════════════════════════════════════════════ */}
-      <CommandCenter
-        data={commandData}
-        trend={trend}
-        onRefresh={() => setRefreshKey((k) => k + 1)}
-        refreshing={initialLoading || refreshing}
-        refreshAt={!initialLoading ? refreshAt : null}
-      />
-
-      {/* ══════════════════════════════════════════════════
-          FINANCIAL INTELLIGENCE PANEL V2
-      ══════════════════════════════════════════════════ */}
-      <FinancialIntelPanel data={finV2} loading={initialLoading} />
-
-      {/* ══════════════════════════════════════════════════
-          EXECUTIVE INTELLIGENCE V2
-      ══════════════════════════════════════════════════ */}
-      <ExecutiveIntelligenceV2Panel data={intelV2} loading={intelV2Loading} />
+      {/* ═══════════════ §11 — TODAY'S ATTENDANCE (low-priority operational — dashboard tail) ═══════════════ */}
+      <SectionCard title={t('section.today_attendance')} icon="event_available">
+        {initialLoading ? (
+          <div className="db-att-grid">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} height={88} style={{ borderRadius: 12 }} />
+            ))}
+          </div>
+        ) : (att.total ?? 0) === 0 ? (
+          <div className="db-empty">
+            <div className="db-empty-icon">{isWeekend ? '🏖️' : '📅'}</div>
+            <div className="db-empty-text">{isWeekend ? t('att.weekend') : t('empty.no_attendance')}</div>
+          </div>
+        ) : (
+          <div className="db-att-grid">
+            {[
+              { key: 'present', label: t('att.present'), val: att.present, icon: '✅' },
+              { key: 'absent', label: t('att.absent'), val: att.absent, icon: '❌' },
+              { key: 'late', label: t('att.late'), val: att.late, icon: '⏰' },
+              { key: 'leave', label: t('att.leave'), val: att.leave, icon: '🏖️' },
+            ].map((item) => (
+              <div key={item.key} className={`db-att-item ${item.key}`}>
+                <span className="db-att-icon">{item.icon}</span>
+                <div className="db-att-body">
+                  <div className="db-att-val">{item.val ?? 0}</div>
+                  <div className="db-att-label">{item.label}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }

@@ -7,11 +7,12 @@ import { useT } from '../../lib/i18n';
 interface StatusPoint { status: string; count: number; }
 interface Props { data: StatusPoint[]; loading: boolean; }
 
+// Contract-status colours — ExplorerKit tokens only (theme-aware, no hardcoded hex).
 const COLORS: Record<string, string> = {
-  ACTIVE:    '#2563EB',
-  EXPIRED:   'var(--db-muted)',
-  RENEWING:  '#F59E0B',
-  SUSPENDED: '#EF4444',
+  ACTIVE:    'var(--xpl-blue)',
+  EXPIRED:   'var(--xpl-muted)',
+  RENEWING:  'var(--xpl-orange)',
+  SUSPENDED: 'var(--xpl-red)',
 };
 
 interface PieEntry { name?: string; value?: number; fill?: string; }
@@ -34,7 +35,7 @@ export default function ContractStatusChart({ data, loading }: Props) {
   const chartData = data.map((d) => ({
     name: d.status,
     value: d.count,
-    fill: COLORS[d.status] ?? 'var(--db-muted)',
+    fill: COLORS[d.status] ?? 'var(--xpl-muted)',
   }));
 
   return (
@@ -60,22 +61,22 @@ export default function ContractStatusChart({ data, loading }: Props) {
             const p = payload[0] as unknown as PieEntry;
             return (
               <div style={{
-                background: 'var(--db-card)',
-                border: '1px solid var(--db-border)',
+                background: 'var(--xpl-surface)',
+                border: '1px solid var(--xpl-border)',
                 borderRadius: 10,
                 padding: '10px 14px',
                 fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
                 direction: 'rtl',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+                boxShadow: 'var(--xpl-shadow)',
               }}>
-                <p style={{ color: p.fill ?? 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
+                <p style={{ color: p.fill ?? 'var(--xpl-text)', fontSize: 13, fontWeight: 700 }}>
                   {t('contract.status.' + (p.name ?? '').toLowerCase())}: {p.value} {contractUnit}
                 </p>
               </div>
             );
           }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: 'var(--db-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
+            <span style={{ color: 'var(--xpl-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
               {t('contract.status.' + value.toLowerCase())}
             </span>
           )} />

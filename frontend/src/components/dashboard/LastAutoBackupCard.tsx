@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
-import { formatDateTime } from '../../lib/date';
+import { MetricCard } from '../explorer/ExplorerKit';
 
 interface BackupRecord {
   id: number;
@@ -32,22 +32,21 @@ export default function LastAutoBackupCard() {
   if (!loading && record === null) {
     value = 'لا توجد نسخة احتياطية';
   } else if (!loading && record) {
-    value = formatDateTime(record.createdAt);
+    // Compact one-line stamp (Western digits): 10/07/2026 • 11:05 — keeps this card the
+    // same height as its neighbours instead of an oversized wrapped datetime.
+    const d = new Date(record.createdAt);
+    const p2 = (n: number) => String(n).padStart(2, '0');
+    value = `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} • ${p2(d.getHours())}:${p2(d.getMinutes())}`;
     sub = formatSize(record.sizeBytes);
   }
 
   return (
-    <div className="db-stat">
-      <div className="db-stat-icon" style={{ background: 'rgba(99,102,241,0.12)' }}>
-        💾
-      </div>
-      <div style={{ minWidth: 0 }}>
-        <div className="db-stat-label">آخر نسخة احتياطية تلقائية</div>
-        <div className="db-stat-val" style={{ fontSize: loading ? undefined : '0.9rem' }}>
-          {value}
-        </div>
-        {sub && <div className="db-stat-sub">{sub}</div>}
-      </div>
-    </div>
+    <MetricCard
+      icon="backup"
+      tone="indigo"
+      label="آخر نسخة احتياطية تلقائية"
+      value={value}
+      sub={sub}
+    />
   );
 }

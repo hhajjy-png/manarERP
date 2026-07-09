@@ -23,25 +23,25 @@ interface CustomTooltipProps {
   expensesLabel?: string;
 }
 
-function DarkTooltip({ active, payload, label, revenueLabel = '', expensesLabel = '' }: CustomTooltipProps) {
+// Theme-aware tooltip — ExplorerKit tokens only (correct in both light & dark themes).
+function ChartTooltip({ active, payload, label, revenueLabel = '', expensesLabel = '' }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
-      background: 'var(--db-card)',
-      backdropFilter: 'blur(14px)',
-      border: '1px solid rgba(255,255,255,0.12)',
+      background: 'var(--xpl-surface)',
+      border: '1px solid var(--xpl-border)',
       borderRadius: 12,
       padding: '12px 16px',
       fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
       direction: 'rtl',
       minWidth: 185,
-      boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
+      boxShadow: 'var(--xpl-shadow)',
     }}>
-      <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10, letterSpacing: '0.06em' }}>{formatMonthLabel(label)}</p>
+      <p style={{ color: 'var(--xpl-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10, letterSpacing: '0.06em' }}>{formatMonthLabel(label)}</p>
       {payload.map((p, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '5px 0' }}>
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.fill, flexShrink: 0 }} />
-          <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
+          <p style={{ color: 'var(--xpl-text)', fontSize: 13, fontWeight: 700 }}>
             {p.dataKey === 'revenue' ? revenueLabel : expensesLabel}:{' '}
             <span style={{ color: p.fill }}>{formatCurrency(p.value)}</span>
           </p>
@@ -73,33 +73,33 @@ export default function RevenueChart({ data, loading }: Props) {
         <BarChart data={data} barGap={4} barCategoryGap="30%">
           <defs>
             <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10B981" stopOpacity={1} />
-              <stop offset="100%" stopColor="#059669" stopOpacity={0.72} />
+              <stop offset="0%" style={{ stopColor: 'var(--xpl-green)' }} stopOpacity={1} />
+              <stop offset="100%" style={{ stopColor: 'var(--xpl-green)' }} stopOpacity={0.6} />
             </linearGradient>
             <linearGradient id="gradExpense" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#EF4444" stopOpacity={1} />
-              <stop offset="100%" stopColor="#DC2626" stopOpacity={0.72} />
+              <stop offset="0%" style={{ stopColor: 'var(--xpl-red)' }} stopOpacity={1} />
+              <stop offset="100%" style={{ stopColor: 'var(--xpl-red)' }} stopOpacity={0.6} />
             </linearGradient>
           </defs>
-          <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.18)" />
+          <CartesianGrid vertical={false} stroke="var(--xpl-border)" />
           <XAxis
             dataKey="label"
             tickFormatter={formatMonthShort}
-            tick={{ fill: 'var(--db-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif' }}
+            tick={{ fill: 'var(--xpl-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif' }}
             axisLine={false}
             tickLine={false}
             minTickGap={4}
           />
           <YAxis
-            tick={{ fill: 'var(--db-muted)', fontSize: 11 }}
+            tick={{ fill: 'var(--xpl-muted)', fontSize: 11 }}
             axisLine={false}
             tickLine={false}
             width={72}
             tickFormatter={(v: number) => formatCompact(v)}
           />
-          <Tooltip content={<DarkTooltip revenueLabel={revenueLabel} expensesLabel={expensesLabel} />} cursor={{ fill: 'rgba(148,163,184,0.12)' }} />
+          <Tooltip content={<ChartTooltip revenueLabel={revenueLabel} expensesLabel={expensesLabel} />} cursor={{ fill: 'var(--xpl-faint-2)' }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: 'var(--db-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
+            <span style={{ color: 'var(--xpl-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
               {value === 'revenue' ? revenueLabel : expensesLabel}
             </span>
           )} />
