@@ -16,6 +16,7 @@ import { formatFileDate } from '../lib/date';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription, parseDescription } from '../utils/invoiceDescription';
 import { toInvoiceItemPayload } from '../utils/invoicePayload';
+import { canEditInvoice, collectionDateAction } from '../utils/invoiceGovernance';
 import {
   InvoiceLineItemsEditor,
   LocationAutocomplete,
@@ -181,6 +182,26 @@ export default function Invoices() {
       .catch(() => {});
   }, []);
 
+  // Enrich the opened drawer row with full detail (line items + payment records) — the
+  // list endpoint returns neither, and the payments are required for the per-payment
+  // collection-date correction action on paid invoices. Fetched once per open (guarded
+  // by the payments array already being present). Read-only enrichment; mutates nothing.
+  useEffect(() => {
+    const id = viewing?.id;
+    if (id == null || Array.isArray(viewing?.payments)) return;
+    let cancelled = false;
+    api.get(`/invoices/${id}`)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then((res: any) => {
+        const full = res?.data?.data;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (!cancelled && full) setViewing((cur: any) => (cur && cur.id === full.id ? { ...cur, ...full } : cur));
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewing?.id]);
+
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelCandidate, setCancelCandidate] = useState<number | null>(null);
 
@@ -217,8 +238,10 @@ export default function Invoices() {
   }
 
   // Row-action eligibility (mirrors the prior table actions exactly — UI gating only).
+  // Edit eligibility is the shared governance predicate (paid/cancelled → read-only),
+  // matching the server guard in invoices.service.update().
   const canEditRow = (r: { status?: string; paidAmount?: number }) =>
-    hasPermission('invoices.update') && (r.status === 'UNPAID' || (r.status === 'OVERDUE' && Number(r.paidAmount) === 0));
+    hasPermission('invoices.update') && canEditInvoice(r.status, r.paidAmount);
   const canCollectRow = (r: { status?: string }) =>
     hasPermission('invoices.update') && r.status !== 'PAID' && r.status !== 'CANCELLED';
   const canCancelRow = (r: { status?: string; paidAmount?: number }) =>
@@ -407,6 +430,17 @@ export default function Invoices() {
         const canEdit = canEditRow(viewing);
         const canCancel = canCancelRow(viewing);
 
+        // Collection-date correction (safe workflow, NOT invoice edit): SYSTEM_ADMIN only,
+        // per payment (needs a valid payment id). This is the paid-invoice date action —
+        // it opens the correction dialog, never the invoice edit form.
+        const correctAction = collectionDateAction(isSystemAdmin, payments);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const openCorrect = (p: any) => {
+          const inv = viewing;
+          setViewing(null);
+          setCorrecting({ id: p.id, date: p.date, amount: p.amount, method: p.method, invoiceId: inv.id, invoiceNumber: inv.invoiceNumber ?? inv.number });
+        };
+
         const kpis: DrawerKpi[] = [
           { label: t('col.inv.total'), value: money(viewing.total) },
           { label: t('col.inv.paid'), value: money(viewing.paidAmount), tone: 'green' },
@@ -419,6 +453,13 @@ export default function Invoices() {
         if (hasPermission('invoices.read')) quickActions.push({ key: 'print', icon: 'print', label: t('btn.inv.print_invoice'), onClick: goPrint });
         if (hasPermission('invoices.read')) quickActions.push({ key: 'pdf', icon: 'picture_as_pdf', label: 'PDF', onClick: goPdf });
         if (canEdit) quickActions.push({ key: 'edit', icon: 'edit', label: t('action.edit'), tone: 'primary', onClick: openEdit });
+        // Paid/collected invoice: dedicated safe action to change the official collection date.
+        // Shown for the single-payment case (direct); multi-payment invoices use the per-payment
+        // buttons in the payments list below (explicit selection — never guesses which payment).
+        if (correctAction.singlePaymentId != null) {
+          const single = payments.find((p) => Number(p.id) === correctAction.singlePaymentId);
+          if (single) quickActions.push({ key: 'correct-date', icon: 'event_available', label: 'تعديل تاريخ التحصيل', onClick: () => openCorrect(single) });
+        }
         if (canCancel) quickActions.push({ key: 'cancel', icon: 'block', label: t('page.invoices.cancel_inv'), onClick: runCancel });
         if (isSystemAdmin) quickActions.push({ key: 'delete', icon: 'delete_forever', label: 'حذف نهائي', tone: 'danger', onClick: runDelete });
 
@@ -427,18 +468,15 @@ export default function Invoices() {
           icon: 'payments',
           primary: money(p.amount),
           secondary: `${dateText(p.date)}${p.method ? ' · ' + p.method : ''}`,
-          // مدير النظام فقط: تصحيح تاريخ التحصيل الرسمي لهذه الدفعة (يتطلب معرّف دفعة صالحًا).
+          // مدير النظام فقط: تعديل تاريخ التحصيل الرسمي لهذه الدفعة (يتطلب معرّف دفعة صالحًا).
+          // يفتح مسار التصحيح الآمن — لا يفتح نموذج تعديل الفاتورة.
           trailing: isSystemAdmin && p.id != null ? (
             <button
               type="button"
               className="btn secondary invcx-pmt-correct"
-              onClick={() => {
-                const inv = viewing;
-                setViewing(null);
-                setCorrecting({ id: p.id, date: p.date, amount: p.amount, method: p.method, invoiceId: inv.id, invoiceNumber: inv.invoiceNumber ?? inv.number });
-              }}
+              onClick={() => openCorrect(p)}
             >
-              تصحيح تاريخ التحصيل
+              تعديل تاريخ التحصيل
             </button>
           ) : undefined,
         }));
