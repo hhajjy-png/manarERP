@@ -25,9 +25,10 @@ function tx(over: Partial<TimelineTransaction> = {}): TimelineTransaction {
   };
 }
 
-function result(transactions: TimelineTransaction[]): TimelineResult {
+function result(transactions: TimelineTransaction[], filteredTotal = 0): TimelineResult {
   return {
-    accountKey: 'A', totalCount: transactions.length, fromDate: '2026-06-01', toDate: '2026-06-30',
+    accountKey: 'A', totalCount: transactions.length, filteredTotal,
+    fromDate: '2026-06-01', toDate: '2026-06-30',
     importCount: 1, transactions, page: 1, pageSize: 50,
   };
 }
@@ -87,6 +88,45 @@ describe('TimelineTab — drawer & filters', () => {
     fireEvent.click(screen.getByText('هذا الشهر'));
     expect(await screen.findByText('لا توجد معاملات مطابقة')).toBeInTheDocument();
     expect(screen.getByText('مسح جميع الفلاتر')).toBeInTheDocument();
+  });
+
+  it('shows the dynamic filtered total beside the result count (label «الإجمالي», value from result)', async () => {
+    mockedGetTimeline.mockResolvedValue(result([tx()], 3000));
+    const { container } = render(<TimelineTab accountKey="A" bankName="بنك" />);
+
+    await waitFor(() => expect(container.querySelector('.bae-result-total')).toBeInTheDocument());
+    const total = container.querySelector('.bae-result-total')!;
+    expect(total.textContent).toContain('الإجمالي');
+    expect(total.textContent).toContain('3,000.000'); // formatted from result.filteredTotal
+  });
+
+  it('relabels the filtered total per active type filter (تحويلات → «إجمالي التحويلات»)', async () => {
+    mockedGetTimeline.mockResolvedValue(result([tx()], 750));
+    const { container } = render(<TimelineTab accountKey="A" bankName="بنك" />);
+    await waitFor(() => expect(container.querySelector('.bae-result-total')).toBeInTheDocument());
+
+    const typeGroup = screen.getByRole('group', { name: 'نوع المعاملة' });
+    fireEvent.click(within(typeGroup).getByText('تحويلات'));
+
+    await waitFor(() =>
+      expect(container.querySelector('.bae-result-total')!.textContent).toContain('إجمالي التحويلات'));
+  });
+
+  it('requests the cheque filter from the server when «شيكات» is clicked', async () => {
+    mockedGetTimeline.mockResolvedValue(result([tx({ chequeNumber: '12345' })], 500));
+    const { container } = render(<TimelineTab accountKey="A" bankName="بنك" />);
+    await waitFor(() => expect(container.querySelector('.bae-result-total')).toBeInTheDocument());
+
+    const typeGroup = screen.getByRole('group', { name: 'نوع المعاملة' });
+    fireEvent.click(within(typeGroup).getByText('شيكات'));
+
+    await waitFor(() => {
+      expect(mockedGetTimeline).toHaveBeenLastCalledWith(
+        'A', 1, 50, expect.objectContaining({ type: 'cheques' }),
+      );
+    });
+    await waitFor(() =>
+      expect(container.querySelector('.bae-result-total')!.textContent).toContain('إجمالي الشيكات'));
   });
 
   it('requests the correct type filter from the server when a type chip is clicked', async () => {

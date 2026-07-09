@@ -1,10 +1,32 @@
 import { describe, it, expect } from 'vitest';
 import {
   quickRangeToDates, toIsoDate, safeNum, safeAmount,
+  timelineTotalLabel, TIMELINE_TOTAL_LABELS,
 } from '../pages/bankTimelineFilters';
 
 // Fixed reference date: Wednesday 2026-06-17.
 const NOW = new Date(2026, 5, 17); // month is 0-based → June
+
+describe('timelineTotalLabel — filtered-total label per active type filter', () => {
+  it('gives the right Arabic total label for every filter type', () => {
+    expect(timelineTotalLabel('all')).toBe('الإجمالي');
+    expect(timelineTotalLabel('deposits')).toBe('إجمالي الإيداعات');
+    expect(timelineTotalLabel('withdrawals')).toBe('إجمالي السحوبات');
+    expect(timelineTotalLabel('fees')).toBe('إجمالي الرسوم');
+    expect(timelineTotalLabel('cheques')).toBe('إجمالي الشيكات');
+    expect(timelineTotalLabel('transfers')).toBe('إجمالي التحويلات');
+  });
+
+  it('defaults to «الإجمالي» when no type is set', () => {
+    expect(timelineTotalLabel(undefined)).toBe('الإجمالي');
+  });
+
+  it('covers all six filter types', () => {
+    expect(Object.keys(TIMELINE_TOTAL_LABELS).sort()).toEqual(
+      ['all', 'cheques', 'deposits', 'fees', 'transfers', 'withdrawals'],
+    );
+  });
+});
 
 describe('quickRangeToDates', () => {
   it('today → [today, today]', () => {

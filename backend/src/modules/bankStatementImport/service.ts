@@ -387,7 +387,11 @@ export function buildTimelineWhere(
     case 'deposits':    where.credit = { gt: 0 }; break;
     case 'withdrawals': where.debit  = { gt: 0 }; break;
     case 'fees':        where.isBankFee = true; break;
-    case 'cheques':     where.chequeNumber = { not: null }; break;
+    // A cheque transaction is one that carries a cheque number OR is categorised as a
+    // cheque payment — mirrors the display badge (chequeNumber || bankFeeType==='CHEQUE_PAYMENT').
+    // Previously matched chequeNumber only, so cheque-payment rows without a parsed cheque
+    // number (shown as «شيك») were missing from the filter.
+    case 'cheques':     and.push({ OR: [{ chequeNumber: { not: null } }, { bankFeeType: 'CHEQUE_PAYMENT' }] }); break;
     case 'transfers':   where.bankFeeType = 'BANK_TRANSFER'; break;
     default: break; // 'all' / undefined → no type constraint
   }
@@ -443,7 +447,7 @@ export async function getTimeline(
     fromDate, toDate, search, type, minAmount, maxAmount,
   });
 
-  const [total, txs, agg, importCount] = await Promise.all([
+  const [total, txs, agg, filteredAgg, importCount] = await Promise.all([
     prisma.bankStatementTransaction.count({ where }),
     prisma.bankStatementTransaction.findMany({
       where,
@@ -461,8 +465,17 @@ export async function getTimeline(
       _min:  { statementDate: true },
       _max:  { statementDate: true },
     }),
+    // Filtered total: sum of the filtered set using the SAME `where` as count/findMany, so it
+    // respects every active filter (type + search + date range + amount range). Each row is
+    // single-sided (debit XOR credit), so debit+credit = total movement of the matching rows.
+    prisma.bankStatementTransaction.aggregate({
+      where,
+      _sum: { debit: true, credit: true },
+    }),
     prisma.bankStatementImport.count({ where: { accountKey } }),
   ]);
+
+  const filteredTotal = Number(filteredAgg._sum.debit ?? 0) + Number(filteredAgg._sum.credit ?? 0);
 
   const transactions: TimelineTransaction[] = txs.map((t) => ({
     id:               t.id,
@@ -493,6 +506,7 @@ export async function getTimeline(
   return {
     accountKey,
     totalCount:  total,
+    filteredTotal,
     fromDate:    agg._min.statementDate ? agg._min.statementDate.toISOString().substring(0, 10) : null,
     toDate:      agg._max.statementDate ? agg._max.statementDate.toISOString().substring(0, 10) : null,
     importCount,

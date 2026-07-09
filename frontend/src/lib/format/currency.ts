@@ -48,6 +48,24 @@ export function formatCurrency(value: unknown, opts?: { language?: CurrencyLangu
   return `${currencyNumberFormatters[language].format(toNumber(value))} ${currencySuffix[language]}`;
 }
 
+/**
+ * The same monetary value split into its number and currency-label parts (e.g.
+ * `{ number: "17,097.620", currency: "KWD" }`). Lets a UI render the currency label
+ * inline beside the amount as a distinct element without losing the exact 3-decimal
+ * formatting or the active display language (English "KWD" / Arabic "د.ك"). Combining
+ * `${number} ${currency}` reproduces `formatCurrency` exactly.
+ */
+export function formatMoneyParts(
+  value: unknown,
+  opts?: { language?: CurrencyLanguage },
+): { number: string; currency: string } {
+  const language = opts?.language ?? 'english';
+  return {
+    number: currencyNumberFormatters[language].format(toNumber(value)),
+    currency: currencySuffix[language],
+  };
+}
+
 /** Whole number, no decimals: "144,922" — counts. */
 export function formatInteger(value: unknown): string {
   return integerFormatter.format(Math.round(toNumber(value)));

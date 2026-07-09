@@ -230,6 +230,8 @@ export interface TimelineTransaction {
 export interface TimelineResult {
   accountKey:   string;
   totalCount:   number;
+  /** Sum of the filtered set's transaction amounts (respects every active filter). Display-only. */
+  filteredTotal: number;
   fromDate:     string | null;
   toDate:       string | null;
   importCount:  number;

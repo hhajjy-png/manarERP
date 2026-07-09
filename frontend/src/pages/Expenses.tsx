@@ -7,7 +7,8 @@ import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
 import ConfirmModal from '../components/ConfirmModal';
-import { money, dateText } from '../config/modules';
+import { money, moneyParts, dateText } from '../config/modules';
+import { KpiStat, KpiStatGrid } from '../components/KpiStat';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { downloadBlob } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
@@ -31,7 +32,6 @@ import {
   ExecutiveHeader,
   IdChip,
   HeroMetric,
-  MetricCard,
   SectionCard,
   StatusChip,
   SearchBox,
@@ -222,12 +222,12 @@ export default function Expenses() {
             value={money(stats.total)}
             sub={<><span className="material-symbols-outlined">receipt_long</span>{`${stats.count} مصروف`}</>}
           />
-          <div className="xpl-kpi-grid">
-            <MetricCard icon="tag" tone="indigo" label="عدد المصروفات" value={stats.count} />
-            {stats.pendingCount > 0 && <MetricCard icon="schedule" tone="orange" label="بانتظار الاعتماد" value={money(stats.pendingTotal)} sub={`${stats.pendingCount} مصروف`} />}
-            {stats.periods?.currentMonth && <MetricCard icon="calendar_month" tone="blue" label={`${ARABIC_MONTHS[(stats.periods.currentMonth.month as number) - 1]} ${stats.periods.currentMonth.year}`} value={money(stats.periods.currentMonth.total)} sub={`${stats.periods.currentMonth.count} مصروف`} />}
-            {stats.periods?.currentYear && <MetricCard icon="event" tone="green" label={`سنة ${stats.periods.currentYear.year}`} value={money(stats.periods.currentYear.total)} sub={`${stats.periods.currentYear.count} مصروف`} />}
-          </div>
+          <KpiStatGrid>
+            <KpiStat icon="tag" tone="indigo" label="عدد المصروفات" value={stats.count.toLocaleString()} />
+            {stats.pendingCount > 0 && <KpiStat icon="schedule" tone="orange" label="بانتظار الاعتماد" value={moneyParts(stats.pendingTotal).number} unit={moneyParts(stats.pendingTotal).currency} sub={`${stats.pendingCount} مصروف`} />}
+            {stats.periods?.currentMonth && <KpiStat icon="calendar_month" tone="blue" label={`${ARABIC_MONTHS[(stats.periods.currentMonth.month as number) - 1]} ${stats.periods.currentMonth.year}`} value={moneyParts(stats.periods.currentMonth.total).number} unit={moneyParts(stats.periods.currentMonth.total).currency} sub={`${stats.periods.currentMonth.count} مصروف`} />}
+            {stats.periods?.currentYear && <KpiStat icon="event" tone="green" label={`سنة ${stats.periods.currentYear.year}`} value={moneyParts(stats.periods.currentYear.total).number} unit={moneyParts(stats.periods.currentYear.total).currency} sub={`${stats.periods.currentYear.count} مصروف`} />}
+          </KpiStatGrid>
         </div>
       )}
 

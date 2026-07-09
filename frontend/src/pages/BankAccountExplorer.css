@@ -833,7 +833,9 @@
   background: none; border: none; text-decoration: underline; padding: 2px 6px;
 }
 .bae-clear-all-link:hover { color: var(--red, #ef4444); }
-.bae-result-count { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.bae-result-count { font-size: 12.5px; color: var(--muted); }
+/* Dynamic filtered total beside the result count — emphasised, respects the active filters. */
+.bae-result-total { font-weight: 600; color: var(--text); white-space: nowrap; }
 
 /* ── Timeline table — direction, selection, focus, sticky header ──────────── */
 .bae-table-wrap { max-height: 60vh; overflow: auto; }
