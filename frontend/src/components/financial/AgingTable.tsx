@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ArAgingRow, ApAgingRow } from '../../types/financial.types';
 import type { FinancialDrillDownState } from './DrillDownLink';
-import { formatCurrency } from '../../lib/format';
+import { fcCurrency } from './financialLabels';
 
 type AgingRow = ArAgingRow | ApAgingRow;
 
@@ -18,7 +18,7 @@ const BUCKETS = [
 type BucketKey = (typeof BUCKETS)[number]['key'] | 'total';
 
 function fmt(n: number) {
-  return n ? formatCurrency(n) : '';
+  return n ? fcCurrency(n) : '';
 }
 
 function bucketClass(key: string, amount: number): string {

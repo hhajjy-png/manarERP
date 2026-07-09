@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { StatementRow } from '../../types/financial.types';
 import type { FinancialDrillDownState } from './DrillDownLink';
 import { DrillDownLink } from './DrillDownLink';
-import { formatCurrency } from '../../lib/format';
+import { formatDate } from '../../lib/date';
+import { fcCurrency, referenceTypeAr } from './financialLabels';
 
 interface Props {
   rows: StatementRow[];
@@ -39,7 +40,7 @@ function monthSum(rows: StatementRow[]) {
 }
 
 function fmt(n: number) {
-  return n ? formatCurrency(n) : '';
+  return n ? fcCurrency(n) : '';
 }
 
 export function GroupedTable({ rows, currentState, highlightId }: Props) {
@@ -108,13 +109,13 @@ export function GroupedTable({ rows, currentState, highlightId }: Props) {
                           id={`row-${row.id}`}
                           className={highlightId === row.id ? 'highlight-row' : ''}
                         >
-                          <td>{row.date.slice(0, 10)}</td>
+                          <td>{formatDate(row.date)}</td>
                           <td>
                             <DrillDownLink drillDown={row.drillDown} currentState={currentState}>
                               {row.reference}
                             </DrillDownLink>
                           </td>
-                          <td>{row.referenceType}</td>
+                          <td>{referenceTypeAr(row.referenceType)}</td>
                           <td>{row.description}</td>
                           <td className="num">{fmt(row.debit)}</td>
                           <td className="num">{fmt(row.credit)}</td>

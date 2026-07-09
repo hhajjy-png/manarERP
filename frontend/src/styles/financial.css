@@ -9,8 +9,8 @@
   gap: 12px;
   margin: 16px 0 20px;
 }
-.fc-header-icon { font-size: 28px; color: #1d4e6f; }
-.fc-title        { margin: 0; font-size: 1.4rem; font-weight: 700; color: #1d4e6f; }
+.fc-header-icon { font-size: 28px; color: var(--xpl-primary, var(--accent, #1d4e6f)); }
+.fc-title        { margin: 0; font-size: 1.4rem; font-weight: 700; color: var(--xpl-primary, var(--accent, #1d4e6f)); }
 .fc-tab-content  { margin-top: 20px; }
 .fc-no-permission, .fc-hint, .fc-empty, .fc-error {
   text-align: center;
@@ -25,10 +25,10 @@
   align-items: center;
   gap: 12px;
   padding: 60px 16px;
-  color: #9ca3af;
+  color: var(--xpl-muted, var(--text-muted, #9ca3af));
   font-size: 0.95rem;
 }
-.fc-coming-soon-icon { font-size: 48px; color: #9ca3af; }
+.fc-coming-soon-icon { font-size: 48px; color: var(--xpl-muted, var(--text-muted, #9ca3af)); }
 
 /* ─── Financial Tabs ───────────────────────────────────────────────────────── */
 .financial-tabs {
@@ -51,10 +51,10 @@
 }
 .financial-tab-btn.active,
 .financial-tab-btn[aria-selected="true"] {
-  border-bottom-color: #1d4e6f;
-  color: #1d4e6f;
+  border-bottom-color: var(--xpl-primary, var(--accent, #1d4e6f));
+  color: var(--xpl-primary, var(--accent, #1d4e6f));
 }
-.financial-tab-btn:hover { color: #1d4e6f; }
+.financial-tab-btn:hover { color: var(--xpl-primary, var(--accent, #1d4e6f)); }
 
 /* ─── Entity type toggle + selector ───────────────────────────────────────── */
 .fc-entity-type-toggle {
@@ -75,8 +75,8 @@
   transition: all 0.15s;
 }
 .entity-type-btn.active {
-  background: #1d4e6f;
-  border-color: #1d4e6f;
+  background: var(--xpl-primary, var(--accent, #1d4e6f));
+  border-color: var(--xpl-primary, var(--accent, #1d4e6f));
   color: #fff;
 }
 .fc-entity-selector {
@@ -134,7 +134,7 @@
 }
 .fc-load-btn {
   padding: 8px 22px;
-  background: #1d4e6f;
+  background: var(--xpl-primary, var(--accent, #1d4e6f));
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -144,7 +144,7 @@
   font-weight: 700;
   transition: background 0.15s;
 }
-.fc-load-btn:hover:not(:disabled) { background: #163d56; }
+.fc-load-btn:hover:not(:disabled) { background: var(--xpl-primary-2, var(--accent, #163d56)); }
 .fc-load-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 .fc-view-toggles { display: flex; border: 1px solid var(--border, #e2e8f0); border-radius: 8px; overflow: hidden; }
@@ -159,7 +159,7 @@
   color: var(--text-muted, #64748b);
   transition: all 0.15s;
 }
-.view-mode-btn.active { background: #1d4e6f; color: #fff; }
+.view-mode-btn.active { background: var(--xpl-primary, var(--accent, #1d4e6f)); color: #fff; }
 
 .fc-hide-settled {
   display: flex;
@@ -246,7 +246,7 @@
 
 /* Grouped table headers */
 .group-header td { font-weight: 700; background: var(--surface-2, #f1f5f9); cursor: pointer; }
-.year-header  td { background: #e0e7ef; color: #1d4e6f; font-size: 0.9rem; }
+.year-header  td { background: #e0e7ef; color: var(--xpl-primary, var(--accent, #1d4e6f)); font-size: 0.9rem; }
 .month-header td { background: var(--surface-2, #f1f5f9); color: #374151; padding-right: 28px; }
 .toggle-icon  { display: inline-block; width: 18px; font-size: 0.7rem; }
 
@@ -280,7 +280,7 @@
   font-family: inherit;
   font-size: 0.88rem;
   font-weight: 600;
-  color: #1d4e6f;
+  color: var(--xpl-primary, var(--accent, #1d4e6f));
   transition: background 0.15s;
 }
 .return-to-report-btn:hover { background: var(--surface-2, #f1f5f9); }
@@ -315,8 +315,8 @@
   transition: all 0.15s;
 }
 .subtab-btn.active {
-  background: #1d4e6f;
-  border-color: #1d4e6f;
+  background: var(--xpl-primary, var(--accent, #1d4e6f));
+  border-color: var(--xpl-primary, var(--accent, #1d4e6f));
   color: #fff;
 }
 
@@ -355,13 +355,13 @@
   cursor: pointer;
   font-family: inherit;
   font-size: inherit;
-  color: #1d4e6f;
+  color: var(--xpl-primary, var(--accent, #1d4e6f));
   text-decoration: underline;
   text-decoration-style: dotted;
   font-weight: 600;
   text-align: right;
 }
-.aging-entity-link:hover { color: #163d56; }
+.aging-entity-link:hover { color: var(--xpl-primary-2, var(--accent, #163d56)); }
 
 .aging-bucket-link {
   background: none;
@@ -443,9 +443,9 @@
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .mode-toggle button.active {
-  background: #1d4e6f;
+  background: var(--xpl-primary, var(--accent, #1d4e6f));
   color: #fff;
-  border-color: #1d4e6f;
+  border-color: var(--xpl-primary, var(--accent, #1d4e6f));
 }
 
 /* Imbalance alert */
@@ -471,13 +471,13 @@
   cursor: pointer;
   font-family: inherit;
   font-size: inherit;
-  color: #1d4e6f;
+  color: var(--xpl-primary, var(--accent, #1d4e6f));
   text-decoration: underline;
   text-decoration-style: dotted;
   font-weight: 600;
   text-align: right;
 }
-.account-link:hover { color: #163d56; }
+.account-link:hover { color: var(--xpl-primary-2, var(--accent, #163d56)); }
 
 /* GL Report table */
 .gl-report-table th, .gl-report-table td { white-space: nowrap; }
@@ -669,7 +669,7 @@
   border: none;
   padding: 0;
   font-size: 0.78rem;
-  color: #1d4e6f;
+  color: var(--xpl-primary, var(--accent, #1d4e6f));
   cursor: pointer;
   font-family: inherit;
   text-align: right;
@@ -727,7 +727,7 @@
   color: #1e3a5f;
 }
 .banner-action-btn {
-  background: #1d4e6f;
+  background: var(--xpl-primary, var(--accent, #1d4e6f));
   color: #fff;
   border: none;
   border-radius: 7px;
@@ -738,7 +738,7 @@
   font-weight: 600;
   white-space: nowrap;
 }
-.banner-action-btn:hover { background: #163d57; }
+.banner-action-btn:hover { background: var(--xpl-primary-2, var(--accent, #163d57)); }
 .banner-dismiss-btn {
   background: none;
   border: none;
@@ -750,3 +750,317 @@
   border-radius: 4px;
 }
 .banner-dismiss-btn:hover { background: rgba(0,0,0,0.06); }
+
+/* ─── Theme-aware aging chart axis ticks (CSS `fill` resolves the var()) ────── */
+.aging-chart-container .recharts-cartesian-axis-tick text { fill: var(--text-muted, #64748b); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Dark-mode corrections — hardcoded light values that read as low-contrast or
+   white-on-white text on dark surfaces. Scoped to html[data-theme="dark"] so the
+   light theme is byte-unchanged. Presentation only.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-theme="dark"] .fc-title,
+html[data-theme="dark"] .fc-header-icon { color: var(--accent, #60a5fa); }
+
+html[data-theme="dark"] .financial-tab-btn.active,
+html[data-theme="dark"] .financial-tab-btn:hover { color: var(--accent, #60a5fa); }
+html[data-theme="dark"] .financial-tab-btn.active { border-bottom-color: var(--accent, #60a5fa); }
+
+/* Clickable account / entity names + return button — navy was near-invisible on dark */
+html[data-theme="dark"] .account-link,
+html[data-theme="dark"] .aging-entity-link,
+html[data-theme="dark"] .return-to-report-btn { color: var(--accent, #60a5fa); }
+html[data-theme="dark"] .account-link:hover,
+html[data-theme="dark"] .aging-entity-link:hover { color: #93c5fd; }
+
+/* Year group header — light island → dark surface */
+html[data-theme="dark"] .year-header td { background: var(--surface-2); color: #93c5fd; }
+
+/* Trial-balance totals row — light bg + near-white totals = invisible */
+html[data-theme="dark"] .trial-balance-table tfoot .totals-row td { background: var(--surface-2); }
+
+/* Journal book: hover / expanded / expanded-lines rows had hardcoded light backgrounds */
+html[data-theme="dark"] .journal-book-table .journal-entry-row:hover td { background: var(--surface-hover); }
+html[data-theme="dark"] .journal-book-table .journal-entry-row.expanded td { background: var(--surface-2); }
+html[data-theme="dark"] .journal-lines-row > td { background: var(--surface-2); }
+html[data-theme="dark"] .journal-lines-table th { background: var(--surface); }
+
+/* Secondary buttons (mode toggle / journal controls / pagination) — light bg, no color set */
+html[data-theme="dark"] .mode-toggle button,
+html[data-theme="dark"] .journal-book-controls button,
+html[data-theme="dark"] .fc-pagination button { background: var(--surface-2); color: var(--text); }
+html[data-theme="dark"] .mode-toggle button:not(.active):hover,
+html[data-theme="dark"] .journal-book-controls button:hover,
+html[data-theme="dark"] .fc-pagination button:not(:disabled):hover,
+html[data-theme="dark"] .aging-table th.sortable:hover { background: var(--surface-hover); }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   FINANCIAL CENTER — PROFESSIONAL REFRESH v1
+   Presentation-only cohesion with the Executive Dashboard (ExplorerKit tokens).
+   Scoped to `.financial-center` (which now carries `.xpl-scope`), targeting the
+   existing fc-*/financial-* vocabulary; later rules win at equal specificity.
+   No behaviour / logic / data / calculation change.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Executive header — stronger hierarchy + subtitle, tokenised icon chip ────── */
+.financial-center .fc-header { align-items: flex-start; gap: 14px; margin: 8px 0 22px; }
+.financial-center .fc-header-icon {
+  font-size: 26px;
+  color: var(--xpl-primary, var(--accent, #6366f1));
+  background: var(--xpl-faint, rgba(99, 102, 241, .10));
+  width: 48px; height: 48px; border-radius: 13px;
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.financial-center .fc-header-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.financial-center .fc-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -.4px; color: var(--text, #0f172a); }
+.financial-center .fc-subtitle { margin: 0; font-size: .82rem; color: var(--text-muted, #64748b); }
+
+/* ── Summary band — MetricCard-consistent (soft surface, elevation, tabular value) ── */
+.financial-center .summary-card {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  padding: 13px 16px;
+  box-shadow: var(--xpl-shadow-sm, 0 1px 2px rgba(16, 24, 40, .05));
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow .15s ease, transform .15s ease;
+}
+.financial-center .summary-card:hover { box-shadow: 0 6px 18px rgba(16, 24, 40, .08); }
+/* Replace the thick right border with a subtle inline accent bar */
+.financial-center .summary-card.neutral,
+.financial-center .summary-card.green,
+.financial-center .summary-card.red,
+.financial-center .summary-card.blue { border-right: 1px solid var(--border, #e2e8f0); }
+.financial-center .summary-card::before {
+  content: ""; position: absolute; inset-inline-start: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--xpl-primary, var(--accent, #6366f1));
+}
+.financial-center .summary-card.neutral::before { background: var(--xpl-muted, #64748b); }
+.financial-center .summary-card.green::before   { background: var(--xpl-green, #10b981); }
+.financial-center .summary-card.red::before     { background: var(--xpl-red, #ef4444); }
+.financial-center .summary-card.blue::before    { background: var(--xpl-blue, #3b82f6); }
+.financial-center .card-label { font-size: .72rem; letter-spacing: .02em; }
+.financial-center .card-value { font-size: 1.18rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.2px; }
+
+/* ── Tables — professional density, sticky header, tabular numerics, clean frame ── */
+.financial-center .table-responsive {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  overflow: auto;              /* horizontal scroll preserved; no height clamp (export-safe) */
+}
+.financial-center .financial-table th {
+  position: sticky; top: 0; z-index: 2;   /* header pins on scroll; full table stays in DOM */
+  background: var(--surface-2, #f1f5f9);
+}
+.financial-center .financial-table tbody tr { transition: background .12s ease; }
+.financial-center .financial-table tbody tr:hover { background: var(--xpl-faint-2, var(--surface-hover, rgba(99, 102, 241, .06))); }
+.financial-center .financial-table td.num,
+.financial-center .financial-table th.num { font-variant-numeric: tabular-nums; }
+.financial-center .financial-table tfoot td { font-weight: 800; background: var(--surface-2, #f1f5f9); }
+/* Export/print safety — never let sticky/frame affect a full-table capture */
+@media print {
+  .financial-center .table-responsive { overflow: visible; border: none; }
+  .financial-center .financial-table th,
+  .financial-center .financial-table tfoot td { position: static; }
+}
+
+/* ── Standardised states — clean tokenised cards, never a blank rectangle ─────── */
+.financial-center .fc-hint,
+.financial-center .fc-empty,
+.financial-center .fc-error,
+.financial-center .fc-coming-soon,
+.financial-center .loading-state,
+.financial-center .error-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; text-align: center;
+  padding: 34px 20px;
+  border: 1px dashed var(--border, #e2e8f0);
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  font-size: .9rem;
+}
+.financial-center .fc-error,
+.financial-center .error-state {
+  color: var(--xpl-red, var(--red, #ef4444));
+  border-color: var(--xpl-red, var(--red, #ef4444));
+  border-style: solid;
+  background: rgba(239, 68, 68, .05);
+}
+.financial-center .fc-coming-soon { border-style: solid; }
+
+/* ── Filter toolbar — tokenised focus ring for a premium, consistent feel ─────── */
+.financial-center .filter-field input:focus,
+.financial-center .fc-entity-selector select:focus,
+.financial-center .fc-entity-selector input:focus {
+  outline: none;
+  border-color: var(--xpl-primary, var(--accent, #6366f1));
+  box-shadow: 0 0 0 3px var(--xpl-faint, rgba(99, 102, 241, .10));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   STATEMENT TAB — Professional Refresh v1 (presentation only)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* State icons inside the standardized state cards */
+.financial-center .fc-state-icon { font-size: 30px; opacity: .7; }
+
+/* Statement context strip — selected entity + period, shown once loaded */
+.financial-center .fc-statement-context {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px;
+  padding: 10px 16px; margin-bottom: 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  background: var(--surface-2, #f1f5f9);
+}
+.financial-center .fc-statement-context-entity {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: .98rem; font-weight: 800; color: var(--text, #0f172a); min-width: 0;
+}
+.financial-center .fc-statement-context-entity .material-symbols-outlined {
+  font-size: 20px; color: var(--xpl-primary, var(--accent, #6366f1));
+}
+.financial-center .fc-statement-context-period {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .82rem; font-weight: 600; color: var(--text-muted, #64748b);
+  font-variant-numeric: tabular-nums;
+}
+.financial-center .fc-statement-context-period .material-symbols-outlined { font-size: 16px; }
+
+/* Manual-load action card — professional, filter-aware, reuses the existing load fn */
+.financial-center .fc-load-card {
+  display: flex; align-items: center; gap: 18px;
+  padding: 22px 24px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--xpl-faint-2, rgba(99, 102, 241, .06)), transparent 60%), var(--surface, #fff);
+  box-shadow: var(--xpl-shadow-sm, 0 1px 2px rgba(16, 24, 40, .05));
+}
+.financial-center .fc-load-card-icon {
+  font-size: 26px; flex-shrink: 0;
+  color: var(--xpl-primary, var(--accent, #6366f1));
+  background: var(--xpl-faint, rgba(99, 102, 241, .10));
+  width: 52px; height: 52px; border-radius: 14px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.financial-center .fc-load-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.financial-center .fc-load-card-title { margin: 0; font-size: 1.05rem; font-weight: 800; color: var(--text, #0f172a); }
+.financial-center .fc-load-card-period { margin: 0; font-size: .82rem; font-weight: 600; color: var(--text, #0f172a); font-variant-numeric: tabular-nums; }
+.financial-center .fc-load-card-hint { margin: 0; font-size: .8rem; color: var(--text-muted, #64748b); line-height: 1.5; }
+.financial-center .fc-load-card-btn {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px;
+  font-size: .95rem; padding: 11px 22px;
+}
+.financial-center .fc-load-card-btn .material-symbols-outlined { font-size: 18px; }
+@media (max-width: 720px) {
+  .financial-center .fc-load-card { flex-direction: column; align-items: stretch; text-align: center; }
+  .financial-center .fc-load-card-btn { justify-content: center; }
+}
+
+/* Statement table — emphasise the running-balance column for accountant readability */
+.financial-center .statement-table td:last-child,
+.financial-center .statement-table th:last-child { font-weight: 700; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   AGING TAB — Professional Refresh v1 (presentation only)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Aging-severity palette (consumed by AgingChart Cells) — centralised design tokens,
+   theme-consistent; severity meaning is preserved (green = current → red = 120+). */
+.financial-center {
+  --fc-aging-current:  var(--xpl-green, #22c55e);
+  --fc-aging-0-30:     #86efac;
+  --fc-aging-31-60:    #fbbf24;
+  --fc-aging-61-90:    var(--xpl-orange, #f59e0b);
+  --fc-aging-91-120:   #f87171;
+  --fc-aging-over-120: var(--xpl-red, #ef4444);
+  --fc-aging-default:  var(--xpl-muted, #94a3b8);
+}
+
+/* Aging chart — framed as a clean card consistent with the summary/table surfaces */
+.financial-center .aging-chart-container {
+  padding: 14px 16px 6px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  background: var(--surface, #fff);
+  box-shadow: var(--xpl-shadow-sm, 0 1px 2px rgba(16, 24, 40, .05));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TRIAL BALANCE TAB — Professional Refresh v1 (presentation only)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Imbalance alert — structured, clearer, tokenised */
+.financial-center .imbalance-alert {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; margin-bottom: 14px;
+  border: 1px solid var(--xpl-red, var(--red, #ef4444));
+  border-radius: 12px;
+  background: rgba(239, 68, 68, .06);
+  color: var(--text, #0f172a);
+}
+.financial-center .imbalance-alert-icon { font-size: 24px; flex-shrink: 0; color: var(--xpl-red, var(--red, #ef4444)); }
+.financial-center .imbalance-alert-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.financial-center .imbalance-alert-title { font-size: .95rem; font-weight: 800; color: var(--xpl-red, var(--red, #ef4444)); }
+.financial-center .imbalance-alert-detail { font-size: .82rem; color: var(--text-muted, #64748b); }
+.financial-center .imbalance-alert-value { font-weight: 800; color: var(--text, #0f172a); font-variant-numeric: tabular-nums; }
+
+/* Balance status chip (trial-balance context strip) — clear balanced / unbalanced state */
+.financial-center .fc-balance-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: .78rem; font-weight: 800;
+  padding: 4px 11px; border-radius: 999px;
+  border: 1px solid transparent;
+}
+.financial-center .fc-balance-chip .material-symbols-outlined { font-size: 15px; }
+.financial-center .fc-balance-chip.ok {
+  color: var(--xpl-green, #10b981);
+  background: rgba(16, 185, 129, .10);
+  border-color: rgba(16, 185, 129, .25);
+}
+.financial-center .fc-balance-chip.bad {
+  color: var(--xpl-red, #ef4444);
+  background: rgba(239, 68, 68, .10);
+  border-color: rgba(239, 68, 68, .22);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   FINANCIAL REPORTS TAB — Professional Refresh v1 (presentation only)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.financial-center .financial-reports-tab .section-title {
+  font-size: 1rem; font-weight: 800; color: var(--text, #0f172a);
+  margin: 20px 0 12px;
+}
+
+/* Accounting disclaimer — honest, quiet note (tokenised) */
+.financial-center .accounting-disclaimer {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 0; padding: 10px 14px;
+  border: 1px solid var(--border, #e2e8f0); border-radius: 10px;
+  background: var(--surface-2, #f1f5f9);
+  color: var(--text-muted, #64748b); font-size: .8rem;
+}
+
+/* Future / coming-soon reports — clearly disabled + low-noise, distinct from live data */
+.financial-center .future-reports-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;
+}
+.financial-center .future-report-card.disabled {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; text-align: center;
+  padding: 20px 14px;
+  border: 1px dashed var(--border, #e2e8f0); border-radius: 14px;
+  background: var(--surface, #fff);
+  opacity: .6; cursor: not-allowed;
+}
+.financial-center .future-report-icon { font-size: 26px; color: var(--xpl-muted, var(--text-muted, #94a3b8)); }
+.financial-center .future-report-name { font-size: .88rem; font-weight: 700; color: var(--text-muted, #64748b); }
+.financial-center .coming-soon-badge {
+  font-size: .68rem; font-weight: 800; letter-spacing: .04em;
+  padding: 2px 10px; border-radius: 999px;
+  background: var(--xpl-faint, rgba(99, 102, 241, .10));
+  color: var(--xpl-primary, var(--accent, #6366f1));
+}
