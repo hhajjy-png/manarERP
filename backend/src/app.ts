@@ -38,6 +38,7 @@ import financialRoutes  from './modules/financial/financial.routes';
 import verificationRoutes from './modules/verification/verification.routes';
 import integrationsRoutes from './modules/integrations/integrations.routes';
 import payrollBankImportRoutes from './modules/payrollBankImport/routes';
+import payrollBankExportRoutes from './modules/payrollBankExport/payrollBankExport.routes';
 import bankStatementImportRoutes from './modules/bankStatementImport/routes.js';
 import bankAccountsRoutes from './modules/bankAccounts/bankAccounts.routes.js';
 import expirationsRoutes from './modules/expirations/expirations.routes';
@@ -118,6 +119,7 @@ export function createApp(): Application {
   app.use('/api/verify', verificationRoutes);
   app.use('/api/integrations', integrationsRoutes);
   app.use('/api/payroll-bank-import', payrollBankImportRoutes);
+  app.use('/api/payroll-bank-export', payrollBankExportRoutes);
   app.use('/api/bank-statement-import', bankStatementImportRoutes);
   app.use('/api/bank-accounts', bankAccountsRoutes);
   app.use('/api/expirations', expirationsRoutes);

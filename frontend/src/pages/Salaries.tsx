@@ -9,6 +9,7 @@ import { usePersistedState } from '../hooks/usePersistedState';
 import { downloadBlob } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import PrivateAmount from '../components/PrivateAmount';
+import PayrollBankExport from '../components/salaries/PayrollBankExport';
 import {
   ExecutiveHeader,
   IdChip,
@@ -78,7 +79,7 @@ export default function Salaries() {
   const { t } = useT();
   const navigate = useNavigate();
   const location = useLocation();
-  const [tab, setTab] = usePersistedState<'payroll' | 'history'>('sal:tab', 'payroll');
+  const [tab, setTab] = usePersistedState<'payroll' | 'history' | 'bankExport'>('sal:tab', 'payroll');
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   // A deep-linked employee (e.g. on-leave/terminated) may be absent from the
   // ACTIVE-only `employees` dropdown; keep it here so the filter shows the real
@@ -283,19 +284,24 @@ export default function Salaries() {
         aside={tab === 'payroll' && canGenerate ? <Button variant="primary" icon="bolt" busy={busy} onClick={generatePayroll}>{t('page.salaries.generate')}</Button> : undefined}
       />
 
-      <Tabs<'payroll' | 'history'>
+      <Tabs<'payroll' | 'history' | 'bankExport'>
         active={tab}
         onChange={setTab}
         tabs={[
           { key: 'payroll', label: t('page.salaries.tab_payroll'), icon: 'payments' },
           { key: 'history', label: t('page.salaries.tab_history'), icon: 'history' },
+          ...(hasPermission('payroll.read')
+            ? [{ key: 'bankExport' as const, label: 'التصدير البنكي', icon: 'account_balance' }]
+            : []),
         ]}
       />
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
       {message && <div className="xpl-form-error" style={{ background: 'rgba(16,185,129,.07)', borderColor: 'rgba(16,185,129,.25)', color: 'var(--xpl-green)' }}><span className="material-symbols-outlined">check_circle</span>{message}</div>}
 
-      {tab === 'payroll' ? (
+      {tab === 'bankExport' ? (
+        <PayrollBankExport />
+      ) : tab === 'payroll' ? (
         <>
           <div className="salx-metrics">
             <HeroMetric icon="account_balance_wallet" label={t('stat.net_total')} value={<PrivateAmount value={totals.net} />} sub={<><span className="material-symbols-outlined">groups</span>{`${totals.count} مسير رواتب`}</>} />
