@@ -22,6 +22,12 @@ import {
   expenseCategoryIcon,
 } from '../config/expenseCategories';
 import {
+  EXPENSE_STATUS_META as STATUS_META,
+  expenseStatusMeta,
+  EXPENSE_PAYMENT_METHOD_OPTIONS,
+  expensePaymentMethodAr,
+} from '../config/expensePresentation';
+import {
   ExecutiveHeader,
   IdChip,
   HeroMetric,
@@ -44,18 +50,8 @@ import {
 import '../components/explorer/explorer-kit.css';
 import './Expenses.css';
 
-type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
-
 // خيارات القائمة القابلة للبحث — من المصدر الموحّد (تُشارَك مع حوار الإدخال الشهري السريع).
 const CATEGORY_OPTIONS: SearchableOption[] = EXPENSE_CATEGORY_SELECT_OPTIONS;
-
-const STATUS_META: Record<string, { key: string; tone: Tone; icon: string }> = {
-  PENDING:   { key: 'exp.status.pending',   tone: 'orange',  icon: 'schedule' },
-  APPROVED:  { key: 'exp.status.approved',  tone: 'green',   icon: 'check_circle' },
-  REJECTED:  { key: 'exp.status.rejected',  tone: 'red',     icon: 'cancel' },
-  REVERSED:  { key: 'exp.status.reversed',  tone: 'neutral', icon: 'undo' },
-  CANCELLED: { key: 'exp.status.cancelled', tone: 'neutral', icon: 'block' },
-};
 
 export default function Expenses() {
   const { hasPermission, user } = useAuth();
@@ -89,6 +85,7 @@ export default function Expenses() {
   const [error, setError] = useState('');
   const [actionBusy, setActionBusy] = useState(false);
   const [expenseConfirm, setExpenseConfirm] = useState<{ id: number; action: 'approve' | 'reject' | 'delete' } | null>(null);
+  const [amendConfirmOpen, setAmendConfirmOpen] = useState(false);
   const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
 
   const isFiltered = !!(search || statusFilter || categoryFilter || supplierFilter || monthFilter || yearFilter);
@@ -144,6 +141,22 @@ export default function Expenses() {
       else if (action === 'reject') { await api.patch(`/expenses/${id}/reject`); toast.ok('تم الرفض'); }
       else { await api.delete(`/expenses/${id}`); toast.ok('تم الحذف بنجاح'); }
       setViewing(null);
+      load();
+    } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
+  }
+
+  // التعديل الآمن لمصروف معتمد: إلغاء الاعتماد (عكس القيد) ثم فتح نموذج التعديل والمصروف معلّق.
+  async function executeAmend() {
+    setAmendConfirmOpen(false);
+    const exp = viewing;
+    if (!exp || actionBusy) return;
+    setActionBusy(true);
+    try {
+      const res = await api.patch(`/expenses/${exp.id}/amend`);
+      toast.ok('تم إلغاء الاعتماد وأصبح المصروف قابلاً للتعديل');
+      setViewing(null);
+      const updated = res.data?.data ?? { ...exp, status: 'PENDING' };
+      setEditing(updated);
       load();
     } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
   }
@@ -343,7 +356,7 @@ export default function Expenses() {
                 </thead>
                 <tbody>
                   {rows.map((r) => {
-                    const sm = STATUS_META[r.status] ?? { key: '—', tone: 'neutral' as Tone, icon: 'help' };
+                    const sm = expenseStatusMeta(r.status);
                     return (
                       <tr key={r.id} id={`row-${r.id}`} className="xpl-row--click" tabIndex={0} role="button"
                         aria-label={`تفاصيل المصروف ${r.code}`}
@@ -370,10 +383,21 @@ export default function Expenses() {
 
       {/* ── Detail drawer ── */}
       {viewing && (() => {
-        const sm = STATUS_META[viewing.status] ?? { key: '—', tone: 'neutral' as Tone, icon: 'help' };
-        const canEdit = hasPermission('expenses.update') && viewing.status !== 'APPROVED';
+        const sm = expenseStatusMeta(viewing.status);
+        // التعديل المباشر مسموح فقط للحالات التي يقبلها الخادم (PENDING/REJECTED) — مواءمة
+        // الواجهة مع الخادم حتى لا يظهر زر تعديل يفشل عند الحفظ.
+        const canEdit = hasPermission('expenses.update')
+          && (viewing.status === 'PENDING' || viewing.status === 'REJECTED');
+        // مصروف معتمد: يُفتح للتعديل عبر مسار آمن (إلغاء الاعتماد + عكس القيد ثم يصبح معلّقًا).
+        const canAmend = hasPermission('expenses.approve')
+          && hasPermission('expenses.update')
+          && viewing.status === 'APPROVED';
         const canApprove = hasPermission('expenses.approve') && viewing.status === 'PENDING';
-        const canDelete = hasPermission('expenses.delete') && viewing.status !== 'APPROVED';
+        // يطابق حُرّاس الخادم في remove(): يُمنع حذف المعتمد والمعكوس، أو أي مصروف يحمل
+        // قيودًا محاسبية (مصروف فُتح للتعديل) — عندها يوجَّه المستخدم إلى الحذف النهائي.
+        const canDelete = hasPermission('expenses.delete')
+          && viewing.status !== 'APPROVED' && viewing.status !== 'REVERSED'
+          && !viewing.hasJournalEntries;
         return (
           <Drawer
             title={`مصروف ${viewing.code}`}
@@ -391,6 +415,7 @@ export default function Expenses() {
             footer={
               <>
                 {canEdit && <Button variant="primary" icon="edit" onClick={() => { setEditing(viewing); setViewing(null); }}>{t('action.edit')}</Button>}
+                {canAmend && <Button variant="primary" icon="lock_open" busy={actionBusy} onClick={() => setAmendConfirmOpen(true)}>إلغاء الاعتماد والتعديل</Button>}
                 {canApprove && <Button variant="secondary" icon="check" busy={actionBusy} onClick={() => approve(viewing.id)}>{t('action.approve')}</Button>}
                 {canApprove && <Button variant="ghost" icon="close" busy={actionBusy} onClick={() => reject(viewing.id)}>{t('action.reject')}</Button>}
                 {canDelete && <Button variant="danger" icon="delete" busy={actionBusy} onClick={() => remove(viewing.id)}>{t('action.delete')}</Button>}
@@ -405,7 +430,7 @@ export default function Expenses() {
               <DrawerField label={t('col.amount')} value={money(viewing.amount)} />
             </DrawerSection>
             <DrawerSection title="الدفع والمورد">
-              <DrawerField label="طريقة الدفع" value={viewing.paymentMethod === 'BANK' ? 'تحويل بنكي' : viewing.paymentMethod === 'ACCOUNTS_PAYABLE' ? 'ذمم الموردين' : 'نقداً'} />
+              <DrawerField label="طريقة الدفع" value={expensePaymentMethodAr(viewing.paymentMethod)} />
               <DrawerField label={t('field.supplier')} value={viewing.supplier?.name ?? viewing.supplierName ?? '—'} />
               <DrawerField label={t('lbl.inv.billing_period')} value={billingText(viewing)} />
               {viewing.date && <DrawerField label={t('col.date')} value={dateText(viewing.date)} />}
@@ -430,6 +455,22 @@ export default function Expenses() {
           variant={expenseConfirm.action === 'delete' ? 'danger' : 'warning'}
           onConfirm={() => executeExpenseAction(expenseConfirm.id, expenseConfirm.action)}
           onCancel={() => setExpenseConfirm(null)}
+        />
+      )}
+      {amendConfirmOpen && viewing && (
+        <ConfirmModal
+          title="إلغاء الاعتماد وفتح التعديل"
+          message={
+            'هذا المصروف معتمد ومُرحَّل محاسبيًا.\n\n'
+            + 'للتعديل بأمان سيقوم النظام أولًا بإلغاء الاعتماد وعكس أثره المحاسبي '
+            + '(إنشاء قيد عكسي دون حذف القيد الأصلي)، ثم يعيد المصروف إلى حالة «معلّق».\n\n'
+            + 'بعد التعديل يجب إعادة اعتماد المصروف ليُرحَّل من جديد بالقيمة المحدَّثة.\n\n'
+            + 'هل تريد المتابعة؟'
+          }
+          confirmLabel="إلغاء الاعتماد والتعديل"
+          variant="warning"
+          onConfirm={executeAmend}
+          onCancel={() => setAmendConfirmOpen(false)}
         />
       )}
       {forceDeleteId != null && (
@@ -554,9 +595,7 @@ function ExpenseForm({
         <div className="xpl-field">
           <label>طريقة الدفع</label>
           <select className="xpl-select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label="طريقة الدفع">
-            <option value="CASH">نقداً</option>
-            <option value="BANK">تحويل بنكي</option>
-            <option value="ACCOUNTS_PAYABLE">ذمم الموردين</option>
+            {EXPENSE_PAYMENT_METHOD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <div className="xpl-field">

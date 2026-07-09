@@ -3,6 +3,7 @@ import { api, errorMessage } from '../api/client';
 import { money } from '../config/modules';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import { EXPENSE_CATEGORY_SELECT_OPTIONS } from '../config/expenseCategories';
+import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '../config/expensePresentation';
 import SearchableSelect from './SearchableSelect';
 import { Dialog, DialogSection, Button } from './explorer/ExplorerKit';
 import {
@@ -145,9 +146,7 @@ export default function FastMonthlyExpenseDialog({ onClose, onSaved, suppliers }
           <div className="xpl-field">
             <label>طريقة الدفع</label>
             <select className="xpl-select" value={shared.paymentMethod} onChange={(e) => patchShared({ paymentMethod: e.target.value })} aria-label="طريقة الدفع">
-              <option value="CASH">نقداً</option>
-              <option value="BANK">تحويل بنكي</option>
-              <option value="ACCOUNTS_PAYABLE">ذمم الموردين</option>
+              {EXPENSE_PAYMENT_METHOD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div className="xpl-field">

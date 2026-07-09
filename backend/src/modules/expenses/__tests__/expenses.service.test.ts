@@ -2,11 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AppError } from '../../../core/errors/AppError';
 
 vi.mock('../../../config/database', () => ({
-  prisma: { expense: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn() } },
+  prisma: {
+    expense: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn(), count: vi.fn() },
+    journalEntry: { count: vi.fn() },
+  },
 }));
 vi.mock('../../../core/middleware/audit', () => ({ recordAudit: vi.fn() }));
-vi.mock('../../transactions/transactions.service', () => ({ transactionsService: { postEntry: vi.fn() } }));
-vi.mock('../expenses.accounting', () => ({ postExpenseToGL: vi.fn(), reverseExpenseFromGL: vi.fn() }));
+vi.mock('../../transactions/transactions.service', () => ({ transactionsService: { postEntry: vi.fn(), clearByReference: vi.fn() } }));
+vi.mock('../expenses.accounting', () => ({ repostExpenseToGL: vi.fn(), reverseExpenseFromGL: vi.fn() }));
 
 import { ExpensesService } from '../expenses.service';
 import { prisma } from '../../../config/database';
@@ -20,6 +23,7 @@ const mockPrisma = prisma as unknown as {
     delete: ReturnType<typeof vi.fn>;
     count: ReturnType<typeof vi.fn>;
   };
+  journalEntry: { count: ReturnType<typeof vi.fn> };
 };
 
 const fakeReq = {} as import('express').Request;
@@ -94,11 +98,21 @@ describe('ExpensesService.remove — guards', () => {
   beforeEach(() => {
     service = new ExpensesService();
     vi.clearAllMocks();
+    mockPrisma.journalEntry.count.mockResolvedValue(0); // default: no attached journals
   });
 
   it('throws notFound when expense does not exist', async () => {
     mockPrisma.expense.findUnique.mockResolvedValue(null);
     await expect(service.remove(999, fakeReq)).rejects.toThrow('المصروف غير موجود');
+  });
+
+  it('blocks deleting a PENDING expense that still carries journal entries (amended)', async () => {
+    // After an amend, an expense returns to PENDING but keeps a reversed journal pair.
+    // A plain delete would orphan those journals — must be refused.
+    mockPrisma.expense.findUnique.mockResolvedValue(pendingExpense);
+    mockPrisma.journalEntry.count.mockResolvedValue(2);
+    await expect(service.remove(1, fakeReq)).rejects.toThrow('استخدم الحذف النهائي');
+    expect(mockPrisma.expense.delete).not.toHaveBeenCalled();
   });
 
   it('throws conflict when removing APPROVED expense', async () => {

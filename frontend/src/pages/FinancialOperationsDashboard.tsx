@@ -7,6 +7,7 @@ import { api } from '../api/client';
 import { Skeleton } from '../components/dashboard/Skeleton';
 import KPITimeline from '../components/dashboard/KPITimeline';
 import { formatCurrency, formatPercent, formatCompact } from '../lib/format';
+import { expenseCategoryLabel } from '../config/expenseCategories';
 import '../components/dashboard/dashboard.css';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -46,23 +47,6 @@ interface CustomerAnalyticsRow {
 
 function pct(v: number | null): string {
   return v == null ? '—' : formatPercent(v, 1);
-}
-
-const CATEGORY_AR: Record<string, string> = {
-  FUEL:           'وقود',
-  SALARIES:       'رواتب',
-  MAINTENANCE:    'صيانة',
-  RENT:           'إيجار',
-  PURCHASES:      'مشتريات',
-  EQUIPMENT:      'معدات',
-  SERVICES:       'خدمات',
-  EQUIPMENT_RENT: 'إيجار معدات',
-  TRUCK_RENT:     'إيجار شاحنات',
-  OTHER:          'أخرى',
-};
-
-function catLabel(cat: string): string {
-  return CATEGORY_AR[cat] ?? cat;
 }
 
 function marginColor(v: number | null): string {
@@ -153,7 +137,7 @@ function ExpenseBreakdownTab() {
   if (error)   return <div style={{ color: 'var(--db-danger)', padding: 20 }}>{error}</div>;
   if (!rows || rows.length === 0) return <div style={{ padding: 20, color: 'var(--db-muted)' }}>لا توجد بيانات مصروفات</div>;
 
-  const chartData = rows.map(r => ({ name: catLabel(r.category), total: r.total, pct: r.pct }));
+  const chartData = rows.map(r => ({ name: expenseCategoryLabel(r.category), total: r.total, pct: r.pct }));
 
   const COLORS = [
     '#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#3b82f6',
@@ -204,7 +188,7 @@ function ExpenseBreakdownTab() {
               <tr key={r.category}>
                 <td>
                   <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: COLORS[i % COLORS.length], marginLeft: 6 }} />
-                  {catLabel(r.category)}
+                  {expenseCategoryLabel(r.category)}
                 </td>
                 <td style={{ textAlign: 'left', fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(r.total)}</td>
                 <td>{r.count}</td>
