@@ -6,6 +6,9 @@ export const payrollController = {
   async list(req: Request, res: Response) {
     ok(res, await payrollService.list(req.query));
   },
+  async stats(req: Request, res: Response) {
+    ok(res, await payrollService.stats(req.query));
+  },
   async getById(req: Request, res: Response) {
     ok(res, await payrollService.getById(Number(req.params.id)));
   },

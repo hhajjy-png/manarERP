@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useT } from '../lib/i18n';
@@ -89,6 +89,11 @@ export default function Salaries() {
   const [rows, setRows] = useState<PayrollRow[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
+  // Period KPI totals come from the backend /payroll/stats aggregate (full filtered
+  // dataset, CANCELLED excluded) — never from the current page of `rows`.
+  const [stats, setStats] = useState<{ count: number; gross: number; net: number; paid: number } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState(false);
   const [page, setPage] = useState(1);
   const [month, setMonth] = usePersistedState<number>('sal:month', initialMonth);
   const [year, setYear] = usePersistedState<number>('sal:year', initialYear);
@@ -141,6 +146,23 @@ export default function Salaries() {
     }
   }
 
+  async function loadStats() {
+    setStatsLoading(true);
+    setStatsError(false);
+    try {
+      const res = await api.get('/payroll/stats', {
+        params: { month, year, employeeId: employeeId || undefined, status: status || undefined },
+      });
+      setStats(res.data.data ?? null);
+    } catch {
+      // On failure, surface a neutral fallback rather than misleading page-only totals.
+      setStats(null);
+      setStatsError(true);
+    } finally {
+      setStatsLoading(false);
+    }
+  }
+
   async function loadHistory() {
     setHistoryLoading(true);
     try {
@@ -182,15 +204,11 @@ export default function Salaries() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, historyPage, historyQuery]);
 
-  const totals = useMemo(() => {
-    return rows.reduce((acc, row) => {
-      acc.gross += Number(row.grossSalary ?? 0);
-      acc.net += Number(row.netSalary ?? 0);
-      acc.count += 1;
-      if (row.status === 'PAID') acc.paid += 1;
-      return acc;
-    }, { gross: 0, net: 0, count: 0, paid: 0 });
-  }, [rows]);
+  // KPI totals depend only on the filters, not the page — pagination must not move them.
+  useEffect(() => {
+    loadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month, year, employeeId, status]);
 
   async function runAction(fn: () => Promise<void>) {
     setBusy(true);
@@ -198,7 +216,7 @@ export default function Salaries() {
     setMessage('');
     try {
       await fn();
-      await loadPayroll();
+      await Promise.all([loadPayroll(), loadStats()]);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -277,8 +295,8 @@ export default function Salaries() {
         subtitle={t('page.salaries.subtitle')}
         chips={
           <>
-            <IdChip icon="badge" tone="indigo">{totals.count} مسير</IdChip>
-            <IdChip icon="task_alt" tone="green">{totals.paid} مدفوع</IdChip>
+            <IdChip icon="badge" tone="indigo">{stats ? stats.count : (statsLoading ? '…' : '—')} مسير</IdChip>
+            <IdChip icon="task_alt" tone="green">{stats ? stats.paid : (statsLoading ? '…' : '—')} مدفوع</IdChip>
           </>
         }
         aside={tab === 'payroll' && canGenerate ? <Button variant="primary" icon="bolt" busy={busy} onClick={generatePayroll}>{t('page.salaries.generate')}</Button> : undefined}
@@ -304,13 +322,17 @@ export default function Salaries() {
       ) : tab === 'payroll' ? (
         <>
           <div className="salx-metrics">
-            <HeroMetric icon="account_balance_wallet" label={t('stat.net_total')} value={<PrivateAmount value={totals.net} />} sub={<><span className="material-symbols-outlined">groups</span>{`${totals.count} مسير رواتب`}</>} />
+            {/* Fallback: '…' while loading, '—' on error — never page-only totals. */}
+            <HeroMetric icon="account_balance_wallet" label={t('stat.net_total')}
+              value={stats ? <PrivateAmount value={stats.net} /> : (statsLoading ? '…' : '—')}
+              sub={<><span className="material-symbols-outlined">groups</span>{stats ? `${stats.count} مسير رواتب` : (statsLoading ? '…' : '—')}</>} />
             <div className="xpl-kpi-grid">
-              <MetricCard icon="receipt_long" tone="indigo" label={t('stat.payroll_records')} value={totals.count} />
-              <MetricCard icon="payments" tone="blue" label={t('stat.gross_total')} value={<PrivateAmount value={totals.gross} />} />
-              <MetricCard icon="task_alt" tone="green" label={t('stat.paid_records')} value={totals.paid} />
+              <MetricCard icon="receipt_long" tone="indigo" label={t('stat.payroll_records')} value={stats ? stats.count : (statsLoading ? '…' : '—')} />
+              <MetricCard icon="payments" tone="blue" label={t('stat.gross_total')} value={stats ? <PrivateAmount value={stats.gross} /> : (statsLoading ? '…' : '—')} />
+              <MetricCard icon="task_alt" tone="green" label={t('stat.paid_records')} value={stats ? stats.paid : (statsLoading ? '…' : '—')} />
             </div>
           </div>
+          {statsError && <ErrorBanner>{t('page.salaries.stats_error')}</ErrorBanner>}
 
           <div className="xpl-toolbar xpl-toolbar--sticky">
             <div className="xpl-toolbar-row">
@@ -510,10 +532,11 @@ export default function Salaries() {
                   <div className="xpl-field">
                     <label>طريقة الدفع</label>
                     <select className="xpl-select" value={payMethod} onChange={(e) => setPayMethod(e.target.value)} aria-label="طريقة الدفع">
+                      {/* Values must match backend ENUMS.glPaymentMethod (CASH | BANK | ACCOUNTS_PAYABLE);
+                          CHEQUE/TRANSFER are rejected by payPayrollSchema and have no GL routing. */}
                       <option value="CASH">{t('opt.payment.cash')}</option>
-                      <option value="BANK">{t('opt.sal.payment.bank_transfer')}</option>
-                      <option value="CHEQUE">{t('opt.payment.cheque')}</option>
-                      <option value="TRANSFER">{t('opt.payment.transfer')}</option>
+                      <option value="BANK">{t('opt.payment.bank')}</option>
+                      <option value="ACCOUNTS_PAYABLE">{t('opt.payment.accounts_payable')}</option>
                     </select>
                   </div>
                   <Button variant="primary" icon="paid" block busy={busy} onClick={() => { const id = viewing.id; const m = payMethod; setViewing(null); runAction(() => api.patch(`/payroll/${id}/pay`, { paymentMethod: m })); }}>
