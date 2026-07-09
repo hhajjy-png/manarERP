@@ -490,6 +490,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.salaries.confirm': 'تأكيد',
     'page.salaries.search_history': 'بحث في سجل المدفوعات المستوردة',
     'page.salaries.generated': 'تم إنشاء {count} سجل راتب.',
+    'page.salaries.stats_error': 'تعذّر تحميل إجماليات الفترة. أعد المحاولة.',
     'page.salaries.input_saved': 'تم حفظ المدخل بنجاح.',
     'page.salaries.line_added': 'تم إضافة السطر بنجاح.',
 
@@ -532,6 +533,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'opt.payment.bank': 'بنك',
     'opt.payment.cheque': 'شيك',
     'opt.payment.transfer': 'تحويل',
+    'opt.payment.accounts_payable': 'رواتب مستحقة (ذمم)',
     'error.inv_number_required': 'رقم الفاتورة مطلوب',
     'error.select_customer': 'اختر العميل',
     'error.select_supplier': 'اختر المورّد',
@@ -1797,6 +1799,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.salaries.confirm': 'Confirm',
     'page.salaries.search_history': 'Search imported salary payments',
     'page.salaries.generated': 'Generated {count} payroll records.',
+    'page.salaries.stats_error': 'Could not load period totals. Please retry.',
     'page.salaries.input_saved': 'Payroll input saved.',
     'page.salaries.line_added': 'Adjustment line added.',
 
@@ -1839,6 +1842,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'opt.payment.bank': 'Bank',
     'opt.payment.cheque': 'Cheque',
     'opt.payment.transfer': 'Transfer',
+    'opt.payment.accounts_payable': 'Salaries Payable',
     'error.inv_number_required': 'Invoice number is required',
     'error.select_customer': 'Select a customer',
     'error.select_supplier': 'Select a supplier',

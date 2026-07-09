@@ -78,6 +78,41 @@ export class PayrollService {
     return buildPaginatedResult(data, total, pagination);
   }
 
+  /**
+   * Period KPI totals for the Salaries page. Aggregates across the COMPLETE filtered
+   * dataset (not one page). CANCELLED payrolls never count toward gross/net/count in the
+   * default view; when an explicit `status` filter is supplied the totals honour it (so a
+   * deliberate CANCELLED filter still shows its own sums). `paid` is the PAID count within
+   * the same period/employee scope. No mutation, no accounting — read-only.
+   */
+  async stats(query: { month?: string; year?: string; status?: string; employeeId?: string }) {
+    const where: Prisma.PayrollWhereInput = {};
+    if (query.month) where.month = Number(query.month);
+    if (query.year) where.year = Number(query.year);
+    if (query.employeeId) where.employeeId = Number(query.employeeId);
+    if (query.status) {
+      where.status = query.status;
+    } else {
+      where.status = { not: 'CANCELLED' };
+    }
+
+    const [agg, paid] = await Promise.all([
+      prisma.payroll.aggregate({
+        where,
+        _sum: { grossSalary: true, netSalary: true },
+        _count: { _all: true },
+      }),
+      prisma.payroll.count({ where: { ...where, status: 'PAID' } }),
+    ]);
+
+    return {
+      count: agg._count._all,
+      gross: round3(agg._sum.grossSalary ?? 0),
+      net: round3(agg._sum.netSalary ?? 0),
+      paid,
+    };
+  }
+
   async getById(id: number) {
     const payroll = await prisma.payroll.findUnique({
       where: { id },

@@ -18,6 +18,8 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', requirePermission('payroll.read'), asyncHandler(payrollController.list));
+// Static path — must precede '/:id' so it is not captured as an id param.
+router.get('/stats', requirePermission('payroll.read'), asyncHandler(payrollController.stats));
 router.get('/:id', requirePermission('payroll.read'), asyncHandler(payrollController.getById));
 router.get('/:id/payslip', requirePermission('payroll.payslip', 'payroll.read'), asyncHandler(payrollController.payslip));
 
