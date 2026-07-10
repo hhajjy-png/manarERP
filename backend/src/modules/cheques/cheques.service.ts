@@ -4,7 +4,33 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
-import { CreateChequeInput, UpdateChequeInput } from './cheques.schema';
+import {
+  CreateChequeInput,
+  UpdateChequeInput,
+  ReprintChequeInput,
+  SaveTemplateVersionInput,
+  CalibrationGeometryInput,
+} from './cheques.schema';
+
+/** Setting key prefix for the active per-bank calibration template. Mirrors the
+ *  frontend `SETTING_KEY_PREFIX` in utils/chequeTemplate.ts. */
+const TEMPLATE_SETTING_PREFIX = 'cheque.template.';
+const templateSettingKey = (bank: string) => `${TEMPLATE_SETTING_PREFIX}${bank}`;
+
+/** Single Setting key holding the Calibration Studio geometry (page/cheque mm). */
+const GEOMETRY_SETTING_KEY = 'cheque.calibration.geometry';
+
+/** Server-side defaults, mirrored in frontend utils/chequeGeometry.ts. A4 landscape
+ *  page; offsetYMm matches the production print offset (CHEQUE_PAGE_OFFSET_Y_MM=40).
+ *  These are safe starting points — the operator refines them against a real cheque. */
+const DEFAULT_GEOMETRY: CalibrationGeometryInput = {
+  pageWidthMm: 297,
+  pageHeightMm: 210,
+  chequeWidthMm: 175,
+  chequeHeightMm: 80,
+  offsetXMm: 0,
+  offsetYMm: 40,
+};
 
 export class ChequesService {
   async stats() {
@@ -128,18 +154,116 @@ export class ChequesService {
     if (current.status === 'CANCELLED') throw AppError.badRequest('لا يمكن طباعة شيك ملغي');
     if (current.status === 'PRINTED') throw AppError.badRequest('الشيك مطبوع بالفعل');
 
-    const cheque = await prisma.cheque.update({
-      where: { id },
-      data: { status: 'PRINTED', printedAt: new Date() },
+    // First print: flip status and open the print log (sequence 1, no reason).
+    // Atomic so the counter and the log row can never diverge. Lifecycle rules
+    // (reject CANCELLED / already-PRINTED) are unchanged — only logging is added.
+    const cheque = await prisma.$transaction(async (tx) => {
+      const updated = await tx.cheque.update({
+        where: { id },
+        data: { status: 'PRINTED', printedAt: new Date(), printCount: 1 },
+      });
+      await tx.chequePrintLog.create({
+        data: {
+          chequeId: id,
+          sequence: 1,
+          reason: null,
+          printedById: req.user?.userId ?? null,
+          printedByName: req.user?.username ?? null,
+        },
+      });
+      return updated;
     });
+
     await recordAudit({
       req,
       action: 'PRINT',
       module: 'cheques',
       entityId: id,
-      newValue: { status: 'PRINTED' },
+      newValue: { status: 'PRINTED', sequence: 1 },
     });
     return cheque;
+  }
+
+  /**
+   * إعادة طباعة شيك مطبوع مع تسجيل السبب. لا تغيّر حالة الشيك (يبقى PRINTED)،
+   * ولا تؤثر على سند الصرف أو المحاسبة أو مطابقة كشف الحساب البنكي — تضيف فقط
+   * سطراً في سجل الطباعة وتزيد عدّاد الطباعة. إعادة الطباعة مسموحة (لا تُمنع)
+   * لكنها موثّقة وقابلة للتدقيق.
+   */
+  async reprint(id: number, input: ReprintChequeInput, req: Request) {
+    const current = await prisma.cheque.findUnique({ where: { id } });
+    if (!current) throw AppError.notFound('الشيك غير موجود');
+    if (current.status === 'CANCELLED') throw AppError.badRequest('لا يمكن إعادة طباعة شيك ملغي');
+    if (current.status !== 'PRINTED') {
+      throw AppError.badRequest('إعادة الطباعة متاحة فقط لشيك مطبوع مسبقاً');
+    }
+
+    const { cheque, sequence } = await prisma.$transaction(async (tx) => {
+      // Re-read inside the transaction so the sequence is derived from the
+      // committed state, not the stale outer read — this is what keeps the count
+      // and log sequence atomic when two reprints race (the second waits on the
+      // write lock and then sees the first request's printCount).
+      const fresh = await tx.cheque.findUnique({ where: { id } });
+      if (!fresh) throw AppError.notFound('الشيك غير موجود');
+
+      // Legacy bootstrap: a cheque printed BEFORE this feature has printCount 0 and
+      // no ChequePrintLog. Its original print really happened (status PRINTED,
+      // printedAt set), so we record that original as sequence 1 using the REAL
+      // printedAt. We do NOT fabricate anything: the user is genuinely unknown
+      // (null), and an initial print never carries a reason (null). The reprint
+      // itself is then sequence 2 — never presented or stored as an initial print.
+      const isLegacyUntracked = fresh.printCount === 0;
+      if (isLegacyUntracked) {
+        await tx.chequePrintLog.create({
+          data: {
+            chequeId: id,
+            sequence: 1,
+            reason: null,
+            note: 'سجل تلقائي — طُبع قبل تفعيل تتبّع الطباعة (المستخدم والوقت الأصلي كما هو مُسجَّل، غير مؤكَّد)',
+            printedById: null,
+            printedByName: null,
+            printedAt: fresh.printedAt ?? undefined,
+          },
+        });
+      }
+
+      // Legacy: 0 → 2 (1 untracked original + this reprint). Modern: n → n + 1.
+      const nextSequence = Math.max(fresh.printCount, 1) + 1;
+      const updated = await tx.cheque.update({
+        where: { id },
+        data: { printCount: nextSequence },
+      });
+      await tx.chequePrintLog.create({
+        data: {
+          chequeId: id,
+          sequence: nextSequence,
+          reason: input.reason,
+          note: input.note ?? null,
+          printedById: req.user?.userId ?? null,
+          printedByName: req.user?.username ?? null,
+        },
+      });
+      return { cheque: updated, sequence: nextSequence };
+    });
+
+    await recordAudit({
+      req,
+      action: 'PRINT',
+      module: 'cheques',
+      entityId: id,
+      newValue: { reprint: true, sequence, reason: input.reason },
+    });
+    return cheque;
+  }
+
+  /** سجل الطباعة/إعادة الطباعة لشيك، من الأقدم إلى الأحدث. */
+  async listPrintLogs(id: number) {
+    const cheque = await prisma.cheque.findUnique({ where: { id } });
+    if (!cheque) throw AppError.notFound('الشيك غير موجود');
+    return prisma.chequePrintLog.findMany({
+      where: { chequeId: id },
+      orderBy: { sequence: 'asc' },
+    });
   }
 
   async cancel(id: number, req: Request) {
@@ -306,6 +430,150 @@ export class ChequesService {
     });
 
     return { deleted: true };
+  }
+
+  // ── Cheque calibration template versioning ─────────────────────────────────
+  // The ACTIVE template stays exactly where it was: Setting key
+  // `cheque.template.<bank>`. Saving/restoring additionally appends an immutable
+  // snapshot to cheque_template_versions so calibration is never silently
+  // overwritten without recoverable history. Printing reads the active Setting,
+  // unchanged.
+
+  /**
+   * حفظ نموذج معايرة لبنك: يكتب النموذج الفعّال في Setting (كما كان) ويضيف نسخة
+   * تاريخية جديدة برقم تصاعدي. عملية واحدة ذرّية.
+   */
+  async saveTemplateVersion(input: SaveTemplateVersionInput, req: Request) {
+    const templateJson = JSON.stringify(input.template);
+
+    const version = await prisma.$transaction(async (tx) => {
+      const last = await tx.chequeTemplateVersion.findFirst({
+        where: { bankName: input.bankName },
+        orderBy: { version: 'desc' },
+        select: { version: true },
+      });
+      const nextVersion = (last?.version ?? 0) + 1;
+
+      const created = await tx.chequeTemplateVersion.create({
+        data: {
+          bankName: input.bankName,
+          version: nextVersion,
+          template: templateJson,
+          note: input.note ?? null,
+          createdById: req.user?.userId ?? null,
+          createdByName: req.user?.username ?? null,
+        },
+      });
+
+      // Keep the active template in sync (this is the source printing reads).
+      await tx.setting.upsert({
+        where: { key: templateSettingKey(input.bankName) },
+        update: { value: templateJson },
+        create: { key: templateSettingKey(input.bankName), value: templateJson, group: 'cheque' },
+      });
+
+      return created;
+    });
+
+    await recordAudit({
+      req,
+      action: 'UPDATE',
+      module: 'cheques',
+      entityId: version.id,
+      newValue: { chequeTemplate: input.bankName, version: version.version },
+    });
+    return version;
+  }
+
+  /** قائمة نسخ نموذج المعايرة لبنك، من الأحدث إلى الأقدم. */
+  async listTemplateVersions(bankName: string) {
+    return prisma.chequeTemplateVersion.findMany({
+      where: { bankName },
+      orderBy: { version: 'desc' },
+    });
+  }
+
+  /**
+   * استعادة نسخة سابقة: تُنشئ نسخة جديدة (append-only) بمحتوى النسخة المستعادة
+   * وتحدّث النموذج الفعّال. لا تُحذف أي نسخة، والاستعادة نفسها تُسجَّل كنسخة جديدة.
+   */
+  async restoreTemplateVersion(versionId: number, req: Request) {
+    const source = await prisma.chequeTemplateVersion.findUnique({ where: { id: versionId } });
+    if (!source) throw AppError.notFound('النسخة غير موجودة');
+
+    const restored = await prisma.$transaction(async (tx) => {
+      const last = await tx.chequeTemplateVersion.findFirst({
+        where: { bankName: source.bankName },
+        orderBy: { version: 'desc' },
+        select: { version: true },
+      });
+      const nextVersion = (last?.version ?? 0) + 1;
+
+      const created = await tx.chequeTemplateVersion.create({
+        data: {
+          bankName: source.bankName,
+          version: nextVersion,
+          template: source.template,
+          note: `استعادة النسخة ${source.version}`,
+          createdById: req.user?.userId ?? null,
+          createdByName: req.user?.username ?? null,
+        },
+      });
+
+      await tx.setting.upsert({
+        where: { key: templateSettingKey(source.bankName) },
+        update: { value: source.template },
+        create: { key: templateSettingKey(source.bankName), value: source.template, group: 'cheque' },
+      });
+
+      return created;
+    });
+
+    await recordAudit({
+      req,
+      action: 'UPDATE',
+      module: 'cheques',
+      entityId: restored.id,
+      newValue: {
+        chequeTemplateRestore: source.bankName,
+        restoredFromVersion: source.version,
+        newVersion: restored.version,
+      },
+    });
+    return restored;
+  }
+
+  // ── Calibration Studio geometry ────────────────────────────────────────────
+  // Additive Setting only. Read is open to calibrators; write is SYSTEM_ADMIN-only
+  // (enforced on the route). Never touches templates or the print engine.
+
+  /** Returns the stored calibration geometry merged over defaults (defaults if absent/corrupt). */
+  async getCalibrationGeometry(): Promise<CalibrationGeometryInput> {
+    const row = await prisma.setting.findUnique({ where: { key: GEOMETRY_SETTING_KEY } });
+    if (!row) return { ...DEFAULT_GEOMETRY };
+    try {
+      const parsed = JSON.parse(row.value) as Partial<CalibrationGeometryInput>;
+      return { ...DEFAULT_GEOMETRY, ...parsed };
+    } catch {
+      return { ...DEFAULT_GEOMETRY };
+    }
+  }
+
+  /** Persists the calibration geometry (SYSTEM_ADMIN only via the route). */
+  async saveCalibrationGeometry(input: CalibrationGeometryInput, req: Request) {
+    const value = JSON.stringify(input);
+    await prisma.setting.upsert({
+      where: { key: GEOMETRY_SETTING_KEY },
+      update: { value },
+      create: { key: GEOMETRY_SETTING_KEY, value, group: 'cheque' },
+    });
+    await recordAudit({
+      req,
+      action: 'UPDATE',
+      module: 'cheques',
+      newValue: { calibrationGeometry: input },
+    });
+    return input;
   }
 }
 

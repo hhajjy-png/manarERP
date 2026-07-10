@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
+import { printCurrentView } from '../utils/print';
 import chequeImg from '../assets/cheakv1.png';
 import {
   DEFAULT_TEMPLATE,
@@ -7,9 +8,18 @@ import {
   FIELD_LABELS,
   FONT_FAMILIES,
   FONT_SIZES,
-  settingKey,
 } from '../utils/chequeTemplate';
-import type { ChequeTemplate, FieldConfig, FieldKey } from '../utils/chequeTemplate';
+import type {
+  ChequeTemplate,
+  ChequeTemplateVersionRow,
+  FieldConfig,
+  FieldKey,
+} from '../utils/chequeTemplate';
+import { DEFAULT_GEOMETRY, type CalibrationGeometry } from '../utils/chequeGeometry';
+import CalibrationTestSheet from './calibrator/CalibrationTestSheet';
+import MeasurementAssistant, { type CorrectionProposal } from './calibrator/MeasurementAssistant';
+import CalibrationWizard from './calibrator/CalibrationWizard';
+import './calibrator/calibrator-studio.css';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -27,12 +37,23 @@ interface Props {
   previewData: CalibratorPreviewData;
   onSaved: (bank: string, template: ChequeTemplate) => void;
   onClose: () => void;
+  /** SYSTEM_ADMIN unlocks the advanced geometry section. */
+  isSystemAdmin?: boolean;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const ZOOM_LEVELS = [50, 75, 100, 125, 150, 200] as const;
 const BASE_CHEQUE_WIDTH = 820;
+
+const GEOMETRY_FIELDS: { key: keyof CalibrationGeometry; label: string }[] = [
+  { key: 'pageWidthMm', label: 'عرض الصفحة (مم)' },
+  { key: 'pageHeightMm', label: 'ارتفاع الصفحة (مم)' },
+  { key: 'chequeWidthMm', label: 'عرض الشيك (مم)' },
+  { key: 'chequeHeightMm', label: 'ارتفاع الشيك (مم)' },
+  { key: 'offsetXMm', label: 'إزاحة أفقية (مم)' },
+  { key: 'offsetYMm', label: 'إزاحة رأسية (مم)' },
+];
 
 // ── Validation helper for import ───────────────────────────────────────────────
 
@@ -63,6 +84,7 @@ export default function ChequeCalibrator({
   previewData,
   onSaved,
   onClose,
+  isSystemAdmin = false,
 }: Props) {
   const [currentBank, setCurrentBank] = useState(initialBank);
   const [workingTemplates, setWorkingTemplates] = useState<Record<string, ChequeTemplate>>(() => {
@@ -80,6 +102,22 @@ export default function ChequeCalibrator({
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [copyTargets, setCopyTargets] = useState<string[]>([]);
   const [copyBusy, setCopyBusy] = useState(false);
+  const [saveNote, setSaveNote] = useState('');
+  const [versions, setVersions] = useState<ChequeTemplateVersionRow[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [restoringId, setRestoringId] = useState<number | null>(null);
+
+  // ── Calibration Studio state ──────────────────────────────────────────────────
+  const [geometry, setGeometry] = useState<CalibrationGeometry>(DEFAULT_GEOMETRY);
+  const [proposal, setProposal] = useState<CorrectionProposal | null>(null);
+  const [pendingProposal, setPendingProposal] = useState<CorrectionProposal | null>(null);
+  const [applyBusy, setApplyBusy] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
+  const [correctionSaved, setCorrectionSaved] = useState(false);
+  const [showGeom, setShowGeom] = useState(false);
+  const [geomDraft, setGeomDraft] = useState<CalibrationGeometry>(DEFAULT_GEOMETRY);
+  const [geomBusy, setGeomBusy] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -179,22 +217,148 @@ export default function ChequeCalibrator({
     }));
   }
 
+  // ── Version history ──────────────────────────────────────────────────────────
+  // Saving/restoring goes through the cheque template-versions endpoint, which
+  // updates the active template (Setting) AND appends an immutable snapshot so no
+  // calibration is ever silently overwritten without recoverable history.
+
+  const loadVersions = useCallback(async (bank: string) => {
+    setVersionsLoading(true);
+    try {
+      const res = await api.get(`/cheques/template-versions/${encodeURIComponent(bank)}`);
+      setVersions((res.data?.data ?? []) as ChequeTemplateVersionRow[]);
+    } catch {
+      setVersions([]);
+    } finally {
+      setVersionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadVersions(currentBank);
+  }, [currentBank, loadVersions]);
+
   // ── Save ───────────────────────────────────────────────────────────────────────
 
   async function handleSave() {
     setSaving(true);
     setSaveMsg(null);
     try {
-      await api.put('/settings', {
-        settings: [{ key: settingKey(currentBank), value: JSON.stringify(currentTemplate), group: 'cheque' }],
+      await api.post('/cheques/template-versions', {
+        bankName: currentBank,
+        template: currentTemplate,
+        note: saveNote.trim() || null,
       });
       onSaved(currentBank, currentTemplate);
-      setSaveMsg({ type: 'ok', text: `تم حفظ نموذج ${currentBank}` });
+      setSaveNote('');
+      setSaveMsg({ type: 'ok', text: `تم حفظ نموذج ${currentBank} كنسخة جديدة` });
       setTimeout(() => setSaveMsg(null), 4000);
+      loadVersions(currentBank);
     } catch {
       setSaveMsg({ type: 'error', text: 'حدث خطأ أثناء الحفظ' });
     } finally {
       setSaving(false);
+    }
+  }
+
+  // ── Restore a previous version ───────────────────────────────────────────────
+
+  async function handleRestoreVersion(v: ChequeTemplateVersionRow) {
+    setRestoringId(v.id);
+    setSaveMsg(null);
+    try {
+      const res = await api.post(`/cheques/template-versions/${v.id}/restore`);
+      const restoredJson: string = res.data?.data?.template ?? v.template;
+      const parsed = JSON.parse(restoredJson) as unknown;
+      if (!isValidTemplate(parsed)) {
+        setSaveMsg({ type: 'error', text: 'النسخة المستعادة غير صالحة' });
+        return;
+      }
+      setWorkingTemplates((prev) => ({ ...prev, [currentBank]: parsed }));
+      onSaved(currentBank, parsed);
+      setSaveMsg({ type: 'ok', text: `تم استعادة النسخة ${v.version} لبنك ${currentBank}` });
+      setTimeout(() => setSaveMsg(null), 4000);
+      loadVersions(currentBank);
+    } catch {
+      setSaveMsg({ type: 'error', text: 'تعذّر استعادة النسخة' });
+    } finally {
+      setRestoringId(null);
+    }
+  }
+
+  // ── Calibration test print ───────────────────────────────────────────────────
+  // Prints alignment guides (registration marks + per-field crosshairs) at the
+  // exact positions the real fields would occupy — NEVER a real cheque. It touches
+  // no cheque record and no API: it only renders the hidden guide layer and calls
+  // the shared print helper.
+
+  function handleTestPrint() {
+    if (printing) return; // guard against double-click duplicate prints
+    setPrinting(true);
+    // The test sheet is already mounted (hidden) and prints directly — no fetch,
+    // save, or artificial timeout. The native dialog is fire-and-forget, so
+    // re-enable as soon as the IPC resolves (right after webContents.print fires).
+    void printCurrentView().finally(() => setPrinting(false));
+  }
+
+  // ── Calibration geometry (load; save is SYSTEM_ADMIN-only) ────────────────────
+
+  useEffect(() => {
+    api
+      .get('/cheques/calibration-geometry')
+      .then((res) => {
+        const g = res.data?.data as CalibrationGeometry | undefined;
+        if (g) {
+          setGeometry(g);
+          setGeomDraft(g);
+        }
+      })
+      .catch(() => {
+        /* keep DEFAULT_GEOMETRY */
+      });
+  }, []);
+
+  async function handleSaveGeometry() {
+    setGeomBusy(true);
+    try {
+      const res = await api.put('/cheques/calibration-geometry', geomDraft);
+      const g = (res.data?.data as CalibrationGeometry) ?? geomDraft;
+      setGeometry(g);
+      setSaveMsg({ type: 'ok', text: 'تم حفظ إعدادات القياس' });
+      setTimeout(() => setSaveMsg(null), 4000);
+    } catch {
+      setSaveMsg({ type: 'error', text: 'تعذّر حفظ إعدادات القياس' });
+    } finally {
+      setGeomBusy(false);
+    }
+  }
+
+  // ── Measurement Assistant: apply a proposed correction as a NEW version ────────
+  // Never auto-saves — routed through a confirmation and the versioning endpoint.
+
+  async function performApplyCorrection(p: CorrectionProposal) {
+    setApplyBusy(true);
+    setSaveMsg(null);
+    try {
+      const scopeLabel = p.scope === 'all' ? 'كل الحقول' : FIELD_LABELS[selected];
+      const note = `تصحيح قياس (${scopeLabel}): ${p.rightMm} مم أفقي، ${p.downMm} مم رأسي`;
+      await api.post('/cheques/template-versions', {
+        bankName: currentBank,
+        template: p.proposedTemplate,
+        note,
+      });
+      setWorkingTemplates((prev) => ({ ...prev, [currentBank]: p.proposedTemplate }));
+      onSaved(currentBank, p.proposedTemplate);
+      setProposal(null);
+      setCorrectionSaved(true);
+      setSaveMsg({ type: 'ok', text: `تم حفظ التصحيح لبنك ${currentBank} كنسخة جديدة` });
+      setTimeout(() => setSaveMsg(null), 4000);
+      loadVersions(currentBank);
+    } catch {
+      setSaveMsg({ type: 'error', text: 'تعذّر حفظ التصحيح' });
+    } finally {
+      setApplyBusy(false);
+      setPendingProposal(null);
     }
   }
 
@@ -258,12 +422,15 @@ export default function ChequeCalibrator({
     if (copyTargets.length === 0) return;
     setCopyBusy(true);
     try {
-      const settings = copyTargets.map((bank) => ({
-        key: settingKey(bank),
-        value: JSON.stringify(currentTemplate),
-        group: 'cheque',
-      }));
-      await api.put('/settings', { settings });
+      // Route each target bank through the versioning endpoint so the copy is
+      // recorded as a new version per bank (never a silent overwrite).
+      for (const bank of copyTargets) {
+        await api.post('/cheques/template-versions', {
+          bankName: bank,
+          template: currentTemplate,
+          note: `نسخ من ${currentBank}`,
+        });
+      }
       const updates: Record<string, ChequeTemplate> = {};
       for (const bank of copyTargets) {
         updates[bank] = deepCopy(currentTemplate);
@@ -274,6 +441,7 @@ export default function ChequeCalibrator({
       setCopyTargets([]);
       setSaveMsg({ type: 'ok', text: `تم نسخ النموذج إلى ${copyTargets.length} بنك` });
       setTimeout(() => setSaveMsg(null), 4000);
+      loadVersions(currentBank);
     } catch {
       setSaveMsg({ type: 'error', text: 'حدث خطأ أثناء نسخ النموذج' });
     } finally {
@@ -471,14 +639,47 @@ export default function ChequeCalibrator({
         >
           نسخ إلى...
         </button>
+        <button
+          type="button"
+          className="btn secondary sm"
+          onClick={handleTestPrint}
+          disabled={printing}
+          title="طباعة ورقة اختبار المحاذاة (علامات الحقول فقط — لا تُطبع شيكاً ولا تُسجّل أي عملية)"
+        >
+          🖨 اختبار المعايرة
+        </button>
+        <input
+          type="text"
+          className="line-input"
+          value={saveNote}
+          onChange={(e) => setSaveNote(e.target.value)}
+          placeholder="ملاحظة النسخة (اختياري)"
+          title="ملاحظة تُحفظ مع نسخة النموذج"
+          style={{ width: 160, fontSize: 12 }}
+          maxLength={300}
+        />
         <button type="button" className="btn" onClick={handleSave} disabled={saving}>
-          {saving ? 'جاري الحفظ...' : 'حفظ'}
+          {saving ? 'جاري الحفظ...' : 'حفظ نسخة'}
         </button>
         <button type="button" className="btn secondary" onClick={handleRestore}>
           استعادة الافتراضي
         </button>
         <button type="button" className="btn secondary" onClick={onClose}>
           إغلاق
+        </button>
+      </div>
+
+      {/* ── Studio bar ── */}
+      <div className="chq-studio-bar">
+        <div style={{ flex: 1 }} />
+        <button
+          type="button"
+          className="chq-btn chq-btn--ghost"
+          onClick={() => { setCorrectionSaved(false); setShowWizard(true); }}
+          title="معالج معايرة الطابعة خطوة بخطوة"
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">auto_fix_high</span>
+          معالج المعايرة
         </button>
       </div>
 
@@ -623,6 +824,22 @@ export default function ChequeCalibrator({
                 </div>
               );
             })}
+
+            {/* Ghost overlay — proposed positions from the Measurement Assistant.
+                Current = solid field boxes above; proposed = dashed ghosts here. */}
+            {proposal &&
+              proposal.affectedFields.map((fk) => {
+                const gcfg = proposal.proposedTemplate[fk];
+                return (
+                  <div
+                    key={`ghost-${fk}`}
+                    className="chq-ghost"
+                    style={{ top: `${gcfg.top}%`, left: `${gcfg.left}%`, width: `${gcfg.width}%`, height: `${gcfg.fontSize * 1.6}pt` }}
+                  >
+                    <span className="chq-ghost__tag">{FIELD_LABELS[fk]} — مقترح</span>
+                  </div>
+                );
+              })}
           </div>
 
           {/* Quick-select field buttons */}
@@ -819,8 +1036,145 @@ export default function ChequeCalibrator({
             <br />
             {selectedCfg.fontSize}pt · {selectedCfg.fontFamily} · {selectedCfg.fontWeight}
           </div>
+
+          {/* ── Version history ── */}
+          <div style={{ marginTop: 8, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+            <strong style={{ fontSize: 13, color: 'var(--text)', display: 'block', marginBottom: 6 }}>
+              📚 نسخ نموذج {currentBank}
+            </strong>
+            {versionsLoading ? (
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>جارٍ التحميل…</p>
+            ) : versions.length === 0 ? (
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>
+                لا توجد نسخ محفوظة بعد. احفظ لإنشاء أول نسخة.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+                {versions.map((v, i) => (
+                  <div
+                    key={v.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 8px',
+                      background: 'var(--bg, #f8fafc)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 6,
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
+                        نسخة {v.version}
+                        {i === 0 && (
+                          <span style={{ marginInlineStart: 6, fontSize: 10, color: 'var(--success, #16a34a)', fontWeight: 700 }}>
+                            (الحالية)
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {formatVersionDate(v.createdAt)}
+                        {v.createdByName ? ` · ${v.createdByName}` : ''}
+                        {v.note ? ` · ${v.note}` : ''}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn secondary sm"
+                      disabled={i === 0 || restoringId !== null}
+                      onClick={() => handleRestoreVersion(v)}
+                      title={i === 0 ? 'هذه هي النسخة الحالية' : `استعادة النسخة ${v.version}`}
+                      style={{ flexShrink: 0 }}
+                    >
+                      {restoringId === v.id ? '…' : 'استعادة'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Measurement Assistant (hidden while the wizard owns it) ── */}
+          {!showWizard && (
+            <div style={{ marginTop: 8, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+              <MeasurementAssistant
+                template={currentTemplate}
+                selectedField={selected}
+                geometry={geometry}
+                savedAsVersion={correctionSaved}
+                onProposalChange={setProposal}
+                onApply={(p) => setPendingProposal(p)}
+                applyBusy={applyBusy}
+              />
+            </div>
+          )}
+
+          {/* ── Advanced geometry (SYSTEM_ADMIN only) ── */}
+          {isSystemAdmin && (
+            <div className="chq-geom" style={{ marginTop: 10 }}>
+              <button type="button" className="chq-geom__head" onClick={() => setShowGeom((v) => !v)}>
+                <span className="material-symbols-outlined" aria-hidden="true">tune</span>
+                إعدادات القياس المتقدمة (مسؤول النظام)
+                <span style={{ marginInlineStart: 'auto' }}>{showGeom ? '▲' : '▼'}</span>
+              </button>
+              {showGeom && (
+                <>
+                  <div className="chq-geom__grid">
+                    {GEOMETRY_FIELDS.map((gf) => (
+                      <label key={gf.key}>
+                        <span>{gf.label}</span>
+                        <input
+                          type="number"
+                          step={0.5}
+                          value={geomDraft[gf.key]}
+                          onChange={(e) =>
+                            setGeomDraft((prev) => ({ ...prev, [gf.key]: parseFloat(e.target.value) || 0 }))
+                          }
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <div className="chq-geom__foot">
+                    <button type="button" className="chq-btn chq-btn--primary" onClick={handleSaveGeometry} disabled={geomBusy}>
+                      {geomBusy ? 'جارٍ الحفظ…' : 'حفظ إعدادات القياس'}
+                    </button>
+                    <button type="button" className="chq-btn chq-btn--ghost" onClick={() => setGeomDraft(geometry)}>
+                      إعادة تعيين
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* ── Hidden calibration test-print layer (Calibration Studio) ── */}
+      {/* Field markers only — no cheque background, no beneficiary data, no record
+          touched. Rendered in mm at true scale. Isolated from the real cheque print
+          output (.cheque-print-only). */}
+      <div className="chq-calib-testprint" style={{ display: 'none' }}>
+        <CalibrationTestSheet template={currentTemplate} geometry={geometry} />
+      </div>
+      <style>{`
+        @media print {
+          /* The Cheques page unmounts its real-cheque layer while the calibrator is
+             open, so the test sheet is the only print surface in the document. No
+             suppression rule and no z-index are needed to win against it — the
+             competing layer simply does not exist. Everything else in the app shell
+             is hidden, and the sheet is revealed. */
+          body > * { visibility: hidden !important; height: 0 !important; overflow: hidden !important; }
+          .chq-calib-testprint {
+            display: block !important;
+            visibility: visible !important;
+            position: fixed;
+            inset: 0;
+            background: white;
+          }
+          .chq-calib-testprint * { visibility: visible !important; }
+        }
+        @page { size: A4 landscape; }
+      `}</style>
 
       {/* ── Copy template modal ── */}
       {showCopyModal && (
@@ -905,11 +1259,70 @@ export default function ChequeCalibrator({
           </div>
         </div>
       )}
+
+      {/* ── Apply-correction confirmation (never auto-saves) ── */}
+      {pendingProposal && (
+        <div
+          className="chq-wiz__scrim"
+          style={{ zIndex: 3400 }}
+          onClick={(e) => e.target === e.currentTarget && !applyBusy && setPendingProposal(null)}
+        >
+          <div className="chq-wiz" role="dialog" aria-label="تأكيد التصحيح" style={{ width: 'min(440px, 96vw)' }}>
+            <div className="chq-wiz__head">
+              <div>
+                <strong>تأكيد تطبيق التصحيح</strong>
+                <span>{currentBank}</span>
+              </div>
+            </div>
+            <div style={{ padding: '16px 20px' }}>
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--text)' }}>
+                سيتم إنشاء نسخة جديدة من نموذج «{currentBank}» بالتصحيح المقترح (
+                {pendingProposal.scope === 'all' ? 'كل الحقول' : FIELD_LABELS[selected]}). النسخة الحالية تبقى متاحة للاستعادة.
+              </p>
+              {pendingProposal.anyClamped && (
+                <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--danger, #dc2626)' }}>
+                  ⚠️ بعض القيم تجاوزت الحدود وتم قصّها إلى الحد المسموح.
+                </p>
+              )}
+            </div>
+            <div className="chq-wiz__foot">
+              <button type="button" className="chq-btn chq-btn--ghost" onClick={() => setPendingProposal(null)} disabled={applyBusy}>
+                إلغاء
+              </button>
+              <button type="button" className="chq-btn chq-btn--primary" onClick={() => performApplyCorrection(pendingProposal)} disabled={applyBusy}>
+                {applyBusy ? 'جارٍ الحفظ…' : 'تطبيق كنسخة جديدة'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Printer Calibration Wizard (skippable) ── */}
+      {showWizard && (
+        <CalibrationWizard
+          bank={currentBank}
+          template={currentTemplate}
+          selectedField={selected}
+          geometry={geometry}
+          applied={correctionSaved}
+          applyBusy={applyBusy}
+          onProposalChange={setProposal}
+          onApply={(p) => setPendingProposal(p)}
+          onPrint={handleTestPrint}
+          onClose={() => { setShowWizard(false); setProposal(null); }}
+        />
+      )}
     </div>
   );
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
+
+function formatVersionDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));

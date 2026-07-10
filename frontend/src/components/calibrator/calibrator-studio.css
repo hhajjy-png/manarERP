@@ -1,0 +1,143 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Cheque Calibration Studio — additive UI styles (.chq-* prefix).
+   Composes with Explorer Kit tokens (--xpl-*). Applies only to the Studio panels
+   inside the calibrator overlay; the calibration test sheet is pure SVG with its
+   own mm-based sizing. Nothing here touches the real cheque print output.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Shared buttons (Studio-local, ExplorerKit language) ── */
+.chq-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid var(--xpl-border);
+  background: var(--xpl-surface);
+  color: var(--xpl-text);
+  cursor: pointer;
+  transition: background .12s, border-color .12s, box-shadow .12s, opacity .12s;
+}
+.chq-btn .material-symbols-outlined { font-size: 18px !important; }
+.chq-btn:hover { border-color: var(--xpl-primary); }
+.chq-btn:disabled { opacity: .5; cursor: not-allowed; }
+.chq-btn--primary { background: var(--xpl-primary); border-color: var(--xpl-primary); color: #fff; }
+.chq-btn--primary:hover { background: var(--xpl-primary-2); border-color: var(--xpl-primary-2); }
+.chq-btn--ghost { background: transparent; color: var(--xpl-muted); }
+.chq-btn--ghost:hover { color: var(--xpl-text); }
+
+/* ── Studio bar (second toolbar row) ── */
+.chq-studio-bar {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 16px; background: var(--xpl-surface);
+  border-bottom: 1px solid var(--xpl-border); flex-shrink: 0;
+}
+
+/* ── Ghost overlay (before/after) on the calibration canvas ── */
+.chq-ghost {
+  position: absolute;
+  border: 1.5px dashed rgba(99, 102, 241, .95);
+  background: rgba(99, 102, 241, .07);
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 30;
+  border-radius: 2px;
+}
+.chq-ghost__tag {
+  position: absolute; top: -14px; inset-inline-start: 0;
+  font-size: 8px; font-weight: 800; letter-spacing: .3px;
+  color: #fff; background: rgba(99, 102, 241, .95);
+  padding: 0 4px; border-radius: 3px; white-space: nowrap;
+}
+
+/* ── Measurement Assistant ── */
+.chq-ma { display: flex; flex-direction: column; gap: 12px; }
+.chq-ma__head { display: flex; gap: 10px; align-items: flex-start; }
+.chq-ma__head .material-symbols-outlined { font-size: 22px !important; color: var(--xpl-primary); }
+.chq-ma__head strong { font-size: 14px; color: var(--xpl-text); }
+.chq-ma__head p { margin: 2px 0 0; font-size: 11.5px; color: var(--xpl-muted); line-height: 1.5; }
+
+.chq-ma__confidence {
+  display: flex; gap: 10px; align-items: center;
+  padding: 10px 12px; border-radius: 12px; border: 1px solid var(--xpl-border);
+}
+.chq-ma__confidence .material-symbols-outlined { font-size: 22px !important; }
+.chq-ma__confidence strong { display: block; font-size: 13px; }
+.chq-ma__confidence span { font-size: 11px; color: var(--xpl-muted); line-height: 1.5; }
+.chq-ma__confidence--green  { background: rgba(16,185,129,.08);  border-color: rgba(16,185,129,.28); }
+.chq-ma__confidence--green .material-symbols-outlined, .chq-ma__confidence--green strong { color: var(--xpl-green); }
+.chq-ma__confidence--blue   { background: rgba(59,130,246,.08);  border-color: rgba(59,130,246,.28); }
+.chq-ma__confidence--blue .material-symbols-outlined, .chq-ma__confidence--blue strong { color: var(--xpl-blue); }
+.chq-ma__confidence--orange { background: rgba(245,158,11,.10);  border-color: rgba(245,158,11,.30); }
+.chq-ma__confidence--orange .material-symbols-outlined, .chq-ma__confidence--orange strong { color: var(--xpl-orange); }
+
+.chq-ma__scope { display: flex; gap: 6px; }
+.chq-ma__scope button {
+  flex: 1; padding: 7px 8px; border-radius: 9px; border: 1px solid var(--xpl-border);
+  background: var(--xpl-surface); color: var(--xpl-muted); font-size: 12px; font-weight: 700; cursor: pointer;
+  transition: border-color .12s, color .12s, background .12s;
+}
+.chq-ma__scope button.is-active { border-color: var(--xpl-primary); color: var(--xpl-primary); background: var(--xpl-faint, rgba(99,102,241,.08)); }
+
+.chq-ma__inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.chq-ma__inputs label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--xpl-muted); }
+.chq-ma__inputs input {
+  width: 100%; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--xpl-border);
+  background: var(--xpl-surface); color: var(--xpl-text); font-size: 14px; font-family: "IBM Plex Mono", monospace; text-align: center;
+}
+.chq-ma__inputs input:focus { outline: none; border-color: var(--xpl-primary); box-shadow: 0 0 0 2px var(--xpl-faint, rgba(99,102,241,.12)); }
+
+.chq-ma__preview { border: 1px solid var(--xpl-border); border-radius: 12px; overflow: hidden; }
+.chq-ma__preview-head { padding: 8px 12px; background: var(--xpl-bg); font-size: 12px; font-weight: 800; color: var(--xpl-text); border-bottom: 1px solid var(--xpl-border); }
+.chq-ma__preview table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.chq-ma__preview th { text-align: start; padding: 6px 10px; color: var(--xpl-muted); font-weight: 700; background: var(--xpl-surface); }
+.chq-ma__preview td { padding: 6px 10px; border-top: 1px solid var(--xpl-border); font-family: "IBM Plex Mono", monospace; color: var(--xpl-text); }
+.chq-ma__preview tr.is-clamped td { background: rgba(245,158,11,.08); }
+.chq-ma__warn { display: flex; align-items: center; gap: 6px; margin: 0; padding: 8px 12px; font-size: 11.5px; color: var(--xpl-orange); background: rgba(245,158,11,.06); }
+.chq-ma__warn .material-symbols-outlined { font-size: 16px !important; }
+.chq-ma__ghost-hint { display: flex; align-items: center; gap: 6px; margin: 0; padding: 8px 12px; font-size: 11px; color: var(--xpl-muted); border-top: 1px solid var(--xpl-border); }
+.chq-ma__ghost-hint .material-symbols-outlined { font-size: 15px !important; color: var(--xpl-primary); }
+.chq-ma__empty { margin: 0; padding: 12px; font-size: 12px; color: var(--xpl-muted); text-align: center; border: 1px dashed var(--xpl-border); border-radius: 12px; }
+.chq-ma__actions { display: flex; gap: 8px; }
+.chq-ma__actions .chq-btn { flex: 1; justify-content: center; }
+
+/* ── Wizard ── */
+.chq-wiz__scrim { position: fixed; inset: 0; z-index: 3200; background: rgba(15,23,42,.5); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.chq-wiz { width: min(760px, 96vw); max-height: 92vh; overflow-y: auto; background: var(--xpl-surface); border: 1px solid var(--xpl-border); border-radius: 18px; box-shadow: var(--xpl-shadow); }
+.chq-wiz__head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--xpl-border); }
+.chq-wiz__head strong { display: block; font-size: 15px; color: var(--xpl-text); }
+.chq-wiz__head span { font-size: 12px; color: var(--xpl-muted); }
+.chq-wiz__steps { display: flex; gap: 4px; list-style: none; margin: 0; padding: 14px 20px; overflow-x: auto; }
+.chq-wiz__steps li { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 120px; color: var(--xpl-muted); font-size: 11.5px; }
+.chq-wiz__steps li .material-symbols-outlined { font-size: 18px !important; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--xpl-bg); border: 1px solid var(--xpl-border); }
+.chq-wiz__steps li.is-active { color: var(--xpl-primary); font-weight: 800; }
+.chq-wiz__steps li.is-active .material-symbols-outlined { background: var(--xpl-primary); color: #fff; border-color: var(--xpl-primary); }
+.chq-wiz__steps li.is-done { color: var(--xpl-green); }
+.chq-wiz__steps li.is-done .material-symbols-outlined { background: rgba(16,185,129,.12); color: var(--xpl-green); border-color: rgba(16,185,129,.3); }
+.chq-wiz__body { display: grid; grid-template-columns: 1fr; gap: 16px; padding: 8px 20px 16px; }
+.chq-wiz__guide { text-align: center; padding: 12px; }
+.chq-wiz__guide-icon { font-size: 40px !important; color: var(--xpl-primary); }
+.chq-wiz__guide h4 { margin: 8px 0 6px; font-size: 16px; color: var(--xpl-text); }
+.chq-wiz__guide p { margin: 0 auto 12px; max-width: 460px; font-size: 13px; color: var(--xpl-muted); line-height: 1.7; }
+.chq-wiz__assistant { border-top: 1px solid var(--xpl-border); padding-top: 14px; }
+.chq-wiz__foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--xpl-border); }
+.chq-wiz__count { font-size: 12px; color: var(--xpl-muted); font-weight: 700; }
+.chq-wiz__done { text-align: center; padding: 30px 20px; }
+.chq-wiz__done .material-symbols-outlined { font-size: 52px !important; color: var(--xpl-green); }
+.chq-wiz__done strong { display: block; margin-top: 8px; font-size: 17px; color: var(--xpl-text); }
+.chq-wiz__done p { margin: 6px auto 18px; max-width: 420px; font-size: 13px; color: var(--xpl-muted); line-height: 1.6; }
+
+/* ── Geometry advanced (SYSTEM_ADMIN) ── */
+.chq-geom { border: 1px solid var(--xpl-border); border-radius: 12px; overflow: hidden; }
+.chq-geom__head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; background: var(--xpl-bg); border: none; cursor: pointer; font-size: 12.5px; font-weight: 800; color: var(--xpl-text); }
+.chq-geom__head .material-symbols-outlined { font-size: 18px !important; color: var(--xpl-orange); }
+.chq-geom__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
+.chq-geom__grid label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--xpl-muted); }
+.chq-geom__grid input { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--xpl-border); background: var(--xpl-surface); color: var(--xpl-text); font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+.chq-geom__foot { display: flex; gap: 8px; padding: 0 12px 12px; }
+
+@media (prefers-color-scheme: dark) {
+  .chq-ghost { border-color: rgba(129,140,248,.95); background: rgba(129,140,248,.10); }
+}

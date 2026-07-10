@@ -111,6 +111,53 @@ export function templateFromSettings(
   }
 }
 
+// ── Reliability pack: reprint reasons, version & print-log types ─────────────
+
+/** Reprint reason keys — must match backend REPRINT_REASONS in cheques.schema.ts. */
+export const REPRINT_REASONS = [
+  'PAPER_JAM',
+  'PRINTER_ISSUE',
+  'CALIBRATION',
+  'MISALIGNMENT',
+  'USER_REQUEST',
+  'OTHER',
+] as const;
+
+export type ReprintReason = (typeof REPRINT_REASONS)[number];
+
+export const REPRINT_REASON_LABELS: Record<ReprintReason, string> = {
+  PAPER_JAM: 'انحشار الورق',
+  PRINTER_ISSUE: 'مشكلة في الطابعة',
+  CALIBRATION: 'ضبط المعايرة',
+  MISALIGNMENT: 'عدم تطابق المحاذاة',
+  USER_REQUEST: 'طلب المستخدم',
+  OTHER: 'أخرى',
+};
+
+/** A saved cheque calibration template version (server row). */
+export interface ChequeTemplateVersionRow {
+  id: number;
+  bankName: string;
+  version: number;
+  template: string; // JSON snapshot
+  note: string | null;
+  createdById: number | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+/** A cheque print/reprint log row (server row). */
+export interface ChequePrintLogRow {
+  id: number;
+  chequeId: number;
+  sequence: number;
+  reason: string | null;
+  note: string | null;
+  printedById: number | null;
+  printedByName: string | null;
+  printedAt: string;
+}
+
 // ── Future-compatibility stubs (no UI wired yet) ─────────────────────────────
 
 /**

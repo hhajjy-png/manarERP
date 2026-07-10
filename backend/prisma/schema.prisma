@@ -34,10 +34,10 @@ model User {
   employeeId Int?      @unique
   employee   Employee? @relation(fields: [employeeId], references: [id])
 
-  auditLogs            AuditLog[]
-  backups              Backup[]
-  approvalHistories    ApprovalHistory[]
-  uploadedAttachments  Attachment[]  @relation("AttachmentUploader")
+  auditLogs           AuditLog[]
+  backups             Backup[]
+  approvalHistories   ApprovalHistory[]
+  uploadedAttachments Attachment[]      @relation("AttachmentUploader")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -512,14 +512,14 @@ model Contract {
   status                String    @default("ACTIVE") // ACTIVE | EXPIRED | RENEWING | SUSPENDED
   notes                 String?
   unitName              String? // وحدة العقد (مثل: درب، طن، متر)
-  price                 Float?  // سعر الوحدة
+  price                 Float? // سعر الوحدة
   companyName           String? // اسم الشركة المنفذة
 
   customerId Int? // الجهة المتعاقدة (اختياري)
   managerId  Int? // المسؤول عن العقد
 
-  customer  Customer?          @relation(fields: [customerId], references: [id])
-  manager   Employee?          @relation("ContractManager", fields: [managerId], references: [id])
+  customer       Customer?          @relation(fields: [customerId], references: [id])
+  manager        Employee?          @relation("ContractManager", fields: [managerId], references: [id])
   invoices       Invoice[]
   expenses       Expense[]
   documents      ContractDocument[]
@@ -549,12 +549,12 @@ model ContractDocument {
 
 model Attachment {
   id           Int      @id @default(autoincrement())
-  entityType   String   // CUSTOMER | CONTRACT | INVOICE | EMPLOYEE | SUPPLIER | EXPENSE | EQUIPMENT
+  entityType   String // CUSTOMER | CONTRACT | INVOICE | EMPLOYEE | SUPPLIER | EXPENSE | EQUIPMENT
   entityId     Int
   title        String
-  fileName     String   // stored filename (uuid prefix)
-  originalName String   // original upload filename
-  filePath     String   // absolute path on disk
+  fileName     String // stored filename (uuid prefix)
+  originalName String // original upload filename
+  filePath     String // absolute path on disk
   fileSize     Int      @default(0) // bytes
   mimeType     String?
   uploadedById Int?
@@ -599,29 +599,29 @@ model Supplier {
 // ─────────────────────────────────────────────────────────────────────────
 
 model Invoice {
-  id            Int       @id @default(autoincrement())
-  number        String    @unique // رقم الفاتورة
-  invoiceNumber String    @unique // الرقم اليدوي الكامل للفاتورة: MN-INV-2026-...
-  direction     String    @default("SALES") // SALES (عميل) | PURCHASE (مورّد)
-  invoiceType   String    @default("نقل اسفلت") // نقل اسفلت | يومية عمل مالينج | يومية نقل اسفلت
-  customerId    Int?
-  supplierId    Int?
-  contractId    Int?
-  issueDate     DateTime  @default(now())
-  dueDate       DateTime?
-  subtotal      Float     @default(0)
-  taxRate       Float     @default(0) // نسبة الضريبة %
-  taxAmount     Float     @default(0)
-  discount      Float     @default(0)
-  total         Float     @default(0)
-  paidAmount    Float     @default(0)
-  status        String    @default("UNPAID") // UNPAID | PARTIAL | PAID | OVERDUE | CANCELLED
-  notes             String?
-  verificationUuid  String?  @unique
-  billingMonth  Int?      // شهر الحساب (1-12)
-  billingYear   Int?      // سنة الحساب (مثال: 2026)
-  deliveryDate  DateTime? // تاريخ تسليم الفاتورة (متابعة داخلية — لا يظهر في الطباعة)
-  paymentMethod String?   // GL routing: CASH | BANK | ACCOUNTS_PAYABLE — فواتير المشتريات فقط
+  id               Int       @id @default(autoincrement())
+  number           String    @unique // رقم الفاتورة
+  invoiceNumber    String    @unique // الرقم اليدوي الكامل للفاتورة: MN-INV-2026-...
+  direction        String    @default("SALES") // SALES (عميل) | PURCHASE (مورّد)
+  invoiceType      String    @default("نقل اسفلت") // نقل اسفلت | يومية عمل مالينج | يومية نقل اسفلت
+  customerId       Int?
+  supplierId       Int?
+  contractId       Int?
+  issueDate        DateTime  @default(now())
+  dueDate          DateTime?
+  subtotal         Float     @default(0)
+  taxRate          Float     @default(0) // نسبة الضريبة %
+  taxAmount        Float     @default(0)
+  discount         Float     @default(0)
+  total            Float     @default(0)
+  paidAmount       Float     @default(0)
+  status           String    @default("UNPAID") // UNPAID | PARTIAL | PAID | OVERDUE | CANCELLED
+  notes            String?
+  verificationUuid String?   @unique
+  billingMonth     Int? // شهر الحساب (1-12)
+  billingYear      Int? // سنة الحساب (مثال: 2026)
+  deliveryDate     DateTime? // تاريخ تسليم الفاتورة (متابعة داخلية — لا يظهر في الطباعة)
+  paymentMethod    String? // GL routing: CASH | BANK | ACCOUNTS_PAYABLE — فواتير المشتريات فقط
 
   customer Customer?     @relation(fields: [customerId], references: [id])
   supplier Supplier?     @relation(fields: [supplierId], references: [id])
@@ -649,7 +649,7 @@ model InvoiceItem {
   unit        String @default("طن") // طن | درب | يومية
   unitPrice   Float  @default(0)
   total       Float  @default(0)
-  priceId     Int?   // FK to project_prices (nullable — immutable snapshot, set at creation)
+  priceId     Int? // FK to project_prices (nullable — immutable snapshot, set at creation)
 
   invoice Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   price   ProjectPrice? @relation(fields: [priceId], references: [id], onDelete: Restrict)
@@ -680,21 +680,21 @@ model Payment {
 // ─────────────────────────────────────────────────────────────────────────
 
 model Expense {
-  id           Int       @id @default(autoincrement())
-  code         String    @unique
-  category     String // قيمة نصية من ENUMS.expenseCategory (config/constants.ts) — لا enum على مستوى DB
-  description  String
-  amount       Float
-  date         DateTime  @default(now())
-  billingMonth Int?      // شهر الحساب (1-12)
-  billingYear  Int?      // سنة الحساب
-  notes        String?   // ملاحظات حرة
+  id            Int       @id @default(autoincrement())
+  code          String    @unique
+  category      String // قيمة نصية من ENUMS.expenseCategory (config/constants.ts) — لا enum على مستوى DB
+  description   String
+  amount        Float
+  date          DateTime  @default(now())
+  billingMonth  Int? // شهر الحساب (1-12)
+  billingYear   Int? // سنة الحساب
+  notes         String? // ملاحظات حرة
   contractId    Int?
   supplierId    Int?
-  supplierName  String?   // اسم مورد حر (عند عدم وجوده في قائمة الموردين)
+  supplierName  String? // اسم مورد حر (عند عدم وجوده في قائمة الموردين)
   documentPath  String? // مستند مرفق
-  paymentMethod String  @default("CASH") // CASH | BANK | ACCOUNTS_PAYABLE
-  status        String  @default("PENDING") // PENDING | APPROVED | REJECTED | REVERSED | CANCELLED
+  paymentMethod String    @default("CASH") // CASH | BANK | ACCOUNTS_PAYABLE
+  status        String    @default("PENDING") // PENDING | APPROVED | REJECTED | REVERSED | CANCELLED
   approvedById  Int?
   approvedAt    DateTime?
 
@@ -769,16 +769,16 @@ model AuditLog {
 // ─────────────────────────────────────────────────────────────────────────
 
 model ApprovalHistory {
-  id           Int      @id @default(autoincrement())
-  entityType   String   // 'expense' | 'payroll' | 'invoice' | future modules
+  id           Int     @id @default(autoincrement())
+  entityType   String // 'expense' | 'payroll' | 'invoice' | future modules
   entityId     Int
-  action       String   // 'approve' | 'reject' | 'submit' | 'cancel' | 'reopen' | 'pay'
+  action       String // 'approve' | 'reject' | 'submit' | 'cancel' | 'reopen' | 'pay'
   fromStatus   String
   toStatus     String
-  userId       Int?     // null for system-initiated transitions
+  userId       Int? // null for system-initiated transitions
   comment      String?
   reason       String?
-  metadataJson String?  // JSON blob for future extensibility
+  metadataJson String? // JSON blob for future extensibility
 
   user User? @relation(fields: [userId], references: [id])
 
@@ -804,10 +804,10 @@ model Backup {
   createdById Int?
   createdAt   DateTime @default(now())
 
-  checksumSha256      String?   // SHA-256 of the backup file (computed on verify)
-  verifiedAt          DateTime? // timestamp of last verification
-  verificationStatus  String?   // PASS | FAIL | PENDING
-  verificationNote    String?   // short error or info message
+  checksumSha256     String? // SHA-256 of the backup file (computed on verify)
+  verifiedAt         DateTime? // timestamp of last verification
+  verificationStatus String? // PASS | FAIL | PENDING
+  verificationNote   String? // short error or info message
 
   createdBy User? @relation(fields: [createdById], references: [id])
 
@@ -903,10 +903,10 @@ model Setting {
 // ─────────────────────────────────────────────────────────────────────────
 
 model MaterialCategory {
-  id          Int        @id @default(autoincrement())
-  name        String     @unique
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
   description String?
-  isActive    Boolean    @default(true)
+  isActive    Boolean @default(true)
 
   materials Material[]
 
@@ -918,14 +918,14 @@ model MaterialCategory {
 }
 
 model Material {
-  id           Int    @id @default(autoincrement())
-  code         String @unique
+  id           Int     @id @default(autoincrement())
+  code         String  @unique
   name         String
   categoryId   Int
   unit         String // طن | كيلو | لتر | قطعة | متر | كيس | برميل | صندوق
-  unitCost     Float  @default(0)
-  currentStock Float  @default(0)
-  minimumStock Float  @default(0) // عتبة التنبيه عند انخفاض المخزون
+  unitCost     Float   @default(0)
+  currentStock Float   @default(0)
+  minimumStock Float   @default(0) // عتبة التنبيه عند انخفاض المخزون
   isActive     Boolean @default(true)
   notes        String?
 
@@ -993,8 +993,8 @@ model GoodsReceipt {
   accountingPostedAt      DateTime?
   accountingTransactionId Int? // references Transaction.id — prevents double posting
 
-  purchaseOrder PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id])
-  supplier      Supplier         @relation(fields: [supplierId], references: [id])
+  purchaseOrder PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id])
+  supplier      Supplier           @relation(fields: [supplierId], references: [id])
   items         GoodsReceiptItem[]
 
   createdAt DateTime @default(now())
@@ -1038,7 +1038,7 @@ model MaterialIssue {
   accountingPostedAt      DateTime?
   accountingTransactionId Int? // references Transaction.id — prevents double posting
 
-  contract Contract?         @relation(fields: [contractId], references: [id])
+  contract Contract?           @relation(fields: [contractId], references: [id])
   items    MaterialIssueItem[]
 
   createdAt DateTime @default(now())
@@ -1101,7 +1101,7 @@ model SalaryPayment {
 
 model BankStatementImport {
   id           Int       @id @default(autoincrement())
-  bankName     String    // 'NBK' | 'KFH' | 'GulfBank' | 'Boubyan' | 'Warba' | 'AhliUnited' | 'Unknown'
+  bankName     String // 'NBK' | 'KFH' | 'GulfBank' | 'Boubyan' | 'Warba' | 'AhliUnited' | 'Unknown'
   fileName     String
   importedBy   String
   importedAt   DateTime  @default(now())
@@ -1131,9 +1131,9 @@ model BankStatementImport {
 }
 
 model BankStatementTransaction {
-  id     Int                 @id @default(autoincrement())
+  id       Int                 @id @default(autoincrement())
   importId Int
-  import BankStatementImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+  import   BankStatementImport @relation(fields: [importId], references: [id], onDelete: Cascade)
 
   transactionId  String?
   bankName       String
@@ -1156,7 +1156,7 @@ model BankStatementTransaction {
   matchedType     String? // 'invoice' | 'payment' | 'expense' | 'journal' | 'cheque' | 'payroll'
   matchedId       Int?
   matchedRef      String?
-  matchConfidence Int?    // 100 | 90 | 75 | 0
+  matchConfidence Int? // 100 | 90 | 75 | 0
 
   // Flags
   isDuplicate Boolean @default(false)
@@ -1188,16 +1188,16 @@ model BankStatementTransaction {
 // ─────────────────────────────────────────────────────────────────────────
 
 model ProjectPrice {
-  id               Int     @id @default(autoincrement())
+  id               Int           @id @default(autoincrement())
   asphaltPlant     String // مصنع الأسفلت
   companyName      String // اسم الشركة
   contractLocation String // مكان العقد
   contractUnit     String // وحدة العقد: طن | درب | يومية
   unitPrice        Float // سعر الوحدة (د.ك)
   validUntil       DateTime? // تاريخ انتهاء الاتفاقية (للتنبيه عند الاقتراب من الانتهاء)
-  isArchived       Boolean @default(false)
+  isArchived       Boolean       @default(false)
   customerId       Int?
-  customer         Customer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  customer         Customer?     @relation(fields: [customerId], references: [id], onDelete: Restrict)
   invoiceItems     InvoiceItem[]
 
   createdAt DateTime @default(now())
@@ -1230,6 +1230,12 @@ model Cheque {
   notes                String?
   paymentVoucherNumber String?   @unique // PV-000001 — set only on first Print Payment Voucher click
 
+  // ── Reprint tracking (additive) ──────────────────────────────────────────
+  // عدّاد الطباعة: 0 قبل أول طباعة، 1 عند أول طباعة، +1 لكل إعادة طباعة.
+  // لا يغيّر دورة حياة الشيك (DRAFT/PRINTED/CANCELLED) ولا سلوك الطباعة القائم.
+  printCount Int              @default(0)
+  printLogs  ChequePrintLog[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1237,4 +1243,47 @@ model Cheque {
   @@index([chequeDate])
   @@index([beneficiaryName])
   @@map("cheques")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  نُسخ نماذج معايرة الشيكات (Cheque Template Versions)
+//  سجل تاريخي إضافي لكل حفظ/استعادة لنموذج المعايرة لكل بنك. النموذج الفعّال
+//  يبقى مخزّناً كما هو في Setting تحت المفتاح cheque.template.<bank>؛ هذه
+//  الجداول إضافية فقط ولا تغيّر سلوك القالب الفعّال أو محرك الطباعة.
+// ─────────────────────────────────────────────────────────────────────────
+
+model ChequeTemplateVersion {
+  id            Int      @id @default(autoincrement())
+  bankName      String
+  version       Int // رقم النسخة التصاعدي لكل بنك (1، 2، 3 ...)
+  template      String // لقطة JSON كاملة من النموذج وقت الحفظ
+  note          String? // سبب/ملاحظة اختيارية (مثل: «استعادة النسخة 3»)
+  createdById   Int? // معرّف المستخدم (بدون علاقة FK لتفادي تعديل نموذج User)
+  createdByName String? // اسم المستخدم وقت الحفظ (لقطة نصية)
+  createdAt     DateTime @default(now())
+
+  @@unique([bankName, version])
+  @@index([bankName])
+  @@map("cheque_template_versions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  سجل طباعة الشيكات (Cheque Print Logs)
+//  يسجّل كل محاولة طباعة/إعادة طباعة. sequence=1 للطباعة الأولى (reason=null)،
+//  و2 فأكثر لإعادات الطباعة (reason إلزامي). سجل تدقيقي إضافي لا يعطّل الطباعة.
+// ─────────────────────────────────────────────────────────────────────────
+
+model ChequePrintLog {
+  id            Int      @id @default(autoincrement())
+  chequeId      Int
+  cheque        Cheque   @relation(fields: [chequeId], references: [id], onDelete: Cascade)
+  sequence      Int // 1 = طباعة أولى، 2+ = إعادة طباعة
+  reason        String? // null للطباعة الأولى؛ إلزامي لإعادة الطباعة
+  note          String? // ملاحظة حرة اختيارية (تُستخدم مع سبب «أخرى»)
+  printedById   Int? // معرّف المستخدم (بدون علاقة FK)
+  printedByName String? // اسم المستخدم وقت الطباعة (لقطة نصية)
+  printedAt     DateTime @default(now())
+
+  @@index([chequeId])
+  @@map("cheque_print_logs")
 }
