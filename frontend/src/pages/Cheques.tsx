@@ -16,10 +16,11 @@ import {
   DEFAULT_TEMPLATE,
   cloneDefaultTemplate,
   fmtChequeAmount,
-  settingKey,
   templateFromSettings,
+  REPRINT_REASONS,
+  REPRINT_REASON_LABELS,
 } from '../utils/chequeTemplate';
-import type { ChequeTemplate } from '../utils/chequeTemplate';
+import type { ChequeTemplate, ChequePrintLogRow, ReprintReason } from '../utils/chequeTemplate';
 import {
   ExecutiveHeader,
   IdChip,
@@ -109,6 +110,11 @@ function fmtAmount(v: number | string, currency = 'KWD'): string {
   return formatNumber(v) + ' ' + currency;
 }
 
+/** Arabic label for a stored reprint-reason key; falls back to the raw value. */
+function reprintReasonLabel(reason: string): string {
+  return (REPRINT_REASON_LABELS as Record<string, string>)[reason] ?? reason;
+}
+
 // ── ChequePrintOutput (print engine — UNCHANGED) ───────────────────────────────
 
 const CHEQUE_PAGE_OFFSET_X_MM: number = 0;
@@ -195,6 +201,12 @@ export default function Cheques() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [viewing, setViewing] = useState<Cheque | null>(null);
   const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
+  const [showReprintModal, setShowReprintModal] = useState(false);
+  const [reprintReason, setReprintReason] = useState<ReprintReason | ''>('');
+  const [reprintNote, setReprintNote] = useState('');
+  const [reprintBusy, setReprintBusy] = useState(false);
+  const [printLogs, setPrintLogs] = useState<ChequePrintLogRow[]>([]);
+  const [printLogsLoading, setPrintLogsLoading] = useState(false);
   const canCreate = hasPermission('cheques.create');
   const canUpdate = hasPermission('cheques.update');
   const canPrint = hasPermission('cheques.print');
@@ -358,9 +370,62 @@ export default function Cheques() {
       }
       return;
     }
+    // Reprinting an already-PRINTED cheque must be justified and logged. Collect
+    // a reason first; the actual print happens after the reprint is recorded.
+    if (printTarget.status === 'PRINTED') {
+      setReprintReason('');
+      setReprintNote('');
+      setShowReprintModal(true);
+      return;
+    }
     printCurrentView();
     if (printTarget.status === 'DRAFT') setShowPrintConfirm(true);
   }
+
+  // ── Reprint (logged) ───────────────────────────────────────────────────────
+
+  async function handleConfirmReprint() {
+    if (!printTarget || !reprintReason) return;
+    if (reprintBusy) return;
+    setReprintBusy(true);
+    try {
+      await api.post(`/cheques/${printTarget.id}/reprint`, {
+        reason: reprintReason,
+        note: reprintNote.trim() || null,
+      });
+      setShowReprintModal(false);
+      printCurrentView();
+      setSuccess('تم تسجيل إعادة الطباعة');
+      const res = await api.get(`/cheques/${printTarget.id}`);
+      setPrintTarget(res.data.data);
+      await loadData(page);
+      if (viewing?.id === printTarget.id) loadPrintLogs(printTarget.id);
+    } catch (e) {
+      setFormError(errorMessage(e));
+      setShowReprintModal(false);
+    } finally {
+      setReprintBusy(false);
+    }
+  }
+
+  // ── Print history ──────────────────────────────────────────────────────────
+
+  const loadPrintLogs = useCallback(async (id: number) => {
+    setPrintLogsLoading(true);
+    try {
+      const res = await api.get(`/cheques/${id}/print-logs`);
+      setPrintLogs((res.data?.data ?? []) as ChequePrintLogRow[]);
+    } catch {
+      setPrintLogs([]);
+    } finally {
+      setPrintLogsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (viewing) loadPrintLogs(viewing.id);
+    else setPrintLogs([]);
+  }, [viewing, loadPrintLogs]);
 
   // ── Print Payment Voucher ─────────────────────────────────────────────────
 
@@ -428,9 +493,17 @@ export default function Cheques() {
     if (restoringDefault) return;
     setRestoringDefault(true);
     try {
-      await api.put('/settings', { settings: [{ key: settingKey(form.bankName), value: JSON.stringify(DEFAULT_TEMPLATE), group: 'cheque' }] });
+      // Route through the versioning endpoint (same service as calibration
+      // saves/restores) so restoring defaults appends an immutable version and
+      // updates the active template inside that transaction — never a silent,
+      // unrecoverable overwrite. Previous versions are preserved.
+      await api.post('/cheques/template-versions', {
+        bankName: form.bankName,
+        template: DEFAULT_TEMPLATE,
+        note: 'استعادة القالب الافتراضي',
+      });
       setAllTemplates((prev) => ({ ...prev, [form.bankName]: cloneDefaultTemplate() }));
-      setSuccess(`تم استعادة الإعدادات الافتراضية لبنك ${form.bankName}`);
+      setSuccess(`تم استعادة القالب الافتراضي لبنك ${form.bankName} (حُفظ كنسخة جديدة)`);
     } catch (e) {
       setFormError(errorMessage(e));
     } finally {
@@ -487,15 +560,23 @@ export default function Cheques() {
     <div className="xpl-scope xpl-page" dir="rtl">
       {/* Calibration overlay — UNCHANGED */}
       {showCalibrator && (
-        <ChequeCalibrator banks={KUWAITI_BANKS} initialBank={form.bankName} loadedTemplates={allTemplates} previewData={calibPreviewData} onSaved={handleCalibSaved} onClose={() => setShowCalibrator(false)} />
+        <ChequeCalibrator banks={KUWAITI_BANKS} initialBank={form.bankName} loadedTemplates={allTemplates} previewData={calibPreviewData} onSaved={handleCalibSaved} onClose={() => setShowCalibrator(false)} isSystemAdmin={isSystemAdmin} />
       )}
 
-      {/* Hidden print area + print CSS — UNCHANGED */}
-      <div className="cheque-print-only" style={{ display: 'none' }}>
-        <div style={{ transform: `translate(${CHEQUE_PAGE_OFFSET_X_MM}mm, ${CHEQUE_PAGE_OFFSET_Y_MM}mm)` }}>
-          <ChequePrintOutput data={previewData} template={currentTemplate} />
+      {/* Hidden print area + print CSS — print output UNCHANGED.
+          INK ISOLATION: webContents.print() prints the whole window, so any mounted
+          print layer competes for the page. While the calibrator is open its test
+          sheet must be the ONLY print surface — so the real-cheque layer is not
+          mounted at all. Unmounting beats CSS suppression: no !important tie to lose
+          on document order, and no z-index/stacking-context to fight. Outside the
+          calibrator this mounts and prints exactly as before. */}
+      {!showCalibrator && (
+        <div className="cheque-print-only" style={{ display: 'none' }}>
+          <div style={{ transform: `translate(${CHEQUE_PAGE_OFFSET_X_MM}mm, ${CHEQUE_PAGE_OFFSET_Y_MM}mm)` }}>
+            <ChequePrintOutput data={previewData} template={currentTemplate} />
+          </div>
         </div>
-      </div>
+      )}
       <style>{`
         @page { size: A4 landscape; }
         @media print {
@@ -691,6 +772,27 @@ export default function Cheques() {
             <DrawerField label="تاريخ الطباعة" value={viewing.printedAt ? formatDate(viewing.printedAt) : '—'} />
             <DrawerField label={t('col.cheque.pv_number')} value={viewing.paymentVoucherNumber ?? '—'} mono />
           </DrawerSection>
+          <DrawerSection title="سجل الطباعة وإعادة الطباعة">
+            {printLogsLoading ? (
+              <DrawerField label="—" value="جارٍ التحميل…" />
+            ) : printLogs.length === 0 ? (
+              <DrawerField label="—" value="لا يوجد سجل طباعة لهذا الشيك." />
+            ) : (
+              <div className="chqx-printlog">
+                {printLogs.map((log) => (
+                  <div key={log.id} className="chqx-printlog-row">
+                    <span className="chqx-printlog-seq">{log.sequence === 1 ? 'طباعة أولى' : `إعادة ${log.sequence - 1}`}</span>
+                    <span className="chqx-printlog-meta">
+                      {formatDate(log.printedAt)}
+                      {log.printedByName ? ` · ${log.printedByName}` : ''}
+                      {log.reason ? ` · ${reprintReasonLabel(log.reason)}` : ''}
+                      {log.note ? ` · ${log.note}` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DrawerSection>
           <DrawerSection title="السجل">
             <DrawerField label={t('col.created_at')} value={formatDate(viewing.createdAt)} />
             {viewing.cancelledAt && <DrawerField label="تاريخ الإلغاء" value={formatDate(viewing.cancelledAt)} />}
@@ -803,11 +905,45 @@ export default function Cheques() {
         />
       )}
 
+      {/* Reprint reason — required before re-printing an already-printed cheque */}
+      {showReprintModal && printTarget && (
+        <Dialog
+          icon="print"
+          title="إعادة طباعة الشيك"
+          subtitle={`${printTarget.chequeNumber} · ${printTarget.beneficiaryName}`}
+          size="sm"
+          onClose={() => setShowReprintModal(false)}
+          footer={
+            <>
+              <Button variant="primary" icon="print" busy={reprintBusy} disabled={!reprintReason} onClick={handleConfirmReprint}>تسجيل وإعادة الطباعة</Button>
+              <Button variant="ghost" onClick={() => setShowReprintModal(false)}>{t('action.cancel')}</Button>
+            </>
+          }
+        >
+          <DialogSection title="سبب إعادة الطباعة" icon="help">
+            <p className="chqx-preview-hint" style={{ textAlign: 'start', margin: '0 0 8px' }}>
+              هذا الشيك مطبوع مسبقاً. إعادة الطباعة مسموحة لكنها تُسجَّل في سجل الطباعة. اختر السبب:
+            </p>
+            <div className="xpl-field xpl-field--full">
+              <label>السبب <span className="req">*</span></label>
+              <select className="xpl-select" value={reprintReason} onChange={(e) => setReprintReason(e.target.value as ReprintReason)} aria-label="سبب إعادة الطباعة">
+                <option value="">— اختر السبب —</option>
+                {REPRINT_REASONS.map((r) => <option key={r} value={r}>{REPRINT_REASON_LABELS[r]}</option>)}
+              </select>
+            </div>
+            <div className="xpl-field xpl-field--full">
+              <label>ملاحظة (اختياري)</label>
+              <input className="xpl-input" value={reprintNote} onChange={(e) => setReprintNote(e.target.value)} placeholder="تفاصيل إضافية" maxLength={300} aria-label="ملاحظة إعادة الطباعة" />
+            </div>
+          </DialogSection>
+        </Dialog>
+      )}
+
       {cancelConfirmCheque !== null && (
         <ConfirmModal title={t('page.cheques.cancel_cheque')} message={t('page.cheques.confirm_cancel')} variant="warning" onConfirm={() => executeCancel(cancelConfirmCheque)} onCancel={() => setCancelConfirmCheque(null)} />
       )}
       {showRestoreConfirm && (
-        <ConfirmModal message={`استعادة الإحداثيات الافتراضية لبنك "${form.bankName}"؟ سيُحذف القالب المحفوظ.`} variant="warning" onConfirm={executeRestoreDefault} onCancel={() => setShowRestoreConfirm(false)} />
+        <ConfirmModal message={`استعادة القالب الافتراضي لبنك "${form.bankName}"؟ سيُحفظ ذلك كنسخة جديدة ويصبح القالب الافتراضي هو الفعّال — والنسخ السابقة تبقى متاحة للاستعادة.`} variant="warning" onConfirm={executeRestoreDefault} onCancel={() => setShowRestoreConfirm(false)} />
       )}
     </div>
   );

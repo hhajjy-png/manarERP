@@ -14,6 +14,9 @@
  * The PDF export flow (`window.manar.exportPdf` / `exportPdfFromHtml` → printToPDF)
  * is intentionally NOT touched by this helper.
  */
-export function printCurrentView(): void {
-  window.manar?.printPage?.().catch(() => window.print()) ?? window.print();
+export function printCurrentView(): Promise<void> {
+  const p = window.manar?.printPage?.();
+  if (p) return p.catch(() => { window.print(); });
+  window.print();
+  return Promise.resolve();
 }

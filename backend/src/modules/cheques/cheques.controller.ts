@@ -21,6 +21,27 @@ export const chequesController = {
   async markPrinted(req: Request, res: Response) {
     ok(res, await chequesService.markPrinted(Number(req.params.id), req), 'تم تسجيل الطباعة');
   },
+  async reprint(req: Request, res: Response) {
+    ok(res, await chequesService.reprint(Number(req.params.id), req.body, req), 'تم تسجيل إعادة الطباعة');
+  },
+  async listPrintLogs(req: Request, res: Response) {
+    ok(res, await chequesService.listPrintLogs(Number(req.params.id)));
+  },
+  async saveTemplateVersion(req: Request, res: Response) {
+    created(res, await chequesService.saveTemplateVersion(req.body, req), 'تم حفظ نسخة النموذج');
+  },
+  async listTemplateVersions(req: Request, res: Response) {
+    ok(res, await chequesService.listTemplateVersions(String(req.params.bank)));
+  },
+  async restoreTemplateVersion(req: Request, res: Response) {
+    ok(res, await chequesService.restoreTemplateVersion(Number(req.params.id), req), 'تم استعادة النسخة');
+  },
+  async getCalibrationGeometry(_req: Request, res: Response) {
+    ok(res, await chequesService.getCalibrationGeometry());
+  },
+  async saveCalibrationGeometry(req: Request, res: Response) {
+    ok(res, await chequesService.saveCalibrationGeometry(req.body, req), 'تم حفظ إعدادات القياس');
+  },
   async cancel(req: Request, res: Response) {
     ok(res, await chequesService.cancel(Number(req.params.id), req), 'تم إلغاء الشيك');
   },
