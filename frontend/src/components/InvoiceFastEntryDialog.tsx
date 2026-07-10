@@ -18,6 +18,8 @@ import {
   addToInvoiceSummary,
   isInvoiceRowDirty,
 } from '../pages/invoiceFastEntry';
+import { deriveInvoiceYearFromIssueDate } from '../lib/invoiceNumber';
+import HistoricalDateNotice from './period/HistoricalDateNotice';
 
 interface Customer { id: number; name: string }
 interface ContractLite { id: number; asphaltPlant?: string | null }
@@ -263,9 +265,16 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
             <input className="xpl-input" type="date" value={shared.issueDate} onChange={(e) => {
               const v = e.target.value;
               const patch: Partial<InvoiceSharedFields> = { issueDate: v };
-              if (v) { const d = new Date(v); patch.billingMonth = d.getMonth() + 1; patch.billingYear = d.getFullYear(); }
+              if (v) {
+                const d = new Date(v);
+                patch.billingMonth = d.getMonth() + 1;
+                patch.billingYear = d.getFullYear();
+                // سنة رقم الفاتورة تتبع تاريخ الإصدار في الإدخال السريع أيضًا.
+                patch.numberYear = deriveInvoiceYearFromIssueDate(v, d.getFullYear());
+              }
               patchShared(patch);
             }} aria-label="تاريخ الفاتورة" />
+            <HistoricalDateNotice date={shared.issueDate} />
           </div>
           <div className="xpl-field">
             <label>شهر الحساب</label>

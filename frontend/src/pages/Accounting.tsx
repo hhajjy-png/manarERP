@@ -31,6 +31,7 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Accounting.css';
+import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
 
 type Tab = 'summary' | 'accounts' | 'journal' | 'payments';
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
@@ -659,6 +660,7 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
         <div className="xpl-field">
           <label>{t('col.date')}</label>
           <input className="xpl-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t('col.date')} />
+          <HistoricalDateNotice date={date} />
         </div>
       </DialogSection>
 

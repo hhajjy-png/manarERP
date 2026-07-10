@@ -1,6 +1,7 @@
 import { Request } from 'express';
 import { prisma } from '../../config/database';
 import { recordAudit } from '../../core/middleware/audit';
+import { invalidatePeriodLockCache } from '../../shared/services/periodLock.service';
 
 export class SettingsService {
   /** كل الإعدادات مجمّعة حسب المجموعة. */
@@ -28,6 +29,9 @@ export class SettingsService {
         }),
       ),
     );
+    // تاريخ قفل الفترة مخزَّن كإعداد ومُخبَّأ في الذاكرة — أبطل التخبئة فورًا
+    // حتى لا يعمل الحارس بقيمة قديمة بعد تغيير القفل.
+    invalidatePeriodLockCache();
     await recordAudit({ req, action: 'UPDATE', module: 'settings', newValue: updates.map((u) => u.key) });
     return results;
   }

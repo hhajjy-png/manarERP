@@ -7,7 +7,8 @@ import { buildDrillDownRef }           from '@shared/services/financial/drilldow
 import type { DrillDownRef }           from '@shared/services/financial/drilldown.utils';
 import { normalizeMoney, calculateRunningBalances, calculateClosingBalance, sumDebitCredit } from '@shared/services/financial/balance.utils';
 import { sanitizeFilters }             from '@shared/services/financial/summary.utils';
-import { calculateAgingBuckets, DEFAULT_AGING_BUCKETS } from '@shared/services/financial/aging.utils';
+import { calculateAgingBuckets, toAgingEntries, DEFAULT_AGING_BUCKETS } from '@shared/services/financial/aging.utils';
+import { endOfDay } from '@core/utils/dateWindows';
 import { toStatementReportInput }      from '@shared/services/financial/export/statement.export.adapter';
 import { toAgingReportInput }          from '@shared/services/financial/export/aging.export.adapter';
 import { toGlStatementReportInput, toGlReportInput } from '@shared/services/financial/export/gl.export.adapter';
@@ -119,7 +120,7 @@ export class FinancialService {
     customerType?: string;
     hideZero?:    boolean;
   }): Promise<FinancialResponse<ArAgingRow>> {
-    const asOfDate = filters.asOfDate ? new Date(filters.asOfDate) : new Date();
+    const asOfDate = endOfDay(filters.asOfDate ? new Date(filters.asOfDate) : new Date());
 
     const customers = await prisma.customer.findMany({
       where: {
@@ -134,13 +135,17 @@ export class FinancialService {
       select: {
         id: true, code: true, name: true,
         invoices: {
+          // الفواتير الصادرة حتى تاريخ التقرير فقط — لا فلتر على `status` لأن الحالة
+          // لقطة للحاضر: فاتورة 2024 سُدِّدت في 2025 كانت قائمة فعلًا في 31/12/2024.
           where: {
             direction: 'SALES',
-            status:    { notIn: ['PAID', 'CANCELLED'] },
+            status:    { not: 'CANCELLED' },
+            issueDate: { lte: asOfDate },
           },
           select: {
-            id: true, dueDate: true, issueDate: true,
-            total: true, paidAmount: true,
+            id: true, dueDate: true, issueDate: true, total: true,
+            // الدفعات حتى تاريخ التقرير فقط (فلتر Prisma لا فلتر في الذاكرة).
+            payments: { where: { date: { lte: asOfDate } }, select: { amount: true } },
           },
         },
       },
@@ -150,13 +155,7 @@ export class FinancialService {
     const validRows: ArAgingRow[] = [];
 
     for (const customer of customers) {
-      const outstanding = customer.invoices
-        .map(inv => ({
-          dueDate:           inv.dueDate ?? inv.issueDate,
-          outstandingAmount: normalizeMoney(inv.total - inv.paidAmount),
-        }))
-        .filter(o => o.outstandingAmount > 0);
-
+      const outstanding = toAgingEntries(customer.invoices);
       const buckets = calculateAgingBuckets(outstanding, asOfDate, DEFAULT_AGING_BUCKETS);
 
       if (filters.hideZero && buckets.total === 0) continue;
@@ -178,7 +177,7 @@ export class FinancialService {
         over_120:        buckets['over_120'] ?? 0,
         total:           buckets.total,
         lastInvoiceDate: lastInvoiceDate?.toISOString(),
-        invoiceCount:    customer.invoices.length,
+        invoiceCount:    outstanding.length,
         drillDown:       buildDrillDownRef('CUSTOMER', customer.id, customer.name),
       });
     }
@@ -212,7 +211,7 @@ export class FinancialService {
     search?:   string;
     hideZero?: boolean;
   }): Promise<FinancialResponse<ApAgingRow>> {
-    const asOfDate = filters.asOfDate ? new Date(filters.asOfDate) : new Date();
+    const asOfDate = endOfDay(filters.asOfDate ? new Date(filters.asOfDate) : new Date());
 
     const suppliers = await prisma.supplier.findMany({
       where: {
@@ -226,13 +225,15 @@ export class FinancialService {
       select: {
         id: true, code: true, name: true,
         invoices: {
+          // نفس منطق AR — انظر التعليق في getArAging.
           where: {
             direction: 'PURCHASE',
-            status:    { notIn: ['PAID', 'CANCELLED'] },
+            status:    { not: 'CANCELLED' },
+            issueDate: { lte: asOfDate },
           },
           select: {
-            id: true, dueDate: true, issueDate: true,
-            total: true, paidAmount: true,
+            id: true, dueDate: true, issueDate: true, total: true,
+            payments: { where: { date: { lte: asOfDate } }, select: { amount: true } },
           },
         },
       },
@@ -242,13 +243,7 @@ export class FinancialService {
     const validRows: ApAgingRow[] = [];
 
     for (const supplier of suppliers) {
-      const outstanding = supplier.invoices
-        .map(inv => ({
-          dueDate:           inv.dueDate ?? inv.issueDate,
-          outstandingAmount: normalizeMoney(inv.total - inv.paidAmount),
-        }))
-        .filter(o => o.outstandingAmount > 0);
-
+      const outstanding = toAgingEntries(supplier.invoices);
       const buckets = calculateAgingBuckets(outstanding, asOfDate, DEFAULT_AGING_BUCKETS);
 
       if (filters.hideZero && buckets.total === 0) continue;
@@ -270,7 +265,7 @@ export class FinancialService {
         over_120:        buckets['over_120'] ?? 0,
         total:           buckets.total,
         lastInvoiceDate: lastInvoiceDate?.toISOString(),
-        invoiceCount:    supplier.invoices.length,
+        invoiceCount:    outstanding.length,
         drillDown:       buildDrillDownRef('SUPPLIER', supplier.id, supplier.name),
       });
     }
@@ -328,8 +323,14 @@ export class FinancialService {
         accountId,
         journalEntry: {
           status: filters.status ? filters.status : { not: 'CANCELLED' },
-          ...(filters.fromDate && { date: { gte: new Date(filters.fromDate) } }),
-          ...(filters.toDate   && { date: { lte: new Date(filters.toDate)   } }),
+          // Single `date` key so both bounds survive — two separate `date` spreads
+          // collide and the lower `gte` bound is lost (see getGlReport note).
+          ...((filters.fromDate || filters.toDate) && {
+            date: {
+              ...(filters.fromDate && { gte: new Date(filters.fromDate) }),
+              ...(filters.toDate   && { lte: new Date(filters.toDate)   }),
+            },
+          }),
           ...(filters.search && {
             OR: [
               { entryNumber: { contains: filters.search } },
@@ -448,8 +449,15 @@ export class FinancialService {
           accountId:    { in: paginatedIds },
           journalEntry: {
             status: 'POSTED',
-            ...(filters.fromDate && { date: { gte: new Date(filters.fromDate) } }),
-            ...(filters.toDate   && { date: { lte: new Date(filters.toDate)   } }),
+            // Both bounds must live under a SINGLE `date` key. Two separate
+            // `...{ date: {...} }` spreads collide — the later one overwrites the
+            // former — silently dropping `gte` and summing all history ≤ toDate.
+            ...((filters.fromDate || filters.toDate) && {
+              date: {
+                ...(filters.fromDate && { gte: new Date(filters.fromDate) }),
+                ...(filters.toDate   && { lte: new Date(filters.toDate)   }),
+              },
+            }),
           },
         },
         _sum: { debit: true, credit: true },

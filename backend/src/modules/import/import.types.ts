@@ -60,4 +60,17 @@ export interface ExecuteSummary {
   duplicateRows: number;
   backupId: number;
   backupFileName: string;
+  /**
+   * هل أنشأ الاستيراد قيودًا محاسبية؟ **دائمًا `false` حاليًا.**
+   *
+   * الاستيراد يكتب المستندات مباشرةً (`tx.invoice.create`…) ولا يستدعي طبقة GL،
+   * تفاديًا للترحيل المزدوج. النتيجة أن بيانات السنوات السابقة المستوردة تظهر في
+   * قوائم الفواتير والمصروفات لكنها **لا تدخل** قائمة الدخل ولا ميزان المراجعة
+   * ولا دفتر الأستاذ حتى تُعتمد يدويًا.
+   *
+   * انظر: docs/HISTORICAL_IMPORT_POSTING_RISK.md
+   */
+  accountingPosted: false;
+  /** تحذير للعرض عندما يكون النوع ماليًا؛ `null` للأنواع غير المالية. */
+  accountingNotice: string | null;
 }

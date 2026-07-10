@@ -11,17 +11,23 @@ import type { ActivityRow, DecisionCenterData } from './types';
  * Both fetches are isolated: a failure resolves to a null/empty result so the main
  * dashboard is never broken by this hook.
  */
-export function useDashboardCommandData(refreshKey: number): CommandData {
+export function useDashboardCommandData(
+  refreshKey: number,
+  periodParams: { fromDate?: string; toDate?: string } = {},
+): CommandData {
   const [decisionCenter, setDecisionCenter] = useState<DecisionCenterData | null>(null);
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const { fromDate, toDate } = periodParams;
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
 
     Promise.all([
-      api.get('/executive/decision-center').then((r) => r.data?.data ?? null).catch(() => null),
+      // مؤشرات الحركة والذمم اللحظية تتبع الفترة؛ النشاط الحديث يبقى قائمة حالية منفصلة.
+      api.get('/executive/decision-center', { params: { fromDate, toDate } }).then((r) => r.data?.data ?? null).catch(() => null),
       api.get('/dashboard/activity', { params: { limit: 8 } }).then((r) => r.data?.data ?? []).catch(() => []),
     ]).then(([dc, act]) => {
       if (cancelled) return;
@@ -31,7 +37,7 @@ export function useDashboardCommandData(refreshKey: number): CommandData {
     });
 
     return () => { cancelled = true; };
-  }, [refreshKey]);
+  }, [refreshKey, fromDate, toDate]);
 
   const cashFlowThisMonth = useMemo(
     () => (decisionCenter ? computeCashFlow(decisionCenter.financialSummary.thisMonth) : null),

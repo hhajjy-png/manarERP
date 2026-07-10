@@ -86,6 +86,25 @@ export interface ExportFileNameParts {
   date?: Date | string | number;
   /** Extension WITHOUT the leading dot ('pdf' | 'xlsx' | 'csv'). */
   extension: string;
+  /**
+   * وسم الفترة المالية للتقرير — يُدرَج في الاسم بعد المعرّف:
+   *  - تقرير حركة: `{ from, to }` → `..._2024-01-01_2024-12-31`
+   *  - تقرير لحظي: `{ asOf }` → `..._As-Of_2024-12-31`
+   *  - كل الفترات: `{ allPeriods: true }` → `..._All-Periods`
+   * عند غيابه لا يتغيّر السلوك (توافق رجعي).
+   */
+  period?: { from?: string; to?: string; asOf?: string; allPeriods?: boolean };
+}
+
+/** يبني مقطع الفترة لاسم الملف من وسم الفترة. */
+function periodSegment(p?: ExportFileNameParts['period']): string {
+  if (!p) return '';
+  if (p.allPeriods) return 'All-Periods';
+  if (p.asOf) return `As-Of_${p.asOf}`;
+  if (p.from && p.to) return `${p.from}_${p.to}`;
+  if (p.from) return `From_${p.from}`;
+  if (p.to) return `Until_${p.to}`;
+  return '';
 }
 
 /** Sanitize a single filename segment per the manarERP export standard. */
@@ -104,10 +123,13 @@ function normalizeExtension(ext: string): string {
   return sanitizeFilenameSegment(ext.replace(/^\.+/, '')).toLowerCase();
 }
 
-/** Build a filename following the official manarERP export standard. */
+/** Build a filename following the official manarERP export standard.
+ *  اسم الملف: manarERP_<Report>_<id?>_<Period?>_<generatedDate>.<ext>
+ *  الفترة تعكس نطاق التقرير؛ `generatedDate` يبقى مقطعًا منفصلًا (تاريخ الإنشاء). */
 export function generateExportFileName(parts: ExportFileNameParts): string {
   const dateStr = formatFileDate(parts.date);
-  const base = [PREFIX, parts.reportName, parts.identifier, dateStr]
+  const period = periodSegment(parts.period);
+  const base = [PREFIX, parts.reportName, parts.identifier, period, dateStr]
     .map(sanitizeFilenameSegment)
     .filter((segment) => segment.length > 0)
     .join('_')

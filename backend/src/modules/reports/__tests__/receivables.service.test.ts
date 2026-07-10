@@ -247,9 +247,10 @@ describe('receivablesAging', () => {
     expect(report.rows[0]['bucket90Plus']).toBeCloseTo(600, 3);
   });
 
-  it('invoice with paidAmount equal to total is skipped (outstanding = 0)', async () => {
+  it('invoice fully paid as-of the report date is skipped (outstanding = 0)', async () => {
+    // المستحق يُحسب من الدفعات حتى التاريخ المرجعي، لا من paidAmount.
     mockPrisma.invoice.findMany.mockResolvedValue([
-      makeInvoice({ total: 500, paidAmount: 500, status: 'PAID', payments: [] }),
+      makeInvoice({ total: 500, payments: [{ amount: 500 }] }),
     ]);
 
     const report = await reportsService.build('receivables-aging', {});
@@ -259,7 +260,7 @@ describe('receivablesAging', () => {
 
   it('overpaid invoice (outstanding < 0) is excluded from aging', async () => {
     mockPrisma.invoice.findMany.mockResolvedValue([
-      makeInvoice({ total: 100, paidAmount: 120, status: 'PAID', payments: [] }),
+      makeInvoice({ total: 100, payments: [{ amount: 120 }] }),
     ]);
 
     const report = await reportsService.build('receivables-aging', {});
@@ -267,12 +268,26 @@ describe('receivablesAging', () => {
     expect(report.totalsRow?.['totalOutstanding']).toBe(0);
   });
 
-  it('PAID and CANCELLED statuses are excluded via the where clause', async () => {
+  it('excludes only CANCELLED — keeps invoices paid AFTER the reference date', async () => {
     mockPrisma.invoice.findMany.mockResolvedValue([]);
-    await reportsService.build('receivables-aging', {});
+    await reportsService.build('receivables-aging', { to: '2024-12-31' });
 
-    const whereArg = mockPrisma.invoice.findMany.mock.calls[0][0].where;
-    expect(whereArg.status).toEqual({ notIn: ['PAID', 'CANCELLED'] });
+    const call = mockPrisma.invoice.findMany.mock.calls[0][0];
+    // لا نستبعد PAID (كانت مستحقة في التاريخ المرجعي).
+    expect(call.where.status).toEqual({ not: 'CANCELLED' });
+    // الدفعات مختارة حتى التاريخ المرجعي فقط — لا paidAmount.
+    expect(call.include.payments.where.date.lte).toBeInstanceOf(Date);
+    expect(call.include.payments.select.amount).toBe(true);
+  });
+
+  it('historical: Dec-2024 invoice paid in Jan-2025 shows FULL in aging as of 31/12/2024', async () => {
+    // في Prisma الحقيقي، دفعة يناير 2025 تُستبعَد بفلتر date<=asOf، فتصل payments فارغة.
+    mockPrisma.invoice.findMany.mockResolvedValue([
+      makeInvoice({ issueDate: new Date('2024-12-15'), dueDate: new Date('2024-12-20'), total: 1000, payments: [] }),
+    ]);
+    const report = await reportsService.build('receivables-aging', { to: '2024-12-31' });
+    // كامل 1000 مستحق في 31/12/2024 رغم سداده لاحقًا.
+    expect(report.totalsRow?.['totalOutstanding']).toBeCloseTo(1000, 3);
   });
 
   it('totals row sums all buckets correctly', async () => {
@@ -303,8 +318,8 @@ describe('customerBalances', () => {
   });
 
   it('aggregates totalInvoiced and totalPaid per customer', async () => {
-    const inv1 = makeInvoice({ total: 1000, paidAmount: 400, status: 'PARTIAL', payments: [] });
-    const inv2 = makeInvoice({ id: 2, total: 500, paidAmount: 500, status: 'PAID', payments: [] });
+    const inv1 = makeInvoice({ total: 1000, status: 'PARTIAL', payments: [{ amount: 400 }] });
+    const inv2 = makeInvoice({ id: 2, total: 500, status: 'PAID', payments: [{ amount: 500 }] });
     mockPrisma.invoice.findMany.mockResolvedValue([inv1, inv2]);
 
     const report = await reportsService.build('customer-balances', {});
@@ -318,7 +333,7 @@ describe('customerBalances', () => {
 
   it('balance = totalInvoiced - totalPaid in totalsRow', async () => {
     mockPrisma.invoice.findMany.mockResolvedValue([
-      makeInvoice({ total: 2000, paidAmount: 800, status: 'PARTIAL', payments: [] }),
+      makeInvoice({ total: 2000, status: 'PARTIAL', payments: [{ amount: 800 }] }),
     ]);
     const report = await reportsService.build('customer-balances', {});
     expect(report.totalsRow?.['balance']).toBeCloseTo(1200, 3);
@@ -337,11 +352,11 @@ describe('customerBalances', () => {
   it('unpaidCount uses outstanding > 0, not status check', async () => {
     mockPrisma.invoice.findMany.mockResolvedValue([
       // PARTIAL: outstanding = 600 → counts
-      makeInvoice({ id: 1, total: 1000, paidAmount: 400, status: 'PARTIAL', payments: [] }),
+      makeInvoice({ id: 1, total: 1000, status: 'PARTIAL', payments: [{ amount: 400 }] }),
       // PAID: outstanding = 0 → does NOT count
-      makeInvoice({ id: 2, total: 500, paidAmount: 500, status: 'PAID', payments: [] }),
+      makeInvoice({ id: 2, total: 500, status: 'PAID', payments: [{ amount: 500 }] }),
       // Overpaid: outstanding = -20 → does NOT count
-      makeInvoice({ id: 3, total: 100, paidAmount: 120, status: 'PAID', payments: [] }),
+      makeInvoice({ id: 3, total: 100, status: 'PAID', payments: [{ amount: 120 }] }),
     ]);
     const report = await reportsService.build('customer-balances', {});
     expect(report.rows[0]['unpaidCount']).toBe(1);

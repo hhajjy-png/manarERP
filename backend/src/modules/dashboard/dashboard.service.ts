@@ -394,6 +394,43 @@ export class DashboardService {
     };
   }
   /**
+   * الاتجاه الشهري (إيراد/مصروف/تحصيل/ربح) مُجمَّعًا في قاعدة البيانات.
+   *
+   * يستبدل جلب آلاف الصفوف ثم تصنيفها في الذاكرة بـ aggregate واحد لكل مقياس لكل شهر.
+   * عدد الأشهر ≤ 12 (YTD)، والاستعلامات تتوازى، فلا اقتطاع ولا حِمل ذاكرة كبير.
+   * النمط ذاته المستخدم في `executive.kpiTimeline`.
+   */
+  private async monthlyTrendYTD(
+    months: { label: string; start: Date; end: Date }[],
+  ): Promise<{ month: string; revenue: number; expenses: number; collections: number; profit: number }[]> {
+    const r3 = (v: number) => Math.round(v * 1000) / 1000;
+    const n = (v: unknown) => Number(v ?? 0);
+
+    return Promise.all(
+      months.map(async (m) => {
+        const [revAgg, expAgg, colAgg] = await Promise.all([
+          prisma.invoice.aggregate({
+            where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: m.start, lte: m.end } },
+            _sum: { total: true },
+          }),
+          prisma.expense.aggregate({
+            where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, date: { gte: m.start, lte: m.end } },
+            _sum: { amount: true },
+          }),
+          prisma.payment.aggregate({
+            where: { date: { gte: m.start, lte: m.end }, invoice: { direction: 'SALES' } },
+            _sum: { amount: true },
+          }),
+        ]);
+        const revenue = r3(n(revAgg._sum.total));
+        const expenses = r3(n(expAgg._sum.amount));
+        const collections = r3(n(colAgg._sum.amount));
+        return { month: m.label, revenue, expenses, collections, profit: r3(revenue - expenses) };
+      }),
+    );
+  }
+
+  /**
    * حزمة الذكاء التنفيذي V2 — تنبيهات + توقعات + اتجاهات + مقارنات KPI + صحة العقود + توصيات.
    * Read-only. لا يكتب أي شيء. لا migration.
    */
@@ -421,9 +458,7 @@ export class DashboardService {
       invByContract,
       expByContract,
       outstandingInvoices,
-      trendInvoices,
-      trendExpenses,
-      trendPayments,
+      monthlyTrends,
       thisMonthRevAgg,
       lastMonthRevAgg,
       thisMonthExpAgg,
@@ -432,8 +467,10 @@ export class DashboardService {
       lastMonthColAgg,
       recentActivity,
     ] = await Promise.all([
+      // كل العقود النشطة — بلا take. تغذّي إحصاءات العقود وصحّتها وتنبيهات الخسارة،
+      // فاقتطاعها كان يُسقط عقودًا من مؤشرات KPI. مجموعة محدودة بطبعها (عقود نشطة).
       prisma.contract.findMany({
-        where: { status: 'ACTIVE' }, take: 100, orderBy: { id: 'desc' },
+        where: { status: 'ACTIVE' }, orderBy: { id: 'desc' },
         select: { id: true, code: true, asphaltPlant: true, startDate: true, customer: { select: { id: true, name: true } } },
       }),
       prisma.invoice.groupBy({
@@ -446,29 +483,18 @@ export class DashboardService {
         where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, contractId: { not: null } },
         _sum: { amount: true },
       }),
+      // الذمم المفتوحة كاملةً — بلا take. مجموعة عاملة محدودة (الفواتير تُسدَّد وتغادرها)،
+      // والاقتطاع كان يُنقص المدينين والأعمار والتوقّع. orderBy حتمي للثبات.
       prisma.invoice.findMany({
         where: { direction: 'SALES', status: { notIn: ['PAID', 'CANCELLED'] }, customerId: { not: null } },
-        take: 500,
+        orderBy: [{ issueDate: 'asc' }, { id: 'asc' }],
         select: {
           customerId: true, total: true, paidAmount: true, issueDate: true, dueDate: true,
           contractId: true, customer: { select: { id: true, name: true } },
         },
       }),
-      prisma.invoice.findMany({
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: yearStart } },
-        take: 2000,
-        select: { issueDate: true, total: true },
-      }),
-      prisma.expense.findMany({
-        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, date: { gte: yearStart } },
-        take: 2000,
-        select: { date: true, amount: true },
-      }),
-      prisma.payment.findMany({
-        where: { date: { gte: yearStart }, invoice: { direction: 'SALES' } },
-        take: 2000,
-        select: { date: true, amount: true },
-      }),
+      // الاتجاه الشهري يُحسب في قاعدة البيانات (aggregate لكل شهر) لا بجلب صفوف مقتطعة.
+      this.monthlyTrendYTD(months),
       prisma.invoice.aggregate({
         where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: thisMonthStart } },
         _sum: { total: true },
@@ -493,12 +519,16 @@ export class DashboardService {
         where: { date: { gte: lastMonthStart, lte: lastMonthEnd }, invoice: { direction: 'SALES' } },
         _sum: { amount: true },
       }),
+      // مجموعة عضوية تزيينية فقط (`recentSet.has(id)` → علم "نشاط حديث") — غير مالية،
+      // لا تدخل أي KPI. الحد مقبول هنا: 500 عقد نشط خلال 90 يومًا يفوق أي واقع تشغيلي،
+      // و orderBy يثبّت أي عناصر تُقتطع نظريًا.
       prisma.invoice.findMany({
         where: {
           direction: 'SALES', status: { not: 'CANCELLED' },
           contractId: { not: null }, issueDate: { gte: ninetyDaysAgo },
         },
         take: 500,
+        orderBy: { issueDate: 'desc' },
         select: { contractId: true },
         distinct: ['contractId'],
       }),
@@ -671,28 +701,7 @@ export class DashboardService {
     };
 
     // ── Part 3: Monthly Trends ─────────────────────────────────────────────
-    const trendMap = new Map<string, { revenue: number; expenses: number; collections: number }>(
-      months.map(m => [m.label, { revenue: 0, expenses: 0, collections: 0 }]),
-    );
-    for (const inv of trendInvoices) {
-      const d = new Date(inv.issueDate);
-      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const e = trendMap.get(k); if (e) e.revenue = r3(e.revenue + n(inv.total));
-    }
-    for (const exp of trendExpenses) {
-      const d = new Date(exp.date);
-      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const e = trendMap.get(k); if (e) e.expenses = r3(e.expenses + n(exp.amount));
-    }
-    for (const p of trendPayments) {
-      const d = new Date(p.date);
-      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const e = trendMap.get(k); if (e) e.collections = r3(e.collections + n(p.amount));
-    }
-    const monthlyTrends = months.map(m => {
-      const t = trendMap.get(m.label)!;
-      return { month: m.label, revenue: t.revenue, expenses: t.expenses, collections: t.collections, profit: r3(t.revenue - t.expenses) };
-    });
+    // مُجمَّعة في قاعدة البيانات عبر `monthlyTrendYTD` — لا اقتطاع ولا تجميع في الذاكرة.
 
     // ── Part 4: KPI Comparisons ────────────────────────────────────────────
     const thisProfit = r3(thisRev - thisExp);

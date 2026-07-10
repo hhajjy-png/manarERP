@@ -8,6 +8,8 @@ import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core
 import { transactionsService } from '../transactions/transactions.service';
 import { repostExpenseToGL, reverseExpenseFromGL } from './expenses.accounting';
 import { CreateExpenseInput, UpdateExpenseInput } from './expenses.schema';
+import { assertPeriodOpen } from '../../shared/services/periodLock.service';
+import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 // المصدر الموحّد لأسماء التصنيفات بالعربية (وسم القيود المحاسبية وتجميع الإحصائيات).
 import { expenseCategoryAr } from '../../shared/utils/expenseLabels';
 
@@ -84,13 +86,16 @@ export class ExpensesService {
 
   async create(input: CreateExpenseInput, req: Request) {
     const code = input.code ?? (await this.generateCode());
+    const expenseDate = input.date ?? new Date();
+    // المصروف يُنشأ بحالة PENDING فلا يمرّ بـ createBalancedJournal بعد؛ الحارس صريح هنا.
+    await assertPeriodOpen(prisma, expenseDate, { operation: 'إنشاء مصروف', module: 'expenses' });
     const expense = await prisma.expense.create({
       data: {
         code,
         category: input.category,
         description: input.description,
         amount: input.amount,
-        date: input.date ?? new Date(),
+        date: expenseDate,
         billingMonth: input.billingMonth ?? null,
         billingYear: input.billingYear ?? null,
         notes: input.notes ?? null,
@@ -104,6 +109,15 @@ export class ExpensesService {
       include: FULL_INCLUDE,
     });
     await recordAudit({ req, action: 'CREATE', module: 'expenses', entityId: expense.id, newValue: { code, amount: input.amount } });
+    await recordHistoricalEntry({
+      req,
+      module: 'expenses',
+      recordType: 'مصروف',
+      entityId: expense.id,
+      documentNumber: expense.code,
+      transactionDate: expense.date,
+      lateEntryReason: input.lateEntryReason,
+    });
     return expense;
   }
 
@@ -113,6 +127,12 @@ export class ExpensesService {
     if (current.status === 'APPROVED') throw AppError.badRequest('لا يمكن تعديل مصروف معتمد');
     if (current.status === 'REVERSED') throw AppError.badRequest('لا يمكن تعديل مصروف معكوس');
     if (current.status === 'CANCELLED') throw AppError.badRequest('لا يمكن تعديل مصروف ملغى');
+
+    // كلا التاريخين محروس: نقل مصروف من فترة مقفلة أو إليها ممنوع بالتساوي.
+    await assertPeriodOpen(prisma, current.date, { operation: 'تعديل مصروف', module: 'expenses', entityId: id });
+    if (input.date && input.date.getTime() !== current.date.getTime()) {
+      await assertPeriodOpen(prisma, input.date, { operation: 'نقل مصروف إلى فترة مقفلة', module: 'expenses', entityId: id });
+    }
 
     const expense = await prisma.expense.update({
       where: { id },
@@ -286,6 +306,8 @@ export class ExpensesService {
       throw AppError.conflict('لا يمكن حذف مصروف له قيود محاسبية مرتبطة — استخدم الحذف النهائي');
     }
 
+    await assertPeriodOpen(prisma, expense.date, { operation: 'حذف مصروف', module: 'expenses', entityId: id });
+
     await prisma.expense.delete({ where: { id } });
     await recordAudit({ req, action: 'DELETE', module: 'expenses', entityId: id });
     return { deleted: true };
@@ -446,40 +468,43 @@ export class ExpensesService {
       if (query.to) (where.date as Record<string, Date>).lte = new Date(query.to);
     }
 
-    const rows = await prisma.expense.findMany({
-      where,
-      select: {
-        amount: true,
-        category: true,
-        supplier: { select: { name: true } },
-        supplierName: true,
-        status: true,
-      },
-    });
+    // تجميع في قاعدة البيانات بدل جلب كل صفوف المصروفات ثم reduce/تصنيف في الذاكرة.
+    // الإجماليات عبر aggregate، والتصنيفات عبر groupBy — بلا اقتطاع مهما كبر التاريخ.
+    const [totalAgg, pendingAgg, byCatRows, bySupplierRows] = await Promise.all([
+      prisma.expense.aggregate({ where, _sum: { amount: true }, _count: { _all: true } }),
+      prisma.expense.aggregate({ where: { ...where, status: 'PENDING' }, _sum: { amount: true }, _count: { _all: true } }),
+      prisma.expense.groupBy({ by: ['category'], where, _sum: { amount: true } }),
+      prisma.expense.groupBy({ by: ['supplierId', 'supplierName'], where, _sum: { amount: true } }),
+    ]);
 
-    const count = rows.length;
-    const total = rows.reduce((s, r) => s + Number(r.amount), 0);
-    const pendingRows = rows.filter((r) => r.status === 'PENDING');
-    const pendingCount = pendingRows.length;
-    const pendingTotal = pendingRows.reduce((s, r) => s + Number(r.amount), 0);
+    const count = totalAgg._count._all;
+    const total = Number(totalAgg._sum.amount ?? 0);
+    const pendingCount = pendingAgg._count._all;
+    const pendingTotal = Number(pendingAgg._sum.amount ?? 0);
 
     const byCategory: Record<string, number> = {};
-    for (const r of rows) {
-      byCategory[r.category] = (byCategory[r.category] ?? 0) + Number(r.amount);
-    }
+    for (const r of byCatRows) byCategory[r.category] = Number(r._sum.amount ?? 0);
 
-    // Group by "person" (HASSAN/GHANEM/NATHEER/HAROON) vs "operations"
+    // "أشخاص" (HASSAN/GHANEM/NATHEER/HAROON) مقابل "عمليات" — مشتقّ من تجميع التصنيف
+    // نفسه، لا من صفوف خام. نفس منطق التسمية السابق بالضبط.
     const PERSON_CATS = new Set(['HASSAN', 'GHANEM', 'NATHEER', 'HAROON']);
     const byCompanyGroup: Record<string, number> = {};
-    for (const r of rows) {
+    for (const r of byCatRows) {
       const group = PERSON_CATS.has(r.category) ? expenseCategoryAr(r.category) : 'عمليات';
-      byCompanyGroup[group] = (byCompanyGroup[group] ?? 0) + Number(r.amount);
+      byCompanyGroup[group] = (byCompanyGroup[group] ?? 0) + Number(r._sum.amount ?? 0);
     }
 
+    // اسم المورد: مورد مُعرَّف → اسمه، وإلا مورد حر (نص)، وإلا "غير محدد" — نفس أولوية السابق.
+    const supplierIds = [...new Set(bySupplierRows.map(r => r.supplierId).filter((x): x is number => x != null))];
+    const suppliers = supplierIds.length
+      ? await prisma.supplier.findMany({ where: { id: { in: supplierIds } }, select: { id: true, name: true } })
+      : [];
+    const supplierNameById = new Map(suppliers.map(s => [s.id, s.name]));
     const bySupplier: Record<string, number> = {};
-    for (const r of rows) {
-      const label = r.supplier?.name ?? (r as Record<string, unknown>)['supplierName'] as string | null ?? 'غير محدد';
-      bySupplier[label] = (bySupplier[label] ?? 0) + Number(r.amount);
+    for (const r of bySupplierRows) {
+      const label = (r.supplierId != null ? supplierNameById.get(r.supplierId) : null)
+        ?? r.supplierName ?? 'غير محدد';
+      bySupplier[label] = (bySupplier[label] ?? 0) + Number(r._sum.amount ?? 0);
     }
 
     // Period cards — use billing month/year only, strip date/period range filters so

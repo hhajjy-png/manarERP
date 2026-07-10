@@ -1,4 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useFinancialPeriod } from '../context/FinancialPeriodContext';
+import PeriodControl from '../components/period/PeriodControl';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { financialApi } from '../api/financial';
@@ -124,6 +126,42 @@ export default function FinancialCenter() {
   // ── Financial Reports URL params ───────────────────────────────────────────
   const frFrom  = searchParams.get('frFrom')  ?? '';
   const frTo    = searchParams.get('frTo')    ?? '';
+
+  // ── مزامنة الفترة العالمية مع تبويبات المركز المالي ─────────────────────────
+  // تبذر تواريخ التبويبات: من/إلى لتقارير الحركة (كشف/دفتر/أستاذ/تقارير)، و«كما في»
+  // لتقارير الأرصدة (أعمار/ميزان).
+  //   - عند أول تركيب: تملأ الحقول **الفارغة فقط** من الفترة، فتُطبَّق الفترة على تنقّل
+  //     جديد إلى الصفحة، مع الحفاظ على روابط drill-down التي تصل بمعاملات محدّدة.
+  //   - عند تغيير الفترة لاحقًا: تُعيد الكتابة على الكل (اختيار صريح للفترة).
+  // آمن ضد الاستدعاء المزدوج في StrictMode عبر توقيع الفترة.
+  const { period } = useFinancialPeriod();
+  const firstRunRef = useRef(true);
+  const prevSigRef = useRef('');
+  useEffect(() => {
+    const sig = `${period.fromDate ?? ''}|${period.toDate ?? ''}|${period.asOfDate ?? ''}`;
+    const isFirst = firstRunRef.current;
+    if (!isFirst && sig === prevSigRef.current) return; // لم تتغيّر الفترة بعد التركيب
+    firstRunRef.current = false;
+    prevSigRef.current = sig;
+    const f = period.fromDate ?? '';
+    const t = period.toDate ?? '';
+    const asOf = period.asOfDate ?? '';
+    const overwrite = !isFirst; // على التركيب: لا تدهس القيم الموجودة (drill-down)
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      const put = (k: string, v: string) => {
+        if (!overwrite && next.get(k)) return; // ملء الفارغ فقط عند التركيب
+        if (v) next.set(k, v); else if (overwrite) next.delete(k);
+      };
+      put('fromDate', f); put('toDate', t);
+      put('glFrom', f);   put('glTo', t);
+      put('jFrom', f);    put('jTo', t);
+      put('frFrom', f);   put('frTo', t);
+      put('asOfDate', asOf);
+      put('trialAsOf', asOf);
+      return next;
+    }, { replace: true });
+  }, [period.fromDate, period.toDate, period.asOfDate, period.isAllPeriods, setSearchParams]);
 
   // ── Entity list (Statement tab) ────────────────────────────────────────────
   const [entities, setEntities] = useState<EntityOption[]>([]);
@@ -393,6 +431,9 @@ export default function FinancialCenter() {
         <div className="fc-header-text">
           <h1 className="fc-title">المركز المالي</h1>
           <p className="fc-subtitle">الكشوف المحاسبية والتقارير المالية — مركز عمل المحاسب</p>
+        </div>
+        <div style={{ marginInlineStart: 'auto' }}>
+          <PeriodControl />
         </div>
       </div>
 

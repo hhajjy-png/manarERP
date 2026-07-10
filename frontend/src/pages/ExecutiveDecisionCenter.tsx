@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
+import { useFinancialPeriod } from '../context/FinancialPeriodContext';
+import PeriodControl from '../components/period/PeriodControl';
+import CurrentStatusBadge from '../components/period/CurrentStatusBadge';
+import { periodToRangeParams } from '../lib/financialPeriod';
 import { formatCurrency, formatPercent } from '../lib/format';
 import { Skeleton } from '../components/dashboard/Skeleton';
 import CompanyHealthScore from '../components/dashboard/CompanyHealthScore';
@@ -75,7 +79,7 @@ function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
     { label: 'الذمم المستحقة',    value: formatCurrency(data.totalOutstanding), color: '#F59E0B', icon: '⏳', change: null, invertColor: true },
     { label: 'هامش الربح',        value: pct(data.overallProfitMargin), color: '#A855F7', icon: '📈', change: null, invertColor: false },
     { label: 'معدل التحصيل',      value: pct(data.overallCollectionRate), color: '#06B6D4', icon: '🎯', change: null, invertColor: false },
-    { label: 'العقود النشطة',      value: `${data.activeContracts} / ${data.totalContracts}`, color: '#F97316', icon: '📄', change: null, invertColor: false },
+    { label: 'العقود النشطة',      value: `${data.activeContracts} / ${data.totalContracts}`, color: '#F97316', icon: '📄', change: null, invertColor: false, currentStatus: true },
   ];
 
   return (
@@ -93,6 +97,7 @@ function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
               <span style={{ fontSize: 16 }}>{k.icon}</span>
               <span style={{ fontSize: 11, color: 'var(--db-muted)' }}>{k.label}</span>
+              {'currentStatus' in k && k.currentStatus && <CurrentStatusBadge />}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: k.color, fontFamily: 'monospace' }}>{k.value}</span>
@@ -102,7 +107,11 @@ function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
         ))}
       </div>
 
-      {/* Two-column: this month vs last month */}
+      {/* Two-column: this month vs last month — حالة حالية لا تتبع الفترة المختارة */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--db-muted)' }}>المقارنة الشهرية</span>
+        <CurrentStatusBadge />
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
         {[
           { label: 'هذا الشهر', d: data.thisMonth, color: '#3B82F6' },
@@ -153,6 +162,7 @@ function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function ExecutiveDecisionCenter() {
+  const { period } = useFinancialPeriod();
   const [data, setData]       = useState<DecisionCenterData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
@@ -162,11 +172,17 @@ export default function ExecutiveDecisionCenter() {
   const [activeTab, setActiveTab] = useState<'summary' | 'cards' | 'alerts' | 'timeline' | 'health' | 'recommendations'>('summary');
 
   useEffect(() => {
-    api.get<{ success: boolean; data: DecisionCenterData }>('/executive/decision-center')
+    setLoading(true);
+    // مؤشرات الحركة والذمم اللحظية تتبع الفترة؛ الحالة الحالية (هذا/الشهر الماضي،
+    // النشاط، العقود النشطة) تبقى كما هي من الـ backend. عند 'all' تُحذف الحدود.
+    const params = periodToRangeParams(period);
+    api.get<{ success: boolean; data: DecisionCenterData }>('/executive/decision-center', {
+      params: { fromDate: params.fromDate, toDate: params.toDate },
+    })
       .then(r => setData(r.data.data))
       .catch(() => setError('تعذّر تحميل بيانات مركز القرار'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [period.fromDate, period.toDate, period.isAllPeriods]);
 
   async function handleExportPdf() {
     if (!window.manar?.exportPdf) { setPdfErr('تصدير PDF غير متاح في هذه البيئة'); return; }
@@ -208,6 +224,7 @@ export default function ExecutiveDecisionCenter() {
           <div className="db-header-sub">تحليل شامل — بيانات في الوقت الفعلي</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <PeriodControl />
           {highAlerts > 0 && (
             <span style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 700 }}>
               ⚠️ {highAlerts} تنبيهات عالية
@@ -277,21 +294,31 @@ export default function ExecutiveDecisionCenter() {
           )}
 
           {activeTab === 'alerts' && (
-            <ExecutiveAlertsV3 alerts={data.alertsV3} />
+            <>
+              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label="حالة حالية · لا تتبع الفترة المختارة" /></div>
+              <ExecutiveAlertsV3 alerts={data.alertsV3} />
+            </>
           )}
 
           {activeTab === 'timeline' && (
-            <KPITimeline />
+            <>
+              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label="حالة حالية · لا تتبع الفترة المختارة" /></div>
+              <KPITimeline />
+            </>
           )}
 
           {activeTab === 'health' && (
             <div style={{ maxWidth: 500 }}>
+              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label="حالة حالية · لا تتبع الفترة المختارة" /></div>
               <CompanyHealthScore data={data.healthScore} />
             </div>
           )}
 
           {activeTab === 'recommendations' && (
-            <ExecutiveRecommendationsPanel recommendations={data.recommendations} />
+            <>
+              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label="حالة حالية · لا تتبع الفترة المختارة" /></div>
+              <ExecutiveRecommendationsPanel recommendations={data.recommendations} />
+            </>
           )}
 
           {/* ── Print view: all sections visible for PDF ──────────────────── */}

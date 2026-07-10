@@ -39,6 +39,88 @@ describe('ExecutiveService — decisionCenter()', () => {
     service = new ExecutiveService();
   });
 
+  // ── Financial Period Awareness ────────────────────────────────────────────
+
+  it('applies the period window to FLOW revenue/expenses/collections (issueDate/date gte-lte)', async () => {
+    await service.decisionCenter({ fromDate: '2024-01-01', toDate: '2024-12-31' });
+
+    // أول invoice.aggregate = إيراد الحركة → يحمل نافذة issueDate.
+    const revWhere = (vi.mocked(prisma.invoice.aggregate).mock.calls[0][0] as any).where;
+    expect(revWhere.issueDate.gte).toBeInstanceOf(Date);
+    expect(revWhere.issueDate.lte).toBeInstanceOf(Date);
+    // نهاية الفترة بنهاية اليوم (لا منتصف الليل).
+    expect(revWhere.issueDate.lte.getHours()).toBe(23);
+
+    const expWhere = (vi.mocked(prisma.expense.aggregate).mock.calls[0][0] as any).where;
+    expect(expWhere.date.gte).toBeInstanceOf(Date);
+
+    const colWhere = (vi.mocked(prisma.payment.aggregate).mock.calls[0][0] as any).where;
+    expect(colWhere.date.gte).toBeInstanceOf(Date);
+  });
+
+  it('computes outstanding as a point-in-time balance as of toDate (issueDate<=asOf − payments<=asOf)', async () => {
+    // إيراد تراكمي حتى toDate = 20000، تحصيل تراكمي = 5000 → ذمم 15000.
+    // نُميّز التراكمي: هو الاستعلام الوحيد بـ issueDate.lte دون gte.
+    vi.mocked(prisma.invoice.aggregate).mockImplementation((arg: any) => {
+      const iss = arg?.where?.issueDate;
+      if (iss?.lte && !iss?.gte) return Promise.resolve({ _sum: { total: 20000 } }) as any; // as-of
+      return Promise.resolve({ _sum: { total: 3000, paidAmount: null } }) as any;           // flow/other
+    });
+    vi.mocked(prisma.payment.aggregate).mockImplementation((arg: any) => {
+      const d = arg?.where?.date;
+      if (d?.lte && !d?.gte) return Promise.resolve({ _sum: { amount: 5000 } }) as any;      // as-of collections
+      return Promise.resolve({ _sum: { amount: 1000 } }) as any;
+    });
+
+    const result = await service.decisionCenter({ fromDate: '2024-01-01', toDate: '2024-12-31' });
+    expect(result.financialSummary.totalOutstanding).toBeCloseTo(15000, 0);
+  });
+
+  it('no period → all-time behaviour preserved (no date bound on flow revenue)', async () => {
+    await service.decisionCenter();
+    const revWhere = (vi.mocked(prisma.invoice.aggregate).mock.calls[0][0] as any).where;
+    expect(revWhere.issueDate).toBeUndefined();
+  });
+
+  it('Top Debtors follow the period: outstanding invoices bounded by issueDate<=asOf', async () => {
+    await service.decisionCenter({ fromDate: '2024-01-01', toDate: '2024-12-31' });
+    // أول invoice.findMany = استعلام الذمم المفتوحة (كبار المدينين/الأعمار).
+    const where = (vi.mocked(prisma.invoice.findMany).mock.calls[0][0] as any).where;
+    expect(where.issueDate.lte).toBeInstanceOf(Date);
+    expect(where.issueDate.lte.getFullYear()).toBe(2024);
+  });
+
+  // ── Phase 7: query safety ─────────────────────────────────────────────────
+
+  it('outstanding-invoices query has NO take (would truncate debtors/aging at 1000)', async () => {
+    await service.decisionCenter();
+    // أول invoice.findMany في decisionCenter هو استعلام الذمم المفتوحة.
+    const call = vi.mocked(prisma.invoice.findMany).mock.calls[0][0] as any;
+    expect(call).not.toHaveProperty('take');
+    expect(call.orderBy).toEqual([{ issueDate: 'asc' }, { id: 'asc' }]);
+  });
+
+  it('active-contracts query has NO take (would truncate contract KPIs at 200)', async () => {
+    await service.decisionCenter();
+    const call = vi.mocked(prisma.contract.findMany).mock.calls[0][0] as any;
+    expect(call).not.toHaveProperty('take');
+  });
+
+  it('sums all 1500 open invoices into the top-debtor card (no 1000-cap truncation)', async () => {
+    const invoices = Array.from({ length: 1500 }, (_, i) => ({
+      id: i + 1, customerId: 1, contractId: null,
+      total: 10, paidAmount: 0,
+      issueDate: new Date(2026, 0, 1), dueDate: new Date(2026, 0, 31),
+      customer: { id: 1, name: 'عميل' },
+    }));
+    vi.mocked(prisma.invoice.findMany).mockResolvedValueOnce(invoices as any);
+
+    const result = await service.decisionCenter();
+    const topDebtorCard = result.decisionCards.find((c: any) => c.id === 'dc-highest-outstanding');
+    // 1500 × 10 = 15,000 لعميل واحد — لو اقتُطع عند 1000 لظهر 10,000.
+    expect(topDebtorCard?.amount).toBeCloseTo(15_000, 0);
+  });
+
   // ── Financial summary: zero-data guard ────────────────────────────────────
 
   it('returns zero totals when no data exists', async () => {
@@ -193,13 +275,10 @@ describe('ExecutiveService — decisionCenter()', () => {
   });
 
   it('HIGH_RECEIVABLES raised when outstanding > 50% of revenue', async () => {
-    // revenue = 10000, collected = 2000 → outstanding = 8000 (80%)
-    vi.mocked(prisma.invoice.aggregate)
-      .mockResolvedValueOnce({ _sum: { total: 10000 } } as any)
-      .mockResolvedValue({ _sum: { total: null, paidAmount: null } } as any);
-    vi.mocked(prisma.payment.aggregate)
-      .mockResolvedValueOnce({ _sum: { amount: 2000 } } as any)
-      .mockResolvedValue({ _sum: { amount: null } } as any);
+    // revenue = 10000 (flow)، والذمم اللحظية = إيراد تراكمي 10000 − تحصيل تراكمي 2000 = 8000 (80%).
+    // بلا فترة، الحركة والتراكم متساويان؛ نُثبّت كل aggregate على نفس القيمة.
+    vi.mocked(prisma.invoice.aggregate).mockResolvedValue({ _sum: { total: 10000 } } as any);
+    vi.mocked(prisma.payment.aggregate).mockResolvedValue({ _sum: { amount: 2000 } } as any);
 
     const result = await service.decisionCenter();
     const alert = result.alertsV3.find(a => a.type === 'HIGH_RECEIVABLES');
@@ -235,11 +314,13 @@ describe('ExecutiveService — decisionCenter()', () => {
   });
 
   it('top debtor card appears when outstanding invoice exists', async () => {
+    // المستحق يُحسب من الدفعات (حتى نهاية الفترة)، لا من paidAmount: 9000 − 1000 = 8000.
     vi.mocked(prisma.invoice.findMany).mockResolvedValue([{
       id: 1, customerId: 10,
-      total: 9000, paidAmount: 1000, issueDate: new Date('2026-01-01'), dueDate: null,
+      total: 9000, issueDate: new Date('2026-01-01'), dueDate: null,
       contractId: null,
       customer: { id: 10, name: 'مدين كبير' },
+      payments: [{ amount: 1000 }],
     }] as any);
 
     const result = await service.decisionCenter();

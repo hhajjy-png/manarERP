@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
+import { resolvePeriod } from '../../core/utils/periodFilter';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
@@ -80,13 +81,32 @@ export class ExecutiveService {
    * Covers Parts 1, 2, 3, 5, 6 of the spec.
    * Returns: financialSummary, decisionCards, alertsV3, healthScore, recommendations.
    */
-  async decisionCenter() {
+  /**
+   * مركز القرار التنفيذي.
+   *
+   * تصنيف مؤشرات الفترة (Financial Period Awareness):
+   *  - **حركة (Flow)** تخضع للفترة: الإيراد، المصروف، التحصيل، صافي الربح،
+   *    معدل التحصيل، ربحية العقود، إيراد العملاء (Top Customers).
+   *  - **رصيد لحظي (Point-in-time)** كما في نهاية الفترة: إجمالي الذمم المستحقة.
+   *  - **حالة حالية (Current status)** لا تُؤرَّخ: مقارنات هذا/الشهر الماضي،
+   *    عدد العقود النشطة، نشاط آخر 90 يومًا، الدافعون مؤخرًا. تبقى مثبّتة على `now`.
+   * عند غياب الفترة (أو all) يعمل كل شيء على كل الفترات — سلوك ما قبل الحزمة.
+   */
+  async decisionCenter(filters: { fromDate?: string; toDate?: string } = {}) {
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthEnd   = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
     const ninetyDaysAgo  = new Date(now.getTime() - 90 * 86_400_000);
     const thirtyDaysAgo  = new Date(now.getTime() - 30 * 86_400_000);
+
+    const period = resolvePeriod(filters);
+    const flow = period.flow;                 // فلتر الحركة، أو undefined
+    const asOf = period.asOf;                  // نهاية الفترة للأرصدة اللحظية
+    const flowInvoice = flow ? { issueDate: flow } : {};
+    const flowDate    = flow ? { date: flow } : {};
+    const asOfInvoice = asOf ? { issueDate: { lte: asOf } } : {};
+    const asOfPayment = asOf ? { date: { lte: asOf } } : {};
 
     // ── Single parallel fetch of all raw data ──────────────────────────────
     const [
@@ -109,20 +129,22 @@ export class ExecutiveService {
       topExpenseContracts,
       contractGroupCounts,
       salesRevByCustomer,
+      cumulativeRevenueAgg,
+      cumulativeCollectionsAgg,
     ] = await Promise.all([
-      // Total revenue (all-time, SALES invoices)
+      // Revenue during the period (FLOW) — SALES invoices issued in-range
       prisma.invoice.aggregate({
-        where: { direction: 'SALES', status: { notIn: ['CANCELLED'] } },
+        where: { direction: 'SALES', status: { notIn: ['CANCELLED'] }, ...flowInvoice },
         _sum: { total: true },
       }),
-      // Total expenses (all-time, approved)
+      // Expenses during the period (FLOW) — approved, dated in-range
       prisma.expense.aggregate({
-        where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] } },
+        where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] }, ...flowDate },
         _sum: { amount: true },
       }),
-      // Total collections (all-time)
+      // Collections during the period (FLOW)
       prisma.payment.aggregate({
-        where: { invoice: { direction: 'SALES', status: { not: 'CANCELLED' } } },
+        where: { invoice: { direction: 'SALES', status: { not: 'CANCELLED' } }, ...flowDate },
         _sum: { amount: true },
       }),
       // This month collections
@@ -155,32 +177,36 @@ export class ExecutiveService {
         where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: lastMonthStart, lte: lastMonthEnd } },
         _sum: { total: true },
       }),
-      // All outstanding invoices with customer info
+      // الذمم المفتوحة حتى نهاية الفترة (Point-in-time) — تغذّي كبار المدينين والأعمار،
+      // فتتبع الفترة المختارة عبر issueDate<=asOf. بلا take (مجموعة عاملة محدودة)،
+      // وorderBy حتمي للثبات.
       prisma.invoice.findMany({
-        where: { direction: 'SALES', status: { notIn: ['PAID', 'CANCELLED'] } },
-        take: 1000,
+        // لا نستبعد PAID: فاتورة سُدِّدت بعد نهاية الفترة كانت مستحقة فيها.
+        where: { direction: 'SALES', status: { not: 'CANCELLED' }, ...asOfInvoice },
+        orderBy: [{ issueDate: 'asc' }, { id: 'asc' }],
         select: {
           id: true, customerId: true, contractId: true,
-          total: true, paidAmount: true, issueDate: true, dueDate: true,
+          total: true, issueDate: true, dueDate: true,
           customer: { select: { id: true, name: true } },
+          // الدفعات حتى نهاية الفترة — الرصيد اللحظي، لا paidAmount.
+          payments: asOf ? { where: { date: { lte: asOf } }, select: { amount: true } } : { select: { amount: true } },
         },
       }),
-      // Revenue by contract
+      // Revenue by contract (FLOW — ربحية العقد خلال الفترة)
       prisma.invoice.groupBy({
         by: ['contractId'],
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, contractId: { not: null } },
+        where: { direction: 'SALES', status: { not: 'CANCELLED' }, contractId: { not: null }, ...flowInvoice },
         _sum: { total: true, paidAmount: true },
       }),
-      // Expenses by contract
+      // Expenses by contract (FLOW)
       prisma.expense.groupBy({
         by: ['contractId'],
-        where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] }, contractId: { not: null } },
+        where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] }, contractId: { not: null }, ...flowDate },
         _sum: { amount: true },
       }),
-      // Active contracts
+      // كل العقود النشطة — بلا take. تغذّي ربحية العقود وصحّتها (KPI).
       prisma.contract.findMany({
         where: { status: 'ACTIVE' },
-        take: 200,
         orderBy: { id: 'desc' },
         select: {
           id: true, code: true, asphaltPlant: true, startDate: true,
@@ -189,17 +215,20 @@ export class ExecutiveService {
       }),
       // Total contracts count
       prisma.contract.count(),
-      // Customers who had payments in last 90 days
+      // مجموعة عضوية تزيينية (علم "دفع خلال 90 يومًا") — غير مالية، لا تدخل KPI.
+      // الحد + orderBy مقبولان: عدد الدافعين المتمايزين خلال 90 يومًا محدود.
       prisma.payment.findMany({
         where: { date: { gte: ninetyDaysAgo }, invoice: { direction: 'SALES' } },
         take: 500,
+        orderBy: { date: 'desc' },
         distinct: ['invoiceId'],
         select: { invoice: { select: { customerId: true } } },
       }),
-      // Contracts with invoice activity in last 90 days
+      // مجموعة عضوية تزيينية (علم "نشاط فواتير خلال 90 يومًا") — غير مالية.
       prisma.invoice.findMany({
         where: { direction: 'SALES', issueDate: { gte: ninetyDaysAgo }, contractId: { not: null } },
         take: 500,
+        orderBy: { issueDate: 'desc' },
         distinct: ['contractId'],
         select: { contractId: true },
       }),
@@ -213,20 +242,30 @@ export class ExecutiveService {
       }),
       // Contract status breakdown
       prisma.contract.groupBy({ by: ['status'], _count: { _all: true } }),
-      // إيرادات كل العملاء (جميع فواتير المبيعات غير الملغاة) — مصدر رسم «توزيع الإيرادات حسب العميل».
-      // مستقل عن ربط العقود حتى تظهر إيرادات العملاء غير المرتبطة بعقد نشط.
+      // إيرادات العملاء خلال الفترة (FLOW) — مصدر «توزيع الإيرادات حسب العميل» / Top Customers.
       prisma.invoice.groupBy({
         by: ['customerId'],
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, customerId: { not: null } },
+        where: { direction: 'SALES', status: { not: 'CANCELLED' }, customerId: { not: null }, ...flowInvoice },
         _sum: { total: true, paidAmount: true },
+      }),
+      // الرصيد اللحظي (Point-in-time): إيراد تراكمي حتى نهاية الفترة − تحصيل تراكمي حتى نهايتها.
+      // = إجمالي الذمم المستحقة «كما في» toDate (لا صافي حركة الفترة).
+      prisma.invoice.aggregate({
+        where: { direction: 'SALES', status: { not: 'CANCELLED' }, ...asOfInvoice },
+        _sum: { total: true },
+      }),
+      prisma.payment.aggregate({
+        where: { invoice: { direction: 'SALES', status: { not: 'CANCELLED' } }, ...asOfPayment },
+        _sum: { amount: true },
       }),
     ]);
 
     // ── Compute base values ────────────────────────────────────────────────
-    const totalRevenue    = r3(n(totalRevenueAgg._sum.total));
-    const totalExpenses   = r3(n(totalExpensesAgg._sum.amount));
-    const totalCollected  = r3(n(totalCollectionsAgg._sum.amount));
-    const totalOutstanding = r3(Math.max(0, totalRevenue - totalCollected));
+    const totalRevenue    = r3(n(totalRevenueAgg._sum.total));      // FLOW خلال الفترة
+    const totalExpenses   = r3(n(totalExpensesAgg._sum.amount));    // FLOW
+    const totalCollected  = r3(n(totalCollectionsAgg._sum.amount)); // FLOW
+    // الذمم = رصيد لحظي كما في نهاية الفترة، لا صافي حركة الفترة.
+    const totalOutstanding = r3(Math.max(0, n(cumulativeRevenueAgg._sum.total) - n(cumulativeCollectionsAgg._sum.amount)));
     const netProfit       = r3(totalRevenue - totalExpenses);
     const overallProfitMargin = safe(netProfit, totalRevenue);
     const overallCollectionRate = safe(totalCollected, totalRevenue);
@@ -272,13 +311,17 @@ export class ExecutiveService {
       };
     });
 
-    // Debtor map (outstanding by customer)
+    // Debtor map (outstanding by customer) — رصيد لحظي كما في نهاية الفترة.
+    // نقطة القياس للأعمار = نهاية الفترة (asOf) إن وُجدت، وإلا الآن.
+    const agingRef = asOf ?? now;
     const debtorMap = new Map<number, { name: string; outstanding: number; oldestDays: number; lastPaymentDays: number | null }>();
     for (const inv of outstandingInvoices) {
       if (!inv.customerId || !inv.customer) continue;
-      const os = Math.max(0, n(inv.total) - n(inv.paidAmount));
+      // المستحق = الإجمالي − مجموع الدفعات حتى نهاية الفترة (لا paidAmount).
+      const paidAsOf = (inv.payments ?? []).reduce((s, p) => s + n(p.amount), 0);
+      const os = Math.max(0, n(inv.total) - paidAsOf);
       if (os <= 0) continue;
-      const days = Math.floor((now.getTime() - new Date(inv.issueDate).getTime()) / 86_400_000);
+      const days = Math.floor((agingRef.getTime() - new Date(inv.issueDate).getTime()) / 86_400_000);
       const e = debtorMap.get(inv.customerId) ?? { name: inv.customer.name, outstanding: 0, oldestDays: 0, lastPaymentDays: null };
       e.outstanding = r3(e.outstanding + os);
       if (days > e.oldestDays) e.oldestDays = days;
@@ -945,12 +988,20 @@ export class ExecutiveService {
         const expenses   = r3(n(expAgg._sum.amount));
         const collections = r3(n(colAgg._sum.amount));
 
-        // Outstanding at end of period: cumulative outstanding up to m.end
-        const osAgg = await prisma.invoice.aggregate({
-          where: { direction: 'SALES', status: { notIn: ['PAID', 'CANCELLED'] }, issueDate: { lte: m.end } },
-          _sum: { total: true, paidAmount: true },
-        });
-        const osEnd = r3(Math.max(0, n(osAgg._sum.total) - n(osAgg._sum.paidAmount)));
+        // الرصيد اللحظي في نهاية الشهر = إيراد تراكمي (issueDate<=m.end) − تحصيل تراكمي
+        // (payment.date<=m.end). لا نستخدم paidAmount (لقطة الحاضر) فتُخطئ الأشهر السابقة،
+        // ولا نستبعد PAID (فاتورة سُدِّدت لاحقًا كانت مستحقة في نهاية الشهر).
+        const [osInvAgg, osPayAgg] = await Promise.all([
+          prisma.invoice.aggregate({
+            where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { lte: m.end } },
+            _sum: { total: true },
+          }),
+          prisma.payment.aggregate({
+            where: { invoice: { direction: 'SALES', status: { not: 'CANCELLED' } }, date: { lte: m.end } },
+            _sum: { amount: true },
+          }),
+        ]);
+        const osEnd = r3(Math.max(0, n(osInvAgg._sum.total) - n(osPayAgg._sum.amount)));
 
         return {
           period: m.label,

@@ -1,4 +1,5 @@
 import type { BankTemplate, ParsedBankRow } from './types';
+import { parseImportDate } from '../../shared/utils/dateParse';
 
 // ── Column header maps per bank ────────────────────────────────────────────────
 
@@ -282,13 +283,12 @@ export function normalizeRow(
   const amount = parseFloat(amountRaw.replace(/,/g, '')) || 0;
 
   const paymentDateRaw = nr[normalizeHeader(cols.paymentDate[0] ?? '')] ?? extractValue(nr, cols.paymentDate);
-  let paymentDate: string | null = null;
-  if (paymentDateRaw instanceof Date) {
-    paymentDate = isNaN(paymentDateRaw.getTime()) ? null : paymentDateRaw.toISOString();
-  } else if (typeof paymentDateRaw === 'string' && paymentDateRaw.trim()) {
-    const d = new Date(paymentDateRaw);
-    paymentDate = isNaN(d.getTime()) ? paymentDateRaw.trim() : d.toISOString();
-  }
+  // كان `new Date(string)` يقرأ "05/03/2024" بصيغة MM/DD الأمريكية — انظر `dateParse`.
+  // عند تعذّر التفسير نُبقي النص الخام كما كان سابقًا ليظهر للمستخدم في المعاينة.
+  const parsedPaymentDate = parseImportDate(paymentDateRaw);
+  const paymentDate: string | null = parsedPaymentDate
+    ? parsedPaymentDate.toISOString()
+    : (typeof paymentDateRaw === 'string' && paymentDateRaw.trim() ? paymentDateRaw.trim() : null);
 
   return {
     employeeCode: get(cols.employeeCode) || null,

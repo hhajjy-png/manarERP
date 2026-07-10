@@ -3,9 +3,11 @@ import { executiveService } from './executive.service';
 import { kpiTimelinePeriodSchema } from './executive.schema';
 import { ok } from '../../core/utils/response';
 import { asyncHandler } from '../../core/utils/asyncHandler';
+import { periodQuerySchema } from '../../core/utils/periodFilter';
 
-export const getDecisionCenter = asyncHandler(async (_req: Request, res: Response) => {
-  const data = await executiveService.decisionCenter();
+export const getDecisionCenter = asyncHandler(async (req: Request, res: Response) => {
+  const filters = periodQuerySchema.parse(req.query);
+  const data = await executiveService.decisionCenter(filters);
   ok(res, data);
 });
 
