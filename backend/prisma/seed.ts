@@ -63,8 +63,11 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   aging:        ['read', 'export'],
   gl:           ['read', 'export'],
   trialbalance: ['read', 'export'],
-  journal:      ['read', 'export'],
+  journal:      ['read', 'export', 'reverse'],
   finreports:   ['read', 'export'],
+  // Historical Financial Data Readiness — تجاوز قفل الفترة المحاسبية.
+  // لا يُمنح لأي دور افتراضيًا (مدير النظام يتجاوز الـ RBAC أصلًا)؛ يُمنح يدويًا من شاشة الأدوار.
+  financial:    ['overrideLock'],
   // financialdashboard is seeded separately (compound module name)
   integrations:      ['read', 'configure', 'run'],
   payrollBankImport:    ['read', 'create', 'export'],
@@ -89,6 +92,8 @@ const ACTION_AR: Record<string, string> = {
   configure: 'ضبط الإعدادات',
   run:       'تشغيل',
   reconcile: 'مطابقة',
+  overrideLock: 'تجاوز قفل الفترة',
+  reverse:   'عكس قيد',
 };
 
 // مصفوفة صلاحيات كل دور (قائمة وحدات بصلاحية كاملة، أو مفاتيح محددة)
@@ -143,7 +148,10 @@ async function main() {
   const allKeys = allPermissionKeys.map((p) => p.key);
   const rolePermissionMap: Record<string, string[]> = {
     SYSTEM_ADMIN: allKeys,
-    GENERAL_MANAGER: allKeys.filter((k) => !k.startsWith('users.') && k !== 'settings.update'),
+    // financial.overrideLock مستثناة عمدًا: تجاوز فترة مقفلة قرار إداري صريح يُمنح يدويًا.
+    GENERAL_MANAGER: allKeys.filter(
+      (k) => !k.startsWith('users.') && k !== 'settings.update' && k !== 'financial.overrideLock',
+    ),
     ACCOUNTANT: [
       ...keysForModules(['invoices', 'expenses', 'transactions', 'suppliers', 'reports', 'customers', 'cheques', 'statements']),
       ...keysForModules(['aging', 'gl', 'trialbalance', 'journal', 'finreports']),

@@ -43,6 +43,10 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Cheques.css';
+import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
+import { useFinancialPeriod } from '../context/FinancialPeriodContext';
+import PeriodControl from '../components/period/PeriodControl';
+import { periodToReportParams } from '../lib/financialPeriod';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -175,6 +179,7 @@ function ChequePrintOutput({ data, template }: { data: PreviewData; template: Ch
 export default function Cheques() {
   const { hasPermission, user } = useAuth();
   const { t } = useT();
+  const { period } = useFinancialPeriod();
   const navigate = useNavigate();
 
   const [cheques, setCheques] = useState<Cheque[]>([]);
@@ -218,10 +223,13 @@ export default function Cheques() {
 
   const loadData = useCallback(async (p = 1) => {
     setLoading(true);
+    // الفترة العالمية على chequeDate — القائمة والإحصاء يتشاركان نفس النطاق.
+    const { from, to } = periodToReportParams(period);
+    const dateParams = { from, to };
     try {
       const [listRes, statsRes] = await Promise.all([
-        api.get('/cheques', { params: { page: p, pageSize: 20, search: historySearch || undefined, status: historyStatus || undefined } }),
-        api.get('/cheques/stats'),
+        api.get('/cheques', { params: { page: p, pageSize: 20, search: historySearch || undefined, status: historyStatus || undefined, ...dateParams } }),
+        api.get('/cheques/stats', { params: dateParams }),
       ]);
       setCheques(listRes.data.data.data ?? []);
       setMeta(listRes.data.data.meta ?? null);
@@ -231,7 +239,7 @@ export default function Cheques() {
     } finally {
       setLoading(false);
     }
-  }, [historySearch, historyStatus]);
+  }, [historySearch, historyStatus, period.fromDate, period.toDate, period.isAllPeriods]);
 
   useEffect(() => { loadData(1); }, [loadData]);
 
@@ -612,7 +620,12 @@ export default function Cheques() {
             {stats.draft > 0 && <IdChip icon="edit_note" tone="orange">{stats.draft} مسودة</IdChip>}
           </>
         }
-        aside={canCreate ? <Button variant="primary" icon="add" onClick={openNew}>{t('page.cheques.new')}</Button> : undefined}
+        aside={(
+          <>
+            <PeriodControl />
+            {canCreate && <Button variant="primary" icon="add" onClick={openNew}>{t('page.cheques.new')}</Button>}
+          </>
+        )}
       />
 
       {/* Alerts */}
@@ -839,6 +852,8 @@ export default function Cheques() {
             <div className="xpl-field">
               <label>{t('field.cheque.date')} <span className="req">*</span></label>
               <input className="xpl-input" type="date" value={form.chequeDate} onChange={(e) => field('chequeDate', e.target.value)} disabled={!!editId && !canUpdate} aria-label={t('field.cheque.date')} />
+              {/* الشيك لا يُرحَّل محاسبيًا — تنبيه تاريخي فقط، بلا رسالة قفل. */}
+              <HistoricalDateNotice date={form.chequeDate} enforcesLock={false} />
             </div>
           </DialogSection>
 

@@ -18,6 +18,39 @@ export const DEFAULT_AGING_BUCKETS: AgingBucket[] = [
 
 export type AgingBuckets = Record<string, number> & { total: number };
 
+/** فاتورة كما تُقرأ من Prisma لأغراض الأعمار: تحمل دفعاتها حتى تاريخ التقرير فقط. */
+export interface AgingInvoice {
+  dueDate: Date | null;
+  issueDate: Date;
+  total: number;
+  payments: { amount: number }[];
+}
+
+/**
+ * الرصيد المتبقّي لفاتورة **كما كان في تاريخ التقرير**.
+ *
+ * لا تستخدم `invoice.paidAmount`: ذلك الحقل لقطة للحاضر، فتحصيل جرى في 2025
+ * كان يخفض تقرير أعمار الديون المؤرَّخ 31/12/2024. المستدعي مسؤول عن تمرير
+ * الدفعات مفلترة بـ `date <= asOfDate` (فلتر Prisma، لا فلتر في الذاكرة).
+ */
+export function outstandingAsOf(invoice: AgingInvoice): number {
+  const paidAsOf = invoice.payments.reduce((sum, p) => sum + p.amount, 0);
+  return normalizeMoney(invoice.total - paidAsOf);
+}
+
+/**
+ * يحوّل فواتير Prisma إلى مدخلات التصنيف العمري، مُسقِطًا المسدَّدة بالكامل
+ * في تاريخ التقرير. `dueDate` الغائب يعود إلى `issueDate` (نفس سلوك ما قبل).
+ */
+export function toAgingEntries(invoices: AgingInvoice[]): { dueDate: Date; outstandingAmount: number }[] {
+  return invoices
+    .map((inv) => ({
+      dueDate: inv.dueDate ?? inv.issueDate,
+      outstandingAmount: outstandingAsOf(inv),
+    }))
+    .filter((o) => o.outstandingAmount > 0);
+}
+
 export function calculateAgingBuckets(
   invoices: { dueDate: Date; outstandingAmount: number }[],
   asOfDate: Date,

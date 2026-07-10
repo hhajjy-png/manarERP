@@ -16,6 +16,9 @@ export const createExpenseSchema = z.object({
     supplierName: z.string().max(200).optional().nullable(), // مورد حر (خارج قائمة الموردين)
     documentPath: z.string().optional(),
     paymentMethod: z.enum(ENUMS.expensePaymentMethod).optional(),
+    // سبب الإدخال المتأخر لمصروف يخصّ سنة مالية سابقة.
+    // لا يُخزَّن على المصروف (لا Migration) — يُسجَّل في Audit Log فقط.
+    lateEntryReason: z.string().trim().max(500).optional(),
   }),
 });
 

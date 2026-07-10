@@ -22,6 +22,10 @@ export const payPayrollSchema = z.object({
   body: z.object({
     // Unified GL payment method — determines credit account in GL journal entry
     paymentMethod: z.enum(ENUMS.glPaymentMethod).default('BANK'),
+    // تاريخ الصرف الفعلي. عند غيابه يُرحَّل القيد بآخر يوم من شهر الراتب —
+    // لا بتاريخ اليوم — حتى يهبط راتب ديسمبر 2024 في ديسمبر 2024.
+    paymentDate: z.coerce.date().optional(),
+    lateEntryReason: z.string().trim().max(500).optional(),
   }),
 });
 

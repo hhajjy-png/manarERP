@@ -1,0 +1,152 @@
+import { useState } from 'react';
+import { useFinancialPeriod } from '../../context/FinancialPeriodContext';
+import { displayDate, type FinancialPeriodPreset } from '../../lib/financialPeriod';
+import './period-control.css';
+
+/**
+ * عنصر التحكم بالفترة المالية العامة.
+ *
+ * يعرض الفترة النشطة بوضوح، ويتيح اختيار preset أو سنة أو نطاق مخصص أو كل الفترات،
+ * مع زر رجوع سريع للسنة الحالية. أرقام غربية، تواريخ DD/MM/YYYY، ودعم Dark Mode
+ * عبر توكنات الثيم (لا ألوان ثابتة). لا يعيد تصميم الهيدر العام — عنصر مستقل يُدرَج
+ * في أعلى الصفحات المتأثرة.
+ */
+
+const PRESETS: { key: FinancialPeriodPreset; label: string }[] = [
+  { key: 'year-to-date',   label: 'السنة حتى اليوم' },
+  { key: 'current-year',   label: 'السنة الحالية' },
+  { key: 'previous-year',  label: 'السنة السابقة' },
+  { key: 'current-month',  label: 'الشهر الحالي' },
+  { key: 'previous-month', label: 'الشهر السابق' },
+  { key: 'all',            label: 'كل الفترات' },
+];
+
+/** خيارات السنة: من السنة الحالية رجوعًا إلى 2020. */
+function yearOptions(): number[] {
+  const cur = new Date().getFullYear();
+  const years: number[] = [];
+  for (let y = cur; y >= 2020; y--) years.push(y);
+  return years;
+}
+
+export default function PeriodControl() {
+  const { period, setPreset, setYear, setCustomRange, resetToCurrentYear } = useFinancialPeriod();
+  const [open, setOpen] = useState(false);
+  const [customFrom, setCustomFrom] = useState(period.fromDate ?? '');
+  const [customTo, setCustomTo] = useState(period.toDate ?? '');
+
+  const applyCustom = () => {
+    if (customFrom && customTo && customFrom <= customTo) {
+      setCustomRange(customFrom, customTo);
+      setOpen(false);
+    }
+  };
+
+  const stateClass = period.isAllPeriods
+    ? 'period-control--all'
+    : period.isHistorical
+      ? 'period-control--historical'
+      : 'period-control--current';
+
+  return (
+    <div className={`period-control ${stateClass}`} dir="rtl">
+      <button
+        type="button"
+        className="period-control__summary"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-label="اختيار الفترة المالية"
+      >
+        <span className="material-symbols-outlined period-control__icon" aria-hidden>calendar_month</span>
+        <span className="period-control__label">{period.label}</span>
+        {period.isAllPeriods && <span className="period-control__badge period-control__badge--all">كل الفترات</span>}
+        {period.isHistorical && <span className="period-control__badge period-control__badge--hist">سنة سابقة</span>}
+        <span className="material-symbols-outlined period-control__chevron" aria-hidden>
+          {open ? 'expand_less' : 'expand_more'}
+        </span>
+      </button>
+
+      {open && (
+        <>
+          <div className="period-control__overlay" onClick={() => setOpen(false)} aria-hidden />
+          <div className="period-control__panel" role="dialog" aria-label="الفترة المالية">
+            <div className="period-control__section-title">فترات جاهزة</div>
+            <div className="period-control__presets">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  className={`period-control__preset ${period.preset === p.key ? 'is-active' : ''} ${
+                    p.key === 'all' ? 'period-control__preset--all' : ''
+                  }`}
+                  onClick={() => { setPreset(p.key); setOpen(false); }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="period-control__section-title">سنة محددة</div>
+            <div className="period-control__years">
+              {yearOptions().map((y) => (
+                <button
+                  key={y}
+                  type="button"
+                  className={`period-control__year ${period.preset === 'year' && period.selectedYear === y ? 'is-active' : ''}`}
+                  onClick={() => { setYear(y); setOpen(false); }}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+
+            <div className="period-control__section-title">نطاق مخصص</div>
+            <div className="period-control__custom">
+              <label className="period-control__field">
+                <span>من</span>
+                <input type="date" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} />
+              </label>
+              <label className="period-control__field">
+                <span>إلى</span>
+                <input type="date" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} />
+              </label>
+              <button
+                type="button"
+                className="period-control__apply"
+                disabled={!customFrom || !customTo || customFrom > customTo}
+                onClick={applyCustom}
+              >
+                تطبيق
+              </button>
+            </div>
+
+            {period.isAllPeriods && (
+              <div className="period-control__warning" role="note">
+                <span className="material-symbols-outlined" aria-hidden>warning</span>
+                عرض «كل الفترات» يشمل بيانات جميع السنوات مختلطةً.
+              </div>
+            )}
+            {period.isHistorical && !period.isAllPeriods && (
+              <div className="period-control__warning period-control__warning--hist" role="note">
+                <span className="material-symbols-outlined" aria-hidden>history</span>
+                تعرض سنة مالية سابقة ({period.toDate ? period.toDate.slice(0, 4) : ''}).
+              </div>
+            )}
+
+            <div className="period-control__footer">
+              <span className="period-control__range">
+                {period.isAllPeriods
+                  ? 'كل الفترات'
+                  : `${displayDate(period.fromDate)} – ${displayDate(period.toDate)}`}
+              </span>
+              <button type="button" className="period-control__reset" onClick={() => { resetToCurrentYear(); setOpen(false); }}>
+                <span className="material-symbols-outlined" aria-hidden>restart_alt</span>
+                السنة الحالية
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

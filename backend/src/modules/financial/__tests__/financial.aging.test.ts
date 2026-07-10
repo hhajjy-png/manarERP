@@ -16,34 +16,36 @@ const mockPrisma = prisma as unknown as {
   supplier: { findMany: ReturnType<typeof vi.fn> };
 };
 
-const TODAY = new Date('2025-06-01T00:00:00.000Z');
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+//
+// `paidAmount` كان لقطة للحاضر؛ الخدمة الآن تجمع الدفعات المفلترة بـ `date <= asOfDate`
+// في استعلام Prisma. المُثبّتات تعكس ذلك: `paidAmount` هنا هو ما دُفع **حتى تاريخ
+// التقرير**، ويُقدَّم للخدمة كصف دفعة واحد — تمامًا كما يفعل Prisma.
 
-function makeCustomer(id: number, invoices: { dueDate?: Date; issueDate?: Date; total: number; paidAmount: number }[]) {
+interface FixtureInvoice {
+  dueDate?: Date;
+  issueDate?: Date;
+  total: number;
+  /** المدفوع حتى تاريخ التقرير (ما بعده لا تُرجعه Prisma أصلًا). */
+  paidAmount: number;
+}
+
+function toInvoiceRow(inv: FixtureInvoice, i: number) {
   return {
-    id, code: `C00${id}`, name: `Customer ${id}`,
-    invoices: invoices.map((inv, i) => ({
-      id: i + 1,
-      dueDate:   inv.dueDate ?? null,
-      issueDate: inv.issueDate ?? new Date('2025-01-01'),
-      total:     inv.total,
-      paidAmount: inv.paidAmount,
-    })),
+    id: i + 1,
+    dueDate:   inv.dueDate ?? null,
+    issueDate: inv.issueDate ?? new Date('2025-01-01'),
+    total:     inv.total,
+    payments:  inv.paidAmount > 0 ? [{ amount: inv.paidAmount }] : [],
   };
 }
 
-function makeSupplier(id: number, invoices: { dueDate?: Date; issueDate?: Date; total: number; paidAmount: number }[]) {
-  return {
-    id, code: `S00${id}`, name: `Supplier ${id}`,
-    invoices: invoices.map((inv, i) => ({
-      id: i + 1,
-      dueDate:   inv.dueDate ?? null,
-      issueDate: inv.issueDate ?? new Date('2025-01-01'),
-      total:     inv.total,
-      paidAmount: inv.paidAmount,
-    })),
-  };
+function makeCustomer(id: number, invoices: FixtureInvoice[]) {
+  return { id, code: `C00${id}`, name: `Customer ${id}`, invoices: invoices.map(toInvoiceRow) };
+}
+
+function makeSupplier(id: number, invoices: FixtureInvoice[]) {
+  return { id, code: `S00${id}`, name: `Supplier ${id}`, invoices: invoices.map(toInvoiceRow) };
 }
 
 describe('FinancialService.getArAging', () => {
@@ -136,6 +138,54 @@ describe('FinancialService.getArAging', () => {
     expect(result.rows[0].id).toBe('AR-5');
     expect(result.rows[0].customerCode).toBe('C005');
     expect(result.rows[0].customerId).toBe(5);
+  });
+
+  // ─── Historical as-of correctness ───────────────────────────────────────────
+  // انحدارات تحرس الإصلاح: كان التقرير يستخدم `invoice.paidAmount` (لقطة للحاضر)
+  // فيطرح تحصيلات وقعت بعد تاريخ التقرير، ويستبعد الفواتير التي سُدِّدت لاحقًا.
+
+  it('bounds invoice selection and payments by asOfDate in the Prisma query', async () => {
+    mockPrisma.customer.findMany.mockResolvedValue([]);
+    await service.getArAging({ asOfDate: '2024-12-31' });
+
+    const arg = mockPrisma.customer.findMany.mock.calls[0][0];
+    const invoiceRel = arg.select.invoices;
+
+    // نهاية اليوم لا منتصف الليل — وإلا سقط كل ما جرى في 31/12 نفسه.
+    const asOf: Date = invoiceRel.where.issueDate.lte;
+    expect(asOf.getFullYear()).toBe(2024);
+    expect(asOf.getMonth()).toBe(11);
+    expect(asOf.getDate()).toBe(31);
+    expect(asOf.getHours()).toBe(23);
+
+    // الدفعات محدودة بنفس التاريخ داخل الاستعلام لا في الذاكرة.
+    expect(invoiceRel.select.payments.where.date.lte).toEqual(asOf);
+
+    // الحالة الحالية ليست معيارًا تاريخيًا — فقط الملغاة تُستبعد.
+    expect(invoiceRel.where.status).toEqual({ not: 'CANCELLED' });
+    expect(invoiceRel.select).not.toHaveProperty('paidAmount');
+  });
+
+  it('ignores a 2025 collection when aging as of 31/12/2024', async () => {
+    // فاتورة 2024 بـ 1000، دُفع منها 400 حتى 31/12/2024 (Prisma لا تُرجع دفعة 2025).
+    const customer = makeCustomer(1, [
+      { issueDate: new Date('2024-12-15'), dueDate: new Date('2024-12-20'), total: 1000, paidAmount: 400 },
+    ]);
+    mockPrisma.customer.findMany.mockResolvedValue([customer]);
+    const result = await service.getArAging({ asOfDate: '2024-12-31' });
+
+    // 600 لا 0 — ولو استُخدم paidAmount الحالي (1000 بعد سداد 2025) لكان الصف صفرًا.
+    expect(result.rows[0].total).toBe(600);
+  });
+
+  it('still counts an invoice that was fully paid after asOfDate', async () => {
+    // سُدِّدت بالكامل في 2025 ⇒ status='PAID' اليوم، لكنها كانت قائمة في 31/12/2024.
+    const customer = makeCustomer(1, [
+      { issueDate: new Date('2024-11-01'), dueDate: new Date('2024-11-30'), total: 750, paidAmount: 0 },
+    ]);
+    mockPrisma.customer.findMany.mockResolvedValue([customer]);
+    const result = await service.getArAging({ asOfDate: '2024-12-31' });
+    expect(result.rows[0].total).toBe(750);
   });
 });
 

@@ -4,6 +4,10 @@ import { prisma } from '../../config/database';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { validateJournalBalance } from './accounting.utils';
+import { generateEntryNumber } from '../../shared/services/gl.service';
+import { assertPeriodOpen } from '../../shared/services/periodLock.service';
+import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
+import { AppError } from '../../core/errors/AppError';
 
 export interface AccountInput {
   code: string;
@@ -21,27 +25,19 @@ export interface JournalEntryInput {
   referenceType?: string;
   referenceId?: number;
   lines: { accountId: number; description?: string; debit?: number; credit?: number }[];
+  /** سبب الإدخال المتأخر — يُسجَّل في Audit Log عند قيد يخصّ سنة سابقة. */
+  lateEntryReason?: string;
 }
 
 // ─── Accounts ────────────────────────────────────────────────────────────────
 
 export class AccountingService {
   /**
-   * يولّد رقم قيد يومية فريدًا بصيغة JRN-<السنة>-<تسلسل>.
-   * يستخدم أقصى رقم موجود (MAX على entryNumber) بدلاً من COUNT
-   * لتجنّب التعارض عند حذف قيود وسطية وإعادة الترحيل.
+   * يولّد رقم قيد يومية فريدًا بصيغة JRN-<سنة القيد>-<تسلسل>.
+   * غلاف حول `generateEntryNumber` في `gl.service` — مصدر واحد لصيغة الترقيم.
    */
-  async generateJournalNumber(): Promise<string> {
-    const year = new Date().getFullYear();
-    const prefix = `JRN-${year}-`;
-    const last = await prisma.journalEntry.findFirst({
-      where: { entryNumber: { startsWith: prefix } },
-      orderBy: { id: 'desc' },
-      select: { entryNumber: true },
-    });
-    const lastSeq = last ? parseInt(last.entryNumber.slice(prefix.length), 10) : 0;
-    const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
-    return `${prefix}${String(nextSeq).padStart(5, '0')}`;
+  async generateJournalNumber(entryDate: Date = new Date()): Promise<string> {
+    return generateEntryNumber(prisma as unknown as Prisma.TransactionClient, entryDate);
   }
 
   // Chart of Accounts
@@ -114,23 +110,16 @@ export class AccountingService {
   async createJournalEntry(input: JournalEntryInput, req: Request) {
     validateJournalBalance(input.lines);
 
+    const entryDate = input.date ?? new Date();
+
     const entry = await prisma.$transaction(async (tx) => {
-      // توليد الرقم داخل المعاملة لضمان عدم التعارض مع قيود متزامنة
-      const year = new Date().getFullYear();
-      const prefix = `JRN-${year}-`;
-      const last = await tx.journalEntry.findFirst({
-        where: { entryNumber: { startsWith: prefix } },
-        orderBy: { id: 'desc' },
-        select: { entryNumber: true },
-      });
-      const lastSeq = last ? parseInt(last.entryNumber.slice(prefix.length), 10) : 0;
-      const nextSeq = isNaN(lastSeq) ? 1 : lastSeq + 1;
-      const entryNumber = `${prefix}${String(nextSeq).padStart(5, '0')}`;
+      await assertPeriodOpen(tx, entryDate, { operation: 'إنشاء قيد يدوي', module: 'accounting' });
 
       return tx.journalEntry.create({
         data: {
-          entryNumber,
-          date: input.date ?? new Date(),
+          // داخل المعاملة لضمان عدم التعارض مع قيود متزامنة
+          entryNumber: await generateEntryNumber(tx, entryDate),
+          date: entryDate,
           description: input.description,
           referenceType: input.referenceType ?? 'MANUAL',
           referenceId: input.referenceId ?? null,
@@ -149,6 +138,15 @@ export class AccountingService {
     });
 
     await recordAudit({ req, action: 'CREATE', module: 'accounting', entityId: entry.id, newValue: input });
+    await recordHistoricalEntry({
+      req,
+      module: 'accounting',
+      recordType: 'قيد يومية يدوي',
+      entityId: entry.id,
+      documentNumber: entry.entryNumber,
+      transactionDate: entry.date,
+      lateEntryReason: input.lateEntryReason,
+    });
     return entry;
   }
 
@@ -156,9 +154,77 @@ export class AccountingService {
     const entry = await prisma.journalEntry.findUniqueOrThrow({ where: { id } });
     if (entry.status === 'CANCELLED') throw new Error('القيد ملغى بالفعل');
     if (entry.referenceType !== 'MANUAL') throw new Error('لا يمكن إلغاء قيد مرتبط بمستند');
+    await assertPeriodOpen(prisma, entry.date, { operation: 'إلغاء قيد', module: 'accounting', entityId: id });
     const updated = await prisma.journalEntry.update({ where: { id }, data: { status: 'CANCELLED' } });
     await recordAudit({ req, action: 'UPDATE', module: 'accounting', entityId: id, oldValue: entry, newValue: { status: 'CANCELLED' } });
     return updated;
+  }
+
+  /**
+   * عكس قيد يدوي بقيد مضاد.
+   *
+   * التاريخ الافتراضي هو تاريخ القيد الأصلي، لا تاريخ اليوم: عكس قيد 2024
+   * يجب ألا يظهر في 2026 بصمت. المستخدم يستطيع تمرير `reversalDate` صراحةً
+   * عندما يكون التصحيح حدثًا محاسبيًا في فترة لاحقة.
+   */
+  async reverseJournalEntry(id: number, input: { reversalDate?: Date; reason?: string }, req: Request) {
+    const original = await prisma.journalEntry.findUniqueOrThrow({
+      where: { id },
+      include: { lines: true },
+    });
+
+    // يُعكَس فقط قيد يدوي مُرحَّل: لا قيد ملغى، ولا قيد عكسي، ولا قيد مرتبط بمستند
+    // (الفاتورة/المصروف/الراتب تُعكَس عبر مسار وحدتها لتبقى الحالة والأرصدة متسقة).
+    if (original.status !== 'POSTED') throw AppError.badRequest('لا يمكن عكس قيد غير مرحَّل');
+    if (original.referenceType === 'MANUAL_REVERSAL') throw AppError.badRequest('لا يمكن عكس قيد عكسي');
+    if (original.referenceType && original.referenceType !== 'MANUAL') {
+      throw AppError.badRequest('لا يمكن عكس قيد مرتبط بمستند — استخدم إلغاء المستند نفسه');
+    }
+
+    // حارس التكرار (مستوى الكود، قبل قيد @@unique([referenceType, referenceId]) في DB).
+    const existingReversal = await prisma.journalEntry.findFirst({
+      where: { referenceType: 'MANUAL_REVERSAL', referenceId: original.id },
+      select: { id: true, entryNumber: true },
+    });
+    if (existingReversal) {
+      throw AppError.badRequest(`القيد معكوس بالفعل بالقيد ${existingReversal.entryNumber}`);
+    }
+
+    const reversalDate = input.reversalDate ?? original.date;
+
+    const reversal = await prisma.$transaction(async (tx) => {
+      await assertPeriodOpen(tx, reversalDate, { operation: 'عكس قيد', module: 'accounting', entityId: id });
+
+      return tx.journalEntry.create({
+        data: {
+          entryNumber: await generateEntryNumber(tx, reversalDate),
+          date: reversalDate,
+          description: `عكس قيد ${original.entryNumber}${input.reason ? ` — ${input.reason}` : ''}`,
+          referenceType: 'MANUAL_REVERSAL',
+          referenceId: original.id,
+          status: 'POSTED',
+          lines: {
+            create: original.lines.map((l) => ({
+              accountId: l.accountId,
+              description: `عكس: ${l.description ?? ''}`.trim(),
+              debit: l.credit,
+              credit: l.debit,
+            })),
+          },
+        },
+        include: { lines: { include: { account: true } } },
+      });
+    });
+
+    await recordAudit({
+      req,
+      action: 'REVERSE',
+      module: 'accounting',
+      entityId: id,
+      oldValue: { entryNumber: original.entryNumber, date: original.date },
+      newValue: { entryNumber: reversal.entryNumber, date: reversal.date, reason: input.reason ?? null },
+    });
+    return reversal;
   }
 
   // Payments list (from existing Payment model tied to invoices)
@@ -207,7 +273,13 @@ export class AccountingService {
     // Auto-generated referenceType values excluded from GL informational totals:
     const AUTO_REFERENCE_TYPES = ['EXPENSE', 'EXPENSE_REVERSAL', 'INVOICE', 'PAYMENT'];
 
-    const [invoiceRevenue, expenseTotal, paymentTotal, journalTotals] = await Promise.all([
+    const manualJournalWhere: Prisma.JournalEntryWhereInput = {
+      status: 'POSTED',
+      referenceType: { notIn: AUTO_REFERENCE_TYPES },
+      ...(hasDateFilter ? { date: dateFilter } : {}),
+    };
+
+    const [invoiceRevenue, expenseTotal, paymentTotal, journalTotals, journalEntryCount] = await Promise.all([
       prisma.invoice.aggregate({
         where: { direction: 'SALES', status: { not: 'CANCELLED' }, ...(hasDateFilter ? { issueDate: dateFilter } : {}) },
         _sum: { total: true, paidAmount: true },
@@ -223,25 +295,25 @@ export class AccountingService {
       // Exclude auto-generated GL entries (EXPENSE / EXPENSE_REVERSAL / INVOICE / PAYMENT)
       // — those events are already counted via their canonical tables above.
       // Only MANUAL (and other custom) entries appear here.
-      prisma.journalEntry.findMany({
-        where: {
-          status: 'POSTED',
-          referenceType: { notIn: AUTO_REFERENCE_TYPES },
-          ...(hasDateFilter ? { date: dateFilter } : {}),
-        },
-        include: { lines: { select: { debit: true, credit: true } } },
+      //
+      // تجميع في قاعدة البيانات على مستوى السطر بدل جلب كل القيود وأسطرها ثم reduce:
+      // نفس الشرط عبر علاقة journalEntry، وناتج واحد (_sum debit/credit).
+      prisma.journalEntryLine.aggregate({
+        where: { journalEntry: manualJournalWhere },
+        _sum: { debit: true, credit: true },
       }),
+      prisma.journalEntry.count({ where: manualJournalWhere }),
     ]);
 
-    const totalJournalDebit = journalTotals.reduce((s, e) => s + e.lines.reduce((ls, l) => ls + l.debit, 0), 0);
-    const totalJournalCredit = journalTotals.reduce((s, e) => s + e.lines.reduce((ls, l) => ls + l.credit, 0), 0);
+    const totalJournalDebit = journalTotals._sum.debit ?? 0;
+    const totalJournalCredit = journalTotals._sum.credit ?? 0;
 
     return {
       totalRevenue: invoiceRevenue._sum.total ?? 0,
       totalCollected: invoiceRevenue._sum.paidAmount ?? 0,
       totalExpenses: expenseTotal._sum.amount ?? 0,
       totalPaymentsRecorded: paymentTotal._sum.amount ?? 0,
-      journalEntryCount: journalTotals.length,
+      journalEntryCount,
       totalJournalDebit,
       totalJournalCredit,
       netProfit: (invoiceRevenue._sum.paidAmount ?? 0) - (expenseTotal._sum.amount ?? 0),

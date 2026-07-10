@@ -421,5 +421,32 @@ export async function executeImport(
     duplicateRows: duplicateCount,
     backupId: backup.id,
     backupFileName: backup.fileName,
+    accountingPosted: false,
+    accountingNotice: buildAccountingNotice(entityType, imported),
   };
+}
+
+/**
+ * أنواع الكيانات التي لها أثر محاسبي لكن الاستيراد لا يُرحّلها.
+ * `payroll` تُستورد بحالة DRAFT و`expenses` بحالة PENDING، والفواتير تُنشأ بلا قيد.
+ */
+const UNPOSTED_FINANCIAL_ENTITIES: Partial<Record<EntityType, string>> = {
+  invoices: 'الفواتير',
+  expenses: 'المصروفات',
+  payroll: 'كشوف الرواتب',
+};
+
+/**
+ * يبني تحذيرًا صريحًا بأن الدفعة **غير مُرحَّلة محاسبيًا**.
+ * الصمت هنا تضليل: المستخدم يرى «تم استيراد 240 فاتورة» فيفترض أنها دخلت الدفاتر.
+ */
+function buildAccountingNotice(entityType: EntityType, imported: number): string | null {
+  const label = UNPOSTED_FINANCIAL_ENTITIES[entityType];
+  if (!label || imported === 0) return null;
+  return (
+    `غير مُرحَّل محاسبيًا: تم إنشاء ${imported} من ${label} كسجلات فقط. ` +
+    'لم تُنشأ قيود يومية، ولن تظهر هذه البيانات في قائمة الدخل أو ميزان المراجعة ' +
+    'أو دفتر الأستاذ حتى تُعتمد كل وثيقة عبر مسار الاعتماد المعتاد. ' +
+    'الاستيراد ليس عملية إقفال مالي.'
+  );
 }

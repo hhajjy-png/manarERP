@@ -2,6 +2,7 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { errorHandler, notFoundHandler } from './core/errors/errorHandler';
+import { requestContextMiddleware } from './core/context/requestContext';
 
 // راوترات الوحدات
 import authRoutes from './modules/auth/auth.routes';
@@ -78,6 +79,10 @@ export function createApp(): Application {
   }));
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
+
+  // يفتح سياق الطلب (AsyncLocalStorage) قبل كل الراوترات.
+  // حارس قفل الفترة داخل طبقة GL يقرأ الفاعل من هنا دون تمريره عبر التواقيع.
+  app.use(requestContextMiddleware);
 
   // فحص صحة الخدمة
   app.get('/api/health', (_req: Request, res: Response) => {

@@ -89,6 +89,8 @@ export const ACTIONS = [
   'configure',   // Update integration/module configuration
   'run',         // Execute an integration or automated task
   'reconcile',   // Reconcile bank statement transactions
+  'overrideLock', // Post/amend inside a locked accounting period (always audited)
+  'reverse',      // Post a contra entry that reverses a manual journal entry
 ] as const;
 export type ActionName = (typeof ACTIONS)[number];
 

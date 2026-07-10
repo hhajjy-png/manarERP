@@ -5,6 +5,8 @@ import { downloadBlob } from '../utils/exportUtils';
 import { exportReportAsPdf } from '../utils/pdfExport';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { useAuth } from '../stores/authStore';
+import { useFinancialPeriod } from '../context/FinancialPeriodContext';
+import PeriodControl from '../components/period/PeriodControl';
 import { useT } from '../lib/i18n';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
 import { formatReportCell } from '../lib/format';
@@ -210,13 +212,15 @@ export default function Reports() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { t } = useT();
+  const { period } = useFinancialPeriod();
   const canView   = hasPermission('reports.read');
   const canExport = hasPermission('reports.export');
 
   // Filter state — preserved exactly
   const [selected, setSelected]       = useState<string>('invoices');
-  const [from, setFrom]               = useState('');
-  const [to, setTo]                   = useState('');
+  // تبدأ من الفترة العالمية (السنة حتى اليوم افتراضيًا) بدل all-time الصامت.
+  const [from, setFrom]               = useState(period.fromDate ?? '');
+  const [to, setTo]                   = useState(period.toDate ?? '');
   const [customerId, setCustomerId]   = useState('');
   const [employeeId, setEmployeeId]   = useState('');
   const [status, setStatus]           = useState('');
@@ -258,15 +262,16 @@ export default function Reports() {
       .catch(() => {});
   }, []);
 
-  // Reset filters when type changes
+  // إعادة الفلاتر عند تغيّر نوع التقرير أو الفترة العالمية — from/to يتبعان الفترة
+  // (السنة حتى اليوم افتراضيًا) بدل إفراغهما إلى all-time.
   useEffect(() => {
-    setFrom(''); setTo('');
+    setFrom(period.fromDate ?? ''); setTo(period.toDate ?? '');
     setCustomerId(''); setEmployeeId('');
     setStatus(''); setDirection('');
     setBillingMonth(''); setBillingYear('');
     setCompany(''); setWorkType('');
     setPreview(null); setError('');
-  }, [selected]);
+  }, [selected, period.fromDate, period.toDate, period.isAllPeriods]);
 
   // Close export dropdown on outside click
   useEffect(() => {
@@ -321,6 +326,9 @@ export default function Reports() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, from, to, customerId, employeeId, status, direction, billingMonth, billingYear, company, workType, canView]);
 
+  // وسم الفترة لاسم الملف: نطاق from/to، أو «كل الفترات» عند غيابهما.
+  const exportPeriod = { from: from || undefined, to: to || undefined, allPeriods: !from && !to };
+
   async function downloadExcel() {
     if (!canExport) return;
     setExcelBusy(true);
@@ -330,7 +338,7 @@ export default function Reports() {
         params: { ...buildParams(), format: 'excel' },
         responseType: 'blob',
       });
-      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.Report, identifier: selected, extension: 'xlsx' }));
+      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.Report, identifier: selected, period: exportPeriod, extension: 'xlsx' }));
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -346,7 +354,7 @@ export default function Reports() {
       await exportReportAsPdf(
         `/reports/${selected}/export`,
         { ...buildParams(), format: 'html' },
-        generateExportFileName({ reportName: ReportName.Report, identifier: selected, extension: 'pdf' }),
+        generateExportFileName({ reportName: ReportName.Report, identifier: selected, period: exportPeriod, extension: 'pdf' }),
       );
     } catch (e) {
       setError(errorMessage(e));
@@ -645,7 +653,20 @@ export default function Reports() {
             {favorites.length > 0 && <IdChip icon="star" tone="orange">{favorites.length} مفضل</IdChip>}
           </>
         }
+        aside={<PeriodControl />}
       />
+
+      {/* تنبيه قائمة الدخل عند كل الفترات: يجب ألا تعمل P&L على all-time بصمت. */}
+      {selected === 'profit-loss' && (!from || !to) && (
+        <div className="alert" role="note" style={{
+          display: 'flex', alignItems: 'center', gap: 8, margin: '12px 0',
+          padding: '10px 14px', borderRadius: 12,
+          background: 'var(--amber-light)', color: 'var(--amber)', fontWeight: 600, fontSize: 13,
+        }}>
+          <span className="material-symbols-outlined" aria-hidden>warning</span>
+          قائمة الدخل ستشمل كل السنوات — اختر فترة محددة من محدّد الفترة للحصول على نتيجة دقيقة.
+        </div>
+      )}
 
       {/* ── Summary hero + report statistics ── */}
       <div className="rcx-metrics">

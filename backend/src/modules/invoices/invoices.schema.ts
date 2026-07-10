@@ -34,6 +34,8 @@ export const createInvoiceSchema = z.object({
       notes: z.string().optional(),
       paymentMethod: glPaymentMethod, // GL routing for PURCHASE invoices
       items: z.array(itemSchema).min(1, 'يجب إضافة بند واحد على الأقل'),
+      // سبب الإدخال المتأخر لفاتورة تخصّ سنة سابقة — يُسجَّل في Audit Log فقط.
+      lateEntryReason: z.string().trim().max(500).optional(),
     })
     .refine(
       (d) => {
@@ -46,7 +48,11 @@ export const createInvoiceSchema = z.object({
         message: 'فاتورة المبيعات تتطلب عميلًا، فاتورة المشتريات تتطلب مورّدًا، والاتجاه المخصص يتطلب أحدهما',
         path: ['customerId'],
       },
-    ),
+    )
+    .refine((d) => !d.dueDate || !d.issueDate || d.dueDate >= d.issueDate, {
+      message: 'تاريخ الاستحقاق لا يمكن أن يسبق تاريخ الإصدار',
+      path: ['dueDate'],
+    }),
 });
 
 export const updateInvoiceSchema = z.object({
@@ -67,6 +73,9 @@ export const updateInvoiceSchema = z.object({
     notes: z.string().optional(),
     paymentMethod: glPaymentMethod, // GL routing for PURCHASE invoices
     items: z.array(itemSchema).min(1).optional(),
+  }).refine((d) => !d.dueDate || !d.issueDate || d.dueDate >= d.issueDate, {
+    message: 'تاريخ الاستحقاق لا يمكن أن يسبق تاريخ الإصدار',
+    path: ['dueDate'],
   }),
 });
 
@@ -77,6 +86,7 @@ export const addPaymentSchema = z.object({
     date: z.coerce.date().optional(), // تاريخ التحصيل — official collection date; falls back to now() when omitted
     reference: z.string().optional(),
     notes: z.string().optional(),
+    lateEntryReason: z.string().trim().max(500).optional(),
   }),
 });
 

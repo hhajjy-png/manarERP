@@ -4,6 +4,7 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { endOfDay } from '../../core/utils/dateWindows';
 import {
   CreateChequeInput,
   UpdateChequeInput,
@@ -33,12 +34,19 @@ const DEFAULT_GEOMETRY: CalibrationGeometryInput = {
 };
 
 export class ChequesService {
-  async stats() {
+  /** إحصاء الشيكات — يتبع نفس نطاق الفترة (chequeDate) الذي تتبعه القائمة. */
+  async stats(query: { from?: string; to?: string } = {}) {
+    const dateWhere: Prisma.ChequeWhereInput = {};
+    if (query.from || query.to) {
+      dateWhere.chequeDate = {};
+      if (query.from) dateWhere.chequeDate.gte = new Date(`${query.from.slice(0, 10)}T00:00:00`);
+      if (query.to) dateWhere.chequeDate.lte = endOfDay(new Date(`${query.to.slice(0, 10)}T00:00:00`));
+    }
     const [total, draft, printed, cancelled] = await Promise.all([
-      prisma.cheque.count(),
-      prisma.cheque.count({ where: { status: 'DRAFT' } }),
-      prisma.cheque.count({ where: { status: 'PRINTED' } }),
-      prisma.cheque.count({ where: { status: 'CANCELLED' } }),
+      prisma.cheque.count({ where: dateWhere }),
+      prisma.cheque.count({ where: { ...dateWhere, status: 'DRAFT' } }),
+      prisma.cheque.count({ where: { ...dateWhere, status: 'PRINTED' } }),
+      prisma.cheque.count({ where: { ...dateWhere, status: 'CANCELLED' } }),
     ]);
     return { total, draft, printed, cancelled };
   }
@@ -50,8 +58,8 @@ export class ChequesService {
     if (query.status) where.status = query.status;
     if (query.from || query.to) {
       where.chequeDate = {};
-      if (query.from) where.chequeDate.gte = new Date(query.from);
-      if (query.to) where.chequeDate.lte = new Date(query.to);
+      if (query.from) where.chequeDate.gte = new Date(`${query.from.slice(0, 10)}T00:00:00`);
+      if (query.to) where.chequeDate.lte = endOfDay(new Date(`${query.to.slice(0, 10)}T00:00:00`));
     }
     if (query.search) {
       where.OR = [

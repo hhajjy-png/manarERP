@@ -11,6 +11,22 @@ import { transactionsService } from '../transactions/transactions.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
 import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySettledPurchase } from './invoices.calc';
 import { postInvoiceToGL, postPurchaseInvoiceToGL, postPaymentToGL, postPurchasePaymentToGL, reversePurchasePaymentGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
+import { assertPeriodOpen } from '../../shared/services/periodLock.service';
+import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
+import { toLocalDateString, endOfDay } from '../../core/utils/dateWindows';
+
+/**
+ * يطبّق نطاق الفترة على تاريخ إصدار الفاتورة داخل شرط Prisma.
+ * `to` يُمدَّد لنهاية اليوم حتى تُدرَج فواتير آخر يوم في الفترة.
+ * لا يفعل شيئًا عند غياب الحدّين (كل الفترات).
+ */
+function applyIssueDateRange(where: Prisma.InvoiceWhereInput, from?: string, to?: string): void {
+  if (!from && !to) return;
+  const range: Prisma.DateTimeFilter = {};
+  if (from) range.gte = new Date(`${from.slice(0, 10)}T00:00:00`);
+  if (to) range.lte = endOfDay(new Date(`${to.slice(0, 10)}T00:00:00`));
+  where.issueDate = range;
+}
 
 /**
  * يُميّز خطأ P2002 على حقل entryNumber في journal_entries عن بقية أخطاء التعارض.
@@ -113,6 +129,8 @@ export class InvoicesService {
       contractId?: string;
       billingMonth?: string;
       billingYear?: string;
+      from?: string;
+      to?: string;
     },
   ) {
     const pagination = getPagination(query);
@@ -125,6 +143,7 @@ export class InvoicesService {
     if (query.contractId) where.contractId = Number(query.contractId);
     if (query.billingMonth) where.billingMonth = Number(query.billingMonth);
     if (query.billingYear) where.billingYear = Number(query.billingYear);
+    applyIssueDateRange(where, query.from, query.to);
     if (query.search) {
       where.OR = [
         { invoiceNumber: { contains: query.search } },
@@ -137,7 +156,8 @@ export class InvoicesService {
         where,
         skip: pagination.skip,
         take: pagination.take,
-        orderBy: { issueDate: 'desc' },
+        // مفتاح ثانوي id لثبات الترقيم عند تساوي تواريخ الإصدار.
+        orderBy: [{ issueDate: 'desc' }, { id: 'desc' }],
         include: { customer: { select: { name: true } }, supplier: { select: { name: true } } },
       }),
       prisma.invoice.count({ where }),
@@ -152,6 +172,8 @@ export class InvoicesService {
     billingMonth?: string;
     billingYear?: string;
     search?: string;
+    from?: string;
+    to?: string;
   }) {
     const where: Prisma.InvoiceWhereInput = {};
     if (query.direction) where.direction = query.direction;
@@ -159,6 +181,7 @@ export class InvoicesService {
     if (query.customerId) where.customerId = Number(query.customerId);
     if (query.billingMonth) where.billingMonth = Number(query.billingMonth);
     if (query.billingYear) where.billingYear = Number(query.billingYear);
+    applyIssueDateRange(where, query.from, query.to);
     if (query.search) {
       where.OR = [
         { invoiceNumber: { contains: query.search } },
@@ -327,6 +350,15 @@ export class InvoicesService {
         });
 
         await recordAudit({ req, action: 'CREATE', module: 'invoices', entityId: invoice.id, newValue: { invoiceNumber: invoice.invoiceNumber, total } });
+        await recordHistoricalEntry({
+          req,
+          module: 'invoices',
+          recordType: input.direction === 'PURCHASE' ? 'فاتورة مشتريات' : 'فاتورة مبيعات',
+          entityId: invoice.id,
+          documentNumber: invoice.invoiceNumber,
+          transactionDate: invoice.issueDate,
+          lateEntryReason: input.lateEntryReason,
+        });
         return invoice;
       } catch (err) {
         if (attempt < 2 && isEntryNumberCollision(err)) {
@@ -358,6 +390,12 @@ export class InvoicesService {
       if (directionChanged || customerChanged || supplierChanged) {
         throw AppError.badRequest('لا يمكن تغيير الجهة أو الاتجاه بعد تسجيل مدفوعات على الفاتورة');
       }
+    }
+
+    // التعديل يُعيد ترحيل القيد (repostInvoiceToGL) — احرس الفترة القديمة والجديدة معًا.
+    await assertPeriodOpen(prisma, current.issueDate, { operation: 'تعديل فاتورة', module: 'invoices', entityId: id });
+    if (input.issueDate && input.issueDate.getTime() !== current.issueDate.getTime()) {
+      await assertPeriodOpen(prisma, input.issueDate, { operation: 'نقل فاتورة إلى فترة مقفلة', module: 'invoices', entityId: id });
     }
 
     const items = input.items ?? current.items.map((i) => ({
@@ -464,6 +502,11 @@ export class InvoicesService {
     // automatically by the DB as the system-entry audit stamp.
     const collectionDate = input.date ?? new Date();
 
+    // تحصيل قبل تاريخ إصدار الفاتورة: حالة مشروعة (دفعة مقدّمة أو إدخال تاريخي)،
+    // لكنها قد تكون خطأ مطبعيًا في التاريخ. لا نرفض — نسجّل تحذيرًا في التدقيق
+    // ونُعيده في نتيجة العملية. (لا واجهة إقرار حاليًا، فالرفض كان مسارًا مسدودًا.)
+    const paymentBeforeIssue = !!invoice.issueDate && collectionDate < invoice.issueDate;
+
     const updated = await prisma.$transaction(async (tx) => {
       const payment = await tx.payment.create({
         data: {
@@ -488,7 +531,29 @@ export class InvoicesService {
     });
 
     await recordAudit({ req, action: 'PAYMENT', module: 'invoices', entityId: id, newValue: { amount: input.amount, method: input.method, collectionDate } });
-    return updated;
+    await recordHistoricalEntry({
+      req,
+      module: 'payments',
+      recordType: 'تحصيل/سداد',
+      entityId: id,
+      documentNumber: invoice.invoiceNumber,
+      transactionDate: collectionDate,
+      lateEntryReason: input.lateEntryReason,
+    });
+
+    const warnings: string[] = [];
+    if (paymentBeforeIssue) {
+      const msg =
+        `تاريخ التحصيل (${toLocalDateString(collectionDate)}) يسبق تاريخ إصدار الفاتورة ` +
+        `(${toLocalDateString(invoice.issueDate!)}). سُجِّل كدفعة مقدّمة — تأكّد من صحة التاريخ.`;
+      warnings.push(msg);
+      await recordAudit({
+        req, action: 'PAYMENT_BEFORE_ISSUE', module: 'invoices', entityId: id,
+        newValue: { collectionDate, issueDate: invoice.issueDate, amount: input.amount },
+      });
+    }
+
+    return { ...updated, warnings };
   }
 
   /** إلغاء الفاتورة (يحفظ السجل) مع عكس القيد. */
@@ -630,6 +695,9 @@ export class InvoicesService {
     const invoice = await prisma.invoice.findUnique({ where: { id }, include: { payments: true } });
     if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');
     if (invoice.payments.length > 0) throw AppError.conflict('لا يمكن حذف فاتورة عليها تحصيلات');
+
+    // الحذف يمسح قيود اليومية مباشرةً (لا يمرّ بـ createBalancedJournal) — الحارس صريح هنا.
+    await assertPeriodOpen(prisma, invoice.issueDate, { operation: 'حذف فاتورة', module: 'invoices', entityId: id });
 
     await prisma.$transaction(async (tx) => {
       await transactionsService.clearByReference('INVOICE', id, tx);

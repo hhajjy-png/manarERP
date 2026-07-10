@@ -17,6 +17,8 @@ router.delete('/accounts/:id', requirePermission('transactions.delete'), asyncHa
 router.get('/journal', requirePermission('transactions.read'), asyncHandler(accountingController.listJournalEntries));
 router.post('/journal', requirePermission('transactions.create'), asyncHandler(accountingController.createJournalEntry));
 router.patch('/journal/:id/cancel', requirePermission('transactions.update'), asyncHandler(accountingController.cancelJournalEntry));
+// عكس قيد يدوي: صلاحية مالية مخصّصة، أضيق من تعديل القيود العام.
+router.post('/journal/:id/reverse', requirePermission('journal.reverse'), asyncHandler(accountingController.reverseJournalEntry));
 
 // المدفوعات
 router.get('/payments', requirePermission('transactions.read'), asyncHandler(accountingController.listPayments));

@@ -82,6 +82,20 @@ describe('FinancialService.getGlStatement', () => {
     expect(result.summary.closingBalance).toBe(350);
   });
 
+  // Regression (same spread-collision as getGlReport): the lines query must keep
+  // both bounds, else it lists every line ≤ toDate (ignoring fromDate) on top of
+  // an opening that already counted the pre-period rows — double-counting them.
+  it('lines query carries BOTH gte and lte under one date key', async () => {
+    mockPrisma.account.findUniqueOrThrow.mockResolvedValue(makeAccount());
+    mockPrisma.journalEntryLine.aggregate.mockResolvedValue(zeroAgg());
+    mockPrisma.journalEntryLine.findMany.mockResolvedValue([]);
+
+    await service.getGlStatement(1, { fromDate: '2025-01-01', toDate: '2025-12-31' });
+
+    const linesWhere = mockPrisma.journalEntryLine.findMany.mock.calls[0][0].where.journalEntry.date;
+    expect(linesWhere).toEqual({ gte: new Date('2025-01-01'), lte: new Date('2025-12-31') });
+  });
+
   it('throws when account not found (findUniqueOrThrow behaviour)', async () => {
     mockPrisma.account.findUniqueOrThrow.mockRejectedValue(new Error('Account not found'));
     await expect(service.getGlStatement(999, {})).rejects.toThrow('Account not found');
@@ -139,6 +153,21 @@ describe('FinancialService.getGlReport', () => {
     expect(result.accounts[0].closingBalance).toBe(1150); // 1000 + 200 - 50
     expect(result.accounts[0].rows).toHaveLength(0);      // lines not fetched
     expect(result.pagination.total).toBe(2);
+  });
+
+  // Regression: two separate `...{ date: {...} }` spreads collided — the `lte`
+  // spread overwrote the `gte` spread — so the period movement silently summed
+  // ALL history ≤ toDate. Broke every bounded GL Report with a nonzero opening
+  // (i.e. any historical year after the first). Guard: both bounds must survive.
+  it('period movement query carries BOTH gte and lte under one date key', async () => {
+    mockPrisma.account.findMany.mockResolvedValue([makeAccount(1)]);
+    mockPrisma.journalEntryLine.groupBy.mockResolvedValue([]);
+
+    await service.getGlReport({ fromDate: '2025-01-01', toDate: '2025-12-31', page: 1, pageSize: 10 });
+
+    // Call 0 = opening (lt fromDate); call 1 = period movement (gte..lte).
+    const periodWhere = mockPrisma.journalEntryLine.groupBy.mock.calls[1][0].where.journalEntry.date;
+    expect(periodWhere).toEqual({ gte: new Date('2025-01-01'), lte: new Date('2025-12-31') });
   });
 
   it('applies server-side pagination on account list', async () => {

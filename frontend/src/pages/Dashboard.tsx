@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { money } from '../config/modules';
 import { useAuth } from '../stores/authStore';
+import { useFinancialPeriod } from '../context/FinancialPeriodContext';
+import PeriodControl from '../components/period/PeriodControl';
+import { periodToRangeParams } from '../lib/financialPeriod';
 import { useT } from '../lib/i18n';
 import PrivateAmount from '../components/PrivateAmount';
 import { MetricCard, SectionCard, StatusChip, Button } from '../components/explorer/ExplorerKit';
@@ -71,6 +74,7 @@ function GeneralDashboardContent() {
   const { user, hasPermission } = useAuth();
   const navigate = useNavigate();
   const { t } = useT();
+  const { period } = useFinancialPeriod();
 
   const [initialLoading, setInitialLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -78,8 +82,8 @@ function GeneralDashboardContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshAt, setRefreshAt] = useState<Date | null>(null);
 
-  // Executive Command Center data (existing endpoints; isolated failure — never breaks the board)
-  const commandData = useDashboardCommandData(refreshKey);
+  // Executive Command Center data — مؤشرات الحركة/الذمم تتبع الفترة العالمية.
+  const commandData = useDashboardCommandData(refreshKey, periodToRangeParams(period));
 
   // ── State slices populated from /dashboard/executive ─────────────────────
   const [exec, setExec] = useState<ApiAny>(null);
@@ -226,7 +230,6 @@ function GeneralDashboardContent() {
   );
 
   // Display-only period label for the executive header (no control, no new data).
-  const periodLabel = new Date().toLocaleDateString('ar', { month: 'long', year: 'numeric' });
 
   return (
     // xpl-scope makes ExplorerKit tokens (--xpl-*) + kit component styles resolve for the
@@ -240,10 +243,7 @@ function GeneralDashboardContent() {
           <p className="db-exec-head-sub">نظرة عامة على أداء الشركة</p>
         </div>
         <div className="db-exec-head-actions">
-          <span className="db-exec-period">
-            <span className="material-symbols-outlined" aria-hidden="true">calendar_month</span>
-            {periodLabel}
-          </span>
+          <PeriodControl />
           {!initialLoading && refreshAt && (
             <span className="db-exec-updated">آخر تحديث {refreshAt.toLocaleTimeString('ar')}</span>
           )}

@@ -4,7 +4,8 @@ import { ok, created } from '../../core/utils/response';
 
 export const chequesController = {
   async stats(req: Request, res: Response) {
-    ok(res, await chequesService.stats());
+    const { from, to } = req.query as { from?: string; to?: string };
+    ok(res, await chequesService.stats({ from, to }));
   },
   async list(req: Request, res: Response) {
     ok(res, await chequesService.list(req.query));

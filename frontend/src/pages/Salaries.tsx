@@ -33,6 +33,7 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Salaries.css';
+import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 type EmployeeOption = { id: number; fullName: string; code: string };
@@ -105,6 +106,8 @@ export default function Salaries() {
   const [viewing, setViewing] = useState<PayrollRow | null>(null);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [payMethod, setPayMethod] = useState('BANK');
+  // تاريخ الصرف الاختياري — عند تركه فارغًا يرحّل الـ backend بآخر يوم في شهر الراتب.
+  const [payDate, setPayDate] = useState('');
 
   const [adjustPayrollId, setAdjustPayrollId] = useState('');
   const [adjustType, setAdjustType] = useState<'ALLOWANCE' | 'DEDUCTION'>('ALLOWANCE');
@@ -539,7 +542,13 @@ export default function Salaries() {
                       <option value="ACCOUNTS_PAYABLE">{t('opt.payment.accounts_payable')}</option>
                     </select>
                   </div>
-                  <Button variant="primary" icon="paid" block busy={busy} onClick={() => { const id = viewing.id; const m = payMethod; setViewing(null); runAction(() => api.patch(`/payroll/${id}/pay`, { paymentMethod: m })); }}>
+                  <div className="xpl-field">
+                    <label>تاريخ الصرف <span style={{ color: 'var(--xpl-muted)', fontWeight: 400 }}>(اختياري — يُرحَّل بآخر يوم في شهر الراتب عند تركه فارغًا)</span></label>
+                    <input className="xpl-input" type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} aria-label="تاريخ الصرف" />
+                    {/* يعرض التنبيه التاريخي لتاريخ الصرف الصريح، أو لآخر يوم في شهر/سنة الراتب. */}
+                    <HistoricalDateNotice date={payDate || new Date(viewing.year, viewing.month, 0).toISOString().slice(0, 10)} />
+                  </div>
+                  <Button variant="primary" icon="paid" block busy={busy} onClick={() => { const id = viewing.id; const m = payMethod; const pd = payDate || undefined; setViewing(null); runAction(() => api.patch(`/payroll/${id}/pay`, { paymentMethod: m, paymentDate: pd })); }}>
                     {t('page.salaries.pay_btn')}
                   </Button>
                 </div>

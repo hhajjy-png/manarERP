@@ -1,3 +1,5 @@
+import { parseImportDate } from '../../../shared/utils/dateParse';
+
 const VALID_STATUSES = ['ACTIVE', 'EXPIRED', 'RENEWING', 'SUSPENDED'] as const;
 type ContractStatus = (typeof VALID_STATUSES)[number];
 
@@ -28,16 +30,8 @@ function str(row: Record<string, unknown>, key: string): string | undefined {
   return String(v).trim();
 }
 
-function parseDate(v: unknown): Date | null {
-  if (v == null || v === '') return null;
-  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
-  if (typeof v === 'number') {
-    const d = new Date(Math.round((v - 25569) * 86400 * 1000));
-    return isNaN(d.getTime()) ? null : d;
-  }
-  const d = new Date(String(v).trim());
-  return isNaN(d.getTime()) ? null : d;
-}
+/** DD/MM/YYYY وISO والرقم التسلسلي — انظر `shared/utils/dateParse`. */
+const parseDate = (v: unknown): Date | null => parseImportDate(v);
 
 function parseNonNegativeFloat(v: unknown): number | null {
   if (v == null || v === '') return null;

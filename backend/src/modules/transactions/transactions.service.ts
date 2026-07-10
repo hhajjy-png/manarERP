@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { assertPeriodOpen } from '../../shared/services/periodLock.service';
+import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 
 /** عميل Prisma سواء الأساسي أو داخل معاملة ($transaction). */
 type Client = Prisma.TransactionClient | typeof prisma;
@@ -19,9 +21,12 @@ export interface JournalEntryInput {
 }
 
 export class TransactionsService {
-  /** توليد رقم قيد فريد بصيغة JE-<السنة>-<تسلسل>. */
-  async generateEntryNumber(client: Client = prisma): Promise<string> {
-    const year = new Date().getFullYear();
+  /**
+   * توليد رقم قيد فريد بصيغة JE-<سنة القيد>-<تسلسل>.
+   * السنة من تاريخ القيد لا من ساعة الجهاز — انظر `gl.service.generateEntryNumber`.
+   */
+  async generateEntryNumber(client: Client = prisma, entryDate: Date = new Date()): Promise<string> {
+    const year = entryDate.getFullYear();
     const prefix = `JE-${year}-`;
     // استخدام id desc بدلاً من COUNT لتجنّب التعارض عند وجود فجوات في التسلسل (حذف أو استيراد).
     const last = await client.transaction.findFirst({
@@ -35,14 +40,23 @@ export class TransactionsService {
   }
 
   /**
-   * تسجيل قيد محاسبي. يقبل عميل معاملة ليُستخدم ذرّيًا مع الفواتير/المصروفات.
+   * تسجيل قيد محاسبي في الدفتر القديم (Transaction).
+   * يقبل عميل معاملة ليُستخدم ذرّيًا مع الفواتير/المصروفات.
+   *
+   * نقطة حراسة قفل الفترة للدفتر القديم — نظير `createBalancedJournal` في GL.
    */
   async postEntry(input: JournalEntryInput, client: Client = prisma) {
-    const entryNumber = await this.generateEntryNumber(client);
+    const date = input.date ?? new Date();
+    await assertPeriodOpen(client, date, {
+      operation: 'ترحيل قيد محاسبي',
+      module: 'transactions',
+      entityId: input.referenceId != null ? `${input.referenceType}#${input.referenceId}` : undefined,
+    });
+    const entryNumber = await this.generateEntryNumber(client, date);
     return client.transaction.create({
       data: {
         entryNumber,
-        date: input.date ?? new Date(),
+        date,
         description: input.description,
         type: input.type,
         debit: input.debit ?? 0,
@@ -114,9 +128,18 @@ export class TransactionsService {
   }
 
   /** قيد يدوي من واجهة المحاسبة. */
-  async createManual(input: JournalEntryInput, req: Request) {
+  async createManual(input: JournalEntryInput & { lateEntryReason?: string }, req: Request) {
     const entry = await this.postEntry({ ...input, referenceType: 'MANUAL' });
     await recordAudit({ req, action: 'CREATE', module: 'transactions', entityId: entry.id, newValue: input });
+    await recordHistoricalEntry({
+      req,
+      module: 'transactions',
+      recordType: 'قيد يدوي',
+      entityId: entry.id,
+      documentNumber: entry.entryNumber,
+      transactionDate: entry.date,
+      lateEntryReason: input.lateEntryReason,
+    });
     return entry;
   }
 }

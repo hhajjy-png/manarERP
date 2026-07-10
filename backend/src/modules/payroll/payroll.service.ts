@@ -5,7 +5,8 @@ import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { transactionsService } from '../transactions/transactions.service';
-import { postPayrollToGL } from './payroll.accounting';
+import { postPayrollToGL, resolvePayrollPostingDate } from './payroll.accounting';
+import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 import {
   ManualPayrollLineInput,
   PayPayrollInput,
@@ -481,9 +482,12 @@ export class PayrollService {
       const existingPosting = await tx.transaction.findFirst({ where: { referenceType: 'PAYROLL', referenceId: id } });
       if (existingPosting) throw AppError.badRequest('يوجد قيد محاسبي مرتبط بهذا الكشف مسبقا');
 
+      // الدفتران يشتركان في نفس تاريخ الترحيل — تاريخ الصرف أو آخر يوم في شهر الراتب.
+      const postingDate = resolvePayrollPostingDate(payroll, input.paymentDate);
+
       const entry = await transactionsService.postEntry(
         {
-          date: new Date(),
+          date: postingDate,
           description: `Payroll ${payroll.employee.fullName} - ${payroll.month}/${payroll.year}`,
           type: 'EXPENSE',
           debit: payroll.netSalary,
@@ -508,7 +512,11 @@ export class PayrollService {
         where: { id },
         data: {
           status: 'PAID',
-          paidAt: new Date(),
+          // ثلاثة تواريخ مختلفة عمدًا، ولا يجوز خلطها:
+          //   paidAt              → متى صُرف الراتب فعلًا (تاريخ العملية).
+          //   postingDate         → أي فترة محاسبية يخصّها (آخر يوم في شهر الراتب).
+          //   accountingPostedAt  → متى أُدخل السجل في النظام (طابع تدقيق).
+          paidAt: input.paymentDate ?? new Date(),
           paidById: userId,
           paymentMethod: input.paymentMethod,
           accountingPostedAt: new Date(),
@@ -517,11 +525,21 @@ export class PayrollService {
       });
 
       // النظام المزدوج: ترحيل قيد يومية GL بعد تحديث paymentMethod
-      await postPayrollToGL(tx, id);
+      await postPayrollToGL(tx, id, input.paymentDate);
 
       return paidRecord;
     });
     await recordAudit({ req, action: 'PAYMENT', module: 'payroll', entityId: id, newValue: { net: updated.netSalary } });
+    await recordHistoricalEntry({
+      req,
+      module: 'payroll',
+      recordType: 'كشف راتب',
+      entityId: id,
+      documentNumber: `${updated.month}/${updated.year}`,
+      // التاريخ المحاسبي، لا وقت الإدخال — هو ما يحدّد أن السجل «تاريخي».
+      transactionDate: resolvePayrollPostingDate(updated, input.paymentDate),
+      lateEntryReason: input.lateEntryReason,
+    });
     return updated;
   }
 

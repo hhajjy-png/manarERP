@@ -26,6 +26,12 @@ const journalEntrySchema = z.object({
   referenceType: z.string().optional(),
   referenceId: z.number().int().positive().optional(),
   lines: z.array(journalLineSchema).min(2, 'القيد يجب أن يحتوي على سطرين على الأقل'),
+  lateEntryReason: z.string().trim().max(500).optional(),
+});
+
+const reverseJournalSchema = z.object({
+  reversalDate: z.coerce.date().optional(),
+  reason: z.string().trim().max(500).optional(),
 });
 
 export const accountingController = {
@@ -58,6 +64,11 @@ export const accountingController = {
   async cancelJournalEntry(req: Request, res: Response) {
     const id = Number(req.params.id);
     ok(res, await accountingService.cancelJournalEntry(id, req));
+  },
+  async reverseJournalEntry(req: Request, res: Response) {
+    const id = Number(req.params.id);
+    const input = reverseJournalSchema.parse(req.body ?? {});
+    created(res, await accountingService.reverseJournalEntry(id, input, req), 'تم إنشاء القيد العكسي');
   },
 
   // Payments

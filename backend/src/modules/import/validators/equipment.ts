@@ -1,4 +1,5 @@
 import { ENUMS } from '../../../config/constants';
+import { parseImportDate } from '../../../shared/utils/dateParse';
 
 export interface NormalizedEquipment {
   code: string;
@@ -26,15 +27,8 @@ function str(row: Record<string, unknown>, key: string): string | undefined {
   return String(v).trim();
 }
 
-function parseDate(v: unknown): Date | undefined {
-  if (v == null || v === '') return undefined;
-  if (typeof v === 'number') {
-    const d = new Date(Math.round((v - 25569) * 86400 * 1000));
-    return isNaN(d.getTime()) ? undefined : d;
-  }
-  const d = new Date(String(v));
-  return isNaN(d.getTime()) ? undefined : d;
-}
+/** DD/MM/YYYY وISO والرقم التسلسلي — انظر `shared/utils/dateParse`. */
+const parseDate = (v: unknown): Date | undefined => parseImportDate(v) ?? undefined;
 
 function parseNumber(v: unknown): number {
   if (v == null || v === '') return 0;

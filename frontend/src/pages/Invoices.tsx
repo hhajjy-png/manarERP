@@ -4,6 +4,11 @@ import { api, errorMessage } from '../api/client';
 import { useHighlight } from '../hooks/useHighlight';
 import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
 import { useAuth } from '../stores/authStore';
+import { useFinancialPeriod } from '../context/FinancialPeriodContext';
+import PeriodControl from '../components/period/PeriodControl';
+import { periodToReportParams } from '../lib/financialPeriod';
+import { deriveInvoiceYearFromIssueDate } from '../lib/invoiceNumber';
+import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
@@ -106,6 +111,7 @@ export default function Invoices() {
   const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
   const { t } = useT();
   const navigate = useNavigate();
+  const { period } = useFinancialPeriod();
   const toast = useToast();
   useHighlight();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -153,6 +159,8 @@ export default function Invoices() {
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError('');
+    // الفترة العالمية على تاريخ الإصدار (from/to)؛ القائمة والإحصاء يتشاركانها.
+    const periodRange = periodToReportParams(period);
     const filterParams = {
       search: search || undefined,
       status: statusFilter || undefined,
@@ -160,6 +168,8 @@ export default function Invoices() {
       customerId: customerFilter || undefined,
       billingMonth: monthFilter || undefined,
       billingYear: yearFilter || undefined,
+      from: periodRange.from,
+      to: periodRange.to,
     };
     try {
       const res = await api.get('/invoices', { params: { page, pageSize: 15, ...filterParams } });
@@ -173,7 +183,7 @@ export default function Invoices() {
     api.get('/invoices/stats', { params: filterParams })
       .then((r) => setStats(r.data.data ?? null))
       .catch(() => { /* stats are non-critical */ });
-  }, [page, search, statusFilter, directionFilter, customerFilter, monthFilter, yearFilter]);
+  }, [page, search, statusFilter, directionFilter, customerFilter, monthFilter, yearFilter, period.fromDate, period.toDate, period.isAllPeriods]);
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -261,14 +271,13 @@ export default function Invoices() {
             {stats.totalRemaining > 0 && <IdChip icon="pending_actions" tone="orange">{money(stats.totalRemaining)}</IdChip>}
           </>
         ) : undefined}
-        aside={hasPermission('invoices.create')
-          ? (
-            <>
-              <Button variant="secondary" icon="bolt" onClick={() => setFastEntry(true)}>إدخال فواتير سريع</Button>
-              <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('page.invoices.create')}</Button>
-            </>
-          )
-          : undefined}
+        aside={(
+          <>
+            <PeriodControl />
+            {hasPermission('invoices.create') && <Button variant="secondary" icon="bolt" onClick={() => setFastEntry(true)}>إدخال فواتير سريع</Button>}
+            {hasPermission('invoices.create') && <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('page.invoices.create')}</Button>}
+          </>
+        )}
       />
 
       {loadError && (
@@ -355,7 +364,11 @@ export default function Invoices() {
             icon="receipt_long"
             tone="neutral"
             title={t('empty.invoices')}
-            message={isFiltered ? 'لا توجد فواتير مطابقة للفلاتر.' : undefined}
+            message={
+              !period.isAllPeriods
+                ? `لا توجد فواتير ضمن ${period.label.replace('الفترة المعروضة: ', 'الفترة ')}.`
+                : isFiltered ? 'لا توجد فواتير مطابقة للفلاتر.' : undefined
+            }
             action={isFiltered
               ? <Button variant="secondary" icon="restart_alt" onClick={resetFilters}>{t('action.reset_filters')}</Button>
               : hasPermission('invoices.create')
@@ -781,10 +794,13 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
                 const d = new Date(v);
                 setBillingMonth(d.getMonth() + 1);
                 setBillingYear(d.getFullYear());
+                // سنة رقم الفاتورة تتبع تاريخ الإصدار (فاتورة 2024 → MN-INV-2024-…).
+                setInvoiceYear(String(deriveInvoiceYearFromIssueDate(v, d.getFullYear())));
               }
             }}
             title="تاريخ الفاتورة"
           />
+          <HistoricalDateNotice date={issueDate} />
         </div>
         <div className="field">
           <label>تاريخ التسليم</label>
@@ -1204,6 +1220,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
               setBillingYear(d.getFullYear());
             }
           }} title="تاريخ الفاتورة" />
+          <HistoricalDateNotice date={issueDate} />
         </div>
         <div className="field">
           <label>تاريخ التسليم</label>
@@ -1594,6 +1611,7 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
         <div className="field">
           <label>{t('field.collection_date')} *</label>
           <input type="date" value={collectionDate} onChange={(e) => setCollectionDate(e.target.value)} aria-label={t('field.collection_date')} />
+          <HistoricalDateNotice date={collectionDate} />
         </div>
       </div>
       {method === 'CHEQUE' && (

@@ -28,20 +28,22 @@ function setupDefaults() {
   mp.contract.findMany.mockResolvedValue([]);
   mp.invoice.groupBy.mockResolvedValue([]);
   mp.expense.groupBy.mockResolvedValue([]);
-  // invoice.findMany called 3×: outstandingInvoices, trendInvoices, recentActivity
+  // invoice.findMany now called 2×: outstandingInvoices, recentActivity
+  // (الاتجاه الشهري صار عبر aggregate لكل شهر لا عبر findMany مقتطع).
   mp.invoice.findMany.mockResolvedValue([]);
   mp.expense.findMany.mockResolvedValue([]);
   mp.payment.findMany.mockResolvedValue([]);
-  // invoice.aggregate called 2× (thisMonth, lastMonth revenue)
+  // aggregate يُستدعى الآن للاتجاه (لكل شهر) + مقارنات الشهر — لذا المُثبِّتات
+  // افتراضيًا صفر، والاختبارات التي تهمّها القيمة تستخدم mockImplementation واعيًا بالـ where.
   mp.invoice.aggregate.mockResolvedValue(emptyRevAgg());
-  // expense.aggregate called 2× (thisMonth, lastMonth expenses)
   mp.expense.aggregate.mockResolvedValue(emptyAmtAgg());
-  // payment.aggregate called 2× (thisMonth, lastMonth collections)
   mp.payment.aggregate.mockResolvedValue(emptyAmtAgg());
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  // resetAllMocks (لا clearAllMocks) لتفريغ طابور mockResolvedValueOnce:
+  // بعد أن صار findMany يُستدعى مرتين لا ثلاثًا، أي Once فائض كان يتسرّب للاختبار التالي.
+  vi.resetAllMocks();
   setupDefaults();
 });
 
@@ -113,8 +115,7 @@ describe('executiveIntelligenceV2', () => {
         makeInv(6, 'و', 1500, 95),
         makeInv(7, 'ز', 500,  95),
       ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     const result = await dashboardService.executiveIntelligenceV2();
 
@@ -138,8 +139,7 @@ describe('executiveIntelligenceV2', () => {
         // fully paid → excluded
         { customerId: 4, total: 4000, paidAmount: 4000, issueDate: daysAgo(10), dueDate: daysFromNow(20), contractId: null, customer: { id: 4, name: 'د' } },
       ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     const result = await dashboardService.executiveIntelligenceV2();
 
@@ -150,21 +150,28 @@ describe('executiveIntelligenceV2', () => {
 
   it('monthly trends cover year-to-date (Jan → current month) in chronological order', async () => {
     const now = new Date();
+    // نافذة الشهر الحالي كما يبنيها ytdMonths (بداية الشهر). الاتجاه صار aggregate لكل شهر،
+    // فنُرجع القيمة للشهر الحالي فقط (مطابقة على where.issueDate.gte / date.gte).
+    const inCurrentMonth = (gte?: Date) =>
+      !!gte && gte.getFullYear() === now.getFullYear() && gte.getMonth() === now.getMonth();
 
-    // Invoice in current month
-    mp.invoice.findMany
-      .mockResolvedValueOnce([]) // outstandingInvoices
-      .mockResolvedValueOnce([
-        { issueDate: new Date(now.getFullYear(), now.getMonth(), 5), total: 5000 },
-      ])
-      .mockResolvedValueOnce([]); // recentActivity
-
-    mp.expense.findMany.mockResolvedValue([
-      { date: new Date(now.getFullYear(), now.getMonth(), 10), amount: 2000 },
-    ]);
-    mp.payment.findMany.mockResolvedValue([
-      { date: new Date(now.getFullYear(), now.getMonth(), 15), amount: 4000 },
-    ]);
+    // aggregate واعٍ بالـ where: نافذة الاتجاه لها gte+lte؛ نُميّزها عن مقارنة الشهر
+    // (thisMonthRev لها gte فقط بلا lte). للاتجاه: قيمة للشهر الحالي، صفر لغيره.
+    mp.invoice.aggregate.mockImplementation((arg: any) => {
+      const iss = arg?.where?.issueDate;
+      if (iss?.lte && inCurrentMonth(iss?.gte)) return Promise.resolve({ _sum: { total: 5000 } });
+      return Promise.resolve({ _sum: { total: null } });
+    });
+    mp.expense.aggregate.mockImplementation((arg: any) => {
+      const d = arg?.where?.date;
+      if (d?.lte && inCurrentMonth(d?.gte)) return Promise.resolve({ _sum: { amount: 2000 } });
+      return Promise.resolve({ _sum: { amount: null } });
+    });
+    mp.payment.aggregate.mockImplementation((arg: any) => {
+      const d = arg?.where?.date;
+      if (d?.lte && inCurrentMonth(d?.gte)) return Promise.resolve({ _sum: { amount: 4000 } });
+      return Promise.resolve({ _sum: { amount: null } });
+    });
 
     const result = await dashboardService.executiveIntelligenceV2();
 
@@ -186,10 +193,13 @@ describe('executiveIntelligenceV2', () => {
   });
 
   it('KPI comparison with zero previous month returns null (not NaN)', async () => {
-    // lastMonth revenue = 0, thisMonth revenue = 5000
-    mp.invoice.aggregate
-      .mockResolvedValueOnce({ _sum: { total: 5000 } }) // thisMonth
-      .mockResolvedValueOnce({ _sum: { total: null } }); // lastMonth = 0
+    // thisMonthRev لها issueDate.gte فقط (بلا lte) — نميّزها عن نوافذ الاتجاه (gte+lte).
+    // thisMonth = 5000، وكل ما عداه (lastMonth + كل أشهر الاتجاه) = 0.
+    mp.invoice.aggregate.mockImplementation((arg: any) => {
+      const iss = arg?.where?.issueDate;
+      if (iss?.gte && !iss?.lte) return Promise.resolve({ _sum: { total: 5000 } }); // thisMonth
+      return Promise.resolve({ _sum: { total: null } });
+    });
 
     const result = await dashboardService.executiveIntelligenceV2();
 
@@ -212,7 +222,6 @@ describe('executiveIntelligenceV2', () => {
     ]);
     mp.invoice.findMany
       .mockResolvedValueOnce([]) // outstandingInvoices
-      .mockResolvedValueOnce([]) // trendInvoices
       .mockResolvedValueOnce([{ contractId: 1 }]); // recentActivity → C1 has recent activity
 
     const result = await dashboardService.executiveIntelligenceV2();
@@ -236,8 +245,7 @@ describe('executiveIntelligenceV2', () => {
     ]);
     mp.invoice.findMany
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]); // no recent activity
+      .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany) // no recent activity
 
     const result = await dashboardService.executiveIntelligenceV2();
     const h = result.contractHealth;
@@ -254,8 +262,7 @@ describe('executiveIntelligenceV2', () => {
         { customerId: 1, total: 5000, paidAmount: 0, issueDate: daysAgo(100),
           contractId: null, customer: { id: 1, name: 'شركة الفجر' } },
       ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     const result = await dashboardService.executiveIntelligenceV2();
     const overdueRec = result.recommendations.find(r => r.id.startsWith('rec-overdue'));
@@ -276,8 +283,7 @@ describe('executiveIntelligenceV2', () => {
     ]);
     mp.invoice.findMany
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ contractId: 3 }]);
+      .mockResolvedValueOnce([{ contractId: 3 }]); // recentActivity
 
     const result = await dashboardService.executiveIntelligenceV2();
     const lossRec = result.recommendations.find(r => r.id.startsWith('rec-loss'));
@@ -333,8 +339,7 @@ describe('executiveIntelligenceV2', () => {
         { customerId: 4, total: 800,  paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(61), contractId: null, customer: { id: 4, name: 'د' } }, // boundary 61 → bucket90
         { customerId: 5, total: 1600, paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(90), contractId: null, customer: { id: 5, name: 'ه' } }, // boundary 90 → bucket90
       ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     const result = await dashboardService.executiveIntelligenceV2();
 
@@ -351,8 +356,7 @@ describe('executiveIntelligenceV2', () => {
         // dueDate in future (≤30) → also in the 30-day bucket
         { customerId: 2, total: 500,  paidAmount: 0, issueDate: daysAgo(5),   dueDate: daysFromNow(25), contractId: null, customer: { id: 2, name: 'ب' } },
       ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     const result = await dashboardService.executiveIntelligenceV2();
 
@@ -369,8 +373,7 @@ describe('executiveIntelligenceV2', () => {
         { customerId: 2, total: 1000, paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(40), contractId: null, customer: { id: 2, name: 'ب' } }, // bucket60
         { customerId: 3, total: 1000, paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(80), contractId: null, customer: { id: 3, name: 'ج' } }, // bucket90
       ])
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     const result = await dashboardService.executiveIntelligenceV2();
     const { expectedCollections30: e30, expectedCollections60: e60, expectedCollections90: e90 } = result.forecast;
@@ -385,9 +388,11 @@ describe('executiveIntelligenceV2', () => {
   // ── Blocker 3: denominator zero → null, JSON-safe payload ─────────────────
 
   it('denominator zero in KPI — null in payload, no NaN/Infinity in JSON', async () => {
-    mp.invoice.aggregate
-      .mockResolvedValueOnce({ _sum: { total: 8000 } }) // thisMonth revenue
-      .mockResolvedValueOnce({ _sum: { total: null } }); // lastMonth = 0
+    mp.invoice.aggregate.mockImplementation((arg: any) => {
+      const iss = arg?.where?.issueDate;
+      if (iss?.gte && !iss?.lte) return Promise.resolve({ _sum: { total: 8000 } }); // thisMonth
+      return Promise.resolve({ _sum: { total: null } });
+    });
 
     const result = await dashboardService.executiveIntelligenceV2();
 
@@ -409,8 +414,7 @@ describe('executiveIntelligenceV2', () => {
 
     mp.invoice.findMany
       .mockResolvedValueOnce(overdueCustomers)
-      .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     // Trigger collections drop recommendation
     mp.payment.aggregate

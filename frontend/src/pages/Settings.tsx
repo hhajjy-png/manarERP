@@ -21,6 +21,7 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Settings.css';
+import PeriodLockSettings from '../components/period/PeriodLockSettings';
 
 interface SigSlot {
   id: string;
@@ -558,6 +559,11 @@ export default function Settings() {
             </div>
           </div>
         </SectionCard>
+      </div>
+
+      {/* ── 1b · Financial period lock ── */}
+      <div id="sec-period-lock" className="settings-section">
+        <PeriodLockSettings />
       </div>
 
       {/* ── 2 · Backup settings ── */}

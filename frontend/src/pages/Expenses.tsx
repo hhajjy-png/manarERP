@@ -10,6 +10,10 @@ import ConfirmModal from '../components/ConfirmModal';
 import { money, moneyParts, dateText } from '../config/modules';
 import { KpiStat, KpiStatGrid } from '../components/KpiStat';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { useFinancialPeriod } from '../context/FinancialPeriodContext';
+import PeriodControl from '../components/period/PeriodControl';
+import { periodToReportParams } from '../lib/financialPeriod';
+import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
 import { downloadBlob } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
@@ -56,6 +60,7 @@ const CATEGORY_OPTIONS: SearchableOption[] = EXPENSE_CATEGORY_SELECT_OPTIONS;
 export default function Expenses() {
   const { hasPermission, user } = useAuth();
   const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
+  const { period } = useFinancialPeriod();
   const { t } = useT();
   const toast = useToast();
   useHighlight();
@@ -90,6 +95,9 @@ export default function Expenses() {
 
   const isFiltered = !!(search || statusFilter || categoryFilter || supplierFilter || monthFilter || yearFilter);
 
+  // الفترة العالمية تُطبَّق على تاريخ المصروف (from/to). الفلاتر المحلية (شهر/سنة الفوترة)
+  // تبقى بُعدًا مستقلًا يزيد التضييق. القائمة والإحصاء يتشاركان نفس المعاملات.
+  const periodRange = periodToReportParams(period);
   const filterParams = {
     search: search || undefined,
     status: statusFilter || undefined,
@@ -97,6 +105,8 @@ export default function Expenses() {
     supplierId: supplierFilter || undefined,
     billingMonth: monthFilter || undefined,
     billingYear: yearFilter || undefined,
+    from: periodRange.from,
+    to: periodRange.to,
   };
 
   function resetFilters() {
@@ -117,8 +127,9 @@ export default function Expenses() {
     api.get('/expenses/stats', { params: filterParams })
       .then((r) => setStats(r.data.data ?? null))
       .catch(() => {});
+  // الفترة العالمية ضمن التبعيات ليُعاد الجلب عند تغييرها.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, search, statusFilter, categoryFilter, supplierFilter, monthFilter, yearFilter]);
+  }, [page, search, statusFilter, categoryFilter, supplierFilter, monthFilter, yearFilter, period.fromDate, period.toDate, period.isAllPeriods]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -205,12 +216,13 @@ export default function Expenses() {
             {stats.pendingCount > 0 && <IdChip icon="schedule" tone="orange">{money(stats.pendingTotal)} معلّق</IdChip>}
           </>
         ) : undefined}
-        aside={canCreate ? (
+        aside={(
           <>
-            <Button variant="secondary" icon="calendar_month" onClick={() => setFastEntry(true)}>تسجيل مصروفات شهرية</Button>
-            <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('mod.expenses.create')}</Button>
+            <PeriodControl />
+            {canCreate && <Button variant="secondary" icon="calendar_month" onClick={() => setFastEntry(true)}>تسجيل مصروفات شهرية</Button>}
+            {canCreate && <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('mod.expenses.create')}</Button>}
           </>
-        ) : undefined}
+        )}
       />
 
       {/* ── KPI hero + secondary ── */}
@@ -335,7 +347,11 @@ export default function Expenses() {
           <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
         ) : rows.length === 0 ? (
           <EmptyState icon="receipt_long" tone="neutral" title={t('empty.expenses')}
-            message={isFiltered ? 'لا توجد مصروفات مطابقة للفلاتر.' : 'لم تتم إضافة أي مصروف بعد.'}
+            message={
+              !period.isAllPeriods
+                ? `لا توجد مصروفات ضمن ${period.label.replace('الفترة المعروضة: ', 'الفترة ')}.`
+                : isFiltered ? 'لا توجد مصروفات مطابقة للفلاتر.' : 'لم تتم إضافة أي مصروف بعد.'
+            }
             action={isFiltered ? <Button variant="secondary" icon="restart_alt" onClick={resetFilters}>{t('action.reset_filters')}</Button>
               : canCreate ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('mod.expenses.create')}</Button> : undefined} />
         ) : (
@@ -605,6 +621,7 @@ function ExpenseForm({
             setDate(v);
             if (v) { const d = new Date(v); setBillingMonth(d.getMonth() + 1); setBillingYear(d.getFullYear()); }
           }} aria-label="التاريخ" />
+          <HistoricalDateNotice date={date} />
         </div>
       </DialogSection>
 

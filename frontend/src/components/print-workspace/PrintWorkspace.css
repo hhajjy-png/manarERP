@@ -432,14 +432,27 @@
 
 /* ── Print: collapse the shell, print only the document ──────────────── */
 @media print {
-  /* Structural wrappers vanish from layout so the wrapped document prints
-     exactly as if the workspace were never here. */
+  /* قاعدة صفحة بيضاء: تمنع أي سطح من الثيم الداكن (--bg/--surface-2) من تأطير
+     المستند المُصدَّر — الحارس الأخير حين لا يُجمّع Electron printToPDF عناصر
+     display:contents بشكل موثوق. */
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  /* الأغلفة البنيوية تختفي من التخطيط ليُطبع المستند كأن مساحة العمل لم تكن.
+     `display: contents` هو المثالي؛ وإعلانات «لا تطلي شيئًا» أدناه احتياط لحالة
+     Electron التي تُبقي الصندوق في التخطيط — وإلا لأطّره الثيم الداكن بإطار قاتم. */
   .print-workspace,
   .print-workspace .pw-body,
   .print-workspace .pw-preview,
   .print-workspace .pw-canvas,
   .print-workspace .pw-scaler {
     display: contents !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    padding: 0 !important;
   }
 
   /* Zoom transform and screen-only paper shadow must not reach the page. */

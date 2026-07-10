@@ -32,6 +32,7 @@ vi.mock('../lib/i18n', () => ({ useT: () => ({ t: (k: string) => k }) }));
 import { api } from '../api/client';
 import { printCurrentView } from '../utils/print';
 import Cheques from '../pages/Cheques';
+import { FinancialPeriodProvider } from '../context/FinancialPeriodContext';
 
 function mockApi() {
   vi.mocked(api.get).mockImplementation((url: string) => {
@@ -45,7 +46,12 @@ function mockApi() {
 }
 
 function renderPage() {
-  return render(<MemoryRouter><Cheques /></MemoryRouter>);
+  // صفحة الشيكات تقرأ الفترة المالية العامة، فتُغلَّف بمزوّدها كما في التطبيق.
+  return render(
+    <FinancialPeriodProvider>
+      <MemoryRouter><Cheques /></MemoryRouter>
+    </FinancialPeriodProvider>,
+  );
 }
 
 /** Open the calibration overlay via its real toolbar button. */

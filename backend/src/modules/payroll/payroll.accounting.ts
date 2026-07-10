@@ -22,6 +22,25 @@ const PAYROLL_PAYMENT_LABELS: Record<string, string> = {
 };
 
 /**
+ * تاريخ قيد الرواتب المحاسبي.
+ *
+ * السياسة (نقطة واحدة يستخدمها الدفتران — GL والدفتر القديم):
+ *   1. تاريخ صرف صريح من المستخدم إن وُجد.
+ *   2. وإلا: آخر يوم في شهر وسنة الراتب.
+ * لا يُستخدم تاريخ اليوم أبدًا كتاريخ محاسبي — راتب ديسمبر 2024 يُرحَّل
+ * في 31/12/2024 مهما كان تاريخ إدخاله.
+ *
+ * `new Date(year, month, 0)` — اليوم صفر من الشهر التالي = آخر يوم في الشهر
+ * الحالي، لأن `month` هنا 1-based بينما مُنشئ Date يتوقع 0-based.
+ */
+export function resolvePayrollPostingDate(
+  payroll: { month: number; year: number },
+  explicitPaymentDate?: Date | null,
+): Date {
+  return explicitPaymentDate ?? new Date(payroll.year, payroll.month, 0);
+}
+
+/**
  * ترحيل قيد يومية مزدوج لكشف راتب مصروف (PAID):
  *   Dr مصروف الرواتب (5100) — مدين (إجمالي صافي الراتب)
  *   Cr يُحدَّد بناءً على paymentMethod:
@@ -33,7 +52,11 @@ const PAYROLL_PAYMENT_LABELS: Record<string, string> = {
  * محمي من الترحيل المزدوج عبر (referenceType='PAYROLL', referenceId).
  * القيد الفريد على مستوى قاعدة البيانات: @@unique([referenceType, referenceId]).
  */
-export async function postPayrollToGL(tx: Tx, payrollId: number): Promise<void> {
+export async function postPayrollToGL(
+  tx: Tx,
+  payrollId: number,
+  paymentDate?: Date | null,
+): Promise<void> {
   const payroll = await tx.payroll.findUnique({
     where: { id: payrollId },
     include: { employee: { select: { fullName: true } } },
@@ -66,7 +89,7 @@ export async function postPayrollToGL(tx: Tx, payrollId: number): Promise<void> 
   const empName = payroll.employee.fullName;
 
   await createBalancedJournal(tx, {
-    date: new Date(),
+    date: resolvePayrollPostingDate(payroll, paymentDate),
     description: `راتب ${empName} — ${monthLabel}`,
     referenceType: GL_REFERENCE_TYPES.PAYROLL,
     referenceId: payrollId,

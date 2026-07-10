@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from './stores/authStore';
+import { FinancialPeriodProvider } from './context/FinancialPeriodContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import PageLoader from './components/PageLoader';
@@ -65,6 +66,9 @@ export default function App() {
 
   return (
     <HashRouter>
+      {/* الفترة المالية العامة — سياق على مستوى التطبيق ينجو من التنقّل بين الصفحات
+          (خارج Suspense) ويعاد تهيئته إلى السنة الحالية عند إعادة التشغيل. */}
+      <FinancialPeriodProvider>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -135,6 +139,7 @@ export default function App() {
           </Route>
         </Routes>
       </Suspense>
+      </FinancialPeriodProvider>
     </HashRouter>
   );
 }

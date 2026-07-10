@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { AppError } from '../../core/errors/AppError';
+import { assertPeriodOpen } from './periodLock.service';
 
 type Tx = Prisma.TransactionClient;
 
@@ -13,12 +14,15 @@ export type JournalLine = {
 export const round3 = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000;
 
 /**
- * توليد رقم قيد يومية فريد بصيغة JRN-<السنة>-<تسلسل>.
+ * توليد رقم قيد يومية فريد بصيغة JRN-<سنة القيد>-<تسلسل>.
  * يستخدم أقصى id موجود (MAX عبر orderBy id desc) بدلاً من COUNT
  * لتجنّب التعارض عند حذف قيود وسطية وإعادة الترحيل.
+ *
+ * السنة تُشتق من تاريخ القيد لا من ساعة الجهاز: قيد بتاريخ 15/12/2024 يُدخَل
+ * في 2026 يأخذ الرقم JRN-2024-… ويكمل تسلسل 2024، فلا ينكسر ترقيم السنة.
  */
-export async function generateEntryNumber(tx: Tx): Promise<string> {
-  const year = new Date().getFullYear();
+export async function generateEntryNumber(tx: Tx, entryDate: Date = new Date()): Promise<string> {
+  const year = entryDate.getFullYear();
   const prefix = `JRN-${year}-`;
   const last = await tx.journalEntry.findFirst({
     where: { entryNumber: { startsWith: prefix } },
@@ -33,7 +37,10 @@ export async function generateEntryNumber(tx: Tx): Promise<string> {
 /**
  * ينشئ قيد يومية مزدوجًا بعد التحقق من توازنه (إجمالي المدين = إجمالي الدائن).
  * يرمي خطأً قبل الكتابة إذا |ΔDebit - ΔCredit| > 0.001 (دقة الدينار الكويتي 3dp).
- * يُستخدم من جميع وحدات GL (المصروفات، الفواتير، الرواتب).
+ * يُستخدم من جميع وحدات GL (المصروفات، الفواتير، الرواتب، المخزون).
+ *
+ * هذه هي النقطة المركزية لحارس قفل الفترة: كل قيد محاسبي في النظام يمرّ من هنا،
+ * فلا حاجة لتكرار الحارس في كل وحدة.
  */
 export async function createBalancedJournal(
   tx: Tx,
@@ -55,9 +62,15 @@ export async function createBalancedJournal(
     );
   }
 
+  await assertPeriodOpen(tx, data.date, {
+    operation: 'ترحيل قيد محاسبي',
+    module: 'accounting',
+    entityId: `${data.referenceType}#${data.referenceId}`,
+  });
+
   await tx.journalEntry.create({
     data: {
-      entryNumber: await generateEntryNumber(tx),
+      entryNumber: await generateEntryNumber(tx, data.date),
       date: data.date,
       description: data.description,
       referenceType: data.referenceType,
@@ -90,15 +103,22 @@ export async function checkDuplicatePosting(
  * - محمي من التكرار: لا ينشئ العكس إذا كان موجودًا مسبقًا.
  * - يُعيد بصمت إذا لم يُرحَّل القيد الأصلي أصلًا.
  *
+ * تاريخ العكس = تاريخ القيد الأصلي افتراضيًا، لا تاريخ اليوم. عكس قيد 2024
+ * كان يهبط في السنة الجارية فيُظهر مصروفًا سالبًا في سنة لم تحدث فيها العملية،
+ * ويترك السنة الأصلية منفوخة. المستدعي يستطيع تمرير `reversalDate` صراحةً
+ * عندما يكون العكس حدثًا محاسبيًا مستقلًا (تصحيح في فترة لاحقة مفتوحة).
+ *
  * @param referenceType   نوع المرجع الأصلي (مثلاً 'EXPENSE')
  * @param referenceId     معرّف المرجع الأصلي
  * @param reversalType    نوع القيد العكسي (مثلاً 'EXPENSE_REVERSAL')
+ * @param options.reversalDate  تاريخ العكس الصريح — يتجاوز تاريخ القيد الأصلي
  */
 export async function reverseGL(
   tx: Tx,
   referenceType: string,
   referenceId: number,
   reversalType: string,
+  options: { reversalDate?: Date } = {},
 ): Promise<void> {
   const original = await tx.journalEntry.findFirst({
     where: { referenceType, referenceId, status: 'POSTED' },
@@ -113,7 +133,7 @@ export async function reverseGL(
   if (existingReversal) return; // العكس موجود بالفعل
 
   await createBalancedJournal(tx, {
-    date: new Date(),
+    date: options.reversalDate ?? original.date,
     description: `عكس قيد ${referenceType} #${referenceId}`,
     referenceType: reversalType,
     referenceId,

@@ -42,6 +42,53 @@ describe('generateExportFileName', () => {
     ).toBe('manarERP_Invoice_INV-10254_2026-07-07.pdf');
   });
 
+  // ── Financial Period Awareness في اسم الملف ──────────────────────────────────
+  it('flow report: يُدرِج نطاق from/to قبل تاريخ الإنشاء', () => {
+    expect(
+      generateExportFileName({
+        reportName: 'Profit-and-Loss',
+        date,
+        period: { from: '2024-01-01', to: '2024-12-31' },
+        extension: 'xlsx',
+      }),
+    ).toBe('manarERP_Profit-and-Loss_2024-01-01_2024-12-31_2026-07-07.xlsx');
+  });
+
+  it('point-in-time report: يُدرِج As-Of', () => {
+    expect(
+      generateExportFileName({
+        reportName: 'Trial-Balance',
+        date,
+        period: { asOf: '2024-12-31' },
+        extension: 'xlsx',
+      }),
+    ).toBe('manarERP_Trial-Balance_As-Of_2024-12-31_2026-07-07.xlsx');
+  });
+
+  it('all periods: يُدرِج All-Periods صراحةً', () => {
+    expect(
+      generateExportFileName({ reportName: 'Invoices-Report', date, period: { allPeriods: true }, extension: 'xlsx' }),
+    ).toBe('manarERP_Invoices-Report_All-Periods_2026-07-07.xlsx');
+  });
+
+  it('بلا فترة: السلوك القديم دون تغيير (توافق رجعي)', () => {
+    expect(
+      generateExportFileName({ reportName: ReportName.Invoice, identifier: 'INV-1', date, extension: 'pdf' }),
+    ).toBe('manarERP_Invoice_INV-1_2026-07-07.pdf');
+  });
+
+  it('تاريخ الإنشاء يبقى مقطعًا منفصلًا عن فترة التقرير', () => {
+    const name = generateExportFileName({
+      reportName: 'Customer-Statement',
+      date: '2026-07-07',
+      period: { from: '2024-01-01', to: '2024-12-31' },
+      extension: 'pdf',
+    });
+    // الفترة (2024) والإنشاء (2026) كلاهما حاضر ومنفصل.
+    expect(name).toContain('2024-01-01_2024-12-31');
+    expect(name).toContain('2026-07-07');
+  });
+
   it('omits the identifier segment when absent', () => {
     expect(
       generateExportFileName({

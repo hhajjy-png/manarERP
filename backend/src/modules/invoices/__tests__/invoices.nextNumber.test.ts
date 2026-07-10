@@ -47,4 +47,29 @@ describe('InvoicesService.getNextInvoiceNumber — collision-safe (max-based)', 
     const arg = mockPrisma.invoice.findMany.mock.calls[0][0];
     expect(arg.where.number.startsWith).toBe('MN-INV-2027-');
   });
+
+  // ── Historical numbering: per-year sequence, no cross-year collision ─────────
+  it('historical year 2024 scopes to its own prefix (independent sequence)', async () => {
+    mockPrisma.invoice.findMany.mockResolvedValue([]);
+    const n = await service.getNextInvoiceNumber(2024);
+    expect(n).toBe('MN-INV-2024-00001');
+    expect(mockPrisma.invoice.findMany.mock.calls[0][0].where.number.startsWith).toBe('MN-INV-2024-');
+  });
+
+  it('2024 and 2026 can both produce 00001 — distinct full numbers, no collision', async () => {
+    mockPrisma.invoice.findMany.mockResolvedValue([]);
+    const n2024 = await service.getNextInvoiceNumber(2024);
+    const n2026 = await service.getNextInvoiceNumber(2026);
+    expect(n2024).toBe('MN-INV-2024-00001');
+    expect(n2026).toBe('MN-INV-2026-00001');
+    expect(n2024).not.toBe(n2026); // البادئة السنوية تمنع التعارض على الفهرس الفريد
+  });
+
+  it('continues the 2024 sequence from its own MAX (does not renumber existing)', async () => {
+    // موجود لسنة 2024: 00001 و00005 → التالي 00006 (MAX+1)، بلا مساس بالأرقام القائمة.
+    mockPrisma.invoice.findMany.mockResolvedValue([
+      { number: 'MN-INV-2024-00001' }, { number: 'MN-INV-2024-00005' },
+    ]);
+    expect(await service.getNextInvoiceNumber(2024)).toBe('MN-INV-2024-00006');
+  });
 });

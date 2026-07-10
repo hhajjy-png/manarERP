@@ -599,9 +599,11 @@ export class ReportsService {
   private async receivablesAging(q: ReportQuery): Promise<ReportInput> {
     const asOfDate = q.to ? endOfDay(q.to) : new Date();
 
+    // الرصيد اللحظي: لا نستبعد PAID (فاتورة سُدِّدت بعد التاريخ المرجعي كانت مستحقة فيه).
+    // الإلغاء يُستبعَد فقط (لا تاريخ إلغاء في النموذج — قيد موثَّق).
     const agingWhere: Prisma.InvoiceWhereInput = {
       direction: 'SALES',
-      status: { notIn: ['PAID', 'CANCELLED'] },
+      status: { not: 'CANCELLED' },
       issueDate: { lte: asOfDate },
     };
     if (q.customerId) {
@@ -614,7 +616,8 @@ export class ReportsService {
       where: agingWhere,
       include: {
         customer: { select: { id: true, name: true } },
-        payments: { select: { date: true } },
+        // الدفعات حتى التاريخ المرجعي فقط — لا نستخدم paidAmount (لقطة الحاضر).
+        payments: { where: { date: { lte: asOfDate } }, select: { date: true, amount: true } },
       },
     });
 
@@ -633,7 +636,9 @@ export class ReportsService {
     const customerMap = new Map<number, AgingRow>();
 
     for (const inv of invoices) {
-      const outstanding = round3(num(inv.total) - num(inv.paidAmount));
+      // المستحق كما في التاريخ المرجعي = الإجمالي − مجموع الدفعات حتى ذلك التاريخ.
+      const paidAsOf = inv.payments.reduce((s, p) => s + num(p.amount), 0);
+      const outstanding = round3(num(inv.total) - paidAsOf);
       if (outstanding <= 0 || !inv.customer) continue;
 
       const custId = inv.customer.id;
@@ -713,16 +718,18 @@ export class ReportsService {
     if (q.customerId) balWhere.customerId = Number(q.customerId);
     if (q.to) balWhere.issueDate = { lte: endOfDay(q.to) };
 
+    // نقطة الرصيد = نهاية الفترة (q.to)، أو الآن إن لم تُحدَّد.
+    const asOfBal = q.to ? endOfDay(q.to) : new Date();
     const invoices = await prisma.invoice.findMany({
       where: balWhere,
       select: {
         customerId: true,
         total: true,
-        paidAmount: true,
         status: true,
         issueDate: true,
         customer: { select: { id: true, name: true, code: true } },
-        payments: { select: { date: true } },
+        // المدفوع حتى نهاية الفترة — لا paidAmount (لقطة الحاضر).
+        payments: { where: { date: { lte: asOfBal } }, select: { date: true, amount: true } },
       },
       orderBy: { issueDate: 'asc' },
     });
@@ -746,10 +753,11 @@ export class ReportsService {
         map.set(custId, { code: inv.customer.code, name: inv.customer.name, totalInvoiced: 0, totalPaid: 0, invoiceCount: 0, unpaidCount: 0, lastInvoiceDate: null, lastPaymentDate: null });
       }
       const row = map.get(custId)!;
+      const paidAsOf = inv.payments.reduce((s, p) => s + num(p.amount), 0);
       row.totalInvoiced = round3(row.totalInvoiced + num(inv.total));
-      row.totalPaid = round3(row.totalPaid + num(inv.paidAmount));
+      row.totalPaid = round3(row.totalPaid + paidAsOf);
       row.invoiceCount++;
-      if (round3(num(inv.total) - num(inv.paidAmount)) > 0) row.unpaidCount++;
+      if (round3(num(inv.total) - paidAsOf) > 0) row.unpaidCount++;
       const d = new Date(inv.issueDate);
       if (!row.lastInvoiceDate || d > row.lastInvoiceDate) row.lastInvoiceDate = d;
       for (const p of inv.payments) {

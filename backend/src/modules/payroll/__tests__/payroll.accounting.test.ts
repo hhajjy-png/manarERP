@@ -79,6 +79,29 @@ describe('Payroll GL Posting', () => {
     expect(call.mock.calls[0][0].data.status).toBe('POSTED');
   });
 
+  // ─── تاريخ الترحيل (Decision 3) ──────────────────────────────────────────────
+
+  it('posts June payroll paid in July into JUNE when no paymentDate is given', async () => {
+    // basePayroll = يونيو 2026؛ لا نمرّر paymentDate ⇒ آخر يوم في يونيو، لا اليوم.
+    await postPayrollToGL(mockTx as any, 1);
+    const date: Date = mockTx.journalEntry.create.mock.calls[0][0].data.date;
+    expect(date).toEqual(new Date(2026, 5, 30)); // 30 يونيو
+    expect(date.getMonth()).toBe(5);             // ليس يوليو (6)
+  });
+
+  it('uses an explicit paymentDate when supplied', async () => {
+    const paid = new Date(2026, 6, 5); // 5 يوليو — صرف متأخر صريح
+    await postPayrollToGL(mockTx as any, 1, paid);
+    expect(mockTx.journalEntry.create.mock.calls[0][0].data.date).toBe(paid);
+  });
+
+  it('posts December 2024 payroll into December 2024 (historical entry)', async () => {
+    mockTx.payroll.findUnique.mockResolvedValue({ ...basePayroll, month: 12, year: 2024 });
+    await postPayrollToGL(mockTx as any, 1);
+    const date: Date = mockTx.journalEntry.create.mock.calls[0][0].data.date;
+    expect(date).toEqual(new Date(2024, 11, 31));
+  });
+
   it('debits PAYROLL_EXPENSE (5100) always', async () => {
     await postPayrollToGL(mockTx as any, 1);
 
