@@ -79,3 +79,35 @@
 }
 .chqx-success .material-symbols-outlined { font-size: 18px !important; }
 .chqx-success .xpl-clear-link { margin-inline-start: auto; }
+
+/* ── On-screen cheque preview — the whole cheque shown at 65% of natural size (−35%) ──
+   Presentation-only, Cheques Management page only. The preview CARD keeps its exact
+   size; the cheque is treated as ONE visual object — background image + every overlay
+   field + text — and reduced together via `transform: scale`, centred inside its
+   unchanged box so equal empty margins appear around it. `transform` scales the entire
+   composited element uniformly and does NOT re-resolve any layout width (unlike zoom /
+   width:%), so the background image shrinks with the fields — not just the text.
+   Aspect ratio preserved. Template %/pt coordinates, the hidden print output
+   (.cheque-print-only), the print preview, and the calibration page are all untouched.
+   Reset for print as an extra safeguard (print already shows only .cheque-print-only). */
+.chqx-preview-scale {
+  /* `transform` does not reflow, so the wrapper would otherwise reserve the FULL unscaled
+     height and leave big gaps. Give the wrapper the SCALED cheque's own height instead:
+     the cheque is 700 × 272; scaled by 0.65 the height factor is 272 × 0.65 = 176.8, so at
+     full width the wrapper reserves exactly the scaled cheque height — the card shrinks
+     vertically to fit, no negative margins. The (empty) transform overflow is clipped. */
+  width: 100%;
+  aspect-ratio: 700 / 176.8;
+  margin-block: 18px;             /* small, balanced vertical spacing around the cheque */
+  overflow: hidden;
+}
+.chqx-preview-scale-inner {
+  transform: scale(0.65);
+  transform-origin: top center;   /* cheque pinned to the top-centre of the collapsed box */
+}
+@media print {
+  /* Belt-and-suspenders: print already hides this preview (only .cheque-print-only shows).
+     Fully neutralise the on-screen scaling here so nothing can clip/scale in print. */
+  .chqx-preview-scale { aspect-ratio: auto; overflow: visible; margin-block: 0; }
+  .chqx-preview-scale-inner { transform: none; }
+}

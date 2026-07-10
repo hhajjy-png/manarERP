@@ -555,7 +555,15 @@ export default function Cheques() {
 
       {/* Preview workspace */}
       <SectionCard title="معاينة الشيك" icon="visibility" actions={printTarget ? chequeChip(printTarget.status, t) : undefined}>
-        <ChequePrintOutput data={previewData} template={currentTemplate} />
+        {/* On-screen preview shown at 65% of natural size (presentation-only). Scales the
+            whole preview — background + absolutely-positioned overlay fields — together, so
+            template %/pt coordinates, the hidden print output (.cheque-print-only), and the
+            calibration page are all unchanged. */}
+        <div className="chqx-preview-scale">
+          <div className="chqx-preview-scale-inner">
+            <ChequePrintOutput data={previewData} template={currentTemplate} />
+          </div>
+        </div>
         {/* تجميع بصري فقط: إجراءات الإصدار الأساسية مقابل أدوات الطباعة/المعايرة —
             لا تغيير على المعالِجات (handlePrint / printCurrentView / المعايرة). */}
         <div className="chqx-preview-actions">
