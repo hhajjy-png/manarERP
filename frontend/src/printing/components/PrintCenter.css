@@ -257,20 +257,160 @@
 .pc-status-chip--ready { color: var(--xpl-green); border-color: rgba(16, 185, 129, 0.35); }
 .pc-status-chip--failed { color: var(--xpl-orange); border-color: rgba(245, 158, 11, 0.4); }
 
-/* ── Universal Print Preview v1 ── */
-.pc-frame {
-  border: 0;
-  background: #fff;
-  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
-  min-height: 1123px; /* A4 portrait @96dpi — a real sheet, not a strip */
-  display: block;
-}
-.pc-hint { font-size: 11.5px; color: var(--xpl-muted); }
-
 /* The preview window must NEVER reach paper. The page's own print path prints the
    visible window, so if this dialog were still mounted it would be printed too. It is
    closed before printing (see PrintPreviewDialog.doPrint); this rule is the second
    barrier. */
 @media print {
   .pc-scrim { display: none !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Universal Print Preview v1 — Corrective & UI Polish
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── عيب: خيارات التكبير كانت أبيض على أبيض ──────────────────────────────────
+   Windows/Electron يرسم <select> و<option> بألوان النظام الأصلية، ولا يرث لون
+   النص من الحاوية. لذلك يجب تعيين foreground/background صراحةً على العنصرين معًا،
+   في الوضعين الفاتح والداكن، ولكل حالة (hover / focus / selected / disabled). */
+.pc-select {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border: 1px solid var(--xpl-border);
+  -webkit-appearance: menulist;
+  appearance: menulist;
+}
+.pc-select option {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+}
+.pc-select option:checked,
+.pc-select option:hover {
+  color: #ffffff !important;
+  background-color: #4f46e5 !important; /* indigo — الخيار المحدَّد مقروء دائمًا */
+}
+.pc-select:disabled {
+  color: #64748b !important;
+  background-color: #f1f5f9 !important;
+  opacity: 1; /* لا نعتمد على الشفافية وحدها — تنتج نصًا باهتًا غير مقروء */
+}
+@media (prefers-color-scheme: dark) {
+  .pc-select { color: #f1f5f9 !important; background-color: #1e293b !important; }
+  .pc-select option { color: #f1f5f9 !important; background-color: #1e293b !important; }
+  .pc-select option:checked,
+  .pc-select option:hover { color: #ffffff !important; background-color: #4f46e5 !important; }
+  .pc-select:disabled { color: #94a3b8 !important; background-color: #0f172a !important; }
+}
+
+.pc-zoom-value {
+  min-width: 46px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--xpl-text);
+  font-family: 'IBM Plex Mono', monospace;
+  direction: ltr;
+}
+
+/* ── مساحة المعاينة: هي وحدها القابلة للتمرير ──────────────────────────────── */
+.pc-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden; /* التمرير يحدث داخل .pc-canvas فقط */
+}
+.pc-canvas {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;               /* شريطا التمرير هنا، لا على نافذة التطبيق */
+  overscroll-behavior: contain; /* لا يتسرّب التمرير إلى الصفحة خلف النافذة */
+  display: flex;
+  justify-content: center;      /* ← توسيط الورقة أفقيًا في RTL وLTR معًا */
+  align-items: flex-start;
+  padding: 56px;
+  background: #64748b;          /* slate — تُبرز الورقة دون سواد ثقيل */
+}
+@media (max-width: 900px) {
+  .pc-canvas { padding: 32px; }
+}
+@media (prefers-color-scheme: dark) {
+  .pc-canvas { background: #334155; }
+}
+
+/* ── الورقة: بيضاء دائمًا، حدّ خفيف وظل هادئ — لا زخرفة ──────────────────── */
+.pc-sheet {
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18);
+  overflow: hidden;   /* التكبير لا يُخرج المستند خارج حدود الورقة */
+  flex: 0 0 auto;     /* لا تتمدد ولا تنكمش — أبعادها محسوبة */
+}
+.pc-frame {
+  border: 0;
+  display: block;
+  background: #fff;
+}
+
+/* نافذة المعاينة يجب ألا تصل الورق أبدًا. تُغلق قبل الطباعة (انظر doPrint)؛
+   هذه القاعدة حاجز ثانٍ. */
+@media print {
+  .pc-scrim { display: none !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   شريط إجراءات شاشة الفاتورة — حجم Desktop ERP مدمج.
+   محصور في هذه الشاشة عبر .invx-actions — لا تغيير عالمي لأزرار المشروع.
+   ════════════════════════════════════════════════════════════════════════════ */
+.invx-actions {
+  display: flex;
+  flex-wrap: wrap;       /* التفاف منظم في العرض المتوسط — لا تداخل ولا خروج */
+  align-items: center;
+  gap: 8px;
+}
+.invx-actions .btn {
+  height: 38px;
+  padding-inline: 14px;
+  font-size: 13.5px;
+  border-radius: 9px;
+  min-width: 0;          /* منع عرض أدنى كبير بلا داعٍ */
+  box-shadow: none;
+  line-height: 1;
+}
+/* الإجراء الأساسي — الطباعة وحدها هي الأقوى بصريًا. */
+.invx-actions .btn:not(.secondary):not(.danger-ghost) {
+  font-weight: 700;
+}
+/* الإجراءات الثانوية والمساعدة — أخفّ وزنًا، بلا ظل. */
+.invx-actions .btn.secondary {
+  font-weight: 600;
+  box-shadow: none;
+}
+/* إجراء خطر — مميّز دون مبالغة. */
+.invx-actions .btn.danger-ghost {
+  font-weight: 600;
+  color: #dc2626;
+  background: transparent;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  box-shadow: none;
+}
+.invx-actions .btn.danger-ghost:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.07);
+  border-color: #dc2626;
+}
+
+/* صف ثانٍ: إعدادات المستند (التوقيع/الختم/قالب الطباعة) — منفصل عن الأوامر. */
+.invx-doc-settings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--xpl-border, #e2e8f0);
+}
+.invx-doc-settings .btn {
+  height: 34px;
+  padding-inline: 12px;
+  font-size: 12.5px;
+  box-shadow: none;
 }

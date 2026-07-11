@@ -97,6 +97,20 @@ const fRow: CSSProperties = { display: 'flex', gap: 8, marginBottom: 6, fontSize
 const fLbl: CSSProperties = { color: '#64748b', fontWeight: 600, minWidth: 130 };
 const fVal: CSSProperties = { fontWeight: 700, color: '#0f172a' };
 
+/**
+ * عزل ثنائي الاتجاه للمبالغ النقدية.
+ *
+ * السبب الجذري لظهور «KWD 280.000» بدل «280.000 KWD»: الـ formatter المشترك ينتج
+ * السلسلة الصحيحة («280.000 KWD»)، لكن هذه السلسلة تُعرض داخل حاوية `direction: rtl`.
+ * خوارزمية bidi تعامل المسافة والفاصلة كمحايدات، فتعيد ترتيب الرمز بالنسبة إلى الرقم
+ * حسب سياق الفقرة — فيظهر الرمز أولًا بصريًا رغم أن النص سليم.
+ *
+ * الحل هو عزل المبلغ في جزيرة LTR مستقلة: النص لا يتغيّر، الحساب لا يتغيّر، ولا
+ * formatter جديد. تُطبَّق على كل موضع نقدي فتتطابق الشاشة والمعاينة والطباعة القديمة.
+ */
+const moneyCell: CSSProperties = { direction: 'ltr', unicodeBidi: 'isolate' };
+const fValMoney: CSSProperties = { ...fVal, ...moneyCell, display: 'inline-block' };
+
 export default function InvoicePreview() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -426,21 +440,31 @@ export default function InvoicePreview() {
       }}>
 
         {/* ── Toolbar (hidden on print) ── */}
-        <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* ── الصف الأول: الأوامر الأساسية (حجم Desktop ERP مدمج، محصور بـ .invx-actions) ──
+            الأولوية في RTL من اليمين: رجوع · طباعة · معاينة · PDF · تصميم · تعديل · إلغاء.
+            «تحصيل» أُزيل من هذا الشريط (لا ينتمي لسياق الطباعة) — الوظيفة نفسها باقية. */}
+        <div className="no-print invx-actions" style={{ marginBottom: 12 }}>
           <button type="button" className="btn secondary" onClick={() => navigate('/invoices')}>
             ← {t('btn.inv.back')}
           </button>
-          {/* Print Center (flag ON) — preview the real PDF, then Print or Save PDF.
-              Flag OFF → the original direct-print button below, unchanged. */}
-          {usePrintCenterInvoice ? (
-            <button type="button" className="btn" onClick={() => setPrintCenterOpen(true)}>
+          {/* الإجراء الأساسي — زر الطباعة الأصلي. باقٍ كما كان تمامًا: يستدعي مسار
+              الطباعة القديم مباشرة، ولا يفتح المعاينة، ولا يتأثر بعلم المعاينة.
+              (الخلل السابق: استبدلتُ هذا الزر بزر المعاينة — الآن الإجراءان مستقلان.) */}
+          <button type="button" className="btn" onClick={() => printCurrentView()}>
+            🖨️ {t('btn.inv.print_invoice')}
+          </button>
+
+          {/* إجراء ثانوي مستقل — المعاينة اختيارية ولا تطبع عند الفتح. */}
+          {usePrintCenterInvoice && (
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => setPrintCenterOpen(true)}
+            >
               🔍 معاينة قبل الطباعة
             </button>
-          ) : (
-            <button type="button" className="btn" onClick={() => printCurrentView()}>
-              🖨️ {t('btn.inv.print_invoice')}
-            </button>
           )}
+
           <button
             type="button"
             className="btn secondary"
@@ -480,17 +504,22 @@ export default function InvoicePreview() {
               {t('action.edit')}
             </button>
           )}
-          {hasPermission('invoices.update') && canCollect && !paying && (
-            <button type="button" className="btn" onClick={() => { setPayAmount(remaining); setPayError(''); setPaying(true); }}>
-              {t('page.invoices.collect')}
-            </button>
-          )}
+          {/* زر «تحصيل» أُزيل من شريط شاشة الطباعة/المعاينة فقط — لا ينتمي إلى سياق
+              الطباعة ويزحم الشريط. وظيفة التحصيل ومنطقها وصلاحياتها (invoices.update /
+              canCollect / handlePay / نافذة الدفع) كلها باقية بلا تغيير، ويبقى الزر في
+              مواضعه التشغيلية: قائمة الفواتير، تفاصيل الفاتورة، والـ Drawer.
+              presentation-only — لا API ولا workflow ولا حالة فاتورة تغيّرت. */}
           {hasPermission('invoices.update') && canCancel && (
-            <button type="button" className="btn secondary" onClick={handleCancel}>
+            <button type="button" className="btn danger-ghost" onClick={handleCancel}>
               {t('page.invoices.cancel_inv')}
             </button>
           )}
           {actionError && <span style={{ color: '#dc2626', fontSize: 13, fontWeight: 600 }}>⚠️ {actionError}</span>}
+        </div>
+
+        {/* ── الصف الثاني: إعدادات المستند — التوقيع والختم وقالب الطباعة.
+            هذه إعدادات طباعة لا أوامر، ففُصلت عن الأوامر الأساسية. ── */}
+        <div className="no-print invx-doc-settings">
           {printOptionsInitialized && (
             <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '4px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.signatureUrl ? 'pointer' : 'not-allowed' }}>
@@ -522,7 +551,6 @@ export default function InvoicePreview() {
             className="btn secondary"
             onClick={() => setPreviewMode(m => m === 'legacy' ? 'engine' : 'legacy')}
             disabled={!printData}
-            style={{ marginInlineStart: 'auto' }}
           >
             {previewMode === 'engine' ? '📋 العرض الكلاسيكي' : '✨ قالب الطباعة'}
           </button>
@@ -692,8 +720,8 @@ export default function InvoicePreview() {
                   <td style={td}>{item.description}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{item.quantity}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{item.unit}</td>
-                  <td style={{ ...td, textAlign: 'end' }}>{money(item.unitPrice)}</td>
-                  <td style={{ ...td, textAlign: 'end', fontWeight: 700 }}>{money(item.total)}</td>
+                  <td style={{ ...td, ...moneyCell, textAlign: 'end' }}>{money(item.unitPrice)}</td>
+                  <td style={{ ...td, ...moneyCell, textAlign: 'end', fontWeight: 700 }}>{money(item.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -704,34 +732,34 @@ export default function InvoicePreview() {
             <div style={secTitle} data-designer-type="text" data-designer-id="invoice.sectionTitle">{t('page.invoice_preview.section.financial')}</div>
             <div className="inv-totals" style={{ maxWidth: 340, marginInlineStart: 'auto' }} data-designer-type="text" data-designer-id="invoice.totals">
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
-                <span style={fLbl}>{t('lbl.inv.subtotal')}</span><span style={fVal}>{money(data.subtotal)}</span>
+                <span style={fLbl}>{t('lbl.inv.subtotal')}</span><span style={fValMoney}>{money(data.subtotal)}</span>
               </div>
               {Number(data.discount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
                   <span style={fLbl}>{t('field.inv.discount_kd')}</span>
-                  <span style={{ ...fVal, color: '#dc2626' }}>−{money(data.discount)}</span>
+                  <span style={{ ...fValMoney, color: '#dc2626' }}>−{money(data.discount)}</span>
                 </div>
               )}
               {Number(data.taxAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
                   <span style={fLbl}>{t('lbl.inv.tax')} ({data.taxRate}%)</span>
-                  <span style={fVal}>{money(data.taxAmount)}</span>
+                  <span style={fValMoney}>{money(data.taxAmount)}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '2px solid #1d4e6f', fontSize: 16, fontWeight: 800 }}>
                 <span style={{ color: '#1d4e6f' }}>{t('lbl.inv.grand_total')}</span>
-                <span style={{ color: '#1d4e6f' }}>{money(data.total)}</span>
+                <span style={{ ...moneyCell, display: 'inline-block', color: '#1d4e6f' }}>{money(data.total)}</span>
               </div>
               {/* Paid / Remaining — shown on screen and print */}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
                 <span style={fLbl}>{t('col.inv.paid')}</span>
-                <span style={{ ...fVal, color: '#16a34a' }}>{money(data.paidAmount)}</span>
+                <span style={{ ...fValMoney, color: '#16a34a' }}>{money(data.paidAmount)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 14, fontWeight: 800 }}>
                 <span style={{ ...fLbl, fontSize: 14, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>
                   {t('lbl.inv.remaining_amount')}
                 </span>
-                <span style={{ fontWeight: 800, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</span>
+                <span style={{ ...moneyCell, display: 'inline-block', fontWeight: 800, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</span>
               </div>
             </div>
           </div>
@@ -749,11 +777,11 @@ export default function InvoicePreview() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 10 }}>
                   <div className="inv-collection-chip">
                     <div className="inv-collection-chip-label">إجمالي المحصّل</div>
-                    <div className="inv-collection-chip-val" style={{ color: '#16a34a' }}>{money(data.paidAmount)}</div>
+                    <div className="inv-collection-chip-val" style={{ ...moneyCell, color: '#16a34a' }}>{money(data.paidAmount)}</div>
                   </div>
                   <div className="inv-collection-chip">
                     <div className="inv-collection-chip-label">المتبقي</div>
-                    <div className="inv-collection-chip-val" style={{ color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</div>
+                    <div className="inv-collection-chip-val" style={{ ...moneyCell, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</div>
                   </div>
                   <div className="inv-collection-chip">
                     <div className="inv-collection-chip-label">نسبة التحصيل</div>
@@ -772,7 +800,7 @@ export default function InvoicePreview() {
                         background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 20,
                         color: '#475569', fontWeight: 600,
                       }}>
-                        {PAY_METHOD_AR[method] ?? method}: <span style={{ color: '#16a34a' }}>{money(total)}</span>
+                        {PAY_METHOD_AR[method] ?? method}: <span style={{ ...moneyCell, display: 'inline-block', color: '#16a34a' }}>{money(total)}</span>
                       </span>
                     ))}
                   </div>
