@@ -54,6 +54,7 @@ export {
 
 export {
   capturePrintStyles,
+  absolutizeUrls,
   type CapturedStyles,
   type StyleCaptureProblem,
 } from './styleCapture';

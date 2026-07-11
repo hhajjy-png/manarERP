@@ -124,6 +124,17 @@ const api = {
     error?: string;
   }> => ipcRenderer.invoke('print:savePdf', args),
 
+  /**
+   * طباعة ملف PDF المُولَّد نفسه — نفس البايتات المعروضة في المعاينة والمحفوظة في الملف.
+   * لا تُطبع نافذة التطبيق المرئية ولا واجهة مركز الطباعة.
+   */
+  printArtifact: (args: {
+    contractVersion: string;
+    token: string;
+    copies?: number;
+  }): Promise<{ status: 'printed' | 'canceled' | 'failed'; error?: string }> =>
+    ipcRenderer.invoke('print:printArtifact', args),
+
   /** تحرير موارد المعاينة. */
   printReleasePreview: (args: { token: string }): Promise<{ released: boolean }> =>
     ipcRenderer.invoke('print:releasePreview', args),

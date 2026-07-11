@@ -189,6 +189,76 @@ export function usePrintCenter() {
     [],
   );
 
+  /**
+   * PRINT the previewed artifact — the SAME PDF bytes, not the visible window.
+   *
+   * The Print Center must never go through the Phase 1 `submitPrintJob` gateway, because
+   * that prints the visible application window: the sidebar, the toolbar and the Print
+   * Center dialog itself would all land on paper. `print:printArtifact` loads the cached
+   * PDF into an isolated hidden surface and prints THAT.
+   *
+   * Single-flight: a second click while a print is in progress is dropped before it
+   * reaches Electron, so there is one dialog and one audit event.
+   */
+  const printingRef = useRef(false);
+
+  const printArtifact = useCallback(
+    async (copies: number): Promise<PrintJobStatus> => {
+      const token = tokenRef.current;
+      const source = sourceRef.current;
+      if (!token || !source) return 'failed';
+      if (printingRef.current) return 'canceled'; // suppressed — nothing was sent, no audit
+      printingRef.current = true;
+
+      if (mountedRef.current) setStatus((s) => ({ ...s, state: 'printing' }));
+
+      const n = Number.isInteger(copies) ? Math.max(1, Math.min(99, copies)) : 1;
+      let status: PrintJobStatus = 'failed';
+      let error: string | undefined;
+
+      try {
+        const print = window.manar?.printArtifact;
+        if (!print) {
+          // No bridge → report failure. We must NEVER fall back to printing the visible
+          // window: that is the very defect this replaces.
+          error = 'الطباعة غير متاحة في هذا الوضع.';
+        } else {
+          const res = await print({
+            contractVersion: PRINT_CONTRACT_VERSION,
+            token,
+            copies: n,
+          }).catch(() => ({ status: 'failed' as const, error: 'تعذّر إرسال المستند إلى الطابعة.' }));
+          status = res.status as PrintJobStatus;
+          error = res.error;
+        }
+      } finally {
+        printingRef.current = false;
+        if (mountedRef.current) {
+          setStatus((s) => ({
+            ...s,
+            state: status === 'failed' ? 'failed' : 'ready',
+            error: status === 'failed' ? (error ?? 'تعذّر إرسال المستند إلى الطابعة.') : null,
+          }));
+        }
+      }
+
+      // Exactly one PRINT event, recording the copies actually requested. Cancel is
+      // recorded as canceled — never as success.
+      void recordPrintEvent({
+        action: 'PRINT',
+        docType: source.docType,
+        documentId: source.documentId,
+        templateId: source.templateId,
+        copies: n,
+        status,
+        error,
+      });
+
+      return status;
+    },
+    [],
+  );
+
   /** Save the previewed artifact. Same bytes — no regeneration. */
   const savePdf = useCallback(async (): Promise<PrintJobStatus> => {
     const token = tokenRef.current;
@@ -219,5 +289,5 @@ export function usePrintCenter() {
     return status;
   }, []);
 
-  return { status, generate, savePdf, release, currentSource: sourceRef };
+  return { status, generate, savePdf, printArtifact, release, currentSource: sourceRef };
 }

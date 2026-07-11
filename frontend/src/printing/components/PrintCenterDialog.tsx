@@ -13,7 +13,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import './PrintCenter.css';
 import PrintPreviewPane from './PrintPreviewPane';
 import { usePrintCenter, type PreviewSource } from '../usePrintCenter';
-import { submitPrintJob, createPrintJob } from '../printCenter';
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 const MAX_COPIES = 20;
@@ -28,7 +27,7 @@ export interface PrintCenterDialogProps {
 
 export default function PrintCenterDialog({ open, onClose, compose, lang = 'ar' }: PrintCenterDialogProps) {
   const en = lang === 'en';
-  const { status, generate, savePdf, release, currentSource } = usePrintCenter();
+  const { status, generate, savePdf, printArtifact, release, currentSource } = usePrintCenter();
 
   const [scale, setScale] = useState(1);
   const [fitMode, setFitMode] = useState<'none' | 'width' | 'page'>('width');
@@ -63,36 +62,33 @@ export default function PrintCenterDialog({ open, onClose, compose, lang = 'ar' 
   const ready = status.state === 'ready';
   const busy = status.state === 'composing' || status.state === 'rendering';
 
+  /**
+   * Print the PREVIEWED PDF ARTIFACT.
+   *
+   * THE DEFECT THIS REPLACES: this used to call `submitPrintJob` (the Phase 1 gateway),
+   * which prints the VISIBLE APPLICATION WINDOW. The physical output therefore contained
+   * the sidebar, the toolbar and this very dialog, instead of the document. The legacy
+   * invoice path never showed the bug only because that page hides its chrome with
+   * `@media print` — the Print Center has no such rules, so everything it displayed went
+   * to paper.
+   *
+   * Now the SAME PDF bytes that were previewed (and that Save PDF writes) are loaded into
+   * an isolated hidden surface and printed. The visible window is never printed, and the
+   * PDF.js canvas is never a print source — PDF.js stays a viewer.
+   *
+   * The ref guard is a synchronous double-click barrier; the hook single-flights too.
+   */
   const doPrint = useCallback(async () => {
-    const src = currentSource.current;
-    // Ref guard, not just the `printing` state: state updates are asynchronous, so a
-    // fast double-click (or Ctrl+P racing the click) can enter this handler twice
-    // before React re-renders the disabled button. The ref flips synchronously.
-    // The gateway ALSO single-flights, so there are two independent barriers.
-    if (!src || !ready || printingRef.current) return;
+    if (!ready || printingRef.current) return;
     printingRef.current = true;
     setPrinting(true);
     try {
-      // Physical print still goes through the approved Phase 1 gateway (print:submit).
-      // Copies are applied NATIVELY by the driver — one dialog, one job.
-      await submitPrintJob(
-        createPrintJob({
-          docType: src.docType,
-          documentId: src.documentId,
-          destination: 'printer',
-          pageSpecId: src.pageSpecId,
-          copies,
-          templateId: src.templateId,
-          title: src.title,
-          documentLabel: src.documentLabel,
-          renderSource: src.renderSource,
-        }),
-      );
+      await printArtifact(copies);
     } finally {
       printingRef.current = false;
       setPrinting(false);
     }
-  }, [ready, copies, currentSource]);
+  }, [ready, copies, printArtifact]);
 
   const doSave = useCallback(async () => {
     if (!ready) return;

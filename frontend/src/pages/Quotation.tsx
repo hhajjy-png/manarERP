@@ -335,8 +335,9 @@ export default function Quotation() {
   // ── ENGINE MODE ───────────────────────────────────────────────────────────────
   if (previewMode === 'engine') {
     return (
-      <div ref={printRootRef} dir="rtl" style={{ minHeight: '100vh', background: '#f0f4f8' }}>
-        {/* Print Center (Phase 2B) — mounted only when the quotation flag is on. */}
+      <>
+        {/* Print Center (Phase 2B) — mounted OUTSIDE the printable root, so its markup
+            can never be cloned into the composed document. */}
         {usePrintCenterQuotation && (
           <PrintCenterDialog
             open={printCenterOpen}
@@ -345,6 +346,7 @@ export default function Quotation() {
             lang={lang}
           />
         )}
+      <div ref={printRootRef} dir="rtl" style={{ minHeight: '100vh', background: '#f0f4f8' }}>
         <style>{`
           @media print {
             @page { size: A4; margin: 0; }
@@ -543,6 +545,7 @@ export default function Quotation() {
           />
         )}
       </div>
+      </>
     );
   }
 

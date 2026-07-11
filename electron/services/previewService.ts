@@ -268,6 +268,103 @@ export function registerPreviewIpc(): void {
     }
   });
 
+  /**
+   * PRINT THE CACHED PREVIEW ARTIFACT.
+   *
+   * THE DEFECT THIS REPLACES: the Print Center's Print button went through the Phase 1
+   * gateway (`print:submit`), which calls `webContents.print()` on the VISIBLE
+   * application window. That prints the whole app — sidebar, toolbar, the Print Center
+   * dialog itself — instead of the document. The legacy invoice path never had this
+   * problem because the legacy page hides its chrome with `@media print`; the Print
+   * Center has no such rules, so everything it showed went to paper.
+   *
+   * THE FIX: print the EXACT PDF BYTES the operator previewed. The same artifact is
+   * previewed, saved and printed — there is no second render and no third source of
+   * truth. The visible window is never printed.
+   *
+   * MECHANISM: the cached buffer is written to a private temp file and loaded into an
+   * isolated hidden window with Chromium's PDF viewer enabled (`plugins: true` — this is
+   * what makes a BrowserWindow able to display, and therefore print, a PDF).
+   * `webContents.print()` on that window prints the PDF document itself.
+   *
+   * We do NOT rasterise the PDF, and we do NOT print the PDF.js canvas — PDF.js in the
+   * renderer stays a viewer only.
+   *
+   * The artifact SURVIVES: printing does not consume the token, so the operator can
+   * print again, or Save PDF, from the same preview. It is freed only by
+   * `print:releasePreview` or app shutdown.
+   */
+  ipcMain.handle('print:printArtifact', async (_event, raw: unknown) => {
+    const r = (raw ?? {}) as { contractVersion?: string; token?: string; copies?: number };
+
+    if (r.contractVersion !== SUPPORTED_CONTRACT) {
+      return { status: 'failed', error: `إصدار عقد الطباعة غير مدعوم: ${String(r.contractVersion)}` };
+    }
+    if (typeof r.token !== 'string') {
+      return { status: 'failed', error: 'رمز المعاينة غير صالح' };
+    }
+    if (r.copies !== undefined && (!Number.isInteger(r.copies) || r.copies < 1 || r.copies > 99)) {
+      return { status: 'failed', error: 'عدد النسخ غير صالح' };
+    }
+
+    const artifact = artifacts.get(r.token);
+    if (!artifact) {
+      // An expired or already-released token must fail — never fall back to printing
+      // the visible window.
+      return { status: 'failed', error: 'انتهت صلاحية المعاينة — أعد توليدها.' };
+    }
+
+    const copies = r.copies && r.copies > 1 ? r.copies : undefined;
+    const tmpPdf = path.join(getTempDir(), `${randomUUID()}.pdf`);
+    let win: BrowserWindow | null = null;
+
+    try {
+      await fs.promises.writeFile(tmpPdf, artifact.pdf, { mode: 0o600 });
+
+      win = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: true,
+          plugins: true, // enables Chromium's PDF viewer — required to render/print a PDF
+        },
+      });
+
+      const ready = new Promise<void>((resolve, reject) => {
+        const w = win!;
+        w.webContents.once('did-finish-load', () => resolve());
+        w.webContents.once('did-fail-load', (_e, _c, desc) =>
+          reject(new Error(desc || 'failed to load pdf')),
+        );
+      });
+      await win.loadFile(tmpPdf);
+      await ready;
+
+      const result = await new Promise<{ status: string; error?: string }>((resolve) => {
+        win!.webContents.print(
+          { silent: false, printBackground: true, ...(copies ? { copies } : {}) },
+          (success, failureReason) => {
+            if (success) return resolve({ status: 'printed' });
+            const reason = (failureReason ?? '').toLowerCase();
+            if (reason.includes('cancel')) return resolve({ status: 'canceled' });
+            resolve({ status: 'failed', error: failureReason || 'فشل إرسال المستند إلى الطابعة' });
+          },
+        );
+      });
+
+      return result;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[printing] printArtifact failed:', err);
+      return { status: 'failed', error: 'تعذّر إرسال المستند إلى الطابعة.' };
+    } finally {
+      // Destroyed and cleaned on EVERY path — success, cancel, failure, throw.
+      if (win && !win.isDestroyed()) win.destroy();
+      await fs.promises.unlink(tmpPdf).catch(() => {});
+    }
+  });
+
   ipcMain.handle('print:releasePreview', async (_event, raw: unknown) => {
     const r = (raw ?? {}) as { token?: string };
     if (typeof r.token !== 'string') return { released: false };

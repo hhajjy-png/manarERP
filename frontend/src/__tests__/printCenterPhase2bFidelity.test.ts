@@ -186,9 +186,22 @@ describe('Phase 2B — composed document fidelity', () => {
     expect(compose(renderedNode(), 'en')).toContain('dir="ltr"');
   });
 
-  it('has no network dependency — no CDN, no remote stylesheet', () => {
+  it('has no EXTERNAL dependency — no CDN, no remote stylesheet, no third-party host', () => {
     const html = compose(renderedNode());
-    expect(html).not.toMatch(/https?:\/\//);
+
+    // No CDN, ever.
+    for (const cdn of ['cdnjs', 'unpkg', 'jsdelivr', 'googleapis', 'gstatic', 'cloudflare']) {
+      expect(html).not.toContain(cdn);
+    }
+
+    // The document may reference the APPLICATION'S OWN origin — that is the point of the
+    // <base href> and of absolutising url(): in production the app is served from
+    // file://, in dev from http://localhost, and the fonts/logos must resolve. What must
+    // never appear is a host that is not ours.
+    const hosts = [...html.matchAll(/https?:\/\/([^/"')\s]+)/g)].map((m) => m[1]);
+    for (const host of hosts) {
+      expect(host).toMatch(/^(localhost|127\.0\.0\.1)(:\d+)?$/);
+    }
   });
 
   it('forces a light paper surface regardless of the application theme', () => {

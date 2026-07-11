@@ -27,6 +27,22 @@ import { capturePrintStyles } from './styleCapture';
  *  render; a document this large is a bug, not a business case. */
 export const MAX_COMPOSED_HTML_BYTES = 12 * 1024 * 1024; // 12 MB
 
+/**
+ * Chrome that must NEVER reach the composed document, whatever the caller passes.
+ *
+ * Defence in depth for the whole-page-print defect: the Print Center's own shell, any
+ * screen-only control, and any portal/overlay are removed from the clone even if a page
+ * accidentally nests them inside its printable root. The physical-print fix is printing
+ * the cached PDF artifact (see previewService `print:printArtifact`); this is the second
+ * barrier, not the fix.
+ */
+const ALWAYS_STRIP = [
+  '.pc-scrim', // Print Center dialog (scrim + dialog live inside it)
+  '.no-print',
+  '[data-no-print]',
+  '[data-print-hidden]',
+] as const;
+
 export interface ComposeOptions {
   /** The printable element. Its `outerHTML` (inline styles + data: URIs) is used. */
   node: HTMLElement;
@@ -177,7 +193,7 @@ export function composeStyledFromNode({
   }
 
   const clone = node.cloneNode(true) as HTMLElement;
-  for (const sel of stripSelectors) {
+  for (const sel of [...ALWAYS_STRIP, ...stripSelectors]) {
     clone.querySelectorAll(sel).forEach((el) => el.remove());
   }
   clone.setAttribute('data-print-root', '');
@@ -185,12 +201,25 @@ export function composeStyledFromNode({
   // Exactly one @page: the template's if it has one, else the PageSpec's.
   const pageCss = captured.pageRules.length > 0 ? captured.pageRules[0] : toPageCss(pageSpec);
 
-  const dir = lang === 'en' ? 'ltr' : 'rtl';
+  // Reproduce the SOURCE document's inherited context rather than inventing one.
+  // Bidi resolution depends on the root direction, and the app's <html> is `dir="rtl"`;
+  // a mismatch here is what lets a trailing LTR token like "KWD" reorder relative to its
+  // amount. We copy the real root's dir/lang and the body's classes so the cloned subtree
+  // inherits exactly what it inherited on screen. `lang` still overrides when the caller
+  // is explicitly rendering an English document.
+  const srcDoc = sourceDocument ?? node.ownerDocument ?? document;
+  const rootDir = srcDoc.documentElement.getAttribute('dir') ?? 'rtl';
+  const rootLang = srcDoc.documentElement.getAttribute('lang') ?? 'ar';
+  const dir = lang === 'en' ? 'ltr' : rootDir;
+  const htmlLang = lang === 'en' ? 'en' : rootLang;
+  const bodyClass = srcDoc.body?.className ?? '';
+
   const html = `<!DOCTYPE html>
-<html dir="${dir}" lang="${lang === 'en' ? 'en' : 'ar'}">
+<html dir="${dir}" lang="${htmlLang}">
 <head>
 <meta charset="UTF-8">
 <meta name="color-scheme" content="light">
+<base href="${escapeHtml(srcDoc.baseURI)}">
 <title>${escapeHtml(title)}</title>
 <style>
   ${FONT_FACE}
@@ -224,7 +253,7 @@ ${captured.css}
   }
 </style>
 </head>
-<body>${clone.outerHTML}</body>
+<body class="${escapeHtml(bodyClass)}">${clone.outerHTML}</body>
 </html>`;
 
   return assertSize(html);

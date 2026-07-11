@@ -64,6 +64,39 @@ function isDarkSchemeRule(rule: CSSRule): boolean {
   return /prefers-color-scheme\s*:\s*dark/i.test(rule.conditionText ?? rule.media.mediaText ?? '');
 }
 
+/**
+ * Rewrite every `url(...)` in a rule to an ABSOLUTE url.
+ *
+ * THIS IS THE FIX FOR THE MONETARY-FORMATTING DEFECT.
+ *
+ * The built stylesheet references its assets RELATIVELY:
+ *     @font-face { src: url(./IBMPlexSansArabic-Regular-DHf6Regc.woff2) }
+ * The composed document is written to a PRIVATE TEMP DIRECTORY, so `./Font.woff2`
+ * resolved against *that* directory, 404'd, and EVERY WEB FONT SILENTLY FAILED TO LOAD.
+ * The hidden window then fell back to a system font with different glyph metrics — which
+ * is what turned `10,395.000 KWD` into something that looked like `KWD 10 395 000`.
+ * The text was never wrong; the font was missing.
+ *
+ * Resolving each url against the stylesheet that declared it (or the document base)
+ * makes fonts, logos and background images load exactly as they do on screen.
+ *
+ * `data:` URIs are left alone — they are already self-contained.
+ */
+export function absolutizeUrls(cssText: string, base: string): string {
+  return cssText.replace(
+    /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,
+    (whole, quote: string, ref: string) => {
+      const raw = ref.trim();
+      if (!raw || /^(data:|https?:|file:|blob:|#)/i.test(raw)) return whole;
+      try {
+        return `url(${quote}${new URL(raw, base).href}${quote})`;
+      } catch {
+        return whole; // unresolvable — leave it rather than corrupt the rule
+      }
+    },
+  );
+}
+
 /** Recursively pull @page rules out of a rule's text, returning [textWithoutPage, pages]. */
 function extractPageRules(cssText: string): { text: string; pages: string[] } {
   const pages: string[] = [];
@@ -111,12 +144,16 @@ export function capturePrintStyles(doc: Document = document): CapturedStyles {
       continue;
     }
 
+    // Assets are resolved against the sheet that declared them; an inline <style> has no
+    // href, so it resolves against the document itself.
+    const base = href ?? doc.baseURI;
+
     for (const rule of Array.from(rules)) {
       // The printed page is always a light paper surface — the application's dark theme
       // must never repaint it.
       if (isDarkSchemeRule(rule)) continue;
 
-      const { text, pages } = extractPageRules(rule.cssText);
+      const { text, pages } = extractPageRules(absolutizeUrls(rule.cssText, base));
       pageRules.push(...pages);
 
       const trimmed = text.trim();

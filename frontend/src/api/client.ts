@@ -57,6 +57,12 @@ declare global {
         | { ok: true; token: string; pageCount: number; sizeBytes: number; data: Uint8Array }
         | { ok: false; error: string }
       >;
+      /** Prints the EXACT cached PDF bytes — never the visible application window. */
+      printArtifact?: (args: {
+        contractVersion: string;
+        token: string;
+        copies?: number;
+      }) => Promise<{ status: 'printed' | 'canceled' | 'failed'; error?: string }>;
       printSavePdf?: (args: { token: string; suggestedFileName?: string }) => Promise<{
         status: 'exported' | 'canceled' | 'failed';
         sizeBytes?: number;
