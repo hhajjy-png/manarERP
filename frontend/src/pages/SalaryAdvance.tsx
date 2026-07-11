@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
+import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
@@ -154,7 +155,7 @@ export default function SalaryAdvance() {
             </div>
             <div className="field">
               <label>تاريخ الطلب</label>
-              <input type="date" lang="en" title="تاريخ الطلب" value={printFields.requestDate} onChange={(e) => setPrintFields(p => ({ ...p, requestDate: e.target.value }))} />
+              <DateInput title="تاريخ الطلب" value={printFields.requestDate} onChange={(v) => setPrintFields(p => ({ ...p, requestDate: v }))} />
             </div>
             <div className="field">
               <label>سبب السلفة</label>

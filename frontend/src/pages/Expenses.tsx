@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useHighlight } from '../hooks/useHighlight';
+import DateInput from '../components/DateInput';
+import { todayDateOnly } from '../lib/date';
 import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -520,7 +522,7 @@ function ExpenseForm({
   const [description, setDescription] = useState<string>(String(expense?.description ?? ''));
   const [amount, setAmount] = useState<string>(expense?.amount ? String(expense.amount) : '');
   const [date, setDate] = useState<string>(
-    expense?.date ? String(expense.date).slice(0, 10) : now.toISOString().slice(0, 10)
+    expense?.date ? String(expense.date).slice(0, 10) : todayDateOnly(now)
   );
   const [billingMonth, setBillingMonth] = useState<number>(Number(expense?.billingMonth) || (now.getMonth() + 1));
   const [billingYear, setBillingYear] = useState<number>(Number(expense?.billingYear) || now.getFullYear());
@@ -616,11 +618,11 @@ function ExpenseForm({
         </div>
         <div className="xpl-field">
           <label>التاريخ</label>
-          <input className="xpl-input" type="date" value={date} onChange={(e) => {
-            const v = e.target.value;
+          <DateInput className="xpl-input" value={date} onChange={(v) => {
             setDate(v);
-            if (v) { const d = new Date(v); setBillingMonth(d.getMonth() + 1); setBillingYear(d.getFullYear()); }
-          }} aria-label="التاريخ" />
+            // Derive billing month/year from the canonical YYYY-MM-DD string — no Date/UTC.
+            if (v) { const [yy, mm] = v.split('-'); setBillingMonth(Number(mm)); setBillingYear(Number(yy)); }
+          }} ariaLabel="التاريخ" />
           <HistoricalDateNotice date={date} />
         </div>
       </DialogSection>

@@ -2,6 +2,8 @@ import { CSSProperties, useEffect, useState } from 'react';
 import { printCurrentView } from '../utils/print';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import DateInput from '../components/DateInput';
+import { todayDateOnly } from '../lib/date';
 import FormHeader from '../forms/shared/FormHeader';
 import ApprovalSection from '../forms/shared/ApprovalSection';
 import FormQRCode from '../forms/shared/FormQRCode';
@@ -18,7 +20,7 @@ interface FormState {
 }
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayDateOnly();
 }
 
 const INITIAL: FormState = {
@@ -190,11 +192,10 @@ export default function ReceiptVoucher() {
           {/* Date */}
           <div>
             <label style={labelStyle}>التاريخ <span style={{ color: '#e11d48' }}>*</span></label>
-            <input
+            <DateInput
               style={{ ...inputStyle, direction: 'ltr' }}
-              type="date"
               value={form.date}
-              onChange={(e) => set('date', e.target.value)}
+              onChange={(v) => set('date', v)}
             />
           </div>
 

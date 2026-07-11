@@ -4,6 +4,9 @@ import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
+import DateInput from '../components/DateInput';
+import { todayDateOnly } from '../lib/date';
+import { normalizeDateOnly } from '../lib/dateInput';
 import ConfirmModal from '../components/ConfirmModal';
 import { dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -74,7 +77,7 @@ interface AttendanceStats { total: number; present: number; absent: number; late
 const DEFAULT_STATS: AttendanceStats = { total: 0, present: 0, absent: 0, late: 0, leave: 0 };
 
 type FormData = { employeeId: string; date: string; checkIn: string; checkOut: string; status: string; notes: string; };
-const EMPTY_FORM: FormData = { employeeId: '', date: new Date().toISOString().slice(0, 10), checkIn: '', checkOut: '', status: 'PRESENT', notes: '' };
+const EMPTY_FORM: FormData = { employeeId: '', date: todayDateOnly(), checkIn: '', checkOut: '', status: 'PRESENT', notes: '' };
 const EMPTY_FORM_JSON = JSON.stringify(EMPTY_FORM);
 
 // ── Sectioned attendance form (shared by create + edit dialogs) ────────────────
@@ -103,7 +106,7 @@ function AttendanceFormBody({ form, setForm, employeeList, isEdit }: {
       <DialogSection title="الحضور" icon="event">
         <div className="xpl-field">
           <label>{t('field.date')} <span className="req">*</span></label>
-          <input className="xpl-input" type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={isEdit} autoFocus={!isEdit} aria-label={t('field.date')} />
+          <DateInput className="xpl-input" required value={form.date} onChange={(v) => setForm({ ...form, date: v })} disabled={isEdit} autoFocus={!isEdit} ariaLabel={t('field.date')} />
         </div>
         <div className="xpl-field">
           <label>{t('field.status')}</label>
@@ -231,7 +234,7 @@ export default function Attendance() {
   }
 
   function openEdit(record: AttendanceRecord) {
-    const dateStr = record.date ? new Date(record.date).toISOString().slice(0, 10) : '';
+    const dateStr = record.date ? normalizeDateOnly(record.date) : '';
     const initialForm: FormData = {
       employeeId: String(record.employeeId),
       date: dateStr,
@@ -251,7 +254,7 @@ export default function Attendance() {
     setSaving(true);
     setFormError('');
     try {
-      const dateStr = editRecord.date ? new Date(editRecord.date).toISOString().slice(0, 10) : editForm.date;
+      const dateStr = editRecord.date ? normalizeDateOnly(editRecord.date) : editForm.date;
       const checkIn = editForm.checkIn ? new Date(`${dateStr}T${editForm.checkIn}`) : undefined;
       const checkOut = editForm.checkOut ? new Date(`${dateStr}T${editForm.checkOut}`) : undefined;
       await api.patch(`/employees/attendance/${editRecord.id}`, {
@@ -345,11 +348,11 @@ export default function Attendance() {
           </div>
           <div className="xpl-field" style={{ minWidth: 140 }}>
             <span className="xpl-field-label">{t('filter.date_from')}</span>
-            <input className="xpl-input" type="date" aria-label={t('filter.date_from')} value={filterDateFrom} onChange={(e) => { setFilterDateFrom(e.target.value); setPage(1); }} />
+            <DateInput className="xpl-input" ariaLabel={t('filter.date_from')} value={filterDateFrom} onChange={(v) => { setFilterDateFrom(v); setPage(1); }} />
           </div>
           <div className="xpl-field" style={{ minWidth: 140 }}>
             <span className="xpl-field-label">{t('filter.date_to')}</span>
-            <input className="xpl-input" type="date" aria-label={t('filter.date_to')} value={filterDateTo} onChange={(e) => { setFilterDateTo(e.target.value); setPage(1); }} />
+            <DateInput className="xpl-input" ariaLabel={t('filter.date_to')} value={filterDateTo} onChange={(v) => { setFilterDateTo(v); setPage(1); }} />
           </div>
           <Button variant="ghost" icon="refresh" busy={loading} onClick={load}>{t('action.refresh')}</Button>
         </div>

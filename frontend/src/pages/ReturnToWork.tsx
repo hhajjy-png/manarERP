@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
+import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
@@ -194,16 +195,16 @@ export default function ReturnToWork() {
             </div>
             <div className="field">
               <label>تاريخ بداية الإجازة</label>
-              <input type="date" lang="en" title="تاريخ بداية الإجازة" value={printFields.leaveStartDate} onChange={(e) => setPrintFields(p => ({ ...p, leaveStartDate: e.target.value }))} />
+              <DateInput title="تاريخ بداية الإجازة" value={printFields.leaveStartDate} onChange={(v) => setPrintFields(p => ({ ...p, leaveStartDate: v }))} />
             </div>
             <div className="field">
               <label>تاريخ نهاية الإجازة</label>
-              <input type="date" lang="en" title="تاريخ نهاية الإجازة" value={printFields.leaveEndDate} onChange={(e) => setPrintFields(p => ({ ...p, leaveEndDate: e.target.value }))} />
+              <DateInput title="تاريخ نهاية الإجازة" value={printFields.leaveEndDate} onChange={(v) => setPrintFields(p => ({ ...p, leaveEndDate: v }))} />
             </div>
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="field"><label>تاريخ العودة الفعلية</label><input type="date" lang="en" title="تاريخ العودة الفعلية" value={printFields.actualReturnDate} onChange={(e) => setPrintFields(p => ({ ...p, actualReturnDate: e.target.value }))} /></div>
+          <div className="field"><label>تاريخ العودة الفعلية</label><DateInput title="تاريخ العودة الفعلية" value={printFields.actualReturnDate} onChange={(v) => setPrintFields(p => ({ ...p, actualReturnDate: v }))} /></div>
           <div className="field"><label>ملاحظات طبية / تقرير الطبيب</label><input title="ملاحظات طبية" value={printFields.medicalNotes} onChange={(e) => setPrintFields(p => ({ ...p, medicalNotes: e.target.value }))} /></div>
         </div>
         <div style={{ marginTop: 10 }}>

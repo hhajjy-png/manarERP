@@ -5,6 +5,8 @@ import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import { EXPENSE_CATEGORY_SELECT_OPTIONS } from '../config/expenseCategories';
 import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '../config/expensePresentation';
 import SearchableSelect from './SearchableSelect';
+import DateInput from './DateInput';
+import { todayDateOnly } from '../lib/date';
 import { Dialog, DialogSection, Button } from './explorer/ExplorerKit';
 import {
   FastSharedFields,
@@ -35,7 +37,7 @@ interface Props {
 export default function FastMonthlyExpenseDialog({ onClose, onSaved, suppliers }: Props) {
   const now = new Date();
   const [shared, setShared] = useState<FastSharedFields>({
-    date: now.toISOString().slice(0, 10),
+    date: todayDateOnly(now),
     billingMonth: now.getMonth() + 1,
     billingYear: now.getFullYear(),
     paymentMethod: 'CASH',
@@ -136,12 +138,11 @@ export default function FastMonthlyExpenseDialog({ onClose, onSaved, suppliers }
         <DialogSection title="حقول مشتركة (ثابتة لكل الإدخالات)" icon="push_pin">
           <div className="xpl-field">
             <label>التاريخ</label>
-            <input className="xpl-input" type="date" value={shared.date} onChange={(e) => {
-              const v = e.target.value;
+            <DateInput className="xpl-input" value={shared.date} onChange={(v) => {
               const patch: Partial<FastSharedFields> = { date: v };
-              if (v) { const d = new Date(v); patch.billingMonth = d.getMonth() + 1; patch.billingYear = d.getFullYear(); }
+              if (v) { const [yy, mm] = v.split('-'); patch.billingMonth = Number(mm); patch.billingYear = Number(yy); }
               patchShared(patch);
-            }} aria-label="التاريخ" />
+            }} ariaLabel="التاريخ" />
           </div>
           <div className="xpl-field">
             <label>طريقة الدفع</label>

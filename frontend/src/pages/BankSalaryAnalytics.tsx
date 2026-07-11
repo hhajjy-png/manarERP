@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { printCurrentView } from '../utils/print';
 import { useNavigate } from 'react-router-dom';
+import DateInput from '../components/DateInput';
 import { api } from '../api/client';
 import { useUI } from '../stores/uiStore';
 import PrivateAmount from '../components/PrivateAmount';
@@ -917,11 +918,11 @@ export default function BankSalaryAnalytics() {
               <div className="psa-filter-row">
                 <div className="psa-filter-field">
                   <label>تاريخ من</label>
-                  <input type="date" title="تاريخ من" value={draftFilters.dateFrom ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, dateFrom: e.target.value || undefined }))} />
+                  <DateInput title="تاريخ من" value={draftFilters.dateFrom ?? ''} onChange={(v) => setDraftFilters((f) => ({ ...f, dateFrom: v || undefined }))} />
                 </div>
                 <div className="psa-filter-field">
                   <label>تاريخ إلى</label>
-                  <input type="date" title="تاريخ إلى" value={draftFilters.dateTo ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, dateTo: e.target.value || undefined }))} />
+                  <DateInput title="تاريخ إلى" value={draftFilters.dateTo ?? ''} onChange={(v) => setDraftFilters((f) => ({ ...f, dateTo: v || undefined }))} />
                 </div>
               </div>
             </div>

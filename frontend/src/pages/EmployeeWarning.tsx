@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
+import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
 import { useT } from '../lib/i18n';
 import { api, errorMessage } from '../api/client';
@@ -148,7 +149,7 @@ export default function EmployeeWarning() {
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{t('page.warning.print_fields_header')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="field"><label>{t('page.warning.field.date')}</label><input type="date" lang="en" title={t('page.warning.field.date')} value={printFields.warningDate} onChange={(e) => setPrintFields(p => ({ ...p, warningDate: e.target.value }))} /></div>
+          <div className="field"><label>{t('page.warning.field.date')}</label><DateInput title={t('page.warning.field.date')} value={printFields.warningDate} onChange={(v) => setPrintFields(p => ({ ...p, warningDate: v }))} /></div>
           <div className="field"><label>{t('page.warning.field.reason')}</label><input title={t('page.warning.field.reason')} value={printFields.warningReason} onChange={(e) => setPrintFields(p => ({ ...p, warningReason: e.target.value }))} /></div>
           <div className="field"><label>{t('page.warning.field.violation')}</label><input title={t('page.warning.field.violation')} value={printFields.violationDetails} onChange={(e) => setPrintFields(p => ({ ...p, violationDetails: e.target.value }))} /></div>
           <div className="field"><label>{t('page.warning.field.corrective')}</label><input title={t('page.warning.field.corrective')} value={printFields.correctiveAction} onChange={(e) => setPrintFields(p => ({ ...p, correctiveAction: e.target.value }))} /></div>

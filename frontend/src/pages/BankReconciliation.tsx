@@ -3,6 +3,7 @@ import {
 } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { printCurrentView } from '../utils/print';
+import DateInput from '../components/DateInput';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
@@ -11,7 +12,7 @@ import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatCurrency, formatNumber } from '../lib/format';
-import { formatDate } from '../lib/date';
+import { formatDate, todayDateOnly } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import {
   getWorkspace,
@@ -137,7 +138,7 @@ function exportTimelineCsv(
   const csv      = '﻿' + [headers, ...rows].map((r) => r.join(',')).join('\r\n');
   const blob     = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const bankSlug = bankName.toLowerCase().replace(/_/g, '-');
-  const today    = new Date().toISOString().substring(0, 10);
+  const today    = todayDateOnly();
   const from     = fromDate?.substring(0, 10) ?? today;
   const to       = toDate?.substring(0, 10)   ?? today;
   const a        = document.createElement('a');
@@ -1044,7 +1045,7 @@ export default function BankReconciliation() {
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError]     = useState<string | null>(null);
   const [tlFromDate, setTlFromDate]           = useState('2024-01-01');
-  const [tlToDate, setTlToDate]               = useState(new Date().toISOString().substring(0, 10));
+  const [tlToDate, setTlToDate]               = useState(todayDateOnly());
   const [tlSearch, setTlSearch]               = useState('');
   const [tlPage, setTlPage]                   = useState(1);
   const tlSearchTimer                         = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1602,18 +1603,16 @@ export default function BankReconciliation() {
           <div className="recon-tl-filter-bar">
             <div className="recon-tl-filter-group">
               <label>من</label>
-              <input
-                type="date"
+              <DateInput
                 value={tlFromDate}
-                onChange={(e) => setTlFromDate(e.target.value)}
+                onChange={setTlFromDate}
               />
             </div>
             <div className="recon-tl-filter-group">
               <label>إلى</label>
-              <input
-                type="date"
+              <DateInput
                 value={tlToDate}
-                onChange={(e) => setTlToDate(e.target.value)}
+                onChange={setTlToDate}
               />
             </div>
             <div className="recon-tl-filter-group">
@@ -2049,18 +2048,16 @@ export default function BankReconciliation() {
               <div className="recon-filter-row">
                 <div className="recon-filter-field">
                   <label>من تاريخ</label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={filterDraft.fromDate ?? ''}
-                    onChange={(e) => setFilterDraft((d) => ({ ...d, fromDate: e.target.value || undefined }))}
+                    onChange={(v) => setFilterDraft((d) => ({ ...d, fromDate: v || undefined }))}
                   />
                 </div>
                 <div className="recon-filter-field">
                   <label>إلى تاريخ</label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={filterDraft.toDate ?? ''}
-                    onChange={(e) => setFilterDraft((d) => ({ ...d, toDate: e.target.value || undefined }))}
+                    onChange={(v) => setFilterDraft((d) => ({ ...d, toDate: v || undefined }))}
                   />
                 </div>
               </div>

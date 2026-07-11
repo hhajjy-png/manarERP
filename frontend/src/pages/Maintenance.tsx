@@ -23,6 +23,7 @@ import {
   DialogSection,
   Button,
 } from '../components/explorer/ExplorerKit';
+import DateInput from '../components/DateInput';
 import '../components/explorer/explorer-kit.css';
 import './Maintenance.css';
 
@@ -194,8 +195,8 @@ function RecordFormBody({ form, setForm, equipmentList, isEdit }: { form: typeof
         <div className="xpl-field"><label>{t('field.maint.performed_by')}</label><input className="xpl-input" value={form.performedBy} onChange={(e) => setForm({ ...form, performedBy: e.target.value })} aria-label={t('field.maint.performed_by')} /></div>
       </DialogSection>
       <DialogSection title="الجدولة" icon="event">
-        <div className="xpl-field"><label>{t('field.date')}</label><input className="xpl-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} aria-label={t('field.date')} /></div>
-        <div className="xpl-field"><label>{t('field.maint.next_due')}</label><input className="xpl-input" type="date" value={form.nextDueDate} onChange={(e) => setForm({ ...form, nextDueDate: e.target.value })} aria-label={t('field.maint.next_due')} /></div>
+        <div className="xpl-field"><label>{t('field.date')}</label><DateInput className="xpl-input" value={form.date} onChange={(v) => setForm({ ...form, date: v })} ariaLabel={t('field.date')} /></div>
+        <div className="xpl-field"><label>{t('field.maint.next_due')}</label><DateInput className="xpl-input" value={form.nextDueDate} onChange={(v) => setForm({ ...form, nextDueDate: v })} ariaLabel={t('field.maint.next_due')} /></div>
       </DialogSection>
     </>
   );
@@ -315,8 +316,8 @@ function RecordsTab() {
               {equipmentList.map((eq) => <option key={eq.id} value={eq.id}>{eq.code}{eq.name ? ` — ${eq.name}` : eq.type ? ` — ${eq.type}` : ''}</option>)}
             </select>
           </div>
-          <div className="xpl-field" style={{ minWidth: 140 }}><span className="xpl-field-label">{t('filter.date_from')}</span><input className="xpl-input" type="date" aria-label={t('filter.date_from')} value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} /></div>
-          <div className="xpl-field" style={{ minWidth: 140 }}><span className="xpl-field-label">{t('filter.date_to')}</span><input className="xpl-input" type="date" aria-label={t('filter.date_to')} value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} /></div>
+          <div className="xpl-field" style={{ minWidth: 140 }}><span className="xpl-field-label">{t('filter.date_from')}</span><DateInput className="xpl-input" ariaLabel={t('filter.date_from')} value={filterDateFrom} onChange={setFilterDateFrom} /></div>
+          <div className="xpl-field" style={{ minWidth: 140 }}><span className="xpl-field-label">{t('filter.date_to')}</span><DateInput className="xpl-input" ariaLabel={t('filter.date_to')} value={filterDateTo} onChange={setFilterDateTo} /></div>
           <Button variant="ghost" icon="refresh" busy={loading} onClick={load}>{t('action.refresh')}</Button>
           {hasPermission('maintenance.create') && <Button variant="primary" icon="add" onClick={() => { setCreateForm(EMPTY_FORM); setFormError(''); setShowCreate(true); }}>{t('action.maint.add_record')}</Button>}
         </div>
@@ -518,7 +519,7 @@ function FuelTab() {
               <div className="xpl-field"><label>{t('field.maint.liters')} <span className="req">*</span></label><input className="xpl-input" type="number" min="0.001" step="0.001" required value={form.liters} onChange={(e) => setForm({ ...form, liters: e.target.value })} style={{ direction: 'ltr' }} aria-label={t('field.maint.liters')} /></div>
               <div className="xpl-field"><label>{t('field.amount_kd')} <span className="req">*</span></label><input className="xpl-input" type="number" min="0" step="0.001" required value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} style={{ direction: 'ltr' }} aria-label={t('field.amount_kd')} /></div>
               <div className="xpl-field"><label>{t('field.maint.odometer')}</label><input className="xpl-input" type="number" min="0" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} style={{ direction: 'ltr' }} aria-label={t('field.maint.odometer')} /></div>
-              <div className="xpl-field"><label>{t('field.date')}</label><input className="xpl-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} aria-label={t('field.date')} /></div>
+              <div className="xpl-field"><label>{t('field.date')}</label><DateInput className="xpl-input" value={form.date} onChange={(v) => setForm({ ...form, date: v })} ariaLabel={t('field.date')} /></div>
               <div className="xpl-field xpl-field--full"><label>{t('field.notes')}</label><textarea className="xpl-textarea" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} aria-label={t('field.notes')} /></div>
             </DialogSection>
             <input type="submit" hidden disabled={saving} />
@@ -775,7 +776,7 @@ function SparePartsTab() {
               <div className="xpl-field xpl-field--full"><label>{t('field.maint.part_name')} <span className="req">*</span></label><input className="xpl-input" required value={form.partName} onChange={(e) => setForm({ ...form, partName: e.target.value })} aria-label={t('field.maint.part_name')} /></div>
               <div className="xpl-field"><label>{t('field.maint.quantity')} <span className="req">*</span></label><input className="xpl-input" type="number" min="1" required value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} style={{ direction: 'ltr' }} aria-label={t('field.maint.quantity')} /></div>
               <div className="xpl-field"><label>{t('field.maint.unit_cost')} <span className="req">*</span></label><input className="xpl-input" type="number" min="0" step="0.001" required value={form.unitCost} onChange={(e) => setForm({ ...form, unitCost: e.target.value })} style={{ direction: 'ltr' }} aria-label={t('field.maint.unit_cost')} /></div>
-              <div className="xpl-field xpl-field--full"><label>{t('field.date')}</label><input className="xpl-input" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} aria-label={t('field.date')} /></div>
+              <div className="xpl-field xpl-field--full"><label>{t('field.date')}</label><DateInput className="xpl-input" value={form.date} onChange={(v) => setForm({ ...form, date: v })} ariaLabel={t('field.date')} /></div>
             </DialogSection>
             <input type="submit" hidden disabled={saving} />
           </form>

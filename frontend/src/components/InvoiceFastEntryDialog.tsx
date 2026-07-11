@@ -4,6 +4,8 @@ import { money } from '../config/modules';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import { useToast } from '../stores/toastStore';
 import { Dialog, DialogSection, Button } from './explorer/ExplorerKit';
+import DateInput from './DateInput';
+import { todayDateOnly } from '../lib/date';
 import SearchableSelect, { SearchableOption } from './SearchableSelect';
 import { InvoiceLineItemsEditor, invoiceLineTotal, type Item, type PriceOption } from './invoices/InvoiceLineItemsEditor';
 import {
@@ -44,7 +46,7 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
     entryMode: 'SINGLE',
     direction: 'SALES',
     invoiceType: 'نقل اسفلت',
-    issueDate: now.toISOString().slice(0, 10),
+    issueDate: todayDateOnly(now),
     billingMonth: now.getMonth() + 1,
     billingYear: now.getFullYear(),
     numberYear: now.getFullYear(),
@@ -262,18 +264,17 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
           </div>
           <div className="xpl-field">
             <label>تاريخ الفاتورة</label>
-            <input className="xpl-input" type="date" value={shared.issueDate} onChange={(e) => {
-              const v = e.target.value;
+            <DateInput className="xpl-input" value={shared.issueDate} onChange={(v) => {
               const patch: Partial<InvoiceSharedFields> = { issueDate: v };
               if (v) {
-                const d = new Date(v);
-                patch.billingMonth = d.getMonth() + 1;
-                patch.billingYear = d.getFullYear();
+                const [yy, mm] = v.split('-');
+                patch.billingMonth = Number(mm);
+                patch.billingYear = Number(yy);
                 // سنة رقم الفاتورة تتبع تاريخ الإصدار في الإدخال السريع أيضًا.
-                patch.numberYear = deriveInvoiceYearFromIssueDate(v, d.getFullYear());
+                patch.numberYear = deriveInvoiceYearFromIssueDate(v, Number(yy));
               }
               patchShared(patch);
-            }} aria-label="تاريخ الفاتورة" />
+            }} ariaLabel="تاريخ الفاتورة" />
             <HistoricalDateNotice date={shared.issueDate} />
           </div>
           <div className="xpl-field">
@@ -320,7 +321,7 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
           </div>
           <div className="xpl-field">
             <label>تاريخ التسليم</label>
-            <input className="xpl-input" type="date" value={row.deliveryDate} onChange={(e) => setRow((r) => ({ ...r, deliveryDate: e.target.value }))} aria-label="تاريخ التسليم" />
+            <DateInput className="xpl-input" value={row.deliveryDate} onChange={(v) => setRow((r) => ({ ...r, deliveryDate: v }))} ariaLabel="تاريخ التسليم" />
           </div>
           <div className="xpl-field--full">
             <InvoiceLineItemsEditor

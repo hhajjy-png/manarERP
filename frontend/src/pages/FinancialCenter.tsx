@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
+import DateInput from '../components/DateInput';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { financialApi } from '../api/financial';
@@ -583,8 +584,8 @@ export default function FinancialCenter() {
           <FilterBar search={agingSearch} onSearch={v => setParam('agingSearch', v)}>
             <div className="filter-field">
               <label htmlFor="aging-as-of-date">حتى تاريخ</label>
-              <input id="aging-as-of-date" type="date" title="تاريخ التقرير"
-                value={agingAsOfDate} onChange={e => setParam('asOfDate', e.target.value)} />
+              <DateInput id="aging-as-of-date" title="تاريخ التقرير"
+                value={agingAsOfDate} onChange={(v) => setParam('asOfDate', v)} />
             </div>
             <label className="filter-field fc-hide-settled">
               <input type="checkbox" checked={agingHideZero}
@@ -957,8 +958,8 @@ export default function FinancialCenter() {
             <FilterBar>
               <div className="filter-field">
                 <label htmlFor="trial-as-of">حتى تاريخ</label>
-                <input id="trial-as-of" type="date" title="حتى تاريخ"
-                  value={trialAsOf} onChange={e => setParam('trialAsOf', e.target.value)} />
+                <DateInput id="trial-as-of" title="حتى تاريخ"
+                  value={trialAsOf} onChange={(v) => setParam('trialAsOf', v)} />
               </div>
             </FilterBar>
           ) : (

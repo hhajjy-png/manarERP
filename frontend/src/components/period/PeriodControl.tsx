@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useFinancialPeriod } from '../../context/FinancialPeriodContext';
 import { displayDate, type FinancialPeriodPreset } from '../../lib/financialPeriod';
+import DateInput from '../DateInput';
 import './period-control.css';
 
 /**
@@ -104,11 +105,11 @@ export default function PeriodControl() {
             <div className="period-control__custom">
               <label className="period-control__field">
                 <span>من</span>
-                <input type="date" value={customFrom} max={customTo || undefined} onChange={(e) => setCustomFrom(e.target.value)} />
+                <DateInput value={customFrom} max={customTo || undefined} onChange={setCustomFrom} />
               </label>
               <label className="period-control__field">
                 <span>إلى</span>
-                <input type="date" value={customTo} min={customFrom || undefined} onChange={(e) => setCustomTo(e.target.value)} />
+                <DateInput value={customTo} min={customFrom || undefined} onChange={setCustomTo} />
               </label>
               <button
                 type="button"

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useHighlight } from '../hooks/useHighlight';
+import DateInput from '../components/DateInput';
 import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
 import { useAuth } from '../stores/authStore';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
@@ -18,7 +19,7 @@ import InvoiceFastEntryDialog from '../components/InvoiceFastEntryDialog';
 import ConfirmModal from '../components/ConfirmModal';
 import { money, moneyParts, dateText } from '../config/modules';
 import { KpiStat, KpiStatGrid } from '../components/KpiStat';
-import { formatFileDate } from '../lib/date';
+import { formatFileDate, todayDateOnly } from '../lib/date';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription, parseDescription } from '../utils/invoiceDescription';
 import { toInvoiceItemPayload } from '../utils/invoicePayload';
@@ -633,7 +634,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const { t } = useT();
   const [invoiceYear, setInvoiceYear] = useState<string>(DEFAULT_INVOICE_YEAR);
   const [invoiceNumberSuffix, setInvoiceNumberSuffix] = useState('');
-  const [issueDate, setIssueDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [issueDate, setIssueDate] = useState<string>(todayDateOnly());
   const [billingMonth, setBillingMonth] = useState<number>(new Date().getMonth() + 1);
   const [billingYear, setBillingYear] = useState<number>(new Date().getFullYear());
   const [directionChoice, setDirectionChoice] = useState('SALES'); // SALES | PURCHASE | OTHER
@@ -784,18 +785,16 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         </div>
         <div className="field">
           <label>تاريخ الفاتورة</label>
-          <input
-            type="date"
+          <DateInput
             value={issueDate}
-            onChange={(e) => {
-              const v = e.target.value;
+            onChange={(v) => {
               setIssueDate(v);
               if (v) {
-                const d = new Date(v);
-                setBillingMonth(d.getMonth() + 1);
-                setBillingYear(d.getFullYear());
+                const [yy, mm] = v.split('-');
+                setBillingMonth(Number(mm));
+                setBillingYear(Number(yy));
                 // سنة رقم الفاتورة تتبع تاريخ الإصدار (فاتورة 2024 → MN-INV-2024-…).
-                setInvoiceYear(String(deriveInvoiceYearFromIssueDate(v, d.getFullYear())));
+                setInvoiceYear(String(deriveInvoiceYearFromIssueDate(v, Number(yy))));
               }
             }}
             title="تاريخ الفاتورة"
@@ -804,10 +803,9 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         </div>
         <div className="field">
           <label>تاريخ التسليم</label>
-          <input
-            type="date"
+          <DateInput
             value={deliveryDate}
-            onChange={(e) => setDeliveryDate(e.target.value)}
+            onChange={setDeliveryDate}
             title="تاريخ تسليم الفاتورة"
           />
         </div>
@@ -950,7 +948,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   const [invoiceYear, setInvoiceYear] = useState<string>(parsed.year);
   const [invoiceNumberSuffix, setInvoiceNumberSuffix] = useState(parsed.suffix);
   const [issueDate, setIssueDate] = useState<string>(
-    invoice.issueDate ? String(invoice.issueDate).slice(0, 10) : new Date().toISOString().slice(0, 10)
+    invoice.issueDate ? String(invoice.issueDate).slice(0, 10) : todayDateOnly()
   );
   const [billingMonth, setBillingMonth] = useState<number>(Number(invoice.billingMonth) || (new Date().getMonth() + 1));
   const [billingYear, setBillingYear] = useState<number>(Number(invoice.billingYear) || new Date().getFullYear());
@@ -1211,20 +1209,19 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
         </div>
         <div className="field">
           <label>تاريخ الفاتورة</label>
-          <input type="date" value={issueDate} onChange={(e) => {
-            const v = e.target.value;
+          <DateInput value={issueDate} onChange={(v) => {
             setIssueDate(v);
             if (v) {
-              const d = new Date(v);
-              setBillingMonth(d.getMonth() + 1);
-              setBillingYear(d.getFullYear());
+              const [yy, mm] = v.split('-');
+              setBillingMonth(Number(mm));
+              setBillingYear(Number(yy));
             }
           }} title="تاريخ الفاتورة" />
           <HistoricalDateNotice date={issueDate} />
         </div>
         <div className="field">
           <label>تاريخ التسليم</label>
-          <input type="date" value={deliveryDate} onChange={(e) => setDeliveryDate(e.target.value)} title="تاريخ تسليم الفاتورة" />
+          <DateInput value={deliveryDate} onChange={setDeliveryDate} title="تاريخ تسليم الفاتورة" />
         </div>
         <div className="field">
           <label>{t('lbl.inv.billing_period')}</label>
@@ -1610,7 +1607,7 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
         </div>
         <div className="field">
           <label>{t('field.collection_date')} *</label>
-          <input type="date" value={collectionDate} onChange={(e) => setCollectionDate(e.target.value)} aria-label={t('field.collection_date')} />
+          <DateInput value={collectionDate} onChange={setCollectionDate} ariaLabel={t('field.collection_date')} />
           <HistoricalDateNotice date={collectionDate} />
         </div>
       </div>
@@ -1683,11 +1680,11 @@ function CorrectCollectionDate({ payment, onClose, onSaved }: { payment: any; on
       </div>
       <div className="field">
         <label>تاريخ التحصيل الحالي</label>
-        <input type="date" value={currentDate} readOnly disabled aria-label="تاريخ التحصيل الحالي" />
+        <DateInput value={currentDate} onChange={() => {}} readOnly disabled ariaLabel="تاريخ التحصيل الحالي" />
       </div>
       <div className="field">
         <label>تاريخ التحصيل الجديد *</label>
-        <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} aria-label="تاريخ التحصيل الجديد" />
+        <DateInput value={newDate} onChange={setNewDate} ariaLabel="تاريخ التحصيل الجديد" />
       </div>
       <div className="field">
         <label>السبب (اختياري)</label>

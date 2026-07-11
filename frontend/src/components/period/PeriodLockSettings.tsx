@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, errorMessage } from '../../api/client';
 import { useAuth } from '../../stores/authStore';
+import DateInput from '../DateInput';
 import { useToast } from '../../stores/toastStore';
 import { invalidatePeriodLock } from '../../hooks/usePeriodLock';
 import { displayDate } from '../../lib/financialPeriod';
@@ -81,12 +82,11 @@ export default function PeriodLockSettings() {
           <div className="plk__row">
             <label className="plk__field">
               <span>يقفل قبل تاريخ</span>
-              <input
-                type="date"
+              <DateInput
                 value={draft}
                 disabled={!canManage || saving}
-                onChange={(e) => setDraft(e.target.value)}
-                aria-label="تاريخ قفل الفترة"
+                onChange={setDraft}
+                ariaLabel="تاريخ قفل الفترة"
               />
             </label>
             <div className="plk__actions">

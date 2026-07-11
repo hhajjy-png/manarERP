@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
+import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
@@ -201,22 +202,18 @@ export default function LeaveRequest() {
             </div>
             <div className="field">
               <label>تاريخ البداية</label>
-              <input
-                type="date"
-                lang="en"
+              <DateInput
                 title="تاريخ البداية"
                 value={printFields.startDate}
-                onChange={(e) => setPrintFields(p => ({ ...p, startDate: e.target.value }))}
+                onChange={(v) => setPrintFields(p => ({ ...p, startDate: v }))}
               />
             </div>
             <div className="field">
               <label>تاريخ النهاية</label>
-              <input
-                type="date"
-                lang="en"
+              <DateInput
                 title="تاريخ النهاية"
                 value={printFields.endDate}
-                onChange={(e) => setPrintFields(p => ({ ...p, endDate: e.target.value }))}
+                onChange={(v) => setPrintFields(p => ({ ...p, endDate: v }))}
               />
             </div>
             <div className="field" style={{ gridColumn: '1 / -1' }}>
@@ -232,12 +229,10 @@ export default function LeaveRequest() {
 
         <div className="field" style={{ maxWidth: 280 }}>
           <label>تاريخ العودة المتوقعة</label>
-          <input
-            type="date"
-            lang="en"
+          <DateInput
             title="تاريخ العودة المتوقعة"
             value={printFields.expectedReturnDate}
-            onChange={(e) => setPrintFields(p => ({ ...p, expectedReturnDate: e.target.value }))}
+            onChange={(v) => setPrintFields(p => ({ ...p, expectedReturnDate: v }))}
           />
         </div>
         <div style={{ marginTop: 10 }}>

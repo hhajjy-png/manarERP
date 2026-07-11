@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
+import DateInput from '../components/DateInput';
 import { useUI } from '../stores/uiStore';
 import { useT } from '../lib/i18n';
 import { formatDateTime, formatDateTimeWithSeconds } from '../lib/date';
@@ -472,13 +473,12 @@ export default function AuditLog() {
           {/* Date from */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('lbl.audit.filter_from')}</label>
-            <input
-              type="date"
+            <DateInput
               className="input"
               value={filterFrom}
               title={t('lbl.audit.filter_from')}
-              aria-label={t('lbl.audit.filter_from')}
-              onChange={(e) => setFilterFrom(e.target.value)}
+              ariaLabel={t('lbl.audit.filter_from')}
+              onChange={setFilterFrom}
               style={{ fontSize: 13, minWidth: 140 }}
             />
           </div>
@@ -486,13 +486,12 @@ export default function AuditLog() {
           {/* Date to */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('lbl.audit.filter_to')}</label>
-            <input
-              type="date"
+            <DateInput
               className="input"
               value={filterTo}
               title={t('lbl.audit.filter_to')}
-              aria-label={t('lbl.audit.filter_to')}
-              onChange={(e) => setFilterTo(e.target.value)}
+              ariaLabel={t('lbl.audit.filter_to')}
+              onChange={setFilterTo}
               style={{ fontSize: 13, minWidth: 140 }}
             />
           </div>
