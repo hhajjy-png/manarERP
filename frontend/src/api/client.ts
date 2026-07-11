@@ -52,6 +52,17 @@ declare global {
           status: number;
         }>
       >;
+      // ─── Print Center Phase 2 — PDF preview (optional; guard every call) ─────────
+      printPreview?: (request: unknown) => Promise<
+        | { ok: true; token: string; pageCount: number; sizeBytes: number; data: Uint8Array }
+        | { ok: false; error: string }
+      >;
+      printSavePdf?: (args: { token: string; suggestedFileName?: string }) => Promise<{
+        status: 'exported' | 'canceled' | 'failed';
+        sizeBytes?: number;
+        error?: string;
+      }>;
+      printReleasePreview?: (args: { token: string }) => Promise<{ released: boolean }>;
     };
   }
 }

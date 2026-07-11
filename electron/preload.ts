@@ -108,6 +108,25 @@ const api = {
   listPrinters: (): Promise<
     Array<{ name: string; displayName: string; description: string; isDefault: boolean; status: number }>
   > => ipcRenderer.invoke('print:listPrinters'),
+
+  // ─── Print Center Phase 2 — معاينة PDF ────────────────────────────────────────
+
+  /** توليد معاينة PDF من مستند مُركّب — تُعيد نفس البايتات التي ستُحفظ لاحقًا. */
+  printPreview: (request: unknown): Promise<
+    | { ok: true; token: string; pageCount: number; sizeBytes: number; data: Uint8Array }
+    | { ok: false; error: string }
+  > => ipcRenderer.invoke('print:preview', request),
+
+  /** حفظ ملف PDF من معاينة مُولّدة مسبقًا (نفس البايتات — لا إعادة توليد). */
+  printSavePdf: (args: { token: string; suggestedFileName?: string }): Promise<{
+    status: 'exported' | 'canceled' | 'failed';
+    sizeBytes?: number;
+    error?: string;
+  }> => ipcRenderer.invoke('print:savePdf', args),
+
+  /** تحرير موارد المعاينة. */
+  printReleasePreview: (args: { token: string }): Promise<{ released: boolean }> =>
+    ipcRenderer.invoke('print:releasePreview', args),
 };
 
 contextBridge.exposeInMainWorld('manar', api);

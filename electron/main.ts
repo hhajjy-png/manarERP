@@ -10,6 +10,7 @@ import { registerContextMenuIpc } from './ipc/contextMenu.ipc';
 import { registerPdfIpc } from './ipc/pdf.ipc';
 import { registerAttachmentsIpc } from './ipc/attachments.ipc';
 import { registerPrintIpc } from './services/printService';
+import { registerPreviewIpc, shutdownPreviewService } from './services/previewService';
 
 const INTERNAL_SECRET = randomUUID();
 
@@ -31,6 +32,9 @@ async function bootstrap() {
     // Print Center Foundation v1 — additive. `app:print` / `pdf:export` /
     // `pdf:exportHtml` remain registered above and fully functional.
     registerPrintIpc();
+    // Print Center Phase 2 — preview artifact service (print:preview / print:savePdf /
+    // print:releasePreview). Additive; print:submit above is unchanged.
+    registerPreviewIpc();
     await startBackend(INTERNAL_SECRET); // تشغيل الخدمة الخلفية أولًا
     await startBackupScheduler(INTERNAL_SECRET); // ثم جدولة النسخ التلقائي
     runCatchupIfNeeded(INTERNAL_SECRET).catch(console.error); // نسخة تعويضية إذا فات وقت الجدولة
@@ -94,4 +98,7 @@ app.on('window-all-closed', () => {
 app.on('before-quit', () => {
   stopBackupScheduler();
   stopBackend();
+  // Release every cached PDF artifact and remove the private temp directory —
+  // no preview bytes and no document HTML survive the process.
+  shutdownPreviewService();
 });

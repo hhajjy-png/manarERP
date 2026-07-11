@@ -22,7 +22,12 @@ export const PRINT_DOC_TYPES = [
   'cheque',
 ] as const;
 
-export const PRINT_AUDIT_ACTIONS = ['PRINT', 'PDF_EXPORT'] as const;
+/**
+ * PREVIEW_GENERATED (Phase 2) is a DISTINCT action from PRINT — opening the Print
+ * Center preview must never be counted as a physical print. AuditLog.action is a free
+ * string column, so this needs no migration.
+ */
+export const PRINT_AUDIT_ACTIONS = ['PRINT', 'PDF_EXPORT', 'PREVIEW_GENERATED'] as const;
 
 export const PRINT_JOB_STATUSES = ['printed', 'exported', 'canceled', 'failed'] as const;
 
