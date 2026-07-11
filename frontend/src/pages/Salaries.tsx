@@ -38,22 +38,33 @@ import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 type EmployeeOption = { id: number; fullName: string; code: string };
 type PayrollLine = { id: number; type: string; label: string; amount: number };
+type PayrollSource = 'COMPUTED' | 'IMPORTED_TRANSFER';
 type PayrollRow = {
-  id: number;
-  employee: { id: number; code: string; fullName: string; department?: string | null };
+  // Number for computed rows; `imported:<id>` string for imported salary-transfer rows.
+  id: number | string;
+  source: PayrollSource;
+  isReadOnly: boolean;
+  breakdownAvailable: boolean;
+  employee: { id: number | null; code: string | null; fullName: string; department?: string | null } | null;
+  employeeName?: string;
+  employeeCode?: string | null;
   month: number;
   year: number;
-  snapshotBaseSalary: number;
-  baseSalary: number;
-  grossSalary: number;
+  // Breakdown fields are null on imported historical rows (unavailable, not zero).
+  snapshotBaseSalary: number | null;
+  baseSalary: number | null;
+  grossSalary: number | null;
   netSalary: number;
-  totalAllowances: number;
-  totalDeductions: number;
-  totalAdvances: number;
-  overtimeHours: number;
-  overtimeAmount: number;
+  totalAllowances: number | null;
+  totalDeductions: number | null;
+  totalAdvances: number | null;
+  overtimeHours: number | null;
+  overtimeAmount: number | null;
   status: string;
   paidAt?: string | null;
+  paymentDate?: string | null;
+  bankName?: string | null;
+  transactionId?: string | null;
   lines: PayrollLine[];
 };
 type SalaryPaymentRow = {
@@ -92,7 +103,7 @@ export default function Salaries() {
   const [loading, setLoading] = useState(true);
   // Period KPI totals come from the backend /payroll/stats aggregate (full filtered
   // dataset, CANCELLED excluded) — never from the current page of `rows`.
-  const [stats, setStats] = useState<{ count: number; gross: number; net: number; paid: number } | null>(null);
+  const [stats, setStats] = useState<{ count: number; gross: number; net: number; paid: number; importedCount?: number; grossIsPartial?: boolean } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
   const [page, setPage] = useState(1);
@@ -331,7 +342,7 @@ export default function Salaries() {
               sub={<><span className="material-symbols-outlined">groups</span>{stats ? `${stats.count} مسير رواتب` : (statsLoading ? '…' : '—')}</>} />
             <div className="xpl-kpi-grid">
               <MetricCard icon="receipt_long" tone="indigo" label={t('stat.payroll_records')} value={stats ? stats.count : (statsLoading ? '…' : '—')} />
-              <MetricCard icon="payments" tone="blue" label={t('stat.gross_total')} value={stats ? <PrivateAmount value={stats.gross} /> : (statsLoading ? '…' : '—')} />
+              <MetricCard icon="payments" tone="blue" label={t('stat.gross_total') + (stats?.grossIsPartial ? ' (المحتسب فقط)' : '')} value={stats ? <PrivateAmount value={stats.gross} /> : (statsLoading ? '…' : '—')} />
               <MetricCard icon="task_alt" tone="green" label={t('stat.paid_records')} value={stats ? stats.paid : (statsLoading ? '…' : '—')} />
             </div>
           </div>
@@ -392,21 +403,27 @@ export default function Salaries() {
                       </tr>
                     </thead>
                     <tbody>
-                      {rows.map((r) => (
+                      {rows.map((r) => {
+                        const imported = r.source === 'IMPORTED_TRANSFER';
+                        return (
                         <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
                           aria-label={`تفاصيل راتب ${r.employee?.fullName}`}
                           onClick={() => setViewing(r)}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
-                          <td><strong>{r.employee?.fullName}</strong></td>
+                          <td>
+                            <strong>{r.employee?.fullName}</strong>
+                            {imported && <span style={{ marginInlineStart: 8, verticalAlign: 'middle' }}><StatusChip tone="indigo" icon="history">من سجل التحويل المستورد</StatusChip></span>}
+                          </td>
                           <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{r.month}/{r.year}</td>
-                          <td>{money(r.snapshotBaseSalary ?? r.baseSalary)}</td>
-                          <td>{money(r.grossSalary)}</td>
-                          <td>{money(Number(r.totalDeductions ?? 0) + Number(r.totalAdvances ?? 0))}</td>
+                          <td>{imported ? '—' : money(r.snapshotBaseSalary ?? r.baseSalary)}</td>
+                          <td>{imported ? '—' : money(r.grossSalary)}</td>
+                          <td>{imported ? '—' : money(Number(r.totalDeductions ?? 0) + Number(r.totalAdvances ?? 0))}</td>
                           <td><span className="salx-net">{money(r.netSalary)}</span></td>
-                          <td>{statusChip(r.status)}</td>
+                          <td>{imported ? <StatusChip tone="neutral" icon="lock">للقراءة فقط</StatusChip> : statusChip(r.status)}</td>
                           <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -468,6 +485,7 @@ export default function Salaries() {
 
       {/* ── Salary drawer ── */}
       {viewing && (() => {
+        const imported = viewing.source === 'IMPORTED_TRANSFER';
         const allowanceLines = (viewing.lines ?? []).filter((l) => l.type?.toUpperCase().includes('ALLOW'));
         const deductionLines = (viewing.lines ?? []).filter((l) => l.type?.toUpperCase().includes('DEDUC'));
         return (
@@ -480,16 +498,21 @@ export default function Salaries() {
                 <div className="xpl-drawer-hero-body">
                   <span className="xpl-drawer-hero-title">{money(viewing.netSalary)}</span>
                   <span className="xpl-drawer-hero-sub">{viewing.employee?.fullName} · {viewing.month}/{viewing.year}</span>
-                  <div style={{ marginTop: 4 }}>{statusChip(viewing.status)}</div>
+                  <div style={{ marginTop: 4 }}>{imported ? <StatusChip tone="indigo" icon="history">من سجل التحويل المستورد</StatusChip> : statusChip(viewing.status)}</div>
                 </div>
               </div>
             }
             footer={
+              // Imported historical transfers are structurally read-only: no payroll
+              // workflow actions (payslip needs an unavailable breakdown; approve/pay/
+              // cancel would drive a synthetic id into a mutation).
+              imported ? undefined : (
               <>
                 {canPayslip && <Button variant="secondary" icon="receipt_long" onClick={() => navigate(`/payroll/${viewing.id}/payslip`)}>{t('page.salaries.payslip')}</Button>}
                 {canApprove && viewing.status === 'DRAFT' && <Button variant="primary" icon="verified" busy={busy} onClick={() => { const id = viewing.id; setViewing(null); runAction(() => api.patch(`/payroll/${id}/approve`)); }}>{t('page.salaries.approve_btn')}</Button>}
                 {canCancel && ['DRAFT', 'APPROVED'].includes(viewing.status) && <Button variant="danger" icon="block" busy={busy} onClick={() => { const id = viewing.id; setViewing(null); runAction(() => api.patch(`/payroll/${id}/cancel`)); }}>{t('page.salaries.cancel_btn')}</Button>}
               </>
+              )
             }
           >
             <DrawerSection title="بيانات الموظف">
@@ -499,6 +522,17 @@ export default function Salaries() {
               <DrawerField label={t('col.sal.period')} value={`${viewing.month}/${viewing.year}`} />
             </DrawerSection>
 
+            {imported && (
+              <DrawerSection title="سجل تحويل مستورد">
+                <DrawerField label={t('col.sal.net')} value={<span className="salx-net">{money(viewing.netSalary)}</span>} />
+                {viewing.bankName && <DrawerField label={t('col.sal.bank')} value={viewing.bankName} />}
+                {viewing.paymentDate && <DrawerField label={t('col.sal.payment_date')} value={dateText(viewing.paymentDate)} />}
+                {viewing.transactionId && <DrawerField label={t('col.sal.transaction')} value={viewing.transactionId} mono />}
+                <div style={{ marginTop: 8, color: 'var(--xpl-muted)', fontSize: 13 }}>تفاصيل مكونات الراتب غير متوفرة لهذا السجل التاريخي</div>
+              </DrawerSection>
+            )}
+
+            {!imported && (<>
             <DrawerSection title="الراتب">
               <DrawerField label={t('col.sal.base')} value={money(viewing.snapshotBaseSalary ?? viewing.baseSalary)} />
               <DrawerField label={t('col.sal.gross')} value={money(viewing.grossSalary)} />
@@ -554,6 +588,7 @@ export default function Salaries() {
                 </div>
               </DrawerSection>
             )}
+            </>)}
           </Drawer>
         );
       })()}
@@ -602,7 +637,7 @@ export default function Salaries() {
               <label>{t('page.salaries.draft_payroll')}</label>
               <select className="xpl-select" value={adjustPayrollId} onChange={(e) => setAdjustPayrollId(e.target.value)} aria-label={t('page.salaries.draft_payroll')}>
                 <option value="">{t('page.salaries.draft_payroll')}</option>
-                {rows.filter((r) => r.status === 'DRAFT').map((r) => <option key={r.id} value={r.id}>{r.employee.fullName} - {r.month}/{r.year}</option>)}
+                {rows.filter((r) => r.status === 'DRAFT').map((r) => <option key={r.id} value={r.id}>{r.employee?.fullName} - {r.month}/{r.year}</option>)}
               </select>
             </div>
             <div className="xpl-field">

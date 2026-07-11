@@ -24,6 +24,11 @@ import {
   computeRegularHours,
   PayrollLineDraft,
 } from './payroll.calc';
+import {
+  buildUnifiedMonthRows,
+  resolveImportedRowsForMonth,
+  toUnifiedComputed,
+} from './payrollMonth.readModel';
 
 type Tx = Prisma.TransactionClient;
 
@@ -57,9 +62,21 @@ type PayrollSnapshot = {
 export class PayrollService {
   async list(query: PaginationQuery & { month?: string; year?: string; status?: string; employeeId?: string }) {
     const pagination = getPagination(query);
+    const month = query.month ? Number(query.month) : undefined;
+    const year = query.year ? Number(query.year) : undefined;
+
+    // Unified month read model: computed payroll + imported salary-transfer register.
+    // Engaged only when a specific month AND year are selected (the Payroll grid always
+    // sends both). Other callers (e.g. the employee financial tab) query without a period
+    // and keep the computed-only path below, unchanged.
+    if (month && year) {
+      const employeeId = query.employeeId ? Number(query.employeeId) : undefined;
+      const rows = await buildUnifiedMonthRows(month, year, { employeeId, status: query.status });
+      const pageRows = rows.slice(pagination.skip, pagination.skip + pagination.take);
+      return buildPaginatedResult(pageRows, rows.length, pagination);
+    }
+
     const where: Prisma.PayrollWhereInput = {};
-    if (query.month) where.month = Number(query.month);
-    if (query.year) where.year = Number(query.year);
     if (query.status) where.status = query.status;
     if (query.employeeId) where.employeeId = Number(query.employeeId);
 
@@ -76,7 +93,7 @@ export class PayrollService {
       }),
       prisma.payroll.count({ where }),
     ]);
-    return buildPaginatedResult(data, total, pagination);
+    return buildPaginatedResult(data.map(toUnifiedComputed), total, pagination);
   }
 
   /**
@@ -106,11 +123,32 @@ export class PayrollService {
       prisma.payroll.count({ where: { ...where, status: 'PAID' } }),
     ]);
 
+    const computedCount = agg._count._all;
+    const computedGross = round3(agg._sum.grossSalary ?? 0);
+    const computedNet = round3(agg._sum.netSalary ?? 0);
+
+    // Imported salary-transfer contribution — mirrors exactly what the grid shows,
+    // so the KPI totals always match the visible rows. Only for a specific selected
+    // month with no workflow-status filter (imported transfers have no such status).
+    let importedCount = 0;
+    let importedNet = 0;
+    if (query.month && query.year && !query.status) {
+      const employeeId = query.employeeId ? Number(query.employeeId) : undefined;
+      const imported = await resolveImportedRowsForMonth(Number(query.month), Number(query.year), { employeeId });
+      importedCount = imported.length;
+      importedNet = round3(imported.reduce((sum, r) => sum + r.netSalary, 0));
+    }
+
     return {
-      count: agg._count._all,
-      gross: round3(agg._sum.grossSalary ?? 0),
-      net: round3(agg._sum.netSalary ?? 0),
-      paid,
+      count: computedCount + importedCount,
+      // Gross is computed-only — imported transfers are net amounts with no gross.
+      gross: computedGross,
+      net: round3(computedNet + importedNet),
+      // Imported transfers are completed disbursements → counted as paid.
+      paid: paid + importedCount,
+      importedCount,
+      importedNet,
+      grossIsPartial: importedCount > 0,
     };
   }
 
