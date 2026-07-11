@@ -15,7 +15,7 @@
  *     - `top%`  is a percentage of the OVERLAY HEIGHT = pageWidth × 272/700
  *   → X and Y therefore have DIFFERENT mm-per-percent factors.
  */
-import type { ChequeTemplate, FieldConfig, FieldKey } from './chequeTemplate';
+import { FIELD_KEYS, type ChequeTemplate, type FieldConfig, type FieldKey } from './chequeTemplate';
 
 /** Physical page/cheque dimensions + print offsets. Mirrors the backend
  *  `CalibrationGeometryInput` (cheques.schema.ts). */
@@ -42,6 +42,60 @@ export const DEFAULT_GEOMETRY: CalibrationGeometry = {
 /** The template's ChequePrintOutput aspect ratio (width : height). */
 export const CHEQUE_ASPECT_W = 700;
 export const CHEQUE_ASPECT_H = 272;
+
+/**
+ * Distance (mm) from the RIGHT paper edge to the cheque's right edge.
+ *
+ * The cheque is fed into the printer from the right paper edge, so the sheet of
+ * cheque stock sits flush against that edge. Zero is therefore the physical truth
+ * today. It is a named constant rather than a magic 0 so that, if a printer is ever
+ * found to inset the stock, this becomes a persisted geometry field in one edit —
+ * and so the formula below reads as the physical statement it is.
+ */
+export const CHEQUE_FEED_RIGHT_OFFSET_MM = 0;
+
+/**
+ * The x position (mm) of the cheque's LEFT edge on the paper, for the calibration
+ * test sheet.
+ *
+ * Do NOT use `offsetXMm` for this. `offsetXMm` is the print engine's horizontal
+ * TRANSLATE offset — it mirrors `CHEQUE_PAGE_OFFSET_X_MM` in pages/Cheques.tsx and
+ * is consumed by `fieldMm()` below to say where a field's ink lands. It is not, and
+ * never was, the position of the physical cheque on the paper. Conflating the two is
+ * what made the test sheet draw the cheque against the LEFT paper edge while the
+ * operator feeds it from the RIGHT.
+ *
+ * The cheque-local coordinate system is untouched: nothing is mirrored, no axis is
+ * negated, no field coordinate is reversed. Only the paper anchor moves.
+ */
+export function chequePaperLeftMm(
+  g: CalibrationGeometry,
+  rightOffsetMm: number = CHEQUE_FEED_RIGHT_OFFSET_MM,
+): number {
+  return g.pageWidthMm - g.chequeWidthMm - rightOffsetMm;
+}
+
+/** Exact physical centre of the paper (mm). Derived from the active geometry — the
+ *  A4 values (148.5, 105) are a consequence, never a hardcoded constant. */
+export function pageCentreMm(g: CalibrationGeometry): { xMm: number; yMm: number } {
+  return { xMm: g.pageWidthMm / 2, yMm: g.pageHeightMm / 2 };
+}
+
+export interface CentreAxis {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+/** The two full-page centre axes, edge to edge, intersecting at the exact centre. */
+export function buildCentreAxes(g: CalibrationGeometry): { vertical: CentreAxis; horizontal: CentreAxis } {
+  const { xMm, yMm } = pageCentreMm(g);
+  return {
+    vertical: { x1: xMm, y1: 0, x2: xMm, y2: g.pageHeightMm },
+    horizontal: { x1: 0, y1: yMm, x2: g.pageWidthMm, y2: yMm },
+  };
+}
 
 /** Position clamp bounds — must match the calibrator's drag/nudge bounds so the
  *  Assistant can never propose a coordinate the editor would reject. */
@@ -75,6 +129,81 @@ export function fieldMm(cfg: FieldConfig, g: CalibrationGeometry): { xMm: number
     xMm: g.offsetXMm + (cfg.left / 100) * g.pageWidthMm,
     yMm: g.offsetYMm + (cfg.top / 100) * overlayHeightMm(g),
   };
+}
+
+// ── Calibration consistency check (calibration sheet only) ────────────────────
+//
+// DEFAULT_TEMPLATE's `left`/`top` are percentages of the PAGE (the print engine
+// renders ChequePrintOutput at width:100% of the page). DEFAULT_GEOMETRY separately
+// describes a 175 mm cheque fed from the right edge. Those two statements are not
+// reconcilable: the four default fields span ~228 mm of page, which no 175 mm box can
+// contain at ANY anchor. The right-edge anchor did not create that contradiction — it
+// only made it visible. This check reports it; it never repairs it.
+//
+// Nothing here clamps a coordinate, moves a marker, resizes the outline, or edits a
+// default. It is a read-only assertion about values the operator owns.
+
+/** The cheque's physical bounds on the paper (mm), as the calibration sheet draws it. */
+export interface ChequePaperBounds {
+  leftMm: number;
+  rightMm: number;
+  topMm: number;
+  bottomMm: number;
+}
+
+export function chequePaperBoundsMm(
+  g: CalibrationGeometry,
+  rightOffsetMm: number = CHEQUE_FEED_RIGHT_OFFSET_MM,
+): ChequePaperBounds {
+  const leftMm = chequePaperLeftMm(g, rightOffsetMm);
+  return {
+    leftMm,
+    rightMm: leftMm + g.chequeWidthMm,
+    topMm: g.offsetYMm,
+    bottomMm: g.offsetYMm + g.chequeHeightMm,
+  };
+}
+
+/** A field's anchor plus the extent of its drawn box (mm). Single source of truth for
+ *  both the test sheet's marker box and the consistency check below. */
+export interface FieldBoxMm {
+  xMm: number;
+  yMm: number;
+  widthMm: number;
+  heightMm: number;
+}
+
+export function fieldBoxMm(cfg: FieldConfig, g: CalibrationGeometry): FieldBoxMm {
+  const { xMm, yMm } = fieldMm(cfg, g);
+  return {
+    xMm,
+    yMm,
+    widthMm: (cfg.width / 100) * g.pageWidthMm,
+    heightMm: Math.max(4, cfg.fontSize * 0.3528 * 1.6),
+  };
+}
+
+/**
+ * The fields whose ANCHOR POINT lands outside the cheque's paper bounds.
+ *
+ * The anchor — the crosshair origin — is the point being calibrated, so it is the
+ * point the check judges. A field whose box merely overflows the cheque's edge is a
+ * softer, separate concern (text can be narrower than its declared width box) and is
+ * deliberately not flagged here: doing so would flag all four defaults and drown the
+ * real signal.
+ *
+ * Deterministic and order-stable: results follow FIELD_KEYS order.
+ */
+export function fieldsOutsideCheque(
+  template: ChequeTemplate,
+  g: CalibrationGeometry,
+  rightOffsetMm: number = CHEQUE_FEED_RIGHT_OFFSET_MM,
+): FieldKey[] {
+  const b = chequePaperBoundsMm(g, rightOffsetMm);
+  return FIELD_KEYS.filter((fk) => {
+    const { xMm, yMm } = fieldMm(template[fk], g);
+    return xMm < b.leftMm || xMm > b.rightMm || yMm < b.topMm || yMm > b.bottomMm;
+  });
 }
 
 export interface CorrectionResult {

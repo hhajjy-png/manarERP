@@ -1172,8 +1172,21 @@ export default function ChequeCalibrator({
             background: white;
           }
           .chq-calib-testprint * { visibility: visible !important; }
+          /* The sheet is authored at exactly 297 × 210 mm. Any page margin would
+             shrink the printable box below that, and Chromium would scale the sheet
+             down to fit — silently destroying the physical accuracy of the edge
+             rulers. margin:0 makes the page box exactly A4, so 1 mm on the sheet is
+             1 mm on paper, and the content fills exactly one page.
+             This rule lives inside the calibrator, which Cheques.tsx unmounts before
+             any real cheque is printed, so the cheque print path never sees it. */
+          .chq-calib-testprint, .chq-calib-testprint * { box-sizing: border-box; }
         }
-        @page { size: A4 landscape; }
+        /* The page box is derived from the SAME geometry that sizes the SVG, so the
+           two can never disagree. A hardcoded "A4 landscape" would silently lie the
+           moment a SYSTEM_ADMIN changes pageWidthMm/pageHeightMm — Chromium would then
+           scale the sheet to fit and every physical measurement on it would be wrong.
+           On the default geometry this resolves to 297mm × 210mm, i.e. A4 landscape. */
+        @page { size: ${geometry.pageWidthMm}mm ${geometry.pageHeightMm}mm; margin: 0; }
       `}</style>
 
       {/* ── Copy template modal ── */}
