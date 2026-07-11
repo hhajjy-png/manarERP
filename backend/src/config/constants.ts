@@ -66,6 +66,11 @@ export const MODULES = [
   'bankStatementImport',
   'expirations',
   'attachments',
+  // Print Center Foundation v1 — used as the AuditLog `module` label for PRINT /
+  // PDF_EXPORT events. No permission keys are generated for it in this phase (see
+  // modules/printing/printing.routes.ts for why); a dedicated `printing.*` key
+  // lands with the print_logs table, alongside its migration and seed update.
+  'printing',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];

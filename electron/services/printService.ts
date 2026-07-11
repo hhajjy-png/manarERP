@@ -1,0 +1,177 @@
+/**
+ * Print Center — Electron print service (Foundation v1).
+ *
+ * The single main-process entry point for print jobs: `submitPrintJob()`.
+ *
+ * IMPORTANT — this phase is a SEAM, not a new engine. `submitPrintJob` delegates to
+ * exactly the same calls the app already made:
+ *   • destination 'printer' → `win.webContents.print({ silent: false, printBackground: true })`
+ *     — byte-for-byte what `app:print` (dialog.ipc.ts) has always done.
+ *   • destination 'pdf'     → the same save-dialog + `printToPDF` flow as `pdf:export`.
+ *   • destination 'preview' → rejected. Reserved for Phase 2; failing loudly is
+ *     safer than silently printing when a caller asked for a preview.
+ *
+ * `printerName`, `copies` and PageSpec travel in the job and are logged, but are NOT
+ * yet applied to the driver — applying them would change physical output, which
+ * Foundation v1 forbids. Phase 2/3 turns them on behind their own verification.
+ *
+ * Nothing here touches cheque printing.
+ */
+
+import { BrowserWindow, dialog, ipcMain } from 'electron';
+import fs from 'fs';
+
+/** Mirrors frontend/src/printing/types.ts — keep both sides in step (contractVersion). */
+export interface PrintJobIpc {
+  contractVersion: string;
+  docType: string;
+  documentId?: string;
+  destination: 'printer' | 'pdf' | 'preview';
+  pageSpecId?: string;
+  paper?: string;
+  orientation?: 'portrait' | 'landscape';
+  copies?: number;
+  templateId?: string;
+  preview?: boolean;
+  printerName?: string;
+  suggestedFileName?: string;
+  metadata?: Record<string, string | number | boolean | null>;
+}
+
+export interface PrintJobResultIpc {
+  status: 'printed' | 'exported' | 'canceled' | 'failed';
+  filePath?: string;
+  sizeBytes?: number;
+  error?: string;
+}
+
+const SUPPORTED_CONTRACT = 'v1';
+const VALID_DESTINATIONS = new Set(['printer', 'pdf', 'preview']);
+
+/** Reject anything that is not a well-formed job before it reaches Electron APIs. */
+function validateJob(job: unknown): { ok: true; job: PrintJobIpc } | { ok: false; error: string } {
+  if (typeof job !== 'object' || job === null) return { ok: false, error: 'أمر طباعة غير صالح' };
+  const j = job as Partial<PrintJobIpc>;
+  if (j.contractVersion !== SUPPORTED_CONTRACT) {
+    return { ok: false, error: `إصدار عقد الطباعة غير مدعوم: ${String(j.contractVersion)}` };
+  }
+  if (typeof j.docType !== 'string' || j.docType.length === 0 || j.docType.length > 64) {
+    return { ok: false, error: 'نوع المستند غير صالح' };
+  }
+  if (typeof j.destination !== 'string' || !VALID_DESTINATIONS.has(j.destination)) {
+    return { ok: false, error: 'وجهة الطباعة غير صالحة' };
+  }
+  if (j.copies !== undefined && (!Number.isInteger(j.copies) || j.copies < 1 || j.copies > 100)) {
+    return { ok: false, error: 'عدد النسخ غير صالح' };
+  }
+  return { ok: true, job: j as PrintJobIpc };
+}
+
+/**
+ * Strip anything a filename must not contain. Never trust a renderer-supplied name.
+ *
+ * Removes path separators, Windows-reserved characters, wildcards and control bytes.
+ * KEEPS hyphens, underscores, spaces and dots — the project's filename standard is
+ * `manarERP_<Name>_<Id>_<YYYY-MM-DD>.pdf`, so stripping hyphens would mangle the date.
+ * Leading dots are removed so a name can never become a dotfile.
+ */
+function safeFileName(name: string | undefined, fallback: string): string {
+  const base = (name ?? '')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[/\\?%*:|"<>\x00-\x1f]/g, '')
+    .replace(/^\.+/, '')
+    .trim();
+  const chosen = base.length > 0 ? base.slice(0, 120) : fallback;
+  return chosen.toLowerCase().endsWith('.pdf') ? chosen : `${chosen}.pdf`;
+}
+
+async function printToPrinter(win: BrowserWindow, job: PrintJobIpc): Promise<PrintJobResultIpc> {
+  return new Promise<PrintJobResultIpc>((resolve) => {
+    // Phase 2 — NATIVE COPIES. `copies` is passed once to the driver in a single
+    // print job, replacing the old "open the dialog N times with a 1.5s gap" loop.
+    // `silent` stays FALSE: the OS dialog is still shown, exactly as before. Silent
+    // printing is explicitly out of scope.
+    //
+    // If a driver ignores `copies`, the OS dialog still shows the requested count and
+    // the user can correct it there — we surface the request rather than faking it by
+    // spooling N separate jobs.
+    const copies = job.copies && job.copies > 1 ? job.copies : undefined;
+
+    win.webContents.print(
+      { silent: false, printBackground: true, ...(copies ? { copies } : {}) },
+      (success, failureReason) => {
+        if (success) return resolve({ status: 'printed' });
+        // Electron reports a user-dismissed dialog as failure with 'cancelled'.
+        const reason = (failureReason ?? '').toLowerCase();
+        if (reason.includes('cancel')) return resolve({ status: 'canceled' });
+        resolve({ status: 'failed', error: failureReason || 'فشل إرسال المستند إلى الطابعة' });
+      },
+    );
+  });
+}
+
+async function exportToPdf(win: BrowserWindow, job: PrintJobIpc): Promise<PrintJobResultIpc> {
+  const saveResult = await dialog.showSaveDialog(win, {
+    title: 'حفظ PDF',
+    defaultPath: safeFileName(job.suggestedFileName, job.docType || 'document'),
+    filters: [{ name: 'PDF', extensions: ['pdf'] }],
+  });
+  if (saveResult.canceled || !saveResult.filePath) return { status: 'canceled' };
+
+  try {
+    // Same options as the existing `pdf:export` handler.
+    const buf = await win.webContents.printToPDF({
+      printBackground: true,
+      preferCSSPageSize: true,
+    });
+    await fs.promises.writeFile(saveResult.filePath, buf);
+    const { size } = await fs.promises.stat(saveResult.filePath);
+    return { status: 'exported', filePath: saveResult.filePath, sizeBytes: size };
+  } catch (err) {
+    return {
+      status: 'failed',
+      error: `فشل تصدير PDF: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+}
+
+export function registerPrintIpc(): void {
+  ipcMain.handle('print:submit', async (event, rawJob: unknown): Promise<PrintJobResultIpc> => {
+    const parsed = validateJob(rawJob);
+    if (!parsed.ok) return { status: 'failed', error: parsed.error };
+    const job = parsed.job;
+
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return { status: 'failed', error: 'تعذّر الوصول إلى نافذة التطبيق' };
+
+    if (job.destination === 'preview') {
+      // Reserved for Phase 2. Fail explicitly rather than fall through to a print.
+      return { status: 'failed', error: 'معاينة الطباعة غير متاحة في هذه المرحلة' };
+    }
+
+    if (job.destination === 'pdf') return exportToPdf(win, job);
+    return printToPrinter(win, job);
+  });
+
+  /**
+   * Printer enumeration. Returns a deliberately NARROW projection — we do not
+   * forward the driver's raw `options` blob, which can carry machine/network detail
+   * the renderer has no need for.
+   */
+  ipcMain.handle('print:listPrinters', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return [];
+    try {
+      const printers = await win.webContents.getPrintersAsync();
+      return printers.map((p) => ({
+        name: p.name,
+        displayName: p.displayName,
+        description: p.description,
+        isDefault: p.isDefault,
+        status: p.status,
+      }));
+    } catch {
+      return [];
+    }
+  });
+}

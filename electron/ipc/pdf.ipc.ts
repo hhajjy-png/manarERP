@@ -1,6 +1,7 @@
 import { BrowserWindow, dialog, ipcMain, app } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import { waitForRenderReady } from '../services/renderReadiness';
 
 export function registerPdfIpc() {
   ipcMain.handle('pdf:exportHtml', async (event, html: string, suggestedName: string) => {
@@ -38,7 +39,12 @@ export function registerPdfIpc() {
       });
 
       await hiddenWin.loadFile(tmpPath);
-      await new Promise<void>((resolve) => setTimeout(resolve, 400));
+      // Print Center Foundation v1 — real readiness instead of an arbitrary 400 ms
+      // sleep. The old sleep was a race: on a cold font cache or a large report the
+      // snapshot could be taken before Cairo had loaded (breaking Arabic shaping) or
+      // before the table had laid out. We now await the document's own signals inside
+      // the hidden window, with a bounded fallback so a job can never hang.
+      await waitForRenderReady(hiddenWin);
 
       const pdfBuffer = await hiddenWin.webContents.printToPDF({
         printBackground:   true,

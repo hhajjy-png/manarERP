@@ -1,5 +1,17 @@
-import { CSSProperties, useEffect, useState } from 'react';
+import { CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { printCurrentView } from '../utils/print';
+import {
+  createPrintJob,
+  composeFromNode,
+  isFlagEnabled,
+  isPhase2Enabled,
+  submitPrintJob,
+  PrintCenterDialog,
+  PRINT_CENTER_FOUNDATION_V1,
+  PRINT_CENTER_PHASE2_RECEIPT_VOUCHER,
+  RECEIPT_VOUCHER_PAGE_SPEC,
+  type PreviewSource,
+} from '../printing';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import DateInput from '../components/DateInput';
@@ -58,13 +70,99 @@ export default function ReceiptVoucher() {
   const [formError, setFormError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
-  // Trigger window.print() after React flushes the rcvNumber into the DOM.
+  // Phase 2 — Print Center preview. The printable node is the SAME element the legacy
+  // path prints; we serialize it, we never re-render the document.
+  const previewRef = useRef<HTMLDivElement>(null);
+  const [printCenterOpen, setPrintCenterOpen] = useState(false);
+  const usePrintCenterPath = isPhase2Enabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER);
+
+  /**
+   * Compose the self-contained document from the EXISTING printable element.
+   * Same renderer, same `@page` geometry (RECEIPT_VOUCHER_PAGE_SPEC mirrors the page's
+   * own `@page { size:A4; margin:12mm 15mm }`), so the PDF matches the physical print.
+   */
+  const composePreview = useCallback((): PreviewSource => {
+    const node = previewRef.current;
+    if (!node) throw new Error('تعذّر تجهيز المستند للطباعة.');
+    const number = rcvNumber || '---';
+    return {
+      docType: 'receipt-voucher',
+      documentId: number,
+      html: composeFromNode({
+        node,
+        pageSpec: RECEIPT_VOUCHER_PAGE_SPEC,
+        title: `سند قبض ${number}`,
+        lang,
+      }),
+      pageSpecId: RECEIPT_VOUCHER_PAGE_SPEC.id,
+      title: `سند قبض ${number}`,
+      documentLabel: `سند قبض · ${number}`,
+      renderSource: 'dom-node',
+      suggestedFileName: `manarERP_ReceiptVoucher_${number}_${form.date}`,
+    };
+  }, [rcvNumber, lang, form.date]);
+
+  /**
+   * Print once React has flushed the issued rcvNumber into the DOM.
+   *
+   * PRINT CENTER FOUNDATION v1 — PILOT.
+   * This is the only document type wired to the new gateway in this phase.
+   *
+   * • Flag ON  → submitPrintJob(): awaits real readiness (fonts + images + layout),
+   *   sends a typed PrintJob over `print:submit`, and records a PRINT audit event.
+   *   The transport underneath is the SAME webContents.print({ silent:false,
+   *   printBackground:true }) call `printCurrentView()` has always made, and the
+   *   page keeps its own `@page { size:A4; margin:12mm 15mm }` rule — so the
+   *   PHYSICAL OUTPUT IS UNCHANGED. RECEIPT_VOUCHER_PAGE_SPEC mirrors that same
+   *   geometry and travels with the job for the audit trail and for Phase 2, when
+   *   the gateway starts emitting the @page rule itself.
+   *
+   * • Flag OFF → the original `printCurrentView()` line, byte for byte. That is the
+   *   rollback lever: no revert needed, no rebuild.
+   *
+   * Either way `setPrinting(false)` runs, and a failed/canceled job never throws at
+   * the user — cancelling the OS dialog is a normal outcome, exactly as before.
+   */
   useEffect(() => {
-    if (printing && rcvNumber) {
+    if (!printing || !rcvNumber) return;
+    let canceled = false;
+
+    // ── Phase 2 path — open the Print Center preview instead of printing blind ──
+    // The user sees the actual PDF, then chooses Print or Save PDF. No print dialog
+    // opens automatically. Audit for PRINT happens only when they press Print.
+    if (usePrintCenterPath) {
+      setPrintCenterOpen(true);
+      setPrinting(false);
+      return;
+    }
+
+    if (!isFlagEnabled(PRINT_CENTER_FOUNDATION_V1)) {
+      // ── Legacy path — unchanged ──
       printCurrentView();
       setPrinting(false);
+      return;
     }
-  }, [printing, rcvNumber]);
+
+    // ── Phase 1 path (reviewed & approved) ──
+    void submitPrintJob(
+      createPrintJob({
+        docType: 'receipt-voucher',
+        documentId: rcvNumber,
+        destination: 'printer',
+        pageSpecId: RECEIPT_VOUCHER_PAGE_SPEC.id,
+        paper: RECEIPT_VOUCHER_PAGE_SPEC.paper,
+        orientation: RECEIPT_VOUCHER_PAGE_SPEC.orientation,
+        copies: 1,
+        metadata: { lang },
+      }),
+    ).finally(() => {
+      if (!canceled) setPrinting(false);
+    });
+
+    return () => {
+      canceled = true;
+    };
+  }, [printing, rcvNumber, lang, usePrintCenterPath]);
 
   function set(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -254,8 +352,19 @@ export default function ReceiptVoucher() {
         </div>
       </div>
 
+      {/* ── Print Center (Phase 2) — only mounted when this document's flag is on ── */}
+      {usePrintCenterPath && (
+        <PrintCenterDialog
+          open={printCenterOpen}
+          onClose={() => setPrintCenterOpen(false)}
+          compose={composePreview}
+          lang={lang}
+        />
+      )}
+
       {/* ── Printable preview (always in DOM, hidden on screen via no-print toolbar) ── */}
       <div
+        ref={previewRef}
         className="rcv-preview"
         style={{
           padding: '18px 32px',

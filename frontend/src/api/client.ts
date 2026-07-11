@@ -35,6 +35,34 @@ declare global {
       // ─── Attachments IPC ────────────────────────────────────────────────────────
       openFileDialog: () => Promise<string | null>;
       openAttachment: (filePath: string) => Promise<string | null>;
+      // ─── Print Center Foundation v1 (additive; printPage/exportPdf above unchanged) ──
+      /** Optional: absent on an older preload build — every caller must guard. */
+      printSubmit?: (job: unknown) => Promise<{
+        status: 'printed' | 'exported' | 'canceled' | 'failed';
+        filePath?: string;
+        sizeBytes?: number;
+        error?: string;
+      }>;
+      listPrinters?: () => Promise<
+        Array<{
+          name: string;
+          displayName: string;
+          description: string;
+          isDefault: boolean;
+          status: number;
+        }>
+      >;
+      // ─── Print Center Phase 2 — PDF preview (optional; guard every call) ─────────
+      printPreview?: (request: unknown) => Promise<
+        | { ok: true; token: string; pageCount: number; sizeBytes: number; data: Uint8Array }
+        | { ok: false; error: string }
+      >;
+      printSavePdf?: (args: { token: string; suggestedFileName?: string }) => Promise<{
+        status: 'exported' | 'canceled' | 'failed';
+        sizeBytes?: number;
+        error?: string;
+      }>;
+      printReleasePreview?: (args: { token: string }) => Promise<{ released: boolean }>;
     };
   }
 }

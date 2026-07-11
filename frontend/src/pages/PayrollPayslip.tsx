@@ -1,5 +1,6 @@
 import { CSSProperties, useEffect, useState } from 'react';
 import { printCurrentView } from '../utils/print';
+import { waitForPrintReady } from '../printing';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { money } from '../config/modules';
@@ -61,11 +62,20 @@ export default function PayrollPayslip() {
       .catch((e) => setError(errorMessage(e)));
   }, [id]);
 
+  // Auto-print once the payslip has rendered. Print Center Foundation v1 replaced the
+  // arbitrary `setTimeout(…, 500)` here with a real readiness signal (fonts loaded,
+  // images decoded, layout painted) and a bounded fallback, so a slow machine can no
+  // longer fire the print dialog over a half-rendered payslip. The transport is
+  // unchanged: it still calls printCurrentView(), so the printed output is identical.
   useEffect(() => {
-    if (data) {
-      const timer = setTimeout(() => printCurrentView(), 500);
-      return () => clearTimeout(timer);
-    }
+    if (!data) return;
+    let canceled = false;
+    void waitForPrintReady().then(() => {
+      if (!canceled) printCurrentView();
+    });
+    return () => {
+      canceled = true;
+    };
   }, [data]);
 
   if (error)
