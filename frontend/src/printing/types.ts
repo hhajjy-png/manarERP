@@ -15,6 +15,16 @@
 
 export const PRINT_CONTRACT_VERSION = 'v1' as const;
 
+/**
+ * Where the printable artifact came from. Phase 2 additive — the Print Center is a
+ * SHELL around the existing renderers, never a new renderer, and this field records
+ * which existing composer produced the HTML.
+ */
+export type PrintRenderSource =
+  | 'dom-node' // an existing on-page printable element, serialized (Receipt Voucher)
+  | 'backend-html' // the existing backend report engine (GET …?format=html)
+  | 'template-engine'; // the existing print-templates / Template Studio renderer
+
 /** Business document kinds that can be printed. Extend by adding a member — every
  *  switch over this type is exhaustive-checked (see `assertNeverDocType`). */
 export type PrintDocType =
@@ -72,10 +82,57 @@ export interface PrintJob {
   /** Suggested filename for `destination: 'pdf'`. */
   suggestedFileName?: string;
 
-  /** Free-form, non-authoritative context (labels, page counts, UI state). Never
-   *  used for permission decisions. */
+  // ── Phase 2 additions (all optional — a Phase 1 caller still compiles) ─────────
+
+  /** Human-readable document title (window title / PDF metadata / status bar). */
+  title?: string;
+  /** Short label for the Print Center status bar, e.g. "سند قبض RCV-0012". */
+  documentLabel?: string;
+  /** Which EXISTING renderer produced the artifact. The Print Center never renders. */
+  renderSource?: PrintRenderSource;
+  /**
+   * Handle to an already-generated preview artifact held in the main process.
+   * Set by the preview service; passed back on print/save so the SAME PDF bytes the
+   * user previewed are the ones written or printed — never a second render.
+   */
+  previewToken?: string;
+
+  /**
+   * Bounded, non-authoritative context. Deliberately NOT an unrestricted object:
+   * primitives only, and the backend never reads it for permission decisions.
+   */
   metadata?: Record<string, string | number | boolean | null>;
 }
+
+/** Payload for a preview render. The HTML is produced by an EXISTING composer. */
+export interface PrintPreviewRequest {
+  contractVersion: typeof PRINT_CONTRACT_VERSION;
+  docType: PrintDocType;
+  documentId?: string;
+  /** Self-contained HTML document (fonts inlined, no network, no CDN). */
+  html: string;
+  pageSpecId?: PageSpecId;
+  title?: string;
+  renderSource?: PrintRenderSource;
+}
+
+export interface PrintPreviewArtifact {
+  token: string;
+  pageCount: number;
+  sizeBytes: number;
+  /** The PDF bytes. The renderer turns these into a Blob → object URL for PDF.js. */
+  data: Uint8Array;
+}
+
+export type PrintPreviewState =
+  | 'idle'
+  | 'composing'
+  | 'rendering'
+  | 'ready'
+  | 'printing'
+  | 'saving'
+  | 'canceled'
+  | 'failed';
 
 export interface PrintJobResult {
   status: PrintJobStatus;

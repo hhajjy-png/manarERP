@@ -20,7 +20,13 @@
 import { api } from '../api/client';
 import type { PrintDocType, PrintJobStatus } from './types';
 
-export type PrintAuditAction = 'PRINT' | 'PDF_EXPORT';
+/**
+ * PREVIEW_GENERATED is Phase 2. It is a distinct action so a preview can never be
+ * mistaken for a physical PRINT: opening the Print Center records PREVIEW_GENERATED,
+ * and only pressing Print records PRINT. That is what keeps preview from inflating
+ * the print trail.
+ */
+export type PrintAuditAction = 'PRINT' | 'PDF_EXPORT' | 'PREVIEW_GENERATED';
 
 export interface PrintAuditEvent {
   action: PrintAuditAction;

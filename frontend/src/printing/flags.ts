@@ -19,7 +19,31 @@
 
 export const PRINT_CENTER_FOUNDATION_V1 = 'PRINT_CENTER_FOUNDATION_V1' as const;
 
-type FlagName = typeof PRINT_CENTER_FOUNDATION_V1;
+// ── Phase 2 — per-document migration flags ──────────────────────────────────────
+//
+// FLAG HIERARCHY: a document uses the Print Center only when the MASTER flag AND its
+// own flag are both on (`isPhase2Enabled`). The master is the single kill switch; the
+// per-document flags let each migration be rolled out — and rolled back — on its own
+// physical-print verification, which is exactly the strangler discipline this repo
+// already follows for every release.
+//
+// DEFAULTS: the master is ON (the machinery is safe and inert without a document
+// flag), and every per-document flag is OFF until its physical print gate passes.
+// Receipt Voucher is included in that rule: its Phase 2 flag ships OFF, so on first
+// launch it still uses the reviewed Phase 1 path. Nothing changes for any user until
+// someone deliberately turns a document on.
+export const PRINT_CENTER_PHASE2 = 'PRINT_CENTER_PHASE2' as const;
+export const PRINT_CENTER_PHASE2_RECEIPT_VOUCHER = 'PRINT_CENTER_PHASE2_RECEIPT_VOUCHER' as const;
+
+export type FlagName =
+  | typeof PRINT_CENTER_FOUNDATION_V1
+  | typeof PRINT_CENTER_PHASE2
+  | typeof PRINT_CENTER_PHASE2_RECEIPT_VOUCHER;
+
+/** A document is on the Print Center only when master AND its own flag are enabled. */
+export function isPhase2Enabled(documentFlag: FlagName): boolean {
+  return isFlagEnabled(PRINT_CENTER_PHASE2) && isFlagEnabled(documentFlag);
+}
 
 /**
  * Default ON: the pilot routes through the gateway, which in this phase delegates to
@@ -29,6 +53,11 @@ type FlagName = typeof PRINT_CENTER_FOUNDATION_V1;
  */
 const DEFAULTS: Record<FlagName, boolean> = {
   PRINT_CENTER_FOUNDATION_V1: true,
+  // Master kill switch: on. It enables nothing by itself.
+  PRINT_CENTER_PHASE2: true,
+  // OFF until the physical print gate passes. Conservative by policy — no user's
+  // printing behaviour changes on upgrade.
+  PRINT_CENTER_PHASE2_RECEIPT_VOUCHER: false,
 };
 
 function readOverride(name: FlagName): boolean | null {

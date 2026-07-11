@@ -28,10 +28,39 @@ import { recordPrintEvent } from './auditClient';
 import type { PrintJob, PrintJobResult, PrinterDescriptor } from './types';
 import { PRINT_CONTRACT_VERSION } from './types';
 
+/** Absolute ceiling on copies. The driver receives this value ONCE — we never spool
+ *  N separate jobs, and we never open N dialogs. */
+export const MAX_PRINT_COPIES = 99;
+
+/** Integer, ≥ 1, ≤ MAX_PRINT_COPIES. `undefined` / garbage → 1. */
+export function normalizeCopies(copies: unknown): number {
+  const n = typeof copies === 'number' ? Math.trunc(copies) : NaN;
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, MAX_PRINT_COPIES);
+}
+
 /** Build a job with the contract version stamped, so callers never hand-write it. */
 export function createPrintJob(job: Omit<PrintJob, 'contractVersion'>): PrintJob {
-  return { ...job, contractVersion: PRINT_CONTRACT_VERSION };
+  return {
+    ...job,
+    copies: normalizeCopies(job.copies),
+    contractVersion: PRINT_CONTRACT_VERSION,
+  };
 }
+
+/**
+ * SINGLE-FLIGHT GUARD.
+ *
+ * One user action → one IPC call → one native dialog. This is enforced HERE, at the
+ * gateway, rather than only in a component's `busy` state, because component state is
+ * asynchronous: a fast double-click, an Enter keypress landing on a focused button, or
+ * a Ctrl+P racing the click can all fire two handlers before React has re-rendered the
+ * disabled button. A module-level in-flight flag cannot be raced that way.
+ *
+ * A second submit while one is in progress is IGNORED (resolved as 'canceled', which is
+ * truthful — nothing was sent) and produces NO second dialog and NO second audit event.
+ */
+let inFlight = false;
 
 export interface SubmitOptions {
   /** The printable subtree to await readiness on. Defaults to the whole document —
@@ -50,6 +79,26 @@ export async function submitPrintJob(
   job: PrintJob,
   options: SubmitOptions = {},
 ): Promise<PrintJobResult> {
+  // 0. SINGLE FLIGHT. A second submission while one is in progress is dropped before
+  //    it can reach Electron — no second dialog, no second spool job, no second audit.
+  if (inFlight) {
+    return { status: 'canceled', error: undefined };
+  }
+  inFlight = true;
+
+  try {
+    return await runJob(job, options);
+  } finally {
+    inFlight = false;
+  }
+}
+
+/** Exposed for tests only — asserts the guard is not stuck after a failure. */
+export function isPrintInFlight(): boolean {
+  return inFlight;
+}
+
+async function runJob(job: PrintJob, options: SubmitOptions): Promise<PrintJobResult> {
   // 1. Wait for the document to be genuinely ready (never an arbitrary sleep).
   await waitForPrintReady(options.readyRoot ?? document);
 

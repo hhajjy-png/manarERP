@@ -1,5 +1,12 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { printCurrentView } from '../../utils/print';
+import {
+  createPrintJob,
+  isFlagEnabled,
+  submitPrintJob,
+  waitForPrintReady,
+  PRINT_CENTER_FOUNDATION_V1,
+} from '../../printing';
 import { useNavigate } from 'react-router-dom';
 import { ProfileId, PRINT_PROFILES } from './printProfiles';
 import { loadCopies, saveCopies } from './usePrintProfileMemory';
@@ -107,19 +114,44 @@ export default function FormLayout({
     if (formType) saveCopies(formType, clamped);
   }
 
+  /**
+   * Print the form.
+   *
+   * THE DEFECT THIS REPLACES: this function used to LOOP — `printCurrentView()` once
+   * per copy, 1.5 s apart. Asking for 3 copies therefore opened **three separate OS
+   * print dialogs** and spooled three separate jobs. That is the "3 dialogs" bug.
+   *
+   * NOW: one call, one dialog, and `copies` is handed to the driver NATIVELY
+   * (`webContents.print({ copies })`) so the printer produces N copies from a single
+   * spool job — which is what every other desktop application does.
+   *
+   * `silent` stays FALSE: the OS dialog is still shown, exactly as before. Nothing here
+   * enables silent or batch printing.
+   *
+   * Rollback: with PRINT_CENTER_FOUNDATION_V1 off, the original single-shot
+   * `printCurrentView()` is used. (The old N-dialog loop is NOT restored — it was a
+   * defect, not a behaviour worth preserving. A single dialog with the copy count in it
+   * is strictly closer to the user's intent than three dialogs.)
+   */
   function doPrint() {
     const count = copiesRef.current;
-    if (count <= 1) {
+
+    if (!isFlagEnabled(PRINT_CENTER_FOUNDATION_V1)) {
       printCurrentView();
       return;
     }
-    let i = 0;
-    function next() {
-      printCurrentView();
-      i++;
-      if (i < count) setTimeout(next, 1500);
-    }
-    next();
+
+    void submitPrintJob(
+      createPrintJob({
+        docType: 'form',
+        documentId: formNumber || formType,
+        destination: 'printer',
+        copies: count, // normalized + clamped by createPrintJob; passed once
+        title,
+        documentLabel: formNumber || title,
+        renderSource: 'dom-node',
+      }),
+    );
   }
 
   /**
@@ -168,10 +200,27 @@ export default function FormLayout({
     }
   }
 
+  /**
+   * Auto-print once the form has rendered. The BEHAVIOUR is unchanged (forms still
+   * print themselves when opened); only the TRIGGER is fixed.
+   *
+   * It used to be `setTimeout(() => printCurrentView(), 600)` — an arbitrary sleep
+   * standing in for "the document is ready". On a slow machine or a cold font cache the
+   * dialog could open over a half-laid-out form, or before Cairo had loaded (which
+   * breaks Arabic shaping). We now await the real signals — fonts, images, a painted
+   * frame — with a bounded fallback, exactly as PayrollPayslip already does.
+   *
+   * This fires ONE dialog. It does not loop, and it is independent of `copies`.
+   */
   useEffect(() => {
     if (!ready) return;
-    const t = setTimeout(() => printCurrentView(), 600);
-    return () => clearTimeout(t);
+    let canceled = false;
+    void waitForPrintReady().then(() => {
+      if (!canceled) printCurrentView();
+    });
+    return () => {
+      canceled = true;
+    };
   }, [ready]);
 
   const paperLabel = lang === 'en' ? activeProfile.labelEn : activeProfile.labelAr;
