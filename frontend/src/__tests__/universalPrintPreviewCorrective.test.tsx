@@ -55,10 +55,10 @@ describe('العيب 1 — زر الطباعة الأصلي', () => {
     expect(around).not.toContain('printCurrentView');
   });
 
-  it('الأزرار مصنّفة بصريًا: الطباعة أساسية، المعاينة وPDF ثانويان، الإلغاء خطر', () => {
+  it('الأزرار مصنّفة بصريًا: الطباعة أساسية، وما عداها ثانوي — ولا إجراء خطر', () => {
     expect(invoiceCode).toMatch(/className="btn"[\s\S]{0,90}printCurrentView/); // أساسي
     expect(invoiceCode).toMatch(/className="btn secondary"[\s\S]{0,140}معاينة قبل الطباعة/);
-    expect(invoiceCode).toContain('btn danger-ghost'); // الإلغاء
+    expect(invoiceCode).not.toContain('danger-ghost'); // «إلغاء» غادر شاشة الطباعة
   });
 });
 
@@ -177,10 +177,12 @@ describe('شريط الإجراءات — الترتيب والحجم', () => {
     const print = at("t('btn.inv.print_invoice')");
     const preview = at('معاينة قبل الطباعة');
     const pdf = at('⬇️ PDF');
-    const cancel = at("t('page.invoices.cancel_inv')");
+    const edit = at("t('action.edit')");
+    const template = at('قالب الطباعة');
     expect(print).toBeLessThan(preview);
     expect(preview).toBeLessThan(pdf);
-    expect(pdf).toBeLessThan(cancel);
+    expect(pdf).toBeLessThan(edit);
+    expect(edit).toBeLessThan(template); // «قالب الطباعة» آخر الأدوات — موضع «إلغاء» السابق
     if (back >= 0) expect(back).toBeLessThan(print);
   });
 
@@ -197,12 +199,42 @@ describe('شريط الإجراءات — الترتيب والحجم', () => {
     expect(css).toMatch(/\.invx-actions\s*\{[\s\S]*?flex-wrap:\s*wrap/);
   });
 
-  it('إعدادات المستند (توقيع/ختم/قالب) في صف ثانٍ منفصل عن الأوامر', () => {
+  it('الصف الثانوي يحمل خيارات المحتوى فقط: التوقيع والختم', () => {
     expect(invoiceCode).toContain('invx-doc-settings');
     const settings = invoiceCode.slice(invoiceCode.indexOf('invx-doc-settings'));
     expect(settings).toContain('printShowSignature');
     expect(settings).toContain('printShowStamp');
-    expect(settings).toContain('قالب الطباعة');
+    expect(settings).not.toContain('قالب الطباعة'); // انتقل إلى الصف الأساسي
+    // ولا يُصيَّر أصلًا إن لم تكن الخيارات جاهزة — فلا فراغ بصري مكان الزر المنقول.
+    expect(invoiceCode).toMatch(/printOptionsInitialized && \(\s*<div className="no-print invx-doc-settings">/);
+  });
+
+  it('«إلغاء» غادر شريط شاشة الطباعة — ووظيفته لم تُمسّ', () => {
+    const bar = invoiceCode.slice(
+      invoiceCode.indexOf('invx-actions'),
+      invoiceCode.indexOf('invx-doc-settings'),
+    );
+    expect(bar).not.toContain("t('page.invoices.cancel_inv')");
+    // الـ handler وnافذة التأكيد وحالة الإلغاء والـ API — كلها باقية بلا تغيير.
+    expect(invoiceCode).toContain('executeCancel');
+    expect(invoiceCode).toContain('showCancelConfirm');
+    expect(invoiceCode).toContain('/cancel');
+    // ويبقى الإلغاء متاحًا تشغيليًا في قائمة الفواتير (Quick + Danger actions + تأكيد).
+    const invoices = readFileSync('src/pages/Invoices.tsx', 'utf8');
+    expect(invoices).toContain("t('page.invoices.cancel_inv')");
+    expect(invoices).toContain("api.patch(`/invoices/${id}/cancel`)");
+    expect(invoices).toContain("t('confirm.cancel_invoice')");
+  });
+
+  it('«قالب الطباعة» أداة إعداد في الصف الأساسي — أخفّ من «طباعة»، ومنطقه بلا تغيير', () => {
+    const bar = invoiceCode.slice(
+      invoiceCode.indexOf('invx-actions'),
+      invoiceCode.indexOf('invx-doc-settings'),
+    );
+    expect(bar).toContain('قالب الطباعة');
+    expect(bar).toMatch(/className="btn secondary"[\s\S]{0,600}قالب الطباعة/); // لا primary
+    expect(bar).toContain("setPreviewMode(m => m === 'legacy' ? 'engine' : 'legacy')"); // نفس السلوك
+    expect(bar).toContain('dashboard_customize'); // أيقونة واضحة لا زخرفية
   });
 });
 
@@ -223,12 +255,12 @@ describe('نافذة المعاينة — التحسينات', () => {
 
   it('Fit Width هو الوضع الافتراضي', () => {
     setup();
-    expect((screen.getByLabelText('مستوى التكبير') as HTMLSelectElement).value).toBe('width');
+    expect(screen.getByRole('button', { name: /ملاءمة العرض/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('Fit Page موجود ويستخدم حسابًا مستقلًا (أصغر النسبتين) لا نسبة ثابتة', () => {
     setup();
-    expect(screen.getByRole('option', { name: 'ملاءمة الصفحة' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /ملاءمة الصفحة/ })).toBeInTheDocument();
     const c = code(dialogSrc);
     expect(c).toContain('Math.min(availW / pageWpx, availH / pageHpx)'); // Fit Page
     expect(c).toContain('availW / pageWpx'); // Fit Width
@@ -251,7 +283,7 @@ describe('نافذة المعاينة — التحسينات', () => {
 
   it('حشوة بصرية حول الورقة وتتقلّص على الشاشات الضيقة', () => {
     expect(css).toMatch(/\.pc-canvas\s*\{[\s\S]*?padding:\s*56px/);
-    expect(css).toMatch(/max-width:\s*900px[\s\S]{0,80}padding:\s*32px/);
+    expect(css).toMatch(/max-width:\s*900px[\s\S]{0,80}padding:\s*40px/);
   });
 
   it('الورقة بيضاء بحدّ خفيف وظل هادئ', () => {
@@ -268,7 +300,7 @@ describe('نافذة المعاينة — التحسينات', () => {
 
   it('عدد الصفحات تقديري ولا أزرار تنقّل وهمية', () => {
     setup();
-    expect(screen.getByText(/الصفحات التقديرية/)).toBeInTheDocument();
+    expect(screen.getAllByText(/الصفحات التقديرية/).length).toBeGreaterThan(0);
     expect(screen.queryByLabelText('الصفحة التالية')).toBeNull();
     expect(screen.queryByLabelText('الصفحة السابقة')).toBeNull();
   });

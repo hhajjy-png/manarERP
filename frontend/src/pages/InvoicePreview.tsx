@@ -441,8 +441,14 @@ export default function InvoicePreview() {
 
         {/* ── Toolbar (hidden on print) ── */}
         {/* ── الصف الأول: الأوامر الأساسية (حجم Desktop ERP مدمج، محصور بـ .invx-actions) ──
-            الأولوية في RTL من اليمين: رجوع · طباعة · معاينة · PDF · تصميم · تعديل · إلغاء.
-            «تحصيل» أُزيل من هذا الشريط (لا ينتمي لسياق الطباعة) — الوظيفة نفسها باقية. */}
+            الترتيب في RTL من اليمين: رجوع · طباعة · معاينة · PDF · وضع التصميم · تعديل ·
+            قالب الطباعة. «طباعة» وحده الإجراء الأبرز.
+
+            «تحصيل» و«إلغاء» أُزيلا من **هذا الشريط فقط**: لا ينتميان إلى سياق الطباعة،
+            وكانا يزاحمان الأوامر الأساسية. لا إجراء خطر (destructive) في شاشة الطباعة بعد
+            اليوم. الوظيفتان ومنطقهما وصلاحياتهما وواجهاتهما وقيودهما المحاسبية باقية بلا
+            تغيير، والزران باقيان في مواضعهما التشغيلية: قائمة الفواتير (Quick Actions +
+            Danger Actions)، والتفاصيل، والـ Drawer. presentation-only. */}
         <div className="no-print invx-actions" style={{ marginBottom: 12 }}>
           <button type="button" className="btn secondary" onClick={() => navigate('/invoices')}>
             ← {t('btn.inv.back')}
@@ -509,18 +515,38 @@ export default function InvoicePreview() {
               canCollect / handlePay / نافذة الدفع) كلها باقية بلا تغيير، ويبقى الزر في
               مواضعه التشغيلية: قائمة الفواتير، تفاصيل الفاتورة، والـ Drawer.
               presentation-only — لا API ولا workflow ولا حالة فاتورة تغيّرت. */}
-          {hasPermission('invoices.update') && canCancel && (
-            <button type="button" className="btn danger-ghost" onClick={handleCancel}>
-              {t('page.invoices.cancel_inv')}
-            </button>
+          {/* أداة إعداد — تحلّ محل «إلغاء» في نهاية مجموعة الأدوات. أخفّ بروزًا من
+              «طباعة»، ومتناسقة مع «وضع التصميم» و«تعديل». منطق اختيار القالب وحفظه
+              لم يتغيّر إطلاقًا؛ نُقل موضع الزر فقط. */}
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => setPreviewMode(m => m === 'legacy' ? 'engine' : 'legacy')}
+            disabled={!printData}
+          >
+            <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16, verticalAlign: 'text-bottom', marginInlineEnd: 4 }}>
+              {previewMode === 'engine' ? 'description' : 'dashboard_customize'}
+            </span>
+            {previewMode === 'engine' ? 'العرض الكلاسيكي' : 'قالب الطباعة'}
+          </button>
+          {studioTemplate && previewMode === 'engine' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, cursor: 'pointer', padding: '5px 9px', background: useStudio ? '#dbeafe' : '#f8fafc', border: '1px solid #bfdbfe', borderRadius: 8 }}>
+              <input
+                type="checkbox"
+                checked={useStudio}
+                onChange={(e) => setUseStudio(e.target.checked)}
+              />
+              استخدام قالب Template Studio
+            </label>
           )}
           {actionError && <span style={{ color: '#dc2626', fontSize: 13, fontWeight: 600 }}>⚠️ {actionError}</span>}
         </div>
 
-        {/* ── الصف الثاني: إعدادات المستند — التوقيع والختم وقالب الطباعة.
-            هذه إعدادات طباعة لا أوامر، ففُصلت عن الأوامر الأساسية. ── */}
-        <div className="no-print invx-doc-settings">
-          {printOptionsInitialized && (
+        {/* ── الصف الثاني: خيارات محتوى المستند — التوقيع والختم فقط.
+            «قالب الطباعة» انتقل إلى الصف الأساسي؛ هذا الصف لا يُعرض أصلًا إن لم تكن
+            خيارات المحتوى جاهزة، فلا يبقى فراغ بصري مكان الزر المنقول. ── */}
+        {printOptionsInitialized && (
+          <div className="no-print invx-doc-settings">
             <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '4px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.signatureUrl ? 'pointer' : 'not-allowed' }}>
                 <input
@@ -545,26 +571,8 @@ export default function InvoicePreview() {
                 </span>
               </label>
             </span>
-          )}
-          <button
-            type="button"
-            className="btn secondary"
-            onClick={() => setPreviewMode(m => m === 'legacy' ? 'engine' : 'legacy')}
-            disabled={!printData}
-          >
-            {previewMode === 'engine' ? '📋 العرض الكلاسيكي' : '✨ قالب الطباعة'}
-          </button>
-          {studioTemplate && previewMode === 'engine' && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', padding: '3px 8px', background: useStudio ? '#dbeafe' : '#f8fafc', border: '1px solid #bfdbfe', borderRadius: 6 }}>
-              <input
-                type="checkbox"
-                checked={useStudio}
-                onChange={(e) => setUseStudio(e.target.checked)}
-              />
-              استخدام قالب Template Studio
-            </label>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* ── Engine template selector (engine mode only, hidden on print) ── */}
         {previewMode === 'engine' && printData && (

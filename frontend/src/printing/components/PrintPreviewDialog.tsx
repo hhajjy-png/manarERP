@@ -9,24 +9,38 @@
  * المستند يُعرض داخل `<iframe srcdoc>` في **نفس أصل التطبيق**: لذلك تُحمَّل الخطوط
  * والشعار كما على الشاشة، وتظهر العربية مشكّلة ومتّصلة. لا نافذة مخفية، لا ملف مؤقّت،
  * لا PDF وسيط، لا PDF.js، لا rasterisation.
+ *
+ * ── نموذج التكبير ─────────────────────────────────────────────────────────────
+ * `transform: scale()` **لا يغيّر صندوق التخطيط**: الـ iframe يظل يشغل مقاسه الأصلي
+ * في التدفّق مهما صغّرناه بصريًا. لذلك لا يكفي وحده. النموذج هنا مزدوج:
+ *
+ *   الورقة (`.pc-sheet`)  → صندوق **مقيس** صراحةً: العرض والارتفاع مضروبان في scale.
+ *   الـ iframe            → يرسم بمقاس A4 الحقيقي (794×1123px عند 96dpi) ثم يُقيَّس
+ *                            بصريًا بـ transform داخل صندوق الورقة.
+ *
+ * الورقة هي ما يراه التخطيط والتمرير؛ الـ transform مجرّد طبقة رسم فوقها. هكذا يبقى
+ * مقاس الورقة المعروض = مقاسها الحقيقي × النسبة، بلا فراغ أبيض ولا قصّ.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import './PrintCenter.css';
 
 /** نسب التكبير الصريحة. Fit Width / Fit Page ليسا نسبتين ثابتتين — بل يُحسبان. */
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
+const MIN_SCALE = 0.1;
+const MAX_SCALE = 2;
+
 type FitMode = 'width' | 'page' | 'none';
 
-/** أبعاد A4 بالمليمتر — تُحوَّل إلى بكسل عند 96dpi. */
+/** أبعاد A4 بالمليمتر — تُحوَّل إلى بكسل عند 96dpi (نفس افتراض Chromium للطباعة). */
 const MM_TO_PX = 96 / 25.4; // ≈ 3.7795
 const A4_W_MM = 210;
 const A4_H_MM = 297;
 
 /** حشوة بصرية حول الورقة — تتقلّص على الشاشات الضيقة. */
 const PAD_WIDE = 56;
-const PAD_NARROW = 32;
+const PAD_NARROW = 40;
 const NARROW_AT = 900;
 
 export interface PrintPreviewDialogProps {
@@ -67,13 +81,18 @@ export default function PrintPreviewDialog({
   const composeRef = useRef(compose);
   composeRef.current = compose;
 
-  const pageWmm = orientation === 'landscape' ? A4_H_MM : A4_W_MM;
-  const pageHmm = orientation === 'landscape' ? A4_W_MM : A4_H_MM;
-  const pageWpx = pageWmm * MM_TO_PX;
-  const pageHpx = pageHmm * MM_TO_PX;
+  const { pageWpx, pageHpx } = useMemo(() => {
+    const wmm = orientation === 'landscape' ? A4_H_MM : A4_W_MM;
+    const hmm = orientation === 'landscape' ? A4_W_MM : A4_H_MM;
+    return { pageWpx: wmm * MM_TO_PX, pageHpx: hmm * MM_TO_PX };
+  }, [orientation]);
 
   /** النسبة الفعلية المعروضة — محسوبة لا ثابتة. */
   const scale = fit === 'none' ? zoom : fitScale;
+
+  /** مقاس الورقة المعروض. هذا هو الصندوق الحقيقي في التخطيط — لا مجرد أثر بصري. */
+  const sheetW = Math.round(pageWpx * scale);
+  const sheetH = Math.round(pageHpx * pageCount * scale);
 
   // بناء المستند عند الفتح فقط. التكبير لا يعيد البناء.
   useEffect(() => {
@@ -107,13 +126,19 @@ export default function PrintPreviewDialog({
   }, [open]);
 
   /**
-   * حساب Fit Width / Fit Page من المساحة المتاحة فعلًا — لا نسبة ثابتة.
+   * حساب Fit Width / Fit Page من المساحة المتاحة فعلًا — لا نسبة ثابتة، ولا معادلة
+   * واحدة للاثنين:
    *
-   *   Fit Width = (عرض الـ canvas − الحشوتان − عرض شريط التمرير) ÷ عرض الورقة
-   *   Fit Page  = أصغر (نسبة العرض، نسبة الارتفاع) — لتظهر الصفحة كاملة
+   *   Fit Width = العرض المتاح ÷ عرض الورقة            (بُعد واحد — العرض)
+   *   Fit Page  = أصغر (العرض المتاح ÷ عرض الورقة، الارتفاع المتاح ÷ ارتفاع صفحة واحدة)
+   *               (بُعدان — لتظهر الصفحة **كاملة** بلا تشويه للنسبة)
    *
-   * يُعاد الحساب عند: الفتح · تغيير حجم النافذة · تغيير الاتجاه/الـ PageSpec ·
-   * تغيّر عدد الصفحات (ظهور/اختفاء شريط تمرير رأسي يغيّر العرض المتاح).
+   * «الارتفاع المتاح» يُقاس على **صفحة واحدة** لا على المستند كله: Fit Page يعني أن
+   * ترى صفحة كاملة، لا أن تُسحق عشر صفحات في الشاشة.
+   *
+   * العرض المتاح = `clientWidth` — وهو يستثني شريط التمرير الرأسي أصلًا. ولأن الـ canvas
+   * يحجز مساره دائمًا (`scrollbar-gutter: stable`) فالقيمة لا تتذبذب بين ظهوره واختفائه،
+   * فلا تتولّد حلقة قياس ولا شريط تمرير أفقي في Fit Width.
    */
   const recomputeFit = useCallback(() => {
     const el = canvasRef.current;
@@ -121,19 +146,17 @@ export default function PrintPreviewDialog({
     const pad = el.clientWidth < NARROW_AT ? PAD_NARROW : PAD_WIDE;
     const availW = Math.max(80, el.clientWidth - pad * 2);
     const availH = Math.max(80, el.clientHeight - pad * 2);
-    const next =
-      fit === 'width'
-        ? availW / pageWpx
-        : Math.min(availW / pageWpx, availH / pageHpx);
-    // لا نكبّر فوق 100% تلقائيًا — الورقة لا تتضخّم بلا داعٍ.
-    setFitScale(Math.max(0.1, Math.min(next, 2)));
+    const next = fit === 'width' ? availW / pageWpx : Math.min(availW / pageWpx, availH / pageHpx);
+    setFitScale(Math.max(MIN_SCALE, Math.min(next, MAX_SCALE)));
   }, [fit, pageWpx, pageHpx]);
 
+  // الفتح · تغيّر الوضع · تغيّر الاتجاه/المقاس · تغيّر عدد الصفحات · تبدّل المستند.
   useLayoutEffect(() => {
     if (!open) return;
     recomputeFit();
   }, [open, recomputeFit, pageCount, html]);
 
+  // تغيّر حجم النافذة أو الحاوية — إعادة حساب فورية، لا قيمة محفوظة من فتحة سابقة.
   useEffect(() => {
     if (!open) return;
     const el = canvasRef.current;
@@ -146,7 +169,27 @@ export default function PrintPreviewDialog({
     return () => ro.disconnect();
   }, [open, recomputeFit]);
 
-  /** عدد الصفحات **تقديري** من ارتفاع المحتوى — لا ندّعي ترقيمًا حقيقيًا. */
+  /**
+   * الورقة لا «تقفز» عند تغيير التكبير: نحفظ نقطة المنتصف المرئية ونعيد التمرير إليها
+   * بعد تغيّر المقاس (في نفس دورة الرسم، فلا يرى المستخدم ارتدادًا).
+   */
+  const prevScaleRef = useRef(scale);
+  useLayoutEffect(() => {
+    const el = canvasRef.current;
+    const prev = prevScaleRef.current;
+    prevScaleRef.current = scale;
+    if (!el || !prev || prev === scale) return;
+    const ratio = scale / prev;
+    const midX = el.scrollLeft + el.clientWidth / 2;
+    const midY = el.scrollTop + el.clientHeight / 2;
+    el.scrollLeft = midX * ratio - el.clientWidth / 2;
+    el.scrollTop = midY * ratio - el.clientHeight / 2;
+  }, [scale]);
+
+  /**
+   * عدد الصفحات **تقديري** من ارتفاع المحتوى — لا ندّعي ترقيمًا حقيقيًا.
+   * يُقاس والـ iframe بارتفاع صفحة واحدة، فيكون `scrollHeight` = ارتفاع المحتوى كاملًا.
+   */
   const onFrameLoad = useCallback(() => {
     const doc = frameRef.current?.contentDocument;
     if (!doc?.body) return;
@@ -169,15 +212,19 @@ export default function PrintPreviewDialog({
     });
   }, [onClose, onPrint]);
 
-  const zoomBy = useCallback((dir: 1 | -1) => {
-    setFit('none');
-    setZoom((z) => {
-      const current = z;
-      return dir > 0
-        ? (ZOOM_STEPS.find((s) => s > current) ?? current)
-        : ([...ZOOM_STEPS].reverse().find((s) => s < current) ?? current);
-    });
-  }, []);
+  /** خطوة التكبير تبدأ من النسبة المعروضة فعلًا — حتى لو كانت محسوبة من Fit. */
+  const zoomBy = useCallback(
+    (dir: 1 | -1) => {
+      const current = scale;
+      const next =
+        dir > 0
+          ? (ZOOM_STEPS.find((s) => s > current + 0.001) ?? MAX_SCALE)
+          : ([...ZOOM_STEPS].reverse().find((s) => s < current - 0.001) ?? MIN_SCALE);
+      setFit('none');
+      setZoom(next);
+    },
+    [scale],
+  );
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -201,7 +248,6 @@ export default function PrintPreviewDialog({
   if (!open) return null;
 
   const ready = html !== null && !error;
-  const selectValue = fit === 'none' ? String(zoom) : fit;
 
   return (
     <div className="pc-scrim" role="presentation">
@@ -220,30 +266,21 @@ export default function PrintPreviewDialog({
           <div className="pc-toolbar-group">
             <button
               type="button"
-              className="pc-btn pc-btn--primary"
-              onClick={doPrint}
-              disabled={!ready || printing}
-              aria-label={en ? 'Print' : 'طباعة'}
-            >
-              <span className="material-symbols-outlined" aria-hidden="true">print</span>
-              {en ? 'Print' : 'طباعة'}
-            </button>
-            <button
-              type="button"
               className="pc-btn"
               onClick={onClose}
               aria-label={en ? 'Close' : 'إغلاق'}
             >
+              <span className="material-symbols-outlined" aria-hidden="true">close</span>
               {en ? 'Close' : 'إغلاق'}
             </button>
           </div>
 
-          <div className="pc-toolbar-group">
+          <div className="pc-toolbar-group pc-toolbar-group--zoom">
             <button
               type="button"
               className="pc-icon-btn"
               aria-label={en ? 'Zoom out' : 'تصغير'}
-              disabled={!ready}
+              disabled={!ready || scale <= ZOOM_STEPS[0]}
               onClick={() => zoomBy(-1)}
             >
               <span className="material-symbols-outlined" aria-hidden="true">zoom_out</span>
@@ -255,18 +292,16 @@ export default function PrintPreviewDialog({
               className="pc-select"
               aria-label={en ? 'Zoom level' : 'مستوى التكبير'}
               disabled={!ready}
-              value={selectValue}
+              value={fit === 'none' ? String(zoom) : 'fit'}
               onChange={(e) => {
-                const v = e.target.value;
-                if (v === 'width' || v === 'page') setFit(v);
-                else {
-                  setFit('none');
-                  setZoom(Number(v));
-                }
+                setFit('none');
+                setZoom(Number(e.target.value));
               }}
             >
-              <option value="width">{en ? 'Fit Width' : 'ملاءمة العرض'}</option>
-              <option value="page">{en ? 'Fit Page' : 'ملاءمة الصفحة'}</option>
+              {/* النسبة المحسوبة تُعرض كقيمة حيّة ما دام المستخدم في وضع ملاءمة. */}
+              {fit !== 'none' && (
+                <option value="fit">{Math.round(scale * 100)}%</option>
+              )}
               {ZOOM_STEPS.map((z) => (
                 <option key={z} value={String(z)}>{Math.round(z * 100)}%</option>
               ))}
@@ -276,16 +311,53 @@ export default function PrintPreviewDialog({
               type="button"
               className="pc-icon-btn"
               aria-label={en ? 'Zoom in' : 'تكبير'}
-              disabled={!ready}
+              disabled={!ready || scale >= ZOOM_STEPS[ZOOM_STEPS.length - 1]}
               onClick={() => zoomBy(1)}
             >
               <span className="material-symbols-outlined" aria-hidden="true">zoom_in</span>
             </button>
+          </div>
 
-            {/* النسبة الفعلية المعروضة — تشمل النسبة المحسوبة لـ Fit. */}
-            <span className="pc-zoom-value" aria-live="polite">
-              {Math.round(scale * 100)}%
-            </span>
+          <div className="pc-toolbar-group">
+            {/* وضعا الملاءمة — محسوبان، ولكل منهما معادلته. */}
+            <button
+              type="button"
+              className={`pc-btn pc-btn--toggle${fit === 'width' ? ' is-active' : ''}`}
+              aria-pressed={fit === 'width'}
+              disabled={!ready}
+              onClick={() => setFit('width')}
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">fit_width</span>
+              {en ? 'Fit Width' : 'ملاءمة العرض'}
+            </button>
+            <button
+              type="button"
+              className={`pc-btn pc-btn--toggle${fit === 'page' ? ' is-active' : ''}`}
+              aria-pressed={fit === 'page'}
+              disabled={!ready}
+              onClick={() => setFit('page')}
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">fit_page</span>
+              {en ? 'Fit Page' : 'ملاءمة الصفحة'}
+            </button>
+          </div>
+
+          {/* لا ترقيم حقيقي بعد — لا أزرار تنقّل وهمية، ولا ادّعاء دقة غير موجودة. */}
+          <span className="pc-pages" aria-live="polite">
+            {en ? 'Estimated pages' : 'الصفحات التقديرية'}: <strong>{pageCount}</strong>
+          </span>
+
+          <div className="pc-toolbar-group pc-toolbar-group--end">
+            <button
+              type="button"
+              className="pc-btn pc-btn--primary"
+              onClick={doPrint}
+              disabled={!ready || printing}
+              aria-label={en ? 'Print' : 'طباعة'}
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">print</span>
+              {en ? 'Print' : 'طباعة'}
+            </button>
           </div>
         </div>
 
@@ -301,14 +373,9 @@ export default function PrintPreviewDialog({
 
           {ready && (
             <div className="pc-canvas" ref={canvasRef}>
-              {/* الورقة: توسيط أفقي، حشوة حولها، حدّ خفيف وظل هادئ. */}
-              <div
-                className="pc-sheet"
-                style={{
-                  width: `${Math.round(pageWpx * scale)}px`,
-                  minHeight: `${Math.round(pageHpx * scale)}px`,
-                }}
-              >
+              {/* الورقة: صندوق مقيس فعلًا (لا يعتمد على أثر الـ transform)، متوسّط،
+                  بحدّ خفيف وظل هادئ. */}
+              <div className="pc-sheet" style={{ width: `${sheetW}px`, height: `${sheetH}px` }}>
                 <iframe
                   ref={frameRef}
                   className="pc-frame"
@@ -332,7 +399,6 @@ export default function PrintPreviewDialog({
         <div className="pc-statusbar">
           <span className="pc-status-doc">{documentLabel}</span>
           <span className="pc-status-sep" aria-hidden="true">·</span>
-          {/* لا ترقيم حقيقي بعد — لا نضيف أزرار تنقّل وهمية، ولا ندّعي دقة غير موجودة. */}
           <span>
             {en ? 'Estimated pages' : 'الصفحات التقديرية'}: {pageCount}
           </span>

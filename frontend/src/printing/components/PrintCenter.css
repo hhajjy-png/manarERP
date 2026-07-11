@@ -38,9 +38,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 10px 14px;
+  gap: 10px 12px;
+  flex-wrap: wrap;              /* التفاف منظم — لا تداخل ولا اختفاء عند التضييق */
+  padding: 11px 16px;
   background: var(--xpl-bg);
   border-bottom: 1px solid var(--xpl-border);
   flex-shrink: 0;
@@ -55,12 +55,12 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 13px;
+  padding: 8px 15px;            /* +12% تقريبًا عن السابق — أوضح دون العودة للحجم القديم */
   border-radius: 9px;
   border: 1px solid var(--xpl-border);
   background: var(--xpl-surface);
   color: var(--xpl-text);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
@@ -73,7 +73,7 @@
   border-color: var(--xpl-primary);
   color: #fff;
 }
-.pc-btn .material-symbols-outlined { font-size: 18px !important; }
+.pc-btn .material-symbols-outlined { font-size: 19px !important; }
 
 .pc-icon-btn {
   display: inline-flex;
@@ -89,7 +89,7 @@
 }
 .pc-icon-btn:hover:not(:disabled) { border-color: var(--xpl-primary); }
 .pc-icon-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.pc-icon-btn .material-symbols-outlined { font-size: 18px !important; }
+.pc-icon-btn .material-symbols-outlined { font-size: 19px !important; }
 
 /* Visible focus in BOTH themes — keyboard operation must never be invisible. */
 .pc-btn:focus-visible,
@@ -114,7 +114,7 @@
   font-size: 12.5px;
   font-family: inherit;
 }
-.pc-select { min-width: 128px; }
+.pc-select { min-width: 96px; }
 .pc-page-input {
   width: 46px;
   text-align: center;
@@ -228,11 +228,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 9px 16px;
   background: var(--xpl-bg);
   border-top: 1px solid var(--xpl-border);
-  font-size: 12px;
-  color: var(--xpl-muted);
+  font-size: 13px;
+  color: var(--xpl-text-muted, var(--xpl-muted));
   flex-shrink: 0;
 }
 .pc-status-doc {
@@ -248,11 +248,11 @@
 /* Status is conveyed by TEXT, not colour alone. */
 .pc-status-chip {
   margin-inline-start: auto;
-  padding: 2px 9px;
+  padding: 3px 10px;
   border-radius: 999px;
   border: 1px solid var(--xpl-border);
   font-weight: 700;
-  font-size: 11.5px;
+  font-size: 12.5px;
 }
 .pc-status-chip--ready { color: var(--xpl-green); border-color: rgba(16, 185, 129, 0.35); }
 .pc-status-chip--failed { color: var(--xpl-orange); border-color: rgba(245, 158, 11, 0.4); }
@@ -302,6 +302,27 @@
   .pc-select:disabled { color: #94a3b8 !important; background-color: #0f172a !important; }
 }
 
+.pc-pages {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--xpl-text-muted, var(--xpl-text));
+  white-space: nowrap;
+}
+.pc-pages strong {
+  font-weight: 800;
+  color: var(--xpl-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* وضعا الملاءمة — أزرار تبديل، أخفّ من زر الطباعة. */
+.pc-btn--toggle { font-weight: 600; }
+.pc-btn--toggle.is-active {
+  border-color: var(--xpl-primary);
+  color: var(--xpl-primary);
+  background: color-mix(in srgb, var(--xpl-primary) 10%, transparent);
+}
+.pc-toolbar-group--end { margin-inline-start: auto; }
+
 .pc-zoom-value {
   min-width: 46px;
   text-align: center;
@@ -317,35 +338,49 @@
   flex: 1;
   min-height: 0;
   display: flex;
-  overflow: hidden; /* التمرير يحدث داخل .pc-canvas فقط */
+  overflow: hidden; /* التمرير يحدث داخل .pc-canvas فقط — لا على نافذة التطبيق */
 }
 .pc-canvas {
   flex: 1;
   min-height: 0;
-  overflow: auto;               /* شريطا التمرير هنا، لا على نافذة التطبيق */
+  overflow: auto;               /* شريطا التمرير هنا وحدهما */
   overscroll-behavior: contain; /* لا يتسرّب التمرير إلى الصفحة خلف النافذة */
+  scrollbar-gutter: stable;     /* مسار الشريط محجوز دائمًا: عرض القياس لا يتذبذب،
+                                   فلا حلقة إعادة حساب ولا شريط أفقي في ملاءمة العرض */
   display: flex;
-  justify-content: center;      /* ← توسيط الورقة أفقيًا في RTL وLTR معًا */
-  align-items: flex-start;
+  /* توسيط في المحورين. `safe` تمنع قصّ حافة البداية حين تكبر الورقة عن المساحة —
+     وهي السلوك الذي يفتقده التوسيط العادي داخل حاوية تمرير. */
+  justify-content: center;
+  justify-content: safe center;
+  align-items: center;
+  align-items: safe center;
   padding: 56px;
-  background: #64748b;          /* slate — تُبرز الورقة دون سواد ثقيل */
+  background: var(--xpl-preview-bg, #64748b); /* رمادي Slate — يُبرز الورقة بلا سواد ثقيل */
 }
-@media (max-width: 900px) {
-  .pc-canvas { padding: 32px; }
-}
+@media (max-width: 1200px) { .pc-canvas { padding: 48px; } }
+@media (max-width: 900px)  { .pc-canvas { padding: 40px; } }
 @media (prefers-color-scheme: dark) {
-  .pc-canvas { background: #334155; }
+  .pc-canvas { background: var(--xpl-preview-bg, #334155); }
 }
 
-/* ── الورقة: بيضاء دائمًا، حدّ خفيف وظل هادئ — لا زخرفة ──────────────────── */
+/* ── الورقة: بيضاء دائمًا، حدّ خفيف وظل هادئ ─────────────────────────────────
+   صندوق **مقيس فعلًا**: عرضه وارتفاعه = مقاس A4 × النسبة. لا يعتمد على أثر
+   الـ transform (الذي لا يغيّر صندوق التخطيط أصلًا) — ولهذا لم يعد يظهر المستطيل
+   الأبيض الطويل عند النسب الصغيرة. */
 .pc-sheet {
+  position: relative;
+  box-sizing: border-box;
   background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.18);
-  overflow: hidden;   /* التكبير لا يُخرج المستند خارج حدود الورقة */
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 10px 28px rgba(0, 0, 0, 0.2);
+  overflow: hidden;   /* الـ iframe المقيَّس لا يتجاوز حدود الورقة */
   flex: 0 0 auto;     /* لا تتمدد ولا تنكمش — أبعادها محسوبة */
+  margin: 0;
 }
 .pc-frame {
+  position: absolute;   /* خارج التدفّق: صندوقه الأصلي (غير المقيَّس) لا يمدّ الورقة */
+  top: 0;
+  inset-inline-start: 0;
   border: 0;
   display: block;
   background: #fff;
@@ -377,7 +412,7 @@
   line-height: 1;
 }
 /* الإجراء الأساسي — الطباعة وحدها هي الأقوى بصريًا. */
-.invx-actions .btn:not(.secondary):not(.danger-ghost) {
+.invx-actions .btn:not(.secondary) {
   font-weight: 700;
 }
 /* الإجراءات الثانوية والمساعدة — أخفّ وزنًا، بلا ظل. */
@@ -385,20 +420,10 @@
   font-weight: 600;
   box-shadow: none;
 }
-/* إجراء خطر — مميّز دون مبالغة. */
-.invx-actions .btn.danger-ghost {
-  font-weight: 600;
-  color: #dc2626;
-  background: transparent;
-  border: 1px solid rgba(220, 38, 38, 0.35);
-  box-shadow: none;
-}
-.invx-actions .btn.danger-ghost:hover:not(:disabled) {
-  background: rgba(220, 38, 38, 0.07);
-  border-color: #dc2626;
-}
+/* لا إجراء خطر (destructive) في شاشة الطباعة: «إلغاء» و«تحصيل» ليسا من سياقها،
+   وهما باقيان في مواضعهما التشغيلية (قائمة الفواتير / التفاصيل / Drawer). */
 
-/* صف ثانٍ: إعدادات المستند (التوقيع/الختم/قالب الطباعة) — منفصل عن الأوامر. */
+/* صف ثانٍ: خيارات محتوى المستند (التوقيع/الختم) — لا يُصيَّر إن كانت فارغة. */
 .invx-doc-settings {
   display: flex;
   flex-wrap: wrap;
