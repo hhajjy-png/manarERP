@@ -3,10 +3,9 @@ import { printCurrentView } from '../utils/print';
 import {
   composeStyledFromNode,
   isPhase2Enabled,
-  PrintCenterDialog,
+  PrintPreviewDialog,
   PRINT_CENTER_PHASE2_INVOICE,
   getPageSpec,
-  type PreviewSource,
 } from '../printing';
 import type { ComponentType } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -260,37 +259,22 @@ export default function InvoicePreview() {
   );
 
   /**
-   * Compose the invoice for the Print Center.
-   *
-   * `composeStyledFromNode` clones the already-rendered root (the live DOM is never
-   * mutated) and embeds the document's own stylesheets — CSS Modules, Template Studio,
-   * the branding/layout designer overrides, DocumentVerificationQR — in cascade order.
-   * The template's own `@page` wins, so the invoice's existing geometry is unchanged.
-   * If stylesheet capture fails it THROWS, and the Print Center shows a failure rather
-   * than a plausible-looking, unstyled invoice.
+   * يبني مستند المعاينة من نفس الـ printable root المعروض — لا يعيد رسم أي شيء، ولا
+   * يمس القالب ولا الحسابات. يُعرض داخل iframe في نفس أصل التطبيق، فتُحمَّل الخطوط
+   * والشعار كما على الشاشة وتظهر العربية مشكّلة.
    */
-  const composeInvoicePreview = useCallback((): PreviewSource => {
+  const composeInvoicePreview = useCallback((): string => {
     const node = printRootRef.current;
-    if (!node || !data) throw new Error('تعذّر تجهيز الفاتورة للطباعة.');
+    if (!node || !data) throw new Error('تعذّر تجهيز الفاتورة للمعاينة.');
     const number = data.invoiceNumber ?? data.number;
-    return {
-      docType: 'invoice',
-      documentId: String(number),
-      html: composeStyledFromNode({
-        node,
-        pageSpec: getPageSpec('a4-portrait'), // fallback only — the template's @page wins
-        title: `فاتورة ${number}`,
-        lang: 'ar',
-        stripSelectors: ['.no-print'],
-      }),
-      pageSpecId: 'a4-portrait',
+    return composeStyledFromNode({
+      node,
+      pageSpec: getPageSpec('a4-portrait'),
       title: `فاتورة ${number}`,
-      documentLabel: `فاتورة · ${number}`,
-      renderSource: 'template-engine',
-      templateId: resolvedTemplate?.id,
-      suggestedFileName: buildInvoicePdfName(number),
-    };
-  }, [data, resolvedTemplate]);
+      lang: 'ar',
+      stripSelectors: ['.no-print'],
+    });
+  }, [data]);
 
   const printWarnings = useMemo(
     () => (printData ? validateInvoicePrintData(printData) : []),
@@ -422,12 +406,15 @@ export default function InvoicePreview() {
         .inv-pay-row:nth-child(even) { background: #f8fafc; }
       `}</style>
 
-      {/* Print Center (Phase 2B) — mounted only when the invoice flag is on. */}
+      {/* Universal Print Preview — خارج الـ printable root دائمًا. زر «طباعة» بداخلها
+          يغلقها ثم يستدعي مسار طباعة الفاتورة القديم بلا تغيير. */}
       {usePrintCenterInvoice && (
-        <PrintCenterDialog
+        <PrintPreviewDialog
           open={printCenterOpen}
           onClose={() => setPrintCenterOpen(false)}
           compose={composeInvoicePreview}
+          onPrint={() => printCurrentView()}
+          documentLabel={data ? `فاتورة · ${data.invoiceNumber ?? data.number}` : ''}
           lang="ar"
         />
       )}
@@ -447,7 +434,7 @@ export default function InvoicePreview() {
               Flag OFF → the original direct-print button below, unchanged. */}
           {usePrintCenterInvoice ? (
             <button type="button" className="btn" onClick={() => setPrintCenterOpen(true)}>
-              🖨️ {t('btn.inv.print_invoice')}
+              🔍 معاينة قبل الطباعة
             </button>
           ) : (
             <button type="button" className="btn" onClick={() => printCurrentView()}>

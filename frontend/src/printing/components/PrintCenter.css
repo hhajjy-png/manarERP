@@ -256,3 +256,21 @@
 }
 .pc-status-chip--ready { color: var(--xpl-green); border-color: rgba(16, 185, 129, 0.35); }
 .pc-status-chip--failed { color: var(--xpl-orange); border-color: rgba(245, 158, 11, 0.4); }
+
+/* ── Universal Print Preview v1 ── */
+.pc-frame {
+  border: 0;
+  background: #fff;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.35);
+  min-height: 1123px; /* A4 portrait @96dpi — a real sheet, not a strip */
+  display: block;
+}
+.pc-hint { font-size: 11.5px; color: var(--xpl-muted); }
+
+/* The preview window must NEVER reach paper. The page's own print path prints the
+   visible window, so if this dialog were still mounted it would be printed too. It is
+   closed before printing (see PrintPreviewDialog.doPrint); this rule is the second
+   barrier. */
+@media print {
+  .pc-scrim { display: none !important; }
+}

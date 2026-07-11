@@ -205,7 +205,10 @@ describe('no loop remains anywhere in the print path', () => {
 
   it('the Print Center path contains no copy loop and no repeated submit', () => {
     const gw = codeOf('src/printing/printCenter.ts');
-    const dlg = codeOf('src/printing/components/PrintCenterDialog.tsx');
+    // Universal Print Preview v1: the preview dialog replaced the old Print Center
+    // dialog. It never prints — it hands off to the page's own print path — so it must
+    // contain no submit loop either.
+    const dlg = codeOf('src/printing/components/PrintPreviewDialog.tsx');
     for (const src of [gw, dlg]) {
       expect(src).not.toMatch(/for\s*\(/);
       expect(src).not.toMatch(/Array\.from\([^)]*\)\.map\([^)]*submit/i);

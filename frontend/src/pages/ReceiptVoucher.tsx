@@ -6,11 +6,10 @@ import {
   isFlagEnabled,
   isPhase2Enabled,
   submitPrintJob,
-  PrintCenterDialog,
+  PrintPreviewDialog,
   PRINT_CENTER_FOUNDATION_V1,
   PRINT_CENTER_PHASE2_RECEIPT_VOUCHER,
   RECEIPT_VOUCHER_PAGE_SPEC,
-  type PreviewSource,
 } from '../printing';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
@@ -81,26 +80,17 @@ export default function ReceiptVoucher() {
    * Same renderer, same `@page` geometry (RECEIPT_VOUCHER_PAGE_SPEC mirrors the page's
    * own `@page { size:A4; margin:12mm 15mm }`), so the PDF matches the physical print.
    */
-  const composePreview = useCallback((): PreviewSource => {
+  /** يبني مستند المعاينة من نفس عنصر الطباعة المعروض — لا إعادة رسم. */
+  const composePreview = useCallback((): string => {
     const node = previewRef.current;
-    if (!node) throw new Error('تعذّر تجهيز المستند للطباعة.');
-    const number = rcvNumber || '---';
-    return {
-      docType: 'receipt-voucher',
-      documentId: number,
-      html: composeFromNode({
-        node,
-        pageSpec: RECEIPT_VOUCHER_PAGE_SPEC,
-        title: `سند قبض ${number}`,
-        lang,
-      }),
-      pageSpecId: RECEIPT_VOUCHER_PAGE_SPEC.id,
-      title: `سند قبض ${number}`,
-      documentLabel: `سند قبض · ${number}`,
-      renderSource: 'dom-node',
-      suggestedFileName: `manarERP_ReceiptVoucher_${number}_${form.date}`,
-    };
-  }, [rcvNumber, lang, form.date]);
+    if (!node) throw new Error('تعذّر تجهيز المستند للمعاينة.');
+    return composeFromNode({
+      node,
+      pageSpec: RECEIPT_VOUCHER_PAGE_SPEC,
+      title: `سند قبض ${rcvNumber || '---'}`,
+      lang,
+    });
+  }, [rcvNumber, lang]);
 
   /**
    * Print once React has flushed the issued rcvNumber into the DOM.
@@ -352,12 +342,24 @@ export default function ReceiptVoucher() {
         </div>
       </div>
 
-      {/* ── Print Center (Phase 2) — only mounted when this document's flag is on ── */}
+      {/* معاينة قبل الطباعة — الطباعة نفسها تبقى على مسار Phase 1 المعتمد. */}
       {usePrintCenterPath && (
-        <PrintCenterDialog
+        <PrintPreviewDialog
           open={printCenterOpen}
           onClose={() => setPrintCenterOpen(false)}
           compose={composePreview}
+          onPrint={() => {
+            void submitPrintJob(
+              createPrintJob({
+                docType: 'receipt-voucher',
+                documentId: rcvNumber,
+                destination: 'printer',
+                pageSpecId: RECEIPT_VOUCHER_PAGE_SPEC.id,
+                copies: 1,
+              }),
+            );
+          }}
+          documentLabel={`سند قبض · ${rcvNumber || '---'}`}
           lang={lang}
         />
       )}

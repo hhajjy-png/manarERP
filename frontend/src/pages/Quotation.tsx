@@ -3,10 +3,9 @@ import { printCurrentView } from '../utils/print';
 import {
   composeStyledFromNode,
   isPhase2Enabled,
-  PrintCenterDialog,
+  PrintPreviewDialog,
   PRINT_CENTER_PHASE2_QUOTATION,
   getPageSpec,
-  type PreviewSource,
 } from '../printing';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
@@ -242,37 +241,18 @@ export default function Quotation() {
   const { resolvedTemplate, profile: tplProfile, setProfile: setTplProfile } =
     usePrintTemplate('quotation', brandedPrintData ?? undefined);
 
-  /**
-   * Compose the quotation for the Print Center.
-   *
-   * Clones the already-rendered engine root (the live DOM is never mutated) and embeds
-   * the document's own stylesheets in cascade order — CSS Modules, Template Studio,
-   * branding/layout designer overrides, watermarks. The template's own `@page`
-   * (`{ size: A4; margin: 0 }`) wins, so zero-margin templates stay zero-margin.
-   * Throws — rather than degrading — if stylesheet capture fails.
-   */
-  const composeQuotationPreview = useCallback((): PreviewSource => {
+  /** يبني مستند المعاينة من نفس الـ printable root — لا إعادة رسم، لا تغيير قالب. */
+  const composeQuotationPreview = useCallback((): string => {
     const node = printRootRef.current;
-    if (!node) throw new Error('تعذّر تجهيز عرض السعر للطباعة.');
-    const number = printFields.quotationNumber || '---';
-    return {
-      docType: 'quotation',
-      documentId: String(number),
-      html: composeStyledFromNode({
-        node,
-        pageSpec: getPageSpec('a4-portrait'), // fallback only — the template's @page wins
-        title: `عرض سعر ${number}`,
-        lang,
-        stripSelectors: ['.no-print'],
-      }),
-      pageSpecId: 'a4-portrait',
-      title: `عرض سعر ${number}`,
-      documentLabel: `عرض سعر · ${number}`,
-      renderSource: 'template-engine',
-      templateId: resolvedTemplate?.id,
-      suggestedFileName: buildQuotationPdfName(number),
-    };
-  }, [printFields.quotationNumber, resolvedTemplate, lang]);
+    if (!node) throw new Error('تعذّر تجهيز عرض السعر للمعاينة.');
+    return composeStyledFromNode({
+      node,
+      pageSpec: getPageSpec('a4-portrait'),
+      title: `عرض سعر ${printFields.quotationNumber || '---'}`,
+      lang,
+      stripSelectors: ['.no-print'],
+    });
+  }, [printFields.quotationNumber, lang]);
 
   const warnings = useMemo(
     () => (brandedPrintData ? validateQuotationPrintData(brandedPrintData) : []),
@@ -339,10 +319,12 @@ export default function Quotation() {
         {/* Print Center (Phase 2B) — mounted OUTSIDE the printable root, so its markup
             can never be cloned into the composed document. */}
         {usePrintCenterQuotation && (
-          <PrintCenterDialog
+          <PrintPreviewDialog
             open={printCenterOpen}
             onClose={() => setPrintCenterOpen(false)}
             compose={composeQuotationPreview}
+            onPrint={() => printCurrentView()}
+            documentLabel={`عرض سعر · ${printFields.quotationNumber || '---'}`}
             lang={lang}
           />
         )}
@@ -365,7 +347,7 @@ export default function Quotation() {
               Flag OFF → the original direct-print button, unchanged. */}
           {usePrintCenterQuotation ? (
             <button type="button" className="btn" onClick={() => setPrintCenterOpen(true)}>
-              🖨️ طباعة
+              🔍 معاينة قبل الطباعة
             </button>
           ) : (
             <button type="button" className="btn" onClick={() => printCurrentView()}>

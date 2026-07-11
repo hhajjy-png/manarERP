@@ -59,16 +59,9 @@ export {
   type StyleCaptureProblem,
 } from './styleCapture';
 
-export { usePrintCenter, type PreviewSource, type PrintCenterState } from './usePrintCenter';
+export { default as PrintPreviewDialog, type PrintPreviewDialogProps } from './components/PrintPreviewDialog';
 
-export { default as PrintCenterDialog, type PrintCenterDialogProps } from './components/PrintCenterDialog';
-
-export type {
-  PrintRenderSource,
-  PrintPreviewRequest,
-  PrintPreviewArtifact,
-  PrintPreviewState,
-} from './types';
+export type { PrintRenderSource } from './types';
 
 export {
   waitForPrintReady,
