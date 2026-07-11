@@ -1,11 +1,20 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Aggregate + count are the only DB calls stats() makes — mock just those.
+// Computed aggregate + count remain the primary stats queries; the unified read
+// model additionally consults salaryPayment (imported transfers). An empty imported
+// register keeps the computed totals unchanged (imported branch returns [] early).
 vi.mock('../../../config/database', () => ({
   prisma: {
     payroll: {
       aggregate: vi.fn(),
       count: vi.fn(),
+      findMany: vi.fn(),
+    },
+    salaryPayment: {
+      findMany: vi.fn(),
+    },
+    employee: {
+      findMany: vi.fn(),
     },
   },
 }));
@@ -15,6 +24,7 @@ import { payrollService } from '../payroll.service';
 
 const agg = prisma.payroll.aggregate as unknown as ReturnType<typeof vi.fn>;
 const count = prisma.payroll.count as unknown as ReturnType<typeof vi.fn>;
+const salaryPaymentFindMany = prisma.salaryPayment.findMany as unknown as ReturnType<typeof vi.fn>;
 
 describe('PayrollService.stats', () => {
   beforeEach(() => {
@@ -22,19 +32,22 @@ describe('PayrollService.stats', () => {
     // 13 non-cancelled rows (> one page of 12), 4 of them paid.
     agg.mockResolvedValue({ _sum: { grossSalary: 5000, netSalary: 4200 }, _count: { _all: 13 } });
     count.mockResolvedValue(4);
+    // No imported salary transfers for the period by default.
+    salaryPaymentFindMany.mockResolvedValue([]);
   });
 
   it('aggregates across the full filtered dataset and excludes CANCELLED by default', async () => {
     const result = await payrollService.stats({ month: '6', year: '2026' });
 
-    // Only aggregate + count are used — never findMany/pagination, so page size is irrelevant.
+    // Computed aggregate is still driven by month/year + CANCELLED-excluded where.
     expect(agg).toHaveBeenCalledOnce();
     const where = agg.mock.calls[0][0].where;
     expect(where.month).toBe(6);
     expect(where.year).toBe(2026);
     expect(where.status).toEqual({ not: 'CANCELLED' });
 
-    expect(result).toEqual({ count: 13, gross: 5000, net: 4200, paid: 4 });
+    // Additive imported fields present and zero when the register is empty.
+    expect(result).toEqual({ count: 13, gross: 5000, net: 4200, paid: 4, importedCount: 0, importedNet: 0, grossIsPartial: false });
   });
 
   it('reports counts independent of pagination (same result regardless of page)', async () => {
