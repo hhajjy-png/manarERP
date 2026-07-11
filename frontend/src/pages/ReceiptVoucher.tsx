@@ -1,5 +1,12 @@
 import { CSSProperties, useEffect, useState } from 'react';
 import { printCurrentView } from '../utils/print';
+import {
+  createPrintJob,
+  isFlagEnabled,
+  submitPrintJob,
+  PRINT_CENTER_FOUNDATION_V1,
+  RECEIPT_VOUCHER_PAGE_SPEC,
+} from '../printing';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import DateInput from '../components/DateInput';
@@ -58,13 +65,58 @@ export default function ReceiptVoucher() {
   const [formError, setFormError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
-  // Trigger window.print() after React flushes the rcvNumber into the DOM.
+  /**
+   * Print once React has flushed the issued rcvNumber into the DOM.
+   *
+   * PRINT CENTER FOUNDATION v1 — PILOT.
+   * This is the only document type wired to the new gateway in this phase.
+   *
+   * • Flag ON  → submitPrintJob(): awaits real readiness (fonts + images + layout),
+   *   sends a typed PrintJob over `print:submit`, and records a PRINT audit event.
+   *   The transport underneath is the SAME webContents.print({ silent:false,
+   *   printBackground:true }) call `printCurrentView()` has always made, and the
+   *   page keeps its own `@page { size:A4; margin:12mm 15mm }` rule — so the
+   *   PHYSICAL OUTPUT IS UNCHANGED. RECEIPT_VOUCHER_PAGE_SPEC mirrors that same
+   *   geometry and travels with the job for the audit trail and for Phase 2, when
+   *   the gateway starts emitting the @page rule itself.
+   *
+   * • Flag OFF → the original `printCurrentView()` line, byte for byte. That is the
+   *   rollback lever: no revert needed, no rebuild.
+   *
+   * Either way `setPrinting(false)` runs, and a failed/canceled job never throws at
+   * the user — cancelling the OS dialog is a normal outcome, exactly as before.
+   */
   useEffect(() => {
-    if (printing && rcvNumber) {
+    if (!printing || !rcvNumber) return;
+    let canceled = false;
+
+    if (!isFlagEnabled(PRINT_CENTER_FOUNDATION_V1)) {
+      // ── Legacy path — unchanged ──
       printCurrentView();
       setPrinting(false);
+      return;
     }
-  }, [printing, rcvNumber]);
+
+    // ── Print Center path ──
+    void submitPrintJob(
+      createPrintJob({
+        docType: 'receipt-voucher',
+        documentId: rcvNumber,
+        destination: 'printer',
+        pageSpecId: RECEIPT_VOUCHER_PAGE_SPEC.id,
+        paper: RECEIPT_VOUCHER_PAGE_SPEC.paper,
+        orientation: RECEIPT_VOUCHER_PAGE_SPEC.orientation,
+        copies: 1,
+        metadata: { lang },
+      }),
+    ).finally(() => {
+      if (!canceled) setPrinting(false);
+    });
+
+    return () => {
+      canceled = true;
+    };
+  }, [printing, rcvNumber, lang]);
 
   function set(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));

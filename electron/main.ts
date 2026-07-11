@@ -9,6 +9,7 @@ import { registerSessionIpc } from './ipc/session.ipc';
 import { registerContextMenuIpc } from './ipc/contextMenu.ipc';
 import { registerPdfIpc } from './ipc/pdf.ipc';
 import { registerAttachmentsIpc } from './ipc/attachments.ipc';
+import { registerPrintIpc } from './services/printService';
 
 const INTERNAL_SECRET = randomUUID();
 
@@ -27,6 +28,9 @@ async function bootstrap() {
     registerSessionIpc();
     registerPdfIpc();
     registerAttachmentsIpc();
+    // Print Center Foundation v1 — additive. `app:print` / `pdf:export` /
+    // `pdf:exportHtml` remain registered above and fully functional.
+    registerPrintIpc();
     await startBackend(INTERNAL_SECRET); // تشغيل الخدمة الخلفية أولًا
     await startBackupScheduler(INTERNAL_SECRET); // ثم جدولة النسخ التلقائي
     runCatchupIfNeeded(INTERNAL_SECRET).catch(console.error); // نسخة تعويضية إذا فات وقت الجدولة

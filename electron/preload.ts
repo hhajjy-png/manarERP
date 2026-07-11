@@ -93,6 +93,21 @@ const api = {
   /** فتح ملف مرفق بالتطبيق الافتراضي للنظام — يُعيد null عند النجاح أو رسالة الخطأ. */
   openAttachment: (filePath: string): Promise<string | null> =>
     ipcRenderer.invoke('attachments:openPath', filePath),
+
+  // ─── Print Center Foundation v1 (additive — printPage/exportPdf above unchanged) ──
+
+  /** بوابة الطباعة الموحّدة — تُرسل أمر طباعة مُهيكل إلى العملية الرئيسية. */
+  printSubmit: (job: unknown): Promise<{
+    status: 'printed' | 'exported' | 'canceled' | 'failed';
+    filePath?: string;
+    sizeBytes?: number;
+    error?: string;
+  }> => ipcRenderer.invoke('print:submit', job),
+
+  /** قائمة الطابعات المتاحة في النظام (لا واجهة تستهلكها بعد — أساس المرحلة القادمة). */
+  listPrinters: (): Promise<
+    Array<{ name: string; displayName: string; description: string; isDefault: boolean; status: number }>
+  > => ipcRenderer.invoke('print:listPrinters'),
 };
 
 contextBridge.exposeInMainWorld('manar', api);
