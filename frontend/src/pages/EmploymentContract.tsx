@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { printCurrentView } from '../utils/print';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import DateInput from '../components/DateInput';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import EmploymentContractTemplate, {
   type ContractParams,
@@ -90,13 +91,13 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
           <div>
             <label style={lbl}>تاريخ تحرير العقد</label>
-            <input type="date" lang="en" style={inp} value={params.issueDate}
-              onChange={e => onChange('issueDate', e.target.value)} />
+            <DateInput style={inp} value={params.issueDate}
+              onChange={v => onChange('issueDate', v)} />
           </div>
           <div>
             <label style={lbl}>تاريخ بداية نفاذ العقد</label>
-            <input type="date" lang="en" style={inp} value={params.startDate}
-              onChange={e => onChange('startDate', e.target.value)} />
+            <DateInput style={inp} value={params.startDate}
+              onChange={v => onChange('startDate', v)} />
           </div>
         </div>
 

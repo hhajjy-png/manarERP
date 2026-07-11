@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal';
+import DateInput from '../components/DateInput';
 import { PageMeta } from '../components/DataTable';
 import { money, dateText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
@@ -659,7 +660,7 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
         </div>
         <div className="xpl-field">
           <label>{t('col.date')}</label>
-          <input className="xpl-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={t('col.date')} />
+          <DateInput className="xpl-input" value={date} onChange={setDate} ariaLabel={t('col.date')} />
           <HistoricalDateNotice date={date} />
         </div>
       </DialogSection>

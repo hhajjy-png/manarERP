@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import DateInput from '../components/DateInput';
 import { downloadBlob } from '../utils/exportUtils';
 import { exportReportAsPdf } from '../utils/pdfExport';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
@@ -443,11 +444,11 @@ export default function Reports() {
           <>
             <div className="rcx-filter-field">
               <label>{t('filter.date_from')}</label>
-              <input type="date" aria-label={t('filter.date_from')} value={from} onChange={(e) => setFrom(e.target.value)} />
+              <DateInput ariaLabel={t('filter.date_from')} value={from} onChange={setFrom} />
             </div>
             <div className="rcx-filter-field">
               <label>{t('filter.date_to')}</label>
-              <input type="date" aria-label={t('filter.date_to')} value={to} onChange={(e) => setTo(e.target.value)} />
+              <DateInput ariaLabel={t('filter.date_to')} value={to} onChange={setTo} />
             </div>
           </>
         )}

@@ -3,6 +3,7 @@ import {
 } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { printCurrentView } from '../utils/print';
+import DateInput from '../components/DateInput';
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
@@ -1602,18 +1603,16 @@ export default function BankReconciliation() {
           <div className="recon-tl-filter-bar">
             <div className="recon-tl-filter-group">
               <label>من</label>
-              <input
-                type="date"
+              <DateInput
                 value={tlFromDate}
-                onChange={(e) => setTlFromDate(e.target.value)}
+                onChange={setTlFromDate}
               />
             </div>
             <div className="recon-tl-filter-group">
               <label>إلى</label>
-              <input
-                type="date"
+              <DateInput
                 value={tlToDate}
-                onChange={(e) => setTlToDate(e.target.value)}
+                onChange={setTlToDate}
               />
             </div>
             <div className="recon-tl-filter-group">
@@ -2049,18 +2048,16 @@ export default function BankReconciliation() {
               <div className="recon-filter-row">
                 <div className="recon-filter-field">
                   <label>من تاريخ</label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={filterDraft.fromDate ?? ''}
-                    onChange={(e) => setFilterDraft((d) => ({ ...d, fromDate: e.target.value || undefined }))}
+                    onChange={(v) => setFilterDraft((d) => ({ ...d, fromDate: v || undefined }))}
                   />
                 </div>
                 <div className="recon-filter-field">
                   <label>إلى تاريخ</label>
-                  <input
-                    type="date"
+                  <DateInput
                     value={filterDraft.toDate ?? ''}
-                    onChange={(e) => setFilterDraft((d) => ({ ...d, toDate: e.target.value || undefined }))}
+                    onChange={(v) => setFilterDraft((d) => ({ ...d, toDate: v || undefined }))}
                   />
                 </div>
               </div>

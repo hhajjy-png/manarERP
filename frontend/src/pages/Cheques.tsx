@@ -8,6 +8,7 @@ import { tafqeetKWD } from '../lib/tafqeet';
 import { formatDate } from '../lib/date';
 import { formatNumber } from '../lib/format';
 import { PageMeta } from '../components/DataTable';
+import DateInput from '../components/DateInput';
 import ConfirmModal from '../components/ConfirmModal';
 import ForceDeleteChequeModal from '../components/ForceDeleteChequeModal';
 import ChequeCalibrator from '../components/ChequeCalibrator';
@@ -851,7 +852,7 @@ export default function Cheques() {
             </div>
             <div className="xpl-field">
               <label>{t('field.cheque.date')} <span className="req">*</span></label>
-              <input className="xpl-input" type="date" value={form.chequeDate} onChange={(e) => field('chequeDate', e.target.value)} disabled={!!editId && !canUpdate} aria-label={t('field.cheque.date')} />
+              <DateInput className="xpl-input" value={form.chequeDate} onChange={(v) => field('chequeDate', v)} disabled={!!editId && !canUpdate} ariaLabel={t('field.cheque.date')} />
               {/* الشيك لا يُرحَّل محاسبيًا — تنبيه تاريخي فقط، بلا رسالة قفل. */}
               <HistoricalDateNotice date={form.chequeDate} enforcesLock={false} />
             </div>

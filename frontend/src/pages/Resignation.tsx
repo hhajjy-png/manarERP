@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
+import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
@@ -135,7 +136,7 @@ export default function Resignation() {
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="field"><label>آخر يوم عمل</label><input type="date" lang="en" title="آخر يوم عمل" value={printFields.lastWorkingDay} onChange={(e) => setPrintFields(p => ({ ...p, lastWorkingDay: e.target.value }))} /></div>
+          <div className="field"><label>آخر يوم عمل</label><DateInput title="آخر يوم عمل" value={printFields.lastWorkingDay} onChange={(v) => setPrintFields(p => ({ ...p, lastWorkingDay: v }))} /></div>
           <div className="field"><label>فترة الإشعار</label><input value={printFields.noticePeriod} onChange={(e) => setPrintFields(p => ({ ...p, noticePeriod: e.target.value }))} placeholder="مثال: شهر واحد" /></div>
           <div className="field"><label>سبب الاستقالة</label><input title="سبب الاستقالة" value={printFields.resignationReason} onChange={(e) => setPrintFields(p => ({ ...p, resignationReason: e.target.value }))} /></div>
           <div className="field"><label>التزامات التسليم</label><input title="التزامات التسليم" value={printFields.handoverObligations} onChange={(e) => setPrintFields(p => ({ ...p, handoverObligations: e.target.value }))} /></div>

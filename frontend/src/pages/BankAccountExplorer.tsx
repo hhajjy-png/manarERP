@@ -9,6 +9,7 @@ import {
 } from 'recharts';
 import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
+import DateInput from '../components/DateInput';
 import PrivateAmount from '../components/PrivateAmount';
 import ErrorBoundary from '../components/ErrorBoundary';
 import {
@@ -1055,22 +1056,20 @@ export function TimelineTab({
               ))}
             </div>
             <div className="bae-date-range">
-              <input
+              <DateInput
                 className="bae-date-input"
-                type="date"
                 value={filters.fromDate ?? ''}
-                onChange={(e) => onDateChange('from', e.target.value)}
+                onChange={(v) => onDateChange('from', v)}
                 title="من تاريخ"
-                aria-label="من تاريخ"
+                ariaLabel="من تاريخ"
               />
               <span className="bae-range-sep" aria-hidden="true">—</span>
-              <input
+              <DateInput
                 className="bae-date-input"
-                type="date"
                 value={filters.toDate ?? ''}
-                onChange={(e) => onDateChange('to', e.target.value)}
+                onChange={(v) => onDateChange('to', v)}
                 title="إلى تاريخ"
-                aria-label="إلى تاريخ"
+                ariaLabel="إلى تاريخ"
               />
             </div>
           </div>

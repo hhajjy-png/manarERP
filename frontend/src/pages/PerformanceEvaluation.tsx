@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
+import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
@@ -146,11 +147,11 @@ export default function PerformanceEvaluation() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div className="field">
             <label>فترة التقييم من</label>
-            <input type="date" lang="en" title="فترة التقييم من" value={printFields.periodFrom} onChange={(e) => setPrintFields(p => ({ ...p, periodFrom: e.target.value }))} />
+            <DateInput title="فترة التقييم من" value={printFields.periodFrom} onChange={(v) => setPrintFields(p => ({ ...p, periodFrom: v }))} />
           </div>
           <div className="field">
             <label>فترة التقييم إلى</label>
-            <input type="date" lang="en" title="فترة التقييم إلى" value={printFields.periodTo} onChange={(e) => setPrintFields(p => ({ ...p, periodTo: e.target.value }))} />
+            <DateInput title="فترة التقييم إلى" value={printFields.periodTo} onChange={(v) => setPrintFields(p => ({ ...p, periodTo: v }))} />
           </div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 10 }}>

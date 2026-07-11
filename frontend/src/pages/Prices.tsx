@@ -5,6 +5,7 @@ import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { formatDate } from '../lib/date';
 import { PageMeta } from '../components/DataTable';
+import DateInput from '../components/DateInput';
 import { money } from '../config/modules';
 import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -555,7 +556,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
       <DialogSection title="بيانات إضافية" icon="event">
         <div className="xpl-field">
           <label>صالح حتى (تاريخ انتهاء الاتفاقية)</label>
-          <input className="xpl-input" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} aria-label="تاريخ انتهاء الاتفاقية" />
+          <DateInput className="xpl-input" value={validUntil} onChange={setValidUntil} ariaLabel="تاريخ انتهاء الاتفاقية" />
         </div>
       </DialogSection>
     </Dialog>

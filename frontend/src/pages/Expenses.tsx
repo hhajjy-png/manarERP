@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useHighlight } from '../hooks/useHighlight';
+import DateInput from '../components/DateInput';
 import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -616,11 +617,11 @@ function ExpenseForm({
         </div>
         <div className="xpl-field">
           <label>التاريخ</label>
-          <input className="xpl-input" type="date" value={date} onChange={(e) => {
-            const v = e.target.value;
+          <DateInput className="xpl-input" value={date} onChange={(v) => {
             setDate(v);
-            if (v) { const d = new Date(v); setBillingMonth(d.getMonth() + 1); setBillingYear(d.getFullYear()); }
-          }} aria-label="التاريخ" />
+            // Derive billing month/year from the canonical YYYY-MM-DD string — no Date/UTC.
+            if (v) { const [yy, mm] = v.split('-'); setBillingMonth(Number(mm)); setBillingYear(Number(yy)); }
+          }} ariaLabel="التاريخ" />
           <HistoricalDateNotice date={date} />
         </div>
       </DialogSection>

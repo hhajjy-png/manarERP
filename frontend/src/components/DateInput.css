@@ -1,0 +1,75 @@
+/* Standardized date input — DD/MM/YYYY masked text field + calendar affordance.
+   The visible <input> inherits the caller's class (e.g. .xpl-input) for height,
+   radius, border, and focus ring, so it matches every other field in the form. */
+
+.mnr-dateinput {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+/* Leave room for the calendar button at the inline-end regardless of the inherited skin. */
+.mnr-dateinput > input[type='text'] {
+  width: 100%;
+  padding-inline-end: 34px;
+}
+
+.mnr-dateinput__cal {
+  position: absolute;
+  inset-inline-end: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--xpl-muted, #6b7280);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mnr-dateinput__cal:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--xpl-text, inherit);
+}
+
+.mnr-dateinput__cal .material-symbols-outlined {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.mnr-dateinput.is-disabled .mnr-dateinput__cal {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* The native <input type=date> is used ONLY to summon the calendar popup; it is never
+   shown, so its OS-locale formatting can never leak into the UI. Anchored near the icon
+   so the browser positions the popup correctly. */
+.mnr-dateinput__native {
+  position: absolute;
+  inset-inline-end: 8px;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mnr-dateinput__cal:hover {
+    background: rgba(255, 255, 255, 0.10);
+  }
+}
+
+:root[data-theme='dark'] .mnr-dateinput__cal:hover {
+  background: rgba(255, 255, 255, 0.10);
+}

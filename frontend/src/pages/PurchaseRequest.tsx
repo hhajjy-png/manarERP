@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
+import DateInput from '../components/DateInput';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
@@ -194,22 +195,18 @@ export default function PurchaseRequest() {
           </div>
           <div>
             <label style={lbl}>التاريخ</label>
-            <input
-              type="date"
-              lang="en"
+            <DateInput
               style={inp}
               value={printFields.date}
-              onChange={(e) => set('date', e.target.value)}
+              onChange={(v) => set('date', v)}
             />
           </div>
           <div>
             <label style={lbl}>التاريخ المطلوب</label>
-            <input
-              type="date"
-              lang="en"
+            <DateInput
               style={inp}
               value={printFields.requiredDate}
-              onChange={(e) => set('requiredDate', e.target.value)}
+              onChange={(v) => set('requiredDate', v)}
             />
           </div>
           <div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { printCurrentView } from '../utils/print';
 import ConfirmModal from '../components/ConfirmModal';
+import DateInput from '../components/DateInput';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -569,22 +570,18 @@ export default function Quotation() {
           </div>
           <div>
             <label style={lbl}>التاريخ</label>
-            <input
-              type="date"
-              lang="en"
+            <DateInput
               style={inp}
               value={printFields.date}
-              onChange={(e) => set('date', e.target.value)}
+              onChange={(v) => set('date', v)}
             />
           </div>
           <div>
             <label style={lbl}>صالح حتى</label>
-            <input
-              type="date"
-              lang="en"
+            <DateInput
               style={inp}
               value={printFields.validUntil}
-              onChange={(e) => set('validUntil', e.target.value)}
+              onChange={(v) => set('validUntil', v)}
             />
           </div>
           <div>

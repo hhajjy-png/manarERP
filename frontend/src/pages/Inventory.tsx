@@ -5,6 +5,7 @@ import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
+import DateInput from '../components/DateInput';
 import ConfirmModal from '../components/ConfirmModal';
 import { money, dateText } from '../config/modules';
 import {
@@ -849,8 +850,8 @@ function PurchaseOrderForm({ onClose, onSaved }: { onClose: () => void; onSaved:
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
       <DialogSection title="المورد والتواريخ" icon="local_shipping">
         <div className="xpl-field"><label>{t('col.supplier')} <span className="req">*</span></label><select className="xpl-select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} aria-label={t('col.supplier')}><option value="">{t('msg.select_placeholder')}</option>{suppliers.map((s) => <option key={s.id} value={String(s.id)}>{s.name}</option>)}</select></div>
-        <div className="xpl-field"><label>{t('field.inv.po_date')}</label><input className="xpl-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} autoFocus aria-label={t('field.inv.po_date')} /></div>
-        <div className="xpl-field"><label>{t('field.inv.expected_date')}</label><input className="xpl-input" type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} aria-label={t('field.inv.expected_date')} /></div>
+        <div className="xpl-field"><label>{t('field.inv.po_date')}</label><DateInput className="xpl-input" value={date} onChange={setDate} autoFocus ariaLabel={t('field.inv.po_date')} /></div>
+        <div className="xpl-field"><label>{t('field.inv.expected_date')}</label><DateInput className="xpl-input" value={expectedDate} onChange={setExpectedDate} ariaLabel={t('field.inv.expected_date')} /></div>
         <div className="xpl-field xpl-field--full"><label>{t('field.notes')}</label><input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} aria-label={t('field.notes')} /></div>
       </DialogSection>
       <section className="xpl-dialog-section"><div className="xpl-dialog-section-title"><span className="material-symbols-outlined">list_alt</span>{t('lbl.inv.items')}</div><LineItemBuilder items={items} onChange={setItems} materials={materials} showCost /></section>
@@ -895,7 +896,7 @@ function GoodsReceiptForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
       <DialogSection title="المصدر والتواريخ" icon="local_shipping">
         <div className="xpl-field"><label>{t('col.supplier')} <span className="req">*</span></label><select className="xpl-select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} aria-label={t('col.supplier')}><option value="">{t('msg.select_placeholder')}</option>{suppliers.map((s) => <option key={s.id} value={String(s.id)}>{s.name}</option>)}</select></div>
         <div className="xpl-field"><label>{t('field.inv.po_optional')}</label><select className="xpl-select" value={purchaseOrderId} onChange={(e) => setPurchaseOrderId(e.target.value)} aria-label={t('field.inv.po_optional')}><option value="">— {t('opt.no_po')} —</option>{purchaseOrders.map((po) => <option key={po.id} value={String(po.id)}>{po.number}</option>)}</select></div>
-        <div className="xpl-field"><label>{t('col.date')}</label><input className="xpl-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} autoFocus aria-label={t('col.date')} /><HistoricalDateNotice date={date} /></div>
+        <div className="xpl-field"><label>{t('col.date')}</label><DateInput className="xpl-input" value={date} onChange={setDate} autoFocus ariaLabel={t('col.date')} /><HistoricalDateNotice date={date} /></div>
         <div className="xpl-field xpl-field--full"><label>{t('field.notes')}</label><input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} aria-label={t('field.notes')} /></div>
       </DialogSection>
       <section className="xpl-dialog-section"><div className="xpl-dialog-section-title"><span className="material-symbols-outlined">list_alt</span>{t('lbl.inv.items')}</div><LineItemBuilder items={items} onChange={setItems} materials={materials} showCost /></section>
@@ -946,7 +947,7 @@ function MaterialIssueForm({ initial, onClose, onSaved }: { initial?: Partial<Ma
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
       <DialogSection title="العقد والتاريخ" icon="description">
         <div className="xpl-field"><label>{t('field.inv.contract_optional')}</label><select className="xpl-select" value={contractId} onChange={(e) => setContractId(e.target.value)} aria-label={t('field.inv.contract_optional')}><option value="">— {t('opt.no_contract')} —</option>{contracts.map((c) => <option key={c.id} value={String(c.id)}>{c.code} — {c.asphaltPlant}</option>)}</select></div>
-        <div className="xpl-field"><label>{t('col.date')}</label><input className="xpl-input" type="date" value={date} onChange={(e) => setDate(e.target.value)} autoFocus aria-label={t('col.date')} /><HistoricalDateNotice date={date} /></div>
+        <div className="xpl-field"><label>{t('col.date')}</label><DateInput className="xpl-input" value={date} onChange={setDate} autoFocus ariaLabel={t('col.date')} /><HistoricalDateNotice date={date} /></div>
         <div className="xpl-field xpl-field--full"><label>{t('field.notes')}</label><input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} aria-label={t('field.notes')} /></div>
       </DialogSection>
       <section className="xpl-dialog-section">

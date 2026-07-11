@@ -4,6 +4,7 @@ import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
+import DateInput from '../components/DateInput';
 import ConfirmModal from '../components/ConfirmModal';
 import { dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -103,7 +104,7 @@ function AttendanceFormBody({ form, setForm, employeeList, isEdit }: {
       <DialogSection title="الحضور" icon="event">
         <div className="xpl-field">
           <label>{t('field.date')} <span className="req">*</span></label>
-          <input className="xpl-input" type="date" required value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} disabled={isEdit} autoFocus={!isEdit} aria-label={t('field.date')} />
+          <DateInput className="xpl-input" required value={form.date} onChange={(v) => setForm({ ...form, date: v })} disabled={isEdit} autoFocus={!isEdit} ariaLabel={t('field.date')} />
         </div>
         <div className="xpl-field">
           <label>{t('field.status')}</label>
@@ -345,11 +346,11 @@ export default function Attendance() {
           </div>
           <div className="xpl-field" style={{ minWidth: 140 }}>
             <span className="xpl-field-label">{t('filter.date_from')}</span>
-            <input className="xpl-input" type="date" aria-label={t('filter.date_from')} value={filterDateFrom} onChange={(e) => { setFilterDateFrom(e.target.value); setPage(1); }} />
+            <DateInput className="xpl-input" ariaLabel={t('filter.date_from')} value={filterDateFrom} onChange={(v) => { setFilterDateFrom(v); setPage(1); }} />
           </div>
           <div className="xpl-field" style={{ minWidth: 140 }}>
             <span className="xpl-field-label">{t('filter.date_to')}</span>
-            <input className="xpl-input" type="date" aria-label={t('filter.date_to')} value={filterDateTo} onChange={(e) => { setFilterDateTo(e.target.value); setPage(1); }} />
+            <DateInput className="xpl-input" ariaLabel={t('filter.date_to')} value={filterDateTo} onChange={(v) => { setFilterDateTo(v); setPage(1); }} />
           </div>
           <Button variant="ghost" icon="refresh" busy={loading} onClick={load}>{t('action.refresh')}</Button>
         </div>

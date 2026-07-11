@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import DateInput from '../DateInput';
 
 interface FilterBarProps {
   fromDate?: string;
@@ -17,13 +18,13 @@ export function FilterBar({ fromDate, toDate, search, onFromDate, onToDate, onSe
       {onFromDate && (
         <div className="filter-field">
           <label>من تاريخ</label>
-          <input type="date" value={fromDate ?? ''} onChange={e => onFromDate(e.target.value)} />
+          <DateInput value={fromDate ?? ''} onChange={onFromDate} />
         </div>
       )}
       {onToDate && (
         <div className="filter-field">
           <label>إلى تاريخ</label>
-          <input type="date" value={toDate ?? ''} onChange={e => onToDate(e.target.value)} />
+          <DateInput value={toDate ?? ''} onChange={onToDate} />
         </div>
       )}
       {onSearch && (

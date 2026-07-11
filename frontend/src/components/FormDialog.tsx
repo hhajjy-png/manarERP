@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Modal from './Modal';
 import ConfirmModal from './ConfirmModal';
+import DateInput from './DateInput';
+import { normalizeDateOnly } from '../lib/dateInput';
 import { api, errorMessage } from '../api/client';
 import { useT } from '../lib/i18n';
 import { Dialog, DialogSection, Button } from './explorer/ExplorerKit';
@@ -49,13 +51,6 @@ interface Props {
   sections?: FormSection[];
 }
 
-function toInputDate(v: unknown): string {
-  if (!v) return '';
-  const d = new Date(v as string);
-  if (isNaN(d.getTime())) return '';
-  return d.toISOString().slice(0, 10);
-}
-
 export default function FormDialog({ title, fields, initial, endpoint, id, onClose, onSaved, skin = 'legacy', icon, subtitle, sections }: Props) {
   const { t } = useT();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,7 +59,8 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
     const v: any = {};
     for (const f of fields) {
       const raw = initial?.[f.name];
-      v[f.name] = f.type === 'date' ? toInputDate(raw) : raw ?? f.defaultValue ?? '';
+      // Date-only rehydration is timezone-safe (string-based) — no UTC day shift.
+      v[f.name] = f.type === 'date' ? normalizeDateOnly(raw) : raw ?? f.defaultValue ?? '';
     }
     return v;
   });
@@ -193,12 +189,26 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
         />
       );
     }
+    if (f.type === 'date') {
+      // Standardized DD/MM/YYYY display + calendar; emits canonical YYYY-MM-DD.
+      return (
+        <DateInput
+          value={values[f.name] ?? ''}
+          onChange={(v) => { set(f.name, v); clearErr(); }}
+          className={cls('input')}
+          ariaLabel={t(f.label)}
+          autoFocus={autoFocus}
+          required={f.required}
+          invalid={!!fieldErrors[f.name]}
+        />
+      );
+    }
     return (
       <input
         autoFocus={autoFocus}
         aria-label={t(f.label)}
         className={cls('input')}
-        type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'password' ? 'password' : 'text'}
+        type={f.type === 'number' ? 'number' : f.type === 'password' ? 'password' : 'text'}
         placeholder={f.placeholder}
         value={values[f.name] ?? ''}
         style={errStyle}
