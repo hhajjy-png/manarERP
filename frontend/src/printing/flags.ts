@@ -34,11 +34,17 @@ export const PRINT_CENTER_FOUNDATION_V1 = 'PRINT_CENTER_FOUNDATION_V1' as const;
 // someone deliberately turns a document on.
 export const PRINT_CENTER_PHASE2 = 'PRINT_CENTER_PHASE2' as const;
 export const PRINT_CENTER_PHASE2_RECEIPT_VOUCHER = 'PRINT_CENTER_PHASE2_RECEIPT_VOUCHER' as const;
+// Phase 2B — independent per-document flags. Both ship OFF, and a failed or uncertain
+// style capture must never auto-enable them.
+export const PRINT_CENTER_PHASE2_INVOICE = 'PRINT_CENTER_PHASE2_INVOICE' as const;
+export const PRINT_CENTER_PHASE2_QUOTATION = 'PRINT_CENTER_PHASE2_QUOTATION' as const;
 
 export type FlagName =
   | typeof PRINT_CENTER_FOUNDATION_V1
   | typeof PRINT_CENTER_PHASE2
-  | typeof PRINT_CENTER_PHASE2_RECEIPT_VOUCHER;
+  | typeof PRINT_CENTER_PHASE2_RECEIPT_VOUCHER
+  | typeof PRINT_CENTER_PHASE2_INVOICE
+  | typeof PRINT_CENTER_PHASE2_QUOTATION;
 
 /** A document is on the Print Center only when master AND its own flag are enabled. */
 export function isPhase2Enabled(documentFlag: FlagName): boolean {
@@ -58,6 +64,12 @@ const DEFAULTS: Record<FlagName, boolean> = {
   // OFF until the physical print gate passes. Conservative by policy — no user's
   // printing behaviour changes on upgrade.
   PRINT_CENTER_PHASE2_RECEIPT_VOUCHER: false,
+  // Phase 2B — OFF until side-by-side fidelity is proven against the legacy output.
+  // These documents carry their styling in stylesheets (CSS Modules, Template Studio,
+  // designer overrides), so their composition depends on style capture; until a human
+  // has compared legacy vs preview vs saved PDF vs physical print, they stay off.
+  PRINT_CENTER_PHASE2_INVOICE: false,
+  PRINT_CENTER_PHASE2_QUOTATION: false,
 };
 
 function readOverride(name: FlagName): boolean | null {

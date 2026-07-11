@@ -1,5 +1,13 @@
-import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { printCurrentView } from '../utils/print';
+import {
+  composeStyledFromNode,
+  isPhase2Enabled,
+  PrintCenterDialog,
+  PRINT_CENTER_PHASE2_INVOICE,
+  getPageSpec,
+  type PreviewSource,
+} from '../printing';
 import type { ComponentType } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
@@ -108,6 +116,21 @@ export default function InvoicePreview() {
   const [paySaving, setPaySaving] = useState(false);
   const [previewMode, setPreviewMode] = useState<'legacy' | 'engine'>('legacy');
   const [engineWarning, setEngineWarning] = useState('');
+
+  // ── Print Center (Phase 2B) ────────────────────────────────────────────────────
+  // The invoice keeps its EXISTING renderer, its existing template selection, its
+  // existing @page and its existing print CSS. The Print Center only takes what the
+  // page already rendered, carries its stylesheets into the hidden window, and turns
+  // that into the PDF that is previewed, saved and printed.
+  //
+  // The printable root is the page wrapper. We do not hand-pick a subtree: the
+  // captured `@media print` rules (which printToPDF honours) hide `.no-print` and
+  // `.engine-hide-legacy` exactly as they do on the legacy print path — so whichever
+  // mode is active, legacy or engine, composition reproduces the legacy output by
+  // construction rather than by imitation.
+  const printRootRef = useRef<HTMLDivElement>(null);
+  const [printCenterOpen, setPrintCenterOpen] = useState(false);
+  const usePrintCenterInvoice = isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE);
 
   const autoPrint = searchParams.get('print') === '1';
   const printFiredRef = useRef(false);
@@ -235,6 +258,39 @@ export default function InvoicePreview() {
     'invoice',
     printData ?? undefined,
   );
+
+  /**
+   * Compose the invoice for the Print Center.
+   *
+   * `composeStyledFromNode` clones the already-rendered root (the live DOM is never
+   * mutated) and embeds the document's own stylesheets — CSS Modules, Template Studio,
+   * the branding/layout designer overrides, DocumentVerificationQR — in cascade order.
+   * The template's own `@page` wins, so the invoice's existing geometry is unchanged.
+   * If stylesheet capture fails it THROWS, and the Print Center shows a failure rather
+   * than a plausible-looking, unstyled invoice.
+   */
+  const composeInvoicePreview = useCallback((): PreviewSource => {
+    const node = printRootRef.current;
+    if (!node || !data) throw new Error('تعذّر تجهيز الفاتورة للطباعة.');
+    const number = data.invoiceNumber ?? data.number;
+    return {
+      docType: 'invoice',
+      documentId: String(number),
+      html: composeStyledFromNode({
+        node,
+        pageSpec: getPageSpec('a4-portrait'), // fallback only — the template's @page wins
+        title: `فاتورة ${number}`,
+        lang: 'ar',
+        stripSelectors: ['.no-print'],
+      }),
+      pageSpecId: 'a4-portrait',
+      title: `فاتورة ${number}`,
+      documentLabel: `فاتورة · ${number}`,
+      renderSource: 'template-engine',
+      templateId: resolvedTemplate?.id,
+      suggestedFileName: buildInvoicePdfName(number),
+    };
+  }, [data, resolvedTemplate]);
 
   const printWarnings = useMemo(
     () => (printData ? validateInvoicePrintData(printData) : []),
@@ -366,7 +422,17 @@ export default function InvoicePreview() {
         .inv-pay-row:nth-child(even) { background: #f8fafc; }
       `}</style>
 
-      <div className="inv-wrap" style={{
+      {/* Print Center (Phase 2B) — mounted only when the invoice flag is on. */}
+      {usePrintCenterInvoice && (
+        <PrintCenterDialog
+          open={printCenterOpen}
+          onClose={() => setPrintCenterOpen(false)}
+          compose={composeInvoicePreview}
+          lang="ar"
+        />
+      )}
+
+      <div ref={printRootRef} className="inv-wrap" style={{
         padding: '16px 24px', fontFamily: '"Cairo", Arial, sans-serif',
         maxWidth: 900, margin: '0 auto', color: '#0f172a',
         background: '#fff', direction: 'rtl',
@@ -377,9 +443,17 @@ export default function InvoicePreview() {
           <button type="button" className="btn secondary" onClick={() => navigate('/invoices')}>
             ← {t('btn.inv.back')}
           </button>
-          <button type="button" className="btn" onClick={() => printCurrentView()}>
-            🖨️ {t('btn.inv.print_invoice')}
-          </button>
+          {/* Print Center (flag ON) — preview the real PDF, then Print or Save PDF.
+              Flag OFF → the original direct-print button below, unchanged. */}
+          {usePrintCenterInvoice ? (
+            <button type="button" className="btn" onClick={() => setPrintCenterOpen(true)}>
+              🖨️ {t('btn.inv.print_invoice')}
+            </button>
+          ) : (
+            <button type="button" className="btn" onClick={() => printCurrentView()}>
+              🖨️ {t('btn.inv.print_invoice')}
+            </button>
+          )}
           <button
             type="button"
             className="btn secondary"

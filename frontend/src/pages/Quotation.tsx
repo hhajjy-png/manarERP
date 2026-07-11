@@ -1,5 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { printCurrentView } from '../utils/print';
+import {
+  composeStyledFromNode,
+  isPhase2Enabled,
+  PrintCenterDialog,
+  PRINT_CENTER_PHASE2_QUOTATION,
+  getPageSpec,
+  type PreviewSource,
+} from '../printing';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import { todayDateOnly } from '../lib/date';
@@ -95,6 +103,16 @@ export default function Quotation() {
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [printFields, setPrintFields] = useState<QuotationPrintFields>(makeInitial);
   const [previewMode, setPreviewMode] = useState<'legacy' | 'engine'>('legacy');
+
+  // ── Print Center (Phase 2B) — engine mode only ─────────────────────────────────
+  // Legacy quotation mode renders through FormLayout, which owns its own print path and
+  // is untouched here. Engine mode is the template-engine render (CSS Modules, Template
+  // Studio, designer overrides, watermarks), and that is what the Print Center composes:
+  // the existing renderer's output plus the existing renderer's stylesheets. No template
+  // is duplicated, consolidated or rewritten.
+  const printRootRef = useRef<HTMLDivElement>(null);
+  const [printCenterOpen, setPrintCenterOpen] = useState(false);
+  const usePrintCenterQuotation = isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION);
   const [adapterError, setAdapterError] = useState<string | null>(null);
   const { activeTemplate: studioTemplate } = useTemplateStudio('quotation');
   const [useStudio, setUseStudio] = useState(false);
@@ -224,6 +242,38 @@ export default function Quotation() {
   const { resolvedTemplate, profile: tplProfile, setProfile: setTplProfile } =
     usePrintTemplate('quotation', brandedPrintData ?? undefined);
 
+  /**
+   * Compose the quotation for the Print Center.
+   *
+   * Clones the already-rendered engine root (the live DOM is never mutated) and embeds
+   * the document's own stylesheets in cascade order — CSS Modules, Template Studio,
+   * branding/layout designer overrides, watermarks. The template's own `@page`
+   * (`{ size: A4; margin: 0 }`) wins, so zero-margin templates stay zero-margin.
+   * Throws — rather than degrading — if stylesheet capture fails.
+   */
+  const composeQuotationPreview = useCallback((): PreviewSource => {
+    const node = printRootRef.current;
+    if (!node) throw new Error('تعذّر تجهيز عرض السعر للطباعة.');
+    const number = printFields.quotationNumber || '---';
+    return {
+      docType: 'quotation',
+      documentId: String(number),
+      html: composeStyledFromNode({
+        node,
+        pageSpec: getPageSpec('a4-portrait'), // fallback only — the template's @page wins
+        title: `عرض سعر ${number}`,
+        lang,
+        stripSelectors: ['.no-print'],
+      }),
+      pageSpecId: 'a4-portrait',
+      title: `عرض سعر ${number}`,
+      documentLabel: `عرض سعر · ${number}`,
+      renderSource: 'template-engine',
+      templateId: resolvedTemplate?.id,
+      suggestedFileName: buildQuotationPdfName(number),
+    };
+  }, [printFields.quotationNumber, resolvedTemplate, lang]);
+
   const warnings = useMemo(
     () => (brandedPrintData ? validateQuotationPrintData(brandedPrintData) : []),
     [brandedPrintData],
@@ -285,7 +335,16 @@ export default function Quotation() {
   // ── ENGINE MODE ───────────────────────────────────────────────────────────────
   if (previewMode === 'engine') {
     return (
-      <div dir="rtl" style={{ minHeight: '100vh', background: '#f0f4f8' }}>
+      <div ref={printRootRef} dir="rtl" style={{ minHeight: '100vh', background: '#f0f4f8' }}>
+        {/* Print Center (Phase 2B) — mounted only when the quotation flag is on. */}
+        {usePrintCenterQuotation && (
+          <PrintCenterDialog
+            open={printCenterOpen}
+            onClose={() => setPrintCenterOpen(false)}
+            compose={composeQuotationPreview}
+            lang={lang}
+          />
+        )}
         <style>{`
           @media print {
             @page { size: A4; margin: 0; }
@@ -300,9 +359,17 @@ export default function Quotation() {
           className="no-print"
           style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '10px 18px', background: '#fff', borderBottom: '1px solid var(--border)', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }}
         >
-          <button type="button" className="btn" onClick={() => printCurrentView()}>
-            🖨️ طباعة
-          </button>
+          {/* Print Center (flag ON) — preview the real PDF, then Print or Save PDF.
+              Flag OFF → the original direct-print button, unchanged. */}
+          {usePrintCenterQuotation ? (
+            <button type="button" className="btn" onClick={() => setPrintCenterOpen(true)}>
+              🖨️ طباعة
+            </button>
+          ) : (
+            <button type="button" className="btn" onClick={() => printCurrentView()}>
+              🖨️ طباعة
+            </button>
+          )}
           <button
             type="button"
             className="btn secondary"
