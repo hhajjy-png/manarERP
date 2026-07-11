@@ -5,6 +5,8 @@ import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
+import { todayDateOnly } from '../lib/date';
+import { normalizeDateOnly } from '../lib/dateInput';
 import ConfirmModal from '../components/ConfirmModal';
 import { dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -75,7 +77,7 @@ interface AttendanceStats { total: number; present: number; absent: number; late
 const DEFAULT_STATS: AttendanceStats = { total: 0, present: 0, absent: 0, late: 0, leave: 0 };
 
 type FormData = { employeeId: string; date: string; checkIn: string; checkOut: string; status: string; notes: string; };
-const EMPTY_FORM: FormData = { employeeId: '', date: new Date().toISOString().slice(0, 10), checkIn: '', checkOut: '', status: 'PRESENT', notes: '' };
+const EMPTY_FORM: FormData = { employeeId: '', date: todayDateOnly(), checkIn: '', checkOut: '', status: 'PRESENT', notes: '' };
 const EMPTY_FORM_JSON = JSON.stringify(EMPTY_FORM);
 
 // ── Sectioned attendance form (shared by create + edit dialogs) ────────────────
@@ -232,7 +234,7 @@ export default function Attendance() {
   }
 
   function openEdit(record: AttendanceRecord) {
-    const dateStr = record.date ? new Date(record.date).toISOString().slice(0, 10) : '';
+    const dateStr = record.date ? normalizeDateOnly(record.date) : '';
     const initialForm: FormData = {
       employeeId: String(record.employeeId),
       date: dateStr,
@@ -252,7 +254,7 @@ export default function Attendance() {
     setSaving(true);
     setFormError('');
     try {
-      const dateStr = editRecord.date ? new Date(editRecord.date).toISOString().slice(0, 10) : editForm.date;
+      const dateStr = editRecord.date ? normalizeDateOnly(editRecord.date) : editForm.date;
       const checkIn = editForm.checkIn ? new Date(`${dateStr}T${editForm.checkIn}`) : undefined;
       const checkOut = editForm.checkOut ? new Date(`${dateStr}T${editForm.checkOut}`) : undefined;
       await api.patch(`/employees/attendance/${editRecord.id}`, {

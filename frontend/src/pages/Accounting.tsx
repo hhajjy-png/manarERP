@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
+import { todayDateOnly } from '../lib/date';
 import { PageMeta } from '../components/DataTable';
 import { money, dateText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
@@ -593,7 +594,7 @@ interface JournalLine { accountId: string; description: string; debit: string; c
 function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
   const [description, setDescription] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayDateOnly());
   const [lines, setLines] = useState<JournalLine[]>([
     { accountId: '', description: '', debit: '', credit: '' },
     { accountId: '', description: '', debit: '', credit: '' },

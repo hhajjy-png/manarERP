@@ -6,6 +6,7 @@ import { EXPENSE_CATEGORY_SELECT_OPTIONS } from '../config/expenseCategories';
 import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '../config/expensePresentation';
 import SearchableSelect from './SearchableSelect';
 import DateInput from './DateInput';
+import { todayDateOnly } from '../lib/date';
 import { Dialog, DialogSection, Button } from './explorer/ExplorerKit';
 import {
   FastSharedFields,
@@ -36,7 +37,7 @@ interface Props {
 export default function FastMonthlyExpenseDialog({ onClose, onSaved, suppliers }: Props) {
   const now = new Date();
   const [shared, setShared] = useState<FastSharedFields>({
-    date: now.toISOString().slice(0, 10),
+    date: todayDateOnly(now),
     billingMonth: now.getMonth() + 1,
     billingYear: now.getFullYear(),
     paymentMethod: 'CASH',

@@ -12,7 +12,7 @@ import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatCurrency, formatNumber } from '../lib/format';
-import { formatDate } from '../lib/date';
+import { formatDate, todayDateOnly } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import {
   getWorkspace,
@@ -138,7 +138,7 @@ function exportTimelineCsv(
   const csv      = '﻿' + [headers, ...rows].map((r) => r.join(',')).join('\r\n');
   const blob     = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const bankSlug = bankName.toLowerCase().replace(/_/g, '-');
-  const today    = new Date().toISOString().substring(0, 10);
+  const today    = todayDateOnly();
   const from     = fromDate?.substring(0, 10) ?? today;
   const to       = toDate?.substring(0, 10)   ?? today;
   const a        = document.createElement('a');
@@ -1045,7 +1045,7 @@ export default function BankReconciliation() {
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError]     = useState<string | null>(null);
   const [tlFromDate, setTlFromDate]           = useState('2024-01-01');
-  const [tlToDate, setTlToDate]               = useState(new Date().toISOString().substring(0, 10));
+  const [tlToDate, setTlToDate]               = useState(todayDateOnly());
   const [tlSearch, setTlSearch]               = useState('');
   const [tlPage, setTlPage]                   = useState(1);
   const tlSearchTimer                         = useRef<ReturnType<typeof setTimeout> | null>(null);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useHighlight } from '../hooks/useHighlight';
 import DateInput from '../components/DateInput';
+import { todayDateOnly } from '../lib/date';
 import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -521,7 +522,7 @@ function ExpenseForm({
   const [description, setDescription] = useState<string>(String(expense?.description ?? ''));
   const [amount, setAmount] = useState<string>(expense?.amount ? String(expense.amount) : '');
   const [date, setDate] = useState<string>(
-    expense?.date ? String(expense.date).slice(0, 10) : now.toISOString().slice(0, 10)
+    expense?.date ? String(expense.date).slice(0, 10) : todayDateOnly(now)
   );
   const [billingMonth, setBillingMonth] = useState<number>(Number(expense?.billingMonth) || (now.getMonth() + 1));
   const [billingYear, setBillingYear] = useState<number>(Number(expense?.billingYear) || now.getFullYear());

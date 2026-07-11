@@ -3,6 +3,7 @@ import { printCurrentView } from '../utils/print';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import DateInput from '../components/DateInput';
+import { todayDateOnly } from '../lib/date';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import EmploymentContractTemplate, {
   type ContractParams,
@@ -15,7 +16,7 @@ import { usePrintLogStore } from '../stores/printLogStore';
 import { getNationalityEn, getJobTitleEn, applyTranslationOverrides } from '../forms/shared/contractTranslations';
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayDateOnly();
 }
 
 const DURATION_OPTIONS = [

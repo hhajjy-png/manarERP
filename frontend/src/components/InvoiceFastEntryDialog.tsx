@@ -5,6 +5,7 @@ import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import { useToast } from '../stores/toastStore';
 import { Dialog, DialogSection, Button } from './explorer/ExplorerKit';
 import DateInput from './DateInput';
+import { todayDateOnly } from '../lib/date';
 import SearchableSelect, { SearchableOption } from './SearchableSelect';
 import { InvoiceLineItemsEditor, invoiceLineTotal, type Item, type PriceOption } from './invoices/InvoiceLineItemsEditor';
 import {
@@ -45,7 +46,7 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
     entryMode: 'SINGLE',
     direction: 'SALES',
     invoiceType: 'نقل اسفلت',
-    issueDate: now.toISOString().slice(0, 10),
+    issueDate: todayDateOnly(now),
     billingMonth: now.getMonth() + 1,
     billingYear: now.getFullYear(),
     numberYear: now.getFullYear(),

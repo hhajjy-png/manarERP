@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
+import { todayDateOnly } from '../lib/date';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
@@ -30,7 +31,7 @@ function newItem(): PurchaseRequestItem {
 function makeInitial(): PurchaseRequestPrintFields {
   return {
     requestNumber: generateFormNumber(FORM_KEY),
-    date: new Date().toISOString().slice(0, 10),
+    date: todayDateOnly(),
     requiredDate: '',
     requesterName: '',
     department: '',

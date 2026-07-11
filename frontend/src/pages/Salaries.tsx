@@ -11,6 +11,7 @@ import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import PrivateAmount from '../components/PrivateAmount';
 import PayrollBankExport from '../components/salaries/PayrollBankExport';
 import DateInput from '../components/DateInput';
+import { toLocalDateOnly } from '../lib/date';
 import {
   ExecutiveHeader,
   IdChip,
@@ -581,7 +582,7 @@ export default function Salaries() {
                     <label>تاريخ الصرف <span style={{ color: 'var(--xpl-muted)', fontWeight: 400 }}>(اختياري — يُرحَّل بآخر يوم في شهر الراتب عند تركه فارغًا)</span></label>
                     <DateInput className="xpl-input" value={payDate} onChange={setPayDate} ariaLabel="تاريخ الصرف" />
                     {/* يعرض التنبيه التاريخي لتاريخ الصرف الصريح، أو لآخر يوم في شهر/سنة الراتب. */}
-                    <HistoricalDateNotice date={payDate || new Date(viewing.year, viewing.month, 0).toISOString().slice(0, 10)} />
+                    <HistoricalDateNotice date={payDate || toLocalDateOnly(new Date(viewing.year, viewing.month, 0))} />
                   </div>
                   <Button variant="primary" icon="paid" block busy={busy} onClick={() => { const id = viewing.id; const m = payMethod; const pd = payDate || undefined; setViewing(null); runAction(() => api.patch(`/payroll/${id}/pay`, { paymentMethod: m, paymentDate: pd })); }}>
                     {t('page.salaries.pay_btn')}

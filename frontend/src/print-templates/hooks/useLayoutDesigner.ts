@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { api } from '../../api/client';
 import type { PrintDocumentType } from '../engine/types';
+import { todayDateOnly } from '../../lib/date';
 import type { AllLayoutOverrides, LayoutElementOverride } from '../designer/layoutOverrideTypes';
 import {
   DEFAULT_ALL_LAYOUTS,
@@ -446,7 +447,7 @@ export function useLayoutDesigner({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `manar-layout-${docType}-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `manar-layout-${docType}-${todayDateOnly()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }

@@ -19,7 +19,7 @@ import InvoiceFastEntryDialog from '../components/InvoiceFastEntryDialog';
 import ConfirmModal from '../components/ConfirmModal';
 import { money, moneyParts, dateText } from '../config/modules';
 import { KpiStat, KpiStatGrid } from '../components/KpiStat';
-import { formatFileDate } from '../lib/date';
+import { formatFileDate, todayDateOnly } from '../lib/date';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription, parseDescription } from '../utils/invoiceDescription';
 import { toInvoiceItemPayload } from '../utils/invoicePayload';
@@ -634,7 +634,7 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   const { t } = useT();
   const [invoiceYear, setInvoiceYear] = useState<string>(DEFAULT_INVOICE_YEAR);
   const [invoiceNumberSuffix, setInvoiceNumberSuffix] = useState('');
-  const [issueDate, setIssueDate] = useState<string>(new Date().toISOString().slice(0, 10));
+  const [issueDate, setIssueDate] = useState<string>(todayDateOnly());
   const [billingMonth, setBillingMonth] = useState<number>(new Date().getMonth() + 1);
   const [billingYear, setBillingYear] = useState<number>(new Date().getFullYear());
   const [directionChoice, setDirectionChoice] = useState('SALES'); // SALES | PURCHASE | OTHER
@@ -948,7 +948,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
   const [invoiceYear, setInvoiceYear] = useState<string>(parsed.year);
   const [invoiceNumberSuffix, setInvoiceNumberSuffix] = useState(parsed.suffix);
   const [issueDate, setIssueDate] = useState<string>(
-    invoice.issueDate ? String(invoice.issueDate).slice(0, 10) : new Date().toISOString().slice(0, 10)
+    invoice.issueDate ? String(invoice.issueDate).slice(0, 10) : todayDateOnly()
   );
   const [billingMonth, setBillingMonth] = useState<number>(Number(invoice.billingMonth) || (new Date().getMonth() + 1));
   const [billingYear, setBillingYear] = useState<number>(Number(invoice.billingYear) || new Date().getFullYear());

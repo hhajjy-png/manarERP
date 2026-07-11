@@ -5,7 +5,7 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { tafqeetKWD } from '../lib/tafqeet';
-import { formatDate } from '../lib/date';
+import { formatDate, todayDateOnly } from '../lib/date';
 import { formatNumber } from '../lib/format';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
@@ -86,7 +86,7 @@ type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function defaultForm(): FormState {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayDateOnly();
   return { chequeNumber: '', chequeDate: today, beneficiaryName: '', amount: '', currency: 'KWD', description: '', bankName: 'بنك الخليج', notes: '' };
 }
 

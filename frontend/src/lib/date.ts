@@ -76,3 +76,26 @@ export function formatFileDate(value?: unknown): string {
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
+
+/**
+ * A Date's LOCAL calendar date as 'YYYY-MM-DD'. Uses local getters
+ * (getFullYear/getMonth/getDate) — NEVER `toISOString()` — so a date-only business
+ * date can't slip a day in Kuwait (UTC+03:00). Invalid Date → ''.
+ */
+export function toLocalDateOnly(date: Date): string {
+  if (isNaN(date.getTime())) return '';
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+/**
+ * Today's LOCAL calendar date as 'YYYY-MM-DD' — the correct default for a new
+ * business document's date field. Accepts an optional `now` for deterministic tests.
+ * Replaces the unsafe `new Date().toISOString().slice(0, 10)` (which returns the UTC
+ * day and can render "yesterday" shortly after local midnight in UTC+3).
+ */
+export function todayDateOnly(now: Date = new Date()): string {
+  return toLocalDateOnly(now);
+}

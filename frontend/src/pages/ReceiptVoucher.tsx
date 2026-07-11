@@ -3,6 +3,7 @@ import { printCurrentView } from '../utils/print';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import DateInput from '../components/DateInput';
+import { todayDateOnly } from '../lib/date';
 import FormHeader from '../forms/shared/FormHeader';
 import ApprovalSection from '../forms/shared/ApprovalSection';
 import FormQRCode from '../forms/shared/FormQRCode';
@@ -19,7 +20,7 @@ interface FormState {
 }
 
 function todayISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return todayDateOnly();
 }
 
 const INITIAL: FormState = {
