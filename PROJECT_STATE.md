@@ -41,8 +41,8 @@
 | **Production merge commit** | `0514c7b` |
 | **Final production HEAD** | `0514c7b` (this PROJECT_STATE docs commit sits on top) |
 | **Stable tag** | `stable-print-center-phase2a-preview-v1` → merge `0514c7b` (annotated) |
-| **Gemini review** | **NOT RUN** — waived by explicit product-owner release instruction |
-| **Manual physical verification** | **COMPLETED** (reported by the product owner) |
+| **Gemini review** | **COMPLETED — APPROVED, no blocking findings.** Three independent external reviews: **Foundation v1 — APPROVED** (no blocking findings) · **Phase 2A Universal Preview — APPROVED** (no blocking findings; final recommendation: production merge gated only on manual physical verification) · **Native Copies / FormLayout corrective fix — APPROVED** (no blocking findings, no non-blocking findings, no corrective prompt required). The reviews were conducted outside the repository, so their verdicts were not visible to the release tooling at merge time. **The Gemini gate was not waived.** |
+| **Manual physical verification** | **COMPLETED** (reported by the product owner) — this remained the final release gate |
 
 **Scope: an additive printing platform. No existing print path changed its transport, no renderer was rewritten, and cheque printing is untouched. No Prisma migration.**
 
@@ -69,6 +69,14 @@
 **Validation:** frontend tsc ✅ · backend tsc ✅ · electron tsc ✅ · `build:back` ✅ · `build:front` ✅ · `electron:build` ✅ · frontend vitest **77 files / 1105 pass** ✅ · backend vitest **94 files / 1565 pass** ✅ · PDF.js worker verified bundled locally, no CDN in `dist` ✅ · ESLint **not run** (binary absent in the workspace — pre-existing env gap, not a blocker).
 
 **Rollback:** (1) instant, no rebuild — `localStorage['manar:flag:PRINT_CENTER_PHASE2'] = 'off'` (or `PRINT_CENTER_FOUNDATION_V1 = 'off'` to disable the gateway entirely, restoring the original `printCurrentView()` transport everywhere). (2) `git revert 0514c7b`. (3) Full — reset to `pre-print-center-foundation-v1` (`12d1e7c`). No migration, no schema change, no data change: nothing to unwind.
+
+> **Record correction (2026-07-11).** This release was originally documented as having proceeded with the Gemini gate *waived*. **That was inaccurate.** Three independent Gemini reviews had in fact been completed externally — **Foundation v1: APPROVED**, **Phase 2A Universal Preview: APPROVED** (merge gated only on manual physical verification), **Native Copies / FormLayout corrective fix: APPROVED** (no blocking findings, no non-blocking findings, no corrective prompt required) — but they were conducted outside the repository, so their verdicts were not visible to the release tooling at merge time. **The gate was met, not waived.** This table has been corrected.
+>
+> Two artifacts created during the release are **immutable and still carry the original, inaccurate wording**, and are deliberately left untouched rather than rewritten:
+> - the annotated tag `stable-print-center-phase2a-preview-v1` (object `08d0f32`), whose message reads *"Gemini review: NOT RUN — waived…"*. The tag is **not** being moved or recreated; it continues to point at merge commit `0514c7b`.
+> - the docs commit `b30aa15`, whose message contains the same sentence. It is pushed history and is **not** being amended.
+>
+> **This PROJECT_STATE entry is the authoritative record.** Where it conflicts with the tag or `b30aa15` commit messages on the subject of the Gemini review, **this entry is correct and those messages are superseded.**
 
 ---
 
