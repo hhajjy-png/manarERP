@@ -108,3 +108,53 @@ describe('DateInput', () => {
     expect(field().value).toBe('12/06/2026');
   });
 });
+
+describe('DateInput — calendar icon layout (overlap fix)', () => {
+  function wrapper() {
+    return field().closest('.mnr-dateinput') as HTMLElement;
+  }
+
+  it('renders exactly one visible text input and one calendar trigger', () => {
+    render(<Host initial="2026-07-01" />);
+    const w = wrapper();
+    expect(w.querySelectorAll('input[type="text"]').length).toBe(1);
+    expect(w.querySelectorAll('.mnr-dateinput__cal').length).toBe(1);
+  });
+
+  it('pins the control to dir="ltr" so the icon lane and value padding share one physical side', () => {
+    render(<Host initial="2026-07-01" />);
+    // The fix: a single inline axis regardless of the surrounding form direction.
+    expect(wrapper().getAttribute('dir')).toBe('ltr');
+    // The visible value input also stays ltr (reading order) and is the direct child
+    // that receives the reserved icon padding via `.mnr-dateinput > input[type=text]`.
+    expect(field().getAttribute('dir')).toBe('ltr');
+    expect(field().parentElement).toBe(wrapper());
+  });
+
+  it('keeps dir="ltr" even inside an RTL container (the RTL overlap case)', () => {
+    render(<div dir="rtl"><Host initial="2026-07-01" /></div>);
+    expect(wrapper().getAttribute('dir')).toBe('ltr');
+  });
+
+  it('the calendar trigger opens the native picker (interaction preserved)', () => {
+    const showPicker = vi.fn();
+    // JSDOM has no showPicker — install a spy on the prototype for this test.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (HTMLInputElement.prototype as any).showPicker = showPicker;
+    render(<Host initial="2026-07-01" />);
+    fireEvent.click(wrapper().querySelector('.mnr-dateinput__cal') as HTMLElement);
+    expect(showPicker).toHaveBeenCalledTimes(1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (HTMLInputElement.prototype as any).showPicker;
+  });
+
+  it('read-only hides the calendar trigger (no second overlapping control)', () => {
+    function ROHost() {
+      const [v] = useState('2026-07-01');
+      return <DateInput value={v} onChange={() => {}} ariaLabel="تاريخ" readOnly />;
+    }
+    render(<ROHost />);
+    expect(wrapper().querySelectorAll('.mnr-dateinput__cal').length).toBe(0);
+    expect(field().value).toBe('01/07/2026'); // value still readable
+  });
+});

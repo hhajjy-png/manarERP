@@ -116,7 +116,12 @@ export default function DateInput({
   const showError = invalid || parseError;
 
   return (
-    <div className={`mnr-dateinput${disabled ? ' is-disabled' : ''}`}>
+    // dir="ltr" pins the whole control to one inline axis so the calendar icon,
+    // the hidden native picker, and the input's reserved padding all resolve to the
+    // SAME physical side (trailing the LTR date value) in both RTL and LTR forms —
+    // otherwise, inside an RTL form, the icon lands on the left while the padding is
+    // reserved on the right and the icon overlaps the leading digits.
+    <div className={`mnr-dateinput${disabled ? ' is-disabled' : ''}`} dir="ltr">
       <input
         id={id}
         type="text"

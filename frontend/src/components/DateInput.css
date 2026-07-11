@@ -2,16 +2,21 @@
    The visible <input> inherits the caller's class (e.g. .xpl-input) for height,
    radius, border, and focus ring, so it matches every other field in the form. */
 
+/* The wrapper is forced to dir="ltr" in the component so every inline-* below resolves
+   to the SAME physical side (the trailing/right edge of the LTR date value) in both RTL
+   and LTR forms — preventing the calendar icon from overlapping the leading digits. */
 .mnr-dateinput {
   position: relative;
   display: block;
   width: 100%;
 }
 
-/* Leave room for the calendar button at the inline-end regardless of the inherited skin. */
+/* Reserve a dedicated icon lane at the inline-end so the value never sits under the icon.
+   38px = icon inset (6) + icon box (26) + ~6px gap. Wins over .xpl-input's `padding: 0 12px`
+   via higher specificity, and applies regardless of the inherited skin. */
 .mnr-dateinput > input[type='text'] {
   width: 100%;
-  padding-inline-end: 34px;
+  padding-inline-end: 38px;
 }
 
 .mnr-dateinput__cal {
