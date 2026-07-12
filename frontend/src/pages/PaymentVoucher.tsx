@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import FormLayout from '../forms/shared/FormLayout';
+import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_FINANCE } from '../printing';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PaymentVoucherTemplate from '../forms/PaymentVoucherTemplate';
 
@@ -31,6 +32,15 @@ export default function PaymentVoucher() {
       .catch((e) => setError(errorMessage(e)));
   }, [chequeId]);
 
+  /* معاينة قبل الطباعة — طبقة عرض فوق مسار FormLayout القديم. العلم مطفأ ⇒ لا اعتراض
+     ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
+  const preview = useLegacyFormPreview({
+    enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE),
+    title: lang === 'en' ? 'Payment Voucher' : 'سند صرف',
+    documentLabel: `سند صرف · ${cheque?.paymentVoucherNumber ?? ''}`,
+    lang,
+  });
+
   if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!cheque)
     return (
@@ -52,9 +62,12 @@ export default function PaymentVoucher() {
     );
 
   return (
+    <>
+    {preview.dialog}
     <FormLayout
       formType="payment-voucher"
       lang={lang}
+      printIntercept={preview.printIntercept}
       ready={false}
       formNumber={cheque.paymentVoucherNumber}
       title=""
@@ -79,5 +92,6 @@ export default function PaymentVoucher() {
         lang={lang}
       />
     </FormLayout>
+    </>
   );
 }

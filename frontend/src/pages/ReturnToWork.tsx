@@ -7,6 +7,7 @@ import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
+import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_HR } from '../printing';
 import ReturnToWorkTemplate from '../forms/ReturnToWorkTemplate';
 import { usePrintLogStore } from '../stores/printLogStore';
 import { usePrintDraftStore } from '../stores/printDraftStore';
@@ -100,6 +101,15 @@ export default function ReturnToWork() {
     return () => window.removeEventListener('beforeprint', handler);
   }, [data, formNumber, addPrintLog, profile]);
 
+  /* معاينة قبل الطباعة — طبقة عرض فوق مسار FormLayout القديم. العلم مطفأ ⇒ لا اعتراض
+     ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
+  const preview = useLegacyFormPreview({
+    enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
+    title: 'إشعار العودة إلى العمل',
+    documentLabel: `إشعار العودة إلى العمل · ${formNumber}`,
+    lang,
+  });
+
   if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!data)
     return (
@@ -110,9 +120,12 @@ export default function ReturnToWork() {
     );
 
   return (
+    <>
+    {preview.dialog}
     <FormLayout
       formType={FORM_KEY}
       lang={lang}
+      printIntercept={preview.printIntercept}
       ready
       formNumber={formNumber}
       title="إشعار العودة إلى العمل"
@@ -223,5 +236,6 @@ export default function ReturnToWork() {
         <ConfirmModal message="سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
+    </>
   );
 }

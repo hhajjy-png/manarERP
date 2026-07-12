@@ -109,6 +109,11 @@ export default function FormLayout({
   // the PDF export, isolated from the surrounding PrintWorkspace shell.
   const formPageRef = useRef<HTMLDivElement>(null);
 
+  // الاعتراض يُقرأ من ref حتى يبقى تأثير الطباعة التلقائية معتمدًا على [ready] وحده،
+  // فلا يتغيّر توقيته ولا عدد مرات تشغيله عمّا كان.
+  const printInterceptRef = useRef(printIntercept);
+  printInterceptRef.current = printIntercept;
+
   const activeProfile = PRINT_PROFILES[profile];
   // Letterhead-only, opt-in bottom-margin trim: when a form sets
   // `letterheadCompactFooter`, reclaim the generous 20mm bottom margin to 10mm so it
@@ -228,7 +233,16 @@ export default function FormLayout({
     if (!ready) return;
     let canceled = false;
     void waitForPrintReady().then(() => {
-      if (!canceled) printCurrentView();
+      if (canceled) return;
+      // الطباعة التلقائية تمرّ بنفس بوابة زر الطباعة اليدوي: لو كان هناك اعتراض،
+      // فهو يقرّر التوقيت (يفتح المعاينة) — وإلا فالسلوك القديم كما هو: طباعة فورية.
+      // بلا اعتراض ⇒ سطر واحد لم يتغيّر: printCurrentView().
+      const intercept = printInterceptRef.current;
+      if (intercept) {
+        intercept({ proceed: doPrint, node: formPageRef.current });
+        return;
+      }
+      printCurrentView();
     });
     return () => {
       canceled = true;

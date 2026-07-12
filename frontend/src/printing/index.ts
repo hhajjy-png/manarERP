@@ -36,11 +36,21 @@ export {
   PRINT_CENTER_PHASE2_RECEIPT_VOUCHER,
   PRINT_CENTER_PHASE2_INVOICE,
   PRINT_CENTER_PHASE2_QUOTATION,
+  PRINT_PREVIEW_LEGACY_FORMS_V1,
+  PRINT_PREVIEW_LEGACY_FORMS_FINANCE,
+  PRINT_PREVIEW_LEGACY_FORMS_HR,
   isFlagEnabled,
   isPhase2Enabled,
+  isLegacyFormsPreviewEnabled,
   setFlagOverride,
   type FlagName,
 } from './flags';
+
+export {
+  useLegacyFormPreview,
+  type LegacyFormPreview,
+  type LegacyFormPreviewOptions,
+} from './useLegacyFormPreview';
 
 // ── Phase 2 ─────────────────────────────────────────────────────────────────────
 export {

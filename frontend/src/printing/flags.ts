@@ -39,16 +39,41 @@ export const PRINT_CENTER_PHASE2_RECEIPT_VOUCHER = 'PRINT_CENTER_PHASE2_RECEIPT_
 export const PRINT_CENTER_PHASE2_INVOICE = 'PRINT_CENTER_PHASE2_INVOICE' as const;
 export const PRINT_CENTER_PHASE2_QUOTATION = 'PRINT_CENTER_PHASE2_QUOTATION' as const;
 
+/**
+ * Legacy Print Preview Overlay — Phase 1 rollout across the FormLayout forms.
+ *
+ * Three flags, not thirteen: one master kill switch and two cohesive groups, so a
+ * rollout (or a rollback) is one decision per group rather than one per form. The
+ * master enables nothing by itself — a form previews only when the master AND its
+ * group are on, exactly like the Phase 2 document flags.
+ *
+ * ALL OFF on ship. With them off the Print button is wired to `doPrint` directly,
+ * with no interceptor in between — byte-for-byte the behaviour that exists today.
+ */
+export const PRINT_PREVIEW_LEGACY_FORMS_V1 = 'PRINT_PREVIEW_LEGACY_FORMS_V1' as const;
+/** سند الصرف · طلب الشراء */
+export const PRINT_PREVIEW_LEGACY_FORMS_FINANCE = 'PRINT_PREVIEW_LEGACY_FORMS_FINANCE' as const;
+/** خطابات ونماذج الموارد البشرية الثمانية */
+export const PRINT_PREVIEW_LEGACY_FORMS_HR = 'PRINT_PREVIEW_LEGACY_FORMS_HR' as const;
+
 export type FlagName =
   | typeof PRINT_CENTER_FOUNDATION_V1
   | typeof PRINT_CENTER_PHASE2
   | typeof PRINT_CENTER_PHASE2_RECEIPT_VOUCHER
   | typeof PRINT_CENTER_PHASE2_INVOICE
-  | typeof PRINT_CENTER_PHASE2_QUOTATION;
+  | typeof PRINT_CENTER_PHASE2_QUOTATION
+  | typeof PRINT_PREVIEW_LEGACY_FORMS_V1
+  | typeof PRINT_PREVIEW_LEGACY_FORMS_FINANCE
+  | typeof PRINT_PREVIEW_LEGACY_FORMS_HR;
 
 /** A document is on the Print Center only when master AND its own flag are enabled. */
 export function isPhase2Enabled(documentFlag: FlagName): boolean {
   return isFlagEnabled(PRINT_CENTER_PHASE2) && isFlagEnabled(documentFlag);
+}
+
+/** نموذج يعاين قبل الطباعة فقط حين يكون العلم الرئيسي **ومجموعته** مفعّلين. */
+export function isLegacyFormsPreviewEnabled(groupFlag: FlagName): boolean {
+  return isFlagEnabled(PRINT_PREVIEW_LEGACY_FORMS_V1) && isFlagEnabled(groupFlag);
 }
 
 /**
@@ -70,6 +95,11 @@ const DEFAULTS: Record<FlagName, boolean> = {
   // has compared legacy vs preview vs saved PDF vs physical print, they stay off.
   PRINT_CENTER_PHASE2_INVOICE: false,
   PRINT_CENTER_PHASE2_QUOTATION: false,
+  // Legacy Preview Overlay — OFF, including the master: the rollout changes no user's
+  // behaviour on upgrade. Enabling the master alone still previews nothing.
+  PRINT_PREVIEW_LEGACY_FORMS_V1: false,
+  PRINT_PREVIEW_LEGACY_FORMS_FINANCE: false,
+  PRINT_PREVIEW_LEGACY_FORMS_HR: false,
 };
 
 function readOverride(name: FlagName): boolean | null {
