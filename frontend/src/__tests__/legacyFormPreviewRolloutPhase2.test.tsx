@@ -15,6 +15,7 @@ import {
   PRINT_PREVIEW_LEGACY_FORMS_SPECIAL,
   PRINT_PREVIEW_LEGACY_FORMS_HR,
   PRINT_PREVIEW_LEGACY_FORMS_FINANCE,
+  PRINT_CENTER_PHASE2,
   PRINT_CENTER_PHASE2_RECEIPT_VOUCHER,
 } from '../printing';
 import { printCurrentView } from '../utils/print';
@@ -136,16 +137,16 @@ describe('العلم', () => {
     expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL)).toBe(true); // عاد للافتراض
   });
 
-  it('override بقيمة on يفعّل علمًا افتراضه OFF (خارج Phase A)', () => {
+  it('تعطيل مجموعة أخرى لا يمسّ هذه المجموعة — الأعلام مستقلة', () => {
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, false);
     expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(false);
-    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
-    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(true);
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL)).toBe(true); // لم تتأثّر
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, null);
   });
 
-  it('المجموعات خارج Phase A ما زالت OFF افتراضيًا', () => {
-    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(false);
-    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE)).toBe(false);
+  it('كل المجموعات ON افتراضيًا بعد التفعيل الكامل', () => {
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(true);
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE)).toBe(true);
   });
 
   it('علم واحد للنموذجين — لا علم لكل شاشة', () => {
@@ -326,7 +327,11 @@ describe('سند القبض — الفئة B: بوابته المستقلة كم
   it('بوابته الوحيدة ما زالت PRINT_CENTER_PHASE2_RECEIPT_VOUCHER — ولا علم ثانٍ يحكمه', () => {
     expect(rvCode).toContain('isPhase2Enabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)');
     expect((rvCode.match(/usePrintCenterPath/g) ?? []).length).toBeGreaterThan(1);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(false); // OFF كما كان
+    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(true); // ON بعد التفعيل الكامل
+    // والعلم الرئيسي ما زال قاطعًا فوقه — بوابة واحدة، لا اثنتان.
+    setFlagOverride(PRINT_CENTER_PHASE2, false);
+    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(false);
+    setFlagOverride(PRINT_CENTER_PHASE2, null);
   });
 
   it('مساره ومُركِّبه ورقمه بلا تغيير', () => {
@@ -343,7 +348,7 @@ describe('الانحدار', () => {
     const sc = code(readFileSync('src/pages/SalaryCertificate.tsx', 'utf8'));
     expect(sc).toContain('isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)');
     expect(sc).toContain('printIntercept={preview.printIntercept}');
-    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(false);
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(true);
     const fl = code(readFileSync('src/forms/shared/FormLayout.tsx', 'utf8'));
     expect(fl).toContain('intercept({ proceed: doPrint, node: formPageRef.current })');
     expect((fl.match(/submitPrintJob\(/g) ?? []).length).toBe(1);

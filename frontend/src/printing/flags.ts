@@ -27,15 +27,13 @@ export const PRINT_CENTER_FOUNDATION_V1 = 'PRINT_CENTER_FOUNDATION_V1' as const;
 // physical-print verification, which is exactly the strangler discipline this repo
 // already follows for every release.
 //
-// DEFAULTS: the master is ON (the machinery is safe and inert without a document
-// flag), and every per-document flag is OFF until its physical print gate passes.
-// Receipt Voucher is included in that rule: its Phase 2 flag ships OFF, so on first
-// launch it still uses the reviewed Phase 1 path. Nothing changes for any user until
-// someone deliberately turns a document on.
+// DEFAULTS: a per-document flag turns ON only after that document's physical print
+// gate passes — the flag is never flipped on a hope. All supported documents have now
+// passed theirs, so all are ON; the flags remain as the per-document rollback lever.
 export const PRINT_CENTER_PHASE2 = 'PRINT_CENTER_PHASE2' as const;
 export const PRINT_CENTER_PHASE2_RECEIPT_VOUCHER = 'PRINT_CENTER_PHASE2_RECEIPT_VOUCHER' as const;
-// Phase 2B — independent per-document flags. Both ship OFF, and a failed or uncertain
-// style capture must never auto-enable them.
+// Phase 2B — independent per-document flags: each can be rolled back on its own, and a
+// failed or uncertain style capture must never auto-enable one.
 export const PRINT_CENTER_PHASE2_INVOICE = 'PRINT_CENTER_PHASE2_INVOICE' as const;
 export const PRINT_CENTER_PHASE2_QUOTATION = 'PRINT_CENTER_PHASE2_QUOTATION' as const;
 
@@ -47,8 +45,9 @@ export const PRINT_CENTER_PHASE2_QUOTATION = 'PRINT_CENTER_PHASE2_QUOTATION' as 
  * master enables nothing by itself — a form previews only when the master AND its
  * group are on, exactly like the Phase 2 document flags.
  *
- * ALL OFF on ship. With them off the Print button is wired to `doPrint` directly,
- * with no interceptor in between — byte-for-byte the behaviour that exists today.
+ * كلها ON بعد اكتمال الفحص اليدوي لكل مجموعة. وحين يُطفأ أيٌّ منها — بالافتراض أو
+ * بـ override — يُربط زر الطباعة بـ `doPrint` مباشرة بلا معترِض بينهما: نفس السلوك
+ * القديم حرفًا بحرف. الإطفاء هو رافعة التراجع، بلا إصدار جديد.
  */
 export const PRINT_PREVIEW_LEGACY_FORMS_V1 = 'PRINT_PREVIEW_LEGACY_FORMS_V1' as const;
 /** سند الصرف · طلب الشراء */
@@ -95,9 +94,11 @@ const DEFAULTS: Record<FlagName, boolean> = {
   // Master kill switch: on. It enables nothing by itself.
   PRINT_CENTER_PHASE2: true,
 
-  // ── Controlled Enablement — Phase A ────────────────────────────────────────
-  // ON افتراضيًا للمستندات الأربعة التي اكتمل فحصها اليدوي جنبًا إلى جنب (القديم مقابل
-  // المعاينة مقابل الورقة الفعلية): الفاتورة · عرض السعر · عقد العمل · قسيمة الراتب.
+  // ── Full Controlled Enablement — كل المستندات المدعومة ON ──────────────────
+  // اكتمل الفحص اليدوي لكل مجموعة على حدة قبل تفعيلها هنا: Phase A (الفاتورة · عرض
+  // السعر · عقد العمل · قسيمة الراتب)، ثم B (نماذج الموارد البشرية الثمانية)، ثم C
+  // (سند الصرف · طلب الشراء)، ثم D (سند القبض — مساره الخاص). لم يُفعَّل علم قبل أن
+  // تُقارَن ورقته الفعلية بورقة الطباعة القديمة.
   //
   // التفعيل **لا يغيّر الطباعة**: المعاينة طبقة عرض تفوّض إلى دالة الطباعة القديمة نفسها
   // (`printCurrentView` / `doPrint` / `handlePrint` — نفس المرجع، بلا نسخ ولا تغليف)،
@@ -107,18 +108,14 @@ const DEFAULTS: Record<FlagName, boolean> = {
   // التراجع فوري وبلا إصدار: `readOverride() ?? DEFAULTS` — أي أن
   // `localStorage['manar:flag:PRINT_CENTER_PHASE2'] = 'off'` (أو
   // `PRINT_PREVIEW_LEGACY_FORMS_V1 = 'off'`) **يتقدّم على هذه القيم** ويُطفئ المجموعة
-  // كاملة. المفتاحان الرئيسيان هما الـ kill switch.
+  // كاملة، ويبقى تعطيل أي علم فرعي وحده ممكنًا. المفتاحان الرئيسيان هما الـ kill switch.
   PRINT_CENTER_PHASE2_INVOICE: true,
   PRINT_CENTER_PHASE2_QUOTATION: true,
+  PRINT_CENTER_PHASE2_RECEIPT_VOUCHER: true,  // سند القبض — مسار Phase 2 الخاص به
   PRINT_PREVIEW_LEGACY_FORMS_V1: true,
-  PRINT_PREVIEW_LEGACY_FORMS_SPECIAL: true, // عقد العمل · قسيمة الراتب
-
-  // ── خارج Phase A — تبقى OFF ────────────────────────────────────────────────
-  // لم يكتمل فحصها اليدوي بعد. سند القبض تحديدًا يسلك مسار طباعة مختلفًا
-  // (`submitPrintJob` مباشرةً لا تفويضًا)، فيستحق مرحلة وفحصًا مستقلَّين.
-  PRINT_CENTER_PHASE2_RECEIPT_VOUCHER: false,
-  PRINT_PREVIEW_LEGACY_FORMS_HR: false,      // النماذج الثمانية
-  PRINT_PREVIEW_LEGACY_FORMS_FINANCE: false, // سند الصرف · طلب الشراء
+  PRINT_PREVIEW_LEGACY_FORMS_SPECIAL: true,   // عقد العمل · قسيمة الراتب
+  PRINT_PREVIEW_LEGACY_FORMS_HR: true,        // النماذج الثمانية
+  PRINT_PREVIEW_LEGACY_FORMS_FINANCE: true,   // سند الصرف · طلب الشراء
 };
 
 function readOverride(name: FlagName): boolean | null {

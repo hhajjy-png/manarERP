@@ -262,9 +262,13 @@ describe('Phase 2B — feature flags (Controlled Enablement Phase A)', () => {
     setFlagOverride(PRINT_CENTER_PHASE2_INVOICE, null);
   });
 
-  it('سند القبض ما زال OFF — خارج Phase A، ومساره مختلف', () => {
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(false);
+  it('سند القبض ON افتراضيًا — على بوابته المستقلة، ويُطفأ وحده', () => {
+    expect(isFlagEnabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(true);
+    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(true);
+    setFlagOverride(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER, false);
     expect(isPhase2Enabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(false);
+    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(true); // ولا يجرّ غيره معه
+    setFlagOverride(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER, null);
   });
 
   it('require BOTH the master flag and their own', () => {
