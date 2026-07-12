@@ -37,6 +37,12 @@ interface FormCard {
   icon: string;
   category: FormCategory;
   requiresEmployee?: boolean;
+  /**
+   * الموظف **اختياري**: يمكن الطباعة بموظف مختار (فتُملأ بياناته تلقائيًا) أو بلا موظف
+   * إطلاقًا — فتفتح الشاشة على مُحدِّد النمط: «موظف موجود» أو «موظف جديد (إدخال يدوي)».
+   * عقد العمل هو الوحيد الذي يملك مسار إدخال يدوي **للطباعة فقط** (لا يُنشئ سجل موظف).
+   */
+  employeeOptional?: boolean;
 }
 
 const FORM_CARDS: FormCard[] = [
@@ -48,7 +54,7 @@ const FORM_CARDS: FormCard[] = [
   { key: 'resignation', route: 'resignation', titleAr: 'طلب استقالة', titleEn: 'Resignation Request', description: 'نموذج استقالة رسمي مع تحديد آخر يوم عمل.', icon: '✉️', category: 'hr' },
   { key: 'employee-warning', route: 'employee-warning', titleAr: 'إنذار موظف', titleEn: 'Employee Warning Notice', description: 'نموذج إنذار رسمي للموظف يُحدد درجة المخالفة وسببها.', icon: '⚠️', category: 'hr' },
   { key: 'performance-evaluation', route: 'performance-evaluation', titleAr: 'تقييم أداء الموظف', titleEn: 'Employee Performance Evaluation', description: 'نموذج تقييم الأداء السنوي بمعايير موضوعية.', icon: '⭐', category: 'hr' },
-  { key: 'employment-contract', route: 'employment-contract', titleAr: 'عقد العمل', titleEn: 'Employment Contract', description: 'نموذج عقد العمل الرسمي الصادر عن الهيئة العامة للقوى العاملة، ثنائي اللغة (عربي / إنجليزي).', icon: '📝', category: 'hr' },
+  { key: 'employment-contract', route: 'employment-contract', titleAr: 'عقد العمل', titleEn: 'Employment Contract', description: 'نموذج عقد العمل الرسمي الصادر عن الهيئة العامة للقوى العاملة، ثنائي اللغة (عربي / إنجليزي). يمكن طباعته لموظف مسجّل أو لموظف جديد بإدخال يدوي (للطباعة فقط).', icon: '📝', category: 'hr', employeeOptional: true },
   { key: 'quotation', route: 'quotation', titleAr: 'عرض سعر', titleEn: 'Quotation', description: 'نموذج عرض سعر رسمي للعملاء يتضمن جدول الأسعار والشروط.', icon: '📊', category: 'ops', requiresEmployee: false },
   { key: 'purchase-request', route: 'purchase-request', titleAr: 'طلب شراء', titleEn: 'Purchase Request', description: 'نموذج طلب شراء داخلي مع جدول المواد والكميات وبيانات الاعتماد.', icon: '🛒', category: 'ops', requiresEmployee: false },
   { key: 'receipt-voucher', route: 'receipt-voucher', titleAr: 'سند قبض', titleEn: 'Receipt Voucher', description: 'سند قبض رسمي لتوثيق المبالغ المستلمة نقداً أو بشيك أو تحويل بنكي.', icon: '🧾', category: 'ops', requiresEmployee: false },
@@ -84,12 +90,18 @@ export default function Forms() {
   }
 
   function handlePrint(card: FormCard) {
-    if (card.requiresEmployee !== false && !selectedId) return;
     if (card.requiresEmployee === false) {
       navigate(`/forms/${card.route}`);
-    } else {
-      navigate(`/forms/${card.route}/${selectedId}?printMode=${printModes[card.key]}`);
+      return;
     }
+    // موظف اختياري وبلا اختيار ⇒ نفتح الشاشة **بلا معرّف**، فتعرض هي مُحدِّد النمط
+    // (موظف موجود / موظف جديد). أما مع اختيار موظف فالمسار القديم كما هو بحذافيره.
+    if (card.employeeOptional && !selectedId) {
+      navigate(`/forms/${card.route}`);
+      return;
+    }
+    if (!selectedId) return;
+    navigate(`/forms/${card.route}/${selectedId}?printMode=${printModes[card.key]}`);
   }
 
   const filteredCards = useMemo(() => {
@@ -175,7 +187,9 @@ export default function Forms() {
         <div className="fmx-grid">
           {filteredCards.map((card) => {
             const needsEmployee = card.requiresEmployee !== false;
-            const disabled = needsEmployee && !selectedId;
+            // البطاقة ذات الموظف الاختياري لا تُعطَّل بغياب الاختيار — وإلا صار مسار
+            // «موظف جديد» غير قابل للوصول أصلًا (وهذا هو ما كان يحدث لعقد العمل).
+            const disabled = needsEmployee && !card.employeeOptional && !selectedId;
             return (
               <div key={card.key} className="fmx-card">
                 <div className="fmx-card-head">
