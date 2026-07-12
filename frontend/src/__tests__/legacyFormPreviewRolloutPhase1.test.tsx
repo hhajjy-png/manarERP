@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 import { flushAsyncUpdates } from './helpers/flush';
 import { readFileSync } from 'node:fs';
 import { MemoryRouter } from 'react-router-dom';
+import { ROUTER_FUTURE } from './helpers/router';
 import FormLayout from '../forms/shared/FormLayout';
 import {
   useLegacyFormPreview,
@@ -91,7 +92,7 @@ function Harness({
     lang: 'ar',
   });
   return (
-    <MemoryRouter>
+    <MemoryRouter future={ROUTER_FUTURE}>
       {preview.dialog}
       <FormLayout
         formType="salary-certificate"

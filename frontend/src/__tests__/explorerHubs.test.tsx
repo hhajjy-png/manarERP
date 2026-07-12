@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { ROUTER_FUTURE } from './helpers/router';
 
 vi.mock('../api/client', () => ({
   api: { get: vi.fn() },
@@ -28,7 +29,7 @@ function renderHub(over: Partial<EntityHubProps> = {}) {
     cfg, onEdit: vi.fn(), onDelete: vi.fn(), canUpdate: true, canDelete: true, busy: false,
     ...over,
   };
-  return render(<MemoryRouter><CustomerHub {...props} /></MemoryRouter>);
+  return render(<MemoryRouter future={ROUTER_FUTURE}><CustomerHub {...props} /></MemoryRouter>);
 }
 
 describe('CustomerHub', () => {
@@ -76,7 +77,7 @@ describe('EquipmentHub', () => {
 
   it('hides Related/Activity when maintenance & fuel are empty', async () => {
     (api.get as any).mockResolvedValue({ data: { data: [] } });
-    render(<MemoryRouter><EquipmentHub
+    render(<MemoryRouter future={ROUTER_FUTURE}><EquipmentHub
       entity={{ id: 5, code: 'EQ-5', type: 'شاحنة', status: 'WORKING', registration: { remainingText: '183 يوم', expiry: '2027-01-06' } }}
       cfg={eqCfg} onEdit={vi.fn()} onDelete={vi.fn()} canUpdate canDelete busy={false}
     /></MemoryRouter>);
@@ -99,7 +100,7 @@ describe('EquipmentHub', () => {
         return Promise.resolve({ data: { data: [{ id: 3, type: 'زيت', date: '2026-06-17', status: 'DONE' }] } });
       return Promise.resolve({ data: { data: [] } });
     });
-    render(<MemoryRouter><EquipmentHub
+    render(<MemoryRouter future={ROUTER_FUTURE}><EquipmentHub
       entity={{ id: 5, code: 'EQ-5', status: 'WORKING', registration: { remainingText: '183 يوم' } }}
       cfg={eqCfg} onEdit={vi.fn()} onDelete={vi.fn()} canUpdate canDelete busy={false}
     /></MemoryRouter>);

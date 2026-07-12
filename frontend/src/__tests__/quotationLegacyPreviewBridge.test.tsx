@@ -4,6 +4,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import '@testing-library/jest-dom';
 import { readFileSync } from 'node:fs';
 import { MemoryRouter } from 'react-router-dom';
+import { ROUTER_FUTURE } from './helpers/router';
 import FormLayout from '../forms/shared/FormLayout';
 import {
   setFlagOverride,
@@ -41,7 +42,7 @@ type PrintJobLike = { docType: string; copies: number; destination: string };
 
 function renderForm(printIntercept?: (ctx: { proceed: () => void; node: HTMLElement | null }) => void) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={ROUTER_FUTURE}>
       <FormLayout
         formType="quotation"
         lang="ar"

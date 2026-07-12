@@ -64,8 +64,19 @@ export default function App() {
   const { loadSession } = useAuth();
   useEffect(() => { loadSession(); }, [loadSession]);
 
+  /*
+   * v7_relativeSplatPath — بروفة لسلوك React Router v7 في حلّ المسارات النسبية داخل
+   * مسار splat. أثره على هذا المشروع **صفر**: الـ splat الوحيد (`path="*"`) لا يحوي إلا
+   * `<Navigate to="/">` — مسار مطلق — ولا يوجد في المشروع تنقّل نسبي واحد (كل
+   * `navigate`/`Link` يبدأ بـ `/`، وقيم DrillDown وreturnTo كلها مطلقة).
+   *
+   * `v7_startTransition` **غير مفعّل عمدًا**: يغلّف تحديثات التوجيه بـ
+   * `React.startTransition`، فيؤجّل React إظهار `<Suspense fallback>` عند التنقّل إلى أي
+   * من الصفحات الـ48 الكسولة — وذلك **تغيير مرئي** في تجربة التحميل، لا يجوز أن يمرّ
+   * ضمن حزمة توافق. له حزمته وفحصه البصري.
+   */
   return (
-    <HashRouter>
+    <HashRouter future={{ v7_relativeSplatPath: true }}>
       {/* الفترة المالية العامة — سياق على مستوى التطبيق ينجو من التنقّل بين الصفحات
           (خارج Suspense) ويعاد تهيئته إلى السنة الحالية عند إعادة التشغيل. */}
       <FinancialPeriodProvider>
