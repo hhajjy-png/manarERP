@@ -8,6 +8,9 @@ import { useUI } from '../stores/uiStore';
 import { useSettings } from '../stores/settingsStore';
 import { useT } from '../lib/i18n';
 import almanarLogo from '../assets/almanar-logo.png';
+// نفس الشعار بخلفية شفافة (RGBA) — الأصل بخلفية بيضاء صلبة تظهر كمربّع في الوضع الداكن.
+// نفس النسبة (2.393 مقابل 2.396) ⇒ لا فرق في الارتفاع المحسوب ولا انزياح.
+import almanarLogoDark from '../assets/almanar-logo-dark.png';
 import Toast from './Toast';
 import './layout-polish.css';
 import './privacy.css';
@@ -37,7 +40,11 @@ export default function Layout() {
     <div className="app stitch-full-theme">
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="brand">
-          <img src={almanarLogo} alt="شركة المنار" className="brand-logo" />
+          <img
+            src={theme === 'dark' ? almanarLogoDark : almanarLogo}
+            alt="شركة المنار"
+            className="brand-logo"
+          />
         </div>
         <nav className="nav">
           {NAV.map((section) => {
