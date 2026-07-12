@@ -1,5 +1,12 @@
-import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { printCurrentView } from '../utils/print';
+import {
+  composeStyledFromNode,
+  isPhase2Enabled,
+  PrintPreviewDialog,
+  PRINT_CENTER_PHASE2_INVOICE,
+  getPageSpec,
+} from '../printing';
 import type { ComponentType } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
@@ -90,6 +97,20 @@ const fRow: CSSProperties = { display: 'flex', gap: 8, marginBottom: 6, fontSize
 const fLbl: CSSProperties = { color: '#64748b', fontWeight: 600, minWidth: 130 };
 const fVal: CSSProperties = { fontWeight: 700, color: '#0f172a' };
 
+/**
+ * عزل ثنائي الاتجاه للمبالغ النقدية.
+ *
+ * السبب الجذري لظهور «KWD 280.000» بدل «280.000 KWD»: الـ formatter المشترك ينتج
+ * السلسلة الصحيحة («280.000 KWD»)، لكن هذه السلسلة تُعرض داخل حاوية `direction: rtl`.
+ * خوارزمية bidi تعامل المسافة والفاصلة كمحايدات، فتعيد ترتيب الرمز بالنسبة إلى الرقم
+ * حسب سياق الفقرة — فيظهر الرمز أولًا بصريًا رغم أن النص سليم.
+ *
+ * الحل هو عزل المبلغ في جزيرة LTR مستقلة: النص لا يتغيّر، الحساب لا يتغيّر، ولا
+ * formatter جديد. تُطبَّق على كل موضع نقدي فتتطابق الشاشة والمعاينة والطباعة القديمة.
+ */
+const moneyCell: CSSProperties = { direction: 'ltr', unicodeBidi: 'isolate' };
+const fValMoney: CSSProperties = { ...fVal, ...moneyCell, display: 'inline-block' };
+
 export default function InvoicePreview() {
   const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
@@ -108,6 +129,21 @@ export default function InvoicePreview() {
   const [paySaving, setPaySaving] = useState(false);
   const [previewMode, setPreviewMode] = useState<'legacy' | 'engine'>('legacy');
   const [engineWarning, setEngineWarning] = useState('');
+
+  // ── Print Center (Phase 2B) ────────────────────────────────────────────────────
+  // The invoice keeps its EXISTING renderer, its existing template selection, its
+  // existing @page and its existing print CSS. The Print Center only takes what the
+  // page already rendered, carries its stylesheets into the hidden window, and turns
+  // that into the PDF that is previewed, saved and printed.
+  //
+  // The printable root is the page wrapper. We do not hand-pick a subtree: the
+  // captured `@media print` rules (which printToPDF honours) hide `.no-print` and
+  // `.engine-hide-legacy` exactly as they do on the legacy print path — so whichever
+  // mode is active, legacy or engine, composition reproduces the legacy output by
+  // construction rather than by imitation.
+  const printRootRef = useRef<HTMLDivElement>(null);
+  const [printCenterOpen, setPrintCenterOpen] = useState(false);
+  const usePrintCenterInvoice = isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE);
 
   const autoPrint = searchParams.get('print') === '1';
   const printFiredRef = useRef(false);
@@ -179,7 +215,25 @@ export default function InvoicePreview() {
     setPdfError('');
     try {
       const suggestedName = buildInvoicePdfName(data.invoiceNumber ?? data.number);
-      const result = await window.manar?.exportPdf(suggestedName);
+      /**
+       * PDF يُصدَّر من **المستند وحده**، لا من النافذة الحيّة.
+       *
+       * `pdf:export` يلتقط الـ BrowserWindow المرئية عبر `printToPDF({ printBackground: true })`،
+       * وElectron **يتجاهل `@media print`** في هذا المسار. فكل ما يخفيه CSS الطباعة يبقى
+       * مرسومًا، ومعه خلفية قشرة التطبيق (ExplorerKit shell) الداكنة حول الفاتورة — وهي
+       * الأشرطة السوداء على الجانبين. الطباعة الفعلية لا تعانيها لأن حوار الطباعة يطبّق
+       * `@media print` ويُطفئ خلفيات الصفحة افتراضيًا.
+       *
+       * هذا هو نفس المبدأ الذي عولجت به Forms في 80a1ea3: صدّر HTML مستقلًا يحوي الجذر
+       * القابل للطباعة فقط عبر النافذة المخفية (`pdf:exportHtml`). لم يُطبَّق على الفاتورة
+       * حينها لأن ترحيل الفاتورة كان لا يزال ضمن مسار Print Center الذي تراجعنا عنه، فبقيت
+       * على `pdf:export` القديم. نفس المُركِّب المستخدم في المعاينة يُنتج المستند هنا —
+       * مصدر واحد، فما تراه في المعاينة هو ما يُحفظ.
+       */
+      const html = composeInvoicePreview();
+      const result = await (window.manar?.exportPdfFromHtml
+        ? window.manar.exportPdfFromHtml(html, suggestedName)
+        : window.manar?.exportPdf(suggestedName)); // بيئة قديمة بلا الجسر — سلوك سابق كما هو
       if (!result) {
         setPdfError('تصدير PDF غير متاح في هذه البيئة');
         return;
@@ -235,6 +289,24 @@ export default function InvoicePreview() {
     'invoice',
     printData ?? undefined,
   );
+
+  /**
+   * يبني مستند المعاينة من نفس الـ printable root المعروض — لا يعيد رسم أي شيء، ولا
+   * يمس القالب ولا الحسابات. يُعرض داخل iframe في نفس أصل التطبيق، فتُحمَّل الخطوط
+   * والشعار كما على الشاشة وتظهر العربية مشكّلة.
+   */
+  const composeInvoicePreview = useCallback((): string => {
+    const node = printRootRef.current;
+    if (!node || !data) throw new Error('تعذّر تجهيز الفاتورة للمعاينة.');
+    const number = data.invoiceNumber ?? data.number;
+    return composeStyledFromNode({
+      node,
+      pageSpec: getPageSpec('a4-portrait'),
+      title: `فاتورة ${number}`,
+      lang: 'ar',
+      stripSelectors: ['.no-print'],
+    });
+  }, [data]);
 
   const printWarnings = useMemo(
     () => (printData ? validateInvoicePrintData(printData) : []),
@@ -366,20 +438,57 @@ export default function InvoicePreview() {
         .inv-pay-row:nth-child(even) { background: #f8fafc; }
       `}</style>
 
-      <div className="inv-wrap" style={{
+      {/* Universal Print Preview — خارج الـ printable root دائمًا. زر «طباعة» بداخلها
+          يغلقها ثم يستدعي مسار طباعة الفاتورة القديم بلا تغيير. */}
+      {usePrintCenterInvoice && (
+        <PrintPreviewDialog
+          open={printCenterOpen}
+          onClose={() => setPrintCenterOpen(false)}
+          compose={composeInvoicePreview}
+          onPrint={() => printCurrentView()}
+          documentLabel={data ? `فاتورة · ${data.invoiceNumber ?? data.number}` : ''}
+          lang="ar"
+        />
+      )}
+
+      <div ref={printRootRef} className="inv-wrap" style={{
         padding: '16px 24px', fontFamily: '"Cairo", Arial, sans-serif',
         maxWidth: 900, margin: '0 auto', color: '#0f172a',
         background: '#fff', direction: 'rtl',
       }}>
 
         {/* ── Toolbar (hidden on print) ── */}
-        <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        {/* ── الصف الأول: الأوامر الأساسية (حجم Desktop ERP مدمج، محصور بـ .invx-actions) ──
+            الترتيب في RTL من اليمين: رجوع · طباعة · معاينة · PDF · وضع التصميم · تعديل ·
+            قالب الطباعة. «طباعة» وحده الإجراء الأبرز.
+
+            «تحصيل» و«إلغاء» أُزيلا من **هذا الشريط فقط**: لا ينتميان إلى سياق الطباعة،
+            وكانا يزاحمان الأوامر الأساسية. لا إجراء خطر (destructive) في شاشة الطباعة بعد
+            اليوم. الوظيفتان ومنطقهما وصلاحياتهما وواجهاتهما وقيودهما المحاسبية باقية بلا
+            تغيير، والزران باقيان في مواضعهما التشغيلية: قائمة الفواتير (Quick Actions +
+            Danger Actions)، والتفاصيل، والـ Drawer. presentation-only. */}
+        <div className="no-print invx-actions" style={{ marginBottom: 12 }}>
           <button type="button" className="btn secondary" onClick={() => navigate('/invoices')}>
             ← {t('btn.inv.back')}
           </button>
+          {/* الإجراء الأساسي — زر الطباعة الأصلي. باقٍ كما كان تمامًا: يستدعي مسار
+              الطباعة القديم مباشرة، ولا يفتح المعاينة، ولا يتأثر بعلم المعاينة.
+              (الخلل السابق: استبدلتُ هذا الزر بزر المعاينة — الآن الإجراءان مستقلان.) */}
           <button type="button" className="btn" onClick={() => printCurrentView()}>
             🖨️ {t('btn.inv.print_invoice')}
           </button>
+
+          {/* إجراء ثانوي مستقل — المعاينة اختيارية ولا تطبع عند الفتح. */}
+          {usePrintCenterInvoice && (
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => setPrintCenterOpen(true)}
+            >
+              🔍 معاينة قبل الطباعة
+            </button>
+          )}
+
           <button
             type="button"
             className="btn secondary"
@@ -419,18 +528,43 @@ export default function InvoicePreview() {
               {t('action.edit')}
             </button>
           )}
-          {hasPermission('invoices.update') && canCollect && !paying && (
-            <button type="button" className="btn" onClick={() => { setPayAmount(remaining); setPayError(''); setPaying(true); }}>
-              {t('page.invoices.collect')}
-            </button>
-          )}
-          {hasPermission('invoices.update') && canCancel && (
-            <button type="button" className="btn secondary" onClick={handleCancel}>
-              {t('page.invoices.cancel_inv')}
-            </button>
+          {/* زر «تحصيل» أُزيل من شريط شاشة الطباعة/المعاينة فقط — لا ينتمي إلى سياق
+              الطباعة ويزحم الشريط. وظيفة التحصيل ومنطقها وصلاحياتها (invoices.update /
+              canCollect / handlePay / نافذة الدفع) كلها باقية بلا تغيير، ويبقى الزر في
+              مواضعه التشغيلية: قائمة الفواتير، تفاصيل الفاتورة، والـ Drawer.
+              presentation-only — لا API ولا workflow ولا حالة فاتورة تغيّرت. */}
+          {/* أداة إعداد — تحلّ محل «إلغاء» في نهاية مجموعة الأدوات. أخفّ بروزًا من
+              «طباعة»، ومتناسقة مع «وضع التصميم» و«تعديل». منطق اختيار القالب وحفظه
+              لم يتغيّر إطلاقًا؛ نُقل موضع الزر فقط. */}
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => setPreviewMode(m => m === 'legacy' ? 'engine' : 'legacy')}
+            disabled={!printData}
+          >
+            <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16, verticalAlign: 'text-bottom', marginInlineEnd: 4 }}>
+              {previewMode === 'engine' ? 'description' : 'dashboard_customize'}
+            </span>
+            {previewMode === 'engine' ? 'العرض الكلاسيكي' : 'قالب الطباعة'}
+          </button>
+          {studioTemplate && previewMode === 'engine' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, cursor: 'pointer', padding: '5px 9px', background: useStudio ? '#dbeafe' : '#f8fafc', border: '1px solid #bfdbfe', borderRadius: 8 }}>
+              <input
+                type="checkbox"
+                checked={useStudio}
+                onChange={(e) => setUseStudio(e.target.checked)}
+              />
+              استخدام قالب Template Studio
+            </label>
           )}
           {actionError && <span style={{ color: '#dc2626', fontSize: 13, fontWeight: 600 }}>⚠️ {actionError}</span>}
-          {printOptionsInitialized && (
+        </div>
+
+        {/* ── الصف الثاني: خيارات محتوى المستند — التوقيع والختم فقط.
+            «قالب الطباعة» انتقل إلى الصف الأساسي؛ هذا الصف لا يُعرض أصلًا إن لم تكن
+            خيارات المحتوى جاهزة، فلا يبقى فراغ بصري مكان الزر المنقول. ── */}
+        {printOptionsInitialized && (
+          <div className="no-print invx-doc-settings">
             <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '4px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.signatureUrl ? 'pointer' : 'not-allowed' }}>
                 <input
@@ -455,27 +589,8 @@ export default function InvoicePreview() {
                 </span>
               </label>
             </span>
-          )}
-          <button
-            type="button"
-            className="btn secondary"
-            onClick={() => setPreviewMode(m => m === 'legacy' ? 'engine' : 'legacy')}
-            disabled={!printData}
-            style={{ marginInlineStart: 'auto' }}
-          >
-            {previewMode === 'engine' ? '📋 العرض الكلاسيكي' : '✨ قالب الطباعة'}
-          </button>
-          {studioTemplate && previewMode === 'engine' && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', padding: '3px 8px', background: useStudio ? '#dbeafe' : '#f8fafc', border: '1px solid #bfdbfe', borderRadius: 6 }}>
-              <input
-                type="checkbox"
-                checked={useStudio}
-                onChange={(e) => setUseStudio(e.target.checked)}
-              />
-              استخدام قالب Template Studio
-            </label>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* ── Engine template selector (engine mode only, hidden on print) ── */}
         {previewMode === 'engine' && printData && (
@@ -631,8 +746,8 @@ export default function InvoicePreview() {
                   <td style={td}>{item.description}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{item.quantity}</td>
                   <td style={{ ...td, textAlign: 'center' }}>{item.unit}</td>
-                  <td style={{ ...td, textAlign: 'end' }}>{money(item.unitPrice)}</td>
-                  <td style={{ ...td, textAlign: 'end', fontWeight: 700 }}>{money(item.total)}</td>
+                  <td style={{ ...td, ...moneyCell, textAlign: 'end' }}>{money(item.unitPrice)}</td>
+                  <td style={{ ...td, ...moneyCell, textAlign: 'end', fontWeight: 700 }}>{money(item.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -643,34 +758,34 @@ export default function InvoicePreview() {
             <div style={secTitle} data-designer-type="text" data-designer-id="invoice.sectionTitle">{t('page.invoice_preview.section.financial')}</div>
             <div className="inv-totals" style={{ maxWidth: 340, marginInlineStart: 'auto' }} data-designer-type="text" data-designer-id="invoice.totals">
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
-                <span style={fLbl}>{t('lbl.inv.subtotal')}</span><span style={fVal}>{money(data.subtotal)}</span>
+                <span style={fLbl}>{t('lbl.inv.subtotal')}</span><span style={fValMoney}>{money(data.subtotal)}</span>
               </div>
               {Number(data.discount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
                   <span style={fLbl}>{t('field.inv.discount_kd')}</span>
-                  <span style={{ ...fVal, color: '#dc2626' }}>−{money(data.discount)}</span>
+                  <span style={{ ...fValMoney, color: '#dc2626' }}>−{money(data.discount)}</span>
                 </div>
               )}
               {Number(data.taxAmount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
                   <span style={fLbl}>{t('lbl.inv.tax')} ({data.taxRate}%)</span>
-                  <span style={fVal}>{money(data.taxAmount)}</span>
+                  <span style={fValMoney}>{money(data.taxAmount)}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '2px solid #1d4e6f', fontSize: 16, fontWeight: 800 }}>
                 <span style={{ color: '#1d4e6f' }}>{t('lbl.inv.grand_total')}</span>
-                <span style={{ color: '#1d4e6f' }}>{money(data.total)}</span>
+                <span style={{ ...moneyCell, display: 'inline-block', color: '#1d4e6f' }}>{money(data.total)}</span>
               </div>
               {/* Paid / Remaining — shown on screen and print */}
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e2e8f0', fontSize: 13 }}>
                 <span style={fLbl}>{t('col.inv.paid')}</span>
-                <span style={{ ...fVal, color: '#16a34a' }}>{money(data.paidAmount)}</span>
+                <span style={{ ...fValMoney, color: '#16a34a' }}>{money(data.paidAmount)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontSize: 14, fontWeight: 800 }}>
                 <span style={{ ...fLbl, fontSize: 14, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>
                   {t('lbl.inv.remaining_amount')}
                 </span>
-                <span style={{ fontWeight: 800, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</span>
+                <span style={{ ...moneyCell, display: 'inline-block', fontWeight: 800, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</span>
               </div>
             </div>
           </div>
@@ -688,11 +803,11 @@ export default function InvoicePreview() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 10 }}>
                   <div className="inv-collection-chip">
                     <div className="inv-collection-chip-label">إجمالي المحصّل</div>
-                    <div className="inv-collection-chip-val" style={{ color: '#16a34a' }}>{money(data.paidAmount)}</div>
+                    <div className="inv-collection-chip-val" style={{ ...moneyCell, color: '#16a34a' }}>{money(data.paidAmount)}</div>
                   </div>
                   <div className="inv-collection-chip">
                     <div className="inv-collection-chip-label">المتبقي</div>
-                    <div className="inv-collection-chip-val" style={{ color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</div>
+                    <div className="inv-collection-chip-val" style={{ ...moneyCell, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</div>
                   </div>
                   <div className="inv-collection-chip">
                     <div className="inv-collection-chip-label">نسبة التحصيل</div>
@@ -711,7 +826,7 @@ export default function InvoicePreview() {
                         background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 20,
                         color: '#475569', fontWeight: 600,
                       }}>
-                        {PAY_METHOD_AR[method] ?? method}: <span style={{ color: '#16a34a' }}>{money(total)}</span>
+                        {PAY_METHOD_AR[method] ?? method}: <span style={{ ...moneyCell, display: 'inline-block', color: '#16a34a' }}>{money(total)}</span>
                       </span>
                     ))}
                   </div>

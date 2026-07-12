@@ -1,5 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { printCurrentView } from '../utils/print';
+import {
+  composeStyledFromNode,
+  isPhase2Enabled,
+  PrintPreviewDialog,
+  PRINT_CENTER_PHASE2_QUOTATION,
+  getPageSpec,
+} from '../printing';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import { todayDateOnly } from '../lib/date';
@@ -95,6 +102,16 @@ export default function Quotation() {
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [printFields, setPrintFields] = useState<QuotationPrintFields>(makeInitial);
   const [previewMode, setPreviewMode] = useState<'legacy' | 'engine'>('legacy');
+
+  // ── Print Center (Phase 2B) — engine mode only ─────────────────────────────────
+  // Legacy quotation mode renders through FormLayout, which owns its own print path and
+  // is untouched here. Engine mode is the template-engine render (CSS Modules, Template
+  // Studio, designer overrides, watermarks), and that is what the Print Center composes:
+  // the existing renderer's output plus the existing renderer's stylesheets. No template
+  // is duplicated, consolidated or rewritten.
+  const printRootRef = useRef<HTMLDivElement>(null);
+  const [printCenterOpen, setPrintCenterOpen] = useState(false);
+  const usePrintCenterQuotation = isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION);
   const [adapterError, setAdapterError] = useState<string | null>(null);
   const { activeTemplate: studioTemplate } = useTemplateStudio('quotation');
   const [useStudio, setUseStudio] = useState(false);
@@ -224,6 +241,19 @@ export default function Quotation() {
   const { resolvedTemplate, profile: tplProfile, setProfile: setTplProfile } =
     usePrintTemplate('quotation', brandedPrintData ?? undefined);
 
+  /** يبني مستند المعاينة من نفس الـ printable root — لا إعادة رسم، لا تغيير قالب. */
+  const composeQuotationPreview = useCallback((): string => {
+    const node = printRootRef.current;
+    if (!node) throw new Error('تعذّر تجهيز عرض السعر للمعاينة.');
+    return composeStyledFromNode({
+      node,
+      pageSpec: getPageSpec('a4-portrait'),
+      title: `عرض سعر ${printFields.quotationNumber || '---'}`,
+      lang,
+      stripSelectors: ['.no-print'],
+    });
+  }, [printFields.quotationNumber, lang]);
+
   const warnings = useMemo(
     () => (brandedPrintData ? validateQuotationPrintData(brandedPrintData) : []),
     [brandedPrintData],
@@ -285,7 +315,20 @@ export default function Quotation() {
   // ── ENGINE MODE ───────────────────────────────────────────────────────────────
   if (previewMode === 'engine') {
     return (
-      <div dir="rtl" style={{ minHeight: '100vh', background: '#f0f4f8' }}>
+      <>
+        {/* Print Center (Phase 2B) — mounted OUTSIDE the printable root, so its markup
+            can never be cloned into the composed document. */}
+        {usePrintCenterQuotation && (
+          <PrintPreviewDialog
+            open={printCenterOpen}
+            onClose={() => setPrintCenterOpen(false)}
+            compose={composeQuotationPreview}
+            onPrint={() => printCurrentView()}
+            documentLabel={`عرض سعر · ${printFields.quotationNumber || '---'}`}
+            lang={lang}
+          />
+        )}
+      <div ref={printRootRef} dir="rtl" style={{ minHeight: '100vh', background: '#f0f4f8' }}>
         <style>{`
           @media print {
             @page { size: A4; margin: 0; }
@@ -300,9 +343,17 @@ export default function Quotation() {
           className="no-print"
           style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '10px 18px', background: '#fff', borderBottom: '1px solid var(--border)', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }}
         >
-          <button type="button" className="btn" onClick={() => printCurrentView()}>
-            🖨️ طباعة
-          </button>
+          {/* Print Center (flag ON) — preview the real PDF, then Print or Save PDF.
+              Flag OFF → the original direct-print button, unchanged. */}
+          {usePrintCenterQuotation ? (
+            <button type="button" className="btn" onClick={() => setPrintCenterOpen(true)}>
+              🔍 معاينة قبل الطباعة
+            </button>
+          ) : (
+            <button type="button" className="btn" onClick={() => printCurrentView()}>
+              🖨️ طباعة
+            </button>
+          )}
           <button
             type="button"
             className="btn secondary"
@@ -476,6 +527,7 @@ export default function Quotation() {
           />
         )}
       </div>
+      </>
     );
   }
 

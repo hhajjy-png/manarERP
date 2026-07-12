@@ -21,10 +21,27 @@
 import cairoRegular from '../assets/fonts/Cairo-Regular.ttf';
 import type { PageSpec } from './pageSpec';
 import { toPageCss } from './pageSpec';
+import { capturePrintStyles } from './styleCapture';
 
 /** Hard ceiling on composed HTML. Bounds the IPC payload and the hidden-window
  *  render; a document this large is a bug, not a business case. */
 export const MAX_COMPOSED_HTML_BYTES = 12 * 1024 * 1024; // 12 MB
+
+/**
+ * Chrome that must NEVER reach the composed document, whatever the caller passes.
+ *
+ * Defence in depth for the whole-page-print defect: the Print Center's own shell, any
+ * screen-only control, and any portal/overlay are removed from the clone even if a page
+ * accidentally nests them inside its printable root. The physical-print fix is printing
+ * the cached PDF artifact (see previewService `print:printArtifact`); this is the second
+ * barrier, not the fix.
+ */
+const ALWAYS_STRIP = [
+  '.pc-scrim', // Print Center dialog (scrim + dialog live inside it)
+  '.no-print',
+  '[data-no-print]',
+  '[data-print-hidden]',
+] as const;
 
 export interface ComposeOptions {
   /** The printable element. Its `outerHTML` (inline styles + data: URIs) is used. */
@@ -122,5 +139,122 @@ export function composeFromNode({
  * re-wrap it: re-wrapping would give it two <html> elements and two @page rules.
  */
 export function composeFromHtml(html: string): string {
+  return assertSize(html);
+}
+
+// ── Phase 2B — styled composition (Invoice / Quotation) ─────────────────────────
+
+export interface ComposeStyledOptions extends ComposeOptions {
+  /** Document to capture stylesheets from. Injectable for tests. */
+  sourceDocument?: Document;
+}
+
+/**
+ * Compose a document whose styling lives in STYLESHEETS rather than inline styles —
+ * the print-templates engine (CSS Modules), Template Studio, the branding/layout
+ * designer overrides, and DocumentVerificationQR.
+ *
+ * The Print Center remains a SHELL: it clones what the existing renderer already put on
+ * screen and carries that renderer's own CSS with it. It does not re-render, it does
+ * not mount a second React app, and it owns no layout engine.
+ *
+ * @page policy — exactly one, and the TEMPLATE wins:
+ *   • If the captured CSS contains any @page (every invoice/quotation design declares
+ *     its own, e.g. `@page { size: A4; margin: 0 }`), the FIRST one is emitted and the
+ *     PageSpec's is NOT — the template's existing geometry is authoritative and must not
+ *     change. Any further @page rules are dropped, so there is never more than one.
+ *   • Only if the captured CSS declares none do we fall back to the PageSpec.
+ *
+ * FAILS LOUDLY: if no stylesheet rules could be captured, the document would print
+ * unstyled. That is a silent-fidelity disaster, so we throw an Arabic error and the
+ * preview reports failure rather than showing a plausible-looking, wrong document.
+ */
+export function composeStyledFromNode({
+  node,
+  pageSpec,
+  title,
+  lang = 'ar',
+  stripSelectors = [],
+  sourceDocument,
+}: ComposeStyledOptions): string {
+  const captured = capturePrintStyles(sourceDocument ?? node.ownerDocument ?? document);
+
+  if (captured.ruleCount === 0) {
+    throw new Error(
+      'تعذّر قراءة أنماط المستند — لا يمكن توليد معاينة قد تظهر بتنسيق ناقص. أعد تحميل الصفحة وحاول مجددًا.',
+    );
+  }
+  if (captured.problems.length > 0) {
+    // Offline app: this should never happen. If it does, the composed document would be
+    // missing CSS we cannot see — refuse rather than ship a partially styled invoice.
+    throw new Error(
+      'تعذّر الوصول إلى بعض أنماط المستند — تم إيقاف المعاينة تفاديًا لإخراج غير مطابق.',
+    );
+  }
+
+  const clone = node.cloneNode(true) as HTMLElement;
+  for (const sel of [...ALWAYS_STRIP, ...stripSelectors]) {
+    clone.querySelectorAll(sel).forEach((el) => el.remove());
+  }
+  clone.setAttribute('data-print-root', '');
+
+  // Exactly one @page: the template's if it has one, else the PageSpec's.
+  const pageCss = captured.pageRules.length > 0 ? captured.pageRules[0] : toPageCss(pageSpec);
+
+  // Reproduce the SOURCE document's inherited context rather than inventing one.
+  // Bidi resolution depends on the root direction, and the app's <html> is `dir="rtl"`;
+  // a mismatch here is what lets a trailing LTR token like "KWD" reorder relative to its
+  // amount. We copy the real root's dir/lang and the body's classes so the cloned subtree
+  // inherits exactly what it inherited on screen. `lang` still overrides when the caller
+  // is explicitly rendering an English document.
+  const srcDoc = sourceDocument ?? node.ownerDocument ?? document;
+  const rootDir = srcDoc.documentElement.getAttribute('dir') ?? 'rtl';
+  const rootLang = srcDoc.documentElement.getAttribute('lang') ?? 'ar';
+  const dir = lang === 'en' ? 'ltr' : rootDir;
+  const htmlLang = lang === 'en' ? 'en' : rootLang;
+  const bodyClass = srcDoc.body?.className ?? '';
+
+  const html = `<!DOCTYPE html>
+<html dir="${dir}" lang="${htmlLang}">
+<head>
+<meta charset="UTF-8">
+<meta name="color-scheme" content="light">
+<base href="${escapeHtml(srcDoc.baseURI)}">
+<title>${escapeHtml(title)}</title>
+<style>
+  ${FONT_FACE}
+</style>
+<style data-captured-styles>
+${captured.css}
+</style>
+<style>
+  /* Normalisation, LAST so it wins. The captured CSS above carries the template's real
+     layout; this only guarantees a clean white sheet and neutralises the on-screen-only
+     chrome of the preview surface. */
+  ${pageCss}
+  :root { color-scheme: light; }
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #fff !important;
+  }
+  /* The cloned root carried its on-screen framing (paper border, shadow, max-width,
+     centering, zoom transform). Strip it so the document fills the printable area. */
+  [data-print-root] {
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    transform: none !important;
+    background: #fff !important;
+  }
+</style>
+</head>
+<body class="${escapeHtml(bodyClass)}">${clone.outerHTML}</body>
+</html>`;
+
   return assertSize(html);
 }

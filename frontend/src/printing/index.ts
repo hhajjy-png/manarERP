@@ -34,6 +34,8 @@ export {
   PRINT_CENTER_FOUNDATION_V1,
   PRINT_CENTER_PHASE2,
   PRINT_CENTER_PHASE2_RECEIPT_VOUCHER,
+  PRINT_CENTER_PHASE2_INVOICE,
+  PRINT_CENTER_PHASE2_QUOTATION,
   isFlagEnabled,
   isPhase2Enabled,
   setFlagOverride,
@@ -44,20 +46,22 @@ export {
 export {
   composeFromNode,
   composeFromHtml,
+  composeStyledFromNode,
   MAX_COMPOSED_HTML_BYTES,
   type ComposeOptions,
+  type ComposeStyledOptions,
 } from './composeDocument';
 
-export { usePrintCenter, type PreviewSource, type PrintCenterState } from './usePrintCenter';
+export {
+  capturePrintStyles,
+  absolutizeUrls,
+  type CapturedStyles,
+  type StyleCaptureProblem,
+} from './styleCapture';
 
-export { default as PrintCenterDialog, type PrintCenterDialogProps } from './components/PrintCenterDialog';
+export { default as PrintPreviewDialog, type PrintPreviewDialogProps } from './components/PrintPreviewDialog';
 
-export type {
-  PrintRenderSource,
-  PrintPreviewRequest,
-  PrintPreviewArtifact,
-  PrintPreviewState,
-} from './types';
+export type { PrintRenderSource } from './types';
 
 export {
   waitForPrintReady,
