@@ -245,9 +245,9 @@ describe('Universal Print Preview — مسار artifact أُزيل بالكام�
 
 // ── الأعلام والانحدار ───────────────────────────────────────────────────────────
 describe('Universal Print Preview — الأعلام والانحدار', () => {
-  it('Invoice وQuotation ما زالا OFF', () => {
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(false);
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(false);
+  it('Invoice وQuotation صارا ON افتراضيًا (Phase A) — والطباعة القديمة كما هي', () => {
+    expect(isFlagEnabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(true);
+    expect(isFlagEnabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(true);
   });
 
   it('مسار طباعة الفاتورة القديم لم يتغيّر', () => {

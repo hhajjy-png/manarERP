@@ -94,21 +94,31 @@ const DEFAULTS: Record<FlagName, boolean> = {
   PRINT_CENTER_FOUNDATION_V1: true,
   // Master kill switch: on. It enables nothing by itself.
   PRINT_CENTER_PHASE2: true,
-  // OFF until the physical print gate passes. Conservative by policy — no user's
-  // printing behaviour changes on upgrade.
+
+  // ── Controlled Enablement — Phase A ────────────────────────────────────────
+  // ON افتراضيًا للمستندات الأربعة التي اكتمل فحصها اليدوي جنبًا إلى جنب (القديم مقابل
+  // المعاينة مقابل الورقة الفعلية): الفاتورة · عرض السعر · عقد العمل · قسيمة الراتب.
+  //
+  // التفعيل **لا يغيّر الطباعة**: المعاينة طبقة عرض تفوّض إلى دالة الطباعة القديمة نفسها
+  // (`printCurrentView` / `doPrint` / `handlePrint` — نفس المرجع، بلا نسخ ولا تغليف)،
+  // وزر الطباعة المباشر يبقى متاحًا دائمًا. ما يتغيّر هو أن **خطوة عرض اختيارية** صارت
+  // ظاهرة افتراضيًا.
+  //
+  // التراجع فوري وبلا إصدار: `readOverride() ?? DEFAULTS` — أي أن
+  // `localStorage['manar:flag:PRINT_CENTER_PHASE2'] = 'off'` (أو
+  // `PRINT_PREVIEW_LEGACY_FORMS_V1 = 'off'`) **يتقدّم على هذه القيم** ويُطفئ المجموعة
+  // كاملة. المفتاحان الرئيسيان هما الـ kill switch.
+  PRINT_CENTER_PHASE2_INVOICE: true,
+  PRINT_CENTER_PHASE2_QUOTATION: true,
+  PRINT_PREVIEW_LEGACY_FORMS_V1: true,
+  PRINT_PREVIEW_LEGACY_FORMS_SPECIAL: true, // عقد العمل · قسيمة الراتب
+
+  // ── خارج Phase A — تبقى OFF ────────────────────────────────────────────────
+  // لم يكتمل فحصها اليدوي بعد. سند القبض تحديدًا يسلك مسار طباعة مختلفًا
+  // (`submitPrintJob` مباشرةً لا تفويضًا)، فيستحق مرحلة وفحصًا مستقلَّين.
   PRINT_CENTER_PHASE2_RECEIPT_VOUCHER: false,
-  // Phase 2B — OFF until side-by-side fidelity is proven against the legacy output.
-  // These documents carry their styling in stylesheets (CSS Modules, Template Studio,
-  // designer overrides), so their composition depends on style capture; until a human
-  // has compared legacy vs preview vs saved PDF vs physical print, they stay off.
-  PRINT_CENTER_PHASE2_INVOICE: false,
-  PRINT_CENTER_PHASE2_QUOTATION: false,
-  // Legacy Preview Overlay — OFF, including the master: the rollout changes no user's
-  // behaviour on upgrade. Enabling the master alone still previews nothing.
-  PRINT_PREVIEW_LEGACY_FORMS_V1: false,
-  PRINT_PREVIEW_LEGACY_FORMS_FINANCE: false,
-  PRINT_PREVIEW_LEGACY_FORMS_HR: false,
-  PRINT_PREVIEW_LEGACY_FORMS_SPECIAL: false,
+  PRINT_PREVIEW_LEGACY_FORMS_HR: false,      // النماذج الثمانية
+  PRINT_PREVIEW_LEGACY_FORMS_FINANCE: false, // سند الصرف · طلب الشراء
 };
 
 function readOverride(name: FlagName): boolean | null {

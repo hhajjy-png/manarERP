@@ -192,8 +192,11 @@ describe('الانحدار — Phase 2 وما قبلها', () => {
 
   it('الأعلام والخطّاف المشترك بلا تغيير', () => {
     const flags = readFileSync('src/printing/flags.ts', 'utf8');
-    expect(flags).toContain('PRINT_PREVIEW_LEGACY_FORMS_SPECIAL: false');
-    expect(flags).toContain('PRINT_PREVIEW_LEGACY_FORMS_V1: false');
+    // Phase A: عقد العمل وقسيمة الراتب ON افتراضيًا؛ والمفتاح الرئيسي ما زال قاطعًا.
+    expect(flags).toContain('PRINT_PREVIEW_LEGACY_FORMS_SPECIAL: true');
+    expect(flags).toContain('PRINT_PREVIEW_LEGACY_FORMS_V1: true');
+    expect(flags).toContain('PRINT_PREVIEW_LEGACY_FORMS_HR: false');      // خارج Phase A
+    expect(flags).toContain('PRINT_PREVIEW_LEGACY_FORMS_FINANCE: false'); // خارج Phase A
     const hook = readFileSync('src/printing/useLegacyFormPreview.tsx', 'utf8');
     expect(hook).toContain('if (openRef.current) return;'); // حارس المعاينة الواحدة
     expect(hook).toContain('proceedRef.current?.()');

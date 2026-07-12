@@ -345,8 +345,8 @@ describe('نافذة المعاينة — التحسينات', () => {
 
 // ── الانحدار ─────────────────────────────────────────────────────────────────────
 describe('الانحدار', () => {
-  it('Quotation لا تتأثر وما زالت OFF', () => {
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(false);
+  it('Quotation لا تتأثر — علمها ON افتراضيًا الآن، ومسار طباعتها القديم كما هو', () => {
+    expect(isFlagEnabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(true);
     const q = readFileSync('src/pages/Quotation.tsx', 'utf8');
     expect(q).toContain('printCurrentView()');
     expect(q).toContain('@page { size: A4; margin: 0; }');
