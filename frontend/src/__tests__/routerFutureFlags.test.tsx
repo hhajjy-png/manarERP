@@ -3,39 +3,70 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { readFileSync, readdirSync } from 'node:fs';
-import { MemoryRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
+import { fireEvent } from '@testing-library/react';
+import { MemoryRouter, Routes, Route, Navigate, useParams, useNavigate } from 'react-router-dom';
 import { ROUTER_FUTURE } from './helpers/router';
 
 /**
  * React Router — أعلام المستقبل.
  *
- * `v7_relativeSplatPath` مُفعَّل: بروفة لسلوك v7 في حلّ المسارات النسبية داخل مسار
- * splat. أثره هنا **صفر** لأن الـ splat الوحيد لا يحوي إلا `<Navigate to="/">` المطلق،
- * ولا يوجد في المشروع تنقّل نسبي واحد.
+ * `v7_relativeSplatPath` مُفعَّل: أثره هنا **صفر** — الـ splat الوحيد لا يحوي إلا
+ * `<Navigate to="/">` المطلق، ولا يوجد في المشروع تنقّل نسبي واحد.
  *
- * `v7_startTransition` **غير مُفعَّل عمدًا** — يؤجّل إظهار `<Suspense fallback>` عند
- * التنقّل إلى الصفحات الكسولة، وهو تغيير مرئي له حزمته وفحصه البصري. هذا الملف يحرس
- * القرار: لو فُعِّل بلا قصد، يسقط الاختبار.
+ * `v7_startTransition` مُفعَّل أيضًا: تحديثات التوجيه تصبح **غير عاجلة**. لذلك تختبر
+ * هذه الملفات **النتيجة النهائية** للتنقّل (`findBy…`) لا لقطةً زمنية هشّة — فتوقيت
+ * ظهور `<Suspense fallback>` صار مسموحًا له بالتغيّر، وهذا هو المقصود من العلم.
+ *
+ * الحارس هنا يثبت أن العلمين مفعّلان في الإنتاج **وفي الاختبارات معًا**: اختبارٌ يعمل
+ * بأعلام مختلفة عن التطبيق يختبر تطبيقًا آخر.
  */
 
 const appSrc = readFileSync('src/App.tsx', 'utf8');
+
+/** يُملأ عند تركيب الصفحة الكسولة؛ استدعاؤه يُكمل الاستيراد. */
+let heavyResolver: (() => void) | null = null;
 const TESTS_DIR = 'src/__tests__';
 
 afterEach(cleanup);
 
 describe('العلم في الإنتاج (HashRouter)', () => {
-  it('v7_relativeSplatPath مُفعَّل على الـ Router الوحيد', () => {
-    expect(appSrc).toContain('<HashRouter future={{ v7_relativeSplatPath: true }}>');
+  it('العلمان مُفعَّلان على الـ Router الإنتاجي الوحيد', () => {
+    // تحقّق بنيوي على وسم الـ Router نفسه — لا على مسافات أو تنسيق.
+    const tag = appSrc.match(/<HashRouter[^>]*>/)?.[0] ?? '';
+    expect(tag).toMatch(/v7_relativeSplatPath:\s*true/);
+    expect(tag).toMatch(/v7_startTransition:\s*true/);
     expect((appSrc.match(/<HashRouter/g) ?? []).length).toBe(1); // Router إنتاجي واحد
   });
 
-  it('v7_startTransition **غير** مُفعَّل — لا في الإنتاج ولا في الاختبارات', () => {
-    const code = appSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
-    expect(code).not.toContain('v7_startTransition');
-    expect(readFileSync(`${TESTS_DIR}/helpers/router.ts`, 'utf8')).not.toMatch(
-      /v7_startTransition:\s*true/,
-    );
-    expect(ROUTER_FUTURE).toEqual({ v7_relativeSplatPath: true });
+  it('الاختبارات تعمل بنفس أعلام الإنتاج (لا أعلام محلية متفرّقة)', () => {
+    expect(ROUTER_FUTURE).toEqual({ v7_relativeSplatPath: true, v7_startTransition: true });
+    // ولا ملف اختبار يعرّف أعلامًا بنفسه بدل الـ helper المشترك.
+    const offenders = readdirSync(TESTS_DIR)
+      .filter((f) => f.endsWith('.tsx') && f !== 'routerFutureFlags.test.tsx')
+      .filter((f) => /future=\{\{/.test(readFileSync(`${TESTS_DIR}/${f}`, 'utf8')));
+    expect(offenders).toEqual([]);
+  });
+
+  it('لا startTransition يدوي في أي مكان — التفعيل عبر العلم الرسمي وحده', () => {
+    const walk = (dir: string): string[] => {
+      const hits: string[] = [];
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const path = `${dir}/${e.name}`;
+        if (e.isDirectory()) { if (e.name !== '__tests__') hits.push(...walk(path)); continue; }
+        if (!/\.tsx?$/.test(e.name)) continue;
+        // الكود وحده — التعليقات تشرح العلم ولا تُحسب استخدامًا يدويًا له.
+        const code = readFileSync(path, 'utf8')
+          .replace(/\/\*[\s\S]*?\*\//g, '')
+          .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+          .replace(/\/\/.*$/gm, '');
+        if (/React\.startTransition|startTransition\(|useTransition\(/.test(code)) {
+          hits.push(path);
+        }
+      }
+      return hits;
+    };
+    expect(walk('src')).toEqual([]);
   });
 
   it('لم يتغيّر Router ولا الـ Suspense ولا التحميل الكسول', () => {
@@ -127,5 +158,63 @@ describe('لا تنقّل نسبي في المشروع — ولهذا أثر ا�
     };
     walk('src');
     expect(offenders).toEqual([]);
+  });
+});
+
+// ── التنقّل إلى صفحة كسولة مع startTransition مُفعَّلًا ──────────────────────────
+/**
+ * مع `v7_startTransition` تصبح تحديثات التوجيه **غير عاجلة**، فقد يُبقي React الصفحة
+ * الحالية معروضة حتى يجهز الاستيراد الكسول بدل إظهار الـ fallback فورًا.
+ *
+ * لذلك نختبر **النتيجة النهائية** — أن الوجهة تظهر فعلًا — لا لقطةً زمنية عن ظهور
+ * الـ fallback أو غيابه: توقيته صار مسموحًا له بالتغيّر، وتثبيته في اختبار يجعله هشًّا
+ * ويعاند المقصود من العلم.
+ */
+describe('التحميل الكسول مع startTransition', () => {
+  function LazyApp({ resolve }: { resolve: () => void }) {
+    const Heavy = lazy(
+      () =>
+        new Promise<{ default: () => JSX.Element }>((res) => {
+          resolve = () => res({ default: () => <div>الصفحة الثقيلة</div> });
+          heavyResolver = resolve;
+        }),
+    );
+    return (
+      <MemoryRouter future={ROUTER_FUTURE} initialEntries={['/']}>
+        <Suspense fallback={<div>جارٍ التحميل…</div>}>
+          <Routes>
+            <Route path="/" element={<NavToHeavy />} />
+            <Route path="/heavy" element={<Heavy />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </MemoryRouter>
+    );
+  }
+
+  function NavToHeavy() {
+    const navigate = useNavigate();
+    return (
+      <button type="button" onClick={() => navigate('/heavy')}>
+        اذهب إلى الثقيلة
+      </button>
+    );
+  }
+
+  it('التنقّل يكتمل: الصفحة الكسولة تظهر بعد اكتمال استيرادها — بلا صفحة بيضاء ولا حلقة', async () => {
+    render(<LazyApp resolve={() => {}} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'اذهب إلى الثقيلة' }));
+
+    // الاستيراد لم يكتمل بعد: لا نُثبّت هل ظهر الـ fallback أم بقيت الصفحة السابقة —
+    // هذا بالضبط ما يسمح العلم بتغييره. لكن **لا صفحة بيضاء**: شيءٌ ما معروض دائمًا.
+    expect(document.body.textContent?.trim()).not.toBe('');
+
+    heavyResolver!(); // اكتمل الاستيراد الكسول
+
+    // النتيجة النهائية هي المعيار.
+    expect(await screen.findByText('الصفحة الثقيلة')).toBeInTheDocument();
+    expect(screen.queryByText('جارٍ التحميل…')).toBeNull(); // لا يبقى الـ fallback عالقًا
+    expect(screen.queryByRole('button', { name: 'اذهب إلى الثقيلة' })).toBeNull(); // ولا الصفحة السابقة
   });
 });

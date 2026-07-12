@@ -65,18 +65,19 @@ export default function App() {
   useEffect(() => { loadSession(); }, [loadSession]);
 
   /*
-   * v7_relativeSplatPath — بروفة لسلوك React Router v7 في حلّ المسارات النسبية داخل
-   * مسار splat. أثره على هذا المشروع **صفر**: الـ splat الوحيد (`path="*"`) لا يحوي إلا
-   * `<Navigate to="/">` — مسار مطلق — ولا يوجد في المشروع تنقّل نسبي واحد (كل
-   * `navigate`/`Link` يبدأ بـ `/`، وقيم DrillDown وreturnTo كلها مطلقة).
+   * أعلام React Router v7 — بروفة للسلوك الجديد قبل الترقية.
    *
-   * `v7_startTransition` **غير مفعّل عمدًا**: يغلّف تحديثات التوجيه بـ
-   * `React.startTransition`، فيؤجّل React إظهار `<Suspense fallback>` عند التنقّل إلى أي
-   * من الصفحات الـ48 الكسولة — وذلك **تغيير مرئي** في تجربة التحميل، لا يجوز أن يمرّ
-   * ضمن حزمة توافق. له حزمته وفحصه البصري.
+   * v7_relativeSplatPath: أثره على هذا المشروع **صفر** — الـ splat الوحيد (`path="*"`)
+   * لا يحوي إلا `<Navigate to="/">` المطلق، ولا يوجد في المشروع تنقّل نسبي واحد.
+   *
+   * v7_startTransition: يغلّف تحديثات التوجيه بـ `React.startTransition`، فتصبح
+   * **غير عاجلة**. الأثر المرئي: عند التنقّل إلى صفحة كسولة لم تُحمَّل بعد، يُبقي React
+   * الصفحة الحالية معروضة حتى تجهز الجديدة بدل إظهار `<Suspense fallback>` فورًا —
+   * أي أقلّ وميضًا لـ PageLoader. هذا **تغيير UX متوقَّع لا عطل**، وهو سلوك v7 القادم.
+   * لم يُفرَض السلوك القديم، ولم يُمسّ Suspense ولا PageLoader ولا التحميل الكسول.
    */
   return (
-    <HashRouter future={{ v7_relativeSplatPath: true }}>
+    <HashRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
       {/* الفترة المالية العامة — سياق على مستوى التطبيق ينجو من التنقّل بين الصفحات
           (خارج Suspense) ويعاد تهيئته إلى السنة الحالية عند إعادة التشغيل. */}
       <FinancialPeriodProvider>
