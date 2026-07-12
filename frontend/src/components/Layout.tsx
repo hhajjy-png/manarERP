@@ -11,6 +11,7 @@ import almanarLogo from '../assets/almanar-logo.png';
 // نفس الشعار بخلفية شفافة (RGBA) — الأصل بخلفية بيضاء صلبة تظهر كمربّع في الوضع الداكن.
 // نفس النسبة (2.393 مقابل 2.396) ⇒ لا فرق في الارتفاع المحسوب ولا انزياح.
 import almanarLogoDark from '../assets/almanar-logo-dark.png';
+import GlobalSearch from './GlobalSearch';
 import Toast from './Toast';
 import './layout-polish.css';
 import './privacy.css';
@@ -72,7 +73,8 @@ export default function Layout() {
       <div className="main">
         <header className="topbar">
           <button className="icon-btn menu-toggle" onClick={toggleSidebar} aria-label={t('layout.menu')}>☰</button>
-          <div className="search"><input placeholder={t('layout.search')} /></div>
+          {/* كان حقلًا بلا value ولا onChange ولا معالِج — زينة تُوهم بميزة. صار يبحث فعلًا. */}
+          <GlobalSearch />
           <div className="top-actions">
             {/* Privacy Mode toggle — UI-only, hidden in print. Always exactly ONE button. */}
             <span className="pm-ui-only privacy-toggle-strip">

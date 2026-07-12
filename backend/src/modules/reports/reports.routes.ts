@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { reportsService } from './reports.service';
 import { buildExcel } from '../../shared/services/reportEngine/excel.service';
-import { buildPdf } from '../../shared/services/reportEngine/pdf.service';
 import { buildReportHtml } from '../../shared/services/reportEngine/html.service';
 import { loadReportBranding } from '../../shared/services/reportEngine/brandingLoader';
 import { authenticate } from '../../core/middleware/auth.middleware';
@@ -67,10 +66,24 @@ router.get(
     }
 
     if (format === 'pdf') {
-      const buf = await buildPdf(data);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="report-${type}.pdf"`);
-      return res.send(buf);
+      /**
+       * تقاعد PDFKit.
+       *
+       * كان هذا الفرع يبني PDF بـ PDFKit، وهو **لا يشكّل العربية ولا يوصل حروفها**، وكان
+       * يبحث عن خط `Amiri-Regular.ttf` **غير موجود في المستودع أصلًا** — فيسقط إلى
+       * Helvetica بلا محارف عربية. أي أن كل تقرير عربي خرج منه كان معطوبًا.
+       *
+       * ولم تكن الواجهة تستدعيه أبدًا: زرّ «تصدير PDF» يطلب `format=html` ثم يرسم المستند
+       * في نافذة Chromium خفية (`exportPdfFromHtml`) — نفس التقارير، نفس البيانات، وعربية
+       * سليمة. فالمسار الصحيح قائم ويعمل، والقديم كان فخًّا صامتًا.
+       *
+       * نردّ بخطأ صريح بدل أن نُرجع Excel صامتًا (تغيير سلوك خفي) أو ملفًا معطوبًا.
+       */
+      return res.status(400).json({
+        success: false,
+        error:
+          'تصدير PDF من الخادم متوقّف (لا يدعم تشكيل العربية). استخدم format=html ثم تصدير PDF من التطبيق.',
+      });
     }
 
     const buf = await buildExcel(data);

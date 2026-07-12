@@ -112,7 +112,7 @@ Completion % is an **evidence-based estimate** (from tag coverage + route/sideba
 | `statements` | ✅ Stable | 100% | Customer & Supplier statements, shared `buildStatement()` engine, exports |
 | Contract profitability / receivables | ✅ Stable | 100% | `contract-profitability-phase1`, `financial-receivables-phase1` |
 | Purchase-invoice GL (H1) | ✅ Stable | 100% | `postPurchaseInvoiceToGL` + payment posting + reversal + `/invoices/:id/approve` |
-| Payroll → GL double-entry | 🟡 **UNKNOWN** | — | `payroll.accounting.ts` exists; roadmap claims `PAYROLL_EXPENSE 5100` "unused". End-to-end wiring **not verified** — treat as open. |
+| Payroll → GL double-entry | ✅ Stable | 100% | **Verified in code (2026-07-12):** `payroll.service.markPaid()` → `postPayrollToGL()` → `createBalancedJournal()`. Posts on **PAID**, not on approve. The previous "UNKNOWN" verdict was wrong. |
 
 ## Invoices & Expenses — ✅ Production
 `invoices` (edit/delete, force-delete, preview/print, UX phase 2, customer-price filter, cheque-image collection print), `expenses` (enhancement A, attachments, accounting integration). Both ExplorerKit-migrated. **100%.**
@@ -542,46 +542,93 @@ Entire stack **Implemented / Production**. *Confidence: High.*
 | **Skills Engine** | ✅ 6 skills (bank-statement, payroll, reports, expenses, contracts, dashboard) — API-read + local aggregation | more skills; write-actions (AI-5) |
 | **Quality Engine** | ✅ `qualityEngine.ts` — deterministic completeness/warning scoring | — |
 | **Executive Intelligence** | ✅ `ExecutiveDecisionCenter` + intelligence bundle — hardcoded business logic, health score | — |
-| **Integrations** | ✅ `integrations/` (3 real: payroll-bank-import, bank-statement-import, enhanced-excel-import) + 3 planned stubs | Reconciliation Assistant, Cloud Backup, Connector SDK |
-| **OCR** | ❌ none | Phase (Tesseract.js local-first) |
-| **Document AI** | ❌ none | Phase AI-4 (extract→preview→manual confirm) |
-| **LLM Support** | ❌ none | Phase AI-3+ (optional Ollama local / user-supplied cloud key) |
+| **Integrations** | ✅ `integrations/` (3 real: payroll-bank-import, bank-statement-import, enhanced-excel-import) + 2 planned stubs | Reconciliation Assistant, Connector SDK. **Cloud Backup was deleted** — removed from the roadmap; a visible card with no code is a promise that cannot be kept. |
+| **OCR** | ❌ none | **Removed from the roadmap** (2026-07-12) — its UI cards were deleted. |
+| **Document AI** | ❌ none | **Removed from the roadmap** — card deleted. |
+| **LLM Support** | ❌ none | **Removed from the roadmap** — the assistant stays deterministic by decision, not by omission. |
 | **Offline AI** | ✅ this **is** the current model — deterministic, read-only, RBAC-aware, auditable | — |
 
-**Gap vs. architecture doc (Medium):** planned `AIQueryLog` table is **not in the Prisma schema** yet — AI queries are not separately audit-logged (underlying data ops still hit `AuditLog`). Reference: `docs/AI_ASSISTANT_ARCHITECTURE.md`.
+**`AIQueryLog` — moot, not a gap.** The table belonged to the AI phases (AI-3…AI-6) that have since been **removed from the roadmap**. The deterministic assistant runs entirely in the frontend and issues no free-form queries; the underlying data operations are already audited through `AuditLog`. `docs/AI_ASSISTANT_ARCHITECTURE.md` describes an unfunded design — read it as history, not as a plan.
 
 ---
 
 # Remaining Roadmap (genuinely open only)
 
-Completed work is **excluded**. Each item is unbuilt per repository evidence.
+Reconciled against the **code** on 2026-07-12 (Master Release Audit + Core Runtime Completion pack). Items
+proven shipped, and items removed by decision, are listed in the two blocks below the roadmap so they are not
+re-added. Each remaining item is unbuilt per repository evidence.
 
-1. **Approval Workflow — Phase B** — register Expenses/Payroll/Invoices with the live `approvalEngine`. *(High)*
-2. **GL auto-posting from the reconciliation workspace** — manual-confirm per policy; automatic GL write not implemented. *(High)*
-3. **Print Designer 7B (PDF import)** then **7C (Image/OCR import)**. *(High)*
-4. **Cryptographically signed PDF export** — current signature is an image overlay, not a digital signature. *(High)*
-5. **Payroll → GL double-entry wiring** — `payroll.accounting.ts` exists; roadmap says `5100` unused. **Status UNKNOWN — verify before scheduling.** *(Low/UNKNOWN)*
-6. **Integrations — Cloud Backup Connector** — planned stub only. *(High)*
-7. **Data Import Phase 4 — grouped-row engine** (PurchaseOrders/GoodsReceipts/MaterialIssues). *(Medium)*
-8. **Mobile Companion app** — roadmap-only, no code. *(High)*
-9. **AIQueryLog audit table** — designed, not in schema. *(Medium)*
-10. *(Optional/verify)* Audit Log advanced filters/export; advanced print profiles (custom margins); Quotation legacy-mode PDF export; per-document signer policies — **may already be satisfied; confirm exact requirement before listing.** *(Low)*
+> **Deployment model drives priority.** This is a **small local Electron app used by its owner on his own
+> machine** — not a hosted, internet-facing, or multi-tenant system. Enterprise-grade hardening items are
+> **not** priorities here by decision, not by oversight; several were reviewed and declined (see below).
+
+1. **Print Designer 7B (PDF import)** — needs a pdf.js strategy decision first. *(High)*
+2. **Bank Explorer — period opening/closing balance** — fully designed, not built. *(High)*
+3. **Data Import Phase 4 — grouped-row engine** (PurchaseOrders/GoodsReceipts/MaterialIssues). The 7 Prisma
+   models already exist; this is import validators, not domain design. *(Medium)*
+4. **GL auto-posting from the reconciliation workspace** — suggestions only today. **Conflicts with the
+   standing "never auto-post" policy — settle the policy before scheduling.** *(Medium)*
+5. **Per-document signer selection**; Audit Log advanced filters/export; advanced print profiles. *(Medium)*
+6. Historical Import Batch Review (`ImportBatch`); recurring invoices; VAT report; end-of-service accrual. *(Low)*
+7. **AuditLog retention** — *maintenance consideration only.* No purge path exists; harmless for a single-user
+   local deployment. Revisit **only if database growth becomes measurable**. Not a risk, not near-term. *(Low)*
+
+### Reviewed & declined — do not re-add, do not recommend as "next"
+
+- **Float → Decimal monetary migration — Reviewed; current monetary representation retained by explicit
+  project decision** (Claude + ChatGPT). **Not** an active technical-debt priority; do **not** schedule or
+  recommend a migration. Reopen only on **concrete, reproducible accounting inaccuracies** or an explicit
+  owner request.
+- **JWT invalidation / revocation** and **enterprise security hardening** (Electron CSP + `sandbox: true`,
+  bcrypt cost increase) — **not** active priorities for a single-user local application. Reconsider only if
+  the deployment model changes or the owner asks.
+- **Local backup encryption** — *optional future consideration only*, contingent on a change in deployment or
+  threat model. **Not** a committed priority and **not** a recommended next task.
+
+### Proven shipped — removed from this roadmap (do not re-add)
+
+- **Approval Workflow — Phase B.** The engine is now registered for expense/invoice/payroll and the domain
+  services record `ApprovalHistory` via `approvalEngine.recordTransition()`. Approvals are **not** routed
+  through `transition()` — doing so would double-audit and deadlock SQLite, and `invoices.approve()` has no
+  status transition to model. See `approval.registry.ts`.
+- **Payroll → GL double-entry.** ✅ **Implemented** — `payroll.service.markPaid()` → `postPayrollToGL()` →
+  `createBalancedJournal()`. It posts on **PAID**, not on approve. The former "**UNKNOWN**" verdict was wrong.
+- **Document attachments** (`model Attachment` + `/api/attachments` + `AttachmentsPanel`).
+- **AP aging** (`/financial/ap-aging`) — was listed as a "Phase 3 extension".
+- **Profit & Loss report** — implemented in `reports.service`; now reachable from the Financial Center too.
+- **Smart Transaction Presentation Engine v1** (`stable-smart-transaction-presentation-engine-v1`).
+- **Global search** — the top-bar field is now functional (`/api/search`), not decorative.
+- **PDFKit** — retired from the report route (never shaped Arabic; its font was never in the repo; no UI
+  caller). Chromium/HTML export covers the same reports.
+
+### Removed from the roadmap by decision (do not re-add)
+
+- Cloud backup / Google Drive connector · cryptographically signed PDF export · AI local LLM / RAG / OCR /
+  Document AI / free SQL layer (former AI-3…AI-6) · **AIQueryLog** (belonged to the cancelled AI phases) ·
+  Mobile Companion app · any sixth generation of printing.
 
 ---
 
 # Future Vision
 
-*(Architecture-only today — no implementation exists in the repo. Sourced from `docs/AI_ASSISTANT_ARCHITECTURE.md` + Integrations roadmap. Confidence: High that these are unbuilt.)*
+> **Superseded on 2026-07-12.** Most of what this section once described was **removed from the roadmap by
+> decision** — it is not "unbuilt work waiting", it is work that will not be done unless the owner reopens it.
+> Kept only as a record of what was considered and dropped.
 
-- **Document AI** — upload → structure recognition → preview → **manual confirm** → standard API write (never auto-write).
-- **OCR** — Tesseract.js local-first; optional cloud vision (user-configured, never required); raw-text fallback.
-- **Optional LLM** — provider abstraction: Ollama/llama.cpp (local) or OpenAI-compatible/Anthropic (cloud, user key); deterministic remains the built-in fallback; UI must always disclose active mode.
-- **Executive AI** — deeper narrative insight over existing deterministic analytics.
-- **Integrations** — Reconciliation Assistant, Cloud Backup (OneDrive/Google Drive, AES-256), Connector SDK.
+**Removed by decision — do not restore anywhere:**
+- **Document AI · OCR · optional LLM (Ollama / cloud provider) · free SQL layer** — the assistant stays
+  deterministic. Their UI cards, quick-actions and roadmap rows have been deleted from the app.
+- **Cloud Backup (OneDrive / Google Drive)** — explicitly removed; its Integrations card was deleted. No code
+  ever existed; the `feature/google-drive-backup-phase1` branch was abandoned and never merged.
+- **Mobile Companion** — no code, no mobile API, no sync design; not planned.
+
+**Still conceivable, unscheduled:**
+- **Executive AI** — deeper narrative insight over the existing deterministic analytics.
+- **Integrations** — Reconciliation Assistant, Connector SDK.
 - **Analytics** — expanded KPI timelines, trend intelligence.
-- **Mobile Companion** — long-term; no code, no mobile API, no sync design today.
 
-All AI phases remain **read-only until an explicit, separately-approved write phase (AI-5)** and preserve offline-first operation.
+The assistant remains **read-only, offline, and deterministic**. `docs/AI_ASSISTANT_ARCHITECTURE.md` describes
+an unfunded design — read it as history, not as a plan.
 
 ---
 
@@ -636,7 +683,7 @@ Three practiced modes (from CLAUDE.md): **Quick Fix** (CSS/i18n/labels), **Featu
 
 - **High confidence:** all tag data, counts, HEAD/tag identity, "220/220 on production", module/page/model/migration counts, Banking/Printing/AI/ExplorerKit implementation status — all from direct git commands and file reads this session.
 - **Medium confidence:** "superseded" markings (inferred from phased naming); which unmigrated pages *should* migrate; AIQueryLog gap.
-- **UNKNOWN (must verify before acting):** Payroll→GL double-entry wiring status; whether Quotation legacy-mode PDF export and per-document signer policies are already satisfied.
+- **UNKNOWN (must verify before acting):** per-document signer policies. *(Payroll→GL and Quotation PDF export were verified in code on 2026-07-12: Payroll→GL is **implemented** (posts on PAID); Quotation PDF now exports from the document via `exportPdfFromHtml`.)*
 - **No features were invented.** Anything not confirmable from Git/repository is marked UNKNOWN above.
 
 *End of PROJECT_MASTER_STATUS.md — reconstructed from repository evidence on 2026-07-01. Not committed.*

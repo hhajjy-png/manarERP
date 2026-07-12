@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import DateInput from '../components/DateInput';
 import { downloadBlob } from '../utils/exportUtils';
@@ -218,10 +218,21 @@ export default function Reports() {
   const canExport = hasPermission('reports.export');
 
   // Filter state — preserved exactly
-  const [selected, setSelected]       = useState<string>('invoices');
+  const [searchParams] = useSearchParams();
+  /**
+   * ربط عميق: `/reports?type=profit-loss&from=…&to=…`.
+   *
+   * التقارير كلها منفَّذة هنا أصلًا — بما فيها الأرباح والخسائر. المركز المالي كان يعرضها
+   * بطاقة «قريباً» كاذبة؛ صار يفتحها هنا بدل أن يبني تقريرًا ثانيًا. النوع غير المعروف
+   * يُتجاهل ويبقى الافتراضي.
+   */
+  const initialType = searchParams.get('type');
+  const [selected, setSelected]       = useState<string>(
+    initialType && REPORT_TYPES.some((r) => r.key === initialType) ? initialType : 'invoices',
+  );
   // تبدأ من الفترة العالمية (السنة حتى اليوم افتراضيًا) بدل all-time الصامت.
-  const [from, setFrom]               = useState(period.fromDate ?? '');
-  const [to, setTo]                   = useState(period.toDate ?? '');
+  const [from, setFrom]               = useState(searchParams.get('from') ?? period.fromDate ?? '');
+  const [to, setTo]                   = useState(searchParams.get('to') ?? period.toDate ?? '');
   const [customerId, setCustomerId]   = useState('');
   const [employeeId, setEmployeeId]   = useState('');
   const [status, setStatus]           = useState('');

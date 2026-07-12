@@ -1,0 +1,85 @@
+/* البحث الشامل — لوحة النتائج فوق الشريط العلوي.
+   لا تُعاد صياغة `.search` نفسه (شكل الحقل ملك الشريط العلوي): نضيف موضعًا نسبيًا واللوحة. */
+
+.gsx {
+  position: relative;
+}
+
+.gsx-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-start: 0;
+  width: min(460px, 90vw);
+  max-height: 60vh;
+  overflow-y: auto;
+  z-index: 1200; /* فوق الشريط العلوي، تحت الحوارات */
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+}
+
+.gsx-state {
+  padding: 14px 12px;
+  font-size: 0.85rem;
+  color: var(--text-muted, #64748b);
+  text-align: center;
+}
+.gsx-state-error { color: var(--red, #ef4444); }
+
+.gsx-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  cursor: pointer;
+  text-align: start;
+  font: inherit;
+  color: var(--text, #0f172a);
+}
+.gsx-item.active,
+.gsx-item:hover {
+  background: var(--surface-2, #f1f5f9);
+}
+.gsx-item:focus-visible {
+  outline: 2px solid var(--accent, #3b82f6);
+  outline-offset: -2px;
+}
+
+.gsx-icon { font-size: 16px; flex-shrink: 0; }
+
+.gsx-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+.gsx-title {
+  font-size: 0.87rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gsx-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gsx-group {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted, #94a3b8);
+  background: var(--surface-2, #f1f5f9);
+  border-radius: 999px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}

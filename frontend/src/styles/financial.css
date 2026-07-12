@@ -1064,3 +1064,30 @@ html[data-theme="dark"] .aging-table th.sortable:hover { background: var(--surfa
   background: var(--xpl-faint, rgba(99, 102, 241, .10));
   color: var(--xpl-primary, var(--accent, #6366f1));
 }
+
+/* بطاقة تقرير **متاح** — نفس هيئة البطاقة القادمة، لكنها حيّة: حدّ متّصل لا متقطّع،
+   بلا شفافية، ومؤشّر يد. تُبنى كـ <button> لا <div> ليعمل التركيز ولوحة المفاتيح. */
+.financial-center button.future-report-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; text-align: center;
+  padding: 20px 14px;
+  border: 1px solid var(--border, #e2e8f0); border-radius: 14px;
+  background: var(--surface, #fff);
+  opacity: 1; cursor: pointer;
+  font: inherit;
+  transition: var(--transition, all .15s ease);
+}
+.financial-center button.future-report-card:hover {
+  border-color: var(--xpl-primary, var(--accent, #6366f1));
+  box-shadow: 0 4px 14px rgba(15, 23, 42, .08);
+}
+.financial-center button.future-report-card:focus-visible {
+  outline: 2px solid var(--xpl-primary, var(--accent, #6366f1));
+  outline-offset: 2px;
+}
+.financial-center button.future-report-card .future-report-icon { color: var(--xpl-primary, var(--accent, #6366f1)); }
+.financial-center button.future-report-card .future-report-name { color: var(--text, #0f172a); }
+.financial-center .future-report-open {
+  font-size: .72rem; font-weight: 700;
+  color: var(--xpl-primary, var(--accent, #6366f1));
+}

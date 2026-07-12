@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
+import { composeStyledFromNode, getPageSpec } from '../printing';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
 import CurrentStatusBadge from '../components/period/CurrentStatusBadge';
@@ -167,6 +168,8 @@ export default function ExecutiveDecisionCenter() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
   const [pdfBusy, setPdfBusy] = useState(false);
+  /** جذر اللوحة — مصدر الـ PDF. قواعد الطباعة تعيش داخله وتسافر مع النسخة. */
+  const printRootRef = useRef<HTMLDivElement>(null);
   const [pdfMsg, setPdfMsg]   = useState('');
   const [pdfErr, setPdfErr]   = useState('');
   const [activeTab, setActiveTab] = useState<'summary' | 'cards' | 'alerts' | 'timeline' | 'health' | 'recommendations'>('summary');
@@ -185,11 +188,40 @@ export default function ExecutiveDecisionCenter() {
   }, [period.fromDate, period.toDate, period.isAllPeriods]);
 
   async function handleExportPdf() {
-    if (!window.manar?.exportPdf) { setPdfErr('تصدير PDF غير متاح في هذه البيئة'); return; }
+    if (!window.manar?.exportPdf && !window.manar?.exportPdfFromHtml) {
+      setPdfErr('تصدير PDF غير متاح في هذه البيئة');
+      return;
+    }
     setPdfBusy(true); setPdfMsg(''); setPdfErr('');
     try {
       const name = generateExportFileName({ reportName: ReportName.ExecutiveReport, identifier: 'Dashboard', extension: 'pdf' });
-      const result = await window.manar.exportPdf(name);
+      /**
+       * PDF من المستند، لا من النافذة الحيّة.
+       *
+       * `exportPdf` يلتقط نافذة التطبيق، وElectron **يتجاهل `@media print`** في ذلك الالتقاط
+       * — فتُرسم اللوحة بخلفيتها الداكنة كاملةً («الإطار الأسود»). النافذة الخفية في
+       * `exportPdfFromHtml` تحترم `@media print`، فتُطبَّق قواعد الطباعة أعلاه: تظهر نسخة
+       * `.print-only` بكل الأقسام، ويختفي شريط التبويبات، وتتحوّل الرموز إلى ورق أبيض.
+       *
+       * نُركِّب من `.db-page` نفسها — لا من نسخة `.print-only` مباشرةً — لأن قواعد الطباعة
+       * ووسمَ الأنماط يعيشان داخلها، وهي التي تُظهر النسخة عند الطباعة. المحتوى المُصدَّر
+       * هو نفسه تمامًا: الأقسام الخمسة، بلا زيادة ولا نقصان.
+       */
+      const node = printRootRef.current;
+      // `typeof` لا `&&`: الواجهة تُعرّف الدالة كحقل مطلوب، فالفحص المنطقي يراه دائمًا صادقًا.
+      const canExportHtml = typeof window.manar?.exportPdfFromHtml === 'function';
+      const result = canExportHtml && node
+        ? await window.manar!.exportPdfFromHtml(
+            composeStyledFromNode({
+              node,
+              pageSpec: getPageSpec('a4-portrait'),
+              title: 'مركز القرار التنفيذي',
+              lang: 'ar',
+              stripSelectors: ['.no-print'],
+            }),
+            name,
+          )
+        : await window.manar?.exportPdf(name); // بيئة قديمة بلا الجسر — السلوك السابق كما هو
       if (result?.canceled) { return; }
       if (result?.success && result.path) {
         setPdfMsg(`تم الحفظ: ${result.path}`);
@@ -216,7 +248,7 @@ export default function ExecutiveDecisionCenter() {
   const highAlerts = data?.alertsV3.filter(a => a.severity === 'HIGH').length ?? 0;
 
   return (
-    <div className="db-page">
+    <div className="db-page" ref={printRootRef}>
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="db-header no-print">
         <div>
@@ -336,7 +368,23 @@ export default function ExecutiveDecisionCenter() {
         @media print {
           .no-print { display: none !important; }
           .print-only { display: block !important; }
-          .db-page { margin: 0 !important; padding: 16px !important; background: #fff !important; color: #111 !important; }
+          .db-page {
+            margin: 0 !important; padding: 16px !important;
+            background: #fff !important; color: #111 !important;
+
+            /* ── الورق أبيض، فالرموز تتحوّل معه ──
+               اللوحة شجرة داكنة برموزها الخاصة (--db-card: #1f2937 …). الصفحة وحدها كانت
+               تُبيَّض للطباعة، فتبقى البطاقات داكنة فوقها — وهذا مصدر «الإطار الأسود».
+               التحويل هنا داخل @media print وحدها ⇒ **لا أثر على الشاشة إطلاقًا**، ولا
+               تُمسّ dashboard.css ولا أي وحدة أخرى تستعملها. */
+            --db-bg: #ffffff;
+            --db-card: #ffffff;
+            --db-inner: #f8fafc;
+            --db-text: #111827;
+            --db-muted: #475569;
+            --db-border: #cbd5e1;
+            --db-shadow: none;
+          }
         }
         @media screen {
           .print-only { display: none !important; }

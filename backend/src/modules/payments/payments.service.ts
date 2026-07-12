@@ -3,6 +3,7 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { GL_REFERENCE_TYPES } from '../../shared/services/gl.service';
+import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { CorrectCollectionDateInput } from './payments.schema';
 
 /**
@@ -71,12 +72,27 @@ export const paymentsService = {
       throw AppError.badRequest('لا يمكن أن يكون تاريخ التحصيل أقدم من تاريخ إصدار الفاتورة.');
     }
 
-    // TODO(closed-period): لا يوجد نظام إقفال فترات محاسبية في المشروع حاليًا (تحقّق من ذلك).
-    // عند إضافته لاحقًا، يجب رفض التصحيح إذا وقع التاريخ القديم أو الجديد داخل فترة مقفلة.
-
     // معاملة ذرّية: يتحرك تاريخ الدفعة وتاريخ القيد المحاسبي معًا أو لا يتحرك أيٌّ منهما.
     // أي فشل في أي خطوة يُلغي المعاملة بالكامل — لا تحديثات جزئية.
     const updated = await prisma.$transaction(async (tx) => {
+      // ── قفل الفترة المحاسبية ──
+      // هذا المسار **يعيد كتابة تاريخ قيد مُرحَّل** بـ updateMany مباشرةً، فلا يمرّ بـ
+      // createBalancedJournal ولا postEntry — أي أن الحارس المركزي لا يراه. هو المسار
+      // الوحيد في النظام الذي ينقل قيدًا موجودًا عبر الزمن، فيلزمه حارسه الصريح.
+      //
+      // والتحقّق على **التاريخين**: سحبُ دفعة من فترة مقفلة انتهاكٌ للفترة المقفلة تمامًا
+      // كدفعِها إليها. فحص الجديد وحده كان سيسمح بإفراغ فترة مُقفلة من تحصيلاتها.
+      await assertPeriodOpen(tx, oldDate, {
+        operation: 'تصحيح تاريخ التحصيل (التاريخ الحالي)',
+        module: 'payments',
+        entityId: paymentId,
+      });
+      await assertPeriodOpen(tx, newDate, {
+        operation: 'تصحيح تاريخ التحصيل (التاريخ الجديد)',
+        module: 'payments',
+        entityId: paymentId,
+      });
+
       const p = await tx.payment.update({
         where: { id: paymentId },
         data: { date: newDate },

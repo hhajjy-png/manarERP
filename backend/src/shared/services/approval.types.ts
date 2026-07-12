@@ -111,6 +111,27 @@ export interface TransitionInput {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * A transition the DOMAIN SERVICE already performed and is now reporting, for the history
+ * trail. Unlike `TransitionInput`, the statuses are stated rather than derived: the engine
+ * is recording a fact here, not deciding one — so it needs no state machine and no
+ * permission check (the route already enforced one).
+ *
+ * `fromStatus === toStatus` is legitimate: an invoice approval posts to the GL without
+ * moving the invoice's status at all.
+ */
+export interface RecordedTransitionInput {
+  entityType: string;
+  entityId: number;
+  action: string;
+  fromStatus: string;
+  toStatus: string;
+  userId: number | null;
+  comment?: string;
+  reason?: string;
+  metadata?: Record<string, unknown>;
+}
+
 export interface ApprovalHistoryEntry {
   id: number;
   entityType: string;

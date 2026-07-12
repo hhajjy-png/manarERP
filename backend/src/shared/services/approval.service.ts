@@ -6,9 +6,22 @@ import type {
   ApprovalModuleConfig,
   TransitionInput,
   TransitionResult,
+  RecordedTransitionInput,
   ApprovalTransitionEvent,
   ApprovalTransitionListener,
 } from './approval.types';
+
+/**
+ * تحذير بلا تبعية.
+ *
+ * `logger` (Winston) **يُنشئ مجلد السجلات ويفتح ملفاته وقت الاستيراد** — أثرٌ جانبي عند
+ * الاستيراد لا عند الاستخدام. وهذه خدمة مشتركة تستوردها الوحدات المجالية، فسحبُ الـ logger
+ * إليها يجعل كل اختبار يحاكي `fs` ينهار قبل أن يبدأ. التحذير هنا نادر وتشخيصي، فلا يستحق
+ * تلك التبعية.
+ */
+function warn(message: string): void {
+  console.warn(`[approval] ${message}`);
+}
 
 const DEFAULT_AUDIT_LABELS: Record<string, string> = {
   approve: 'اعتماد',
@@ -167,6 +180,57 @@ export class ApprovalEngine {
     }
 
     return result;
+  }
+
+  // ── History Recording (domain-owned transitions) ───────────────────────
+
+  /**
+   * Records a transition that a DOMAIN SERVICE has already performed, into
+   * `ApprovalHistory` — and does nothing else.
+   *
+   * This is the activation path. `transition()` above owns the whole act: it writes the
+   * status, the history AND an AuditLog row, in a transaction it opens itself. The three
+   * domain services (expenses / invoices / payroll) already do all of that — each with its
+   * own guards, its own GL posting and its own `recordAudit` (which captures the request
+   * IP; the engine cannot). Routing them through `transition()` would therefore mean:
+   *   • a second AuditLog row per action (the engine writes one unconditionally), and
+   *   • a nested `$transaction` on SQLite — a single-writer database — i.e. a deadlock.
+   *
+   * So the domain stays the single source of truth and simply *reports* what it did. This
+   * writes ONE row: no status write, no audit, no permission re-check, no side effects.
+   * It runs on the caller's transaction client, so it rolls back with the business change.
+   *
+   * A failure here must never destroy a completed approval, and an unregistered entity
+   * type is a wiring bug, not a user error — both are logged, never thrown.
+   */
+  async recordTransition(
+    input: RecordedTransitionInput,
+    tx: Prisma.TransactionClient,
+  ): Promise<void> {
+    if (!this.configs.has(input.entityType)) {
+      warn(
+        `ApprovalEngine: '${input.entityType}' is not registered — history not recorded. ` +
+          'Add it to approval.registry.ts.',
+      );
+      return;
+    }
+    try {
+      await tx.approvalHistory.create({
+        data: {
+          entityType:   input.entityType,
+          entityId:     input.entityId,
+          action:       input.action,
+          fromStatus:   input.fromStatus,
+          toStatus:     input.toStatus,
+          userId:       input.userId ?? null,
+          comment:      input.comment ?? null,
+          reason:       input.reason ?? null,
+          metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
+        },
+      });
+    } catch (err) {
+      warn(`ApprovalEngine: failed to record ${input.action} history — ${String(err)}`);
+    }
   }
 
   // ── History Query ─────────────────────────────────────────────────────

@@ -67,12 +67,11 @@ const KPI_READY = [
   { icon: '💸', label: 'تحليل المصروفات',      color: 'red',   skill: 'Expense Skill',         prompt: 'اعرض أكبر المصروفات الشهرية' },
 ] as const;
 
+// «قريباً» تعني مخططة فعلًا. المهارات القائمة على نماذج لغوية/OCR/RAG **خارج خارطة الطريق**،
+// فحذفت من هنا: وعدٌ معروض بلا تمويل أسوأ من غياب الوعد.
 const KPI_SOON = [
-  { icon: '📄', label: 'العقود'   },
   { icon: '👥', label: 'العملاء'  },
-  { icon: '📑', label: 'OCR'      },
-  { icon: '🔍', label: 'RAG'      },
-  { icon: '🧠', label: 'Local AI' },
+  { icon: '📈', label: 'الرؤى التنفيذية' },
 ] as const;
 
 const QUICK_ACTIONS: QuickAction[] = [
@@ -84,8 +83,6 @@ const QUICK_ACTIONS: QuickAction[] = [
   { id: 'qa-recon',   icon: '🔗', label: 'فتح مستكشف كشف الحساب',    type: 'navigate', prompt: '',                             route: '/bank-reconciliation',    available: true  },
   { id: 'qa-analyt',  icon: '📈', label: 'فتح تحليلات الرواتب',       type: 'navigate', prompt: '',                             route: '/payroll/bank-analytics', available: true  },
   { id: 'qa-reports', icon: '📋', label: 'فتح مركز التقارير',         type: 'navigate', prompt: '',                             route: '/reports',                available: true  },
-  { id: 'qa-rag',     icon: '🔍', label: 'بحث ذكي في المستندات',       type: 'soon',     prompt: '',                             route: '',                        available: false },
-  { id: 'qa-ocr',     icon: '📑', label: 'استخراج نص OCR',            type: 'soon',     prompt: '',                             route: '',                        available: false },
 ];
 
 const PROMPT_GROUPS = [
@@ -112,10 +109,9 @@ const SKILL_CARDS = [
   { id: 'payroll',        icon: '💰', iconColor: 'green', nameEn: 'Payroll Skill',                 nameAr: 'مهارة تحليل الرواتب',                 desc: 'ملخص الرواتب الشهري، أعلى الرواتب، تتبع التغييرات، اكتشاف الأنماط غير المعتادة',                   status: 'جاهز تجريبياً', statusCls: 'ready'  as const, modules: ['الرواتب', 'الموظفون'],           priority: 'عالية', priorityCls: 'high' as const },
   { id: 'reports',        icon: '📊', iconColor: 'amber', nameEn: 'Reports Skill',                 nameAr: 'مهارة شرح التقارير',                  desc: 'شرح نتائج التقارير بلغة بسيطة، مقارنة الفترات، توليد ملخصات تلقائية للأرقام الرئيسية',              status: 'جاهز تجريبياً', statusCls: 'ready'  as const, modules: ['التقارير', 'لوحة التحكم'],        priority: 'عالية', priorityCls: 'high' as const },
   { id: 'expenses',       icon: '💸', iconColor: 'red',   nameEn: 'Expense Skill',                 nameAr: 'مهارة تحليل المصروفات',               desc: 'أكبر المصروفات، الاتجاهات الشهرية، تحديد المصروفات غير المعتادة، تركيز المورّدين',                   status: 'جاهز تجريبياً', statusCls: 'ready'  as const, modules: ['المصروفات', 'الموردون'],         priority: 'عالية', priorityCls: 'high' as const },
-  { id: 'contracts',      icon: '📄', iconColor: 'gray',  nameEn: 'Contract Skill',                nameAr: 'مهارة تحليل العقود',                  desc: 'العقود النشطة والمنتهية قريباً، القيم الإجمالية، تحليل النشاط الأخير لكل عقد',                       status: 'قريباً',         statusCls: 'soon'   as const, modules: ['العقود', 'العملاء'],              priority: 'متوسطة', priorityCls: 'med'  as const },
+  { id: 'contracts',      icon: '📄', iconColor: 'gray',  nameEn: 'Contract Skill',                nameAr: 'مهارة تحليل العقود',                  desc: 'العقود النشطة والمنتهية قريباً، القيم الإجمالية، تحليل النشاط الأخير لكل عقد',                       status: 'جاهز تجريبياً', statusCls: 'ready'  as const, modules: ['العقود', 'العملاء'],              priority: 'متوسطة', priorityCls: 'med'  as const },
   { id: 'customers',      icon: '👥', iconColor: 'gray',  nameEn: 'Customer Skill',                nameAr: 'مهارة تحليل العملاء',                 desc: 'أرصدة العملاء، سجل الفواتير، أنماط الدفع، العملاء المتأخرون عن السداد',                              status: 'قريباً',         statusCls: 'soon'   as const, modules: ['العملاء', 'الفواتير'],            priority: 'متوسطة', priorityCls: 'med'  as const },
   { id: 'executive',      icon: '📈', iconColor: 'gray',  nameEn: 'Executive Insight Skill',       nameAr: 'مهارة الرؤى التنفيذية',               desc: 'شرح مؤشرات الأداء، أسباب الأرباح والخسائر، إبراز المخاطر والفرص الاستراتيجية',                       status: 'قريباً',         statusCls: 'soon'   as const, modules: ['لوحة التحكم', 'التقارير'],        priority: 'متوسطة', priorityCls: 'med'  as const },
-  { id: 'document-ai',    icon: '📑', iconColor: 'gray',  nameEn: 'Document AI Skill',             nameAr: 'مهارة الذكاء الاصطناعي للوثائق',      desc: 'OCR، استخراج البيانات الهيكلية من المستندات، التحقق من النتائج قبل الحفظ',                             status: 'مستقبلاً',       statusCls: 'future' as const, modules: ['الفواتير', 'العقود'],             priority: 'منخفضة', priorityCls: 'low'  as const },
 ] as const;
 
 const SAFETY_ITEMS = [
@@ -136,15 +132,14 @@ const ARCH_NODES = [
   { label: 'Result',         type: 'result-node'   },
 ] as const;
 
+// خارطة المساعد كما هي فعلًا. مراحل النماذج اللغوية والـ RAG وOCR (AI-3 … AI-6) **رُفعت
+// من خارطة الطريق**، فلا تُعرض كأنها قادمة: عرض مرحلة غير ممولة يجعل الخارطة كلها غير
+// جديرة بالثقة. المساعد يبقى حتميًا: بلا نموذج لغوي، بلا SQL حر، بلا OCR.
 const ROADMAP_ITEMS = [
   { phase: 'AI-1',   name: 'UI Workspace',              desc: 'واجهة العمل الأساسية',                    current: false },
   { phase: 'AI-1.5', name: 'Smart Workspace',           desc: 'سجل، مثبتات، إجراءات سريعة',             current: false },
   { phase: 'AI-2.5', name: 'Professional Skills Engine', desc: 'مهارات مثرّاة — جودة، مصادر، إجراءات',    current: true  },
-  { phase: 'AI-3',   name: 'SELECT-only SQL',           desc: 'طبقة SQL للقراءة فقط',                   current: false },
-  { phase: 'AI-4',   name: 'Local LLM',                 desc: 'نموذج ذكاء اصطناعي محلي',               current: false },
-  { phase: 'AI-5',   name: 'RAG',                       desc: 'استرجاع معزز من الوثائق',               current: false },
-  { phase: 'AI-6',   name: 'Document AI',               desc: 'الذكاء الاصطناعي للوثائق',              current: false },
-  { phase: 'AI-7',   name: 'Executive Insights',        desc: 'رؤى تنفيذية متقدمة',                    current: false },
+  { phase: 'AI-3',   name: 'Executive Insights',        desc: 'رؤى تنفيذية متقدمة',                    current: false },
 ] as const;
 
 const SOURCE_ITEMS = [
@@ -172,11 +167,8 @@ const WHATS_NEW_AVAILABLE = [
 ] as const;
 
 const WHATS_NEW_SOON = [
-  'SQL للقراءة فقط (AI-3)',
-  'نموذج AI محلي (AI-4)',
-  'RAG — استرجاع من المستندات (AI-5)',
-  'ذكاء اصطناعي للوثائق / OCR (AI-6)',
-  'رؤى تنفيذية متقدمة (AI-7)',
+  'مهارة تحليل العملاء',
+  'رؤى تنفيذية متقدمة',
 ] as const;
 
 const SUGGESTED_EMPTY = [
@@ -1123,7 +1115,8 @@ export default function AIAssistant() {
         </div>
         <div className="ai-skills-grid">
           {SKILL_CARDS.map(card => (
-            <div key={card.id} className={`ai-skill-card ${card.statusCls === 'future' ? 'dimmed' : ''}`}>
+            // لم تعد هناك بطاقة بحالة `future` (كانت مهارة الوثائق/OCR وقد رُفعت من الخارطة).
+            <div key={card.id} className="ai-skill-card">
               <div className="ai-skill-top">
                 <div className={`ai-skill-icon-wrap ${card.iconColor}`}>{card.icon}</div>
                 <span className={`ai-skill-status ${card.statusCls}`}>{card.status}</span>

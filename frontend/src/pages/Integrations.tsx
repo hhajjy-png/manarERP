@@ -47,7 +47,6 @@ const HEALTH_ITEMS: { id: string; nameAr: string; icon: string }[] = [
   { id: 'payroll-bank-import',   nameAr: 'استيراد رواتب البنك',     icon: '💰' },
   { id: 'bank-statement-import', nameAr: 'استيراد كشف البنك',       icon: '📊' },
   { id: 'enhanced-excel-import', nameAr: 'استيراد Excel المحسّن',   icon: '📈' },
-  { id: 'cloud-backup',          nameAr: 'النسخ الاحتياطي السحابي', icon: '☁️' },
   { id: 'connector-sdk',         nameAr: 'AI Assistant',            icon: '🤖' },
 ];
 
@@ -83,13 +82,6 @@ function getExtraCardMeta(id: string): ExtraCardMeta {
         entities: ['عملاء', 'موردون', 'موظفون', 'معدات', 'عقود', 'مصروفات', 'أسعار'],
         version:  'v1.0 مستقر',
       };
-    case 'cloud-backup':
-      return {
-        provider:  'OneDrive / Google Drive',
-        encryption: 'AES-256',
-        retention:  'قابل للتخصيص',
-        version:    'مخطط',
-      };
     case 'bank-reconciliation':
       return { version: 'مخطط' };
     case 'connector-sdk':
@@ -106,7 +98,6 @@ function cardIcon(id: string, category: IntegrationCategory): string {
     'payroll-bank-import':    '💰',
     'bank-statement-import':  '📊',
     'bank-reconciliation':    '🔗',
-    'cloud-backup':           '☁️',
     'enhanced-excel-import':  '📈',
     'connector-sdk':          '🔌',
   };
@@ -431,15 +422,6 @@ function IntegrationCardView({
           {extra.entities.map((e) => (
             <span key={e} className="ic-tag entity">{e}</span>
           ))}
-        </div>
-      )}
-
-      {/* Package L — cloud backup extra details */}
-      {card.id === 'cloud-backup' && extra.provider && (
-        <div className="ic-tag-row">
-          <span className="ic-tag">☁ {extra.provider}</span>
-          <span className="ic-tag">🔒 {extra.encryption}</span>
-          <span className="ic-tag">📅 {extra.retention}</span>
         </div>
       )}
 

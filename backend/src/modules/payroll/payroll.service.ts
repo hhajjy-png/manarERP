@@ -7,6 +7,7 @@ import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core
 import { transactionsService } from '../transactions/transactions.service';
 import { postPayrollToGL, resolvePayrollPostingDate } from './payroll.accounting';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
+import { approvalEngine } from '../../shared/services/approval.service';
 import {
   ManualPayrollLineInput,
   PayPayrollInput,
@@ -489,7 +490,23 @@ export class PayrollService {
       if (payroll.status === 'APPROVED') throw AppError.badRequest('الكشف معتمد بالفعل');
       if (payroll.status === 'PAID') throw AppError.badRequest('الكشف مدفوع بالفعل');
       if (payroll.status === 'CANCELLED') throw AppError.badRequest('لا يمكن اعتماد كشف ملغى');
-      return tx.payroll.update({ where: { id }, data: { status: 'APPROVED', approvedAt: new Date(), approvedById: userId } });
+      const approved = await tx.payroll.update({
+        where: { id },
+        data: { status: 'APPROVED', approvedAt: new Date(), approvedById: userId },
+      });
+      // سجلّ الاعتماد — تسجيل فقط، على نفس المعاملة. لا ترحيل هنا (الترحيل عند الصرف).
+      await approvalEngine.recordTransition(
+        {
+          entityType: 'payroll',
+          entityId:   id,
+          action:     'approve',
+          fromStatus: payroll.status,
+          toStatus:   'APPROVED',
+          userId:     userId ?? null,
+        },
+        tx,
+      );
+      return approved;
     });
     await recordAudit({ req, action: 'APPROVE', module: 'payroll', entityId: id });
     return updated;
@@ -564,6 +581,20 @@ export class PayrollService {
 
       // النظام المزدوج: ترحيل قيد يومية GL بعد تحديث paymentMethod
       await postPayrollToGL(tx, id, input.paymentDate);
+
+      // سجلّ الاعتماد — الصرف هو الانتقال الأخير في آلة الحالات. تسجيل فقط.
+      await approvalEngine.recordTransition(
+        {
+          entityType: 'payroll',
+          entityId:   id,
+          action:     'pay',
+          fromStatus: 'APPROVED',
+          toStatus:   'PAID',
+          userId:     userId ?? null,
+          metadata:   { net: paidRecord.netSalary, paymentMethod: input.paymentMethod },
+        },
+        tx,
+      );
 
       return paidRecord;
     });

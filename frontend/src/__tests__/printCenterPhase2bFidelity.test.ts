@@ -319,9 +319,13 @@ describe('Phase 2B — scope discipline', () => {
     const reports = readFileSync('src/pages/Reports.tsx', 'utf8');
     expect(reports).not.toMatch(/from\s+['"][^'"]*\/printing['"]/); // Reports NOT migrated
 
-    // PDFKit is still wired exactly as before — not retired in this phase.
+    // PDFKit has since been retired (Core Runtime Completion pack): it never shaped Arabic,
+    // its Amiri font was never in the repo, and no UI caller ever requested `format=pdf`.
+    // The Chromium/HTML path serves the same reports. The route now answers explicitly
+    // instead of emitting a broken document.
     const routes = readFileSync('../backend/src/modules/reports/reports.routes.ts', 'utf8');
-    expect(routes).toContain('buildPdf');
+    expect(routes).not.toContain('buildPdf');
+    expect(routes).toContain('buildReportHtml'); // المسار السليم قائم كما هو
   });
 
   it('did not add silent printing, batch printing, queues or a Prisma migration', () => {
