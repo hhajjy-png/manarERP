@@ -7,6 +7,7 @@ import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
+import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_HR } from '../printing';
 import SalaryAdvanceTemplate from '../forms/SalaryAdvanceTemplate';
 import { usePrintLogStore } from '../stores/printLogStore';
 import { usePrintDraftStore } from '../stores/printDraftStore';
@@ -80,6 +81,15 @@ export default function SalaryAdvance() {
     return () => window.removeEventListener('beforeprint', handler);
   }, [data, formNumber, addPrintLog, profile]);
 
+  /* معاينة قبل الطباعة — طبقة عرض فوق مسار FormLayout القديم. العلم مطفأ ⇒ لا اعتراض
+     ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
+  const preview = useLegacyFormPreview({
+    enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
+    title: 'طلب سلفة راتب',
+    documentLabel: `طلب سلفة راتب · ${formNumber}`,
+    lang,
+  });
+
   if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!data)
     return (
@@ -90,9 +100,12 @@ export default function SalaryAdvance() {
     );
 
   return (
+    <>
+    {preview.dialog}
     <FormLayout
       formType={FORM_KEY}
       lang={lang}
+      printIntercept={preview.printIntercept}
       ready
       formNumber={formNumber}
       title="طلب سلفة راتب"
@@ -193,5 +206,6 @@ export default function SalaryAdvance() {
         <ConfirmModal message="سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
+    </>
   );
 }
