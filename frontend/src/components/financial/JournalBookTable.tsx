@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import type { JournalBookRow } from '../../types/financial.types';
 import { DrillDownLink } from './DrillDownLink';
 import type { FinancialDrillDownState } from './DrillDownLink';
@@ -51,9 +51,11 @@ export function JournalBookTable({ rows, currentState }: Props) {
           </thead>
           <tbody>
             {rows.map(row => (
-              <>
+              /* عنصر القائمة هو الـ Fragment نفسه (صفّان: القيد وسطوره)، فالمفتاح يخصّه
+                 هو — لا أبناءه. الاختصار `<>` لا يقبل مفتاحًا، فكان المفتاح يوضع على
+                 الـ <tr> بداخله ولا يراه React، ومن هنا تحذير unique key. */
+              <Fragment key={row.id}>
                 <tr
-                  key={row.id}
                   id={`row-${row.id}`}
                   className={`journal-entry-row${expanded.has(row.id) ? ' expanded' : ''}`}
                   onClick={() => toggleRow(row.id)}
@@ -77,7 +79,7 @@ export function JournalBookTable({ rows, currentState }: Props) {
                   <td className="num">{fmt(row.totalCredit)}</td>
                 </tr>
                 {expanded.has(row.id) && (
-                  <tr key={`${row.id}-lines`} className="journal-lines-row">
+                  <tr className="journal-lines-row">
                     <td colSpan={8}>
                       <table className="journal-lines-table">
                         <thead>
@@ -90,8 +92,12 @@ export function JournalBookTable({ rows, currentState }: Props) {
                           </tr>
                         </thead>
                         <tbody>
+                          {/* سطور القيد لا تحمل معرّفًا في عقد الـ API (accountCode/الوصف/
+                              المبالغ فقط)، والقائمة تأتي مرتّبة من الخادم ولا تُرتَّب ولا
+                              تُصفّى ولا يُدرَج فيها شيء في العميل — فالفهرس ثابت هنا. ومع
+                              ذلك نُركّبه مع معرّف القيد ليبقى المفتاح فريدًا ودلاليًا. */}
                           {row.lines.map((line, li) => (
-                            <tr key={li}>
+                            <tr key={`${row.id}-line-${li}`}>
                               <td>{line.accountCode}</td>
                               <td>{line.accountName}</td>
                               <td>{line.description ?? ''}</td>
@@ -104,7 +110,7 @@ export function JournalBookTable({ rows, currentState }: Props) {
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
