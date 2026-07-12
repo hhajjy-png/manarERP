@@ -13,6 +13,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from 'recharts';
+import { CHART_INITIAL_DIMENSION } from '../lib/rechartsDefaults';
 import './BankSalaryAnalytics.css';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -1107,7 +1108,7 @@ export default function BankSalaryAnalytics() {
               <div className="card panel psa-chart-card">
                 <h3 className="psa-chart-title">الرواتب الشهرية</h3>
                 <div className="psa-chart-wrap">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                     <BarChart data={analytics.months} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
@@ -1123,7 +1124,7 @@ export default function BankSalaryAnalytics() {
               <div className="card panel psa-chart-card">
                 <h3 className="psa-chart-title">عدد الموظفين شهرياً</h3>
                 <div className="psa-chart-wrap">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                     <BarChart data={analytics.months.filter((m) => m.employeeCount != null)} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
@@ -1150,7 +1151,7 @@ export default function BankSalaryAnalytics() {
                 <div className="card panel psa-chart-card">
                   <h3 className="psa-chart-title">الفروقات الشهرية</h3>
                   <div className="psa-chart-wrap">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                       <BarChart data={varianceData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                         <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
@@ -1172,7 +1173,7 @@ export default function BankSalaryAnalytics() {
                 <div className="card panel psa-chart-card">
                   <h3 className="psa-chart-title">أعلى 5 موظفين راتباً</h3>
                   <div className="psa-chart-wrap">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                       <BarChart data={analytics.topEmployees.slice(0, 5)} layout="vertical" margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                         <XAxis type="number" tick={{ fontSize: 10 }} />
@@ -1189,7 +1190,7 @@ export default function BankSalaryAnalytics() {
               <div className="card panel psa-chart-card">
                 <h3 className="psa-chart-title">نطاق الرواتب الشهرية</h3>
                 <div className="psa-chart-wrap">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                     <BarChart data={analytics.months.filter((m) => m.highest != null && m.avg != null)} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                       <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
@@ -1219,7 +1220,7 @@ export default function BankSalaryAnalytics() {
                 <div className="card panel psa-chart-card">
                   <h3 className="psa-chart-title">الإجمالي التراكمي</h3>
                   <div className="psa-chart-wrap">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                       <BarChart data={cumulativeData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                         <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />

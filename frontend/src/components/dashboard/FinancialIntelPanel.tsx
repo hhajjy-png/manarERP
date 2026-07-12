@@ -2,6 +2,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from 'recharts';
+import { CHART_INITIAL_DIMENSION } from '../../lib/rechartsDefaults';
 import { Skeleton } from './Skeleton';
 import { money } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
@@ -111,7 +112,7 @@ function CollectionChart({ data, loading }: { data: TrendPoint[]; loading: boole
   const safe = data.filter((d) => Number.isFinite(d.collected));
   return (
     <div style={{ height: 220 }}>
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
         <BarChart data={safe} barCategoryGap="32%">
           <defs>
             <linearGradient id="gradCollect" x1="0" y1="0" x2="0" y2="1">

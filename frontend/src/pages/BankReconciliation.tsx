@@ -8,6 +8,7 @@ import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts';
+import { CHART_INITIAL_DIMENSION } from '../lib/rechartsDefaults';
 import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
@@ -899,7 +900,7 @@ function ExplorerCharts({ workspace }: { workspace: ReconciliationWorkspace }) {
         <div className="card recon-chart-card">
           <p className="recon-chart-title">توزيع أنواع المعاملات</p>
           <div className="recon-chart-wrap">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
               <PieChart>
                 <Pie
                   data={categoryData}
@@ -933,7 +934,7 @@ function ExplorerCharts({ workspace }: { workspace: ReconciliationWorkspace }) {
           <p className="recon-chart-title">المدين والدائن الشهري (الصفحة الحالية)</p>
           <div className="recon-chart-wrap">
             {monthlyData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                 <BarChart
                   data={monthlyData}
                   margin={{ top: 4, right: 4, left: -16, bottom: 40 }}
