@@ -77,6 +77,30 @@ function isValidTemplate(t: unknown): t is ChequeTemplate {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
+/**
+ * هل الاستجابة هندسةُ معايرة فعلًا؟
+ *
+ * يفحص **الشكل** كما يعلنه `CalibrationGeometry`: كائن (لا مصفوفة، لا null) بحقوله
+ * الستة أعدادًا **منتهية**، وأبعاده موجبة. لا يُصلح كائنًا ناقصًا ولا يحوّل نصًّا إلى
+ * رقم — عقد الخادم عددي صراحةً؛ ما لا يطابقه يُرفَض كاملًا، فتبقى `DEFAULT_GEOMETRY`.
+ */
+const GEOMETRY_SIZES = ['pageWidthMm', 'pageHeightMm', 'chequeWidthMm', 'chequeHeightMm'] as const;
+const GEOMETRY_OFFSETS = ['offsetXMm', 'offsetYMm'] as const;
+
+function isCalibrationGeometry(value: unknown): value is CalibrationGeometry {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const g = value as Record<string, unknown>;
+  // الأبعاد: أعداد منتهية وموجبة (بُعد صفري أو سالب لا يصف ورقة).
+  for (const key of GEOMETRY_SIZES) {
+    if (typeof g[key] !== 'number' || !Number.isFinite(g[key]) || (g[key] as number) <= 0) return false;
+  }
+  // الإزاحات: أعداد منتهية (الصفر والسالب مشروعان — الإزاحة قد تكون في أي اتجاه).
+  for (const key of GEOMETRY_OFFSETS) {
+    if (typeof g[key] !== 'number' || !Number.isFinite(g[key])) return false;
+  }
+  return true;
+}
+
 export default function ChequeCalibrator({
   banks,
   initialBank,
@@ -307,11 +331,14 @@ export default function ChequeCalibrator({
     api
       .get('/cheques/calibration-geometry')
       .then((res) => {
-        const g = res.data?.data as CalibrationGeometry | undefined;
-        if (g) {
-          setGeometry(g);
-          setGeomDraft(g);
-        }
+        const g: unknown = res.data?.data;
+        // حارس **شكل**، لا حارس صدق. `if (g)` القديم كان يقبل أي قيمة صادقة — ومنها
+        // `[]` — فتدخل الحالةَ هندسةٌ بلا حقول، وتقرأ معادلات chequeGeometry منها
+        // `undefined` فتُنتج NaN يصل إلى إحداثيات SVG في ورقة المعايرة. الرفض هنا،
+        // عند حدّ قبول الاستجابة — لا عند الرسم.
+        if (!isCalibrationGeometry(g)) return; // استجابة مشوّهة ⇒ نُبقي الهندسة الآمنة
+        setGeometry(g);
+        setGeomDraft(g);
       })
       .catch(() => {
         /* keep DEFAULT_GEOMETRY */
