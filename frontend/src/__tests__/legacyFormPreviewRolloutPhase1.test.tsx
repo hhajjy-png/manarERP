@@ -71,7 +71,14 @@ afterEach(() => {
 });
 
 /** نموذج تجريبي يستخدم نفس الخطّاف ونفس FormLayout الحقيقيين. */
-function Harness({ group }: { group: typeof PRINT_PREVIEW_LEGACY_FORMS_HR | typeof PRINT_PREVIEW_LEGACY_FORMS_FINANCE }) {
+function Harness({
+  group,
+  ready = false,
+}: {
+  group: typeof PRINT_PREVIEW_LEGACY_FORMS_HR | typeof PRINT_PREVIEW_LEGACY_FORMS_FINANCE;
+  /** ثمانية نماذج تطبع تلقائيًا عند الجاهزية — هذا هو المسار الذي كان يتجاوز المعاينة. */
+  ready?: boolean;
+}) {
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(group),
     title: 'شهادة راتب',
@@ -84,7 +91,7 @@ function Harness({ group }: { group: typeof PRINT_PREVIEW_LEGACY_FORMS_HR | type
       <FormLayout
         formType="salary-certificate"
         lang="ar"
-        ready={false}
+        ready={ready}
         formNumber="F-2026-001"
         title="شهادة راتب"
         profile="plain-a4"
@@ -301,5 +308,87 @@ describe('الانحدار — لا شيء خارج النطاق تغيّر', ()
     const preload = readFileSync('../electron/preload.ts', 'utf8');
     expect(preload).toContain("ipcRenderer.invoke('print:submit'");
     expect(preload).not.toContain('LEGACY_FORMS');
+  });
+});
+
+// ── الطباعة التلقائية عند فتح النموذج ───────────────────────────────────────────
+describe('auto-print عند الجاهزية', () => {
+  it('العلم OFF: تطبع مباشرة كما كانت — ولا تظهر معاينة', async () => {
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
+    render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} ready />);
+    // المسار القديم للطباعة التلقائية هو printCurrentView() ⇒ window.print().
+    await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1), { timeout: 4000 });
+    expect(dialogOpen()).toBe(false);
+    printSpy.mockRestore();
+  });
+
+  it('العلم ON: تفتح المعاينة تلقائيًا — ولا حوار طباعة ولا printSubmit', async () => {
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, true);
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
+
+    render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} ready />);
+    await waitFor(() => expect(dialogOpen()).toBe(true), { timeout: 4000 });
+
+    // ← جوهر العطل: لم يعد حوار Electron يظهر فوق المعاينة.
+    expect(printSpy).not.toHaveBeenCalled();
+    expect(printSubmit).not.toHaveBeenCalled();
+    printSpy.mockRestore();
+  });
+
+  it('العلم ON: «طباعة» داخل المعاينة تفوّض إلى doPrint مرة واحدة بنفس الإعدادات', async () => {
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, true);
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
+    render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} ready />);
+    await waitFor(() => expect(dialogOpen()).toBe(true), { timeout: 4000 });
+
+    fireEvent.click(previewPrintBtn());
+    await waitFor(() => expect(printSubmit).toHaveBeenCalledTimes(1), { timeout: 4000 });
+    const job = printSubmit.mock.calls[0][0];
+    expect(job.docType).toBe('form');
+    expect(job.documentId).toBe('F-2026-001');
+    expect(job.copies).toBe(1);
+  });
+
+  it('العلم ON: الإغلاق لا يطبع', async () => {
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, true);
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
+    render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} ready />);
+    await waitFor(() => expect(dialogOpen()).toBe(true), { timeout: 4000 });
+    fireEvent.click(pcBtn('إغلاق'));
+    expect(dialogOpen()).toBe(false);
+    expect(printSubmit).not.toHaveBeenCalled();
+  });
+
+  it('تزامن auto-print مع نقرة يدوية: نافذة واحدة وطباعة واحدة', async () => {
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, true);
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
+    render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} ready />);
+    await waitFor(() => expect(dialogOpen()).toBe(true), { timeout: 4000 });
+
+    fireEvent.click(printBtn()); // نقرة يدوية والمعاينة مفتوحة أصلًا
+    expect(document.querySelectorAll('.pc-scrim')).toHaveLength(1); // نافذة واحدة
+
+    fireEvent.click(previewPrintBtn());
+    await waitFor(() => expect(printSubmit).toHaveBeenCalledTimes(1), { timeout: 4000 });
+    expect(printSubmit).toHaveBeenCalledTimes(1); // عملية واحدة، بلا نداء مكرر
+  });
+
+  it('النماذج بلا auto-print (ready=false) لم يتغيّر سلوكها', async () => {
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, true);
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_FINANCE, true);
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
+    render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_FINANCE} />);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(dialogOpen()).toBe(false); // لا معاينة تلقائية
+    expect(printSpy).not.toHaveBeenCalled(); // ولا طباعة تلقائية
+    printSpy.mockRestore();
+  });
+
+  it('auto-print يعيد استخدام نفس الاعتراض — لا بوابة ثانية ولا نسخة من doPrint', () => {
+    expect(flCode).toContain('intercept({ proceed: doPrint, node: formPageRef.current })');
+    expect(flCode).toContain('printCurrentView();'); // المسار القديم باقٍ حين لا اعتراض
+    expect((flCode.match(/waitForPrintReady\(\)/g) ?? []).length).toBe(1); // دورة جاهزية واحدة
+    expect((flCode.match(/submitPrintJob\(/g) ?? []).length).toBe(1); // منفّذ طباعة واحد
   });
 });

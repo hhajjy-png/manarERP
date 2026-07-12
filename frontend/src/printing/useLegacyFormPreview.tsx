@@ -56,14 +56,27 @@ export function useLegacyFormPreview({
    */
   const proceedRef = useRef<(() => void) | null>(null);
 
+  /** المعاينة مفتوحة الآن؟ ref متزامن — الحالة وحدها تتأخّر دورة رسم. */
+  const openRef = useRef(false);
+
   const printIntercept = useCallback(
     ({ proceed, node: printedNode }: { proceed: () => void; node: HTMLElement | null }) => {
+      // طلب ثانٍ والمعاينة مفتوحة أصلًا (الطباعة التلقائية عند الفتح تتزامن مع نقرة
+      // يدوية مثلًا) ⇒ يُتجاهل: نافذة واحدة، ونداء طباعة واحد، ولا استبدال للنداء
+      // المحفوظ. الحارس متزامن، فلا يمرّ طلبان في نفس الدورة.
+      if (openRef.current) return;
+      openRef.current = true;
       proceedRef.current = proceed;
       setNode(printedNode);
       setOpen(true); // فتح فقط — لا طباعة هنا
     },
     [],
   );
+
+  const close = useCallback(() => {
+    openRef.current = false;
+    setOpen(false);
+  }, []);
 
   /**
    * مُركِّب واحد لكل النماذج: هي متجانسة فعلًا (`FormLayout` واحد، `.form-page` واحدة،
@@ -95,7 +108,7 @@ export function useLegacyFormPreview({
     dialog: enabled ? (
       <PrintPreviewDialog
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={close}
         compose={compose}
         onPrint={onPrint}
         documentLabel={documentLabel}
