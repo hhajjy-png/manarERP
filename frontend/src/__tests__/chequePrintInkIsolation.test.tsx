@@ -17,6 +17,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { flushAsyncUpdates } from './helpers/flush';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../api/client', () => ({
@@ -117,6 +118,7 @@ describe('cheque print ink isolation', () => {
     const btn = screen.getByRole('button', { name: /اختبار المعايرة/ });
     fireEvent.click(btn);
     fireEvent.click(btn); // duplicate click while printing → ignored
+    await flushAsyncUpdates();
 
     expect(printCurrentView).toHaveBeenCalledTimes(1);
     expect(api.post).not.toHaveBeenCalled();

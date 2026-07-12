@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { flushAsyncUpdates } from './helpers/flush';
 import { readFileSync } from 'node:fs';
 import {
   PrintPreviewDialog,
@@ -132,7 +133,8 @@ describe('Universal Print Preview — مستند المعاينة', () => {
 
 // ── سلوك نافذة المعاينة ─────────────────────────────────────────────────────────
 describe('Universal Print Preview — النافذة', () => {
-  const setup = (onPrint = vi.fn(), onClose = vi.fn()) => {
+  /** يُصيّر الحوار ثم ينتظر ما ينتظره فعلًا: تحميل الـ iframe وإطار الرسم التالي. */
+  const setup = async (onPrint = vi.fn(), onClose = vi.fn()) => {
     render(
       <PrintPreviewDialog
         open
@@ -142,11 +144,12 @@ describe('Universal Print Preview — النافذة', () => {
         documentLabel="فاتورة · INV-1"
       />,
     );
+    await flushAsyncUpdates();
     return { onPrint, onClose };
   };
 
-  it('تعرض المستند داخل iframe (نفس أصل التطبيق) — لا PDF ولا نافذة مخفية', () => {
-    setup();
+  it('تعرض المستند داخل iframe (نفس أصل التطبيق) — لا PDF ولا نافذة مخفية', async () => {
+    await setup();
     const frame = document.querySelector('iframe');
     expect(frame).not.toBeNull();
     expect(frame!.getAttribute('srcdoc')).toContain('مستند');
@@ -154,28 +157,32 @@ describe('Universal Print Preview — النافذة', () => {
   });
 
   it('زر «طباعة» يغلق المعاينة ثم يستدعي مسار الصفحة مرة واحدة', async () => {
-    const { onPrint, onClose } = setup();
+    const { onPrint, onClose } = await setup();
     fireEvent.click(screen.getByRole('button', { name: 'طباعة' }));
 
     // الإغلاق أولًا — وإلا ظهرت النافذة نفسها في الورقة.
     expect(onClose).toHaveBeenCalledTimes(1);
 
+    // التفويض يقع في إطار الرسم التالي (سلوك إنتاجي مقصود) — ننتظره، لا نُلغيه.
+    await flushAsyncUpdates();
     await vi.waitFor(() => expect(onPrint).toHaveBeenCalledTimes(1));
     expect(onPrint).toHaveBeenCalledTimes(1);
   });
 
   it('النقر المزدوج السريع لا ينتج طباعتين', async () => {
-    const { onPrint } = setup();
+    const { onPrint } = await setup();
     const btn = screen.getByRole('button', { name: 'طباعة' });
     fireEvent.click(btn);
     fireEvent.click(btn); // فورًا
+    await flushAsyncUpdates();
     await vi.waitFor(() => expect(onPrint).toHaveBeenCalledTimes(1));
     expect(onPrint).toHaveBeenCalledTimes(1);
   });
 
-  it('الإغلاق لا يطبع', () => {
-    const { onPrint, onClose } = setup();
+  it('الإغلاق لا يطبع', async () => {
+    const { onPrint, onClose } = await setup();
     fireEvent.click(screen.getByRole('button', { name: 'إغلاق' }));
+    await flushAsyncUpdates();
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onPrint).not.toHaveBeenCalled();
   });

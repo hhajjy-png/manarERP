@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { flushAsyncUpdates } from './helpers/flush';
 import { readFileSync } from 'node:fs';
 import { PrintPreviewDialog, isFlagEnabled, PRINT_CENTER_PHASE2_QUOTATION } from '../printing';
 
@@ -240,7 +241,7 @@ describe('شريط الإجراءات — الترتيب والحجم', () => {
 
 // ── تحسينات المعاينة ─────────────────────────────────────────────────────────────
 describe('نافذة المعاينة — التحسينات', () => {
-  const setup = (onPrint = vi.fn(), onClose = vi.fn()) => {
+  const setup = async (onPrint = vi.fn(), onClose = vi.fn()) => {
     render(
       <PrintPreviewDialog
         open
@@ -250,16 +251,17 @@ describe('نافذة المعاينة — التحسينات', () => {
         documentLabel="فاتورة · INV-1"
       />,
     );
+    await flushAsyncUpdates();
     return { onPrint, onClose };
   };
 
-  it('Fit Width هو الوضع الافتراضي', () => {
-    setup();
+  it('Fit Width هو الوضع الافتراضي', async () => {
+    await setup();
     expect(screen.getByRole('button', { name: /ملاءمة العرض/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('Fit Page موجود ويستخدم حسابًا مستقلًا (أصغر النسبتين) لا نسبة ثابتة', () => {
-    setup();
+  it('Fit Page موجود ويستخدم حسابًا مستقلًا (أصغر النسبتين) لا نسبة ثابتة', async () => {
+    await setup();
     expect(screen.getByRole('button', { name: /ملاءمة الصفحة/ })).toBeInTheDocument();
     const c = code(dialogSrc);
     expect(c).toContain('Math.min(availW / pageWpx, availH / pageHpx)'); // Fit Page
@@ -267,8 +269,8 @@ describe('نافذة المعاينة — التحسينات', () => {
     expect(c).toContain('ResizeObserver'); // يُعاد الحساب عند تغيير الحجم
   });
 
-  it('كل نسب التكبير معروضة', () => {
-    setup();
+  it('كل نسب التكبير معروضة', async () => {
+    await setup();
     for (const p of ['25%', '50%', '75%', '100%', '125%', '150%', '200%']) {
       expect(screen.getByRole('option', { name: p })).toBeInTheDocument();
     }
@@ -298,31 +300,33 @@ describe('نافذة المعاينة — التحسينات', () => {
     expect(c).toContain('document.body.style.overflow = prev');
   });
 
-  it('عدد الصفحات تقديري ولا أزرار تنقّل وهمية', () => {
-    setup();
+  it('عدد الصفحات تقديري ولا أزرار تنقّل وهمية', async () => {
+    await setup();
     expect(screen.getAllByText(/الصفحات التقديرية/).length).toBeGreaterThan(0);
     expect(screen.queryByLabelText('الصفحة التالية')).toBeNull();
     expect(screen.queryByLabelText('الصفحة السابقة')).toBeNull();
   });
 
   it('زر «طباعة» يغلق المعاينة ثم يستدعي callback مرة واحدة', async () => {
-    const { onPrint, onClose } = setup();
+    const { onPrint, onClose } = await setup();
     fireEvent.click(screen.getByRole('button', { name: 'طباعة' }));
     expect(onClose).toHaveBeenCalledTimes(1); // الإغلاق أولًا
+    await flushAsyncUpdates(); // التفويض يقع في إطار الرسم التالي — ننتظره
     await vi.waitFor(() => expect(onPrint).toHaveBeenCalledTimes(1));
   });
 
   it('النقر المزدوج لا ينفّذ عمليتين', async () => {
-    const { onPrint } = setup();
+    const { onPrint } = await setup();
     const btn = screen.getByRole('button', { name: 'طباعة' });
     fireEvent.click(btn);
     fireEvent.click(btn);
+    await flushAsyncUpdates();
     await vi.waitFor(() => expect(onPrint).toHaveBeenCalledTimes(1));
     expect(onPrint).toHaveBeenCalledTimes(1);
   });
 
-  it('الإغلاق لا يطبع', () => {
-    const { onPrint, onClose } = setup();
+  it('الإغلاق لا يطبع', async () => {
+    const { onPrint, onClose } = await setup();
     fireEvent.click(screen.getByRole('button', { name: 'إغلاق' }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onPrint).not.toHaveBeenCalled();

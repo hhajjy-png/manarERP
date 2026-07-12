@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { flushAsyncUpdates } from './helpers/flush';
 import { readFileSync } from 'node:fs';
 import { PrintPreviewDialog } from '../printing';
 
@@ -50,7 +51,7 @@ afterEach(() => {
   }
 });
 
-function open() {
+async function open() {
   render(
     <PrintPreviewDialog
       open
@@ -60,6 +61,7 @@ function open() {
       documentLabel="فاتورة · INV-2026-001"
     />,
   );
+  await flushAsyncUpdates(); // تحميل الـ iframe يقع بعد render (jsdom يؤجّله)
 }
 
 const sheet = () => document.querySelector('.pc-sheet') as HTMLElement;
@@ -69,36 +71,36 @@ const sheetBox = () => ({ w: px(sheet().style.width), h: px(sheet().style.height
 const pad = () => (canvasSize.w < 900 ? PAD_NARROW : PAD_WIDE);
 
 describe('Fit Width — يحسب عرض الصفحة فعلًا', () => {
-  it('عرض الورقة = العرض المتاح كاملًا (لا نسبة ثابتة)', () => {
-    open();
+  it('عرض الورقة = العرض المتاح كاملًا (لا نسبة ثابتة)', async () => {
+    await open();
     const avail = canvasSize.w - pad() * 2; // 1200 − 112 = 1088
     expect(sheetBox().w).toBeCloseTo(avail, 0);
   });
 
-  it('نسبة A4 محفوظة — لا تشويه', () => {
-    open();
+  it('نسبة A4 محفوظة — لا تشويه', async () => {
+    await open();
     const { w, h } = sheetBox();
     expect(h / w).toBeCloseTo(A4_RATIO, 2);
   });
 
-  it('هو الوضع الافتراضي', () => {
-    open();
+  it('هو الوضع الافتراضي', async () => {
+    await open();
     expect(screen.getByRole('button', { name: /ملاءمة العرض/ })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
   });
 
-  it('لا شريط تمرير أفقي: الورقة + الحشوتان ≤ عرض الـ canvas', () => {
-    open();
+  it('لا شريط تمرير أفقي: الورقة + الحشوتان ≤ عرض الـ canvas', async () => {
+    await open();
     expect(sheetBox().w + pad() * 2).toBeLessThanOrEqual(canvasSize.w);
     // ومسار الشريط الرأسي محجوز دائمًا، فالعرض المقيس لا يتذبذب بين ظهوره واختفائه.
     expect(CSS).toMatch(/\.pc-canvas\s*\{[\s\S]*?scrollbar-gutter:\s*stable/);
   });
 
-  it('نافذة أضيق ⇒ ورقة أضيق — القيمة محسوبة لا محفوظة', () => {
+  it('نافذة أضيق ⇒ ورقة أضيق — القيمة محسوبة لا محفوظة', async () => {
     canvasSize = { w: 700, h: 800 };
-    open();
+    await open();
     expect(sheetBox().w).toBeCloseTo(700 - PAD_NARROW * 2, 0);
   });
 });
@@ -106,16 +108,16 @@ describe('Fit Width — يحسب عرض الصفحة فعلًا', () => {
 describe('Fit Page — معادلة مستقلة (البُعدان)', () => {
   const fitPage = () => fireEvent.click(screen.getByRole('button', { name: /ملاءمة الصفحة/ }));
 
-  it('الصفحة كاملة داخل مساحة العرض: العرض والارتفاع معًا', () => {
-    open();
+  it('الصفحة كاملة داخل مساحة العرض: العرض والارتفاع معًا', async () => {
+    await open();
     fitPage();
     const { w, h } = sheetBox();
     expect(w).toBeLessThanOrEqual(canvasSize.w - pad() * 2 + 1);
     expect(h).toBeLessThanOrEqual(canvasSize.h - pad() * 2 + 1); // ← القيد الذي يميّزه
   });
 
-  it('يختلف عن Fit Width حين يكون الارتفاع هو القيد', () => {
-    open();
+  it('يختلف عن Fit Width حين يكون الارتفاع هو القيد', async () => {
+    await open();
     const width = sheetBox();
     fitPage();
     const page = sheetBox();
@@ -124,8 +126,8 @@ describe('Fit Page — معادلة مستقلة (البُعدان)', () => {
     expect(page.h).toBeCloseTo(canvasSize.h - pad() * 2, 0);
   });
 
-  it('نسبة A4 محفوظة — لا تشويه', () => {
-    open();
+  it('نسبة A4 محفوظة — لا تشويه', async () => {
+    await open();
     fitPage();
     const { w, h } = sheetBox();
     expect(h / w).toBeCloseTo(A4_RATIO, 2);
@@ -133,16 +135,16 @@ describe('Fit Page — معادلة مستقلة (البُعدان)', () => {
 });
 
 describe('نسب التكبير حقيقية', () => {
-  it('100% = مقاس A4 الفعلي عند 96dpi (794×1123px)', () => {
-    open();
+  it('100% = مقاس A4 الفعلي عند 96dpi (794×1123px)', async () => {
+    await open();
     fireEvent.change(screen.getByLabelText('مستوى التكبير'), { target: { value: '1' } });
     const { w, h } = sheetBox();
     expect(w).toBeCloseTo(PAGE_W, 0);
     expect(h).toBeCloseTo(PAGE_H, 0);
   });
 
-  it('كل نسبة تُنتج مقاسًا = مقاس الورقة × النسبة (لا مقاسات قديمة عالقة)', () => {
-    open();
+  it('كل نسبة تُنتج مقاسًا = مقاس الورقة × النسبة (لا مقاسات قديمة عالقة)', async () => {
+    await open();
     const select = screen.getByLabelText('مستوى التكبير');
     for (const z of [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2]) {
       fireEvent.change(select, { target: { value: String(z) } });
@@ -152,16 +154,16 @@ describe('نسب التكبير حقيقية', () => {
     }
   });
 
-  it('عند 25% تبقى ورقة — لا «مستطيل أبيض طويل»', () => {
-    open();
+  it('عند 25% تبقى ورقة — لا «مستطيل أبيض طويل»', async () => {
+    await open();
     fireEvent.change(screen.getByLabelText('مستوى التكبير'), { target: { value: '0.25' } });
     const { w, h } = sheetBox();
     expect(h / w).toBeCloseTo(A4_RATIO, 2); // ← الانحدار: كانت النسبة تنفجر إلى ‎5.7
     expect(h).toBeLessThan(PAGE_H); // ولا ترث ارتفاع الـ iframe غير المقيَّس
   });
 
-  it('صندوق الورقة مقيس في البُعدين — لا minHeight ولا اعتماد على أثر transform', () => {
-    open();
+  it('صندوق الورقة مقيس في البُعدين — لا minHeight ولا اعتماد على أثر transform', async () => {
+    await open();
     expect(sheet().style.height).not.toBe('');
     expect(sheet().style.minHeight).toBe('');
     // والـ iframe خارج التدفّق، فمقاسه الأصلي لا يمدّ الورقة.
@@ -169,15 +171,15 @@ describe('نسب التكبير حقيقية', () => {
     expect(CSS).toMatch(/\.pc-sheet\s*\{[\s\S]*?overflow:\s*hidden/);
   });
 
-  it('الـ iframe يرسم دائمًا بمقاس A4 الحقيقي ويُقيَّس بصريًا فقط', () => {
-    open();
+  it('الـ iframe يرسم دائمًا بمقاس A4 الحقيقي ويُقيَّس بصريًا فقط', async () => {
+    await open();
     fireEvent.change(screen.getByLabelText('مستوى التكبير'), { target: { value: '0.5' } });
     expect(px(frame().style.width)).toBeCloseTo(PAGE_W, 0); // لا يتغيّر
     expect(frame().style.transform).toBe('scale(0.5)');
   });
 
-  it('التكبير خطوة بخطوة يبدأ من النسبة المعروضة فعلًا — لا قفزة', () => {
-    open(); // Fit Width عند 1200px ⇒ ‎1088/794 ≈ 1.37
+  it('التكبير خطوة بخطوة يبدأ من النسبة المعروضة فعلًا — لا قفزة', async () => {
+    await open(); // Fit Width عند 1200px ⇒ ‎1088/794 ≈ 1.37
     const shown = () => sheetBox().w / PAGE_W;
     expect(shown()).toBeGreaterThan(1.25);
     fireEvent.click(screen.getByRole('button', { name: 'تصغير' }));
@@ -188,8 +190,8 @@ describe('نسب التكبير حقيقية', () => {
 });
 
 describe('إعادة الحساب عند تغيير الحجم', () => {
-  it('تغيّر حجم النافذة يعيد حساب Fit Width فورًا', () => {
-    open();
+  it('تغيّر حجم النافذة يعيد حساب Fit Width فورًا', async () => {
+    await open();
     const before = sheetBox().w;
     canvasSize = { w: 1600, h: 900 };
     act(() => {
@@ -206,8 +208,8 @@ describe('إعادة الحساب عند تغيير الحجم', () => {
     expect(src).toContain('ro.observe(el)');
   });
 
-  it('نسبة ثابتة لا تتأثر بتغيّر الحجم', () => {
-    open();
+  it('نسبة ثابتة لا تتأثر بتغيّر الحجم', async () => {
+    await open();
     fireEvent.change(screen.getByLabelText('مستوى التكبير'), { target: { value: '0.5' } });
     canvasSize = { w: 1600, h: 900 };
     act(() => window.dispatchEvent(new Event('resize')));
@@ -243,8 +245,8 @@ describe('Canvas والتمرير والتوسيط', () => {
 });
 
 describe('شريط الأدوات والتذييل', () => {
-  it('الترتيب: إغلاق · تصغير · النسبة · تكبير · ملاءمة العرض · ملاءمة الصفحة · الصفحات · طباعة', () => {
-    open();
+  it('الترتيب: إغلاق · تصغير · النسبة · تكبير · ملاءمة العرض · ملاءمة الصفحة · الصفحات · طباعة', async () => {
+    await open();
     const bar = document.querySelector('.pc-toolbar') as HTMLElement;
     const labels = [...bar.querySelectorAll('button, select, .pc-pages')].map(
       (el) => el.getAttribute('aria-label') ?? el.textContent?.trim() ?? '',
@@ -259,8 +261,8 @@ describe('شريط الأدوات والتذييل', () => {
     expect(print).toBeGreaterThan(pages); // الطباعة آخر الشريط، الأبرز
   });
 
-  it('«طباعة» هو الإجراء الأبرز', () => {
-    open();
+  it('«طباعة» هو الإجراء الأبرز', async () => {
+    await open();
     expect(screen.getByRole('button', { name: 'طباعة' })).toHaveClass('pc-btn--primary');
     // وأزرار الملاءمة أخفّ منه.
     expect(CSS).toMatch(/\.pc-btn--toggle\s*\{\s*font-weight:\s*600/);
@@ -270,15 +272,15 @@ describe('شريط الأدوات والتذييل', () => {
     expect(CSS).toMatch(/\.pc-toolbar\s*\{[\s\S]*?flex-wrap:\s*wrap/);
   });
 
-  it('عدّاد الصفحات ظاهر ومقروء، وبلا أزرار تنقّل وهمية', () => {
-    open();
+  it('عدّاد الصفحات ظاهر ومقروء، وبلا أزرار تنقّل وهمية', async () => {
+    await open();
     expect(screen.getAllByText(/الصفحات التقديرية/).length).toBeGreaterThan(0);
     expect(CSS).toMatch(/\.pc-pages\s*\{[\s\S]*?font-size:\s*13px/);
     expect(screen.queryByLabelText('الصفحة التالية')).toBeNull();
   });
 
-  it('التذييل يبقى ظاهرًا ومقروءًا (اسم المستند + الصفحات + الحالة)', () => {
-    open();
+  it('التذييل يبقى ظاهرًا ومقروءًا (اسم المستند + الصفحات + الحالة)', async () => {
+    await open();
     const footer = document.querySelector('.pc-statusbar') as HTMLElement;
     expect(footer).toBeInTheDocument();
     expect(footer.textContent).toContain('فاتورة · INV-2026-001');

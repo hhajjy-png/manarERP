@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { flushAsyncUpdates } from './helpers/flush';
 
 vi.mock('../api/client', () => ({
   api: { get: vi.fn(), post: vi.fn(), put: vi.fn() },
@@ -52,6 +53,8 @@ describe('Cheque Calibration Studio', () => {
     await waitFor(() => expect(api.get).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole('button', { name: /اختبار المعايرة/ }));
+    // `printCurrentView` وعدٌ: حارس النقر يُحرَّر عند تحقّقه — ننتظر ذلك التحديث.
+    await flushAsyncUpdates();
     expect(printCurrentView).toHaveBeenCalled();
     // No cheque/template mutation from test-printing.
     expect(api.post).not.toHaveBeenCalled();
@@ -116,6 +119,7 @@ describe('Cheque Calibration Studio', () => {
     const btn = screen.getByRole('button', { name: /اختبار المعايرة/ });
     fireEvent.click(btn);
     fireEvent.click(btn); // immediate second click while "printing" → ignored
+    await flushAsyncUpdates();
     expect(printCurrentView).toHaveBeenCalledTimes(1);
     expect(api.post).not.toHaveBeenCalled();
     expect(api.put).not.toHaveBeenCalled();

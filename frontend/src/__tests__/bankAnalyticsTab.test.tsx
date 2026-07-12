@@ -5,9 +5,6 @@ import '@testing-library/jest-dom';
 import { AnalyticsTab } from '../pages/BankAccountExplorer';
 import type { BankAccountDashboard, MonthlyEntry } from '../api/bankAccounts';
 
-// Recharts' ResponsiveContainer measures 0×0 in jsdom and warns; silence it.
-vi.spyOn(console, 'warn').mockImplementation(() => {});
-
 afterEach(cleanup);
 
 function dash(over: Partial<BankAccountDashboard> = {}): BankAccountDashboard {
