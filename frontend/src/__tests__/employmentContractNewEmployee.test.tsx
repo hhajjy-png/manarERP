@@ -58,7 +58,7 @@ function openScreen() {
 
 /** ملء نموذج الإدخال اليدوي: الاسم والراتب مطلوبان. */
 function fillManual(name = 'أحمد المنصور', salary = '850') {
-  fireEvent.click(screen.getByText('موظف جديد (إدخال يدوي)'));
+  fireEvent.click(screen.getByText('موظف جديد — إدخال يدوي'));
   const inputs = document.querySelectorAll('input');
   fireEvent.change(inputs[0], { target: { value: name } }); // الاسم بالعربي
   const salaryInput = [...inputs].find((i) => i.getAttribute('type') === 'number') ?? inputs[1];
@@ -81,8 +81,8 @@ describe('الوصول إلى الخيار', () => {
 
   it('الشاشة تعرض الخيارين حين تُفتح بلا معرّف', async () => {
     openScreen();
-    await waitFor(() => expect(screen.getByText('موظف جديد (إدخال يدوي)')).toBeInTheDocument());
-    expect(screen.getAllByText(/موظف موجود/).length).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getByText('موظف جديد — إدخال يدوي')).toBeInTheDocument());
+    expect(screen.getByText('موظف موجود في النظام')).toBeInTheDocument();
   });
 
   it('مع معرّف موظف تتخطّى الشاشة المُحدِّد كما كانت (السلوك القديم)', () => {
@@ -94,8 +94,8 @@ describe('الوصول إلى الخيار', () => {
 describe('«موظف جديد» — إدخال يدوي للطباعة فقط', () => {
   it('يظهر حقل الاسم، ولا تُجلب قائمة موظفين', async () => {
     openScreen();
-    await waitFor(() => screen.getByText('موظف جديد (إدخال يدوي)'));
-    fireEvent.click(screen.getByText('موظف جديد (إدخال يدوي)'));
+    await waitFor(() => screen.getByText('موظف جديد — إدخال يدوي'));
+    fireEvent.click(screen.getByText('موظف جديد — إدخال يدوي'));
     expect(document.querySelectorAll('input').length).toBeGreaterThan(0);
     // لا استعلام موظفين — البيانات يدوية بالكامل.
     expect(get.mock.calls.every(([url]) => !String(url).startsWith('/employees'))).toBe(true);
@@ -103,7 +103,7 @@ describe('«موظف جديد» — إدخال يدوي للطباعة فقط', 
 
   it('لا يُنشئ سجل موظف: لا POST ولا PUT إطلاقًا', async () => {
     openScreen();
-    await waitFor(() => screen.getByText('موظف جديد (إدخال يدوي)'));
+    await waitFor(() => screen.getByText('موظف جديد — إدخال يدوي'));
     fillManual();
     expect(post).not.toHaveBeenCalled();
     expect(put).not.toHaveBeenCalled();
@@ -194,5 +194,67 @@ describe('الانحدار — لا شيء خارج المدخل تغيّر', ()
     expect(code(readFileSync('src/pages/InvoicePreview.tsx', 'utf8'))).toContain('compose={composeInvoicePreview}');
     expect(code(readFileSync('src/pages/Quotation.tsx', 'utf8'))).toContain('onPrint={runLegacyPrint}');
     expect(code(readFileSync('src/pages/PayrollPayslip.tsx', 'utf8'))).toContain('intercept({ proceed: printCurrentView, node: printRootRef.current })');
+  });
+});
+
+// ── غلاف شاشة الاختيار (UX) ─────────────────────────────────────────────────────
+describe('شاشة اختيار نوع الموظف — الغلاف البصري', () => {
+  it('زر «الرجوع إلى مركز النماذج» ظاهر ويوجّه إلى /forms صراحةً', async () => {
+    openScreen();
+    await waitFor(() => screen.getByText('موظف جديد — إدخال يدوي'));
+    expect(screen.getByRole('button', { name: /الرجوع إلى مركز النماذج/ })).toBeInTheDocument();
+    // مسار صريح — لا navigate(-1) الذي قد يعيد المستخدم إلى مكان غير متوقع.
+    expect(contractCode).toContain("onBackToForms={() => navigate('/forms')}");
+    const selector = contractCode.slice(
+      contractCode.indexOf('function ModeSelector('),
+      contractCode.indexOf('function ExistingEmployeeLookup('),
+    );
+    expect(selector).not.toContain('navigate(-1)');
+  });
+
+  it('الرأس: العنوان والوصف المعتمدان', async () => {
+    openScreen();
+    await waitFor(() => screen.getByText('عقد العمل'));
+    expect(screen.getByText('اختر طريقة إدخال بيانات الموظف')).toBeInTheDocument();
+  });
+
+  it('التنبيه صريح داخل بطاقة الإدخال اليدوي', async () => {
+    openScreen();
+    await waitFor(() => screen.getByText('موظف جديد — إدخال يدوي'));
+    expect(screen.getByText(/لن يتم إنشاء سجل موظف في النظام/)).toBeInTheDocument();
+  });
+
+  it('البطاقتان قابلتان للنقر بالكامل ومتاحتان بلوحة المفاتيح', async () => {
+    openScreen();
+    await waitFor(() => screen.getByText('موظف جديد — إدخال يدوي'));
+    const cards = [...document.querySelectorAll('.ecx-card')] as HTMLButtonElement[];
+    expect(cards).toHaveLength(2);
+    for (const c of cards) expect(c.tagName).toBe('BUTTON'); // بؤرة ولوحة مفاتيح مجّانًا
+    const selector = contractCode.slice(
+      contractCode.indexOf('function ModeSelector('),
+      contractCode.indexOf('function ExistingEmployeeLookup('),
+    );
+    expect(selector).toContain('.ecx-card:focus-visible');
+    expect(selector).toContain('.ecx-card:hover');
+    expect(selector).toContain('max-width: 860px');       // حاوية مركزية، لا فراغ مفرط
+    expect(selector).toContain('align-items: stretch');   // بطاقتان متساويتا الارتفاع
+    expect(selector).not.toContain('gradient');           // بلا زخرفة
+    expect(selector).not.toContain('backdrop-filter');
+  });
+
+  it('النقر على البطاقتين ينقل إلى مسارَيهما القديمين', async () => {
+    openScreen();
+    await waitFor(() => screen.getByText('موظف جديد — إدخال يدوي'));
+    fireEvent.click(screen.getByText('موظف موجود في النظام'));
+    await waitFor(() => expect(screen.queryByText('موظف جديد — إدخال يدوي')).toBeNull());
+    expect(post).not.toHaveBeenCalled(); // ولا كتابة في أي مسار
+  });
+
+  it('زر الرجوع خارج المستند المطبوع — لا يظهر في القالب ولا في الجذر المطبوع', () => {
+    const tpl = readFileSync('src/forms/EmploymentContractTemplate.tsx', 'utf8');
+    expect(tpl).not.toContain('مركز النماذج');
+    // الزر يعيش في شاشة الاختيار وحدها؛ الجذر المطبوع (printRootRef) يخصّ وضع المعاينة.
+    const preview = contractCode.slice(contractCode.indexOf("if (mode === 'preview'"));
+    expect(preview).not.toContain('مركز النماذج');
   });
 });
