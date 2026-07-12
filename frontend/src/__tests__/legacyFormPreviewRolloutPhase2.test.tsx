@@ -14,6 +14,7 @@ import {
   PRINT_PREVIEW_LEGACY_FORMS_V1,
   PRINT_PREVIEW_LEGACY_FORMS_SPECIAL,
   PRINT_PREVIEW_LEGACY_FORMS_HR,
+  PRINT_PREVIEW_LEGACY_FORMS_FINANCE,
   PRINT_CENTER_PHASE2_RECEIPT_VOUCHER,
 } from '../printing';
 import { printCurrentView } from '../utils/print';
@@ -121,14 +122,30 @@ const screenPrintBtn = () => document.querySelector('button.no-print') as HTMLBu
 
 // ── الأعلام ─────────────────────────────────────────────────────────────────────
 describe('العلم', () => {
-  it('PRINT_PREVIEW_LEGACY_FORMS_SPECIAL مطفأ افتراضيًا ويحترم العلم الرئيسي', () => {
-    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL)).toBe(false);
-    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL, true);
-    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL)).toBe(false); // بلا الرئيسي
-    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, true);
+  it('PRINT_PREVIEW_LEGACY_FORMS_SPECIAL ON افتراضيًا (Phase A) — والعلم الرئيسي ما زال قاطعًا', () => {
     expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL)).toBe(true);
-    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, false); // Kill Switch
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, false); // Kill Switch — يُبطل المجموعة
     expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL)).toBe(false);
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, null);
+  });
+
+  it('override بقيمة off يتغلّب على الافتراض ON — تراجع فوري بلا إصدار', () => {
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL, false);
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL)).toBe(false);
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL, null);
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL)).toBe(true); // عاد للافتراض
+  });
+
+  it('override بقيمة on يفعّل علمًا افتراضه OFF (خارج Phase A)', () => {
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(false);
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(true);
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, null);
+  });
+
+  it('المجموعات خارج Phase A ما زالت OFF افتراضيًا', () => {
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(false);
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE)).toBe(false);
   });
 
   it('علم واحد للنموذجين — لا علم لكل شاشة', () => {
@@ -142,6 +159,10 @@ describe('العلم', () => {
 
 // ── السلوك ──────────────────────────────────────────────────────────────────────
 describe('العلم OFF — الطباعة القديمة كما هي', () => {
+  // الافتراض صار ON في Phase A، فنُطفئ العلم الرئيسي **صراحةً** هنا. تغطية OFF هي حارس
+  // التراجع — لا تُفقد لمجرّد أن السياسة انقلبت.
+  beforeEach(() => setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, false));
+
   it('الزر يستدعي دالة الطباعة القديمة مباشرة، ولا معاينة', async () => {
     const legacy = vi.fn();
     render(<Harness legacyPrint={legacy} />);

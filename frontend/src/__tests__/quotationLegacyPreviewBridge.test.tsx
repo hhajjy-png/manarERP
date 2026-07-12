@@ -74,9 +74,15 @@ afterEach(() => {
 
 // ── العلم ───────────────────────────────────────────────────────────────────────
 describe('العلم — الافتراضي والاحترام للعلم الرئيسي', () => {
-  it('PRINT_CENTER_PHASE2_QUOTATION مُطفأ افتراضيًا — الحزمة لا تفعّل شيئًا', () => {
+  it('PRINT_CENTER_PHASE2_QUOTATION ON افتراضيًا (Phase A) — ومعه الفاتورة', () => {
+    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(true);
+    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(true);
+  });
+
+  it('override بقيمة off يتغلّب على الافتراض ON', () => {
+    setFlagOverride(PRINT_CENTER_PHASE2_QUOTATION, false);
     expect(isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(false);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(false);
+    setFlagOverride(PRINT_CENTER_PHASE2_QUOTATION, null);
   });
 
   it('العلم الرئيسي يظل قاطعًا: إطفاؤه يُبطل معاينة عرض السعر ولو كان علمها ON', () => {
@@ -93,6 +99,9 @@ describe('العلم — الافتراضي والاحترام للعلم الر
 
 // ── العلم OFF: السلوك القديم حرفيًا ─────────────────────────────────────────────
 describe('Legacy + العلم OFF — السلوك القديم بلا أي تغيير', () => {
+  // الافتراض صار ON، فنُطفئه صراحةً: تغطية OFF هي حارس التراجع، ولا تُفقد.
+  beforeEach(() => setFlagOverride(PRINT_CENTER_PHASE2, false));
+
   it('زر الطباعة يستدعي doPrint مباشرة (لا وسيط، لا حوار)', () => {
     renderForm(undefined); // بلا اعتراض — هذا ما يمرّره Quotation حين يكون العلم OFF
     // نفس الشجرة القديمة: لا نافذة معاينة.

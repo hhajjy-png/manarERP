@@ -11,6 +11,7 @@ import {
   PRINT_CENTER_PHASE2,
   PRINT_CENTER_PHASE2_INVOICE,
   PRINT_CENTER_PHASE2_QUOTATION,
+  PRINT_CENTER_PHASE2_RECEIPT_VOUCHER,
 } from '../printing';
 
 /**
@@ -237,12 +238,33 @@ describe('Phase 2B — fails loudly rather than shipping an unstyled document', 
   });
 });
 
-describe('Phase 2B — feature flags default OFF', () => {
-  it('invoice and quotation ship OFF — a style-capture risk can never auto-enable them', () => {
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(false);
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(false);
+describe('Phase 2B — feature flags (Controlled Enablement Phase A)', () => {
+  it('invoice and quotation now ship ON — their side-by-side manual gate passed', () => {
+    // انقلبت السياسة بعد اكتمال الفحص اليدوي (القديم مقابل المعاينة مقابل الورقة).
+    // البوابة نفسها لم تتغيّر: ما زال يلزم العلم الرئيسي **وعلم المستند** معًا.
+    expect(isFlagEnabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(true);
+    expect(isFlagEnabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(true);
+    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(true);
+    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(true);
+  });
+
+  it('kill switch: إطفاء العلم الرئيسي يُبطلهما رغم أن افتراضهما ON', () => {
+    setFlagOverride(PRINT_CENTER_PHASE2, false);
     expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(false);
     expect(isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(false);
+    setFlagOverride(PRINT_CENTER_PHASE2, null);
+  });
+
+  it('override بقيمة off يتغلّب على الافتراض ON (تراجع فوري بلا إصدار)', () => {
+    setFlagOverride(PRINT_CENTER_PHASE2_INVOICE, false);
+    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(false);
+    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(true); // مستقلّان
+    setFlagOverride(PRINT_CENTER_PHASE2_INVOICE, null);
+  });
+
+  it('سند القبض ما زال OFF — خارج Phase A، ومساره مختلف', () => {
+    expect(isFlagEnabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(false);
+    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(false);
   });
 
   it('require BOTH the master flag and their own', () => {
