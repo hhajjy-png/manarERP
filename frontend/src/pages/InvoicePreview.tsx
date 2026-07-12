@@ -215,7 +215,25 @@ export default function InvoicePreview() {
     setPdfError('');
     try {
       const suggestedName = buildInvoicePdfName(data.invoiceNumber ?? data.number);
-      const result = await window.manar?.exportPdf(suggestedName);
+      /**
+       * PDF يُصدَّر من **المستند وحده**، لا من النافذة الحيّة.
+       *
+       * `pdf:export` يلتقط الـ BrowserWindow المرئية عبر `printToPDF({ printBackground: true })`،
+       * وElectron **يتجاهل `@media print`** في هذا المسار. فكل ما يخفيه CSS الطباعة يبقى
+       * مرسومًا، ومعه خلفية قشرة التطبيق (ExplorerKit shell) الداكنة حول الفاتورة — وهي
+       * الأشرطة السوداء على الجانبين. الطباعة الفعلية لا تعانيها لأن حوار الطباعة يطبّق
+       * `@media print` ويُطفئ خلفيات الصفحة افتراضيًا.
+       *
+       * هذا هو نفس المبدأ الذي عولجت به Forms في 80a1ea3: صدّر HTML مستقلًا يحوي الجذر
+       * القابل للطباعة فقط عبر النافذة المخفية (`pdf:exportHtml`). لم يُطبَّق على الفاتورة
+       * حينها لأن ترحيل الفاتورة كان لا يزال ضمن مسار Print Center الذي تراجعنا عنه، فبقيت
+       * على `pdf:export` القديم. نفس المُركِّب المستخدم في المعاينة يُنتج المستند هنا —
+       * مصدر واحد، فما تراه في المعاينة هو ما يُحفظ.
+       */
+      const html = composeInvoicePreview();
+      const result = await (window.manar?.exportPdfFromHtml
+        ? window.manar.exportPdfFromHtml(html, suggestedName)
+        : window.manar?.exportPdf(suggestedName)); // بيئة قديمة بلا الجسر — سلوك سابق كما هو
       if (!result) {
         setPdfError('تصدير PDF غير متاح في هذه البيئة');
         return;

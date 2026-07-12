@@ -38,6 +38,9 @@ const MM_TO_PX = 96 / 25.4; // ≈ 3.7795
 const A4_W_MM = 210;
 const A4_H_MM = 297;
 
+/** عتبة القياس: تجاوز كسري (sub-pixel) لا يصنع صفحة ثانية. صفحة حقيقية تضيف مئات البكسلات. */
+const PAGE_EPSILON = 8;
+
 /** حشوة بصرية حول الورقة — تتقلّص على الشاشات الضيقة. */
 const PAD_WIDE = 56;
 const PAD_NARROW = 40;
@@ -187,14 +190,29 @@ export default function PrintPreviewDialog({
   }, [scale]);
 
   /**
-   * عدد الصفحات **تقديري** من ارتفاع المحتوى — لا ندّعي ترقيمًا حقيقيًا.
-   * يُقاس والـ iframe بارتفاع صفحة واحدة، فيكون `scrollHeight` = ارتفاع المحتوى كاملًا.
+   * عدد الصفحات **تقديري** — لكنه يُقاس من المحتوى نفسه، لا من الحاوية.
+   *
+   * الخلل الذي كان: `documentElement.scrollHeight` **لا يقلّ أبدًا عن ارتفاع الـ viewport**،
+   * وviewport الـ iframe هو ارتفاعه الذي نحدّده نحن (‎Math.round(1122.52) = 1123px‎).
+   * فأي فاتورة من صفحة واحدة كانت تُقاس ‎1123 ≥ 1122.52‎ ⇒ ‎ceil(1.0004) = 2‎:
+   * صفحة ثانية وهمية وامتداد أبيض طويل تحتها. القياس كان يقيس **الإطار لا المستند**،
+   * وكان يفتح باب حلقة ذاتية (عدد الصفحات → ارتفاع الـ iframe → قياس أكبر → عدد أكبر).
+   *
+   * المصدر الصحيح الوحيد: `[data-print-root]` — الجذر القابل للطباعة داخل المستند
+   * المُركَّب (يضعه `composeDocument`، وهوامشه مصفَّرة هناك، وbody/html بهامش صفر).
+   * ارتفاعه عنصريّ خالص، لا يرث أرضية الـ viewport، فلا يدخل ارتفاع الـ iframe في
+   * الحساب إطلاقًا.
+   *
+   * وtolerance صغيرة (‎PAGE_EPSILON‎) تمنع تجاوزًا كسريًا من ‎1–2px‎ من أن يخلق صفحة
+   * ثانية. صفحة ثانية **حقيقية** تضيف مئات البكسلات، فلا تُخفيها هذه العتبة.
    */
   const onFrameLoad = useCallback(() => {
     const doc = frameRef.current?.contentDocument;
     if (!doc?.body) return;
-    const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
-    setPageCount(Math.max(1, Math.ceil(h / pageHpx)));
+    const root = doc.querySelector<HTMLElement>('[data-print-root]') ?? doc.body;
+    // rect للارتفاع المرسوم، وscrollHeight للعناصر التي تفيض عنه — كلاهما عنصريّ.
+    const contentH = Math.max(root.getBoundingClientRect().height, root.scrollHeight);
+    setPageCount(Math.max(1, Math.ceil((contentH - PAGE_EPSILON) / pageHpx)));
   }, [pageHpx]);
 
   const doPrint = useCallback(() => {
