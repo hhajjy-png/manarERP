@@ -368,57 +368,86 @@ function NewEmployeeForm({ onComplete, onBack }: {
 
 // ─── Mode selector ────────────────────────────────────────────────────────────
 
-function ModeSelector({ onSelectNew, onSelectExisting }: {
+function ModeSelector({ onSelectNew, onSelectExisting, onBackToForms }: {
   onSelectNew: () => void;
   onSelectExisting: () => void;
+  onBackToForms: () => void;
 }) {
   return (
     <div className="page">
-      <div className="page-head">
-        <div>
-          <h2>عقد العمل — اختر نوع الموظف</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
-            حدد ما إذا كان الموظف موجوداً في النظام أم لا
-          </p>
+      {/* أنماط محصورة بهذه الخطوة — لا قواعد عامة، ولا تصل الطباعة (خارج الجذر المطبوع). */}
+      <style>{`
+        .ecx-mode { max-width: 860px; margin-inline: auto; }
+        .ecx-cards {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+          gap: 16px;
+          align-items: stretch;          /* بطاقتان متساويتا الارتفاع */
+        }
+        .ecx-card {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          width: 100%;
+          text-align: start;             /* RTL/LTR معًا */
+          padding: 20px;
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          background: var(--surface);
+          color: var(--text);
+          cursor: pointer;
+          font-family: inherit;
+          transition: border-color .15s, background .15s;
+        }
+        .ecx-card:hover { border-color: var(--primary, #4f46e5); background: var(--surface-2); }
+        .ecx-card:focus-visible {
+          outline: 2px solid var(--primary, #4f46e5);
+          outline-offset: 2px;
+        }
+        .ecx-card-icon { font-size: 22px; line-height: 1; }
+        .ecx-card-title { font-weight: 800; font-size: 15px; }
+        .ecx-card-desc { font-size: 13px; color: var(--text-muted); }
+        .ecx-note {
+          margin-top: auto;              /* يثبّت التنبيه أسفل البطاقة مهما طال الوصف */
+          padding-top: 10px;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-muted);
+        }
+      `}</style>
+
+      <div className="ecx-mode">
+        <div className="page-head" style={{ marginBottom: 16 }}>
+          <div>
+            <h2 style={{ margin: 0 }}>عقد العمل</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '4px 0 0' }}>
+              اختر طريقة إدخال بيانات الموظف
+            </p>
+          </div>
+          {/* رجوع **صريح** إلى مركز النماذج — لا navigate(-1)، فالمستخدم قد يكون وصل
+              من أي مكان (رابط مباشر، تحديث الصفحة، أو شاشة أخرى). */}
+          <button type="button" className="btn secondary" onClick={onBackToForms}>
+            <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, verticalAlign: 'text-bottom', marginInlineEnd: 4 }}>
+              arrow_forward
+            </span>
+            الرجوع إلى مركز النماذج
+          </button>
         </div>
-      </div>
 
-      <div style={{ display: 'flex', gap: 20, maxWidth: 640, padding: '8px 0' }}>
-        <button
-          className="card"
-          style={{
-            flex: 1, padding: 28, textAlign: 'center', cursor: 'pointer',
-            border: '2px solid var(--border)', borderRadius: 12,
-            background: 'var(--surface)', transition: 'border-color .15s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = '#1d4e6f')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-          onClick={onSelectExisting}
-        >
-          <div style={{ fontSize: 32, marginBottom: 10 }}>🔍</div>
-          <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>موظف موجود في النظام</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            ابحث عن موظف مسجّل وأصدر له عقد العمل
-          </div>
-        </button>
+        <div className="ecx-cards">
+          <button type="button" className="ecx-card" onClick={onSelectExisting}>
+            <span className="ecx-card-icon" aria-hidden="true">🔍</span>
+            <span className="ecx-card-title">موظف موجود في النظام</span>
+            <span className="ecx-card-desc">اختيار موظف مسجل واستكمال بيانات عقده</span>
+          </button>
 
-        <button
-          className="card"
-          style={{
-            flex: 1, padding: 28, textAlign: 'center', cursor: 'pointer',
-            border: '2px solid var(--border)', borderRadius: 12,
-            background: 'var(--surface)', transition: 'border-color .15s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = '#1d4e6f')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-          onClick={onSelectNew}
-        >
-          <div style={{ fontSize: 32, marginBottom: 10 }}>✏️</div>
-          <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>موظف جديد (إدخال يدوي)</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-            أدخل البيانات يدوياً دون إنشاء سجل في النظام
-          </div>
-        </button>
+          <button type="button" className="ecx-card" onClick={onSelectNew}>
+            <span className="ecx-card-icon" aria-hidden="true">✏️</span>
+            <span className="ecx-card-title">موظف جديد — إدخال يدوي</span>
+            <span className="ecx-card-desc">إدخال بيانات الموظف لغرض طباعة العقد فقط</span>
+            <span className="ecx-note">⚠️ لن يتم إنشاء سجل موظف في النظام</span>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -629,6 +658,7 @@ export default function EmploymentContract() {
       <ModeSelector
         onSelectNew={() => setMode('new-form')}
         onSelectExisting={() => setMode('existing-lookup')}
+        onBackToForms={() => navigate('/forms')}
       />
     );
   }
