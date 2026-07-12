@@ -437,7 +437,10 @@ export default function Quotation() {
             📋 العرض الكلاسيكي
           </button>
           {printOptionsInitialized && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '4px 10px', background: '#f8fafc', border: '1px solid var(--border)', borderRadius: 8 }}>
+            /* الخلفية كانت مثبَّتة على `#f8fafc` بينما لون النص موروث من الثيم — ففي الوضع
+               الداكن يصير النص فاتحًا فوق خلفية فاتحة (أبيض على أبيض). التوكنات تتحرّك مع
+               الثيم معًا، فيبقى التباين صحيحًا في الوضعين. */
+            <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '4px 10px', background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.signatureUrl ? 'pointer' : 'not-allowed' }}>
                 <input
                   type="checkbox"
@@ -445,7 +448,7 @@ export default function Quotation() {
                   disabled={!branding.signatureUrl}
                   onChange={(e) => setPrintShowSignature(e.target.checked)}
                 />
-                <span style={{ color: branding.signatureUrl ? undefined : '#94a3b8' }}>
+                <span style={{ color: branding.signatureUrl ? 'var(--text)' : 'var(--text-muted)' }}>
                   التوقيع{!branding.signatureUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
                 </span>
               </label>
@@ -456,7 +459,7 @@ export default function Quotation() {
                   disabled={!branding.stampUrl}
                   onChange={(e) => setPrintShowStamp(e.target.checked)}
                 />
-                <span style={{ color: branding.stampUrl ? undefined : '#94a3b8' }}>
+                <span style={{ color: branding.stampUrl ? 'var(--text)' : 'var(--text-muted)' }}>
                   الختم{!branding.stampUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
                 </span>
               </label>
