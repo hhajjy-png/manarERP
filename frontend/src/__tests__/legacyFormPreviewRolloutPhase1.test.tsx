@@ -123,13 +123,14 @@ const pcSelect = () => document.querySelector('.pc-toolbar select') as HTMLSelec
 
 // ── الأعلام ─────────────────────────────────────────────────────────────────────
 describe('الأعلام', () => {
-  it('الثلاثة مطفأة افتراضيًا — لا سلوك افتراضي يتغيّر', () => {
-    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(false);
-    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE)).toBe(false);
+  it('المجموعتان ON افتراضيًا بعد التفعيل الكامل', () => {
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(true);
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE)).toBe(true);
   });
 
-  it('العلم الرئيسي وحده لا يفعّل شيئًا، والمجموعة وحدها كذلك', () => {
+  it('العلم الرئيسي وحده لا يفعّل شيئًا، والمجموعة وحدها كذلك — الشرط AND لم يتغيّر', () => {
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, true);
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, false);
     expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(false); // الرئيسي فقط
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, false);
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
@@ -138,16 +139,25 @@ describe('الأعلام', () => {
     expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(true); // الاثنان
   });
 
-  it('المجموعتان مستقلتان — تفعيل تدريجي حقيقي', () => {
-    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, true);
-    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
+  it('المجموعتان مستقلتان — تعطيل إحداهما لا يمسّ الأخرى', () => {
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_FINANCE, false);
     expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(true);
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE)).toBe(false);
+  });
+
+  it('العلم الرئيسي هو الـ kill switch — يُطفئ المجموعتين معًا', () => {
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, false);
+    expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR)).toBe(false);
     expect(isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE)).toBe(false);
   });
 });
 
 // ── العلم OFF ───────────────────────────────────────────────────────────────────
 describe('العلم OFF — الطباعة القديمة كما هي', () => {
+  // الافتراض صار ON، فنُطفئ العلم الرئيسي **صراحةً**: تغطية السلوك القديم هي حارس
+  // التراجع، ولا تُفقد لمجرّد أن السياسة انقلبت.
+  beforeEach(() => setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, false));
+
   it('لا حوار، ولا اعتراض أصلًا (printIntercept = undefined)', async () => {
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} />);
     await flushAsyncUpdates();
@@ -338,6 +348,7 @@ describe('الانحدار — لا شيء خارج النطاق تغيّر', ()
 // ── الطباعة التلقائية عند فتح النموذج ───────────────────────────────────────────
 describe('auto-print عند الجاهزية', () => {
   it('العلم OFF: تطبع مباشرة كما كانت — ولا تظهر معاينة', async () => {
+    setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, false); // إطفاء صريح — الافتراض صار ON
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} ready />);
     await flushAsyncUpdates();
