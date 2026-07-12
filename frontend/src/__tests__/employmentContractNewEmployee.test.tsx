@@ -4,6 +4,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import '@testing-library/jest-dom';
 import { readFileSync } from 'node:fs';
 import { MemoryRouter } from 'react-router-dom';
+import { ROUTER_FUTURE } from './helpers/router';
 import EmploymentContract from '../pages/EmploymentContract';
 import { api } from '../api/client';
 
@@ -50,7 +51,7 @@ afterEach(() => {
 /** الشاشة بلا معرّف موظف — هكذا يفتحها مركز النماذج حين لا يُختار موظف. */
 function openScreen() {
   render(
-    <MemoryRouter initialEntries={['/forms/employment-contract']}>
+    <MemoryRouter future={ROUTER_FUTURE} initialEntries={['/forms/employment-contract']}>
       <EmploymentContract />
     </MemoryRouter>,
   );

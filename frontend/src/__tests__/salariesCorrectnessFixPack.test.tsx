@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
+import { ROUTER_FUTURE } from './helpers/router';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 vi.mock('../api/client', () => ({
@@ -47,7 +48,7 @@ function routeGet(url: string) {
 }
 
 function renderPage() {
-  return render(<MemoryRouter><Salaries /></MemoryRouter>);
+  return render(<MemoryRouter future={ROUTER_FUTURE}><Salaries /></MemoryRouter>);
 }
 
 beforeEach(() => {

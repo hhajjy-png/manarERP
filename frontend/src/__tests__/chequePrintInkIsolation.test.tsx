@@ -19,6 +19,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import '@testing-library/jest-dom';
 import { flushAsyncUpdates } from './helpers/flush';
 import { MemoryRouter } from 'react-router-dom';
+import { ROUTER_FUTURE } from './helpers/router';
 
 vi.mock('../api/client', () => ({
   api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -50,7 +51,7 @@ function renderPage() {
   // صفحة الشيكات تقرأ الفترة المالية العامة، فتُغلَّف بمزوّدها كما في التطبيق.
   return render(
     <FinancialPeriodProvider>
-      <MemoryRouter><Cheques /></MemoryRouter>
+      <MemoryRouter future={ROUTER_FUTURE}><Cheques /></MemoryRouter>
     </FinancialPeriodProvider>,
   );
 }

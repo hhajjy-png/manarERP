@@ -5,6 +5,7 @@ import '@testing-library/jest-dom';
 import { flushAsyncUpdates } from './helpers/flush';
 import { readFileSync } from 'node:fs';
 import { MemoryRouter } from 'react-router-dom';
+import { ROUTER_FUTURE } from './helpers/router';
 import {
   useLegacyFormPreview,
   isLegacyFormsPreviewEnabled,
@@ -84,7 +85,7 @@ function Harness({ legacyPrint, auto = false }: { legacyPrint: () => void; auto?
     legacyPrint();
   };
   return (
-    <MemoryRouter>
+    <MemoryRouter future={ROUTER_FUTURE}>
       {preview.dialog}
       <div
         ref={(el) => {

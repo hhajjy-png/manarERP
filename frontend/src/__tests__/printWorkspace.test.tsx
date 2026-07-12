@@ -4,6 +4,7 @@ import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/re
 import '@testing-library/jest-dom';
 import { readFileSync } from 'node:fs';
 import { MemoryRouter } from 'react-router-dom';
+import { ROUTER_FUTURE } from './helpers/router';
 import { PrintWorkspace } from '../components/print-workspace';
 import FormLayout from '../forms/shared/FormLayout';
 
@@ -164,7 +165,7 @@ describe('PrintWorkspace print CSS isolates the document (no dark frame)', () =>
 describe('FormLayout inside the workspace', () => {
   function renderForm() {
     return render(
-      <MemoryRouter>
+      <MemoryRouter future={ROUTER_FUTURE}>
         <FormLayout
           ready={false}
           formNumber="FORM-001"
