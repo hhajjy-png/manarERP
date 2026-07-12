@@ -38,6 +38,17 @@ interface FormLayoutProps {
    * the shared PRINT_PROFILES margins (the Employment Contract stays byte-identical).
    */
   letterheadCompactFooter?: boolean;
+  /**
+   * Optional preview gate for the toolbar's Print button. **Additive and opt-in** —
+   * when it is absent (every form but Quotation today) the button calls `doPrint`
+   * directly, exactly as before.
+   *
+   * It receives the page's own print path as `proceed` and the printable `.form-page`
+   * node, and decides *when* to run `proceed`. It cannot change *what* printing does:
+   * `doPrint` — copies, readiness, the gateway, `webContents.print` — is untouched, and
+   * remains the only executor of a physical print.
+   */
+  printIntercept?: (ctx: { proceed: () => void; node: HTMLElement | null }) => void;
 }
 
 /** Shared −/count/+ copies stepper, reused in the workspace toolbar and sidebar. */
@@ -82,6 +93,7 @@ export default function FormLayout({
   qrData,
   formType,
   toolbarExtra,
+  printIntercept,
   lang = 'ar',
   letterheadCompactFooter = false,
 }: FormLayoutProps) {
@@ -227,7 +239,17 @@ export default function FormLayout({
 
   const toolbar = (
     <>
-      <button type="button" className="btn" onClick={doPrint}>
+      {/* السلوك الافتراضي بلا `printIntercept`: نفس النقرة، نفس `doPrint`، بلا وسيط.
+          ومع الاعتراض: تُقرَّر لحظةُ الطباعة فقط — لا كيفيتها؛ `doPrint` يظل المنفّذ الوحيد. */}
+      <button
+        type="button"
+        className="btn"
+        onClick={
+          printIntercept
+            ? () => printIntercept({ proceed: doPrint, node: formPageRef.current })
+            : doPrint
+        }
+      >
         🖨️ {lang === 'en' ? 'Print' : 'طباعة'}
       </button>
       <button type="button" className="btn secondary" onClick={doExportPdf}>

@@ -112,6 +112,17 @@ export default function Quotation() {
   const printRootRef = useRef<HTMLDivElement>(null);
   const [printCenterOpen, setPrintCenterOpen] = useState(false);
   const usePrintCenterQuotation = isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION);
+
+  /**
+   * جسر المعاينة في الوضع الافتراضي (Legacy).
+   *
+   * `FormLayout` يملك زر الطباعة ومسارها (`doPrint` → `submitPrintJob` → `print:submit`
+   * → `webContents.print`). لا نستبدل هذا المسار ولا نكرّره: نحتفظ به كما سلّمه لنا
+   * (`proceed`) ونستدعيه حرفيًا من داخل المعاينة. المعاينة **طبقة عرض** لا منفّذ طباعة.
+   */
+  const legacyPrintRef = useRef<(() => void) | null>(null);
+  const [legacyNode, setLegacyNode] = useState<HTMLElement | null>(null);
+
   const [adapterError, setAdapterError] = useState<string | null>(null);
   const { activeTemplate: studioTemplate } = useTemplateStudio('quotation');
   const [useStudio, setUseStudio] = useState(false);
@@ -241,9 +252,18 @@ export default function Quotation() {
   const { resolvedTemplate, profile: tplProfile, setProfile: setTplProfile } =
     usePrintTemplate('quotation', brandedPrintData ?? undefined);
 
-  /** يبني مستند المعاينة من نفس الـ printable root — لا إعادة رسم، لا تغيير قالب. */
-  const composeQuotationPreview = useCallback((): string => {
-    const node = printRootRef.current;
+  /**
+   * يبني مستند المعاينة من نفس الـ printable root المعروض — لا إعادة رسم، ولا تغيير
+   * قالب أو لغة أو حسابات.
+   *
+   * المصدر يختلف باختلاف الوضع، والمُركِّب واحد:
+   *   Engine  → `printRootRef` (جذر هذه الصفحة).
+   *   Legacy  → `.form-page` داخل `FormLayout` — يمرّرها `printIntercept` نفسه، فهي
+   *             **نفس العقدة** التي يطبعها المسار القديم، بحالتها الحالية (اللغة،
+   *             قالب الطباعة، الورق الرسمي، البنود، الملاحظات، التوقيع والختم).
+   */
+  const composeQuotationPreview = useCallback((sourceNode?: HTMLElement | null): string => {
+    const node = sourceNode ?? printRootRef.current;
     if (!node) throw new Error('تعذّر تجهيز عرض السعر للمعاينة.');
     return composeStyledFromNode({
       node,
@@ -253,6 +273,25 @@ export default function Quotation() {
       stripSelectors: ['.no-print'],
     });
   }, [printFields.quotationNumber, lang]);
+
+  const legacyPrintIntercept = useCallback(
+    ({ proceed, node }: { proceed: () => void; node: HTMLElement | null }) => {
+      legacyPrintRef.current = proceed;
+      setLegacyNode(node);
+      setPrintCenterOpen(true); // فتح فقط — لا طباعة هنا إطلاقًا
+    },
+    [],
+  );
+
+  const composeLegacyPreview = useCallback(
+    () => composeQuotationPreview(legacyNode),
+    [legacyNode],
+  );
+
+  /** يُستدعى مرة واحدة من زر «طباعة» داخل المعاينة، بعد إغلاقها (الحوار يحرس النقر المزدوج). */
+  const runLegacyPrint = useCallback(() => {
+    legacyPrintRef.current?.();
+  }, []);
 
   const warnings = useMemo(
     () => (brandedPrintData ? validateQuotationPrintData(brandedPrintData) : []),
@@ -398,7 +437,10 @@ export default function Quotation() {
             📋 العرض الكلاسيكي
           </button>
           {printOptionsInitialized && (
-            <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '4px 10px', background: '#f8fafc', border: '1px solid var(--border)', borderRadius: 8 }}>
+            /* الخلفية كانت مثبَّتة على `#f8fafc` بينما لون النص موروث من الثيم — ففي الوضع
+               الداكن يصير النص فاتحًا فوق خلفية فاتحة (أبيض على أبيض). التوكنات تتحرّك مع
+               الثيم معًا، فيبقى التباين صحيحًا في الوضعين. */
+            <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '4px 10px', background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8 }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.signatureUrl ? 'pointer' : 'not-allowed' }}>
                 <input
                   type="checkbox"
@@ -406,7 +448,7 @@ export default function Quotation() {
                   disabled={!branding.signatureUrl}
                   onChange={(e) => setPrintShowSignature(e.target.checked)}
                 />
-                <span style={{ color: branding.signatureUrl ? undefined : '#94a3b8' }}>
+                <span style={{ color: branding.signatureUrl ? 'var(--text)' : 'var(--text-muted)' }}>
                   التوقيع{!branding.signatureUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
                 </span>
               </label>
@@ -417,7 +459,7 @@ export default function Quotation() {
                   disabled={!branding.stampUrl}
                   onChange={(e) => setPrintShowStamp(e.target.checked)}
                 />
-                <span style={{ color: branding.stampUrl ? undefined : '#94a3b8' }}>
+                <span style={{ color: branding.stampUrl ? 'var(--text)' : 'var(--text-muted)' }}>
                   الختم{!branding.stampUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
                 </span>
               </label>
@@ -531,8 +573,22 @@ export default function Quotation() {
     );
   }
 
-  // ── LEGACY MODE (unchanged) ───────────────────────────────────────────────────
+  // ── LEGACY MODE — مسار الطباعة كما هو؛ أُضيفت طبقة معاينة اختيارية فوقه ──────────
   return (
+    <>
+      {/* الحوار خارج الـ printable root (`.form-page`) فلا يدخل المستند المُركَّب أبدًا.
+          العلم OFF ⇒ لا يُصيَّر أصلًا، ولا يُمرَّر اعتراض، فالزر يستدعي doPrint مباشرة
+          كما كان قبل هذه الحزمة تمامًا. */}
+      {usePrintCenterQuotation && (
+        <PrintPreviewDialog
+          open={printCenterOpen}
+          onClose={() => setPrintCenterOpen(false)}
+          compose={composeLegacyPreview}
+          onPrint={runLegacyPrint}
+          documentLabel={`عرض سعر · ${printFields.quotationNumber || '---'}`}
+          lang={lang}
+        />
+      )}
     <FormLayout
       formType={FORM_KEY}
       lang={lang}
@@ -540,6 +596,7 @@ export default function Quotation() {
       formNumber={printFields.quotationNumber || generateFormNumber(FORM_KEY)}
       title={lang === 'ar' ? 'عرض سعر' : 'Quotation'}
       profile={profile}
+      printIntercept={usePrintCenterQuotation ? legacyPrintIntercept : undefined}
       toolbarExtra={
         <>
           <button
@@ -816,5 +873,6 @@ export default function Quotation() {
         <ConfirmModal message="سيتم مسح جميع الحقول. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
+    </>
   );
 }
