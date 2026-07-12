@@ -187,8 +187,10 @@ describe('عقد الجسر — لا يمسّ مسار الطباعة', () => {
     // لا استدعاء طباعة جديد/بديل في مسار Legacy: الطباعة تخرج من FormLayout وحده.
     expect(qCode).not.toContain('submitPrintJob');
     expect(qCode).not.toContain('createPrintJob');
-    // `window.manar` في هذا الملف يخصّ تصدير PDF القائم — لم تمسّه هذه الحزمة.
-    expect(qCode).toContain('window.manar?.exportPdf(suggestedName)');
+    // تصدير PDF هاجر إلى مسار المستند (`exportPdfFromHtml`) — لا التقاط النافذة الحيّة،
+    // فلا إطار أسود. الالتقاط القديم باقٍ **كخطة بديلة فقط** لبيئة بلا الجسر.
+    expect(qCode).toContain('window.manar.exportPdfFromHtml(html, suggestedName)');
+    expect(qCode).toContain('composeQuotationPreview(legacyNode)'); // نفس مستند المعاينة
   });
 
   it('الحماية من النقر المزدوج مُعاد استخدامها لا مُعاد اختراعها', () => {

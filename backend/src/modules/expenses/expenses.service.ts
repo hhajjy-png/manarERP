@@ -10,6 +10,7 @@ import { repostExpenseToGL, reverseExpenseFromGL } from './expenses.accounting';
 import { CreateExpenseInput, UpdateExpenseInput } from './expenses.schema';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
+import { approvalEngine } from '../../shared/services/approval.service';
 // المصدر الموحّد لأسماء التصنيفات بالعربية (وسم القيود المحاسبية وتجميع الإحصائيات).
 import { expenseCategoryAr } from '../../shared/utils/expenseLabels';
 
@@ -189,6 +190,19 @@ export class ExpensesService {
       // ترحيل قيد مزدوج إلى GL (Phase B) — repost يتعامل مع الاعتماد الأول وإعادة الاعتماد
       // بعد التعديل (يزيل زوج القيد المتعادل ثم يُرحّل بالقيمة الجديدة). يماثل الفواتير.
       await repostExpenseToGL(tx, exp.id);
+      // سجلّ الاعتماد — تسجيل ما جرى فقط، على نفس المعاملة. لا حالة ولا تدقيق ولا ترحيل.
+      await approvalEngine.recordTransition(
+        {
+          entityType: 'expense',
+          entityId:   exp.id,
+          action:     'approve',
+          fromStatus: 'PENDING',
+          toStatus:   'APPROVED',
+          userId:     req.user?.userId ?? null,
+          metadata:   { amount: exp.amount },
+        },
+        tx,
+      );
       return exp;
     });
 
@@ -201,7 +215,22 @@ export class ExpensesService {
     if (!expense) throw AppError.notFound('المصروف غير موجود');
     if (expense.status === 'APPROVED') throw AppError.badRequest('لا يمكن رفض مصروف معتمد — استخدم إلغاء الاعتماد');
 
-    const updated = await prisma.expense.update({ where: { id }, data: { status: 'REJECTED' }, include: FULL_INCLUDE });
+    // معاملة واحدة: الحالة وسجلّ الاعتماد يقعان معًا أو لا يقعان. لا تغيير في الحالة نفسها.
+    const updated = await prisma.$transaction(async (tx) => {
+      const exp = await tx.expense.update({ where: { id }, data: { status: 'REJECTED' }, include: FULL_INCLUDE });
+      await approvalEngine.recordTransition(
+        {
+          entityType: 'expense',
+          entityId:   id,
+          action:     'reject',
+          fromStatus: expense.status,
+          toStatus:   'REJECTED',
+          userId:     req.user?.userId ?? null,
+        },
+        tx,
+      );
+      return exp;
+    });
     await recordAudit({ req, action: 'REJECT', module: 'expenses', entityId: id });
     return updated;
   }
@@ -395,6 +424,15 @@ export class ExpensesService {
     const journalIds = journalEntries.map((j) => j.id);
 
     const counts = await prisma.$transaction(async (tx) => {
+      // 0) قفل الفترة: الحذف النهائي يمحو القيود بـ deleteMany مباشرةً، فلا يمرّ بالحارس
+      //    المركزي. المسار SYSTEM_ADMIN ⇒ يمرّ، لكنه يُسجَّل الآن كـ PERIOD_LOCK_OVERRIDE
+      //    بدل أن يمحو قيدًا من فترة مقفلة بلا أثر. (الحذف العادي `remove` محروس أصلًا.)
+      await assertPeriodOpen(tx, expense.date, {
+        operation: 'حذف نهائي لمصروف',
+        module: 'expenses',
+        entityId: id,
+      });
+
       // 1) إلغاء أي مطابقة بنكية تشير إلى هذا المصروف أو قيوده (لا FK — منعًا للمراجع المعلّقة)
       const unlinked = await tx.bankStatementTransaction.updateMany({
         where: {

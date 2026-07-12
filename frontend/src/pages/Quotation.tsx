@@ -176,7 +176,18 @@ export default function Quotation() {
     setPdfError('');
     try {
       const suggestedName = buildQuotationPdfName(printFields.quotationNumber);
-      const result = await window.manar?.exportPdf(suggestedName);
+      /**
+       * PDF من **المستند** لا من النافذة الحيّة.
+       *
+       * `exportPdf` يلتقط نافذة التطبيق كما هي، وElectron **يتجاهل `@media print`** في ذلك
+       * الالتقاط — فتُطبع قشرة التطبيق الداكنة معه («الإطار الأسود»). `exportPdfFromHtml`
+       * يرسم مستندًا قائمًا بذاته في نافذة خفية، وهو **نفس المستند الذي تعرضه المعاينة**
+       * (نفس المُركِّب، نفس العقدة) — فالورقة والـ PDF والمعاينة تروي القصة نفسها.
+       */
+      const html = composeQuotationPreview(legacyNode);
+      const result = await (window.manar?.exportPdfFromHtml
+        ? window.manar.exportPdfFromHtml(html, suggestedName)
+        : window.manar?.exportPdf(suggestedName)); // بيئة قديمة بلا الجسر — السلوك السابق كما هو
       if (!result) {
         setPdfError('تصدير PDF غير متاح في هذه البيئة');
         return;

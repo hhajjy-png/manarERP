@@ -28,7 +28,80 @@
 
 ---
 
-## Latest Release — Dark Mode Company Logo Replacement v1
+## Latest Release — Core Runtime Completion & Roadmap Reconciliation v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Core Runtime Completion & Roadmap Reconciliation v1 (six coordinated workstreams) |
+| **Release status** | PENDING RELEASE — implementation complete, manual UAT **APPROVED**; not yet committed/merged/tagged |
+| **Feature branch** | `feature/core-runtime-completion-roadmap-reconciliation-v1` |
+| **Baseline** | `production` @ `eada4dd` |
+| **Manual UAT** | **APPROVED** — global search · approval history + runtime registration · existing approval flows · Profit & Loss · period lock · PDF export from Executive Decision Center / Quotation / Report Print. **No duplicate accounting postings. No duplicate approval audit/history rows. No black PDF frame.** Arabic PDF output and layouts approved. |
+| **Validation** | backend vitest **1591 pass** (97 files) ✅ · frontend vitest **1440 pass** (93 files) ✅ · backend/frontend/electron `tsc` ✅ · `build:back` + `build:front` ✅ · known console warnings **0** ✅ · **no schema change, no migration** |
+
+**1 — Approval engine: activated, without becoming a second approval system.** `approvalEngine.register()`
+was never called in production code, so `hasModule()` was false for every entity and
+`GET /api/approval-history/:type/:id` answered **400 to every request** — a finished, unit-tested feature that
+was unreachable. It is now registered for `expense` · `invoice` · `payroll` (`approval.registry.ts`), and the
+three domain services report what they did through a new `approvalEngine.recordTransition()`, which writes
+**one `ApprovalHistory` row and nothing else** — on the caller's transaction client.
+
+Routing approvals *through* the engine was rejected on evidence, not taste: the engine writes its own
+`AuditLog` row while every domain method writes one via `recordAudit` (⇒ **double audit**); every domain
+method opens its own `$transaction` and SQLite is single-writer (⇒ **deadlock**); and `invoices.approve()`
+has **no status transition at all** — it posts to the GL idempotently — so a state machine would have meant
+inventing a status, i.e. a schema and behaviour change. Each registration's `updateStatus` therefore
+**throws on purpose**: anyone who later routes an approval through `transition()` gets a loud error instead
+of a silent second status write. Approval rules, permissions, statuses and GL posting are **unchanged**.
+
+**2 — Global Search: from decoration to feature.** The top-bar input had no `value`, no `onChange` and no
+handler — typing in it did nothing. `GET /api/search?q=` now searches customers · invoices · employees ·
+equipment · expenses · cheques, plus the app's own pages. **Permissions are enforced at query time, not at
+render time**: an entity the user cannot read is never queried. Display/navigation fields only (no civil ID,
+phone, salary — guarded by a test), 5 hits per entity, 2-character minimum. The UI debounces 250 ms,
+**aborts the previous request** so a stale result can never overtake a fresh one, and supports `Ctrl+K` ·
+arrows · Enter · Escape.
+
+**3 — "Coming soon" reconciliation.** **Profit & Loss was already implemented** (`reports.service.profitLoss`
++ its preview/export routes) while the Financial Center advertised it as *coming soon* — the card now opens
+the existing report (`/reports?type=profit-loss&from&to`), with **no second implementation**. The
+**Contracts AI skill** was likewise labelled *coming soon* although it is live in `ai/registry.ts`. Cards for
+work **removed from the roadmap** — cloud backup, Document AI/OCR, RAG, local LLM, free SQL — were deleted.
+Balance sheet, cash flow, budget comparison, customers and executive-insight skills remain honestly labelled.
+
+**4 — Period-lock coverage: three guards, not twelve.** The audit found most "gaps" were already covered
+**transitively** through `createBalancedJournal` / `postEntry` (invoice create/update/delete/approve,
+`addPayment`, payroll `markPaid`, journal entries, expenses), and bank-statement import posts nothing at all.
+The one real hole was **`payments.correctCollectionDate`** — the only path that rewrites the date of an
+**already-posted** journal entry (`updateMany`), bypassing the central guard; it even carried a `TODO` saying
+"there is no period-lock system", which had become false. It is now guarded on **both** dates: pulling a
+payment *out of* a locked period violates the lock exactly as pushing one *into* it. `invoices.forceRemove`
+and `expenses.forceRemove` are guarded too — they are SYSTEM_ADMIN-only so they still pass, but a deletion
+from a locked period now leaves a **`PERIOD_LOCK_OVERRIDE`** audit trail instead of no trace.
+
+**5 — Print architecture: closed.** The last three screens on `window.manar.exportPdf` (live-window capture,
+which Electron renders **ignoring `@media print`** — the "black frame") now export from the **document**:
+`Quotation` (reusing its existing composer), `ReportPrint`, and `ExecutiveDecisionCenter`. The dashboard is a
+deliberately dark token subtree, so its print rules now **remap the `--db-*` tokens to white paper inside
+`@media print` only** — zero effect on screen, `dashboard.css` untouched. The legacy capture survives solely
+as a fallback for a bridge-less environment. **PDFKit retired from the report route**: it never shaped
+Arabic, its `Amiri` font is **not in the repository at all**, and no UI caller ever requested `format=pdf`;
+the route now answers with an explicit error instead of emitting a broken document. `pdf.service.ts` and the
+`pdfkit` dependency are **deliberately left in place** this release (proven unreferenced; deletion deferred
+to an explicit decision).
+
+**6 — Documentation reconciled with the code** (this section + the roadmap below). Corrected: Payroll → GL is
+**implemented** (posts on `markPaid`, not on approve) and was wrongly marked *UNKNOWN*; **attachments**
+exist and were listed as missing; **AP aging** exists and was listed as future; **Profit & Loss** is
+implemented; **Smart Transaction Presentation Engine v1** and **Dark Mode Company Logo Replacement v1** are
+released.
+
+**Unchanged:** accounting model · approval rules · permissions · audit behaviour · print output · Prisma
+schema (no migration) · cheques · ExplorerKit · Electron IPC.
+
+---
+
+## Previous Release — Dark Mode Company Logo Replacement v1
 
 | Field | Value |
 |-------|-------|
@@ -1424,26 +1497,69 @@ The AI layer is **fully deterministic, offline, and rule-based — there is NO L
 
 ## Future Roadmap
 
-> Cleaned & synced with `PROJECT_MASTER_STATUS.md` (2026-07-01). All completed features have been removed from this list and now live under **Completed Features** / **Feature Status Snapshot**. Only genuinely unbuilt work remains below.
+> Reconciled against the **code** on 2026-07-12 by the *Master Release Audit* and the *Core Runtime
+> Completion* pack — not against older documentation. Items that the audit proved already shipped were
+> deleted from this list; items removed from the roadmap by decision were deleted too (they are recorded
+> under *Removed from the roadmap* below so nobody re-adds them). Only genuinely unbuilt, still-wanted
+> work remains.
+
+> **Deployment model drives priority.** manarERP is a **small local Electron application, used by the owner
+> on his own machine** — not an internet-facing, cloud, or broad multi-user deployment. Work that would be
+> mandatory for a hosted multi-tenant system is **not** automatically a priority here, and several such items
+> have already been reviewed and deliberately declined (see *Reviewed & declined* below). Do not re-add them
+> from a generic best-practice checklist.
 
 ### High Priority
-- **Approval Workflow — Phase B** — integrate Expenses, Payroll, Invoices via `approvalEngine.register(config)` (Phase A engine is live).
-- **Signed PDF export** with embedded cryptographic digital signature (current signatures are positioned image overlays, not crypto signatures).
-- **Per-document-type signer selection** — foundation exists (multi-signature storage `print.signatures` `SigSlot[]` + per-doc-type signature/stamp positioning + show/hide); remaining: map a document type (and/or instance) to a specific stored signature at print time. Today every document prints one global default signature.
+- **Print Designer Phase 7B — PDF Template Import** (deferred from 7A; needs a pdf.js parsing strategy first).
+- **Bank Explorer — period opening/closing balance** (fully designed in `docs/BANK_EXPLORER_HISTORICAL_READINESS.md`).
 
 ### Medium Priority
-- **Print Designer Phase 7B — PDF Template Import** (deferred from 7A; requires Chromium/pdf.js parsing strategy).
-- **Print Designer Phase 7C — Image/OCR Template Import** (deferred from 7A; requires OCR backend / Tesseract.js).
-- **GL auto-posting from the bank reconciliation workspace** — matched transactions post to GL only after explicit user confirmation, per the "never auto-post" policy. (The reconciliation workspace itself is complete; only the confirm-then-post automation remains.)
+- **Data Import Phase 4 — grouped-row engine** (PurchaseOrders / GoodsReceipts / MaterialIssues). The seven
+  Prisma models already exist — this is import validators, not domain design.
+- **GL auto-posting from the bank reconciliation workspace** — the workspace produces *suggestions* only
+  today. NOTE: this conflicts with the standing "never auto-post" policy — **settle the policy before
+  scheduling the work.**
+- **Per-document-type signer selection** — storage + positioning exist; mapping a doc type to a stored
+  signature at print time does not. (Image overlays, not cryptographic signatures.)
 - Audit Log Viewer UI enhancements (export, advanced filters).
 - Advanced print profiles (custom margins, additional watermarks).
 
 ### Low Priority
-- Data Import Phase 4 — grouped-row engine (PurchaseOrders, GoodsReceipts, MaterialIssues).
-- **Integrations Center — Cloud Backup Connector** (deferred; requires cloud-provider decision).
-- Mobile Companion app (long-term; no code today).
+- Historical Import Batch Review & Posting (`ImportBatch` / `ImportBatchItem`) — designed, no models yet.
+- Recurring invoices · VAT/tax report · end-of-service indemnity accrual — none exist in code.
+- **AuditLog retention** — *maintenance consideration only, not a risk and not near-term work.* The table has
+  no purge path. For a single-user local deployment this is harmless; revisit **only if database growth
+  becomes measurable**.
 
-> **Future Vision (architecture-only — not scheduled):** Document AI · OCR (Tesseract.js local-first) · Optional LLM integration (Ollama local / user-supplied cloud key; deterministic remains the fallback) · Executive AI narrative insight · advanced analytics · additional integrations. All AI phases remain read-only until a separately-approved write phase. See `PROJECT_MASTER_STATUS.md` → *Future Vision*.
+### Reviewed & declined (do not re-add, do not "recommend as next")
+
+These were examined and **decided against**. They are recorded here so an audit does not resurface them as
+"gaps": the absence is a decision, not an oversight.
+
+- **Float → Decimal monetary migration — Reviewed; current monetary representation retained by explicit
+  project decision.** Reviewed by both Claude and ChatGPT. It is **not** an active technical-debt priority
+  and must **not** be scheduled or recommended. Reopen only if **concrete, reproducible accounting
+  inaccuracies** appear, or the owner explicitly asks to reconsider.
+- **JWT invalidation / revocation** — not an active priority for a single-user local application. Reconsider
+  only if the deployment model changes or the owner requests it.
+- **Enterprise security hardening** (Electron CSP + `sandbox: true`, bcrypt cost increase, and similar) —
+  same reasoning; **not** active roadmap work.
+- **Local backup encryption** — *optional future consideration only*, contingent on the deployment or threat
+  model changing. **Not** a committed priority and **not** a recommended next task.
+
+### Removed from the roadmap (do not re-add)
+- **Cloud backup / Google Drive connector** — explicitly removed. No code; the abandoned
+  `feature/google-drive-backup-phase1` branch was never merged; its Integrations card has been **deleted**.
+  Do not restore it anywhere.
+- **Cryptographically signed PDF export.**
+- **AI: local LLM · RAG · OCR / Document AI · free SQL layer** (former phases AI-3…AI-6). The assistant
+  stays deterministic. Their cards, quick-actions and roadmap rows have been **removed from the UI**.
+- **Mobile Companion app.**
+- **A sixth generation of printing** — the print system is complete.
+
+> **Print system: closed.** 74 releases, preview ON by default for all 15 supported documents, all three
+> live-window PDF exports migrated to the document path, PDFKit retired from the report route. Do not open
+> a new printing generation.
 
 ---
 

@@ -41,10 +41,15 @@ beforeEach(() => {
 
 // ─── list ────────────────────────────────────────────────────────────────────
 describe('integrationsService.list', () => {
-  it('returns all 6 integrations from the registry', async () => {
+  it('returns all 5 integrations from the registry', async () => {
     const result = await integrationsService.list();
     expect(result).toHaveLength(INTEGRATION_REGISTRY.length);
-    expect(result.length).toBe(6);
+    expect(result.length).toBe(5); // كانت 6 — حُذفت بطاقة النسخ السحابي (رُفعت من خارطة الطريق)
+  });
+
+  it('لا بطاقة تَعِد بميزة مرفوعة من خارطة الطريق', async () => {
+    const ids = (await integrationsService.list()).map((c) => c.id);
+    expect(ids).not.toContain('cloud-backup'); // لا كود لها، ولا خطة — فلا بطاقة
   });
 
   it('each card has the required runtime fields', async () => {

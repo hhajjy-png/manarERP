@@ -1,10 +1,11 @@
-import { useEffect, useState, CSSProperties } from 'react';
+import { useEffect, useRef, useState, CSSProperties } from 'react';
 import { printCurrentView } from '../utils/print';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { formatDate } from '../lib/date';
 import { formatReportCell } from '../lib/format';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
+import { composeFromNode, getPageSpec } from '../printing';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string; format?: 'currency' }[]; rows: any[]; totalsRow?: any };
@@ -21,6 +22,8 @@ export default function ReportPrint() {
   const [rep, setRep] = useState<ReportData | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  /** جذر المستند المطبوع — نفس العقدة التي يطبعها المسار القديم، وهي مصدر الـ PDF الآن. */
+  const printRootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const params: Record<string, string> = {};
@@ -50,7 +53,7 @@ export default function ReportPrint() {
   if (error || !rep) return <div className="center-msg">تعذّر تحميل التقرير: {error}</div>;
 
   return (
-    <div style={{ padding: '18px 24px', fontFamily: '"Cairo", Arial, sans-serif', maxWidth: 1100, margin: '0 auto', color: '#0f172a', background: '#fff', minHeight: '100vh' }}>
+    <div ref={printRootRef} style={{ padding: '18px 24px', fontFamily: '"Cairo", Arial, sans-serif', maxWidth: 1100, margin: '0 auto', color: '#0f172a', background: '#fff', minHeight: '100vh' }}>
       {/* Print footer: only "صفحة X من Y" (page X of Y) */}
       <style>{`@media print { @page { margin: 12mm; @bottom-center { content: "صفحة " counter(page) " من " counter(pages); font-family: 'Cairo', Arial, sans-serif; font-size: 7px; color: #94a3b8; } } }`}</style>
 
@@ -59,11 +62,31 @@ export default function ReportPrint() {
           type="button"
           className="btn"
           onClick={async () => {
-            if (window.manar?.exportPdf) {
-              await window.manar.exportPdf(generateExportFileName({ reportName: ReportName.Report, identifier: type ?? null, extension: 'pdf' }));
-            } else {
-              printCurrentView();
+            /**
+             * PDF من المستند، لا من النافذة الحيّة.
+             *
+             * `exportPdf` يلتقط نافذة التطبيق كما هي، وElectron يتجاهل `@media print` هناك،
+             * فتُرسم قشرة التطبيق الداكنة داخل الـ PDF («الإطار الأسود»). التقرير هنا مُنسَّق
+             * بأنماط سطرية بالكامل، فيكفي `composeFromNode` — لا التقاط أوراق أنماط.
+             * المحتوى والترتيب والأعمدة والمجاميع كما هي حرفيًا؛ يتغيّر **مصدر** الرسم فقط.
+             */
+            const name = generateExportFileName({ reportName: ReportName.Report, identifier: type ?? null, extension: 'pdf' });
+            const node = printRootRef.current;
+            const exportFromHtml = window.manar?.exportPdfFromHtml;
+            if (!exportFromHtml || !node) {
+              // بيئة قديمة بلا الجسر — السلوك السابق كما هو.
+              if (window.manar?.exportPdf) await window.manar.exportPdf(name);
+              else printCurrentView();
+              return;
             }
+            const html = composeFromNode({
+              node,
+              pageSpec: getPageSpec('a4-portrait'), // نفس مقاس exportPdf السابق (A4)
+              title: rep.title,
+              lang: 'ar',
+              stripSelectors: ['.no-print'], // شريط الأزرار لا يدخل الورقة — كما في الطباعة
+            });
+            await exportFromHtml(html, name);
           }}
         >🖨️ حفظ PDF</button>
         <button type="button" className="btn secondary" onClick={() => navigate(-1)}>رجوع</button>

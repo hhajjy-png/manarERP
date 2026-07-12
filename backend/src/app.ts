@@ -34,6 +34,7 @@ import formsRoutes from './modules/forms/forms.routes';
 import internalRoutes from './modules/backups/internal.routes';
 import executiveRoutes from './modules/executive/executive.routes';
 import approvalHistoryRoutes from './modules/approval/approval.routes';
+import { registerApprovalModules } from './modules/approval/approval.registry';
 import statementsRoutes from './modules/statements/statements.routes';
 import financialRoutes  from './modules/financial/financial.routes';
 import verificationRoutes from './modules/verification/verification.routes';
@@ -45,12 +46,16 @@ import bankAccountsRoutes from './modules/bankAccounts/bankAccounts.routes.js';
 import expirationsRoutes from './modules/expirations/expirations.routes';
 import printingRoutes from './modules/printing/printing.routes';
 import attachmentsRouter from './modules/attachments/attachments.routes';
+import searchRoutes from './modules/search/search.routes';
 
 /**
  * إنشاء تطبيق Express وتهيئة الـ Middlewares والمسارات.
  * منفصل عن server.ts ليسهل اختباره.
  */
 export function createApp(): Application {
+  // تسجيل وحدات الاعتماد قبل استقبال أي طلب — بدونه يرفض سجلّ الاعتماد كل نوع كيان.
+  registerApprovalModules();
+
   const app = express();
 
   app.use(helmet());
@@ -132,6 +137,7 @@ export function createApp(): Application {
   // Print Center Foundation v1 — audit sink for PRINT / PDF_EXPORT events.
   app.use('/api/printing', printingRoutes);
   app.use('/api/attachments', attachmentsRouter);
+  app.use('/api/search', searchRoutes);
 
   // معالجة المسارات غير الموجودة + الأخطاء (يجب أن تكون في النهاية)
   app.use(notFoundHandler);

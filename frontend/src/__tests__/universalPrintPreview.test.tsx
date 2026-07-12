@@ -265,12 +265,14 @@ describe('Universal Print Preview — الأعلام والانحدار', () => 
     expect(q).not.toContain('printArtifact');
   });
 
-  it('الشيكات والتقارير وPDFKit بلا مساس', () => {
+  it('الشيكات بلا مساس — وPDFKit تقاعد لاحقًا (حزمة إكمال النواة)', () => {
     const cheques = readFileSync('src/pages/Cheques.tsx', 'utf8');
     expect(cheques).not.toMatch(/from\s+['"][^'"]*\/printing['"]/);
     expect(cheques).toContain('const CHEQUE_PAGE_OFFSET_Y_MM: number = 40;');
+    // PDFKit لم يكن يشكّل العربية، وخطّه (Amiri) غير موجود في المستودع أصلًا، ولا مستدعٍ
+    // له من الواجهة. تقاعد لصالح مسار HTML/Chromium الذي يخدم نفس التقارير.
     const routes = readFileSync('../backend/src/modules/reports/reports.routes.ts', 'utf8');
-    expect(routes).toContain('buildPdf');
+    expect(routes).not.toContain('buildPdf');
   });
 
   it('Forms: إصلاح النسخ الأصلي ما زال قائمًا', () => {

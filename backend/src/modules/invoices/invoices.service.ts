@@ -8,6 +8,8 @@ import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 import type { ReportInput } from '../../shared/services/reportEngine/excel.service';
 import { transactionsService } from '../transactions/transactions.service';
+import { approvalEngine } from '../../shared/services/approval.service';
+import { GL_REFERENCE_TYPES } from '../../shared/services/gl.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
 import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySettledPurchase } from './invoices.calc';
 import { postInvoiceToGL, postPurchaseInvoiceToGL, postPaymentToGL, postPurchasePaymentToGL, reversePurchasePaymentGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
@@ -589,7 +591,28 @@ export class InvoicesService {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         await prisma.$transaction(async (tx) => {
+          // الاعتماد مُتماثل: إعادته على فاتورة مُرحَّلة لا تُنشئ قيدًا ثانيًا. فلا تُنشئ
+          // سطر سجلّ ثانيًا أيضًا — وإلا صار السجلّ يروي اعتمادات لم تقع.
+          const alreadyPosted = await tx.journalEntry.findFirst({
+            where: { referenceType: GL_REFERENCE_TYPES.PURCHASE_INVOICE, referenceId: id },
+            select: { id: true },
+          });
           await postPurchaseInvoiceToGL(tx, id);
+          if (alreadyPosted) return;
+          // الحالة لا تتحرّك هنا — الاعتماد ترحيل محاسبي — فالسجلّ يوثّق ذلك بأمانة:
+          // fromStatus === toStatus. لا كتابة حالة ولا تدقيق ثانٍ.
+          await approvalEngine.recordTransition(
+            {
+              entityType: 'invoice',
+              entityId:   id,
+              action:     'approve',
+              fromStatus: invoice.status,
+              toStatus:   invoice.status,
+              userId:     req.user?.userId ?? null,
+              metadata:   { invoiceNumber: invoice.invoiceNumber, total: invoice.total, posted: true },
+            },
+            tx,
+          );
         });
         break;
       } catch (err) {
@@ -663,6 +686,14 @@ export class InvoicesService {
     });
 
     await prisma.$transaction(async (tx) => {
+      // الحذف النهائي يمحو قيودًا مُرحَّلة بـ deleteMany مباشرةً، فلا يمرّ بالحارس المركزي
+      // (createBalancedJournal). الحذف من فترة مقفلة انتهاك لها كالإضافة تمامًا. المسار
+      // SYSTEM_ADMIN أصلًا ⇒ التجاوز مسموح، لكنه الآن **يُسجَّل** كـ PERIOD_LOCK_OVERRIDE.
+      await assertPeriodOpen(tx, invoice.issueDate, {
+        operation: 'حذف نهائي لفاتورة',
+        module: 'invoices',
+        entityId: id,
+      });
       await transactionsService.clearByReference('INVOICE', id, tx);
       // النظام المزدوج: حذف قيود اليومية المرتبطة بالفاتورة ومدفوعاتها (لا FK يربطها)
       await this.clearGLForInvoice(tx, id);

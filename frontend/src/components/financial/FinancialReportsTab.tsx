@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { financialApi } from '../../api/financial';
 import { exportReportAsPdf } from '../../utils/pdfExport';
 import { generateExportFileName, ReportName } from '../../utils/exportFilename';
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: Props) {
+  const navigate = useNavigate();
   const [data, setData]       = useState<{ metadata?: Record<string, unknown> } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -108,13 +110,38 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
         </div>
       )}
 
+      {/* ── تقارير متاحة ──────────────────────────────────────────────────────
+          «الأرباح والخسائر» كان يُعرض بطاقةَ «قريباً» بينما التقرير **منفَّذ ويعمل** منذ
+          زمن (`reports.service.profitLoss` + مساراه preview/export). البطاقة كانت تكذب على
+          المستخدم وتُخفي ميزة يملكها. الآن تفتحه في مركز التقارير — بنفس فترة الشاشة، وبلا
+          تنفيذ ثانٍ للتقرير. */}
+      <div className="future-reports-section">
+        <h3 className="section-title">تقارير متاحة</h3>
+        <div className="future-reports-grid">
+          <button
+            type="button"
+            className="future-report-card"
+            onClick={() => {
+              const q = new URLSearchParams({ type: 'profit-loss' });
+              if (fromDate) q.set('from', fromDate);
+              if (toDate) q.set('to', toDate);
+              navigate(`/reports?${q.toString()}`);
+            }}
+          >
+            <span className="material-symbols-outlined future-report-icon" aria-hidden="true">trending_up</span>
+            <div className="future-report-name">الأرباح والخسائر</div>
+            <div className="future-report-open">فتح التقرير ←</div>
+          </button>
+        </div>
+      </div>
+
+      {/* التقارير غير المنفَّذة تبقى معلنةً بصدق — لا وعد بما لا وجود له، ولا إخفاء لخطة قائمة. */}
       <div className="future-reports-section">
         <h3 className="section-title">تقارير قادمة</h3>
         <div className="future-reports-grid">
           {[
             { name: 'الميزانية العمومية', icon: 'account_balance' },
             { name: 'التدفقات النقدية',   icon: 'water_drop' },
-            { name: 'الأرباح والخسائر',   icon: 'trending_up' },
             { name: 'مقارنة الميزانية',   icon: 'compare_arrows' },
           ].map(r => (
             <div key={r.name} className="future-report-card disabled" aria-disabled="true">

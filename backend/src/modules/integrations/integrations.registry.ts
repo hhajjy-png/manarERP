@@ -80,27 +80,11 @@ export const INTEGRATION_REGISTRY: IntegrationDefinition[] = [
     ],
   },
 
-  {
-    id:          'cloud-backup',
-    nameAr:      'النسخ الاحتياطي السحابي',
-    nameEn:      'Cloud Backup',
-    category:    'backup',
-    descriptionAr: 'إرسال نسخ احتياطية مشفرة إلى مزود سحابي (OneDrive / Google Drive) بجانب النسخ المحلي الموجود.',
-    descriptionEn: 'Send encrypted backups to a cloud provider (OneDrive / Google Drive) alongside the existing local backup.',
-    status:      'planned',
-    maturity:    'planned',
-    capabilities: [
-      { id: 'encryption',     labelAr: 'تشفير AES-256' },
-      { id: 'provider-sync',  labelAr: 'مزامنة المزود السحابي' },
-      { id: 'retention',      labelAr: 'سياسة الاحتفاظ' },
-    ],
-    requiredPermissions: ['backups.create'],
-    targetRoute:  null,
-    settingsSchema: [
-      { key: 'enabled', labelAr: 'تفعيل التكامل', type: 'boolean', defaultValue: false },
-      { key: 'notes',   labelAr: 'ملاحظات',        type: 'text',    defaultValue: '' },
-    ],
-  },
+  // ── النسخ الاحتياطي السحابي — **رُفع من خارطة الطريق** ───────────────────────
+  // كانت بطاقة «مخططة» تَعِد بمزامنة مشفّرة إلى OneDrive/Google Drive. لا كود لها إطلاقًا،
+  // والفرع الذي بدأها (feature/google-drive-backup-phase1) مهجور ولم يُدمج. عرض بطاقة
+  // لميزة غير ممولة ولا مجدولة وعدٌ لا يُوفى، فحُذفت. النسخ الاحتياطي **المحلي** يعمل كما هو
+  // (وحدة backups + جدولة node-cron) ولم يُمسّ.
 
   {
     id:          'enhanced-excel-import',
