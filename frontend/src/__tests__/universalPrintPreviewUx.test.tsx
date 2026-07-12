@@ -173,7 +173,8 @@ describe('نسب التكبير حقيقية', () => {
     open();
     fireEvent.change(screen.getByLabelText('مستوى التكبير'), { target: { value: '0.5' } });
     expect(px(frame().style.width)).toBeCloseTo(PAGE_W, 0); // لا يتغيّر
-    expect(frame().style.transform).toBe('scale(0.5)');
+    // تكبير بصري + إزاحة الصفحة داخل مكدّس الأوراق (الصفحة الأولى ⇒ إزاحة صفر).
+    expect(frame().style.transform).toBe('scale(0.5) translateY(0px)');
   });
 
   it('التكبير خطوة بخطوة يبدأ من النسبة المعروضة فعلًا — لا قفزة', () => {

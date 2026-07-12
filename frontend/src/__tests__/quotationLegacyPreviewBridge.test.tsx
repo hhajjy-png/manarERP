@@ -205,7 +205,7 @@ describe('عقد الجسر — لا يمسّ مسار الطباعة', () => {
     expect(dlg).not.toContain('copies');
     expect(dlg).not.toContain('createPrintJob');
     // التكبير يغيّر مقاس العرض فقط (transform + مقاس الورقة) ولا يعيد بناء المستند.
-    expect(dlg).toMatch(/transform:\s*`scale\(\$\{scale\}\)`/);
+    expect(dlg).toMatch(/transform:\s*`scale\(\$\{scale\}\)\s*translateY\(/);
     expect(dlg).toContain('}, [open]);'); // المستند يُبنى عند الفتح فقط
   });
 });

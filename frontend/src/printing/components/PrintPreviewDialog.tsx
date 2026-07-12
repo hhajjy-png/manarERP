@@ -93,9 +93,9 @@ export default function PrintPreviewDialog({
   /** النسبة الفعلية المعروضة — محسوبة لا ثابتة. */
   const scale = fit === 'none' ? zoom : fitScale;
 
-  /** مقاس الورقة المعروض. هذا هو الصندوق الحقيقي في التخطيط — لا مجرد أثر بصري. */
+  /** مقاس **الورقة الواحدة** المعروض. صندوق حقيقي في التخطيط — لا مجرد أثر بصري. */
   const sheetW = Math.round(pageWpx * scale);
-  const sheetH = Math.round(pageHpx * pageCount * scale);
+  const sheetH = Math.round(pageHpx * scale);
 
   // بناء المستند عند الفتح فقط. التكبير لا يعيد البناء.
   useEffect(() => {
@@ -391,23 +391,47 @@ export default function PrintPreviewDialog({
 
           {ready && (
             <div className="pc-canvas" ref={canvasRef}>
-              {/* الورقة: صندوق مقيس فعلًا (لا يعتمد على أثر الـ transform)، متوسّط،
-                  بحدّ خفيف وظل هادئ. */}
-              <div className="pc-sheet" style={{ width: `${sheetW}px`, height: `${sheetH}px` }}>
-                <iframe
-                  ref={frameRef}
-                  className="pc-frame"
-                  title={en ? 'Document preview' : 'معاينة المستند'}
-                  srcDoc={html}
-                  sandbox="allow-same-origin"
-                  onLoad={onFrameLoad}
-                  style={{
-                    width: `${Math.round(pageWpx)}px`,
-                    height: `${Math.round(pageHpx * pageCount)}px`,
-                    transform: `scale(${scale})`,
-                    transformOrigin: en ? 'top left' : 'top right',
-                  }}
-                />
+              {/*
+                مكدّس أوراق — **طبقة عرض بحتة**. المستند لا يُقسَّم ولا يُقصّ ولا يُعاد
+                ترتيبه: كل ورقة إطارٌ يعرض **نفس** المستند مُزاحًا بمقدار صفحة، ومحصورًا
+                داخل صندوق ورقة بارتفاع صفحة واحدة (`overflow: hidden`). فالورقة الثانية
+                تبدأ من حيث انتهت الأولى بالضبط — لا محتوى يُخفى ولا يتكرّر — ويظهر بينهما
+                فراغ حقيقي من خلفية المعاينة.
+
+                الفراغ يعيش في **حاوية المكدّس**، خارج المستند تمامًا: لا يدخل الـ HTML
+                المُركَّب، ولا الطباعة، ولا الـ PDF، ولا يمسّ ارتفاع المحتوى الذي يُقاس منه
+                عدد الصفحات (القياس يقرأ [data-print-root] داخل الإطار الأول فقط).
+              */}
+              <div className="pc-stack">
+                {Array.from({ length: pageCount }, (_, i) => (
+                  <div
+                    key={i}
+                    className="pc-sheet"
+                    data-page={i + 1}
+                    style={{ width: `${sheetW}px`, height: `${sheetH}px` }}
+                  >
+                    <iframe
+                      /* القياس من الإطار الأول وحده — إطارات العرض الأخرى لا تقيس شيئًا. */
+                      ref={i === 0 ? frameRef : undefined}
+                      className="pc-frame"
+                      title={
+                        en
+                          ? `Document preview — page ${i + 1}`
+                          : `معاينة المستند — صفحة ${i + 1}`
+                      }
+                      srcDoc={html}
+                      sandbox="allow-same-origin"
+                      onLoad={i === 0 ? onFrameLoad : undefined}
+                      style={{
+                        width: `${Math.round(pageWpx)}px`,
+                        height: `${Math.round(pageHpx * pageCount)}px`,
+                        /* الإزاحة قبل التكبير: صفحة كاملة لكل ورقة، مهما كانت النسبة. */
+                        transform: `scale(${scale}) translateY(${-i * Math.round(pageHpx)}px)`,
+                        transformOrigin: en ? 'top left' : 'top right',
+                      }}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}
