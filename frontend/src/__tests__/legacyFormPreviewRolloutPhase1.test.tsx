@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { flushAsyncUpdates } from './helpers/flush';
 import { readFileSync } from 'node:fs';
 import { MemoryRouter } from 'react-router-dom';
 import FormLayout from '../forms/shared/FormLayout';
@@ -146,16 +147,20 @@ describe('الأعلام', () => {
 
 // ── العلم OFF ───────────────────────────────────────────────────────────────────
 describe('العلم OFF — الطباعة القديمة كما هي', () => {
-  it('لا حوار، ولا اعتراض أصلًا (printIntercept = undefined)', () => {
+  it('لا حوار، ولا اعتراض أصلًا (printIntercept = undefined)', async () => {
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} />);
+    await flushAsyncUpdates();
     expect(dialogOpen()).toBe(false);
     fireEvent.click(printBtn());
+    await flushAsyncUpdates();
     expect(dialogOpen()).toBe(false); // لم يُفتح شيء
   });
 
   it('الزر يستدعي مسار الطباعة القديم مباشرة', async () => {
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} />);
+    await flushAsyncUpdates();
     fireEvent.click(printBtn());
+    await flushAsyncUpdates();
     await waitFor(() => expect(printSubmit).toHaveBeenCalledTimes(1), { timeout: 4000 });
     expect(printSubmit.mock.calls[0][0].docType).toBe('form');
   });
@@ -168,16 +173,20 @@ describe('العلم ON — المعاينة تفتح ولا تطبع', () => {
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
   });
 
-  it('الضغط على «طباعة» يفتح المعاينة ولا يبدأ طباعة', () => {
+  it('الضغط على «طباعة» يفتح المعاينة ولا يبدأ طباعة', async () => {
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} />);
+    await flushAsyncUpdates();
     fireEvent.click(printBtn());
+    await flushAsyncUpdates();
     expect(dialogOpen()).toBe(true);
     expect(printSubmit).not.toHaveBeenCalled(); // ← لا طباعة عند الفتح
   });
 
-  it('المعاينة تُبنى من العقدة المطبوعة نفسها (.form-page) لا من عقدة تجميلية', () => {
+  it('المعاينة تُبنى من العقدة المطبوعة نفسها (.form-page) لا من عقدة تجميلية', async () => {
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} />);
+    await flushAsyncUpdates();
     fireEvent.click(printBtn());
+    await flushAsyncUpdates();
     const html = document.querySelector('.pc-frame')!.getAttribute('srcdoc')!;
     expect(html).toContain('form-page');
     expect(html).toContain('data-print-root'); // مرساة المستند المُركَّب
@@ -187,7 +196,9 @@ describe('العلم ON — المعاينة تفتح ولا تطبع', () => {
 
   it('«طباعة» داخل المعاينة تنفّذ doPrint القديم مرة واحدة، بنفس الإعدادات', async () => {
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} />);
+    await flushAsyncUpdates();
     fireEvent.click(printBtn());
+    await flushAsyncUpdates();
     fireEvent.click(previewPrintBtn());
     await waitFor(() => expect(printSubmit).toHaveBeenCalledTimes(1), { timeout: 4000 });
     const job = printSubmit.mock.calls[0][0];
@@ -199,18 +210,22 @@ describe('العلم ON — المعاينة تفتح ولا تطبع', () => {
 
   it('عدد النسخ يبقى ملك FormLayout — المعاينة لا تعرفه ولا تغيّره', async () => {
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} />);
+    await flushAsyncUpdates();
     const plus = screen.getAllByLabelText('نسخة أكثر')[0];
     fireEvent.click(plus);
     fireEvent.click(plus); // 3 نسخ
     fireEvent.click(printBtn());
+    await flushAsyncUpdates();
     fireEvent.click(previewPrintBtn());
     await waitFor(() => expect(printSubmit).toHaveBeenCalledTimes(1), { timeout: 4000 });
     expect(printSubmit.mock.calls[0][0].copies).toBe(3); // نداء واحد بثلاث نسخ
   });
 
-  it('الإغلاق لا يطبع', () => {
+  it('الإغلاق لا يطبع', async () => {
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} />);
+    await flushAsyncUpdates();
     fireEvent.click(printBtn());
+    await flushAsyncUpdates();
     fireEvent.click(pcBtn('إغلاق'));
     expect(printSubmit).not.toHaveBeenCalled();
     expect(dialogOpen()).toBe(false);
@@ -218,7 +233,9 @@ describe('العلم ON — المعاينة تفتح ولا تطبع', () => {
 
   it('النقر المزدوج داخل المعاينة ينفّذ عملية واحدة فقط', async () => {
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} />);
+    await flushAsyncUpdates();
     fireEvent.click(printBtn());
+    await flushAsyncUpdates();
     const btn = previewPrintBtn();
     fireEvent.click(btn);
     fireEvent.click(btn);
@@ -228,7 +245,9 @@ describe('العلم ON — المعاينة تفتح ولا تطبع', () => {
 
   it('التكبير لا يمسّ الطباعة: نفس النسخ ونفس الإعدادات بعد تغيير النسبة', async () => {
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} />);
+    await flushAsyncUpdates();
     fireEvent.click(printBtn());
+    await flushAsyncUpdates();
     fireEvent.change(pcSelect(), { target: { value: '0.25' } });
     fireEvent.click(pcBtn('ملاءمة الصفحة'));
     fireEvent.click(previewPrintBtn());
@@ -320,6 +339,7 @@ describe('auto-print عند الجاهزية', () => {
   it('العلم OFF: تطبع مباشرة كما كانت — ولا تظهر معاينة', async () => {
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} ready />);
+    await flushAsyncUpdates();
     // المسار القديم للطباعة التلقائية هو printCurrentView() ⇒ window.print().
     await waitFor(() => expect(printSpy).toHaveBeenCalledTimes(1), { timeout: 4000 });
     expect(dialogOpen()).toBe(false);
@@ -332,6 +352,8 @@ describe('auto-print عند الجاهزية', () => {
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
 
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} ready />);
+
+    await flushAsyncUpdates();
     await waitFor(() => expect(dialogOpen()).toBe(true), { timeout: 4000 });
 
     // ← جوهر العطل: لم يعد حوار Electron يظهر فوق المعاينة.
@@ -344,6 +366,7 @@ describe('auto-print عند الجاهزية', () => {
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, true);
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} ready />);
+    await flushAsyncUpdates();
     await waitFor(() => expect(dialogOpen()).toBe(true), { timeout: 4000 });
 
     fireEvent.click(previewPrintBtn());
@@ -358,6 +381,7 @@ describe('auto-print عند الجاهزية', () => {
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, true);
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} ready />);
+    await flushAsyncUpdates();
     await waitFor(() => expect(dialogOpen()).toBe(true), { timeout: 4000 });
     fireEvent.click(pcBtn('إغلاق'));
     expect(dialogOpen()).toBe(false);
@@ -368,6 +392,7 @@ describe('auto-print عند الجاهزية', () => {
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_V1, true);
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_HR, true);
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_HR} ready />);
+    await flushAsyncUpdates();
     await waitFor(() => expect(dialogOpen()).toBe(true), { timeout: 4000 });
 
     fireEvent.click(printBtn()); // نقرة يدوية والمعاينة مفتوحة أصلًا
@@ -383,6 +408,7 @@ describe('auto-print عند الجاهزية', () => {
     setFlagOverride(PRINT_PREVIEW_LEGACY_FORMS_FINANCE, true);
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
     render(<Harness group={PRINT_PREVIEW_LEGACY_FORMS_FINANCE} />);
+    await flushAsyncUpdates();
     await new Promise((r) => setTimeout(r, 300));
     expect(dialogOpen()).toBe(false); // لا معاينة تلقائية
     expect(printSpy).not.toHaveBeenCalled(); // ولا طباعة تلقائية

@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { flushAsyncUpdates } from './helpers/flush';
 import { readFileSync } from 'node:fs';
 import { MemoryRouter } from 'react-router-dom';
 import {
@@ -140,10 +141,12 @@ describe('العلم', () => {
 
 // ── السلوك ──────────────────────────────────────────────────────────────────────
 describe('العلم OFF — الطباعة القديمة كما هي', () => {
-  it('الزر يستدعي دالة الطباعة القديمة مباشرة، ولا معاينة', () => {
+  it('الزر يستدعي دالة الطباعة القديمة مباشرة، ولا معاينة', async () => {
     const legacy = vi.fn();
     render(<Harness legacyPrint={legacy} />);
+    await flushAsyncUpdates();
     fireEvent.click(screenPrintBtn());
+    await flushAsyncUpdates();
     expect(legacy).toHaveBeenCalledTimes(1);
     expect(dialogOpen()).toBe(false);
   });
@@ -151,6 +154,7 @@ describe('العلم OFF — الطباعة القديمة كما هي', () => {
   it('الطباعة التلقائية تبقى مباشرة', async () => {
     const legacy = vi.fn();
     render(<Harness legacyPrint={legacy} auto />);
+    await flushAsyncUpdates();
     await waitFor(() => expect(legacy).toHaveBeenCalledTimes(1));
     expect(dialogOpen()).toBe(false);
   });
@@ -159,10 +163,12 @@ describe('العلم OFF — الطباعة القديمة كما هي', () => {
 describe('العلم ON — المعاينة أولًا', () => {
   beforeEach(on);
 
-  it('الزر يفتح المعاينة ولا يطبع', () => {
+  it('الزر يفتح المعاينة ولا يطبع', async () => {
     const legacy = vi.fn();
     render(<Harness legacyPrint={legacy} />);
+    await flushAsyncUpdates();
     fireEvent.click(screenPrintBtn());
+    await flushAsyncUpdates();
     expect(dialogOpen()).toBe(true);
     expect(legacy).not.toHaveBeenCalled();
     expect(printSpy).not.toHaveBeenCalled(); // لا حوار Electron
@@ -171,6 +177,7 @@ describe('العلم ON — المعاينة أولًا', () => {
   it('الطباعة التلقائية تمرّ بالمعاينة — لا حوار طباعة عند الفتح', async () => {
     const legacy = vi.fn();
     render(<Harness legacyPrint={legacy} auto />);
+    await flushAsyncUpdates();
     await waitFor(() => expect(dialogOpen()).toBe(true));
     expect(legacy).not.toHaveBeenCalled();
     expect(printSpy).not.toHaveBeenCalled();
@@ -179,7 +186,9 @@ describe('العلم ON — المعاينة أولًا', () => {
   it('«طباعة» داخل المعاينة تنفّذ الدالة القديمة مرة واحدة', async () => {
     const legacy = vi.fn();
     render(<Harness legacyPrint={legacy} />);
+    await flushAsyncUpdates();
     fireEvent.click(screenPrintBtn());
+    await flushAsyncUpdates();
     fireEvent.click(pcBtn('طباعة'));
     await waitFor(() => expect(legacy).toHaveBeenCalledTimes(1));
     expect(legacy).toHaveBeenCalledTimes(1);
@@ -188,7 +197,9 @@ describe('العلم ON — المعاينة أولًا', () => {
   it('النقر المزدوج داخل المعاينة ⇒ عملية واحدة', async () => {
     const legacy = vi.fn();
     render(<Harness legacyPrint={legacy} />);
+    await flushAsyncUpdates();
     fireEvent.click(screenPrintBtn());
+    await flushAsyncUpdates();
     const b = pcBtn('طباعة');
     fireEvent.click(b);
     fireEvent.click(b);
@@ -196,10 +207,12 @@ describe('العلم ON — المعاينة أولًا', () => {
     expect(legacy).toHaveBeenCalledTimes(1);
   });
 
-  it('الإغلاق لا يطبع', () => {
+  it('الإغلاق لا يطبع', async () => {
     const legacy = vi.fn();
     render(<Harness legacyPrint={legacy} />);
+    await flushAsyncUpdates();
     fireEvent.click(screenPrintBtn());
+    await flushAsyncUpdates();
     fireEvent.click(pcBtn('إغلاق'));
     expect(dialogOpen()).toBe(false);
     expect(legacy).not.toHaveBeenCalled();
@@ -208,6 +221,7 @@ describe('العلم ON — المعاينة أولًا', () => {
   it('تزامن التلقائي مع النقر اليدوي ⇒ معاينة واحدة وطباعة واحدة', async () => {
     const legacy = vi.fn();
     render(<Harness legacyPrint={legacy} auto />);
+    await flushAsyncUpdates();
     await waitFor(() => expect(dialogOpen()).toBe(true));
     fireEvent.click(screenPrintBtn()); // نقرة يدوية والمعاينة مفتوحة
     expect(document.querySelectorAll('.pc-scrim')).toHaveLength(1);
@@ -216,9 +230,11 @@ describe('العلم ON — المعاينة أولًا', () => {
     expect(legacy).toHaveBeenCalledTimes(1);
   });
 
-  it('المعاينة تعرض المحتوى الحالي من العقدة الحقيقية', () => {
+  it('المعاينة تعرض المحتوى الحالي من العقدة الحقيقية', async () => {
     render(<Harness legacyPrint={vi.fn()} />);
+    await flushAsyncUpdates();
     fireEvent.click(screenPrintBtn());
+    await flushAsyncUpdates();
     const html = document.querySelector('.pc-frame')!.getAttribute('srcdoc')!;
     expect(html).toContain('محتوى المستند الحالي');
     expect(html).toContain('data-print-root');

@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { flushAsyncUpdates } from './helpers/flush';
 
 // The calibrator talks to the api client and the print helper — mock both so we
 // can assert the test-print button prints WITHOUT touching any cheque record.
@@ -38,6 +39,8 @@ describe('ChequeCalibrator — calibration test print isolation', () => {
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/cheques/template-versions/NBK'));
 
     fireEvent.click(screen.getByRole('button', { name: /اختبار المعايرة/ }));
+    // `printCurrentView` وعدٌ: حارس النقر يُحرَّر عند تحقّقه — ننتظر ذلك التحديث.
+    await flushAsyncUpdates();
 
     // Printing happened…
     expect(printCurrentView).toHaveBeenCalledTimes(1);
