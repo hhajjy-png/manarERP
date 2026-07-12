@@ -1,6 +1,7 @@
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import { CHART_INITIAL_DIMENSION } from '../../lib/rechartsDefaults';
 import { Skeleton } from './Skeleton';
 import { useT } from '../../lib/i18n';
 
@@ -40,7 +41,7 @@ export default function ContractStatusChart({ data, loading }: Props) {
 
   return (
     <div className="db-chart-wrap-sm">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
         <PieChart>
           <Pie
             data={chartData}

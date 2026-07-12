@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from 'recharts';
+import { CHART_INITIAL_DIMENSION } from '../lib/rechartsDefaults';
 import { api } from '../api/client';
 import { Skeleton } from '../components/dashboard/Skeleton';
 import KPITimeline from '../components/dashboard/KPITimeline';
@@ -147,7 +148,7 @@ function ExpenseBreakdownTab() {
   return (
     <div>
       <div style={{ height: 320, marginBottom: 24 }}>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
           <BarChart
             layout="vertical"
             data={chartData}

@@ -1,4 +1,5 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { CHART_INITIAL_DIMENSION } from '../../../lib/rechartsDefaults';
 import { Skeleton } from '../Skeleton';
 import type { RevenueSlice } from './types';
 import { formatCurrency, formatInteger, formatPercent } from '../../../lib/format';
@@ -63,7 +64,7 @@ export default function RevenueDistributionSection({
   return (
     <div className="db-cc-donut">
       <div className="db-cc-donut-chart">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
           <PieChart>
             <Pie
               data={colored}

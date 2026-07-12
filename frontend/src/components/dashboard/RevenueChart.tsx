@@ -2,6 +2,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import { CHART_INITIAL_DIMENSION } from '../../lib/rechartsDefaults';
 import { Skeleton } from './Skeleton';
 import { useT } from '../../lib/i18n';
 import { formatCurrency, formatCompact } from '../../lib/format';
@@ -69,7 +70,7 @@ export default function RevenueChart({ data, loading }: Props) {
 
   return (
     <div className="db-chart-wrap">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
         <BarChart data={data} barGap={4} barCategoryGap="30%">
           <defs>
             <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">

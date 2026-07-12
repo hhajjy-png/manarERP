@@ -2,6 +2,7 @@ import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
+import { CHART_INITIAL_DIMENSION } from '../../../lib/rechartsDefaults';
 import { Skeleton } from '../Skeleton';
 import { formatCurrency, formatCompact } from '../../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../../lib/date';
@@ -80,7 +81,7 @@ export default function PerformanceChartSection({
 
   return (
     <div className="db-cc-chart">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
         <ComposedChart data={data} barGap={4} barCategoryGap="28%">
           <defs>
             <linearGradient id="ccGradRevenue" x1="0" y1="0" x2="0" y2="1">
