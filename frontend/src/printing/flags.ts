@@ -55,6 +55,13 @@ export const PRINT_PREVIEW_LEGACY_FORMS_V1 = 'PRINT_PREVIEW_LEGACY_FORMS_V1' as 
 export const PRINT_PREVIEW_LEGACY_FORMS_FINANCE = 'PRINT_PREVIEW_LEGACY_FORMS_FINANCE' as const;
 /** خطابات ونماذج الموارد البشرية الثمانية */
 export const PRINT_PREVIEW_LEGACY_FORMS_HR = 'PRINT_PREVIEW_LEGACY_FORMS_HR' as const;
+/**
+ * Phase 2 — النماذج ذات المسار الخاص (لا تستخدم FormLayout): عقد العمل · قسيمة الراتب.
+ * علم واحد لهما: كلاهما يُربط بنفس المِحوَل الصغير، وسبب الرجوع فيهما واحد.
+ * سند القبض **ليس هنا** — له بوابته المستقلة (PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)،
+ * وإضافته هنا كانت ستُنتج علمين يتحكّمان في السلوك نفسه.
+ */
+export const PRINT_PREVIEW_LEGACY_FORMS_SPECIAL = 'PRINT_PREVIEW_LEGACY_FORMS_SPECIAL' as const;
 
 export type FlagName =
   | typeof PRINT_CENTER_FOUNDATION_V1
@@ -64,7 +71,8 @@ export type FlagName =
   | typeof PRINT_CENTER_PHASE2_QUOTATION
   | typeof PRINT_PREVIEW_LEGACY_FORMS_V1
   | typeof PRINT_PREVIEW_LEGACY_FORMS_FINANCE
-  | typeof PRINT_PREVIEW_LEGACY_FORMS_HR;
+  | typeof PRINT_PREVIEW_LEGACY_FORMS_HR
+  | typeof PRINT_PREVIEW_LEGACY_FORMS_SPECIAL;
 
 /** A document is on the Print Center only when master AND its own flag are enabled. */
 export function isPhase2Enabled(documentFlag: FlagName): boolean {
@@ -100,6 +108,7 @@ const DEFAULTS: Record<FlagName, boolean> = {
   PRINT_PREVIEW_LEGACY_FORMS_V1: false,
   PRINT_PREVIEW_LEGACY_FORMS_FINANCE: false,
   PRINT_PREVIEW_LEGACY_FORMS_HR: false,
+  PRINT_PREVIEW_LEGACY_FORMS_SPECIAL: false,
 };
 
 function readOverride(name: FlagName): boolean | null {

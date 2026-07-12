@@ -360,10 +360,26 @@ export default function PrintPreviewDialog({
             </button>
           </div>
 
-          {/* لا ترقيم حقيقي بعد — لا أزرار تنقّل وهمية، ولا ادّعاء دقة غير موجودة. */}
+          {/*
+            لا ترقيم حقيقي — ولا ادّعاء دقة غير موجودة.
+
+            العرض **متصل** عمدًا: المعاينة لا تعرف أين يكسر Chromium الصفحات فعلًا
+            (هوامش @page، عرض صندوق الطباعة، `page-break-before/after`،
+            `break-inside: avoid`). ورسمُ فواصل عند مضاعفات ارتفاع A4 كان يعرض حدودًا
+            **خاطئة بثقة** — وهو أسوأ من عدم عرضها. فلا فواصل، ولا أزرار تنقّل، ورقم
+            الصفحات **تقديري** ومُعلَن كذلك.
+          */}
           <span className="pc-pages" aria-live="polite">
             {en ? 'Estimated pages' : 'الصفحات التقديرية'}: <strong>{pageCount}</strong>
           </span>
+
+          {pageCount > 1 && (
+            <span className="pc-continuous-note">
+              {en
+                ? 'Continuous view — the printer decides the final page breaks'
+                : 'عرض متصل — التقسيم النهائي يحدده الطابع'}
+            </span>
+          )}
 
           <div className="pc-toolbar-group pc-toolbar-group--end">
             <button

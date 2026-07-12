@@ -1,6 +1,11 @@
-import { CSSProperties, useEffect, useState } from 'react';
+import { CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { printCurrentView } from '../utils/print';
-import { waitForPrintReady } from '../printing';
+import {
+  waitForPrintReady,
+  useLegacyFormPreview,
+  isLegacyFormsPreviewEnabled,
+  PRINT_PREVIEW_LEGACY_FORMS_SPECIAL,
+} from '../printing';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { money } from '../config/modules';
@@ -67,16 +72,44 @@ export default function PayrollPayslip() {
   // images decoded, layout painted) and a bounded fallback, so a slow machine can no
   // longer fire the print dialog over a half-rendered payslip. The transport is
   // unchanged: it still calls printCurrentView(), so the printed output is identical.
+  /** الجذر القابل للطباعة — نفس العقدة التي يطبعها المسار القديم. */
+  const printRootRef = useRef<HTMLDivElement>(null);
+
+  const preview = useLegacyFormPreview({
+    enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL),
+    title: 'قسيمة راتب',
+    documentLabel: data ? `قسيمة راتب · ${data.employee.fullName} · ${data.month}/${data.year}` : '',
+  });
+
+  /**
+   * مِحوَل صغير: بوابة **واحدة** يمرّ بها **كلا** مساري الطباعة — الزر اليدوي والطباعة
+   * التلقائية عند الجاهزية. (خطأ Phase 1 كان ربط الزر وترك مسار ready جانبًا.)
+   *
+   * دالة الطباعة القديمة هنا هي `printCurrentView` نفسها — تُمرَّر كمرجع، بلا نسخ ولا
+   * تغليف؛ فهي وحدها ما يطبع، سواء بوّابةٌ قبلها أم لا.
+   */
+  const interceptRef = useRef(preview.printIntercept);
+  interceptRef.current = preview.printIntercept;
+
+  const requestPrint = useCallback(() => {
+    const intercept = interceptRef.current;
+    if (intercept) {
+      intercept({ proceed: printCurrentView, node: printRootRef.current });
+      return;
+    }
+    printCurrentView(); // العلم OFF — السطر القديم حرفيًا
+  }, []);
+
   useEffect(() => {
     if (!data) return;
     let canceled = false;
     void waitForPrintReady().then(() => {
-      if (!canceled) printCurrentView();
+      if (!canceled) requestPrint();
     });
     return () => {
       canceled = true;
     };
-  }, [data]);
+  }, [data, requestPrint]);
 
   if (error)
     return (
@@ -93,7 +126,11 @@ export default function PayrollPayslip() {
     );
 
   return (
+    <>
+    {/* الحوار خارج الجذر القابل للطباعة، فلا يدخل المستند المُركَّب. */}
+    {preview.dialog}
     <div
+      ref={printRootRef}
       style={{
         padding: 28,
         fontFamily: '"Cairo", Arial, sans-serif',
@@ -105,7 +142,7 @@ export default function PayrollPayslip() {
       }}
     >
       <div className="no-print" style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
-        <button className="btn" onClick={() => printCurrentView()}>
+        <button className="btn" onClick={requestPrint}>
           {t('btn.payslip.print')}
         </button>
         <button className="btn secondary" onClick={() => navigate(-1)}>
@@ -192,5 +229,6 @@ export default function PayrollPayslip() {
         </tbody>
       </table>
     </div>
+    </>
   );
 }

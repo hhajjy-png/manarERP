@@ -1,5 +1,10 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { printCurrentView } from '../utils/print';
+import {
+  useLegacyFormPreview,
+  isLegacyFormsPreviewEnabled,
+  PRINT_PREVIEW_LEGACY_FORMS_SPECIAL,
+} from '../printing';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import DateInput from '../components/DateInput';
@@ -547,6 +552,29 @@ export default function EmploymentContract() {
       .catch(() => {});
   }, [employee, mode, formNumber, profile]);
 
+  /** الجذر القابل للطباعة — نفس ما يطبعه المسار القديم (شريط الأوامر `.no-print` يُقتطع). */
+  const printRootRef = useRef<HTMLDivElement>(null);
+
+  const preview = useLegacyFormPreview({
+    enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL),
+    title: 'عقد عمل',
+    documentLabel: `عقد عمل · ${formNumber}`,
+  });
+
+  /**
+   * مِحوَل صغير حول زر الطباعة وحده. `handlePrint` القديمة تبقى كما هي حرفيًا — بما
+   * فيها حفظ المسودّة وسجلّ الطباعة وعدّاد النسخ — وتُمرَّر كمرجع (`proceed`) فتُنفَّذ
+   * **عند الموافقة داخل المعاينة**، لا عند فتحها. لا طباعة تلقائية في هذه الشاشة.
+   */
+  const requestPrint = useCallback(() => {
+    if (preview.printIntercept) {
+      preview.printIntercept({ proceed: handlePrint, node: printRootRef.current });
+      return;
+    }
+    handlePrint(); // العلم OFF — السلوك القديم حرفيًا
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preview.printIntercept]);
+
   function handlePrint() {
     if (employee) {
       saveDraft('employment-contract', { employee, params, profile });
@@ -641,12 +669,15 @@ export default function EmploymentContract() {
 
   if (mode === 'preview' && employee) {
     return (
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '16px 20px', background: '#fff' }}>
+      <>
+      {/* خارج الجذر القابل للطباعة — لا يدخل المستند المُركَّب. */}
+      {preview.dialog}
+      <div ref={printRootRef} style={{ maxWidth: 860, margin: '0 auto', padding: '16px 20px', background: '#fff' }}>
         <div
           className="no-print"
           style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center' }}
         >
-          <button className="btn" onClick={handlePrint}>
+          <button className="btn" onClick={requestPrint}>
             🖨️ طباعة / حفظ PDF
           </button>
           <button className="btn secondary" onClick={() => setMode('params')}>
@@ -668,6 +699,7 @@ export default function EmploymentContract() {
 
         <EmploymentContractTemplate employee={employee} params={params} profile={profile} />
       </div>
+      </>
     );
   }
 

@@ -46,8 +46,12 @@ const PHASE1 = [
   ['PurchaseRequest', 'FINANCE'],
 ] as const;
 
-/** النماذج/الشاشات المؤجَّلة — يجب ألا تُمسّ في هذه المرحلة. */
-const DEFERRED = ['EmploymentContract', 'PayrollPayslip', 'Cheques', 'ReportPrint'] as const;
+/**
+ * الشاشات التي تبقى **خارج** جسر النماذج القديمة.
+ * (عقد العمل وقسيمة الراتب تخرّجا في Phase 2 عبر المِحوَل الصغير — انظر
+ * `legacyFormPreviewRolloutPhase2.test.tsx`؛ لذلك لم يعودا هنا.)
+ */
+const DEFERRED = ['Cheques', 'ReportPrint', 'BankReconciliation', 'BankSalaryAnalytics'] as const;
 
 type PrintJobLike = { docType: string; copies: number; destination: string; documentId?: string };
 
