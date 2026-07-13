@@ -34,7 +34,7 @@ type Phase =
   /** `pageCount: null` = Chromium's PDF could not be counted confidently. We show NO
    *  number rather than a false «0». The pages themselves are still Chromium's — only
    *  the metadata label is unknown. */
-  | { kind: 'ready'; viewerUrl: string; pageCount: number | null }
+  | { kind: 'ready'; blobUrl: string; pageCount: number | null }
   | { kind: 'error'; message: string };
 
 /**
@@ -49,11 +49,43 @@ type Phase =
  *
  * This is not an overlay and not a crop: there is no dependence on any toolbar height.
  */
-const PDF_VIEWER_FRAGMENT = '#toolbar=0';
+const PDF_VIEWER_FRAGMENT = 'toolbar=0';
 
-/** `blob:…` → `blob:…#toolbar=0`. The blob URL never carries a fragment of its own. */
-function toViewerUrl(blobUrl: string): string {
-  return `${blobUrl}${PDF_VIEWER_FRAGMENT}`;
+/** نسب التكبير المدعومة. قيم Chromium الرسمية للجزء `zoom=` — لا اختراع لقيم غير مدعومة. */
+export const VIEWER_ZOOM_LEVELS = [50, 75, 100, 125, 150, 175, 200] as const;
+export const DEFAULT_VIEWER_ZOOM = 100;
+
+/**
+ * `fit` = وضع Chromium `view=FitH` (ملاءمة العرض) — أقرب وضع مدعوم يحافظ على القراءة.
+ * ملاءمة الصفحة كاملة (`view=Fit`) تُصغّر النص كثيرًا في فاتورة A4، فاخترنا ملاءمة العرض.
+ */
+export type ViewerZoom = number | 'fit';
+
+/**
+ * يبني عنوان العارض من الـ blob URL **الخام** + الجزء فقط.
+ *
+ * التكبير **لا يُعيد التوليد**: لا `printToPDF` ثانٍ، ولا Blob جديد، ولا نداء IPC، ولا
+ * جلسة عارض جديدة. نفس البايتات — يتغيّر الجزء وحده، فيُعيد Chromium رسم نفس المستند.
+ * ولهذا يبقى الـ blob URL الخام محفوظًا منفصلًا: هو وحده ما يُلغى لاحقًا.
+ */
+export function toViewerUrl(blobUrl: string, zoom: ViewerZoom): string {
+  const fragment =
+    zoom === 'fit'
+      ? `${PDF_VIEWER_FRAGMENT}&view=FitH`
+      : `${PDF_VIEWER_FRAGMENT}&zoom=${zoom}`;
+  return `${blobUrl}#${fragment}`;
+}
+
+/** الخطوة التالية/السابقة ضمن النسب المدعومة. `fit` يبدأ من 100% عند أول خطوة. */
+export function stepZoom(current: ViewerZoom, direction: 1 | -1): number {
+  const base = current === 'fit' ? DEFAULT_VIEWER_ZOOM : current;
+  const levels = VIEWER_ZOOM_LEVELS;
+  const idx = levels.indexOf(base as (typeof levels)[number]);
+  if (idx === -1) return DEFAULT_VIEWER_ZOOM;
+  const next = idx + direction;
+  if (next < 0) return levels[0];
+  if (next >= levels.length) return levels[levels.length - 1];
+  return levels[next];
 }
 
 export default function WysiwygPreviewPocDialog({
@@ -65,6 +97,8 @@ export default function WysiwygPreviewPocDialog({
   documentLabel = '',
 }: WysiwygPreviewPocDialogProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'generating' });
+  /** التكبير شأن عرض بحت: لا يمسّ البايتات ولا الطباعة. يعود إلى 100% مع كل فتحة. */
+  const [zoom, setZoom] = useState<ViewerZoom>(DEFAULT_VIEWER_ZOOM);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const printingRef = useRef(false);
@@ -112,6 +146,7 @@ export default function WysiwygPreviewPocDialog({
     }
     const requestId = ++requestIdRef.current;
     setPhase({ kind: 'generating' });
+    setZoom(DEFAULT_VIEWER_ZOOM); // كل فتحة تبدأ من 100%
 
     (async () => {
       const generate = window.manar?.generateWysiwygPreviewPoc;
@@ -151,7 +186,7 @@ export default function WysiwygPreviewPocDialog({
         typeof result.pageCount === 'number' && Number.isInteger(result.pageCount) && result.pageCount > 0
           ? result.pageCount
           : null;
-      setPhase({ kind: 'ready', viewerUrl: toViewerUrl(blobUrl), pageCount: count });
+      setPhase({ kind: 'ready', blobUrl, pageCount: count });
     })().catch((e: unknown) => {
       if (requestIdRef.current !== requestId) return;
       setPhase({ kind: 'error', message: e instanceof Error ? e.message : 'تعذّر توليد المعاينة.' });
@@ -212,13 +247,16 @@ export default function WysiwygPreviewPocDialog({
 
   if (!open) return null;
 
+  /** أزرار التكبير تعمل فقط بعد جاهزية المستند. */
+  const ready = phase.kind === 'ready';
+
   return (
     <div className="pc-scrim" role="presentation">
       <div
         className="pc-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label="معاينة WYSIWYG (تجريبي)"
+        aria-label="معاينة دقيقة"
         dir="rtl"
         tabIndex={-1}
         ref={dialogRef}
@@ -226,27 +264,14 @@ export default function WysiwygPreviewPocDialog({
       >
         <div className="pc-toolbar">
           <div className="pc-toolbar-group">
-            <button type="button" className="pc-btn" onClick={onClose} aria-label="إغلاق">
+            <button type="button" className="pc-btn pc-btn--close" onClick={onClose} aria-label="إغلاق">
               <span className="material-symbols-outlined" aria-hidden="true">close</span>
               إغلاق
             </button>
           </div>
 
-          <span style={{ fontSize: 12.5, fontWeight: 700 }}>
-            معاينة WYSIWYG — ترقيم Chromium الحقيقي
-            <span
-              style={{
-                marginInlineStart: 8,
-                fontSize: 11,
-                fontWeight: 800,
-                padding: '2px 8px',
-                borderRadius: 999,
-                background: 'rgba(217,119,6,0.15)',
-                color: '#b45309',
-              }}
-            >
-              تجريبي
-            </span>
+          <span className="pc-status-doc" style={{ fontWeight: 700 }}>
+            معاينة دقيقة — الصفحات كما ستُطبع
           </span>
 
           {/* No count is shown when it is unknown — a confident «0» would be a lie. */}
@@ -255,6 +280,62 @@ export default function WysiwygPreviewPocDialog({
               الصفحات الفعلية: <strong>{phase.pageCount}</strong>
             </span>
           )}
+
+          {/* ── تكبير يملكه manarERP (لا شريط PDFium) ──
+              نفس أصناف ExplorerKit المستخدمة في معاينة الطباعة الحالية: لا لون جديد،
+              ولا خط جديد، ولا حجم أيقونة مختلف. الاتجاه (RTL/LTR) يرثه الشريط من
+              `dir` على الحوار، فالترتيب البصري يتبع لغة الواجهة تلقائيًا. */}
+          <div className="pc-toolbar-group pc-toolbar-group--zoom">
+            <button
+              type="button"
+              className="pc-icon-btn"
+              aria-label="تصغير"
+              title="تصغير"
+              disabled={!ready || zoom !== 'fit' && zoom <= VIEWER_ZOOM_LEVELS[0]}
+              onClick={() => setZoom((z) => stepZoom(z, -1))}
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">zoom_out</span>
+            </button>
+
+            <span className="pc-zoom-value" aria-live="polite">
+              {zoom === 'fit' ? 'ملاءمة' : `${zoom}%`}
+            </span>
+
+            <button
+              type="button"
+              className="pc-icon-btn"
+              aria-label="تكبير"
+              title="تكبير"
+              disabled={!ready || zoom !== 'fit' && zoom >= VIEWER_ZOOM_LEVELS[VIEWER_ZOOM_LEVELS.length - 1]}
+              onClick={() => setZoom((z) => stepZoom(z, 1))}
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">zoom_in</span>
+            </button>
+
+            <button
+              type="button"
+              className={`pc-btn pc-btn--toggle${zoom === 'fit' ? ' is-active' : ''}`}
+              aria-pressed={zoom === 'fit'}
+              disabled={!ready}
+              onClick={() => setZoom('fit')}
+              title="ملاءمة العرض"
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">fit_width</span>
+              ملاءمة
+            </button>
+
+            <button
+              type="button"
+              className="pc-btn"
+              disabled={!ready || zoom === DEFAULT_VIEWER_ZOOM}
+              onClick={() => setZoom(DEFAULT_VIEWER_ZOOM)}
+              title="إعادة ضبط التكبير إلى 100%"
+              aria-label="إعادة ضبط"
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+              إعادة ضبط
+            </button>
+          </div>
 
           <div className="pc-toolbar-group pc-toolbar-group--end">
             <button
@@ -300,8 +381,23 @@ export default function WysiwygPreviewPocDialog({
 
           {phase.kind === 'ready' && (
             <iframe
-              title="معاينة WYSIWYG"
-              src={phase.viewerUrl}
+              /**
+               * `key` = عنوان العارض الكامل — وهذا **جوهر عمل التكبير**، لا تفصيل تجميلي.
+               *
+               * PDFium يقرأ جزء العنوان (`#toolbar=0&zoom=…`) **عند تحميل سياق التصفّح
+               * فقط**. تغيير `src` على إطار حيّ = تنقّل داخل نفس المستند، فتتجاهله الإضافة
+               * تمامًا: قِيس فعليًا أن عرض الصفحة المرسومة بقي 713px عند 100% و125% و175%،
+               * وأن ترتيب المعاملات لا يغيّر شيئًا. أما إعادة إنشاء الإطار فتطبّقه فورًا
+               * (‎175% → 983px‎، ‎50% → 356px‎، ‎FitH → 983px‎).
+               *
+               * تغيّر الـ `key` يجعل React يفكّك الإطار القديم ويركّب إطارًا جديدًا — سياق
+               * تصفّح جديد يقرأ الجزء عند التحميل. ولا شيء غير ذلك يتغيّر: **نفس** الـ Blob
+               * الخام (لا إلغاء، ولا Blob جديد)، ولا `printToPDF`، ولا `wysiwygPoc:generate`،
+               * ولا رمز جلسة جديد — تأثير التوليد مرتبط بـ `open` وحده، لا بالتكبير.
+               */
+              key={toViewerUrl(phase.blobUrl, zoom)}
+              title="معاينة دقيقة"
+              src={toViewerUrl(phase.blobUrl, zoom)}
               style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
             />
           )}
