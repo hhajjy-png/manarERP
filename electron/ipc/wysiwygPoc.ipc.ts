@@ -40,6 +40,7 @@ import {
   shouldResetActiveWorker,
   validateWysiwygPayload,
 } from './wysiwygPocPolicy';
+import { isWysiwygViewerActive } from './wysiwygViewerGuard.ipc';
 
 /** Whole-job watchdog — a preview may fail, it may never hang. */
 const JOB_TIMEOUT_MS = 20_000;
@@ -167,6 +168,20 @@ export function registerWysiwygPocIpc(): void {
     const senderWin = BrowserWindow.fromWebContents(event.sender);
     if (!senderWin || (worker && senderWin === worker)) {
       return { ok: false, error: 'مصدر الطلب غير مصرّح' };
+    }
+
+    // Session gating (IPC hardening). The channel answers ONLY while a WYSIWYG viewer
+    // session is open — i.e. only through the dialog flow, which activates the guard
+    // before it composes. A casual call (console, stray code) with no viewer open is
+    // refused, so the generation channel is no longer freely reachable while the UI
+    // feature flag is OFF.
+    //
+    // HONEST BOUND: this is flow-gating, not an authorisation boundary. A COMPROMISED
+    // renderer could call `wysiwygViewer:activate` first. It removes casual reachability
+    // — it does not pretend to defend against a hostile renderer, and it deliberately
+    // avoids inventing a fragile cross-process mirror of the localStorage feature flag.
+    if (!isWysiwygViewerActive()) {
+      return { ok: false, error: 'لا توجد جلسة معاينة WYSIWYG نشطة' };
     }
 
     // Admission BEFORE any side effect: no file is written, no window is created, no

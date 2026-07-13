@@ -34,8 +34,27 @@ type Phase =
   /** `pageCount: null` = Chromium's PDF could not be counted confidently. We show NO
    *  number rather than a false «0». The pages themselves are still Chromium's — only
    *  the metadata label is unknown. */
-  | { kind: 'ready'; url: string; pageCount: number | null }
+  | { kind: 'ready'; viewerUrl: string; pageCount: number | null }
   | { kind: 'error'; message: string };
+
+/**
+ * PDFium open parameter that removes Chromium's native PDF toolbar — its **print** and
+ * **download** buttons (which bypass the official manarERP print path), plus the page,
+ * zoom and thumbnail-sidebar controls. Verified on this app's runtime (Electron 31 /
+ * Chromium 126): the toolbar is gone, and the document still renders and scrolls.
+ *
+ * It is applied ONLY to the URL handed to the iframe. The raw Blob URL is kept separate,
+ * because `URL.revokeObjectURL` must receive the ORIGINAL blob URL — a fragment-appended
+ * string is a different URL and would silently fail to revoke, leaking the PDF.
+ *
+ * This is not an overlay and not a crop: there is no dependence on any toolbar height.
+ */
+const PDF_VIEWER_FRAGMENT = '#toolbar=0';
+
+/** `blob:…` → `blob:…#toolbar=0`. The blob URL never carries a fragment of its own. */
+function toViewerUrl(blobUrl: string): string {
+  return `${blobUrl}${PDF_VIEWER_FRAGMENT}`;
+}
 
 export default function WysiwygPreviewPocDialog({
   open,
@@ -57,14 +76,36 @@ export default function WysiwygPreviewPocDialog({
 
   const revokeBlob = useCallback(() => {
     if (blobUrlRef.current) {
+      // الـ blob URL الخام — لا النسخة المذيّلة بالجزء. تمرير `…#toolbar=0` هنا لا يُلغي
+      // شيئًا (عنوان مختلف) وكان سيُسرّب مستند الفاتورة في الذاكرة.
       URL.revokeObjectURL(blobUrlRef.current);
       blobUrlRef.current = null;
     }
   }, []);
 
+  /**
+   * رمز جلسة الحارس التي يملكها **هذا** الحوار.
+   *
+   * أثناء فتح العارض تكبت العملية الرئيسية اختصاري PDFium (‎Ctrl+P‎ / ‎Ctrl+S‎) — وهما
+   * منفذا الطباعة/الحفظ اللذان يلتفّان على مسار الطباعة الرسمي. الإغلاق يُنهي الجلسة
+   * برمزها هي؛ ورمز قديم من حوار سابق يُتجاهل في العملية الرئيسية فلا يُعطّل حارس حوارٍ
+   * أحدث.
+   */
+  const guardTokenRef = useRef<number | null>(null);
+
+  const releaseGuard = useCallback(() => {
+    const token = guardTokenRef.current;
+    guardTokenRef.current = null;
+    if (token === null) return;
+    void window.manar?.wysiwygViewerDeactivate?.(token).catch(() => {
+      /* الحارس يُنظَّف أيضًا عند إغلاق النافذة/سقوط الـ renderer في العملية الرئيسية */
+    });
+  }, []);
+
   // توليد واحد لكل فتحة. الإغلاق أو فتحة أحدث يُبطل النتيجة القادمة.
   useEffect(() => {
     if (!open) {
+      releaseGuard();
       revokeBlob();
       setPhase({ kind: 'generating' });
       return;
@@ -77,6 +118,20 @@ export default function WysiwygPreviewPocDialog({
       if (!generate) {
         throw new Error('هذه التجربة متاحة داخل تطبيق سطح المكتب فقط.');
       }
+      // الحارس يُسلَّح **قبل** التوليد: العارض على وشك الظهور، والقناة نفسها لا تجيب
+      // إلا وجلسة عارض نشطة (تضييق قناة التوليد — انظر wysiwygPoc.ipc.ts).
+      const token = (await window.manar?.wysiwygViewerActivate?.()) ?? null;
+      if (requestIdRef.current !== requestId) {
+        // أُغلق الحوار بينما كان التسليح جاريًا. الرمز مُنح فعلًا في العملية الرئيسية،
+        // ولم يُخزَّن بعد — فلو عدنا هنا بلا تحرير لبقي الحارس مسلّحًا بلا حوار مفتوح
+        // (كبتٌ دائم لـ Ctrl+P/Ctrl+S). نُحرّره بالرمز نفسه فورًا.
+        if (token !== null) {
+          void window.manar?.wysiwygViewerDeactivate?.(token).catch(() => {});
+        }
+        return; // فتحة أقدم — تُهمل
+      }
+      guardTokenRef.current = token;
+
       const html = composeRef.current();
       const result = await generate(html);
       if (requestIdRef.current !== requestId) return; // نتيجة قديمة — تُهمل
@@ -86,8 +141,9 @@ export default function WysiwygPreviewPocDialog({
       revokeBlob();
       // نسخة جديدة: bytes الـ IPC قد تكون على ArrayBufferLike — نثبّتها كـ ArrayBuffer.
       const bytes = new Uint8Array(result.pdf);
-      const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-      blobUrlRef.current = url;
+      // الـ blob URL الخام هو **وحده** ما يُلغى لاحقًا؛ الجزء (#toolbar=0) يُضاف للعرض فقط.
+      const blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      blobUrlRef.current = blobUrl;
       // UNKNOWN, never zero. The main process already returns `null` when it cannot
       // count confidently; treating a 0 (or any non-positive value) as unknown here too
       // means no code path can ever render the lie «الصفحات الفعلية: 0».
@@ -95,7 +151,7 @@ export default function WysiwygPreviewPocDialog({
         typeof result.pageCount === 'number' && Number.isInteger(result.pageCount) && result.pageCount > 0
           ? result.pageCount
           : null;
-      setPhase({ kind: 'ready', url, pageCount: count });
+      setPhase({ kind: 'ready', viewerUrl: toViewerUrl(blobUrl), pageCount: count });
     })().catch((e: unknown) => {
       if (requestIdRef.current !== requestId) return;
       setPhase({ kind: 'error', message: e instanceof Error ? e.message : 'تعذّر توليد المعاينة.' });
@@ -107,8 +163,14 @@ export default function WysiwygPreviewPocDialog({
     };
   }, [open, revokeBlob]);
 
-  // تفكيك المكوّن نهائيًا — لا blob URL يبقى حيًّا.
-  useEffect(() => revokeBlob, [revokeBlob]);
+  // تفكيك المكوّن نهائيًا — لا blob URL يبقى حيًّا، ولا جلسة حارس معلّقة.
+  useEffect(
+    () => () => {
+      releaseGuard();
+      revokeBlob();
+    },
+    [releaseGuard, revokeBlob],
+  );
 
   /**
    * Focus: move into the dialog on open, and RESTORE it to the element that opened it on
@@ -239,7 +301,7 @@ export default function WysiwygPreviewPocDialog({
           {phase.kind === 'ready' && (
             <iframe
               title="معاينة WYSIWYG"
-              src={phase.url}
+              src={phase.viewerUrl}
               style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
             />
           )}

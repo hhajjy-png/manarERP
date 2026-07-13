@@ -27,9 +27,19 @@ type GenerateResult = {
   ok: boolean; pdf?: Uint8Array; pageCount?: number | null; readyMs?: number; error?: string;
 };
 
-function installBridge(impl: () => Promise<GenerateResult>) {
+let activate: ReturnType<typeof vi.fn>;
+let deactivate: ReturnType<typeof vi.fn>;
+
+function installBridge(impl: () => Promise<GenerateResult>, tokenSeq: Array<number | null> = [7]) {
   const generate = vi.fn(impl);
-  (window as unknown as { manar?: object }).manar = { generateWysiwygPreviewPoc: generate };
+  let i = 0;
+  activate = vi.fn(async () => tokenSeq[Math.min(i++, tokenSeq.length - 1)]);
+  deactivate = vi.fn(async () => true);
+  (window as unknown as { manar?: object }).manar = {
+    generateWysiwygPreviewPoc: generate,
+    wysiwygViewerActivate: activate,
+    wysiwygViewerDeactivate: deactivate,
+  };
   return generate;
 }
 
@@ -87,7 +97,7 @@ describe('الحوار — التوليد والعرض', () => {
     expect(generate).toHaveBeenCalledWith('<!DOCTYPE html><html><body>doc</body></html>');
     expect(props.compose).toHaveBeenCalledTimes(1);
     expect(createObjectURL).toHaveBeenCalledTimes(1);
-    expect(screen.getByTitle('معاينة WYSIWYG')).toHaveAttribute('src', 'blob:mock-pdf-url');
+    expect(screen.getByTitle('معاينة WYSIWYG')).toHaveAttribute('src', 'blob:mock-pdf-url#toolbar=0');
     expect(screen.getByText('3')).toBeInTheDocument(); // الصفحات الفعلية
     // جوهر العقد: التوليد لا يطبع.
     expect(props.onPrint).not.toHaveBeenCalled();
@@ -138,6 +148,134 @@ describe('الحوار — التوليد والعرض', () => {
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(props.onClose).toHaveBeenCalledTimes(1);
     expect(props.onPrint).not.toHaveBeenCalled();
+  });
+});
+
+describe('PDFium — إخفاء شريط العارض (#toolbar=0)', () => {
+  it('الـ iframe يتلقّى عنوانًا منتهيًا بـ #toolbar=0', async () => {
+    installBridge(async () => ({ ok: true, pdf: new Uint8Array([1]), pageCount: 1 }));
+    renderDialog();
+    await flushAsyncUpdates();
+    await waitFor(() => expect(screen.getByTitle('معاينة WYSIWYG')).toBeInTheDocument());
+
+    const src = screen.getByTitle('معاينة WYSIWYG').getAttribute('src') ?? '';
+    expect(src.endsWith('#toolbar=0')).toBe(true);
+    expect(src).toBe('blob:mock-pdf-url#toolbar=0');
+    // جزء واحد فقط — لا تكرار.
+    expect(src.match(/#/g)).toHaveLength(1);
+    expect(src).not.toContain('#toolbar=0#toolbar=0');
+  });
+
+  it('الجزء يبقى بعد توليد ناجح (لا يُفقد عند إعادة الرسم)', async () => {
+    installBridge(async () => ({ ok: true, pdf: new Uint8Array([1]), pageCount: 3 }));
+    const { rerender, props } = renderDialog();
+    await flushAsyncUpdates();
+    await waitFor(() => expect(screen.getByTitle('معاينة WYSIWYG')).toBeInTheDocument());
+    rerender(<WysiwygPreviewPocDialog {...props} documentLabel="فاتورة · INV-2" />);
+    expect(screen.getByTitle('معاينة WYSIWYG')).toHaveAttribute('src', 'blob:mock-pdf-url#toolbar=0');
+  });
+
+  it('يُلغى الـ blob URL **الخام** — لا النسخة المذيّلة بالجزء (وإلا تسرّب المستند)', async () => {
+    installBridge(async () => ({ ok: true, pdf: new Uint8Array([1]), pageCount: 1 }));
+    const { rerender, props } = renderDialog();
+    await flushAsyncUpdates();
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+
+    rerender(<WysiwygPreviewPocDialog {...props} open={false} />);
+
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-pdf-url');
+    expect(revokeObjectURL).not.toHaveBeenCalledWith('blob:mock-pdf-url#toolbar=0');
+    for (const [arg] of revokeObjectURL.mock.calls) {
+      expect(String(arg)).not.toContain('#');
+    }
+  });
+});
+
+describe('حارس اختصارات PDFium — جسر نشاط العارض', () => {
+  it('الفتح يُسلّح الحارس، والإغلاق يُحرّره بالرمز الذي يملكه', async () => {
+    installBridge(async () => ({ ok: true, pdf: new Uint8Array([1]), pageCount: 1 }), [7]);
+    const { rerender, props } = renderDialog();
+    await flushAsyncUpdates();
+    await waitFor(() => expect(screen.getByTitle('معاينة WYSIWYG')).toBeInTheDocument());
+
+    expect(activate).toHaveBeenCalledTimes(1);
+    expect(deactivate).not.toHaveBeenCalled(); // ما زال مفتوحًا ⇒ الحارس مسلّح
+
+    rerender(<WysiwygPreviewPocDialog {...props} open={false} />);
+    await flushAsyncUpdates();
+    expect(deactivate).toHaveBeenCalledTimes(1);
+    expect(deactivate).toHaveBeenCalledWith(7); // رمز هذا الحوار بعينه
+  });
+
+  it('التفكيك النهائي يُحرّر الحارس أيضًا (لا جلسة معلّقة)', async () => {
+    installBridge(async () => ({ ok: true, pdf: new Uint8Array([1]), pageCount: 1 }), [11]);
+    const { unmount } = renderDialog();
+    await flushAsyncUpdates();
+    await waitFor(() => expect(activate).toHaveBeenCalledTimes(1));
+    unmount();
+    await flushAsyncUpdates();
+    expect(deactivate).toHaveBeenCalledWith(11);
+  });
+
+  /** الإغلاق أثناء **التسليح** نفسه: الرمز مُنح ولم يُخزَّن — يجب ألا يبقى الحارس مسلّحًا. */
+  it('الإغلاق أثناء التسليح يُحرّر الرمز الممنوح — لا حارس يتيم', async () => {
+    const generate = installBridge(
+      async () => ({ ok: true, pdf: new Uint8Array([1]), pageCount: 1 }),
+      [21],
+    );
+    const { rerender, props } = renderDialog();
+    // أُغلق قبل أي flush — أي بينما لم يُحسم وعد wysiwygViewerActivate بعد.
+    rerender(<WysiwygPreviewPocDialog {...props} open={false} />);
+    await flushAsyncUpdates();
+
+    expect(activate).toHaveBeenCalledTimes(1);
+    // الرمز مُنح ولم يُخزَّن قط — ومع ذلك حُرّر. بدون هذا التحرير يبقى الحارس مسلّحًا
+    // بلا حوار مفتوح، فيُكبت Ctrl+P/Ctrl+S في كل التطبيق إلى الأبد.
+    expect(deactivate).toHaveBeenCalledWith(21);
+    // وقد أُجهض الطلب قبل التوليد أصلًا: لا مستند يُركَّب، ولا blob يُنشأ.
+    expect(generate).not.toHaveBeenCalled();
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('بيئة بلا جسر حارس (preload قديم) لا تُسقط المعاينة', async () => {
+    const generate = vi.fn(async () => ({ ok: true, pdf: new Uint8Array([1]), pageCount: 1 }));
+    // preload قديم: قناة التوليد موجودة، وقنوات الحارس غائبة.
+    (window as unknown as { manar?: object }).manar = { generateWysiwygPreviewPoc: generate };
+    renderDialog();
+    await flushAsyncUpdates();
+    await waitFor(() => expect(screen.getByTitle('معاينة WYSIWYG')).toBeInTheDocument());
+    expect(screen.getByTitle('معاينة WYSIWYG')).toHaveAttribute('src', 'blob:mock-pdf-url#toolbar=0');
+  });
+
+  it('الحارس لا يمنع زر الطباعة الرسمي — التفويض يبقى مرة واحدة', async () => {
+    installBridge(async () => ({ ok: true, pdf: new Uint8Array([1]), pageCount: 1 }));
+    const { props } = renderDialog();
+    await flushAsyncUpdates();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'طباعة' })).toBeEnabled());
+
+    fireEvent.click(screen.getByRole('button', { name: 'طباعة' }));
+    await flushAsyncUpdates();
+    expect(props.onPrint).toHaveBeenCalledTimes(1);
+  });
+
+  /** الكبت يحدث في العملية الرئيسية (before-input-event) — الحوار لا يطبع ولا يحفظ ردًّا على المفاتيح. */
+  it.each([
+    ['Ctrl+P', { key: 'p', ctrlKey: true }],
+    ['Ctrl+S', { key: 's', ctrlKey: true }],
+    ['Meta+P', { key: 'p', metaKey: true }],
+    ['Meta+S', { key: 's', metaKey: true }],
+  ])('%s داخل الحوار لا يستدعي الطباعة ولا أي إجراء حفظ', async (_label, key) => {
+    installBridge(async () => ({ ok: true, pdf: new Uint8Array([1]), pageCount: 1 }));
+    const { props } = renderDialog();
+    await flushAsyncUpdates();
+    await waitFor(() => expect(screen.getByTitle('معاينة WYSIWYG')).toBeInTheDocument());
+
+    fireEvent.keyDown(screen.getByRole('dialog'), key);
+    await flushAsyncUpdates();
+
+    expect(props.onPrint).not.toHaveBeenCalled();
+    expect(props.onClose).not.toHaveBeenCalled(); // الكبت صامت: لا إغلاق، ولا خطأ، ولا بديل
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });
 
@@ -211,7 +349,9 @@ describe('الحوار — دورة الحياة والموارد', () => {
     installBridge(() => new Promise<GenerateResult>((res) => { resolveLate = res; }));
     const { rerender, props } = renderDialog();
 
-    // أغلق أثناء التوليد…
+    // انتظر حتى يصير التوليد **قيد التنفيذ فعلًا** (التسليح يسبقه بدورة microtask)…
+    await flushAsyncUpdates();
+    // …ثم أغلق أثناء التوليد.
     rerender(<WysiwygPreviewPocDialog {...props} open={false} />);
     // …ثم تصل النتيجة متأخرة.
     resolveLate({ ok: true, pdf: new Uint8Array([1]), pageCount: 9 });
