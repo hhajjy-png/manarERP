@@ -136,49 +136,48 @@ function DictTable({
 
   return (
     <>
-      <div style={{ maxHeight: 360, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 6 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+      <div className="settings-dict-grid">
+        <table className="settings-dict-table">
           <thead>
-            <tr style={{ background: 'var(--surface-2)', position: 'sticky', top: 0, zIndex: 1 }}>
-              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, borderBottom: '1px solid var(--border)', width: '45%' }}>عربي</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, borderBottom: '1px solid var(--border)', width: '45%' }}>English</th>
-              <th style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', width: '10%' }} aria-label="حذف"></th>
+            <tr>
+              <th className="settings-dict-ar" style={{ width: '45%' }}>عربي</th>
+              <th className="settings-dict-en" style={{ width: '45%' }}>English</th>
+              <th className="settings-dict-actions" aria-label="حذف"></th>
             </tr>
           </thead>
           <tbody ref={tbodyRef}>
             {visible.map(({ row, i }) => (
-              <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '4px 8px' }}>
+              <tr key={i}>
+                <td className="settings-dict-ar">
                   <input
                     value={row.ar}
                     onChange={(e) => setRows((prev) => prev.map((r, j) => j === i ? { ...r, ar: e.target.value } : r))}
-                    style={{ width: '100%', fontSize: 13, border: 'none', background: 'transparent', textAlign: 'right' }}
                     title="الجنسية أو المسمى بالعربي"
                   />
                 </td>
-                <td style={{ padding: '4px 8px' }}>
+                <td className="settings-dict-en">
                   <input
                     value={row.en}
                     onChange={(e) => setRows((prev) => prev.map((r, j) => j === i ? { ...r, en: e.target.value } : r))}
-                    style={{ width: '100%', fontSize: 13, border: 'none', background: 'transparent', direction: 'ltr' }}
                     title="Translation in English"
                   />
                 </td>
-                <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                <td className="settings-dict-actions">
                   <button
                     type="button"
+                    className="settings-dict-del"
                     onClick={() => setRows((prev) => prev.filter((_, j) => j !== i))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 16, lineHeight: 1 }}
                     title="حذف"
+                    aria-label="حذف الصف"
                   >
-                    ×
+                    <span className="material-symbols-outlined" aria-hidden="true">delete</span>
                   </button>
                 </td>
               </tr>
             ))}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={3} style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                <td colSpan={3} className="settings-dict-empty">
                   لا توجد نتائج مطابقة
                 </td>
               </tr>
@@ -189,10 +188,11 @@ function DictTable({
       {!filtering && (
         <button
           type="button"
+          className="settings-dict-add"
           onClick={addRow}
-          style={{ marginTop: 10, fontSize: 13, color: 'var(--primary)', background: 'none', border: '1px dashed var(--primary)', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', width: '100%' }}
         >
-          + إضافة صف
+          <span className="material-symbols-outlined" aria-hidden="true">add</span>
+          إضافة صف
         </button>
       )}
     </>
@@ -595,7 +595,7 @@ export default function Settings() {
           }
         >
           {signatures.length === 0 && (
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px' }}>
+            <p className="settings-dict-desc">
               لا توجد توقيعات — انقر «إضافة توقيع» لإضافة الأول.
             </p>
           )}
@@ -603,36 +603,22 @@ export default function Settings() {
           {signatures.map((sig, idx) => (
             <div
               key={sig.id}
-              style={{
-                border: sig.isDefault ? '1.5px solid var(--primary)' : '1px solid var(--border)',
-                borderRadius: 8,
-                padding: 12,
-                marginBottom: 10,
-                background: sig.isDefault ? 'var(--primary-bg, #EFF6FF)' : 'var(--surface)',
-              }}
+              className={`settings-sig-card${sig.isDefault ? ' settings-sig-card--default' : ''}`}
             >
               {/* Card header */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', minWidth: 60 }}>
-                  توقيع {idx + 1}
-                </span>
+              <div className="settings-sig-head">
+                <span className="settings-sig-index">توقيع {idx + 1}</span>
                 {sig.isDefault && (
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, color: 'var(--primary)',
-                    background: 'var(--primary-bg, #DBEAFE)', padding: '2px 8px', borderRadius: 20,
-                  }}>
-                    افتراضي
-                  </span>
+                  <span className="settings-sig-default-badge">افتراضي</span>
                 )}
                 <StatusChip tone={sig.show ? 'green' : 'neutral'} icon={sig.show ? 'visibility' : 'visibility_off'}>
                   {sig.show ? 'يظهر في المستندات' : 'مخفي'}
                 </StatusChip>
-                <div style={{ flex: 1 }} />
+                <div className="settings-sig-spacer" />
                 {!sig.isDefault && (
                   <button
                     type="button"
-                    className="btn btn-secondary"
-                    style={{ fontSize: 11, padding: '3px 10px' }}
+                    className="btn secondary small"
                     onClick={() => setAsDefault(sig.id)}
                     disabled={brandingSaving}
                   >
@@ -641,8 +627,7 @@ export default function Settings() {
                 )}
                 <button
                   type="button"
-                  className="btn btn-danger"
-                  style={{ fontSize: 11, padding: '3px 10px' }}
+                  className="btn danger small"
                   onClick={() => removeSignature(sig.id)}
                   disabled={brandingSaving}
                 >
@@ -652,31 +637,34 @@ export default function Settings() {
 
               {/* Meta fields */}
               <div className="settings-sig-meta">
-                <div className="field" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 12 }}>الاسم (اختياري)</label>
+                <div className="field">
+                  <label>الاسم (اختياري)</label>
                   <input
                     value={sig.name}
                     onChange={(e) => updateSigField(sig.id, 'name', e.target.value)}
                     placeholder="مثال: المدير العام"
-                    style={{ fontSize: 13 }}
                   />
                 </div>
-                <div className="field" style={{ margin: 0 }}>
-                  <label style={{ fontSize: 12 }}>المسمى الوظيفي (اختياري)</label>
+                <div className="field">
+                  <label>المسمى الوظيفي (اختياري)</label>
                   <input
                     value={sig.title}
                     onChange={(e) => updateSigField(sig.id, 'title', e.target.value)}
                     placeholder="مثال: General Manager"
-                    style={{ fontSize: 13 }}
                   />
                 </div>
               </div>
 
+              {/* Signature stage — display only. The stored file and its real
+                  dimensions are untouched: object-fit scales the view, not the image. */}
+              <div className="settings-media-stage">
+                {sig.imageUrl
+                  ? <img src={sig.imageUrl} alt={`توقيع ${idx + 1}`} />
+                  : <span className="settings-media-stage--empty">لا توجد صورة توقيع</span>}
+              </div>
+
               {/* Image row */}
-              <div className="branding-row-controls">
-                {sig.imageUrl && (
-                  <img src={sig.imageUrl} alt={`توقيع ${idx + 1}`} className="branding-preview-img" />
-                )}
+              <div className="settings-media-row">
                 <input
                   type="file"
                   accept="image/*"
@@ -686,7 +674,7 @@ export default function Settings() {
                 />
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn secondary"
                   onClick={() => sigFileRefs.current[sig.id]?.click()}
                   disabled={brandingSaving}
                 >
@@ -721,14 +709,14 @@ export default function Settings() {
             </StatusChip>
           }
         >
-          <div className="branding-row-controls">
-            {values['print.stampImage'] && (
-              <img
-                src={values['print.stampImage']}
-                alt="ختم الشركة"
-                className="branding-preview-img"
-              />
-            )}
+          {/* Stamp stage — display only; the uploaded file keeps its real size. */}
+          <div className="settings-media-stage settings-stamp-stage">
+            {values['print.stampImage']
+              ? <img src={values['print.stampImage']} alt="ختم الشركة" />
+              : <span className="settings-media-stage--empty">لا يوجد ختم مُحمَّل</span>}
+          </div>
+
+          <div className="settings-media-row">
             <input
               type="file"
               accept="image/*"
@@ -738,7 +726,7 @@ export default function Settings() {
             />
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn secondary"
               onClick={() => stmpInputRef.current?.click()}
               disabled={brandingSaving}
             >
@@ -747,7 +735,7 @@ export default function Settings() {
             {values['print.stampImage'] && (
               <button
                 type="button"
-                className="btn btn-danger"
+                className="btn danger"
                 onClick={handleDeleteStamp}
                 disabled={brandingSaving}
               >
@@ -778,7 +766,7 @@ export default function Settings() {
             </div>
             <button
               type="button"
-              className="btn btn-secondary"
+              className="btn secondary"
               onClick={() => setDesignerOpen(true)}
               disabled={brandingSaving}
             >
@@ -812,24 +800,18 @@ export default function Settings() {
             </Button>
           }
         >
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 12px' }}>
+          <p className="settings-dict-desc">
             ترجمات الجنسيات والمسميات الوظيفية المستخدمة في عقود العمل
           </p>
 
           {/* Tabs */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 12, borderBottom: '2px solid var(--border)' }}>
+          <div className="settings-dict-tabs">
             {([['nat', 'الجنسيات'], ['job', 'المسميات الوظيفية']] as const).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setDictTab(key)}
-                style={{
-                  padding: '6px 16px', fontSize: 13, fontWeight: 600,
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  borderBottom: dictTab === key ? '2px solid var(--primary)' : '2px solid transparent',
-                  color: dictTab === key ? 'var(--primary)' : 'var(--text-muted)',
-                  marginBottom: -2,
-                }}
+                className={`settings-dict-tab${dictTab === key ? ' settings-dict-tab--active' : ''}`}
               >
                 {label} ({(key === 'nat' ? natDict : jobDict).length})
               </button>
