@@ -92,7 +92,7 @@ export const TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC = 'TRUE_CHROMIUM_WYSIWYG_PREVIEW_
  * وزر الطباعة ومسار الطباعة وكل الوظائف الحالية كما هي حرفًا بحرف.
  * ولا يمسّ سلوك الفاتورة إطلاقًا (لها علمها `TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC`).
  *
- * OFF افتراضيًا حتى تكتمل المراجعة البصرية اليدوية لكل نموذج.
+ * ON بعد اكتمال المراجعة البصرية اليدوية لكل نموذج والمراجعة المستقلة والاختبارات.
  * التراجع/التفعيل بلا إصدار:
  *   localStorage.setItem('manar:flag:UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1', 'off' | 'on')
  */
@@ -171,8 +171,16 @@ const DEFAULTS: Record<FlagName, boolean> = {
   // التراجع فوري وبلا إصدار: localStorage['manar:flag:TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC'] = 'off'
   TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC: true,
 
-  // ── تعميم المعاينة الدقيقة — OFF حتى تكتمل المراجعة البصرية لكل نموذج ────────
-  UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1: false,
+  // ── تعميم المعاينة الدقيقة على النماذج الأربعة عشر — ON: التفعيل الرسمي ──────
+  // اكتملت المراجعة البصرية اليدوية لكل نموذج، والمراجعة المستقلة، والاختبارات.
+  //
+  // التفعيل **لا يغيّر الطباعة**: كل نموذج يحتفظ بزر طباعته ومعاينته القديمة ومساره
+  // كما هو حرفًا بحرف. ما يظهر هو **خيار عرض إضافي** بجوارهما.
+  //
+  // التراجع فوري وبلا إصدار:
+  //   localStorage['manar:flag:UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1'] = 'off'
+  // ⇒ يختفي زر «المعاينة الدقيقة» وحده، ولا شيء غيره.
+  UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1: true,
 };
 
 function readOverride(name: FlagName): boolean | null {

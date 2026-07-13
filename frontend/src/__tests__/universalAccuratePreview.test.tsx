@@ -27,7 +27,7 @@ import {
 const PDF = new Uint8Array([0x25, 0x50, 0x44, 0x46]); // "%PDF"
 
 function installBridge(ok = true) {
-  const generate = vi.fn(async () =>
+  const generate = vi.fn(async (_html: string) =>
     ok
       ? { ok: true, pdf: PDF, pageCount: 2, readyMs: 10 }
       : { ok: false, error: 'فشل التوليد' },
@@ -104,8 +104,13 @@ afterEach(() => {
   setFlagOverride(TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC, null);
 });
 
-describe('العلم — مستقل، ومطفأ افتراضيًا', () => {
-  it('UNIVERSAL_… مطفأ افتراضيًا (لا يُفعَّل إلا بعد المراجعة البصرية)', () => {
+describe('العلم — مستقل، ومُفعَّل افتراضيًا بعد المراجعة', () => {
+  it('UNIVERSAL_… مُفعَّل افتراضيًا (التفعيل الرسمي بعد المراجعة البصرية)', () => {
+    expect(isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1)).toBe(true);
+  });
+
+  it('التعطيل المحلي يبقى رافعة التراجع الفورية: override = off يُطفئه', () => {
+    setFlagOverride(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1, false);
     expect(isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1)).toBe(false);
   });
 
@@ -177,7 +182,7 @@ describe('مصدر المستند — نفسه لا نسخة منه', () => {
     fireEvent.click(screen.getByText(/معاينة دقيقة/));
 
     await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
-    const html: string = generate.mock.calls[0][0] as unknown as string;
+    const html = generate.mock.calls[0][0];
     expect(html).toContain('المستند — 750');
     expect(html).toContain('<!DOCTYPE html>');
   });
