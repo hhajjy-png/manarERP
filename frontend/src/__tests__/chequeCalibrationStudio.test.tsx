@@ -52,7 +52,10 @@ describe('Cheque Calibration Studio', () => {
     renderStudio();
     await waitFor(() => expect(api.get).toHaveBeenCalled());
 
+    // المعاينة أولًا، ثم الطباعة من داخلها — نفس مسار الطباعة القديم بلا تغيير.
     fireEvent.click(screen.getByRole('button', { name: /اختبار المعايرة/ }));
+    await flushAsyncUpdates();
+    fireEvent.click(screen.getByRole('button', { name: 'طباعة' }));
     // `printCurrentView` وعدٌ: حارس النقر يُحرَّر عند تحقّقه — ننتظر ذلك التحديث.
     await flushAsyncUpdates();
     expect(printCurrentView).toHaveBeenCalled();
@@ -116,9 +119,19 @@ describe('Cheque Calibration Studio', () => {
   it('test-print is guarded against double-click (prints once, no timeout in path)', async () => {
     renderStudio();
     await waitFor(() => expect(api.get).toHaveBeenCalled());
+
+    // نقرتان متتاليتان على «اختبار المعايرة» ⇒ نافذة معاينة **واحدة**، ولا طباعة بعد.
     const btn = screen.getByRole('button', { name: /اختبار المعايرة/ });
     fireEvent.click(btn);
-    fireEvent.click(btn); // immediate second click while "printing" → ignored
+    fireEvent.click(btn);
+    await flushAsyncUpdates();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(printCurrentView).not.toHaveBeenCalled();
+
+    // ونقرتان على «طباعة» بداخلها ⇒ استدعاء طباعة **واحد** (حارس `printingRef`).
+    const printBtn = screen.getByRole('button', { name: 'طباعة' });
+    fireEvent.click(printBtn);
+    fireEvent.click(printBtn);
     await flushAsyncUpdates();
     expect(printCurrentView).toHaveBeenCalledTimes(1);
     expect(api.post).not.toHaveBeenCalled();

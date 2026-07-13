@@ -55,7 +55,11 @@ describe('ChequeCalibrator — calibration test print isolation', () => {
     // Version list loads on mount (read-only GET).
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/cheques/template-versions/NBK'));
 
+    // الزرّ يفتح المعاينة أولًا (Cheque Calibration Test Sheet Preview Overlay v1) — ثم
+    // «طباعة» بداخلها يفوّض إلى نفس مسار الطباعة القديم.
     fireEvent.click(screen.getByRole('button', { name: /اختبار المعايرة/ }));
+    await flushAsyncUpdates();
+    fireEvent.click(screen.getByRole('button', { name: 'طباعة' }));
     // `printCurrentView` وعدٌ: حارس النقر يُحرَّر عند تحقّقه — ننتظر ذلك التحديث.
     await flushAsyncUpdates();
 

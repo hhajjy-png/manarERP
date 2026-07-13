@@ -19,6 +19,9 @@ import { DEFAULT_GEOMETRY, type CalibrationGeometry } from '../utils/chequeGeome
 import CalibrationTestSheet from './calibrator/CalibrationTestSheet';
 import MeasurementAssistant, { type CorrectionProposal } from './calibrator/MeasurementAssistant';
 import CalibrationWizard from './calibrator/CalibrationWizard';
+import { composeCalibrationTestDocument } from './calibrator/calibrationTestDocument';
+import PrintPreviewDialog from '../printing/components/PrintPreviewDialog';
+import { CHEQUE_CALIBRATION_TEST_PREVIEW_V1, isFlagEnabled } from '../printing/flags';
 import './calibrator/calibrator-studio.css';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -142,9 +145,14 @@ export default function ChequeCalibrator({
   const [geomDraft, setGeomDraft] = useState<CalibrationGeometry>(DEFAULT_GEOMETRY);
   const [geomBusy, setGeomBusy] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  /** الطبقة المخفيّة التي تحمل ورقة الاختبار — مصدر المعاينة ومصدر الطباعة معًا. */
+  const testSheetRef = useRef<HTMLDivElement>(null);
+  /** زرّ «اختبار المعايرة» — يُعاد إليه التركيز عند إغلاق المعاينة. */
+  const testPrintBtnRef = useRef<HTMLButtonElement>(null);
   const draggingRef = useRef<{
     fieldKey: FieldKey;
     bank: string;
@@ -193,6 +201,8 @@ export default function ChequeCalibrator({
       const target = e.target as HTMLElement;
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
       if (showCopyModal) return;
+      // المعاينة نافذة modal: الأسهم بداخلها لا تحرّك حقول المعايرة خلفها.
+      if (previewOpen) return;
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;
       setWorkingTemplates((prev) => {
@@ -212,7 +222,7 @@ export default function ChequeCalibrator({
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [currentBank, selected, showCopyModal]);
+  }, [currentBank, selected, showCopyModal, previewOpen]);
 
   function handleFieldMouseDown(e: React.MouseEvent, fieldKey: FieldKey) {
     e.preventDefault();
@@ -315,8 +325,13 @@ export default function ChequeCalibrator({
   // exact positions the real fields would occupy — NEVER a real cheque. It touches
   // no cheque record and no API: it only renders the hidden guide layer and calls
   // the shared print helper.
+  //
+  // THIS IS THE PRINT PATH, AND IT IS UNCHANGED. The preview added below does not
+  // replace it, wrap it, or re-implement it: the preview's «طباعة» button closes the
+  // dialog and calls this very function. `webContents.print`, the geometry-derived
+  // `@page`, the zero margin and the 100% scale all stay exactly where they were.
 
-  function handleTestPrint() {
+  function runTestPrint() {
     if (printing) return; // guard against double-click duplicate prints
     setPrinting(true);
     // The test sheet is already mounted (hidden) and prints directly — no fetch,
@@ -324,6 +339,39 @@ export default function ChequeCalibrator({
     // re-enable as soon as the IPC resolves (right after webContents.print fires).
     void printCurrentView().finally(() => setPrinting(false));
   }
+
+  // ── Calibration test sheet preview (additive presentation layer) ──────────────
+  //
+  // The button no longer prints on click: it opens a preview of the sheet that is
+  // ABOUT to be printed — the same hidden `.chq-test-sheet` node, serialized, not
+  // redrawn. Closing the preview prints nothing.
+  //
+  // Flag OFF ⇒ `runTestPrint` is bound straight to the button, with no dialog
+  // rendered at all: the legacy behaviour, byte for byte.
+
+  const previewEnabled = isFlagEnabled(CHEQUE_CALIBRATION_TEST_PREVIEW_V1);
+
+  function handleTestPrint() {
+    if (!previewEnabled) return runTestPrint();
+    if (printing || previewOpen) return;
+    setPreviewOpen(true);
+  }
+
+  /**
+   * مستند المعاينة = **العقدة المطبوعة نفسها**، مُسلسَلة. لا هندسة تُعاد، ولا SVG يُبنى
+   * من جديد: `composeCalibrationTestDocument` تقرأ الورقة الحيّة التي سيطبعها
+   * `printCurrentView` بعد لحظات. فما يراه المستخدم هو ما سيخرج من الطابعة.
+   */
+  const composePreview = useCallback(
+    () => composeCalibrationTestDocument(testSheetRef.current?.querySelector('.chq-test-sheet') ?? null),
+    [],
+  );
+
+  /** إغلاق المعاينة **لا يطبع**، ويُعيد التركيز إلى الزر الذي فتحها. */
+  const closePreview = useCallback(() => {
+    setPreviewOpen(false);
+    testPrintBtnRef.current?.focus();
+  }, []);
 
   // ── Calibration geometry (load; save is SYSTEM_ADMIN-only) ────────────────────
 
@@ -667,11 +715,16 @@ export default function ChequeCalibrator({
           نسخ إلى...
         </button>
         <button
+          ref={testPrintBtnRef}
           type="button"
           className="btn secondary sm"
           onClick={handleTestPrint}
           disabled={printing}
-          title="طباعة ورقة اختبار المحاذاة (علامات الحقول فقط — لا تُطبع شيكاً ولا تُسجّل أي عملية)"
+          title={
+            previewEnabled
+              ? 'معاينة ورقة اختبار المحاذاة قبل طباعتها (علامات الحقول فقط — لا تُطبع شيكاً ولا تُسجّل أي عملية)'
+              : 'طباعة ورقة اختبار المحاذاة (علامات الحقول فقط — لا تُطبع شيكاً ولا تُسجّل أي عملية)'
+          }
         >
           🖨 اختبار المعايرة
         </button>
@@ -1180,7 +1233,7 @@ export default function ChequeCalibrator({
       {/* Field markers only — no cheque background, no beneficiary data, no record
           touched. Rendered in mm at true scale. Isolated from the real cheque print
           output (.cheque-print-only). */}
-      <div className="chq-calib-testprint" style={{ display: 'none' }}>
+      <div ref={testSheetRef} className="chq-calib-testprint" style={{ display: 'none' }}>
         <CalibrationTestSheet template={currentTemplate} geometry={geometry} />
       </div>
       <style>{`
@@ -1348,8 +1401,30 @@ export default function ChequeCalibrator({
           applyBusy={applyBusy}
           onProposalChange={setProposal}
           onApply={(p) => setPendingProposal(p)}
-          onPrint={handleTestPrint}
+          onPrint={runTestPrint}
           onClose={() => { setShowWizard(false); setProposal(null); }}
+        />
+      )}
+
+      {/* ── معاينة ورقة اختبار المعايرة (طبقة عرض فقط) ──
+          النافذة **لا تطبع**: زر «طباعة» بداخلها يغلقها ثم يستدعي `runTestPrint` — نفس
+          المرجع الدالّي الذي كان الزرّ يستدعيه مباشرة قبل هذه الميزة. ولا تُطبع نفسها:
+          `.pc-scrim` معلَّم `display:none !important` داخل `@media print` في
+          PrintCenter.css، فضلًا عن أنها مُغلقة أصلًا لحظة الطباعة.
+
+          مقاس الورقة يُشتقّ من **نفس الهندسة** التي تُصيّر الـ SVG وتكتب `@page` أدناه، فلا
+          يمكن للمعاينة أن تخالف الورق: مقاس مخصّص من مسؤول النظام ينتقل إلى الاثنين معًا. */}
+      {previewEnabled && (
+        <PrintPreviewDialog
+          open={previewOpen}
+          onClose={closePreview}
+          compose={composePreview}
+          onPrint={runTestPrint}
+          title="معاينة اختبار المعايرة"
+          documentLabel={`معاينة اختبار المعايرة — ${currentBank}`}
+          pageWidthMm={geometry.pageWidthMm}
+          pageHeightMm={geometry.pageHeightMm}
+          lang="ar"
         />
       )}
     </div>

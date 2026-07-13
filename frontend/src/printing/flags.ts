@@ -62,6 +62,19 @@ export const PRINT_PREVIEW_LEGACY_FORMS_HR = 'PRINT_PREVIEW_LEGACY_FORMS_HR' as 
  */
 export const PRINT_PREVIEW_LEGACY_FORMS_SPECIAL = 'PRINT_PREVIEW_LEGACY_FORMS_SPECIAL' as const;
 
+/**
+ * معاينة ورقة اختبار المعايرة (استوديو معايرة الشيكات) — علم **مستقل تمامًا**.
+ *
+ * ليس تابعًا لـ PRINT_PREVIEW_LEGACY_FORMS_V1 ولا لـ PRINT_CENTER_PHASE2: تلك تحكم
+ * مستندات الأعمال (فواتير، عروض أسعار، نماذج). ورقة المعايرة **أداة قياس فيزيائي**، لا
+ * مستند عمل، وسببُ التراجع فيها مختلف كليًا (دقة مليمترية على ورق حقيقي). ربطها بعلم
+ * مشترك كان سيجعل إطفاء الفواتير يُطفئ المعايرة، والعكس — وهو اقتران بلا مبرر.
+ *
+ * مطفأ ⇒ زر «اختبار المعايرة» يستدعي `printCurrentView()` مباشرة، بلا معترِض ولا حوار:
+ * نفس السلوك القديم حرفًا بحرف. هذا هو رافع التراجع الفوري في الميدان، بلا إصدار جديد.
+ */
+export const CHEQUE_CALIBRATION_TEST_PREVIEW_V1 = 'CHEQUE_CALIBRATION_TEST_PREVIEW_V1' as const;
+
 export type FlagName =
   | typeof PRINT_CENTER_FOUNDATION_V1
   | typeof PRINT_CENTER_PHASE2
@@ -71,7 +84,8 @@ export type FlagName =
   | typeof PRINT_PREVIEW_LEGACY_FORMS_V1
   | typeof PRINT_PREVIEW_LEGACY_FORMS_FINANCE
   | typeof PRINT_PREVIEW_LEGACY_FORMS_HR
-  | typeof PRINT_PREVIEW_LEGACY_FORMS_SPECIAL;
+  | typeof PRINT_PREVIEW_LEGACY_FORMS_SPECIAL
+  | typeof CHEQUE_CALIBRATION_TEST_PREVIEW_V1;
 
 /** A document is on the Print Center only when master AND its own flag are enabled. */
 export function isPhase2Enabled(documentFlag: FlagName): boolean {
@@ -116,6 +130,13 @@ const DEFAULTS: Record<FlagName, boolean> = {
   PRINT_PREVIEW_LEGACY_FORMS_SPECIAL: true,   // عقد العمل · قسيمة الراتب
   PRINT_PREVIEW_LEGACY_FORMS_HR: true,        // النماذج الثمانية
   PRINT_PREVIEW_LEGACY_FORMS_FINANCE: true,   // سند الصرف · طلب الشراء
+
+  // ── معاينة ورقة اختبار المعايرة ────────────────────────────────────────────
+  // ON: المعاينة **لا تطبع**. زر «طباعة» بداخلها يغلقها ثم يستدعي `printCurrentView()`
+  // — نفس المرجع الدالّي الذي كان الزرّ يستدعيه مباشرة — فمسار الطباعة الفيزيائي
+  // (webContents.print · @page المشتقّ من الهندسة · هامش صفر · مقياس 100%) لم يُمسّ.
+  // ما أُضيف خطوة عرض قبل الطباعة، لا مسار طباعة ثانٍ.
+  CHEQUE_CALIBRATION_TEST_PREVIEW_V1: true,
 };
 
 function readOverride(name: FlagName): boolean | null {
