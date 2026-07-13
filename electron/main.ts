@@ -11,6 +11,7 @@ import { registerPdfIpc } from './ipc/pdf.ipc';
 import { registerAttachmentsIpc } from './ipc/attachments.ipc';
 import { registerPrintIpc } from './services/printService';
 import { registerWysiwygPocIpc } from './ipc/wysiwygPoc.ipc';
+import { registerWysiwygViewerGuard } from './ipc/wysiwygViewerGuard.ipc';
 
 const INTERNAL_SECRET = randomUUID();
 
@@ -41,6 +42,9 @@ async function bootstrap() {
 
     mainWindow = createMainWindow();
     registerContextMenuIpc(mainWindow);
+    // WYSIWYG viewer guard — suppresses PDFium's Ctrl+P / Ctrl+S exits, but ONLY while a
+    // WYSIWYG preview is open. One listener for the window's lifetime; no global blocking.
+    registerWysiwygViewerGuard(mainWindow);
 
     // قائمة عربية مبسّطة
     Menu.setApplicationMenu(

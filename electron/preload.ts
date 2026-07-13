@@ -122,6 +122,20 @@ const api = {
     error?: string;
   }> => ipcRenderer.invoke('wysiwygPoc:generate', html),
 
+  /**
+   * إعلام العملية الرئيسية بأن عارض WYSIWYG **مفتوح الآن**، فتكبت اختصاري PDFium
+   * (‎Ctrl+P‎ / ‎Ctrl+S‎) اللذين يلتفّان على مسار الطباعة الرسمي. يعيد رمز الجلسة.
+   *
+   * ليست واجهة تحكّم بلوحة المفاتيح: لا تختار مفاتيح، ولا تكبت شيئًا آخر، ولا تفعل
+   * شيئًا إطلاقًا ما لم يكن العارض مفتوحًا.
+   */
+  wysiwygViewerActivate: (): Promise<number | null> =>
+    ipcRenderer.invoke('wysiwygViewer:activate'),
+
+  /** إنهاء جلسة العارض. رمز قديم (حوار سابق) يُتجاهل ولا يُعطّل حارس حوارٍ أحدث. */
+  wysiwygViewerDeactivate: (token: number): Promise<boolean> =>
+    ipcRenderer.invoke('wysiwygViewer:deactivate', token),
+
 };
 
 contextBridge.exposeInMainWorld('manar', api);

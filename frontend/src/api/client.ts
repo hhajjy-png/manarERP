@@ -62,6 +62,9 @@ declare global {
         readyMs?: number;
         error?: string;
       }>;
+      /** Optional: absent on an older preload build — every caller must guard. */
+      wysiwygViewerActivate?: () => Promise<number | null>;
+      wysiwygViewerDeactivate?: (token: number) => Promise<boolean>;
     };
   }
 }
