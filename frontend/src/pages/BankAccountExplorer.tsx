@@ -27,7 +27,7 @@ import {
 } from './bankTimelineFilters';
 import { presentTransaction, CONFIDENCE_LABELS } from './bankTransactionPresentation';
 import { formatCurrency, formatNumber } from '../lib/format';
-import { formatDate } from '../lib/date';
+import { formatDate, formatMonthLabel } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import './BankAccountExplorer.css';
 
@@ -59,10 +59,9 @@ function fmtDate(iso: string | null | undefined): string {
 }
 
 function fmtMonth(ym: string): string {
-  if (!ym || ym.length < 7) return ym;
-  const [y, m] = ym.split('-');
-  const d = new Date(Number(y), Number(m) - 1, 1);
-  return isNaN(d.getTime()) ? ym : d.toLocaleDateString('ar-KW', { year: 'numeric', month: 'long' });
+  // 'ar-KW' كان يُخرج سنة بأرقام عربية شرقية (٢٠٢٦). المعيار المعتمد: أرقام غربية
+  // دائمًا. `formatMonthLabel` يقرأ 'YYYY-MM' نصًّا — بلا Date وبلا منطقة زمنية.
+  return formatMonthLabel(ym);
 }
 
 function exportTimelineCsv(

@@ -96,11 +96,15 @@ describe('Currency Display Language — pure formatCurrency (deterministic, no h
     expect(formatCurrency(144922.4, { language: 'english' })).toBe('144,922.400 KWD');
   });
 
-  it('arabic: Arabic-Indic digits + separators + د.ك suffix, 3 decimals', () => {
-    expect(formatCurrency(1250, { language: 'arabic' })).toBe('١٬٢٥٠٫٠٠٠ د.ك');
-    expect(formatCurrency(144922.4, { language: 'arabic' })).toBe('١٤٤٬٩٢٢٫٤٠٠ د.ك');
-    expect(formatCurrency(0, { language: 'arabic' })).toBe('٠٫٠٠٠ د.ك');
-    expect(formatCurrency(null, { language: 'arabic' })).toBe('٠٫٠٠٠ د.ك');
+  // القرار المعتمد (Financial Number & Date Presentation Standardization): **أرقام
+  // غربية دائمًا**. الإعداد يختار **رمز العملة** لا شكل الرقم — فما كان يُثبِّته هذا
+  // الاختبار (أرقام عربية شرقية) أُلغي عمدًا، ولم يُضعَّف التأكيد بل عُكس اتجاهه.
+  it('arabic: WESTERN digits + د.ك suffix, 3 decimals (no Arabic-Indic digits)', () => {
+    expect(formatCurrency(1250, { language: 'arabic' })).toBe('1,250.000 د.ك');
+    expect(formatCurrency(144922.4, { language: 'arabic' })).toBe('144,922.400 د.ك');
+    expect(formatCurrency(0, { language: 'arabic' })).toBe('0.000 د.ك');
+    expect(formatCurrency(null, { language: 'arabic' })).toBe('0.000 د.ك');
+    expect(formatCurrency(1250, { language: 'arabic' })).not.toMatch(/[٠-٩]/);
   });
 
   it('is deterministic — identical args always produce identical output; the default is never affected by prior arabic calls', () => {
@@ -133,8 +137,8 @@ describe('formatReportCell (shared report/print cell)', () => {
   it('currency column → full KWD (default english)', () => {
     expect(formatReportCell(1500.5, { format: 'currency' })).toBe('1,500.500 KWD');
   });
-  it('currency column respects an explicit arabic language', () => {
-    expect(formatReportCell(1500.5, { format: 'currency' }, { language: 'arabic' })).toBe('١٬٥٠٠٫٥٠٠ د.ك');
+  it('currency column respects an explicit arabic language — symbol only, western digits', () => {
+    expect(formatReportCell(1500.5, { format: 'currency' }, { language: 'arabic' })).toBe('1,500.500 د.ك');
   });
   it('non-currency numeric column → plain en-US, 0–3 decimals, no forced trailing zeros', () => {
     expect(formatReportCell(1500.5, {})).toBe('1,500.5');

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { StatementRow } from '../../types/financial.types';
 import type { FinancialDrillDownState } from './DrillDownLink';
 import { DrillDownLink } from './DrillDownLink';
-import { formatDate } from '../../lib/date';
+import { formatDate, formatMonthLabel } from '../../lib/date';
 import { fcCurrency, referenceTypeAr } from './financialLabels';
 
 interface Props {
@@ -29,7 +29,7 @@ function groupRows(rows: StatementRow[]): YearGroup[] {
     year,
     months: Array.from(byMonth.entries()).map(([month, r]) => ({
       month,
-      label: new Date(`${month}-01`).toLocaleDateString('ar-KW', { year: 'numeric', month: 'long' }),
+      label: formatMonthLabel(month),   // 'يناير 2026' — أرقام غربية، بلا Date ولا انزياح منطقة زمنية
       rows: r,
     })),
   }));

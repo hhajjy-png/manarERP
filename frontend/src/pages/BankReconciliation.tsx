@@ -13,7 +13,7 @@ import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatCurrency, formatNumber } from '../lib/format';
-import { formatDate, todayDateOnly } from '../lib/date';
+import { formatDate, todayDateOnly, formatMonthLabel } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import {
   getWorkspace,
@@ -883,7 +883,7 @@ function ExplorerCharts({ workspace }: { workspace: ReconciliationWorkspace }) {
       const d = new Date(tx.statementDate);
       if (isNaN(d.getTime())) return;
       const key   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleDateString('ar-KW', { year: 'numeric', month: 'short' });
+      const label = formatMonthLabel(key);   // 'يناير 2026' — أرقام غربية (ar-KW كان يُخرج ٢٠٢٦)
       if (!months[key]) months[key] = { month: label, مدين: 0, دائن: 0 };
       months[key].مدين  += tx.debit;
       months[key].دائن  += tx.credit;

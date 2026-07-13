@@ -3,6 +3,7 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { ReportInput } from '../../shared/services/reportEngine/excel.service';
 import { formatCurrency } from '../../shared/utils/currency';
+import { formatDateRange, formatDisplayDate } from '../../shared/utils/dateDisplay';
 import { translateInvoiceStatusAr } from '../../shared/utils/arabicLabels';
 import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLabels';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
@@ -580,7 +581,7 @@ export class ReportsService {
     return {
       title: `كشف حساب العميل — ${customer.name}`,
       subtitle: q.from || q.to
-        ? `الفترة: ${q.from ?? '—'} إلى ${q.to ?? '—'} | الرصيد الافتتاحي: ${formatCurrency(openingBalance)}`
+        ? `الفترة: ${formatDateRange(q.from, q.to)} | الرصيد الافتتاحي: ${formatCurrency(openingBalance)}`
         : `إجمالي المعاملات: ${entries.length}`,
       columns: [
         { header: 'التاريخ', key: 'date', width: 14 },
@@ -682,7 +683,7 @@ export class ReportsService {
 
     return {
       title: 'تقرير أعمار الديون (الذمم المدينة)',
-      subtitle: `كما في: ${asOfDate.toLocaleDateString('ar')} — إجمالي المستحق: ${formatCurrency(totals.totalOutstanding)}`,
+      subtitle: `كما في: ${formatDisplayDate(asOfDate)} — إجمالي المستحق: ${formatCurrency(totals.totalOutstanding)}`,
       columns: [
         { header: 'العميل', key: 'customerName', width: 28 },
         { header: 'حالي', key: 'current', width: 16, numFmt: '#,##0.000', format: 'currency' },
