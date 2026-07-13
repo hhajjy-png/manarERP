@@ -75,6 +75,16 @@ export const PRINT_PREVIEW_LEGACY_FORMS_SPECIAL = 'PRINT_PREVIEW_LEGACY_FORMS_SP
  */
 export const CHEQUE_CALIBRATION_TEST_PREVIEW_V1 = 'CHEQUE_CALIBRATION_TEST_PREVIEW_V1' as const;
 
+/**
+ * True Chromium WYSIWYG Preview — Proof of Concept. OFF افتراضيًا.
+ *
+ * تجربة معزولة على مستند الفاتورة فقط: نفس مستند المعاينة المُركّب يُرسل إلى نافذة
+ * Chromium مخفية وتعود صفحاته الحقيقية (printToPDF) للعرض. **لا يطبع شيئًا** —
+ * زر «طباعة» يبقى على المسار القديم حرفيًا. المعاينة المتصلة الحالية تبقى الافتراضي،
+ * وتبقى متاحة كمسار تراجع داخل التجربة نفسها عند أي فشل توليد.
+ */
+export const TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC = 'TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC' as const;
+
 export type FlagName =
   | typeof PRINT_CENTER_FOUNDATION_V1
   | typeof PRINT_CENTER_PHASE2
@@ -85,7 +95,8 @@ export type FlagName =
   | typeof PRINT_PREVIEW_LEGACY_FORMS_FINANCE
   | typeof PRINT_PREVIEW_LEGACY_FORMS_HR
   | typeof PRINT_PREVIEW_LEGACY_FORMS_SPECIAL
-  | typeof CHEQUE_CALIBRATION_TEST_PREVIEW_V1;
+  | typeof CHEQUE_CALIBRATION_TEST_PREVIEW_V1
+  | typeof TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC;
 
 /** A document is on the Print Center only when master AND its own flag are enabled. */
 export function isPhase2Enabled(documentFlag: FlagName): boolean {
@@ -137,6 +148,10 @@ const DEFAULTS: Record<FlagName, boolean> = {
   // (webContents.print · @page المشتقّ من الهندسة · هامش صفر · مقياس 100%) لم يُمسّ.
   // ما أُضيف خطوة عرض قبل الطباعة، لا مسار طباعة ثانٍ.
   CHEQUE_CALIBRATION_TEST_PREVIEW_V1: true,
+
+  // ── POC — تجريبي، OFF افتراضيًا. يُفعَّل يدويًا للفحص فقط:
+  // localStorage['manar:flag:TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC'] = 'on'
+  TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC: false,
 };
 
 function readOverride(name: FlagName): boolean | null {

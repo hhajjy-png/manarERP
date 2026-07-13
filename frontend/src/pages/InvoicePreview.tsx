@@ -3,10 +3,13 @@ import { printCurrentView } from '../utils/print';
 import {
   composeStyledFromNode,
   isPhase2Enabled,
+  isFlagEnabled,
   PrintPreviewDialog,
   PRINT_CENTER_PHASE2_INVOICE,
+  TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC,
   getPageSpec,
 } from '../printing';
+import WysiwygPreviewPocDialog from '../printing/components/WysiwygPreviewPocDialog';
 import type { ComponentType } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
@@ -143,7 +146,10 @@ export default function InvoicePreview() {
   // construction rather than by imitation.
   const printRootRef = useRef<HTMLDivElement>(null);
   const [printCenterOpen, setPrintCenterOpen] = useState(false);
+  const [wysiwygPocOpen, setWysiwygPocOpen] = useState(false);
   const usePrintCenterInvoice = isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE);
+  // POC — OFF افتراضيًا. يظهر زرّه فقط بتفعيل يدوي للعلم، ولا يغيّر شيئًا سواه.
+  const useWysiwygPoc = isFlagEnabled(TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC);
 
   const autoPrint = searchParams.get('print') === '1';
   const printFiredRef = useRef(false);
@@ -451,6 +457,19 @@ export default function InvoicePreview() {
         />
       )}
 
+      {/* True Chromium WYSIWYG POC — نفس مُركِّب المستند، ونفس مسار الطباعة القديم.
+          فشل التوليد يعرض تراجعًا إلى المعاينة المتصلة أعلاه. */}
+      {useWysiwygPoc && (
+        <WysiwygPreviewPocDialog
+          open={wysiwygPocOpen}
+          onClose={() => setWysiwygPocOpen(false)}
+          compose={composeInvoicePreview}
+          onPrint={() => printCurrentView()}
+          onFallback={() => setPrintCenterOpen(true)}
+          documentLabel={data ? `فاتورة · ${data.invoiceNumber ?? data.number}` : ''}
+        />
+      )}
+
       <div ref={printRootRef} className="inv-wrap" style={{
         padding: '16px 24px', fontFamily: '"Cairo", Arial, sans-serif',
         maxWidth: 900, margin: '0 auto', color: '#0f172a',
@@ -486,6 +505,18 @@ export default function InvoicePreview() {
               onClick={() => setPrintCenterOpen(true)}
             >
               🔍 معاينة قبل الطباعة
+            </button>
+          )}
+
+          {/* POC (علم يدوي) — معاينة بترقيم Chromium الحقيقي. لا تطبع عند الفتح. */}
+          {useWysiwygPoc && (
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => setWysiwygPocOpen(true)}
+              title="تجريبي: صفحات مُرقّمة من Chromium فعليًا — الطباعة تبقى على المسار الأصلي"
+            >
+              🧪 معاينة WYSIWYG
             </button>
           )}
 

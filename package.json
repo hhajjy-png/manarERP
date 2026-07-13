@@ -15,6 +15,7 @@
     "db:migrate": "npm --workspace backend run prisma:migrate",
     "db:seed": "npm --workspace backend run prisma:seed",
     "electron:build": "tsc -p electron/tsconfig.json",
+  "test:electron": "vitest run -c vitest.electron.config.ts",
     "dev:front": "npm --workspace frontend run dev",
     "predev:electron": "npm run electron:build",
     "dev:electron": "wait-on tcp:5173 && node scripts/start-electron.cjs",
