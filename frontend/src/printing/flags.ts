@@ -149,9 +149,13 @@ const DEFAULTS: Record<FlagName, boolean> = {
   // ما أُضيف خطوة عرض قبل الطباعة، لا مسار طباعة ثانٍ.
   CHEQUE_CALIBRATION_TEST_PREVIEW_V1: true,
 
-  // ── POC — تجريبي، OFF افتراضيًا. يُفعَّل يدويًا للفحص فقط:
-  // localStorage['manar:flag:TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC'] = 'on'
-  TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC: false,
+  // ── معاينة WYSIWYG للفاتورة — ON: التفعيل الرسمي في الإنتاج ────────────────
+  // اكتمل الفحص: شريط PDFium مخفيّ (‎#toolbar=0‎)، ولا Ctrl+P ولا Ctrl+S يفتحان حوارًا
+  // أصليًا حتى والتركيز داخل الـ PDF (فُحص بمفاتيح نظام حقيقية)، والنقر بالزر الأيمن لا
+  // يُظهر قائمة. الطباعة تبقى على المسار القديم وحده.
+  //
+  // التراجع فوري وبلا إصدار: localStorage['manar:flag:TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC'] = 'off'
+  TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC: true,
 };
 
 function readOverride(name: FlagName): boolean | null {

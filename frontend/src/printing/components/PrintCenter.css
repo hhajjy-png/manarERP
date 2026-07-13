@@ -10,7 +10,35 @@
    HTML and never sees this stylesheet).
    ════════════════════════════════════════════════════════════════════════════ */
 
+/* ── شبكة أمان الرموز (Design Tokens) ─────────────────────────────────────────
+   العيب: حوارات الطباعة تُصيَّر من صفحات **خارج** `.xpl-scope` — شاشة الفاتورة لا
+   تفتح النطاق ولا تُحمّل `explorer-kit.css` أصلًا. هناك تكون رموز `--xpl-*` **غير
+   معرّفة**، فينهار كل `background: var(--xpl-surface)` إلى `transparent`، فيظهر
+   محتوى الفاتورة من خلف شريط الأدوات ويتداخل مع نصّه.
+   قِيس فعليًا: الحوار والشريط وشريط الحالة كلها `rgba(0, 0, 0, 0)` في الوضعين.
+
+   العلاج: نُعيد ربط ExplorerKit نفسه على جذر الحوار، ومصدر كل قيمة هو **رمز السمة
+   العام** في `theme.css` (`:root` و `html[data-theme="dark"]`) — فيعمل الوضعان
+   الفاتح والداكن تلقائيًا، ولا لون جديد يُخترع.
+
+   الاستثناء الوحيد: `--xpl-primary` (الإنديغو) لا مقابل عام له — منقول حرفيًا من
+   `explorer-kit.css`. هو **نفس** لون المنتج الأساسي، لا لون جديد.
+
+   يُصلح هذا **كلا** الحوارين (المعاينة المتصلة + معاينة الطباعة الدقيقة): كلاهما
+   يتشارك أصناف `.pc-*`، وهو ما يقتضيه الصنف المشترك. عرضٌ بحت — لا سلوك يتغيّر. */
 .pc-scrim {
+  --xpl-primary:    #6366f1;   /* منقول من explorer-kit.css — لا لون جديد */
+  --xpl-primary-2:  #4f46e5;
+  --xpl-surface:    var(--surface);
+  --xpl-surface-2:  var(--surface-2);
+  --xpl-bg:         var(--bg);
+  --xpl-text:       var(--text);
+  --xpl-text-muted: var(--text-muted);
+  --xpl-muted:      var(--text-muted);
+  --xpl-border:     var(--border);
+  --xpl-red:        var(--red);
+  --xpl-green:      var(--green);
+  --xpl-orange:     var(--amber);
   position: fixed;
   inset: 0;
   z-index: 3400;
@@ -68,6 +96,14 @@
 }
 .pc-btn:hover:not(:disabled) { border-color: var(--xpl-primary); }
 .pc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* زر الإغلاق: نص عادي، ويتحوّل إلى رمز الخطر عند التحويم/التركيز فقط. صنف جديد
+   يستخدمه حوار WYSIWYG وحده — المعاينة المتصلة الحالية لا تتأثّر. لا لون جديد:
+   الرمز نفسه المستخدم في كل ExplorerKit. */
+.pc-btn--close:hover:not(:disabled),
+.pc-btn--close:focus-visible {
+  color: var(--xpl-red);
+  border-color: var(--xpl-red);
+}
 .pc-btn--primary {
   background: var(--xpl-primary);
   border-color: var(--xpl-primary);

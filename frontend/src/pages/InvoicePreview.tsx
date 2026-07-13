@@ -508,15 +508,15 @@ export default function InvoicePreview() {
             </button>
           )}
 
-          {/* POC (علم يدوي) — معاينة بترقيم Chromium الحقيقي. لا تطبع عند الفتح. */}
+          {/* معاينة دقيقة — الصفحات كما ستخرج من الطابعة. لا تطبع عند الفتح. */}
           {useWysiwygPoc && (
             <button
               type="button"
               className="btn secondary"
               onClick={() => setWysiwygPocOpen(true)}
-              title="تجريبي: صفحات مُرقّمة من Chromium فعليًا — الطباعة تبقى على المسار الأصلي"
+              title="معاينة دقيقة — الصفحات وفواصلها كما ستخرج من الطابعة تمامًا. الطباعة تبقى على المسار الأصلي."
             >
-              🧪 معاينة WYSIWYG
+              📄 معاينة دقيقة
             </button>
           )}
 
