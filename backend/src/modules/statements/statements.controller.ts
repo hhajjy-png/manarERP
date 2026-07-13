@@ -1,10 +1,16 @@
 import type { Request, Response } from 'express';
+import { roundMoney } from '@shared/utils/money';
 import { buildStatement } from '@shared/services/statement.service';
 import { buildExcel } from '@shared/services/reportEngine/excel.service';
 import { ok } from '@core/utils/response';
 import { StatementQuerySchema, parseDate } from './statements.schema';
 
-const formatKwd = (n: number) => Number(n.toFixed(3));
+/**
+ * كانت `Number(n.toFixed(3))` — عائلة تقريب ثالثة تخالف تقريب الترحيل عند التعادل
+ * (`toFixed` تعطي 1.2345 → 1.234 بينما الدفتر يكتب 1.235). الكشف صار يُعرض بنفس القاعدة
+ * التي كُتب بها القيد.
+ */
+const formatKwd = roundMoney;
 
 function refTypeAr(type: string): string {
   if (type === 'INVOICE') return 'فاتورة';

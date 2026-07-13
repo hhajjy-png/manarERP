@@ -1,9 +1,17 @@
 // Pure inventory financial calculation functions — no Prisma, no side-effects.
 
 /**
- * Round to 6 decimal places for WAC cost precision.
- * WAC unit costs are stored at 6dp so that repeated weighted-average operations
- * do not accumulate rounding error before display (which rounds to 3dp for KWD).
+ * تقريب **تكلفة التقييم الداخلي** إلى ستّ خانات — وهي ليست نقودًا مُرحَّلة.
+ *
+ * قرار معماري صريح (حزمة تصليب النقود):
+ *   • **تكلفة الوحدة (WAC)** تبقى بستّ خانات: المتوسط المرجّح يُعاد حسابه عند كل استلام،
+ *     وتقريبه إلى الفلس في كل جولة يُراكم انحرافًا في التقييم.
+ *   • **الكميات** لا تُقرَّب إطلاقًا — ليست نقودًا.
+ *   • **كل مبلغ يدخل الأستاذ العام يُطبَّع إلى ثلاث خانات** عند حدّ الترحيل وحده
+ *     (`roundMoney` في inventory.service). فلا تدخل قيم دون-الفلس إلى الدفتر، ولا يقع
+ *     تقريب مزدوج على التقييم.
+ *
+ * أي: دقّة عالية داخلًا، ودقّة الدينار عند البوابة المحاسبية.
  */
 export function roundCost(n: number): number {
   return Math.round((n + Number.EPSILON) * 1_000_000) / 1_000_000;

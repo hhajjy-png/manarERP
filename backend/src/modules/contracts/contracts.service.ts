@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { roundMoney } from '../../shared/utils/money';
 import { Prisma } from '@prisma/client';
 import { contractsRepository } from './contracts.repository';
 import { prisma } from '../../config/database';
@@ -165,12 +166,11 @@ export class ContractsService {
     ]);
 
     const n = (v: unknown) => Number(v ?? 0);
-    const r3 = (v: number) => Math.round(v * 1000) / 1000;
 
     // Revenue
-    const totalInvoiced = r3(invoices.reduce((s, i) => s + n(i.total), 0));
+    const totalInvoiced = roundMoney(invoices.reduce((s, i) => s + n(i.total), 0));
     const invoiceCount = invoices.length;
-    const avgInvoice = invoiceCount > 0 ? r3(totalInvoiced / invoiceCount) : 0;
+    const avgInvoice = invoiceCount > 0 ? roundMoney(totalInvoiced / invoiceCount) : 0;
     const lastInvoiceDateRaw = invoices.length > 0 ? invoices[invoices.length - 1].issueDate : null;
 
     const monthlyValue = contract.monthlyTransportValue ? n(contract.monthlyTransportValue) : null;
@@ -180,13 +180,13 @@ export class ContractsService {
       contractDurationMonths = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24 * 30.44)));
     }
     const estimatedContractValue =
-      monthlyValue && contractDurationMonths ? r3(monthlyValue * contractDurationMonths) : null;
+      monthlyValue && contractDurationMonths ? roundMoney(monthlyValue * contractDurationMonths) : null;
     const remainingToInvoice =
-      estimatedContractValue !== null ? r3(estimatedContractValue - totalInvoiced) : null;
+      estimatedContractValue !== null ? roundMoney(estimatedContractValue - totalInvoiced) : null;
 
     // Collections
-    const totalCollected = r3(invoices.reduce((s, i) => s + n(i.paidAmount), 0));
-    const outstanding = r3(totalInvoiced - totalCollected);
+    const totalCollected = roundMoney(invoices.reduce((s, i) => s + n(i.paidAmount), 0));
+    const outstanding = roundMoney(totalInvoiced - totalCollected);
     const collectionRate = safePct(totalCollected, totalInvoiced);
 
     let lastPaymentDate: Date | null = null;
@@ -203,12 +203,12 @@ export class ContractsService {
     const avgCollectionDays = collectionCount > 0 ? Math.round(totalCollectionDays / collectionCount) : null;
 
     // Expenses
-    const totalExpenses = r3(expenses.reduce((s, e) => s + n(e.amount), 0));
+    const totalExpenses = roundMoney(expenses.reduce((s, e) => s + n(e.amount), 0));
     const expenseCount = expenses.length;
     const lastExpenseDateRaw = expenses.length > 0 ? expenses[expenses.length - 1].date : null;
 
     // Profitability
-    const profit = r3(totalInvoiced - totalExpenses);
+    const profit = roundMoney(totalInvoiced - totalExpenses);
     const profitMargin = safePct(profit, totalInvoiced);
     const profitStatus: 'GREEN' | 'YELLOW' | 'ORANGE' | 'RED' =
       profit < 0 ? 'RED'
@@ -231,17 +231,17 @@ export class ContractsService {
     for (const inv of invoices) {
       const d = new Date(inv.issueDate);
       const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      getM(k).invoiced = r3(getM(k).invoiced + n(inv.total));
+      getM(k).invoiced = roundMoney(getM(k).invoiced + n(inv.total));
       for (const p of inv.payments) {
         const pd = new Date(p.date);
         const pk = `${pd.getFullYear()}-${String(pd.getMonth() + 1).padStart(2, '0')}`;
-        getM(pk).collected = r3(getM(pk).collected + n(p.amount));
+        getM(pk).collected = roundMoney(getM(pk).collected + n(p.amount));
       }
     }
     for (const exp of expenses) {
       const d = new Date(exp.date);
       const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      getM(k).expenses = r3(getM(k).expenses + n(exp.amount));
+      getM(k).expenses = roundMoney(getM(k).expenses + n(exp.amount));
     }
     const monthlyData = [...monthlyMap.entries()]
       .sort(([a], [b]) => a.localeCompare(b))

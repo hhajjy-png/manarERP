@@ -3,10 +3,10 @@ import { formatSourceMonth } from './salaries.dateHelpers';
 import { getPagination, buildPaginatedResult } from '../../core/utils/pagination';
 import { buildExcelWorkbook } from '../../shared/services/reportEngine/excel.service';
 import type { ReportInput } from '../../shared/services/reportEngine/excel.service';
+import { roundMoney } from '../../shared/utils/money';
 
-export function round3(n: number): number {
-  return Math.round(n * 1000) / 1000;
-}
+/** مُعاد تصديرها من وحدة النقود القانونية (`shared/utils/money`) — سياسة واحدة، لا تعريف ثانٍ. */
+export const round3 = roundMoney;
 
 export interface AnalyticsFilters {
   payrollMonth?: number;

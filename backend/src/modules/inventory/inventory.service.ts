@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { roundMoney } from '../../shared/utils/money';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@config/database';
 import { AppError } from '@core/errors/AppError';
@@ -451,7 +452,8 @@ export class GoodsReceiptsService {
           date: receipt.date,
           description: `استلام بضاعة ${receipt.number}`,
           type: 'TRANSFER',
-          debit: receipt.totalCost,
+          // حدّ الترحيل: التقييم الداخلي بستّ خانات، والدفتر بثلاث. التطبيع هنا وحده.
+          debit: roundMoney(receipt.totalCost),
           account: 'مخزون - مواد',
           referenceType: 'GOODS_RECEIPT',
           referenceId: receipt.id,
@@ -668,7 +670,8 @@ export class MaterialIssuesService {
         ? `صرف مواد ${issue.number} — عقد ${issue.contract.code}`
         : `صرف مواد ${issue.number}`;
       const entry = await transactionsService.postEntry(
-        { date: issue.date, description, type: 'EXPENSE', debit: totalCost, account: 'مصروفات مواد', referenceType: 'MATERIAL_ISSUE', referenceId: issue.id },
+        // حدّ الترحيل: يُطبَّع إلى دقّة الدينار قبل دخول الأستاذ العام.
+        { date: issue.date, description, type: 'EXPENSE', debit: roundMoney(totalCost), account: 'مصروفات مواد', referenceType: 'MATERIAL_ISSUE', referenceId: issue.id },
         tx,
       );
 

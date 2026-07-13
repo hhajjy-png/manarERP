@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { roundMoney } from '../../shared/utils/money';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { recordAudit } from '../../core/middleware/audit';
@@ -125,11 +126,14 @@ export class AccountingService {
           referenceId: input.referenceId ?? null,
           status: 'POSTED',
           lines: {
+            // تطبيع عند حدود التخزين: كانت قيم المستخدم تُكتب خامًا في الدفتر، فتدخل
+            // قيم دون-الفلس إلى الأستاذ العام. الحارس (validateJournalBalance) صار يقيس
+            // بنفس القاعدة، فالتقريب هنا يتّسق معه ولا يفتح فجوة توازن.
             create: input.lines.map((l) => ({
               accountId: l.accountId,
               description: l.description ?? null,
-              debit: l.debit ?? 0,
-              credit: l.credit ?? 0,
+              debit: roundMoney(l.debit ?? 0),
+              credit: roundMoney(l.credit ?? 0),
             })),
           },
         },

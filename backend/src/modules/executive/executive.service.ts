@@ -1,13 +1,13 @@
 import { prisma } from '../../config/database';
+import { roundMoney } from '../../shared/utils/money';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 import { resolvePeriod } from '../../core/utils/periodFilter';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
-const r3 = (v: number) => Math.round(v * 1000) / 1000;
 const n  = (v: unknown) => Number(v ?? 0);
 const safe = (num: number, den: number): number | null => {
   if (!Number.isFinite(num) || !Number.isFinite(den) || den <= 0) return null;
-  return r3((num / den) * 100);
+  return roundMoney((num / den) * 100);
 };
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -261,23 +261,23 @@ export class ExecutiveService {
     ]);
 
     // ── Compute base values ────────────────────────────────────────────────
-    const totalRevenue    = r3(n(totalRevenueAgg._sum.total));      // FLOW خلال الفترة
-    const totalExpenses   = r3(n(totalExpensesAgg._sum.amount));    // FLOW
-    const totalCollected  = r3(n(totalCollectionsAgg._sum.amount)); // FLOW
+    const totalRevenue    = roundMoney(n(totalRevenueAgg._sum.total));      // FLOW خلال الفترة
+    const totalExpenses   = roundMoney(n(totalExpensesAgg._sum.amount));    // FLOW
+    const totalCollected  = roundMoney(n(totalCollectionsAgg._sum.amount)); // FLOW
     // الذمم = رصيد لحظي كما في نهاية الفترة، لا صافي حركة الفترة.
-    const totalOutstanding = r3(Math.max(0, n(cumulativeRevenueAgg._sum.total) - n(cumulativeCollectionsAgg._sum.amount)));
-    const netProfit       = r3(totalRevenue - totalExpenses);
+    const totalOutstanding = roundMoney(Math.max(0, n(cumulativeRevenueAgg._sum.total) - n(cumulativeCollectionsAgg._sum.amount)));
+    const netProfit       = roundMoney(totalRevenue - totalExpenses);
     const overallProfitMargin = safe(netProfit, totalRevenue);
     const overallCollectionRate = safe(totalCollected, totalRevenue);
 
-    const thisMonthCol = r3(n(thisMonthColAgg._sum.amount));
-    const lastMonthCol = r3(n(lastMonthColAgg._sum.amount));
-    const thisMonthExp = r3(n(thisMonthExpAgg._sum.amount));
-    const lastMonthExp = r3(n(lastMonthExpAgg._sum.amount));
-    const thisMonthRev = r3(n(thisMonthRevAgg._sum.total));
-    const lastMonthRev = r3(n(lastMonthRevAgg._sum.total));
-    const thisMonthProfit = r3(thisMonthRev - thisMonthExp);
-    const lastMonthProfit = r3(lastMonthRev - lastMonthExp);
+    const thisMonthCol = roundMoney(n(thisMonthColAgg._sum.amount));
+    const lastMonthCol = roundMoney(n(lastMonthColAgg._sum.amount));
+    const thisMonthExp = roundMoney(n(thisMonthExpAgg._sum.amount));
+    const lastMonthExp = roundMoney(n(lastMonthExpAgg._sum.amount));
+    const thisMonthRev = roundMoney(n(thisMonthRevAgg._sum.total));
+    const lastMonthRev = roundMoney(n(lastMonthRevAgg._sum.total));
+    const thisMonthProfit = roundMoney(thisMonthRev - thisMonthExp);
+    const lastMonthProfit = roundMoney(lastMonthRev - lastMonthExp);
 
     // ── Build maps ─────────────────────────────────────────────────────────
     const invMap = new Map(invByContract.map(r => [r.contractId as number, { total: n(r._sum.total), paid: n(r._sum.paidAmount) }]));
@@ -293,11 +293,11 @@ export class ExecutiveService {
     const contractStats = activeContracts.map(c => {
       const inv = invMap.get(c.id) ?? { total: 0, paid: 0 };
       const exp = expMap.get(c.id) ?? 0;
-      const revenue     = r3(inv.total);
-      const collected   = r3(inv.paid);
-      const expenses    = r3(exp);
-      const outstanding = r3(Math.max(0, revenue - collected));
-      const profit      = r3(revenue - expenses);
+      const revenue     = roundMoney(inv.total);
+      const collected   = roundMoney(inv.paid);
+      const expenses    = roundMoney(exp);
+      const outstanding = roundMoney(Math.max(0, revenue - collected));
+      const profit      = roundMoney(revenue - expenses);
       const isNew = c.startDate !== null && c.startDate > thirtyDaysAgo;
       return {
         id: c.id, code: c.code, asphaltPlant: c.asphaltPlant,
@@ -323,7 +323,7 @@ export class ExecutiveService {
       if (os <= 0) continue;
       const days = Math.floor((agingRef.getTime() - new Date(inv.issueDate).getTime()) / 86_400_000);
       const e = debtorMap.get(inv.customerId) ?? { name: inv.customer.name, outstanding: 0, oldestDays: 0, lastPaymentDays: null };
-      e.outstanding = r3(e.outstanding + os);
+      e.outstanding = roundMoney(e.outstanding + os);
       if (days > e.oldestDays) e.oldestDays = days;
       if (!recentPayerSet.has(inv.customerId)) e.lastPaymentDays = Math.max(e.lastPaymentDays ?? 0, days);
       debtorMap.set(inv.customerId, e);
@@ -393,7 +393,7 @@ export class ExecutiveService {
     // 5. Contracts with weak collections (< 40%)
     const weakCollections = contractStats.filter(c => c.revenue > 0 && (c.collectionRate ?? 100) < 40);
     if (weakCollections.length > 0) {
-      const totalWeakOS = r3(weakCollections.reduce((s, c) => s + c.outstanding, 0));
+      const totalWeakOS = roundMoney(weakCollections.reduce((s, c) => s + c.outstanding, 0));
       cards.push({
         id: 'dc-weak-collections',
         title: 'تحصيل ضعيف',
@@ -415,11 +415,11 @@ export class ExecutiveService {
       cards.push({
         id: 'dc-top-expense-project',
         title: 'أعلى مصروفات عقد',
-        value: formatCurrency(r3(expAmt)),
+        value: formatCurrency(roundMoney(expAmt)),
         explanation: `العقد ${topExpContractInfo.code} (${topExpContractInfo.asphaltPlant}) يمثل أعلى مصروفات في النظام`,
         priority: 'MEDIUM',
         recommendedAction: 'مراجعة تفاصيل المصروفات ومدى توافقها مع الميزانية التقديرية',
-        relatedId: topExpContractInfo.id, relatedType: 'CONTRACT', amount: r3(expAmt),
+        relatedId: topExpContractInfo.id, relatedType: 'CONTRACT', amount: roundMoney(expAmt),
       });
     }
 
@@ -446,8 +446,8 @@ export class ExecutiveService {
     for (const c of contractStats) {
       if (!c.customerId) continue;
       const e = customerRevMap.get(c.customerId) ?? { name: c.customerName, revenue: 0, collected: 0 };
-      e.revenue = r3(e.revenue + c.revenue);
-      e.collected = r3(e.collected + c.collected);
+      e.revenue = roundMoney(e.revenue + c.revenue);
+      e.collected = roundMoney(e.collected + c.collected);
       customerRevMap.set(c.customerId, e);
     }
     const topRevGenerator = [...customerRevMap.entries()]
@@ -481,7 +481,7 @@ export class ExecutiveService {
         type: 'CASH_FLOW_WARNING',
         title: 'تحذير تدفق نقدي',
         description: `التحصيلات هذا الشهر (${formatCurrency(thisMonthCol)}) أقل من المصروفات (${formatCurrency(thisMonthExp)})`,
-        amount: r3(thisMonthExp - thisMonthCol),
+        amount: roundMoney(thisMonthExp - thisMonthCol),
         actionLabel: 'تسريع التحصيل',
       });
     }
@@ -495,7 +495,7 @@ export class ExecutiveService {
         type: 'COLLECTION_DETERIORATION',
         title: 'تراجع التحصيلات',
         description: `انخفاض التحصيل بنسبة ${drop != null ? formatPercent(drop, 1) : '—%'} مقارنة بالشهر الماضي`,
-        amount: r3(lastMonthCol - thisMonthCol),
+        amount: roundMoney(lastMonthCol - thisMonthCol),
         actionLabel: 'مراجعة ملفات التحصيل',
       });
     }
@@ -509,7 +509,7 @@ export class ExecutiveService {
         type: 'EXPENSE_SPIKE',
         title: 'ارتفاع غير مألوف في المصروفات',
         description: `المصروفات هذا الشهر أعلى بنسبة ${rise != null ? formatPercent(rise, 1) : '—%'} من الشهر الماضي`,
-        amount: r3(thisMonthExp - lastMonthExp),
+        amount: roundMoney(thisMonthExp - lastMonthExp),
         actionLabel: 'مراجعة المصروفات',
       });
     }
@@ -523,7 +523,7 @@ export class ExecutiveService {
         type: 'PROFITABILITY_DECLINE',
         title: 'تراجع الربحية',
         description: `صافي الربح هذا الشهر انخفض بنسبة ${drop != null ? formatPercent(drop, 1) : '—%'}`,
-        amount: r3(lastMonthProfit - thisMonthProfit),
+        amount: roundMoney(lastMonthProfit - thisMonthProfit),
         actionLabel: 'تحليل أسباب الانخفاض',
       });
     }
@@ -627,8 +627,8 @@ export class ExecutiveService {
       .filter((g) => g.customerId != null && n(g._sum.total) > 0)
       .map((g) => ({
         customerId: g.customerId as number,
-        revenue: r3(n(g._sum.total)),
-        collected: r3(n(g._sum.paidAmount)),
+        revenue: roundMoney(n(g._sum.total)),
+        collected: roundMoney(n(g._sum.paidAmount)),
       }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
@@ -812,7 +812,7 @@ export class ExecutiveService {
         priority: hasColDrop ? 'HIGH' : 'MEDIUM',
         title: 'تكثيف جهود التحصيل',
         reason: hasColDrop
-          ? `التحصيل هذا الشهر انخفض بمقدار ${formatCurrency(r3(lastMonthCol - thisMonthCol))}`
+          ? `التحصيل هذا الشهر انخفض بمقدار ${formatCurrency(roundMoney(lastMonthCol - thisMonthCol))}`
           : `${overdueCount} عملاء لديهم ذمم متأخرة أكثر من 90 يوم`,
         expectedImpact: `تحسين التدفق النقدي وتقليل الذمم المتراكمة`,
         suggestedAction: 'مراجعة قائمة العملاء المتأخرين يومياً وتعيين مسؤول متابعة مخصص',
@@ -871,7 +871,7 @@ export class ExecutiveService {
         reason: `${overdueAbove180.length} عملاء لديهم ذمم أكثر من 180 يوم`,
         expectedImpact: 'استرداد الديون المتعثرة وتجنب الشطب',
         suggestedAction: 'التواصل الرسمي مع العملاء المتعثرين وتقييم اللجوء للإجراءات القانونية عند الاقتضاء',
-        metric: `${formatCurrency(r3(overdueAbove180.reduce((s, d) => s + d.outstanding, 0)))} متعثرة`,
+        metric: `${formatCurrency(roundMoney(overdueAbove180.reduce((s, d) => s + d.outstanding, 0)))} متعثرة`,
       });
     }
 
@@ -885,7 +885,7 @@ export class ExecutiveService {
         reason: `المصروفات هذا الشهر أعلى بنسبة ملحوظة من الشهر الماضي`,
         expectedImpact: 'تحسين صافي الربح وإعادة التوازن للتدفق النقدي',
         suggestedAction: 'مراجعة مصروفات الشهر الحالي بالتفصيل وتحديد البنود غير الضرورية',
-        metric: `${formatCurrency(r3(thisMonthExp - lastMonthExp))} زيادة`,
+        metric: `${formatCurrency(roundMoney(thisMonthExp - lastMonthExp))} زيادة`,
       });
     }
 
@@ -984,9 +984,9 @@ export class ExecutiveService {
           prisma.invoice.count({ where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: m.start, lte: m.end } } }),
         ]);
 
-        const revenue    = r3(n(revAgg._sum.total));
-        const expenses   = r3(n(expAgg._sum.amount));
-        const collections = r3(n(colAgg._sum.amount));
+        const revenue    = roundMoney(n(revAgg._sum.total));
+        const expenses   = roundMoney(n(expAgg._sum.amount));
+        const collections = roundMoney(n(colAgg._sum.amount));
 
         // الرصيد اللحظي في نهاية الشهر = إيراد تراكمي (issueDate<=m.end) − تحصيل تراكمي
         // (payment.date<=m.end). لا نستخدم paidAmount (لقطة الحاضر) فتُخطئ الأشهر السابقة،
@@ -1001,12 +1001,12 @@ export class ExecutiveService {
             _sum: { amount: true },
           }),
         ]);
-        const osEnd = r3(Math.max(0, n(osInvAgg._sum.total) - n(osPayAgg._sum.amount)));
+        const osEnd = roundMoney(Math.max(0, n(osInvAgg._sum.total) - n(osPayAgg._sum.amount)));
 
         return {
           period: m.label,
           revenue, expenses, collections,
-          profit: r3(revenue - expenses),
+          profit: roundMoney(revenue - expenses),
           outstandingEnd: osEnd,
           contracts: contractCount,
           customers: customerCount,

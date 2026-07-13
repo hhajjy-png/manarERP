@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { AppError } from '../../core/errors/AppError';
 import { assertPeriodOpen } from './periodLock.service';
+import { roundMoney, sumMoney, moneyEquals } from '../utils/money';
 
 type Tx = Prisma.TransactionClient;
 
@@ -11,7 +12,12 @@ export type JournalLine = {
   description: string;
 };
 
-export const round3 = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000;
+/**
+ * مُعاد تصديرها من وحدة النقود القانونية — لا تعريف ثانٍ.
+ * السياسة الآن واحدة عبر النظام: نصف بعيدًا عن الصفر، ثلاث خانات.
+ * (السلوك على القيم الموجبة مطابق حرفيًا لما كان — مُثبَت على 400,000 قيمة.)
+ */
+export const round3 = roundMoney;
 
 /**
  * توليد رقم قيد يومية فريد بصيغة JRN-<سنة القيد>-<تسلسل>.
@@ -36,7 +42,8 @@ export async function generateEntryNumber(tx: Tx, entryDate: Date = new Date()):
 
 /**
  * ينشئ قيد يومية مزدوجًا بعد التحقق من توازنه (إجمالي المدين = إجمالي الدائن).
- * يرمي خطأً قبل الكتابة إذا |ΔDebit - ΔCredit| > 0.001 (دقة الدينار الكويتي 3dp).
+ * يرمي خطأً قبل الكتابة إذا لم يتساوَ الطرفان **بدقّة الدينار** (`moneyEquals`) — أي أن
+ * فارق فلس واحد (0.001) يُرفض، ولا يُتسامح إلا مع ضجيج التمثيل الثنائي.
  * يُستخدم من جميع وحدات GL (المصروفات، الفواتير، الرواتب، المخزون).
  *
  * هذه هي النقطة المركزية لحارس قفل الفترة: كل قيد محاسبي في النظام يمرّ من هنا،
@@ -52,10 +59,19 @@ export async function createBalancedJournal(
     lines: JournalLine[];
   },
 ): Promise<void> {
-  const totalDebit = round3(data.lines.reduce((s, l) => s + l.debit, 0));
-  const totalCredit = round3(data.lines.reduce((s, l) => s + l.credit, 0));
+  const totalDebit = sumMoney(data.lines.map((l) => l.debit));
+  const totalCredit = sumMoney(data.lines.map((l) => l.credit));
 
-  if (Math.abs(totalDebit - totalCredit) > 0.001) {
+  /**
+   * التوازن يُقاس **بدقّة الدينار**، لا بتسامح فلس كامل.
+   *
+   * كان الحارس `Math.abs(d - c) > 0.001` — أي أنه يسمح بفارق **يساوي أصغر وحدة نقدية
+   * موجودة**: قيد مختلّ بفلس واحد كان يمرّ صامتًا ويستقرّ في الدفتر. `moneyEquals` تقرّب
+   * الطرفين ثم تقارن بتسامح تنفيذي (1e-6) لضجيج الثنائي وحده:
+   *   • فارق 0.0000001 (أثر 0.1+0.2) → متوازن.
+   *   • فارق 0.001 (فلس) → **مرفوض**.
+   */
+  if (!moneyEquals(totalDebit, totalCredit)) {
     throw new AppError(
       `قيد محاسبي غير متوازن: المدين ${totalDebit} ≠ الدائن ${totalCredit}`,
       500,

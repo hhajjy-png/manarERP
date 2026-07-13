@@ -1,4 +1,5 @@
 import { prisma } from '@config/database.js';
+import { BANK_MATCH_TOLERANCE } from './tolerances.js';
 import type { StatementTransaction, MatchResult, MatchCandidate, MatchedType, MatchConfidence } from './types.js';
 
 // ── Data source loaders ────────────────────────────────────────────────────────
@@ -67,8 +68,12 @@ function candidate(
   return { type, id, ref, confidence, matchedBy };
 }
 
+/**
+ * مطابقة **تقريبية** — استدلال لا قيد. التسامح واسع عمدًا (٥ فلوس): عمولة أو فرق تقريب
+ * من طرف ثالث يجب ألّا يمنع اقتراح المطابقة. القيمة لم تتغيّر؛ صار لها اسم ومعنى.
+ */
 function amountsMatch(a: number, b: number): boolean {
-  return Math.abs(a - b) <= 0.005;
+  return Math.abs(a - b) <= BANK_MATCH_TOLERANCE;
 }
 
 function txAmount(tx: StatementTransaction): number {

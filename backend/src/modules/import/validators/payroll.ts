@@ -1,4 +1,5 @@
 // Payroll summary import — imports headline figures only (no PayrollLine rows).
+import { roundMoney } from '../../../shared/utils/money';
 // Duplicate key: employeeCode|month|year (matches Payroll @@unique constraint).
 // All employees (including terminated) are accepted for historical imports.
 
@@ -52,9 +53,8 @@ function parseInt10(v: unknown): number | null {
   return raw;
 }
 
-function round3(n: number): number {
-  return Math.round((n + Number.EPSILON) * 1000) / 1000;
-}
+/** مُعاد تصديرها من وحدة النقود القانونية (`shared/utils/money`) — سياسة واحدة، لا تعريف ثانٍ. */
+const round3 = roundMoney;
 
 export function validatePayrollRow(
   row: Record<string, unknown>,

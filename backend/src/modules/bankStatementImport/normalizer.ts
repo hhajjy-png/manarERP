@@ -1,4 +1,5 @@
 import type { StatementTransaction } from './types.js';
+import { roundMoney } from '../../shared/utils/money.js';
 
 // Some Kuwaiti banks export the currency as 'KD' instead of the ISO code 'KWD'.
 // Normalise here so the currency validator sees a recognised code.
@@ -34,9 +35,8 @@ export function buildNormalizedText(tx: StatementTransaction): string {
 
 // ── Amount normalization ───────────────────────────────────────────────────────
 
-export function roundKwd(n: number): number {
-  return Math.round(n * 1000) / 1000;
-}
+/** مُعاد تصديرها من وحدة النقود القانونية — نفس سياسة الترحيل، لا قاعدة خاصة بالبنك. */
+export const roundKwd = roundMoney;
 
 // ── Normalize a raw transaction ────────────────────────────────────────────────
 
