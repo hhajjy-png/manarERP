@@ -48,6 +48,7 @@ import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
 import { periodToReportParams } from '../lib/financialPeriod';
+import { moneyParts } from '../config/modules';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -111,7 +112,8 @@ function fmtDate(v: string | null | undefined): string {
   return isNaN(d.getTime()) ? '—' : d.toISOString().slice(0, 10);
 }
 
-function fmtAmount(v: number | string, currency = 'KWD'): string {
+// الرمز من الإعداد (KWD / د.ك) لا من ثابت في الشيفرة؛ الأرقام غربية دائمًا.
+function fmtAmount(v: number | string, currency = moneyParts(0).currency): string {
   return formatNumber(v) + ' ' + currency;
 }
 

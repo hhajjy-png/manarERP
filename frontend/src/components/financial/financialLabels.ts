@@ -9,7 +9,8 @@ import { currentCurrencyLanguage } from '../../stores/settingsStore';
 
 /**
  * Currency for the Financial Center, honoring `finance.currencyDisplayLanguage`
- * (English "1,250.000 KWD" / Arabic "١٬٢٥٠٫٠٠٠ د.ك") — mirrors the shared `money()`.
+ * (English "1,250.000 KWD" / Arabic "1,250.000 د.ك" — western digits always; the
+ * setting selects the SYMBOL only) — mirrors the shared `money()`.
  */
 export function fcCurrency(value: unknown): string {
   return formatCurrency(value, { language: currentCurrencyLanguage() });

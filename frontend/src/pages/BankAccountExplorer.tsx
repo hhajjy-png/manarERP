@@ -30,6 +30,7 @@ import { formatCurrency, formatNumber } from '../lib/format';
 import { formatDate, formatMonthLabel } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import './BankAccountExplorer.css';
+import { moneyParts } from '../config/modules';
 
 // ── Constants (mirrors BankReconciliation patterns) ────────────────────────────
 
@@ -51,6 +52,16 @@ const CAT_LABELS: Record<string, string> = {
 function fmtAmount(v: number | null | undefined): string {
   if (v == null) return '—';
   return formatNumber(v);
+}
+
+/**
+ * قيمة بطاقة مالية: الرقم و**رمز العملة الذي يختاره الإعداد** (KWD / د.ك) — لا رمزًا
+ * مثبَّتًا في الشيفرة. القيمة غير المنطبقة تعرض «—» **بلا وحدة**: «— KWD» بلا معنى.
+ */
+function amountCard(v: number | null | undefined): { value: string; unit?: string } {
+  if (v == null) return { value: '—' };
+  const parts = moneyParts(v);
+  return { value: parts.number, unit: parts.currency };
 }
 
 // Canonical DD/MM/YYYY (English digits) via the shared formatter.
@@ -399,24 +410,21 @@ function KpiRow({ dashboard }: { dashboard: BankAccountDashboard }) {
       <div className="bae-kpi-grid bae-kpi-grid--secondary">
         <KpiCard
           label="إجمالي الإيداعات"
-          value={fmtAmount(d.totalDeposits)}
-          unit="KWD"
+          {...amountCard(d.totalDeposits)}
           icon="south_west"
           colorVariant="green"
           sub={`${d.depositCount.toLocaleString()} عملية`}
         />
         <KpiCard
           label="إجمالي السحوبات"
-          value={fmtAmount(d.totalWithdrawals)}
-          unit="KWD"
+          {...amountCard(d.totalWithdrawals)}
           icon="north_east"
           colorVariant="red"
           sub={`${d.withdrawalCount.toLocaleString()} عملية`}
         />
         <KpiCard
           label="صافي الحركة"
-          value={fmtAmount(d.netCashFlow)}
-          unit="KWD"
+          {...amountCard(d.netCashFlow)}
           icon="insights"
           colorVariant={netVariant}
           sub="صافي التدفق النقدي"

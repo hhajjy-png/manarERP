@@ -1,12 +1,18 @@
 import React from 'react';
 import { useUI } from '../stores/uiStore';
-import { formatNumber as formatSharedNumber, currencyConfig } from '../lib/format';
+import { formatNumber as formatSharedNumber, formatMoneyParts } from '../lib/format';
+import { currentCurrencyLanguage } from '../stores/settingsStore';
 import './privacy.css';
 
 export interface PrivateAmountProps {
   /** Numeric value (will be formatted) or pre-formatted string (used as-is). */
   value: number | string;
-  /** Currency symbol appended when value is numeric. Default: shared currencyConfig.code ('KWD') */
+  /**
+   * Currency symbol appended when the value is numeric. Defaults to the symbol the
+   * company setting selects — "KWD" or "د.ك" — instead of a hard-coded "KWD", which
+   * used to print the English symbol on every dashboard card even when the setting
+   * said Arabic. The number itself is always Western digits (approved standard).
+   */
   currency?: string;
   /**
    * Masking level:
@@ -62,9 +68,14 @@ export function usePrivacyMode(): boolean {
   return useUI((s) => s.privacyMode);
 }
 
+/** The active currency symbol: "KWD" / "د.ك". Read at render — the setting can change. */
+function activeCurrencySymbol(): string {
+  return formatMoneyParts(0, { language: currentCurrencyLanguage() }).currency;
+}
+
 export default function PrivateAmount({
   value,
-  currency = currencyConfig.code,
+  currency = activeCurrencySymbol(),
   level = 1,
   masked,
   noPrint = false,
@@ -83,7 +94,7 @@ export default function PrivateAmount({
   // UI-only elements: obey masking on screen but disappear entirely in print
   if (noPrint) {
     return (
-      <span className={`pm-ui-only${className ? ` ${className}` : ''}`} style={style}>
+      <span className={`pm-ui-only money-cell${className ? ` ${className}` : ''}`} style={style}>
         {shouldMask ? maskDisplay : formatted}
       </span>
     );
@@ -93,7 +104,9 @@ export default function PrivateAmount({
   // Screen: .pm-mask visible / .pm-real hidden (controlled by inline display)
   // Print:  .pm-mask forced hidden / .pm-real forced visible via privacy.css
   return (
-    <span className={className} style={style}>
+    // `money-cell`: اتجاه LTR للقيمة وحدها (فتبقى إشارة السالب قبل الرقم داخل واجهة
+    // عربية)، وأرقام جدولية، وبلا التفاف — فلا ينفصل الرمز عن الرقم في سطر ثانٍ.
+    <span className={`money-cell${className ? ` ${className}` : ''}`} style={style}>
       <span
         className="pm-mask"
         style={{ display: shouldMask ? 'inline' : 'none' }}

@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { CHART_INITIAL_DIMENSION } from '../lib/rechartsDefaults';
 import './BankSalaryAnalytics.css';
+import { money } from '../config/modules';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -643,7 +644,7 @@ export default function BankSalaryAnalytics() {
       iconColor: '#F59E0B',
       label: 'أعلى موظف راتباً',
       value: analytics.topEmployees[0]?.beneficiaryName ?? '—',
-      sub: analytics.topEmployees[0] ? formatCurrency(analytics.topEmployees[0].totalAmount) : '',
+      sub: analytics.topEmployees[0] ? money(analytics.topEmployees[0].totalAmount) : '',
     },
     {
       icon: 'emoji_events',
@@ -671,7 +672,7 @@ export default function BankSalaryAnalytics() {
       iconColor: '#14B8A6',
       label: 'أحدث شهر بيانات',
       value: analytics.months.length > 0 ? analytics.months[analytics.months.length - 1].sourceMonth : '—',
-      sub: analytics.months.length > 0 ? formatCurrency(analytics.months[analytics.months.length - 1].totalAmount) : '',
+      sub: analytics.months.length > 0 ? money(analytics.months[analytics.months.length - 1].totalAmount) : '',
     },
     {
       icon: 'change_history',
@@ -699,7 +700,7 @@ export default function BankSalaryAnalytics() {
               <>
                 <span className="psa-header-tag blue">
                   <span className="material-symbols-outlined" style={{ fontSize: 13 }}>payments</span>
-                  <PrivateAmount value={formatCurrency(analytics.totalAmount)} />
+                  <PrivateAmount value={analytics.totalAmount} />
                 </span>
                 <span className="psa-header-tag green">
                   <span className="material-symbols-outlined" style={{ fontSize: 13 }}>group</span>
@@ -1030,12 +1031,12 @@ export default function BankSalaryAnalytics() {
           <div className="psa-summary-divider" />
           <div className="psa-summary-stat">
             <span className="psa-summary-label">متوسط الراتب</span>
-            <span className="psa-summary-value"><PrivateAmount value={formatCurrency(avgSalary)} /></span>
+            <span className="psa-summary-value"><PrivateAmount value={avgSalary} /></span>
           </div>
           <div className="psa-summary-divider" />
           <div className="psa-summary-stat">
             <span className="psa-summary-label">الإجمالي</span>
-            <span className="psa-summary-value"><PrivateAmount value={formatCurrency(analytics.totalAmount)} /></span>
+            <span className="psa-summary-value"><PrivateAmount value={analytics.totalAmount} /></span>
           </div>
           {activeChips.length > 0 && (
             <>
