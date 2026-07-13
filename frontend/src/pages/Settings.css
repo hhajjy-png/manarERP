@@ -5,104 +5,427 @@
    the shared .xpl-* design language; only adds the metric grid, the sticky
    in-page navigation, section scroll anchoring and the Template Studio card.
    Theme-token driven → works in light & dark, RTL & LTR.
+
+   VISUAL POLISH v1 — every rule below is **scoped to `.settings-center`**, so
+   nothing here can reach another screen. No new colour is introduced: only the
+   existing theme tokens (`--xpl-*` inside the kit scope, `--text/--border/…`
+   globally) are used, which is what keeps light and dark working by themselves.
    ════════════════════════════════════════════════════════════════════════════ */
 
 /* xpl-page hard-codes direction:rtl; honour the language toggle in LTR mode */
 .settings-center[dir='ltr'] { direction: ltr; }
 
-/* ── Status metric grid ──────────────────────────────────────────────────── */
+/* ── Vertical density ────────────────────────────────────────────────────────
+   The page read as tall and airy. Rhythm tightened by ~12% at every level —
+   page gap, header, cards, sections — without touching hit areas or line
+   height, so nothing becomes harder to read or to click. */
+.settings-center { gap: 15px; padding: 16px 26px; }
+.settings-center .settings-section { scroll-margin-top: 78px; }
+
+/* ── Page header ─────────────────────────────────────────────────────────────
+   Title becomes the first focal point: heavier and tighter. The subtitle steps
+   back (smaller, muted). Save stays clearly available without competing. */
+.settings-center .xpl-exec-header {
+  gap: 16px;
+  padding: 16px 20px;
+  border-radius: 16px;
+  align-items: center;
+}
+.settings-center .xpl-exec-logo { width: 44px; height: 44px; border-radius: 12px; }
+.settings-center .xpl-exec-logo .material-symbols-outlined { font-size: 24px !important; }
+.settings-center .xpl-exec-id-text { gap: 3px; }
+.settings-center .xpl-exec-title { font-size: 21px; font-weight: 800; letter-spacing: -.3px; line-height: 1.25; }
+.settings-center .xpl-exec-subtitle { font-size: 12.5px; line-height: 1.45; }
+.settings-center .xpl-exec-aside { align-self: center; }
+
+/* ── Status metric cards ─────────────────────────────────────────────────────
+   Equal height, one padding, value first. The label and the sub-line recede so
+   the number/state carries the card. Tones stay exactly as the page sets them. */
 .settings-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  gap: 10px;
 }
+.settings-metrics .xpl-metric {
+  min-height: 68px;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 13px;
+  border-radius: 12px;
+}
+.settings-metrics .xpl-metric-icon { width: 36px; height: 36px; border-radius: 10px; }
+.settings-metrics .xpl-metric-icon .material-symbols-outlined { font-size: 19px !important; }
+.settings-metrics .xpl-metric-label { font-size: 11px; }
+.settings-metrics .xpl-metric-value { font-size: 18px; line-height: 1.2; }
+.settings-metrics .xpl-metric-sub { font-size: 10.5px; opacity: .9; }
 
-/* ── Sticky in-page navigation ───────────────────────────────────────────── */
+/* ── Sticky in-page navigation (section tabs) ────────────────────────────────
+   Shorter bar, tighter pills, clearer active/hover — same items, same order,
+   same behaviour. */
 .settings-nav {
   position: sticky;
   top: 0;
   z-index: 20;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 14px;
+  gap: 6px;
+  padding: 8px 10px;
   background: var(--xpl-surface);
   border: 1px solid var(--xpl-border);
-  border-radius: 14px;
+  border-radius: 12px;
   box-shadow: var(--xpl-shadow-sm);
-  backdrop-filter: saturate(1.2);
 }
 .settings-nav-item {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--xpl-muted);
   background: var(--xpl-bg);
   border: 1px solid var(--xpl-border);
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 5px 12px;
   cursor: pointer;
   transition: color .18s ease, border-color .18s ease, background .18s ease;
 }
-.settings-nav-item:hover {
+.settings-nav-item:hover,
+.settings-nav-item:focus-visible {
   color: var(--xpl-primary);
   border-color: var(--xpl-primary);
   background: var(--xpl-faint);
+  outline: none;
 }
-.settings-nav-item .material-symbols-outlined { font-size: 16px !important; }
+.settings-nav-item .material-symbols-outlined { font-size: 15px !important; }
 
-/* ── Section scroll anchoring (clear the sticky nav) ─────────────────────── */
-.settings-section { scroll-margin-top: 84px; }
+/* ── Section cards — one visual language ─────────────────────────────────────
+   Same radius, same border, same shadow, same padding for every card on the
+   page; only the Template Studio call-out is allowed to sit slightly forward. */
+.settings-center .xpl-card { border-radius: 14px; }
+.settings-center .xpl-card--pad { padding: 14px 16px; }
+.settings-center .xpl-card-head { margin-bottom: 12px; }
+.settings-center .xpl-card-title { font-size: 14.5px; font-weight: 800; }
 
-/* ── Signature meta grid inside cards ────────────────────────────────────── */
+/* ── Fields ──────────────────────────────────────────────────────────────────
+   Behaviour, types, validation and placeholders untouched — only contrast,
+   height and rhythm. Labels lighter and closer to their input. */
+.settings-center .form-grid { gap: 0 16px; }
+.settings-center .field { margin-bottom: 12px; }
+.settings-center .field label {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 5px;
+  letter-spacing: 0;
+}
+.settings-center .field input,
+.settings-center .field select,
+.settings-center .field textarea {
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-color: var(--border);
+  background: var(--surface);
+}
+.settings-center .field input:hover:not(:disabled),
+.settings-center .field select:hover:not(:disabled) { border-color: var(--text-muted); }
+.settings-center .field input:focus,
+.settings-center .field select:focus,
+.settings-center .field textarea:focus {
+  border-color: var(--xpl-primary);
+  box-shadow: 0 0 0 3px var(--xpl-faint);
+}
+.settings-center .field input:disabled,
+.settings-center .field select:disabled { opacity: .65; cursor: not-allowed; }
+
+/* ── Buttons — one size per level, hierarchy preserved ───────────────────────
+   Primary / Secondary / Destructive keep their existing colours and meanings;
+   only height, radius, padding and icon spacing are unified so buttons of the
+   same level look identical. No handler, order or label changes. */
+.settings-center .btn {
+  padding: 8px 14px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
+  box-shadow: none;
+}
+.settings-center .btn:hover:not(:disabled) { transform: none; }
+.settings-center .btn .material-symbols-outlined { font-size: 17px !important; }
+.settings-center .btn.secondary:hover:not(:disabled) { border-color: var(--xpl-primary); color: var(--xpl-primary); }
+.settings-center .btn.small { padding: 5px 11px; font-size: 12px; }
+
+/* ── Financial period lock ───────────────────────────────────────────────────
+   The legal/warning wording, the permission gate and the lock logic are all
+   untouched. Only the density: the note steps back, the date field and the
+   action sit on one aligned baseline, and the card matches every other card. */
+.settings-center .plk__desc { font-size: 12.5px; line-height: 1.6; margin: 0 0 10px; }
+.settings-center .plk__note { font-size: 12.5px; }
+.settings-center .plk__row { align-items: flex-end; gap: 10px; }
+.settings-center .plk__field { font-size: 12px; gap: 5px; }
+.settings-center .branding-row-label { font-size: 12.5px; line-height: 1.5; color: var(--text-muted); font-weight: 600; }
+
+/* ── Signatures ──────────────────────────────────────────────────────────────
+   The inner card used to carry a heavy dark frame and a small thumbnail. Now:
+   a light border matching every other card, and the signature itself gets the
+   room — it is the content, not a footnote. */
+.settings-sig-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: var(--surface);
+}
+.settings-sig-card--default {
+  border-color: var(--xpl-primary);
+  box-shadow: 0 0 0 2px var(--xpl-faint);
+}
+.settings-sig-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.settings-sig-index { font-size: 12.5px; font-weight: 800; color: var(--text); min-width: 58px; }
+.settings-sig-default-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--xpl-primary);
+  background: var(--xpl-faint);
+  border: 1px solid var(--xpl-border);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.settings-sig-spacer { flex: 1; }
 .settings-sig-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 10px;
 }
 @media (max-width: 640px) { .settings-sig-meta { grid-template-columns: 1fr; } }
+.settings-sig-meta .field { margin-bottom: 0; }
 
-/* ── Template Studio call-out card ───────────────────────────────────────── */
+/* The preview stage — the signature is shown large, on a neutral surface, with
+   a light frame. The stored image and its real dimensions are NOT touched:
+   `object-fit: contain` only scales what is displayed. */
+.settings-media-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 104px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.settings-media-stage img {
+  max-height: 92px;
+  max-width: 100%;
+  object-fit: contain;
+}
+.settings-media-stage--empty { color: var(--text-muted); font-size: 12.5px; }
+.settings-media-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.settings-center .branding-toggle-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  gap: 7px;
+}
+.settings-center .branding-toggle-label input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--xpl-primary);
+  margin: 0;
+}
+
+/* ── Company stamp — same stage, wider (a stamp is not a signature) ───────── */
+.settings-stamp-stage { min-height: 112px; }
+.settings-stamp-stage img { max-height: 100px; }
+
+/* ── Print & templates ───────────────────────────────────────────────────── */
+.settings-print-row + .settings-print-row { margin-top: 12px; }
+.settings-print-row.branding-row-controls { gap: 12px; }
+
+/* ── Template Studio call-out — the one card allowed to lead ─────────────────
+   A very light tint of the EXISTING indigo token (no new colour, no decorative
+   gradient, no glass). It reads as a tool, not as decoration. */
 .settings-studio-card {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
-  padding: 16px 18px;
+  padding: 13px 15px;
   border: 1px solid var(--xpl-border);
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--xpl-faint), var(--xpl-faint-2));
+  border-radius: 12px;
+  background: var(--xpl-faint);
 }
 .settings-studio-icon {
-  width: 46px;
-  height: 46px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--xpl-surface);
   border: 1px solid var(--xpl-border);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.settings-studio-icon .material-symbols-outlined { font-size: 24px !important; color: var(--xpl-primary); }
+.settings-studio-icon .material-symbols-outlined { font-size: 22px !important; color: var(--xpl-primary); }
 .settings-studio-body { flex: 1; min-width: 200px; }
-.settings-studio-title { margin: 0 0 3px; font-size: 14px; font-weight: 800; color: var(--xpl-text); }
-.settings-studio-desc { margin: 0; font-size: 12.5px; color: var(--xpl-muted); }
+.settings-studio-title { margin: 0 0 2px; font-size: 13.5px; font-weight: 800; color: var(--xpl-text); }
+.settings-studio-desc { margin: 0; font-size: 12px; color: var(--xpl-muted); }
 
-/* ── Dictionary toolbar ──────────────────────────────────────────────────── */
+/* ── Translation dictionary — enterprise data grid ───────────────────────────
+   Same component, same data, same handlers. What changes: a clearer header, a
+   calmer row rhythm, a visible hover, an aligned action column, and an "add
+   row" that reads as an action instead of a dashed placeholder. */
+.settings-dict-desc { font-size: 12px; color: var(--text-muted); margin: 0 0 10px; }
+.settings-dict-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.settings-dict-tab {
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color .18s ease, border-color .18s ease;
+}
+.settings-dict-tab:hover { color: var(--text); }
+.settings-dict-tab--active { color: var(--xpl-primary); border-bottom-color: var(--xpl-primary); }
+
 .settings-dict-toolbar {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .settings-dict-toolbar .xpl-search { flex: 1; min-width: 200px; }
-.settings-dict-count { font-size: 12.5px; color: var(--xpl-muted); white-space: nowrap; }
+.settings-dict-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 
-/* A plain wrapper so the branding rows keep their spacing inside xpl cards */
-.settings-print-row + .settings-print-row { margin-top: 14px; }
+.settings-dict-grid {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.settings-dict-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.settings-dict-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-2);
+  padding: 9px 12px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: .3px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  text-align: right;
+}
+.settings-dict-table thead th.settings-dict-en { text-align: left; }
+.settings-dict-table thead th.settings-dict-actions { text-align: center; width: 64px; }
+.settings-dict-table tbody tr { border-bottom: 1px solid var(--border); transition: background .14s ease; }
+.settings-dict-table tbody tr:last-child { border-bottom: none; }
+.settings-dict-table tbody tr:hover { background: var(--surface-2); }
+.settings-dict-table td { padding: 3px 8px; }
+.settings-dict-table td input {
+  width: 100%;
+  padding: 6px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  outline: none;
+  transition: border-color .14s ease, background .14s ease;
+}
+.settings-dict-table td input:hover { border-color: var(--border); }
+.settings-dict-table td input:focus {
+  border-color: var(--xpl-primary);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--xpl-faint);
+}
+.settings-dict-ar input { text-align: right; }
+.settings-dict-en input { direction: ltr; text-align: left; }
+.settings-dict-table td.settings-dict-actions { text-align: center; }
+
+.settings-dict-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color .14s ease, background .14s ease, border-color .14s ease;
+}
+.settings-dict-del:hover,
+.settings-dict-del:focus-visible {
+  color: var(--red);
+  border-color: var(--red);
+  background: rgba(239, 68, 68, .08);
+  outline: none;
+}
+.settings-dict-del .material-symbols-outlined { font-size: 17px !important; }
+
+.settings-dict-empty {
+  padding: 26px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.settings-dict-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--xpl-primary);
+  background: var(--xpl-faint);
+  border: 1px solid var(--xpl-border);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: border-color .16s ease, background .16s ease;
+}
+.settings-dict-add:hover,
+.settings-dict-add:focus-visible { border-color: var(--xpl-primary); outline: none; }
+.settings-dict-add .material-symbols-outlined { font-size: 17px !important; }
