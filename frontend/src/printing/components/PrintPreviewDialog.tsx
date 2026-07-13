@@ -56,6 +56,21 @@ export interface PrintPreviewDialogProps {
   documentLabel?: string;
   lang?: 'ar' | 'en';
   orientation?: 'portrait' | 'landscape';
+  /**
+   * مقاس الورقة الفعلي (مم) حين لا يكون A4.
+   *
+   * مستند بمقاس مخصّص — ورقة اختبار معايرة الشيك مثلًا، وأبعادها يملكها مسؤول النظام في
+   * قاعدة البيانات — كان يُعرض داخل صندوق A4 ثابت، فتكذب المعاينة على المستخدم: صفحة
+   * وهمية ثانية إن كان المستند أطول، أو فراغ أبيض إن كان أقصر. حين يُمرَّر البُعدان معًا
+   * وكانا عددين منتهيين موجبين، يُشتقّ صندوق الورقة منهما لا من A4.
+   *
+   * القيمة الافتراضية (`undefined`) تُبقي اشتقاق A4 كما هو — فكل المستدعين الحاليين
+   * (الفاتورة · عرض السعر · النماذج · السندات) لا يتغيّر لهم شيء.
+   */
+  pageWidthMm?: number;
+  pageHeightMm?: number;
+  /** تسمية النافذة لقارئ الشاشة. الافتراضي: «معاينة قبل الطباعة». */
+  title?: string;
 }
 
 export default function PrintPreviewDialog({
@@ -66,6 +81,9 @@ export default function PrintPreviewDialog({
   documentLabel = '',
   lang = 'ar',
   orientation = 'portrait',
+  pageWidthMm,
+  pageHeightMm,
+  title,
 }: PrintPreviewDialogProps) {
   const en = lang === 'en';
 
@@ -85,10 +103,20 @@ export default function PrintPreviewDialog({
   composeRef.current = compose;
 
   const { pageWpx, pageHpx } = useMemo(() => {
-    const wmm = orientation === 'landscape' ? A4_H_MM : A4_W_MM;
-    const hmm = orientation === 'landscape' ? A4_W_MM : A4_H_MM;
+    // مقاس مخصّص — يُقبل فقط حين يكون **البُعدان معًا** عددين منتهيين موجبين. بُعد واحد،
+    // أو NaN، أو صفر، أو سالب: لا يصف ورقة، فنسقط إلى A4 بدل أن نحسب صندوقًا فاسدًا
+    // ونمرّر NaN إلى عرض/ارتفاع العنصر.
+    const custom =
+      Number.isFinite(pageWidthMm) && (pageWidthMm as number) > 0 &&
+      Number.isFinite(pageHeightMm) && (pageHeightMm as number) > 0;
+    const wmm = custom
+      ? (pageWidthMm as number)
+      : orientation === 'landscape' ? A4_H_MM : A4_W_MM;
+    const hmm = custom
+      ? (pageHeightMm as number)
+      : orientation === 'landscape' ? A4_W_MM : A4_H_MM;
     return { pageWpx: wmm * MM_TO_PX, pageHpx: hmm * MM_TO_PX };
-  }, [orientation]);
+  }, [orientation, pageWidthMm, pageHeightMm]);
 
   /** النسبة الفعلية المعروضة — محسوبة لا ثابتة. */
   const scale = fit === 'none' ? zoom : fitScale;
@@ -273,7 +301,7 @@ export default function PrintPreviewDialog({
         className="pc-dialog"
         role="dialog"
         aria-modal="true"
-        aria-label={en ? 'Print preview' : 'معاينة قبل الطباعة'}
+        aria-label={title ?? (en ? 'Print preview' : 'معاينة قبل الطباعة')}
         dir={en ? 'ltr' : 'rtl'}
         tabIndex={-1}
         ref={dialogRef}

@@ -116,9 +116,13 @@ describe('cheque print ink isolation', () => {
     vi.mocked(api.post).mockClear();
     vi.mocked(api.put).mockClear();
 
+    // المعاينة طبقة عرض: تُفتح أولًا، ثم «طباعة» بداخلها تفوّض إلى `printCurrentView`.
     const btn = screen.getByRole('button', { name: /اختبار المعايرة/ });
     fireEvent.click(btn);
-    fireEvent.click(btn); // duplicate click while printing → ignored
+    await flushAsyncUpdates();
+    const printBtn = screen.getByRole('button', { name: 'طباعة' });
+    fireEvent.click(printBtn);
+    fireEvent.click(printBtn); // duplicate click while printing → ignored
     await flushAsyncUpdates();
 
     expect(printCurrentView).toHaveBeenCalledTimes(1);
