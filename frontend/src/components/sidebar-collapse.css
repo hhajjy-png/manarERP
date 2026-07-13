@@ -55,8 +55,11 @@ html[data-sidebar='collapsed'] .sidebar .nav { padding: 12px 8px; }
 html[data-sidebar='collapsed'] .sidebar .nav a {
   justify-content: center;
   gap: 0;
-  padding: 12px 0;
-  margin-bottom: 6px;
+  width: 44px;          /* نفس صندوق العنصر النشط — فلا يبدو النشط أضخم من جيرانه */
+  height: 44px;
+  margin: 0 auto 6px;
+  padding: 0;
+  border-radius: 11px;
 }
 html[data-sidebar='collapsed'] .sidebar .nav a .nav-label {
   position: absolute;
@@ -70,10 +73,60 @@ html[data-sidebar='collapsed'] .sidebar .nav a .nav-label {
   white-space: nowrap;
   border: 0;
 }
-/* مؤشّر العنصر النشط يبقى واضحًا وهو مطوي: نفس تدرّج القشرة، مع شريط جانبي أعرض. */
-html[data-sidebar='collapsed'] .sidebar .nav a.active {
-  border-inline-start-width: 4px;
-  padding-inline-start: 0;
+/* ── العنصر النشط في الشريط المطوي ─────────────────────────────────────────
+   مصدر «الكتلة الزرقاء» ليس قاعدتنا بل قشرة `stitch-full`:
+   `html[data-theme="dark"] .stitch-full-theme .sidebar .nav a.active` تفرض
+   `background: var(--accent) !important` وظلًّا أزرق كبيرًا — لونًا مشبعًا كاملًا.
+   بعرض 248px يقرأه المستخدم صفًّا نشطًا؛ أما بعرض 72px فيصير مربّعًا صارخًا يشبه زر
+   CTA ويزاحم زرّ الطيّ أسفل القائمة.
+
+   نتجاوزها هنا **في الوضع المطوي وحده** (الموسّع لم يُمسّ حرفًا). `!important`
+   ضرورة لا اختيار: القشرة نفسها تستعمله، ولا سبيل لتجاوزه بالتحديد وحده.
+
+   اللون: **Indigo الخاص بـ ExplorerKit** (`--xpl-primary` = #6366f1) منسوخًا حرفيًا —
+   تلك التوكنات مُعرَّفة داخل `.xpl-scope` فقط ولا تصل إلى قشرة التطبيق، ولا يوجد لها
+   مقابل عام. لا لون مُخترع.
+
+   المؤشّر على الحافة **المواجهة للمحتوى** عبر `inset-inline-end`: يسار العنصر في
+   العربية (القائمة يمينًا)، ويمينه في الإنجليزية — قاعدة واحدة لا قاعدتان. ولونه
+   `currentColor` فيتبع لون الأيقونة في الوضعين. */
+html[data-sidebar='collapsed'] .stitch-full-theme .sidebar .nav a.active {
+  position: relative;
+  border: 0 !important;
+  border-radius: 11px;
+  padding: 0 !important;
+  background: color-mix(in srgb, #6366f1 16%, transparent) !important;
+  color: #6366f1 !important;      /* الشريط أبيض في الوضع الفاتح ⇒ Indigo هو التباين */
+  box-shadow: none !important;    /* لا وهج ولا ظلّ */
+}
+html[data-sidebar='collapsed'] .stitch-full-theme .sidebar .nav a.active .ic {
+  color: inherit;
+}
+html[data-sidebar='collapsed'] .stitch-full-theme .sidebar .nav a.active::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 0;            /* الحافة المواجهة للمحتوى — RTL وLTR معًا */
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 2px;
+  background: currentColor;
+}
+html[data-sidebar='collapsed'] .stitch-full-theme .sidebar .nav a.active:hover {
+  background: color-mix(in srgb, #6366f1 22%, transparent) !important;
+  transform: none !important;
+}
+
+/* الوضع الداكن (قشرة Slate): خلفية Indigo أعمق قليلًا وأيقونة بيضاء عالية التباين —
+   لكنها تبقى **سطحًا هادئًا**، لا لونًا مشبعًا كاملًا ولا ظلًّا. */
+html[data-theme='dark'][data-sidebar='collapsed'] .stitch-full-theme .sidebar .nav a.active {
+  background: color-mix(in srgb, #6366f1 30%, transparent) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+html[data-theme='dark'][data-sidebar='collapsed'] .stitch-full-theme .sidebar .nav a.active:hover {
+  background: color-mix(in srgb, #6366f1 38%, transparent) !important;
 }
 
 /* عناوين الأقسام: لا معنى لها بعرض 72px — تُستبدل بفاصل هادئ يحفظ التجميع.
