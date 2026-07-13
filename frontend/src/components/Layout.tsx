@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { NAV } from '../config/modules';
 import RootErrorBoundary from './RootErrorBoundary';
@@ -14,14 +14,49 @@ import almanarLogoDark from '../assets/almanar-logo-dark.png';
 import GlobalSearch from './GlobalSearch';
 import Toast from './Toast';
 import './layout-polish.css';
+import './sidebar-collapse.css';
 import './privacy.css';
+
+/** النافذة التي تحت عرضها لا تعود القائمة الموسّعة تكسب المستخدم شيئًا. */
+const NARROW_QUERY = '(max-width: 1200px)';
 
 export default function Layout() {
   const { user, logout, hasPermission } = useAuth();
-  const { theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar, lang, setLang, privacyMode, togglePrivacy } = useUI();
+  const {
+    theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar, lang, setLang,
+    privacyMode, togglePrivacy, sidebarMode, sidebarNarrow, toggleSidebarMode, setSidebarNarrow,
+  } = useUI();
   const { t } = useT();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // الوضع الفعلي: اختيار المستخدم، ما لم تفرض نافذة ضيّقة الطيّ. الاختيار المحفوظ
+  // لا يُكتب فوقه أبدًا — يعود كما هو بمجرّد اتّساع النافذة.
+  const collapsed = sidebarNarrow || sidebarMode === 'collapsed';
+
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_QUERY);
+    const sync = () => setSidebarNarrow(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, [setSidebarNarrow]);
+
+  /**
+   * تلميح اسم العنصر — يظهر في الوضع المطوي وحده.
+   *
+   * يُصيَّر خارج `.nav` بموضع ثابت، لأن `.nav` تُمرَّر رأسيًا فتقصّ ما يخرج منها
+   * أفقيًا. لا مكتبة جديدة، ولا `title` أصلي بطيء الظهور، ولا تغيير في التخطيط:
+   * الاسم نفسه يبقى في الـ DOM لقارئات الشاشة، والتلميح `aria-hidden` — تكرارٌ
+   * بصري لا وسيلة تنقّل وحيدة.
+   */
+  const [tip, setTip] = useState<{ label: string; top: number } | null>(null);
+  const showTip = useCallback((label: string, el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    setTip({ label, top: r.top + r.height / 2 - 14 });
+  }, []);
+  const hideTip = useCallback(() => setTip(null), []);
+  useEffect(() => { setTip(null); }, [location.pathname, collapsed]);
 
   // تحميل إعدادات الشركة بعد المصادقة (لغة عرض العملة). قراءة currencyLanguage تُشترِك
   // في المخزن فتُعاد صياغة كل المبالغ فورًا عند تغيير الإعداد.
@@ -39,7 +74,7 @@ export default function Layout() {
 
   return (
     <div className="app stitch-full-theme">
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} onMouseLeave={hideTip}>
         <div className="brand">
           <img
             src={theme === 'dark' ? almanarLogoDark : almanarLogo}
@@ -60,15 +95,49 @@ export default function Layout() {
                     to={it.key === 'dashboard' ? '/' : `/${it.key}`}
                     className={({ isActive }) => (isActive ? 'active' : '')}
                     onClick={closeSidebar}
+                    onMouseEnter={(e) => { if (collapsed) showTip(t(it.label), e.currentTarget); }}
+                    onFocus={(e) => { if (collapsed) showTip(t(it.label), e.currentTarget); }}
+                    onMouseLeave={hideTip}
+                    onBlur={hideTip}
                   >
-                    <span className="material-symbols-outlined ic">{it.icon}</span><span className="nav-label">{t(it.label)}</span>
+                    <span className="material-symbols-outlined ic" aria-hidden="true">{it.icon}</span><span className="nav-label">{t(it.label)}</span>
                   </NavLink>
                 ))}
               </div>
             );
           })}
         </nav>
+
+        {/*
+          زرّ الطيّ — عنصر `button` فعلي، باسم وصفي متغيّر و`aria-expanded`.
+          اتجاه السهم مشتقّ من اللغة والحالة معًا: في العربية القائمة يمينًا فالطيّ
+          يشير يمينًا والتوسيع يسارًا، وفي الإنجليزية العكس تمامًا.
+        */}
+        <div className="sidebar-foot">
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={toggleSidebarMode}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? t('layout.sidebar.expand') : t('layout.sidebar.collapse')}
+            title={collapsed ? t('layout.sidebar.expand') : t('layout.sidebar.collapse')}
+            disabled={sidebarNarrow}
+          >
+            <span className="material-symbols-outlined" aria-hidden="true">
+              {(lang === 'ar') === collapsed ? 'chevron_left' : 'chevron_right'}
+            </span>
+            <span className="sidebar-toggle-text">
+              {collapsed ? t('layout.sidebar.expand') : t('layout.sidebar.collapse')}
+            </span>
+          </button>
+        </div>
       </aside>
+
+      {collapsed && tip && (
+        <div className="sidebar-tip" style={{ top: tip.top }} role="presentation" aria-hidden="true">
+          {tip.label}
+        </div>
+      )}
 
       <div className="main">
         <header className="topbar">
