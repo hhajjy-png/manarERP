@@ -10,6 +10,8 @@ import {
   PRINT_CENTER_FOUNDATION_V1,
   PRINT_CENTER_PHASE2_RECEIPT_VOUCHER,
   RECEIPT_VOUCHER_PAGE_SPEC,
+  useAccurateFormPreview,
+  UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1,
 } from '../printing';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
@@ -91,6 +93,24 @@ export default function ReceiptVoucher() {
       lang,
     });
   }, [rcvNumber, lang]);
+
+  /**
+   * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
+   *
+   * تستهلك **نفس** مُركِّب السند (`composePreview`) — أي نفس العقدة (`previewRef`) ونفس
+   * `RECEIPT_VOUCHER_PAGE_SPEC` — و**نفس** دالة الطباعة (`handlePrint`) التي تُصدر الرقم
+   * وتطبع عبر مسار Phase 1 المعتمد. لا قالب بديل، ولا مقاس صفحة آخر، ولا محرّك جديد.
+   *
+   * العلم مطفأ ⇒ لا زر ولا حوار.
+   */
+  const accurate = useAccurateFormPreview({
+    enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
+    compose: composePreview,
+    onPrint: () => { void handlePrint(); },
+    title: `سند قبض ${rcvNumber || '---'}`,
+    documentLabel: `سند قبض · ${rcvNumber || '---'}`,
+    lang,
+  });
 
   /**
    * Print once React has flushed the issued rcvNumber into the DOM.
@@ -234,6 +254,7 @@ export default function ReceiptVoucher() {
             >
               {printing ? (lang === 'en' ? 'Generating…' : 'جارٍ الإصدار…') : (lang === 'en' ? '🖨️ Print' : '🖨️ طباعة')}
             </button>
+            {accurate.button}
           </div>
         </div>
 
@@ -363,6 +384,7 @@ export default function ReceiptVoucher() {
           lang={lang}
         />
       )}
+      {accurate.dialog}
 
       {/* ── Printable preview (always in DOM, hidden on screen via no-print toolbar) ── */}
       <div

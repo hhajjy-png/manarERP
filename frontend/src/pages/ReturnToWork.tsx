@@ -7,7 +7,7 @@ import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
-import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_HR } from '../printing';
+import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_HR, useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
 import ReturnToWorkTemplate from '../forms/ReturnToWorkTemplate';
 import { usePrintLogStore } from '../stores/printLogStore';
 import { usePrintDraftStore } from '../stores/printDraftStore';
@@ -110,6 +110,25 @@ export default function ReturnToWork() {
     lang,
   });
 
+  /**
+   * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
+   *
+   * تستهلك **نفس** العقدة المطبوعة (`.form-page`) و**نفس** دالة الطباعة القديمة
+   * (`FormLayout.doPrint`) اللتين ينشرهما `onPrintApiReady`. لا قالب بديل، ولا HTML
+   * مختلف، ولا محرّك طباعة جديد. المعاينة القديمة وزر الطباعة ومسارهما: كما هي.
+   *
+   * العلم مطفأ ⇒ لا زر ولا حوار إطلاقًا.
+   */
+  const printApiRef = useRef<{ getNode: () => HTMLElement | null; print: () => void } | null>(null);
+  const accurate = useAccurateFormPreview({
+    enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
+    getNode: () => printApiRef.current?.getNode() ?? null,
+    onPrint: () => printApiRef.current?.print(),
+    title: 'إشعار العودة إلى العمل',
+    documentLabel: `إشعار العودة إلى العمل · ${formNumber}`,
+  });
+
+
   if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!data)
     return (
@@ -122,10 +141,12 @@ export default function ReturnToWork() {
   return (
     <>
     {preview.dialog}
+    {accurate.dialog}
     <FormLayout
       formType={FORM_KEY}
       lang={lang}
       printIntercept={preview.printIntercept}
+      onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
       title="إشعار العودة إلى العمل"
@@ -165,6 +186,7 @@ export default function ReturnToWork() {
               ✕
             </button>
           )}
+        {accurate.button}
         </>
       }
       qrData={{

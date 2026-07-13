@@ -6,6 +6,9 @@ import {
   PrintPreviewDialog,
   PRINT_CENTER_PHASE2_QUOTATION,
   getPageSpec,
+  useAccurateFormPreview,
+  isFlagEnabled,
+  UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1,
 } from '../printing';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
@@ -299,6 +302,37 @@ export default function Quotation() {
     [legacyNode],
   );
 
+  /**
+   * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**، لكلا وضعَي الصفحة.
+   *
+   * تُعاد استخدام أدوات عرض السعر **كما هي**: مُركِّبه (`composeQuotationPreview`)، وعقدته
+   * المطبوعة، ودالة طباعته. Engine ⇒ `printRootRef` + `printCurrentView`. Legacy ⇒
+   * `.form-page` + `FormLayout.doPrint`، وكلاهما ينشرهما `onPrintApiReady`. لا قالب بديل،
+   * ولا HTML مختلف، ولا محرّك طباعة جديد. المعاينة القائمة وزر الطباعة ومسارهما: كما هي.
+   *
+   * العلم مطفأ ⇒ لا زر ولا حوار في أيّ من الوضعين.
+   */
+  const accurateEnabled = isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1);
+  const printApiRef = useRef<{ getNode: () => HTMLElement | null; print: () => void } | null>(null);
+
+  const accurateEngine = useAccurateFormPreview({
+    enabled: accurateEnabled,
+    compose: () => composeQuotationPreview(printRootRef.current),
+    onPrint: () => printCurrentView(),
+    title: `عرض سعر ${printFields.quotationNumber || '---'}`,
+    documentLabel: `عرض سعر · ${printFields.quotationNumber || '---'}`,
+    lang,
+  });
+
+  const accurateLegacy = useAccurateFormPreview({
+    enabled: accurateEnabled,
+    compose: () => composeQuotationPreview(printApiRef.current?.getNode() ?? null),
+    onPrint: () => printApiRef.current?.print(),
+    title: `عرض سعر ${printFields.quotationNumber || '---'}`,
+    documentLabel: `عرض سعر · ${printFields.quotationNumber || '---'}`,
+    lang,
+  });
+
   /** يُستدعى مرة واحدة من زر «طباعة» داخل المعاينة، بعد إغلاقها (الحوار يحرس النقر المزدوج). */
   const runLegacyPrint = useCallback(() => {
     legacyPrintRef.current?.();
@@ -378,6 +412,7 @@ export default function Quotation() {
             lang={lang}
           />
         )}
+        {accurateEngine.dialog}
       <div ref={printRootRef} dir="rtl" style={{ minHeight: '100vh', background: '#f0f4f8' }}>
         <style>{`
           @media print {
@@ -404,6 +439,7 @@ export default function Quotation() {
               🖨️ طباعة
             </button>
           )}
+          {accurateEngine.button}
           <button
             type="button"
             className="btn secondary"
@@ -600,6 +636,7 @@ export default function Quotation() {
           lang={lang}
         />
       )}
+      {accurateLegacy.dialog}
     <FormLayout
       formType={FORM_KEY}
       lang={lang}
@@ -608,6 +645,7 @@ export default function Quotation() {
       title={lang === 'ar' ? 'عرض سعر' : 'Quotation'}
       profile={profile}
       printIntercept={usePrintCenterQuotation ? legacyPrintIntercept : undefined}
+      onPrintApiReady={(api) => { printApiRef.current = api; }}
       toolbarExtra={
         <>
           <button
@@ -623,6 +661,7 @@ export default function Quotation() {
           )}
           <LanguageToggle lang={lang} onChange={setLang} />
           <PrintProfileToggle profile={profile} onChange={setProfile} />
+          {accurateLegacy.button}
           <button
             type="button"
             className="btn secondary"

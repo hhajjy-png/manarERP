@@ -41,6 +41,7 @@ export {
   PRINT_PREVIEW_LEGACY_FORMS_HR,
   PRINT_PREVIEW_LEGACY_FORMS_SPECIAL,
   TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC,
+  UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1,
   isFlagEnabled,
   isPhase2Enabled,
   isLegacyFormsPreviewEnabled,
@@ -53,6 +54,12 @@ export {
   type LegacyFormPreview,
   type LegacyFormPreviewOptions,
 } from './useLegacyFormPreview';
+
+export {
+  useAccurateFormPreview,
+  type AccurateFormPreview,
+  type AccurateFormPreviewOptions,
+} from './useAccurateFormPreview';
 
 // ── Phase 2 ─────────────────────────────────────────────────────────────────────
 export {

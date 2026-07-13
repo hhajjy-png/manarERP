@@ -49,6 +49,16 @@ interface FormLayoutProps {
    * remains the only executor of a physical print.
    */
   printIntercept?: (ctx: { proceed: () => void; node: HTMLElement | null }) => void;
+
+  /**
+   * **إضافي بحت.** يَنشر للنموذج مرجعَي: العقدة المطبوعة (`.form-page`) ودالة الطباعة
+   * القديمة (`doPrint`) — كما هما، بلا تغليف. أُضيف ليتمكّن زر «المعاينة الدقيقة» من
+   * إعادة استخدام **نفس** مصدر المستند و**نفس** مسار الطباعة، دون لمس `doPrint` ولا
+   * `printIntercept` ولا أي سلوك قائم.
+   *
+   * حين لا يُمرَّر (كل الاستخدامات السابقة) لا يحدث شيء إطلاقًا.
+   */
+  onPrintApiReady?: (api: { getNode: () => HTMLElement | null; print: () => void }) => void;
 }
 
 /** Shared −/count/+ copies stepper, reused in the workspace toolbar and sidebar. */
@@ -94,6 +104,7 @@ export default function FormLayout({
   formType,
   toolbarExtra,
   printIntercept,
+  onPrintApiReady,
   lang = 'ar',
   letterheadCompactFooter = false,
 }: FormLayoutProps) {
@@ -113,6 +124,19 @@ export default function FormLayout({
   // فلا يتغيّر توقيته ولا عدد مرات تشغيله عمّا كان.
   const printInterceptRef = useRef(printIntercept);
   printInterceptRef.current = printIntercept;
+
+  // نشر واجهة الطباعة للنموذج (إضافي). `doPrint` نفسها لم تُمسّ — تُقرأ من ref فقط،
+  // فلا يتغيّر توقيتها ولا عدد استدعاءاتها ولا سلوكها.
+  const doPrintRef = useRef<() => void>(() => {});
+  const apiPublishedRef = useRef(false);
+  useEffect(() => {
+    if (apiPublishedRef.current || !onPrintApiReady) return;
+    apiPublishedRef.current = true;
+    onPrintApiReady({
+      getNode: () => formPageRef.current,
+      print: () => doPrintRef.current(),
+    });
+  }, [onPrintApiReady]);
 
   const activeProfile = PRINT_PROFILES[profile];
   // Letterhead-only, opt-in bottom-margin trim: when a form sets
@@ -150,6 +174,9 @@ export default function FormLayout({
    * defect, not a behaviour worth preserving. A single dialog with the copy count in it
    * is strictly closer to the user's intent than three dialogs.)
    */
+  // نفس الدالة القديمة بمرجعها — بلا نسخ ولا تغليف.
+  doPrintRef.current = doPrint;
+
   function doPrint() {
     const count = copiesRef.current;
 

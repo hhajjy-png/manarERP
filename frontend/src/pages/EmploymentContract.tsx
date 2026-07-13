@@ -4,6 +4,9 @@ import {
   useLegacyFormPreview,
   isLegacyFormsPreviewEnabled,
   PRINT_PREVIEW_LEGACY_FORMS_SPECIAL,
+  useAccurateFormPreview,
+  isFlagEnabled,
+  UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1,
 } from '../printing';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
@@ -591,6 +594,21 @@ export default function EmploymentContract() {
   });
 
   /**
+   * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
+   *
+   * تستهلك **نفس** العقدة المطبوعة (`printRootRef`) و**نفس** دالة الطباعة القديمة
+   * (`handlePrint`) — بمرجعها، بلا تغليف. لا قالب بديل، ولا HTML مختلف، ولا محرّك جديد.
+   * المعاينة القديمة وزر الطباعة ومسارهما باقون كما هم. العلم مطفأ ⇒ لا زر ولا حوار.
+   */
+  const accurate = useAccurateFormPreview({
+    enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
+    getNode: () => printRootRef.current,
+    onPrint: () => handlePrint(),
+    title: 'عقد عمل',
+    documentLabel: `عقد عمل · ${formNumber}`,
+  });
+
+  /**
    * مِحوَل صغير حول زر الطباعة وحده. `handlePrint` القديمة تبقى كما هي حرفيًا — بما
    * فيها حفظ المسودّة وسجلّ الطباعة وعدّاد النسخ — وتُمرَّر كمرجع (`proceed`) فتُنفَّذ
    * **عند الموافقة داخل المعاينة**، لا عند فتحها. لا طباعة تلقائية في هذه الشاشة.
@@ -702,6 +720,7 @@ export default function EmploymentContract() {
       <>
       {/* خارج الجذر القابل للطباعة — لا يدخل المستند المُركَّب. */}
       {preview.dialog}
+      {accurate.dialog}
       <div ref={printRootRef} style={{ maxWidth: 860, margin: '0 auto', padding: '16px 20px', background: '#fff' }}>
         <div
           className="no-print"
@@ -710,6 +729,7 @@ export default function EmploymentContract() {
           <button className="btn" onClick={requestPrint}>
             🖨️ طباعة / حفظ PDF
           </button>
+          {accurate.button}
           <button className="btn secondary" onClick={() => setMode('params')}>
             ✏️ تعديل البيانات
           </button>
