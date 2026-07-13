@@ -109,6 +109,19 @@ const api = {
     Array<{ name: string; displayName: string; description: string; isDefault: boolean; status: number }>
   > => ipcRenderer.invoke('print:listPrinters'),
 
+
+  // ─── True Chromium WYSIWYG Preview POC (additive — يولّد PDF للمعاينة فقط، لا يطبع) ──
+
+  /** توليد معاينة مُرقّمة حقيقية عبر Chromium من مستند المعاينة المُركّب نفسه. */
+  generateWysiwygPreviewPoc: (html: string): Promise<{
+    ok: boolean;
+    pdf?: Uint8Array;
+    /** `null` عند تعذّر عدّ الصفحات بثقة — لا يُعرض «0» أبدًا. */
+    pageCount?: number | null;
+    readyMs?: number;
+    error?: string;
+  }> => ipcRenderer.invoke('wysiwygPoc:generate', html),
+
 };
 
 contextBridge.exposeInMainWorld('manar', api);

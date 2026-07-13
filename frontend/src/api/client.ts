@@ -52,6 +52,16 @@ declare global {
           status: number;
         }>
       >;
+      // ─── True Chromium WYSIWYG Preview POC ─────────────────────────────────────
+      /** Optional: absent on an older preload build — every caller must guard. */
+      generateWysiwygPreviewPoc?: (html: string) => Promise<{
+        ok: boolean;
+        pdf?: Uint8Array;
+        /** `null` when the page count could not be parsed confidently — never 0. */
+        pageCount?: number | null;
+        readyMs?: number;
+        error?: string;
+      }>;
     };
   }
 }

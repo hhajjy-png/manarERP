@@ -47,13 +47,77 @@ describe('العيب 1 — زر الطباعة الأصلي', () => {
     expect(before).not.toContain('usePrintCenterInvoice');
   });
 
-  it('زر «معاينة قبل الطباعة» منفصل، ولا يطبع عند الفتح', () => {
+  /**
+   * Reassessed after the WYSIWYG POC (review item 7).
+   *
+   * The ORIGINAL guard grepped a ±120-character window around the FIRST occurrence of
+   * `setPrintCenterOpen(true)`. That was accidental-satisfaction-prone in both
+   * directions: it inspected only one site, and any unrelated code drifting into the
+   * window could break or silently weaken it. The POC's
+   * `onFallback={() => setPrintCenterOpen(true)}` legitimately sits next to an
+   * `onPrint` prop, which is what exposed the weakness.
+   *
+   * The replacement is STRICTLY STRONGER: instead of looking near one site, it
+   * ENUMERATES EVERY `printCurrentView` call site in the page and requires each one to
+   * be an explicitly allow-listed delegation. A new, unreviewed print call anywhere in
+   * the invoice screen now fails this test — which the old proximity grep would have
+   * missed entirely.
+   */
+  it('every printCurrentView call site is an explicit, allow-listed print delegation', () => {
+    const CALL = /printCurrentView\(\)/g;
+    // The only legitimate ways the invoice screen may reach the legacy print path.
+    const ALLOWED = [
+      /onClick=\{\(\) => printCurrentView\(\)\}/,       // the official Print button
+      /onPrint=\{\(\) => printCurrentView\(\)\}/,       // a preview dialog delegating on «طباعة»
+      /setTimeout\(\(\) => printCurrentView\(\), \d+\)/, // the ?print=1 auto-print effect
+    ];
+
+    const sites: string[] = [];
+    for (const m of invoiceCode.matchAll(CALL)) {
+      const from = Math.max(0, (m.index ?? 0) - 60);
+      sites.push(invoiceCode.slice(from, (m.index ?? 0) + 40).replace(/\s+/g, ' ').trim());
+    }
+    expect(sites.length).toBeGreaterThan(0);
+    for (const site of sites) {
+      expect(
+        ALLOWED.some((re) => re.test(site)),
+        `unexpected printCurrentView call site: ${site}`,
+      ).toBe(true);
+    }
+  });
+
+  it('no button that OPENS a preview prints — neither the existing one nor the POC', () => {
+    // Every preview-opening click handler, checked at the handler itself (not by proximity).
+    const openers = [
+      'onClick={() => setPrintCenterOpen(true)}',   // existing continuous preview
+      'onClick={() => setWysiwygPocOpen(true)}',    // WYSIWYG POC
+    ];
+    for (const opener of openers) {
+      expect(invoiceCode).toContain(opener);
+      let from = 0;
+      for (;;) {
+        const idx = invoiceCode.indexOf(opener, from);
+        if (idx === -1) break;
+        const around = invoiceCode.slice(Math.max(0, idx - 140), idx + opener.length + 140);
+        expect(around).not.toContain('printCurrentView');
+        from = idx + opener.length;
+      }
+    }
+  });
+
+  it('the POC fallback opens the existing preview and never prints', () => {
+    expect(invoiceCode).toContain('onFallback={() => setPrintCenterOpen(true)}');
+    const idx = invoiceCode.indexOf('onFallback=');
+    const handler = invoiceCode.slice(idx, invoiceCode.indexOf('}', invoiceCode.indexOf('=>', idx)) + 1);
+    expect(handler).not.toContain('printCurrentView');
+  });
+
+  it('the official Print button is not gated by any preview flag', () => {
     expect(invoiceCode).toContain('معاينة قبل الطباعة');
-    expect(invoiceCode).toContain('setPrintCenterOpen(true)');
-    // فتح المعاينة لا يستدعي الطباعة.
-    const idx = invoiceCode.indexOf('setPrintCenterOpen(true)');
-    const around = invoiceCode.slice(idx - 120, idx + 120);
-    expect(around).not.toContain('printCurrentView');
+    const printBtn = invoiceCode.indexOf("t('btn.inv.print_invoice')");
+    const before = invoiceCode.slice(Math.max(0, printBtn - 260), printBtn);
+    expect(before).not.toContain('usePrintCenterInvoice');
+    expect(before).not.toContain('useWysiwygPoc');
   });
 
   it('الأزرار مصنّفة بصريًا: الطباعة أساسية، وما عداها ثانوي — ولا إجراء خطر', () => {

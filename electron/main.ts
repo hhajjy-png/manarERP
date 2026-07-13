@@ -10,6 +10,7 @@ import { registerContextMenuIpc } from './ipc/contextMenu.ipc';
 import { registerPdfIpc } from './ipc/pdf.ipc';
 import { registerAttachmentsIpc } from './ipc/attachments.ipc';
 import { registerPrintIpc } from './services/printService';
+import { registerWysiwygPocIpc } from './ipc/wysiwygPoc.ipc';
 
 const INTERNAL_SECRET = randomUUID();
 
@@ -31,6 +32,9 @@ async function bootstrap() {
     // Print Center Foundation v1 — additive. `app:print` / `pdf:export` /
     // `pdf:exportHtml` remain registered above and fully functional.
     registerPrintIpc();
+    // True Chromium WYSIWYG Preview POC — additive, preview-artifact only.
+    // Prints nothing; the legacy print path above is untouched.
+    registerWysiwygPocIpc();
     await startBackend(INTERNAL_SECRET); // تشغيل الخدمة الخلفية أولًا
     await startBackupScheduler(INTERNAL_SECRET); // ثم جدولة النسخ التلقائي
     runCatchupIfNeeded(INTERNAL_SECRET).catch(console.error); // نسخة تعويضية إذا فات وقت الجدولة
