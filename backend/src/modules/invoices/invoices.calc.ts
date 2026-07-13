@@ -1,4 +1,5 @@
 // Pure financial calculation functions for invoices — no Prisma, no side-effects.
+import { roundMoney } from '../../shared/utils/money';
 
 export type InvoiceItemInput = {
   description: string;
@@ -8,9 +9,8 @@ export type InvoiceItemInput = {
   priceId?: number | null;
 };
 
-export function round3(n: number): number {
-  return Math.round((n + Number.EPSILON) * 1000) / 1000;
-}
+/** مُعاد تصديرها من وحدة النقود القانونية (`shared/utils/money`) — سياسة واحدة، لا تعريف ثانٍ. */
+export const round3 = roundMoney;
 
 /** Compute subtotal, tax amount, and total from line items, tax rate, and discount. */
 export function computeTotals(items: InvoiceItemInput[], taxRate: number, discount: number) {

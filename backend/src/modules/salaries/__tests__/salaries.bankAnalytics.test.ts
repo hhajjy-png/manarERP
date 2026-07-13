@@ -21,8 +21,15 @@ describe('round3', () => {
     expect(round3(0)).toBe(0);
   });
 
-  it('handles negative numbers', () => {
-    expect(round3(-1.0005)).toBe(-1);
+  /**
+   * كان `round3(-1.0005) === -1`: تقريب نحو موجب اللانهاية، غير متماثل — فـ`+1.0005`
+   * تصعد إلى `1.001` بينما `-1.0005` تنزل إلى `-1.000`. السياسة القانونية متماثلة الإشارة
+   * (نصف بعيدًا عن الصفر)، فالمقدار واحد والإشارة وحدها تختلف.
+   */
+  it('rounds negatives symmetrically — half away from zero', () => {
+    expect(round3(-1.0005)).toBe(-1.001);
+    expect(round3(1.0005)).toBe(1.001); // نفس المقدار، إشارة معاكسة
+    expect(round3(-1.2344)).toBe(-1.234);
   });
 });
 

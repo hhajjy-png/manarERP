@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { roundMoney } from '../../shared/utils/money';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
@@ -96,7 +97,8 @@ export class ChequesService {
         chequeNumber: input.chequeNumber,
         chequeDate: input.chequeDate,
         beneficiaryName: input.beneficiaryName,
-        amount: input.amount,
+        // مبلغ الشيك يُطبَع على ورقة بنكية — يُخزَّن بدقّة الدينار، لا خامًا.
+        amount: roundMoney(input.amount),
         currency: input.currency ?? 'KWD',
         description: input.description ?? null,
         bankName: input.bankName,
@@ -138,7 +140,7 @@ export class ChequesService {
         chequeNumber: input.chequeNumber ?? current.chequeNumber,
         chequeDate: input.chequeDate ?? current.chequeDate,
         beneficiaryName: input.beneficiaryName ?? current.beneficiaryName,
-        amount: input.amount ?? current.amount,
+        amount: input.amount === undefined ? current.amount : roundMoney(input.amount),
         currency: input.currency ?? current.currency,
         description: input.description === undefined ? current.description : (input.description ?? null),
         bankName: input.bankName ?? current.bankName,

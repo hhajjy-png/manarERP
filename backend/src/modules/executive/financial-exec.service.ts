@@ -1,9 +1,9 @@
 import { prisma } from '@config/database';
+import { roundMoney } from '@shared/utils/money';
 
-const r3 = (v: number) => Math.round(v * 1000) / 1000;
 const n  = (v: unknown) => Number(v ?? 0);
 const safe = (num: number, den: number): number | null =>
-  den > 0 ? r3((num / den) * 100) : null;
+  den > 0 ? roundMoney((num / den) * 100) : null;
 
 export interface ContractProfitRow {
   id: number;
@@ -64,7 +64,7 @@ export class FinancialExecService {
     return contracts.map(c => {
       const inv  = invMap.get(c.id) ?? { rev: 0, col: 0 };
       const exp  = expMap.get(c.id) ?? 0;
-      const profit = r3(inv.rev - exp);
+      const profit = roundMoney(inv.rev - exp);
       return {
         id: c.id,
         code: c.code,
@@ -93,9 +93,9 @@ export class FinancialExecService {
 
     return groups.map(g => ({
       category: g.category,
-      total:    r3(n(g._sum.amount)),
+      total:    roundMoney(n(g._sum.amount)),
       count:    g._count._all,
-      pct:      grandTotal > 0 ? r3((n(g._sum.amount) / grandTotal) * 100) : 0,
+      pct:      grandTotal > 0 ? roundMoney((n(g._sum.amount) / grandTotal) * 100) : 0,
     }));
   }
 
@@ -124,7 +124,7 @@ export class FinancialExecService {
     return customers
       .map(c => {
         const inv = invMap.get(c.id) ?? { rev: 0, col: 0, cnt: 0 };
-        const outstanding = r3(inv.rev - inv.col);
+        const outstanding = roundMoney(inv.rev - inv.col);
         return {
           id: c.id, name: c.name, code: c.code,
           revenue: inv.rev, collected: inv.col, outstanding,

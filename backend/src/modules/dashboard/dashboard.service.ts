@@ -1,4 +1,5 @@
 import { prisma } from '../../config/database';
+import { roundMoney } from '../../shared/utils/money';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 import { ytdMonths } from '../../core/utils/dateWindows';
 
@@ -221,7 +222,6 @@ export class DashboardService {
   async executiveFinancialV2() {
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const r3 = (v: number) => Math.round(v * 1000) / 1000;
     const n = (v: unknown) => Number(v ?? 0);
 
     // منذ بداية السنة حتى الشهر الحالي (YTD) — نافذة موحّدة تتضمّن يناير دائمًا
@@ -276,7 +276,7 @@ export class DashboardService {
             },
             _sum: { amount: true },
           });
-          return { label: m.label, collected: r3(n(agg._sum.amount)) };
+          return { label: m.label, collected: roundMoney(n(agg._sum.amount)) };
         }),
       ),
     ]);
@@ -288,7 +288,7 @@ export class DashboardService {
       const outstanding = Math.max(0, n(inv.total) - n(inv.paidAmount));
       if (outstanding <= 0) continue;
       const entry = debtorMap.get(inv.customerId) ?? { name: inv.customer.name, outstanding: 0 };
-      entry.outstanding = r3(entry.outstanding + outstanding);
+      entry.outstanding = roundMoney(entry.outstanding + outstanding);
       debtorMap.set(inv.customerId, entry);
     }
     const topDebtors = [...debtorMap.entries()]
@@ -308,11 +308,11 @@ export class DashboardService {
       else                 b90plus += outstanding;
     }
     const agingSummary = {
-      bucket0_30:  r3(b0_30),
-      bucket31_60: r3(b31_60),
-      bucket61_90: r3(b61_90),
-      bucket90Plus: r3(b90plus),
-      totalOutstanding: r3(b0_30 + b31_60 + b61_90 + b90plus),
+      bucket0_30:  roundMoney(b0_30),
+      bucket31_60: roundMoney(b31_60),
+      bucket61_90: roundMoney(b61_90),
+      bucket90Plus: roundMoney(b90plus),
+      totalOutstanding: roundMoney(b0_30 + b31_60 + b61_90 + b90plus),
     };
 
     // ── Contract Profitability ─────────────────────────────────────────────────
@@ -323,9 +323,9 @@ export class DashboardService {
       .map((c) => {
         const revenue  = invMap.get(c.id) ?? 0;
         const expenses = expMap.get(c.id) ?? 0;
-        const profit   = r3(revenue - expenses);
+        const profit   = roundMoney(revenue - expenses);
         const profitMargin = revenue > 0 ? Math.round((profit / revenue) * 100 * 10) / 10 : null;
-        return { id: c.id, code: c.code, asphaltPlant: c.asphaltPlant, revenue: r3(revenue), expenses: r3(expenses), profit, profitMargin };
+        return { id: c.id, code: c.code, asphaltPlant: c.asphaltPlant, revenue: roundMoney(revenue), expenses: roundMoney(expenses), profit, profitMargin };
       })
       .filter((c) => c.revenue > 0);
 
@@ -343,8 +343,8 @@ export class DashboardService {
     }
 
     return {
-      collectionsThisMonth:   r3(n(collectionsThisMonthAgg._sum.amount)),
-      expensesThisMonth:      r3(n(expensesThisMonthAgg._sum.amount)),
+      collectionsThisMonth:   roundMoney(n(collectionsThisMonthAgg._sum.amount)),
+      expensesThisMonth:      roundMoney(n(expensesThisMonthAgg._sum.amount)),
       topDebtors,
       agingSummary,
       collectionTrend:        collectionTrendRaw,
@@ -403,7 +403,6 @@ export class DashboardService {
   private async monthlyTrendYTD(
     months: { label: string; start: Date; end: Date }[],
   ): Promise<{ month: string; revenue: number; expenses: number; collections: number; profit: number }[]> {
-    const r3 = (v: number) => Math.round(v * 1000) / 1000;
     const n = (v: unknown) => Number(v ?? 0);
 
     return Promise.all(
@@ -422,10 +421,10 @@ export class DashboardService {
             _sum: { amount: true },
           }),
         ]);
-        const revenue = r3(n(revAgg._sum.total));
-        const expenses = r3(n(expAgg._sum.amount));
-        const collections = r3(n(colAgg._sum.amount));
-        return { month: m.label, revenue, expenses, collections, profit: r3(revenue - expenses) };
+        const revenue = roundMoney(n(revAgg._sum.total));
+        const expenses = roundMoney(n(expAgg._sum.amount));
+        const collections = roundMoney(n(colAgg._sum.amount));
+        return { month: m.label, revenue, expenses, collections, profit: roundMoney(revenue - expenses) };
       }),
     );
   }
@@ -436,7 +435,6 @@ export class DashboardService {
    */
   async executiveIntelligenceV2() {
     const now = new Date();
-    const r3 = (v: number) => Math.round(v * 1000) / 1000;
     const n  = (v: unknown) => Number(v ?? 0);
     const sp = (num: number, den: number): number | null => {
       if (!Number.isFinite(num) || !Number.isFinite(den) || den <= 0) return null;
@@ -542,11 +540,11 @@ export class DashboardService {
     const contractStats = activeContracts.map(c => {
       const inv = invMap.get(c.id) ?? { total: 0, paid: 0 };
       const exp = expMap.get(c.id) ?? 0;
-      const revenue    = r3(inv.total);
-      const collected  = r3(inv.paid);
-      const expenses   = r3(exp);
-      const outstanding = r3(Math.max(0, revenue - collected));
-      const profit     = r3(revenue - expenses);
+      const revenue    = roundMoney(inv.total);
+      const collected  = roundMoney(inv.paid);
+      const expenses   = roundMoney(exp);
+      const outstanding = roundMoney(Math.max(0, revenue - collected));
+      const profit     = roundMoney(revenue - expenses);
       const isNew  = c.startDate !== null && c.startDate > thirtyDaysAgo;
       const noData = (revenue === 0 && expenses === 0 && collected === 0) || isNew;
       return {
@@ -571,7 +569,7 @@ export class DashboardService {
       if (os <= 0) continue;
       const days = Math.floor((now.getTime() - new Date(inv.issueDate).getTime()) / 86_400_000);
       const e = debtorMap.get(inv.customerId) ?? { name: inv.customer.name, outstanding: 0, oldestDays: 0 };
-      e.outstanding = r3(e.outstanding + os);
+      e.outstanding = roundMoney(e.outstanding + os);
       if (days > e.oldestDays) e.oldestDays = days;
       debtorMap.set(inv.customerId, e);
     }
@@ -680,7 +678,7 @@ export class DashboardService {
     const lastCol  = n(lastMonthColAgg._sum.amount);
     const lastExp  = n(lastMonthExpAgg._sum.amount);
     const lastRev  = n(lastMonthRevAgg._sum.total);
-    const totalOs  = r3(exp30 + exp60 + exp90);
+    const totalOs  = roundMoney(exp30 + exp60 + exp90);
 
     let riskScore = 0;
     if (totalOs > thisCol * 3) riskScore += 2; else if (totalOs > thisCol) riskScore += 1;
@@ -689,13 +687,13 @@ export class DashboardService {
     const cashRisk: 'LOW' | 'MEDIUM' | 'HIGH' = riskScore >= 4 ? 'HIGH' : riskScore >= 2 ? 'MEDIUM' : 'LOW';
 
     const forecast = {
-      expectedCollections30: r3(exp30),
-      expectedCollections60: r3(exp60),
-      expectedCollections90: r3(exp90),
+      expectedCollections30: roundMoney(exp30),
+      expectedCollections60: roundMoney(exp60),
+      expectedCollections90: roundMoney(exp90),
       cashRisk,
       next30DaysSummary: {
-        expectedCollections: r3(exp30),
-        netThisMonth: r3(thisRev - thisExp),
+        expectedCollections: roundMoney(exp30),
+        netThisMonth: roundMoney(thisRev - thisExp),
         cashRisk,
       },
     };
@@ -704,15 +702,15 @@ export class DashboardService {
     // مُجمَّعة في قاعدة البيانات عبر `monthlyTrendYTD` — لا اقتطاع ولا تجميع في الذاكرة.
 
     // ── Part 4: KPI Comparisons ────────────────────────────────────────────
-    const thisProfit = r3(thisRev - thisExp);
-    const lastProfit = r3(lastRev - lastExp);
+    const thisProfit = roundMoney(thisRev - thisExp);
+    const lastProfit = roundMoney(lastRev - lastExp);
     const kpiComparisons = {
       revenueChangePct:     sp(thisRev - lastRev, lastRev),
       expensesChangePct:    sp(thisExp - lastExp, lastExp),
       collectionsChangePct: sp(thisCol - lastCol, lastCol),
       profitChangePct:      sp(thisProfit - lastProfit, Math.abs(lastProfit)),
-      thisMonth:  { revenue: r3(thisRev), expenses: r3(thisExp), collections: r3(thisCol), profit: thisProfit },
-      lastMonth:  { revenue: r3(lastRev), expenses: r3(lastExp), collections: r3(lastCol), profit: lastProfit },
+      thisMonth:  { revenue: roundMoney(thisRev), expenses: roundMoney(thisExp), collections: roundMoney(thisCol), profit: thisProfit },
+      lastMonth:  { revenue: roundMoney(lastRev), expenses: roundMoney(lastExp), collections: roundMoney(lastCol), profit: lastProfit },
     };
 
     // ── Part 5: Contract Health ────────────────────────────────────────────

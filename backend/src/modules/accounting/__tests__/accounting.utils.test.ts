@@ -55,13 +55,37 @@ describe('validateJournalBalance', () => {
 
   // ── Tolerance boundary ────────────────────────────────────────────────────
 
-  it('accepts entries within the 0.001 floating-point tolerance', () => {
-    // Difference of 0.0009 — within tolerance
+  /**
+   * كان هذا الاختبار يُرمّز **العيب نفسه**: تسامح `0.001` يساوي فلسًا كاملًا — أصغر وحدة
+   * نقدية في الدينار — فكان القيد المختلّ بفلس يمرّ. و`100.0009` ليس ضجيجًا ثنائيًا
+   * (الضجيج في حدود 1e-16)، بل **تسعة أعشار الفلس**: يُقرَّب عند التخزين إلى `100.001`،
+   * فيُخزَّن قيدٌ مختلٌّ فعلًا. لا يجوز قبوله.
+   *
+   * التسامح الآن **تنفيذي لا محاسبي**: يبتلع ضجيج التمثيل وحده.
+   */
+  it('accepts binary-noise imbalance (0.1 + 0.2 vs 0.3) — representation, not a real difference', () => {
+    const lines: Line[] = [
+      { debit: 0.1, credit: 0 },
+      { debit: 0.2, credit: 0 },
+      { debit: 0, credit: 0.3 },
+    ];
+    expect(() => validateJournalBalance(lines)).not.toThrow();
+  });
+
+  it('rejects an imbalance that normalizes to a full fils (0.0009 → 0.001)', () => {
     const lines: Line[] = [
       { debit: 100.0009, credit: 0 },
       { debit: 0, credit: 100 },
     ];
-    expect(() => validateJournalBalance(lines)).not.toThrow();
+    expect(() => validateJournalBalance(lines)).toThrow();
+  });
+
+  it('rejects an exact one-fils imbalance — the whole point of the hardening', () => {
+    const lines: Line[] = [
+      { debit: 100.001, credit: 0 },
+      { debit: 0, credit: 100 },
+    ];
+    expect(() => validateJournalBalance(lines)).toThrow();
   });
 
   it('rejects entries whose imbalance exceeds 0.001', () => {

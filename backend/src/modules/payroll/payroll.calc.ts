@@ -1,12 +1,20 @@
 // Pure payroll calculation functions — no Prisma, no side effects.
+import { roundMoney } from '../../shared/utils/money';
 // Extracted from payroll.service.ts to enable unit testing.
 
 export const WORK_HOURS_PER_DAY = 8;
 export const OVERTIME_MULTIPLIER = 1.25;
 
-export function round3(n: number): number {
-  return Math.round((Number(n || 0) + Number.EPSILON) * 1000) / 1000;
-}
+/**
+ * تقريب الرواتب — سياسة وحدة النقود القانونية، **مع حارس الفراغ القائم**.
+ *
+ * السياسة (نصف بعيدًا عن الصفر، ثلاث خانات) صارت من `shared/utils/money`، فلا تعريف ثانٍ.
+ * لكن هذه الوحدة تستقبل حقولًا اختيارية من القاعدة (`workHours` وغيرها) وكانت دالتها
+ * تُحوّل الفراغ إلى صفر صراحةً (`Number(n || 0)`). إزالة ذلك الحارس كانت ستُحوّل حقلًا
+ * فارغًا من «صفر ساعة» إلى **خطأ يُسقط تشغيل الراتب** — تغييرُ سلوكٍ لا تطلبه هذه الحزمة.
+ * فالحارس باقٍ كما هو، والتقريب وحده هو الذي توحّد.
+ */
+export const round3 = (n: number | null | undefined): number => roundMoney(Number(n ?? 0));
 
 /**
  * Regular (non-overtime) working hours for the month.

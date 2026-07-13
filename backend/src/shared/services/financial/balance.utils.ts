@@ -1,7 +1,11 @@
-// Uses "round half away from zero" so -1.5005 → -1.501 (symmetric KWD rounding)
-export function normalizeMoney(value: number): number {
-  return Math.sign(value) * Math.round(Math.abs(value) * 1000) / 1000;
-}
+import { normalizeMoney } from '../../utils/money';
+
+/**
+ * مُعاد تصديرها للمستدعين القائمين. السياسة نفسها (نصف بعيدًا عن الصفر) لكنها صارت
+ * تُصحّح ضجيج الثنائي أيضًا (EPSILON) — فلم يعد ميزان المراجعة يقرّب بقاعدة تخالف قاعدة
+ * الترحيل الذي كتب القيد.
+ */
+export { normalizeMoney };
 
 export function calculateRunningBalances<T extends { debit: number; credit: number }>(
   openingBalance: number,
@@ -22,11 +26,17 @@ export function calculateClosingBalance(
   return normalizeMoney(openingBalance + totalDebit - totalCredit);
 }
 
+/**
+ * كان الجمع هنا **خامًا بلا تطبيع**، فتتراكم آثار التمثيل الثنائي في مجاميع ميزان
+ * المراجعة والكشوف. التطبيع يقع **مرة واحدة على المجموع النهائي** — لا عند كل خطوة —
+ * حتى لا نُقرّب تقريبًا تراكميًا (double rounding).
+ */
 export function sumDebitCredit<T extends { debit: number; credit: number }>(
   entries: T[]
 ): { totalDebit: number; totalCredit: number } {
-  return entries.reduce(
+  const raw = entries.reduce(
     (acc, e) => ({ totalDebit: acc.totalDebit + e.debit, totalCredit: acc.totalCredit + e.credit }),
     { totalDebit: 0, totalCredit: 0 }
   );
+  return { totalDebit: normalizeMoney(raw.totalDebit), totalCredit: normalizeMoney(raw.totalCredit) };
 }

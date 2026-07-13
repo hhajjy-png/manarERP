@@ -12,6 +12,7 @@ import { approvalEngine } from '../../shared/services/approval.service';
 import { GL_REFERENCE_TYPES } from '../../shared/services/gl.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
 import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySettledPurchase } from './invoices.calc';
+import { roundMoney } from '../../shared/utils/money';
 import { postInvoiceToGL, postPurchaseInvoiceToGL, postPaymentToGL, postPurchasePaymentToGL, reversePurchasePaymentGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
@@ -493,7 +494,8 @@ export class InvoicesService {
       throw AppError.badRequest('الفاتورة مسددة بالكامل — لا يوجد مبلغ مستحق');
     }
 
-    const newPaid = round3(invoice.paidAmount + input.amount);
+    // نفس المبلغ المطبَّع الذي سيُخزَّن — لا مصدرين بدقّتين مختلفتين.
+    const newPaid = round3(invoice.paidAmount + roundMoney(input.amount));
     if (overpaymentExceeds(invoice.total, newPaid)) {
       throw AppError.badRequest('المبلغ يتجاوز المتبقي على الفاتورة');
     }
@@ -509,11 +511,21 @@ export class InvoicesService {
     // ونُعيده في نتيجة العملية. (لا واجهة إقرار حاليًا، فالرفض كان مسارًا مسدودًا.)
     const paymentBeforeIssue = !!invoice.issueDate && collectionDate < invoice.issueDate;
 
+    /**
+     * تطبيع عند حدود التخزين.
+     *
+     * كان `amount` يُخزَّن **خامًا** كما وصل، بينما `paidAmount` على الفاتورة يُخزَّن
+     * مقرَّبًا (`newPaid`). فمصدران بدقّتين مختلفتين لنفس الحقيقة: `Σ payments.amount`
+     * (وهو ما تقرؤه الأعمار والكشوف) قد ينحرف عن `invoice.paidAmount` (وهو ما تقرؤه
+     * الفاتورة). الخادم هو المرجع — تقريب الواجهة ليس حجّة.
+     */
+    const paymentAmount = roundMoney(input.amount);
+
     const updated = await prisma.$transaction(async (tx) => {
       const payment = await tx.payment.create({
         data: {
           invoiceId: id,
-          amount: input.amount,
+          amount: paymentAmount,
           method: input.method,
           date: collectionDate,
           reference: input.reference ?? null,
@@ -532,7 +544,8 @@ export class InvoicesService {
       });
     });
 
-    await recordAudit({ req, action: 'PAYMENT', module: 'invoices', entityId: id, newValue: { amount: input.amount, method: input.method, collectionDate } });
+    // التدقيق يسجّل المبلغ **كما خُزّن** لا كما وصل — وإلا روى السجلّ رقمًا لا وجود له.
+    await recordAudit({ req, action: 'PAYMENT', module: 'invoices', entityId: id, newValue: { amount: paymentAmount, method: input.method, collectionDate } });
     await recordHistoricalEntry({
       req,
       module: 'payments',

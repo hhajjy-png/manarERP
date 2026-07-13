@@ -1,4 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────
+import { roundMoney } from '../../../shared/utils/money';
 //  NBK Salary XLS — the first bank export profile.
 //
 //  Reproduces the National Bank of Kuwait monthly salary-transfer template
@@ -27,9 +28,8 @@ import type {
 const CURRENCY = 'KWD';
 const AMOUNT_DECIMALS = 3;
 
-function round3(n: number): number {
-  return Math.round((Number(n) + Number.EPSILON) * 1000) / 1000;
-}
+/** مُعاد تصديرها من وحدة النقود القانونية (`shared/utils/money`) — سياسة واحدة، لا تعريف ثانٍ. */
+const round3 = (n: number) => roundMoney(Number(n));
 
 // Salary Details columns — EXACT header text, order, and per-column format from the template.
 const SALARY_DETAILS_COLUMNS: ExportColumn[] = [

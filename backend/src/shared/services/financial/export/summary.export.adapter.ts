@@ -1,7 +1,9 @@
 import type { FinancialResponse, FinancialRow } from '../financial.types';
+import { roundMoney } from '../../../utils/money';
 import { buildSubtitle } from '../summary.utils';
 
-function fmt(n?: number) { return Number((n ?? 0).toFixed(3)); }
+/** توحيد التقريب مع الدفتر — كانت `toFixed` عائلة مستقلة. */
+function fmt(n?: number) { return roundMoney(n ?? 0); }
 
 export function toSummaryReportInput(response: FinancialResponse<FinancialRow>) {
   const meta = response.metadata ?? {};

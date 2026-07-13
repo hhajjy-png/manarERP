@@ -1,4 +1,6 @@
 import type { StatementTransaction, RowValidation, ValidationRule } from './types.js';
+import { BALANCE_RECONCILIATION_TOLERANCE } from './tolerances.js';
+import { roundMoney } from '../../shared/utils/money.js';
 
 const VALID_CURRENCIES = new Set(['KWD', 'USD', 'EUR', 'GBP', 'SAR', 'AED', 'QAR', 'BHD', 'OMR']);
 const MAX_DESCRIPTION_LEN = 500;
@@ -61,10 +63,11 @@ export function checkBalanceContinuity(rows: StatementTransaction[]): Set<number
 
     if (prev !== null) {
       // Expected balance: prev - debit + credit (for standard bank view)
-      const expected = Math.round((prev - tx.debit + tx.credit) * 1000) / 1000;
-      const actual   = Math.round(tx.balance * 1000) / 1000;
-      // Allow 0.001 KWD tolerance
-      if (Math.abs(expected - actual) > 0.005) {
+      const expected = roundMoney(prev - tx.debit + tx.credit);
+      const actual   = roundMoney(tx.balance);
+      // فحص جودة بيانات خارجية (اتّصال الأرصدة)، لا مساواة محاسبية. التعليق كان يقول
+      // 0.001 والكود 0.005 — التناقض أُزيل بتسمية القيمة الفعلية، لا بتغييرها.
+      if (Math.abs(expected - actual) > BALANCE_RECONCILIATION_TOLERANCE) {
         breakIndices.add(i);
       }
     }
