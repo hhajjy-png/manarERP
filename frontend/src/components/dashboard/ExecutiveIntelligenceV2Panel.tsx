@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { CHART_INITIAL_DIMENSION } from '../../lib/rechartsDefaults';
 import { Skeleton } from './Skeleton';
-import { money } from '../../config/modules';
+import { money, TextWithMoney } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
 import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
@@ -425,7 +425,7 @@ function RecommendationsSection({ recs, loading }: { recs: Recommendation[]; loa
               {r.priority === 'HIGH' ? 'عالي' : r.priority === 'MEDIUM' ? 'متوسط' : 'منخفض'}
             </span>
           </div>
-          <p style={{ color: 'var(--db-muted)', fontSize: 12, margin: '0 0 6px' }}>{r.message}</p>
+          <p style={{ color: 'var(--db-muted)', fontSize: 12, margin: '0 0 6px' }}><TextWithMoney text={r.message} /></p>
           <p style={{ color: 'var(--db-blue)', fontSize: 11, margin: 0 }}>💡 {r.actionHint}</p>
         </div>
       ))}

@@ -15,7 +15,7 @@ import '@testing-library/jest-dom';
 
 import PrivateAmount from '../components/PrivateAmount';
 import { KpiStat } from '../components/KpiStat';
-import { money, moneyParts } from '../config/modules';
+import { money, moneyParts, MoneyText, TextWithMoney } from '../config/modules';
 
 // وضع الخصوصية مطفأ كي تُقرأ القيمة الحقيقية لا الأقنعة.
 vi.mock('../stores/uiStore', () => ({ useUI: () => false }));
@@ -119,5 +119,49 @@ describe('PrivateAmount — التوافق للخلف', () => {
     currencyLanguage = 'arabic';
     render(<PrivateAmount value={1} currency="KWD" />);
     expect(screen.getByText('1.000 KWD')).toBeInTheDocument();
+  });
+});
+
+
+describe('العزل ثنائي الاتجاه — السبب الحقيقي لظهور «KWD 255.000»', () => {
+  it('MoneyText يلفّ المبلغ بصنف العزل فيبقى الرقم أوّلًا داخل واجهة عربية', () => {
+    const { container } = render(<MoneyText value={255} />);
+    const el = container.querySelector('.money-cell');
+    expect(el).toBeInTheDocument();
+    expect(el).toHaveTextContent('255.000 KWD');
+  });
+
+  it('MoneyText يتبع إعداد الرمز', () => {
+    currencyLanguage = 'arabic';
+    const { container } = render(<MoneyText value={150} />);
+    expect(container.querySelector('.money-cell')).toHaveTextContent('150.000 د.ك');
+  });
+
+  it('الصفر والسالب داخل MoneyText', () => {
+    const { container: z } = render(<MoneyText value={0} />);
+    expect(z.querySelector('.money-cell')).toHaveTextContent('0.000 KWD');
+    const { container: n } = render(<MoneyText value={-37886.9} />);
+    expect(n.querySelector('.money-cell')).toHaveTextContent('-37,886.900 KWD');
+  });
+
+  it('TextWithMoney يعزل المبلغ **داخل جملة عربية** ولا يفقد حرفًا من النصّ', () => {
+    const { container } = render(
+      <TextWithMoney text="مديونيات متأخرة أكثر من 90 يوم: 87,940.000 KWD منذ فترة" />,
+    );
+    const isolated = container.querySelectorAll('.money-cell');
+    expect(isolated).toHaveLength(1);
+    expect(isolated[0]).toHaveTextContent('87,940.000 KWD');
+    expect(container.textContent).toBe('مديونيات متأخرة أكثر من 90 يوم: 87,940.000 KWD منذ فترة');
+  });
+
+  it('جملة بلا مبلغ: لا عزل ولا نصّ ضائع', () => {
+    const { container } = render(<TextWithMoney text="لا توجد تنبيهات حالية" />);
+    expect(container.querySelectorAll('.money-cell')).toHaveLength(0);
+    expect(container.textContent).toBe('لا توجد تنبيهات حالية');
+  });
+
+  it('يعزل **كل** مبلغ في الجملة — النمط ليس ذا حالة', () => {
+    const { container } = render(<TextWithMoney text="المسدد 100.000 KWD والمتبقي 250.500 KWD" />);
+    expect(container.querySelectorAll('.money-cell')).toHaveLength(2);
   });
 });

@@ -5,7 +5,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import { todayDateOnly } from '../lib/date';
 import { PageMeta } from '../components/DataTable';
-import { money, dateText } from '../config/modules';
+import { money, dateText, MoneyText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -127,13 +127,13 @@ function SummaryTab() {
         <HeroMetric
           icon="savings"
           label={t('stat.acc.net_profit')}
-          value={money(summary?.netProfit)}
+          value={<MoneyText value={summary?.netProfit} />}
           sub={<><span className="material-symbols-outlined">{net >= 0 ? 'trending_up' : 'trending_down'}</span>{net >= 0 ? 'صافي ربح موجب' : 'صافي خسارة'}</>}
         />
         <div className="xpl-kpi-grid">
-          <MetricCard icon="trending_up" tone="green" label={t('stat.acc.total_revenue')} value={money(summary?.totalRevenue)} />
-          <MetricCard icon="task_alt" tone="green" label={t('stat.acc.total_collected')} value={money(summary?.totalCollected)} />
-          <MetricCard icon="trending_down" tone="red" label={t('stat.acc.total_expenses')} value={money(summary?.totalExpenses)} />
+          <MetricCard icon="trending_up" tone="green" label={t('stat.acc.total_revenue')} value={<MoneyText value={summary?.totalRevenue} />} />
+          <MetricCard icon="task_alt" tone="green" label={t('stat.acc.total_collected')} value={<MoneyText value={summary?.totalCollected} />} />
+          <MetricCard icon="trending_down" tone="red" label={t('stat.acc.total_expenses')} value={<MoneyText value={summary?.totalExpenses} />} />
           <MetricCard icon="menu_book" tone="indigo" label={t('col.acc.journal_count')} value={summary?.journalEntryCount ?? 0} />
         </div>
       </div>

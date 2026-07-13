@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useT } from '../lib/i18n';
 import { PageMeta } from '../components/DataTable';
-import { dateText, money } from '../config/modules';
+import { dateText, money, MoneyText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { downloadBlob } from '../utils/exportUtils';
@@ -498,7 +498,7 @@ export default function Salaries() {
               <div className="xpl-drawer-hero">
                 <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">account_balance_wallet</span></div>
                 <div className="xpl-drawer-hero-body">
-                  <span className="xpl-drawer-hero-title">{money(viewing.netSalary)}</span>
+                  <span className="xpl-drawer-hero-title money-cell">{money(viewing.netSalary)}</span>
                   <span className="xpl-drawer-hero-sub">{viewing.employee?.fullName} · {viewing.month}/{viewing.year}</span>
                   <div style={{ marginTop: 4 }}>{imported ? <StatusChip tone="indigo" icon="history">من سجل التحويل المستورد</StatusChip> : statusChip(viewing.status)}</div>
                 </div>
@@ -536,14 +536,14 @@ export default function Salaries() {
 
             {!imported && (<>
             <DrawerSection title="الراتب">
-              <DrawerField label={t('col.sal.base')} value={money(viewing.snapshotBaseSalary ?? viewing.baseSalary)} />
-              <DrawerField label={t('col.sal.gross')} value={money(viewing.grossSalary)} />
+              <DrawerField label={t('col.sal.base')} value={<MoneyText value={viewing.snapshotBaseSalary ?? viewing.baseSalary} />} />
+              <DrawerField label={t('col.sal.gross')} value={<MoneyText value={viewing.grossSalary} />} />
               <DrawerField label={t('col.sal.overtime')} value={`${Number(viewing.overtimeHours ?? 0).toFixed(3)}h · ${money(viewing.overtimeAmount)}`} />
               <DrawerField label={t('col.sal.net')} value={<span className="salx-net">{money(viewing.netSalary)}</span>} />
             </DrawerSection>
 
             <DrawerSection title="البدلات">
-              <DrawerField label="إجمالي البدلات" value={money(viewing.totalAllowances)} />
+              <DrawerField label="إجمالي البدلات" value={<MoneyText value={viewing.totalAllowances} />} />
               {allowanceLines.length > 0 && (
                 <div className="salx-lines">
                   {allowanceLines.map((l) => (
@@ -554,8 +554,8 @@ export default function Salaries() {
             </DrawerSection>
 
             <DrawerSection title="الخصومات والسلف">
-              <DrawerField label="إجمالي الخصومات" value={money(viewing.totalDeductions)} />
-              <DrawerField label="إجمالي السلف" value={money(viewing.totalAdvances)} />
+              <DrawerField label="إجمالي الخصومات" value={<MoneyText value={viewing.totalDeductions} />} />
+              <DrawerField label="إجمالي السلف" value={<MoneyText value={viewing.totalAdvances} />} />
               {deductionLines.length > 0 && (
                 <div className="salx-lines">
                   {deductionLines.map((l) => (

@@ -9,7 +9,7 @@ import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
 import ConfirmModal from '../components/ConfirmModal';
-import { money, moneyParts, dateText } from '../config/modules';
+import { money, moneyParts, dateText, MoneyText } from '../config/modules';
 import { KpiStat, KpiStatGrid } from '../components/KpiStat';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
@@ -233,7 +233,7 @@ export default function Expenses() {
           <HeroMetric
             icon="account_balance_wallet"
             label="إجمالي المصروفات"
-            value={money(stats.total)}
+            value={<MoneyText value={stats.total} />}
             sub={<><span className="material-symbols-outlined">receipt_long</span>{`${stats.count} مصروف`}</>}
           />
           <KpiStatGrid>
@@ -424,7 +424,7 @@ export default function Expenses() {
               <div className="xpl-drawer-hero">
                 <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{expenseCategoryIcon(viewing.category)}</span></div>
                 <div className="xpl-drawer-hero-body">
-                  <span className="expx-drawer-amount">{money(viewing.amount)}</span>
+                  <span className="expx-drawer-amount money-cell">{money(viewing.amount)}</span>
                   <span className="xpl-drawer-hero-sub">{viewing.description}</span>
                   <div style={{ marginTop: 4 }}><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></div>
                 </div>
@@ -445,7 +445,7 @@ export default function Expenses() {
               <DrawerField label={t('col.code')} value={viewing.code} mono />
               <DrawerField label={t('col.category')} value={expenseCategoryLabel(viewing.category)} />
               <DrawerField label={t('col.description')} value={viewing.description} />
-              <DrawerField label={t('col.amount')} value={money(viewing.amount)} />
+              <DrawerField label={t('col.amount')} value={<MoneyText value={viewing.amount} />} />
             </DrawerSection>
             <DrawerSection title="الدفع والمورد">
               <DrawerField label="طريقة الدفع" value={expensePaymentMethodAr(viewing.paymentMethod)} />

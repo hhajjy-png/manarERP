@@ -7,7 +7,7 @@ import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
 import ConfirmModal from '../components/ConfirmModal';
-import { money, dateText } from '../config/modules';
+import { money, dateText, MoneyText } from '../config/modules';
 import {
   ExecutiveHeader,
   HeroMetric,
@@ -223,7 +223,7 @@ function BalanceTab() {
   return (
     <>
       <div className="invx-metrics">
-        <HeroMetric icon="account_balance_wallet" label={t('stat.inv.stock_value')} value={money(totalValue)} sub={<><span className="material-symbols-outlined">inventory</span>{`${materials.length} مادة`}</>} />
+        <HeroMetric icon="account_balance_wallet" label={t('stat.inv.stock_value')} value={<MoneyText value={totalValue} />} sub={<><span className="material-symbols-outlined">inventory</span>{`${materials.length} مادة`}</>} />
         <div className="xpl-kpi-grid">
           <MetricCard icon="inventory" tone="indigo" label={t('stat.inv.total_materials')} value={materials.length} />
           <MetricCard icon="warning" tone={lowStock.length > 0 ? 'orange' : 'green'} label={t('stat.inv.low_stock')} value={lowStock.length} sub={lowStock.length > 0 ? t('stat.inv.needs_restock') : undefined} />
@@ -285,8 +285,8 @@ function MaterialDrawer({ material, onClose, footer }: { material: Material; onC
       <DrawerSection title="المخزون والتكلفة">
         <DrawerField label={t('col.inv.current_stock')} value={<span className={material.currentStock <= material.minimumStock ? 'invx-stock--low' : ''}>{material.currentStock} {material.unit}</span>} />
         <DrawerField label={t('col.inv.min_stock')} value={`${material.minimumStock} ${material.unit}`} />
-        <DrawerField label={t('col.inv.unit_cost')} value={money(material.unitCost)} />
-        <DrawerField label={t('col.inv.total_value')} value={money(material.currentStock * material.unitCost)} />
+        <DrawerField label={t('col.inv.unit_cost')} value={<MoneyText value={material.unitCost} />} />
+        <DrawerField label={t('col.inv.total_value')} value={<MoneyText value={material.currentStock * material.unitCost} />} />
       </DrawerSection>
       {material.notes && <DrawerSection title={t('field.notes')}><p style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>{material.notes}</p></DrawerSection>}
     </Drawer>

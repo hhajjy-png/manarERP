@@ -578,8 +578,11 @@ function TransactionDrawer({
             </div>
             <div className="bae-drawer-hero-body">
               <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
-              <div className={`bae-drawer-hero-amount ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
-                {isIncoming ? '+' : '−'}{formatNumber(heroAmount)} <span className="bae-drawer-hero-cur">KWD</span>
+              {/* الرقم والرمز كانا عنصرين منفصلين برمز مثبَّت — داخل واجهة RTL ينقلب
+                  ترتيبهما بصريًا («KWD 255.000»). `money-cell` تعزل القيمة في اتجاه LTR
+                  بلا التفاف، والرمز يأتي من إعداد العملة. */}
+              <div className={`bae-drawer-hero-amount money-cell ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
+                {isIncoming ? '+' : '−'}{moneyParts(heroAmount).number} <span className="bae-drawer-hero-cur">{moneyParts(heroAmount).currency}</span>
               </div>
               {hasBalance && (
                 <div className="bae-drawer-hero-balance">
@@ -830,19 +833,19 @@ function TransactionDrawer({
               <div className="bae-drawer-summary-flow">
                 <div className="bae-drawer-summary-cell">
                   <span className="bae-drawer-summary-label">الرصيد قبل العملية</span>
-                  <span className="bae-drawer-summary-value">{formatNumber(beforeBalance)}<span className="bae-drawer-summary-cur">KWD</span></span>
+                  <span className="bae-drawer-summary-value money-cell">{moneyParts(beforeBalance).number}<span className="bae-drawer-summary-cur">{moneyParts(beforeBalance).currency}</span></span>
                 </div>
                 <span className="bae-drawer-summary-arrow material-symbols-outlined" aria-hidden="true">arrow_back</span>
                 <div className="bae-drawer-summary-cell">
                   <span className="bae-drawer-summary-label">المبلغ</span>
-                  <span className={`bae-drawer-summary-value ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
-                    {isIncoming ? '+' : '−'}{formatNumber(heroAmount)}<span className="bae-drawer-summary-cur">KWD</span>
+                  <span className={`bae-drawer-summary-value money-cell ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
+                    {isIncoming ? '+' : '−'}{moneyParts(heroAmount).number}<span className="bae-drawer-summary-cur">{moneyParts(heroAmount).currency}</span>
                   </span>
                 </div>
                 <span className="bae-drawer-summary-arrow material-symbols-outlined" aria-hidden="true">arrow_back</span>
                 <div className="bae-drawer-summary-cell">
                   <span className="bae-drawer-summary-label">الرصيد بعد العملية</span>
-                  <span className="bae-drawer-summary-value bae-drawer-primary">{formatNumber(afterBalance)}<span className="bae-drawer-summary-cur">KWD</span></span>
+                  <span className="bae-drawer-summary-value bae-drawer-primary money-cell">{moneyParts(afterBalance).number}<span className="bae-drawer-summary-cur">{moneyParts(afterBalance).currency}</span></span>
                 </div>
               </div>
             </div>

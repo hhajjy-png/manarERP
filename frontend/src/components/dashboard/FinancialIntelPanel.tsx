@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { CHART_INITIAL_DIMENSION } from '../../lib/rechartsDefaults';
 import { Skeleton } from './Skeleton';
-import { money } from '../../config/modules';
+import { money, TextWithMoney } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
 import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
@@ -318,7 +318,7 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
                 fontWeight: 600,
               }}
             >
-              {a.level === 'danger' ? '⚠️ ' : '🔔 '}{a.messageAr}
+              {a.level === 'danger' ? '⚠️ ' : '🔔 '}<TextWithMoney text={a.messageAr} />
             </div>
           ))}
         </div>

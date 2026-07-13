@@ -17,7 +17,7 @@ import Modal from '../components/Modal';
 import ForceDeleteInvoiceModal from '../components/ForceDeleteInvoiceModal';
 import InvoiceFastEntryDialog from '../components/InvoiceFastEntryDialog';
 import ConfirmModal from '../components/ConfirmModal';
-import { money, moneyParts, dateText } from '../config/modules';
+import { money, moneyParts, dateText, MoneyText } from '../config/modules';
 import { KpiStat, KpiStatGrid } from '../components/KpiStat';
 import { formatFileDate, todayDateOnly } from '../lib/date';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -268,8 +268,8 @@ export default function Invoices() {
         chips={stats ? (
           <>
             <IdChip icon="receipt_long" tone="indigo">{stats.count} {t('inv.stats.count')}</IdChip>
-            <IdChip icon="payments" tone="green">{money(stats.totalCollected)}</IdChip>
-            {stats.totalRemaining > 0 && <IdChip icon="pending_actions" tone="orange">{money(stats.totalRemaining)}</IdChip>}
+            <IdChip icon="payments" tone="green"><MoneyText value={stats.totalCollected} /></IdChip>
+            {stats.totalRemaining > 0 && <IdChip icon="pending_actions" tone="orange"><MoneyText value={stats.totalRemaining} /></IdChip>}
           </>
         ) : undefined}
         aside={(
@@ -293,7 +293,7 @@ export default function Invoices() {
           <HeroMetric
             icon="account_balance_wallet"
             label={t('inv.stats.total_sales')}
-            value={money(stats.totalSales)}
+            value={<MoneyText value={stats.totalSales} />}
             sub={<><span className="material-symbols-outlined" aria-hidden="true">receipt_long</span>{`${stats.count} ${t('inv.stats.count')}`}</>}
           />
           <KpiStatGrid>
@@ -311,7 +311,7 @@ export default function Invoices() {
           <div className="invcx-customer-strip">
             <span className="name"><span className="material-symbols-outlined" aria-hidden="true">badge</span>{customer.name}</span>
             <span>{stats.count} فاتورة</span>
-            <span>إجمالي: <strong>{money(stats.totalSales)}</strong></span>
+            <span>إجمالي: <strong><MoneyText value={stats.totalSales} /></strong></span>
             <span>محصل: <strong className="invcx-paid">{money(stats.totalCollected)}</strong></span>
             <span>متبقي: <strong className={stats.totalRemaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}>{money(stats.totalRemaining)}</strong></span>
           </div>
@@ -456,9 +456,9 @@ export default function Invoices() {
         };
 
         const kpis: DrawerKpi[] = [
-          { label: t('col.inv.total'), value: money(viewing.total) },
-          { label: t('col.inv.paid'), value: money(viewing.paidAmount), tone: 'green' },
-          { label: t('lbl.inv.remaining_amount'), value: money(remaining), tone: 'red' },
+          { label: t('col.inv.total'), value: <MoneyText value={viewing.total} /> },
+          { label: t('col.inv.paid'), value: <MoneyText value={viewing.paidAmount} />, tone: 'green' },
+          { label: t('lbl.inv.remaining_amount'), value: <MoneyText value={remaining} />, tone: 'red' },
           { label: 'العمر', value: ageDays != null ? `${ageDays} يوم` : '—' },
         ];
 

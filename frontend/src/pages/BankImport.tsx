@@ -229,7 +229,10 @@ function parseRows(workbook: XLSX.WorkBook): { rows: BankImportInputRow[]; skipp
 function SummaryCard({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 18px', minWidth: 100, textAlign: 'center' }}>
-      <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
+      {/* `money-cell`: القيمة معزولة LTR بلا التفاف — فلا ينقلب «12,455.000 KWD» إلى
+          «KWD 12,455.000» داخل الصفحة العربية. غير المالي (عدد الصفوف) لا يتأثر: أرقام
+          مجرّدة تُعرض كما هي. */}
+      <div className="money-cell" style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{label}</div>
     </div>
   );

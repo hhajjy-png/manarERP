@@ -16,6 +16,46 @@ export function moneyParts(v: unknown): { number: string; currency: string } {
   return formatMoneyParts(v, { language: currentCurrencyLanguage() });
 }
 
+/**
+ * مبلغ مالي **معروض** داخل بطاقة أو Drawer.
+ *
+ * `money()` وحدها لا تكفي: نصّها («255.000 KWD») يوضع في حاوية عربية، فيُعيد خوارزم
+ * الاتجاه ثنائي الاتجاه ترتيبَه بصريًا إلى «KWD 255.000» — قِيس ذلك في التطبيق:
+ * الرمز يبدأ عند 25px والرقم عند 40px. `money-cell` تعزل القيمة في اتجاه LTR بلا
+ * التفاف، فيبقى الرقم أوّلًا والرمز بعده، والنصّ العربي المحيط لا يتأثّر.
+ *
+ * الرمز يتبع إعداد لغة العملة (KWD / د.ك)، والأرقام غربية دائمًا.
+ */
+export function MoneyText({ value }: { value: unknown }) {
+  return <span className="money-cell">{money(value)}</span>;
+}
+
+/**
+ * جملة تحوي مبلغًا (تنبيه تنفيذي، توصية، ملخّص نصّي).
+ *
+ * الرسالة تُبنى في الخلفية كنصّ عربي واحد («مديونيات متأخرة أكثر من 90 يوم:
+ * 87,940.000 KWD»)، فيقلب خوارزم الاتجاه ترتيبَ الرقم والرمز داخلها. لا يكفي صنف على
+ * الحاوية: العزل يجب أن يقع على **المبلغ نفسه**. هنا نقسم النصّ عند المبلغ ونعزله —
+ * عرضٌ بحت: لا الرسالة تتغيّر، ولا مصدرها، ولا أي منطق.
+ */
+// نمطان متطابقان عمدًا: الأول للتقسيم (بعلم g)، والثاني للفحص (بلا g) — لأن `test`
+// على نمط بعلم g يحتفظ بـ `lastIndex` فيُخطئ بالتناوب.
+const MONEY_SPLIT = /(-?[\d,]+\.\d{3}\s*(?:KWD|د\.ك))/g;
+const MONEY_MATCH = /^-?[\d,]+\.\d{3}\s*(?:KWD|د\.ك)$/;
+
+export function TextWithMoney({ text }: { text: string }) {
+  const parts = text.split(MONEY_SPLIT);
+  return (
+    <>
+      {parts.map((part, i) =>
+        MONEY_MATCH.test(part)
+          ? <span key={i} className="money-cell">{part}</span>
+          : <span key={i}>{part}</span>,
+      )}
+    </>
+  );
+}
+
 export function dateText(v: unknown): string {
   return formatDate(v);
 }

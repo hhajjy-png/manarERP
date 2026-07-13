@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
-import { money, dateText } from '../config/modules';
+import { money, dateText, MoneyText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
 import {
   ExecutiveHeader,
@@ -457,7 +457,7 @@ function FuelTab() {
     <>
       <div className="xpl-kpi-grid">
         <MetricCard icon="local_gas_station" tone="blue" label={t('stat.maint.total_liters')} value={`${totalLiters.toLocaleString()} L`} />
-        <MetricCard icon="payments" tone="green" label={t('stat.maint.fuel_cost')} value={money(totalCost)} />
+        <MetricCard icon="payments" tone="green" label={t('stat.maint.fuel_cost')} value={<MoneyText value={totalCost} />} />
       </div>
 
       <div className="xpl-toolbar xpl-toolbar--sticky">
@@ -502,7 +502,7 @@ function FuelTab() {
           <DrawerSection title="التفاصيل">
             <DrawerField label={t('col.equipment_no')} value={viewing.equipment?.code ?? viewing.equipmentId} mono />
             <DrawerField label={t('col.maint.liters')} value={`${viewing.liters.toLocaleString()} L`} />
-            <DrawerField label={t('col.amount')} value={money(viewing.cost)} />
+            <DrawerField label={t('col.amount')} value={<MoneyText value={viewing.cost} />} />
             <DrawerField label={t('col.maint.odometer')} value={viewing.odometer != null ? `${viewing.odometer.toLocaleString()} km` : '—'} />
             <DrawerField label={t('col.date')} value={dateText(viewing.date)} />
           </DrawerSection>
@@ -714,7 +714,7 @@ function SparePartsTab() {
     <>
       <div className="xpl-kpi-grid">
         <MetricCard icon="settings" tone="indigo" label={t('stat.maint.spare_parts_count')} value={rows.length} />
-        <MetricCard icon="payments" tone="green" label={t('stat.maint.spare_parts_cost')} value={money(totalCost)} />
+        <MetricCard icon="payments" tone="green" label={t('stat.maint.spare_parts_cost')} value={<MoneyText value={totalCost} />} />
       </div>
 
       <div className="xpl-toolbar xpl-toolbar--sticky">
@@ -760,8 +760,8 @@ function SparePartsTab() {
             <DrawerField label={t('col.equipment_no')} value={viewing.equipment?.code ?? viewing.equipmentId} mono />
             <DrawerField label={t('col.maint.part_name')} value={viewing.partName} />
             <DrawerField label={t('col.maint.quantity')} value={viewing.quantity} />
-            <DrawerField label={t('col.maint.unit_cost')} value={money(viewing.unitCost)} />
-            <DrawerField label={t('col.maint.total_cost')} value={money(viewing.totalCost)} />
+            <DrawerField label={t('col.maint.unit_cost')} value={<MoneyText value={viewing.unitCost} />} />
+            <DrawerField label={t('col.maint.total_cost')} value={<MoneyText value={viewing.totalCost} />} />
             <DrawerField label={t('col.date')} value={dateText(viewing.date)} />
           </DrawerSection>
         </Drawer>

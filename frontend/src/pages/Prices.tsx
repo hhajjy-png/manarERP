@@ -6,7 +6,7 @@ import { useToast } from '../stores/toastStore';
 import { formatDate } from '../lib/date';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
-import { money } from '../config/modules';
+import { money, MoneyText } from '../config/modules';
 import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
 import ConfirmModal from '../components/ConfirmModal';
 import { downloadBlob } from '../utils/exportUtils';
@@ -309,7 +309,7 @@ export default function Prices() {
           </DrawerSection>
           <DrawerSection title="التسعير">
             <DrawerField label={t('col.prices.unit')} value={viewing.contractUnit} />
-            <DrawerField label={t('col.prices.unit_price')} value={money(viewing.unitPrice)} />
+            <DrawerField label={t('col.prices.unit_price')} value={<MoneyText value={viewing.unitPrice} />} />
             {viewing.validUntil && <DrawerField label="صالح حتى" value={<span className="prx-valid">{String(viewing.validUntil).slice(0, 10)}</span>} />}
           </DrawerSection>
         </Drawer>
