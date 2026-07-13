@@ -5,6 +5,9 @@ import {
   useLegacyFormPreview,
   isLegacyFormsPreviewEnabled,
   PRINT_PREVIEW_LEGACY_FORMS_SPECIAL,
+  useAccurateFormPreview,
+  isFlagEnabled,
+  UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1,
 } from '../printing';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
@@ -82,6 +85,21 @@ export default function PayrollPayslip() {
   });
 
   /**
+   * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
+   *
+   * تستهلك **نفس** العقدة المطبوعة (`printRootRef`) و**نفس** دالة الطباعة القديمة
+   * (`printCurrentView`) — بمرجعها، بلا تغليف. لا قالب بديل، ولا HTML مختلف، ولا محرّك جديد.
+   * المعاينة القديمة وزر الطباعة ومسارهما باقون كما هم. العلم مطفأ ⇒ لا زر ولا حوار.
+   */
+  const accurate = useAccurateFormPreview({
+    enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
+    getNode: () => printRootRef.current,
+    onPrint: () => printCurrentView(),
+    title: 'قسيمة راتب',
+    documentLabel: data ? `قسيمة راتب · ${data.employee.fullName} · ${data.month}/${data.year}` : '',
+  });
+
+  /**
    * مِحوَل صغير: بوابة **واحدة** يمرّ بها **كلا** مساري الطباعة — الزر اليدوي والطباعة
    * التلقائية عند الجاهزية. (خطأ Phase 1 كان ربط الزر وترك مسار ready جانبًا.)
    *
@@ -129,6 +147,7 @@ export default function PayrollPayslip() {
     <>
     {/* الحوار خارج الجذر القابل للطباعة، فلا يدخل المستند المُركَّب. */}
     {preview.dialog}
+    {accurate.dialog}
     <div
       ref={printRootRef}
       style={{
@@ -145,6 +164,7 @@ export default function PayrollPayslip() {
         <button className="btn" onClick={requestPrint}>
           {t('btn.payslip.print')}
         </button>
+        {accurate.button}
         <button className="btn secondary" onClick={() => navigate(-1)}>
           {t('btn.payslip.back')}
         </button>

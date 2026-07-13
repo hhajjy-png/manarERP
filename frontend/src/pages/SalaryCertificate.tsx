@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import { useParams, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
@@ -6,7 +6,7 @@ import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
-import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_HR } from '../printing';
+import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_HR, useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 import SalaryCertificateTemplate, { PrintOverrides } from '../forms/SalaryCertificateTemplate';
@@ -84,6 +84,25 @@ export default function SalaryCertificate() {
     lang,
   });
 
+  /**
+   * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
+   *
+   * تستهلك **نفس** العقدة المطبوعة (`.form-page`) و**نفس** دالة الطباعة القديمة
+   * (`FormLayout.doPrint`) اللتين ينشرهما `onPrintApiReady`. لا قالب بديل، ولا HTML
+   * مختلف، ولا محرّك طباعة جديد. المعاينة القديمة وزر الطباعة ومسارهما: كما هي.
+   *
+   * العلم مطفأ ⇒ لا زر ولا حوار إطلاقًا.
+   */
+  const printApiRef = useRef<{ getNode: () => HTMLElement | null; print: () => void } | null>(null);
+  const accurate = useAccurateFormPreview({
+    enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
+    getNode: () => printApiRef.current?.getNode() ?? null,
+    onPrint: () => printApiRef.current?.print(),
+    title: lang === 'en' ? 'Salary Certificate' : 'شـهـادة راتـب',
+    documentLabel: `شهادة راتب · ${formNumber}`,
+  });
+
+
   if (error)
     return <div className="center-msg">تعذّر تحميل بيانات الشهادة: {error}</div>;
   if (!data)
@@ -97,10 +116,12 @@ export default function SalaryCertificate() {
   return (
     <>
     {preview.dialog}
+    {accurate.dialog}
     <FormLayout
       formType={FORM_KEY}
       lang={lang}
       printIntercept={preview.printIntercept}
+      onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
       title={lang === 'en' ? 'Salary Certificate' : 'شـهـادة راتـب'}
@@ -143,6 +164,7 @@ export default function SalaryCertificate() {
               ✕
             </button>
           )}
+        {accurate.button}
         </>
       }
       qrData={{

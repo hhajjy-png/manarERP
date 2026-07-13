@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import { todayDateOnly } from '../lib/date';
@@ -6,7 +6,7 @@ import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
-import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_FINANCE } from '../printing';
+import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_FINANCE, useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PurchaseRequestTemplate, {
@@ -126,13 +126,34 @@ export default function PurchaseRequest() {
     lang,
   });
 
+  /**
+   * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
+   *
+   * تستهلك **نفس** العقدة المطبوعة (`.form-page`) و**نفس** دالة الطباعة القديمة
+   * (`FormLayout.doPrint`) اللتين ينشرهما `onPrintApiReady`. لا قالب بديل، ولا HTML
+   * مختلف، ولا محرّك طباعة جديد. المعاينة القديمة وزر الطباعة ومسارهما: كما هي.
+   *
+   * العلم مطفأ ⇒ لا زر ولا حوار إطلاقًا.
+   */
+  const printApiRef = useRef<{ getNode: () => HTMLElement | null; print: () => void } | null>(null);
+  const accurate = useAccurateFormPreview({
+    enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
+    getNode: () => printApiRef.current?.getNode() ?? null,
+    onPrint: () => printApiRef.current?.print(),
+    title: lang === 'ar' ? 'طلب شراء' : 'Purchase Request',
+    documentLabel: `طلب شراء · ${printFields.requestNumber || ''}`,
+  });
+
+
   return (
     <>
     {preview.dialog}
+    {accurate.dialog}
     <FormLayout
       formType={FORM_KEY}
       lang={lang}
       printIntercept={preview.printIntercept}
+      onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready={false}
       formNumber={printFields.requestNumber || generateFormNumber(FORM_KEY)}
       title={lang === 'ar' ? 'طلب شراء' : 'Purchase Request'}
@@ -172,6 +193,7 @@ export default function PurchaseRequest() {
               ✕
             </button>
           )}
+        {accurate.button}
         </>
       }
       qrData={{

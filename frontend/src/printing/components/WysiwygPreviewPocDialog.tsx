@@ -24,8 +24,12 @@ export interface WysiwygPreviewPocDialogProps {
   compose: () => string;
   /** مسار الطباعة القديم للصفحة. يُستدعى مرة واحدة بعد إغلاق المعاينة. */
   onPrint: () => void;
-  /** فشل التوليد ⇒ يفتح المستخدم المعاينة المتصلة الحالية بدلًا منها. */
-  onFallback: () => void;
+  /**
+   * فشل التوليد ⇒ يفتح المستخدم المعاينة المتصلة الحالية بدلًا منها.
+   * **اختياري**: النماذج التي لا تملك معاينة متصلة تُغفله، فلا يُعرض زر التراجع أصلًا
+   * بدل أن نَعِد بمسار لا وجود له. (الفاتورة تمرّره كما كانت — سلوكها لم يتغيّر.)
+   */
+  onFallback?: () => void;
   documentLabel?: string;
 }
 
@@ -365,17 +369,19 @@ export default function WysiwygPreviewPocDialog({
               <span className="material-symbols-outlined" aria-hidden="true">error</span>
               <strong>تعذّرت معاينة WYSIWYG</strong>
               <span>{phase.message}</span>
-              <button
-                type="button"
-                className="pc-btn"
-                style={{ marginTop: 12 }}
-                onClick={() => {
-                  onClose();
-                  onFallback(); // المعاينة المتصلة الحالية — مسار التراجع الآمن
-                }}
-              >
-                فتح المعاينة الحالية بدلًا منها
-              </button>
+              {onFallback && (
+                <button
+                  type="button"
+                  className="pc-btn"
+                  style={{ marginTop: 12 }}
+                  onClick={() => {
+                    onClose();
+                    onFallback(); // المعاينة المتصلة الحالية — مسار التراجع الآمن
+                  }}
+                >
+                  فتح المعاينة الحالية بدلًا منها
+                </button>
+              )}
             </div>
           )}
 

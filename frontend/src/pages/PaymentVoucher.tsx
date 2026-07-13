@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import FormLayout from '../forms/shared/FormLayout';
-import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_FINANCE } from '../printing';
+import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_FINANCE, useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PaymentVoucherTemplate from '../forms/PaymentVoucherTemplate';
 
@@ -41,6 +41,25 @@ export default function PaymentVoucher() {
     lang,
   });
 
+  /**
+   * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
+   *
+   * تستهلك **نفس** العقدة المطبوعة (`.form-page`) و**نفس** دالة الطباعة القديمة
+   * (`FormLayout.doPrint`) اللتين ينشرهما `onPrintApiReady`. لا قالب بديل، ولا HTML
+   * مختلف، ولا محرّك طباعة جديد. المعاينة القديمة وزر الطباعة ومسارهما: كما هي.
+   *
+   * العلم مطفأ ⇒ لا زر ولا حوار إطلاقًا.
+   */
+  const printApiRef = useRef<{ getNode: () => HTMLElement | null; print: () => void } | null>(null);
+  const accurate = useAccurateFormPreview({
+    enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
+    getNode: () => printApiRef.current?.getNode() ?? null,
+    onPrint: () => printApiRef.current?.print(),
+    title: lang === 'en' ? 'Payment Voucher' : 'سند صرف',
+    documentLabel: `سند صرف · ${cheque?.paymentVoucherNumber ?? ''}`,
+  });
+
+
   if (error) return <div className="center-msg">خطأ: {error}</div>;
   if (!cheque)
     return (
@@ -64,15 +83,22 @@ export default function PaymentVoucher() {
   return (
     <>
     {preview.dialog}
+    {accurate.dialog}
     <FormLayout
       formType="payment-voucher"
       lang={lang}
       printIntercept={preview.printIntercept}
+      onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready={false}
       formNumber={cheque.paymentVoucherNumber}
       title=""
       profile="payment-voucher"
-      toolbarExtra={<LanguageToggle lang={lang} onChange={setLang} />}
+      toolbarExtra={
+        <>
+          <LanguageToggle lang={lang} onChange={setLang} />
+        {accurate.button}
+        </>
+      }
       qrData={{
         formType: 'payment-voucher',
         formNumber: cheque.paymentVoucherNumber,

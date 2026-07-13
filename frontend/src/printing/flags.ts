@@ -85,6 +85,19 @@ export const CHEQUE_CALIBRATION_TEST_PREVIEW_V1 = 'CHEQUE_CALIBRATION_TEST_PREVI
  */
 export const TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC = 'TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC' as const;
 
+/**
+ * تعميم «المعاينة الدقيقة» على بقية النماذج — علم **مستقل تمامًا** عن علم الفاتورة.
+ *
+ * إضافي بالكامل: إطفاؤه يُخفي زر المعاينة الدقيقة الجديد **فقط**. تبقى المعاينة القديمة
+ * وزر الطباعة ومسار الطباعة وكل الوظائف الحالية كما هي حرفًا بحرف.
+ * ولا يمسّ سلوك الفاتورة إطلاقًا (لها علمها `TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC`).
+ *
+ * OFF افتراضيًا حتى تكتمل المراجعة البصرية اليدوية لكل نموذج.
+ * التراجع/التفعيل بلا إصدار:
+ *   localStorage.setItem('manar:flag:UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1', 'off' | 'on')
+ */
+export const UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 = 'UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1' as const;
+
 export type FlagName =
   | typeof PRINT_CENTER_FOUNDATION_V1
   | typeof PRINT_CENTER_PHASE2
@@ -96,7 +109,8 @@ export type FlagName =
   | typeof PRINT_PREVIEW_LEGACY_FORMS_HR
   | typeof PRINT_PREVIEW_LEGACY_FORMS_SPECIAL
   | typeof CHEQUE_CALIBRATION_TEST_PREVIEW_V1
-  | typeof TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC;
+  | typeof TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC
+  | typeof UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1;
 
 /** A document is on the Print Center only when master AND its own flag are enabled. */
 export function isPhase2Enabled(documentFlag: FlagName): boolean {
@@ -156,6 +170,9 @@ const DEFAULTS: Record<FlagName, boolean> = {
   //
   // التراجع فوري وبلا إصدار: localStorage['manar:flag:TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC'] = 'off'
   TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC: true,
+
+  // ── تعميم المعاينة الدقيقة — OFF حتى تكتمل المراجعة البصرية لكل نموذج ────────
+  UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1: false,
 };
 
 function readOverride(name: FlagName): boolean | null {
