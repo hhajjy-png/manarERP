@@ -6,6 +6,7 @@ import {
 import { api } from '../../api/client';
 import { Skeleton } from './Skeleton';
 import { formatCurrency, formatNumber, formatCompact } from '../../lib/format';
+import { money } from '../../config/modules';
 
 type Period = '1m' | '3m' | '6m' | '12m';
 
@@ -89,7 +90,7 @@ export default function KPITimeline() {
               <Tooltip
                 contentStyle={{ background: '#1f2937', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, fontSize: 12 }}
                 labelStyle={{ color: 'var(--db-text)', fontWeight: 700 }}
-                formatter={(v) => typeof v === 'number' ? formatCurrency(v) : String(v)}
+                formatter={(v) => typeof v === 'number' ? money(v) : String(v)}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: 'var(--db-muted)' }} />
               <Area type="monotone" dataKey="revenue"    name="الإيرادات"   stroke="#3B82F6" fill="url(#kpi-rev)" strokeWidth={2} dot={false} />

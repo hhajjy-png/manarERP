@@ -1,4 +1,5 @@
 import { formatCurrency } from '../../lib/format';
+import { MoneyText } from '../../config/modules';
 
 interface Props { isBalanced?: boolean; difference?: number; }
 
@@ -11,7 +12,7 @@ export function ImbalanceAlert({ isBalanced, difference }: Props) {
         <strong className="imbalance-alert-title">ميزان المراجعة غير متوازن</strong>
         <span className="imbalance-alert-detail">
           الفرق بين المدين والدائن:{' '}
-          <span className="imbalance-alert-value">{formatCurrency(difference)}</span>
+          <span className="imbalance-alert-value">{<MoneyText value={difference} />}</span>
         </span>
       </div>
     </div>

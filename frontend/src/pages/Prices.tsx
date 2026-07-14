@@ -6,7 +6,7 @@ import { useToast } from '../stores/toastStore';
 import { formatDate } from '../lib/date';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
-import { money, MoneyText } from '../config/modules';
+import { money, MoneyText, MoneyCell } from '../config/modules';
 import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
 import ConfirmModal from '../components/ConfirmModal';
 import { downloadBlob } from '../utils/exportUtils';
@@ -267,7 +267,7 @@ export default function Prices() {
                       <td>{r.companyName}</td>
                       <td>{r.contractLocation}</td>
                       <td>{r.contractUnit}</td>
-                      <td style={{ fontWeight: 700 }}>{money(r.unitPrice)}</td>
+                      <td style={{ fontWeight: 700 }}>{<MoneyCell value={r.unitPrice} />}</td>
                       <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
                     </tr>
                   ))}
@@ -288,7 +288,7 @@ export default function Prices() {
             <div className="xpl-drawer-hero">
               <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">sell</span></div>
               <div className="xpl-drawer-hero-body">
-                <span className="xpl-drawer-hero-title">{money(viewing.unitPrice)} / {viewing.contractUnit}</span>
+                <span className="xpl-drawer-hero-title">{<MoneyText value={viewing.unitPrice} />} / {viewing.contractUnit}</span>
                 <span className="xpl-drawer-hero-sub">{viewing.asphaltPlant} · {viewing.companyName}</span>
               </div>
             </div>
@@ -368,10 +368,10 @@ export default function Prices() {
                       <td><div style={{ fontWeight: 700 }}>{row.asphaltPlant}</div><div className="prx-mini-sub">{row.contractLocation}</div></td>
                       <td>{row.customer?.name ?? '—'}</td>
                       <td>{row.contractUnit}</td>
-                      <td>{money(row.unitPrice)}</td>
+                      <td>{<MoneyCell value={row.unitPrice} />}</td>
                       <td className="prx-center"><span className={`prx-usage-badge${row.usageCount > 0 ? ' active' : ''}`}>{row.usageCount}</span></td>
                       <td className="prx-center">{row.usageCount > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
-                      <td>{row.usageCount > 0 ? money(row.totalAmount) : '—'}</td>
+                      <td>{row.usageCount > 0 ? <MoneyCell value={row.totalAmount} /> : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -398,7 +398,7 @@ export default function Prices() {
                       <td className="prx-center">{row.agreementCount}</td>
                       <td className="prx-center"><span className={`prx-usage-badge${row.usageCount > 0 ? ' active' : ''}`}>{row.usageCount}</span></td>
                       <td className="prx-center">{row.totalQuantity > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
-                      <td>{row.totalAmount > 0 ? money(row.totalAmount) : '—'}</td>
+                      <td>{row.totalAmount > 0 ? <MoneyCell value={row.totalAmount} /> : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -438,9 +438,9 @@ function AgreementMiniTable({ rows }: { rows: AgreementRow[] }) {
               <td><strong>{r.asphaltPlant}</strong></td>
               <td>{r.companyName}</td>
               <td>{r.customer?.name ?? '—'}</td>
-              <td>{money(r.unitPrice)}</td>
+              <td>{<MoneyCell value={r.unitPrice} />}</td>
               <td className="prx-center"><span className={`prx-usage-badge${r.usageCount > 0 ? ' active' : ''}`}>{r.usageCount}</span></td>
-              <td>{r.totalAmount > 0 ? money(r.totalAmount) : '—'}</td>
+              <td>{r.totalAmount > 0 ? <MoneyCell value={r.totalAmount} /> : '—'}</td>
               <td>{r.validUntil ? <span className="prx-valid">{String(r.validUntil).slice(0, 10)}</span> : '—'}</td>
             </tr>
           ))}

@@ -3,10 +3,11 @@ import type { JournalBookRow } from '../../types/financial.types';
 import { DrillDownLink } from './DrillDownLink';
 import type { FinancialDrillDownState } from './DrillDownLink';
 import { formatDate } from '../../lib/date';
-import { fcCurrency, referenceTypeAr, journalStatusAr } from './financialLabels';
+import { fcCurrency, referenceTypeAr, journalStatusAr, fcMoneyCell } from './financialLabels';
 
+// الرمز في **عنوان العمود** لا في كل خليّة. الخليّة رقم مجرّد، والصفر يبقى «0.000».
 function fmt(n: number) {
-  return fcCurrency(n);
+  return fcMoneyCell(n);
 }
 
 interface Props {

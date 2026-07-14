@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useT } from '../lib/i18n';
 import { PageMeta } from '../components/DataTable';
-import { dateText, money, MoneyText } from '../config/modules';
+import { dateText, money, MoneyText, MoneyCell } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { downloadBlob } from '../utils/exportUtils';
@@ -36,6 +36,7 @@ import {
 import '../components/explorer/explorer-kit.css';
 import './Salaries.css';
 import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 type EmployeeOption = { id: number; fullName: string; code: string };
@@ -396,10 +397,10 @@ export default function Salaries() {
                       <tr>
                         <th>{t('col.sal.employee')}</th>
                         <th>{t('col.sal.period')}</th>
-                        <th>{t('col.sal.base')}</th>
-                        <th>{t('col.sal.gross')}</th>
-                        <th>{t('col.sal.deductions')}</th>
-                        <th>{t('col.sal.net')}</th>
+                        <th>{fcMoneyHeader(t('col.sal.base'))}</th>
+                        <th>{fcMoneyHeader(t('col.sal.gross'))}</th>
+                        <th>{fcMoneyHeader(t('col.sal.deductions'))}</th>
+                        <th>{fcMoneyHeader(t('col.sal.net'))}</th>
                         <th>{t('col.status')}</th>
                         <th aria-label="فتح" />
                       </tr>
@@ -420,7 +421,7 @@ export default function Salaries() {
                           <td>{imported ? '—' : money(r.snapshotBaseSalary ?? r.baseSalary)}</td>
                           <td>{imported ? '—' : money(r.grossSalary)}</td>
                           <td>{imported ? '—' : money(Number(r.totalDeductions ?? 0) + Number(r.totalAdvances ?? 0))}</td>
-                          <td><span className="salx-net">{money(r.netSalary)}</span></td>
+                          <td><span className="salx-net">{<MoneyCell value={r.netSalary} />}</span></td>
                           <td>{imported ? <StatusChip tone="neutral" icon="lock">للقراءة فقط</StatusChip> : statusChip(r.status)}</td>
                           <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
                         </tr>
@@ -457,7 +458,7 @@ export default function Salaries() {
                         <th>{t('col.sal.transaction')}</th>
                         <th>{t('col.sal.beneficiary')}</th>
                         <th>{t('col.sal.bank')}</th>
-                        <th>{t('col.amount')}</th>
+                        <th>{fcMoneyHeader(t('col.amount'))}</th>
                         <th>{t('col.civil_id')}</th>
                         <th>{t('col.status')}</th>
                       </tr>
@@ -470,7 +471,7 @@ export default function Salaries() {
                           <td className="xpl-mono">{r.transactionId}</td>
                           <td><strong>{r.beneficiaryName}</strong></td>
                           <td>{r.bankName ?? '—'}</td>
-                          <td className="salx-amount">{money(r.amount)}</td>
+                          <td className="salx-amount">{<MoneyCell value={r.amount} />}</td>
                           <td className="xpl-mono">{r.civilId ?? '—'}</td>
                           <td>{r.status ? <StatusChip tone="green">{t('payroll.status.' + r.status.toLowerCase())}</StatusChip> : '—'}</td>
                         </tr>
@@ -498,7 +499,7 @@ export default function Salaries() {
               <div className="xpl-drawer-hero">
                 <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">account_balance_wallet</span></div>
                 <div className="xpl-drawer-hero-body">
-                  <span className="xpl-drawer-hero-title money-cell">{money(viewing.netSalary)}</span>
+                  <span className="xpl-drawer-hero-title money-cell">{<MoneyText value={viewing.netSalary} />}</span>
                   <span className="xpl-drawer-hero-sub">{viewing.employee?.fullName} · {viewing.month}/{viewing.year}</span>
                   <div style={{ marginTop: 4 }}>{imported ? <StatusChip tone="indigo" icon="history">من سجل التحويل المستورد</StatusChip> : statusChip(viewing.status)}</div>
                 </div>
@@ -526,7 +527,7 @@ export default function Salaries() {
 
             {imported && (
               <DrawerSection title="سجل تحويل مستورد">
-                <DrawerField label={t('col.sal.net')} value={<span className="salx-net">{money(viewing.netSalary)}</span>} />
+                <DrawerField label={t('col.sal.net')} value={<span className="salx-net">{<MoneyText value={viewing.netSalary} />}</span>} />
                 {viewing.bankName && <DrawerField label={t('col.sal.bank')} value={viewing.bankName} />}
                 {viewing.paymentDate && <DrawerField label={t('col.sal.payment_date')} value={dateText(viewing.paymentDate)} />}
                 {viewing.transactionId && <DrawerField label={t('col.sal.transaction')} value={viewing.transactionId} mono />}
@@ -539,7 +540,7 @@ export default function Salaries() {
               <DrawerField label={t('col.sal.base')} value={<MoneyText value={viewing.snapshotBaseSalary ?? viewing.baseSalary} />} />
               <DrawerField label={t('col.sal.gross')} value={<MoneyText value={viewing.grossSalary} />} />
               <DrawerField label={t('col.sal.overtime')} value={`${Number(viewing.overtimeHours ?? 0).toFixed(3)}h · ${money(viewing.overtimeAmount)}`} />
-              <DrawerField label={t('col.sal.net')} value={<span className="salx-net">{money(viewing.netSalary)}</span>} />
+              <DrawerField label={t('col.sal.net')} value={<span className="salx-net">{<MoneyText value={viewing.netSalary} />}</span>} />
             </DrawerSection>
 
             <DrawerSection title="البدلات">
@@ -547,7 +548,7 @@ export default function Salaries() {
               {allowanceLines.length > 0 && (
                 <div className="salx-lines">
                   {allowanceLines.map((l) => (
-                    <div className="salx-line" key={l.id}><span className="salx-line-label">{l.label}</span><span className="salx-line-amount" style={{ color: 'var(--xpl-green)' }}>{money(l.amount)}</span></div>
+                    <div className="salx-line" key={l.id}><span className="salx-line-label">{l.label}</span><span className="salx-line-amount" style={{ color: 'var(--xpl-green)' }}>{<MoneyText value={l.amount} />}</span></div>
                   ))}
                 </div>
               )}
@@ -559,7 +560,7 @@ export default function Salaries() {
               {deductionLines.length > 0 && (
                 <div className="salx-lines">
                   {deductionLines.map((l) => (
-                    <div className="salx-line" key={l.id}><span className="salx-line-label">{l.label}</span><span className="salx-line-amount" style={{ color: 'var(--xpl-red)' }}>{money(l.amount)}</span></div>
+                    <div className="salx-line" key={l.id}><span className="salx-line-label">{l.label}</span><span className="salx-line-amount" style={{ color: 'var(--xpl-red)' }}>{<MoneyText value={l.amount} />}</span></div>
                   ))}
                 </div>
               )}

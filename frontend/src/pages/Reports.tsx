@@ -28,6 +28,7 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Reports.css';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -894,19 +895,33 @@ export default function Reports() {
               <div className="xpl-table-wrap rcx-table-scroll">
                 <table className="xpl-table">
                   <thead>
-                    <tr>{preview.columns.map((c) => <th key={c.key}>{c.header}</th>)}</tr>
+                    {/* الرمز مرّة واحدة في العنوان («المبلغ (KWD)») بدل تكراره في كل صفّ.
+                        العنوان **عرضٌ فقط**: تعريف العمود القادم من الخلفية لم يُمسّ. */}
+                    <tr>{preview.columns.map((c) => (
+                      <th key={c.key} className={c.format === 'currency' ? 'num' : undefined}>
+                        {c.format === 'currency' ? fcMoneyHeader(c.header) : c.header}
+                      </th>
+                    ))}</tr>
                   </thead>
                   <tbody>
                     {preview.rows.length === 0 ? (
                       <tr><td colSpan={preview.columns.length} style={{ textAlign: 'center', color: 'var(--xpl-muted)', padding: 28 }}>{t('page.reports.no_data')}</td></tr>
                     ) : (
                       preview.rows.map((row, i) => (
-                        <tr key={i}>{preview.columns.map((c) => <td key={c.key}>{formatReportCell(row[c.key], c, { language: currentCurrencyLanguage() })}</td>)}</tr>
+                        <tr key={i}>{preview.columns.map((c) => (
+                          <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined}>
+                            {formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
+                          </td>
+                        ))}</tr>
                       ))
                     )}
                     {preview.totalsRow && (
                       <tr className="rcx-totals-row">
-                        {preview.columns.map((c) => <td key={c.key}>{formatReportCell(preview.totalsRow[c.key], c, { language: currentCurrencyLanguage() })}</td>)}
+                        {preview.columns.map((c) => (
+                          <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined}>
+                            {formatReportCell(preview.totalsRow[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
+                          </td>
+                        ))}
                       </tr>
                     )}
                   </tbody>

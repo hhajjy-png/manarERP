@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { CHART_INITIAL_DIMENSION } from '../../lib/rechartsDefaults';
 import { Skeleton } from './Skeleton';
-import { money, TextWithMoney } from '../../config/modules';
+import { money, TextWithMoney, MoneyText } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
 import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
@@ -135,7 +135,7 @@ function TrendTooltip({ active, payload, label }: TrendTooltipProps) {
           <span style={{ color: 'var(--db-text)', fontSize: 12, fontWeight: 700 }}>
             {labels[p.dataKey ?? ''] ?? p.dataKey}:{' '}
             <span style={{ color: p.color ?? p.fill }}>
-              {formatCurrency(p.value ?? 0)}
+              {<MoneyText value={p.value ?? 0} />}
             </span>
           </span>
         </div>

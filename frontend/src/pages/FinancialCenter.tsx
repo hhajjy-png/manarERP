@@ -9,7 +9,7 @@ import { exportReportAsPdf } from '../utils/pdfExport';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { downloadBlob } from '../utils/exportUtils';
 import { formatDate } from '../lib/date';
-import { fcCurrency, referenceTypeAr, accountTypeAr } from '../components/financial/financialLabels';
+import { fcCurrency, referenceTypeAr, accountTypeAr, fcMoneyCell, fcMoneyHeader } from '../components/financial/financialLabels';
 import type {
   FinancialResponse, StatementRow, ArAgingRow, ApAgingRow,
   GlStatementRow, GlReportResponse,
@@ -61,9 +61,10 @@ const AGING_BUCKETS: AgingBucketData[] = [
   { key: 'over_120', label: '+120 يوم',   amount: 0 },
 ];
 
+// الرمز في **عنوان العمود** لا في كل خليّة؛ والخليّة رقم مجرّد («12,455.000»).
+// الصفر قيمة، و«—» لغير المنطبق وحده — عبر المُنسّق المشترك.
 function fmtKwd(n?: number) {
-  if (n === undefined || n === null) return '';
-  return fcCurrency(n);
+  return fcMoneyCell(n);
 }
 
 export default function FinancialCenter() {
@@ -751,8 +752,8 @@ export default function FinancialCenter() {
                     <thead>
                       <tr>
                         <th>التاريخ</th><th>رقم القيد</th><th>النوع</th>
-                        <th>البيان</th><th className="num">مدين</th>
-                        <th className="num">دائن</th><th className="num">الرصيد</th>
+                        <th>البيان</th><th className="num">{fcMoneyHeader('مدين')}</th>
+                        <th className="num">{fcMoneyHeader('دائن')}</th><th className="num">{fcMoneyHeader('الرصيد')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -868,10 +869,10 @@ export default function FinancialCenter() {
                       <thead>
                         <tr>
                           <th>الكود</th><th>اسم الحساب</th><th>النوع</th>
-                          <th className="num">رصيد الافتتاح</th>
-                          <th className="num">إجمالي مدين</th>
-                          <th className="num">إجمالي دائن</th>
-                          <th className="num">رصيد الإقفال</th>
+                          <th className="num">{fcMoneyHeader('رصيد الافتتاح')}</th>
+                          <th className="num">{fcMoneyHeader('إجمالي مدين')}</th>
+                          <th className="num">{fcMoneyHeader('إجمالي دائن')}</th>
+                          <th className="num">{fcMoneyHeader('رصيد الإقفال')}</th>
                         </tr>
                       </thead>
                       <tbody>

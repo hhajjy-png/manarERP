@@ -127,13 +127,26 @@ const reportCellNumberFormatter = new Intl.NumberFormat(currencyConfig.locale, {
 });
 
 /**
- * Format a report/print table cell: money columns (`format:'currency'`) render "144,922.400 KWD";
- * other numeric cells render plain en-US (0–3 decimals); empty/null → "".
- * Shared by Reports.tsx and ReportPrint.tsx so the currency-column convention lives in one place.
+ * The single gateway for a report table cell — screen and print alike.
+ *
+ * `symbol` decides where the currency lives:
+ *   · `'inline'` (default) — "144,922.400 KWD" in every cell. **This is the print
+ *     contract**: `ReportPrint.tsx` renders the printed report and is out of scope for
+ *     the on-screen standardization, so its output must not shift by a single glyph.
+ *   · `'header'` — "144,922.400" alone, because the screen table now carries the symbol
+ *     once in the column header. Callers that pass this MUST add `(KWD)` to the header.
+ *
+ * Non-currency numeric cells render plain (0–3 decimals); empty/null → "".
  */
-export function formatReportCell(value: unknown, col: { format?: 'currency' }, opts?: { language?: CurrencyLanguage }): string {
+export function formatReportCell(
+  value: unknown,
+  col: { format?: 'currency' },
+  opts?: { language?: CurrencyLanguage; symbol?: 'inline' | 'header' },
+): string {
   if (value == null || value === '') return '';
-  if (col.format === 'currency') return formatCurrency(value, opts);
+  if (col.format === 'currency') {
+    return opts?.symbol === 'header' ? formatMoneyCell(value) : formatCurrency(value, opts);
+  }
   if (typeof value === 'number') return reportCellNumberFormatter.format(value);
   return String(value);
 }

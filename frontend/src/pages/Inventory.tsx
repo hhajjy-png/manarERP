@@ -7,7 +7,7 @@ import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
 import ConfirmModal from '../components/ConfirmModal';
-import { money, dateText, MoneyText } from '../config/modules';
+import { money, dateText, MoneyText, MoneyCell } from '../config/modules';
 import {
   ExecutiveHeader,
   HeroMetric,
@@ -30,6 +30,7 @@ import {
 import '../components/explorer/explorer-kit.css';
 import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
 import './Inventory.css';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 // ── Domain Types ──────────────────────────────────────────────────────────────
 
@@ -120,8 +121,8 @@ function DetailItemsSection({ endpoint, id }: { endpoint: string; id: number }) 
             <tr>
               <th>{t('col.inv.material')}</th>
               <th>{t('col.qty')}</th>
-              <th>{t('col.inv.unit_cost_per')}</th>
-              <th>{t('col.inv.total')}</th>
+              <th>{fcMoneyHeader(t('col.inv.unit_cost_per'))}</th>
+              <th>{fcMoneyHeader(t('col.inv.total'))}</th>
             </tr>
           </thead>
           <tbody>
@@ -129,13 +130,13 @@ function DetailItemsSection({ endpoint, id }: { endpoint: string; id: number }) 
               <tr key={it.id}>
                 <td>{it.material?.name} <small style={{ color: 'var(--xpl-muted)' }}>({it.material?.unit})</small></td>
                 <td>{it.quantity}</td>
-                <td>{money(it.unitCost ?? it.unitCostSnapshot ?? 0)}</td>
-                <td>{money(it.totalCost)}</td>
+                <td>{<MoneyCell value={it.unitCost ?? it.unitCostSnapshot ?? 0} />}</td>
+                <td>{<MoneyCell value={it.totalCost} />}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <div className="invx-detail-grand"><span>{t('lbl.inv.grand_total')}</span><span>{money(detail.totalCost ?? detail.totalAmount ?? 0)}</span></div>
+        <div className="invx-detail-grand"><span>{t('lbl.inv.grand_total')}</span><span>{<MoneyText value={detail.totalCost ?? detail.totalAmount ?? 0} />}</span></div>
       </DrawerSection>
     </>
   );
@@ -160,7 +161,7 @@ function LineItemBuilder({ items, onChange, materials, showCost }: { items: Line
           {showCost && (
             <>
               <input className="xpl-input" type="number" min="0" step="0.001" placeholder={t('ph.inv.unit_cost')} value={it.unitCost} onChange={(e) => updateItem(i, { unitCost: Number(e.target.value) })} aria-label={t('ph.inv.unit_cost')} />
-              <div className="invx-line-total">{money(it.quantity * it.unitCost)}</div>
+              <div className="invx-line-total">{<MoneyText value={it.quantity * it.unitCost} />}</div>
             </>
           )}
           {items.length > 1 && (
@@ -170,7 +171,7 @@ function LineItemBuilder({ items, onChange, materials, showCost }: { items: Line
       ))}
       <div className="invx-line-foot">
         <Button variant="ghost" icon="add" small onClick={() => onChange([...items, { materialId: '', quantity: 1, unitCost: 0 }])}>{t('btn.inv.add_material')}</Button>
-        {showCost && <span className="invx-line-grand">{t('lbl.inv.grand_total')} {money(total)}</span>}
+        {showCost && <span className="invx-line-grand">{t('lbl.inv.grand_total')} {<MoneyText value={total} />}</span>}
       </div>
     </div>
   );
@@ -234,7 +235,7 @@ function BalanceTab() {
       <TableShell loading={loading} empty={!loading && materials.length === 0 && <EmptyState icon="inventory" tone="neutral" title={t('empty.inv.materials_balance')} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.code')}</th><th>{t('col.inv.material')}</th><th>{t('col.category')}</th><th>{t('col.inv.current_stock')}</th><th>{t('col.inv.unit_cost')}</th><th>{t('col.inv.total_value')}</th><th>{t('col.status')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr><th>{t('col.code')}</th><th>{t('col.inv.material')}</th><th>{t('col.category')}</th><th>{t('col.inv.current_stock')}</th><th>{fcMoneyHeader(t('col.inv.unit_cost'))}</th><th>{fcMoneyHeader(t('col.inv.total_value'))}</th><th>{t('col.status')}</th><th aria-label="فتح" /></tr></thead>
             <tbody>
               {materials.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.name}`}>
@@ -242,8 +243,8 @@ function BalanceTab() {
                   <td><strong>{r.name}</strong></td>
                   <td>{r.category?.name ?? '—'}</td>
                   <td><span className={`invx-stock${r.currentStock <= r.minimumStock ? ' invx-stock--low' : ''}`}>{r.currentStock}</span> {r.unit}</td>
-                  <td>{money(r.unitCost)}</td>
-                  <td>{money(r.currentStock * r.unitCost)}</td>
+                  <td>{<MoneyCell value={r.unitCost} />}</td>
+                  <td>{<MoneyCell value={r.currentStock * r.unitCost} />}</td>
                   <td>{r.currentStock <= r.minimumStock ? <StatusChip tone="red" icon="warning">{t('pill.low_stock')}</StatusChip> : <StatusChip tone="green" icon="check_circle">{t('pill.adequate')}</StatusChip>}</td>
                   <Chevron />
                 </tr>
@@ -415,7 +416,7 @@ function MaterialsTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="category" tone="neutral" title={t('empty.inv.materials')} action={hasPermission('inventory.create') ? <Button variant="primary" icon="add" onClick={() => setEditing({})}>{t('btn.inv.new_material')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.code')}</th><th>{t('col.inv.material')}</th><th>{t('col.category')}</th><th>{t('col.inv.unit')}</th><th>{t('col.inv.current_stock')}</th><th>{t('col.inv.unit_cost')}</th><th>{t('col.status')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr><th>{t('col.code')}</th><th>{t('col.inv.material')}</th><th>{t('col.category')}</th><th>{t('col.inv.unit')}</th><th>{t('col.inv.current_stock')}</th><th>{fcMoneyHeader(t('col.inv.unit_cost'))}</th><th>{t('col.status')}</th><th aria-label="فتح" /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.name}`}>
@@ -424,7 +425,7 @@ function MaterialsTab() {
                   <td>{r.category?.name ?? '—'}</td>
                   <td>{r.unit}</td>
                   <td><span className={`invx-stock${r.currentStock <= r.minimumStock ? ' invx-stock--low' : ''}`}>{r.currentStock}</span></td>
-                  <td>{money(r.unitCost)}</td>
+                  <td>{<MoneyCell value={r.unitCost} />}</td>
                   <td>{r.isActive ? <StatusChip tone="green">{t('pill.active')}</StatusChip> : <StatusChip tone="neutral">{t('pill.inactive')}</StatusChip>}</td>
                   <Chevron />
                 </tr>
@@ -497,7 +498,7 @@ function PurchaseOrdersTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="shopping_cart" tone="neutral" title={t('empty.inv.po')} action={hasPermission('inventory.create') ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('btn.inv.new_po')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.number')}</th><th>{t('col.supplier')}</th><th>{t('col.date')}</th><th>{t('col.inv.expected_date')}</th><th>{t('col.status')}</th><th>{t('col.inv.total')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr><th>{t('col.number')}</th><th>{t('col.supplier')}</th><th>{t('col.date')}</th><th>{t('col.inv.expected_date')}</th><th>{t('col.status')}</th><th>{fcMoneyHeader(t('col.inv.total'))}</th><th aria-label="فتح" /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.number}`}>
@@ -506,7 +507,7 @@ function PurchaseOrdersTab() {
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.expectedDate)}</td>
                   <td>{chip(poTone, r.status, t)}</td>
-                  <td style={{ fontWeight: 700 }}>{money(r.totalAmount)}</td>
+                  <td style={{ fontWeight: 700 }}>{<MoneyCell value={r.totalAmount} />}</td>
                   <Chevron />
                 </tr>
               ))}
@@ -520,7 +521,7 @@ function PurchaseOrdersTab() {
         <Drawer
           title={`${t('modal.inv.detail_po')} — ${viewing.number}`}
           onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">shopping_cart</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{money(viewing.totalAmount)}</span><span className="xpl-drawer-hero-sub">{viewing.number} · {viewing.supplier?.name ?? '—'}</span><div style={{ marginTop: 4 }}>{chip(poTone, viewing.status, t)}</div></div></div>}
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">shopping_cart</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{<MoneyText value={viewing.totalAmount} />}</span><span className="xpl-drawer-hero-sub">{viewing.number} · {viewing.supplier?.name ?? '—'}</span><div style={{ marginTop: 4 }}>{chip(poTone, viewing.status, t)}</div></div></div>}
           footer={<>
             {hasPermission('inventory.update') && viewing.status === 'DRAFT' && <Button variant="primary" icon="send" busy={busy} onClick={() => setPendingPost({ endpoint: `/inventory/purchase-orders/${viewing.id}/submit`, confirmMsg: t('confirm.submit_po'), successMsg: 'تم الترحيل بنجاح' })}>{t('btn.inv.submit_po')}</Button>}
             {hasPermission('inventory.update') && ['DRAFT', 'SUBMITTED'].includes(viewing.status) && <Button variant="secondary" icon="block" busy={busy} onClick={() => setPendingPost({ endpoint: `/inventory/purchase-orders/${viewing.id}/cancel`, confirmMsg: t('confirm.cancel_po'), successMsg: 'تم الإلغاء بنجاح' })}>{t('action.cancel')}</Button>}
@@ -589,7 +590,7 @@ function GoodsReceiptsTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="inventory_2" tone="neutral" title={t('empty.inv.gr')} action={hasPermission('inventory.create') ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('btn.inv.new_gr')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.number')}</th><th>{t('col.supplier')}</th><th>{t('col.inv.po_ref')}</th><th>{t('col.date')}</th><th>{t('col.status')}</th><th>{t('col.inv.total')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr><th>{t('col.number')}</th><th>{t('col.supplier')}</th><th>{t('col.inv.po_ref')}</th><th>{t('col.date')}</th><th>{t('col.status')}</th><th>{fcMoneyHeader(t('col.inv.total'))}</th><th aria-label="فتح" /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.number}`}>
@@ -598,7 +599,7 @@ function GoodsReceiptsTab() {
                   <td>{r.purchaseOrder?.number ?? '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
                   <td>{chip(grTone, r.status, t)}</td>
-                  <td style={{ fontWeight: 700 }}>{money(r.totalCost)}</td>
+                  <td style={{ fontWeight: 700 }}>{<MoneyCell value={r.totalCost} />}</td>
                   <Chevron />
                 </tr>
               ))}
@@ -612,7 +613,7 @@ function GoodsReceiptsTab() {
         <Drawer
           title={`${t('modal.inv.detail_gr')} — ${viewing.number}`}
           onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">inventory_2</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{money(viewing.totalCost)}</span><span className="xpl-drawer-hero-sub">{viewing.number} · {viewing.supplier?.name ?? '—'}</span><div style={{ marginTop: 4 }}>{chip(grTone, viewing.status, t)}</div></div></div>}
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">inventory_2</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{<MoneyText value={viewing.totalCost} />}</span><span className="xpl-drawer-hero-sub">{viewing.number} · {viewing.supplier?.name ?? '—'}</span><div style={{ marginTop: 4 }}>{chip(grTone, viewing.status, t)}</div></div></div>}
           footer={<>
             {hasPermission('inventory.approve') && viewing.status === 'DRAFT' && <Button variant="primary" icon="check_circle" busy={busy} onClick={() => setPostGRId(viewing.id)}>{t('btn.inv.post')}</Button>}
             {hasPermission('inventory.delete') && viewing.status === 'DRAFT' && <Button variant="danger" icon="delete" busy={busy} onClick={() => setDeleteGRId(viewing.id)}>{t('action.delete')}</Button>}
@@ -678,7 +679,7 @@ function MaterialIssuesTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="output" tone="neutral" title={t('empty.inv.mi')} action={hasPermission('inventory.create') ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('btn.inv.new_mi')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.number')}</th><th>{t('col.contract_no')}</th><th>{t('col.date')}</th><th>{t('col.status')}</th><th>{t('col.inv.total')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr><th>{t('col.number')}</th><th>{t('col.contract_no')}</th><th>{t('col.date')}</th><th>{t('col.status')}</th><th>{fcMoneyHeader(t('col.inv.total'))}</th><th aria-label="فتح" /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.number}`}>
@@ -686,7 +687,7 @@ function MaterialIssuesTab() {
                   <td>{r.contract ? r.contract.code : '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
                   <td>{chip(miTone, r.status, t)}</td>
-                  <td style={{ fontWeight: 700 }}>{money(r.totalCost)}</td>
+                  <td style={{ fontWeight: 700 }}>{<MoneyCell value={r.totalCost} />}</td>
                   <Chevron />
                 </tr>
               ))}
@@ -700,7 +701,7 @@ function MaterialIssuesTab() {
         <Drawer
           title={`${t('modal.inv.detail_mi')} — ${viewing.number}`}
           onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">output</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{money(viewing.totalCost)}</span><span className="xpl-drawer-hero-sub">{viewing.number}{viewing.contract ? ` · ${viewing.contract.code}` : ''}</span><div style={{ marginTop: 4 }}>{chip(miTone, viewing.status, t)}</div></div></div>}
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">output</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{<MoneyText value={viewing.totalCost} />}</span><span className="xpl-drawer-hero-sub">{viewing.number}{viewing.contract ? ` · ${viewing.contract.code}` : ''}</span><div style={{ marginTop: 4 }}>{chip(miTone, viewing.status, t)}</div></div></div>}
           footer={<>
             {hasPermission('inventory.approve') && viewing.status === 'DRAFT' && <Button variant="primary" icon="check_circle" busy={busy} onClick={() => setPostMIId(viewing.id)}>{t('btn.inv.post')}</Button>}
             {hasPermission('inventory.cancel') && viewing.status === 'POSTED' && <Button variant="secondary" icon="block" busy={busy} onClick={() => setCancelMIId(viewing.id)}>{t('action.cancel')}</Button>}

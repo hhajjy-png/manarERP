@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
-import { money, dateText, MoneyText } from '../config/modules';
+import { money, dateText, MoneyText, MoneyCell } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
 import {
   ExecutiveHeader,
@@ -26,6 +26,7 @@ import {
 import DateInput from '../components/DateInput';
 import '../components/explorer/explorer-kit.css';
 import './Maintenance.css';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 // ── Domain Types ──────────────────────────────────────────────────────────────
 
@@ -333,14 +334,14 @@ function RecordsTab() {
       <TableShell loading={loading} empty={!loading && visible.length === 0 && <EmptyState icon="build" tone="neutral" title={t('empty.maint.records')} action={hasPermission('maintenance.create') ? <Button variant="primary" icon="add" onClick={() => { setCreateForm(EMPTY_FORM); setShowCreate(true); }}>{t('action.maint.add_record')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.equipment_no')}</th><th>{t('col.maint.type')}</th><th>{t('col.description')}</th><th>{t('col.amount')}</th><th>{t('col.maint.performed_by')}</th><th>{t('col.date')}</th><th>{t('col.status')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr><th>{t('col.equipment_no')}</th><th>{t('col.maint.type')}</th><th>{t('col.description')}</th><th>{fcMoneyHeader(t('col.amount'))}</th><th>{t('col.maint.performed_by')}</th><th>{t('col.date')}</th><th>{t('col.status')}</th><th aria-label="فتح" /></tr></thead>
             <tbody>
               {visible.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل صيانة ${r.equipment?.code ?? r.equipmentId}`}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span>{r.equipment?.name ? <span style={{ color: 'var(--xpl-muted)', fontSize: 12, marginInlineStart: 6 }}>{r.equipment.name}</span> : null}</td>
                   <td>{maintType[r.type] ?? r.type}</td>
                   <td><span className="mntx-desc">{r.description}</span></td>
-                  <td>{r.cost != null ? money(r.cost) : '—'}</td>
+                  <td>{r.cost != null ? <MoneyCell value={r.cost} /> : '—'}</td>
                   <td>{r.performedBy ?? '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
                   <td>{smchip(maintStatus, r.status)}</td>
@@ -368,7 +369,7 @@ function RecordsTab() {
             <DrawerField label={t('field.status')} value={smchip(maintStatus, viewing.status)} />
           </DrawerSection>
           <DrawerSection title="التكلفة والتنفيذ">
-            <DrawerField label={t('col.amount')} value={viewing.cost != null ? money(viewing.cost) : '—'} />
+            <DrawerField label={t('col.amount')} value={viewing.cost != null ? <MoneyText value={viewing.cost} /> : '—'} />
             <DrawerField label={t('field.maint.performed_by')} value={viewing.performedBy ?? '—'} />
           </DrawerSection>
           <DrawerSection title="الجدولة">
@@ -478,13 +479,13 @@ function FuelTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="local_gas_station" tone="neutral" title={t('empty.maint.fuel')} action={hasPermission('maintenance.create') ? <Button variant="primary" icon="add" onClick={() => setShowCreate(true)}>{t('action.maint.add_fuel')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.equipment_no')}</th><th>{t('col.maint.liters')}</th><th>{t('col.amount')}</th><th>{t('col.maint.odometer')}</th><th>{t('col.date')}</th><th>{t('col.notes')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr><th>{t('col.equipment_no')}</th><th>{t('col.maint.liters')}</th><th>{fcMoneyHeader(t('col.amount'))}</th><th>{t('col.maint.odometer')}</th><th>{t('col.date')}</th><th>{t('col.notes')}</th><th aria-label="فتح" /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل وقود ${r.equipment?.code ?? r.equipmentId}`}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span></td>
                   <td>{r.liters.toLocaleString()} L</td>
-                  <td>{money(r.cost)}</td>
+                  <td>{<MoneyCell value={r.cost} />}</td>
                   <td>{r.odometer != null ? `${r.odometer.toLocaleString()} km` : '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
                   <td>{r.notes ?? '—'}</td>
@@ -498,7 +499,7 @@ function FuelTab() {
 
       {viewing && (
         <Drawer title={`${t('tab.maint.fuel')} — ${viewing.equipment?.code ?? viewing.equipmentId}`} onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">local_gas_station</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.liters.toLocaleString()} L</span><span className="xpl-drawer-hero-sub">{viewing.equipment?.code ?? viewing.equipmentId} · {money(viewing.cost)}</span></div></div>}>
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">local_gas_station</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.liters.toLocaleString()} L</span><span className="xpl-drawer-hero-sub">{viewing.equipment?.code ?? viewing.equipmentId} · {<MoneyText value={viewing.cost} />}</span></div></div>}>
           <DrawerSection title="التفاصيل">
             <DrawerField label={t('col.equipment_no')} value={viewing.equipment?.code ?? viewing.equipmentId} mono />
             <DrawerField label={t('col.maint.liters')} value={`${viewing.liters.toLocaleString()} L`} />
@@ -735,15 +736,15 @@ function SparePartsTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="settings" tone="neutral" title={t('empty.maint.spare_parts')} action={hasPermission('maintenance.create') ? <Button variant="primary" icon="add" onClick={() => setShowCreate(true)}>{t('action.maint.add_spare_part')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.equipment_no')}</th><th>{t('col.maint.part_name')}</th><th>{t('col.maint.quantity')}</th><th>{t('col.maint.unit_cost')}</th><th>{t('col.maint.total_cost')}</th><th>{t('col.date')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr><th>{t('col.equipment_no')}</th><th>{t('col.maint.part_name')}</th><th>{t('col.maint.quantity')}</th><th>{fcMoneyHeader(t('col.maint.unit_cost'))}</th><th>{fcMoneyHeader(t('col.maint.total_cost'))}</th><th>{t('col.date')}</th><th aria-label="فتح" /></tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل قطعة ${r.partName}`}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span></td>
                   <td><strong>{r.partName}</strong></td>
                   <td>{r.quantity}</td>
-                  <td>{money(r.unitCost)}</td>
-                  <td style={{ fontWeight: 700 }}>{money(r.totalCost)}</td>
+                  <td>{<MoneyCell value={r.unitCost} />}</td>
+                  <td style={{ fontWeight: 700 }}>{<MoneyCell value={r.totalCost} />}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
                   <Chevron />
                 </tr>
@@ -755,7 +756,7 @@ function SparePartsTab() {
 
       {viewing && (
         <Drawer title={`${viewing.partName}`} onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">settings</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.partName}</span><span className="xpl-drawer-hero-sub">{viewing.equipment?.code ?? viewing.equipmentId} · {money(viewing.totalCost)}</span></div></div>}>
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">settings</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.partName}</span><span className="xpl-drawer-hero-sub">{viewing.equipment?.code ?? viewing.equipmentId} · {<MoneyText value={viewing.totalCost} />}</span></div></div>}>
           <DrawerSection title="التفاصيل">
             <DrawerField label={t('col.equipment_no')} value={viewing.equipment?.code ?? viewing.equipmentId} mono />
             <DrawerField label={t('col.maint.part_name')} value={viewing.partName} />

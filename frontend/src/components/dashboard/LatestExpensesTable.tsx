@@ -1,6 +1,7 @@
-import { money, dateText, expenseCategoryAr } from '../../config/modules';
+import { money, dateText, expenseCategoryAr, MoneyText, MoneyCell } from '../../config/modules';
 import { TableRowSkeletons } from './Skeleton';
 import { useT } from '../../lib/i18n';
+import { fcMoneyHeader } from '../../components/financial/financialLabels';
 
 const STATUS_COLOR: Record<string, string> = {
   PENDING:  'amber',
@@ -21,7 +22,7 @@ export default function LatestExpensesTable({ expenses, loading }: Props) {
       <thead>
         <tr>
           <th>{t('col.description')}</th>
-          <th>{t('col.amount')}</th>
+          <th>{fcMoneyHeader(t('col.amount'))}</th>
           <th>{t('col.category')}</th>
           <th>{t('col.db.status')}</th>
           <th>{t('col.date')}</th>
@@ -46,7 +47,7 @@ export default function LatestExpensesTable({ expenses, loading }: Props) {
             return (
               <tr key={i}>
                 <td style={{ fontWeight: 700 }}>{exp.description ?? '—'}</td>
-                <td>{money(exp.amount)}</td>
+                <td>{<MoneyCell value={exp.amount} />}</td>
                 <td>{expenseCategoryAr[exp.category] ?? exp.category ?? '—'}</td>
                 <td>
                   <span className={`db-pill ${statusCls}`}>{statusLabel}</span>

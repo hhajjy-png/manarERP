@@ -3,6 +3,7 @@ import { CHART_INITIAL_DIMENSION } from '../../../lib/rechartsDefaults';
 import { Skeleton } from '../Skeleton';
 import type { RevenueSlice } from './types';
 import { formatCurrency, formatInteger, formatPercent } from '../../../lib/format';
+import { MoneyText } from '../../../config/modules';
 
 // Distinct palette; the last colour is reserved for the aggregated "أخرى" slice.
 const SLICE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#A855F7', '#06B6D4', '#9CA3AF'];
@@ -28,7 +29,7 @@ function DonutTooltip({
       fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', direction: 'rtl',
     }}>
       <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700, margin: 0 }}>{p.name}</p>
-      <p style={{ color: 'var(--db-muted)', fontSize: 12, margin: '4px 0 0' }}>{formatCurrency(val)} · {formatPercent(pct, 1)}</p>
+      <p style={{ color: 'var(--db-muted)', fontSize: 12, margin: '4px 0 0' }}>{<MoneyText value={val} />} · {formatPercent(pct, 1)}</p>
     </div>
   );
 }

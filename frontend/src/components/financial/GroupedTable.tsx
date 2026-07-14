@@ -3,7 +3,7 @@ import type { StatementRow } from '../../types/financial.types';
 import type { FinancialDrillDownState } from './DrillDownLink';
 import { DrillDownLink } from './DrillDownLink';
 import { formatDate, formatMonthLabel } from '../../lib/date';
-import { fcCurrency, referenceTypeAr } from './financialLabels';
+import { fcCurrency, referenceTypeAr, fcMoneyHeader } from './financialLabels';
 
 interface Props {
   rows: StatementRow[];
@@ -73,9 +73,9 @@ export function GroupedTable({ rows, currentState, highlightId }: Props) {
             <th>المرجع</th>
             <th>النوع</th>
             <th>البيان</th>
-            <th>مدين</th>
-            <th>دائن</th>
-            <th>الرصيد</th>
+            <th>{fcMoneyHeader('مدين')}</th>
+            <th>{fcMoneyHeader('دائن')}</th>
+            <th>{fcMoneyHeader('الرصيد')}</th>
           </tr>
         </thead>
         <tbody>

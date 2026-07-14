@@ -7,6 +7,7 @@ import { Skeleton } from './Skeleton';
 import { useT } from '../../lib/i18n';
 import { formatCurrency, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
+import { MoneyText } from '../../config/modules';
 
 interface TrendPoint { label: string; revenue: number; expense: number; }
 interface Props { data: TrendPoint[]; loading: boolean; }
@@ -44,7 +45,7 @@ function ChartTooltip({ active, payload, label, revenueLabel = '', expensesLabel
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.fill, flexShrink: 0 }} />
           <p style={{ color: 'var(--xpl-text)', fontSize: 13, fontWeight: 700 }}>
             {p.dataKey === 'revenue' ? revenueLabel : expensesLabel}:{' '}
-            <span style={{ color: p.fill }}>{formatCurrency(p.value)}</span>
+            <span style={{ color: p.fill }}>{<MoneyText value={p.value} />}</span>
           </p>
         </div>
       ))}

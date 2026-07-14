@@ -1,6 +1,7 @@
-import { money, dateText } from '../../config/modules';
+import { money, dateText, MoneyText, MoneyCell } from '../../config/modules';
 import { TableRowSkeletons } from './Skeleton';
 import { useT } from '../../lib/i18n';
+import { fcMoneyHeader } from '../../components/financial/financialLabels';
 
 const STATUS_COLOR: Record<string, string> = {
   UNPAID:    'red',
@@ -24,7 +25,7 @@ export default function LatestInvoicesTable({ invoices, loading }: Props) {
         <tr>
           <th>{t('col.inv.number')}</th>
           <th>{t('col.inv.party')}</th>
-          <th>{t('col.inv.total')}</th>
+          <th>{fcMoneyHeader(t('col.inv.total'))}</th>
           <th>{t('col.db.status')}</th>
           <th>{t('col.date')}</th>
         </tr>
@@ -54,7 +55,7 @@ export default function LatestInvoicesTable({ invoices, loading }: Props) {
                   </span>
                 </td>
                 <td style={{ fontWeight: 700 }}>{party}</td>
-                <td>{money(inv.total)}</td>
+                <td>{<MoneyCell value={inv.total} />}</td>
                 <td>
                   <span className={`db-pill ${statusCls}`}>{statusLabel}</span>
                 </td>

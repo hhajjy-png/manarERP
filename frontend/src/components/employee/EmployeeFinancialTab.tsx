@@ -15,6 +15,7 @@ import {
   Button,
 } from '../explorer/ExplorerKit';
 import './EmployeeFinancialTab.css';
+import { fcMoneyHeader } from '../financial/financialLabels';
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
@@ -176,10 +177,10 @@ export default function EmployeeFinancialTab({ employee }: { employee: EmployeeL
                 <thead>
                   <tr>
                     <th>الشهر/السنة</th>
-                    <th>الراتب الأساسي</th>
-                    <th>البدلات</th>
-                    <th>الاستقطاعات</th>
-                    <th>صافي الراتب</th>
+                    <th>{fcMoneyHeader('الراتب الأساسي')}</th>
+                    <th>{fcMoneyHeader('البدلات')}</th>
+                    <th>{fcMoneyHeader('الاستقطاعات')}</th>
+                    <th>{fcMoneyHeader('صافي الراتب')}</th>
                     <th>حالة الدفع</th>
                     <th>تاريخ الدفع</th>
                   </tr>

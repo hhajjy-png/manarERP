@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Column } from '../components/DataTable';
 import { FormField, FormSection } from '../components/FormDialog';
 import { formatDate } from '../lib/date';
-import { formatCurrency, formatMoneyParts } from '../lib/format';
+import { formatCurrency, formatMoneyParts, formatMoneyCell } from '../lib/format';
 import { currentCurrencyLanguage } from '../stores/settingsStore';
 import { expenseCategoryArMap } from './expenseCategories';
 
@@ -64,6 +64,17 @@ export function TextWithMoney({ text }: { text?: string | null }) {
       )}
     </>
   );
+}
+
+/**
+ * **خليّة جدول** مالية: الرقم وحده — «12,455.000» — بلا رمز، لأن العنوان يحمله مرّة
+ * واحدة. الصفر قيمة («0.000»)، وغير المنطبق «—». `money-cell` تعزل الاتجاه فلا ينقلب
+ * الرقم داخل واجهة عربية.
+ *
+ * لا تُستعمل في بطاقة أو Drawer بلا عنوان يحمل الرمز — هناك `MoneyText` (رقم + رمز).
+ */
+export function MoneyCell({ value }: { value: unknown }) {
+  return <span className="money-cell">{formatMoneyCell(value)}</span>;
 }
 
 export function dateText(v: unknown): string {
@@ -150,8 +161,8 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'companyName', label: 'col.company_name' },
       { key: 'location', label: 'col.location' },
       { key: 'unitName', label: 'col.unit_name' },
-      { key: 'price', label: 'col.price', render: (r) => r.price != null ? money(r.price) : '—' },
-      { key: 'monthlyTransportValue', label: 'col.monthly_value', render: (r) => money(r.monthlyTransportValue) },
+      { key: 'price', label: 'col.price', money: true, render: (r) => <MoneyCell value={r.price} /> },
+      { key: 'monthlyTransportValue', label: 'col.monthly_value', money: true, render: (r) => <MoneyCell value={r.monthlyTransportValue} /> },
       { key: 'status', label: 'col.status', render: (r) => contractStatus(r.status) },
     ],
     fields: [
@@ -161,7 +172,7 @@ export const MODULES: Record<string, ModuleConfig> = {
         type: 'select',
         optionsEndpoint: '/prices?pageSize=100',
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        optionLabelFn: (x: any) => `${x.asphaltPlant} — ${x.companyName} — ${x.contractLocation} — ${x.contractUnit} — ${formatCurrency(x.unitPrice)}`,
+        optionLabelFn: (x: any) => `${x.asphaltPlant} — ${x.companyName} — ${x.contractLocation} — ${x.contractUnit} — ${money(x.unitPrice)}`,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onSelectRaw: (raw: any) => ({
           asphaltPlant: raw.asphaltPlant ?? '',
@@ -340,7 +351,7 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'licenseExpiry', label: 'col.license_expiry', render: (r) => dateText(r.licenseExpiry) },
       { key: 'vehiclePlate', label: 'col.vehicle_plate', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.vehiclePlate ?? '—'}</span> },
       { key: 'vehicleLicenseExpiry', label: 'col.vehicle_license_expiry', render: (r) => dateText(r.vehicleLicenseExpiry) },
-      { key: 'salary', label: 'col.salary', render: (r) => money(r.salary) },
+      { key: 'salary', label: 'col.salary', money: true, render: (r) => <MoneyCell value={r.salary} /> },
       { key: 'hireDate', label: 'col.hire_date', render: (r) => dateText(r.hireDate) },
       { key: 'status', label: 'col.status', render: (r) => employeeStatus(r.status) },
     ],
@@ -387,7 +398,7 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
       { key: 'category', label: 'col.category', render: (r) => expenseCategoryAr[r.category] ?? r.category },
       { key: 'description', label: 'col.description', render: (r) => <strong>{r.description}</strong> },
-      { key: 'amount', label: 'col.amount', render: (r) => money(r.amount) },
+      { key: 'amount', label: 'col.amount', money: true, render: (r) => <MoneyCell value={r.amount} /> },
       { key: 'date', label: 'col.date', render: (r) => dateText(r.date) },
       { key: 'status', label: 'col.status', render: (r) => expenseStatus(r.status) },
     ],
