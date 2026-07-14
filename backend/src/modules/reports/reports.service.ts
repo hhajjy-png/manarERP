@@ -7,10 +7,16 @@ import { formatDateRange, formatDisplayDate } from '../../shared/utils/dateDispl
 import { translateInvoiceStatusAr } from '../../shared/utils/arabicLabels';
 import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLabels';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
+import { monthWindowsBetween } from '../../core/utils/dateWindows';
 
 const num = (n: number | null | undefined) => Number(n ?? 0);
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
 const dateAr = (d: Date | null) => (d ? new Date(d).toLocaleDateString('ar') : '');
+/** يحوّل وسم الشهر `YYYY-MM` إلى صيغة العرض `MM/YYYY` — بلا أسماء أشهر. */
+const monthYearLabel = (ymLabel: string): string => {
+  const [y, m] = ymLabel.split('-');
+  return `${m}/${y}`;
+};
 
 function endOfDay(dateStr: string): Date {
   const d = new Date(dateStr);
@@ -491,25 +497,58 @@ export class ReportsService {
     const where: Prisma.TransactionWhereInput = {
       ...dateWhere(q.from, q.to) as Prisma.TransactionWhereInput,
     };
-    const [rev, exp] = await Promise.all([
-      prisma.transaction.aggregate({ where: { ...where, type: 'REVENUE' }, _sum: { credit: true } }),
-      prisma.transaction.aggregate({ where: { ...where, type: 'EXPENSE' }, _sum: { debit: true } }),
-    ]);
-    const totalRevenue = num(rev._sum.credit);
-    const totalExpense = num(exp._sum.debit);
+
+    // مدى الأشهر المعروضة: الفترة المختارة إن حُدِّدت بالكامل، وإلا أول/آخر معاملة فعلية
+    // (نفس عمليات الجمع/الطرح — فقط لتحديد حدود التقسيم الشهري).
+    let rangeStart: Date;
+    let rangeEnd: Date;
+    if (q.from && q.to) {
+      rangeStart = new Date(q.from);
+      rangeEnd = endOfDay(q.to);
+    } else {
+      const bounds = await prisma.transaction.aggregate({
+        where: { ...where, type: { in: ['REVENUE', 'EXPENSE'] } },
+        _min: { date: true },
+        _max: { date: true },
+      });
+      rangeStart = q.from ? new Date(q.from) : (bounds._min.date ?? new Date());
+      rangeEnd = q.to ? endOfDay(q.to) : (bounds._max.date ?? rangeStart);
+    }
+
+    const months = monthWindowsBetween(rangeStart, rangeEnd);
+    const monthly = await Promise.all(
+      months.map(async (m) => {
+        const monthWhere: Prisma.TransactionWhereInput = { date: { gte: m.start, lte: m.end } };
+        const [rev, exp] = await Promise.all([
+          prisma.transaction.aggregate({ where: { ...monthWhere, type: 'REVENUE' }, _sum: { credit: true } }),
+          prisma.transaction.aggregate({ where: { ...monthWhere, type: 'EXPENSE' }, _sum: { debit: true } }),
+        ]);
+        const revenue = num(rev._sum.credit);
+        const expense = num(exp._sum.debit);
+        return { label: m.label, revenue, expense, net: revenue - expense };
+      }),
+    );
+
+    const totalRevenue = monthly.reduce((s, m) => s + m.revenue, 0);
+    const totalExpense = monthly.reduce((s, m) => s + m.expense, 0);
     const net = totalRevenue - totalExpense;
+
     return {
       title: 'تقرير الأرباح والخسائر',
       subtitle: q.from || q.to ? `الفترة: ${q.from ?? '—'} إلى ${q.to ?? '—'}` : 'كل الفترات',
       columns: [
-        { header: 'البند', key: 'item', width: 40 },
-        { header: 'المبلغ', key: 'amount', width: 22, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'الشهر/السنة', key: 'month', width: 16, align: 'center' },
+        { header: 'إجمالي الإيرادات', key: 'revenue', width: 20, numFmt: '#,##0.000', format: 'currency', align: 'center' },
+        { header: 'إجمالي المصروفات', key: 'expense', width: 20, numFmt: '#,##0.000', format: 'currency', align: 'center' },
+        { header: 'الربح / الخسارة', key: 'net', width: 20, numFmt: '#,##0.000', format: 'currency', align: 'center' },
       ],
-      rows: [
-        { item: 'إجمالي الإيرادات', amount: totalRevenue },
-        { item: 'إجمالي المصروفات', amount: totalExpense },
-      ],
-      totalsRow: { item: 'صافي الربح / الخسارة', amount: net },
+      rows: monthly.map((m) => ({
+        month: monthYearLabel(m.label),
+        revenue: m.revenue,
+        expense: m.expense,
+        net: m.net,
+      })),
+      totalsRow: { month: 'الإجمالي', revenue: totalRevenue, expense: totalExpense, net },
     };
   }
 

@@ -31,7 +31,14 @@ export interface ReportColumn {
   format?: 'currency';
   /** نوع العمود (اختياري) — يُستخدم فقط لتحديد تنسيق افتراضي عندما لا يوجد numFmt صريح. */
   type?: 'text' | 'number' | 'currency' | 'date';
-  /** محاذاة اختيارية — الافتراضي يمين (يحافظ على السلوك الحالي). */
+  /** Presentation-only column alignment; default is right (preserves prior behavior when unset).
+   *  Controls BOTH horizontal (`text-align`) and vertical (`vertical-align: middle`) alignment.
+   *  HTML/PDF (`table.template.ts`) apply this as an **inline `style` attribute** on the
+   *  `<th>`/`<td>`, not a CSS class alone — inline styles deliberately override any
+   *  stylesheet alignment rule (e.g. `styles.template.ts`'s `thead th` / `tr.totals td`),
+   *  so the column's requested alignment always wins regardless of CSS specificity.
+   *  **Excel ignores this styling mechanism**: it maps `align` to its own native
+   *  `cell.alignment` (via `alignFor()`), independent of any HTML/CSS. */
   align?: 'left' | 'center' | 'right';
 }
 
