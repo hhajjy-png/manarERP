@@ -2,14 +2,21 @@ import fs from 'fs';
 import path from 'path';
 import type { ReportInput } from './excel.service';
 import type { ReportOptions } from './reportTypes';
-import { buildStyles } from './styles.template';
+import { buildStyles, resolveLogoWidth } from './styles.template';
 import { buildBrandingHeader } from './branding.template';
 import { PRINT_PROFILES } from './printProfiles';
 import { buildReportHeader } from './header.template';
 import { buildPageFooterHtml } from './footer.template';
 import { buildTable } from './table.template';
 import { buildWatermark } from './watermark.template';
+import { buildSummaryTable } from './summaryTable.template';
 import { esc } from './htmlUtils';
+
+/** Scales a "<n>px" width string by `factor`, rounding to one decimal place. */
+function scaleWidthPx(px: string, factor: number): string {
+  const n = parseFloat(px);
+  return Number.isFinite(n) ? `${Math.round(n * factor * 10) / 10}px` : px;
+}
 
 const FONT_PATH = path.resolve(process.cwd(), 'assets', 'fonts', 'Cairo-Regular.ttf');
 
@@ -51,10 +58,22 @@ export function buildReportHtml(input: ReportInput, options?: ReportOptions): st
   const profileConfig = PRINT_PROFILES[profile];
   const styles        = buildStyles(profile, options?.branding, fontFace);
   const watermark     = buildWatermark(options?.watermark);
-  const brandingHdr   = options?.branding ? buildBrandingHeader(options.branding, profileConfig) : '';
+  const logoWidthOverride = options?.invoiceReportLayout
+    ? scaleWidthPx(resolveLogoWidth(profileConfig.logoSize), 0.9)
+    : undefined;
+  const brandingHdr   = options?.branding
+    ? buildBrandingHeader(options.branding, profileConfig, logoWidthOverride)
+    : '';
   const reportHdr    = buildReportHeader(input, options);
-  const table        = buildTable(input.columns, input.rows, input.totalsRow);
+  const table        = buildTable(input.columns, input.rows, input.totalsRow, {
+    noWrapCells: options?.invoiceReportLayout,
+    totalsAsLastRow: options?.invoiceReportLayout,
+  });
+  const summaryTableHtml = options?.summaryTable
+    ? buildSummaryTable(options.summaryTable.columns, options.summaryTable.rows)
+    : '';
   const footerHtml   = buildPageFooterHtml(options?.branding, options);
+  const bodyClass    = options?.invoiceReportLayout ? ' class="invoice-report-compact"' : '';
 
   const notesSection = options?.notes
     ? `<div class="report-notes"><strong>ملاحظات:</strong> ${esc(options.notes)}</div>`
@@ -81,11 +100,12 @@ export function buildReportHtml(input: ReportInput, options?: ReportOptions): st
   <title>${esc(input.title)}</title>
   <style>${styles}</style>
 </head>
-<body>
+<body${bodyClass}>
   ${watermark}
   ${brandingHdr}
   ${reportHdr}
   ${table}
+  ${summaryTableHtml}
   ${notesSection}
   ${signatureArea}
   ${footerHtml}

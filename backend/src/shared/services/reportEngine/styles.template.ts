@@ -156,6 +156,55 @@ export function buildStyles(
       margin: 0;
     }
 
+    /* Invoice Report print refinement — single-line report info (opt-in) */
+    .report-singleline {
+      margin: 0;
+      text-align: center;
+      font-size: 10.5px;
+      white-space: nowrap;
+    }
+
+    .report-title-inline {
+      font-weight: 800;
+      color: ${primary};
+    }
+
+    .report-subtitle-inline {
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .report-daterange-inline,
+    .report-generated-inline {
+      font-weight: 400;
+      color: #94a3b8;
+      font-size: 9.5px;
+    }
+
+    .invoice-report-compact .company-header {
+      margin-bottom: 4px;
+    }
+
+    .invoice-report-compact .company-divider {
+      margin: 0 0 4px 0;
+    }
+
+    .invoice-report-compact .report-header--single-line {
+      margin-bottom: 4px;
+    }
+
+    /* Invoice Report print refinement — reduce logo + company name ~10% (opt-in).
+       The logo BOX width/height is set inline (see branding.template.ts's
+       logoWidthOverride) because it always wins over a class here; only the
+       placeholder letter's font-size is a plain CSS property. */
+    .invoice-report-compact .company-logo-placeholder {
+      font-size: 19.8px;
+    }
+
+    .invoice-report-compact .company-name-ar {
+      font-size: 15.75px;
+    }
+
     /* ── Table ── */
     table {
       width: 100%;
@@ -185,6 +234,12 @@ export function buildStyles(
       white-space: nowrap;
     }
 
+    /* Invoice Report print refinement — every column header centered (opt-in) */
+    .invoice-report-compact thead th {
+      text-align: center;
+      vertical-align: middle;
+    }
+
     tbody td {
       padding: 6px 8px;
       text-align: right;
@@ -202,6 +257,21 @@ export function buildStyles(
       white-space: nowrap;
     }
 
+    /* Invoice Report print refinement — opt-in via ReportOptions.invoiceReportLayout */
+    td.nowrap-cell {
+      white-space: nowrap;
+    }
+
+    td.cell-center {
+      text-align: center;
+      vertical-align: middle;
+    }
+
+    td.cell-left {
+      text-align: left;
+      vertical-align: middle;
+    }
+
     tbody tr.zebra {
       background: #f4f6f9;
     }
@@ -210,7 +280,7 @@ export function buildStyles(
       page-break-inside: avoid;
     }
 
-    tfoot tr.totals td {
+    tr.totals td {
       padding: 7px 8px;
       text-align: right;
       font-size: 10.5px;
@@ -221,8 +291,53 @@ export function buildStyles(
       color: ${primary};
     }
 
-    tfoot tr.totals td.num {
+    tr.totals td.num {
       font-weight: 700;
+    }
+
+    /* Invoice Report print refinement — clean totals band: keep shading + the top
+       separator line, drop the per-cell grid borders (opt-in) */
+    .invoice-report-compact tr.totals td {
+      border: none;
+      border-top: 2px solid ${primary};
+    }
+
+    /* ── Summary Table (borderless clean list — e.g. customer rollup, opt-in via
+       ReportOptions.summaryTable) ── */
+    .report-summary-section {
+      margin-top: 8px;
+      page-break-inside: avoid;
+    }
+
+    .report-summary-table {
+      width: auto;
+      margin: 0 0 0 auto;
+      border-collapse: collapse;
+    }
+
+    .report-summary-table thead tr {
+      background: transparent;
+      color: inherit;
+    }
+
+    .report-summary-table th,
+    .report-summary-table td {
+      border: none;
+      padding: 3px 10px;
+      text-align: right;
+      font-size: 8.5px;
+      white-space: nowrap;
+    }
+
+    .report-summary-table th {
+      font-weight: 700;
+      color: #475569;
+    }
+
+    .report-summary-table td.num {
+      font-variant-numeric: tabular-nums;
+      direction: ltr;
+      unicode-bidi: isolate;
     }
 
     /* ── Notes ── */

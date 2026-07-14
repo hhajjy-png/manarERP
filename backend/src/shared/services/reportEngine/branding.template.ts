@@ -5,13 +5,16 @@ import { esc } from './htmlUtils';
 
 export function buildBrandingHeader(
   branding: ReportBranding,
-  config?: Pick<ProfileConfig, 'headerHeight' | 'logoSize' | 'logoAlignment'>
+  config?: Pick<ProfileConfig, 'headerHeight' | 'logoSize' | 'logoAlignment'>,
+  /** Presentation-only override for the logo box width (e.g. the Invoice Report's
+   *  ~10% size reduction). Leave unset to keep the profile's default width. */
+  logoWidthOverride?: string,
 ): string {
   const headerStyle = config?.headerHeight
     ? ` style="min-height: ${config.headerHeight}"`
     : '';
   const logoWrapStyle = `display:flex;justify-content:${resolveLogoJustify(config?.logoAlignment)}`;
-  const logoWidthStyle = `width:${resolveLogoWidth(config?.logoSize)};height:auto`;
+  const logoWidthStyle = `width:${logoWidthOverride ?? resolveLogoWidth(config?.logoSize)};height:auto`;
 
   const logoHtml = branding.logoBase64
     ? `<img src="data:image/png;base64,${branding.logoBase64}" alt="شعار الشركة" class="company-logo branding-logo" style="${logoWidthStyle}">`
