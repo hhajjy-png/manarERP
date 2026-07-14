@@ -18,9 +18,9 @@ export function toTrialBalanceReportInput(
         { header: 'الكود',        key: 'accountCode',  width: 14 },
         { header: 'اسم الحساب',   key: 'accountName',  width: 28 },
         { header: 'النوع',        key: 'accountType',  width: 14 },
-        { header: 'إجمالي مدين',  key: 'totalDebit',   width: 16, numFmt: '#,##0.000' },
-        { header: 'إجمالي دائن',  key: 'totalCredit',  width: 16, numFmt: '#,##0.000' },
-        { header: 'الرصيد',       key: 'balance',      width: 14, numFmt: '#,##0.000' },
+        { header: 'إجمالي مدين',  key: 'totalDebit',   width: 16, numFmt: '#,##0.000', format: 'currency' as const },
+        { header: 'إجمالي دائن',  key: 'totalCredit',  width: 16, numFmt: '#,##0.000', format: 'currency' as const },
+        { header: 'الرصيد',       key: 'balance',      width: 14, numFmt: '#,##0.000', format: 'currency' as const },
         { header: 'طبيعة الرصيد', key: 'balanceType',  width: 12 },
       ],
       rows: response.rows.map(r => {
@@ -50,10 +50,10 @@ export function toTrialBalanceReportInput(
     columns: [
       { header: 'الكود',          key: 'accountCode',    width: 14 },
       { header: 'اسم الحساب',    key: 'accountName',    width: 28 },
-      { header: 'رصيد الافتتاح', key: 'openingBalance', width: 16, numFmt: '#,##0.000' },
-      { header: 'مدين الفترة',    key: 'periodDebit',    width: 16, numFmt: '#,##0.000' },
-      { header: 'دائن الفترة',    key: 'periodCredit',   width: 16, numFmt: '#,##0.000' },
-      { header: 'رصيد الإقفال',  key: 'closingBalance', width: 16, numFmt: '#,##0.000' },
+      { header: 'رصيد الافتتاح', key: 'openingBalance', width: 16, numFmt: '#,##0.000', format: 'currency' as const },
+      { header: 'مدين الفترة',    key: 'periodDebit',    width: 16, numFmt: '#,##0.000', format: 'currency' as const },
+      { header: 'دائن الفترة',    key: 'periodCredit',   width: 16, numFmt: '#,##0.000', format: 'currency' as const },
+      { header: 'رصيد الإقفال',  key: 'closingBalance', width: 16, numFmt: '#,##0.000', format: 'currency' as const },
     ],
     rows: response.rows.map(r => {
       const row = r as TrialBalancePeriodRow;

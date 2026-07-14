@@ -2,14 +2,14 @@ import type { FinancialResponse, StatementRow } from '../financial.types';
 import type { ReportInput } from '../../reportEngine/excel.service';
 import { buildSubtitle, formatDate, translateRefType } from '../summary.utils';
 
-const STATEMENT_EXPORT_COLUMNS: import('../../reportEngine/excel.service').ReportColumn[] = [
+export const STATEMENT_EXPORT_COLUMNS: import('../../reportEngine/excel.service').ReportColumn[] = [
   { header: 'التاريخ',  key: 'date',           width: 14 },
   { header: 'المرجع',   key: 'reference',       width: 20 },
   { header: 'النوع',    key: 'referenceType',   width: 14 },
   { header: 'البيان',   key: 'description',     width: 30 },
-  { header: 'مدين',     key: 'debit',           width: 14, numFmt: '#,##0.000' },
-  { header: 'دائن',     key: 'credit',          width: 14, numFmt: '#,##0.000' },
-  { header: 'الرصيد',   key: 'runningBalance',  width: 14, numFmt: '#,##0.000' },
+  { header: 'مدين',     key: 'debit',           width: 14, numFmt: '#,##0.000', format: 'currency' as const },
+  { header: 'دائن',     key: 'credit',          width: 14, numFmt: '#,##0.000', format: 'currency' as const },
+  { header: 'الرصيد',   key: 'runningBalance',  width: 14, numFmt: '#,##0.000', format: 'currency' as const },
 ];
 
 export function toStatementReportInput(
