@@ -5,7 +5,7 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { tafqeetKWD } from '../lib/tafqeet';
-import { formatDate, todayDateOnly } from '../lib/date';
+import { formatDate, todayDateOnly, formatDisplayDate } from '../lib/date';
 import { formatNumber } from '../lib/format';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
@@ -106,10 +106,12 @@ function chequeChip(status: string, t: (k: string) => string) {
   return <StatusChip tone={m.tone} icon={m.icon}>{t(m.key)}</StatusChip>;
 }
 
+// تاريخ الشيك المطبوع. كان ISO («2026-01-31») — صيغة داخلية لا تُعرض للمستخدم.
+// صار DD/MM/YYYY عبر المُنسّق المشترك (string-safe: لا يُبنى Date على تاريخ فقط، فلا
+// انزياح يوم). **عدد المحارف نفسه (10)**، فلا يتغيّر عرض النصّ ولا تنزاح هندسة الشيك.
 function fmtDate(v: string | null | undefined): string {
   if (!v) return '—';
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? '—' : d.toISOString().slice(0, 10);
+  return formatDisplayDate(v);
 }
 
 // الرمز من الإعداد (KWD / د.ك) لا من ثابت في الشيفرة؛ الأرقام غربية دائمًا.

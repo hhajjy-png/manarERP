@@ -126,8 +126,9 @@ describe('buildReportHtml', () => {
     const html = buildReportHtml(BASE_INPUT, {
       dateRange: { from: '2026-01-01', to: '2026-06-30' },
     });
-    expect(html).toContain('2026-01-01');
-    expect(html).toContain('2026-06-30');
+    expect(html).toContain('من 01/01/2026 إلى 30/06/2026');
+    expect(html).not.toContain('2026-01-01');          // ISO صيغة داخلية لا تُعرض
+    expect(html).not.toContain('2026-06-30');
   });
 
   it('uses a4-landscape by default (landscape in @page CSS)', () => {
@@ -256,8 +257,9 @@ describe('buildReportHeader', () => {
 
   it('shows date range when provided', () => {
     const html = buildReportHeader(BASE_INPUT, { dateRange: { from: '2026-01-01', to: '2026-06-30' } });
-    expect(html).toContain('2026-01-01');
-    expect(html).toContain('2026-06-30');
+    expect(html).toContain('من 01/01/2026 إلى 30/06/2026');
+    expect(html).not.toContain('2026-01-01');          // ISO صيغة داخلية لا تُعرض
+    expect(html).not.toContain('2026-06-30');
   });
 
   it('includes generatedBy in the generated line', () => {
@@ -309,11 +311,15 @@ describe('buildTable', () => {
     expect(html).toContain('1,500.5');
   });
 
-  it('formats money columns (format: currency) as "… KWD"', () => {
+  // Phase E: الرمز صار في **عنوان العمود** مرّة واحدة، والخليّة رقم مجرّد.
+  // لم يُضعَّف التأكيد: نثبّت الرقم في الخليّة **وغياب الرمز عنها** **ووجوده في العنوان**.
+  it('money column: symbol in the header once, bare number in the cell', () => {
     const moneyCols = [{ header: 'المبلغ', key: 'amount', format: 'currency' as const }];
     const moneyRows = [{ amount: 1500.5 }];
     const html = buildTable(moneyCols, moneyRows);
-    expect(html).toContain('1,500.500 KWD');
+    expect(html).toContain('<td class="num">1,500.500</td>');
+    expect(html).not.toContain('1,500.500 KWD');
+    expect(html).toContain('(KWD)');
   });
 });
 
@@ -431,8 +437,11 @@ describe('fmtCell', () => {
     expect(fmtCell('<b>test</b>')).toBe('&lt;b&gt;test&lt;/b&gt;');
   });
 
-  it('formats currency columns with formatCurrency ("… KWD")', () => {
-    expect(fmtCell(1500.5, { format: 'currency' })).toBe('1,500.500 KWD');
+  it('currency cell: bare number — the symbol lives in the column header', () => {
+    expect(fmtCell(1500.5, { format: 'currency' })).toBe('1,500.500');
+    expect(fmtCell(0, { format: 'currency' })).toBe('0.000');       // الصفر قيمة
+    expect(fmtCell(null, { format: 'currency' })).toBe('');          // السلوك القائم للفراغ
+    expect(fmtCell(1500.5, { format: 'currency' })).not.toContain('KWD');
   });
 
   it('keeps generic numeric formatting when no col/format is passed (unchanged)', () => {

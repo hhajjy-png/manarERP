@@ -1,12 +1,16 @@
 import type { ReportColumn } from './excel.service';
 import { fmtCell, esc } from './htmlUtils';
+import { moneyHeader } from '../../utils/currency';
 
 export function buildTable(
   columns: ReportColumn[],
   rows: Record<string, unknown>[],
   totalsRow?: Record<string, unknown>,
 ): string {
-  const headerCells = columns.map((c) => `<th>${esc(c.header)}</th>`).join('');
+  // الرمز مرّة واحدة في العنوان («المبلغ (KWD)») بدل تكراره في كل صفّ.
+  const headerCells = columns
+    .map((c) => `<th>${esc(c.format === 'currency' ? moneyHeader(c.header) : c.header)}</th>`)
+    .join('');
 
   const numAttr = (c: ReportColumn) => (c.format === 'currency' ? ' class="num"' : '');
 
