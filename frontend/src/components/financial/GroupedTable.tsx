@@ -3,7 +3,7 @@ import type { StatementRow } from '../../types/financial.types';
 import type { FinancialDrillDownState } from './DrillDownLink';
 import { DrillDownLink } from './DrillDownLink';
 import { formatDate, formatMonthLabel } from '../../lib/date';
-import { fcCurrency, referenceTypeAr, fcMoneyHeader } from './financialLabels';
+import { referenceTypeAr, fcMoneyHeader, fcMoneyCell } from './financialLabels';
 
 interface Props {
   rows: StatementRow[];
@@ -39,8 +39,11 @@ function monthSum(rows: StatementRow[]) {
   return rows.reduce((acc, r) => ({ debit: acc.debit + r.debit, credit: acc.credit + r.credit }), { debit: 0, credit: 0 });
 }
 
+// الرمز يقع **مرّة واحدة في عنوان العمود** (`fcMoneyHeader`)، فالخليّة رقم مجرّد.
+// وكان `n ? … : ''` **يُخفي الصفر الحقيقي**: رصيد أو حركة صفرية تُقرأ «لا قيمة» بينما
+// هي صفر فعلي. الآن «0.000»، و«—» لغير المنطبق وحده — عبر المُنسّق المشترك.
 function fmt(n: number) {
-  return n ? fcCurrency(n) : '';
+  return fcMoneyCell(n);
 }
 
 export function GroupedTable({ rows, currentState, highlightId }: Props) {

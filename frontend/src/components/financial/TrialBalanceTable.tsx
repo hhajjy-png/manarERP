@@ -81,10 +81,10 @@ export function TrialBalanceTable({ rows, mode, totals }: Props) {
         <thead>
           <tr>
             <th>الكود</th><th>اسم الحساب</th>
-            <th className="num">رصيد الافتتاح</th>
-            <th className="num">مدين الفترة</th>
-            <th className="num">دائن الفترة</th>
-            <th className="num">رصيد الإقفال</th>
+            <th className="num">{fcMoneyHeader('رصيد الافتتاح')}</th>
+            <th className="num">{fcMoneyHeader('مدين الفترة')}</th>
+            <th className="num">{fcMoneyHeader('دائن الفترة')}</th>
+            <th className="num">{fcMoneyHeader('رصيد الإقفال')}</th>
           </tr>
         </thead>
         <tbody>

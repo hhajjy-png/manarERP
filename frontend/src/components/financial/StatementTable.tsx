@@ -1,7 +1,7 @@
 import type { StatementRow } from '../../types/financial.types';
 import { DrillDownLink, type FinancialDrillDownState } from './DrillDownLink';
 import { formatDate } from '../../lib/date';
-import { fcCurrency, referenceTypeAr, fcMoneyHeader } from './financialLabels';
+import { referenceTypeAr, fcMoneyHeader, fcMoneyCell } from './financialLabels';
 
 interface Props {
   rows: StatementRow[];
@@ -9,8 +9,11 @@ interface Props {
   highlightId?: string | null;
 }
 
+// الرمز يقع **مرّة واحدة في عنوان العمود** (`fcMoneyHeader`)، فالخليّة رقم مجرّد.
+// وكان `n ? … : ''` **يُخفي الصفر الحقيقي**: رصيد أو حركة صفرية تُقرأ «لا قيمة» بينما
+// هي صفر فعلي. الآن «0.000»، و«—» لغير المنطبق وحده — عبر المُنسّق المشترك.
 function fmt(n: number) {
-  return n ? fcCurrency(n) : '';
+  return fcMoneyCell(n);
 }
 
 export function StatementTable({ rows, currentState, highlightId }: Props) {
