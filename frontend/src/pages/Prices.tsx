@@ -188,7 +188,8 @@ export default function Prices() {
         <div className="xpl-kpi-grid">
           <MetricCard icon="handshake" tone="indigo" label={t('agreements.stats.count')} value={stats.count} />
           <MetricCard icon="groups" tone="green" label={t('agreements.stats.customers')} value={stats.customerCount} />
-          <MetricCard icon="update" tone="blue" label={t('agreements.stats.last_updated')} value={stats.lastUpdatedAt ? formatDate(stats.lastUpdatedAt) : '—'} />
+          {/* التاريخ أطول من رقم مجرّد؛ فيُعرض بخط أهدأ (−20%) دون مسّ البطاقتين المجاورتين. */}
+          <MetricCard icon="update" tone="blue" label={t('agreements.stats.last_updated')} value={<span className="prx-kpi-date">{stats.lastUpdatedAt ? formatDate(stats.lastUpdatedAt) : '—'}</span>} />
         </div>
       )}
 

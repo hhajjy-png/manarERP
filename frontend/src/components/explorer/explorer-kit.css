@@ -223,6 +223,29 @@
 .xpl-hero-sub   { font-size: 12px; color: rgba(255, 255, 255, .9); margin-top: 2px; display: inline-flex; align-items: center; gap: 5px; }
 .xpl-hero-sub .material-symbols-outlined { font-size: 16px !important; }
 
+/* Financial pages: the hero value is a full money string ("293,980.600 KWD"), which at
+   30px crowds the card. 22px (−25%) keeps it dominant without competing with the label.
+   Scoped to the five financial pages — the other seven HeroMetric callers show short
+   counts and keep the 30px baseline. */
+.invcx-metrics .xpl-hero-value,
+.expx-metrics  .xpl-hero-value,
+.chqx-metrics  .xpl-hero-value,
+.salx-metrics  .xpl-hero-value,
+.accx-metrics  .xpl-hero-value { font-size: 22px; }
+
+/* The 180px column was sized for counts. A money value is one unbreakable unit
+   (`.money-cell` is `nowrap` so BiDi cannot split the number from its symbol), and
+   "293,980.600 KWD" needs ~159px of text — inside a 180px card the icon leaves it 101px,
+   so it spilled. Shrinking the font is not a fix: fitting 159px into 101px would mean a
+   ~12px value. The cards that actually carry money get the width they need instead; the
+   card design, padding, alignment and 19px value are untouched, there is simply one
+   fewer per row on a narrow window. */
+.chqx-metrics .xpl-kpi-grid,
+.salx-metrics .xpl-kpi-grid,
+.accx-metrics .xpl-kpi-grid {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
 /* ════════════════════════════════════════════════════════════════════════════
    Chips & badges
    ════════════════════════════════════════════════════════════════════════════ */
