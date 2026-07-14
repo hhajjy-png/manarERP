@@ -488,7 +488,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
                     <th>{t('col.acc.entry_number')}</th>
                     <th>{t('col.date')}</th>
                     <th>{t('col.acc.description')}</th>
-                    <th>{t('col.acc.total_debit_lbl')}</th>
+                    <th>{fcMoneyHeader(t('col.acc.total_debit_lbl'))}</th>
                     <th>{t('col.status')}</th>
                     <th aria-label="فتح" />
                   </tr>

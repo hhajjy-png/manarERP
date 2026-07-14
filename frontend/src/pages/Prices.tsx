@@ -31,6 +31,7 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Prices.css';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 const contractUnits = ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'] as const;
 
@@ -252,7 +253,7 @@ export default function Prices() {
                     <th>{t('col.prices.company')}</th>
                     <th>{t('col.prices.location')}</th>
                     <th>{t('col.prices.unit')}</th>
-                    <th>{t('col.prices.unit_price')}</th>
+                    <th>{fcMoneyHeader(t('col.prices.unit_price'))}</th>
                     <th aria-label="فتح" />
                   </tr>
                 </thead>
@@ -356,10 +357,10 @@ export default function Prices() {
                     <th>{t('agreements.usage.col.agreement')}</th>
                     <th>{t('agreements.usage.col.customer')}</th>
                     <th>{t('agreements.usage.col.unit')}</th>
-                    <th>{t('agreements.usage.col.price')}</th>
+                    <th>{fcMoneyHeader(t('agreements.usage.col.price'))}</th>
                     <th className="prx-center">{t('agreements.usage.col.count')}</th>
                     <th className="prx-center">{t('agreements.usage.col.qty')}</th>
-                    <th>{t('agreements.usage.col.amount')}</th>
+                    <th>{fcMoneyHeader(t('agreements.usage.col.amount'))}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -388,7 +389,7 @@ export default function Prices() {
                     <th className="prx-center">عدد الاتفاقيات</th>
                     <th className="prx-center">مرات الاستخدام</th>
                     <th className="prx-center">إجمالي الكمية</th>
-                    <th>إجمالي الإيرادات</th>
+                    <th>{fcMoneyHeader('إجمالي الإيرادات')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -426,9 +427,9 @@ function AgreementMiniTable({ rows }: { rows: AgreementRow[] }) {
             <th>المصنع</th>
             <th>الشركة</th>
             <th>العميل</th>
-            <th>السعر</th>
+            <th>{fcMoneyHeader('السعر')}</th>
             <th className="prx-center">الاستخدام</th>
-            <th>إجمالي الفاتورة</th>
+            <th>{fcMoneyHeader('إجمالي الفاتورة')}</th>
             <th>صالح حتى</th>
           </tr>
         </thead>

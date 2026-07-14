@@ -561,7 +561,7 @@ export default function Invoices() {
               <DrawerSection title="بنود الفاتورة">
                 <table className="invcx-detail-table">
                   <thead>
-                    <tr><th>الوصف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>
+                    <tr><th>الوصف</th><th>الكمية</th><th>{fcMoneyHeader('السعر')}</th><th>{fcMoneyHeader('الإجمالي')}</th></tr>
                   </thead>
                   <tbody>
                     {items.map((it, idx) => (
@@ -1510,9 +1510,9 @@ function MonthlyReportModal({
               <tr>
                 <th style={thStyle}>{t('inv.monthly_report.period')}</th>
                 <th style={{ ...thStyle, textAlign: 'end' }}>عدد</th>
-                <th style={{ ...thStyle, textAlign: 'end' }}>إجمالي</th>
-                <th style={{ ...thStyle, textAlign: 'end' }}>محصل</th>
-                <th style={{ ...thStyle, textAlign: 'end' }}>متبقي</th>
+                <th style={{ ...thStyle, textAlign: 'end' }}>{fcMoneyHeader('إجمالي')}</th>
+                <th style={{ ...thStyle, textAlign: 'end' }}>{fcMoneyHeader('محصل')}</th>
+                <th style={{ ...thStyle, textAlign: 'end' }}>{fcMoneyHeader('متبقي')}</th>
               </tr>
             </thead>
             <tbody>
