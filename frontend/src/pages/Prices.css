@@ -54,3 +54,7 @@
 }
 .prx-note .material-symbols-outlined { font-size: 18px !important; color: var(--xpl-primary); flex-shrink: 0; margin-top: 1px; }
 .prx-note-ok { color: var(--xpl-green); font-weight: 600; margin-top: 4px; }
+
+/* بطاقة «آخر تحديث» تعرض تاريخًا لا رقمًا، فتُقرأ أهدأ بخط أصغر (19px → 15px، −20%)؛
+   بطاقتا العدد والعملاء تحتفظان بحجم المجموعة. */
+.prx-kpi-date { font-size: 15px; }
