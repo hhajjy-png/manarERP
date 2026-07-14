@@ -196,6 +196,10 @@ export class ReportsService {
         billingPeriod: i.billingMonth && i.billingYear
           ? `${ARABIC_MONTHS[(i.billingMonth as number) - 1]} ${i.billingYear}`
           : dateAr(i.issueDate),
+        // Raw passthrough (already fetched above, no extra query) — not a display column,
+        // used by the invoices print layout to group its customer summary by accounting month.
+        billingMonth: i.billingMonth ?? null,
+        billingYear: i.billingYear ?? null,
         issueDate: i.issueDate,
         total: num(i.total),
         paid: num(i.paidAmount),

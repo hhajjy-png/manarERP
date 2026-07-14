@@ -3,6 +3,7 @@ import { reportsService } from './reports.service';
 import { buildExcel } from '../../shared/services/reportEngine/excel.service';
 import { buildReportHtml } from '../../shared/services/reportEngine/html.service';
 import { loadReportBranding } from '../../shared/services/reportEngine/brandingLoader';
+import { applyInvoicePrintLayout } from './invoicePrintLayout';
 import { authenticate } from '../../core/middleware/auth.middleware';
 import { requirePermission } from '../../core/middleware/rbac.middleware';
 import { asyncHandler } from '../../core/utils/asyncHandler';
@@ -54,11 +55,16 @@ router.get(
 
     if (format === 'html') {
       const branding = await loadReportBranding();
-      const html = buildReportHtml(data, {
+      const isInvoiceReport = type === 'invoices';
+      const { data: printData, options: invoiceOptions } = isInvoiceReport
+        ? applyInvoicePrintLayout(data, req.query.status as string | undefined)
+        : { data, options: {} };
+      const html = buildReportHtml(printData, {
         profile: 'a4-landscape',
         branding,
         showPageNumbers: true,
         generatedBy: req.user?.username,
+        ...invoiceOptions,
       });
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
       res.setHeader('Content-Disposition', `inline; filename="report-${type}.html"`);

@@ -17,6 +17,26 @@ export function buildReportHeader(input: ReportInput, options?: ReportOptions): 
     ? `<p class="report-generated">تاريخ التقرير: ${today} · بواسطة: ${esc(options.generatedBy)}</p>`
     : `<p class="report-generated">تاريخ التقرير: ${today}</p>`;
 
+  if (options?.invoiceReportLayout) {
+    const dateRangeText = options?.dateRange?.from || options?.dateRange?.to
+      ? `الفترة: ${formatDateRange(options.dateRange!.from, options.dateRange!.to)}`
+      : '';
+    const generatedText = options?.generatedBy
+      ? `تاريخ التقرير: ${today} — بواسطة: ${options.generatedBy}`
+      : `تاريخ التقرير: ${today}`;
+    const segments = [
+      `<span class="report-title-inline">${esc(input.title)}</span>`,
+      input.subtitle ? `<span class="report-subtitle-inline">${esc(input.subtitle)}</span>` : '',
+      dateRangeText ? `<span class="report-daterange-inline">${esc(dateRangeText)}</span>` : '',
+      `<span class="report-generated-inline">${esc(generatedText)}</span>`,
+    ].filter(Boolean);
+    return `
+      <div class="report-header report-header--single-line">
+        <p class="report-singleline">${segments.join(' — ')}</p>
+      </div>
+    `;
+  }
+
   return `
     <div class="report-header">
       <h1 class="report-title">${esc(input.title)}</h1>

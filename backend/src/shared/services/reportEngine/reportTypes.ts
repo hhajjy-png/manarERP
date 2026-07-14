@@ -51,4 +51,16 @@ export interface ReportOptions {
   showSignatureArea?: boolean;
   /** Show page x / y in the page footer. Default true. */
   showPageNumbers?: boolean;
+  /** Invoice Report print refinement (2026-07): merges title/subtitle/date/generatedBy
+   *  into one header line, prevents table-cell wrapping, tightens header spacing, and
+   *  renders the totals row once at the end instead of repeating it via <tfoot>.
+   *  Opt-in — leaves every other report's print/PDF output unchanged. */
+  invoiceReportLayout?: boolean;
+  /** Optional borderless "clean list" table rendered right after the main table/totals
+   *  row — e.g. a customer-level rollup. Presentation-only: the caller computes the
+   *  rows; the engine only renders them. */
+  summaryTable?: {
+    columns: { header: string; key: string; format?: 'currency' }[];
+    rows: Record<string, unknown>[];
+  };
 }
