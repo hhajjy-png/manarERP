@@ -31,6 +31,31 @@ export function ytdMonths(now: Date = new Date()): MonthWindow[] {
 }
 
 /**
+ * يُرجع نافذة شهرية لكل شهر بين `start` و`end` (شاملة الطرفين)، بصرف النظر عن السنة.
+ * تعميم لـ {@link ytdMonths} يقبل مدى تاريخ عشوائي بدل تثبيته على السنة الحالية.
+ */
+export function monthWindowsBetween(start: Date, end: Date): MonthWindow[] {
+  const windows: MonthWindow[] = [];
+  let year = start.getFullYear();
+  let month = start.getMonth();
+  const endYear = end.getFullYear();
+  const endMonth = end.getMonth();
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    windows.push({
+      label: `${year}-${String(month + 1).padStart(2, '0')}`,
+      start: new Date(year, month, 1),
+      end: new Date(year, month + 1, 0, 23, 59, 59, 999),
+    });
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+  }
+  return windows;
+}
+
+/**
  * نهاية اليوم محليًا (23:59:59.999).
  *
  * ضروري لتقارير «كما في تاريخ»: `asOfDate` يصل كـ `2024-12-31` أي منتصف الليل،

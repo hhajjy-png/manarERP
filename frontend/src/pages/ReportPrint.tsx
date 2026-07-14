@@ -10,11 +10,14 @@ import { fcMoneyHeader } from '../components/financial/financialLabels';
 import { currentCurrencyLanguage } from '../stores/settingsStore';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string; format?: 'currency' }[]; rows: any[]; totalsRow?: any };
+type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string; format?: 'currency'; align?: 'left' | 'center' | 'right' }[]; rows: any[]; totalsRow?: any };
 
 const th: CSSProperties = { border: '1px solid #cbd5e1', padding: '4px 8px', background: '#1d4e6f', color: '#fff', textAlign: 'right', fontSize: 10.5, fontWeight: 700, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' };
 const td: CSSProperties = { border: '1px solid #e2e8f0', padding: '4px 8px', textAlign: 'right', fontSize: 9.5, fontWeight: 400 };
 const tdNum: CSSProperties = { fontVariantNumeric: 'tabular-nums', fontWeight: 600 };
+/** يبني تجاوز محاذاة أفقية/رأسية لعمود صرّح بـ `align` — كلا الخاصيتين معًا كما هو مطلوب. */
+const alignStyle = (align?: 'left' | 'center' | 'right'): CSSProperties =>
+  align ? { textAlign: align, verticalAlign: 'middle' } : {};
 
 
 export default function ReportPrint() {
@@ -117,18 +120,18 @@ export default function ReportPrint() {
         <thead>
           {/* Phase E: الرمز مرّة واحدة في العنوان — والخلايا أرقام مجرّدة. */}
           <tr>{rep.columns.map((c) => (
-            <th key={c.key} style={th}>{c.format === 'currency' ? fcMoneyHeader(c.header) : c.header}</th>
+            <th key={c.key} style={{ ...th, ...alignStyle(c.align) }}>{c.format === 'currency' ? fcMoneyHeader(c.header) : c.header}</th>
           ))}</tr>
         </thead>
         <tbody>
           {rep.rows.map((row, i) => (
             <tr key={i} style={{ background: i % 2 ? '#f8fafc' : '#fff' }}>
-              {rep.columns.map((c) => <td key={c.key} style={c.format === 'currency' ? { ...td, ...tdNum } : td}>{formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}</td>)}
+              {rep.columns.map((c) => <td key={c.key} style={{ ...(c.format === 'currency' ? { ...td, ...tdNum } : td), ...alignStyle(c.align) }}>{formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}</td>)}
             </tr>
           ))}
           {rep.totalsRow && (
             <tr>
-              {rep.columns.map((c) => <td key={c.key} style={{ ...td, fontSize: 10.5, fontWeight: 700, background: '#f0f3f7', WebkitPrintColorAdjust: 'exact', ...(c.format === 'currency' ? { fontVariantNumeric: 'tabular-nums' as const } : {}) }}>{formatReportCell(rep.totalsRow[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}</td>)}
+              {rep.columns.map((c) => <td key={c.key} style={{ ...td, fontSize: 10.5, fontWeight: 700, background: '#f0f3f7', WebkitPrintColorAdjust: 'exact', ...(c.format === 'currency' ? { fontVariantNumeric: 'tabular-nums' as const } : {}), ...alignStyle(c.align) }}>{formatReportCell(rep.totalsRow[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}</td>)}
             </tr>
           )}
         </tbody>

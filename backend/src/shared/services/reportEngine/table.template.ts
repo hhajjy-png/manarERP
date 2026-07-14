@@ -16,9 +16,19 @@ export function buildTable(
   totalsRow?: Record<string, unknown>,
   options?: BuildTableOptions,
 ): string {
+  // محاذاة العمود (`ReportColumn.align`) كـ inline style — تتجاوز أي قاعدة CSS في
+  // styles.template.ts (مثل `thead th`/`tr.totals td`) بصرف النظر عن الخصوصية،
+  // بدل الاعتماد على صنف CSS قد يخسر معركة الخصوصية (وهذا ما كان يحدث فعلًا: صفوف
+  // المجاميع وخلايا الرأس كانتا تتجاهلان `align: 'center'`).
+  const alignStyle = (c: ReportColumn): string => {
+    if (c.align === 'center') return ' style="text-align:center;vertical-align:middle"';
+    if (c.align === 'left') return ' style="text-align:left;vertical-align:middle"';
+    return '';
+  };
+
   // الرمز مرّة واحدة في العنوان («المبلغ (KWD)») بدل تكراره في كل صفّ.
   const headerCells = columns
-    .map((c) => `<th>${esc(c.format === 'currency' ? moneyHeader(c.header) : c.header)}</th>`)
+    .map((c) => `<th${alignStyle(c)}>${esc(c.format === 'currency' ? moneyHeader(c.header) : c.header)}</th>`)
     .join('');
 
   const cellAttr = (c: ReportColumn) => {
@@ -27,7 +37,8 @@ export function buildTable(
     if (options?.noWrapCells) classes.push('nowrap-cell');
     if (c.align === 'center') classes.push('cell-center');
     else if (c.align === 'left') classes.push('cell-left');
-    return classes.length ? ` class="${classes.join(' ')}"` : '';
+    const classAttr = classes.length ? ` class="${classes.join(' ')}"` : '';
+    return `${classAttr}${alignStyle(c)}`;
   };
 
   const bodyRows = rows
