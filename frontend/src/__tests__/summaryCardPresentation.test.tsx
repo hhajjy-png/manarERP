@@ -165,3 +165,30 @@ describe('العزل ثنائي الاتجاه — السبب الحقيقي ل�
     expect(container.querySelectorAll('.money-cell')).toHaveLength(2);
   });
 });
+
+
+describe('TextWithMoney — تصليب وقت التشغيل (انحدار حقيقي وقع)', () => {
+  // توصيات لوحة المعلومات لا تحمل `message` إطلاقًا؛ الحقل الغائب على `.split()` أسقط
+  // اللوحة كلها إلى RootErrorBoundary.
+  it('undefined لا يُسقط الشاشة — ولا يخترع نصًّا', () => {
+    const { container } = render(<TextWithMoney text={undefined} />);
+    expect(container.textContent).toBe('');
+  });
+
+  it('null والنصّ الفارغ كذلك', () => {
+    expect(render(<TextWithMoney text={null} />).container.textContent).toBe('');
+    cleanup();
+    expect(render(<TextWithMoney text="" />).container.textContent).toBe('');
+  });
+
+  it('لا يحوّل الغياب إلى «—» ولا إلى «undefined»', () => {
+    const { container } = render(<TextWithMoney text={undefined} />);
+    expect(container.textContent).not.toContain('undefined');
+    expect(container.textContent).not.toContain('—');
+  });
+
+  it('النصّ الصحيح ما زال يعمل بعد التصليب', () => {
+    const { container } = render(<TextWithMoney text="المتبقي 250.500 KWD" />);
+    expect(container.querySelectorAll('.money-cell')).toHaveLength(1);
+  });
+});

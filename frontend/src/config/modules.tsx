@@ -43,7 +43,17 @@ export function MoneyText({ value }: { value: unknown }) {
 const MONEY_SPLIT = /(-?[\d,]+\.\d{3}\s*(?:KWD|د\.ك))/g;
 const MONEY_MATCH = /^-?[\d,]+\.\d{3}\s*(?:KWD|د\.ك)$/;
 
-export function TextWithMoney({ text }: { text: string }) {
+export function TextWithMoney({ text }: { text?: string | null }) {
+  // النصّ **اختياري فعلًا**: استجابة الـ API تُصنَّف بلا تحقّق وقت التشغيل، وقد يصل حقل
+  // غائب — وقد حدث: توصيات لوحة المعلومات لا تحمل `message` إطلاقًا (الخلفية ترسل
+  // reason / expectedImpact / suggestedAction). كان React يُصيّر `undefined` فراغًا
+  // بصمت، فلمّا مرّ الحقل الغائب على `.split()` انهارت اللوحة كلها.
+  //
+  // الغياب ⇒ لا نُصيّر شيئًا: **نفس** ما كان يحدث قبل هذا المكوّن، لا أكثر. لا نخترع
+  // نصًّا بديلًا، ولا نضع «—» فنُوهم بقيمة، ولا نبتلع عيب البيانات — العقد صار صريحًا،
+  // والعيب مُبلَّغ عنه بدل أن يُسقط الشاشة.
+  if (typeof text !== 'string' || text === '') return null;
+
   const parts = text.split(MONEY_SPLIT);
   return (
     <>
