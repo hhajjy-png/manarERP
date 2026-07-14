@@ -15,6 +15,8 @@ import {
 } from 'recharts';
 import { CHART_INITIAL_DIMENSION } from '../lib/rechartsDefaults';
 import './BankSalaryAnalytics.css';
+import { money, MoneyText } from '../config/modules';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -194,7 +196,7 @@ const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: 
   return (
     <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '10px 14px', fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', direction: 'rtl' }}>
       <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6, marginTop: 0 }}>{label}</p>
-      <p style={{ color: '#60A5FA', fontSize: 13, fontWeight: 700, margin: 0 }}>{formatCurrency(Number(payload[0].value))}</p>
+      <p style={{ color: '#60A5FA', fontSize: 13, fontWeight: 700, margin: 0 }}>{<MoneyText value={Number(payload[0].value)} />}</p>
     </div>
   );
 };
@@ -555,8 +557,9 @@ export default function BankSalaryAnalytics() {
   const kpiCards = analytics ? [
     {
       label: 'إجمالي المبالغ المحوّلة',
-      value: <PrivateAmount value={fmt3(analytics.totalAmount)} />,
-      sub: 'KWD',
+      // كان الرمز يُعرض كسطر «sub» **تحت** الرقم. صار بجواره في سطر واحد، ويتبع الإعداد.
+      value: <PrivateAmount value={analytics.totalAmount} />,
+      sub: '',
       icon: 'payments',
       bg: 'rgba(59,130,246,0.12)',
       color: '#3B82F6',
@@ -628,22 +631,23 @@ export default function BankSalaryAnalytics() {
       icon: 'arrow_upward',
       iconColor: '#16A34A',
       label: 'أكبر تحويل فردي',
-      value: <PrivateAmount value={maxHighest > 0 ? fmt3(maxHighest) : '—'} />,
-      sub: 'KWD',
+      // القيمة الغائبة تعرض «—» وحدها — لا «— KWD».
+      value: maxHighest > 0 ? <PrivateAmount value={maxHighest} /> : <span>—</span>,
+      sub: '',
     },
     {
       icon: 'arrow_downward',
       iconColor: '#ef4444',
       label: 'أصغر تحويل فردي',
-      value: <PrivateAmount value={minLowest < Infinity && minLowest > 0 ? fmt3(minLowest) : '—'} />,
-      sub: 'KWD',
+      value: minLowest < Infinity && minLowest > 0 ? <PrivateAmount value={minLowest} /> : <span>—</span>,
+      sub: '',
     },
     {
       icon: 'workspace_premium',
       iconColor: '#F59E0B',
       label: 'أعلى موظف راتباً',
       value: analytics.topEmployees[0]?.beneficiaryName ?? '—',
-      sub: analytics.topEmployees[0] ? formatCurrency(analytics.topEmployees[0].totalAmount) : '',
+      sub: analytics.topEmployees[0] ? <MoneyText value={analytics.topEmployees[0].totalAmount} /> : '',
     },
     {
       icon: 'emoji_events',
@@ -671,7 +675,7 @@ export default function BankSalaryAnalytics() {
       iconColor: '#14B8A6',
       label: 'أحدث شهر بيانات',
       value: analytics.months.length > 0 ? analytics.months[analytics.months.length - 1].sourceMonth : '—',
-      sub: analytics.months.length > 0 ? formatCurrency(analytics.months[analytics.months.length - 1].totalAmount) : '',
+      sub: analytics.months.length > 0 ? <MoneyText value={analytics.months[analytics.months.length - 1].totalAmount} /> : '',
     },
     {
       icon: 'change_history',
@@ -699,7 +703,7 @@ export default function BankSalaryAnalytics() {
               <>
                 <span className="psa-header-tag blue">
                   <span className="material-symbols-outlined" style={{ fontSize: 13 }}>payments</span>
-                  <PrivateAmount value={formatCurrency(analytics.totalAmount)} />
+                  <PrivateAmount value={analytics.totalAmount} />
                 </span>
                 <span className="psa-header-tag green">
                   <span className="material-symbols-outlined" style={{ fontSize: 13 }}>group</span>
@@ -1030,12 +1034,12 @@ export default function BankSalaryAnalytics() {
           <div className="psa-summary-divider" />
           <div className="psa-summary-stat">
             <span className="psa-summary-label">متوسط الراتب</span>
-            <span className="psa-summary-value"><PrivateAmount value={formatCurrency(avgSalary)} /></span>
+            <span className="psa-summary-value"><PrivateAmount value={avgSalary} /></span>
           </div>
           <div className="psa-summary-divider" />
           <div className="psa-summary-stat">
             <span className="psa-summary-label">الإجمالي</span>
-            <span className="psa-summary-value"><PrivateAmount value={formatCurrency(analytics.totalAmount)} /></span>
+            <span className="psa-summary-value"><PrivateAmount value={analytics.totalAmount} /></span>
           </div>
           {activeChips.length > 0 && (
             <>
@@ -1201,7 +1205,7 @@ export default function BankSalaryAnalytics() {
                           return (
                             <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 14px', direction: 'rtl', fontFamily: '"IBM Plex Sans Arabic", Arial, sans-serif' }}>
                               <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6, marginTop: 0 }}>{label}</p>
-                              {payload.map((p, i) => <p key={i} style={{ color: p.color as string, fontSize: 12, fontWeight: 700, margin: '2px 0' }}>{p.name}: {formatCurrency(Number(p.value))}</p>)}
+                              {payload.map((p, i) => <p key={i} style={{ color: p.color as string, fontSize: 12, fontWeight: 700, margin: '2px 0' }}>{p.name}: {<MoneyText value={Number(p.value)} />}</p>)}
                             </div>
                           );
                         }}
@@ -1264,7 +1268,7 @@ export default function BankSalaryAnalytics() {
                   <thead>
                     <tr>
                       <th>الشهر</th>
-                      <th style={{ textAlign: 'end' }}>المبلغ (KWD)</th>
+                      <th style={{ textAlign: 'end' }}>{fcMoneyHeader('المبلغ')}</th>
                       <th style={{ textAlign: 'end' }}>المعاملات</th>
                       <th style={{ textAlign: 'end' }}>الموظفون</th>
                       <th style={{ textAlign: 'end' }}>المتوسط</th>
@@ -1307,7 +1311,7 @@ export default function BankSalaryAnalytics() {
                       <th>#</th>
                       <th>المستفيد</th>
                       <th>الرقم المدني</th>
-                      <th style={{ textAlign: 'end' }}>إجمالي (KWD)</th>
+                      <th style={{ textAlign: 'end' }}>{fcMoneyHeader('إجمالي')}</th>
                       <th style={{ textAlign: 'end' }}>المعاملات</th>
                       <th style={{ textAlign: 'end' }}>متوسط (KWD)</th>
                       <th>آخر دفعة</th>
@@ -1553,7 +1557,7 @@ export default function BankSalaryAnalytics() {
                           </span>
                           <div>
                             <div className={`psa-salary-change-val ${empDetail.stats.salaryChangeAmount >= 0 ? 'psa-var-pos' : 'psa-var-neg'}`}>
-                              {empDetail.stats.salaryChangeAmount >= 0 ? '+' : ''}{formatCurrency(empDetail.stats.salaryChangeAmount)}
+                              {empDetail.stats.salaryChangeAmount >= 0 ? '+' : ''}{<MoneyText value={empDetail.stats.salaryChangeAmount} />}
                             </div>
                             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                               {empDetail.stats.salaryChangePercent >= 0 ? '+' : ''}{formatPercent(empDetail.stats.salaryChangePercent, 1)} خلال {empDetail.stats.distinctMonths} شهر

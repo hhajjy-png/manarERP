@@ -74,13 +74,50 @@ export interface AlertV3 {
   actionLabel?: string;
 }
 
+/**
+ * ما يرسله `/executive/decision-center` **فعلًا** (قِيس من الاستجابة الحيّة):
+ *   { id, priority, title, reason, expectedImpact, suggestedAction, metric }
+ *
+ * كان هذا النوع يُعلن `message` و`actionHint` **إلزاميين**، ولا وجود لهما في الاستجابة.
+ * الردّ يُصنَّف (`as`) بلا تحقّق وقت التشغيل، فلم يرَ المُصرِّف الفرق، وظلّ
+ * `{rec.message}` يُصيَّر `undefined` — أي **متن بطاقة فارغ بصمت** في الإنتاج.
+ *
+ * الحقول الغائبة صارت اختيارية ليعكس النوع الواقع، وأُضيفت الحقول التي ترسلها الخلفية.
+ * **أيّها يُعرض للمستخدم قرارٌ منتَج، ولم يُغيَّر هنا شيء من العرض ولا من المنطق.**
+ */
 export interface RecommendationV2 {
   id: string;
   priority: 'HIGH' | 'MEDIUM' | 'LOW';
   title: string;
-  message: string;
   metric: string;
-  actionHint: string;
+  /** لا ترسله الخلفية حاليًا. */
+  message?: string;
+  /** لا ترسله الخلفية حاليًا. */
+  actionHint?: string;
+  /** ترسله الخلفية. */
+  reason?: string;
+  /** ترسله الخلفية. */
+  expectedImpact?: string;
+  /** ترسله الخلفية. */
+  suggestedAction?: string;
+}
+
+/**
+ * متن بطاقة التوصية.
+ *
+ * الواجهة كانت تقرأ `message` وحده، والخلفية **لا ترسله** — فبقي المتن فارغًا بصمت.
+ * الحقول التي ترسلها فعلًا هي `reason` و`suggestedAction` و`expectedImpact`.
+ *
+ * نأخذ **أوّل نصّ صالح** بالترتيب المعتمد؛ ولا نجمع الحقول في فقرة واحدة، ولا نخترع
+ * نصًّا بديلًا: غياب كل النصوص ⇒ `undefined`، فلا يُصيَّر شيء (لا شرطة ولا حشو).
+ *
+ * الفراغات وحدها ليست نصًّا: حقل قيمته `'   '` يُتخطّى إلى التالي.
+ */
+export function getRecommendationBody(rec: RecommendationV2): string | undefined {
+  for (const field of [rec.message, rec.reason, rec.suggestedAction, rec.expectedImpact]) {
+    if (typeof field === 'string' && field.trim() !== '') return field;
+  }
+  return undefined;
 }
 
 export interface DecisionCenterData {

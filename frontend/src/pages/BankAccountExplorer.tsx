@@ -27,9 +27,11 @@ import {
 } from './bankTimelineFilters';
 import { presentTransaction, CONFIDENCE_LABELS } from './bankTransactionPresentation';
 import { formatCurrency, formatNumber } from '../lib/format';
-import { formatDate } from '../lib/date';
+import { formatDate, formatMonthLabel } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import './BankAccountExplorer.css';
+import { moneyParts, MoneyText, money } from '../config/modules';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 // ── Constants (mirrors BankReconciliation patterns) ────────────────────────────
 
@@ -53,16 +55,25 @@ function fmtAmount(v: number | null | undefined): string {
   return formatNumber(v);
 }
 
+/**
+ * قيمة بطاقة مالية: الرقم و**رمز العملة الذي يختاره الإعداد** (KWD / د.ك) — لا رمزًا
+ * مثبَّتًا في الشيفرة. القيمة غير المنطبقة تعرض «—» **بلا وحدة**: «— KWD» بلا معنى.
+ */
+function amountCard(v: number | null | undefined): { value: string; unit?: string } {
+  if (v == null) return { value: '—' };
+  const parts = moneyParts(v);
+  return { value: parts.number, unit: parts.currency };
+}
+
 // Canonical DD/MM/YYYY (English digits) via the shared formatter.
 function fmtDate(iso: string | null | undefined): string {
   return formatDate(iso);
 }
 
 function fmtMonth(ym: string): string {
-  if (!ym || ym.length < 7) return ym;
-  const [y, m] = ym.split('-');
-  const d = new Date(Number(y), Number(m) - 1, 1);
-  return isNaN(d.getTime()) ? ym : d.toLocaleDateString('ar-KW', { year: 'numeric', month: 'long' });
+  // 'ar-KW' كان يُخرج سنة بأرقام عربية شرقية (٢٠٢٦). المعيار المعتمد: أرقام غربية
+  // دائمًا. `formatMonthLabel` يقرأ 'YYYY-MM' نصًّا — بلا Date وبلا منطقة زمنية.
+  return formatMonthLabel(ym);
 }
 
 function exportTimelineCsv(
@@ -176,7 +187,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: readonl
     <div className="bae-chart-tooltip">
       <p style={{ color: p.fill ?? 'var(--text)' }}>
         {p.name}: {typeof p.value === 'number'
-          ? formatCurrency(p.value)
+          ? money(p.value)
           : p.value}
       </p>
     </div>
@@ -391,7 +402,7 @@ function KpiRow({ dashboard }: { dashboard: BankAccountDashboard }) {
             <span className="material-symbols-outlined">
               {netVariant === 'green' ? 'trending_up' : 'trending_down'}
             </span>
-            {safeNum(d.netCashFlow) >= 0 ? '+' : ''}{formatCurrency(d.netCashFlow)} · صافي التدفق
+            {safeNum(d.netCashFlow) >= 0 ? '+' : ''}{<MoneyText value={d.netCashFlow} />} · صافي التدفق
           </span>
         </div>
       </div>
@@ -400,24 +411,21 @@ function KpiRow({ dashboard }: { dashboard: BankAccountDashboard }) {
       <div className="bae-kpi-grid bae-kpi-grid--secondary">
         <KpiCard
           label="إجمالي الإيداعات"
-          value={fmtAmount(d.totalDeposits)}
-          unit="KWD"
+          {...amountCard(d.totalDeposits)}
           icon="south_west"
           colorVariant="green"
           sub={`${d.depositCount.toLocaleString()} عملية`}
         />
         <KpiCard
           label="إجمالي السحوبات"
-          value={fmtAmount(d.totalWithdrawals)}
-          unit="KWD"
+          {...amountCard(d.totalWithdrawals)}
           icon="north_east"
           colorVariant="red"
           sub={`${d.withdrawalCount.toLocaleString()} عملية`}
         />
         <KpiCard
           label="صافي الحركة"
-          value={fmtAmount(d.netCashFlow)}
-          unit="KWD"
+          {...amountCard(d.netCashFlow)}
           icon="insights"
           colorVariant={netVariant}
           sub="صافي التدفق النقدي"
@@ -571,12 +579,15 @@ function TransactionDrawer({
             </div>
             <div className="bae-drawer-hero-body">
               <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
-              <div className={`bae-drawer-hero-amount ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
-                {isIncoming ? '+' : '−'}{formatNumber(heroAmount)} <span className="bae-drawer-hero-cur">KWD</span>
+              {/* الرقم والرمز كانا عنصرين منفصلين برمز مثبَّت — داخل واجهة RTL ينقلب
+                  ترتيبهما بصريًا («KWD 255.000»). `money-cell` تعزل القيمة في اتجاه LTR
+                  بلا التفاف، والرمز يأتي من إعداد العملة. */}
+              <div className={`bae-drawer-hero-amount money-cell ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
+                {isIncoming ? '+' : '−'}{moneyParts(heroAmount).number} <span className="bae-drawer-hero-cur">{moneyParts(heroAmount).currency}</span>
               </div>
               {hasBalance && (
                 <div className="bae-drawer-hero-balance">
-                  الرصيد بعد العملية <strong>{formatCurrency(afterBalance)}</strong>
+                  الرصيد بعد العملية <strong>{<MoneyText value={afterBalance} />}</strong>
                 </div>
               )}
             </div>
@@ -823,19 +834,19 @@ function TransactionDrawer({
               <div className="bae-drawer-summary-flow">
                 <div className="bae-drawer-summary-cell">
                   <span className="bae-drawer-summary-label">الرصيد قبل العملية</span>
-                  <span className="bae-drawer-summary-value">{formatNumber(beforeBalance)}<span className="bae-drawer-summary-cur">KWD</span></span>
+                  <span className="bae-drawer-summary-value money-cell">{moneyParts(beforeBalance).number}<span className="bae-drawer-summary-cur">{moneyParts(beforeBalance).currency}</span></span>
                 </div>
                 <span className="bae-drawer-summary-arrow material-symbols-outlined" aria-hidden="true">arrow_back</span>
                 <div className="bae-drawer-summary-cell">
                   <span className="bae-drawer-summary-label">المبلغ</span>
-                  <span className={`bae-drawer-summary-value ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
-                    {isIncoming ? '+' : '−'}{formatNumber(heroAmount)}<span className="bae-drawer-summary-cur">KWD</span>
+                  <span className={`bae-drawer-summary-value money-cell ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
+                    {isIncoming ? '+' : '−'}{moneyParts(heroAmount).number}<span className="bae-drawer-summary-cur">{moneyParts(heroAmount).currency}</span>
                   </span>
                 </div>
                 <span className="bae-drawer-summary-arrow material-symbols-outlined" aria-hidden="true">arrow_back</span>
                 <div className="bae-drawer-summary-cell">
                   <span className="bae-drawer-summary-label">الرصيد بعد العملية</span>
-                  <span className="bae-drawer-summary-value bae-drawer-primary">{formatNumber(afterBalance)}<span className="bae-drawer-summary-cur">KWD</span></span>
+                  <span className="bae-drawer-summary-value bae-drawer-primary money-cell">{moneyParts(afterBalance).number}<span className="bae-drawer-summary-cur">{moneyParts(afterBalance).currency}</span></span>
                 </div>
               </div>
             </div>
@@ -1129,7 +1140,7 @@ export function TimelineTab({
                 {result.fromDate && <> · {fmtDate(result.fromDate)} — {fmtDate(result.toDate)}</>}
                 {' · '}
                 <span className="bae-result-total">
-                  {timelineTotalLabel(filters.type)}: {formatCurrency(result.filteredTotal)}
+                  {timelineTotalLabel(filters.type)}: {<MoneyText value={result.filteredTotal} />}
                 </span>
               </span>
             )}
@@ -1198,8 +1209,8 @@ export function TimelineTab({
                   <th className="bae-col-date">التاريخ</th>
                   <th className="bae-col-type">النوع</th>
                   <th className="bae-col-desc-main">الوصف</th>
-                  <th className="bae-col-amount">المبلغ (KWD)</th>
-                  <th className="bae-col-balance">الرصيد بعد العملية</th>
+                  <th className="bae-col-amount">{fcMoneyHeader('المبلغ')}</th>
+                  <th className="bae-col-balance">{fcMoneyHeader('الرصيد بعد العملية')}</th>
                   <th className="bae-col-chevron" aria-label="فتح" />
                 </tr>
               </thead>
@@ -1476,7 +1487,7 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
               أعلى الإيداعات
             </h4>
             <table className="bae-top-table">
-              <thead><tr><th>التاريخ</th><th>الوصف</th><th>المبلغ</th></tr></thead>
+              <thead><tr><th>التاريخ</th><th>الوصف</th><th>{fcMoneyHeader('المبلغ')}</th></tr></thead>
               <tbody>
                 {topDeposits.map((t) => (
                   <tr key={t.id}>
@@ -1496,7 +1507,7 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
               أعلى السحوبات
             </h4>
             <table className="bae-top-table">
-              <thead><tr><th>التاريخ</th><th>الوصف</th><th>المبلغ</th></tr></thead>
+              <thead><tr><th>التاريخ</th><th>الوصف</th><th>{fcMoneyHeader('المبلغ')}</th></tr></thead>
               <tbody>
                 {topWithdrawals.map((t) => (
                   <tr key={t.id}>

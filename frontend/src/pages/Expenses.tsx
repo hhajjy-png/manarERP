@@ -9,7 +9,7 @@ import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
 import ConfirmModal from '../components/ConfirmModal';
-import { money, moneyParts, dateText } from '../config/modules';
+import { money, moneyParts, dateText, MoneyText, MoneyCell } from '../config/modules';
 import { KpiStat, KpiStatGrid } from '../components/KpiStat';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
@@ -55,6 +55,7 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Expenses.css';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 // خيارات القائمة القابلة للبحث — من المصدر الموحّد (تُشارَك مع حوار الإدخال الشهري السريع).
 const CATEGORY_OPTIONS: SearchableOption[] = EXPENSE_CATEGORY_SELECT_OPTIONS;
@@ -215,7 +216,7 @@ export default function Expenses() {
           <>
             {/* الإجمالي معروض في البطاقة الرئيسية أدناه — نتجنّب تكراره كشريحة في الترويسة. */}
             <IdChip icon="tag" tone="indigo">{stats.count} مصروف</IdChip>
-            {stats.pendingCount > 0 && <IdChip icon="schedule" tone="orange">{money(stats.pendingTotal)} معلّق</IdChip>}
+            {stats.pendingCount > 0 && <IdChip icon="schedule" tone="orange">{<MoneyText value={stats.pendingTotal} />} معلّق</IdChip>}
           </>
         ) : undefined}
         aside={(
@@ -233,7 +234,7 @@ export default function Expenses() {
           <HeroMetric
             icon="account_balance_wallet"
             label="إجمالي المصروفات"
-            value={money(stats.total)}
+            value={<MoneyText value={stats.total} />}
             sub={<><span className="material-symbols-outlined">receipt_long</span>{`${stats.count} مصروف`}</>}
           />
           <KpiStatGrid>
@@ -252,7 +253,7 @@ export default function Expenses() {
             {stats.byCompanyGroup && Object.keys(stats.byCompanyGroup as Record<string, number>).length > 0 && (
               <div className="expx-breakdown">
                 {Object.entries(stats.byCompanyGroup as Record<string, number>).map(([grp, amt]) => (
-                  <span key={grp} className="expx-break-chip"><span className="k">{grp}</span><span className="v">{money(amt)}</span></span>
+                  <span key={grp} className="expx-break-chip"><span className="k">{grp}</span><span className="v">{<MoneyText value={amt} />}</span></span>
                 ))}
               </div>
             )}
@@ -264,7 +265,7 @@ export default function Expenses() {
                   .map(([cat, amt]) => (
                     <span key={cat} className="expx-break-chip">
                       <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16, color: 'var(--xpl-primary)' }}>{expenseCategoryIcon(cat)}</span>
-                      <span className="k">{expenseCategoryLabel(cat)}</span><span className="v">{money(amt as number)}</span>
+                      <span className="k">{expenseCategoryLabel(cat)}</span><span className="v">{<MoneyText value={amt as number} />}</span>
                     </span>
                   ))}
               </div>
@@ -277,7 +278,7 @@ export default function Expenses() {
                   .map(([name, amt]) => (
                     <span key={name} className="expx-break-chip">
                       <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16, color: 'var(--xpl-muted)' }}>storefront</span>
-                      <span className="k">{name}</span><span className="v">{money(amt)}</span>
+                      <span className="k">{name}</span><span className="v">{<MoneyText value={amt} />}</span>
                     </span>
                   ))}
               </div>
@@ -367,7 +368,7 @@ export default function Expenses() {
                     <th>{t('col.description')}</th>
                     <th>{t('field.supplier')}</th>
                     <th>{t('lbl.inv.billing_period')}</th>
-                    <th>{t('col.amount')}</th>
+                    <th>{fcMoneyHeader(t('col.amount'))}</th>
                     <th>{t('col.status')}</th>
                     <th aria-label="فتح" />
                   </tr>
@@ -385,7 +386,7 @@ export default function Expenses() {
                         <td><strong>{r.description}</strong></td>
                         <td>{r.supplier?.name ?? r.supplierName ?? '—'}</td>
                         <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{billingText(r)}</td>
-                        <td><span className="expx-amount">{money(r.amount)}</span></td>
+                        <td><span className="expx-amount">{<MoneyCell value={r.amount} />}</span></td>
                         <td><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></td>
                         <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
                       </tr>
@@ -424,7 +425,7 @@ export default function Expenses() {
               <div className="xpl-drawer-hero">
                 <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{expenseCategoryIcon(viewing.category)}</span></div>
                 <div className="xpl-drawer-hero-body">
-                  <span className="expx-drawer-amount">{money(viewing.amount)}</span>
+                  <span className="expx-drawer-amount money-cell">{<MoneyText value={viewing.amount} />}</span>
                   <span className="xpl-drawer-hero-sub">{viewing.description}</span>
                   <div style={{ marginTop: 4 }}><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></div>
                 </div>
@@ -445,7 +446,7 @@ export default function Expenses() {
               <DrawerField label={t('col.code')} value={viewing.code} mono />
               <DrawerField label={t('col.category')} value={expenseCategoryLabel(viewing.category)} />
               <DrawerField label={t('col.description')} value={viewing.description} />
-              <DrawerField label={t('col.amount')} value={money(viewing.amount)} />
+              <DrawerField label={t('col.amount')} value={<MoneyText value={viewing.amount} />} />
             </DrawerSection>
             <DrawerSection title="الدفع والمورد">
               <DrawerField label="طريقة الدفع" value={expensePaymentMethodAr(viewing.paymentMethod)} />

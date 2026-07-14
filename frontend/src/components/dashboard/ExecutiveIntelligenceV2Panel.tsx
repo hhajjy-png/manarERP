@@ -4,10 +4,11 @@ import {
 } from 'recharts';
 import { CHART_INITIAL_DIMENSION } from '../../lib/rechartsDefaults';
 import { Skeleton } from './Skeleton';
-import { money } from '../../config/modules';
+import { money, TextWithMoney, MoneyText } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
 import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
+import { getRecommendationBody, type RecommendationV2 } from './command/types';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -61,14 +62,12 @@ interface HealthEntry {
   reason: string;
 }
 
-interface Recommendation {
-  id: string;
-  priority: 'HIGH' | 'MEDIUM' | 'LOW';
-  title: string;
-  message: string;
-  metric: string;
-  actionHint: string;
-}
+/**
+ * كان هنا نوع محلّي مكرَّر يُعلن `message` و`actionHint` **إلزاميين** — وهما غير
+ * موجودين في الاستجابة، تمامًا كما في `RecommendationV2`. نستعمل النوع المشترك بدل
+ * الاحتفاظ بنسختين تكذبان الكذبة نفسها.
+ */
+type Recommendation = RecommendationV2;
 
 export interface IntelV2Data {
   alerts: IntelAlert[];
@@ -136,7 +135,7 @@ function TrendTooltip({ active, payload, label }: TrendTooltipProps) {
           <span style={{ color: 'var(--db-text)', fontSize: 12, fontWeight: 700 }}>
             {labels[p.dataKey ?? ''] ?? p.dataKey}:{' '}
             <span style={{ color: p.color ?? p.fill }}>
-              {formatCurrency(p.value ?? 0)}
+              {<MoneyText value={p.value ?? 0} />}
             </span>
           </span>
         </div>
@@ -425,8 +424,8 @@ function RecommendationsSection({ recs, loading }: { recs: Recommendation[]; loa
               {r.priority === 'HIGH' ? 'عالي' : r.priority === 'MEDIUM' ? 'متوسط' : 'منخفض'}
             </span>
           </div>
-          <p style={{ color: 'var(--db-muted)', fontSize: 12, margin: '0 0 6px' }}>{r.message}</p>
-          <p style={{ color: 'var(--db-blue)', fontSize: 11, margin: 0 }}>💡 {r.actionHint}</p>
+          <p style={{ color: 'var(--db-muted)', fontSize: 12, margin: '0 0 6px' }}><TextWithMoney text={getRecommendationBody(r)} /></p>
+          {r.actionHint && <p style={{ color: 'var(--db-blue)', fontSize: 11, margin: 0 }}>💡 {r.actionHint}</p>}
         </div>
       ))}
     </div>

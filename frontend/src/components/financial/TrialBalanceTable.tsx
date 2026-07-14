@@ -1,13 +1,15 @@
 import { useNavigate } from 'react-router-dom';
 import type { TrialBalanceAsOfRow, TrialBalancePeriodRow } from '../../types/financial.types';
 import { BalanceDisplay } from './BalanceDisplay';
-import { fcCurrency, accountTypeAr } from './financialLabels';
+import { fcCurrency, accountTypeAr, fcMoneyHeader, fcMoneyCell } from './financialLabels';
 
 type AnyRow = TrialBalanceAsOfRow | TrialBalancePeriodRow;
 
+// الرمز انتقل إلى **عنوان العمود**، والخليّة رقم مجرّد.
+// و**الصفر لم يعد فراغًا**: كان `n === 0` يُفرغ الخليّة، فيقرأها المحاسب «لا قيمة» بينما
+// هي رصيد صفري حقيقي. الآن «0.000»، و«—» لغير المنطبق وحده.
 function fmt(n: number | undefined) {
-  if (n === undefined || n === null || n === 0) return '';
-  return fcCurrency(n);
+  return fcMoneyCell(n);
 }
 
 interface Props {
@@ -32,8 +34,8 @@ export function TrialBalanceTable({ rows, mode, totals }: Props) {
           <thead>
             <tr>
               <th>الكود</th><th>اسم الحساب</th><th>النوع</th>
-              <th className="num">إجمالي مدين</th><th className="num">إجمالي دائن</th>
-              <th className="num">الرصيد</th><th>طبيعة</th>
+              <th className="num">{fcMoneyHeader('إجمالي مدين')}</th><th className="num">{fcMoneyHeader('إجمالي دائن')}</th>
+              <th className="num">{fcMoneyHeader('الرصيد')}</th><th>طبيعة</th>
             </tr>
           </thead>
           <tbody>
@@ -79,10 +81,10 @@ export function TrialBalanceTable({ rows, mode, totals }: Props) {
         <thead>
           <tr>
             <th>الكود</th><th>اسم الحساب</th>
-            <th className="num">رصيد الافتتاح</th>
-            <th className="num">مدين الفترة</th>
-            <th className="num">دائن الفترة</th>
-            <th className="num">رصيد الإقفال</th>
+            <th className="num">{fcMoneyHeader('رصيد الافتتاح')}</th>
+            <th className="num">{fcMoneyHeader('مدين الفترة')}</th>
+            <th className="num">{fcMoneyHeader('دائن الفترة')}</th>
+            <th className="num">{fcMoneyHeader('رصيد الإقفال')}</th>
           </tr>
         </thead>
         <tbody>

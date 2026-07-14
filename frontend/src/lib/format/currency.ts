@@ -11,15 +11,21 @@ const integerFormatter = new Intl.NumberFormat(currencyConfig.locale, {
   maximumFractionDigits: 0,
 });
 
-// Monetary number formatters per display language (built once). English keeps the
-// existing en-US digits/separators; Arabic uses Arabic-Indic digits + separators.
-// The suffix follows: English "KWD", Arabic "د.ك". Exactly 3 decimals in both.
+// Monetary number formatters per display language (built once).
+//
+// WESTERN DIGITS, ALWAYS (approved standard). Both languages format the NUMBER
+// identically — `en-US` digits and separators: `12,455.000`. What the setting
+// `finance.currencyDisplayLanguage` still selects is the CURRENCY SYMBOL only:
+// English "KWD" · Arabic "د.ك".
+//
+// This deliberately supersedes the earlier Arabic-Indic behaviour
+// (`ar-KW-u-nu-arab` → `١٢٬٤٥٥٫٠٠٠`): a single numeric shape must hold across the
+// UI, the reports, the print output and the exports, so a figure never changes
+// appearance depending on where it is read. The stored value, the setting itself
+// and every API/DB contract are untouched — this is presentation only.
 const currencyNumberFormatters: Record<CurrencyLanguage, Intl.NumberFormat> = {
   english: numberFormatter,
-  arabic: new Intl.NumberFormat('ar-KW-u-nu-arab', {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  }),
+  arabic: numberFormatter,
 };
 const currencySuffix: Record<CurrencyLanguage, string> = {
   english: currencyConfig.code, // 'KWD'
@@ -28,7 +34,11 @@ const currencySuffix: Record<CurrencyLanguage, string> = {
 
 function toNumber(value: unknown): number {
   const n = typeof value === 'number' ? value : Number(value);
-  return Number.isFinite(n) ? n : 0;
+  if (!Number.isFinite(n)) return 0;
+  // JavaScript's negative zero would render as "-0.000" — a minus sign on nothing,
+  // which an accountant reads as a real credit. Collapse -0 to 0; every other value
+  // passes through untouched. Presentation only: no stored value changes.
+  return n === 0 ? 0 : n;
 }
 
 /** Bare number: "144,922.400" — designed print templates & chart axes/labels. */
@@ -38,7 +48,7 @@ export function formatNumber(value: unknown): string {
 
 /**
  * Full monetary format — a PURE function of its arguments (deterministic; no hidden state):
- *   English: "144,922.400 KWD"   ·   Arabic: "١٤٤٬٩٢٢٫٤٠٠ د.ك"
+ *   English: "144,922.400 KWD"   ·   Arabic: "144,922.400 د.ك"
  * Exactly 3 decimals, KWD currency. `language` defaults SAFELY to English when omitted.
  * The active company setting is resolved at app-level entry points (money / report cells)
  * and passed in explicitly — this module holds no mutable currency-language state.
@@ -64,6 +74,26 @@ export function formatMoneyParts(
     number: currencyNumberFormatters[language].format(toNumber(value)),
     currency: currencySuffix[language],
   };
+}
+
+/**
+ * A monetary TABLE CELL: the number alone — `12,455.000` — with **no currency
+ * symbol**. The symbol belongs once in the column header (`المبلغ (KWD)`), not
+ * repeated in every cell.
+ *
+ * Zero is a real value, not emptiness: `0` → `0.000`. Only a genuinely
+ * not-applicable cell renders the em dash — `null`, `undefined`, `''` — and so does
+ * a value that is not a finite number (`NaN`, `Infinity`, unparsable text), because
+ * showing `NaN` to an accountant is worse than showing nothing. This does **not**
+ * hide a real bug: the fallback is visible, and the tests pin it.
+ */
+export const MONEY_CELL_EMPTY = '—';
+
+export function formatMoneyCell(value: unknown): string {
+  if (value === null || value === undefined || value === '') return MONEY_CELL_EMPTY;
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n)) return MONEY_CELL_EMPTY;
+  return numberFormatter.format(n === 0 ? 0 : n);   // -0 لا يُطبع «-0.000»
 }
 
 /** Whole number, no decimals: "144,922" — counts. */
@@ -97,13 +127,26 @@ const reportCellNumberFormatter = new Intl.NumberFormat(currencyConfig.locale, {
 });
 
 /**
- * Format a report/print table cell: money columns (`format:'currency'`) render "144,922.400 KWD";
- * other numeric cells render plain en-US (0–3 decimals); empty/null → "".
- * Shared by Reports.tsx and ReportPrint.tsx so the currency-column convention lives in one place.
+ * The single gateway for a report table cell — screen and print alike.
+ *
+ * `symbol` decides where the currency lives:
+ *   · `'inline'` (default) — "144,922.400 KWD" in every cell. **This is the print
+ *     contract**: `ReportPrint.tsx` renders the printed report and is out of scope for
+ *     the on-screen standardization, so its output must not shift by a single glyph.
+ *   · `'header'` — "144,922.400" alone, because the screen table now carries the symbol
+ *     once in the column header. Callers that pass this MUST add `(KWD)` to the header.
+ *
+ * Non-currency numeric cells render plain (0–3 decimals); empty/null → "".
  */
-export function formatReportCell(value: unknown, col: { format?: 'currency' }, opts?: { language?: CurrencyLanguage }): string {
+export function formatReportCell(
+  value: unknown,
+  col: { format?: 'currency' },
+  opts?: { language?: CurrencyLanguage; symbol?: 'inline' | 'header' },
+): string {
   if (value == null || value === '') return '';
-  if (col.format === 'currency') return formatCurrency(value, opts);
+  if (col.format === 'currency') {
+    return opts?.symbol === 'header' ? formatMoneyCell(value) : formatCurrency(value, opts);
+  }
   if (typeof value === 'number') return reportCellNumberFormatter.format(value);
   return String(value);
 }

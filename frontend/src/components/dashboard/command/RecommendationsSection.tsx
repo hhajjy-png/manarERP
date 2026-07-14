@@ -1,5 +1,7 @@
 import { Skeleton } from '../Skeleton';
 import type { RecommendationV2 } from './types';
+import { getRecommendationBody } from './types';
+import { TextWithMoney } from '../../../config/modules';
 
 const PRI_META: Record<RecommendationV2['priority'], { color: string; icon: string; label: string }> = {
   HIGH:   { color: 'var(--db-red)', icon: '⚠️', label: 'أولوية عالية' },
@@ -55,7 +57,7 @@ export default function RecommendationsSection({
               </span>
             </div>
             <div className="db-rec-title">{rec.title}</div>
-            <div className="db-rec-msg">{rec.message}</div>
+            <div className="db-rec-msg"><TextWithMoney text={getRecommendationBody(rec)} /></div>
             <div className="db-rec-foot">
               {rec.metric && <span className="db-rec-metric">{rec.metric}</span>}
               {rec.actionHint && <span className="db-rec-hint">{rec.actionHint}</span>}

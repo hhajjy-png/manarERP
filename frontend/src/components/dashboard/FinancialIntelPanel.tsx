@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { CHART_INITIAL_DIMENSION } from '../../lib/rechartsDefaults';
 import { Skeleton } from './Skeleton';
-import { money } from '../../config/modules';
+import { money, TextWithMoney, MoneyText } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
 import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
@@ -97,7 +97,7 @@ function CollectionTooltip({ active, payload, label }: TooltipProps) {
         <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
           التحصيلات:{' '}
           <span style={{ color: payload[0]?.fill }}>
-            {formatCurrency(payload[0]?.value ?? 0)}
+            {<MoneyText value={payload[0]?.value ?? 0} />}
           </span>
         </p>
       </div>
@@ -318,7 +318,7 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
                 fontWeight: 600,
               }}
             >
-              {a.level === 'danger' ? '⚠️ ' : '🔔 '}{a.messageAr}
+              {a.level === 'danger' ? '⚠️ ' : '🔔 '}<TextWithMoney text={a.messageAr} />
             </div>
           ))}
         </div>

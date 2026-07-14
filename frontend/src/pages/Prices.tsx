@@ -6,7 +6,7 @@ import { useToast } from '../stores/toastStore';
 import { formatDate } from '../lib/date';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
-import { money } from '../config/modules';
+import { money, MoneyText, MoneyCell } from '../config/modules';
 import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
 import ConfirmModal from '../components/ConfirmModal';
 import { downloadBlob } from '../utils/exportUtils';
@@ -31,6 +31,7 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Prices.css';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 const contractUnits = ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'] as const;
 
@@ -252,7 +253,7 @@ export default function Prices() {
                     <th>{t('col.prices.company')}</th>
                     <th>{t('col.prices.location')}</th>
                     <th>{t('col.prices.unit')}</th>
-                    <th>{t('col.prices.unit_price')}</th>
+                    <th>{fcMoneyHeader(t('col.prices.unit_price'))}</th>
                     <th aria-label="فتح" />
                   </tr>
                 </thead>
@@ -267,7 +268,7 @@ export default function Prices() {
                       <td>{r.companyName}</td>
                       <td>{r.contractLocation}</td>
                       <td>{r.contractUnit}</td>
-                      <td style={{ fontWeight: 700 }}>{money(r.unitPrice)}</td>
+                      <td style={{ fontWeight: 700 }}>{<MoneyCell value={r.unitPrice} />}</td>
                       <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
                     </tr>
                   ))}
@@ -288,7 +289,7 @@ export default function Prices() {
             <div className="xpl-drawer-hero">
               <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">sell</span></div>
               <div className="xpl-drawer-hero-body">
-                <span className="xpl-drawer-hero-title">{money(viewing.unitPrice)} / {viewing.contractUnit}</span>
+                <span className="xpl-drawer-hero-title">{<MoneyText value={viewing.unitPrice} />} / {viewing.contractUnit}</span>
                 <span className="xpl-drawer-hero-sub">{viewing.asphaltPlant} · {viewing.companyName}</span>
               </div>
             </div>
@@ -309,7 +310,7 @@ export default function Prices() {
           </DrawerSection>
           <DrawerSection title="التسعير">
             <DrawerField label={t('col.prices.unit')} value={viewing.contractUnit} />
-            <DrawerField label={t('col.prices.unit_price')} value={money(viewing.unitPrice)} />
+            <DrawerField label={t('col.prices.unit_price')} value={<MoneyText value={viewing.unitPrice} />} />
             {viewing.validUntil && <DrawerField label="صالح حتى" value={<span className="prx-valid">{String(viewing.validUntil).slice(0, 10)}</span>} />}
           </DrawerSection>
         </Drawer>
@@ -356,10 +357,10 @@ export default function Prices() {
                     <th>{t('agreements.usage.col.agreement')}</th>
                     <th>{t('agreements.usage.col.customer')}</th>
                     <th>{t('agreements.usage.col.unit')}</th>
-                    <th>{t('agreements.usage.col.price')}</th>
+                    <th>{fcMoneyHeader(t('agreements.usage.col.price'))}</th>
                     <th className="prx-center">{t('agreements.usage.col.count')}</th>
                     <th className="prx-center">{t('agreements.usage.col.qty')}</th>
-                    <th>{t('agreements.usage.col.amount')}</th>
+                    <th>{fcMoneyHeader(t('agreements.usage.col.amount'))}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -368,10 +369,10 @@ export default function Prices() {
                       <td><div style={{ fontWeight: 700 }}>{row.asphaltPlant}</div><div className="prx-mini-sub">{row.contractLocation}</div></td>
                       <td>{row.customer?.name ?? '—'}</td>
                       <td>{row.contractUnit}</td>
-                      <td>{money(row.unitPrice)}</td>
+                      <td>{<MoneyCell value={row.unitPrice} />}</td>
                       <td className="prx-center"><span className={`prx-usage-badge${row.usageCount > 0 ? ' active' : ''}`}>{row.usageCount}</span></td>
                       <td className="prx-center">{row.usageCount > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
-                      <td>{row.usageCount > 0 ? money(row.totalAmount) : '—'}</td>
+                      <td>{row.usageCount > 0 ? <MoneyCell value={row.totalAmount} /> : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -388,7 +389,7 @@ export default function Prices() {
                     <th className="prx-center">عدد الاتفاقيات</th>
                     <th className="prx-center">مرات الاستخدام</th>
                     <th className="prx-center">إجمالي الكمية</th>
-                    <th>إجمالي الإيرادات</th>
+                    <th>{fcMoneyHeader('إجمالي الإيرادات')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -398,7 +399,7 @@ export default function Prices() {
                       <td className="prx-center">{row.agreementCount}</td>
                       <td className="prx-center"><span className={`prx-usage-badge${row.usageCount > 0 ? ' active' : ''}`}>{row.usageCount}</span></td>
                       <td className="prx-center">{row.totalQuantity > 0 ? row.totalQuantity.toLocaleString() : '—'}</td>
-                      <td>{row.totalAmount > 0 ? money(row.totalAmount) : '—'}</td>
+                      <td>{row.totalAmount > 0 ? <MoneyCell value={row.totalAmount} /> : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -426,9 +427,9 @@ function AgreementMiniTable({ rows }: { rows: AgreementRow[] }) {
             <th>المصنع</th>
             <th>الشركة</th>
             <th>العميل</th>
-            <th>السعر</th>
+            <th>{fcMoneyHeader('السعر')}</th>
             <th className="prx-center">الاستخدام</th>
-            <th>إجمالي الفاتورة</th>
+            <th>{fcMoneyHeader('إجمالي الفاتورة')}</th>
             <th>صالح حتى</th>
           </tr>
         </thead>
@@ -438,9 +439,9 @@ function AgreementMiniTable({ rows }: { rows: AgreementRow[] }) {
               <td><strong>{r.asphaltPlant}</strong></td>
               <td>{r.companyName}</td>
               <td>{r.customer?.name ?? '—'}</td>
-              <td>{money(r.unitPrice)}</td>
+              <td>{<MoneyCell value={r.unitPrice} />}</td>
               <td className="prx-center"><span className={`prx-usage-badge${r.usageCount > 0 ? ' active' : ''}`}>{r.usageCount}</span></td>
-              <td>{r.totalAmount > 0 ? money(r.totalAmount) : '—'}</td>
+              <td>{r.totalAmount > 0 ? <MoneyCell value={r.totalAmount} /> : '—'}</td>
               <td>{r.validUntil ? <span className="prx-valid">{String(r.validUntil).slice(0, 10)}</span> : '—'}</td>
             </tr>
           ))}

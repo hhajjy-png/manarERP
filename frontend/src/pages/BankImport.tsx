@@ -4,6 +4,7 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { formatNumber } from '../lib/format';
 import { formatDate } from '../lib/date';
+import { money } from '../config/modules';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -228,7 +229,10 @@ function parseRows(workbook: XLSX.WorkBook): { rows: BankImportInputRow[]; skipp
 function SummaryCard({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 18px', minWidth: 100, textAlign: 'center' }}>
-      <div style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
+      {/* `money-cell`: القيمة معزولة LTR بلا التفاف — فلا ينقلب «12,455.000 KWD» إلى
+          «KWD 12,455.000» داخل الصفحة العربية. غير المالي (عدد الصفوف) لا يتأثر: أرقام
+          مجرّدة تُعرض كما هي. */}
+      <div className="money-cell" style={{ fontSize: 22, fontWeight: 700, color }}>{value}</div>
       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{label}</div>
     </div>
   );
@@ -446,7 +450,7 @@ export default function BankImport() {
           <SummaryCard label="غير مطابقين" value={preview.unmatched} color={preview.unmatched > 0 ? '#dc2626' : 'var(--text-muted)'} />
           <SummaryCard label="أخطاء" value={preview.invalid} color={preview.invalid > 0 ? '#dc2626' : 'var(--text-muted)'} />
           <SummaryCard label="مكررة" value={preview.duplicate} color={preview.duplicate > 0 ? '#ca8a04' : 'var(--text-muted)'} />
-          <SummaryCard label="المبلغ الكلي (KWD)" value={formatNumber(preview.totalAmount)} color="var(--primary, #1d4ed8)" />
+          <SummaryCard label="المبلغ الكلي" value={money(preview.totalAmount)} color="var(--primary, #1d4ed8)" />
         </div>
       )}
 
@@ -499,7 +503,7 @@ export default function BankImport() {
           <h3 style={{ margin: '0 0 16px', color: '#16a34a' }}>✅ تم الاستيراد بنجاح</h3>
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>
             <SummaryCard label="تم استيراده" value={result.imported} color="#16a34a" />
-            <SummaryCard label="إجمالي المبالغ (KWD)" value={formatNumber(result.totalAmount)} color="var(--primary, #1d4ed8)" />
+            <SummaryCard label="إجمالي المبالغ" value={money(result.totalAmount)} color="var(--primary, #1d4ed8)" />
           </div>
           <button onClick={handleReset} style={btnStyle('primary', false)}>＋ استيراد جديد</button>
         </div>

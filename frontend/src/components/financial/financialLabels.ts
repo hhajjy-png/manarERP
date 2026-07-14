@@ -4,15 +4,38 @@
    currency using the company's currency-display-language setting (so the Financial
    Center matches the rest of the app). No business/accounting logic — display only.
    ════════════════════════════════════════════════════════════════════════════ */
-import { formatCurrency } from '../../lib/format';
+import { formatCurrency, formatMoneyCell, formatMoneyParts } from '../../lib/format';
 import { currentCurrencyLanguage } from '../../stores/settingsStore';
 
 /**
  * Currency for the Financial Center, honoring `finance.currencyDisplayLanguage`
- * (English "1,250.000 KWD" / Arabic "١٬٢٥٠٫٠٠٠ د.ك") — mirrors the shared `money()`.
+ * (English "1,250.000 KWD" / Arabic "1,250.000 د.ك" — western digits always; the
+ * setting selects the SYMBOL only) — mirrors the shared `money()`.
  */
 export function fcCurrency(value: unknown): string {
   return formatCurrency(value, { language: currentCurrencyLanguage() });
+}
+
+/**
+ * رمز العملة وحده — «KWD» أو «د.ك» بحسب الإعداد. يُوضع **مرّة واحدة في عنوان العمود**
+ * (`مدين (KWD)`) بدل تكراره في كل خليّة.
+ */
+export function fcCurrencySymbol(): string {
+  return formatMoneyParts(0, { language: currentCurrencyLanguage() }).currency;
+}
+
+/** عنوان عمود مالي: «مدين» ⇒ «مدين (KWD)». */
+export function fcMoneyHeader(label: string): string {
+  return `${label} (${fcCurrencySymbol()})`;
+}
+
+/**
+ * خليّة مالية: الرقم وحده — «12,455.000» — بلا رمز (الرمز في العنوان).
+ * الصفر قيمة (`0.000`)؛ و«—» لغير المنطبق وحده. تُصيَّر داخل `.money-cell` كي لا
+ * يقلب اتجاه الواجهة العربية ترتيبَ الرقم.
+ */
+export function fcMoneyCell(value: unknown): string {
+  return formatMoneyCell(value);
 }
 
 // ── Journal / statement reference type → Arabic (display only) ─────────────────

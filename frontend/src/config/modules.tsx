@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Column } from '../components/DataTable';
 import { FormField, FormSection } from '../components/FormDialog';
 import { formatDate } from '../lib/date';
-import { formatCurrency, formatMoneyParts } from '../lib/format';
+import { formatCurrency, formatMoneyParts, formatMoneyCell } from '../lib/format';
 import { currentCurrencyLanguage } from '../stores/settingsStore';
 import { expenseCategoryArMap } from './expenseCategories';
 
@@ -14,6 +14,67 @@ export function money(v: unknown): string {
 /** `money` split into its number + currency-label parts (for inline currency-label rendering). */
 export function moneyParts(v: unknown): { number: string; currency: string } {
   return formatMoneyParts(v, { language: currentCurrencyLanguage() });
+}
+
+/**
+ * مبلغ مالي **معروض** داخل بطاقة أو Drawer.
+ *
+ * `money()` وحدها لا تكفي: نصّها («255.000 KWD») يوضع في حاوية عربية، فيُعيد خوارزم
+ * الاتجاه ثنائي الاتجاه ترتيبَه بصريًا إلى «KWD 255.000» — قِيس ذلك في التطبيق:
+ * الرمز يبدأ عند 25px والرقم عند 40px. `money-cell` تعزل القيمة في اتجاه LTR بلا
+ * التفاف، فيبقى الرقم أوّلًا والرمز بعده، والنصّ العربي المحيط لا يتأثّر.
+ *
+ * الرمز يتبع إعداد لغة العملة (KWD / د.ك)، والأرقام غربية دائمًا.
+ */
+export function MoneyText({ value }: { value: unknown }) {
+  return <span className="money-cell">{money(value)}</span>;
+}
+
+/**
+ * جملة تحوي مبلغًا (تنبيه تنفيذي، توصية، ملخّص نصّي).
+ *
+ * الرسالة تُبنى في الخلفية كنصّ عربي واحد («مديونيات متأخرة أكثر من 90 يوم:
+ * 87,940.000 KWD»)، فيقلب خوارزم الاتجاه ترتيبَ الرقم والرمز داخلها. لا يكفي صنف على
+ * الحاوية: العزل يجب أن يقع على **المبلغ نفسه**. هنا نقسم النصّ عند المبلغ ونعزله —
+ * عرضٌ بحت: لا الرسالة تتغيّر، ولا مصدرها، ولا أي منطق.
+ */
+// نمطان متطابقان عمدًا: الأول للتقسيم (بعلم g)، والثاني للفحص (بلا g) — لأن `test`
+// على نمط بعلم g يحتفظ بـ `lastIndex` فيُخطئ بالتناوب.
+const MONEY_SPLIT = /(-?[\d,]+\.\d{3}\s*(?:KWD|د\.ك))/g;
+const MONEY_MATCH = /^-?[\d,]+\.\d{3}\s*(?:KWD|د\.ك)$/;
+
+export function TextWithMoney({ text }: { text?: string | null }) {
+  // النصّ **اختياري فعلًا**: استجابة الـ API تُصنَّف بلا تحقّق وقت التشغيل، وقد يصل حقل
+  // غائب — وقد حدث: توصيات لوحة المعلومات لا تحمل `message` إطلاقًا (الخلفية ترسل
+  // reason / expectedImpact / suggestedAction). كان React يُصيّر `undefined` فراغًا
+  // بصمت، فلمّا مرّ الحقل الغائب على `.split()` انهارت اللوحة كلها.
+  //
+  // الغياب ⇒ لا نُصيّر شيئًا: **نفس** ما كان يحدث قبل هذا المكوّن، لا أكثر. لا نخترع
+  // نصًّا بديلًا، ولا نضع «—» فنُوهم بقيمة، ولا نبتلع عيب البيانات — العقد صار صريحًا،
+  // والعيب مُبلَّغ عنه بدل أن يُسقط الشاشة.
+  if (typeof text !== 'string' || text === '') return null;
+
+  const parts = text.split(MONEY_SPLIT);
+  return (
+    <>
+      {parts.map((part, i) =>
+        MONEY_MATCH.test(part)
+          ? <span key={i} className="money-cell">{part}</span>
+          : <span key={i}>{part}</span>,
+      )}
+    </>
+  );
+}
+
+/**
+ * **خليّة جدول** مالية: الرقم وحده — «12,455.000» — بلا رمز، لأن العنوان يحمله مرّة
+ * واحدة. الصفر قيمة («0.000»)، وغير المنطبق «—». `money-cell` تعزل الاتجاه فلا ينقلب
+ * الرقم داخل واجهة عربية.
+ *
+ * لا تُستعمل في بطاقة أو Drawer بلا عنوان يحمل الرمز — هناك `MoneyText` (رقم + رمز).
+ */
+export function MoneyCell({ value }: { value: unknown }) {
+  return <span className="money-cell">{formatMoneyCell(value)}</span>;
 }
 
 export function dateText(v: unknown): string {
@@ -100,8 +161,8 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'companyName', label: 'col.company_name' },
       { key: 'location', label: 'col.location' },
       { key: 'unitName', label: 'col.unit_name' },
-      { key: 'price', label: 'col.price', render: (r) => r.price != null ? money(r.price) : '—' },
-      { key: 'monthlyTransportValue', label: 'col.monthly_value', render: (r) => money(r.monthlyTransportValue) },
+      { key: 'price', label: 'col.price', money: true, render: (r) => <MoneyCell value={r.price} /> },
+      { key: 'monthlyTransportValue', label: 'col.monthly_value', money: true, render: (r) => <MoneyCell value={r.monthlyTransportValue} /> },
       { key: 'status', label: 'col.status', render: (r) => contractStatus(r.status) },
     ],
     fields: [
@@ -111,7 +172,7 @@ export const MODULES: Record<string, ModuleConfig> = {
         type: 'select',
         optionsEndpoint: '/prices?pageSize=100',
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        optionLabelFn: (x: any) => `${x.asphaltPlant} — ${x.companyName} — ${x.contractLocation} — ${x.contractUnit} — ${formatCurrency(x.unitPrice)}`,
+        optionLabelFn: (x: any) => `${x.asphaltPlant} — ${x.companyName} — ${x.contractLocation} — ${x.contractUnit} — ${money(x.unitPrice)}`,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onSelectRaw: (raw: any) => ({
           asphaltPlant: raw.asphaltPlant ?? '',
@@ -290,7 +351,7 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'licenseExpiry', label: 'col.license_expiry', render: (r) => dateText(r.licenseExpiry) },
       { key: 'vehiclePlate', label: 'col.vehicle_plate', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.vehiclePlate ?? '—'}</span> },
       { key: 'vehicleLicenseExpiry', label: 'col.vehicle_license_expiry', render: (r) => dateText(r.vehicleLicenseExpiry) },
-      { key: 'salary', label: 'col.salary', render: (r) => money(r.salary) },
+      { key: 'salary', label: 'col.salary', money: true, render: (r) => <MoneyCell value={r.salary} /> },
       { key: 'hireDate', label: 'col.hire_date', render: (r) => dateText(r.hireDate) },
       { key: 'status', label: 'col.status', render: (r) => employeeStatus(r.status) },
     ],
@@ -337,7 +398,7 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
       { key: 'category', label: 'col.category', render: (r) => expenseCategoryAr[r.category] ?? r.category },
       { key: 'description', label: 'col.description', render: (r) => <strong>{r.description}</strong> },
-      { key: 'amount', label: 'col.amount', render: (r) => money(r.amount) },
+      { key: 'amount', label: 'col.amount', money: true, render: (r) => <MoneyCell value={r.amount} /> },
       { key: 'date', label: 'col.date', render: (r) => dateText(r.date) },
       { key: 'status', label: 'col.status', render: (r) => expenseStatus(r.status) },
     ],

@@ -1,16 +1,16 @@
 import type { ReportInput } from '../../reportEngine/excel.service';
 import type { FinancialResponse, ArAgingRow, ApAgingRow } from '../financial.types';
 
-const AGING_COLUMNS: ReportInput['columns'] = [
+export const AGING_COLUMNS: ReportInput['columns'] = [
   { header: 'الكود',      key: 'code',     width: 14 },
   { header: 'الاسم',      key: 'name',     width: 30 },
-  { header: 'جاري',       key: 'current',  width: 14, numFmt: '#,##0.000' },
-  { header: '0–30 يوم',   key: '0_30',     width: 14, numFmt: '#,##0.000' },
-  { header: '31–60 يوم',  key: '31_60',    width: 14, numFmt: '#,##0.000' },
-  { header: '61–90 يوم',  key: '61_90',    width: 14, numFmt: '#,##0.000' },
-  { header: '91–120 يوم', key: '91_120',   width: 14, numFmt: '#,##0.000' },
-  { header: '+120 يوم',   key: 'over_120', width: 14, numFmt: '#,##0.000' },
-  { header: 'الإجمالي',   key: 'total',    width: 14, numFmt: '#,##0.000' },
+  { header: 'جاري',       key: 'current',  width: 14, numFmt: '#,##0.000', format: 'currency' as const },
+  { header: '0–30 يوم',   key: '0_30',     width: 14, numFmt: '#,##0.000', format: 'currency' as const },
+  { header: '31–60 يوم',  key: '31_60',    width: 14, numFmt: '#,##0.000', format: 'currency' as const },
+  { header: '61–90 يوم',  key: '61_90',    width: 14, numFmt: '#,##0.000', format: 'currency' as const },
+  { header: '91–120 يوم', key: '91_120',   width: 14, numFmt: '#,##0.000', format: 'currency' as const },
+  { header: '+120 يوم',   key: 'over_120', width: 14, numFmt: '#,##0.000', format: 'currency' as const },
+  { header: 'الإجمالي',   key: 'total',    width: 14, numFmt: '#,##0.000', format: 'currency' as const },
 ];
 
 export function toAgingReportInput(

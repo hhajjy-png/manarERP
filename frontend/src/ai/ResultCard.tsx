@@ -1,5 +1,5 @@
 import './ResultCard.css';
-import { formatCurrency } from '../lib/format';
+import { money } from '../config/modules';
 import { useState } from 'react';
 import { printCurrentView } from '../utils/print';
 import { useNavigate } from 'react-router-dom';
@@ -14,7 +14,7 @@ import type {
 function fmt(value: string | number, kind?: string): string {
   if (kind === 'money') {
     const n = typeof value === 'number' ? value : parseFloat(String(value));
-    if (!isNaN(n)) return formatCurrency(n);
+    if (!isNaN(n)) return money(n);
   }
   return String(value);
 }

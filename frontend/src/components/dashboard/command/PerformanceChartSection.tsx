@@ -6,6 +6,7 @@ import { CHART_INITIAL_DIMENSION } from '../../../lib/rechartsDefaults';
 import { Skeleton } from '../Skeleton';
 import { formatCurrency, formatCompact } from '../../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../../lib/date';
+import { MoneyText } from '../../../config/modules';
 
 export interface TrendPoint { label: string; revenue: number; expense: number }
 
@@ -37,7 +38,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
           <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color, flexShrink: 0 }} />
           <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
             {SERIES_LABEL[p.dataKey ?? ''] ?? p.dataKey}:{' '}
-            <span style={{ color: p.color }}>{formatCurrency(p.value)}</span>
+            <span style={{ color: p.color }}>{<MoneyText value={p.value} />}</span>
           </p>
         </div>
       ))}

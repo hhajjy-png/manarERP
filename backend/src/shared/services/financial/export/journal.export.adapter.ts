@@ -48,8 +48,8 @@ export function toJournalBookReportInput(response: FinancialResponse<JournalBook
       { header: 'الحساب',     key: 'accountCode',    width: 12 },
       { header: 'اسم الحساب', key: 'accountName',    width: 24 },
       { header: 'بيان البند', key: 'description2',   width: 20 },
-      { header: 'مدين',       key: 'debit',          width: 14, numFmt: '#,##0.000' },
-      { header: 'دائن',       key: 'credit',         width: 14, numFmt: '#,##0.000' },
+      { header: 'مدين',       key: 'debit',          width: 14, numFmt: '#,##0.000', format: 'currency' as const },
+      { header: 'دائن',       key: 'credit',         width: 14, numFmt: '#,##0.000', format: 'currency' as const },
     ],
     rows: flatRows,
   };

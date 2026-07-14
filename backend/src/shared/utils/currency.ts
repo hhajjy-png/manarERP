@@ -24,6 +24,29 @@ export function formatCurrency(value: unknown): string {
   return `${numberFormatter.format(toNumber(value))} ${currencyConfig.code}`;
 }
 
+/**
+ * خليّة مالية في تقرير **مرئي** (HTML / PDF): الرقم وحده — «12,455.000» — بلا رمز،
+ * لأن الرمز يقع مرّة واحدة في **عنوان العمود** («المبلغ (KWD)»).
+ *
+ * الصفر قيمة («0.000»)، و«—» لغير المنطبق وحده أو لقيمة غير رقمية — فعرض `NaN` على
+ * محاسب أسوأ من عرض لا شيء. مرآة سلوكية لـ `frontend/src/lib/format/currency.ts`.
+ *
+ * **لا تُستعمل في Excel**: هناك تبقى الخليّة رقمًا خامًا مع `numFmt` — عقد لا يُمسّ.
+ */
+export const MONEY_CELL_EMPTY = '—';
+
+export function formatMoneyCell(value: unknown): string {
+  if (value === null || value === undefined || value === '') return MONEY_CELL_EMPTY;
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n)) return MONEY_CELL_EMPTY;
+  return numberFormatter.format(n === 0 ? 0 : n);   // -0 لا يُطبع «-0.000»
+}
+
+/** عنوان عمود مالي: «المبلغ» ⇒ «المبلغ (KWD)». */
+export function moneyHeader(label: string): string {
+  return `${label} (${currencyConfig.code})`;
+}
+
 /** Whole number: "144,922". */
 export function formatInteger(value: unknown): string {
   return integerFormatter.format(Math.round(toNumber(value)));

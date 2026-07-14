@@ -88,19 +88,19 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
           <div className="financial-summary-cards">
             <div className="summary-card green">
               <div className="card-label">الإيرادات</div>
-              <div className="card-value">{fmt(meta.totalRevenue as number)}</div>
+              <div className="card-value money-cell">{fmt(meta.totalRevenue as number)}</div>
             </div>
             <div className="summary-card blue">
               <div className="card-label">التحصيلات</div>
-              <div className="card-value">{fmt(meta.totalCollected as number)}</div>
+              <div className="card-value money-cell">{fmt(meta.totalCollected as number)}</div>
             </div>
             <div className="summary-card red">
               <div className="card-label">المصاريف</div>
-              <div className="card-value">{fmt(meta.totalExpenses as number)}</div>
+              <div className="card-value money-cell">{fmt(meta.totalExpenses as number)}</div>
             </div>
             <div className="summary-card neutral">
               <div className="card-label">صافي الدخل</div>
-              <div className="card-value">{fmt(meta.netIncome as number)}</div>
+              <div className="card-value money-cell">{fmt(meta.netIncome as number)}</div>
             </div>
           </div>
           <div className="accounting-disclaimer">

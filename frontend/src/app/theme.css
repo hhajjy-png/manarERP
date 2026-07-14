@@ -42,6 +42,36 @@ a { color: inherit; text-decoration: none; }
 .nav a.active { background: var(--accent); color: #fff; font-weight: 700; box-shadow: 0 4px 12px rgba(59,130,246,.3); }
 .nav a .ic { width: 22px; text-align: center; font-size: 18px; }
 
+/* ── الخلية المالية — صنف مشترك واحد ────────────────────────────────────────
+   يُستعمل في **الجداول** وحدها. الرقم المالي يُقرأ ويُقارن رأسيًا، فيلزمه:
+     · `direction: ltr` — كي تبقى إشارة السالب **قبل** الرقم داخل واجهة عربية،
+       ولا يُسحب الرقم إلى ترتيب النص المحيط.
+     · أرقام جدولية (`tabular-nums` + `tnum`/`lnum`) — فتصطف النقاط العشرية
+       وفواصل الآلاف عمودًا واحدًا.
+     · `nowrap` — لا ينكسر `12,455.000` على سطرين.
+   لا خط جديد، ولا لون، ولا إعادة تصميم جدول: عرض فقط. */
+/* الأصناف أدناه تحمل **مبلغًا دائمًا** (لا نصًّا ولا عددًا)، فتأخذ العزل نفسه بدل
+   تكرار القاعدة في كل ملف. قيس السبب في التطبيق: نصّ «255.000 KWD» داخل حاوية عربية
+   يُعرض بالرمز أولًا (الرمز عند 25px والرقم عند 40px) — العزل في LTR يصحّح الترتيب
+   دون أن يمسّ اتجاه النصّ العربي المحيط. */
+.money-cell,
+.invcx-fin-val,
+.invcx-paid,
+.invcx-remaining,
+.invcx-remaining--zero,
+.salx-net,
+.db-ac-value,
+.db-rec-metric,
+.psa-summary-value,
+.emp-fin-tile-value,
+.expx-break-chip .v {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+  white-space: nowrap;
+}
+
 /* Main */
 .main { flex: 1; margin-inline-start: var(--sidebar-width); display: flex; flex-direction: column; min-width: 0; }
 .topbar { height: 70px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 20px; padding: 0 28px; position: sticky; top: 0; z-index: 20; }

@@ -1,14 +1,16 @@
 import type { ReportInput } from './excel.service';
 import type { ReportOptions } from './reportTypes';
 import { esc } from './htmlUtils';
+import { formatDisplayDate, formatDateRange } from '../../utils/dateDisplay';
 
 export function buildReportHeader(input: ReportInput, options?: ReportOptions): string {
   const at = options?.generatedAt ?? new Date();
-  const today = at.toLocaleDateString('ar-KW', { year: 'numeric', month: 'long', day: 'numeric' });
+  const today = formatDisplayDate(at);   // DD/MM/YYYY بأرقام غربية (كان «١٤ يوليو ٢٠٢٦»)
 
   const dateRangeLine =
     options?.dateRange?.from || options?.dateRange?.to
-      ? `<p class="report-date-range">الفترة: ${esc(options.dateRange!.from ?? '—')} إلى ${esc(options.dateRange!.to ?? '—')}</p>`
+      // كانت الفترة تُطبع خامًا بصيغة ISO («2026-01-01») — صيغة داخلية لا تُعرض للمستخدم.
+      ? `<p class="report-date-range">الفترة: ${esc(formatDateRange(options.dateRange!.from, options.dateRange!.to))}</p>`
       : '';
 
   const generatedLine = options?.generatedBy

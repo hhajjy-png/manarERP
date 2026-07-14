@@ -2,10 +2,15 @@ import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 import { ReportInput, ReportColumn } from './excel.service';
-import { formatCurrency } from '../../utils/currency';
+import { formatMoneyCell, moneyHeader } from '../../utils/currency';
+import { formatDisplayDate } from '../../utils/dateDisplay';
 
+// الخليّة المالية: الرقم وحده — الرمز يقع مرّة واحدة في عنوان العمود.
 const cellText = (col: ReportColumn, v: unknown): string =>
-  col.format === 'currency' && v != null && v !== '' ? formatCurrency(v) : String(v ?? '');
+  col.format === 'currency' && v != null && v !== '' ? formatMoneyCell(v) : String(v ?? '');
+
+const headerText = (col: ReportColumn): string =>
+  col.format === 'currency' ? moneyHeader(col.header) : col.header;
 
 /**
  * توليد تقرير PDF جدولي.
@@ -36,7 +41,7 @@ export function buildPdf(input: ReportInput): Promise<Buffer> {
       doc.fontSize(18).fillColor('#1d4e6f').text(input.title, { align: 'center' });
       if (input.subtitle) doc.moveDown(0.2).fontSize(10).fillColor('#64748b').text(input.subtitle, { align: 'center' });
       doc.moveDown(0.4).fontSize(8).fillColor('#94a3b8')
-        .text(`تاريخ التقرير: ${new Date().toLocaleDateString('ar')}`, { align: 'center' });
+        .text(`تاريخ التقرير: ${formatDisplayDate(new Date())}`, { align: 'center' });   // DD/MM/YYYY، أرقام غربية
       doc.moveDown(0.6);
 
       const cols = input.columns;
@@ -62,7 +67,7 @@ export function buildPdf(input: ReportInput): Promise<Buffer> {
         y += rowHeight;
       };
 
-      drawRow(cols.map((c) => c.header), { header: true });
+      drawRow(cols.map(headerText), { header: true });
       input.rows.forEach((row, idx) => drawRow(cols.map((c) => cellText(c, row[c.key])), { zebra: idx % 2 === 1 }));
       if (input.totalsRow) {
         doc.rect(startX, y, pageWidth, rowHeight).fill('#f0f3f7');

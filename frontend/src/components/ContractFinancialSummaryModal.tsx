@@ -6,6 +6,7 @@ import { api, errorMessage } from '../api/client';
 import { formatCurrency, formatPercent, formatCompact } from '../lib/format';
 import { formatDate } from '../lib/date';
 import Modal from './Modal';
+import { money } from '../config/modules';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -90,7 +91,7 @@ interface Props {
 
 function kwd(n: number | null | undefined): string {
   if (n == null) return '—';
-  return formatCurrency(n);
+  return money(n);
 }
 
 function pct(n: number | null | undefined): string {

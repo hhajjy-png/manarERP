@@ -48,6 +48,12 @@
   gap: 4px;
   flex-wrap: nowrap;
   white-space: nowrap;
+  /* القيمة والوحدة عنصران متجاوران في flex؛ داخل صفحة عربية يقلب الاتجاه ترتيبهما
+     بصريًا فتُقرأ «KWD 12,455.000». العزل في LTR يثبّت الرقم أوّلًا والرمز بعده،
+     والنصّ العربي المحيط (العنوان، الوصف) يحتفظ باتجاهه. */
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums lining-nums;
   font-size: 17px;
   font-weight: 800;
   color: var(--text);

@@ -13,7 +13,7 @@ import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatCurrency, formatNumber } from '../lib/format';
-import { formatDate, todayDateOnly } from '../lib/date';
+import { formatDate, todayDateOnly, formatMonthLabel } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import {
   getWorkspace,
@@ -32,6 +32,8 @@ import {
   type TimelineResult,
 } from '../api/bankStatementImport';
 import './BankReconciliation.css';
+import { MoneyText } from '../config/modules';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -166,7 +168,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: readonl
       direction: 'rtl', boxShadow: 'var(--shadow)',
     }}>
       <p style={{ color: p.fill ?? 'var(--text)', fontSize: 12, fontWeight: 700 }}>
-        {p.name}: {typeof p.value === 'number' ? formatCurrency(p.value) : p.value}
+        {p.name}: {typeof p.value === 'number' ? <MoneyText value={p.value} /> : p.value}
       </p>
     </div>
   );
@@ -883,7 +885,7 @@ function ExplorerCharts({ workspace }: { workspace: ReconciliationWorkspace }) {
       const d = new Date(tx.statementDate);
       if (isNaN(d.getTime())) return;
       const key   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleDateString('ar-KW', { year: 'numeric', month: 'short' });
+      const label = formatMonthLabel(key);   // 'يناير 2026' — أرقام غربية (ar-KW كان يُخرج ٢٠٢٦)
       if (!months[key]) months[key] = { month: label, مدين: 0, دائن: 0 };
       months[key].مدين  += tx.debit;
       months[key].دائن  += tx.credit;
@@ -1678,9 +1680,9 @@ export default function BankReconciliation() {
                         <th>التاريخ</th>
                         <th style={{ minWidth: 200 }}>الوصف</th>
                         <th>المرجع</th>
-                        <th style={{ textAlign: 'end' }}>مدين (KWD)</th>
-                        <th style={{ textAlign: 'end' }}>دائن (KWD)</th>
-                        <th style={{ textAlign: 'end' }}>الرصيد</th>
+                        <th style={{ textAlign: 'end' }}>{fcMoneyHeader('مدين')}</th>
+                        <th style={{ textAlign: 'end' }}>{fcMoneyHeader('دائن')}</th>
+                        <th style={{ textAlign: 'end' }}>{fcMoneyHeader('الرصيد')}</th>
                         <th>الدفعة</th>
                         <th>الحالة</th>
                       </tr>
@@ -2241,8 +2243,8 @@ export default function BankReconciliation() {
                     <th>التاريخ</th>
                     <th style={{ minWidth: 200 }}>الوصف</th>
                     <th>المرجع</th>
-                    <th style={{ textAlign: 'end' }}>مدين (KWD)</th>
-                    <th style={{ textAlign: 'end' }}>دائن (KWD)</th>
+                    <th style={{ textAlign: 'end' }}>{fcMoneyHeader('مدين')}</th>
+                    <th style={{ textAlign: 'end' }}>{fcMoneyHeader('دائن')}</th>
                     <th style={{ textAlign: 'end' }}>الرصيد</th>
                     <th>العملة</th>
                     <th style={{ width: 36 }}>⚠</th>

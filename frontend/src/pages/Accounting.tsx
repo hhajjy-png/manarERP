@@ -5,7 +5,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import { todayDateOnly } from '../lib/date';
 import { PageMeta } from '../components/DataTable';
-import { money, dateText } from '../config/modules';
+import { money, dateText, MoneyText, MoneyCell } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -34,6 +34,7 @@ import {
 import '../components/explorer/explorer-kit.css';
 import './Accounting.css';
 import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 type Tab = 'summary' | 'accounts' | 'journal' | 'payments';
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
@@ -127,13 +128,13 @@ function SummaryTab() {
         <HeroMetric
           icon="savings"
           label={t('stat.acc.net_profit')}
-          value={money(summary?.netProfit)}
+          value={<MoneyText value={summary?.netProfit} />}
           sub={<><span className="material-symbols-outlined">{net >= 0 ? 'trending_up' : 'trending_down'}</span>{net >= 0 ? 'صافي ربح موجب' : 'صافي خسارة'}</>}
         />
         <div className="xpl-kpi-grid">
-          <MetricCard icon="trending_up" tone="green" label={t('stat.acc.total_revenue')} value={money(summary?.totalRevenue)} />
-          <MetricCard icon="task_alt" tone="green" label={t('stat.acc.total_collected')} value={money(summary?.totalCollected)} />
-          <MetricCard icon="trending_down" tone="red" label={t('stat.acc.total_expenses')} value={money(summary?.totalExpenses)} />
+          <MetricCard icon="trending_up" tone="green" label={t('stat.acc.total_revenue')} value={<MoneyText value={summary?.totalRevenue} />} />
+          <MetricCard icon="task_alt" tone="green" label={t('stat.acc.total_collected')} value={<MoneyText value={summary?.totalCollected} />} />
+          <MetricCard icon="trending_down" tone="red" label={t('stat.acc.total_expenses')} value={<MoneyText value={summary?.totalExpenses} />} />
           <MetricCard icon="menu_book" tone="indigo" label={t('col.acc.journal_count')} value={summary?.journalEntryCount ?? 0} />
         </div>
       </div>
@@ -143,17 +144,17 @@ function SummaryTab() {
           <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--xpl-muted)' }}>{t('section.acc.journal_from')}</p>
           <div className="accx-kv">
             <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.journal_count')}</span><span className="accx-kv-val">{summary?.journalEntryCount ?? 0}</span></div>
-            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.total_debit_lbl')}</span><span className="accx-kv-val red">{money(summary?.totalJournalDebit)}</span></div>
-            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.total_credit_lbl')}</span><span className="accx-kv-val green">{money(summary?.totalJournalCredit)}</span></div>
+            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.total_debit_lbl')}</span><span className="accx-kv-val red">{<MoneyText value={summary?.totalJournalDebit} />}</span></div>
+            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.total_credit_lbl')}</span><span className="accx-kv-val green">{<MoneyText value={summary?.totalJournalCredit} />}</span></div>
           </div>
         </SectionCard>
 
         <SectionCard title={t('section.acc.pl')} icon="assessment">
           <p style={{ margin: '0 0 8px', fontSize: 12, color: 'var(--xpl-muted)' }}>{t('section.acc.pl_from')}</p>
           <div className="accx-kv">
-            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.revenue_lbl')}</span><span className="accx-kv-val green">{money(pl?.totalRevenue)}</span></div>
-            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.expense_lbl')}</span><span className="accx-kv-val red">{money(pl?.totalExpense)}</span></div>
-            <div className="accx-kv-row total"><span className="accx-kv-label">{t('col.acc.net_profit_lbl')}</span><span className={`accx-kv-val ${(pl?.netProfit ?? 0) >= 0 ? 'green' : 'red'}`}>{money(pl?.netProfit)}</span></div>
+            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.revenue_lbl')}</span><span className="accx-kv-val green">{<MoneyText value={pl?.totalRevenue} />}</span></div>
+            <div className="accx-kv-row"><span className="accx-kv-label">{t('col.acc.expense_lbl')}</span><span className="accx-kv-val red">{<MoneyText value={pl?.totalExpense} />}</span></div>
+            <div className="accx-kv-row total"><span className="accx-kv-label">{t('col.acc.net_profit_lbl')}</span><span className={`accx-kv-val ${(pl?.netProfit ?? 0) >= 0 ? 'green' : 'red'}`}>{<MoneyText value={pl?.netProfit} />}</span></div>
           </div>
         </SectionCard>
       </div>
@@ -487,7 +488,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
                     <th>{t('col.acc.entry_number')}</th>
                     <th>{t('col.date')}</th>
                     <th>{t('col.acc.description')}</th>
-                    <th>{t('col.acc.total_debit_lbl')}</th>
+                    <th>{fcMoneyHeader(t('col.acc.total_debit_lbl'))}</th>
                     <th>{t('col.status')}</th>
                     <th aria-label="فتح" />
                   </tr>
@@ -503,7 +504,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
                         <td><span className="accx-code">{String(r.entryNumber)}</span></td>
                         <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
                         <td>{String(r.description)}</td>
-                        <td style={{ fontWeight: 700 }}>{money(entryTotal(r))}</td>
+                        <td style={{ fontWeight: 700 }}>{<MoneyCell value={entryTotal(r)} />}</td>
                         <td><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></td>
                         <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
                       </tr>
@@ -568,19 +569,19 @@ function JournalEntryDrawer({ entry, onClose, onCancelEntry, busy }: { entry: an
       </DrawerSection>
       <DrawerSection title="بنود القيد">
         <table className="accx-detail-table">
-          <thead><tr><th>{t('col.acc.account')}</th><th>{t('col.acc.debit')}</th><th>{t('col.acc.credit')}</th></tr></thead>
+          <thead><tr><th>{t('col.acc.account')}</th><th>{fcMoneyHeader(t('col.acc.debit'))}</th><th>{fcMoneyHeader(t('col.acc.credit'))}</th></tr></thead>
           <tbody>
             {(entry.lines ?? []).map((l: { id: number; account?: { code: string; name: string }; description?: string; debit: number; credit: number }) => (
               <tr key={l.id}>
                 <td>{l.account ? `${l.account.code} - ${l.account.name}` : '—'}{l.description ? <div style={{ fontSize: 11, color: 'var(--xpl-muted)' }}>{l.description}</div> : null}</td>
-                <td className="accx-debit">{l.debit > 0 ? money(l.debit) : '—'}</td>
-                <td className="accx-credit">{l.credit > 0 ? money(l.credit) : '—'}</td>
+                <td className="accx-debit">{l.debit > 0 ? <MoneyCell value={l.debit} /> : '—'}</td>
+                <td className="accx-credit">{l.credit > 0 ? <MoneyCell value={l.credit} /> : '—'}</td>
               </tr>
             ))}
             <tr className="total">
               <td>{t('lbl.acc.total_debit')}</td>
-              <td className="accx-debit">{money(totalDebit)}</td>
-              <td className="accx-credit">{money(totalCredit)}</td>
+              <td className="accx-debit">{<MoneyCell value={totalDebit} />}</td>
+              <td className="accx-credit">{<MoneyCell value={totalCredit} />}</td>
             </tr>
           </tbody>
         </table>
@@ -692,8 +693,8 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
         <Button variant="ghost" icon="add" small onClick={() => setLines((p) => [...p, { accountId: '', description: '', debit: '', credit: '' }])}>{t('btn.acc.add_line')}</Button>
 
         <div className="accx-balance-bar">
-          <span><span className="lbl">{t('lbl.acc.total_debit')}: </span><span className="v-debit">{money(totalDebit)}</span></span>
-          <span><span className="lbl">{t('lbl.acc.total_credit')}: </span><span className="v-credit">{money(totalCredit)}</span></span>
+          <span><span className="lbl">{t('lbl.acc.total_debit')}: </span><span className="v-debit">{<MoneyText value={totalDebit} />}</span></span>
+          <span><span className="lbl">{t('lbl.acc.total_credit')}: </span><span className="v-credit">{<MoneyText value={totalCredit} />}</span></span>
           {!balanced && totalDebit + totalCredit > 0 && <span className="accx-balance-state bad"><span className="material-symbols-outlined">error</span>{t('lbl.acc.unbalanced')}</span>}
           {balanced && totalDebit > 0 && <span className="accx-balance-state ok"><span className="material-symbols-outlined">check_circle</span>{t('lbl.acc.balanced')}</span>}
         </div>
@@ -751,7 +752,7 @@ function PaymentsTab() {
                   <tr>
                     <th>{t('col.acc.invoice_no')}</th>
                     <th>{t('col.inv.direction')}</th>
-                    <th>{t('col.amount')}</th>
+                    <th>{fcMoneyHeader(t('col.amount'))}</th>
                     <th>{t('col.acc.method')}</th>
                     <th>{t('col.date')}</th>
                     <th>{t('col.acc.reference')}</th>
@@ -763,7 +764,7 @@ function PaymentsTab() {
                     <tr key={r.id}>
                       <td><span className="accx-code">{r.invoice?.invoiceNumber ?? '—'}</span></td>
                       <td>{r.invoice?.direction === 'SALES' ? t('opt.direction.sales') : r.invoice?.direction === 'PURCHASE' ? t('opt.direction.purchase') : '—'}</td>
-                      <td><strong style={{ color: 'var(--xpl-green)' }}>{money(r.amount)}</strong></td>
+                      <td><strong style={{ color: 'var(--xpl-green)' }}>{<MoneyCell value={r.amount} />}</strong></td>
                       <td>{t(paymentMethodKey[String(r.method)] ?? 'opt.payment.cash')}</td>
                       <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
                       <td className="xpl-mono">{r.reference ? String(r.reference) : '—'}</td>

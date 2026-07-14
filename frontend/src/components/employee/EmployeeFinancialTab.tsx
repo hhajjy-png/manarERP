@@ -15,6 +15,7 @@ import {
   Button,
 } from '../explorer/ExplorerKit';
 import './EmployeeFinancialTab.css';
+import { fcMoneyHeader } from '../financial/financialLabels';
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
@@ -122,10 +123,12 @@ export default function EmployeeFinancialTab({ employee }: { employee: EmployeeL
           {/* الراتب الشهري الحالي — from the Employee record, always present. */}
           <div className="emp-fin-tile">
             <span className="emp-fin-tile-label">الراتب الشهري الحالي</span>
+            {/* البلاطة عمود مرن، فكان «KWD» يهبط إلى سطر ثالث تحت الرقم — وهو الشكل
+                الذي تمنعه القاعدة. الآن الرقم والرمز نصٌّ واحد من المُنسّق المشترك،
+                والرمز يتبع إعداد العملة (KWD / د.ك) بدل ثابت في الشيفرة. */}
             <span className="emp-fin-tile-value">
-              <PrivateAmount value={formatNumber(employee?.salary ?? 0)} level={1} />
+              <PrivateAmount value={employee?.salary ?? 0} level={1} />
             </span>
-            <span className="emp-fin-tile-unit">KWD</span>
           </div>
           {/* آخر شهر صرف / حالة التحويل — from the latest payroll; hidden when there
               is none, and while loading/on error, so a failed fetch never degrades
@@ -174,10 +177,10 @@ export default function EmployeeFinancialTab({ employee }: { employee: EmployeeL
                 <thead>
                   <tr>
                     <th>الشهر/السنة</th>
-                    <th>الراتب الأساسي</th>
-                    <th>البدلات</th>
-                    <th>الاستقطاعات</th>
-                    <th>صافي الراتب</th>
+                    <th>{fcMoneyHeader('الراتب الأساسي')}</th>
+                    <th>{fcMoneyHeader('البدلات')}</th>
+                    <th>{fcMoneyHeader('الاستقطاعات')}</th>
+                    <th>{fcMoneyHeader('صافي الراتب')}</th>
                     <th>حالة الدفع</th>
                     <th>تاريخ الدفع</th>
                   </tr>

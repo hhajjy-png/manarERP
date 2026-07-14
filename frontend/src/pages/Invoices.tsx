@@ -17,7 +17,7 @@ import Modal from '../components/Modal';
 import ForceDeleteInvoiceModal from '../components/ForceDeleteInvoiceModal';
 import InvoiceFastEntryDialog from '../components/InvoiceFastEntryDialog';
 import ConfirmModal from '../components/ConfirmModal';
-import { money, moneyParts, dateText } from '../config/modules';
+import { money, moneyParts, dateText, MoneyText, MoneyCell } from '../config/modules';
 import { KpiStat, KpiStatGrid } from '../components/KpiStat';
 import { formatFileDate, todayDateOnly } from '../lib/date';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -67,6 +67,7 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Invoices.css';
+import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 const STATUS_META: Record<string, { key: string; tone: Tone; icon: string }> = {
@@ -268,8 +269,8 @@ export default function Invoices() {
         chips={stats ? (
           <>
             <IdChip icon="receipt_long" tone="indigo">{stats.count} {t('inv.stats.count')}</IdChip>
-            <IdChip icon="payments" tone="green">{money(stats.totalCollected)}</IdChip>
-            {stats.totalRemaining > 0 && <IdChip icon="pending_actions" tone="orange">{money(stats.totalRemaining)}</IdChip>}
+            <IdChip icon="payments" tone="green"><MoneyText value={stats.totalCollected} /></IdChip>
+            {stats.totalRemaining > 0 && <IdChip icon="pending_actions" tone="orange"><MoneyText value={stats.totalRemaining} /></IdChip>}
           </>
         ) : undefined}
         aside={(
@@ -293,7 +294,7 @@ export default function Invoices() {
           <HeroMetric
             icon="account_balance_wallet"
             label={t('inv.stats.total_sales')}
-            value={money(stats.totalSales)}
+            value={<MoneyText value={stats.totalSales} />}
             sub={<><span className="material-symbols-outlined" aria-hidden="true">receipt_long</span>{`${stats.count} ${t('inv.stats.count')}`}</>}
           />
           <KpiStatGrid>
@@ -311,9 +312,9 @@ export default function Invoices() {
           <div className="invcx-customer-strip">
             <span className="name"><span className="material-symbols-outlined" aria-hidden="true">badge</span>{customer.name}</span>
             <span>{stats.count} فاتورة</span>
-            <span>إجمالي: <strong>{money(stats.totalSales)}</strong></span>
-            <span>محصل: <strong className="invcx-paid">{money(stats.totalCollected)}</strong></span>
-            <span>متبقي: <strong className={stats.totalRemaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}>{money(stats.totalRemaining)}</strong></span>
+            <span>إجمالي: <strong><MoneyText value={stats.totalSales} /></strong></span>
+            <span>محصل: <strong className="invcx-paid">{<MoneyText value={stats.totalCollected} />}</strong></span>
+            <span>متبقي: <strong className={stats.totalRemaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}>{<MoneyText value={stats.totalRemaining} />}</strong></span>
           </div>
         ) : null;
       })()}
@@ -387,8 +388,8 @@ export default function Invoices() {
                     <th>{t('col.inv.type')}</th>
                     <th>{t('col.inv.direction')}</th>
                     <th>{t('col.date')}</th>
-                    <th>{t('col.inv.total')}</th>
-                    <th>{t('col.inv.paid')}</th>
+                    <th>{fcMoneyHeader(t('col.inv.total'))}</th>
+                    <th>{fcMoneyHeader(t('col.inv.paid'))}</th>
                     <th>{t('lbl.inv.remaining_amount')}</th>
                     <th>{t('col.status')}</th>
                     <th aria-label="فتح" />
@@ -407,9 +408,9 @@ export default function Invoices() {
                         <td>{r.invoiceType ?? '—'}</td>
                         <td>{directionLabel(r.direction ?? '', t)}</td>
                         <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.issueDate)}</td>
-                        <td><span className="invcx-amount">{money(r.total)}</span></td>
-                        <td><span className="invcx-paid">{money(r.paidAmount)}</span></td>
-                        <td><span className={remaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}>{money(remaining)}</span></td>
+                        <td><span className="invcx-amount">{<MoneyCell value={r.total} />}</span></td>
+                        <td><span className="invcx-paid">{<MoneyCell value={r.paidAmount} />}</span></td>
+                        <td><span className={remaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}>{<MoneyCell value={remaining} />}</span></td>
                         <td>{invStatusChip(String(r.status), t)}</td>
                         <td style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
                       </tr>
@@ -456,9 +457,9 @@ export default function Invoices() {
         };
 
         const kpis: DrawerKpi[] = [
-          { label: t('col.inv.total'), value: money(viewing.total) },
-          { label: t('col.inv.paid'), value: money(viewing.paidAmount), tone: 'green' },
-          { label: t('lbl.inv.remaining_amount'), value: money(remaining), tone: 'red' },
+          { label: t('col.inv.total'), value: <MoneyText value={viewing.total} /> },
+          { label: t('col.inv.paid'), value: <MoneyText value={viewing.paidAmount} />, tone: 'green' },
+          { label: t('lbl.inv.remaining_amount'), value: <MoneyText value={remaining} />, tone: 'red' },
           { label: 'العمر', value: ageDays != null ? `${ageDays} يوم` : '—' },
         ];
 
@@ -547,12 +548,12 @@ export default function Invoices() {
 
             <DrawerSection title="الملخص المالي">
               <div className="invcx-fin">
-                {viewing.subtotal != null && <div className="invcx-fin-row"><span className="invcx-fin-label">الإجمالي الفرعي</span><span className="invcx-fin-val">{money(viewing.subtotal)}</span></div>}
-                {Number(viewing.discount) > 0 && <div className="invcx-fin-row"><span className="invcx-fin-label">الخصم</span><span className="invcx-fin-val">{money(viewing.discount)}</span></div>}
-                {Number(viewing.taxAmount) > 0 && <div className="invcx-fin-row"><span className="invcx-fin-label">الضريبة</span><span className="invcx-fin-val">{money(viewing.taxAmount)}</span></div>}
-                <div className="invcx-fin-row total"><span className="invcx-fin-label">الإجمالي</span><span className="invcx-fin-val">{money(viewing.total)}</span></div>
-                <div className="invcx-fin-row"><span className="invcx-fin-label">{t('col.inv.paid')}</span><span className="invcx-fin-val invcx-paid">{money(viewing.paidAmount)}</span></div>
-                <div className="invcx-fin-row"><span className="invcx-fin-label">{t('lbl.inv.remaining_amount')}</span><span className={`invcx-fin-val ${remaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}`}>{money(remaining)}</span></div>
+                {viewing.subtotal != null && <div className="invcx-fin-row"><span className="invcx-fin-label">الإجمالي الفرعي</span><span className="invcx-fin-val">{<MoneyText value={viewing.subtotal} />}</span></div>}
+                {Number(viewing.discount) > 0 && <div className="invcx-fin-row"><span className="invcx-fin-label">الخصم</span><span className="invcx-fin-val">{<MoneyText value={viewing.discount} />}</span></div>}
+                {Number(viewing.taxAmount) > 0 && <div className="invcx-fin-row"><span className="invcx-fin-label">الضريبة</span><span className="invcx-fin-val">{<MoneyText value={viewing.taxAmount} />}</span></div>}
+                <div className="invcx-fin-row total"><span className="invcx-fin-label">الإجمالي</span><span className="invcx-fin-val">{<MoneyText value={viewing.total} />}</span></div>
+                <div className="invcx-fin-row"><span className="invcx-fin-label">{t('col.inv.paid')}</span><span className="invcx-fin-val invcx-paid">{<MoneyText value={viewing.paidAmount} />}</span></div>
+                <div className="invcx-fin-row"><span className="invcx-fin-label">{t('lbl.inv.remaining_amount')}</span><span className={`invcx-fin-val ${remaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}`}>{<MoneyText value={remaining} />}</span></div>
               </div>
             </DrawerSection>
 
@@ -560,15 +561,15 @@ export default function Invoices() {
               <DrawerSection title="بنود الفاتورة">
                 <table className="invcx-detail-table">
                   <thead>
-                    <tr><th>الوصف</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>
+                    <tr><th>الوصف</th><th>الكمية</th><th>{fcMoneyHeader('السعر')}</th><th>{fcMoneyHeader('الإجمالي')}</th></tr>
                   </thead>
                   <tbody>
                     {items.map((it, idx) => (
                       <tr key={it.id ?? idx}>
                         <td>{it.description ?? it.workType ?? '—'}</td>
                         <td>{it.quantity ?? '—'}</td>
-                        <td>{it.unitPrice != null ? money(it.unitPrice) : '—'}</td>
-                        <td><strong>{it.total != null ? money(it.total) : (it.quantity != null && it.unitPrice != null ? money(Number(it.quantity) * Number(it.unitPrice)) : '—')}</strong></td>
+                        <td>{it.unitPrice != null ? <MoneyCell value={it.unitPrice} /> : '—'}</td>
+                        <td><strong>{it.total != null ? <MoneyCell value={it.total} /> : (it.quantity != null && it.unitPrice != null ? <MoneyCell value={Number(it.quantity) * Number(it.unitPrice)} /> : '—')}</strong></td>
                       </tr>
                     ))}
                   </tbody>
@@ -918,17 +919,17 @@ function CreateInvoice({ onClose, onSaved }: { onClose: () => void; onSaved: () 
         <div style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
             <span style={{ color: 'var(--text-muted)' }}>{t('lbl.inv.subtotal')}</span>
-            <span style={{ fontWeight: 600 }}>{money(subtotal)}</span>
+            <span style={{ fontWeight: 600 }}>{<MoneyText value={subtotal} />}</span>
           </div>
           {Number(discount) > 0 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
               <span style={{ color: 'var(--text-muted)' }}>{t('field.inv.discount_kd')}</span>
-              <span style={{ fontWeight: 600, color: '#dc2626' }}>−{money(discount)}</span>
+              <span style={{ fontWeight: 600, color: '#dc2626' }}>−{<MoneyText value={discount} />}</span>
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 800, borderTop: '1px solid var(--border)', paddingTop: 6, marginTop: 4, color: 'var(--accent)' }}>
             <span>{t('lbl.inv.grand_total')}</span>
-            <span>{money(total)}</span>
+            <span>{<MoneyText value={total} />}</span>
           </div>
         </div>
       </div>
@@ -1326,7 +1327,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
             {displayPrices.map(p => (
               <span key={p.id} style={{ fontSize: 12, color: '#1e3a5f' }}>
-                <strong>{p.contractUnit}</strong>: {money(p.unitPrice)}
+                <strong>{p.contractUnit}</strong>: {<MoneyText value={p.unitPrice} />}
                 {p.asphaltPlant ? ` — ${p.asphaltPlant}` : ''}
                 {p.contractLocation ? ` (${p.contractLocation})` : ''}
               </span>
@@ -1371,7 +1372,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
                       <div style={{ padding: '6px 12px', fontSize: 12, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', fontWeight: 700, userSelect: 'none' }}>{t('ph.prices.picker_unit')}: {it.unit}</div>
                       {unitPrices.map((p) => (
                         <button key={p.id} type="button" role="option" aria-selected="false" style={{ display: 'block', width: '100%', textAlign: 'start', padding: '8px 12px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', lineHeight: 1.5 }} onClick={() => applyPrice(i, p)}>
-                          <strong>{p.asphaltPlant ?? '—'}</strong>{p.companyName ? ` — ${p.companyName}` : ''}{p.contractLocation ? ` — ${p.contractLocation}` : ''} — <strong>{money(p.unitPrice)}</strong>
+                          <strong>{p.asphaltPlant ?? '—'}</strong>{p.companyName ? ` — ${p.companyName}` : ''}{p.contractLocation ? ` — ${p.contractLocation}` : ''} — <strong>{<MoneyText value={p.unitPrice} />}</strong>
                         </button>
                       ))}
                     </div>
@@ -1381,7 +1382,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
             </div>
           </div>
           <div className="invoice-cell total-cell" style={{ minWidth: 0, overflow: 'hidden' }}>
-            <div className="line-input" style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default', width: '100%', boxSizing: 'border-box' }}>{money(lineTotal(it))}</div>
+            <div className="line-input" style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default', width: '100%', boxSizing: 'border-box' }}>{<MoneyText value={lineTotal(it)} />}</div>
           </div>
           <div className="invoice-cell delete-cell" style={{ minWidth: 0 }}>
             {items.length > 1 && (
@@ -1394,7 +1395,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
 
       <div className="form-grid" style={{ marginTop: 16 }}>
         <div className="field"><label>{t('field.inv.discount_kd')}</label><input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value))} /></div>
-        <div className="field"><label>{t('col.inv.total')}</label><div className="line-input" style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default' }}>{money(total)}</div></div>
+        <div className="field"><label>{t('col.inv.total')}</label><div className="line-input" style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-2)', cursor: 'default' }}>{<MoneyText value={total} />}</div></div>
         <div className="field" style={{ gridColumn: '1 / -1' }}>
           <label>{t('field.notes')}</label>
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} style={{ resize: 'vertical' }} placeholder={t('field.notes')} />
@@ -1415,15 +1416,15 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
               <div style={{ textAlign: 'center', padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>إجمالي الفاتورة</div>
-                <div style={{ fontWeight: 800, fontSize: 14 }}>{money(invTotal)}</div>
+                <div style={{ fontWeight: 800, fontSize: 14 }}>{<MoneyText value={invTotal} />}</div>
               </div>
               <div style={{ textAlign: 'center', padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>المحصّل</div>
-                <div style={{ fontWeight: 800, fontSize: 14, color: '#065f46' }}>{money(paid)}</div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: '#065f46' }}>{<MoneyText value={paid} />}</div>
               </div>
               <div style={{ textAlign: 'center', padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>المتبقي</div>
-                <div style={{ fontWeight: 800, fontSize: 14, color: remaining > 0 ? '#dc2626' : '#065f46' }}>{money(remaining)}</div>
+                <div style={{ fontWeight: 800, fontSize: 14, color: remaining > 0 ? '#dc2626' : '#065f46' }}>{<MoneyText value={remaining} />}</div>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: payments.length > 0 ? 8 : 0 }}>
@@ -1436,7 +1437,7 @@ function EditInvoice({ invoice, onClose, onSaved }: { invoice: any; onClose: () 
             {payments.length > 0 && (
               <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
                 <span>عدد الدفعات: <strong style={{ color: 'var(--text)' }}>{payments.length}</strong></span>
-                {latestPmt && <span>آخر دفعة: <strong style={{ color: 'var(--text)' }}>{money(latestPmt.amount)}</strong></span>}
+                {latestPmt && <span>آخر دفعة: <strong style={{ color: 'var(--text)' }}>{<MoneyText value={latestPmt.amount} />}</strong></span>}
                 {latestPmt?.date && <span>تاريخ آخر دفعة: <strong style={{ color: 'var(--text)' }}>{dateText(latestPmt.date)}</strong></span>}
               </div>
             )}
@@ -1509,9 +1510,9 @@ function MonthlyReportModal({
               <tr>
                 <th style={thStyle}>{t('inv.monthly_report.period')}</th>
                 <th style={{ ...thStyle, textAlign: 'end' }}>عدد</th>
-                <th style={{ ...thStyle, textAlign: 'end' }}>إجمالي</th>
-                <th style={{ ...thStyle, textAlign: 'end' }}>محصل</th>
-                <th style={{ ...thStyle, textAlign: 'end' }}>متبقي</th>
+                <th style={{ ...thStyle, textAlign: 'end' }}>{fcMoneyHeader('إجمالي')}</th>
+                <th style={{ ...thStyle, textAlign: 'end' }}>{fcMoneyHeader('محصل')}</th>
+                <th style={{ ...thStyle, textAlign: 'end' }}>{fcMoneyHeader('متبقي')}</th>
               </tr>
             </thead>
             <tbody>
@@ -1521,9 +1522,9 @@ function MonthlyReportModal({
                     {r.month && r.year ? `${ARABIC_MONTHS[r.month - 1]} ${r.year}` : '—'}
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'end' }}>{r.count}</td>
-                  <td style={{ ...tdStyle, textAlign: 'end', fontWeight: 700 }}>{money(r.totalSales)}</td>
-                  <td style={{ ...tdStyle, textAlign: 'end', color: '#16a34a', fontWeight: 700 }}>{money(r.totalCollected)}</td>
-                  <td style={{ ...tdStyle, textAlign: 'end', color: r.totalRemaining > 0 ? '#dc2626' : '#16a34a', fontWeight: 700 }}>{money(r.totalRemaining)}</td>
+                  <td style={{ ...tdStyle, textAlign: 'end', fontWeight: 700 }}>{<MoneyCell value={r.totalSales} />}</td>
+                  <td style={{ ...tdStyle, textAlign: 'end', color: '#16a34a', fontWeight: 700 }}>{<MoneyCell value={r.totalCollected} />}</td>
+                  <td style={{ ...tdStyle, textAlign: 'end', color: r.totalRemaining > 0 ? '#dc2626' : '#16a34a', fontWeight: 700 }}>{<MoneyCell value={r.totalRemaining} />}</td>
                 </tr>
               ))}
             </tbody>
@@ -1593,7 +1594,7 @@ function AddPayment({ invoice, onClose, onSaved }: { invoice: any; onClose: () =
       </>
     }>
       {error && <div className="alert error">⚠️ {error}</div>}
-      <p style={{ marginBottom: 16, color: 'var(--text-muted)', fontWeight: 600 }}>{t('lbl.remaining')} {money(remaining)}</p>
+      <p style={{ marginBottom: 16, color: 'var(--text-muted)', fontWeight: 600 }}>{t('lbl.remaining')} {<MoneyText value={remaining} />}</p>
       <div className="form-grid">
         <div className="field"><label>{t('field.amount_kd')}</label><input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} /></div>
         <div className="field">

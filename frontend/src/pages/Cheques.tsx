@@ -5,7 +5,7 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { tafqeetKWD } from '../lib/tafqeet';
-import { formatDate, todayDateOnly } from '../lib/date';
+import { formatDate, todayDateOnly, formatDisplayDate } from '../lib/date';
 import { formatNumber } from '../lib/format';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
@@ -48,6 +48,7 @@ import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
 import { periodToReportParams } from '../lib/financialPeriod';
+import { moneyParts, MoneyText } from '../config/modules';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -105,13 +106,16 @@ function chequeChip(status: string, t: (k: string) => string) {
   return <StatusChip tone={m.tone} icon={m.icon}>{t(m.key)}</StatusChip>;
 }
 
+// تاريخ الشيك المطبوع. كان ISO («2026-01-31») — صيغة داخلية لا تُعرض للمستخدم.
+// صار DD/MM/YYYY عبر المُنسّق المشترك (string-safe: لا يُبنى Date على تاريخ فقط، فلا
+// انزياح يوم). **عدد المحارف نفسه (10)**، فلا يتغيّر عرض النصّ ولا تنزاح هندسة الشيك.
 function fmtDate(v: string | null | undefined): string {
   if (!v) return '—';
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? '—' : d.toISOString().slice(0, 10);
+  return formatDisplayDate(v);
 }
 
-function fmtAmount(v: number | string, currency = 'KWD'): string {
+// الرمز من الإعداد (KWD / د.ك) لا من ثابت في الشيفرة؛ الأرقام غربية دائمًا.
+function fmtAmount(v: number | string, currency = moneyParts(0).currency): string {
   return formatNumber(v) + ' ' + currency;
 }
 
@@ -638,13 +642,13 @@ export default function Cheques() {
           (valueKpis)، بينما عدّادات الحالة (مسودة/مطبوع/ملغى) إجمالية من الخادم (stats).
           نوضّح ذلك في العناوين حتى لا تُقرأ الأرقام كإجمالي عام. */}
       <div className="chqx-metrics">
-        <HeroMetric icon="account_balance_wallet" label="قيمة الشيكات في هذه الصفحة" value={fmtAmount(valueKpis.totalValue)} sub={<><span className="material-symbols-outlined">receipt_long</span>{`${cheques.length} شيك معروض · ${stats.total} إجمالاً`}</>} />
+        <HeroMetric icon="account_balance_wallet" label="قيمة الشيكات في هذه الصفحة" value={<MoneyText value={valueKpis.totalValue} />} sub={<><span className="material-symbols-outlined">receipt_long</span>{`${cheques.length} شيك معروض · ${stats.total} إجمالاً`}</>} />
         <div className="xpl-kpi-grid">
           <MetricCard icon="edit_note" tone="orange" label={t('stat.cheques.draft')} value={stats.draft} />
           <MetricCard icon="print" tone="green" label={t('stat.cheques.printed')} value={stats.printed} />
           <MetricCard icon="block" tone="red" label={t('stat.cheques.cancelled')} value={stats.cancelled} />
-          <MetricCard icon="trending_up" tone="blue" label="أعلى شيك (هذه الصفحة)" value={fmtAmount(valueKpis.highest)} />
-          <MetricCard icon="functions" tone="indigo" label="متوسط الشيك (هذه الصفحة)" value={fmtAmount(valueKpis.average)} />
+          <MetricCard icon="trending_up" tone="blue" label="أعلى شيك (هذه الصفحة)" value={<MoneyText value={valueKpis.highest} />} />
+          <MetricCard icon="functions" tone="indigo" label="متوسط الشيك (هذه الصفحة)" value={<MoneyText value={valueKpis.average} />} />
         </div>
       </div>
 
@@ -751,7 +755,9 @@ export default function Cheques() {
             <div className="xpl-drawer-hero">
               <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">payments</span></div>
               <div className="xpl-drawer-hero-body">
-                <span className="xpl-drawer-hero-title">{fmtAmount(viewing.amount, viewing.currency)}</span>
+                {/* عملة الشيك من **سجلّه** لا من إعداد العرض — استثناء صحيح؛ العزل وحده
+                    هو ما يلزم كي لا ينقلب ترتيب الرقم والرمز في الواجهة العربية. */}
+                <span className="xpl-drawer-hero-title money-cell">{fmtAmount(viewing.amount, viewing.currency)}</span>
                 <span className="xpl-drawer-hero-sub">{viewing.beneficiaryName} · {viewing.bankName}</span>
                 <div style={{ marginTop: 4 }}>{chequeChip(viewing.status, t)}</div>
               </div>
@@ -770,7 +776,7 @@ export default function Cheques() {
             <DrawerField label={t('col.cheque.number')} value={viewing.chequeNumber} mono />
             <DrawerField label={t('col.cheque.date')} value={formatDate(viewing.chequeDate)} />
             <DrawerField label={t('col.cheque.beneficiary')} value={viewing.beneficiaryName} />
-            <DrawerField label={t('col.cheque.amount')} value={fmtAmount(viewing.amount, viewing.currency)} />
+            <DrawerField label={t('col.cheque.amount')} value={<span className="money-cell">{fmtAmount(viewing.amount, viewing.currency)}</span>} />
           </DrawerSection>
           {viewing.currency === 'KWD' && Number(viewing.amount) > 0 && (
             <DrawerSection title="التفقيط">

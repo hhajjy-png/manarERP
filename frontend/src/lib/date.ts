@@ -68,6 +68,36 @@ export const formatMonthLabel = (value: unknown): string => formatMonth(value, t
  */
 export const formatMonthShort = (value: unknown): string => formatMonth(value, false);
 
+/**
+ * A date-only value (`'2026-01-31'`) → `31/01/2026`, **without ever constructing a
+ * `Date`**. `new Date('2026-01-31')` parses as UTC midnight, which in Kuwait
+ * (UTC+03:00) is still the 31st — but the same trick applied to a `Date` built from
+ * local parts can slip a day, and this has bitten the project before. So the string
+ * is re-ordered, not re-interpreted: no timezone is involved at all.
+ *
+ * Anything that is not a `YYYY-MM-DD` string falls back to the general `formatDate`
+ * (which handles real timestamps), and an empty value yields `—`.
+ */
+export function formatDisplayDate(value: unknown): string {
+  if (typeof value === 'string') {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  }
+  return formatDate(value);
+}
+
+/**
+ * A report period → `من 01/01/2026 إلى 31/01/2026` (Arabic) or
+ * `From 01/01/2026 to 31/01/2026` (English). Date-only strings stay string-safe
+ * (see `formatDisplayDate`). A missing bound renders `—` rather than silently
+ * dropping the word, so a half-open period never reads as a closed one.
+ */
+export function formatDateRange(from: unknown, to: unknown, lang: 'ar' | 'en' = 'ar'): string {
+  const a = formatDisplayDate(from);
+  const b = formatDisplayDate(to);
+  return lang === 'en' ? `From ${a} to ${b}` : `من ${a} إلى ${b}`;
+}
+
 /** 2026-07-07 — filesystem-safe, LOCAL date (never UTC). Defaults to today. */
 export function formatFileDate(value?: unknown): string {
   const d = value === undefined || value === null ? new Date() : parse(value) ?? new Date();

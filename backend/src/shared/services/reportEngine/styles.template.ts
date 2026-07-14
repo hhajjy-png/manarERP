@@ -197,6 +197,9 @@ export function buildStyles(
     td.num {
       font-variant-numeric: tabular-nums;
       font-weight: 600;
+      direction: ltr;
+      unicode-bidi: isolate;   /* «-1,250.000» لا ينقلب داخل تقرير عربي */
+      white-space: nowrap;
     }
 
     tbody tr.zebra {

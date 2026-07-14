@@ -25,7 +25,9 @@ export interface ReportColumn {
   width?: number;
   /** تنسيق رقمي/عملة اختياري. */
   numFmt?: string;
-  /** Presentation-only: mark a monetary column so HTML/PDF render it as "144,922.400 KWD". Excel ignores this (uses numFmt + raw numeric). */
+  /** Presentation-only: mark a monetary column so HTML/PDF render the cell as a bare
+   *  number ("144,922.400") and put the symbol once in the column header ("المبلغ (KWD)").
+   *  **Excel ignores this**: the cell stays a raw number with `numFmt` — the export contract. */
   format?: 'currency';
   /** نوع العمود (اختياري) — يُستخدم فقط لتحديد تنسيق افتراضي عندما لا يوجد numFmt صريح. */
   type?: 'text' | 'number' | 'currency' | 'date';

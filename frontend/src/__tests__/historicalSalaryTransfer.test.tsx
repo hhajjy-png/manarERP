@@ -65,8 +65,12 @@ describe('Salaries — historical imported salary transfers', () => {
     expect(await screen.findByText('خالد المستورد')).toBeInTheDocument();
     // Source badge visible.
     expect(screen.getAllByText('من سجل التحويل المستورد').length).toBeGreaterThan(0);
-    // Net formatted with Western digits, thousands separator, 3 decimals, KWD.
-    expect(screen.getByText(/1,234\.567\s*KWD/)).toBeInTheDocument();
+    // Phase D: العملة صارت في **عنوان العمود** مرّة واحدة، والخليّة رقم مجرّد.
+    // التأكيد لم يُضعَّف: نثبّت الرقم في الخليّة **و** غياب الرمز عنها **و** وجوده في العنوان.
+    const net = screen.getByText('1,234.567');
+    expect(net).toBeInTheDocument();
+    expect(net.textContent).not.toMatch(/KWD|د\.ك/);
+    expect(screen.getAllByText(/\(KWD\)|\(د\.ك\)/).length).toBeGreaterThan(0);   // العناوين المالية تحمل الرمز
   });
 
   it('does not render fake zeros for the unavailable breakdown of imported rows', async () => {

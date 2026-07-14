@@ -3,10 +3,11 @@ import type { JournalBookRow } from '../../types/financial.types';
 import { DrillDownLink } from './DrillDownLink';
 import type { FinancialDrillDownState } from './DrillDownLink';
 import { formatDate } from '../../lib/date';
-import { fcCurrency, referenceTypeAr, journalStatusAr } from './financialLabels';
+import { referenceTypeAr, journalStatusAr, fcMoneyCell, fcMoneyHeader } from './financialLabels';
 
+// الرمز في **عنوان العمود** لا في كل خليّة. الخليّة رقم مجرّد، والصفر يبقى «0.000».
 function fmt(n: number) {
-  return fcCurrency(n);
+  return fcMoneyCell(n);
 }
 
 interface Props {
@@ -45,8 +46,8 @@ export function JournalBookTable({ rows, currentState }: Props) {
               <th>البيان</th>
               <th>المرجع</th>
               <th>الحالة</th>
-              <th className="num">مدين</th>
-              <th className="num">دائن</th>
+              <th className="num">{fcMoneyHeader('مدين')}</th>
+              <th className="num">{fcMoneyHeader('دائن')}</th>
             </tr>
           </thead>
           <tbody>
@@ -87,8 +88,8 @@ export function JournalBookTable({ rows, currentState }: Props) {
                             <th>الحساب</th>
                             <th>اسم الحساب</th>
                             <th>البيان</th>
-                            <th className="num">مدين</th>
-                            <th className="num">دائن</th>
+                            <th className="num">{fcMoneyHeader('مدين')}</th>
+                            <th className="num">{fcMoneyHeader('دائن')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -101,8 +102,9 @@ export function JournalBookTable({ rows, currentState }: Props) {
                               <td>{line.accountCode}</td>
                               <td>{line.accountName}</td>
                               <td>{line.description ?? ''}</td>
-                              <td className="num">{line.debit  ? fmt(line.debit)  : ''}</td>
-                              <td className="num">{line.credit ? fmt(line.credit) : ''}</td>
+                              {/* لا شرط truthy يُخفي الصفر: سطر بمدين صفري يُقرأ «0.000» لا فراغًا. */}
+                              <td className="num">{fmt(line.debit)}</td>
+                              <td className="num">{fmt(line.credit)}</td>
                             </tr>
                           ))}
                         </tbody>

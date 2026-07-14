@@ -2,8 +2,8 @@ import { useState } from 'react';
 import type { StatementRow } from '../../types/financial.types';
 import type { FinancialDrillDownState } from './DrillDownLink';
 import { DrillDownLink } from './DrillDownLink';
-import { formatDate } from '../../lib/date';
-import { fcCurrency, referenceTypeAr } from './financialLabels';
+import { formatDate, formatMonthLabel } from '../../lib/date';
+import { referenceTypeAr, fcMoneyHeader, fcMoneyCell } from './financialLabels';
 
 interface Props {
   rows: StatementRow[];
@@ -29,7 +29,7 @@ function groupRows(rows: StatementRow[]): YearGroup[] {
     year,
     months: Array.from(byMonth.entries()).map(([month, r]) => ({
       month,
-      label: new Date(`${month}-01`).toLocaleDateString('ar-KW', { year: 'numeric', month: 'long' }),
+      label: formatMonthLabel(month),   // 'يناير 2026' — أرقام غربية، بلا Date ولا انزياح منطقة زمنية
       rows: r,
     })),
   }));
@@ -39,8 +39,11 @@ function monthSum(rows: StatementRow[]) {
   return rows.reduce((acc, r) => ({ debit: acc.debit + r.debit, credit: acc.credit + r.credit }), { debit: 0, credit: 0 });
 }
 
+// الرمز يقع **مرّة واحدة في عنوان العمود** (`fcMoneyHeader`)، فالخليّة رقم مجرّد.
+// وكان `n ? … : ''` **يُخفي الصفر الحقيقي**: رصيد أو حركة صفرية تُقرأ «لا قيمة» بينما
+// هي صفر فعلي. الآن «0.000»، و«—» لغير المنطبق وحده — عبر المُنسّق المشترك.
 function fmt(n: number) {
-  return n ? fcCurrency(n) : '';
+  return fcMoneyCell(n);
 }
 
 export function GroupedTable({ rows, currentState, highlightId }: Props) {
@@ -73,9 +76,9 @@ export function GroupedTable({ rows, currentState, highlightId }: Props) {
             <th>المرجع</th>
             <th>النوع</th>
             <th>البيان</th>
-            <th>مدين</th>
-            <th>دائن</th>
-            <th>الرصيد</th>
+            <th>{fcMoneyHeader('مدين')}</th>
+            <th>{fcMoneyHeader('دائن')}</th>
+            <th>{fcMoneyHeader('الرصيد')}</th>
           </tr>
         </thead>
         <tbody>

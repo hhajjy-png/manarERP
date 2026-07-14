@@ -11,6 +11,7 @@ import {
 import { parseWorkbook, BANK_CONFIGS, MAX_ROWS } from './payrollBankImportParser';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { downloadBlob } from '../utils/exportUtils';
+import { MoneyText } from '../config/modules';
 
 // ── Wizard state ──────────────────────────────────────────────────────────────
 
@@ -324,7 +325,7 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
       <div style={{ background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 8, padding: '12px 16px', marginBottom: 14 }}>
         <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>تقرير الفروقات (Variance)</p>
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 13 }}>
-          <span>الإجمالي المستورد: <strong style={{ fontFamily: 'monospace' }}>{formatCurrency(v.totalImported)}</strong></span>
+          <span>الإجمالي المستورد: <strong style={{ fontFamily: 'monospace' }}>{<MoneyText value={v.totalImported} />}</strong></span>
           <span>المطابق: <strong style={{ fontFamily: 'monospace' }}>{fmtAmount(v.totalMatched)}</strong></span>
           <span>غير المطابق: <strong style={{ fontFamily: 'monospace', color: v.totalUnmatched > 0 ? '#dc2626' : undefined }}>{fmtAmount(v.totalUnmatched)}</strong></span>
           {v.previousPeriodLabel && v.previousTotal != null && (

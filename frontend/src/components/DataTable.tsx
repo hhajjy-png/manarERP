@@ -1,7 +1,10 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { useT } from '../lib/i18n';
+import { fcMoneyHeader } from './financial/financialLabels';
 
 export interface Column {
+  /** عمود مالي: عنوانه يحمل رمز العملة مرّة واحدة («المبلغ (KWD)»)، وخلاياه أرقام مجرّدة. */
+  money?: boolean;
   key: string;
   label: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -219,7 +222,7 @@ export default function DataTable({
                 {hasExpand && <th scope="col" aria-label={t('action.expand')} style={{ width: 32 }} />}
                 {visibleColumns.map((c) => (
                   <th key={c.key} scope="col" style={c.width ? { width: c.width } : undefined}>
-                    {t(c.label)}
+                    {c.money ? fcMoneyHeader(t(c.label)) : t(c.label)}
                   </th>
                 ))}
                 {actions && <th scope="col" className="th-actions">{t('col.actions')}</th>}
