@@ -102,6 +102,24 @@ export interface RecommendationV2 {
   suggestedAction?: string;
 }
 
+/**
+ * متن بطاقة التوصية.
+ *
+ * الواجهة كانت تقرأ `message` وحده، والخلفية **لا ترسله** — فبقي المتن فارغًا بصمت.
+ * الحقول التي ترسلها فعلًا هي `reason` و`suggestedAction` و`expectedImpact`.
+ *
+ * نأخذ **أوّل نصّ صالح** بالترتيب المعتمد؛ ولا نجمع الحقول في فقرة واحدة، ولا نخترع
+ * نصًّا بديلًا: غياب كل النصوص ⇒ `undefined`، فلا يُصيَّر شيء (لا شرطة ولا حشو).
+ *
+ * الفراغات وحدها ليست نصًّا: حقل قيمته `'   '` يُتخطّى إلى التالي.
+ */
+export function getRecommendationBody(rec: RecommendationV2): string | undefined {
+  for (const field of [rec.message, rec.reason, rec.suggestedAction, rec.expectedImpact]) {
+    if (typeof field === 'string' && field.trim() !== '') return field;
+  }
+  return undefined;
+}
+
 export interface DecisionCenterData {
   financialSummary: FinancialSummary;
   decisionCards: DecisionCard[];
