@@ -143,7 +143,13 @@ export default function DateInput({
         }}
       />
       {!readOnly && (
-        <DateCalendarPicker value={value} onChange={emit} min={min} max={max} disabled={disabled} />
+        <DateCalendarPicker
+          value={value}
+          onChange={(iso) => { setParseError(false); setText(fmt(iso)); emit(iso); }}
+          min={min}
+          max={max}
+          disabled={disabled}
+        />
       )}
     </div>
   );
