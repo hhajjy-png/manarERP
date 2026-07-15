@@ -21,64 +21,78 @@
    `@layer base { * { @apply border-border outline-ring/50; } body { @apply
    bg-background text-foreground; } }` rules — those apply site-wide via
    bare-tag selectors and would violate the Preflight-disabled scoping above;
-   Button/Popover/Calendar already reference the tokens via utility classes. */
+   Button/Popover/Calendar already reference the tokens via utility classes.
+
+   VALUES ARE rgb()/rgba(), NOT oklch() — found during visual QA: this specific
+   Electron/Chromium build fails to actually PAINT `background-color: oklch(...)`
+   for these low-chroma dark tokens even though it computes/cascades correctly
+   (getComputedStyle reported the right oklch() value; the pixels stayed
+   white regardless — reproduced with the value forced inline via
+   `!important`, ruling out a cascade/specificity bug). The same element with
+   an equivalent hex/rgb color painted correctly. Every value below is the
+   PRECISE sRGB equivalent of the original registry oklch() value, obtained
+   by letting THIS browser itself resolve each oklch() color via a <canvas>
+   fillStyle + getImageData readback (not hand-computed/approximated) — so
+   these are not a different design, just the same colors in a format that
+   actually renders here. */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --background: rgb(255, 255, 255);
+  --foreground: rgb(10, 10, 10);
+  --card: rgb(255, 255, 255);
+  --card-foreground: rgb(10, 10, 10);
+  --popover: rgb(255, 255, 255);
+  --popover-foreground: rgb(10, 10, 10);
+  --primary: rgb(23, 23, 23);
+  --primary-foreground: rgb(250, 250, 250);
+  --secondary: rgb(245, 245, 245);
+  --secondary-foreground: rgb(23, 23, 23);
+  --muted: rgb(245, 245, 245);
+  --muted-foreground: rgb(115, 115, 115);
+  --accent: rgb(245, 245, 245);
+  --accent-foreground: rgb(23, 23, 23);
+  --destructive: rgb(231, 0, 11);
+  --border: rgb(229, 229, 229);
+  --input: rgb(229, 229, 229);
+  --ring: rgb(161, 161, 161);
+  --chart-1: rgb(212, 212, 212);
+  --chart-2: rgb(115, 115, 115);
+  --chart-3: rgb(82, 82, 82);
+  --chart-4: rgb(64, 64, 64);
+  --chart-5: rgb(38, 38, 38);
   --radius: 0.625rem;
 }
 
-/* Dark-mode values from the same registry payload. Selector extended beyond
-   shadcn's default `.dark` class to also match this app's own dark-mode
-   convention (`:root[data-theme='dark']`, toggled app-wide — see
+/* Dark-mode values from the same registry payload (same rgb()-not-oklch()
+   rationale as above). Selector extended beyond shadcn's default `.dark`
+   class to also match this app's own dark-mode convention
+   (`:root[data-theme='dark']`, toggled app-wide — see
    frontend/src/components/DateInput.css) so shadcn components stay in sync
    with the rest of the UI without requiring a separate `.dark` class toggle. */
 .dark,
 :root[data-theme='dark'] {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --background: rgb(10, 10, 10);
+  --foreground: rgb(250, 250, 250);
+  --card: rgb(23, 23, 23);
+  --card-foreground: rgb(250, 250, 250);
+  --popover: rgb(23, 23, 23);
+  --popover-foreground: rgb(250, 250, 250);
+  --primary: rgb(229, 229, 229);
+  --primary-foreground: rgb(23, 23, 23);
+  --secondary: rgb(38, 38, 38);
+  --secondary-foreground: rgb(250, 250, 250);
+  --muted: rgb(38, 38, 38);
+  --muted-foreground: rgb(161, 161, 161);
+  --accent: rgb(38, 38, 38);
+  --accent-foreground: rgb(250, 250, 250);
+  --destructive: rgb(255, 100, 103);
+  --border: rgba(255, 255, 255, 0.10);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: rgb(115, 115, 115);
+  --chart-1: rgb(212, 212, 212);
+  --chart-2: rgb(115, 115, 115);
+  --chart-3: rgb(82, 82, 82);
+  --chart-4: rgb(64, 64, 64);
+  --chart-5: rgb(38, 38, 38);
 }
 
 /* Maps the raw tokens above into Tailwind v4's --color-* / --radius-*
