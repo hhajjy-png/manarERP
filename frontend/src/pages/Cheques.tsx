@@ -38,9 +38,11 @@ import {
   Drawer,
   DrawerSection,
   DrawerField,
+  DrawerQuickActions,
   Dialog,
   DialogSection,
   Button,
+  type QuickAction,
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Cheques.css';
@@ -567,6 +569,15 @@ export default function Cheques() {
   function openEditor(cheque: Cheque) { loadChequeIntoForm(cheque); setViewing(null); setEditorOpen(true); }
   function selectForPreview(cheque: Cheque) { loadChequeIntoForm(cheque); setViewing(null); }
 
+  // أزرار العمليات أعلى Drawer الشيك — كانت سابقًا شريط أزرار سفلي، تجمّعت هنا
+  // بنفس الأيقونات/الوظائف/الصلاحيات/ترتيب التنفيذ (Drawer Actions Consistency Pack v1).
+  const chequeQuickActions: QuickAction[] = viewing ? [
+    { key: 'preview', icon: 'visibility', label: 'معاينة وطباعة', onClick: () => selectForPreview(viewing) },
+    ...(canUpdate && viewing.status !== 'CANCELLED' ? [{ key: 'edit', icon: 'edit', label: t('action.edit'), tone: 'primary' as const, onClick: () => openEditor(viewing) }] : []),
+    ...(canCancel && viewing.status === 'DRAFT' ? [{ key: 'cancel', icon: 'block', label: t('page.cheques.cancel_cheque'), onClick: () => setCancelConfirmCheque(viewing), disabled: busy }] : []),
+    ...(isSystemAdmin ? [{ key: 'delete', icon: 'delete_forever', label: 'حذف نهائي', tone: 'danger' as const, onClick: () => { const id = viewing.id; setViewing(null); setForceDeleteId(id); } }] : []),
+  ] : [];
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -752,23 +763,18 @@ export default function Cheques() {
           title={`${t('col.cheque.number')} ${viewing.chequeNumber}`}
           onClose={() => setViewing(null)}
           hero={
-            <div className="xpl-drawer-hero">
-              <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">payments</span></div>
-              <div className="xpl-drawer-hero-body">
-                {/* عملة الشيك من **سجلّه** لا من إعداد العرض — استثناء صحيح؛ العزل وحده
-                    هو ما يلزم كي لا ينقلب ترتيب الرقم والرمز في الواجهة العربية. */}
-                <span className="xpl-drawer-hero-title money-cell">{fmtAmount(viewing.amount, viewing.currency)}</span>
-                <span className="xpl-drawer-hero-sub">{viewing.beneficiaryName} · {viewing.bankName}</span>
-                <div style={{ marginTop: 4 }}>{chequeChip(viewing.status, t)}</div>
-              </div>
-            </div>
-          }
-          footer={
             <>
-              <Button variant="primary" icon="visibility" onClick={() => selectForPreview(viewing)}>معاينة وطباعة</Button>
-              {((canUpdate) && viewing.status !== 'CANCELLED') && <Button variant="secondary" icon="edit" onClick={() => openEditor(viewing)}>{t('action.edit')}</Button>}
-              {canCancel && viewing.status === 'DRAFT' && <Button variant="danger" icon="block" busy={busy} onClick={() => setCancelConfirmCheque(viewing)}>{t('page.cheques.cancel_cheque')}</Button>}
-              {isSystemAdmin && <Button variant="danger" icon="delete_forever" onClick={() => { const id = viewing.id; setViewing(null); setForceDeleteId(id); }}>حذف نهائي</Button>}
+              <div className="xpl-drawer-hero">
+                <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">payments</span></div>
+                <div className="xpl-drawer-hero-body">
+                  {/* عملة الشيك من **سجلّه** لا من إعداد العرض — استثناء صحيح؛ العزل وحده
+                      هو ما يلزم كي لا ينقلب ترتيب الرقم والرمز في الواجهة العربية. */}
+                  <span className="xpl-drawer-hero-title money-cell">{fmtAmount(viewing.amount, viewing.currency)}</span>
+                  <span className="xpl-drawer-hero-sub">{viewing.beneficiaryName} · {viewing.bankName}</span>
+                  <div style={{ marginTop: 4 }}>{chequeChip(viewing.status, t)}</div>
+                </div>
+              </div>
+              <DrawerQuickActions actions={chequeQuickActions} />
             </>
           }
         >

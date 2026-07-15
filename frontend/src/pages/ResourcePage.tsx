@@ -31,7 +31,9 @@ import {
   Tabs,
   Drawer,
   DrawerSection,
+  DrawerQuickActions,
   Button,
+  type QuickAction,
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import EmployeeFinancialTab from '../components/employee/EmployeeFinancialTab';
@@ -406,6 +408,21 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       </DrawerSection>
     ) : null;
 
+    // Employees has no Information Hub (see DRAWER_HUBS above), so — unlike
+    // customers/equipment, whose hub already renders edit/delete up top — its
+    // top quick-actions row has to be built here, reusing the same handlers
+    // the (now-removed-for-employees) footer used to call.
+    const employeeQuickActions: QuickAction[] = viewing && cfg.key === 'employees' ? [
+      ...(canUpdate ? [{ key: 'edit', icon: 'edit', label: t('action.edit'), tone: 'primary' as const, onClick: () => { setEditing(viewing); setViewing(null); } }] : []),
+      ...(canDelete ? [{ key: 'delete', icon: 'delete', label: t('action.delete'), tone: 'danger' as const, onClick: () => onDelete(viewing), disabled: busy }] : []),
+    ] : [];
+
+    // Bottom action footer is shared page-wide, but customers/equipment/employees
+    // now surface the same edit/delete via their top quick-actions row instead
+    // (Drawer Actions Consistency Pack v1) — every other module keeps this footer
+    // exactly as before.
+    const showFooter = !['customers', 'equipment', 'employees'].includes(cfg.key);
+
     return (
       <div className="xpl-scope xpl-page" dir="rtl">
         <ExecutiveHeader
@@ -520,23 +537,28 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
             onClose={() => setViewing(null)}
             hero={
               Hub ? undefined : (
-                <div className="xpl-drawer-hero">
-                  <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{cfg.explorerIcon ?? 'category'}</span></div>
-                  <div className="xpl-drawer-hero-body">
-                    <span className="xpl-drawer-hero-title">{String(viewing.name ?? viewing.fullName ?? viewing.code ?? '')}</span>
-                    {viewing.code && <span className="xpl-drawer-hero-sub">{viewing.code}</span>}
+                <>
+                  <div className="xpl-drawer-hero">
+                    <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{cfg.explorerIcon ?? 'category'}</span></div>
+                    <div className="xpl-drawer-hero-body">
+                      <span className="xpl-drawer-hero-title">{String(viewing.name ?? viewing.fullName ?? viewing.code ?? '')}</span>
+                      {viewing.code && <span className="xpl-drawer-hero-sub">{viewing.code}</span>}
+                    </div>
                   </div>
-                </div>
+                  {cfg.key === 'employees' && <DrawerQuickActions actions={employeeQuickActions} />}
+                </>
               )
             }
             footer={
-              <>
-                {cfg.key === 'contracts' && (
-                  <Button variant="secondary" icon="bar_chart" onClick={() => setFinancialSummaryContract({ id: viewing.id, code: viewing.code })}>{t('action.financial_summary')}</Button>
-                )}
-                {canUpdate && <Button variant="primary" icon="edit" onClick={() => { setEditing(viewing); setViewing(null); }}>{t('action.edit')}</Button>}
-                {canDelete && <Button variant="danger" icon="delete" busy={busy} onClick={() => onDelete(viewing)}>{t('action.delete')}</Button>}
-              </>
+              showFooter ? (
+                <>
+                  {cfg.key === 'contracts' && (
+                    <Button variant="secondary" icon="bar_chart" onClick={() => setFinancialSummaryContract({ id: viewing.id, code: viewing.code })}>{t('action.financial_summary')}</Button>
+                  )}
+                  {canUpdate && <Button variant="primary" icon="edit" onClick={() => { setEditing(viewing); setViewing(null); }}>{t('action.edit')}</Button>}
+                  {canDelete && <Button variant="danger" icon="delete" busy={busy} onClick={() => onDelete(viewing)}>{t('action.delete')}</Button>}
+                </>
+              ) : undefined
             }
           >
             {Hub ? (

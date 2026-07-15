@@ -49,9 +49,11 @@ import {
   Drawer,
   DrawerSection,
   DrawerField,
+  DrawerQuickActions,
   Dialog,
   DialogSection,
   Button,
+  type QuickAction,
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Expenses.css';
@@ -417,28 +419,33 @@ export default function Expenses() {
         const canDelete = hasPermission('expenses.delete')
           && viewing.status !== 'APPROVED' && viewing.status !== 'REVERSED'
           && !viewing.hasJournalEntries;
+
+        // أزرار العمليات أعلى Drawer المصروف — كانت سابقًا شريط أزرار سفلي، تجمّعت هنا
+        // بنفس الأيقونات/الوظائف/الصلاحيات/ترتيب التنفيذ (Drawer Actions Consistency Pack v1).
+        const quickActions: QuickAction[] = [
+          ...(canEdit ? [{ key: 'edit', icon: 'edit', label: t('action.edit'), tone: 'primary' as const, onClick: () => { setEditing(viewing); setViewing(null); } }] : []),
+          ...(canAmend ? [{ key: 'amend', icon: 'lock_open', label: 'إلغاء الاعتماد والتعديل', onClick: () => setAmendConfirmOpen(true), disabled: actionBusy }] : []),
+          ...(canApprove ? [{ key: 'approve', icon: 'check', label: t('action.approve'), onClick: () => approve(viewing.id), disabled: actionBusy }] : []),
+          ...(canApprove ? [{ key: 'reject', icon: 'close', label: t('action.reject'), onClick: () => reject(viewing.id), disabled: actionBusy }] : []),
+          ...(canDelete ? [{ key: 'delete', icon: 'delete', label: t('action.delete'), tone: 'danger' as const, onClick: () => remove(viewing.id), disabled: actionBusy }] : []),
+          ...(isSystemAdmin ? [{ key: 'force-delete', icon: 'delete_forever', label: 'حذف نهائي', tone: 'danger' as const, onClick: () => { setForceDeleteId(viewing.id); setViewing(null); } }] : []),
+        ];
+
         return (
           <Drawer
             title={`مصروف ${viewing.code}`}
             onClose={() => setViewing(null)}
             hero={
-              <div className="xpl-drawer-hero">
-                <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{expenseCategoryIcon(viewing.category)}</span></div>
-                <div className="xpl-drawer-hero-body">
-                  <span className="expx-drawer-amount money-cell">{<MoneyText value={viewing.amount} />}</span>
-                  <span className="xpl-drawer-hero-sub">{viewing.description}</span>
-                  <div style={{ marginTop: 4 }}><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></div>
-                </div>
-              </div>
-            }
-            footer={
               <>
-                {canEdit && <Button variant="primary" icon="edit" onClick={() => { setEditing(viewing); setViewing(null); }}>{t('action.edit')}</Button>}
-                {canAmend && <Button variant="primary" icon="lock_open" busy={actionBusy} onClick={() => setAmendConfirmOpen(true)}>إلغاء الاعتماد والتعديل</Button>}
-                {canApprove && <Button variant="secondary" icon="check" busy={actionBusy} onClick={() => approve(viewing.id)}>{t('action.approve')}</Button>}
-                {canApprove && <Button variant="ghost" icon="close" busy={actionBusy} onClick={() => reject(viewing.id)}>{t('action.reject')}</Button>}
-                {canDelete && <Button variant="danger" icon="delete" busy={actionBusy} onClick={() => remove(viewing.id)}>{t('action.delete')}</Button>}
-                {isSystemAdmin && <Button variant="danger" icon="delete_forever" onClick={() => { setForceDeleteId(viewing.id); setViewing(null); }}>حذف نهائي</Button>}
+                <div className="xpl-drawer-hero">
+                  <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{expenseCategoryIcon(viewing.category)}</span></div>
+                  <div className="xpl-drawer-hero-body">
+                    <span className="expx-drawer-amount money-cell">{<MoneyText value={viewing.amount} />}</span>
+                    <span className="xpl-drawer-hero-sub">{viewing.description}</span>
+                    <div style={{ marginTop: 4 }}><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></div>
+                  </div>
+                </div>
+                <DrawerQuickActions actions={quickActions} />
               </>
             }
           >
