@@ -136,16 +136,15 @@ describe('DateInput — calendar icon layout (overlap fix)', () => {
     expect(wrapper().getAttribute('dir')).toBe('ltr');
   });
 
-  it('the calendar trigger opens the native picker (interaction preserved)', () => {
-    const showPicker = vi.fn();
-    // JSDOM has no showPicker — install a spy on the prototype for this test.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (HTMLInputElement.prototype as any).showPicker = showPicker;
+  it('the calendar trigger opens the shadcn Calendar popover', () => {
     render(<Host initial="2026-07-01" />);
+    // Structural check (table presence) against document.body, not RTL's
+    // `container` — Radix's PopoverContent renders through a Portal into
+    // document.body (confirmed during Task 1), and not by an assumed ARIA
+    // role — see the note in DateCalendarPicker.test.tsx on why.
+    expect(document.body.querySelector('table')).not.toBeInTheDocument();
     fireEvent.click(wrapper().querySelector('.mnr-dateinput__cal') as HTMLElement);
-    expect(showPicker).toHaveBeenCalledTimes(1);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (HTMLInputElement.prototype as any).showPicker;
+    expect(document.body.querySelector('table')).toBeInTheDocument();
   });
 
   it('read-only hides the calendar trigger (no second overlapping control)', () => {
