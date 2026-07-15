@@ -59,6 +59,8 @@ const DocumentVerify = lazy(() => import('./pages/DocumentVerify'));
 const PaymentVoucher = lazy(() => import('./pages/PaymentVoucher'));
 const ReceiptVoucher = lazy(() => import('./pages/ReceiptVoucher'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
+// TEMPORARY — official shadcn Calendar comparison page, no auth, no layout. Delete after review.
+const TempCalendarOfficial = lazy(() => import('./pages/_TempCalendarOfficial'));
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -84,6 +86,8 @@ export default function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          {/* TEMPORARY — official shadcn Calendar comparison, no auth. Delete after review. */}
+          <Route path="/dev/calendar-official" element={<TempCalendarOfficial />} />
           {/* صفحة التحقق من الوثائق — عامة، لا تتطلب تسجيل الدخول */}
           <Route path="/verify/:uuid" element={<DocumentVerify />} />
           {/* صفحة طباعة التقرير — خارج التخطيط لطباعة نظيفة بعربية سليمة */}
