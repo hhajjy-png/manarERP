@@ -1,7 +1,21 @@
-const ARABIC_MONTHS = [
+/** Index 0 = January. Exported so the Calendar picker's dropdown/caption
+ *  formatters reuse the same Arabic month names as the rest of the app,
+ *  instead of pulling in date-fns's Arabic locale strings. */
+export const ARABIC_MONTHS = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
 ];
+
+/**
+ * Index 0 = Sunday, matching `Date.getDay()` — used by the Calendar picker's
+ * weekday-header formatter. Genuinely short (2-char) abbreviations, distinct
+ * from each other (أحد/أربعاء share a first letter, so a single-letter
+ * abbreviation would collide) — the weekday header renders as a flex row, so
+ * a too-wide label forces the whole row (and the table it sits above) wider
+ * than the calendar's intended --cell-size, overflowing the popover's fixed
+ * width and exposing unstyled table cells past its solid background edge.
+ */
+export const WEEKDAY_SHORT_AR = ['أح', 'إث', 'ثل', 'أر', 'خم', 'جم', 'سب'];
 
 function parse(value: unknown): Date | null {
   if (!value) return null;

@@ -136,16 +136,15 @@ describe('DateInput — calendar icon layout (overlap fix)', () => {
     expect(wrapper().getAttribute('dir')).toBe('ltr');
   });
 
-  it('the calendar trigger opens the native picker (interaction preserved)', () => {
-    const showPicker = vi.fn();
-    // JSDOM has no showPicker — install a spy on the prototype for this test.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (HTMLInputElement.prototype as any).showPicker = showPicker;
+  it('the calendar trigger opens the shadcn Calendar popover', () => {
     render(<Host initial="2026-07-01" />);
+    // Structural check (table presence) against document.body, not RTL's
+    // `container` — Radix's PopoverContent renders through a Portal into
+    // document.body (confirmed during Task 1), and not by an assumed ARIA
+    // role — see the note in DateCalendarPicker.test.tsx on why.
+    expect(document.body.querySelector('table')).not.toBeInTheDocument();
     fireEvent.click(wrapper().querySelector('.mnr-dateinput__cal') as HTMLElement);
-    expect(showPicker).toHaveBeenCalledTimes(1);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (HTMLInputElement.prototype as any).showPicker;
+    expect(document.body.querySelector('table')).toBeInTheDocument();
   });
 
   it('read-only hides the calendar trigger (no second overlapping control)', () => {
@@ -156,5 +155,36 @@ describe('DateInput — calendar icon layout (overlap fix)', () => {
     render(<ROHost />);
     expect(wrapper().querySelectorAll('.mnr-dateinput__cal').length).toBe(0);
     expect(field().value).toBe('01/07/2026'); // value still readable
+  });
+
+  // Regression: picking a date from the popover calendar must update the
+  // VISIBLE masked-text field immediately, not just the canonical value.
+  // `DateCalendarPicker`'s `onChange` used to be wired to the bare `emit`
+  // reference, which only writes `valueRef.current`/calls the parent's
+  // `onChange` — it never calls `setText`. The effect that re-syncs `text`
+  // from the `value` prop guards on `value !== valueRef.current`, but `emit`
+  // already set `valueRef.current` to the new value before the parent's
+  // updated `value` prop flows back in, so the guard was always false and
+  // `setText` never ran: the visible field kept showing the OLD date, and a
+  // later blur-without-touching would re-parse that stale text and silently
+  // revert the value. Follows the same portal-scoping pattern as "the
+  // calendar trigger opens the shadcn Calendar popover" above and the
+  // day-button lookup used in DateCalendarPicker.test.tsx.
+  it('picking a day from the calendar updates the visible text field immediately (not just the canonical value)', () => {
+    const onValue = vi.fn();
+    render(<Host initial="2026-07-01" onValue={onValue} />);
+    expect(field().value).toBe('01/07/2026');
+
+    fireEvent.click(wrapper().querySelector('.mnr-dateinput__cal') as HTMLElement);
+    const table = document.body.querySelector('table') as HTMLElement;
+    const day15 = Array.from(table.querySelectorAll('button')).find((b) => b.textContent?.trim() === '15');
+    if (!day15) throw new Error('day button "15" not found');
+    fireEvent.click(day15);
+
+    // (a) visible masked text reflects the pick right away.
+    expect(field().value).toBe('15/07/2026');
+    // (b) canonical ISO value emitted matches.
+    expect(onValue).toHaveBeenLastCalledWith('2026-07-15');
+    expect(screen.getByTestId('iso')).toHaveTextContent('2026-07-15');
   });
 });

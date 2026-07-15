@@ -9,6 +9,7 @@ import '@fontsource/cairo/600.css';
 import '@fontsource/cairo/700.css';
 import 'material-symbols/outlined.css';
 import './app/theme.css';
+import './app/tailwind.css';
 import './styles/stitch-full.css';
 import './styles/financial.css';
 

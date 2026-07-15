@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { isoToDisplay, displayToIso, isWithinRange, sanitizeDateTyping } from '../lib/dateInput';
+import DateCalendarPicker from './DateCalendarPicker';
 import './DateInput.css';
 
 // Local alias to keep the JSX readable.
@@ -33,17 +34,14 @@ export interface DateInputProps {
   onBlur?: () => void;
 }
 
-// HTMLInputElement.showPicker is not in every TS lib.dom yet.
-type PickerInput = HTMLInputElement & { showPicker?: () => void };
-
 /**
  * Standardized date input for manarERP.
  *
  * Displays and accepts DD/MM/YYYY with Western digits, deterministically in
  * Electron/Chromium (a masked text field — NOT the OS-locale-formatted native
- * widget). A hidden native <input type="date"> is used only as the calendar
- * picker. The value contract is date-only 'YYYY-MM-DD' in and out, converted by
- * pure string helpers, so a business date can never shift a day across timezones.
+ * widget). The calendar icon opens `DateCalendarPicker` (the shadcn Calendar).
+ * The value contract is date-only 'YYYY-MM-DD' in and out, converted by pure
+ * string helpers, so a business date can never shift a day across timezones.
  */
 export default function DateInput({
   value,
@@ -68,7 +66,6 @@ export default function DateInput({
   // Tracks the value we last emitted so an external change (rehydrate/reset) can be told
   // apart from our own echo — the former re-syncs the visible text, the latter must not.
   const valueRef = useRef(value);
-  const nativeRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (value !== valueRef.current) {
@@ -102,24 +99,13 @@ export default function DateInput({
     }
   }
 
-  function openPicker() {
-    if (disabled || readOnly) return;
-    const el = nativeRef.current as PickerInput | null;
-    if (!el) return;
-    if (typeof el.showPicker === 'function') {
-      try { el.showPicker(); return; } catch { /* fall through to focus */ }
-    }
-    el.focus();
-    el.click();
-  }
-
   const showError = invalid || parseError;
 
   return (
-    // dir="ltr" pins the whole control to one inline axis so the calendar icon,
-    // the hidden native picker, and the input's reserved padding all resolve to the
-    // SAME physical side (trailing the LTR date value) in both RTL and LTR forms —
-    // otherwise, inside an RTL form, the icon lands on the left while the padding is
+    // dir="ltr" pins the whole control to one inline axis so the calendar icon
+    // and the input's reserved padding both resolve to the SAME physical side
+    // (trailing the LTR date value) in both RTL and LTR forms — otherwise,
+    // inside an RTL form, the icon lands on the left while the padding is
     // reserved on the right and the icon overlaps the leading digits.
     <div className={`mnr-dateinput${disabled ? ' is-disabled' : ''}`} dir="ltr">
       <input
@@ -157,35 +143,14 @@ export default function DateInput({
         }}
       />
       {!readOnly && (
-        <button
-          type="button"
-          className="mnr-dateinput__cal"
-          tabIndex={-1}
-          aria-hidden="true"
+        <DateCalendarPicker
+          value={value}
+          onChange={(iso) => { setParseError(false); setText(fmt(iso)); emit(iso); }}
+          min={min}
+          max={max}
           disabled={disabled}
-          onClick={openPicker}
-          title="اختيار من التقويم"
-        >
-          <span className="material-symbols-outlined">calendar_month</span>
-        </button>
+        />
       )}
-      {/* Hidden native input — calendar picker only; its OS-locale display is never shown. */}
-      <input
-        ref={nativeRef}
-        type="date"
-        className="mnr-dateinput__native"
-        tabIndex={-1}
-        aria-hidden="true"
-        value={value || ''}
-        min={min}
-        max={max}
-        disabled={disabled || readOnly}
-        onChange={(e) => {
-          setParseError(false);
-          setText(fmt(e.target.value));
-          emit(e.target.value);
-        }}
-      />
     </div>
   );
 }
