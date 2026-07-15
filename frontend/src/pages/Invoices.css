@@ -79,3 +79,24 @@
 .invcx-pmt-correct { padding: 4px 10px; font-size: 12px; white-space: nowrap; }
 /* رسالة تأكيد داخل نافذة تصحيح تاريخ التحصيل. */
 .invcx-correct-note { margin-bottom: 16px; }
+
+/* ── بطاقات ملخّص Drawer الفاتورة (المتبقي/المسدد/العمر/الإجمالي) ──────────────
+   عرضٌ محلي لهذا الـ Drawer فقط (مُقيّد بـ .invcx-detail-drawer)، لا يمسّ بطاقات
+   الـ KPI المشتركة في أي صفحة أخرى. يصغّر خط المبلغ (~15%) ويعزل رمز العملة في
+   عنصر أصغر بجانب الرقم بنفس السطر، فتبقى كل الأرقام داخل حدود البطاقة مهما
+   كبرت القيمة، دون التفاف أو قطع. */
+.invcx-detail-drawer .xpl-drawer-kpi { min-width: 0; }
+.invcx-detail-drawer .xpl-drawer-kpi-value { min-width: 0; }
+.invcx-detail-drawer .invcx-kpi-amt {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums lining-nums;
+  max-width: 100%;
+}
+.invcx-detail-drawer .invcx-kpi-amt-num { font-size: 12px; font-weight: 700; }
+.invcx-detail-drawer .invcx-kpi-amt-cur { font-size: 10px; font-weight: 600; opacity: .85; }

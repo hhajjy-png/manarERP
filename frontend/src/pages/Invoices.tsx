@@ -57,13 +57,11 @@ import {
   DrawerQuickActions,
   DrawerRelated,
   DrawerActivity,
-  DrawerActionBar,
   Button,
   type DrawerKpi,
   type QuickAction,
   type RelatedItem,
   type ActivityItem,
-  type ActionBtn,
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Invoices.css';
@@ -85,6 +83,21 @@ function directionLabel(d: string, t: (k: string) => string): string {
   if (d === 'SALES') return t('opt.direction.sales');
   if (d === 'PURCHASE') return t('opt.direction.purchase');
   return d || '—';
+}
+
+/**
+ * مبلغ مصغّر لبطاقات ملخّص Drawer الفاتورة: الرقم ورمز العملة في عنصرين منفصلين
+ * (كما في `KpiStat`) بدل نصّ واحد، كي يصغّر حجم «KWD» عن الرقم دون أن ينزل سطرًا
+ * جديدًا. عرضٌ محلي لهذا الـ Drawer فقط — لا يمسّ `MoneyText` المشتركة.
+ */
+function DrawerKpiMoney({ value }: { value: unknown }) {
+  const { number, currency } = moneyParts(value);
+  return (
+    <span className="invcx-kpi-amt">
+      <span className="invcx-kpi-amt-num">{number}</span>
+      <span className="invcx-kpi-amt-cur">{currency}</span>
+    </span>
+  );
 }
 
 const invoiceTypes = ['نقل اسفلت', 'يومية عمل مالينج', 'يومية نقل اسفلت', 'أخرى'] as const;
@@ -457,10 +470,10 @@ export default function Invoices() {
         };
 
         const kpis: DrawerKpi[] = [
-          { label: t('col.inv.total'), value: <MoneyText value={viewing.total} /> },
-          { label: t('col.inv.paid'), value: <MoneyText value={viewing.paidAmount} />, tone: 'green' },
-          { label: t('lbl.inv.remaining_amount'), value: <MoneyText value={remaining} />, tone: 'red' },
           { label: 'العمر', value: ageDays != null ? `${ageDays} يوم` : '—' },
+          { label: t('col.inv.paid'), value: <DrawerKpiMoney value={viewing.paidAmount} />, tone: 'green' },
+          { label: t('lbl.inv.remaining_amount'), value: <DrawerKpiMoney value={remaining} />, tone: 'red' },
+          { label: t('col.inv.total'), value: <DrawerKpiMoney value={viewing.total} /> },
         ];
 
         const quickActions: QuickAction[] = [];
@@ -503,22 +516,9 @@ export default function Invoices() {
         });
         if (String(viewing.status) === 'CANCELLED') activityItems.push({ key: 'cancelled', icon: 'block', tone: 'neutral', title: 'أُلغيت الفاتورة' });
 
-        const primaryAction: ActionBtn | undefined = canCollect
-          ? { key: 'collect', label: t('page.invoices.collect'), icon: 'payments', onClick: openCollect }
-          : canEdit
-            ? { key: 'edit', label: t('action.edit'), icon: 'edit', onClick: openEdit }
-            : undefined;
-
-        const secondaryActions: ActionBtn[] = [];
-        if (hasPermission('invoices.read')) secondaryActions.push({ key: 'print', label: t('btn.inv.print_invoice'), icon: 'print', onClick: goPrint });
-        if (canEdit && primaryAction?.key !== 'edit') secondaryActions.push({ key: 'edit', label: t('action.edit'), icon: 'edit', onClick: openEdit });
-
-        const dangerActions: ActionBtn[] = [];
-        if (canCancel) dangerActions.push({ key: 'cancel', label: t('page.invoices.cancel_inv'), icon: 'block', busy: cancelBusy, onClick: runCancel });
-        if (isSystemAdmin) dangerActions.push({ key: 'delete', label: 'حذف نهائي', icon: 'delete_forever', onClick: runDelete });
-
         return (
-          <Drawer
+          <div className="invcx-detail-drawer">
+            <Drawer
             title={`${t('col.inv.number')} ${viewing.invoiceNumber ?? viewing.number}`}
             onClose={() => setViewing(null)}
             hero={
@@ -532,9 +532,6 @@ export default function Invoices() {
                 />
                 <DrawerQuickActions actions={quickActions} />
               </>
-            }
-            footer={
-              <DrawerActionBar primary={primaryAction} secondary={secondaryActions} danger={dangerActions} />
             }
           >
             <DrawerSection title="المعلومات الأساسية">
@@ -590,6 +587,7 @@ export default function Invoices() {
               <DrawerField label="المعرّف الداخلي" value={`#${viewing.id}`} mono />
             </DrawerSection>
           </Drawer>
+          </div>
         );
       })()}
 
