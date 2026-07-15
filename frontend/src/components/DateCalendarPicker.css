@@ -37,6 +37,23 @@
   background: transparent;
 }
 
+/* th-only color/alignment fix — same root cause as the fix above (this
+   app's unlayered theme.css `thead th { color: var(--text-muted); ...}`
+   beats the vendor's own layered `text-muted-foreground` utility class
+   regardless of specificity), live-verified via getComputedStyle: the
+   weekday header computed `color: rgb(100, 116, 139)` (this app's own
+   --text-muted) instead of the intended `--sh-muted-foreground`
+   (rgb(115, 115, 115)), and `text-align: start` instead of the browser's
+   own UA default `center` for <th> (theme.css explicitly sets `start`).
+   Scoped to `th` only, NOT `td`: day-number cells have no such stray rule
+   and already correctly inherit the right color, so applying this to `td`
+   too would incorrectly mute every regular (non-outside) day number. */
+.mnr-cal-pop th {
+  color: var(--color-muted-foreground);
+  text-align: center;
+  white-space: normal;
+}
+
 /* Part B (upstream-appearance restoration): weekend muting, the weekday-
    header overflow guard, and the "Today" button were all ERP-specific
    additions beyond the official Calendar and have been removed — the
@@ -45,3 +62,103 @@
    Only the th/td fix above stays: that one isn't a design choice, it
    compensates for this app's pre-existing theme.css table CSS (see comment
    above) so the vendor's OWN official p-0 padding can actually take effect. */
+
+/* Visual Polish Pack v1 — root cause of the "heavier than the official
+   shadcn reference" look: app/tailwind.css deliberately omits Tailwind
+   Preflight app-wide, so unlike every official shadcn demo, native
+   <button>/<select> UA chrome (visible border, opaque background, platform
+   "appearance") is never zeroed by a base reset. The vendor Button/Calendar
+   classNames assume Preflight already did that (ghost only ever sets
+   `hover:bg-accent`, never a resting `bg-transparent`/`border-0`), so the
+   nav prev/next arrows and every day cell render as native bordered/gray
+   buttons instead of the intended flat, borderless look — this is what
+   reads as a heavy header and uneven spacing/alignment. Same gap already
+   patched once for DateInput's own calendar-icon trigger button (see
+   `.mnr-dateinput__cal { border: none; background: transparent; }` in
+   DateInput.css) — applied here at the wrapper level for the Calendar's
+   internal buttons/select, never in calendar.tsx itself.
+   Declared inside `base` (a layer this app's tailwind.css already orders
+   below `utilities` via `@layer theme, base, components, utilities;`, and
+   deliberately leaves empty) so it only supplies the missing default and
+   still loses to any Tailwind utility class already present in the
+   `utilities` layer — hover/today/range/selected backgrounds and the
+   focus-visible ring all keep working exactly as authored. */
+@layer base {
+  .mnr-cal-pop button,
+  .mnr-cal-pop select {
+    -webkit-appearance: none;
+    appearance: none;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    color: inherit;
+  }
+}
+
+/* Dark-mode Month/Year dropdown contrast fix. The visible, closed-state
+   chrome (the label text inside `dropdown_root`) already resolves correctly
+   in dark mode — it inherits `text-popover-foreground`, which is properly
+   namespaced to `--sh-popover-foreground` (see tailwind.css) and flips with
+   the app's theme. The actual reported bug lives one layer deeper: the real
+   interactive element is a native, invisible (`opacity-0`) <select> stacked
+   on top of that label (react-day-picker's own dropdown anatomy), and its
+   OPEN option-list popup is rendered natively by Chromium, not by this app's
+   CSS. Chromium picks that popup's rendering theme (background, text, and
+   crucially the hover/selected-row highlight) from the `color-scheme`
+   property, which nothing here ever sets — so it silently falls back to a
+   light-themed native listbox even while the app is in dark mode, producing
+   exactly the reported low-contrast/hard-to-read options. Setting
+   `color-scheme: dark` (scoped to the app's own dark-mode toggle, not the
+   OS's) makes Chromium render that native popup with correctly-contrasted
+   dark colors, matching the rest of the dark theme. Visual-only: does not
+   touch layout, options, or selection behavior. */
+:root[data-theme='dark'] .mnr-cal-pop select,
+.dark .mnr-cal-pop select {
+  color-scheme: dark;
+}
+
+/* Nav chevron orientation fix — live-verified via getComputedStyle, not
+   guessed: both the previous- and next-month chevron SVGs compute
+   `rotate: 180deg` inside this popover, even though DateCalendarPicker
+   forces it to `dir="ltr"`. Root cause: calendar.tsx's own
+   `rtl:**:[.rdp-button_previous>svg]:rotate-180` compiles to a plain
+   `[dir="rtl"] .rdp-button_previous > svg { rotate: 180deg }` rule — an
+   ancestor ATTRIBUTE selector, not a "nearest direction context" check. The
+   Popover portals into `document.body`, which is still a descendant of this
+   app's real `<html dir="rtl">` root, so the selector matches regardless of
+   the `dir="ltr"` set lower down on the portalled content itself. Every
+   OTHER RTL-aware thing here (weekday order, day order, dropdown order)
+   correctly follows the `dir="ltr"` override because those go through
+   normal CSS `direction` cascade/logical properties, not an attribute
+   selector — this chevron rotation is the one exception. Since this popover
+   is always forced LTR, the rotation should never apply; reset it
+   unconditionally, unlayered (like the th/td fix above) so it wins over the
+   `rtl:` utility regardless of layer/specificity. */
+.mnr-cal-pop .rdp-button_previous > svg,
+.mnr-cal-pop .rdp-button_next > svg {
+  rotate: 0deg;
+}
+
+/* Border color fix — live-verified via getComputedStyle, not guessed:
+   PopoverContent's own className includes a bare `border` utility (no color
+   utility alongside it) and computed to `border-color: rgb(10, 10, 10)` —
+   the app's near-black text color, not the intended subtle light-gray
+   `--sh-border`. Root cause: Tailwind's bare `border` utility only ever sets
+   `border-width`/`border-style`; the actual default *color* for a colorless
+   `border` class normally comes from shadcn's own registry default block
+   `@layer base { *, ::before, ::after { @apply border-border; } }` — which
+   this project's tailwind.css deliberately omits (documented there: it's a
+   global `*` selector, so restoring it verbatim would apply site-wide,
+   exactly the same class of regression already found and avoided for the
+   `--sh-*` token prefix). Without it, a colorless `border` class falls back
+   to the CSS initial value, `currentColor`, per browsers/Tailwind since the
+   v3 default-border-color change. Fix: supply the same default color, but
+   scoped to this popover only (not global `*`), inside `@layer base` so any
+   *explicitly*-colored border utility elsewhere in the subtree (e.g.
+   `border-input`) still wins normally. */
+@layer base {
+  .mnr-cal-pop,
+  .mnr-cal-pop * {
+    border-color: var(--color-border);
+  }
+}
