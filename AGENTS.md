@@ -63,6 +63,8 @@ manarERP/
 | Axios | 1.7.2 | HTTP client with JWT interceptor |
 | Recharts | 3.8.1 | Charts and data visualization |
 | Chart.js | 4.4.3 | Alternative charting (used in specific components) |
+| Tailwind CSS | 4.3.2 | Scoped to the shadcn/ui integration only — see [Styling Architecture](#styling-architecture-officially-approved) |
+| shadcn/ui | — | Vendored components under `frontend/src/components/ui/**` |
 
 ### Backend
 | Tool | Version | Role |
@@ -267,6 +269,32 @@ Dev: resolved automatically by `tsx`. Production: rewritten to relative paths by
 
 ### Frontend Routing
 `HashRouter` is mandatory — React Router's `createHashRouter` is required because Electron loads `index.html` via `file://`.
+
+---
+
+## Styling Architecture (Officially Approved)
+
+> Permanent architectural decision — not a technology migration. Must not be reported as an architectural violation in future reviews.
+
+Vanilla CSS is the primary styling system across the entire manarERP application.
+
+Tailwind CSS is **not** a general-purpose styling framework in this project. It is permitted **only** for the isolated shadcn/ui integration, within these approved boundaries:
+
+- `frontend/src/components/ui/**`
+- `frontend/src/components/DateCalendarPicker*`
+- `frontend/src/app/tailwind.css`
+
+The integration must remain isolated. Mandatory rules:
+
+- No Tailwind Preflight.
+- No global Tailwind reset.
+- No Tailwind utility usage outside the approved shadcn integration unless explicitly approved.
+- The existing Vanilla CSS architecture remains the source of truth.
+- Existing design tokens remain unchanged.
+- shadcn tokens must remain namespaced (`--sh-*`).
+- `rgb()` token values are used intentionally instead of `oklch()`, due to a documented Electron rendering issue.
+- Vendor shadcn files should remain as close to upstream as practical.
+- Wrapper components may contain integration code required for RTL, overlay interoperability, existing application architecture, or Electron compatibility.
 
 ---
 
