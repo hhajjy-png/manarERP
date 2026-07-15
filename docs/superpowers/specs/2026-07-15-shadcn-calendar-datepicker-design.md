@@ -250,3 +250,41 @@ was never part of the shipped interaction. Per the standing "shadcn files
 stay upstream-pure" rule this was not patched now — revisit when the
 deferred restyling phase happens, or sooner if keyboard-accessible day
 navigation becomes a requirement.
+
+## Systemic risk for any future shadcn component (read before adding another one)
+
+Post-release visual QA (live browser, not jsdom) found the Calendar popup
+was not a solid surface — page content bled through it. Root cause, beyond
+this component: **this app's pre-existing, unlayered, bare-tag-selector CSS
+(`theme.css`'s `table`/`thead th`/`tbody td`, built for the app's own
+hand-rolled data tables) silently defeats ANY Tailwind utility class on ANY
+shadcn component, regardless of specificity** — because keeping Preflight
+disabled (Global Constraints, item 5) required scoping all Tailwind
+utilities inside `@layer utilities`, and CSS cascade layers resolve *before*
+specificity: unlayered rules always win over layered ones, full stop. Here
+it meant `tbody td { padding: 14px 16px; ... }` beat the vendor Calendar's
+`p-0`, inflating every day cell to 2× its intended size and overflowing the
+popover. The same risk applies to any future shadcn component that renders
+`<table>`/`<th>`/`<td>`/or any other tag this app already styles broadly
+(checked and confirmed clear for now: no bare `button`/`input`/`a`
+selectors exist in `theme.css`, only `table`-family ones — but a new
+bare-tag rule added later, or a shadcn component using a different tag,
+could reopen this). **When adding another shadcn component: grep
+`frontend/src/app/theme.css` and `frontend/src/styles/*.css` for bare
+(non-class-scoped) selectors matching any tag the new component renders,
+and add a scoped override in the component's own CSS file if one exists —
+do not assume Tailwind utilities "just win."**
+
+Separately (unrelated to the above): this Electron/Chromium build computes
+`background-color: oklch(...)` correctly (`getComputedStyle` confirms it,
+reproduced even forced inline via `!important`) but fails to actually paint
+it for the low-chroma dark tokens shadcn's registry ships by default — an
+equivalent hex color on the identical element painted fine. All color
+tokens in `tailwind.css` were converted from `oklch()` to the precise sRGB
+equivalent (resolved via this browser's own `<canvas>` `fillStyle` +
+`getImageData`, not hand-computed) rather than the registry's original
+values. **Any future shadcn component/token added to this app should use
+`rgb()`/`hex` colors, not `oklch()`, until this is independently confirmed
+fixed in a newer Electron/Chromium version** — re-test by forcing an
+`oklch()` background inline on any element and comparing a screenshot
+against an equivalent hex value before trusting oklch() again.
