@@ -23,6 +23,27 @@
    bare-tag selectors and would violate the Preflight-disabled scoping above;
    Button/Popover/Calendar already reference the tokens via utility classes.
 
+   ── `--sh-` PREFIX IS MANDATORY, NOT COSMETIC ──────────────────────────────
+   The raw tokens are named `--sh-primary`, `--sh-accent`, `--sh-border`,
+   `--sh-radius`, `--sh-muted`, … — NOT shadcn's default bare `--primary`,
+   `--accent`, `--border`, `--radius`, `--muted`. Reason (found in visual QA):
+   this app has used those BARE names as its OWN brand design tokens since
+   long before shadcn (see app/theme.css: `--primary` = the navy sidebar,
+   `--accent` = the blue highlight/login, `--border`, `--radius: 16px`, and
+   pages that read `var(--muted)`). shadcn's registry template declares its
+   tokens on the GLOBAL `:root` under those same bare names. Declaring them
+   globally therefore SHADOWED the app's brand palette app-wide — the sidebar,
+   the active-nav highlight, the login button/logo, every corner radius, and
+   dark-mode borders all silently took shadcn's neutral gray/black values.
+   (In dark mode it was worse: `:root[data-theme='dark']` out-specifies the
+   app's `html[data-theme="dark"]`, so shadcn's dark tokens won regardless of
+   load order.) Prefixing with `--sh-` keeps every shadcn token in its own
+   namespace: the app's global `--primary`/`--accent`/`--border`/`--radius`/
+   `--muted` are never touched, and the Tailwind `--color-*`/`--radius-*`
+   mapping below (which is all the vendor utility classes actually consume)
+   points at the `--sh-*` tokens instead. DO NOT drop the prefix or move
+   these onto bare `:root` names — that reintroduces the app-wide regression.
+
    VALUES ARE rgb()/rgba(), NOT oklch() — found during visual QA: this specific
    Electron/Chromium build fails to actually PAINT `background-color: oklch(...)`
    for these low-chroma dark tokens even though it computes/cascades correctly
@@ -36,96 +57,102 @@
    these are not a different design, just the same colors in a format that
    actually renders here. */
 :root {
-  --background: rgb(255, 255, 255);
-  --foreground: rgb(10, 10, 10);
-  --card: rgb(255, 255, 255);
-  --card-foreground: rgb(10, 10, 10);
-  --popover: rgb(255, 255, 255);
-  --popover-foreground: rgb(10, 10, 10);
-  --primary: rgb(23, 23, 23);
-  --primary-foreground: rgb(250, 250, 250);
-  --secondary: rgb(245, 245, 245);
-  --secondary-foreground: rgb(23, 23, 23);
-  --muted: rgb(245, 245, 245);
-  --muted-foreground: rgb(115, 115, 115);
-  --accent: rgb(245, 245, 245);
-  --accent-foreground: rgb(23, 23, 23);
-  --destructive: rgb(231, 0, 11);
-  --border: rgb(229, 229, 229);
-  --input: rgb(229, 229, 229);
-  --ring: rgb(161, 161, 161);
-  --chart-1: rgb(212, 212, 212);
-  --chart-2: rgb(115, 115, 115);
-  --chart-3: rgb(82, 82, 82);
-  --chart-4: rgb(64, 64, 64);
-  --chart-5: rgb(38, 38, 38);
-  --radius: 0.625rem;
+  --sh-background: rgb(255, 255, 255);
+  --sh-foreground: rgb(10, 10, 10);
+  --sh-card: rgb(255, 255, 255);
+  --sh-card-foreground: rgb(10, 10, 10);
+  --sh-popover: rgb(255, 255, 255);
+  --sh-popover-foreground: rgb(10, 10, 10);
+  --sh-primary: rgb(23, 23, 23);
+  --sh-primary-foreground: rgb(250, 250, 250);
+  --sh-secondary: rgb(245, 245, 245);
+  --sh-secondary-foreground: rgb(23, 23, 23);
+  --sh-muted: rgb(245, 245, 245);
+  --sh-muted-foreground: rgb(115, 115, 115);
+  --sh-accent: rgb(245, 245, 245);
+  --sh-accent-foreground: rgb(23, 23, 23);
+  --sh-destructive: rgb(231, 0, 11);
+  --sh-border: rgb(229, 229, 229);
+  --sh-input: rgb(229, 229, 229);
+  --sh-ring: rgb(161, 161, 161);
+  --sh-chart-1: rgb(212, 212, 212);
+  --sh-chart-2: rgb(115, 115, 115);
+  --sh-chart-3: rgb(82, 82, 82);
+  --sh-chart-4: rgb(64, 64, 64);
+  --sh-chart-5: rgb(38, 38, 38);
+  --sh-radius: 0.625rem;
 }
 
-/* Dark-mode values from the same registry payload (same rgb()-not-oklch()
-   rationale as above). Selector extended beyond shadcn's default `.dark`
-   class to also match this app's own dark-mode convention
+/* Dark-mode values from the same registry payload (same rgb()-not-oklch() and
+   same `--sh-` prefix rationale as above). Selector extended beyond shadcn's
+   default `.dark` class to also match this app's own dark-mode convention
    (`:root[data-theme='dark']`, toggled app-wide — see
    frontend/src/components/DateInput.css) so shadcn components stay in sync
-   with the rest of the UI without requiring a separate `.dark` class toggle. */
+   with the rest of the UI without requiring a separate `.dark` class toggle.
+   Safe now that the tokens are `--sh-*`: this block only sets shadcn's own
+   namespaced tokens, so its higher specificity can no longer override the
+   app's `html[data-theme="dark"]` brand tokens. */
 .dark,
 :root[data-theme='dark'] {
-  --background: rgb(10, 10, 10);
-  --foreground: rgb(250, 250, 250);
-  --card: rgb(23, 23, 23);
-  --card-foreground: rgb(250, 250, 250);
-  --popover: rgb(23, 23, 23);
-  --popover-foreground: rgb(250, 250, 250);
-  --primary: rgb(229, 229, 229);
-  --primary-foreground: rgb(23, 23, 23);
-  --secondary: rgb(38, 38, 38);
-  --secondary-foreground: rgb(250, 250, 250);
-  --muted: rgb(38, 38, 38);
-  --muted-foreground: rgb(161, 161, 161);
-  --accent: rgb(38, 38, 38);
-  --accent-foreground: rgb(250, 250, 250);
-  --destructive: rgb(255, 100, 103);
-  --border: rgba(255, 255, 255, 0.10);
-  --input: rgba(255, 255, 255, 0.15);
-  --ring: rgb(115, 115, 115);
-  --chart-1: rgb(212, 212, 212);
-  --chart-2: rgb(115, 115, 115);
-  --chart-3: rgb(82, 82, 82);
-  --chart-4: rgb(64, 64, 64);
-  --chart-5: rgb(38, 38, 38);
+  --sh-background: rgb(10, 10, 10);
+  --sh-foreground: rgb(250, 250, 250);
+  --sh-card: rgb(23, 23, 23);
+  --sh-card-foreground: rgb(250, 250, 250);
+  --sh-popover: rgb(23, 23, 23);
+  --sh-popover-foreground: rgb(250, 250, 250);
+  --sh-primary: rgb(229, 229, 229);
+  --sh-primary-foreground: rgb(23, 23, 23);
+  --sh-secondary: rgb(38, 38, 38);
+  --sh-secondary-foreground: rgb(250, 250, 250);
+  --sh-muted: rgb(38, 38, 38);
+  --sh-muted-foreground: rgb(161, 161, 161);
+  --sh-accent: rgb(38, 38, 38);
+  --sh-accent-foreground: rgb(250, 250, 250);
+  --sh-destructive: rgb(255, 100, 103);
+  --sh-border: rgba(255, 255, 255, 0.10);
+  --sh-input: rgba(255, 255, 255, 0.15);
+  --sh-ring: rgb(115, 115, 115);
+  --sh-chart-1: rgb(212, 212, 212);
+  --sh-chart-2: rgb(115, 115, 115);
+  --sh-chart-3: rgb(82, 82, 82);
+  --sh-chart-4: rgb(64, 64, 64);
+  --sh-chart-5: rgb(38, 38, 38);
 }
 
-/* Maps the raw tokens above into Tailwind v4's --color-* / --radius-*
+/* Maps the `--sh-*` tokens above into Tailwind v4's --color-* / --radius-*
    namespace so utility classes (bg-primary, text-popover-foreground,
    border-border, rounded-md, ...) used by Button/Popover/Calendar resolve.
-   Standard shadcn Tailwind-v4 mapping — has no effect outside those
-   utility classes, so it does not reset or restyle any existing element. */
+   These `--color-*` names ARE shadcn's expected Tailwind namespace (the
+   vendor ui/*.tsx classes consume them) and do NOT collide with any app
+   token — only their `var()` targets were repointed to the `--sh-*` tokens.
+   Has no effect outside these utility classes, so it does not reset or
+   restyle any existing element. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--sh-background);
+  --color-foreground: var(--sh-foreground);
+  --color-card: var(--sh-card);
+  --color-card-foreground: var(--sh-card-foreground);
+  --color-popover: var(--sh-popover);
+  --color-popover-foreground: var(--sh-popover-foreground);
+  --color-primary: var(--sh-primary);
+  --color-primary-foreground: var(--sh-primary-foreground);
+  --color-secondary: var(--sh-secondary);
+  --color-secondary-foreground: var(--sh-secondary-foreground);
+  --color-muted: var(--sh-muted);
+  --color-muted-foreground: var(--sh-muted-foreground);
+  --color-accent: var(--sh-accent);
+  --color-accent-foreground: var(--sh-accent-foreground);
+  --color-destructive: var(--sh-destructive);
+  --color-border: var(--sh-border);
+  --color-input: var(--sh-input);
+  --color-ring: var(--sh-ring);
+  --color-chart-1: var(--sh-chart-1);
+  --color-chart-2: var(--sh-chart-2);
+  --color-chart-3: var(--sh-chart-3);
+  --color-chart-4: var(--sh-chart-4);
+  --color-chart-5: var(--sh-chart-5);
+  --radius-sm: calc(var(--sh-radius) - 4px);
+  --radius-md: calc(var(--sh-radius) - 2px);
+  --radius-lg: var(--sh-radius);
+  --radius-xl: calc(var(--sh-radius) + 4px);
 }
