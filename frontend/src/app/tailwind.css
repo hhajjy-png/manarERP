@@ -1,0 +1,117 @@
+/* Tailwind v4 — theme + utilities only. Preflight (the global element reset)
+   is deliberately OMITTED: loading it over 295+ releases of hand-rolled CSS
+   would reset margins/headings/buttons/inputs app-wide via bare-tag
+   selectors and regress unrelated pages. Scoped to the shadcn component
+   subtree (Calendar/Popover/Button) that actually needs Tailwind utilities.
+   See docs/superpowers/specs/2026-07-15-shadcn-calendar-datepicker-design.md */
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* shadcn/ui design tokens — style "new-york", base color "neutral".
+   `npx shadcn@latest add button popover calendar` (shadcn CLI 4.13.0) did not
+   append this block itself in this environment — its "add" command only
+   resolves per-component file/npm-dependency diffs, not the base color CSS
+   variables (those are normally written by the interactive `init` wizard,
+   which Step 5 intentionally skips). Fetched directly from the live registry
+   (`https://ui.shadcn.com/r/colors/neutral.json`, field `cssVarsTemplate`) so
+   the values match what `init` would have produced for this exact
+   style/baseColor combo. Intentionally excludes the registry's default
+   `@layer base { * { @apply border-border outline-ring/50; } body { @apply
+   bg-background text-foreground; } }` rules — those apply site-wide via
+   bare-tag selectors and would violate the Preflight-disabled scoping above;
+   Button/Popover/Calendar already reference the tokens via utility classes. */
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+}
+
+/* Dark-mode values from the same registry payload. Selector extended beyond
+   shadcn's default `.dark` class to also match this app's own dark-mode
+   convention (`:root[data-theme='dark']`, toggled app-wide — see
+   frontend/src/components/DateInput.css) so shadcn components stay in sync
+   with the rest of the UI without requiring a separate `.dark` class toggle. */
+.dark,
+:root[data-theme='dark'] {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+}
+
+/* Maps the raw tokens above into Tailwind v4's --color-* / --radius-*
+   namespace so utility classes (bg-primary, text-popover-foreground,
+   border-border, rounded-md, ...) used by Button/Popover/Calendar resolve.
+   Standard shadcn Tailwind-v4 mapping — has no effect outside those
+   utility classes, so it does not reset or restyle any existing element. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}

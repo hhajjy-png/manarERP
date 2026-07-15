@@ -798,7 +798,7 @@ html[data-theme="dark"] .aging-table th.sortable:hover { background: var(--surfa
    FINANCIAL CENTER — PROFESSIONAL REFRESH v1
    Presentation-only cohesion with the Executive Dashboard (ExplorerKit tokens).
    Scoped to `.financial-center` (which now carries `.xpl-scope`), targeting the
-   existing fc-*/financial-* vocabulary; later rules win at equal specificity.
+   existing fc-* / financial-* vocabulary; later rules win at equal specificity.
    No behaviour / logic / data / calculation change.
    ══════════════════════════════════════════════════════════════════════════════ */
 
