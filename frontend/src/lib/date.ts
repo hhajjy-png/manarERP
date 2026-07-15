@@ -1,7 +1,14 @@
-const ARABIC_MONTHS = [
+/** Index 0 = January. Exported so the Calendar picker's dropdown/caption
+ *  formatters reuse the same Arabic month names as the rest of the app,
+ *  instead of pulling in date-fns's Arabic locale strings. */
+export const ARABIC_MONTHS = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
 ];
+
+/** Index 0 = Sunday, matching `Date.getDay()` — used by the Calendar
+ *  picker's weekday-header formatter. */
+export const WEEKDAY_SHORT_AR = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
 
 function parse(value: unknown): Date | null {
   if (!value) return null;
