@@ -1,0 +1,24 @@
+/* DateCalendarPicker — ERP-specific styling layered on top of the untouched
+   shadcn Calendar/Popover (see the standing architectural rule: extend via
+   composition/CSS, never edit components/ui/*.tsx directly). */
+
+.mnr-cal-weekend {
+  opacity: 0.55;
+}
+
+.mnr-cal-today {
+  margin-top: 6px;
+  width: 100%;
+  padding: 6px 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--xpl-primary, #4f46e5);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mnr-cal-today:hover {
+  background: rgba(79, 70, 229, 0.08);
+}
