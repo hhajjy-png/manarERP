@@ -105,17 +105,23 @@ export default function DateCalendarPicker({ value, onChange, min, max, disabled
       {/* dir="ltr" is NOT a design customization: the app root is
           <html lang="ar" dir="rtl">, and PopoverContent portals straight into
           document.body, so without an explicit override it would inherit RTL
-          from the app rather than actually rendering LTR as required.
+          from the app rather than actually rendering LTR as required. Verified
+          live: without it, the weekday header and layout mirror (Sa..Su
+          instead of Su..Sa) — see docs/superpowers/plans temp comparison page.
           z-[var(--z-popover)] is NOT a design customization either: this
           Calendar's only real host context is DateInput fields inside the
           app's Modal/Dialog/Drawer forms (z-index 400-500), so the vendor's
           own default z-50 would render it invisible behind them — this is
           the minimum integration plumbing needed for the upstream appearance
           to be visible/reviewable at all in this app's shell, not a visual
-          restyle. Every other prop below is the vendor's own default
-          (no width/padding/align override — align="center", w-72, p-4 apply
-          as shipped). */}
-      <PopoverContent dir="ltr" className={cn('mnr-cal-pop z-[var(--z-popover)]')}>
+          restyle. w-auto p-0 is the vendor's own reference usage (every
+          official Calendar-in-Popover demo overrides PopoverContent's raw
+          w-72/p-4 default this way, since Calendar already brings its own
+          w-fit sizing and p-3 padding — leaving the raw default in place
+          double-pads and over-widens the box, which is what Part B had
+          incorrectly left in place). align="center" is the only remaining
+          vendor default, unmodified. */}
+      <PopoverContent dir="ltr" className={cn('mnr-cal-pop z-[var(--z-popover)]', 'w-auto p-0')}>
         <Calendar
           mode="single"
           captionLayout="dropdown"
