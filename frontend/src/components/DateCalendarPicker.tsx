@@ -55,10 +55,12 @@ export default function DateCalendarPicker({ value, onChange, min, max, disabled
   const startMonth = minDate ?? new Date(FALLBACK_START_YEAR, 0, 1);
   const endMonth = maxDate ?? new Date(fallbackEndYear, 11, 31);
 
-  // Two independent matchers (OR semantics: before min, or after max) — NOT a single
-  // merged `{ before, after }` object. That shape is react-day-picker's `DateInterval`,
-  // which means "strictly between after and before" (AND semantics): with both min and
-  // max set it would match no date at all and silently disable nothing.
+  // Two independent matchers (before min, or after max) — NOT a single merged
+  // `{ before, after }` object. The merged-object form (built via conditional spread,
+  // e.g. `{ ...(minDate ? { before: minDate } : {}) , ...(maxDate ? { after: maxDate } : {}) }`)
+  // fails `tsc`: TypeScript widens that spread to a shape that doesn't structurally
+  // match react-day-picker's `Matcher` union type. The array form both type-checks and
+  // is natively supported by the `disabled` prop.
   const disabledMatcher: Matcher[] | undefined = (() => {
     const matchers: Matcher[] = [];
     if (minDate) matchers.push({ before: minDate });
