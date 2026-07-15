@@ -235,3 +235,18 @@ changes.
 - Any other `DateInput` behavior change beyond the picker mechanism.
 - Any business logic, API, validation, or permission change (none is
   entailed by this work).
+
+## Known limitation, tracked for the restyling phase
+
+The scaffolded vendor `ui/calendar.tsx`/`ui/button.tsx` target React 19's
+ref-as-prop convention (no `forwardRef`), while this app is React 18. This
+logs a "Function components cannot be given refs" console warning on every
+calendar open, and silently no-ops react-day-picker's programmatic
+keyboard day-focus (arrow-key navigation moving DOM focus). Found and
+verified during the final whole-branch review. Accepted as-is for this
+release: the trigger is `aria-hidden`/mouse-only by design (matching
+`DateInput`'s pre-existing icon-button convention), so keyboard day-focus
+was never part of the shipped interaction. Per the standing "shadcn files
+stay upstream-pure" rule this was not patched now — revisit when the
+deferred restyling phase happens, or sooner if keyboard-accessible day
+navigation becomes a requirement.
