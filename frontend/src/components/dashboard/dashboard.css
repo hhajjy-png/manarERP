@@ -1795,6 +1795,44 @@
 .db-exec-head-actions { display: flex; align-items: center; gap: 12px; }
 .db-exec-updated { font-size: 11.5px; color: var(--xpl-muted); }
 
+.db-refresh-loader-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--xpl-text);
+  cursor: pointer;
+  line-height: 0;
+}
+.db-refresh-loader-btn:hover:not(:disabled) { color: var(--xpl-primary); }
+.db-refresh-loader-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+.retry-loader {
+  width: 2.08em;
+  transform-origin: center;
+  animation: rotate4 2s linear infinite;
+  cursor: pointer;
+}
+.retry-loader circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-dasharray: 1, 200;
+  stroke-dashoffset: 0;
+  stroke-linecap: round;
+  animation: dash4 1.5s ease-in-out infinite;
+}
+@keyframes rotate4 {
+  100% { transform: rotate(360deg); }
+}
+@keyframes dash4 {
+  0% { stroke-dasharray: 1, 200; stroke-dashoffset: 0; }
+  50% { stroke-dasharray: 90, 200; stroke-dashoffset: -35px; }
+  100% { stroke-dashoffset: -125px; }
+}
+
 /* §9 — Advanced-analytics expander (progressive disclosure) */
 .db-advanced {
   border: 1px solid var(--xpl-border);

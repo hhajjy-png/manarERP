@@ -247,14 +247,17 @@ function GeneralDashboardContent() {
           {!initialLoading && refreshAt && (
             <span className="db-exec-updated">آخر تحديث {refreshAt.toLocaleTimeString('ar')}</span>
           )}
-          <Button
-            variant="secondary"
-            icon="refresh"
-            busy={initialLoading || refreshing}
+          <button
+            type="button"
+            className="db-refresh-loader-btn"
+            disabled={initialLoading || refreshing}
             onClick={() => setRefreshKey((k) => k + 1)}
+            aria-label={t('page.dashboard.retry')}
           >
-            {t('page.dashboard.retry')}
-          </Button>
+            <svg className="retry-loader" viewBox="25 25 50 50">
+              <circle cx="50" cy="50" r="20"></circle>
+            </svg>
+          </button>
         </div>
       </div>
 
