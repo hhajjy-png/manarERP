@@ -37,37 +37,11 @@
   background: transparent;
 }
 
-.mnr-cal-weekend {
-  opacity: 0.55;
-}
-
-/* Defensive guard against a real bug found in visual QA: the weekday-header
-   row (react-day-picker's `.rdp-weekdays`) is a flex row, so an
-   over-long label forces the whole row — and the day-grid table sized to
-   match it — wider than the popover's fixed width, overflowing past its
-   solid background and exposing unstyled cells over the page behind it.
-   WEEKDAY_SHORT_AR (lib/date.ts) is now genuinely short, but this caps the
-   header cell itself so a future longer label degrades to a clipped
-   ellipsis instead of silently blowing out the whole calendar's width again. */
-.mnr-cal-pop [class~="rdp-weekday"] {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.mnr-cal-today {
-  margin-top: 6px;
-  width: 100%;
-  padding: 6px 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--xpl-primary, #4f46e5);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.mnr-cal-today:hover {
-  background: rgba(79, 70, 229, 0.08);
-}
+/* Part B (upstream-appearance restoration): weekend muting, the weekday-
+   header overflow guard, and the "Today" button were all ERP-specific
+   additions beyond the official Calendar and have been removed — the
+   vendor's own English weekday abbreviations ("Su/Mo/Tu/…") are short
+   enough that the overflow risk they guarded against doesn't apply upstream.
+   Only the th/td fix above stays: that one isn't a design choice, it
+   compensates for this app's pre-existing theme.css table CSS (see comment
+   above) so the vendor's OWN official p-0 padding can actually take effect. */

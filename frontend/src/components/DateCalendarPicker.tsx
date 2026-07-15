@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Matcher } from 'react-day-picker';
 import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from '../lib/utils';
-import { ARABIC_MONTHS, WEEKDAY_SHORT_AR } from '../lib/date';
 import './DateCalendarPicker.css';
 
 export interface DateCalendarPickerProps {
@@ -78,16 +77,16 @@ export default function DateCalendarPicker({ value, onChange, min, max, disabled
     return matchers.length ? matchers : undefined;
   })();
 
-  const [month, setMonth] = useState<Date>(selected ?? new Date());
-
-  // Rule 4: never reopen on a stale previously-navigated month — recompute
-  // fresh from the current value (or today) every time the popover opens.
-  useEffect(() => {
-    if (open) setMonth(selected ?? new Date());
-    // Only the open transition should trigger this, not every `value` edit
-    // while already open (that would fight the user's in-progress navigation).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  // No controlled `month`/onMonthChange state, no Today button (Part B:
+  // upstream-faithful interaction only). Verified: react-day-picker's own
+  // uncontrolled default (no `month`/`defaultMonth` at all) opens on TODAY's
+  // month regardless of `selected` — so `defaultMonth={selected}` below is
+  // load-bearing, not decorative; it's the officially-documented prop for
+  // "which month to show initially" (see react-day-picker's `defaultMonth`
+  // docs), not custom state machinery. Radix's PopoverContent unmounts on
+  // close by default (Presence, no forceMount), so the Calendar remounts
+  // fresh each open and `defaultMonth` is re-evaluated against the current
+  // `selected` every time — never a stale previously-navigated month.
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -103,36 +102,35 @@ export default function DateCalendarPicker({ value, onChange, min, max, disabled
           <span className="material-symbols-outlined">calendar_month</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent
-        dir="rtl"
-        align="end"
-        className={cn('mnr-cal-pop w-[var(--radix-popover-trigger-width)] min-w-[19rem] z-[var(--z-popover)] p-2')}
-      >
+      {/* dir="ltr" is NOT a design customization: the app root is
+          <html lang="ar" dir="rtl">, and PopoverContent portals straight into
+          document.body, so without an explicit override it would inherit RTL
+          from the app rather than actually rendering LTR as required.
+          z-[var(--z-popover)] is NOT a design customization either: this
+          Calendar's only real host context is DateInput fields inside the
+          app's Modal/Dialog/Drawer forms (z-index 400-500), so the vendor's
+          own default z-50 would render it invisible behind them — this is
+          the minimum integration plumbing needed for the upstream appearance
+          to be visible/reviewable at all in this app's shell, not a visual
+          restyle. Every other prop below is the vendor's own default
+          (no width/padding/align override — align="center", w-72, p-4 apply
+          as shipped). */}
+      <PopoverContent dir="ltr" className={cn('mnr-cal-pop z-[var(--z-popover)]')}>
         <Calendar
           mode="single"
           captionLayout="dropdown"
           selected={selected}
+          defaultMonth={selected}
           onSelect={(date) => {
             if (date) {
               onChange(formatIsoLocal(date));
               setOpen(false);
             }
           }}
-          month={month}
-          onMonthChange={setMonth}
           startMonth={startMonth}
           endMonth={endMonth}
           disabled={disabledMatcher}
-          modifiers={{ weekend: { dayOfWeek: [5, 6] } }}
-          modifiersClassNames={{ weekend: 'mnr-cal-weekend' }}
-          formatters={{
-            formatMonthDropdown: (date) => ARABIC_MONTHS[date.getMonth()],
-            formatWeekdayName: (date) => WEEKDAY_SHORT_AR[date.getDay()],
-          }}
         />
-        <button type="button" className="mnr-cal-today" onClick={() => setMonth(new Date())}>
-          اليوم
-        </button>
       </PopoverContent>
     </Popover>
   );

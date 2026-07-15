@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import DateCalendarPicker from '../components/DateCalendarPicker';
 
@@ -74,7 +74,12 @@ describe('DateCalendarPicker', () => {
     expect(triggerButton()).toBeDisabled();
   });
 
-  it('reopening shows the current value\'s month, not a previously-navigated month (rule 4)', () => {
+  it('reopening shows the current value\'s month, not a previously-navigated month', () => {
+    // Part B: no controlled month state — this now relies on Radix's Popover
+    // unmounting its content on close (Presence, no forceMount), so the
+    // vendor Calendar remounts fresh each open and its own uncontrolled
+    // default month (derived from `selected`) naturally lands on the
+    // current value's month, never a stale previously-navigated one.
     render(<DateCalendarPicker value="2026-03-10" onChange={() => {}} />);
     openPicker();
     // The month/year dropdowns render as native <select> elements inside the
@@ -89,19 +94,5 @@ describe('DateCalendarPicker', () => {
     // Reopen — must show March (the value's month) again, not the navigated-to November.
     openPicker();
     expect(selects()[0].value).toBe('2');
-  });
-
-  it('weekend (Friday/Saturday) columns carry the weekend modifier class', () => {
-    render(<DateCalendarPicker value="2026-07-01" onChange={() => {}} />);
-    openPicker();
-    expect(document.body.querySelectorAll('.mnr-cal-weekend').length).toBeGreaterThan(0);
-  });
-
-  it('"Today" button jumps the visible month to today without changing the selected value', () => {
-    const onChange = vi.fn();
-    render(<DateCalendarPicker value="2020-01-01" onChange={onChange} />);
-    openPicker();
-    fireEvent.click(screen.getByRole('button', { name: 'اليوم' }));
-    expect(onChange).not.toHaveBeenCalled();
   });
 });
