@@ -475,28 +475,50 @@ Safe To Deploy:   Yes / No
 
 ---
 
+## Release Policy
+
+> CLAUDE.md is the canonical source of truth for release workflow. If AGENTS.md and CLAUDE.md ever conflict regarding release automation, **CLAUDE.md takes precedence**.
+
+Automatic release operations are **strictly forbidden** unless **all** required release gates have been satisfied.
+
+Once all release gates defined in CLAUDE.md have been satisfied — including a successful independent Gemini review with an **APPROVED** verdict — the release workflow becomes fully autonomous.
+
+Claude is explicitly authorized, without asking for additional confirmation, to:
+
+- Commit release metadata when required.
+- Merge the approved feature branch into `production` using the project's merge strategy (`--no-ff`).
+- Push `production`.
+- Create and push the stable tag.
+- Update `PROJECT_STATE.md`.
+- Complete the release.
+
+If **any** release gate has not been satisfied, Claude **must stop immediately** and fall back to the approval-required behavior in [Git Rules](#git-rules) / [Commit Protocol](#commit-protocol).
+
+---
+
 ## Git Rules
 
-### NEVER execute automatically:
-- `git push`
-- `git merge`
-- `git tag`
+### NEVER execute automatically (no exceptions, regardless of release-gate status):
 - `git reset --hard`
 - `git clean -fd`
 - `git branch -D`
 
 Always ask the user for approval before running these commands.
 
+### `git push` / `git merge` / `git tag`
+
+Governed by the [Release Policy](#release-policy) above, not by the list above. Before all release gates in CLAUDE.md are satisfied, treat these the same as any command requiring explicit approval. Once every gate is satisfied, they are part of the fully autonomous release sequence and must not be gated by an additional confirmation ask.
+
 ### Commit Protocol
 
-Before every commit, show the user:
+Applies to development-time commits made **before** all release gates are satisfied. Before every such commit, show the user:
 1. Changed files (`git status`)
 2. Staged files
 3. Diff summary (`git diff --stat`)
 4. Validation results (TypeScript + build)
 5. Commit message draft
 
-Then ask for explicit approval.
+Then ask for explicit approval. Once release gates are satisfied, the release commit (if any) runs automatically as part of the Release Policy sequence instead.
 
 ### Merge Protocol
 
@@ -550,11 +572,8 @@ stable-payroll-system-v1
 ## Safety Rules
 
 ### NEVER (not even once, not even "just this time")
-- Commit automatically.
-- Push automatically.
-- Merge automatically.
+- Execute the release sequence (commit / merge / push / tag / `production`) before **all** release gates in CLAUDE.md are satisfied — see [Release Policy](#release-policy).
 - Delete branches automatically.
-- Modify the `production` branch directly.
 - Run `prisma migrate` without reviewing the generated SQL first.
 - Add a new permission key without adding it to `constants.ts`.
 - Bypass `authenticate` or `requirePermission` middleware on any route.
