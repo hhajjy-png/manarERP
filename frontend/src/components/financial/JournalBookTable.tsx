@@ -40,7 +40,7 @@ export function JournalBookTable({ rows, currentState }: Props) {
         <table className="financial-table journal-book-table">
           <thead>
             <tr>
-              <th style={{ width: 24 }} />
+              <th className="journal-expand-icon" />
               <th>رقم القيد</th>
               <th>التاريخ</th>
               <th>البيان</th>

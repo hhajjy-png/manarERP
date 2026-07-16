@@ -57,7 +57,7 @@ export default function DateInput({
   min,
   max,
   autoFocus,
-  placeholder = 'يوم/شهر/سنة',
+  placeholder = 'dd/mm/yyyy',
   invalid,
   onBlur,
 }: DateInputProps) {

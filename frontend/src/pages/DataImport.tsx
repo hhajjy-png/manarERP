@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
@@ -95,6 +96,12 @@ const ENTITY_ICON: Record<string, string> = {
   payroll:   'account_balance_wallet',
 };
 
+// البنوك — نقاط دخول لمعالجات الاستيراد البنكي المخصّصة (صفحاتها الأصلية بلا تغيير)
+const BANK_LINKS: { permission: string; route: string; icon: string; label: string }[] = [
+  { permission: 'import.read', route: '/payroll/bank-import', icon: 'payments', label: 'استيراد الرواتب البنكية' },
+  { permission: 'bankStatementImport.create', route: '/bank-statement-import', icon: 'account_balance_wallet', label: 'إضافة كشف بنكي' },
+];
+
 // Arabic labels for warning codes (analytics display). Falls back to the raw code.
 const WARNING_LABEL: Record<string, string> = {
   IDENTICAL_DATES: 'تواريخ متطابقة',
@@ -152,6 +159,7 @@ function downloadTemplate(entityKey: string) {
 export default function DataImport() {
   const { hasPermission } = useAuth();
   const { t } = useT();
+  const navigate = useNavigate();
 
   const [entityKey, setEntityKey] = useState(IMPORT_ENTITIES[0].key);
   const [step, setStep] = useState<ImportStep>('idle');
@@ -338,6 +346,7 @@ export default function DataImport() {
   const requiredCols = cfg.columns.filter((c) => c.required);
   const optionalCols = cfg.columns.filter((c) => !c.required);
   const canImport = step === 'previewed' && !!preview && preview.validRows > 0 && hasPermission('import.create');
+  const visibleBankLinks = BANK_LINKS.filter((l) => hasPermission(l.permission));
 
   // Step progress flags
   const fileDone = !!fileName;
@@ -417,6 +426,26 @@ export default function DataImport() {
               ))}
             </div>
           </SectionCard>
+
+          {visibleBankLinks.length > 0 && (
+            <SectionCard title="البنوك" icon="account_balance">
+              <div className="dicx-entities">
+                {visibleBankLinks.map((l) => (
+                  <button
+                    key={l.route}
+                    type="button"
+                    className="dicx-entity-btn"
+                    onClick={() => navigate(l.route)}
+                  >
+                    <span className="dicx-entity-icon">
+                      <span className="material-symbols-outlined" aria-hidden="true">{l.icon}</span>
+                    </span>
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </SectionCard>
+          )}
 
           {/* Step 2 — upload zone */}
           {step !== 'done' && (

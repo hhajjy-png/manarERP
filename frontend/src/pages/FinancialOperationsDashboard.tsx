@@ -58,6 +58,23 @@ function marginColor(v: number | null): string {
   return '#ef4444';                 // red
 }
 
+const EXPENSE_TICK_MAX_CHARS = 16;
+
+function ExpenseCategoryTick({ x, y, payload }: { x: number; y: number; payload: { value: string } }) {
+  const label = payload.value;
+  const truncated = label.length > EXPENSE_TICK_MAX_CHARS
+    ? `${label.slice(0, EXPENSE_TICK_MAX_CHARS - 1)}…`
+    : label;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <title>{label}</title>
+      <text x={-8} y={0} dy={4} textAnchor="end" fontSize={12} fill="var(--db-muted, #6b7280)">
+        {truncated}
+      </text>
+    </g>
+  );
+}
+
 // ── Tab bar ────────────────────────────────────────────────────────────────
 
 type Tab = 'contracts' | 'expenses' | 'customers' | 'trends';
@@ -153,7 +170,7 @@ function ExpenseBreakdownTab() {
           <BarChart
             layout="vertical"
             data={chartData}
-            margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
+            margin={{ top: 5, right: 30, left: 8, bottom: 5 }}
           >
             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
             <XAxis
@@ -161,7 +178,7 @@ function ExpenseBreakdownTab() {
               tickFormatter={(v: number) => formatCompact(v)}
               tick={{ fontSize: 11 }}
             />
-            <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={76} />
+            <YAxis type="category" dataKey="name" tick={<ExpenseCategoryTick x={0} y={0} payload={{ value: '' }} />} width={150} />
             <Tooltip
               formatter={(value) => [money(Number(value ?? 0)), 'الإجمالي']}
               contentStyle={{ fontFamily: 'inherit', fontSize: 12 }}

@@ -110,7 +110,7 @@ export default function Prices() {
   async function loadUsageReport() {
     setUsageLoading(true);
     try {
-      const res = await api.get('/prices/usage');
+      const res = await api.get('/prices/usage-report');
       setUsageReport(res.data.data);
       setShowUsage(true);
     } catch (e) {

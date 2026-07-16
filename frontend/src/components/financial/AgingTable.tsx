@@ -101,7 +101,7 @@ export function AgingTable({ rows, type, currentState }: Props) {
                 {b.label}{sortIcon(b.key)}
               </th>
             ))}
-            <th className="sortable num" onClick={() => toggleSort('total')}>
+            <th className="sortable num aging-total-col" onClick={() => toggleSort('total')}>
               الإجمالي{sortIcon('total')}
             </th>
           </tr>

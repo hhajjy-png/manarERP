@@ -221,7 +221,11 @@
 .table-responsive { overflow-x: auto; }
 .financial-table {
   width: 100%;
-  border-collapse: collapse;
+  /* separate (not collapse) — sticky <th> position: sticky combined with
+     border-collapse: collapse is a known cross-browser bug that can render
+     header cells a pixel or two off from the body columns beneath them. */
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.88rem;
   background: var(--surface, #fff);
 }
@@ -344,7 +348,7 @@
 .aging-table td.aging-critical  { background: #fee2e2; color: #991b1b; font-weight: 700; }
 .aging-table td.aging-warning   { background: #ffedd5; color: #9a3412; }
 .aging-table td.aging-caution   { background: #fefce8; color: #713f12; }
-.aging-table td.aging-total-col { font-weight: 700; border-right: 2px solid var(--border, #e2e8f0); }
+.aging-table .aging-total-col { font-weight: 700; border-right: 2px solid var(--border, #e2e8f0); }
 .aging-table th.sortable        { cursor: pointer; -webkit-user-select: none; user-select: none; }
 .aging-table th.sortable:hover  { background: #d1dce8; }
 

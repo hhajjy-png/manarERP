@@ -81,6 +81,7 @@ function GeneralDashboardContent() {
   const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshAt, setRefreshAt] = useState<Date | null>(null);
+  const [kpiExpanded, setKpiExpanded] = useState(false);
 
   // Executive Command Center data — مؤشرات الحركة/الذمم تتبع الفترة العالمية.
   const commandData = useDashboardCommandData(refreshKey, periodToRangeParams(period));
@@ -275,14 +276,33 @@ function GeneralDashboardContent() {
         </div>
       )}
 
-      {/* ═══════════════ §2 — PRIMARY KPI ROW (financial results — the hero) ═══════════════ */}
+      {/* ═══════════════ §2 — PRIMARY KPI ROW (financial results — the hero) ═══════════════
+          Collapsed by default — header stays visible, user expands on demand. */}
       <div className="db-kpi-hero">
-        <SectionCard title="المؤشرات المالية الرئيسية" icon="query_stats">
-          <KpiRowSection
-            financial={commandData.decisionCenter?.financialSummary ?? null}
-            cashFlow={commandData.cashFlowThisMonth}
-            loading={commandData.loading}
-          />
+        <SectionCard
+          title="المؤشرات المالية الرئيسية"
+          icon="query_stats"
+          actions={
+            <button
+              type="button"
+              className="db-kpi-toggle"
+              onClick={() => setKpiExpanded((v) => !v)}
+              aria-expanded={kpiExpanded}
+            >
+              {kpiExpanded ? 'إخفاء' : 'عرض'}
+              <span className="material-symbols-outlined db-advanced-chevron db-kpi-toggle-icon" aria-hidden="true">expand_more</span>
+            </button>
+          }
+        >
+          <div className={`db-kpi-collapse${kpiExpanded ? ' expanded' : ''}`}>
+            <div className="db-kpi-collapse-inner">
+              <KpiRowSection
+                financial={commandData.decisionCenter?.financialSummary ?? null}
+                cashFlow={commandData.cashFlowThisMonth}
+                loading={commandData.loading}
+              />
+            </div>
+          </div>
         </SectionCard>
       </div>
 
