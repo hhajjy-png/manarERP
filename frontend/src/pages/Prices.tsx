@@ -43,8 +43,8 @@ interface AgreementRow { id: number; asphaltPlant: string; companyName: string; 
 interface AgreementsDashboard { totalAgreements: number; unusedCount: number; expiringCount: number; unused: AgreementRow[]; expiring: AgreementRow[]; top5: AgreementRow[]; least5: AgreementRow[]; }
 
 export default function Prices() {
-  const { hasPermission, user } = useAuth();
-  const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
+  const { hasPermission, isSystemAdmin: getIsSystemAdmin } = useAuth();
+  const isSystemAdmin = getIsSystemAdmin();
   const { t } = useT();
   const toast = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

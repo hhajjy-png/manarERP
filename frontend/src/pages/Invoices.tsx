@@ -90,8 +90,8 @@ function DrawerKpiMoney({ value }: { value: unknown }) {
 interface InvStats { count: number; totalSales: number; totalCollected: number; totalRemaining: number; average: number; }
 
 export default function Invoices() {
-  const { hasPermission, user } = useAuth();
-  const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
+  const { hasPermission, isSystemAdmin: getIsSystemAdmin } = useAuth();
+  const isSystemAdmin = getIsSystemAdmin();
   const { t } = useT();
   const navigate = useNavigate();
   const { period } = useFinancialPeriod();

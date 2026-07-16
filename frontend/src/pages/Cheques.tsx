@@ -184,7 +184,7 @@ function ChequePrintOutput({ data, template }: { data: PreviewData; template: Ch
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function Cheques() {
-  const { hasPermission, user } = useAuth();
+  const { hasPermission, isSystemAdmin: getIsSystemAdmin } = useAuth();
   const { t } = useT();
   const { period } = useFinancialPeriod();
   const navigate = useNavigate();
@@ -222,7 +222,7 @@ export default function Cheques() {
   const canCreate = hasPermission('cheques.create');
   const canUpdate = hasPermission('cheques.update');
   const canPrint = hasPermission('cheques.print');
-  const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
+  const isSystemAdmin = getIsSystemAdmin();
   const canCancel = hasPermission('cheques.cancel');
   const canCalibrate = hasPermission('settings.update');
 

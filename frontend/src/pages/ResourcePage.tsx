@@ -53,8 +53,8 @@ const DRAWER_HUBS: Partial<Record<string, HubComponent>> = { customers: Customer
 
 export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const cfg = MODULES[moduleKey];
-  const { hasPermission, user } = useAuth();
-  const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
+  const { hasPermission, isSystemAdmin: getIsSystemAdmin } = useAuth();
+  const isSystemAdmin = getIsSystemAdmin();
   const { t } = useT();
   const toast = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
