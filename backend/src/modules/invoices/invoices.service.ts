@@ -32,22 +32,12 @@ function applyIssueDateRange(where: Prisma.InvoiceWhereInput, from?: string, to?
 }
 
 /**
- * يُميّز خطأ P2002 على حقل entryNumber في journal_entries عن بقية أخطاء التعارض.
- * يُستخدم لإعادة المحاولة عند تعارض ترقيم القيود المحاسبية (race condition على رقم تسلسلي)
- * دون إعادة المحاولة على تعارض رقم الفاتورة أو أي حقل آخر.
+ * مُعاد تصديرها من `gl.service.ts` — التنفيذ الفعلي (وحلقة إعادة المحاولة على تعارض
+ * entryNumber) صار مركزيًا هناك داخل `createBalancedJournal` نفسها، فيرثه كل مستدعٍ
+ * (فواتير، رواتب، مصروفات) تلقائيًا دون تكرار الحارس هنا. أُبقي على هذا التصدير
+ * لتوافق مسار الاستيراد الحالي في اختبارات هذه الوحدة.
  */
-export function isEntryNumberCollision(err: unknown): boolean {
-  if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return false;
-  if (err.code !== 'P2002') return false;
-  const target = err.meta?.target;
-  if (!target) return false;
-  const t = Array.isArray(target) ? target.join(',') : String(target);
-  // يُعيد true فقط عند تعارض entryNumber في journal_entries (النظام الجديد).
-  // transactions_entryNumber_key (النظام القديم) لا يستحق retry — مشكلته في generateEntryNumber.
-  if (t.includes('invoiceNumber')) return false;
-  if (t.includes('transactions')) return false;
-  return t.includes('entryNumber');
-}
+export { isEntryNumberCollision } from '../../shared/services/gl.service';
 
 const FULL_INCLUDE = {
   items: true,
@@ -294,85 +284,73 @@ export class InvoicesService {
     // لذا تُحفظ مدفوعة بالكامل لمنع تسجيل دفعة تسوية ثانية تُدائن النقد مرتين (خطأ C1).
     const settled = isImmediatelySettledPurchase(input.direction, input.paymentMethod);
 
-    // تُعاد المحاولة حتى مرتين عند تعارض entryNumber فقط (race condition على رقم القيد).
-    // أي خطأ آخر (تعارض invoiceNumber، AppError، إلخ) يُرمى مباشرةً دون إعادة محاولة.
-    let lastErr: unknown;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const invoice = await prisma.$transaction(async (tx) => {
-          const existing = await tx.invoice.findUnique({
-            where: { invoiceNumber },
-            select: { invoiceNumber: true, issueDate: true, status: true, customer: { select: { name: true } }, supplier: { select: { name: true } } },
-          });
-          if (existing) {
-            throw AppError.conflict('رقم الفاتورة مُستخدم من قبل', {
-              code: 'DUPLICATE_INVOICE_NUMBER',
-              field: 'invoiceNumber',
-              value: invoiceNumber,
-              conflictingRecord: {
-                invoiceNumber: existing.invoiceNumber,
-                partyName: existing.customer?.name ?? existing.supplier?.name ?? null,
-                issueDate: existing.issueDate,
-                status: existing.status,
-              },
-            });
-          }
-
-          const created = await tx.invoice.create({
-            data: {
-              number: invoiceNumber,
-              invoiceNumber,
-              direction: input.direction,
-              invoiceType: input.invoiceType,
-              customerId: input.customerId ?? null,
-              supplierId: input.supplierId ?? null,
-              contractId: input.contractId ?? null,
-              issueDate: input.issueDate ?? new Date(),
-              dueDate: input.dueDate ?? null,
-              deliveryDate: input.deliveryDate ?? null,
-              billingMonth: input.billingMonth ?? null,
-              billingYear: input.billingYear ?? null,
-              paymentMethod: input.paymentMethod ?? null,
-              subtotal,
-              taxRate: input.taxRate,
-              taxAmount,
-              discount: input.discount,
-              total,
-              paidAmount: settled ? total : 0,
-              status: settled ? 'PAID' : 'UNPAID',
-              notes: input.notes ?? null,
-              verificationUuid: randomUUID(),
-              items: { create: lines },
-            },
-            include: FULL_INCLUDE,
-          });
-
-          await this.postJournal(tx, created);
-          await postInvoiceToGL(tx, created.id);
-          return created;
+    // تعارض ترقيم القيد (entryNumber) لم يعد يُعالَج هنا — الحارس وإعادة المحاولة صارا
+    // مركزيين داخل `createBalancedJournal` نفسها (انظر gl.service.ts)، فيُطبَّقان تلقائيًا
+    // ضمن نفس المعاملة المفتوحة دون إعادة تشغيل هذه المعاملة بأكملها.
+    const invoice = await prisma.$transaction(async (tx) => {
+      const existing = await tx.invoice.findUnique({
+        where: { invoiceNumber },
+        select: { invoiceNumber: true, issueDate: true, status: true, customer: { select: { name: true } }, supplier: { select: { name: true } } },
+      });
+      if (existing) {
+        throw AppError.conflict('رقم الفاتورة مُستخدم من قبل', {
+          code: 'DUPLICATE_INVOICE_NUMBER',
+          field: 'invoiceNumber',
+          value: invoiceNumber,
+          conflictingRecord: {
+            invoiceNumber: existing.invoiceNumber,
+            partyName: existing.customer?.name ?? existing.supplier?.name ?? null,
+            issueDate: existing.issueDate,
+            status: existing.status,
+          },
         });
-
-        await recordAudit({ req, action: 'CREATE', module: 'invoices', entityId: invoice.id, newValue: { invoiceNumber: invoice.invoiceNumber, total } });
-        await recordHistoricalEntry({
-          req,
-          module: 'invoices',
-          recordType: input.direction === 'PURCHASE' ? 'فاتورة مشتريات' : 'فاتورة مبيعات',
-          entityId: invoice.id,
-          documentNumber: invoice.invoiceNumber,
-          transactionDate: invoice.issueDate,
-          lateEntryReason: input.lateEntryReason,
-        });
-        return invoice;
-      } catch (err) {
-        if (attempt < 2 && isEntryNumberCollision(err)) {
-          console.warn(`[GL] entryNumber collision on attempt ${attempt + 1} — retrying`);
-          lastErr = err;
-          continue;
-        }
-        throw err;
       }
-    }
-    throw lastErr!; // يُصل هنا فقط إذا استُنفدت المحاولات الثلاث على تعارض entryNumber
+
+      const created = await tx.invoice.create({
+        data: {
+          number: invoiceNumber,
+          invoiceNumber,
+          direction: input.direction,
+          invoiceType: input.invoiceType,
+          customerId: input.customerId ?? null,
+          supplierId: input.supplierId ?? null,
+          contractId: input.contractId ?? null,
+          issueDate: input.issueDate ?? new Date(),
+          dueDate: input.dueDate ?? null,
+          deliveryDate: input.deliveryDate ?? null,
+          billingMonth: input.billingMonth ?? null,
+          billingYear: input.billingYear ?? null,
+          paymentMethod: input.paymentMethod ?? null,
+          subtotal,
+          taxRate: input.taxRate,
+          taxAmount,
+          discount: input.discount,
+          total,
+          paidAmount: settled ? total : 0,
+          status: settled ? 'PAID' : 'UNPAID',
+          notes: input.notes ?? null,
+          verificationUuid: randomUUID(),
+          items: { create: lines },
+        },
+        include: FULL_INCLUDE,
+      });
+
+      await this.postJournal(tx, created);
+      await postInvoiceToGL(tx, created.id);
+      return created;
+    });
+
+    await recordAudit({ req, action: 'CREATE', module: 'invoices', entityId: invoice.id, newValue: { invoiceNumber: invoice.invoiceNumber, total } });
+    await recordHistoricalEntry({
+      req,
+      module: 'invoices',
+      recordType: input.direction === 'PURCHASE' ? 'فاتورة مشتريات' : 'فاتورة مبيعات',
+      entityId: invoice.id,
+      documentNumber: invoice.invoiceNumber,
+      transactionDate: invoice.issueDate,
+      lateEntryReason: input.lateEntryReason,
+    });
+    return invoice;
   }
 
   async update(id: number, input: UpdateInvoiceInput, req: Request) {
@@ -600,43 +578,32 @@ export class InvoicesService {
     if (invoice.direction !== 'PURCHASE') throw AppError.badRequest('الاعتماد متاح لفواتير المشتريات فقط');
     if (invoice.status === 'CANCELLED') throw AppError.badRequest('لا يمكن اعتماد فاتورة ملغاة');
 
-    let lastErr: unknown;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        await prisma.$transaction(async (tx) => {
-          // الاعتماد مُتماثل: إعادته على فاتورة مُرحَّلة لا تُنشئ قيدًا ثانيًا. فلا تُنشئ
-          // سطر سجلّ ثانيًا أيضًا — وإلا صار السجلّ يروي اعتمادات لم تقع.
-          const alreadyPosted = await tx.journalEntry.findFirst({
-            where: { referenceType: GL_REFERENCE_TYPES.PURCHASE_INVOICE, referenceId: id },
-            select: { id: true },
-          });
-          await postPurchaseInvoiceToGL(tx, id);
-          if (alreadyPosted) return;
-          // الحالة لا تتحرّك هنا — الاعتماد ترحيل محاسبي — فالسجلّ يوثّق ذلك بأمانة:
-          // fromStatus === toStatus. لا كتابة حالة ولا تدقيق ثانٍ.
-          await approvalEngine.recordTransition(
-            {
-              entityType: 'invoice',
-              entityId:   id,
-              action:     'approve',
-              fromStatus: invoice.status,
-              toStatus:   invoice.status,
-              userId:     req.user?.userId ?? null,
-              metadata:   { invoiceNumber: invoice.invoiceNumber, total: invoice.total, posted: true },
-            },
-            tx,
-          );
-        });
-        break;
-      } catch (err) {
-        if (attempt < 2 && isEntryNumberCollision(err)) {
-          lastErr = err;
-          continue;
-        }
-        throw err;
-      }
-    }
-    if (lastErr) throw lastErr;
+    // تعارض ترقيم القيد يُعالَج مركزيًا داخل createBalancedJournal (انظر gl.service.ts) —
+    // لا حاجة لإعادة محاولة هذه المعاملة بأكملها.
+    await prisma.$transaction(async (tx) => {
+      // الاعتماد مُتماثل: إعادته على فاتورة مُرحَّلة لا تُنشئ قيدًا ثانيًا. فلا تُنشئ
+      // سطر سجلّ ثانيًا أيضًا — وإلا صار السجلّ يروي اعتمادات لم تقع.
+      const alreadyPosted = await tx.journalEntry.findFirst({
+        where: { referenceType: GL_REFERENCE_TYPES.PURCHASE_INVOICE, referenceId: id },
+        select: { id: true },
+      });
+      await postPurchaseInvoiceToGL(tx, id);
+      if (alreadyPosted) return;
+      // الحالة لا تتحرّك هنا — الاعتماد ترحيل محاسبي — فالسجلّ يوثّق ذلك بأمانة:
+      // fromStatus === toStatus. لا كتابة حالة ولا تدقيق ثانٍ.
+      await approvalEngine.recordTransition(
+        {
+          entityType: 'invoice',
+          entityId:   id,
+          action:     'approve',
+          fromStatus: invoice.status,
+          toStatus:   invoice.status,
+          userId:     req.user?.userId ?? null,
+          metadata:   { invoiceNumber: invoice.invoiceNumber, total: invoice.total, posted: true },
+        },
+        tx,
+      );
+    });
 
     await recordAudit({ req, action: 'APPROVE', module: 'invoices', entityId: id, newValue: { invoiceNumber: invoice.invoiceNumber, total: invoice.total } });
     return { approved: true, invoiceNumber: invoice.invoiceNumber };

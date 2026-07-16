@@ -25,6 +25,9 @@ interface AuthState {
   logout: () => Promise<void>;
   loadSession: () => Promise<void>;
   hasPermission: (perm: string) => boolean;
+  /** Canonical SYSTEM_ADMIN check — single source of truth instead of each page
+   * independently comparing `user.role.name === 'SYSTEM_ADMIN'`. */
+  isSystemAdmin: () => boolean;
 }
 
 export const useAuth = create<AuthState>((set, get) => ({
@@ -84,5 +87,9 @@ export const useAuth = create<AuthState>((set, get) => ({
     if (!u) return false;
     if (u.role.name === 'SYSTEM_ADMIN') return true;
     return u.permissions.includes(perm);
+  },
+
+  isSystemAdmin() {
+    return get().user?.role.name === 'SYSTEM_ADMIN';
   },
 }));

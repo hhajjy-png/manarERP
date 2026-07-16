@@ -12,6 +12,7 @@ import { errorMessage } from '../api/client';
 import DateInput from '../components/DateInput';
 import PrivateAmount from '../components/PrivateAmount';
 import ErrorBoundary from '../components/ErrorBoundary';
+import { useFocusTrap, Pagination } from '../components/explorer/ExplorerKit';
 import {
   getTimeline, listImports,
   type TimelineTransaction, type TimelineResult, type ImportListItem,
@@ -480,48 +481,12 @@ function TransactionDrawer({
   tx:      TimelineTransaction;
   onClose: () => void;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [drawerTab, setDrawerTab] = useState<DrawerTab>('basic');
-
   // Escape-to-close, focus-into-drawer on open, focus-return on close, scroll lock,
-  // and a Tab focus trap that keeps keyboard focus inside the dialog (Phase E a11y).
-  useEffect(() => {
-    const panel = panelRef.current;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    panel?.focus();
-
-    const focusable = (): HTMLElement[] => Array.from(
-      panel?.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      ) ?? [],
-    ).filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
-      if (e.key === 'Tab') {
-        const items = focusable();
-        if (items.length === 0) { e.preventDefault(); panel?.focus(); return; }
-        const first = items[0];
-        const last  = items[items.length - 1];
-        const active = document.activeElement as HTMLElement | null;
-        if (e.shiftKey && (active === first || active === panel)) {
-          e.preventDefault(); last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault(); first.focus();
-        }
-      }
-    };
-    document.addEventListener('keydown', onKey);
-
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-      previouslyFocused?.focus?.();
-    };
-  }, [onClose]);
+  // and a Tab focus trap that keeps keyboard focus inside the dialog (Phase E a11y) —
+  // shared with ExplorerKit's Drawer/Dialog rather than a separate copy, so a future
+  // a11y fix to the trap applies here too.
+  const panelRef = useFocusTrap(onClose);
+  const [drawerTab, setDrawerTab] = useState<DrawerTab>('basic');
 
   const badge      = txTypeBadge(tx);
   const isIncoming = safeNum(tx.credit) > 0;
@@ -1282,28 +1247,12 @@ export function TimelineTab({
             </table>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="bae-pagination">
-              <button
-                type="button"
-                className="btn secondary bae-page-btn"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page <= 1 || loading}
-              >
-                السابق
-              </button>
-              <span className="bae-page-info">صفحة {page} من {totalPages}</span>
-              <button
-                type="button"
-                className="btn secondary bae-page-btn"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages || loading}
-              >
-                التالي
-              </button>
-            </div>
-          )}
+          {/* Pagination — shared ExplorerKit component, not a bespoke reimplementation */}
+          <Pagination
+            meta={{ page, pageSize: PAGE_SIZE, total, totalPages }}
+            onPage={(p) => setPage(p)}
+            disabled={loading}
+          />
         </>
       )}
     </div>

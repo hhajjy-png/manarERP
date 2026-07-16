@@ -63,8 +63,8 @@ import { fcMoneyHeader } from '../components/financial/financialLabels';
 const CATEGORY_OPTIONS: SearchableOption[] = EXPENSE_CATEGORY_SELECT_OPTIONS;
 
 export default function Expenses() {
-  const { hasPermission, user } = useAuth();
-  const isSystemAdmin = user?.role.name === 'SYSTEM_ADMIN';
+  const { hasPermission, isSystemAdmin: getIsSystemAdmin } = useAuth();
+  const isSystemAdmin = getIsSystemAdmin();
   const { period } = useFinancialPeriod();
   const { t } = useT();
   const toast = useToast();

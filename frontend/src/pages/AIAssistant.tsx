@@ -5,6 +5,7 @@ import ResultCard from '../ai/ResultCard';
 import { route } from '../ai/router';
 import { executeSkill } from '../ai/registry';
 import type { SkillResult, RouterDecision } from '../ai/types';
+import { useToastStore } from '../stores/toastStore';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -288,7 +289,6 @@ export default function AIAssistant() {
   const [openPanels,    setOpenPanels]    = useState<Set<string>>(
     new Set(['history', 'whats-new', 'safety', 'arch', 'roadmap', 'sources']),
   );
-  const [toast,         setToast]         = useState<string | null>(null);
   const [sending,       setSending]       = useState(false);
   const [renamingId,    setRenamingId]    = useState<string | null>(null);
   const [renameText,    setRenameText]    = useState('');
@@ -299,7 +299,6 @@ export default function AIAssistant() {
   const conversationRef  = useRef<HTMLDivElement>(null);
   const inputRef         = useRef<HTMLTextAreaElement>(null);
   const currentConvIdRef = useRef<string | null>(null);
-  const toastTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Effects ────────────────────────────────────────────────────────────────
 
@@ -336,11 +335,6 @@ export default function AIAssistant() {
   useEffect(() => { saveHistory(conversations); }, [conversations]);
   useEffect(() => { savePinned(pinnedPrompts); },  [pinnedPrompts]);
 
-  // Cleanup timers on unmount
-  useEffect(() => () => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-  }, []);
-
   // ── Derived ────────────────────────────────────────────────────────────────
 
   const sessionStats = useMemo(() => ({
@@ -355,11 +349,12 @@ export default function AIAssistant() {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
+  // Shared toast mechanism (stores/toastStore.ts + Toast.tsx, mounted once in
+  // Layout.tsx) instead of a page-local single-slot toast.
+  const addToast = useToastStore((s) => s.add);
   const showToast = useCallback((text: string) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToast(text);
-    toastTimerRef.current = setTimeout(() => setToast(null), 2200);
-  }, []);
+    addToast(text, 'ok');
+  }, [addToast]);
 
   // Core send logic shared by handleSend + quick actions
   const sendMessage = useCallback(async (text: string) => {
@@ -516,8 +511,8 @@ export default function AIAssistant() {
   return (
     <div className="ai-page">
 
-      {/* Toast (Package H) */}
-      {toast && <div className="ai-toast">{toast}</div>}
+      {/* Toast rendering is now handled globally by the shared Toast component
+          (mounted once in Layout.tsx) — no page-local toast markup needed. */}
 
       {/* ── 1. Hero ── */}
       <section className="ai-hero">

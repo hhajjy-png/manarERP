@@ -27,7 +27,11 @@ vi.mock('../api/client', () => ({
 }));
 vi.mock('../utils/print', () => ({ printCurrentView: vi.fn(() => Promise.resolve()) }));
 vi.mock('../stores/authStore', () => ({
-  useAuth: () => ({ hasPermission: () => true, user: { id: 1, username: 'admin', role: 'SYSTEM_ADMIN' } }),
+  useAuth: () => ({
+    hasPermission: () => true,
+    isSystemAdmin: () => true,
+    user: { id: 1, username: 'admin', role: 'SYSTEM_ADMIN' },
+  }),
 }));
 vi.mock('../lib/i18n', () => ({ useT: () => ({ t: (k: string) => k }) }));
 

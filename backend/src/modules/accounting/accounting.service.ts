@@ -108,6 +108,17 @@ export class AccountingService {
     return buildPaginatedResult(data, total, pagination);
   }
 
+  /**
+   * ينشئ قيد يومية يدويًا مباشرة (`tx.journalEntry.create`)، لا عبر
+   * `gl.service.ts`'s `createBalancedJournal` — استثناء موثَّق، لا مسار موازٍ
+   * منسي: القيد اليدوي referenceType='MANUAL' بلا مستند مصدر (`referenceId`
+   * اختياري)، وهي دلالة لا تدعمها `createBalancedJournal` كما هي. المعيار
+   * يبقى واحدًا رغم ذلك لأن هذه الدالة تستدعي بنفسها صراحةً كل ما يحمي المسار
+   * المركزي: `assertPeriodOpen` (حارس قفل الفترة، أدناه)، و`roundMoney` عند
+   * التخزين، و`validateJournalBalance` (تتقاسم `moneyEquals`/`sumMoney` مع
+   * `createBalancedJournal` — انظر `accounting.utils.ts`). راجع تعليق
+   * `createBalancedJournal` في `gl.service.ts` لتفصيل هذا الاستثناء.
+   */
   async createJournalEntry(input: JournalEntryInput, req: Request) {
     validateJournalBalance(input.lines);
 
@@ -170,6 +181,12 @@ export class AccountingService {
    * التاريخ الافتراضي هو تاريخ القيد الأصلي، لا تاريخ اليوم: عكس قيد 2024
    * يجب ألا يظهر في 2026 بصمت. المستخدم يستطيع تمرير `reversalDate` صراحةً
    * عندما يكون التصحيح حدثًا محاسبيًا في فترة لاحقة.
+   *
+   * استثناء موثَّق آخر (مثل `createJournalEntry` أعلاه): يكتب مباشرة، لا عبر
+   * `gl.service.ts`'s `reverseGL` — لأن العكس اليدوي referenceType='MANUAL_REVERSAL'
+   * برسالة سبب اختيارية، ويرفض صراحة عكس أي قيد مرتبط بمستند (`إلا هذا المسار
+   * نفسه، عبر رسالة الخطأ أدناه`)، وهي قواعد عمل خاصة بالقيد اليدوي لا تخص
+   * `reverseGL` العام. يستدعي `assertPeriodOpen` بنفسه كما تفعل `reverseGL`.
    */
   async reverseJournalEntry(id: number, input: { reversalDate?: Date; reason?: string }, req: Request) {
     const original = await prisma.journalEntry.findUniqueOrThrow({

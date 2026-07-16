@@ -26,6 +26,21 @@ export function requirePermission(...required: string[]) {
   };
 }
 
+/**
+ * فحص صلاحية فردي، بمعزل عن middleware المسار — لحالات لا يُعرف فيها اسم
+ * الصلاحية المطلوبة إلا وقت التشغيل (مثلاً صلاحية تعتمد على entityType من الطلب،
+ * كما في وحدتي attachments وapproval)، فلا يمكن استخدام requirePermission
+ * الثابتة وقت تعريف المسار. نفس قاعدة مدير النظام: يتجاوز الفحص دائمًا.
+ */
+export function hasRolePermission(
+  roleName: string,
+  permissions: string[] | undefined,
+  perm: string,
+): boolean {
+  if (roleName === ROLES.SYSTEM_ADMIN) return true;
+  return (permissions ?? []).includes(perm);
+}
+
 /** يقيّد المسار على أدوار محددة بالاسم. */
 export function requireRole(...roles: string[]) {
   return (req: Request, _res: Response, next: NextFunction): void => {

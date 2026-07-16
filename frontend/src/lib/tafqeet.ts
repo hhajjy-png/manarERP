@@ -2,6 +2,8 @@
 // 1 KWD = 1000 fils. Handles amounts up to 999,999.999 KWD.
 // Used in cheque preview and print output.
 
+import { roundMoney } from './money';
+
 const ONES: string[] = [
   '', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة',
   'عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر',
@@ -121,7 +123,10 @@ export function tafqeetKWD(amount: number): string {
   if (!Number.isFinite(amount) || amount < 0) return '';
   if (amount === 0) return 'فقط صفر لا غير';
 
-  const rounded = Math.round(amount * 1000) / 1000;
+  // Canonical monetary rounding (half away from zero + EPSILON correction) — not a
+  // bare Math.round — so the words never disagree with the numeral by a fils at a
+  // rounding boundary (e.g. 1.0005).
+  const rounded = roundMoney(amount);
   const dinars = Math.floor(rounded);
   const fils = Math.round((rounded - dinars) * 1000);
 

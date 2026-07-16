@@ -828,34 +828,8 @@
   gap: 8px;
 }
 
-/* ── Toast ────────────────────────────────────────────────────────────────── */
-
-.psa-toast {
-  position: fixed;
-  inset-block-end: 24px;
-  inset-inline-end: 24px;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 12px 18px;
-  border-radius: 12px;
-  font-size: 13.5px;
-  font-weight: 700;
-  font-family: inherit;
-  max-width: 340px;
-  box-shadow: 0 8px 24px rgba(0,0,0,.14);
-  animation: psa-toast-in 0.24s cubic-bezier(0.4,0,0.2,1);
-  direction: rtl;
-}
-
-.psa-toast.ok    { background: var(--green-light); border: 1px solid var(--green); color: var(--green); }
-.psa-toast.error { background: var(--red-light);   border: 1px solid var(--red);   color: var(--red); }
-
-@keyframes psa-toast-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+/* Toast notification styling removed — rendering now goes through the shared
+   Toast component (components/Toast.tsx), which carries its own styles. */
 
 /* ── Employee autocomplete dropdown ──────────────────────────────────────── */
 

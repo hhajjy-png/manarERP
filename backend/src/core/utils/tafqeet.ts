@@ -2,6 +2,8 @@
 // 1 KWD = 1000 fils. Handles amounts up to 999,999.999 KWD.
 // Mirrors frontend/src/lib/tafqeet.ts for backend test coverage.
 
+import { roundMoney } from '../../shared/utils/money';
+
 const ONES: string[] = [
   '', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة',
   'عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر',
@@ -90,7 +92,10 @@ function withFilsUnit(n: number): string {
 export function tafqeetKWD(amount: number): string {
   if (!Number.isFinite(amount) || amount < 0) return '';
   if (amount === 0) return 'فقط صفر لا غير';
-  const rounded = Math.round(amount * 1000) / 1000;
+  // النقود القانونية: نفس تقريب دفتر الأستاذ (نصف بعيدًا عن الصفر + تصحيح EPSILON)،
+  // لا Math.round محلي بلا تصحيح — يمنع اختلاف الرقم المكتوب بالحروف عن الرقم بالأرقام
+  // عند نقاط التعادل (مثلاً 1.0005).
+  const rounded = roundMoney(amount);
   const dinars  = Math.floor(rounded);
   const fils    = Math.round((rounded - dinars) * 1000);
   const parts: string[] = [];
