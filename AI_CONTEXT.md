@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `ac14a59` (merge of `feature/cleanup-architecture-remediation-pack-v1`) |
-| **Current Documentation Commit** | pending (this update) — "docs: record Project Cleanup & Architecture Remediation Pack v1 release in PROJECT_STATE" |
+| **Current Documentation Commit** | `051b788` — "docs: record Project Cleanup & Architecture Remediation Pack v1 release in PROJECT_STATE" |
 | **Current Stable Tag** | `stable-cleanup-architecture-remediation-pack-v1` |
 | **Current Release Date** | 2026-07-17 |
 | **Total Stable Releases** | 302 (window 2026-06-07 → 2026-07-17) |
