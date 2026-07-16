@@ -41,8 +41,6 @@ const Resignation = lazy(() => import('./pages/Resignation'));
 const EmployeeWarning = lazy(() => import('./pages/EmployeeWarning'));
 const PerformanceEvaluation = lazy(() => import('./pages/PerformanceEvaluation'));
 const EmploymentContract = lazy(() => import('./pages/EmploymentContract'));
-const PayrollBankImport = lazy(() => import('./pages/PayrollBankImport'));
-const BankStatementImport = lazy(() => import('./pages/BankStatementImport'));
 const BankReconciliation = lazy(() => import('./pages/BankReconciliation'));
 const BankSalaryAnalytics = lazy(() => import('./pages/BankSalaryAnalytics'));
 const BankAccounts = lazy(() => import('./pages/BankAccounts'));
@@ -130,7 +128,7 @@ export default function App() {
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/cheques" element={<Cheques />} />
             <Route path="/import" element={<DataImport />} />
-            <Route path="/payroll/bank-import" element={<PayrollBankImport />} />
+            <Route path="/payroll/bank-import" element={<Navigate to="/import?bankModule=payroll" replace />} />
             <Route path="/payroll/bank-analytics" element={<BankSalaryAnalytics />} />
             <Route path="/audit" element={<AuditLog />} />
             <Route path="/maintenance" element={<Maintenance />} />
@@ -140,7 +138,7 @@ export default function App() {
             <Route path="/statements" element={<Statements />} />
             <Route path="/financial" element={<FinancialCenter />} />
             <Route path="/integrations" element={<Integrations />} />
-            <Route path="/bank-statement-import" element={<BankStatementImport />} />
+            <Route path="/bank-statement-import" element={<Navigate to="/import?bankModule=statement" replace />} />
             <Route path="/bank-reconciliation" element={<BankReconciliation />} />
             <Route path="/bank-reconciliation/:importId" element={<BankReconciliation />} />
             <Route path="/bank-accounts" element={<BankAccounts />} />

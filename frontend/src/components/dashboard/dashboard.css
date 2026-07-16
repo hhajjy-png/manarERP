@@ -683,6 +683,10 @@
   direction: ltr;
   height: 220px;
 }
+.db-chart-wrap-lg {
+  direction: ltr;
+  height: 320px;
+}
 
 /* Recharts text in dark mode */
 .db-chart-wrap .recharts-text tspan,

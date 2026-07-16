@@ -245,7 +245,8 @@
 }
 .financial-table tr:last-child td { border-bottom: none; }
 .financial-table tbody tr:hover { background: var(--surface-hover, rgba(59,130,246,.04)); }
-.financial-table td.num { font-variant-numeric: tabular-nums; text-align: left; direction: ltr; }
+.financial-table td.num,
+.financial-table th.num { font-variant-numeric: tabular-nums; text-align: left; direction: ltr; }
 .financial-table td.negative { color: var(--red, #ef4444); }
 
 /* Grouped table headers */

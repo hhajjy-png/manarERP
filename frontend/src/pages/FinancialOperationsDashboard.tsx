@@ -58,19 +58,42 @@ function marginColor(v: number | null): string {
   return '#ef4444';                 // red
 }
 
-const EXPENSE_TICK_MAX_CHARS = 16;
+// طول السطر عند تفافّ العنوان الطويل إلى سطرين — بلا تصغير الخط وبلا حذف نص
+// (Recharts يستنسخ عنصر tick بإحداثيات x/y/payload الحقيقية عبر cloneElement،
+// لذا لا نمرّر قيمًا افتراضية عند إنشاء العنصر في <YAxis tick={<ExpenseCategoryTick />} />).
+const EXPENSE_TICK_LINE_MAX_CHARS = 14;
 
-function ExpenseCategoryTick({ x, y, payload }: { x: number; y: number; payload: { value: string } }) {
-  const label = payload.value;
-  const truncated = label.length > EXPENSE_TICK_MAX_CHARS
-    ? `${label.slice(0, EXPENSE_TICK_MAX_CHARS - 1)}…`
-    : label;
+function wrapExpenseLabel(label: string): [string, string?] {
+  if (label.length <= EXPENSE_TICK_LINE_MAX_CHARS) return [label];
+  const words = label.split(' ');
+  let line1 = '';
+  let i = 0;
+  for (; i < words.length; i++) {
+    const next = line1 ? `${line1} ${words[i]}` : words[i];
+    if (line1 && next.length > EXPENSE_TICK_LINE_MAX_CHARS) break;
+    line1 = next;
+  }
+  let line2 = words.slice(i).join(' ');
+  if (line2.length > EXPENSE_TICK_LINE_MAX_CHARS) {
+    line2 = `${line2.slice(0, EXPENSE_TICK_LINE_MAX_CHARS - 1)}…`;
+  }
+  return line2 ? [line1, line2] : [line1];
+}
+
+function ExpenseCategoryTick({ x, y, payload }: { x?: number; y?: number; payload?: { value: string } }) {
+  const label = payload?.value ?? '';
+  const [line1, line2] = wrapExpenseLabel(label);
   return (
-    <g transform={`translate(${x},${y})`}>
+    <g transform={`translate(${x ?? 0},${y ?? 0})`}>
       <title>{label}</title>
-      <text x={-8} y={0} dy={4} textAnchor="end" fontSize={12} fill="var(--db-muted, #6b7280)">
-        {truncated}
+      <text x={-8} y={line2 ? -6 : 0} dy={4} textAnchor="end" fontSize={12} fill="var(--db-muted, #6b7280)">
+        {line1}
       </text>
+      {line2 && (
+        <text x={-8} y={9} dy={4} textAnchor="end" fontSize={12} fill="var(--db-muted, #6b7280)">
+          {line2}
+        </text>
+      )}
     </g>
   );
 }
@@ -165,7 +188,7 @@ function ExpenseBreakdownTab() {
 
   return (
     <div>
-      <div style={{ height: 320, marginBottom: 24 }}>
+      <div className="db-chart-wrap-lg" style={{ marginBottom: 24 }}>
         <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
           <BarChart
             layout="vertical"
@@ -178,7 +201,7 @@ function ExpenseBreakdownTab() {
               tickFormatter={(v: number) => formatCompact(v)}
               tick={{ fontSize: 11 }}
             />
-            <YAxis type="category" dataKey="name" tick={<ExpenseCategoryTick x={0} y={0} payload={{ value: '' }} />} width={150} />
+            <YAxis type="category" dataKey="name" tick={<ExpenseCategoryTick />} width={150} />
             <Tooltip
               formatter={(value) => [money(Number(value ?? 0)), 'الإجمالي']}
               contentStyle={{ fontFamily: 'inherit', fontSize: 12 }}
