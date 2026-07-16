@@ -1855,11 +1855,46 @@
   user-select: none;
 }
 .db-advanced-summary::-webkit-details-marker { display: none; }
-.db-advanced-summary:hover { background: var(--xpl-faint-2); }
-.db-advanced-summary:focus-visible { outline: 2px solid var(--xpl-primary); outline-offset: -2px; }
+.db-advanced-summary:hover,
+.db-kpi-toggle:hover { background: var(--xpl-faint-2); }
+.db-advanced-summary:focus-visible,
+.db-kpi-toggle:focus-visible { outline: 2px solid var(--xpl-primary); outline-offset: -2px; }
 .db-advanced-chevron { margin-inline-start: auto; transition: transform .2s ease; color: var(--xpl-muted); }
 .db-advanced[open] .db-advanced-chevron { transform: rotate(180deg); }
 .db-advanced-body { display: flex; flex-direction: column; gap: 18px; padding: 4px 18px 18px; }
+
+/* §2 — Financial KPI hero expand/collapse (collapsed by default on Dashboard open).
+   Reuses .db-advanced-chevron for the icon's transition/color; the CSS-grid trick below
+   is needed for a *smooth* height animation, which native <details> (used by .db-advanced)
+   does not provide — that's why this isn't just another <details className="db-advanced">. */
+.db-kpi-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 8px;
+  background: var(--xpl-surface);
+  color: var(--xpl-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.db-kpi-toggle-icon { font-size: 18px; }
+.db-kpi-toggle[aria-expanded="true"] .db-kpi-toggle-icon { transform: rotate(180deg); }
+.db-kpi-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.db-kpi-collapse.expanded { grid-template-rows: 1fr; }
+.db-kpi-collapse-inner { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) {
+  .db-kpi-toggle,
+  .db-advanced-chevron,
+  .db-kpi-collapse { transition: none; }
+}
 
 /* ================================================================
    EXECUTIVE DASHBOARD POLISH PACK v1 — presentation-only refinement.

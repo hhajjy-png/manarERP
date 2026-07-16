@@ -1,0 +1,319 @@
+diff --git a/frontend/src/components/DateInput.tsx b/frontend/src/components/DateInput.tsx
+index fbd4107..a39e2e2 100644
+--- a/frontend/src/components/DateInput.tsx
++++ b/frontend/src/components/DateInput.tsx
+@@ -57,7 +57,7 @@ export default function DateInput({
+   min,
+   max,
+   autoFocus,
+-  placeholder = 'يوم/شهر/سنة',
++  placeholder = 'dd/mm/yyyy',
+   invalid,
+   onBlur,
+ }: DateInputProps) {
+diff --git a/frontend/src/components/dashboard/dashboard.css b/frontend/src/components/dashboard/dashboard.css
+index 591c308..91d0dc0 100644
+--- a/frontend/src/components/dashboard/dashboard.css
++++ b/frontend/src/components/dashboard/dashboard.css
+@@ -1855,12 +1855,47 @@
+   user-select: none;
+ }
+ .db-advanced-summary::-webkit-details-marker { display: none; }
+-.db-advanced-summary:hover { background: var(--xpl-faint-2); }
+-.db-advanced-summary:focus-visible { outline: 2px solid var(--xpl-primary); outline-offset: -2px; }
++.db-advanced-summary:hover,
++.db-kpi-toggle:hover { background: var(--xpl-faint-2); }
++.db-advanced-summary:focus-visible,
++.db-kpi-toggle:focus-visible { outline: 2px solid var(--xpl-primary); outline-offset: -2px; }
+ .db-advanced-chevron { margin-inline-start: auto; transition: transform .2s ease; color: var(--xpl-muted); }
+ .db-advanced[open] .db-advanced-chevron { transform: rotate(180deg); }
+ .db-advanced-body { display: flex; flex-direction: column; gap: 18px; padding: 4px 18px 18px; }
+ 
++/* §2 — Financial KPI hero expand/collapse (collapsed by default on Dashboard open).
++   Reuses .db-advanced-chevron for the icon's transition/color; the CSS-grid trick below
++   is needed for a *smooth* height animation, which native <details> (used by .db-advanced)
++   does not provide — that's why this isn't just another <details className="db-advanced">. */
++.db-kpi-toggle {
++  display: flex;
++  align-items: center;
++  gap: 6px;
++  padding: 6px 12px;
++  border: 1px solid var(--xpl-border);
++  border-radius: 8px;
++  background: var(--xpl-surface);
++  color: var(--xpl-text);
++  font-size: 13px;
++  font-weight: 600;
++  cursor: pointer;
++  transition: var(--transition);
++}
++.db-kpi-toggle-icon { font-size: 18px; }
++.db-kpi-toggle[aria-expanded="true"] .db-kpi-toggle-icon { transform: rotate(180deg); }
++.db-kpi-collapse {
++  display: grid;
++  grid-template-rows: 0fr;
++  transition: grid-template-rows .3s cubic-bezier(0.4, 0, 0.2, 1);
++}
++.db-kpi-collapse.expanded { grid-template-rows: 1fr; }
++.db-kpi-collapse-inner { overflow: hidden; }
++@media (prefers-reduced-motion: reduce) {
++  .db-kpi-toggle,
++  .db-advanced-chevron,
++  .db-kpi-collapse { transition: none; }
++}
++
+ /* ================================================================
+    EXECUTIVE DASHBOARD POLISH PACK v1 — presentation-only refinement.
+    Reduce border noise · premium KPI hero · density · smart empties.
+diff --git a/frontend/src/components/financial/AgingTable.tsx b/frontend/src/components/financial/AgingTable.tsx
+index f330125..316c997 100644
+--- a/frontend/src/components/financial/AgingTable.tsx
++++ b/frontend/src/components/financial/AgingTable.tsx
+@@ -101,7 +101,7 @@ export function AgingTable({ rows, type, currentState }: Props) {
+                 {b.label}{sortIcon(b.key)}
+               </th>
+             ))}
+-            <th className="sortable num" onClick={() => toggleSort('total')}>
++            <th className="sortable num aging-total-col" onClick={() => toggleSort('total')}>
+               الإجمالي{sortIcon('total')}
+             </th>
+           </tr>
+diff --git a/frontend/src/components/financial/JournalBookTable.tsx b/frontend/src/components/financial/JournalBookTable.tsx
+index 4e55e9e..eb75b24 100644
+--- a/frontend/src/components/financial/JournalBookTable.tsx
++++ b/frontend/src/components/financial/JournalBookTable.tsx
+@@ -40,7 +40,7 @@ export function JournalBookTable({ rows, currentState }: Props) {
+         <table className="financial-table journal-book-table">
+           <thead>
+             <tr>
+-              <th style={{ width: 24 }} />
++              <th className="journal-expand-icon" />
+               <th>رقم القيد</th>
+               <th>التاريخ</th>
+               <th>البيان</th>
+diff --git a/frontend/src/lib/i18n.ts b/frontend/src/lib/i18n.ts
+index 357ae24..c45f4bf 100644
+--- a/frontend/src/lib/i18n.ts
++++ b/frontend/src/lib/i18n.ts
+@@ -95,7 +95,7 @@ const DICT: Record<Lang, Record<string, string>> = {
+     // nav group labels
+     'nav.group.core': 'العمليات الأساسية',
+     'nav.group.financial': 'الإدارة المالية',
+-    'nav.group.import_center': 'مركز الاستيراد',
++    'nav.group.import_center': 'البنوك',
+     'nav.group.warehouse': 'المستودع',
+     'nav.group.system': 'النظام',
+     'nav.group.ai': 'الذكاء الاصطناعي',
+@@ -1406,7 +1406,7 @@ const DICT: Record<Lang, Record<string, string>> = {
+     // nav group labels
+     'nav.group.core': 'Core Operations',
+     'nav.group.financial': 'Financial Management',
+-    'nav.group.import_center': 'Import Center',
++    'nav.group.import_center': 'Banking',
+     'nav.group.warehouse': 'Warehouse',
+     'nav.group.system': 'System',
+     'nav.group.ai': 'Artificial Intelligence',
+diff --git a/frontend/src/pages/Dashboard.tsx b/frontend/src/pages/Dashboard.tsx
+index df81839..9a4c353 100644
+--- a/frontend/src/pages/Dashboard.tsx
++++ b/frontend/src/pages/Dashboard.tsx
+@@ -81,6 +81,7 @@ function GeneralDashboardContent() {
+   const [error, setError] = useState('');
+   const [refreshKey, setRefreshKey] = useState(0);
+   const [refreshAt, setRefreshAt] = useState<Date | null>(null);
++  const [kpiExpanded, setKpiExpanded] = useState(false);
+ 
+   // Executive Command Center data — مؤشرات الحركة/الذمم تتبع الفترة العالمية.
+   const commandData = useDashboardCommandData(refreshKey, periodToRangeParams(period));
+@@ -275,14 +276,33 @@ function GeneralDashboardContent() {
+         </div>
+       )}
+ 
+-      {/* ═══════════════ §2 — PRIMARY KPI ROW (financial results — the hero) ═══════════════ */}
++      {/* ═══════════════ §2 — PRIMARY KPI ROW (financial results — the hero) ═══════════════
++          Collapsed by default — header stays visible, user expands on demand. */}
+       <div className="db-kpi-hero">
+-        <SectionCard title="المؤشرات المالية الرئيسية" icon="query_stats">
+-          <KpiRowSection
+-            financial={commandData.decisionCenter?.financialSummary ?? null}
+-            cashFlow={commandData.cashFlowThisMonth}
+-            loading={commandData.loading}
+-          />
++        <SectionCard
++          title="المؤشرات المالية الرئيسية"
++          icon="query_stats"
++          actions={
++            <button
++              type="button"
++              className="db-kpi-toggle"
++              onClick={() => setKpiExpanded((v) => !v)}
++              aria-expanded={kpiExpanded}
++            >
++              {kpiExpanded ? 'إخفاء' : 'عرض'}
++              <span className="material-symbols-outlined db-advanced-chevron db-kpi-toggle-icon" aria-hidden="true">expand_more</span>
++            </button>
++          }
++        >
++          <div className={`db-kpi-collapse${kpiExpanded ? ' expanded' : ''}`}>
++            <div className="db-kpi-collapse-inner">
++              <KpiRowSection
++                financial={commandData.decisionCenter?.financialSummary ?? null}
++                cashFlow={commandData.cashFlowThisMonth}
++                loading={commandData.loading}
++              />
++            </div>
++          </div>
+         </SectionCard>
+       </div>
+ 
+diff --git a/frontend/src/pages/DataImport.tsx b/frontend/src/pages/DataImport.tsx
+index 6b5ba1c..b08efb1 100644
+--- a/frontend/src/pages/DataImport.tsx
++++ b/frontend/src/pages/DataImport.tsx
+@@ -1,4 +1,5 @@
+ import { useRef, useState } from 'react';
++import { useNavigate } from 'react-router-dom';
+ import * as XLSX from 'xlsx';
+ import { api, errorMessage } from '../api/client';
+ import { useAuth } from '../stores/authStore';
+@@ -95,6 +96,12 @@ const ENTITY_ICON: Record<string, string> = {
+   payroll:   'account_balance_wallet',
+ };
+ 
++// البنوك — نقاط دخول لمعالجات الاستيراد البنكي المخصّصة (صفحاتها الأصلية بلا تغيير)
++const BANK_LINKS: { permission: string; route: string; icon: string; label: string }[] = [
++  { permission: 'import.read', route: '/payroll/bank-import', icon: 'payments', label: 'استيراد الرواتب البنكية' },
++  { permission: 'bankStatementImport.create', route: '/bank-statement-import', icon: 'account_balance_wallet', label: 'إضافة كشف بنكي' },
++];
++
+ // Arabic labels for warning codes (analytics display). Falls back to the raw code.
+ const WARNING_LABEL: Record<string, string> = {
+   IDENTICAL_DATES: 'تواريخ متطابقة',
+@@ -152,6 +159,7 @@ function downloadTemplate(entityKey: string) {
+ export default function DataImport() {
+   const { hasPermission } = useAuth();
+   const { t } = useT();
++  const navigate = useNavigate();
+ 
+   const [entityKey, setEntityKey] = useState(IMPORT_ENTITIES[0].key);
+   const [step, setStep] = useState<ImportStep>('idle');
+@@ -338,6 +346,7 @@ export default function DataImport() {
+   const requiredCols = cfg.columns.filter((c) => c.required);
+   const optionalCols = cfg.columns.filter((c) => !c.required);
+   const canImport = step === 'previewed' && !!preview && preview.validRows > 0 && hasPermission('import.create');
++  const visibleBankLinks = BANK_LINKS.filter((l) => hasPermission(l.permission));
+ 
+   // Step progress flags
+   const fileDone = !!fileName;
+@@ -418,6 +427,26 @@ export default function DataImport() {
+             </div>
+           </SectionCard>
+ 
++          {visibleBankLinks.length > 0 && (
++            <SectionCard title="البنوك" icon="account_balance">
++              <div className="dicx-entities">
++                {visibleBankLinks.map((l) => (
++                  <button
++                    key={l.route}
++                    type="button"
++                    className="dicx-entity-btn"
++                    onClick={() => navigate(l.route)}
++                  >
++                    <span className="dicx-entity-icon">
++                      <span className="material-symbols-outlined" aria-hidden="true">{l.icon}</span>
++                    </span>
++                    {l.label}
++                  </button>
++                ))}
++              </div>
++            </SectionCard>
++          )}
++
+           {/* Step 2 — upload zone */}
+           {step !== 'done' && (
+             <SectionCard title="٢ · ارفع ملف Excel" icon="upload_file">
+diff --git a/frontend/src/pages/FinancialOperationsDashboard.tsx b/frontend/src/pages/FinancialOperationsDashboard.tsx
+index 0212646..d63f42e 100644
+--- a/frontend/src/pages/FinancialOperationsDashboard.tsx
++++ b/frontend/src/pages/FinancialOperationsDashboard.tsx
+@@ -58,6 +58,23 @@ function marginColor(v: number | null): string {
+   return '#ef4444';                 // red
+ }
+ 
++const EXPENSE_TICK_MAX_CHARS = 16;
++
++function ExpenseCategoryTick({ x, y, payload }: { x: number; y: number; payload: { value: string } }) {
++  const label = payload.value;
++  const truncated = label.length > EXPENSE_TICK_MAX_CHARS
++    ? `${label.slice(0, EXPENSE_TICK_MAX_CHARS - 1)}…`
++    : label;
++  return (
++    <g transform={`translate(${x},${y})`}>
++      <title>{label}</title>
++      <text x={-8} y={0} dy={4} textAnchor="end" fontSize={12} fill="var(--db-muted, #6b7280)">
++        {truncated}
++      </text>
++    </g>
++  );
++}
++
+ // ── Tab bar ────────────────────────────────────────────────────────────────
+ 
+ type Tab = 'contracts' | 'expenses' | 'customers' | 'trends';
+@@ -153,7 +170,7 @@ function ExpenseBreakdownTab() {
+           <BarChart
+             layout="vertical"
+             data={chartData}
+-            margin={{ top: 5, right: 30, left: 80, bottom: 5 }}
++            margin={{ top: 5, right: 30, left: 8, bottom: 5 }}
+           >
+             <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+             <XAxis
+@@ -161,7 +178,7 @@ function ExpenseBreakdownTab() {
+               tickFormatter={(v: number) => formatCompact(v)}
+               tick={{ fontSize: 11 }}
+             />
+-            <YAxis type="category" dataKey="name" tick={{ fontSize: 12 }} width={76} />
++            <YAxis type="category" dataKey="name" tick={<ExpenseCategoryTick x={0} y={0} payload={{ value: '' }} />} width={150} />
+             <Tooltip
+               formatter={(value) => [money(Number(value ?? 0)), 'الإجمالي']}
+               contentStyle={{ fontFamily: 'inherit', fontSize: 12 }}
+diff --git a/frontend/src/pages/Prices.tsx b/frontend/src/pages/Prices.tsx
+index 1c1ba1d..3cb9e37 100644
+--- a/frontend/src/pages/Prices.tsx
++++ b/frontend/src/pages/Prices.tsx
+@@ -110,7 +110,7 @@ export default function Prices() {
+   async function loadUsageReport() {
+     setUsageLoading(true);
+     try {
+-      const res = await api.get('/prices/usage');
++      const res = await api.get('/prices/usage-report');
+       setUsageReport(res.data.data);
+       setShowUsage(true);
+     } catch (e) {
+diff --git a/frontend/src/styles/financial.css b/frontend/src/styles/financial.css
+index 79a3853..cbdc713 100644
+--- a/frontend/src/styles/financial.css
++++ b/frontend/src/styles/financial.css
+@@ -221,7 +221,11 @@
+ .table-responsive { overflow-x: auto; }
+ .financial-table {
+   width: 100%;
+-  border-collapse: collapse;
++  /* separate (not collapse) — sticky <th> position: sticky combined with
++     border-collapse: collapse is a known cross-browser bug that can render
++     header cells a pixel or two off from the body columns beneath them. */
++  border-collapse: separate;
++  border-spacing: 0;
+   font-size: 0.88rem;
+   background: var(--surface, #fff);
+ }
+@@ -344,7 +348,7 @@
+ .aging-table td.aging-critical  { background: #fee2e2; color: #991b1b; font-weight: 700; }
+ .aging-table td.aging-warning   { background: #ffedd5; color: #9a3412; }
+ .aging-table td.aging-caution   { background: #fefce8; color: #713f12; }
+-.aging-table td.aging-total-col { font-weight: 700; border-right: 2px solid var(--border, #e2e8f0); }
++.aging-table .aging-total-col { font-weight: 700; border-right: 2px solid var(--border, #e2e8f0); }
+ .aging-table th.sortable        { cursor: pointer; -webkit-user-select: none; user-select: none; }
+ .aging-table th.sortable:hover  { background: #d1dce8; }
+ 
