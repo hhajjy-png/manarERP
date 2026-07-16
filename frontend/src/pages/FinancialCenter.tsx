@@ -39,6 +39,7 @@ import { FinancialReportsTab } from '../components/financial/FinancialReportsTab
 // ExplorerKit tokens/styles — the Financial Center root carries `xpl-scope` so its
 // refreshed shell/tables/cards resolve `--xpl-*` tokens (cohesion with the Executive
 // Dashboard). Presentation only; the kit CSS is already bundled app-wide.
+import { Pagination } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 
 interface EntityOption { id: number; name: string; code: string; }
@@ -901,18 +902,8 @@ export default function FinancialCenter() {
                     </table>
                   </div>
 
-                  {glReportData.pagination.totalPages > 1 && (
-                    <div className="fc-pagination">
-                      <button type="button" disabled={glPage <= 1} onClick={() => setParam('glPage', glPage - 1)}>
-                        السابق
-                      </button>
-                      <span>{glPage} / {glReportData.pagination.totalPages}</span>
-                      <button type="button" disabled={glPage >= glReportData.pagination.totalPages}
-                        onClick={() => setParam('glPage', glPage + 1)}>
-                        التالي
-                      </button>
-                    </div>
-                  )}
+                  {/* Pagination — shared ExplorerKit component, not a bespoke reimplementation */}
+                  <Pagination meta={glReportData.pagination} onPage={(p) => setParam('glPage', p)} />
                 </>
               )}
               {glReportData && glReportData.accounts.length === 0 && !glReportLoading && (
@@ -1178,15 +1169,8 @@ export default function FinancialCenter() {
             </div>
           )}
 
-          {journalData?.pagination && journalData.pagination.totalPages > 1 && (
-            <div className="fc-pagination">
-              <button type="button" disabled={jPage <= 1}
-                onClick={() => setParam('jPage', jPage - 1)}>السابق</button>
-              <span>{jPage} / {journalData.pagination.totalPages}</span>
-              <button type="button" disabled={jPage >= journalData.pagination.totalPages}
-                onClick={() => setParam('jPage', jPage + 1)}>التالي</button>
-            </div>
-          )}
+          {/* Pagination — shared ExplorerKit component, not a bespoke reimplementation */}
+          <Pagination meta={journalData?.pagination} onPage={(p) => setParam('jPage', p)} />
 
           {journalLoading && !journalData && (
             <div className="fc-hint">

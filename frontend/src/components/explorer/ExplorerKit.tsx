@@ -26,10 +26,11 @@ const Icon = ({ name, className }: { name: string; className?: string }) => (
 );
 
 // ─── Shared dismissable-surface hook (focus trap + escape + focus return) ───────
-// Used by both Drawer and Dialog: moves focus into the panel on mount, traps Tab
-// inside it (both directions), closes on Escape, locks body scroll, and returns
-// focus to the previously-focused element on unmount.
-function useFocusTrap(onClose: () => void) {
+// Used by Drawer and Dialog here, and by any other dismissable panel outside this
+// file (e.g. BankAccountExplorer's TransactionDrawer): moves focus into the panel
+// on mount, traps Tab inside it (both directions), closes on Escape, locks body
+// scroll, and returns focus to the previously-focused element on unmount.
+export function useFocusTrap(onClose: () => void) {
   const panelRef = useRef<HTMLDivElement>(null);
   // Keep the latest `onClose` in a ref so the effect below can run exactly once
   // (on open) without re-subscribing when the caller passes a new function
@@ -790,9 +791,12 @@ export function Tabs<T extends string>({
 export function Pagination({
   meta,
   onPage,
+  disabled,
 }: {
   meta: { page: number; pageSize: number; total: number; totalPages: number } | null | undefined;
   onPage: (page: number) => void;
+  /** Disables both nav buttons regardless of page position — e.g. while a fetch is in flight. */
+  disabled?: boolean;
 }) {
   if (!meta || meta.total === 0) return null;
   const from = (meta.page - 1) * meta.pageSize + 1;
@@ -806,10 +810,10 @@ export function Pagination({
       </span>
       {meta.totalPages > 1 && (
         <div className="xpl-pagination-btns">
-          <button type="button" className="xpl-btn xpl-btn--secondary xpl-btn--sm" disabled={meta.page <= 1} onClick={() => onPage(meta.page - 1)}>
+          <button type="button" className="xpl-btn xpl-btn--secondary xpl-btn--sm" disabled={meta.page <= 1 || disabled} onClick={() => onPage(meta.page - 1)}>
             <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>السابق
           </button>
-          <button type="button" className="xpl-btn xpl-btn--secondary xpl-btn--sm" disabled={meta.page >= meta.totalPages} onClick={() => onPage(meta.page + 1)}>
+          <button type="button" className="xpl-btn xpl-btn--secondary xpl-btn--sm" disabled={meta.page >= meta.totalPages || disabled} onClick={() => onPage(meta.page + 1)}>
             التالي<span className="material-symbols-outlined" aria-hidden="true">chevron_left</span>
           </button>
         </div>

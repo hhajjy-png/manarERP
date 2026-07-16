@@ -1,5 +1,6 @@
 import { CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
+import { useToastStore } from '../../stores/toastStore';
 import ConfirmModal from '../../components/ConfirmModal';
 import type {
   TemplateStudioDocumentType,
@@ -107,6 +108,10 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const [editingDraft, setEditingDraft]         = useState('');
   const [dblClickMsg, setDblClickMsg]           = useState<{ id: string; msg: string } | null>(null);
+
+  // Shared toast mechanism (stores/toastStore.ts + Toast.tsx, mounted once in
+  // Layout.tsx) instead of a blocking window.alert() for import/upload errors.
+  const addToast = useToastStore((s) => s.add);
 
   const dragRef     = useRef<DragState | null>(null);
   const imgInputRef = useRef<HTMLInputElement>(null);
@@ -282,7 +287,7 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
       const json = ev.target?.result as string;
       const result = importTemplate(json);
       if (!result.ok) {
-        alert(`خطأ في الاستيراد: ${result.error}`);
+        addToast(`خطأ في الاستيراد: ${result.error}`, 'error');
         return;
       }
       updateTemplates((ts) => [...ts, result.template]);
@@ -323,7 +328,7 @@ export default function TemplateStudioEditor({ onClose }: TemplateStudioEditorPr
     reader.onload = (ev) => {
       const src = ev.target?.result as string;
       if (!isDataUrlWithinLimit(src, MAX_IMAGE_BYTES)) {
-        alert('حجم الصورة يتجاوز 1 ميغابايت');
+        addToast('حجم الصورة يتجاوز 1 ميغابايت', 'error');
         return;
       }
       addElement(makeElement<ImageElement>('image', { ...DEFAULT_POS, w: 40, h: 30, type: 'image', src, alt: file.name }));

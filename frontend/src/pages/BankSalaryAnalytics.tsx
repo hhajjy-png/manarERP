@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import DateInput from '../components/DateInput';
 import { api } from '../api/client';
 import { useUI } from '../stores/uiStore';
+import { useToastStore } from '../stores/toastStore';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
 import { formatDate } from '../lib/date';
@@ -14,6 +15,7 @@ import {
   ResponsiveContainer, Cell, PieChart, Pie, Legend,
 } from 'recharts';
 import { CHART_INITIAL_DIMENSION } from '../lib/rechartsDefaults';
+import { Pagination } from '../components/explorer/ExplorerKit';
 import './BankSalaryAnalytics.css';
 import { money, MoneyText } from '../config/modules';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
@@ -258,9 +260,6 @@ export default function BankSalaryAnalytics() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
-  const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'error' } | null>(null);
-  const toastRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // ── Outside click handlers ─────────────────────────────────────────────────
 
   useEffect(() => {
@@ -277,12 +276,12 @@ export default function BankSalaryAnalytics() {
   }, []);
 
   // ── Toast helper ───────────────────────────────────────────────────────────
-
+  // Shared toast mechanism (stores/toastStore.ts + Toast.tsx, mounted once in
+  // Layout.tsx) instead of a page-local single-slot toast.
+  const addToast = useToastStore((s) => s.add);
   const showToast = useCallback((msg: string, type: 'ok' | 'error' = 'ok') => {
-    if (toastRef.current) clearTimeout(toastRef.current);
-    setToast({ msg, type });
-    toastRef.current = setTimeout(() => setToast(null), 3500);
-  }, []);
+    addToast(msg, type);
+  }, [addToast]);
 
   // ── Data loading ───────────────────────────────────────────────────────────
 
@@ -1447,21 +1446,8 @@ export default function BankSalaryAnalytics() {
                       </div>
                     )}
 
-                    {/* Pagination */}
-                    {txData.meta.totalPages > 1 && (
-                      <div className="psa-pagination">
-                        <span className="psa-pagination-info">{txData.meta.total.toLocaleString('ar-KW')} معاملة</span>
-                        <div className="psa-pagination-controls">
-                          <button type="button" disabled={txPage <= 1} onClick={() => setTxPage((p) => p - 1)} className="btn btn-secondary" style={{ padding: '4px 12px', fontSize: 12, opacity: txPage <= 1 ? 0.4 : 1 }}>
-                            السابق
-                          </button>
-                          <span style={{ padding: '4px 12px', color: 'var(--text-muted)', fontSize: 13 }}>{txPage} / {txData.meta.totalPages}</span>
-                          <button type="button" disabled={txPage >= txData.meta.totalPages} onClick={() => setTxPage((p) => p + 1)} className="btn btn-secondary" style={{ padding: '4px 12px', fontSize: 12, opacity: txPage >= txData.meta.totalPages ? 0.4 : 1 }}>
-                            التالي
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    {/* Pagination — shared ExplorerKit component, not a bespoke reimplementation */}
+                    <Pagination meta={txData.meta} onPage={(p) => setTxPage(p)} />
                   </>
                 ) : null}
               </div>
@@ -1638,15 +1624,8 @@ export default function BankSalaryAnalytics() {
         </div>
       )}
 
-      {/* Package M: Toast */}
-      {toast && (
-        <div className={`psa-toast ${toast.type}`}>
-          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
-            {toast.type === 'ok' ? 'check_circle' : 'error'}
-          </span>
-          {toast.msg}
-        </div>
-      )}
+      {/* Toast rendering is now handled globally by the shared Toast component
+          (mounted once in Layout.tsx) — no page-local toast markup needed. */}
     </div>
   );
 }

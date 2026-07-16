@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { CHART_INITIAL_DIMENSION } from '../lib/rechartsDefaults';
 import { useAuth } from '../stores/authStore';
+import { useToastStore } from '../stores/toastStore';
 import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatCurrency, formatNumber } from '../lib/format';
@@ -1030,10 +1031,6 @@ export default function BankReconciliation() {
   // ── Charts toggle ─────────────────────────────────────────────────────────
   const [showCharts, setShowCharts]   = useState(true);
 
-  // ── Toast ─────────────────────────────────────────────────────────────────
-  const [toast, setToast] = useState<{ msg: string; type: 'ok' | 'error' } | null>(null);
-  const toastTimer        = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   // ── Export dropdown ────────────────────────────────────────────────────────
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const exportMenuRef                       = useRef<HTMLDivElement>(null);
@@ -1054,11 +1051,14 @@ export default function BankReconciliation() {
   const tlSearchTimer                         = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasAutoSwitched                       = useRef(false);
 
+  // Shared toast mechanism (stores/toastStore.ts + Toast.tsx, mounted once in
+  // Layout.tsx) instead of a page-local single-slot toast — `add` is a stable
+  // zustand action reference, so `showToast` keeps the same identity across
+  // renders exactly as the previous local implementation did.
+  const addToast = useToastStore((s) => s.add);
   const showToast = useCallback((msg: string, type: 'ok' | 'error' = 'ok') => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    setToast({ msg, type });
-    toastTimer.current = setTimeout(() => setToast(null), 3200);
-  }, []);
+    addToast(msg, type);
+  }, [addToast]);
 
   // ── Timeline loader ──────────────────────────────────────────────────────────
   const loadTimeline = useCallback(async (
@@ -2465,12 +2465,8 @@ export default function BankReconciliation() {
         />
       )}
 
-      {/* ── Toast ──────────────────────────────────────────────────────────────── */}
-      {toast && (
-        <div className={`recon-toast ${toast.type}`} role="alert">
-          {toast.type === 'ok' ? '✓' : '⚠'} {toast.msg}
-        </div>
-      )}
+      {/* Toast rendering is now handled globally by the shared Toast component
+          (mounted once in Layout.tsx) — no page-local toast markup needed. */}
     </div>
   );
 }
