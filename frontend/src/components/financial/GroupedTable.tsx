@@ -76,9 +76,9 @@ export function GroupedTable({ rows, currentState, highlightId }: Props) {
             <th>المرجع</th>
             <th>النوع</th>
             <th>البيان</th>
-            <th>{fcMoneyHeader('مدين')}</th>
-            <th>{fcMoneyHeader('دائن')}</th>
-            <th>{fcMoneyHeader('الرصيد')}</th>
+            <th className="num">{fcMoneyHeader('مدين')}</th>
+            <th className="num">{fcMoneyHeader('دائن')}</th>
+            <th className="num">{fcMoneyHeader('الرصيد')}</th>
           </tr>
         </thead>
         <tbody>

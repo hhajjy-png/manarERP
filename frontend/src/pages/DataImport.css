@@ -4,6 +4,15 @@
    A step-based import workflow.
    ════════════════════════════════════════════════════════════════════════════ */
 
+/* ── Import mode switch (data importer vs. banking) ───────────────────────── */
+/* .dicx-entities.dicx-mode-switch (not just .dicx-mode-switch) so this wins over
+   .dicx-entities's own grid-template-columns regardless of declaration order —
+   equal-specificity single-class rules would otherwise resolve by source order. */
+.dicx-entities.dicx-mode-switch {
+  grid-template-columns: repeat(2, minmax(160px, 240px));
+  margin-bottom: 20px;
+}
+
 /* ── Workflow stepper ──────────────────────────────────────────────────────── */
 .dicx-stepper {
   display: flex;
