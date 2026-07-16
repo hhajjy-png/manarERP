@@ -8,10 +8,17 @@ import { translateInvoiceStatusAr } from '../../shared/utils/arabicLabels';
 import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLabels';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 import { monthWindowsBetween } from '../../core/utils/dateWindows';
+import { roundMoney } from '../../shared/utils/money';
 
 const num = (n: number | null | undefined) => Number(n ?? 0);
-const round3 = (n: number) => Math.round(n * 1000) / 1000;
-const dateAr = (d: Date | null) => (d ? new Date(d).toLocaleDateString('ar') : '');
+// مُعاد استخدامها من وحدة النقود القانونية — لا تعريف ثانٍ لمنطق التقريب (كان
+// `Math.round(n*1000)/1000` محليًا، بلا تصحيح Number.EPSILON، فيتعارض مع تقريب دفتر
+// الأستاذ عند نقاط تعادل نصف الفلس). نفس اسم/توقيع الدالة فلا تتغيّر مواضع الاستدعاء.
+const round3 = roundMoney;
+// مُعاد استخدامها من dateDisplay.ts القانونية بدل toLocaleDateString('ar') المحلية
+// (كانت تُخرج أرقامًا هندية شرقية تخالف معيار الأرقام الغربية المعتمد في التطبيق).
+// يحافظ على عقد null القديم (سلسلة فارغة) — التنسيق الفعلي فقط هو ما تغيّر.
+const dateAr = (d: Date | null) => (d ? formatDisplayDate(d) : '');
 /** يحوّل وسم الشهر `YYYY-MM` إلى صيغة العرض `MM/YYYY` — بلا أسماء أشهر. */
 const monthYearLabel = (ymLabel: string): string => {
   const [y, m] = ymLabel.split('-');

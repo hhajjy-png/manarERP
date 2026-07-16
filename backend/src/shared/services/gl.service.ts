@@ -41,6 +41,26 @@ export async function generateEntryNumber(tx: Tx, entryDate: Date = new Date()):
 }
 
 /**
+ * يُميّز خطأ P2002 على حقل entryNumber في journal_entries عن بقية أخطاء التعارض.
+ * يُستخدم لإعادة المحاولة عند تعارض ترقيم القيود المحاسبية (race condition على رقم تسلسلي)
+ * دون إعادة المحاولة على تعارض رقم الفاتورة أو أي حقل آخر.
+ */
+export function isEntryNumberCollision(err: unknown): boolean {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (err.code !== 'P2002') return false;
+  const target = err.meta?.target;
+  if (!target) return false;
+  const t = Array.isArray(target) ? target.join(',') : String(target);
+  // يُعيد true فقط عند تعارض entryNumber في journal_entries (النظام الجديد).
+  // transactions_entryNumber_key (النظام القديم) لا يستحق retry — مشكلته في generateEntryNumber.
+  if (t.includes('invoiceNumber')) return false;
+  if (t.includes('transactions')) return false;
+  return t.includes('entryNumber');
+}
+
+const MAX_ENTRY_NUMBER_ATTEMPTS = 3;
+
+/**
  * ينشئ قيد يومية مزدوجًا بعد التحقق من توازنه (إجمالي المدين = إجمالي الدائن).
  * يرمي خطأً قبل الكتابة إذا لم يتساوَ الطرفان **بدقّة الدينار** (`moneyEquals`) — أي أن
  * فارق فلس واحد (0.001) يُرفض، ولا يُتسامح إلا مع ضجيج التمثيل الثنائي.
@@ -48,6 +68,14 @@ export async function generateEntryNumber(tx: Tx, entryDate: Date = new Date()):
  *
  * هذه هي النقطة المركزية لحارس قفل الفترة: كل قيد محاسبي في النظام يمرّ من هنا،
  * فلا حاجة لتكرار الحارس في كل وحدة.
+ *
+ * **حارس تعارض ترقيم القيد مركزي هنا أيضًا** — `generateEntryNumber` يعتمد على
+ * MAX(id)+1، وهو عرضة للتعارض عند ترحيل قيدين شبه متزامنين (كدفعة رواتب أو استيراد
+ * مصروفات بالجملة). عند تعارض P2002 على entryNumber فقط (`isEntryNumberCollision`)
+ * تُعاد المحاولة حتى 3 مرات — إعادة توليد الرقم وإدراجه ضمن نفس المعاملة المفتوحة،
+ * دون الحاجة لإعادة تشغيل معاملة المستدعي بأكملها (SQLite لا "يُسمّم" المعاملة بعد فشل
+ * عبارة واحدة بخلاف Postgres — تم التحقق تجريبيًا). كل مستدعٍ (فواتير، رواتب، مصروفات)
+ * يرث هذه الحماية تلقائيًا دون تكرارها.
  */
 export async function createBalancedJournal(
   tx: Tx,
@@ -84,17 +112,31 @@ export async function createBalancedJournal(
     entityId: `${data.referenceType}#${data.referenceId}`,
   });
 
-  await tx.journalEntry.create({
-    data: {
-      entryNumber: await generateEntryNumber(tx, data.date),
-      date: data.date,
-      description: data.description,
-      referenceType: data.referenceType,
-      referenceId: data.referenceId,
-      status: 'POSTED',
-      lines: { create: data.lines },
-    },
-  });
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < MAX_ENTRY_NUMBER_ATTEMPTS; attempt++) {
+    try {
+      await tx.journalEntry.create({
+        data: {
+          entryNumber: await generateEntryNumber(tx, data.date),
+          date: data.date,
+          description: data.description,
+          referenceType: data.referenceType,
+          referenceId: data.referenceId,
+          status: 'POSTED',
+          lines: { create: data.lines },
+        },
+      });
+      return;
+    } catch (err) {
+      if (attempt < MAX_ENTRY_NUMBER_ATTEMPTS - 1 && isEntryNumberCollision(err)) {
+        console.warn(`[GL] entryNumber collision on attempt ${attempt + 1} — retrying`);
+        lastErr = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr!; // يُصل هنا فقط إذا استُنفدت المحاولات على تعارض entryNumber
 }
 
 /**

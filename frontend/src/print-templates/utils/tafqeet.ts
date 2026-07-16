@@ -7,6 +7,8 @@
  * Supported range: 0 – 9,999,999.999 KWD.
  */
 
+import { roundMoney } from '../../lib/money';
+
 // ─── Word tables ──────────────────────────────────────────────────────────────
 
 /** Form A — used when counting masculine nouns (3–10 items). */
@@ -146,8 +148,13 @@ export function tafqeet(amount: number): string {
     return pos ? 'مبلغ دائن: ' + pos : '';
   }
 
-  const dinars = Math.floor(amount);
-  const fils = Math.round((amount - dinars) * 1000);
+  // Canonical monetary rounding (half away from zero + EPSILON correction) before
+  // splitting into dinars/fils — this file previously split the raw amount directly
+  // with no upfront rounding pass, which could disagree with the numeral display by
+  // a fils at a rounding boundary (e.g. 1.0005).
+  const rounded = roundMoney(amount);
+  const dinars = Math.floor(rounded);
+  const fils = Math.round((rounded - dinars) * 1000);
 
   const parts: string[] = [];
 
