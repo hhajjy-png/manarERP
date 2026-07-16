@@ -5,6 +5,39 @@
 
 ---
 
+## Rotation & Archive Policy
+
+> Introduced 2026-07-17 as part of the Cleanup & Architecture Remediation Pack v1, in response to a gap-analysis
+> finding: this file is append-only by convention and had grown to ~2,600 lines / ~640 KB — unbounded growth that
+> degrades both human skimming and LLM session-start context budget, with no rotation mechanism previously defined.
+
+**Trigger:** when this file's release-log content (everything from `## Latest Release` through the last
+`## Previous Release — …` section, i.e. excluding the always-current reference sections below it — Module
+Inventory, Print Engine, Architecture, Security, Feature Status Snapshot, Future Roadmap, etc.) exceeds
+**~15 dated release entries**, archive the oldest entries down to the most recent ~10.
+
+**Archive destination:** `docs/history/PROJECT_STATE_ARCHIVE_<oldest-date>_to_<newest-date>.md` — one file per
+archived batch, named by the date range it covers. See `docs/history/README.md` for the index and process.
+
+**Process (manual, at the next release that crosses the trigger):**
+1. Identify the oldest `## Previous Release — …` sections that push the count past the ~10-entries-to-keep line.
+2. Move them verbatim (do not summarize or rewrite) into a new dated file under `docs/history/`.
+3. Add one line to `docs/history/README.md` indexing the new archive file's date range.
+4. Leave the always-current reference sections (Module Inventory, Print Engine, Architecture, Security, Seed
+   Data State, Feature Status Snapshot, Future Roadmap, Deferred Accounting Notes, Validation Checklist) in
+   place — they are not release-log entries and are never archived.
+5. Regenerate `PROJECT_MASTER_STATUS.md`'s "Current Production State" and "Repository Status" tables at the
+   same time (see that file's own refresh-cadence note) so the two documents never drift apart again.
+
+**Not addressed by this pass:** the pre-existing large narrative block embedded inside the "Current Production
+Baseline" table's "Latest validation" cell (a multi-release history compressed into one table cell, predating
+this policy) is a known structural quirk left untouched here — restructuring it risks losing or corrupting
+reference content and was judged out of scope for this policy-introduction pass. A future dedicated pass should
+extract it into `## Previous Release —` sections (or directly into the archive) rather than leave it compressed
+in a table cell.
+
+---
+
 ## Current Production Baseline
 
 | Field | Value |

@@ -2,9 +2,15 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Generated: 2026-07-01 · Read-only audit · No source code, Prisma, or PROJECT_STATE.md was modified.
+> Last refreshed: 2026-07-17 (previously 2026-07-01) · Read-only audit · No source code, Prisma, or PROJECT_STATE.md was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
+>
+> **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
+> "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
+> below. This 2026-07-17 pass refreshed those two quantitative tables only (re-derived directly from `git`); the
+> deeper narrative surveys (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-01
+> and have not been re-audited in this pass — treat their specifics as of that date, not current-day.
 
 ---
 
@@ -27,36 +33,34 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `c6edcf9` — *Merge Forms PDF Standalone Export* | High |
-| **Current stable tag** | `stable-forms-pdf-standalone-export-v1` (points at merge commit `c6edcf9`) | High |
-| **Previous stable tag** | `stable-stability-performance-pack-v1` (`d6ec309`) | High |
-| **Remote** | `origin` → `github.com/hhajjy-png/manarERP.git`; `origin/production` **synced to `c6edcf9`** (merge + stable tag pushed; docs commit pushed on top) | High |
+| **Current HEAD** | `460e08c` — *docs: record Financial Center & Banking UX Fix Pack v2 release in PROJECT_STATE* | High |
+| **Current stable tag** | `stable-financial-center-banking-ux-fix-pack-v2` (merge commit `cd7aac9`) | High |
+| **Previous stable tag** | `stable-financial-center-banking-ux-consolidation-v1` (`d7ed0c6`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
 | **Default credentials** | `admin` / `Admin@123` (change on first login) | High |
 
-### Repository Status (statistics)
+### Repository Status (statistics) — refreshed 2026-07-17
 
-| Metric | Value |
-|---|---|
-| Total tags | **340** |
-| — Stable (`stable-*`) | **222** |
-| — Pre-release (`pre-*`) | **115** |
-| — Checkpoint (`checkpoint-*`) | **2** |
-| — Other | **1** (`before-next-feature`) |
-| **Stable tags on `production` line** | **222 / 222 (100%)** |
-| Stable tags NOT on production | **0** |
-| Commits on `production` | **788** |
-| Backend modules | **36** |
-| Frontend pages | **~49** |
-| Prisma models | **49** |
-| Prisma migrations | **37** |
-| Release window | **2026-06-07 → 2026-07-01** |
-| Releases in 2026-06 | **218** |
-| Releases in 2026-07 | **4** |
+| Metric | Value (2026-07-01) | Value (2026-07-17) |
+|---|---|---|
+| Total tags | 340 | **454** |
+| — Stable (`stable-*`) | 222 | **305** |
+| — Pre-release (`pre-*`) | 115 | **127** |
+| — Checkpoint (`checkpoint-*` dash-form) | 2 | **5** |
+| — Other (`checkpoint/...` slash-form + `before-next-feature`) | 1 | **17** |
+| Commits on `production` | 788 | **1122** |
+| Backend modules | 36 | **40** |
+| Frontend pages | ~49 | **56** |
+| Prisma models | 49 | **52** |
+| Prisma migrations | 37 | **39** |
+| Release window | 2026-06-07 → 2026-07-01 | **2026-06-07 → 2026-07-16** |
 
-> **Key integrity fact:** every one of the 222 stable tags is an ancestor of `production`. There is no un-merged, divergent, or "experimental-only" tagged work. What is tagged is shipped. *Confidence: High.*
+> The "222/222 stable tags are all ancestors of production" integrity claim from the 2026-07-01 pass was **not
+> re-verified** in this refresh (it requires walking all 305 current stable tags against `production`, out of
+> scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
+> it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
 ### Latest Release — `stable-stability-performance-pack-v1` (`d6ec309`, 2026-07-02)
 
