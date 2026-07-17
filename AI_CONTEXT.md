@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `90d3640` (merge of `feature/bank-account-explorer-active-tabs-visual-polish-v2`) |
-| **Current Documentation Commit** | *(filled in by follow-up commit — see Maintenance Policy below)* |
+| **Current Documentation Commit** | `7bb95c3` — "docs: record Bank Account Explorer Active Tabs Visual Polish v2 release in PROJECT_STATE" |
 | **Current Stable Tag** | `stable-bank-account-explorer-active-tabs-visual-polish-v2` |
 | **Current Release Date** | 2026-07-18 |
 | **Total Stable Releases** | 305 (window 2026-06-07 → 2026-07-18) |
