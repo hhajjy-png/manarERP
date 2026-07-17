@@ -286,10 +286,8 @@ Choose the mode based on scope. Do not skip or reorder steps within a mode.
 
 ### NEVER (not even once, not even "just this time")
 - Commit automatically
-- Push automatically
-- Merge automatically
 - Delete branches automatically
-- Modify the `production` branch directly
+- Push, merge, tag, or modify the `production` branch directly — **except** under the Production Release Policy below
 - Run `prisma migrate` without reviewing the generated SQL first
 - Add a new permission key without adding it to `constants.ts`
 - Bypass `authenticate` or `requirePermission` middleware on any route
@@ -305,6 +303,27 @@ Choose the mode based on scope. Do not skip or reorder steps within a mode.
 - Check if the feature affects `auth.middleware.ts` or `rbac.middleware.ts`
 - Check if the feature affects `preload.ts` (new IPC channels need to be bridged)
 - Verify the DB path logic in `backendLauncher.ts` if touching DB location
+
+### Production Release Policy
+
+Automatic push, merge, tagging, and production release are prohibited by default.
+
+**Exception:** Claude MAY perform the complete production release workflow ONLY when:
+
+1. The Product Owner has completed the manual visual review.
+2. The user explicitly requests the official production release.
+
+When both conditions are satisfied, Claude is authorized to:
+- Push the feature branch.
+- Merge into production using `--no-ff`.
+- Push production.
+- Create and push annotated stable tags.
+- Update `PROJECT_STATE.md`.
+- Update `AI_CONTEXT.md`.
+- Update release documentation.
+- Synchronize production with `origin/production`.
+
+At all other times, automatic production release remains prohibited.
 
 ---
 

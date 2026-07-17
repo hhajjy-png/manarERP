@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `4503d8e` (merge of `feature/accounting-integrity-pack-v1`) |
-| **Current Documentation Commit** | `67b8db5` — "docs: record Accounting Integrity & Financial Accuracy Pack v1 release in PROJECT_STATE" |
-| **Current Stable Tag** | `stable-accounting-integrity-financial-accuracy-pack-v1` |
+| **Current Merge Commit** | `db4f9ab` (merge of `feature/production-readiness-and-accounting-integrity-pack-v2`) |
+| **Current Documentation Commit** | *(filled in by follow-up commit — see Maintenance Policy below)* |
+| **Current Stable Tag** | `stable-production-readiness-accounting-integrity-pack-v2` |
 | **Current Release Date** | 2026-07-17 |
-| **Total Stable Releases** | 303 (window 2026-06-07 → 2026-07-17) |
+| **Total Stable Releases** | 304 (window 2026-06-07 → 2026-07-17) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,16 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Production Readiness & Accounting Integrity Consolidation Pack v2** (2026-07-17, `stable-production-readiness-accounting-integrity-pack-v2`) —
+  fixed the packaged production build (npm-workspaces dependency-hoisting gap left `backend/node_modules`
+  almost empty → `MODULE_NOT_FOUND` on every launch), added automatic Prisma migrations on production
+  startup, added backend crash resilience (uncaughtException/unhandledRejection/EADDRINUSE handlers, SQLite
+  `busy_timeout`), fixed a date-boundary bug so all financial-summary period queries agree, wired the
+  Accounting Dashboard to the active period, and **removed automatic payroll GL posting entirely** —
+  payroll is operational-only going forward, salary expense is recorded exclusively through the Expenses
+  module. Dashboard, Executive Decision Center, Accounting Dashboard, Financial Center, the P&L Report, and
+  the Expenses page now report an identical expense total for any given period. Historical cleanup (231
+  payroll journals) already executed against dev; production run is a documented follow-up.
 - **Accounting Integrity & Financial Accuracy Pack v1** (2026-07-17, `stable-accounting-integrity-financial-accuracy-pack-v1`) —
   single GL source of truth for every financial report (Dashboard/P&L/financialSummary), immutable posted
   journals (revision-based reverse+repost, never `deleteMany`), driver salary disbursements now posted to
@@ -245,10 +255,10 @@ Chromium PDF, and backend HTML reports.
 - **GL auto-posting policy conflict** — Bank Reconciliation only produces suggestions today; extending it
   to auto-post is on the Medium-priority roadmap but requires resolving the conflict with the standing
   "never auto-post" policy first.
-- **Two salary-posting channels** — bank-import `salary_payments` (now posted to the GL) and the separate
-  DRAFT-only `payroll` module (posts on `markPaid`) both exist; if a month is ever processed through both,
-  salary expense would double-count. No fix scheduled; flagged for a future pack if `payroll` starts seeing
-  real use.
+- **Historical payroll-GL cleanup — production not yet run.** `scripts/remove-payroll-gl-journals-v1.ts
+  --apply` (idempotent, dry-run by default) removed 231 legacy `SALARY_PAYMENT` journals from the dev
+  database as part of the 2026-07-17 v2 release; the same script needs to be run against the production
+  database before production's own P&L/Expenses figures reconcile the same way dev's now does.
 - **`routerFutureFlags.test.tsx` stale assertion** — hardcodes an expected lazy-route count (48) that a
   2026-07-16 commit made stale (actual count is 46); trivial one-line fix, not yet applied — flagged by the
   2026-07-16 audit, deliberately left out of scope of every pack since.
@@ -283,11 +293,12 @@ Chromium PDF, and backend HTML reports.
 ## AI Quick Start
 
 **Status:** manarERP is a mature, production-complete offline Electron ERP for a single road-construction
-company. 303 stable releases shipped since 2026-06-07. All core modules (accounting/GL, invoices,
+company. 304 stable releases shipped since 2026-06-07. All core modules (accounting/GL, invoices,
 payroll, cheques, banking, printing, RBAC) are feature-complete; current work is polish packs and a short
-list of explicitly deferred/optional items. The latest 2026-07-17 release resolved the findings of a
-read-only Accounting Production Readiness Audit: the GL is now the single accounting source for every
-financial report, posted journals are immutable, and driver salary disbursements are booked — see Active
+list of explicitly deferred/optional items. The latest 2026-07-17 release made the packaged production
+build actually start reliably, added automatic migrations and crash resilience, and completed the
+accounting single-source-of-truth work — every expense-reporting surface now agrees, and payroll no longer
+posts to the GL at all (salary expense is Expenses-module-only, by permanent business decision). See Active
 Foundations for what's now single-sourced.
 
 **Current priorities:** Token Efficiency above all else; consolidated implementation packs; no
