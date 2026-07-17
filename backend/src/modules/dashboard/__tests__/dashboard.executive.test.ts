@@ -9,7 +9,8 @@ vi.mock('../../../config/database', () => ({
     expense:    { aggregate: vi.fn().mockResolvedValue({ _count: { _all: 0 }, _sum: { amount: 0 } }), findMany: vi.fn().mockResolvedValue([]) },
     employee:   { count: vi.fn().mockResolvedValue(0) },
     equipment:  { count: vi.fn().mockResolvedValue(0) },
-    transaction: { aggregate: vi.fn().mockResolvedValue({ _sum: { credit: 0, debit: 0 } }) },
+    // GL is the single accounting source: revenue/expense/trend come from journalEntryLine.
+    journalEntryLine: { aggregate: vi.fn().mockResolvedValue({ _sum: { debit: 0, credit: 0 } }) },
     attendance: { groupBy: vi.fn().mockResolvedValue([]) },
   },
 }));
@@ -34,7 +35,7 @@ describe('Executive Dashboard — expenses KPI', () => {
     vi.mocked(prisma.expense.findMany).mockResolvedValue([]);
     vi.mocked(prisma.employee.count).mockResolvedValue(0);
     vi.mocked(prisma.equipment.count).mockResolvedValue(0);
-    vi.mocked(prisma.transaction.aggregate).mockResolvedValue({ _sum: { credit: null, debit: null } } as any);
+    vi.mocked((prisma as any).journalEntryLine.aggregate).mockResolvedValue({ _sum: { debit: null, credit: null } } as any);
     vi.mocked(prisma.attendance.groupBy).mockResolvedValue([]);
   });
 

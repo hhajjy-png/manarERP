@@ -291,39 +291,65 @@ describe('Expense GL Posting — paymentMethod routing (T3)', () => {
   });
 });
 
-describe('Expense GL Re-post (amendment re-approval)', () => {
+describe('Expense GL Re-post (amendment re-approval) — immutable supersede', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearAccountCache();
     mockTx.journalEntry.findFirst.mockResolvedValue(null);
     mockTx.journalEntry.count.mockResolvedValue(0);
     mockTx.journalEntry.create.mockResolvedValue({ id: 1, lines: [] });
-    mockTx.journalEntry.deleteMany.mockResolvedValue({ count: 2 });
+    mockTx.journalEntry.deleteMany.mockResolvedValue({ count: 0 });
     mockTx.account.upsert.mockResolvedValue({});
     mockTx.account.findMany.mockResolvedValue(ACCOUNT_ROWS);
     mockTx.expense.findUnique.mockResolvedValue(baseExpense);
   });
 
-  it('deletes the netted EXPENSE + EXPENSE_REVERSAL pair before re-posting', async () => {
+  it('first approval posts revision 1, with no reversal and NO delete of posted journals', async () => {
+    // no prior entry (findFirst null) → nothing to reverse, post revision 1
     await repostExpenseToGL(mockTx as any, 1);
 
-    expect(mockTx.journalEntry.deleteMany).toHaveBeenCalledOnce();
-    const delArg = mockTx.journalEntry.deleteMany.mock.calls[0][0];
-    expect(delArg.where.referenceType.in).toEqual(
-      expect.arrayContaining(['EXPENSE', 'EXPENSE_REVERSAL']),
-    );
-    expect(delArg.where.referenceId).toBe(1);
-  });
-
-  it('posts a fresh balanced journal after clearing the old pair', async () => {
-    await repostExpenseToGL(mockTx as any, 1);
-
+    expect(mockTx.journalEntry.deleteMany).not.toHaveBeenCalled();
     expect(mockTx.journalEntry.create).toHaveBeenCalledOnce();
     const call = mockTx.journalEntry.create.mock.calls[0][0];
-    const { totalDebit, totalCredit } = lineTotals(call);
-    expect(totalDebit).toBeCloseTo(totalCredit, 3);
     expect(call.data.referenceType).toBe('EXPENSE');
     expect(call.data.referenceId).toBe(1);
+    expect(call.data.revision).toBe(1);
+    const { totalDebit, totalCredit } = lineTotals(call);
+    expect(totalDebit).toBeCloseTo(totalCredit, 3);
+  });
+
+  it('on re-approval it REVERSES the live entry then posts a new revision — never deletes', async () => {
+    const liveEntry = {
+      id: 5, entryNumber: 'JRN-2026-00001', revision: 1, status: 'POSTED',
+      lines: [
+        { accountId: 90, debit: 250.500, credit: 0, description: 'مصروف عام' },
+        { accountId: 30, debit: 0, credit: 250.500, description: 'صرف نقدي' },
+      ],
+    };
+    // Route findFirst by its query, not call order (createBalancedJournal also looks up the
+    // next entryNumber, which would otherwise consume a sequenced mock).
+    mockTx.journalEntry.findFirst.mockImplementation(async (args: any) => {
+      const rt = args?.where?.referenceType;
+      if (args?.where?.entryNumber) return null;          // entry-number generation
+      if (rt === 'EXPENSE_REVERSAL') return null;          // no existing reversal
+      if (rt === 'EXPENSE') return liveEntry;              // live base + currentRevision
+      return null;
+    });
+
+    await repostExpenseToGL(mockTx as any, 1);
+
+    // immutability: posted journals are never physically removed
+    expect(mockTx.journalEntry.deleteMany).not.toHaveBeenCalled();
+    // reversal of revision 1 + fresh revision 2
+    expect(mockTx.journalEntry.create).toHaveBeenCalledTimes(2);
+    const reversal = mockTx.journalEntry.create.mock.calls[0][0];
+    expect(reversal.data.referenceType).toBe('EXPENSE_REVERSAL');
+    expect(reversal.data.revision).toBe(1);
+    const fresh = mockTx.journalEntry.create.mock.calls[1][0];
+    expect(fresh.data.referenceType).toBe('EXPENSE');
+    expect(fresh.data.revision).toBe(2);
+    const { totalDebit, totalCredit } = lineTotals(fresh);
+    expect(totalDebit).toBeCloseTo(totalCredit, 3);
   });
 });
 

@@ -5,7 +5,9 @@ import { prisma } from '../../config/database';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { validateJournalBalance } from './accounting.utils';
-import { generateEntryNumber } from '../../shared/services/gl.service';
+import { generateEntryNumber, GL_REFERENCE_TYPES } from '../../shared/services/gl.service';
+import { glProfitAndLoss, glAccountFlow, GLDateRange } from '../../shared/services/gl.reporting';
+import { SYSTEM_ACCOUNT_CODES } from './accounting.accounts';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 import { AppError } from '../../core/errors/AppError';
@@ -273,71 +275,51 @@ export class AccountingService {
   }
 
   // Financial Summary
+  /**
+   * الملخص المالي — **من الأستاذ العام (GL) وحده**، الأساس استحقاقي.
+   *
+   * كان يُحسب من الجداول التشغيلية (Invoice/Expense/Payment) بأساس مختلط (إيراد نقدي
+   * ناقص مصروف استحقاقي) فيُنتج رقمًا موازيًا يخالف ميزان المراجعة. الآن:
+   *   الإيراد/المصروف/صافي الربح ← glProfitAndLoss (نفس مصدر لوحة القيادة والأرباح).
+   *   التحصيلات/المدفوعات        ← حركة حسابات الرقابة (AR/AP) على قيود التحصيل/السداد،
+   *                                 من نفس الدفتر — لا مصدر موازٍ.
+   */
   async financialSummary(from?: string, to?: string) {
-    const dateFilter: Prisma.DateTimeFilter = {};
-    if (from) dateFilter.gte = new Date(from);
-    if (to) dateFilter.lte = new Date(to);
-    const hasDateFilter = from || to;
-
-    // DATA-SOURCE RULE (Option A — safe, explicit):
-    // Business metrics (revenue, expenses, netProfit) come from the canonical tables:
-    //   - Revenue  → Invoice (SALES, not CANCELLED)
-    //   - Expenses → Expense (APPROVED only)
-    //   - Payments → Payment
-    //
-    // The GL JournalEntry figures are INFORMATIONAL only (manual adjustments visible to
-    // the accountant). Auto-generated entries that mirror Invoice / Expense / Payment
-    // events are EXCLUDED from the journal totals to prevent double-counting.
-    // DO NOT add journalEntry lines to netProfit without first removing the corresponding
-    // Invoice / Expense / Payment source figures.
-    //
-    // Auto-generated referenceType values excluded from GL informational totals:
-    const AUTO_REFERENCE_TYPES = ['EXPENSE', 'EXPENSE_REVERSAL', 'INVOICE', 'PAYMENT'];
-
-    const manualJournalWhere: Prisma.JournalEntryWhereInput = {
+    const range: GLDateRange = {
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+    };
+    const hasDateFilter = !!(range.from || range.to);
+    const journalDateFilter: Prisma.DateTimeFilter = {};
+    if (range.from) journalDateFilter.gte = range.from;
+    if (range.to) journalDateFilter.lte = range.to;
+    const journalWhere: Prisma.JournalEntryWhereInput = {
       status: 'POSTED',
-      referenceType: { notIn: AUTO_REFERENCE_TYPES },
-      ...(hasDateFilter ? { date: dateFilter } : {}),
+      ...(hasDateFilter ? { date: journalDateFilter } : {}),
     };
 
-    const [invoiceRevenue, expenseTotal, paymentTotal, journalTotals, journalEntryCount] = await Promise.all([
-      prisma.invoice.aggregate({
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, ...(hasDateFilter ? { issueDate: dateFilter } : {}) },
-        _sum: { total: true, paidAmount: true },
-      }),
-      prisma.expense.aggregate({
-        where: { status: 'APPROVED', ...(hasDateFilter ? { date: dateFilter } : {}) },
-        _sum: { amount: true },
-      }),
-      prisma.payment.aggregate({
-        where: { ...(hasDateFilter ? { date: dateFilter } : {}) },
-        _sum: { amount: true },
-      }),
-      // Exclude auto-generated GL entries (EXPENSE / EXPENSE_REVERSAL / INVOICE / PAYMENT)
-      // — those events are already counted via their canonical tables above.
-      // Only MANUAL (and other custom) entries appear here.
-      //
-      // تجميع في قاعدة البيانات على مستوى السطر بدل جلب كل القيود وأسطرها ثم reduce:
-      // نفس الشرط عبر علاقة journalEntry، وناتج واحد (_sum debit/credit).
-      prisma.journalEntryLine.aggregate({
-        where: { journalEntry: manualJournalWhere },
-        _sum: { debit: true, credit: true },
-      }),
-      prisma.journalEntry.count({ where: manualJournalWhere }),
+    const [pl, arFlow, apFlow, journalTotals, journalEntryCount] = await Promise.all([
+      glProfitAndLoss(range),
+      // تحصيلات العملاء = دائن حساب ذمم العملاء على قيود التحصيل (PAYMENT).
+      glAccountFlow(SYSTEM_ACCOUNT_CODES.ACCOUNTS_RECEIVABLE, { referenceTypes: [GL_REFERENCE_TYPES.PAYMENT], range }),
+      // مدفوعات الموردين = مدين حساب ذمم الموردين على قيود السداد (PURCHASE_PAYMENT).
+      glAccountFlow(SYSTEM_ACCOUNT_CODES.ACCOUNTS_PAYABLE, { referenceTypes: [GL_REFERENCE_TYPES.PURCHASE_PAYMENT], range }),
+      prisma.journalEntryLine.aggregate({ where: { journalEntry: journalWhere }, _sum: { debit: true, credit: true } }),
+      prisma.journalEntry.count({ where: journalWhere }),
     ]);
 
-    const totalJournalDebit = journalTotals._sum.debit ?? 0;
-    const totalJournalCredit = journalTotals._sum.credit ?? 0;
+    const totalCollected = arFlow.credit;
+    const totalSupplierPaid = apFlow.debit;
 
     return {
-      totalRevenue: invoiceRevenue._sum.total ?? 0,
-      totalCollected: invoiceRevenue._sum.paidAmount ?? 0,
-      totalExpenses: expenseTotal._sum.amount ?? 0,
-      totalPaymentsRecorded: paymentTotal._sum.amount ?? 0,
+      totalRevenue: pl.revenue,
+      totalCollected,
+      totalExpenses: pl.expenses,
+      totalPaymentsRecorded: roundMoney(totalCollected + totalSupplierPaid),
       journalEntryCount,
-      totalJournalDebit,
-      totalJournalCredit,
-      netProfit: (invoiceRevenue._sum.paidAmount ?? 0) - (expenseTotal._sum.amount ?? 0),
+      totalJournalDebit: roundMoney(journalTotals._sum.debit ?? 0),
+      totalJournalCredit: roundMoney(journalTotals._sum.credit ?? 0),
+      netProfit: pl.netProfit,
     };
   }
 }

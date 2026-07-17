@@ -2,6 +2,7 @@ import { prisma } from '../../config/database';
 import { roundMoney } from '../../shared/utils/money';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 import { ytdMonths } from '../../core/utils/dateWindows';
+import { glProfitAndLoss, glMonthlyProfitAndLoss } from '../../shared/services/gl.reporting';
 
 /** تجميع بيانات لوحة التحكم الرئيسية في استعلام واحد. */
 export class DashboardService {
@@ -18,10 +19,9 @@ export class DashboardService {
       employeesActive,
       equipmentTotal,
       equipmentNotWorking,
-      revenueAgg,
-      expenseAgg,
       dueInvoices,
-      monthlyExpenseAgg,
+      pl,
+      plMonth,
     ] = await Promise.all([
       prisma.contract.count(),
       prisma.contract.count({ where: { status: 'ACTIVE' } }),
@@ -31,18 +31,18 @@ export class DashboardService {
       prisma.employee.count({ where: { status: 'ACTIVE' } }),
       prisma.equipment.count(),
       prisma.equipment.count({ where: { status: 'NOT_WORKING' } }),
-      prisma.transaction.aggregate({ where: { type: 'REVENUE' }, _sum: { credit: true } }),
-      prisma.transaction.aggregate({ where: { type: 'EXPENSE' }, _sum: { debit: true } }),
       prisma.invoice.aggregate({
         where: { direction: 'SALES', status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
         _sum: { total: true, paidAmount: true },
         _count: { _all: true },
       }),
-      prisma.expense.aggregate({ where: { status: 'APPROVED', date: { gte: monthStart } }, _sum: { amount: true } }),
+      // المصدر المحاسبي الوحيد: الإيراد/المصروف/الربح من الأستاذ العام (بدل الدفتر القديم).
+      glProfitAndLoss(),
+      glProfitAndLoss({ from: monthStart }),
     ]);
 
-    const totalRevenue = revenueAgg._sum.credit ?? 0;
-    const totalExpense = expenseAgg._sum.debit ?? 0;
+    const totalRevenue = pl.revenue;
+    const totalExpense = pl.expenses;
     const dueTotal = (dueInvoices._sum.total ?? 0) - (dueInvoices._sum.paidAmount ?? 0);
 
     return {
@@ -57,8 +57,8 @@ export class DashboardService {
       finance: {
         totalRevenue,
         totalExpense,
-        netProfit: totalRevenue - totalExpense,
-        monthlyExpense: monthlyExpenseAgg._sum.amount ?? 0,
+        netProfit: pl.netProfit,
+        monthlyExpense: plMonth.expenses,
         dueInvoicesAmount: dueTotal,
         dueInvoicesCount: dueInvoices._count._all,
       },
@@ -67,16 +67,10 @@ export class DashboardService {
 
   /** سلسلة الإيرادات/المصروفات — منذ بداية السنة حتى الشهر الحالي (YTD، تتضمّن يناير). */
   async monthlyTrend() {
+    // المصدر المحاسبي الوحيد: الاتجاه الشهري من الأستاذ العام (بدل الدفتر القديم).
     const months = ytdMonths();
-    return Promise.all(
-      months.map(async (m) => {
-        const [rev, exp] = await Promise.all([
-          prisma.transaction.aggregate({ where: { type: 'REVENUE', date: { gte: m.start, lte: m.end } }, _sum: { credit: true } }),
-          prisma.transaction.aggregate({ where: { type: 'EXPENSE', date: { gte: m.start, lte: m.end } }, _sum: { debit: true } }),
-        ]);
-        return { label: m.label, revenue: rev._sum.credit ?? 0, expense: exp._sum.debit ?? 0 };
-      }),
-    );
+    const rows = await glMonthlyProfitAndLoss(months);
+    return rows.map((r) => ({ label: r.label, revenue: r.revenue, expense: r.expense }));
   }
 
   /** توزيع حالة المشاريع للرسم الدائري. */
@@ -123,8 +117,8 @@ export class DashboardService {
         prisma.employee.count({ where: { status: 'ACTIVE' } }),
         prisma.equipment.count(),
         prisma.equipment.count({ where: { status: 'WORKING' } }),
-        prisma.transaction.aggregate({ where: { type: 'REVENUE' }, _sum: { credit: true } }),
-        prisma.transaction.aggregate({ where: { type: 'EXPENSE' }, _sum: { debit: true } }),
+        // المصدر المحاسبي الوحيد: إجمالي الإيراد/المصروف من الأستاذ العام.
+        glProfitAndLoss(),
         prisma.attendance.groupBy({
           by: ['status'],
           where: { date: { gte: todayStart, lt: todayEnd } },
@@ -158,15 +152,9 @@ export class DashboardService {
         }),
       ] as const),
 
-      // اتجاه الإيرادات والمصروفات لآخر 6 أشهر (بشكل متوازٍ مع الاستعلامات الأساسية)
-      Promise.all(
-        months.map(async (m) => {
-          const [rev, exp] = await Promise.all([
-            prisma.transaction.aggregate({ where: { type: 'REVENUE', date: { gte: m.start, lte: m.end } }, _sum: { credit: true } }),
-            prisma.transaction.aggregate({ where: { type: 'EXPENSE', date: { gte: m.start, lte: m.end } }, _sum: { debit: true } }),
-          ]);
-          return { label: m.label, revenue: rev._sum.credit ?? 0, expense: exp._sum.debit ?? 0 };
-        }),
+      // اتجاه الإيرادات والمصروفات (YTD) من الأستاذ العام — المصدر المحاسبي الوحيد.
+      glMonthlyProfitAndLoss(months).then((rows) =>
+        rows.map((r) => ({ label: r.label, revenue: r.revenue, expense: r.expense })),
       ),
     ]);
 
@@ -176,7 +164,7 @@ export class DashboardService {
       expensesAgg,
       employeesTotal, employeesActive,
       equipmentTotal, equipmentActive,
-      revenueAgg, expenseTransAgg,
+      pl,
       attendanceGroups, contractStatusGroups, invoiceStatusGroups,
       latestInvoices, latestExpenses, latestContracts,
     ] = core;
@@ -185,8 +173,8 @@ export class DashboardService {
     const attMap: Record<string, number> = {};
     attendanceGroups.forEach((g) => { attMap[g.status] = g._count._all; });
 
-    const totalRevenue  = revenueAgg._sum.credit ?? 0;
-    const totalExpense  = expenseTransAgg._sum.debit ?? 0;
+    const totalRevenue  = pl.revenue;
+    const totalExpense  = pl.expenses;
     const unpaidAmount  = (invoicesUnpaidAgg._sum.total ?? 0) - (invoicesUnpaidAgg._sum.paidAmount ?? 0);
 
     return {
@@ -197,7 +185,7 @@ export class DashboardService {
         expenses:   { count: expensesAgg._count._all, totalAmount: expensesAgg._sum.amount ?? 0 },
         employees:  { total: employeesTotal, active: employeesActive },
         equipment:  { total: equipmentTotal, active: equipmentActive },
-        finance:    { totalRevenue, totalExpense, netProfit: totalRevenue - totalExpense },
+        finance:    { totalRevenue, totalExpense, netProfit: pl.netProfit },
       },
       attendance: {
         present: attMap['PRESENT'] ?? 0,

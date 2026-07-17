@@ -8,6 +8,7 @@ import { buildEmployeeIndex, matchEmployee } from './matcher';
 import { buildPreview } from './previewBuilder';
 import { runAssistant } from './assistant';
 import { formatSourceMonth } from './excelParser';
+import { postSalaryPaymentToGL } from './salaryPayment.accounting';
 
 const MAX_ROWS = 2000;
 
@@ -97,7 +98,7 @@ class PayrollBankImportService {
 
         const sourceMonth = formatSourceMonth(pRow.payrollMonth, pRow.payrollYear);
 
-        await tx.salaryPayment.create({
+        const createdPayment = await tx.salaryPayment.create({
           data: {
             transactionId:     pRow.transactionId ?? `${importedAt}-${pRow._rowIndex}`,
             beneficiaryAccount: pRow.bankAccount ?? pRow.iban ?? undefined,
@@ -114,6 +115,10 @@ class PayrollBankImportService {
             duplicateFlag:     null,
           },
         });
+
+        // مصدر محاسبي واحد: كل صرف راتب يُرحَّل فورًا إلى الأستاذ العام (Dr مصروف الرواتب /
+        // Cr البنك) داخل نفس المعاملة — رواتب السائقين لم تعد غائبة عن التقارير المالية.
+        await postSalaryPaymentToGL(tx, createdPayment.id);
 
         imported++;
         totalAmount += pRow.amount;

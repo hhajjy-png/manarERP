@@ -7,13 +7,12 @@ import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 import type { ReportInput } from '../../shared/services/reportEngine/excel.service';
-import { transactionsService } from '../transactions/transactions.service';
 import { approvalEngine } from '../../shared/services/approval.service';
 import { GL_REFERENCE_TYPES } from '../../shared/services/gl.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
 import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySettledPurchase } from './invoices.calc';
 import { roundMoney } from '../../shared/utils/money';
-import { postInvoiceToGL, postPurchaseInvoiceToGL, postPaymentToGL, postPurchasePaymentToGL, reversePurchasePaymentGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
+import { postInvoiceToGL, postPurchaseInvoiceToGL, postPaymentToGL, postPurchasePaymentToGL, reversePurchasePaymentGL, reverseSalesPaymentGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 import { toLocalDateString, endOfDay } from '../../core/utils/dateWindows';
@@ -76,40 +75,6 @@ export class InvoicesService {
       }
     }
     return `${prefix}${String(max + 1).padStart(5, '0')}`;
-  }
-
-  /** ترحيل القيد المحاسبي للفاتورة (داخل معاملة). */
-  private async postJournal(
-    client: Prisma.TransactionClient,
-    invoice: { id: number; invoiceNumber: string; direction: string; total: number; issueDate: Date },
-  ) {
-    if (invoice.direction === 'SALES') {
-      await transactionsService.postEntry(
-        {
-          date: invoice.issueDate,
-          description: `إيراد فاتورة مبيعات ${invoice.invoiceNumber}`,
-          type: 'REVENUE',
-          credit: invoice.total,
-          account: 'إيرادات المبيعات',
-          referenceType: 'INVOICE',
-          referenceId: invoice.id,
-        },
-        client,
-      );
-    } else {
-      await transactionsService.postEntry(
-        {
-          date: invoice.issueDate,
-          description: `مصروف فاتورة مشتريات ${invoice.invoiceNumber}`,
-          type: 'EXPENSE',
-          debit: invoice.total,
-          account: 'المشتريات',
-          referenceType: 'INVOICE',
-          referenceId: invoice.id,
-        },
-        client,
-      );
-    }
   }
 
   async list(
@@ -335,7 +300,8 @@ export class InvoicesService {
         include: FULL_INCLUDE,
       });
 
-      await this.postJournal(tx, created);
+      // مصدر محاسبي واحد: القيد المزدوج (GL) فقط. أُلغي الترحيل الموازي للدفتر القديم
+      // (Transaction) — كان يُنتج أرقامًا موازية للوحة القيادة/الأرباح تختلف عن الأستاذ العام.
       await postInvoiceToGL(tx, created.id);
       return created;
     });
@@ -418,8 +384,6 @@ export class InvoicesService {
     const updated = await prisma.$transaction(async (tx) => {
       // إعادة بناء البنود
       await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
-      // إعادة ترحيل القيد (النظام القديم: حذف القيد المفرد)
-      await transactionsService.clearByReference('INVOICE', id, tx);
 
       const inv = await tx.invoice.update({
         where: { id },
@@ -449,8 +413,8 @@ export class InvoicesService {
         include: FULL_INCLUDE,
       });
 
-      await this.postJournal(tx, inv);
-      // النظام المزدوج: إعادة ترحيل قيد اليومية بالقيمة الجديدة
+      // مصدر محاسبي واحد (GL): إعادة ترحيل غير حذفية — عكس النسخة الحالية ثم ترحيل
+      // النسخة المصحّحة (supersede). لا حذف لقيد مُرحَّل.
       await repostInvoiceToGL(tx, id);
       return inv;
     });
@@ -556,8 +520,7 @@ export class InvoicesService {
     if (invoice.paidAmount > 0) throw AppError.badRequest('لا يمكن إلغاء فاتورة عليها تحصيلات — أنشئ مرتجعًا بدلًا من ذلك');
 
     const updated = await prisma.$transaction(async (tx) => {
-      await transactionsService.clearByReference('INVOICE', id, tx);
-      // النظام المزدوج: عكس قيد اليومية بدلًا من حذفه (للحفاظ على أثر التدقيق)
+      // مصدر واحد (GL): عكس القيد بدلًا من حذفه — للحفاظ على أثر التدقيق (دفتر غير قابل للتغيير).
       await reverseInvoiceFromGL(tx, id);
       await reversePurchaseInvoiceGL(tx, id);
       return tx.invoice.update({ where: { id }, data: { status: 'CANCELLED' }, include: FULL_INCLUDE });
@@ -616,8 +579,13 @@ export class InvoicesService {
     });
     if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');
 
-    const transactionsCount = await prisma.transaction.count({
-      where: { referenceType: 'INVOICE', referenceId: id },
+    // عدد قيود الأستاذ العام (GL) المرتبطة بالفاتورة — ستُعكَس (لا تُحذف) عند الحذف النهائي.
+    const transactionsCount = await prisma.journalEntry.count({
+      where: {
+        referenceType: { in: ['INVOICE', 'PURCHASE_INVOICE'] },
+        referenceId: id,
+        status: 'POSTED',
+      },
     });
 
     const willBeDeleted: string[] = ['invoice'];
@@ -661,8 +629,13 @@ export class InvoicesService {
       throw AppError.badRequest('يجب كتابة رقم الفاتورة بشكل مطابق للتأكيد');
     }
 
-    const transactionsCount = await prisma.transaction.count({
-      where: { referenceType: 'INVOICE', referenceId: id },
+    // عدد قيود الأستاذ العام (GL) المرتبطة بالفاتورة — ستُعكَس (لا تُحذف) عند الحذف النهائي.
+    const transactionsCount = await prisma.journalEntry.count({
+      where: {
+        referenceType: { in: ['INVOICE', 'PURCHASE_INVOICE'] },
+        referenceId: id,
+        status: 'POSTED',
+      },
     });
 
     await prisma.$transaction(async (tx) => {
@@ -674,9 +647,10 @@ export class InvoicesService {
         module: 'invoices',
         entityId: id,
       });
-      await transactionsService.clearByReference('INVOICE', id, tx);
-      // النظام المزدوج: حذف قيود اليومية المرتبطة بالفاتورة ومدفوعاتها (لا FK يربطها)
-      await this.clearGLForInvoice(tx, id);
+      // مصدر واحد + دفتر غير قابل للتغيير: نعكس قيود الفاتورة ومدفوعاتها بدلًا من حذفها،
+      // فيبقى في الأستاذ العام زوجٌ متعادل (أصل + عكس، صافيه صفر) يحفظ أثر التدقيق حتى
+      // بعد حذف صفّ الفاتورة. لا `deleteMany` لأي قيد مُرحَّل.
+      await this.reverseGLForInvoice(tx, id);
       await tx.invoice.delete({ where: { id } }); // البنود والمدفوعات تُحذف تلقائيًا (Cascade)
     });
 
@@ -711,9 +685,8 @@ export class InvoicesService {
     await assertPeriodOpen(prisma, invoice.issueDate, { operation: 'حذف فاتورة', module: 'invoices', entityId: id });
 
     await prisma.$transaction(async (tx) => {
-      await transactionsService.clearByReference('INVOICE', id, tx);
-      // النظام المزدوج: حذف قيود اليومية المرتبطة بالفاتورة (لا FK يربطها)
-      await this.clearGLForInvoice(tx, id);
+      // بديل غير حذفي: نعكس القيود بدلًا من مسحها (انظر forceRemove).
+      await this.reverseGLForInvoice(tx, id);
       await tx.invoice.delete({ where: { id } }); // البنود تُحذف تلقائيًا (Cascade)
     });
 
@@ -722,35 +695,20 @@ export class InvoicesService {
   }
 
   /**
-   * حذف جميع قيود اليومية المزدوجة المرتبطة بفاتورة عند الحذف النهائي.
-   * يشمل قيد الفاتورة وقيد العكس وقيود التحصيل لمدفوعاتها (لا FK تلقائي).
+   * عكس جميع قيود اليومية المرتبطة بفاتورة عند حذفها — **بديل غير حذفي** عن مسح القيود.
+   *
+   * كان يُحذف القيد الأصلي وعكسه وقيود التحصيل بـ deleteMany (يمحو تاريخ الدفتر). الآن
+   * نعكس النسخة الحيّة لكلٍّ من: قيد الفاتورة (بيع/شراء) وقيود مدفوعاتها (تحصيل/سداد)، فيبقى
+   * زوجٌ متعادل في الأستاذ العام. عكس قيد سبق عكسه لا يفعل شيئًا (حماية التكرار في reverseGL).
    */
-  private async clearGLForInvoice(tx: Prisma.TransactionClient, invoiceId: number) {
+  private async reverseGLForInvoice(tx: Prisma.TransactionClient, invoiceId: number) {
+    await reverseInvoiceFromGL(tx, invoiceId);
+    await reversePurchaseInvoiceGL(tx, invoiceId);
     const payments = await tx.payment.findMany({ where: { invoiceId }, select: { id: true } });
-    const paymentIds = payments.map((p) => p.id);
-    await tx.journalEntry.deleteMany({
-      where: {
-        OR: [
-          {
-            referenceType: {
-              in: [
-                'INVOICE', 'INVOICE_REVERSAL',
-                'PURCHASE_INVOICE', 'PURCHASE_INVOICE_REVERSAL',
-              ],
-            },
-            referenceId: invoiceId,
-          },
-          ...(paymentIds.length > 0
-            ? [{
-                referenceType: {
-                  in: ['PAYMENT', 'PURCHASE_PAYMENT', 'PURCHASE_PAYMENT_REVERSAL'],
-                },
-                referenceId: { in: paymentIds },
-              }]
-            : []),
-        ],
-      },
-    });
+    for (const { id: paymentId } of payments) {
+      await reverseSalesPaymentGL(tx, paymentId);
+      await reversePurchasePaymentGL(tx, paymentId);
+    }
   }
 }
 

@@ -851,16 +851,22 @@ model JournalEntry {
   entryNumber   String   @unique // رقم القيد (JRN-2026-00001)
   date          DateTime @default(now())
   description   String
-  referenceType String? // INVOICE | EXPENSE | PAYROLL | MANUAL
+  referenceType String? // INVOICE | EXPENSE | PAYROLL | SALARY_PAYMENT | MANUAL | *_REVERSAL
   referenceId   Int?
   status        String   @default("POSTED") // DRAFT | POSTED | CANCELLED
+
+  // نسخة الترحيل — يبدأ من 1، ويتزايد عند كل تصحيح (عكس + إعادة ترحيل). دفتر غير قابل
+  // للتغيير: القيد المُرحَّل لا يُحذف أبدًا؛ التعديل يُنشئ عكسًا للنسخة الحالية ثم يُرحّل
+  // نسخة جديدة. مفتاح التفرّد يشمل `revision` كي تتعايش النسخ في الدفتر دون تعارض،
+  // مع بقاء حماية الترحيل المزدوج (نسخة واحدة لكل (نوع، مرجع، رقم نسخة)).
+  revision      Int      @default(1)
 
   lines JournalEntryLine[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([referenceType, referenceId]) // حماية على مستوى قاعدة البيانات ضد الترحيل المزدوج (SQLite يعامل NULL كقيم متمايزة)
+  @@unique([referenceType, referenceId, revision]) // حماية ضد الترحيل المزدوج مع دعم النُسَخ التصحيحية (SQLite يعامل NULL كقيم متمايزة)
   @@index([date])
   @@index([status])
   @@index([referenceType, referenceId])
