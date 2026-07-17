@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `db4f9ab` (merge of `feature/production-readiness-and-accounting-integrity-pack-v2`) |
-| **Current Documentation Commit** | `5e2c856` — "docs: record Production Readiness & Accounting Integrity Consolidation Pack v2 release in PROJECT_STATE" |
-| **Current Stable Tag** | `stable-production-readiness-accounting-integrity-pack-v2` |
-| **Current Release Date** | 2026-07-17 |
-| **Total Stable Releases** | 304 (window 2026-06-07 → 2026-07-17) |
+| **Current Merge Commit** | `90d3640` (merge of `feature/bank-account-explorer-active-tabs-visual-polish-v2`) |
+| **Current Documentation Commit** | *(filled in by follow-up commit — see Maintenance Policy below)* |
+| **Current Stable Tag** | `stable-bank-account-explorer-active-tabs-visual-polish-v2` |
+| **Current Release Date** | 2026-07-18 |
+| **Total Stable Releases** | 305 (window 2026-06-07 → 2026-07-18) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,13 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Bank Account Explorer Active Tabs Visual Polish v2** (2026-07-18, `stable-bank-account-explorer-active-tabs-visual-polish-v2`) —
+  Dark Mode active-tab fix found by a UI consistency audit: the primary nav tabs and drawer info-hub sub-tabs
+  relied only on a 2px underline (no background fill), blending into the page in Dark Mode. Fixed with a
+  solid ExplorerKit indigo/purple fill (#6366f1) + white text/icon, matching Inventory & Purchasing's active-
+  tab standard. CSS-only, Dark Mode only, one file (`BankAccountExplorer.css`), no markup/React/shared-
+  component changes. Financial Center, Dashboard, and Data Import have the same underlying underline-only
+  pattern — explicitly out of scope for this pack, flagged as open findings for a future release.
 - **Production Readiness & Accounting Integrity Consolidation Pack v2** (2026-07-17, `stable-production-readiness-accounting-integrity-pack-v2`) —
   fixed the packaged production build (npm-workspaces dependency-hoisting gap left `backend/node_modules`
   almost empty → `MODULE_NOT_FOUND` on every launch), added automatic Prisma migrations on production
