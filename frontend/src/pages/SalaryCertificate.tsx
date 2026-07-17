@@ -129,6 +129,11 @@ export default function SalaryCertificate() {
       // Overflows the official-letterhead band by a few mm — reclaim the 10mm
       // bottom margin so it stays on one page (letterhead only; top unchanged).
       letterheadCompactFooter
+      // Signature section visual polish v1: no printed date, stamp inline with signature.
+      approvalHideDate
+      approvalStampInline
+      // Final content polish v1: certificate number no longer printed above the title.
+      hideFormNumber
       toolbarExtra={
         <>
           <LanguageToggle lang={lang} onChange={setLang} />

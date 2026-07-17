@@ -18,6 +18,7 @@ import { flushAsyncUpdates } from './helpers/flush';
 
 import WysiwygPreviewPocDialog, {
   DEFAULT_VIEWER_ZOOM,
+  INITIAL_VIEWER_ZOOM,
   VIEWER_ZOOM_LEVELS,
   stepZoom,
   toViewerUrl,
@@ -104,7 +105,7 @@ describe('الحوار — التوليد والعرض', () => {
     expect(generate).toHaveBeenCalledWith('<!DOCTYPE html><html><body>doc</body></html>');
     expect(props.compose).toHaveBeenCalledTimes(1);
     expect(createObjectURL).toHaveBeenCalledTimes(1);
-    expect(screen.getByTitle('معاينة دقيقة')).toHaveAttribute('src', 'blob:mock-pdf-url#toolbar=0&zoom=100');
+    expect(screen.getByTitle('معاينة دقيقة')).toHaveAttribute('src', 'blob:mock-pdf-url#toolbar=0&zoom=75');
     expect(screen.getByText('3')).toBeInTheDocument(); // الصفحات الفعلية
     // جوهر العقد: التوليد لا يطبع.
     expect(props.onPrint).not.toHaveBeenCalled();
@@ -167,7 +168,7 @@ describe('PDFium — إخفاء شريط العارض (#toolbar=0)', () => {
 
     const src = screen.getByTitle('معاينة دقيقة').getAttribute('src') ?? '';
     expect(src).toContain('toolbar=0');
-    expect(src).toBe('blob:mock-pdf-url#toolbar=0&zoom=100');
+    expect(src).toBe('blob:mock-pdf-url#toolbar=0&zoom=75');
     // جزء واحد فقط — لا تكرار.
     expect(src.match(/#/g)).toHaveLength(1);
   });
@@ -178,7 +179,7 @@ describe('PDFium — إخفاء شريط العارض (#toolbar=0)', () => {
     await flushAsyncUpdates();
     await waitFor(() => expect(screen.getByTitle('معاينة دقيقة')).toBeInTheDocument());
     rerender(<WysiwygPreviewPocDialog {...props} documentLabel="فاتورة · INV-2" />);
-    expect(screen.getByTitle('معاينة دقيقة')).toHaveAttribute('src', 'blob:mock-pdf-url#toolbar=0&zoom=100');
+    expect(screen.getByTitle('معاينة دقيقة')).toHaveAttribute('src', 'blob:mock-pdf-url#toolbar=0&zoom=75');
   });
 
   it('يُلغى الـ blob URL **الخام** — لا النسخة المذيّلة بالجزء (وإلا تسرّب المستند)', async () => {
@@ -250,7 +251,7 @@ describe('حارس اختصارات PDFium — جسر نشاط العارض', ()
     renderDialog();
     await flushAsyncUpdates();
     await waitFor(() => expect(screen.getByTitle('معاينة دقيقة')).toBeInTheDocument());
-    expect(screen.getByTitle('معاينة دقيقة')).toHaveAttribute('src', 'blob:mock-pdf-url#toolbar=0&zoom=100');
+    expect(screen.getByTitle('معاينة دقيقة')).toHaveAttribute('src', 'blob:mock-pdf-url#toolbar=0&zoom=75');
   });
 
   it('الحارس لا يمنع زر الطباعة الرسمي — التفويض يبقى مرة واحدة', async () => {
@@ -320,15 +321,17 @@ describe('التكبير — جزء العنوان فقط، بلا إعادة ت
     expect(stepZoom('fit', -1)).toBe(75);
   });
 
-  it('الافتراضي 100% ويظهر في الشريط وفي الجزء', async () => {
+  it('الافتراضي 75% عند كل فتحة (إعادة الضبط تبقى 100%) ويظهر في الشريط وفي الجزء', async () => {
     await ready();
-    expect(src()).toBe('blob:mock-pdf-url#toolbar=0&zoom=100');
-    expect(screen.getByText('100%')).toBeInTheDocument();
-    expect(DEFAULT_VIEWER_ZOOM).toBe(100);
+    expect(src()).toBe('blob:mock-pdf-url#toolbar=0&zoom=75');
+    expect(screen.getByText('75%')).toBeInTheDocument();
+    expect(INITIAL_VIEWER_ZOOM).toBe(75);
+    expect(DEFAULT_VIEWER_ZOOM).toBe(100); // إعادة الضبط والخطوات تبقيان على 100% كما هما
   });
 
   it('تكبير/تصغير يعبر كل النسب المدعومة', async () => {
     await ready();
+    zoomIn();  expect(src()).toContain('zoom=100');
     zoomIn();  expect(src()).toContain('zoom=125');
     zoomIn();  expect(src()).toContain('zoom=150');
     zoomIn();  expect(src()).toContain('zoom=175');
@@ -350,7 +353,7 @@ describe('التكبير — جزء العنوان فقط، بلا إعادة ت
   it('«إعادة ضبط» تعود إلى 100% (من التكبير ومن الملاءمة)', async () => {
     await ready();
     zoomIn(); zoomIn();
-    expect(src()).toContain('zoom=150');
+    expect(src()).toContain('zoom=125');
     reset();
     expect(src()).toBe('blob:mock-pdf-url#toolbar=0&zoom=100');
     fit();
@@ -390,7 +393,7 @@ describe('التكبير — جزء العنوان فقط، بلا إعادة ت
   it('التكبير يستبدل عقدة الـ iframe فعلًا (سياق تصفّح جديد يقرأ الجزء)', async () => {
     await ready();
     const before = screen.getByTitle('معاينة دقيقة');
-    expect(before.getAttribute('src')).toContain('zoom=100');
+    expect(before.getAttribute('src')).toContain('zoom=75');
 
     zoomIn();
     const after = screen.getByTitle('معاينة دقيقة');
@@ -399,7 +402,7 @@ describe('التكبير — جزء العنوان فقط، بلا إعادة ت
     expect(after).not.toBe(before);
     expect(before.isConnected).toBe(false); // الإطار القديم أُزيل من الـ DOM
     expect(after.isConnected).toBe(true);
-    expect(after.getAttribute('src')).toContain('zoom=125');
+    expect(after.getAttribute('src')).toContain('zoom=100');
   });
 
   it('كل خطوة تكبير/ملاءمة/إعادة ضبط تُنتج إطارًا جديدًا بالجزء المقصود', async () => {
@@ -410,11 +413,11 @@ describe('التكبير — جزء العنوان فقط، بلا إعادة ت
       seen.add(el);
       return el.getAttribute('src') ?? '';
     };
-    expect(record()).toContain('zoom=100');
+    expect(record()).toContain('zoom=75');
 
+    zoomIn();          expect(record()).toContain('zoom=100');
     zoomIn();          expect(record()).toContain('zoom=125');
-    zoomIn();          expect(record()).toContain('zoom=150');
-    zoomOut();         expect(record()).toContain('zoom=125');
+    zoomOut();         expect(record()).toContain('zoom=100');
     fit();             expect(record()).toContain('view=FitH');
     reset();           expect(record()).toContain('zoom=100');
 
@@ -452,16 +455,16 @@ describe('التكبير — جزء العنوان فقط، بلا إعادة ت
     expect(vi.mocked(props.onPrint).mock.calls[0]).toEqual([]);
   });
 
-  it('كل فتحة تبدأ من 100% (لا يتسرّب تكبير من فتحة سابقة)', async () => {
+  it('كل فتحة تبدأ من 75% (لا يتسرّب تكبير من فتحة سابقة)', async () => {
     const { rerender, props } = await ready();
     zoomIn(); zoomIn();
-    expect(src()).toContain('zoom=150');
+    expect(src()).toContain('zoom=125');
     rerender(<WysiwygPreviewPocDialog {...props} open={false} />);
     await flushAsyncUpdates();
     rerender(<WysiwygPreviewPocDialog {...props} open />);
     await flushAsyncUpdates();
     await waitFor(() => expect(screen.getByTitle('معاينة دقيقة')).toBeInTheDocument());
-    expect(src()).toBe('blob:mock-pdf-url#toolbar=0&zoom=100');
+    expect(src()).toBe('blob:mock-pdf-url#toolbar=0&zoom=75');
   });
 
   it('أزرار التكبير معطّلة قبل جاهزية المستند', () => {

@@ -2735,6 +2735,11 @@ The AI layer is **fully deterministic, offline, and rule-based — there is NO L
   signature at print time does not. (Image overlays, not cryptographic signatures.)
 - Audit Log Viewer UI enhancements (export, advanced filters).
 - Advanced print profiles (custom margins, additional watermarks).
+- **English Tafqeet Foundation v1** — a shared, canonical English amount-in-words (Tafqeet) helper, used
+  consistently across all English print templates (Salary Certificate, vouchers, contracts, etc.), instead of
+  a template-specific one-off. Deferred from *Salary Certificate Print – Final Polish Addendum v1*
+  (2026-07-18): only Arabic Tafqeet implementations (`tafqeetKWD`, `tafqeet`) exist anywhere in the codebase
+  today; the Salary Certificate's English "Currency" row was intentionally left unchanged pending this.
 
 ### Low Priority
 - Historical Import Batch Review & Posting (`ImportBatch` / `ImportBatchItem`) — designed, no models yet.

@@ -58,6 +58,8 @@ const PDF_VIEWER_FRAGMENT = 'toolbar=0';
 /** نسب التكبير المدعومة. قيم Chromium الرسمية للجزء `zoom=` — لا اختراع لقيم غير مدعومة. */
 export const VIEWER_ZOOM_LEVELS = [50, 75, 100, 125, 150, 175, 200] as const;
 export const DEFAULT_VIEWER_ZOOM = 100;
+/** تكبير أول فتحة فقط — «إعادة الضبط» وحساب الخطوات يبقيان على 100% (`DEFAULT_VIEWER_ZOOM`). */
+export const INITIAL_VIEWER_ZOOM = 75;
 
 /**
  * `fit` = وضع Chromium `view=FitH` (ملاءمة العرض) — أقرب وضع مدعوم يحافظ على القراءة.
@@ -101,8 +103,8 @@ export default function WysiwygPreviewPocDialog({
   documentLabel = '',
 }: WysiwygPreviewPocDialogProps) {
   const [phase, setPhase] = useState<Phase>({ kind: 'generating' });
-  /** التكبير شأن عرض بحت: لا يمسّ البايتات ولا الطباعة. يعود إلى 100% مع كل فتحة. */
-  const [zoom, setZoom] = useState<ViewerZoom>(DEFAULT_VIEWER_ZOOM);
+  /** التكبير شأن عرض بحت: لا يمسّ البايتات ولا الطباعة. يعود إلى 75% مع كل فتحة. */
+  const [zoom, setZoom] = useState<ViewerZoom>(INITIAL_VIEWER_ZOOM);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   const printingRef = useRef(false);
@@ -150,7 +152,7 @@ export default function WysiwygPreviewPocDialog({
     }
     const requestId = ++requestIdRef.current;
     setPhase({ kind: 'generating' });
-    setZoom(DEFAULT_VIEWER_ZOOM); // كل فتحة تبدأ من 100%
+    setZoom(INITIAL_VIEWER_ZOOM); // كل فتحة تبدأ من 75%
 
     (async () => {
       const generate = window.manar?.generateWysiwygPreviewPoc;

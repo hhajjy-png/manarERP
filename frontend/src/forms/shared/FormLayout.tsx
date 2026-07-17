@@ -39,6 +39,22 @@ interface FormLayoutProps {
    */
   letterheadCompactFooter?: boolean;
   /**
+   * Opt-in: omit the date row under the ApprovalSection signature. Off by default —
+   * every existing form keeps the date. Passed straight through to `ApprovalSection`.
+   */
+  approvalHideDate?: boolean;
+  /**
+   * Opt-in: render the ApprovalSection stamp label on the same row as the signature
+   * instead of below it. Off by default. Passed straight through to `ApprovalSection`.
+   */
+  approvalStampInline?: boolean;
+  /**
+   * Opt-in: suppress the form-number text printed above the title. Off by default —
+   * every existing form keeps its number. The reserved line/margin stays in place so
+   * no other spacing shifts; only the text itself is omitted.
+   */
+  hideFormNumber?: boolean;
+  /**
    * Optional preview gate for the toolbar's Print button. **Additive and opt-in** —
    * when it is absent (every form but Quotation today) the button calls `doPrint`
    * directly, exactly as before.
@@ -107,6 +123,9 @@ export default function FormLayout({
   onPrintApiReady,
   lang = 'ar',
   letterheadCompactFooter = false,
+  approvalHideDate = false,
+  approvalStampInline = false,
+  hideFormNumber = false,
 }: FormLayoutProps) {
   const navigate = useNavigate();
 
@@ -413,7 +432,10 @@ export default function FormLayout({
         {/* Form number + title */}
         <div style={{ textAlign: 'center', marginBottom: 14 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, direction: 'ltr' }}>
-            {formNumber}
+            {/* The text node stays present (just invisible) so the line box's height —
+                and therefore the title's vertical position — never changes based on
+                hideFormNumber; an empty div here would collapse to 0 height instead. */}
+            <span style={hideFormNumber ? { visibility: 'hidden' } : undefined}>{formNumber}</span>
           </div>
           <h1
             style={{
@@ -457,7 +479,7 @@ export default function FormLayout({
           }}
         >
           <div style={{ flex: 1 }}>
-            <ApprovalSection lang={lang} />
+            <ApprovalSection lang={lang} hideDate={approvalHideDate} stampInline={approvalStampInline} />
           </div>
           <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <FormQRCode data={qrData} size={80} />

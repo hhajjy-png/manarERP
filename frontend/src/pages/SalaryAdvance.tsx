@@ -134,6 +134,11 @@ export default function SalaryAdvance() {
       // Overflows the official-letterhead band by a few mm — reclaim the 10mm
       // bottom margin so it stays on one page (letterhead only; top unchanged).
       letterheadCompactFooter
+      // HR Print Templates – Shared Visual Consistency Pack v1: reuse the Salary
+      // Certificate's opt-in ApprovalSection/FormLayout behavior.
+      approvalHideDate
+      approvalStampInline
+      hideFormNumber
       toolbarExtra={
         <>
           <LanguageToggle lang={lang} onChange={setLang} />
