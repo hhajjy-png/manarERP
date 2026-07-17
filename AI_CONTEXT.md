@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `ac14a59` (merge of `feature/cleanup-architecture-remediation-pack-v1`) |
-| **Current Documentation Commit** | `051b788` — "docs: record Project Cleanup & Architecture Remediation Pack v1 release in PROJECT_STATE" |
-| **Current Stable Tag** | `stable-cleanup-architecture-remediation-pack-v1` |
+| **Current Merge Commit** | `4503d8e` (merge of `feature/accounting-integrity-pack-v1`) |
+| **Current Documentation Commit** | pending (this update) — "docs: record Accounting Integrity & Financial Accuracy Pack v1 release in PROJECT_STATE" |
+| **Current Stable Tag** | `stable-accounting-integrity-financial-accuracy-pack-v1` |
 | **Current Release Date** | 2026-07-17 |
-| **Total Stable Releases** | 302 (window 2026-06-07 → 2026-07-17) |
+| **Total Stable Releases** | 303 (window 2026-06-07 → 2026-07-17) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -157,9 +157,17 @@ Chromium PDF, and backend HTML reports.
   Attendance, Maintenance, Inventory, DataImport, ResourcePage, Document Expiration Center). Unmigrated
   pages (dashboards, print/form pages, bespoke bank explorers) are intentionally out of scope.
 - **Double-entry GL engine** (`shared/services/gl.service.ts` → `createBalancedJournal`) — atomic,
-  reversible, Dr=Cr enforced, double-post guarded. Wired to: Invoices, Payments, Expenses, Payroll,
-  Purchase Invoices. Legacy single-sided `Transaction` table still dual-writes but is superseded for
-  reporting.
+  reversible, Dr=Cr enforced, double-post guarded, **immutable** (posted `JournalEntry` rows are never
+  physically deleted — corrections reverse the live `revision` and post a new one via
+  `supersedeBalancedJournal`). Wired to: Invoices, Payments, Expenses, Payroll, Purchase Invoices, driver
+  Salary Payments (bank-import). The legacy single-sided `Transaction` table is **retired** — frozen
+  historical data, no longer written to or read by any report.
+- **Single accounting source of truth (as of Accounting Integrity & Financial Accuracy Pack v1,
+  2026-07-17):** `shared/services/gl.reporting.ts` (`glProfitAndLoss`/`glMonthlyProfitAndLoss`/
+  `glAccountFlow`) is the one engine every financial surface reads from — Dashboard, Reports P&L, and
+  `accounting.service.financialSummary` all derive revenue/expense/net profit from it (accrual basis).
+  24/24 independent cross-validation checks confirm zero discrepancy across GL, Trial Balance,
+  `financialSummary`, Dashboard, AR aging, and customer statements.
 - **Banking modules** — Bank Statement Import/Explorer, Bank Reconciliation (manual-confirm only, never
   auto-posts by policy), Bank Account Explorer, Payroll Bank Import/Analytics, NBK Salary XLS export —
   all production-complete.
@@ -207,14 +215,16 @@ Chromium PDF, and backend HTML reports.
 - Recurring invoices, VAT/tax report, end-of-service indemnity accrual — none exist in code.
 - AuditLog retention/purge path — maintenance consideration only; revisit only if DB growth becomes
   measurable.
-- Accounting Architecture Audit — consolidating the legacy single-entry `Transaction` table and the
-  double-entry GL into one system. Deferred by explicit decision; **do not implement without an explicit
-  request.**
 
 ---
 
 ## Latest Completed Releases
 
+- **Accounting Integrity & Financial Accuracy Pack v1** (2026-07-17, `stable-accounting-integrity-financial-accuracy-pack-v1`) —
+  single GL source of truth for every financial report (Dashboard/P&L/financialSummary), immutable posted
+  journals (revision-based reverse+repost, never `deleteMany`), driver salary disbursements now posted to
+  the GL, legacy `Transaction`-table auto-writes retired, 24/24 cross-validation checks pass with zero
+  discrepancy. Backend only, no UI change.
 - **Project Cleanup & Architecture Remediation Pack v1** (2026-07-17, `stable-cleanup-architecture-remediation-pack-v1`) —
   implemented all 11 approved findings from the prior Zero-Risk Cleanup Audit series: centralized GL
   entry-number retry, fixed report money/date formatting drift, normalized Tafqeet rounding, consolidated
@@ -227,8 +237,6 @@ Chromium PDF, and backend HTML reports.
   dashboard financial KPI section, standardized date placeholder, Banking Center nav cards, expense chart
   label fix, Price Agreements usage-report endpoint fix.
 - **Dashboard Retry Loader Button v1** (2026-07-16) — visual-only header retry control replacement.
-- **Invoice Editor Consolidation & Maintainability Pack v1** (2026-07-16) — pure refactor: split
-  `Invoices.tsx`, unified line-item editor, new `useInvoicePartyPricing` hook.
 
 ---
 
@@ -237,11 +245,13 @@ Chromium PDF, and backend HTML reports.
 - **GL auto-posting policy conflict** — Bank Reconciliation only produces suggestions today; extending it
   to auto-post is on the Medium-priority roadmap but requires resolving the conflict with the standing
   "never auto-post" policy first.
-- **Accounting Architecture Audit** — dual-bookkeeping (legacy `Transaction` + GL) consolidation is
-  deferred, documented, and intentionally not scheduled until the user explicitly requests it.
+- **Two salary-posting channels** — bank-import `salary_payments` (now posted to the GL) and the separate
+  DRAFT-only `payroll` module (posts on `markPaid`) both exist; if a month is ever processed through both,
+  salary expense would double-count. No fix scheduled; flagged for a future pack if `payroll` starts seeing
+  real use.
 - **`routerFutureFlags.test.tsx` stale assertion** — hardcodes an expected lazy-route count (48) that a
   2026-07-16 commit made stale (actual count is 46); trivial one-line fix, not yet applied — flagged by the
-  2026-07-16 audit, deliberately left out of the 2026-07-17 remediation pack's scope.
+  2026-07-16 audit, deliberately left out of scope of every pack since.
 - No other release is mid-flight; `production` is fully released and validated as of 2026-07-17.
 
 ---
@@ -273,11 +283,12 @@ Chromium PDF, and backend HTML reports.
 ## AI Quick Start
 
 **Status:** manarERP is a mature, production-complete offline Electron ERP for a single road-construction
-company. 302 stable releases shipped since 2026-06-07. All core modules (accounting/GL, invoices,
+company. 303 stable releases shipped since 2026-06-07. All core modules (accounting/GL, invoices,
 payroll, cheques, banking, printing, RBAC) are feature-complete; current work is polish packs and a short
-list of explicitly deferred/optional items. The 2026-07-17 release was an architecture-consolidation pack
-(no features/UI change) closing several duplicated-implementation and correctness gaps found by a
-preceding audit series — see Active Foundations for what's now single-sourced.
+list of explicitly deferred/optional items. The latest 2026-07-17 release resolved the findings of a
+read-only Accounting Production Readiness Audit: the GL is now the single accounting source for every
+financial report, posted journals are immutable, and driver salary disbursements are booked — see Active
+Foundations for what's now single-sourced.
 
 **Current priorities:** Token Efficiency above all else; consolidated implementation packs; no
 unsolicited redesigns or architecture rewrites.
