@@ -5,17 +5,19 @@
  * المصدر الوحيد الكامل:
  *   1) فواتير المبيعات/المشتريات التي لا تملك قيد INVOICE/PURCHASE_INVOICE (خصوصًا
  *      الفاتورتان اللتان أُنشئتا قبل تفعيل الترحيل).
- *   2) صرف الرواتب (salary_payments) — رواتب السائقين التي كانت غائبة عن كل التقارير.
  *
- * idempotent بالكامل: يعيد استخدام دوال الترحيل الإنتاجية نفسها (postInvoiceToGL /
- * postSalaryPaymentToGL) التي تتخطّى أي قيد موجود مسبقًا. تشغيله مرّتين لا يُكرّر قيدًا.
- * كل عنصر في معاملته الخاصة (عزل الفشل + أرقام تقرير دقيقة).
+ * ملاحظة (قرار العمل النهائي — Payroll GL Removal Pack v1): أُزيل ترحيل صرف الرواتب
+ * (salary_payments → SALARY_PAYMENT) من هذا الـBackfill. الرواتب وحدة تشغيلية فقط ولا
+ * تُنشئ أي قيد محاسبي؛ مصروف الرواتب يُسجَّل يدويًا عبر وحدة المصروفات وحدها. إعادة
+ * الترحيل التلقائي هنا كانت ستُبطل التنظيف التاريخي، فحُذفت نهائيًا.
+ *
+ * idempotent بالكامل: يعيد استخدام دالة الترحيل الإنتاجية (postInvoiceToGL) التي تتخطّى
+ * أي قيد موجود مسبقًا. تشغيله مرّتين لا يُكرّر قيدًا. كل عنصر في معاملته الخاصة.
  *
  * التشغيل:  npx tsx scripts/backfill-accounting-integrity-v1.ts
  */
 import { prisma } from '../src/config/database';
 import { postInvoiceToGL } from '../src/modules/invoices/invoices.accounting';
-import { postSalaryPaymentToGL } from '../src/modules/payrollBankImport/salaryPayment.accounting';
 
 async function backfillInvoices(): Promise<{ scanned: number; posted: number }> {
   const invoices = await prisma.invoice.findMany({
@@ -39,29 +41,11 @@ async function backfillInvoices(): Promise<{ scanned: number; posted: number }> 
   return { scanned: invoices.length, posted };
 }
 
-async function backfillSalaryPayments(): Promise<{ scanned: number; posted: number }> {
-  const payments = await prisma.salaryPayment.findMany({
-    select: { id: true, beneficiaryName: true, amount: true },
-    orderBy: { id: 'asc' },
-  });
-  let posted = 0;
-  for (const sp of payments) {
-    await prisma.$transaction(async (tx) => {
-      const before = await tx.journalEntry.count({ where: { referenceType: 'SALARY_PAYMENT', referenceId: sp.id } });
-      await postSalaryPaymentToGL(tx, sp.id);
-      const after = await tx.journalEntry.count({ where: { referenceType: 'SALARY_PAYMENT', referenceId: sp.id } });
-      if (after > before) posted++;
-    });
-  }
-  return { scanned: payments.length, posted };
-}
-
 async function main() {
   console.log('── Backfill: Accounting Integrity Pack v1 ──');
   const inv = await backfillInvoices();
   console.log(`فواتير: فُحِص ${inv.scanned}، رُحِّل الناقص ${inv.posted}`);
-  const sal = await backfillSalaryPayments();
-  console.log(`رواتب: فُحِص ${sal.scanned}، رُحِّل ${sal.posted}`);
+  // ترحيل صرف الرواتب أُزيل نهائيًا — الرواتب لا تُنشئ قيودًا محاسبية (قرار العمل النهائي).
   console.log('── تم ──');
 }
 

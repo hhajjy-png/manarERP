@@ -2,6 +2,7 @@ import { prisma } from '../../config/database';
 import { roundMoney } from '../../shared/utils/money';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 import { resolvePeriod } from '../../core/utils/periodFilter';
+import { glProfitAndLoss } from '../../shared/services/gl.reporting';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 const n  = (v: unknown) => Number(v ?? 0);
@@ -107,11 +108,13 @@ export class ExecutiveService {
     const flowDate    = flow ? { date: flow } : {};
     const asOfInvoice = asOf ? { issueDate: { lte: asOf } } : {};
     const asOfPayment = asOf ? { date: { lte: asOf } } : {};
+    // نطاق الأستاذ العام لنفس الفترة — مصدر إجمالي المصروفات الوحيد (glProfitAndLoss).
+    const glRange = { from: flow?.gte, to: flow?.lte };
 
     // ── Single parallel fetch of all raw data ──────────────────────────────
     const [
       totalRevenueAgg,
-      totalExpensesAgg,
+      periodPL,
       totalCollectionsAgg,
       thisMonthColAgg,
       lastMonthColAgg,
@@ -137,11 +140,11 @@ export class ExecutiveService {
         where: { direction: 'SALES', status: { notIn: ['CANCELLED'] }, ...flowInvoice },
         _sum: { total: true },
       }),
-      // Expenses during the period (FLOW) — approved, dated in-range
-      prisma.expense.aggregate({
-        where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] }, ...flowDate },
-        _sum: { amount: true },
-      }),
+      // Expenses during the period (FLOW) — **من الأستاذ العام (GL) وحده**، لا من جدول
+      // المصروفات التشغيلي. يشمل الرواتب والقيود اليدوية على حسابات EXPENSE التي لا يراها
+      // جدول Expense، فيتطابق «إجمالي المصروفات» مع الملخص المحاسبي/مركز المالية/الأرباح
+      // والخسائر لنفس الفترة (مصدر محاسبي واحد).
+      glProfitAndLoss(glRange),
       // Collections during the period (FLOW)
       prisma.payment.aggregate({
         where: { invoice: { direction: 'SALES', status: { not: 'CANCELLED' } }, ...flowDate },
@@ -262,7 +265,7 @@ export class ExecutiveService {
 
     // ── Compute base values ────────────────────────────────────────────────
     const totalRevenue    = roundMoney(n(totalRevenueAgg._sum.total));      // FLOW خلال الفترة
-    const totalExpenses   = roundMoney(n(totalExpensesAgg._sum.amount));    // FLOW
+    const totalExpenses   = roundMoney(periodPL.expenses);                  // من الأستاذ العام (GL)
     const totalCollected  = roundMoney(n(totalCollectionsAgg._sum.amount)); // FLOW
     // الذمم = رصيد لحظي كما في نهاية الفترة، لا صافي حركة الفترة.
     const totalOutstanding = roundMoney(Math.max(0, n(cumulativeRevenueAgg._sum.total) - n(cumulativeCollectionsAgg._sum.amount)));

@@ -5,6 +5,8 @@ import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
+import { glProfitAndLoss } from '../../shared/services/gl.reporting';
+import { resolvePeriod } from '../../core/utils/periodFilter';
 
 /** عميل Prisma سواء الأساسي أو داخل معاملة ($transaction). */
 type Client = Prisma.TransactionClient | typeof prisma;
@@ -110,21 +112,20 @@ export class TransactionsService {
     return { account, lines, balance };
   }
 
-  /** ملخص الأرباح والخسائر خلال فترة. */
+  /**
+   * ملخص الأرباح والخسائر خلال فترة.
+   *
+   * المصدر المحاسبي الوحيد: الأستاذ العام (القيد المزدوج). كان يُحسب من الدفتر
+   * القديم (Transaction) فيُنتج رقمًا موازيًا يخالف ميزان المراجعة ولوحة القيادة/الملخص
+   * المالي. الآن مصدر واحد عبر glProfitAndLoss — نفس دالة الملخص المالي وتقرير الأرباح والخسائر.
+   */
   async profitAndLoss(from?: string, to?: string) {
-    const where: Prisma.TransactionWhereInput = {};
-    if (from || to) {
-      where.date = {};
-      if (from) where.date.gte = new Date(from);
-      if (to) where.date.lte = new Date(to);
-    }
-    const [revenue, expense] = await Promise.all([
-      prisma.transaction.aggregate({ where: { ...where, type: 'REVENUE' }, _sum: { credit: true } }),
-      prisma.transaction.aggregate({ where: { ...where, type: 'EXPENSE' }, _sum: { debit: true } }),
-    ]);
-    const totalRevenue = revenue._sum.credit ?? 0;
-    const totalExpense = expense._sum.debit ?? 0;
-    return { totalRevenue, totalExpense, netProfit: totalRevenue - totalExpense };
+    // نفس دلالة حدود الفترة في financialSummary/decisionCenter (resolvePeriod): تحليل
+    // محلي مع endOfDay على تاريخ النهاية، فلا يُسقط اليوم الأخير — يتطابق رقم بطاقة
+    // الأرباح والخسائر في لوحة المحاسبة مع الملخص المالي وبقية الشاشات لنفس الفترة.
+    const period = resolvePeriod({ fromDate: from, toDate: to });
+    const pl = await glProfitAndLoss({ from: period.flow?.gte, to: period.flow?.lte });
+    return { totalRevenue: pl.revenue, totalExpense: pl.expenses, netProfit: pl.netProfit };
   }
 
   /** قيد يدوي من واجهة المحاسبة. */

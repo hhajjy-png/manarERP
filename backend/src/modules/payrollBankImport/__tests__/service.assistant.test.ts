@@ -16,9 +16,6 @@ vi.mock('../../../config/database', () => ({
 }));
 
 vi.mock('../../../core/middleware/audit', () => ({ recordAudit: vi.fn() }));
-// GL posting of each salary payment is covered by its own tests; stub it here so this
-// suite stays focused on import validation.
-vi.mock('../salaryPayment.accounting', () => ({ postSalaryPaymentToGL: vi.fn() }));
 
 import { prisma } from '../../../config/database';
 import { payrollBankImportService } from '../service';

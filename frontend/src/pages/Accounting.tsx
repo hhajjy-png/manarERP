@@ -34,6 +34,9 @@ import {
 import '../components/explorer/explorer-kit.css';
 import './Accounting.css';
 import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
+import PeriodControl from '../components/period/PeriodControl';
+import { useFinancialPeriod } from '../context/FinancialPeriodContext';
+import { periodToReportParams } from '../lib/financialPeriod';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 type Tab = 'summary' | 'accounts' | 'journal' | 'payments';
@@ -98,32 +101,41 @@ export default function Accounting() {
 
 function SummaryTab() {
   const { t } = useT();
+  const { period } = useFinancialPeriod();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [pl, setPl] = useState<{ totalRevenue: number; totalExpense: number; netProfit: number } | null>(null);
 
+  // يتبع الفترة المالية النشطة (نفس سياق لوحة القيادة/مركز المالية) — فلا يعرض
+  // أرقام «كل الفترات» بينما تُظهر الشاشات الأخرى فترة مختارة.
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    const params = periodToReportParams(period);
     (async () => {
       try {
         const [s, p] = await Promise.all([
-          api.get('/accounting/summary'),
-          api.get('/transactions/profit-loss'),
+          api.get('/accounting/summary', { params }),
+          api.get('/transactions/profit-loss', { params }),
         ]);
+        if (cancelled) return;
         setSummary(s.data.data);
         setPl(p.data.data);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [period.fromDate, period.toDate, period.isAllPeriods]);
 
-  if (loading) return <SkeletonRows rows={4} />;
+  if (loading) return (<><PeriodControl /><SkeletonRows rows={4} /></>);
 
   const net = Number(summary?.netProfit ?? 0);
 
   return (
     <>
+      <PeriodControl />
       <div className="accx-metrics">
         <HeroMetric
           icon="savings"

@@ -7,6 +7,8 @@ vi.mock('../../../config/database', () => ({
     payment:  { aggregate: vi.fn(), findMany: vi.fn() },
     contract: { count: vi.fn(), findMany: vi.fn(), groupBy: vi.fn() },
     customer: { count: vi.fn() },
+    // إجمالي المصروفات صار يُشتق من الأستاذ العام (glProfitAndLoss → journalEntryLine).
+    journalEntryLine: { aggregate: vi.fn() },
   },
 }));
 
@@ -28,6 +30,8 @@ function defaultMocks() {
   vi.mocked(prisma.contract.findMany).mockResolvedValue([]);
   vi.mocked(prisma.contract.groupBy).mockResolvedValue([]);
   vi.mocked(prisma.customer.count).mockResolvedValue(0);
+  // GL P&L (إجمالي المصروفات) — صفر افتراضيًا: كل مجاميع REVENUE/EXPENSE فارغة.
+  vi.mocked(prisma.journalEntryLine.aggregate).mockResolvedValue({ _sum: { debit: null, credit: null } } as any);
 }
 
 describe('ExecutiveService — decisionCenter()', () => {
@@ -51,8 +55,14 @@ describe('ExecutiveService — decisionCenter()', () => {
     // نهاية الفترة بنهاية اليوم (لا منتصف الليل).
     expect(revWhere.issueDate.lte.getHours()).toBe(23);
 
-    const expWhere = (vi.mocked(prisma.expense.aggregate).mock.calls[0][0] as any).where;
-    expect(expWhere.date.gte).toBeInstanceOf(Date);
+    // المصروفات صارت من الأستاذ العام (glProfitAndLoss → journalEntryLine على حسابات EXPENSE)،
+    // فتُفحص نافذة الفترة على قيد اليومية لا على جدول Expense.
+    const glCalls = vi.mocked(prisma.journalEntryLine.aggregate).mock.calls;
+    const glExpCall = glCalls.find((c: any) => c[0]?.where?.account?.type === 'EXPENSE');
+    expect(glExpCall).toBeDefined();
+    const glExpDate = (glExpCall![0] as any).where.journalEntry.date;
+    expect(glExpDate.gte).toBeInstanceOf(Date);
+    expect(glExpDate.lte.getHours()).toBe(23);
 
     const colWhere = (vi.mocked(prisma.payment.aggregate).mock.calls[0][0] as any).where;
     expect(colWhere.date.gte).toBeInstanceOf(Date);
@@ -238,8 +248,8 @@ describe('ExecutiveService — decisionCenter()', () => {
       .mockResolvedValueOnce({ _sum: { amount: null } } as any)  // totalCollected
       .mockResolvedValueOnce({ _sum: { amount: 200 } } as any)   // thisMonthCol
       .mockResolvedValue({ _sum: { amount: null } } as any);
+    // إجمالي المصروفات صار من الأستاذ العام؛ أول expense.aggregate الآن = مصروف الشهر الحالي.
     vi.mocked(prisma.expense.aggregate)
-      .mockResolvedValueOnce({ _sum: { amount: null } } as any)  // totalExpenses
       .mockResolvedValueOnce({ _sum: { amount: 5000 } } as any)  // thisMonthExp
       .mockResolvedValue({ _sum: { amount: null } } as any);
 
@@ -263,8 +273,8 @@ describe('ExecutiveService — decisionCenter()', () => {
   });
 
   it('EXPENSE_SPIKE raised when this-month expenses > last-month * 1.25', async () => {
+    // إجمالي المصروفات صار من الأستاذ العام؛ أول expense.aggregate الآن = مصروف الشهر الحالي.
     vi.mocked(prisma.expense.aggregate)
-      .mockResolvedValueOnce({ _sum: { amount: null } } as any)   // totalExpenses
       .mockResolvedValueOnce({ _sum: { amount: 2000 } } as any)   // thisMonthExp
       .mockResolvedValueOnce({ _sum: { amount: 1000 } } as any)   // lastMonthExp
       .mockResolvedValue({ _sum: { amount: null } } as any);
