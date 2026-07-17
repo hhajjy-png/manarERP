@@ -69,22 +69,34 @@ describe('PrintWorkspace shell', () => {
     expect(container.querySelector('.form-page')!.classList.contains('pw-chrome')).toBe(false);
   });
 
-  it('zoom buttons change only the preview transform, not the document', () => {
+  it('opens in "Fit to Page" mode', () => {
+    render(
+      <PrintWorkspace toolbar={<span />}>
+        <div className="form-page">body</div>
+      </PrintWorkspace>,
+    );
+    // Initial view is "Fit to Page". jsdom has no real layout (0×0 container), so the
+    // computed pixel scale isn't meaningful here — assert the fit mode itself, which
+    // drives the actual on-screen scale once a real container is measured.
+    expect(screen.getByRole('button', { name: 'ملاءمة الصفحة' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('zoom buttons change only the preview transform, not the document, and clear fit mode', () => {
     render(
       <PrintWorkspace toolbar={<span />}>
         <div className="form-page">body</div>
       </PrintWorkspace>,
     );
     const scaler = screen.getByTestId('pw-scaler');
-    // Default preview zoom is a fixed 75%.
-    expect(scaler).toHaveStyle({ transform: 'scale(0.75)' });
 
     fireEvent.click(screen.getByRole('button', { name: 'تكبير' }));
-    expect(scaler.style.transform).toBe('scale(0.85)');
+    expect(scaler.style.transform).toBe('scale(1.1)');
+    // An explicit zoom action leaves "Fit to Page" mode.
+    expect(screen.getByRole('button', { name: 'ملاءمة الصفحة' })).toHaveAttribute('aria-pressed', 'false');
 
     fireEvent.click(screen.getByRole('button', { name: 'تصغير' }));
     fireEvent.click(screen.getByRole('button', { name: 'تصغير' }));
-    expect(scaler.style.transform).toBe('scale(0.65)');
+    expect(scaler.style.transform).toBe('scale(0.9)');
 
     // Reset (100%) restores scale.
     fireEvent.click(screen.getByRole('button', { name: 'إعادة التكبير إلى 100%' }));
@@ -103,10 +115,10 @@ describe('PrintWorkspace shell', () => {
     const scaler = screen.getByTestId('pw-scaler');
     const canvas = container.querySelector('.pw-canvas')!;
     fireEvent.wheel(canvas, { ctrlKey: true, deltaY: -100 });
-    expect(scaler.style.transform).toBe('scale(0.85)');
+    expect(scaler.style.transform).toBe('scale(1.1)');
     // A plain wheel (no Ctrl) must NOT change zoom.
     fireEvent.wheel(canvas, { ctrlKey: false, deltaY: -100 });
-    expect(scaler.style.transform).toBe('scale(0.85)');
+    expect(scaler.style.transform).toBe('scale(1.1)');
   });
 
   it('collapses and restores the settings sidebar', () => {

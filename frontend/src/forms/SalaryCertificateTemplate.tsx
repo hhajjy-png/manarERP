@@ -13,6 +13,7 @@ import {
   moneyEn,
   blankLine,
 } from './shared/formStyles';
+import { tafqeetKWD } from '../lib/tafqeet';
 
 const COMPANY_NAME_EN =
   'ALAMANAR ALDAWLIYA FOR STREET CONSTRUCTION & MAINTENANCE CO., W.L.L.';
@@ -234,8 +235,8 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
           </div>
         )}
         <div style={tableRow}>
-          <div style={labelCell}>العملة</div>
-          <div style={valueCell}>دينار كويتي (KWD)</div>
+          <div style={labelCell}>الراتب كتابة</div>
+          <div style={valueCell}>{tafqeetKWD(baseSalary)}</div>
         </div>
       </div>
 

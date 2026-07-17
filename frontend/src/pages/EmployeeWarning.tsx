@@ -135,6 +135,11 @@ export default function EmployeeWarning() {
       formNumber={formNumber}
       title={t('page.warning.title')}
       profile={profile}
+      // HR Print Templates – Shared Visual Consistency Pack v1: reuse the Salary
+      // Certificate's opt-in ApprovalSection/FormLayout behavior.
+      approvalHideDate
+      approvalStampInline
+      hideFormNumber
       toolbarExtra={
         <>
           <LanguageToggle lang={lang} onChange={setLang} />
