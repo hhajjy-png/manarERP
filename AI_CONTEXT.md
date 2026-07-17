@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `db4f9ab` (merge of `feature/production-readiness-and-accounting-integrity-pack-v2`) |
-| **Current Documentation Commit** | *(filled in by follow-up commit — see Maintenance Policy below)* |
+| **Current Documentation Commit** | `5e2c856` — "docs: record Production Readiness & Accounting Integrity Consolidation Pack v2 release in PROJECT_STATE" |
 | **Current Stable Tag** | `stable-production-readiness-accounting-integrity-pack-v2` |
 | **Current Release Date** | 2026-07-17 |
 | **Total Stable Releases** | 304 (window 2026-06-07 → 2026-07-17) |
