@@ -5,7 +5,6 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
-import { transactionsService } from '../transactions/transactions.service';
 import { repostExpenseToGL, reverseExpenseFromGL } from './expenses.accounting';
 import { CreateExpenseInput, UpdateExpenseInput } from './expenses.schema';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
@@ -172,23 +171,9 @@ export class ExpensesService {
         data: { status: 'APPROVED', approvedById: user?.employeeId ?? null, approvedAt: new Date() },
         include: FULL_INCLUDE,
       });
-      // النظام القديم (سجل مفرد): امسح أي قيد سابق قبل الترحيل حتى تكون إعادة الاعتماد
-      // بعد التعديل الآمن (Amendment) خالية من التكرار — على المصروف الجديد لا يمسح شيئًا.
-      await transactionsService.clearByReference('EXPENSE', exp.id, tx);
-      await transactionsService.postEntry(
-        {
-          date: exp.date,
-          description: `مصروف ${expenseCategoryAr(exp.category)}: ${exp.description}`,
-          type: 'EXPENSE',
-          debit: exp.amount,
-          account: `مصروفات - ${expenseCategoryAr(exp.category)}`,
-          referenceType: 'EXPENSE',
-          referenceId: exp.id,
-        },
-        tx,
-      );
-      // ترحيل قيد مزدوج إلى GL (Phase B) — repost يتعامل مع الاعتماد الأول وإعادة الاعتماد
-      // بعد التعديل (يزيل زوج القيد المتعادل ثم يُرحّل بالقيمة الجديدة). يماثل الفواتير.
+      // مصدر محاسبي واحد (GL): ترحيل غير حذفي عبر supersede — الاعتماد الأول يُرحّل النسخة 1،
+      // وإعادة الاعتماد بعد التعديل الآمن تعكس النسخة الحالية وتُرحّل نسخة جديدة. أُلغي الترحيل
+      // الموازي للدفتر القديم (Transaction) الذي كان يُنتج أرقامًا موازية للوحة القيادة.
       await repostExpenseToGL(tx, exp.id);
       // سجلّ الاعتماد — تسجيل ما جرى فقط، على نفس المعاملة. لا حالة ولا تدقيق ولا ترحيل.
       await approvalEngine.recordTransition(
@@ -242,10 +227,7 @@ export class ExpensesService {
     if (expense.status !== 'APPROVED') throw AppError.badRequest('لا يمكن إلغاء اعتماد مصروف غير معتمد');
 
     const updated = await prisma.$transaction(async (tx) => {
-      // الاعتماد يُرحّل للنظامين (القيد المفرد القديم + GL المزدوج)، فالعكس يجب أن ينظّف الاثنين
-      // وإلا بقي القيد القديم يُحتسب في لوحة القيادة رغم عكس المصروف (خطأ C4).
-      // يماثل سلوك إلغاء الفاتورة (clearByReference + reverse GL).
-      await transactionsService.clearByReference('EXPENSE', id, tx);
+      // مصدر واحد (GL): عكس القيد المزدوج فقط — لا دفتر قديم لتنظيفه بعد الآن.
       await reverseExpenseFromGL(tx, id);
       return tx.expense.update({
         where: { id },
@@ -285,7 +267,8 @@ export class ExpensesService {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      await transactionsService.clearByReference('EXPENSE', id, tx);
+      // مصدر واحد (GL): عكس النسخة الحيّة فقط (يبقى الأصل + العكس في الدفتر). ثم يُعيد
+      // approve الترحيل بنسخة جديدة عبر supersede. لا دفتر قديم.
       await reverseExpenseFromGL(tx, id);
       return tx.expense.update({
         where: { id },
@@ -444,22 +427,22 @@ export class ExpensesService {
         data: { reconcileStatus: 'UNMATCHED', matchedType: null, matchedId: null, matchedRef: null, matchConfidence: null },
       });
 
-      // 2) حذف القيد المفرد القديم (Legacy Transaction)
-      const legacy = await tx.transaction.deleteMany({ where: { referenceType: 'EXPENSE', referenceId: id } });
+      // 2) عكس قيد الأستاذ العام (GL) بدلًا من حذفه — دفتر غير قابل للتغيير: يبقى الأصل + العكس
+      //    (صافيهما صفر) حتى بعد حذف صفّ المصروف، فيُحفظ أثر التدقيق كاملًا. لا `deleteMany`.
+      const liveJournals = await tx.journalEntry.count({
+        where: { referenceType: 'EXPENSE', referenceId: id, status: 'POSTED' },
+      });
+      await reverseExpenseFromGL(tx, id);
 
-      // 3) حذف قيود اليومية المزدوجة (EXPENSE + EXPENSE_REVERSAL) — بنودها تُحذف تلقائيًا (Cascade)
-      const journals = await tx.journalEntry.deleteMany({ where: { referenceType: { in: ['EXPENSE', 'EXPENSE_REVERSAL'] }, referenceId: id } });
-
-      // 4) حذف سجلات المرفقات (Polymorphic — لا FK)
+      // 3) حذف سجلات المرفقات (Polymorphic — لا FK)
       const atts = await tx.attachment.deleteMany({ where: { entityType: 'EXPENSE', entityId: id } });
 
-      // 5) حذف المصروف نفسه
+      // 4) حذف المصروف نفسه (قيوده تبقى معكوسة في الدفتر)
       await tx.expense.delete({ where: { id } });
 
       return {
         bankMatchesUnlinked: unlinked.count,
-        legacyTransactionsCleared: legacy.count,
-        journalEntriesDeleted: journals.count,
+        journalEntriesReversed: liveJournals,
         attachmentsDeleted: atts.count,
       };
     });

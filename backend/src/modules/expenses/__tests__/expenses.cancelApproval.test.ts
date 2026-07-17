@@ -50,13 +50,15 @@ describe('ExpensesService.cancelApproval — dual-system cleanup (bug C4)', () =
     tx.expense.update.mockResolvedValue({ ...approvedExpense, status: 'REVERSED' });
   });
 
-  it('clears the legacy EXPENSE transaction so the reversed expense leaves the dashboard total', async () => {
+  it('reverses the GL so the reversed expense leaves every total — single source, no legacy ledger', async () => {
     vi.mocked(prisma.expense.findUnique).mockResolvedValue(approvedExpense as any);
 
     await service.cancelApproval(7, fakeReq);
 
-    expect(clearByReference).toHaveBeenCalledOnce();
-    expect(clearByReference).toHaveBeenCalledWith('EXPENSE', 7, tx);
+    // Dashboard/P&L now read the GL; reversing the GL entry removes the expense from all
+    // totals. The legacy Transaction ledger was retired, so there is no parallel cleanup.
+    expect(reverseExpenseFromGL).toHaveBeenCalledWith(tx, 7);
+    expect(clearByReference).not.toHaveBeenCalled();
   });
 
   it('also reverses the double-entry GL (audit-preserving reversal)', async () => {

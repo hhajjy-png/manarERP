@@ -1,14 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Auto-generated referenceType values that must be excluded from GL informational totals
-const AUTO_REFERENCE_TYPES = ['EXPENSE', 'EXPENSE_REVERSAL', 'INVOICE', 'PAYMENT'];
+// Accounting Integrity Pack v1 — financialSummary is now sourced from the GENERAL LEDGER,
+// accrual basis. Revenue/expense/net come from GL account-type sums (glProfitAndLoss); the
+// old operational-table computation (Invoice/Expense/Payment) with a cash-flavored
+// netProfit was retired because it produced a parallel figure that diverged from the
+// trial balance. This file locks the GL-single-source, accrual behavior in.
 
 vi.mock('../../../config/database', () => ({
   prisma: {
-    invoice:          { aggregate: vi.fn() },
-    expense:          { aggregate: vi.fn() },
-    payment:          { aggregate: vi.fn() },
-    // الإجماليات المحاسبية صارت تُجمَّع في قاعدة البيانات: aggregate على السطر + count للقيود.
     journalEntryLine: { aggregate: vi.fn() },
     journalEntry:     { count: vi.fn() },
   },
@@ -17,100 +16,95 @@ vi.mock('../../../config/database', () => ({
 import { prisma } from '../../../config/database';
 import { accountingService } from '../accounting.service';
 
-const defaultMocks = () => {
-  vi.mocked(prisma.invoice.aggregate).mockResolvedValue({ _sum: { total: null, paidAmount: null } } as any);
-  vi.mocked(prisma.expense.aggregate).mockResolvedValue({ _sum: { amount: null } } as any);
-  vi.mocked(prisma.payment.aggregate).mockResolvedValue({ _sum: { amount: null } } as any);
-  vi.mocked(prisma.journalEntryLine.aggregate).mockResolvedValue({ _sum: { debit: null, credit: null } } as any);
-  vi.mocked(prisma.journalEntry.count).mockResolvedValue(0 as any);
-};
+interface LineMock {
+  revenueCredit?: number; revenueDebit?: number;
+  expenseDebit?: number;  expenseCredit?: number;
+  arCredit?: number;      apDebit?: number;
+  journalDebit?: number;  journalCredit?: number;
+}
 
-describe('financialSummary — double-counting prevention', () => {
+/** Route each journalEntryLine.aggregate call to the right figure by its where-clause. */
+function mockLines(m: LineMock = {}) {
+  vi.mocked(prisma.journalEntryLine.aggregate).mockImplementation((async (args: any) => {
+    const w = args?.where ?? {};
+    const type = w.account?.type;
+    const code = w.account?.code;
+    if (type === 'REVENUE') return { _sum: { credit: m.revenueCredit ?? 0, debit: m.revenueDebit ?? 0 } } as any;
+    if (type === 'EXPENSE') return { _sum: { debit: m.expenseDebit ?? 0, credit: m.expenseCredit ?? 0 } } as any;
+    if (code === '1100')    return { _sum: { credit: m.arCredit ?? 0, debit: 0 } } as any; // AR ← PAYMENT
+    if (code === '2000')    return { _sum: { debit: m.apDebit ?? 0, credit: 0 } } as any;  // AP ← PURCHASE_PAYMENT
+    // journal grand totals (no account filter)
+    return { _sum: { debit: m.journalDebit ?? 0, credit: m.journalCredit ?? 0 } } as any;
+  }) as any);
+}
+
+describe('financialSummary — single accounting source (GL, accrual)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    defaultMocks();
+    mockLines();
+    vi.mocked(prisma.journalEntry.count).mockResolvedValue(0 as any);
   });
 
-  // ── Blocker 2a: auto-generated GL entries are excluded from journal totals ──
-
-  // الشرط الآن متداخل تحت علاقة journalEntry في aggregate على السطر.
-  const lineAggWhere = () =>
-    (vi.mocked(prisma.journalEntryLine.aggregate).mock.calls[0][0] as any).where.journalEntry;
-
-  it('excludes EXPENSE journal entries from GL totals (already counted via Expense table)', async () => {
-    await accountingService.financialSummary();
-
-    expect(vi.mocked(prisma.journalEntryLine.aggregate).mock.calls.length).toBe(1);
-    const je = lineAggWhere();
-    expect(je.referenceType).toBeDefined();
-    expect(je.referenceType.notIn).toEqual(expect.arrayContaining(AUTO_REFERENCE_TYPES));
-  });
-
-  it('excludes EXPENSE_REVERSAL entries from GL totals (reversed expense must not inflate GL debit)', async () => {
-    await accountingService.financialSummary();
-    expect(lineAggWhere().referenceType.notIn).toContain('EXPENSE_REVERSAL');
-  });
-
-  it('excludes INVOICE and PAYMENT entries from GL totals (already in invoice revenue)', async () => {
-    await accountingService.financialSummary();
-    expect(lineAggWhere().referenceType.notIn).toContain('INVOICE');
-    expect(lineAggWhere().referenceType.notIn).toContain('PAYMENT');
-  });
-
-  // ── Blocker 2b: approved expense is in totalExpenses, not double-counted via GL ──
-
-  it('totalExpenses comes from Expense table (APPROVED), not from journalEntry debit lines', async () => {
-    vi.mocked(prisma.expense.aggregate).mockResolvedValue({ _sum: { amount: 500.000 } } as any);
-    // GL EXPENSE entries excluded → line aggregate returns nulls
+  it('revenue and expenses come from the GL (account-type sums), not operational tables', async () => {
+    mockLines({ revenueCredit: 10000, expenseDebit: 3000 });
     const result = await accountingService.financialSummary();
 
-    expect(result.totalExpenses).toBeCloseTo(500.000, 3);
-    expect(result.totalJournalDebit).toBe(0); // no manual entries
+    expect(result.totalRevenue).toBeCloseTo(10000, 3);
+    expect(result.totalExpenses).toBeCloseTo(3000, 3);
+
+    // GL account-type aggregates were used, filtered to POSTED entries.
+    const calls = vi.mocked(prisma.journalEntryLine.aggregate).mock.calls;
+    const types = calls.map((c: any) => c[0]?.where?.account?.type);
+    expect(types).toContain('REVENUE');
+    expect(types).toContain('EXPENSE');
+    const statuses = calls.map((c: any) => c[0]?.where?.journalEntry?.status);
+    expect(statuses.every((s: string) => s === 'POSTED')).toBe(true);
   });
 
-  it('REVERSED expense does not inflate GL totals (EXPENSE_REVERSAL excluded)', async () => {
-    vi.mocked(prisma.expense.aggregate).mockResolvedValue({ _sum: { amount: 300.000 } } as any);
+  it('netProfit is ACCRUAL (revenue − expenses), not cash (collected − expenses)', async () => {
+    // revenue invoiced 10000, collected only 8000, expenses 3000.
+    mockLines({ revenueCredit: 10000, expenseDebit: 3000, arCredit: 8000 });
     const result = await accountingService.financialSummary();
 
-    expect(result.totalJournalDebit).toBe(0);
-    expect(result.totalExpenses).toBeCloseTo(300.000, 3);
+    expect(result.netProfit).toBeCloseTo(7000, 3); // 10000 − 3000 (accrual), NOT 8000 − 3000
+    expect(result.totalCollected).toBeCloseTo(8000, 3);
   });
 
-  it('MANUAL journal entries still appear in GL informational totals', async () => {
-    // مجموع الأسطر يأتي من aggregate على مستوى قاعدة البيانات، وعدد القيود من count.
-    vi.mocked(prisma.journalEntryLine.aggregate).mockResolvedValue({ _sum: { debit: 1000.000, credit: 1000.000 } } as any);
-    vi.mocked(prisma.journalEntry.count).mockResolvedValue(1 as any);
-
+  it('reversal entries net out automatically on revenue/expense accounts', async () => {
+    // a reversed invoice leaves a debit on the revenue account that nets the credit down.
+    mockLines({ revenueCredit: 10000, revenueDebit: 2000, expenseDebit: 3000, expenseCredit: 500 });
     const result = await accountingService.financialSummary();
 
-    expect(result.journalEntryCount).toBe(1);
-    expect(result.totalJournalDebit).toBeCloseTo(1000.000, 3);
-    expect(result.totalJournalCredit).toBeCloseTo(1000.000, 3);
+    expect(result.totalRevenue).toBeCloseTo(8000, 3);  // 10000 − 2000
+    expect(result.totalExpenses).toBeCloseTo(2500, 3); // 3000 − 500
+    expect(result.netProfit).toBeCloseTo(5500, 3);
   });
 
-  // ── Blocker 2c: invoice revenue / netProfit unaffected ──
+  it('totalCollected = customer collections (AR credit on PAYMENT entries)', async () => {
+    mockLines({ arCredit: 4200 });
+    const result = await accountingService.financialSummary();
+    expect(result.totalCollected).toBeCloseTo(4200, 3);
+  });
 
-  it('netProfit = paidAmount - totalExpenses (unaffected by GL exclusion)', async () => {
-    vi.mocked(prisma.invoice.aggregate).mockResolvedValue({ _sum: { total: 10000.000, paidAmount: 8000.000 } } as any);
-    vi.mocked(prisma.expense.aggregate).mockResolvedValue({ _sum: { amount: 3000.000 } } as any);
-
+  it('exposes GL grand totals and the posted-entry count', async () => {
+    mockLines({ journalDebit: 1000, journalCredit: 1000 });
+    vi.mocked(prisma.journalEntry.count).mockResolvedValue(3 as any);
     const result = await accountingService.financialSummary();
 
-    expect(result.totalRevenue).toBeCloseTo(10000.000, 3);
-    expect(result.totalCollected).toBeCloseTo(8000.000, 3);
-    expect(result.totalExpenses).toBeCloseTo(3000.000, 3);
-    expect(result.netProfit).toBeCloseTo(5000.000, 3); // 8000 - 3000
+    expect(result.journalEntryCount).toBe(3);
+    expect(result.totalJournalDebit).toBeCloseTo(1000, 3);
+    expect(result.totalJournalCredit).toBeCloseTo(1000, 3);
   });
 
-  it('date filters are applied to all sources when provided', async () => {
+  it('date filters scope every GL query to the period', async () => {
     await accountingService.financialSummary('2026-01-01', '2026-06-30');
 
-    const invoiceCall = (vi.mocked(prisma.invoice.aggregate).mock.calls[0][0] as any).where;
-    const expenseCall = (vi.mocked(prisma.expense.aggregate).mock.calls[0][0] as any).where;
-    const jeCall     = (vi.mocked(prisma.journalEntryLine.aggregate).mock.calls[0][0] as any).where.journalEntry;
-
-    expect(invoiceCall.issueDate).toBeDefined();
-    expect(expenseCall.date).toBeDefined();
-    expect(jeCall.date).toBeDefined();
+    const calls = vi.mocked(prisma.journalEntryLine.aggregate).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    for (const call of calls) {
+      expect((call[0] as any).where?.journalEntry?.date).toBeDefined();
+    }
+    const countWhere = (vi.mocked(prisma.journalEntry.count).mock.calls[0][0] as any).where;
+    expect(countWhere.date).toBeDefined();
   });
 });

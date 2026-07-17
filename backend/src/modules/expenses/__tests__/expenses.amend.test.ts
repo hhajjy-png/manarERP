@@ -52,14 +52,15 @@ describe('ExpensesService.amend — safe approved-expense amendment', () => {
     tx.expense.update.mockResolvedValue({ ...approvedExpense, status: 'PENDING' });
   });
 
-  it('reverses the GL (audit-preserving) and clears the legacy transaction', async () => {
+  it('reverses the GL (audit-preserving) — single source, no legacy ledger write', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(prisma.expense.findUnique).mockResolvedValue(approvedExpense as any);
 
     await service.amend(7, fakeReq);
 
-    expect(clearByReference).toHaveBeenCalledWith('EXPENSE', 7, tx);
     expect(reverseExpenseFromGL).toHaveBeenCalledWith(tx, 7);
+    // legacy Transaction ledger retired — GL is the single accounting source.
+    expect(clearByReference).not.toHaveBeenCalled();
   });
 
   it('returns the expense to PENDING and clears approval metadata', async () => {
@@ -114,16 +115,17 @@ describe('ExpensesService.approve — re-approval reposts amended value', () => 
     tx.expense.update.mockResolvedValue({ ...approvedExpense, status: 'APPROVED', amount: 55 });
   });
 
-  it('clears legacy then reposts via repostExpenseToGL (delete netted pair + fresh post)', async () => {
+  it('reposts the amended value via repostExpenseToGL (immutable supersede) — no legacy write', async () => {
     // A previously-amended expense sitting at PENDING with amended amount 55.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(prisma.expense.findUnique).mockResolvedValue({ ...approvedExpense, status: 'PENDING', amount: 55 } as any);
 
     const result = await service.approve(7, fakeReq);
 
-    expect(clearByReference).toHaveBeenCalledWith('EXPENSE', 7, tx);
-    expect(postEntry).toHaveBeenCalledOnce();
     expect(repostExpenseToGL).toHaveBeenCalledWith(tx, 7);
+    // GL is the single source: no legacy Transaction posting/clearing anymore.
+    expect(clearByReference).not.toHaveBeenCalled();
+    expect(postEntry).not.toHaveBeenCalled();
     expect(result).toMatchObject({ status: 'APPROVED' });
   });
 

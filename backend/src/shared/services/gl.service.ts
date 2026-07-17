@@ -93,6 +93,8 @@ export async function createBalancedJournal(
     description: string;
     referenceType: string;
     referenceId: number;
+    /** نسخة الترحيل — 1 للترحيل الأول، وتتزايد عند كل تصحيح غير حذفي (انظر supersedeBalancedJournal). */
+    revision?: number;
     lines: JournalLine[];
   },
 ): Promise<void> {
@@ -131,6 +133,7 @@ export async function createBalancedJournal(
           description: data.description,
           referenceType: data.referenceType,
           referenceId: data.referenceId,
+          revision: data.revision ?? 1,
           status: 'POSTED',
           lines: { create: data.lines },
         },
@@ -187,29 +190,81 @@ export async function reverseGL(
   reversalType: string,
   options: { reversalDate?: Date } = {},
 ): Promise<void> {
+  // النسخة الحيّة الحالية = أعلى رقم نسخة مُرحَّلة من النوع الأساس. بعد التصحيحات
+  // (supersedeBalancedJournal) قد توجد عدّة نُسَخ؛ نعكس الأحدث لا الأقدم.
   const original = await tx.journalEntry.findFirst({
     where: { referenceType, referenceId, status: 'POSTED' },
+    orderBy: { revision: 'desc' },
     include: { lines: { select: { accountId: true, debit: true, credit: true, description: true } } },
   });
   if (!original) return; // لم يُرحَّل — لا شيء للعكس
 
+  // عكس موجود بالفعل لنفس النسخة؟ لا تُكرّر (حماية التكرار على مستوى النسخة).
   const existingReversal = await tx.journalEntry.findFirst({
-    where: { referenceType: reversalType, referenceId },
+    where: { referenceType: reversalType, referenceId, revision: original.revision },
     select: { id: true },
   });
-  if (existingReversal) return; // العكس موجود بالفعل
+  if (existingReversal) return;
 
   await createBalancedJournal(tx, {
     date: options.reversalDate ?? original.date,
     description: `عكس قيد ${referenceType} #${referenceId}`,
     referenceType: reversalType,
     referenceId,
+    revision: original.revision, // العكس يحمل رقم نسخة القيد المعكوس
     lines: original.lines.map((line) => ({
       accountId: line.accountId,
       debit: line.credit,   // مقلوب
       credit: line.debit,   // مقلوب
       description: `عكس: ${line.description ?? ''}`.trim(),
     })),
+  });
+}
+
+/** أعلى رقم نسخة مُرحَّلة لمرجع من النوع الأساس، أو 0 إن لم يُرحَّل قط. */
+export async function currentRevision(
+  tx: Tx,
+  baseType: string,
+  referenceId: number,
+): Promise<number> {
+  const last = await tx.journalEntry.findFirst({
+    where: { referenceType: baseType, referenceId },
+    orderBy: { revision: 'desc' },
+    select: { revision: true },
+  });
+  return last?.revision ?? 0;
+}
+
+/**
+ * تصحيح **غير حذفي** لقيد مستند بعد تعديله.
+ *
+ * يعكس النسخة الحيّة الحالية (إن وُجدت) ثم يُرحّل نسخة جديدة بالقيم المصحّحة. لا يُحذف
+ * أي قيد مُرحَّل أبدًا: الأصل (نسخة N) + عكسه (نسخة N) + النسخة الجديدة (N+1) تتعايش في
+ * الدفتر، وصافيها المحاسبي = القيد المصحّح. هذا هو البديل المُلزَم عن الحذف+إعادة الترحيل
+ * (deleteMany) الذي كان يمحو تاريخ الدفتر. يُستخدم من مسارات تعديل الفاتورة/المصروف.
+ */
+export async function supersedeBalancedJournal(
+  tx: Tx,
+  params: {
+    baseType: string;
+    reversalType: string;
+    referenceId: number;
+    date: Date;
+    description: string;
+    lines: JournalLine[];
+  },
+): Promise<void> {
+  // 1) اعكس النسخة الحيّة الحالية (لا شيء يحدث إن لم يكن هناك ترحيل سابق).
+  await reverseGL(tx, params.baseType, params.referenceId, params.reversalType);
+  // 2) رحّل النسخة الجديدة برقم نسخة أعلى من كل ما سبق.
+  const rev = await currentRevision(tx, params.baseType, params.referenceId);
+  await createBalancedJournal(tx, {
+    date: params.date,
+    description: params.description,
+    referenceType: params.baseType,
+    referenceId: params.referenceId,
+    revision: rev + 1,
+    lines: params.lines,
   });
 }
 
@@ -225,8 +280,11 @@ export const GL_REFERENCE_TYPES = {
   PURCHASE_INVOICE: 'PURCHASE_INVOICE',
   PURCHASE_INVOICE_REVERSAL: 'PURCHASE_INVOICE_REVERSAL',
   PAYMENT: 'PAYMENT',
+  PAYMENT_REVERSAL: 'PAYMENT_REVERSAL',
   PURCHASE_PAYMENT: 'PURCHASE_PAYMENT',
   PURCHASE_PAYMENT_REVERSAL: 'PURCHASE_PAYMENT_REVERSAL',
   PAYROLL: 'PAYROLL',
   PAYROLL_REVERSAL: 'PAYROLL_REVERSAL',
+  SALARY_PAYMENT: 'SALARY_PAYMENT',
+  SALARY_PAYMENT_REVERSAL: 'SALARY_PAYMENT_REVERSAL',
 } as const;

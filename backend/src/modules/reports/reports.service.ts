@@ -9,6 +9,7 @@ import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLa
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 import { monthWindowsBetween } from '../../core/utils/dateWindows';
 import { roundMoney } from '../../shared/utils/money';
+import { glMonthlyProfitAndLoss } from '../../shared/services/gl.reporting';
 
 const num = (n: number | null | undefined) => Number(n ?? 0);
 // مُعاد استخدامها من وحدة النقود القانونية — لا تعريف ثانٍ لمنطق التقريب (كان
@@ -497,24 +498,19 @@ export class ReportsService {
   }
 
   private async profitLoss(q: ReportQuery): Promise<ReportInput> {
-    // DATA-SOURCE RULE: P&L reads from Legacy Transactions ONLY.
-    // JournalEntry (GL) entries for the same events fire in parallel (Phase B) but must
-    // NOT be added here — doing so would double-count every expense and invoice.
-    // If P&L is ever migrated to GL-only, remove the Transaction queries at the same time.
-    const where: Prisma.TransactionWhereInput = {
-      ...dateWhere(q.from, q.to) as Prisma.TransactionWhereInput,
-    };
-
-    // مدى الأشهر المعروضة: الفترة المختارة إن حُدِّدت بالكامل، وإلا أول/آخر معاملة فعلية
-    // (نفس عمليات الجمع/الطرح — فقط لتحديد حدود التقسيم الشهري).
+    // المصدر المحاسبي الوحيد: الأرباح والخسائر من الأستاذ العام (القيد المزدوج). كان يقرأ
+    // من الدفتر القديم (Transaction) فيُنتج رقمًا موازيًا (بلا رواتب مثلًا) يخالف ميزان
+    // المراجعة ولوحة القيادة. الآن مصدر واحد عبر glMonthlyProfitAndLoss.
+    //
+    // مدى الأشهر المعروضة: الفترة المختارة إن حُدِّدت بالكامل، وإلا أول/آخر قيد مُرحَّل فعلي.
     let rangeStart: Date;
     let rangeEnd: Date;
     if (q.from && q.to) {
       rangeStart = new Date(q.from);
       rangeEnd = endOfDay(q.to);
     } else {
-      const bounds = await prisma.transaction.aggregate({
-        where: { ...where, type: { in: ['REVENUE', 'EXPENSE'] } },
+      const bounds = await prisma.journalEntry.aggregate({
+        where: { status: 'POSTED' },
         _min: { date: true },
         _max: { date: true },
       });
@@ -523,18 +519,7 @@ export class ReportsService {
     }
 
     const months = monthWindowsBetween(rangeStart, rangeEnd);
-    const monthly = await Promise.all(
-      months.map(async (m) => {
-        const monthWhere: Prisma.TransactionWhereInput = { date: { gte: m.start, lte: m.end } };
-        const [rev, exp] = await Promise.all([
-          prisma.transaction.aggregate({ where: { ...monthWhere, type: 'REVENUE' }, _sum: { credit: true } }),
-          prisma.transaction.aggregate({ where: { ...monthWhere, type: 'EXPENSE' }, _sum: { debit: true } }),
-        ]);
-        const revenue = num(rev._sum.credit);
-        const expense = num(exp._sum.debit);
-        return { label: m.label, revenue, expense, net: revenue - expense };
-      }),
-    );
+    const monthly = await glMonthlyProfitAndLoss(months);
 
     const totalRevenue = monthly.reduce((s, m) => s + m.revenue, 0);
     const totalExpense = monthly.reduce((s, m) => s + m.expense, 0);

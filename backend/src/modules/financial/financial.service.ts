@@ -743,7 +743,7 @@ export class FinancialService {
         totalCollected: normalizeMoney(raw.totalCollected        ?? 0),
         totalPaid:      normalizeMoney(raw.totalPaymentsRecorded ?? 0),
         netIncome:      normalizeMoney(raw.netProfit             ?? 0),
-        disclaimer: 'الملخص المالي يعتمد على الجداول التشغيلية (الفواتير والمصروفات). قد تختلف أرقامه عن ميزان المراجعة الذي يعتمد على القيود المحاسبية.',
+        disclaimer: 'الملخص المالي يُشتق من الأستاذ العام (القيد المزدوج) — نفس مصدر ميزان المراجعة ولوحة القيادة. الأساس استحقاقي: يُعترَف بالإيراد عند إصدار الفاتورة.',
         fromDate: filters.fromDate,
         toDate:   filters.toDate,
       },

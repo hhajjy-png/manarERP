@@ -9,12 +9,51 @@ import {
 import {
   createBalancedJournal,
   reverseGL,
+  supersedeBalancedJournal,
   round3,
   GL_REFERENCE_TYPES,
+  JournalLine,
 } from '../../shared/services/gl.service';
 import { glPaymentMethodAr } from '../../shared/utils/expenseLabels';
 
 type Tx = Prisma.TransactionClient;
+
+/** مواصفة قيد المصروف — يبنيها مصدر واحد يستهلكه الترحيل الأولي والتصحيح معًا. */
+type ExpenseGLPosting = { date: Date; description: string; lines: JournalLine[] };
+
+/**
+ * يبني مواصفة قيد المصروف من حالته الحالية (Dr مصروفات عامة / Cr صندوق|بنك|ذمم موردين).
+ * يُرجع null إذا كانت القيمة صفرًا. مصدر واحد للترحيل الأولي (postExpenseToGL) والتصحيح
+ * غير الحذفي (repostExpenseToGL).
+ */
+async function buildExpenseGLPosting(tx: Tx, expenseId: number): Promise<ExpenseGLPosting | null> {
+  const expense = await tx.expense.findUnique({ where: { id: expenseId } });
+  if (!expense) throw AppError.notFound('المصروف غير موجود');
+
+  const amount = round3(expense.amount);
+  if (amount <= 0) return null;
+
+  await ensureSystemAccounts(tx);
+  const accounts = await getSystemAccounts(tx);
+  const expenseAccId = requireAccount(accounts, SYSTEM_ACCOUNT_CODES.GENERAL_EXPENSE);
+
+  const paymentMethod = (expense as Record<string, unknown>)['paymentMethod'] as string ?? 'CASH';
+  const creditCode =
+    paymentMethod === 'BANK'             ? SYSTEM_ACCOUNT_CODES.BANK :
+    paymentMethod === 'ACCOUNTS_PAYABLE' ? SYSTEM_ACCOUNT_CODES.ACCOUNTS_PAYABLE :
+    SYSTEM_ACCOUNT_CODES.CASH;
+  const creditAccId = requireAccount(accounts, creditCode);
+  const creditLabel = glPaymentMethodAr(paymentMethod);
+
+  return {
+    date: expense.date,
+    description: `مصروف: ${expense.description}`,
+    lines: [
+      { accountId: expenseAccId, debit: amount, credit: 0, description: `مصروف عام — ${expense.description}` },
+      { accountId: creditAccId, debit: 0, credit: amount, description: `${creditLabel} — ${expense.code}` },
+    ],
+  };
+}
 
 /**
  * Re-export createBalancedJournal under the legacy name for backward compatibility
@@ -35,39 +74,22 @@ export { createBalancedJournal as createBalancedJournalEntry } from '../../share
  * - قيد فريد DB: @@unique([referenceType, referenceId]) على JournalEntry
  */
 export async function postExpenseToGL(tx: Tx, expenseId: number): Promise<void> {
-  const expense = await tx.expense.findUnique({ where: { id: expenseId } });
-  if (!expense) throw AppError.notFound('المصروف غير موجود');
+  const posting = await buildExpenseGLPosting(tx, expenseId);
+  if (!posting) return;
 
-  const amount = round3(expense.amount);
-  if (amount <= 0) return;
-
-  // حارس الترحيل المزدوج (مستوى الكود — قبل DB)
+  // حارس الترحيل المزدوج: أي نسخة سابقة ⇒ لا تُرحّل مجددًا.
   const existing = await tx.journalEntry.findFirst({
     where: { referenceType: GL_REFERENCE_TYPES.EXPENSE, referenceId: expenseId },
   });
   if (existing) return;
 
-  await ensureSystemAccounts(tx);
-  const accounts = await getSystemAccounts(tx);
-  const expenseAccId = requireAccount(accounts, SYSTEM_ACCOUNT_CODES.GENERAL_EXPENSE);
-
-  const paymentMethod = (expense as Record<string, unknown>)['paymentMethod'] as string ?? 'CASH';
-  const creditCode =
-    paymentMethod === 'BANK'             ? SYSTEM_ACCOUNT_CODES.BANK :
-    paymentMethod === 'ACCOUNTS_PAYABLE' ? SYSTEM_ACCOUNT_CODES.ACCOUNTS_PAYABLE :
-    SYSTEM_ACCOUNT_CODES.CASH;
-  const creditAccId = requireAccount(accounts, creditCode);
-  const creditLabel = glPaymentMethodAr(paymentMethod);
-
   await createBalancedJournal(tx, {
-    date: expense.date,
-    description: `مصروف: ${expense.description}`,
+    date: posting.date,
+    description: posting.description,
     referenceType: GL_REFERENCE_TYPES.EXPENSE,
     referenceId: expenseId,
-    lines: [
-      { accountId: expenseAccId, debit: amount, credit: 0, description: `مصروف عام — ${expense.description}` },
-      { accountId: creditAccId, debit: 0, credit: amount, description: `${creditLabel} — ${expense.code}` },
-    ],
+    revision: 1,
+    lines: posting.lines,
   });
 }
 
@@ -82,24 +104,26 @@ export async function reverseExpenseFromGL(tx: Tx, expenseId: number): Promise<v
 }
 
 /**
- * إعادة ترحيل قيد مصروف بعد التعديل الآمن (Amendment).
- * يماثل repostInvoiceToGL في وحدة الفواتير: يزيل زوج القيد المتعادل (الأصلي EXPENSE
- * + العكس EXPENSE_REVERSAL — مجموعهما صفر) ثم يُعيد الترحيل بالقيمة الجديدة.
+ * ترحيل/إعادة ترحيل قيد المصروف — **غير حذفي** (يماثل repostInvoiceToGL).
  *
- * لماذا الإزالة هنا آمنة محاسبيًا:
- * - يُستدعى فقط عند إعادة اعتماد مصروف سبق فتحه للتعديل (رجع إلى PENDING عبر amend).
- * - القيدان المُزالان متعادلان (صافيهما صفر) فلا يتغيّر أي رصيد بإزالتهما.
- * - قيد @@unique([referenceType, referenceId]) يمنع وجود قيد EXPENSE ثانٍ لنفس المصروف،
- *   لذا يجب تحرير الخانة قبل الترحيل الجديد (نفس نهج الفواتير المُثبَت).
- * - السجل الدائم لما جرى (من/متى/القيم القديمة/الجديدة) محفوظ في AuditLog ولا يُحذف.
- * عند الاعتماد الأول (لا قيود سابقة) لا يحذف شيئًا ويُرحّل مباشرة.
+ * لم يعد يحذف القيود بـ deleteMany. الآن عبر supersedeBalancedJournal: يعكس النسخة الحيّة
+ * (إن وُجدت) ثم يُرحّل نسخة جديدة برقم نسخة أعلى. الأصل + العكس + النسخة الجديدة تبقى في
+ * الدفتر، وصافيها = القيمة المصحّحة. مفتاح التفرّد (referenceType, referenceId, revision)
+ * يسمح بتعايش النُسَخ. عند الاعتماد الأول (لا نسخة سابقة) يُرحّل النسخة 1 مباشرةً.
  */
 export async function repostExpenseToGL(tx: Tx, expenseId: number): Promise<void> {
-  await tx.journalEntry.deleteMany({
-    where: {
-      referenceType: { in: [GL_REFERENCE_TYPES.EXPENSE, GL_REFERENCE_TYPES.EXPENSE_REVERSAL] },
-      referenceId: expenseId,
-    },
+  const posting = await buildExpenseGLPosting(tx, expenseId);
+  if (!posting) {
+    // القيمة الجديدة صفر → اعكس النسخة الحيّة بلا ترحيل جديد.
+    await reverseGL(tx, GL_REFERENCE_TYPES.EXPENSE, expenseId, GL_REFERENCE_TYPES.EXPENSE_REVERSAL);
+    return;
+  }
+  await supersedeBalancedJournal(tx, {
+    baseType: GL_REFERENCE_TYPES.EXPENSE,
+    reversalType: GL_REFERENCE_TYPES.EXPENSE_REVERSAL,
+    referenceId: expenseId,
+    date: posting.date,
+    description: posting.description,
+    lines: posting.lines,
   });
-  await postExpenseToGL(tx, expenseId);
 }

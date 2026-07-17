@@ -20,6 +20,7 @@ import fs from 'fs';
 import { ExpensesService } from '../expenses.service';
 import { prisma } from '../../../config/database';
 import { recordAudit } from '../../../core/middleware/audit';
+import { reverseExpenseFromGL } from '../expenses.accounting';
 import { requireRole } from '../../../core/middleware/rbac.middleware';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -36,8 +37,8 @@ const approvedExpense = {
 function buildTxMock() {
   return {
     bankStatementTransaction: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
-    transaction: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
-    journalEntry: { deleteMany: vi.fn().mockResolvedValue({ count: 2 }) },
+    // GL is reversed (not deleted): forceRemove counts live entries then calls reverseExpenseFromGL.
+    journalEntry: { count: vi.fn().mockResolvedValue(2), deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
     attachment: { deleteMany: vi.fn().mockResolvedValue({ count: 1 }) },
     expense: { delete: vi.fn().mockResolvedValue({}) },
   };
@@ -59,7 +60,7 @@ describe('ExpensesService.forceRemove — safety & audit', () => {
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('force-deletes an approved expense: unlinks bank matches, clears GL, deletes attachments, audits FORCE_DELETE_EXPENSE', async () => {
+  it('force-deletes an approved expense: unlinks bank matches, REVERSES GL (never deletes), deletes attachments, audits', async () => {
     mockPrisma.expense.findUnique.mockResolvedValue(approvedExpense);
     mockPrisma.attachment.findMany.mockResolvedValue([{ id: 1, filePath: '/data/att/x.pdf' }]);
     mockPrisma.journalEntry.findMany.mockResolvedValue([{ id: 100 }, { id: 101 }]);
@@ -70,26 +71,27 @@ describe('ExpensesService.forceRemove — safety & audit', () => {
 
     // كل السجلات المرتبطة عولجت داخل المعاملة
     expect(tx.bankStatementTransaction.updateMany).toHaveBeenCalledTimes(1);
-    expect(tx.transaction.deleteMany).toHaveBeenCalledWith({ where: { referenceType: 'EXPENSE', referenceId: 15 } });
-    expect(tx.journalEntry.deleteMany).toHaveBeenCalledWith({ where: { referenceType: { in: ['EXPENSE', 'EXPENSE_REVERSAL'] }, referenceId: 15 } });
+    // دفتر غير قابل للتغيير: يُعكَس قيد GL ولا يُحذف أبدًا.
+    expect(vi.mocked(reverseExpenseFromGL)).toHaveBeenCalledWith(tx, 15);
+    expect(tx.journalEntry.deleteMany).not.toHaveBeenCalled();
     expect(tx.attachment.deleteMany).toHaveBeenCalledWith({ where: { entityType: 'EXPENSE', entityId: 15 } });
     expect(tx.expense.delete).toHaveBeenCalledWith({ where: { id: 15 } });
 
     // ملف المرفق حُذف من القرص (أفضل جهد)
     expect(fs.unlinkSync).toHaveBeenCalledWith('/data/att/x.pdf');
 
-    // تدقيق كامل
+    // تدقيق كامل — يسجّل عدد القيود المعكوسة (لا المحذوفة)
     expect(recordAudit).toHaveBeenCalledWith(expect.objectContaining({
       action: 'FORCE_DELETE_EXPENSE',
       module: 'expenses',
       entityId: 15,
       newValue: expect.objectContaining({
         forceDelete: true, code: 'EXP-2026-00015', amount: 250.5, status: 'APPROVED',
-        journalEntriesDeleted: 2, legacyTransactionsCleared: 1, attachmentsDeleted: 1, bankMatchesUnlinked: 1,
+        journalEntriesReversed: 2, attachmentsDeleted: 1, bankMatchesUnlinked: 1,
       }),
     }));
 
-    expect(result).toMatchObject({ deleted: true, journalEntriesDeleted: 2, bankMatchesUnlinked: 1 });
+    expect(result).toMatchObject({ deleted: true, journalEntriesReversed: 2, bankMatchesUnlinked: 1 });
   });
 
   it('does not abort the delete if an attachment file is missing on disk', async () => {
