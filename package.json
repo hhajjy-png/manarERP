@@ -22,7 +22,8 @@
     "dev": "concurrently -k -n FRONT,APP -c blue,green \"npm run dev:front\" \"npm run dev:electron\"",
     "build:back": "npm --workspace backend run build",
     "build:front": "npm --workspace frontend run build",
-    "dist": "npm run build:back && npm run build:front && npm run electron:build && electron-builder"
+    "package:backend-deps": "node scripts/prepare-backend-deps.js",
+    "dist": "npm run build:back && npm run build:front && npm run electron:build && npm run package:backend-deps && electron-builder"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

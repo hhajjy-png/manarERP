@@ -11,6 +11,7 @@ import { SYSTEM_ACCOUNT_CODES } from './accounting.accounts';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 import { AppError } from '../../core/errors/AppError';
+import { resolvePeriod } from '../../core/utils/periodFilter';
 
 export interface AccountInput {
   code: string;
@@ -285,10 +286,12 @@ export class AccountingService {
    *                                 من نفس الدفتر — لا مصدر موازٍ.
    */
   async financialSummary(from?: string, to?: string) {
-    const range: GLDateRange = {
-      from: from ? new Date(from) : undefined,
-      to: to ? new Date(to) : undefined,
-    };
+    // نفس دلالة الفترة المستخدمة في لوحة القيادة/مركز القرار (resolvePeriod): تحليل محلي
+    // للتاريخ (منتصف ليل محلي) مع endOfDay على تاريخ النهاية. كان `new Date(to)` يحلّل
+    // "2026-12-31" كمنتصف ليل UTC بلا endOfDay، فيُسقط معظم اليوم الأخير من الفترة —
+    // فيختلف رقم مركز المالية عن بقية الشاشات. الآن مصدر واحد لحدود الفترة.
+    const period = resolvePeriod({ fromDate: from, toDate: to });
+    const range: GLDateRange = { from: period.flow?.gte, to: period.flow?.lte };
     const hasDateFilter = !!(range.from || range.to);
     const journalDateFilter: Prisma.DateTimeFilter = {};
     if (range.from) journalDateFilter.gte = range.from;

@@ -4,8 +4,7 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
-import { GL_REFERENCE_TYPES } from '../../shared/services/gl.service';
-import { postPayrollToGL, resolvePayrollPostingDate } from './payroll.accounting';
+import { resolvePayrollPostingDate } from './payroll.accounting';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 import { approvalEngine } from '../../shared/services/approval.service';
 import {
@@ -534,9 +533,6 @@ export class PayrollService {
       if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
       if (payroll.status !== 'APPROVED') throw AppError.badRequest('يجب اعتماد كشف الراتب قبل الصرف');
       if (payroll.accountingTransactionId) throw AppError.badRequest('تم ترحيل القيد المحاسبي لهذا الكشف مسبقا');
-      // مصدر محاسبي واحد (GL): الحارس صار على قيد الأستاذ العام بدل الدفتر القديم.
-      const existingPosting = await tx.journalEntry.findFirst({ where: { referenceType: GL_REFERENCE_TYPES.PAYROLL, referenceId: id } });
-      if (existingPosting) throw AppError.badRequest('يوجد قيد محاسبي مرتبط بهذا الكشف مسبقا');
 
       for (const line of payroll.lines.filter((l) => l.type === 'ADVANCE' && l.sourceType === 'ADVANCE' && l.sourceId)) {
         const advance = await tx.payrollAdvance.findUnique({ where: { id: line.sourceId! } });
@@ -563,19 +559,9 @@ export class PayrollService {
         },
       });
 
-      // مصدر محاسبي واحد (GL): ترحيل قيد اليومية المزدوج بعد تحديث paymentMethod.
-      await postPayrollToGL(tx, id, input.paymentDate);
-
-      // اربط الكشف بقيد الأستاذ العام (بديل معرّف الدفتر القديم) — يبقى accountingTransactionId
-      // حارس التكرار (يُفحَص أعلى markPaid) لكنه الآن يشير إلى قيد GL لا إلى الدفتر القديم.
-      const glEntry = await tx.journalEntry.findFirst({
-        where: { referenceType: GL_REFERENCE_TYPES.PAYROLL, referenceId: id },
-        orderBy: { revision: 'desc' },
-        select: { id: true },
-      });
-      if (glEntry) {
-        await tx.payroll.update({ where: { id }, data: { accountingTransactionId: glEntry.id } });
-      }
+      // قرار العمل النهائي: الرواتب وحدة تشغيلية فقط ولا تُنشئ أي قيد محاسبي إطلاقًا.
+      // أُزيل ترحيل الأستاذ العام (postPayrollToGL — referenceType=PAYROLL) وربط
+      // accountingTransactionId. مصروف الرواتب يُسجَّل يدويًا عبر وحدة المصروفات وحدها.
 
       // سجلّ الاعتماد — الصرف هو الانتقال الأخير في آلة الحالات. تسجيل فقط.
       await approvalEngine.recordTransition(

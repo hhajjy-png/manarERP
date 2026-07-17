@@ -5,7 +5,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -34,6 +34,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.2.0",
     "pdfkit": "^0.15.0",
+    "prisma": "^5.18.0",
     "winston": "^3.13.0",
     "zod": "^3.23.8"
   },
@@ -45,7 +46,7 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^20.14.0",
     "@types/pdfkit": "^0.13.4",
-    "prisma": "^5.18.0",
+    "tsc-alias": "^1.9.1",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"

@@ -8,7 +8,6 @@ import { buildEmployeeIndex, matchEmployee } from './matcher';
 import { buildPreview } from './previewBuilder';
 import { runAssistant } from './assistant';
 import { formatSourceMonth } from './excelParser';
-import { postSalaryPaymentToGL } from './salaryPayment.accounting';
 
 const MAX_ROWS = 2000;
 
@@ -116,9 +115,9 @@ class PayrollBankImportService {
           },
         });
 
-        // مصدر محاسبي واحد: كل صرف راتب يُرحَّل فورًا إلى الأستاذ العام (Dr مصروف الرواتب /
-        // Cr البنك) داخل نفس المعاملة — رواتب السائقين لم تعد غائبة عن التقارير المالية.
-        await postSalaryPaymentToGL(tx, createdPayment.id);
+        // قرار العمل النهائي: الرواتب وحدة تشغيلية فقط ولا تُنشئ أي قيد محاسبي إطلاقًا.
+        // مصروف الرواتب يُسجَّل يدويًا عبر وحدة المصروفات (المصدر المحاسبي الوحيد للرواتب).
+        // لا ترحيل إلى الأستاذ العام هنا (أُزيل postSalaryPaymentToGL — SALARY_PAYMENT).
 
         imported++;
         totalAmount += pRow.amount;
