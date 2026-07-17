@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `4503d8e` (merge of `feature/accounting-integrity-pack-v1`) |
-| **Current Documentation Commit** | pending (this update) — "docs: record Accounting Integrity & Financial Accuracy Pack v1 release in PROJECT_STATE" |
+| **Current Documentation Commit** | `67b8db5` — "docs: record Accounting Integrity & Financial Accuracy Pack v1 release in PROJECT_STATE" |
 | **Current Stable Tag** | `stable-accounting-integrity-financial-accuracy-pack-v1` |
 | **Current Release Date** | 2026-07-17 |
 | **Total Stable Releases** | 303 (window 2026-06-07 → 2026-07-17) |
