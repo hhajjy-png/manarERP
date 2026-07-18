@@ -17,6 +17,7 @@ vi.mock('../../accounting/accounting.service', () => ({
 import { FinancialService } from '../financial.service';
 import { prisma }           from '../../../config/database';
 import { AccountingService } from '../../accounting/accounting.service';
+import { endOfDay }          from '../../../core/utils/dateWindows';
 
 type MockPrisma = {
   account:          { findUniqueOrThrow: ReturnType<typeof vi.fn>; findMany: ReturnType<typeof vi.fn> };
@@ -93,7 +94,25 @@ describe('FinancialService.getGlStatement', () => {
     await service.getGlStatement(1, { fromDate: '2025-01-01', toDate: '2025-12-31' });
 
     const linesWhere = mockPrisma.journalEntryLine.findMany.mock.calls[0][0].where.journalEntry.date;
-    expect(linesWhere).toEqual({ gte: new Date('2025-01-01'), lte: new Date('2025-12-31') });
+    expect(linesWhere).toEqual({ gte: new Date('2025-01-01'), lte: endOfDay(new Date('2025-12-31')) });
+  });
+
+  // Regression (Date Boundary Consistency Pack v1): `toDate` must resolve to
+  // 23:59:59.999 of the last day, not midnight — else an entry posted later on
+  // the final day is silently excluded from the statement.
+  it('resolves toDate to end-of-day (23:59:59.999), not midnight', async () => {
+    mockPrisma.account.findUniqueOrThrow.mockResolvedValue(makeAccount());
+    mockPrisma.journalEntryLine.aggregate.mockResolvedValue(zeroAgg());
+    mockPrisma.journalEntryLine.findMany.mockResolvedValue([]);
+
+    await service.getGlStatement(1, { toDate: '2025-12-31' });
+
+    const linesWhere = mockPrisma.journalEntryLine.findMany.mock.calls[0][0].where.journalEntry.date;
+    const lte = linesWhere.lte as Date;
+    expect(lte.getHours()).toBe(23);
+    expect(lte.getMinutes()).toBe(59);
+    expect(lte.getSeconds()).toBe(59);
+    expect(lte.getMilliseconds()).toBe(999);
   });
 
   it('throws when account not found (findUniqueOrThrow behaviour)', async () => {
@@ -167,7 +186,23 @@ describe('FinancialService.getGlReport', () => {
 
     // Call 0 = opening (lt fromDate); call 1 = period movement (gte..lte).
     const periodWhere = mockPrisma.journalEntryLine.groupBy.mock.calls[1][0].where.journalEntry.date;
-    expect(periodWhere).toEqual({ gte: new Date('2025-01-01'), lte: new Date('2025-12-31') });
+    expect(periodWhere).toEqual({ gte: new Date('2025-01-01'), lte: endOfDay(new Date('2025-12-31')) });
+  });
+
+  // Date Boundary Consistency Pack v1: toDate must resolve to the very end of
+  // the last day, not midnight, else the last day's postings are dropped.
+  it('resolves toDate to end-of-day (23:59:59.999)', async () => {
+    mockPrisma.account.findMany.mockResolvedValue([makeAccount(1)]);
+    mockPrisma.journalEntryLine.groupBy.mockResolvedValue([]);
+
+    await service.getGlReport({ toDate: '2025-12-31', page: 1, pageSize: 10 });
+
+    const periodWhere = mockPrisma.journalEntryLine.groupBy.mock.calls[1][0].where.journalEntry.date;
+    const lte = periodWhere.lte as Date;
+    expect(lte.getHours()).toBe(23);
+    expect(lte.getMinutes()).toBe(59);
+    expect(lte.getSeconds()).toBe(59);
+    expect(lte.getMilliseconds()).toBe(999);
   });
 
   it('applies server-side pagination on account list', async () => {
@@ -246,6 +281,24 @@ describe('FinancialService.getTrialBalance — as-of mode', () => {
     const result = await service.getTrialBalance({ mode: 'as-of' });
     expect(result.rows[0].drillDown?.entityType).toBe('GL_ACCOUNT');
   });
+
+  // Date Boundary Consistency Pack v1: an explicit asOfDate must resolve to the
+  // end of that day (23:59:59.999), not midnight — else postings made later on
+  // the as-of day are silently excluded from the trial balance.
+  it('resolves an explicit asOfDate to end-of-day', async () => {
+    mockPrisma.journalEntryLine.groupBy.mockResolvedValue([]);
+    mockPrisma.account.findMany.mockResolvedValue([]);
+
+    const result = await service.getTrialBalance({ mode: 'as-of', asOfDate: '2025-12-31' });
+
+    const groupByWhere = mockPrisma.journalEntryLine.groupBy.mock.calls[0][0].where.journalEntry.date;
+    const lte = groupByWhere.lte as Date;
+    expect(lte.getHours()).toBe(23);
+    expect(lte.getMinutes()).toBe(59);
+    expect(lte.getSeconds()).toBe(59);
+    expect(lte.getMilliseconds()).toBe(999);
+    expect(new Date(result.metadata?.asOfDate as string).getTime()).toBe(lte.getTime());
+  });
 });
 
 describe('FinancialService.getTrialBalance — period mode', () => {
@@ -284,6 +337,79 @@ describe('FinancialService.getTrialBalance — period mode', () => {
 
     const result = await service.getTrialBalance({ mode: 'period', fromDate: '2025-01-01', toDate: '2025-12-31' });
     expect(result.metadata?.mode).toBe('period');
+  });
+
+  // Date Boundary Consistency Pack v1: the period-movement query's toDate must
+  // resolve to end-of-day, matching as-of mode and every other financial report.
+  it('resolves toDate to end-of-day in the period-movement query', async () => {
+    mockPrisma.journalEntryLine.groupBy.mockResolvedValue([]);
+    mockPrisma.account.findMany.mockResolvedValue([]);
+
+    await service.getTrialBalance({ mode: 'period', fromDate: '2025-01-01', toDate: '2025-12-31' });
+
+    // Call 0 = opening (lt fromDate); call 1 = period movement (gte..lte).
+    const periodWhere = mockPrisma.journalEntryLine.groupBy.mock.calls[1][0].where.journalEntry.date;
+    const lte = periodWhere.lte as Date;
+    expect(lte.getHours()).toBe(23);
+    expect(lte.getMinutes()).toBe(59);
+    expect(lte.getSeconds()).toBe(59);
+    expect(lte.getMilliseconds()).toBe(999);
+  });
+});
+
+// Date Boundary Consistency Pack v1: every financial report that accepts a
+// toDate/asOfDate must resolve the SAME calendar day to the SAME end-of-day
+// instant. Before this pack, Trial Balance and GL Report used `new Date(toDate)`
+// (midnight) while Financial Summary/AR/AP Aging already used `endOfDay()` —
+// two different boundaries for "the same period" across reports. This proves
+// GL Statement, GL Report, and both Trial Balance modes now agree.
+describe('Date boundary consistency across financial reports', () => {
+  let service: FinancialService;
+  const SAME_DAY = '2025-06-30';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    service = new FinancialService();
+  });
+
+  it('GL Statement, GL Report, and Trial Balance all resolve the same toDate to an identical instant', async () => {
+    const expected = endOfDay(new Date(SAME_DAY)).getTime();
+
+    // GL Statement
+    mockPrisma.account.findUniqueOrThrow.mockResolvedValue(makeAccount());
+    mockPrisma.journalEntryLine.aggregate.mockResolvedValue(zeroAgg());
+    mockPrisma.journalEntryLine.findMany.mockResolvedValue([]);
+    await service.getGlStatement(1, { toDate: SAME_DAY });
+    const glStatementLte = (mockPrisma.journalEntryLine.findMany.mock.calls[0][0].where.journalEntry.date.lte as Date).getTime();
+
+    vi.clearAllMocks();
+
+    // GL Report
+    mockPrisma.account.findMany.mockResolvedValue([makeAccount(1)]);
+    mockPrisma.journalEntryLine.groupBy.mockResolvedValue([]);
+    await service.getGlReport({ toDate: SAME_DAY, page: 1, pageSize: 10 });
+    const glReportLte = (mockPrisma.journalEntryLine.groupBy.mock.calls[1][0].where.journalEntry.date.lte as Date).getTime();
+
+    vi.clearAllMocks();
+
+    // Trial Balance — as-of mode
+    mockPrisma.journalEntryLine.groupBy.mockResolvedValue([]);
+    mockPrisma.account.findMany.mockResolvedValue([]);
+    const tbAsOf = await service.getTrialBalance({ mode: 'as-of', asOfDate: SAME_DAY });
+    const tbAsOfLte = new Date(tbAsOf.metadata?.asOfDate as string).getTime();
+
+    vi.clearAllMocks();
+
+    // Trial Balance — period mode
+    mockPrisma.journalEntryLine.groupBy.mockResolvedValue([]);
+    mockPrisma.account.findMany.mockResolvedValue([]);
+    await service.getTrialBalance({ mode: 'period', fromDate: '2025-01-01', toDate: SAME_DAY });
+    const tbPeriodLte = (mockPrisma.journalEntryLine.groupBy.mock.calls[1][0].where.journalEntry.date.lte as Date).getTime();
+
+    expect(glStatementLte).toBe(expected);
+    expect(glReportLte).toBe(expected);
+    expect(tbAsOfLte).toBe(expected);
+    expect(tbPeriodLte).toBe(expected);
   });
 });
 

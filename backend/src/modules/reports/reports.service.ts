@@ -7,7 +7,7 @@ import { formatDateRange, formatDisplayDate } from '../../shared/utils/dateDispl
 import { translateInvoiceStatusAr } from '../../shared/utils/arabicLabels';
 import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLabels';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
-import { monthWindowsBetween } from '../../core/utils/dateWindows';
+import { monthWindowsBetween, endOfDay } from '../../core/utils/dateWindows';
 import { roundMoney } from '../../shared/utils/money';
 import { glMonthlyProfitAndLoss } from '../../shared/services/gl.reporting';
 
@@ -26,17 +26,11 @@ const monthYearLabel = (ymLabel: string): string => {
   return `${m}/${y}`;
 };
 
-function endOfDay(dateStr: string): Date {
-  const d = new Date(dateStr);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
-
 function dateWhere(from?: string, to?: string, field = 'date'): Record<string, unknown> {
   if (!from && !to) return {};
   const range: Record<string, Date> = {};
   if (from) range.gte = new Date(from);
-  if (to) range.lte = endOfDay(to);
+  if (to) range.lte = endOfDay(new Date(to));
   return { [field]: range };
 }
 
@@ -507,7 +501,7 @@ export class ReportsService {
     let rangeEnd: Date;
     if (q.from && q.to) {
       rangeStart = new Date(q.from);
-      rangeEnd = endOfDay(q.to);
+      rangeEnd = endOfDay(new Date(q.to));
     } else {
       const bounds = await prisma.journalEntry.aggregate({
         where: { status: 'POSTED' },
@@ -515,7 +509,7 @@ export class ReportsService {
         _max: { date: true },
       });
       rangeStart = q.from ? new Date(q.from) : (bounds._min.date ?? new Date());
-      rangeEnd = q.to ? endOfDay(q.to) : (bounds._max.date ?? rangeStart);
+      rangeEnd = q.to ? endOfDay(new Date(q.to)) : (bounds._max.date ?? rangeStart);
     }
 
     const months = monthWindowsBetween(rangeStart, rangeEnd);
@@ -633,7 +627,7 @@ export class ReportsService {
   }
 
   private async receivablesAging(q: ReportQuery): Promise<ReportInput> {
-    const asOfDate = q.to ? endOfDay(q.to) : new Date();
+    const asOfDate = q.to ? endOfDay(new Date(q.to)) : new Date();
 
     // الرصيد اللحظي: لا نستبعد PAID (فاتورة سُدِّدت بعد التاريخ المرجعي كانت مستحقة فيه).
     // الإلغاء يُستبعَد فقط (لا تاريخ إلغاء في النموذج — قيد موثَّق).
@@ -752,10 +746,10 @@ export class ReportsService {
       customerId: { not: null },
     };
     if (q.customerId) balWhere.customerId = Number(q.customerId);
-    if (q.to) balWhere.issueDate = { lte: endOfDay(q.to) };
+    if (q.to) balWhere.issueDate = { lte: endOfDay(new Date(q.to)) };
 
     // نقطة الرصيد = نهاية الفترة (q.to)، أو الآن إن لم تُحدَّد.
-    const asOfBal = q.to ? endOfDay(q.to) : new Date();
+    const asOfBal = q.to ? endOfDay(new Date(q.to)) : new Date();
     const invoices = await prisma.invoice.findMany({
       where: balWhere,
       select: {

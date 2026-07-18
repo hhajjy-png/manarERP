@@ -9,6 +9,7 @@ vi.mock('../../../config/database', () => ({
 
 import { prisma } from '../../../config/database';
 import { round3, bankAnalyticsService, resolveEmployeePayments } from '../salaries.bankAnalytics.service';
+import { endOfDay } from '../../../core/utils/dateWindows';
 
 describe('round3', () => {
   it('rounds to 3 decimal places', () => {
@@ -201,11 +202,35 @@ describe('bankAnalyticsService.getTransactions — Phase 2 filters', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           AND: expect.arrayContaining([
-            { paymentDate: { gte: new Date('2025-01-01'), lte: new Date('2025-03-31') } },
+            { paymentDate: { gte: new Date('2025-01-01'), lte: endOfDay(new Date('2025-03-31')) } },
           ]),
         }),
       }),
     );
+  });
+
+  // Date Boundary Consistency Pack v1: dateTo must resolve to 23:59:59.999 of
+  // that day, not midnight — else a salary payment posted later that day is
+  // silently excluded from the Bank Salary Analytics report.
+  it('resolves dateTo to end-of-day (23:59:59.999)', async () => {
+    vi.mocked(prisma.employee.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.salaryPayment.findMany).mockResolvedValue([]);
+    vi.mocked(prisma.salaryPayment.count).mockResolvedValue(0);
+
+    await bankAnalyticsService.getTransactions(
+      { dateTo: '2025-03-31' },
+      { page: '1', pageSize: '25' },
+    );
+
+    const call = vi.mocked(prisma.salaryPayment.findMany).mock.calls[0][0] as {
+      where: { AND: Array<{ paymentDate?: { lte?: Date } }> };
+    };
+    const dateCondition = call.where.AND.find((c) => c.paymentDate?.lte);
+    const lte = dateCondition?.paymentDate?.lte as Date;
+    expect(lte.getHours()).toBe(23);
+    expect(lte.getMinutes()).toBe(59);
+    expect(lte.getSeconds()).toBe(59);
+    expect(lte.getMilliseconds()).toBe(999);
   });
 
   it('applies search text filter across beneficiaryName, transactionId, civilId', async () => {

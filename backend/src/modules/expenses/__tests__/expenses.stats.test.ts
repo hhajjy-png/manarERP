@@ -87,4 +87,20 @@ describe('expenses.stats — DB-side aggregation', () => {
     expect(totalAggWhere.date.gte).toBeInstanceOf(Date);
     expect(totalAggWhere.date.lte).toBeInstanceOf(Date);
   });
+
+  // Date Boundary Consistency Pack v1: `to` must resolve to 23:59:59.999 of that
+  // day, not midnight — else an expense dated later that day is excluded from
+  // the period's totals, understating expense stats for the last day.
+  it('resolves `to` to end-of-day (23:59:59.999)', async () => {
+    mp.expense.aggregate.mockResolvedValue({ _sum: { amount: null }, _count: { _all: 0 } });
+    mp.expense.groupBy.mockResolvedValue([]);
+
+    await expensesService.stats({ to: '2024-12-31' });
+
+    const lte = mp.expense.aggregate.mock.calls[0][0].where.date.lte as Date;
+    expect(lte.getHours()).toBe(23);
+    expect(lte.getMinutes()).toBe(59);
+    expect(lte.getSeconds()).toBe(59);
+    expect(lte.getMilliseconds()).toBe(999);
+  });
 });
