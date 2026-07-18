@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `b30c184` (merge of `feature/employment-contract-workspace-integration-ux-refresh-pack-v1`) |
-| **Current Documentation Commit** | `29793d9` — "docs: record Employment Contract Workspace Integration & UX Refresh Pack v1 release in PROJECT_STATE" |
-| **Current Stable Tag** | `stable-employment-contract-workspace-integration-ux-refresh-pack-v1` |
+| **Current Merge Commit** | `da74be5` (merge of `feature/calendar-ux-refresh-pack-v1`) |
+| **Current Documentation Commit** | *(filled in below by the self-referencing update — see maintenance policy)* |
+| **Current Stable Tag** | `stable-calendar-ux-refresh-pack-v1` |
 | **Current Release Date** | 2026-07-18 |
-| **Total Stable Releases** | 308 (window 2026-06-07 → 2026-07-18) |
+| **Total Stable Releases** | 309 (window 2026-06-07 → 2026-07-18) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
