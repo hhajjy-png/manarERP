@@ -56,7 +56,7 @@ export class FinancialService {
       entityId,
       filters: {
         fromDate:      filters.fromDate  ? new Date(filters.fromDate)  : undefined,
-        toDate:        filters.toDate    ? new Date(filters.toDate)    : undefined,
+        toDate:        filters.toDate    ? endOfDay(new Date(filters.toDate)) : undefined,
         search:        filters.search,
         referenceType: filters.referenceType as 'INVOICE' | 'PAYMENT' | 'EXPENSE' | undefined,
         status:        filters.status,
@@ -337,7 +337,7 @@ export class FinancialService {
           ...((filters.fromDate || filters.toDate) && {
             date: {
               ...(filters.fromDate && { gte: new Date(filters.fromDate) }),
-              ...(filters.toDate   && { lte: new Date(filters.toDate)   }),
+              ...(filters.toDate   && { lte: endOfDay(new Date(filters.toDate)) }),
             },
           }),
           ...(filters.search && {
@@ -471,7 +471,7 @@ export class FinancialService {
             ...((filters.fromDate || filters.toDate) && {
               date: {
                 ...(filters.fromDate && { gte: new Date(filters.fromDate) }),
-                ...(filters.toDate   && { lte: new Date(filters.toDate)   }),
+                ...(filters.toDate   && { lte: endOfDay(new Date(filters.toDate)) }),
               },
             }),
           },
@@ -529,7 +529,7 @@ export class FinancialService {
     const { mode, asOfDate, fromDate, toDate, showZeroBalances, accountType } = filters;
 
     if (mode === 'as-of') {
-      const effectiveDate = asOfDate ? new Date(asOfDate) : new Date();
+      const effectiveDate = endOfDay(asOfDate ? new Date(asOfDate) : new Date());
 
       const [grouped, allAccounts] = await Promise.all([
         prisma.journalEntryLine.groupBy({
@@ -599,7 +599,7 @@ export class FinancialService {
       }),
       prisma.journalEntryLine.groupBy({
         by:    ['accountId'],
-        where: { journalEntry: { status: 'POSTED', date: { gte: new Date(fromDate), lte: new Date(toDate) } } },
+        where: { journalEntry: { status: 'POSTED', date: { gte: new Date(fromDate), lte: endOfDay(new Date(toDate)) } } },
         _sum:  { debit: true, credit: true },
       }),
       prisma.account.findMany({

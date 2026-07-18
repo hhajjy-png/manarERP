@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
 import { formatSourceMonth } from './salaries.dateHelpers';
+import { endOfDay } from '../../core/utils/dateWindows';
 import { getPagination, buildPaginatedResult } from '../../core/utils/pagination';
 import { buildExcelWorkbook } from '../../shared/services/reportEngine/excel.service';
 import type { ReportInput } from '../../shared/services/reportEngine/excel.service';
@@ -135,7 +136,7 @@ function buildWhereClause(filters: AnalyticsFilters, extraCivilIds?: string[], e
   if (filters.dateFrom || filters.dateTo) {
     const dateCond: Record<string, Date> = {};
     if (filters.dateFrom) dateCond.gte = new Date(filters.dateFrom);
-    if (filters.dateTo) dateCond.lte = new Date(filters.dateTo);
+    if (filters.dateTo) dateCond.lte = endOfDay(new Date(filters.dateTo));
     conditions.push({ paymentDate: dateCond });
   }
 

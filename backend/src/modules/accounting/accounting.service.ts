@@ -37,6 +37,7 @@ import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 import { AppError } from '../../core/errors/AppError';
 import { resolvePeriod } from '../../core/utils/periodFilter';
+import { endOfDay } from '../../core/utils/dateWindows';
 
 export interface AccountInput {
   code: string;
@@ -121,7 +122,7 @@ export class AccountingService {
     if (query.from || query.to) {
       where.date = {};
       if (query.from) where.date.gte = new Date(query.from);
-      if (query.to) where.date.lte = new Date(query.to);
+      if (query.to) where.date.lte = endOfDay(new Date(query.to));
     }
 
     const orderBy = buildOrderBy(query, JOURNAL_SORTABLE, [{ date: 'desc' }], [{ id: 'desc' }]) as Prisma.JournalEntryOrderByWithRelationInput[];
@@ -286,7 +287,7 @@ export class AccountingService {
     if (query.from || query.to) {
       where.date = {};
       if (query.from) where.date.gte = new Date(query.from);
-      if (query.to) where.date.lte = new Date(query.to);
+      if (query.to) where.date.lte = endOfDay(new Date(query.to));
     }
 
     const orderBy = buildOrderBy(query, PAYMENTS_SORTABLE, [{ date: 'desc' }], [{ id: 'desc' }]) as Prisma.PaymentOrderByWithRelationInput[];
