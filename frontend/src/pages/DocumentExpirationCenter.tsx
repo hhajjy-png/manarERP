@@ -21,6 +21,9 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './DocumentExpirationCenter.css';
+import { useTableSort } from '../hooks/useTableSort';
+import { sortRowsClient } from '../lib/clientSort';
+import SortableHeader from '../components/SortableHeader';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Types
@@ -92,6 +95,9 @@ const URGENCY_AR: Record<string, string> = {
 
 const CATEGORY_OPTIONS = Object.entries(CATEGORY_AR).map(([value, label]) => ({ value, label }));
 
+// رتبة شدّة الاستعجال للفرز — الأشد أولًا تصاعديًا (وليس ترتيبًا أبجديًا)
+const URGENCY_RANK: Record<UrgencyBand, number> = { expired: 0, '7': 1, '30': 2, '60': 3, '90': 4, ok: 5 };
+
 const URGENCY_OPTIONS: { value: string; label: string }[] = [
   { value: 'all',     label: 'الكل' },
   { value: 'expired', label: 'منتهية' },
@@ -145,6 +151,18 @@ export default function DocumentExpirationCenter() {
 
   // Drawer
   const [selected, setSelected] = useState<ExpirationRecord | null>(null);
+
+  // فرز محلي موحّد (Enterprise Data Grid Foundation v1) — يُطبَّق بعد فلاتر الخادم؛
+  // «نوع الوثيقة» يُفرز بالتسمية العربية المعروضة و«الحالة» برتبة الاستعجال لا أبجديًا.
+  const sort = useTableSort('expirations');
+  const sortedRecords = useMemo(
+    () => sortRowsClient(records, sort.sortBy, sort.sortDir, (r, key) => {
+      if (key === 'category') return CATEGORY_AR[r.category] ?? r.category;
+      if (key === 'urgency') return URGENCY_RANK[r.urgency];
+      return (r as unknown as Record<string, unknown>)[key];
+    }),
+    [records, sort.sortBy, sort.sortDir],
+  );
 
   const loadSummary = useCallback(() => {
     api
@@ -402,16 +420,16 @@ export default function DocumentExpirationCenter() {
             <table className="xpl-table">
               <thead>
                 <tr>
-                  <th>نوع الوثيقة</th>
-                  <th>الجهة</th>
-                  <th>تاريخ الانتهاء</th>
-                  <th>الأيام المتبقية</th>
-                  <th>الحالة</th>
+                  <SortableHeader label="نوع الوثيقة" title="نوع الوثيقة" state={sort.getState('category')} onToggle={() => sort.toggle('category')} />
+                  <SortableHeader label="الجهة" title="الجهة" state={sort.getState('entityName')} onToggle={() => sort.toggle('entityName')} />
+                  <SortableHeader label="تاريخ الانتهاء" title="تاريخ الانتهاء" state={sort.getState('expiryDate')} onToggle={() => sort.toggle('expiryDate')} />
+                  <SortableHeader label="الأيام المتبقية" title="الأيام المتبقية" state={sort.getState('daysRemaining')} onToggle={() => sort.toggle('daysRemaining')} />
+                  <SortableHeader label="الحالة" title="الحالة" state={sort.getState('urgency')} onToggle={() => sort.toggle('urgency')} />
                   <th aria-label="فتح" />
                 </tr>
               </thead>
               <tbody>
-                {records.map(r => (
+                {sortedRecords.map(r => (
                   <tr
                     key={r.id}
                     className="xpl-row--click"

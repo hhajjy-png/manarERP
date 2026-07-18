@@ -155,15 +155,15 @@ export const MODULES: Record<string, ModuleConfig> = {
       ],
     },
     columns: [
-      { key: 'code', label: 'col.contract_no', render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.code}</strong> },
-      { key: 'customerName', label: 'col.customer', render: (r) => r.customer?.name ?? '—' },
-      { key: 'asphaltPlant', label: 'col.asphalt_plant' },
-      { key: 'companyName', label: 'col.company_name' },
-      { key: 'location', label: 'col.location' },
-      { key: 'unitName', label: 'col.unit_name' },
-      { key: 'price', label: 'col.price', money: true, render: (r) => <MoneyCell value={r.price} /> },
-      { key: 'monthlyTransportValue', label: 'col.monthly_value', money: true, render: (r) => <MoneyCell value={r.monthlyTransportValue} /> },
-      { key: 'status', label: 'col.status', render: (r) => contractStatus(r.status) },
+      { key: 'code', label: 'col.contract_no', sortable: true, render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.code}</strong> },
+      { key: 'customerName', label: 'col.customer', sortable: true, render: (r) => r.customer?.name ?? '—' },
+      { key: 'asphaltPlant', label: 'col.asphalt_plant', sortable: true },
+      { key: 'companyName', label: 'col.company_name', sortable: true },
+      { key: 'location', label: 'col.location', sortable: true },
+      { key: 'unitName', label: 'col.unit_name', sortable: true },
+      { key: 'price', label: 'col.price', money: true, sortable: true, render: (r) => <MoneyCell value={r.price} /> },
+      { key: 'monthlyTransportValue', label: 'col.monthly_value', money: true, sortable: true, render: (r) => <MoneyCell value={r.monthlyTransportValue} /> },
+      { key: 'status', label: 'col.status', sortable: true, render: (r) => contractStatus(r.status) },
     ],
     fields: [
       {
@@ -221,11 +221,11 @@ export const MODULES: Record<string, ModuleConfig> = {
       ],
     },
     columns: [
-      { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
-      { key: 'name', label: 'col.customer_name', render: (r) => <strong>{r.name}</strong> },
-      { key: 'type', label: 'col.type', render: (r) => customerType(r.type) },
-      { key: 'phone', label: 'col.phone' },
-      { key: 'contactName', label: 'col.contact_name' },
+      { key: 'code', label: 'col.code', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
+      { key: 'name', label: 'col.customer_name', sortable: true, render: (r) => <strong>{r.name}</strong> },
+      { key: 'type', label: 'col.type', sortable: true, render: (r) => customerType(r.type) },
+      { key: 'phone', label: 'col.phone', sortable: true },
+      { key: 'contactName', label: 'col.contact_name', sortable: true },
     ],
     fields: [
       { name: 'code', label: 'field.customer_code', required: true, placeholder: 'مثال: C-001', section: 'identity' },
@@ -253,10 +253,10 @@ export const MODULES: Record<string, ModuleConfig> = {
       { id: 'notes', title: 'ملاحظات', icon: 'sticky_note_2' },
     ],
     columns: [
-      { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
-      { key: 'name', label: 'col.supplier_name', render: (r) => <strong>{r.name}</strong> },
-      { key: 'phone', label: 'col.phone' },
-      { key: 'contactName', label: 'col.contact_name' },
+      { key: 'code', label: 'col.code', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
+      { key: 'name', label: 'col.supplier_name', sortable: true, render: (r) => <strong>{r.name}</strong> },
+      { key: 'phone', label: 'col.phone', sortable: true },
+      { key: 'contactName', label: 'col.contact_name', sortable: true },
     ],
     fields: [
       { name: 'code', label: 'field.supplier_code', required: true, section: 'identity' },
@@ -288,12 +288,16 @@ export const MODULES: Record<string, ModuleConfig> = {
       ],
     },
     columns: [
-      { key: 'code', label: 'col.equipment_no', render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.code}</strong> },
-      { key: 'type', label: 'col.type' },
-      { key: 'ownerName', label: 'col.owner_name' },
-      { key: 'driverName', label: 'col.driver_name', render: (r) => <strong>{r.driverName ?? '—'}</strong> },
-      { key: 'plateNumber', label: 'col.plate_number', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.plateNumber ?? '—'}</span> },
-      { key: 'regExpiry', label: 'col.reg_expiry', render: (r) => {
+      // معيار ترقيم الصفوف: رقم المعدة معرّف تجاري غير ضروري في القائمة —
+      // استُبدل بترقيم تسلسلي يتابع عبر الصفحات. الكود يبقى في البحث والتنبيهات والـ Drawer.
+      { key: 'rowNo', label: '#', rowNumber: true },
+      { key: 'type', label: 'col.type', sortable: true },
+      { key: 'ownerName', label: 'col.owner_name', sortable: true },
+      { key: 'driverName', label: 'col.driver_name', sortable: true, render: (r) => <strong>{r.driverName ?? '—'}</strong> },
+      { key: 'plateNumber', label: 'col.plate_number', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.plateNumber ?? '—'}</span> },
+      // regExpiry يُفرز خادميًا عبر ترجمة القائمة البيضاء إلى registrationExpiry.
+      // regRemaining (أدناه) مشتق بلا حقل خلفي → غير قابل للفرز عمدًا.
+      { key: 'regExpiry', label: 'col.reg_expiry', sortable: true, render: (r) => {
         const reg = r.registration;
         return reg?.expiry ? dateText(reg.expiry) : '—';
       }},
@@ -303,7 +307,7 @@ export const MODULES: Record<string, ModuleConfig> = {
         const cls: PillCls = reg.expired ? 'red' : reg.expiringSoon ? 'amber' : 'green';
         return pill((reg.expired || reg.expiringSoon ? '⚠ ' : '') + reg.remainingText, cls);
       }},
-      { key: 'status', label: 'col.status', render: (r) => equipmentStatus(r.status) },
+      { key: 'status', label: 'col.status', sortable: true, render: (r) => equipmentStatus(r.status) },
     ],
     fields: [
       { name: 'code', label: 'field.equipment_no', required: true, section: 'identity' },
@@ -339,21 +343,21 @@ export const MODULES: Record<string, ModuleConfig> = {
       ],
     },
     columns: [
-      { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: 12 }}>{r.code}</span> },
-      { key: 'fullName', label: 'col.fullname_ar', render: (r) => <strong>{r.fullName}</strong> },
-      { key: 'fullNameEn', label: 'col.fullname_en' },
-      { key: 'civilId', label: 'col.civil_id', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.civilId ?? '—'}</span> },
-      { key: 'jobTitle', label: 'col.job_title' },
-      { key: 'nationality', label: 'col.nationality' },
-      { key: 'residencyExpiry', label: 'col.residency_expiry', render: (r) => dateText(r.residencyExpiry) },
+      { key: 'code', label: 'col.code', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: 12 }}>{r.code}</span> },
+      { key: 'fullName', label: 'col.fullname_ar', sortable: true, render: (r) => <strong>{r.fullName}</strong> },
+      { key: 'fullNameEn', label: 'col.fullname_en', sortable: true },
+      { key: 'civilId', label: 'col.civil_id', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.civilId ?? '—'}</span> },
+      { key: 'jobTitle', label: 'col.job_title', sortable: true },
+      { key: 'nationality', label: 'col.nationality', sortable: true },
+      { key: 'residencyExpiry', label: 'col.residency_expiry', sortable: true, render: (r) => dateText(r.residencyExpiry) },
       { key: 'passportNumber', label: 'col.passport_number', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.passportNumber ?? '—'}</span> },
-      { key: 'passportExpiry', label: 'col.passport_expiry', render: (r) => dateText(r.passportExpiry) },
-      { key: 'licenseExpiry', label: 'col.license_expiry', render: (r) => dateText(r.licenseExpiry) },
+      { key: 'passportExpiry', label: 'col.passport_expiry', sortable: true, render: (r) => dateText(r.passportExpiry) },
+      { key: 'licenseExpiry', label: 'col.license_expiry', sortable: true, render: (r) => dateText(r.licenseExpiry) },
       { key: 'vehiclePlate', label: 'col.vehicle_plate', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.vehiclePlate ?? '—'}</span> },
-      { key: 'vehicleLicenseExpiry', label: 'col.vehicle_license_expiry', render: (r) => dateText(r.vehicleLicenseExpiry) },
-      { key: 'salary', label: 'col.salary', money: true, render: (r) => <MoneyCell value={r.salary} /> },
-      { key: 'hireDate', label: 'col.hire_date', render: (r) => dateText(r.hireDate) },
-      { key: 'status', label: 'col.status', render: (r) => employeeStatus(r.status) },
+      { key: 'vehicleLicenseExpiry', label: 'col.vehicle_license_expiry', sortable: true, render: (r) => dateText(r.vehicleLicenseExpiry) },
+      { key: 'salary', label: 'col.salary', money: true, sortable: true, render: (r) => <MoneyCell value={r.salary} /> },
+      { key: 'hireDate', label: 'col.hire_date', sortable: true, render: (r) => dateText(r.hireDate) },
+      { key: 'status', label: 'col.status', sortable: true, render: (r) => employeeStatus(r.status) },
     ],
     fields: [
       { name: 'code', label: 'field.emp_code', required: true, section: 'identity' },
@@ -395,12 +399,12 @@ export const MODULES: Record<string, ModuleConfig> = {
       ],
     },
     columns: [
-      { key: 'code', label: 'col.code', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
-      { key: 'category', label: 'col.category', render: (r) => expenseCategoryAr[r.category] ?? r.category },
-      { key: 'description', label: 'col.description', render: (r) => <strong>{r.description}</strong> },
-      { key: 'amount', label: 'col.amount', money: true, render: (r) => <MoneyCell value={r.amount} /> },
-      { key: 'date', label: 'col.date', render: (r) => dateText(r.date) },
-      { key: 'status', label: 'col.status', render: (r) => expenseStatus(r.status) },
+      { key: 'code', label: 'col.code', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
+      { key: 'category', label: 'col.category', sortable: true, render: (r) => expenseCategoryAr[r.category] ?? r.category },
+      { key: 'description', label: 'col.description', sortable: true, render: (r) => <strong>{r.description}</strong> },
+      { key: 'amount', label: 'col.amount', money: true, sortable: true, render: (r) => <MoneyCell value={r.amount} /> },
+      { key: 'date', label: 'col.date', sortable: true, render: (r) => dateText(r.date) },
+      { key: 'status', label: 'col.status', sortable: true, render: (r) => expenseStatus(r.status) },
     ],
     fields: [
       { name: 'category', label: 'field.category', type: 'select', required: true,
@@ -419,10 +423,10 @@ export const MODULES: Record<string, ModuleConfig> = {
     icon: '🔐', group: 'النظام', createLabel: 'mod.users.create',
     emptyText: 'empty.users',
     columns: [
-      { key: 'username', label: 'col.username', render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.username}</strong> },
-      { key: 'fullName', label: 'col.fullname' },
-      { key: 'role', label: 'col.role', render: (r) => pill(r.role?.displayName ?? '—', 'blue') },
-      { key: 'isActive', label: 'col.status', render: (r) => r.isActive ? pill('نشط', 'green') : pill('موقوف', 'gray') },
+      { key: 'username', label: 'col.username', sortable: true, render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.username}</strong> },
+      { key: 'fullName', label: 'col.fullname', sortable: true },
+      { key: 'role', label: 'col.role', sortable: true, render: (r) => pill(r.role?.displayName ?? '—', 'blue') },
+      { key: 'isActive', label: 'col.status', sortable: true, render: (r) => r.isActive ? pill('نشط', 'green') : pill('موقوف', 'gray') },
     ],
     fields: [
       { name: 'username', label: 'field.username', required: true },

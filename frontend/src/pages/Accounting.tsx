@@ -9,6 +9,8 @@ import { money, dateText, MoneyText, MoneyCell } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { useTableSort } from '../hooks/useTableSort';
+import SortableHeader from '../components/SortableHeader';
 import { useToast } from '../stores/toastStore';
 import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
 import {
@@ -194,19 +196,27 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  // فرز خادمي — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
+  const sort = useTableSort('accounting-accounts', () => setPage(1));
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/accounting/accounts', {
-        params: { page, pageSize: 20, search: search || undefined, type: typeFilter || undefined },
+        params: {
+          page,
+          pageSize: 20,
+          search: search || undefined,
+          type: typeFilter || undefined,
+          ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
+        },
       });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } finally {
       setLoading(false);
     }
-  }, [page, search, typeFilter]);
+  }, [page, search, typeFilter, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
   function deleteAccount(id: number) { setDeleteConfirmId(id); }
@@ -250,12 +260,13 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
               <table className="xpl-table">
                 <thead>
                   <tr>
-                    <th>{t('col.acc.code')}</th>
-                    <th>{t('col.acc.name')}</th>
-                    <th>{t('col.acc.type')}</th>
-                    <th>{t('col.acc.normal_balance')}</th>
+                    <SortableHeader label={t('col.acc.code')} title={t('col.acc.code')} state={sort.getState('code')} onToggle={() => sort.toggle('code')} />
+                    <SortableHeader label={t('col.acc.name')} title={t('col.acc.name')} state={sort.getState('name')} onToggle={() => sort.toggle('name')} />
+                    <SortableHeader label={t('col.acc.type')} title={t('col.acc.type')} state={sort.getState('type')} onToggle={() => sort.toggle('type')} />
+                    <SortableHeader label={t('col.acc.normal_balance')} title={t('col.acc.normal_balance')} state={sort.getState('normalBalance')} onToggle={() => sort.toggle('normalBalance')} />
+                    {/* الحساب الأب علاقة متداخلة — غير قابل للفرز */}
                     <th>{t('col.acc.parent')}</th>
-                    <th>{t('col.status')}</th>
+                    <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('isActive')} onToggle={() => sort.toggle('isActive')} />
                     <th aria-label="فتح" />
                   </tr>
                 </thead>
@@ -440,17 +451,26 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [cancelConfirmId, setCancelConfirmId] = useState<number | null>(null);
+  // فرز خادمي — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
+  const sort = useTableSort('accounting-journal', () => setPage(1));
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/accounting/journal', { params: { page, pageSize: 15, search: search || undefined } });
+      const res = await api.get('/accounting/journal', {
+        params: {
+          page,
+          pageSize: 15,
+          search: search || undefined,
+          ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
+        },
+      });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, search, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -497,11 +517,12 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
               <table className="xpl-table">
                 <thead>
                   <tr>
-                    <th>{t('col.acc.entry_number')}</th>
-                    <th>{t('col.date')}</th>
-                    <th>{t('col.acc.description')}</th>
+                    <SortableHeader label={t('col.acc.entry_number')} title={t('col.acc.entry_number')} state={sort.getState('entryNumber')} onToggle={() => sort.toggle('entryNumber')} />
+                    <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
+                    <SortableHeader label={t('col.acc.description')} title={t('col.acc.description')} state={sort.getState('description')} onToggle={() => sort.toggle('description')} />
+                    {/* إجمالي المدين محسوب من بنود القيد — غير قابل للفرز */}
                     <th>{fcMoneyHeader(t('col.acc.total_debit_lbl'))}</th>
-                    <th>{t('col.status')}</th>
+                    <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
                     <th aria-label="فتح" />
                   </tr>
                 </thead>
@@ -725,19 +746,26 @@ function PaymentsTab() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [methodFilter, setMethodFilter] = useState('');
+  // فرز خادمي — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
+  const sort = useTableSort('accounting-payments', () => setPage(1));
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/accounting/payments', {
-        params: { page, pageSize: 20, method: methodFilter || undefined },
+        params: {
+          page,
+          pageSize: 20,
+          method: methodFilter || undefined,
+          ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
+        },
       });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } finally {
       setLoading(false);
     }
-  }, [page, methodFilter]);
+  }, [page, methodFilter, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
   return (
@@ -762,12 +790,13 @@ function PaymentsTab() {
               <table className="xpl-table">
                 <thead>
                   <tr>
-                    <th>{t('col.acc.invoice_no')}</th>
+                    <SortableHeader label={t('col.acc.invoice_no')} title={t('col.acc.invoice_no')} state={sort.getState('invoice')} onToggle={() => sort.toggle('invoice')} />
                     <th>{t('col.inv.direction')}</th>
-                    <th>{fcMoneyHeader(t('col.amount'))}</th>
-                    <th>{t('col.acc.method')}</th>
-                    <th>{t('col.date')}</th>
-                    <th>{t('col.acc.reference')}</th>
+                    <SortableHeader label={fcMoneyHeader(t('col.amount'))} title={t('col.amount')} state={sort.getState('amount')} onToggle={() => sort.toggle('amount')} />
+                    <SortableHeader label={t('col.acc.method')} title={t('col.acc.method')} state={sort.getState('method')} onToggle={() => sort.toggle('method')} />
+                    <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
+                    <SortableHeader label={t('col.acc.reference')} title={t('col.acc.reference')} state={sort.getState('reference')} onToggle={() => sort.toggle('reference')} />
+                    {/* الملاحظات نص حر — غير قابلة للفرز */}
                     <th>{t('field.notes')}</th>
                   </tr>
                 </thead>

@@ -41,6 +41,8 @@ import { FinancialReportsTab } from '../components/financial/FinancialReportsTab
 // Dashboard). Presentation only; the kit CSS is already bundled app-wide.
 import { Pagination } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
+import { useTableSort } from '../hooks/useTableSort';
+import SortableHeader from '../components/SortableHeader';
 
 interface EntityOption { id: number; name: string; code: string; }
 
@@ -296,6 +298,10 @@ export default function FinancialCenter() {
   const [glReportError,    setGlReportError]    = useState<string | null>(null);
   const [glReportExporting, setGlReportExporting] = useState(false);
 
+  // فرز خادمي لتقرير دفتر الأستاذ العام (rp:gl-report:sort) — تغيير الفرز
+  // استعلام جديد فيعود للصفحة الأولى (الجدول مرقّم خادميًا).
+  const glReportSort = useTableSort('gl-report', () => setParam('glPage', 1));
+
   const loadGlReport = useCallback(async () => {
     setGlReportLoading(true);
     setGlReportError(null);
@@ -305,6 +311,7 @@ export default function FinancialCenter() {
         toDate:   glTo   || undefined,
         page:     glPage,
         pageSize: 20,
+        ...(glReportSort.sortBy ? { sortBy: glReportSort.sortBy, sortDir: glReportSort.sortDir } : {}),
       });
       setGlReportData(data);
     } catch {
@@ -312,7 +319,15 @@ export default function FinancialCenter() {
     } finally {
       setGlReportLoading(false);
     }
-  }, [glFrom, glTo, glPage]);
+  }, [glFrom, glTo, glPage, glReportSort.sortBy, glReportSort.sortDir]);
+
+  // تفاعلات الشبكة (ترقيم/فرز) تعيد التحميل تلقائيًا بعد أول تحميل يدوي —
+  // بدونها نقرة الترويسة أو الصفحة التالية تبقى بلا استجابة حتى ضغط «تحميل».
+  // فلاتر التاريخ تبقى على نمط التطبيق اليدوي الصريح كما كانت.
+  useEffect(() => {
+    if (glReportData) loadGlReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [glPage, glReportSort.sortBy, glReportSort.sortDir]);
 
   // ── Trial Balance data ─────────────────────────────────────────────────────
   const [trialData,     setTrialData]     = useState<FinancialResponse<TrialBalanceAsOfRow | TrialBalancePeriodRow> | null>(null);
@@ -869,7 +884,10 @@ export default function FinancialCenter() {
                     <table className="financial-table gl-report-table" dir="rtl">
                       <thead>
                         <tr>
-                          <th>الكود</th><th>اسم الحساب</th><th>النوع</th>
+                          <SortableHeader label="الكود" title="الكود" state={glReportSort.getState('code')} onToggle={() => glReportSort.toggle('code')} />
+                          <SortableHeader label="اسم الحساب" title="اسم الحساب" state={glReportSort.getState('name')} onToggle={() => glReportSort.toggle('name')} />
+                          <SortableHeader label="النوع" title="النوع" state={glReportSort.getState('type')} onToggle={() => glReportSort.toggle('type')} />
+                          {/* أعمدة الأرصدة الأربعة غير قابلة للفرز — تُحسب خادميًا لكل صفحة على حدة */}
                           <th className="num">{fcMoneyHeader('رصيد الافتتاح')}</th>
                           <th className="num">{fcMoneyHeader('إجمالي مدين')}</th>
                           <th className="num">{fcMoneyHeader('إجمالي دائن')}</th>

@@ -49,6 +49,9 @@ export const GlReportQuerySchema = z.object({
   page:        pageInt,
   pageSize:    z.coerce.number().int().positive().max(100).default(20),
   format:      z.enum(['pdf', 'html', 'excel']).optional(),
+  // فرز أساس الشبكة الموحّد — القيم تُتحقّق نهائيًا في القائمة البيضاء بالخدمة.
+  sortBy:      z.string().optional(),
+  sortDir:     z.enum(['asc', 'desc']).optional(),
 });
 
 // ── Trial Balance (stubs) ─────────────────────────────────────────────────────

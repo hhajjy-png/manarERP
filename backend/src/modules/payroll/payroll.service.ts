@@ -4,6 +4,21 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { sortRowsInMemory, RowValueGetter } from '../../core/utils/sort';
+import type { UnifiedPayrollRow } from './payrollMonth.readModel';
+
+// القائمة البيضاء لفرز شبكة الرواتب الموحّدة (Enterprise Data Grid Foundation).
+// «الاستقطاعات» تُعرض مجموعَ استقطاعات وسلف — الفرز على المجموع نفسه؛ الصفوف
+// المستوردة (قيم null) تسقط آخرًا تلقائيًا بسياسة الفراغات.
+const PAYROLL_ROW_SORTABLE: Record<string, RowValueGetter<UnifiedPayrollRow>> = {
+  employee: (r) => r.employeeName,
+  period: (r) => r.year * 100 + r.month,
+  base: (r) => r.snapshotBaseSalary ?? r.baseSalary,
+  gross: (r) => r.grossSalary,
+  deductions: (r) => (r.totalDeductions === null && r.totalAdvances === null ? null : (r.totalDeductions ?? 0) + (r.totalAdvances ?? 0)),
+  net: (r) => r.netSalary,
+  status: (r) => r.status,
+};
 import { resolvePayrollPostingDate } from './payroll.accounting';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 import { approvalEngine } from '../../shared/services/approval.service';
@@ -72,8 +87,11 @@ export class PayrollService {
     if (month && year) {
       const employeeId = query.employeeId ? Number(query.employeeId) : undefined;
       const rows = await buildUnifiedMonthRows(month, year, { employeeId, status: query.status });
-      const pageRows = rows.slice(pagination.skip, pagination.skip + pagination.take);
-      return buildPaginatedResult(pageRows, rows.length, pagination);
+      // الشبكة الموحّدة تُبنى في الذاكرة (محسوب + مستورد) فالفرز هنا يمرّ عبر
+      // sortRowsInMemory من الأساس نفسه — قبل اقتطاع الصفحة كي يشمل الشهر كاملًا.
+      const sorted = sortRowsInMemory(rows, query, PAYROLL_ROW_SORTABLE);
+      const pageRows = sorted.slice(pagination.skip, pagination.skip + pagination.take);
+      return buildPaginatedResult(pageRows, sorted.length, pagination);
     }
 
     const where: Prisma.PayrollWhereInput = {};

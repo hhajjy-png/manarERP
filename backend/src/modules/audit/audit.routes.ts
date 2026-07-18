@@ -6,6 +6,17 @@ import { requirePermission } from '../../core/middleware/rbac.middleware';
 import { asyncHandler } from '../../core/utils/asyncHandler';
 import { ok } from '../../core/utils/response';
 import { buildPaginatedResult, getPagination } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
+
+// القائمة البيضاء للفرز (Enterprise Data Grid Foundation) — سجل التدقيق.
+// «المستخدم» عمود علاقة؛ «الملخص» مشتق في الواجهة → غير قابل للفرز عمدًا.
+const AUDIT_SORTABLE: SortWhitelist = {
+  createdAt: 'createdAt',
+  module: 'module',
+  action: 'action',
+  entityId: { field: 'entityId', nullable: true },
+  user: (dir) => ({ user: { fullName: dir } }),
+};
 
 const router = Router();
 router.use(authenticate);
@@ -35,12 +46,13 @@ router.get(
       ];
     }
 
+    const orderBy = buildOrderBy(q, AUDIT_SORTABLE, [{ createdAt: 'desc' }], [{ id: 'desc' }]) as Prisma.AuditLogOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
       prisma.auditLog.findMany({
         where,
         skip: pagination.skip,
         take: pagination.take,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         include: { user: { select: { username: true, fullName: true } } },
       }),
       prisma.auditLog.count({ where }),

@@ -6,6 +6,8 @@ import { PageMeta } from '../components/DataTable';
 import { dateText, money, MoneyText, MoneyCell } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { useTableSort } from '../hooks/useTableSort';
+import SortableHeader from '../components/SortableHeader';
 import { downloadBlob } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import PrivateAmount from '../components/PrivateAmount';
@@ -110,6 +112,8 @@ export default function Salaries() {
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
   const [page, setPage] = useState(1);
+  // فرز خادمي موحّد (Enterprise Data Grid Foundation) — لكل جدول حالته وصفحته الخاصة.
+  const sort = useTableSort('payroll', () => setPage(1));
   const [month, setMonth] = usePersistedState<number>('sal:month', initialMonth);
   const [year, setYear] = usePersistedState<number>('sal:year', initialYear);
   const [employeeId, setEmployeeId] = useState('');
@@ -137,6 +141,7 @@ export default function Salaries() {
   const [historyMeta, setHistoryMeta] = useState<PageMeta | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
+  const historySort = useTableSort('salaries-history', () => setHistoryPage(1));
   const [historyQuery, setHistoryQuery] = useState('');
 
   const [excelBusy, setExcelBusy] = useState(false);
@@ -154,7 +159,7 @@ export default function Salaries() {
     setLoading(true);
     try {
       const res = await api.get('/payroll', {
-        params: { page, pageSize: 12, month, year, employeeId: employeeId || undefined, status: status || undefined },
+        params: { page, pageSize: 12, month, year, employeeId: employeeId || undefined, status: status || undefined, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) },
       });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
@@ -183,7 +188,7 @@ export default function Salaries() {
   async function loadHistory() {
     setHistoryLoading(true);
     try {
-      const res = await api.get('/salaries', { params: { page: historyPage, pageSize: 12, search: historyQuery } });
+      const res = await api.get('/salaries', { params: { page: historyPage, pageSize: 12, search: historyQuery, ...(historySort.sortBy ? { sortBy: historySort.sortBy, sortDir: historySort.sortDir } : {}) } });
       setHistoryRows(res.data.data.data ?? []);
       setHistoryMeta(res.data.data.meta ?? null);
     } finally {
@@ -214,12 +219,12 @@ export default function Salaries() {
   useEffect(() => {
     loadPayroll().catch((e) => setError(errorMessage(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, month, year, employeeId, status]);
+  }, [page, month, year, employeeId, status, sort.sortBy, sort.sortDir]);
 
   useEffect(() => {
     if (tab === 'history') loadHistory().catch((e) => setError(errorMessage(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, historyPage, historyQuery]);
+  }, [tab, historyPage, historyQuery, historySort.sortBy, historySort.sortDir]);
 
   // KPI totals depend only on the filters, not the page — pagination must not move them.
   useEffect(() => {
@@ -395,13 +400,13 @@ export default function Salaries() {
                   <table className="xpl-table">
                     <thead>
                       <tr>
-                        <th>{t('col.sal.employee')}</th>
-                        <th>{t('col.sal.period')}</th>
-                        <th>{fcMoneyHeader(t('col.sal.base'))}</th>
-                        <th>{fcMoneyHeader(t('col.sal.gross'))}</th>
-                        <th>{fcMoneyHeader(t('col.sal.deductions'))}</th>
-                        <th>{fcMoneyHeader(t('col.sal.net'))}</th>
-                        <th>{t('col.status')}</th>
+                        <SortableHeader label={t('col.sal.employee')} title={t('col.sal.employee')} state={sort.getState('employee')} onToggle={() => sort.toggle('employee')} />
+                        <SortableHeader label={t('col.sal.period')} title={t('col.sal.period')} state={sort.getState('period')} onToggle={() => sort.toggle('period')} />
+                        <SortableHeader label={fcMoneyHeader(t('col.sal.base'))} title={t('col.sal.base')} state={sort.getState('base')} onToggle={() => sort.toggle('base')} />
+                        <SortableHeader label={fcMoneyHeader(t('col.sal.gross'))} title={t('col.sal.gross')} state={sort.getState('gross')} onToggle={() => sort.toggle('gross')} />
+                        <SortableHeader label={fcMoneyHeader(t('col.sal.deductions'))} title={t('col.sal.deductions')} state={sort.getState('deductions')} onToggle={() => sort.toggle('deductions')} />
+                        <SortableHeader label={fcMoneyHeader(t('col.sal.net'))} title={t('col.sal.net')} state={sort.getState('net')} onToggle={() => sort.toggle('net')} />
+                        <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
                         <th aria-label="فتح" />
                       </tr>
                     </thead>
@@ -453,14 +458,14 @@ export default function Salaries() {
                   <table className="xpl-table">
                     <thead>
                       <tr>
-                        <th>{t('col.sal.payment_date')}</th>
-                        <th>{t('col.sal.source_month')}</th>
-                        <th>{t('col.sal.transaction')}</th>
-                        <th>{t('col.sal.beneficiary')}</th>
-                        <th>{t('col.sal.bank')}</th>
-                        <th>{fcMoneyHeader(t('col.amount'))}</th>
-                        <th>{t('col.civil_id')}</th>
-                        <th>{t('col.status')}</th>
+                        <SortableHeader label={t('col.sal.payment_date')} title={t('col.sal.payment_date')} state={historySort.getState('paymentDate')} onToggle={() => historySort.toggle('paymentDate')} />
+                        <SortableHeader label={t('col.sal.source_month')} title={t('col.sal.source_month')} state={historySort.getState('sourceMonth')} onToggle={() => historySort.toggle('sourceMonth')} />
+                        <SortableHeader label={t('col.sal.transaction')} title={t('col.sal.transaction')} state={historySort.getState('transactionId')} onToggle={() => historySort.toggle('transactionId')} />
+                        <SortableHeader label={t('col.sal.beneficiary')} title={t('col.sal.beneficiary')} state={historySort.getState('beneficiaryName')} onToggle={() => historySort.toggle('beneficiaryName')} />
+                        <SortableHeader label={t('col.sal.bank')} title={t('col.sal.bank')} state={historySort.getState('bankName')} onToggle={() => historySort.toggle('bankName')} />
+                        <SortableHeader label={fcMoneyHeader(t('col.amount'))} title={t('col.amount')} state={historySort.getState('amount')} onToggle={() => historySort.toggle('amount')} />
+                        <SortableHeader label={t('col.civil_id')} title={t('col.civil_id')} state={historySort.getState('civilId')} onToggle={() => historySort.toggle('civilId')} />
+                        <SortableHeader label={t('col.status')} title={t('col.status')} state={historySort.getState('status')} onToggle={() => historySort.toggle('status')} />
                       </tr>
                     </thead>
                     <tbody>

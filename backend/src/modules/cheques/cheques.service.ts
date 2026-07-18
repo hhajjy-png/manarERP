@@ -5,6 +5,19 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
+
+// القائمة البيضاء للفرز (Enterprise Data Grid Foundation) — أعمدة سجل الشيكات.
+const CHEQUES_SORTABLE: SortWhitelist = {
+  chequeNumber: 'chequeNumber',
+  beneficiaryName: 'beneficiaryName',
+  bankName: 'bankName',
+  amount: 'amount',
+  chequeDate: 'chequeDate',
+  status: 'status',
+  paymentVoucherNumber: { field: 'paymentVoucherNumber', nullable: true },
+};
+const CHEQUES_DEFAULT_ORDER = [{ createdAt: 'desc' as const }];
 import { endOfDay } from '../../core/utils/dateWindows';
 import {
   CreateChequeInput,
@@ -70,12 +83,13 @@ export class ChequesService {
       ];
     }
 
+    const orderBy = buildOrderBy(query, CHEQUES_SORTABLE, CHEQUES_DEFAULT_ORDER, [{ id: 'desc' }]) as Prisma.ChequeOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
       prisma.cheque.findMany({
         where,
         skip: pagination.skip,
         take: pagination.take,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
       }),
       prisma.cheque.count({ where }),
     ]);

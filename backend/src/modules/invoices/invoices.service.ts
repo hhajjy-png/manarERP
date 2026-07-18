@@ -5,7 +5,23 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
+
+// القائمة البيضاء للفرز (Enterprise Data Grid Foundation) — مفاتيح أعمدة واجهة
+// الفواتير. «الجهة» (عميل أو مورّد حسب الاتجاه) و«المتبقي» (محسوب total-paid)
+// بلا حقل خلفي واحد → غير قابلَين للفرز عمدًا.
+const INVOICES_SORTABLE: SortWhitelist = {
+  invoiceNumber: 'invoiceNumber',
+  invoiceType: 'invoiceType',
+  direction: 'direction',
+  issueDate: 'issueDate',
+  total: 'total',
+  paidAmount: 'paidAmount',
+  status: 'status',
+};
+// الترتيب الافتراضي التاريخي كما هو (مفتاح id الثانوي كان موجودًا أصلًا لثبات الترقيم).
+const INVOICES_DEFAULT_ORDER = [{ issueDate: 'desc' as const }, { id: 'desc' as const }];
 import type { ReportInput } from '../../shared/services/reportEngine/excel.service';
 import { approvalEngine } from '../../shared/services/approval.service';
 import { GL_REFERENCE_TYPES } from '../../shared/services/gl.service';
@@ -109,13 +125,13 @@ export class InvoicesService {
       ];
     }
 
+    const orderBy = buildOrderBy(query, INVOICES_SORTABLE, INVOICES_DEFAULT_ORDER, [{ id: 'desc' }]) as Prisma.InvoiceOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
       prisma.invoice.findMany({
         where,
         skip: pagination.skip,
         take: pagination.take,
-        // مفتاح ثانوي id لثبات الترقيم عند تساوي تواريخ الإصدار.
-        orderBy: [{ issueDate: 'desc' }, { id: 'desc' }],
+        orderBy,
         include: { customer: { select: { name: true } }, supplier: { select: { name: true } } },
       }),
       prisma.invoice.count({ where }),

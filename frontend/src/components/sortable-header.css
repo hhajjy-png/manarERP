@@ -1,0 +1,52 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   SortableHeader — مؤشر الفرز الموحّد (Enterprise Data Grid Foundation v1)
+
+   يعمل داخل واجهتين بمتغيرات CSS مختلفة: جدول ExplorerKit (--xpl-*) والجدول
+   الكلاسيكي (--primary/--surface-2). كل قيمة لونية تمرّ عبر var(--xpl-*, <fallback>)
+   فتَحِلّ صحيحة في الواجهتين وفي السمتين الفاتحة والداكنة بلا ألوان صلبة جديدة.
+
+   لا تغيير في الحشوات أو الخط أو التخطيط: الزر يرث خصائص خط الترويسة الحاضنة
+   (بما فيها uppercase/letter-spacing في ExplorerKit) ويجلس مكان النص السابق.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.sort-th-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  text-align: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.sort-th-btn:hover { color: var(--xpl-primary, var(--primary)); }
+
+.sort-th-btn:focus-visible {
+  outline: 2px solid var(--xpl-primary, var(--primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* تلميح تفاعلي خافت على خلية الترويسة القابلة للفرز فقط */
+.sort-th:hover { background: var(--xpl-faint-2, var(--surface-2)); }
+
+.sort-th-icon {
+  font-size: 14px !important;
+  line-height: 1;
+  opacity: 0.4;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.sort-th--active .sort-th-icon,
+.sort-th--active .sort-th-btn {
+  color: var(--xpl-primary, var(--primary));
+}
+.sort-th--active .sort-th-icon { opacity: 1; }

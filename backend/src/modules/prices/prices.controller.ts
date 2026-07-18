@@ -15,6 +15,8 @@ export const list = asyncHandler(async (req: Request, res: Response) => {
     companyName: req.query.companyName as string | undefined,
     contractUnit: req.query.contractUnit as string | undefined,
     customerId,
+    sortBy: req.query.sortBy as string | undefined,
+    sortDir: req.query.sortDir as string | undefined,
   });
   ok(res, result);
 });

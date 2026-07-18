@@ -1,6 +1,21 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
+
+// القائمة البيضاء للفرز (Enterprise Data Grid Foundation) — سجل صرف الرواتب.
+// paymentDate الافتراضي نفسه اختياري → nulls آخرًا عند الفرز الصريح عليه.
+const SALARIES_SORTABLE: SortWhitelist = {
+  paymentDate: { field: 'paymentDate', nullable: true },
+  sourceMonth: { field: 'sourceMonth', nullable: true },
+  transactionId: 'transactionId',
+  beneficiaryName: 'beneficiaryName',
+  bankName: { field: 'bankName', nullable: true },
+  amount: 'amount',
+  civilId: { field: 'civilId', nullable: true },
+  status: { field: 'status', nullable: true },
+};
+const SALARIES_DEFAULT_ORDER = [{ paymentDate: 'desc' as const }, { id: 'desc' as const }];
 
 export class SalariesService {
   /** قائمة عمليات صرف الرواتب (مرقّمة + بحث/تصفية). */
@@ -17,8 +32,9 @@ export class SalariesService {
         { beneficiaryAccount: { contains: query.search } },
       ];
     }
+    const orderBy = buildOrderBy(query, SALARIES_SORTABLE, SALARIES_DEFAULT_ORDER, [{ id: 'desc' }]) as Prisma.SalaryPaymentOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
-      prisma.salaryPayment.findMany({ where, skip: pagination.skip, take: pagination.take, orderBy: { paymentDate: 'desc' } }),
+      prisma.salaryPayment.findMany({ where, skip: pagination.skip, take: pagination.take, orderBy }),
       prisma.salaryPayment.count({ where }),
     ]);
     return buildPaginatedResult(data, total, pagination);

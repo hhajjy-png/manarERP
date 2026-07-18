@@ -16,6 +16,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import { money, moneyParts, dateText, MoneyText, MoneyCell } from '../config/modules';
 import { KpiStat, KpiStatGrid } from '../components/KpiStat';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { useTableSort } from '../hooks/useTableSort';
+import SortableHeader from '../components/SortableHeader';
 import { canEditInvoice, collectionDateAction } from '../utils/invoiceGovernance';
 import ExportExcelButton from '../components/ExportExcelButton';
 import { downloadBlob } from '../utils/exportUtils';
@@ -108,6 +110,8 @@ export default function Invoices() {
   const [customerFilter, setCustomerFilter] = usePersistedState('inv:customer', '');
   const [monthFilter, setMonthFilter] = usePersistedState('inv:month', '');
   const [yearFilter, setYearFilter] = usePersistedState('inv:year', '');
+  // فرز خادمي موحّد (Enterprise Data Grid Foundation) — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
+  const sort = useTableSort('invoices', () => setPage(1));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [customers, setCustomers] = useState<any[]>([]);
   const [creating, setCreating] = useState(false);
@@ -136,6 +140,7 @@ export default function Invoices() {
     setCustomerFilter('');
     setMonthFilter('');
     setYearFilter('');
+    sort.reset();
     setPage(1);
   }
 
@@ -155,7 +160,7 @@ export default function Invoices() {
       to: periodRange.to,
     };
     try {
-      const res = await api.get('/invoices', { params: { page, pageSize: 15, ...filterParams } });
+      const res = await api.get('/invoices', { params: { page, pageSize: 15, ...filterParams, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) } });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } catch (e) {
@@ -166,7 +171,7 @@ export default function Invoices() {
     api.get('/invoices/stats', { params: filterParams })
       .then((r) => setStats(r.data.data ?? null))
       .catch(() => { /* stats are non-critical */ });
-  }, [page, search, statusFilter, directionFilter, customerFilter, monthFilter, yearFilter, period.fromDate, period.toDate, period.isAllPeriods]);
+  }, [page, search, statusFilter, directionFilter, customerFilter, monthFilter, yearFilter, period.fromDate, period.toDate, period.isAllPeriods, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -364,15 +369,17 @@ export default function Invoices() {
               <table className="xpl-table">
                 <thead>
                   <tr>
-                    <th>{t('col.inv.number')}</th>
+                    <SortableHeader label={t('col.inv.number')} title={t('col.inv.number')} state={sort.getState('invoiceNumber')} onToggle={() => sort.toggle('invoiceNumber')} />
+                    {/* الجهة: علاقة مركّبة (عميل أو مورّد) بلا حقل خادمي واحد — غير قابلة للفرز */}
                     <th>{t('col.inv.party')}</th>
-                    <th>{t('col.inv.type')}</th>
-                    <th>{t('col.inv.direction')}</th>
-                    <th>{t('col.date')}</th>
-                    <th>{fcMoneyHeader(t('col.inv.total'))}</th>
-                    <th>{fcMoneyHeader(t('col.inv.paid'))}</th>
+                    <SortableHeader label={t('col.inv.type')} title={t('col.inv.type')} state={sort.getState('invoiceType')} onToggle={() => sort.toggle('invoiceType')} />
+                    <SortableHeader label={t('col.inv.direction')} title={t('col.inv.direction')} state={sort.getState('direction')} onToggle={() => sort.toggle('direction')} />
+                    <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('issueDate')} onToggle={() => sort.toggle('issueDate')} />
+                    <SortableHeader label={fcMoneyHeader(t('col.inv.total'))} title={t('col.inv.total')} state={sort.getState('total')} onToggle={() => sort.toggle('total')} />
+                    <SortableHeader label={fcMoneyHeader(t('col.inv.paid'))} title={t('col.inv.paid')} state={sort.getState('paidAmount')} onToggle={() => sort.toggle('paidAmount')} />
+                    {/* المتبقي: قيمة محسوبة (الإجمالي - المسدّد) بلا حقل خادمي — غير قابلة للفرز */}
                     <th>{t('lbl.inv.remaining_amount')}</th>
-                    <th>{t('col.status')}</th>
+                    <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
                     <th aria-label="فتح" />
                   </tr>
                 </thead>

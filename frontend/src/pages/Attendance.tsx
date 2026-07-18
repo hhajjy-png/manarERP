@@ -10,6 +10,8 @@ import { normalizeDateOnly } from '../lib/dateInput';
 import ConfirmModal from '../components/ConfirmModal';
 import { dateText } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { useTableSort } from '../hooks/useTableSort';
+import SortableHeader from '../components/SortableHeader';
 import {
   ExecutiveHeader,
   IdChip,
@@ -164,6 +166,8 @@ export default function Attendance() {
   const [filterStatus, setFilterStatus] = usePersistedState('att:status', '');
   const [filterDateFrom, setFilterDateFrom] = usePersistedState('att:from', '');
   const [filterDateTo, setFilterDateTo] = usePersistedState('att:to', '');
+  // فرز خادمي موحّد (Enterprise Data Grid Foundation) — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
+  const sort = useTableSort('attendance', () => setPage(1));
 
   const [showCreate, setShowCreate] = useState(false);
   const [showCreateUnsaved, setShowCreateUnsaved] = useState(false);
@@ -189,7 +193,7 @@ export default function Attendance() {
       if (filterStatus) params.status = filterStatus;
       if (filterDateFrom) params.from = filterDateFrom;
       if (filterDateTo) params.to = filterDateTo;
-      const res = await api.get('/employees/attendance', { params });
+      const res = await api.get('/employees/attendance', { params: { ...params, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) } });
       const result = res.data.data;
       setRows(result.data ?? []);
       setMeta(result.meta ?? null);
@@ -199,7 +203,7 @@ export default function Attendance() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, filterEmployee, filterStatus, filterDateFrom, filterDateTo]);
+  }, [page, search, filterEmployee, filterStatus, filterDateFrom, filterDateTo, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -360,7 +364,7 @@ export default function Attendance() {
           {STATUS_CHIPS.map((s) => (
             <FilterChip key={s.value} active={filterStatus === s.value} onClick={() => { setFilterStatus(s.value); setPage(1); }}>{s.label}</FilterChip>
           ))}
-          {hasFilters && <button type="button" className="xpl-clear-link" onClick={() => { setSearch(''); setFilterEmployee(''); setFilterStatus(''); setFilterDateFrom(''); setFilterDateTo(''); setPage(1); }}>{t('action.reset_filters')}</button>}
+          {hasFilters && <button type="button" className="xpl-clear-link" onClick={() => { setSearch(''); setFilterEmployee(''); setFilterStatus(''); setFilterDateFrom(''); setFilterDateTo(''); sort.reset(); setPage(1); }}>{t('action.reset_filters')}</button>}
           <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} نتيجة</span>
         </div>
       </div>
@@ -381,12 +385,12 @@ export default function Attendance() {
               <table className="xpl-table">
                 <thead>
                   <tr>
-                    <th>{t('col.att.employee')}</th>
-                    <th>{t('field.date')}</th>
-                    <th>{t('col.att.check_in')}</th>
-                    <th>{t('col.att.check_out')}</th>
-                    <th>{t('col.att.work_hours')}</th>
-                    <th>{t('field.status')}</th>
+                    <SortableHeader label={t('col.att.employee')} title={t('col.att.employee')} state={sort.getState('employee')} onToggle={() => sort.toggle('employee')} />
+                    <SortableHeader label={t('field.date')} title={t('field.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
+                    <SortableHeader label={t('col.att.check_in')} title={t('col.att.check_in')} state={sort.getState('checkIn')} onToggle={() => sort.toggle('checkIn')} />
+                    <SortableHeader label={t('col.att.check_out')} title={t('col.att.check_out')} state={sort.getState('checkOut')} onToggle={() => sort.toggle('checkOut')} />
+                    <SortableHeader label={t('col.att.work_hours')} title={t('col.att.work_hours')} state={sort.getState('workHours')} onToggle={() => sort.toggle('workHours')} />
+                    <SortableHeader label={t('field.status')} title={t('field.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
                     <th aria-label="فتح" />
                   </tr>
                 </thead>

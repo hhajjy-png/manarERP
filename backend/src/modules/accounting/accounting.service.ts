@@ -4,6 +4,31 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
+
+// القوائم البيضاء للفرز (Enterprise Data Grid Foundation) — ثلاث قوائم محاسبية
+// مرقّمة خادميًا. «إجمالي المدين» في قائمة القيود محسوب من الأسطر → غير قابل
+// للفرز عمدًا (لا حقل خلفي). أسطر القيد داخل الـ Drawer مستند ثابت الترتيب.
+const ACCOUNTS_SORTABLE: SortWhitelist = {
+  code: 'code',
+  name: 'name',
+  type: 'type',
+  normalBalance: 'normalBalance',
+  isActive: 'isActive',
+};
+const JOURNAL_SORTABLE: SortWhitelist = {
+  entryNumber: 'entryNumber',
+  date: 'date',
+  description: 'description',
+  status: 'status',
+};
+const PAYMENTS_SORTABLE: SortWhitelist = {
+  invoice: (dir) => ({ invoice: { invoiceNumber: dir } }),
+  amount: 'amount',
+  method: 'method',
+  date: 'date',
+  reference: { field: 'reference', nullable: true },
+};
 import { validateJournalBalance } from './accounting.utils';
 import { generateEntryNumber, GL_REFERENCE_TYPES } from '../../shared/services/gl.service';
 import { glProfitAndLoss, glAccountFlow, GLDateRange } from '../../shared/services/gl.reporting';
@@ -52,12 +77,13 @@ export class AccountingService {
     if (query.isActive !== undefined) where.isActive = query.isActive !== 'false';
     if (query.search) where.name = { contains: query.search };
 
+    const orderBy = buildOrderBy(query, ACCOUNTS_SORTABLE, [{ code: 'asc' }], [{ id: 'desc' }]) as Prisma.AccountOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
       prisma.account.findMany({
         where,
         skip: pagination.skip,
         take: pagination.take,
-        orderBy: { code: 'asc' },
+        orderBy,
         include: { parent: { select: { code: true, name: true } } },
       }),
       prisma.account.count({ where }),
@@ -98,12 +124,13 @@ export class AccountingService {
       if (query.to) where.date.lte = new Date(query.to);
     }
 
+    const orderBy = buildOrderBy(query, JOURNAL_SORTABLE, [{ date: 'desc' }], [{ id: 'desc' }]) as Prisma.JournalEntryOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
       prisma.journalEntry.findMany({
         where,
         skip: pagination.skip,
         take: pagination.take,
-        orderBy: { date: 'desc' },
+        orderBy,
         include: { lines: { include: { account: { select: { code: true, name: true } } } } },
       }),
       prisma.journalEntry.count({ where }),
@@ -262,12 +289,13 @@ export class AccountingService {
       if (query.to) where.date.lte = new Date(query.to);
     }
 
+    const orderBy = buildOrderBy(query, PAYMENTS_SORTABLE, [{ date: 'desc' }], [{ id: 'desc' }]) as Prisma.PaymentOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
       prisma.payment.findMany({
         where,
         skip: pagination.skip,
         take: pagination.take,
-        orderBy: { date: 'desc' },
+        orderBy,
         include: { invoice: { select: { invoiceNumber: true, direction: true } } },
       }),
       prisma.payment.count({ where }),
