@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `4617fb4` (merge of `feature/hr-print-templates-visual-consistency-print-preview-initial-view-v1`) |
-| **Current Documentation Commit** | `d3138d2` — "docs: record HR Print Templates Visual Consistency & Print Preview Initial View Pack v1 release in PROJECT_STATE" |
-| **Current Stable Tag** | `stable-hr-print-templates-visual-consistency-print-preview-initial-view-v1` |
+| **Current Merge Commit** | `4593db0` (merge of `feature/enterprise-data-grid-foundation-v1`) |
+| **Current Documentation Commit** | *(filled in by the next commit — self-referencing hash pattern)* |
+| **Current Stable Tag** | `stable-enterprise-data-grid-foundation-v1` |
 | **Current Release Date** | 2026-07-18 |
-| **Total Stable Releases** | 306 (window 2026-06-07 → 2026-07-18) |
+| **Total Stable Releases** | 307 (window 2026-06-07 → 2026-07-18) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
