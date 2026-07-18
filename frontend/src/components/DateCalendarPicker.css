@@ -162,3 +162,132 @@
     border-color: var(--color-border);
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Calendar UX Refresh Pack v1 — presentation-only polish to the approved
+   mockup. NO logic, NO vendor edits, NO new tokens: every value below reuses
+   this app's existing brand tokens (theme.css: --accent/--accent-hover/
+   --accent-light/--surface-hover/--color-border/--color-*). All rules are
+   scoped to `.mnr-cal-pop` and, being UNLAYERED, win over the vendor's
+   Tailwind utilities (`utilities` layer) without `!important` — the same
+   mechanism the th/td and chevron fixes above already rely on. Mockup spec:
+   12px popover radius, 8px-grid spacing, soft elevation shadow, Inter/14px/
+   medium type, bordered header controls, brand-blue selected chip.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* Local radius scale (avoids repeating literals across the rules below). */
+.mnr-cal-pop {
+  --mnr-cal-radius: 12px; /* popover shell */
+  --mnr-cal-radius-sm: 10px; /* nav buttons, dropdowns, day cells */
+
+  /* Popover shell: 12px radius + soft elevation (mockup shadow spec) + Inter
+     type stack (falls back to the app's own Arabic UI font, so no font
+     dependency is introduced — Latin day numbers just render in Inter when
+     present). Unlayered → beats the vendor's `rounded-md`/`shadow-md`.
+
+     Surface & border use the APP's own dialog/modal/card tokens (theme.css
+     --surface / --border), NOT shadcn's neutral --sh-popover/--sh-border. This
+     is what makes dark mode read as manarERP's navy surface (#1e293b + #334155
+     edge) instead of a stray near-black panel from another design system, and
+     keeps light mode identical (--surface is #fff). Both switch with the app's
+     own theme automatically — no theme-specific override needed, no new color. */
+  border-radius: var(--mnr-cal-radius);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  background: var(--surface);
+  border-color: var(--border);
+  font-family: 'Inter', 'IBM Plex Sans Arabic', system-ui, 'Segoe UI', sans-serif;
+  font-size: 14px;
+}
+:root[data-theme='dark'] .mnr-cal-pop,
+.dark .mnr-cal-pop {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Slightly airier cell size (32→36px) for the premium proportions in the
+   mockup. Pure CSS-var override of the vendor's `[--cell-size:--spacing(8)]`;
+   header buttons and caption padding key off the same var, so the whole grid
+   scales coherently. Also lifts internal padding onto the 8px grid (16px). */
+.mnr-cal-pop [data-slot='calendar'] {
+  --cell-size: 2.25rem;
+  padding: 16px;
+}
+
+/* Header prev/next: flat ghost → bordered, rounded, tactile controls with a
+   subtle brand-tinted hover. Works in both themes (transparent rests flush on
+   the popover surface; translucent --surface-hover lightens on hover). */
+.mnr-cal-pop .rdp-button_previous,
+.mnr-cal-pop .rdp-button_next {
+  border: 1px solid var(--border);
+  border-radius: var(--mnr-cal-radius-sm);
+  background: transparent;
+  color: var(--color-foreground);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.mnr-cal-pop .rdp-button_previous:hover,
+.mnr-cal-pop .rdp-button_next:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+
+/* Month/Year dropdowns: consistent 10px radius, medium label, roomier pill
+   padding, and a subtle hover — matching the header buttons' language. */
+.mnr-cal-pop .rdp-dropdown_root {
+  border-radius: var(--mnr-cal-radius-sm);
+  border-color: var(--border);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.mnr-cal-pop .rdp-dropdown_root:hover {
+  border-color: var(--accent);
+}
+.mnr-cal-pop .rdp-caption_label {
+  padding-inline: 10px 6px;
+  font-weight: 500;
+}
+
+/* Day cells: rounded 10px, medium weight, smooth state transitions. (Resting
+   background stays transparent — the vendor's `hover:bg-accent` still supplies
+   the neutral hover fill shown in the mockup's "Hover" state.) */
+.mnr-cal-pop td button {
+  border-radius: var(--mnr-cal-radius-sm);
+  font-weight: 500;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Focus: dashed brand ring (mockup "Focus" state), consistent with the app's
+   accent-driven focus affordance elsewhere. */
+.mnr-cal-pop td button:focus-visible {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+
+/* Today: subtle brand-tinted fill + accent text (light) / light text on the
+   deep-blue accent-light (dark). Excludes the selected day so the solid chip
+   below always wins on the same date. */
+.mnr-cal-pop .rdp-today button:not([data-selected-single='true']) {
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 600;
+}
+:root[data-theme='dark'] .mnr-cal-pop .rdp-today button:not([data-selected-single='true']),
+.dark .mnr-cal-pop .rdp-today button:not([data-selected-single='true']) {
+  color: white;
+}
+
+/* Selected: solid brand-blue chip with white text (mockup's primary state),
+   holding blue through hover/focus. Uses --accent (both themes) rather than
+   the vendor's near-black --sh-primary. */
+.mnr-cal-pop button[data-selected-single='true'],
+.mnr-cal-pop button[data-selected-single='true']:focus-visible {
+  background: var(--accent);
+  color: white;
+}
+.mnr-cal-pop button[data-selected-single='true']:hover {
+  background: var(--accent-hover);
+  color: white;
+}
+
+/* Disabled: keep the vendor's muted+dimmed look, add the not-allowed cursor. */
+.mnr-cal-pop td button:disabled,
+.mnr-cal-pop td button[aria-disabled='true'] {
+  cursor: not-allowed;
+}
