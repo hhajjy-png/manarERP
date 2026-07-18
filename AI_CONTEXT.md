@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `7df6768` (merge of `feature/date-boundary-consistency-pack-v1`) |
-| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Documentation Commit** | `fb21a83` — "docs: record Date Boundary Consistency Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
 | **Current Stable Tag** | `stable-date-boundary-consistency-pack-v1` |
 | **Current Release Date** | 2026-07-18 |
 | **Total Stable Releases** | 310 (window 2026-06-07 → 2026-07-18) |
