@@ -4,6 +4,8 @@ import { tafqeetKWD } from '../lib/tafqeet';
 import { ProfileId, DEFAULT_PROFILE_ID, PRINT_PROFILES, getPrintProfileStyle } from './shared/printProfiles';
 import ApprovalSection from './shared/ApprovalSection';
 import { longTextCell } from './shared/formStyles';
+import FormQRCode from './shared/FormQRCode';
+import { getAuthorizedSignatory } from './shared/authorizedSignatories';
 
 export interface ContractParams {
   issueDate: string;
@@ -14,6 +16,7 @@ export interface ContractParams {
   annualLeaveDays: number;
   specialConditionsAr: string;
   specialConditionsEn: string;
+  authorizedSignatoryId: string;
 }
 
 export interface ContractEmployee {
@@ -43,23 +46,44 @@ function dmy(iso: string): string {
 function buildContractPrintCSS(profileId: ProfileId): string {
   const profile = PRINT_PROFILES[profileId];
   const padding = getPrintProfileStyle(profile);
+  // The 60mm vertical offset below is calibrated against the plain-a4 profile's
+  // top+bottom padding (10mm + 10mm = 20mm). Profiles with larger top/bottom padding
+  // (e.g. letterhead: 40mm + 20mm = 60mm) push page-1 content past the physical page
+  // bottom once the same 60mm offset is added on top, clipping the last article.
+  // Compensate page 1 only so its content lands at the same physical bottom edge as
+  // the calibrated plain-a4 layout. Page 2 uses a fixed 40mm offset (60mm base minus
+  // a 3cm upward adjustment, plus a later 1cm downward adjustment), uniform across profiles.
+  const baselineProfile = PRINT_PROFILES[DEFAULT_PROFILE_ID];
+  const mm = (value: string) => parseFloat(value);
+  const extraVerticalPadding =
+    (mm(profile.margins.top) + mm(profile.margins.bottom)) -
+    (mm(baselineProfile.margins.top) + mm(baselineProfile.margins.bottom));
+  const pageOneOffset = 60 - extraVerticalPadding;
   return `
 @media print {
   @page { size: A4; margin: 0; }
   html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
   .no-print { display: none !important; }
+  .contract-print-root {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
   .ec-page {
     font-size: 8.5pt !important;
     line-height: 1.45 !important;
     width: 210mm !important;
     padding: ${padding} !important;
     box-sizing: border-box !important;
+    transform: translateY(60mm) !important;
   }
   .ec-p1 {
+    transform: translateY(${pageOneOffset}mm) !important;
     break-after: page !important;
     page-break-after: always !important;
   }
   .ec-p2 {
+    transform: translateY(40mm) !important;
     break-after: auto !important;
     page-break-after: auto !important;
   }
@@ -78,7 +102,6 @@ const NOTE =
   'ملاحظة / هذا النموذج يعد نموذجاً إسترشادياً لشروط وأحكام عقد العمل في القطاع الأهلي، ويحق لكل شركة إعداد نموذج مماثل له على المطبوعات الخاصة بها شرط أن يتضمن كافة الأحكام والشروط الواردة بهذا النموذج';
 
 const wrap: CSSProperties = {
-  border: '1px solid #1d4e6f',
   fontFamily: '"Cairo", Arial, sans-serif',
   fontSize: 11,
   lineHeight: 1.5,
@@ -115,6 +138,7 @@ const en: CSSProperties = {
   padding: '4px 7px',
   direction: 'ltr',
   textAlign: 'left',
+  borderLeft: '1px solid #888',
   whiteSpace: 'pre-line',
   verticalAlign: 'top',
   fontSize: 10.5,
@@ -142,18 +166,38 @@ export default function EmploymentContractTemplate({
   params,
   profile = DEFAULT_PROFILE_ID,
   lang = 'ar',
+  formNumber,
 }: {
   employee: ContractEmployee;
   params: ContractParams;
   profile?: ProfileId;
   lang?: 'ar' | 'en';
+  formNumber: string;
 }) {
   const jobTitleEn = emp.jobTitleEn?.trim() || getJobTitleEn(emp.jobTitle);
   const natEn = emp.nationalityEn?.trim() || getNationalityEn(emp.nationality);
+  const signatory = getAuthorizedSignatory(params.authorizedSignatoryId);
   const issueD = new Date(params.issueDate);
   const issueFmt = dmy(params.issueDate);
   const startFmt = dmy(params.startDate);
   const sal = Math.round(emp.salary);
+  // Contract end date is not a stored field — derived from the fixed duration dropdown
+  // (1/2/3 years, see DURATION_OPTIONS in EmploymentContract.tsx) applied to startDate.
+  const CONTRACT_DURATION_YEARS: Record<string, number> = { 'سنة': 1, 'سنتين': 2, 'ثلاث سنوات': 3 };
+  const contractEndDate = new Date(params.startDate);
+  contractEndDate.setFullYear(contractEndDate.getFullYear() + (CONTRACT_DURATION_YEARS[params.durationAr] ?? 1));
+  const qrData = {
+    employeeName: emp.fullName,
+    civilId: emp.civilId ?? '—',
+    contractDuration: params.durationAr,
+    salary: sal,
+    companyName: 'شركة المنار الدولية',
+    contractEndDate: dmy(contractEndDate.toISOString()),
+    // Kept only so FormQRCode's own caption (data.formNumber, rendered below the QR
+    // image) keeps working — FormQRCode couples the encoded payload and the caption
+    // to the same object and must not be modified, so this can't be split out.
+    formNumber,
+  };
   const salWords = tafqeetKWD(sal);
   const dayAr = AR_DAYS[issueD.getDay()];
   const dayEn = EN_DAYS[issueD.getDay()];
@@ -179,17 +223,21 @@ export default function EmploymentContractTemplate({
         {/* EN PAGE 1 — Header + Articles 1–6 */}
         <div className="ec-page ec-p1" style={enWrap}>
 
-          <div style={{ ...fullRow, padding: '5px 10px' }}>
+          <div style={{ padding: '3px 10px', textAlign: 'center' }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>عقد عمل (نموذج الهيئة العامة للقوى العاملة)</div>
+            <div style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginTop: 1 }}>Employment Contract (Public Authority for Manpower Template)</div>
+          </div>
+
+          <div style={{ ...fullRow, padding: '3px 10px', display: 'flex', direction: 'rtl', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
             <img
               src="/contract_emblem.png"
               alt="Kuwait Public Authority Emblem"
-              style={{ height: 62, objectFit: 'contain' }}
+              style={{ height: 34, objectFit: 'contain' }}
             />
-          </div>
-
-          <div style={{ ...fullRow, padding: '3px 10px' }}>
-            <div style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginTop: 1 }}>The Public Authority For Manpower</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>الهـيئة العـامة للقـوى العـاملة</div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginTop: 1 }}>The Public Authority For Manpower</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>الهـيئة العـامة للقـوى العـاملة</div>
+            </div>
           </div>
 
           <div className="ec-row" style={{ ...enRow }}>
@@ -198,7 +246,7 @@ export default function EmploymentContractTemplate({
 
           <div className="ec-row" style={{ ...enRow }}>
             <div style={{ ...hdr }}>First Party (Employer):</div>
-            {`Company: ALAMANAR ALDAWLIYA\nRepresented by: HASSAN FALAH NAYEF AL-HAJJI\nCivil ID: 282081000827`}
+            {`Company: ALAMANAR ALDAWLIYA\nRepresented by: ${signatory.nameEn}\nCivil ID: ${signatory.civilId}`}
           </div>
 
           <div className="ec-row" style={{ ...enRow }}>
@@ -301,7 +349,7 @@ export default function EmploymentContractTemplate({
             <div>
               <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4 }}>First Party — Employer</div>
               <div style={{ fontSize: 10, color: '#374151', marginBottom: 72 }}>
-                ALAMANAR ALDAWLIYA · HASSAN FALAH NAYEF
+                ALAMANAR ALDAWLIYA · {signatory.nameEn}
               </div>
               <div style={{ borderTop: '1px solid #374151', paddingTop: 6, fontSize: 9.5, color: '#6b7280' }}>
                 Signature ___________ &nbsp;&nbsp;&nbsp; Date: ___________
@@ -335,17 +383,21 @@ export default function EmploymentContractTemplate({
       {/* PAGE 1 — Header + Articles 1–6 */}
       <div className="ec-page ec-p1" style={wrap}>
 
-        <div style={{ ...fullRow, padding: '5px 10px' }}>
+        <div style={{ padding: '3px 10px', textAlign: 'center' }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>عقد عمل (نموذج الهيئة العامة للقوى العاملة)</div>
+          <div style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginTop: 1 }}>Employment Contract (Public Authority for Manpower Template)</div>
+        </div>
+
+        <div style={{ ...fullRow, padding: '3px 10px', display: 'flex', direction: 'rtl', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <img
             src="/contract_emblem.png"
             alt="Kuwait Public Authority Emblem"
-            style={{ height: 62, objectFit: 'contain' }}
+            style={{ height: 34, objectFit: 'contain' }}
           />
-        </div>
-
-        <div style={{ ...fullRow, padding: '3px 10px' }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>الهـيئة العـامة للقـوى العـاملة</div>
-          <div style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginTop: 1 }}>The Public Authority For Manpower</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#111827' }}>الهـيئة العـامة للقـوى العـاملة</div>
+            <div style={{ fontSize: 11, fontWeight: 500, color: '#374151', marginTop: 1 }}>The Public Authority For Manpower</div>
+          </div>
         </div>
 
         <div className="ec-row" style={twoCol}>
@@ -356,11 +408,11 @@ export default function EmploymentContractTemplate({
         <div className="ec-row" style={twoCol}>
           <div className="ec-cell" style={ar}>
             <div style={{ ...hdr, direction: 'rtl' }}>الطرف الأول (صاحب العمل):</div>
-            {`شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة\nيمثلها: حسن فلاح نايف الحاجي\nرقم مدني: 282081000827`}
+            {`شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة\nيمثلها: ${signatory.nameAr}\nرقم مدني: ${signatory.civilId}`}
           </div>
           <div className="ec-cell" style={en}>
             <div style={hdr}>First Party (Employer):</div>
-            {`Company: ALAMANAR ALDAWLIYA\nRepresented by: HASSAN FALAH NAYEF AL-HAJJI\nCivil ID: 282081000827`}
+            {`Company: ALAMANAR ALDAWLIYA\nRepresented by: ${signatory.nameEn}\nCivil ID: ${signatory.civilId}`}
           </div>
         </div>
 
@@ -487,10 +539,7 @@ export default function EmploymentContractTemplate({
           <div style={{ ...ar, padding: '12px 10px' }}>
             <div style={{ fontWeight: 700, fontSize: 11, marginBottom: 4, direction: 'rtl' }}>الطرف الأول — صاحب العمل / First Party</div>
             <div style={{ fontSize: 10, color: '#374151', marginBottom: 72, direction: 'rtl' }}>
-              شركة المنار الدولية · حسن فلاح نايف
-            </div>
-            <div style={{ borderTop: '1px solid #374151', paddingTop: 6, fontSize: 9.5, color: '#6b7280', direction: 'rtl' }}>
-              التوقيع &nbsp;/&nbsp; Signature &nbsp;&nbsp;&nbsp; التاريخ / Date: ___________
+              شركة المنار الدولية · {signatory.nameAr}
             </div>
           </div>
           <div style={{ ...en, padding: '12px 10px' }}>
@@ -499,13 +548,22 @@ export default function EmploymentContractTemplate({
               {emp.fullNameEn ?? emp.fullName}
               {emp.civilId ? ` · ${emp.civilId}` : ''}
             </div>
-            <div style={{ borderTop: '1px solid #374151', paddingTop: 6, fontSize: 9.5, color: '#6b7280' }}>
-              Signature &nbsp;/&nbsp; التوقيع &nbsp;&nbsp;&nbsp; Date / التاريخ: ___________
-            </div>
           </div>
         </div>
 
         <div style={{ ...noteStyle, borderTop: '1px solid #888', borderBottom: 'none' }}>{NOTE}</div>
+
+        {/*
+          marginBottom is negative and generously exceeds this block's own rendered
+          height (QR image + gap + form-number caption, ~23mm) on purpose: it paints
+          in its normal in-flow position (unchanged) but contributes ~0 to .ec-p2's
+          computed height, so it can't push page 2's content past the print pagination
+          threshold into a 3rd page. This is the last child in .ec-page, so nothing
+          renders after it that a negative margin could disturb.
+        */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-30mm' }}>
+          <FormQRCode data={qrData as never} size={72} />
+        </div>
 
       </div>
     </>

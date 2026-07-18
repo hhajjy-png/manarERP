@@ -22,6 +22,7 @@ import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 import { usePrintDraftStore } from '../stores/printDraftStore';
 import { usePrintLogStore } from '../stores/printLogStore';
 import { getNationalityEn, getJobTitleEn, applyTranslationOverrides } from '../forms/shared/contractTranslations';
+import { AUTHORIZED_SIGNATORIES, DEFAULT_AUTHORIZED_SIGNATORY_ID } from '../forms/shared/authorizedSignatories';
 
 function todayISO(): string {
   return todayDateOnly();
@@ -33,25 +34,89 @@ const DURATION_OPTIONS = [
   { ar: 'ثلاث سنوات', en: 'THREE YEARS' },
 ] as const;
 
-const inp: React.CSSProperties = {
-  padding: '7px 10px',
-  border: '1px solid var(--border)',
-  borderRadius: 8,
-  background: 'var(--bg)',
-  color: 'var(--text)',
-  fontFamily: 'inherit',
-  fontSize: 13,
-  width: '100%',
-  boxSizing: 'border-box',
-};
-
-const lbl: React.CSSProperties = {
-  display: 'block',
-  fontSize: 12,
-  fontWeight: 700,
-  marginBottom: 5,
-  color: 'var(--text-muted)',
-};
+/**
+ * Enterprise-style panel/section chrome shared by the three data-entry screens
+ * (contract params, new-employee, existing-employee lookup). Reuses the app's
+ * existing design tokens (--surface/--border/--radius/--shadow/...) and the
+ * global `.field` label+input pattern — no new input styling is introduced.
+ * Scoped with an `ecx-` prefix distinct from `ModeSelector`'s own `.ecx-card`/
+ * `.ecx-cards`/`.ecx-note` classes so neither screen's styles collide.
+ */
+const ENTERPRISE_FORM_STYLES = `
+  .ecx-shell { max-width: 760px; margin-inline: auto; }
+  .ecx-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  .ecx-panel-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ecx-panel-icon {
+    font-size: 18px;
+    line-height: 1;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .ecx-panel-title { font-size: 15px; font-weight: 800; margin: 0; }
+  .ecx-panel-desc { font-size: 12.5px; color: var(--text-muted); margin: 3px 0 0; font-weight: 600; }
+  .ecx-grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .ecx-actions { display: flex; gap: 12px; margin-top: 4px; }
+  .ecx-employee-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--surface-2);
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+  .ecx-error-banner {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 18px;
+    color: #dc2626;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .ecx-hint-banner {
+    margin-top: 4px;
+    padding: 12px 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    line-height: 1.7;
+  }
+  .ecx-translate-btn {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--accent, #3b82f6);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 2px;
+    font-family: inherit;
+  }
+`;
 
 function defaultParams(): ContractParams {
   return {
@@ -63,6 +128,7 @@ function defaultParams(): ContractParams {
     annualLeaveDays: 30,
     specialConditionsAr: 'لايوجد',
     specialConditionsEn: 'NOTHING',
+    authorizedSignatoryId: DEFAULT_AUTHORIZED_SIGNATORY_ID,
   };
 }
 
@@ -86,6 +152,7 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
 
   return (
     <div className="page">
+      <style>{ENTERPRISE_FORM_STYLES}</style>
       <div className="page-head">
         <div>
           <h2>عقد العمل — بيانات العقد</h2>
@@ -96,60 +163,102 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
         </div>
       </div>
 
-      <div className="card" style={{ maxWidth: 640, padding: 28 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>تاريخ تحرير العقد</label>
-            <DateInput style={inp} value={params.issueDate}
-              onChange={v => onChange('issueDate', v)} />
+      <div className="ecx-shell">
+        <div className="ecx-panel">
+          <div className="ecx-panel-head">
+            <span className="ecx-panel-icon" aria-hidden="true">📅</span>
+            <div>
+              <h3 className="ecx-panel-title">التواريخ ومدة العقد</h3>
+              <p className="ecx-panel-desc">تاريخ التحرير، بداية النفاذ، والمدة التعاقدية</p>
+            </div>
           </div>
-          <div>
-            <label style={lbl}>تاريخ بداية نفاذ العقد</label>
-            <DateInput style={inp} value={params.startDate}
-              onChange={v => onChange('startDate', v)} />
+          <div className="ecx-grid-2" style={{ marginBottom: 16 }}>
+            <div className="field">
+              <label>تاريخ تحرير العقد</label>
+              <DateInput value={params.issueDate} onChange={v => onChange('issueDate', v)} />
+            </div>
+            <div className="field">
+              <label>تاريخ بداية نفاذ العقد</label>
+              <DateInput value={params.startDate} onChange={v => onChange('startDate', v)} />
+            </div>
           </div>
-        </div>
-
-        <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>مدة العقد</label>
-          <select title="مدة العقد" style={inp} value={params.durationAr}
-            onChange={e => handleDuration(e.target.value)}>
-            {DURATION_OPTIONS.map(o => (
-              <option key={o.ar} value={o.ar}>{o.ar} / {o.en}</option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>فترة التجربة (أيام)</label>
-            <input type="number" lang="en" style={inp} min={1} max={365}
-              value={params.probationDays}
-              onChange={e => onChange('probationDays', Math.max(1, Number(e.target.value)))} />
-          </div>
-          <div>
-            <label style={lbl}>الإجازة السنوية (أيام)</label>
-            <input type="number" lang="en" style={inp} min={1} max={60}
-              value={params.annualLeaveDays}
-              onChange={e => onChange('annualLeaveDays', Math.max(1, Number(e.target.value)))} />
+          <div className="field">
+            <label>مدة العقد</label>
+            <select title="مدة العقد" value={params.durationAr}
+              onChange={e => handleDuration(e.target.value)}>
+              {DURATION_OPTIONS.map(o => (
+                <option key={o.ar} value={o.ar}>{o.ar} / {o.en}</option>
+              ))}
+            </select>
           </div>
         </div>
 
-        <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>الشروط الخاصة (عربي)</label>
-          <input type="text" style={inp} value={params.specialConditionsAr}
-            onChange={e => onChange('specialConditionsAr', e.target.value)}
-            placeholder="لايوجد" />
+        <div className="ecx-panel">
+          <div className="ecx-panel-head">
+            <span className="ecx-panel-icon" aria-hidden="true">🖋️</span>
+            <div>
+              <h3 className="ecx-panel-title">المفوض بالتوقيع</h3>
+              <p className="ecx-panel-desc">ممثل الطرف الأول (صاحب العمل) في هذا العقد — يُحدَّث تلقائياً في كامل العقد</p>
+            </div>
+          </div>
+          <div className="field">
+            <label>المفوض بالتوقيع</label>
+            <select title="المفوض بالتوقيع" value={params.authorizedSignatoryId}
+              onChange={e => onChange('authorizedSignatoryId', e.target.value)}>
+              {AUTHORIZED_SIGNATORIES.map(s => (
+                <option key={s.id} value={s.id}>{s.nameAr}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        <div style={{ marginBottom: 20 }}>
-          <label style={lbl}>الشروط الخاصة (English)</label>
-          <input type="text" style={inp} value={params.specialConditionsEn}
-            onChange={e => onChange('specialConditionsEn', e.target.value)}
-            placeholder="NOTHING" />
+        <div className="ecx-panel">
+          <div className="ecx-panel-head">
+            <span className="ecx-panel-icon" aria-hidden="true">⏱️</span>
+            <div>
+              <h3 className="ecx-panel-title">فترة التجربة والإجازة السنوية</h3>
+            </div>
+          </div>
+          <div className="ecx-grid-2">
+            <div className="field">
+              <label>فترة التجربة (أيام)</label>
+              <input type="number" lang="en" min={1} max={365}
+                value={params.probationDays}
+                onChange={e => onChange('probationDays', Math.max(1, Number(e.target.value)))} />
+            </div>
+            <div className="field">
+              <label>الإجازة السنوية (أيام)</label>
+              <input type="number" lang="en" min={1} max={60}
+                value={params.annualLeaveDays}
+                onChange={e => onChange('annualLeaveDays', Math.max(1, Number(e.target.value)))} />
+            </div>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className="ecx-panel">
+          <div className="ecx-panel-head">
+            <span className="ecx-panel-icon" aria-hidden="true">📝</span>
+            <div>
+              <h3 className="ecx-panel-title">الشروط الخاصة</h3>
+            </div>
+          </div>
+          <div className="ecx-grid-2">
+            <div className="field">
+              <label>الشروط الخاصة (عربي)</label>
+              <input type="text" value={params.specialConditionsAr}
+                onChange={e => onChange('specialConditionsAr', e.target.value)}
+                placeholder="لايوجد" />
+            </div>
+            <div className="field">
+              <label>الشروط الخاصة (English)</label>
+              <input type="text" value={params.specialConditionsEn}
+                onChange={e => onChange('specialConditionsEn', e.target.value)}
+                placeholder="NOTHING" />
+            </div>
+          </div>
+        </div>
+
+        <div className="ecx-actions">
           <button className="btn" style={{ flex: 1 }} onClick={onConfirm}>
             معاينة وطباعة
           </button>
@@ -212,6 +321,7 @@ function NewEmployeeForm({ onComplete, onBack }: {
 
   return (
     <div className="page">
+      <style>{ENTERPRISE_FORM_STYLES}</style>
       <div className="page-head">
         <div>
           <h2>عقد العمل — بيانات الموظف الجديد</h2>
@@ -221,123 +331,137 @@ function NewEmployeeForm({ onComplete, onBack }: {
         </div>
       </div>
 
-      <div className="card" style={{ maxWidth: 640, padding: 28 }}>
-        {error && (
-          <div style={{
-            background: '#fef2f2', border: '1px solid #fca5a5',
-            borderRadius: 8, padding: '10px 14px', marginBottom: 16,
-            color: '#dc2626', fontSize: 13,
-          }}>
-            {error}
-          </div>
-        )}
+      <div className="ecx-shell">
+        {error && <div className="ecx-error-banner">{error}</div>}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>الاسم بالعربي <span style={{ color: '#dc2626' }}>*</span></label>
-            <input style={inp} value={data.fullName}
-              onChange={e => set('fullName', e.target.value)}
-              placeholder="الاسم الكامل بالعربي" />
-          </div>
-          <div>
-            <label style={lbl}>الاسم بالإنجليزي</label>
-            <input style={inp} value={data.fullNameEn}
-              onChange={e => set('fullNameEn', e.target.value)}
-              placeholder="Full name in English" />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>الرقم المدني</label>
-            <input style={inp} value={data.civilId}
-              onChange={e => set('civilId', e.target.value)}
-              placeholder="00000000000" />
-          </div>
-          <div>
-            <label style={lbl}>رقم الجواز</label>
-            <input style={inp} value={data.passportNumber}
-              onChange={e => set('passportNumber', e.target.value)} />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>الجنسية</label>
-            <input style={inp} value={data.nationality}
-              onChange={e => set('nationality', e.target.value)}
-              placeholder="مثال: كويتي" />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-              <label style={{ ...lbl, marginBottom: 0 }}>الجنسية بالإنجليزي</label>
-              {data.nationality && (
-                <button
-                  type="button"
-                  title="ترجمة الجنسية من العربي تلقائياً"
-                  style={{ fontSize: 11, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', fontFamily: 'inherit' }}
-                  onClick={() => set('nationalityEn', getNationalityEn(data.nationality))}
-                >
-                  ترجمة ←
-                </button>
-              )}
+        <div className="ecx-panel">
+          <div className="ecx-panel-head">
+            <span className="ecx-panel-icon" aria-hidden="true">🧑</span>
+            <div>
+              <h3 className="ecx-panel-title">الهوية</h3>
+              <p className="ecx-panel-desc">الاسم والرقم المدني وجواز السفر</p>
             </div>
-            <input style={inp} value={data.nationalityEn}
-              onChange={e => set('nationalityEn', e.target.value)}
-              placeholder="e.g. Kuwaiti" />
           </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>المسمى الوظيفي</label>
-            <input style={inp} value={data.jobTitle}
-              onChange={e => set('jobTitle', e.target.value)}
-              placeholder="مثال: مهندس مدني" />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-              <label style={{ ...lbl, marginBottom: 0 }}>المسمى الوظيفي بالإنجليزي</label>
-              {data.jobTitle && (
-                <button
-                  type="button"
-                  title="ترجمة المسمى الوظيفي من العربي تلقائياً"
-                  style={{ fontSize: 11, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', fontFamily: 'inherit' }}
-                  onClick={() => set('jobTitleEn', getJobTitleEn(data.jobTitle))}
-                >
-                  ترجمة ←
-                </button>
-              )}
+          <div className="ecx-grid-2" style={{ marginBottom: 16 }}>
+            <div className="field">
+              <label>الاسم بالعربي <span style={{ color: '#dc2626' }}>*</span></label>
+              <input value={data.fullName}
+                onChange={e => set('fullName', e.target.value)}
+                placeholder="الاسم الكامل بالعربي" />
             </div>
-            <input style={inp} value={data.jobTitleEn}
-              onChange={e => set('jobTitleEn', e.target.value)}
-              placeholder="e.g. Civil Engineer" />
+            <div className="field">
+              <label>الاسم بالإنجليزي</label>
+              <input value={data.fullNameEn}
+                onChange={e => set('fullNameEn', e.target.value)}
+                placeholder="Full name in English" />
+            </div>
+          </div>
+          <div className="ecx-grid-2">
+            <div className="field">
+              <label>الرقم المدني</label>
+              <input value={data.civilId}
+                onChange={e => set('civilId', e.target.value)}
+                placeholder="00000000000" />
+            </div>
+            <div className="field">
+              <label>رقم الجواز</label>
+              <input value={data.passportNumber}
+                onChange={e => set('passportNumber', e.target.value)} />
+            </div>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 14 }}>
-          <div>
-            <label style={lbl}>الراتب الشهري (د.ك) <span style={{ color: '#dc2626' }}>*</span></label>
-            <input type="number" lang="en" style={inp} value={data.salary}
-              onChange={e => set('salary', e.target.value)}
-              placeholder="0.000" min={0} step={0.001} />
+        <div className="ecx-panel">
+          <div className="ecx-panel-head">
+            <span className="ecx-panel-icon" aria-hidden="true">🌍</span>
+            <div>
+              <h3 className="ecx-panel-title">الجنسية والوظيفة</h3>
+            </div>
           </div>
-          <div>
-            <label style={lbl}>رقم الهاتف</label>
-            <input style={inp} value={data.phone}
-              onChange={e => set('phone', e.target.value)}
-              placeholder="+965 XXXX XXXX" />
+          <div className="ecx-grid-2" style={{ marginBottom: 16 }}>
+            <div className="field">
+              <label>الجنسية</label>
+              <input value={data.nationality}
+                onChange={e => set('nationality', e.target.value)}
+                placeholder="مثال: كويتي" />
+            </div>
+            <div className="field">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label>الجنسية بالإنجليزي</label>
+                {data.nationality && (
+                  <button
+                    type="button"
+                    className="ecx-translate-btn"
+                    title="ترجمة الجنسية من العربي تلقائياً"
+                    onClick={() => set('nationalityEn', getNationalityEn(data.nationality))}
+                  >
+                    ترجمة ←
+                  </button>
+                )}
+              </div>
+              <input value={data.nationalityEn}
+                onChange={e => set('nationalityEn', e.target.value)}
+                placeholder="e.g. Kuwaiti" />
+            </div>
+          </div>
+          <div className="ecx-grid-2">
+            <div className="field">
+              <label>المسمى الوظيفي</label>
+              <input value={data.jobTitle}
+                onChange={e => set('jobTitle', e.target.value)}
+                placeholder="مثال: مهندس مدني" />
+            </div>
+            <div className="field">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label>المسمى الوظيفي بالإنجليزي</label>
+                {data.jobTitle && (
+                  <button
+                    type="button"
+                    className="ecx-translate-btn"
+                    title="ترجمة المسمى الوظيفي من العربي تلقائياً"
+                    onClick={() => set('jobTitleEn', getJobTitleEn(data.jobTitle))}
+                  >
+                    ترجمة ←
+                  </button>
+                )}
+              </div>
+              <input value={data.jobTitleEn}
+                onChange={e => set('jobTitleEn', e.target.value)}
+                placeholder="e.g. Civil Engineer" />
+            </div>
           </div>
         </div>
 
-        <div style={{ marginBottom: 20 }}>
-          <label style={lbl}>العنوان</label>
-          <input style={inp} value={data.address}
-            onChange={e => set('address', e.target.value)}
-            placeholder="المنطقة، الشارع، القطعة، البناية..." />
+        <div className="ecx-panel">
+          <div className="ecx-panel-head">
+            <span className="ecx-panel-icon" aria-hidden="true">📞</span>
+            <div>
+              <h3 className="ecx-panel-title">التواصل والراتب</h3>
+            </div>
+          </div>
+          <div className="ecx-grid-2" style={{ marginBottom: 16 }}>
+            <div className="field">
+              <label>الراتب الشهري (د.ك) <span style={{ color: '#dc2626' }}>*</span></label>
+              <input type="number" lang="en" value={data.salary}
+                onChange={e => set('salary', e.target.value)}
+                placeholder="0.000" min={0} step={0.001} />
+            </div>
+            <div className="field">
+              <label>رقم الهاتف</label>
+              <input value={data.phone}
+                onChange={e => set('phone', e.target.value)}
+                placeholder="+965 XXXX XXXX" />
+            </div>
+          </div>
+          <div className="field">
+            <label>العنوان</label>
+            <input value={data.address}
+              onChange={e => set('address', e.target.value)}
+              placeholder="المنطقة، الشارع، القطعة، البناية..." />
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className="ecx-actions">
           <button className="btn" style={{ flex: 1 }} onClick={handleSubmit}>
             متابعة — بيانات العقد
           </button>
@@ -345,16 +469,7 @@ function NewEmployeeForm({ onComplete, onBack }: {
         </div>
 
         {/* Informational notice */}
-        <div style={{
-          marginTop: 16,
-          padding: '10px 14px',
-          background: 'var(--surface-2, #f0f9ff)',
-          border: '1px solid var(--info-border, #bae6fd)',
-          borderRadius: 8,
-          color: 'var(--text-muted)',
-          fontSize: 12,
-          lineHeight: 1.6,
-        }}>
+        <div className="ecx-hint-banner">
           <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>
             ملاحظة:
           </strong>
@@ -486,36 +601,31 @@ function ExistingEmployeeLookup({ onFound, onBack }: {
 
   return (
     <div className="page">
+      <style>{ENTERPRISE_FORM_STYLES}</style>
       <div className="page-head">
         <div>
           <h2>عقد العمل — البحث عن موظف</h2>
         </div>
       </div>
 
-      <div className="card" style={{ maxWidth: 480, padding: 28 }}>
-        {error && (
-          <div style={{
-            background: '#fef2f2', border: '1px solid #fca5a5',
-            borderRadius: 8, padding: '10px 14px', marginBottom: 16,
-            color: '#dc2626', fontSize: 13,
-          }}>
-            {error}
+      <div className="ecx-shell" style={{ maxWidth: 480 }}>
+        <div className="ecx-panel">
+          {error && <div className="ecx-error-banner">{error}</div>}
+
+          <div className="field" style={{ marginBottom: 16 }}>
+            <label>ابحث بالاسم أو الرقم المدني أو رمز الموظف</label>
+            <input value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              placeholder="مثال: أحمد، EMP-001، 287..." />
           </div>
-        )}
 
-        <div style={{ marginBottom: 16 }}>
-          <label style={lbl}>ابحث بالاسم أو الرقم المدني أو رمز الموظف</label>
-          <input style={inp} value={query}
-            onChange={e => setQuery(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSearch()}
-            placeholder="مثال: أحمد، EMP-001، 287..." />
-        </div>
-
-        <div style={{ display: 'flex', gap: 12 }}>
-          <button className="btn" style={{ flex: 1 }} onClick={handleSearch} disabled={loading}>
-            {loading ? 'جارٍ البحث…' : 'بحث'}
-          </button>
-          <button className="btn secondary" onClick={onBack}>رجوع</button>
+          <div className="ecx-actions">
+            <button className="btn" style={{ flex: 1 }} onClick={handleSearch} disabled={loading}>
+              {loading ? 'جارٍ البحث…' : 'بحث'}
+            </button>
+            <button className="btn secondary" onClick={onBack}>رجوع</button>
+          </div>
         </div>
       </div>
     </div>
@@ -721,7 +831,7 @@ export default function EmploymentContract() {
       {/* خارج الجذر القابل للطباعة — لا يدخل المستند المُركَّب. */}
       {preview.dialog}
       {accurate.dialog}
-      <div ref={printRootRef} style={{ maxWidth: 860, margin: '0 auto', padding: '16px 20px', background: '#fff' }}>
+      <div ref={printRootRef} className="contract-print-root" style={{ maxWidth: 860, margin: '0 auto', padding: '16px 20px', background: '#fff' }}>
         <div
           className="no-print"
           style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center' }}
@@ -747,7 +857,7 @@ export default function EmploymentContract() {
           </span>
         </div>
 
-        <EmploymentContractTemplate employee={employee} params={params} profile={profile} />
+        <EmploymentContractTemplate employee={employee} params={params} profile={profile} formNumber={formNumber} />
       </div>
       </>
     );

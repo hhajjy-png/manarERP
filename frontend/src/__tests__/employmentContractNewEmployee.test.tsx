@@ -157,7 +157,7 @@ describe('الطباعة والمعاينة — بلا تغيير', () => {
   });
 
   it('القالب يقرأ الاسم من كائن الموظف نفسه — لا مسار ثانٍ', () => {
-    expect(contractCode).toContain('<EmploymentContractTemplate employee={employee} params={params} profile={profile} />');
+    expect(contractCode).toContain('<EmploymentContractTemplate employee={employee} params={params} profile={profile} formNumber={formNumber} />');
     // القالب يقرأ الاسم من الكائن نفسه (عربي وإنجليزي) — لا مصدر ثانٍ للاسم.
     const tpl = readFileSync('src/forms/EmploymentContractTemplate.tsx', 'utf8');
     expect(tpl).toContain('emp.fullName');

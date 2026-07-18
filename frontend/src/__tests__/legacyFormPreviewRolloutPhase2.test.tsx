@@ -307,7 +307,7 @@ describe('عقد العمل — مِحوَل حول الزر فقط (لا طبا
 
   it('لم يُنقل إلى FormLayout ولم يتغيّر منطق البيانات أو القالب', () => {
     expect(contractCode).not.toContain('FormLayout');
-    expect(contractCode).toContain('<EmploymentContractTemplate employee={employee} params={params} profile={profile} />');
+    expect(contractCode).toContain('<EmploymentContractTemplate employee={employee} params={params} profile={profile} formNumber={formNumber} />');
     expect(contractCode).toContain('onSelectNew'); // خيار «موظف جديد» كما هو
   });
 
