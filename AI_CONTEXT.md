@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `da74be5` (merge of `feature/calendar-ux-refresh-pack-v1`) |
-| **Current Documentation Commit** | *(filled in below by the self-referencing update — see maintenance policy)* |
+| **Current Documentation Commit** | `0ee3fdf` — "docs: record Calendar UX Refresh Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
 | **Current Stable Tag** | `stable-calendar-ux-refresh-pack-v1` |
 | **Current Release Date** | 2026-07-18 |
 | **Total Stable Releases** | 309 (window 2026-06-07 → 2026-07-18) |
