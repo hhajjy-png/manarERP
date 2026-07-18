@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `da74be5` (merge of `feature/calendar-ux-refresh-pack-v1`) |
-| **Current Documentation Commit** | `0ee3fdf` — "docs: record Calendar UX Refresh Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
-| **Current Stable Tag** | `stable-calendar-ux-refresh-pack-v1` |
+| **Current Merge Commit** | `7df6768` (merge of `feature/date-boundary-consistency-pack-v1`) |
+| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Stable Tag** | `stable-date-boundary-consistency-pack-v1` |
 | **Current Release Date** | 2026-07-18 |
-| **Total Stable Releases** | 309 (window 2026-06-07 → 2026-07-18) |
+| **Total Stable Releases** | 310 (window 2026-06-07 → 2026-07-18) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,16 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Date Boundary Consistency Pack v1** (2026-07-18, `stable-date-boundary-consistency-pack-v1`) —
+  backend-only, no UI changes. Standardized `toDate`/`asOfDate` end-of-period handling to the canonical
+  `endOfDay()` helper across every financial report that previously used a bare `new Date(toDate)` (UTC
+  midnight), which silently excluded records posted later on the final day of a period: Trial Balance
+  (as-of + period), GL Report, GL Statement, Customer/Supplier Statement, Journal Book, Accounting
+  Payments list, Expenses list/stats, and Bank Salary Analytics. Also removed the last independent
+  reimplementation of this logic — a duplicate local `endOfDay(string)` in `reports.service.ts` — in
+  favor of the shared `dateWindows.ts` implementation. No accounting, posting, journal, permission,
+  schema, or API-contract change. Backend suite 115 files / 1737 tests pass; visual review gate waived
+  by explicit Product Owner confirmation (nothing to render).
 - **Bank Account Explorer Active Tabs Visual Polish v2** (2026-07-18, `stable-bank-account-explorer-active-tabs-visual-polish-v2`) —
   Dark Mode active-tab fix found by a UI consistency audit: the primary nav tabs and drawer info-hub sub-tabs
   relied only on a 2px underline (no background fill), blending into the page in Dark Mode. Fixed with a
