@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `4593db0` (merge of `feature/enterprise-data-grid-foundation-v1`) |
-| **Current Documentation Commit** | *(filled in by the next commit — self-referencing hash pattern)* |
+| **Current Documentation Commit** | `aee30ba` — "docs: record Enterprise Data Grid Foundation v1 release in PROJECT_STATE" |
 | **Current Stable Tag** | `stable-enterprise-data-grid-foundation-v1` |
 | **Current Release Date** | 2026-07-18 |
 | **Total Stable Releases** | 307 (window 2026-06-07 → 2026-07-18) |
