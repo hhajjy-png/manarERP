@@ -5,6 +5,7 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
 import { repostExpenseToGL, reverseExpenseFromGL } from './expenses.accounting';
 import { CreateExpenseInput, UpdateExpenseInput } from './expenses.schema';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
@@ -18,6 +19,21 @@ const FULL_INCLUDE = {
   supplier: { select: { id: true, name: true } },
   approvedBy: { select: { id: true, fullName: true } },
 };
+
+// القائمة البيضاء للفرز — المفاتيح مطابقة لمفاتيح أعمدة الواجهة (modules.tsx).
+// `category`/`status` يُفرزان على قيمة الـ enum الخام (ترجمة العرض في الواجهة فقط).
+const SORTABLE: SortWhitelist = {
+  code: 'code',
+  category: 'category',
+  description: 'description',
+  amount: 'amount',
+  date: 'date',
+  status: 'status',
+};
+// الترتيب الافتراضي التاريخي (date desc) + id كاسر تعادل حتمي — نفس نمط الفواتير
+// ([{issueDate}, {id}]): بدونه يكرّر skip/take صفوفًا متساوية التاريخ بين الصفحات.
+const DEFAULT_ORDER = [{ date: 'desc' as const }, { id: 'desc' as const }];
+const TIEBREAKER = [{ id: 'desc' as const }];
 
 export class ExpensesService {
   private async generateCode(client: Prisma.TransactionClient | typeof prisma = prisma) {
@@ -57,8 +73,9 @@ export class ExpensesService {
       ];
     }
 
+    const orderBy = buildOrderBy(query, SORTABLE, DEFAULT_ORDER, TIEBREAKER) as Prisma.ExpenseOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
-      prisma.expense.findMany({ where, skip: pagination.skip, take: pagination.take, orderBy: { date: 'desc' }, include: FULL_INCLUDE }),
+      prisma.expense.findMany({ where, skip: pagination.skip, take: pagination.take, orderBy, include: FULL_INCLUDE }),
       prisma.expense.count({ where }),
     ]);
 

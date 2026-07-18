@@ -5,7 +5,17 @@ import { BaseRepository } from '../../shared/repositories/BaseRepository';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
 import { CreateSupplierInput, UpdateSupplierInput } from './suppliers.schema';
+
+// القائمة البيضاء للفرز — المفاتيح مطابقة لمفاتيح أعمدة الواجهة (modules.tsx).
+const SORTABLE: SortWhitelist = {
+  code: 'code',
+  name: 'name',
+  phone: { field: 'phone', nullable: true },
+  contactName: { field: 'contactName', nullable: true },
+};
+const DEFAULT_ORDER = [{ id: 'desc' as const }];
 
 class SuppliersRepository extends BaseRepository<{ id: number }> {
   protected readonly model = 'supplier';
@@ -40,7 +50,8 @@ export class SuppliersService {
         { phone: { contains: query.search } },
       ];
     }
-    const { data, total } = await repo.findMany({ where, pagination });
+    const orderBy = buildOrderBy(query, SORTABLE, DEFAULT_ORDER);
+    const { data, total } = await repo.findMany({ where, pagination, orderBy });
     return buildPaginatedResult(data, total, pagination);
   }
 

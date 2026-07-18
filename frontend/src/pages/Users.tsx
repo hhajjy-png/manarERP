@@ -22,6 +22,9 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Users.css';
+import { useTableSort } from '../hooks/useTableSort';
+import SortableHeader from '../components/SortableHeader';
+import { sortRowsClient } from '../lib/clientSort';
 
 type UserRow = {
   id: number;
@@ -61,6 +64,8 @@ export default function Users() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [search, setSearch] = useState('');
+  // فرز الأعمدة الموحّد (محلي — المجموعة كاملة محمّلة بلا ترقيم خادمي).
+  const sort = useTableSort('users-list');
 
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [allPerms, setAllPerms] = useState<Record<string, Permission[]>>({});
@@ -174,6 +179,13 @@ export default function Users() {
       u.role.displayName.toLowerCase().includes(q));
   }, [users, search]);
 
+  // الفرز المحلي يُطبَّق بعد فلتر البحث — عمود الدور يُفرز باسم العرض.
+  const sortedUsers = useMemo(
+    () => sortRowsClient(filteredUsers, sort.sortBy, sort.sortDir,
+      (u, key) => (key === 'role' ? u.role.displayName : (u as unknown as Record<string, unknown>)[key])),
+    [filteredUsers, sort.sortBy, sort.sortDir],
+  );
+
   const kpi = useMemo(() => ({
     total: users.length,
     active: users.filter((u) => u.isActive).length,
@@ -240,15 +252,15 @@ export default function Users() {
                 <table className="xpl-table">
                   <thead>
                     <tr>
-                      <th>{t('col.users.username')}</th>
-                      <th>{t('col.users.fullname')}</th>
-                      <th>{t('col.users.role')}</th>
-                      <th>{t('col.users.status')}</th>
+                      <SortableHeader label={t('col.users.username')} title={t('col.users.username')} state={sort.getState('username')} onToggle={() => sort.toggle('username')} />
+                      <SortableHeader label={t('col.users.fullname')} title={t('col.users.fullname')} state={sort.getState('fullName')} onToggle={() => sort.toggle('fullName')} />
+                      <SortableHeader label={t('col.users.role')} title={t('col.users.role')} state={sort.getState('role')} onToggle={() => sort.toggle('role')} />
+                      <SortableHeader label={t('col.users.status')} title={t('col.users.status')} state={sort.getState('isActive')} onToggle={() => sort.toggle('isActive')} />
                       <th aria-label="فتح" />
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.map((u) => (
+                    {sortedUsers.map((u) => (
                       <tr key={u.id} className="xpl-row--click" tabIndex={0} role="button"
                         aria-label={`تفاصيل المستخدم ${u.fullName}`}
                         onClick={() => setViewing(u)}

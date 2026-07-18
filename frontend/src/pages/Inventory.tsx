@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { useTableSort } from '../hooks/useTableSort';
+import { sortRowsClient } from '../lib/clientSort';
+import SortableHeader from '../components/SortableHeader';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -206,6 +209,8 @@ function BalanceTab() {
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewing, setViewing] = useState<Material | null>(null);
+  // فرز محلي (Enterprise Data Grid Foundation) — الجدول محمّل بكامله فلا إعادة جلب.
+  const sort = useTableSort('inventory-balance');
 
   useEffect(() => {
     Promise.all([
@@ -221,6 +226,16 @@ function BalanceTab() {
   const lowStock = materials.filter((m) => m.currentStock <= m.minimumStock);
   const activeCats = categories.filter((c) => c.isActive).length;
 
+  // مستخرجات القيم المشتقة/المتداخلة — القيمة الإجمالية تطابق الخلية المحسوبة.
+  const sortedMaterials = useMemo(
+    () => sortRowsClient(materials, sort.sortBy, sort.sortDir, (r, key) => {
+      if (key === 'category') return r.category?.name;
+      if (key === 'totalValue') return r.currentStock * r.unitCost;
+      return r[key as keyof Material];
+    }),
+    [materials, sort.sortBy, sort.sortDir],
+  );
+
   return (
     <>
       <div className="invx-metrics">
@@ -235,9 +250,19 @@ function BalanceTab() {
       <TableShell loading={loading} empty={!loading && materials.length === 0 && <EmptyState icon="inventory" tone="neutral" title={t('empty.inv.materials_balance')} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.code')}</th><th>{t('col.inv.material')}</th><th>{t('col.category')}</th><th>{t('col.inv.current_stock')}</th><th>{fcMoneyHeader(t('col.inv.unit_cost'))}</th><th>{fcMoneyHeader(t('col.inv.total_value'))}</th><th>{t('col.status')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr>
+              <SortableHeader label={t('col.code')} title={t('col.code')} state={sort.getState('code')} onToggle={() => sort.toggle('code')} />
+              <SortableHeader label={t('col.inv.material')} title={t('col.inv.material')} state={sort.getState('name')} onToggle={() => sort.toggle('name')} />
+              <SortableHeader label={t('col.category')} title={t('col.category')} state={sort.getState('category')} onToggle={() => sort.toggle('category')} />
+              <SortableHeader label={t('col.inv.current_stock')} title={t('col.inv.current_stock')} state={sort.getState('currentStock')} onToggle={() => sort.toggle('currentStock')} />
+              <SortableHeader label={fcMoneyHeader(t('col.inv.unit_cost'))} title={t('col.inv.unit_cost')} state={sort.getState('unitCost')} onToggle={() => sort.toggle('unitCost')} />
+              <SortableHeader label={fcMoneyHeader(t('col.inv.total_value'))} title={t('col.inv.total_value')} state={sort.getState('totalValue')} onToggle={() => sort.toggle('totalValue')} />
+              {/* الحالة مشتقة من مقارنة الرصيد بالحد الأدنى — غير قابلة للفرز */}
+              <th>{t('col.status')}</th>
+              <th aria-label="فتح" />
+            </tr></thead>
             <tbody>
-              {materials.map((r) => (
+              {sortedMaterials.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.name}`}>
                   <td><span className="invx-code">{r.code}</span></td>
                   <td><strong>{r.name}</strong></td>
@@ -308,11 +333,22 @@ function CategoriesTab() {
   const [busy, setBusy] = useState(false);
   const [deleteCategoryId, setDeleteCategoryId] = useState<number | null>(null);
 
+  // فرز محلي (Enterprise Data Grid Foundation) — الجدول محمّل بكامله فلا إعادة جلب.
+  const sort = useTableSort('inventory-categories');
+
   const load = useCallback(async () => {
     setLoading(true);
     try { const res = await api.get('/inventory/categories', { params: { pageSize: 200 } }); setRows(res.data.data.data ?? []); } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const sortedRows = useMemo(
+    () => sortRowsClient(rows, sort.sortBy, sort.sortDir, (r, key) => {
+      if (key === 'materials') return r._count?.materials ?? 0;
+      return r[key as keyof MaterialCategory];
+    }),
+    [rows, sort.sortBy, sort.sortDir],
+  );
 
   async function executeDeleteCategory(id: number) {
     setDeleteCategoryId(null);
@@ -333,9 +369,15 @@ function CategoriesTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="label" tone="neutral" title={t('empty.inv.categories')} action={hasPermission('inventory.create') ? <Button variant="primary" icon="add" onClick={() => setEditing({})}>{t('btn.inv.new_category')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.inv.cat_name')}</th><th>{t('col.description')}</th><th>{t('col.inv.mat_count')}</th><th>{t('col.status')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr>
+              <SortableHeader label={t('col.inv.cat_name')} title={t('col.inv.cat_name')} state={sort.getState('name')} onToggle={() => sort.toggle('name')} />
+              <SortableHeader label={t('col.description')} title={t('col.description')} state={sort.getState('description')} onToggle={() => sort.toggle('description')} />
+              <SortableHeader label={t('col.inv.mat_count')} title={t('col.inv.mat_count')} state={sort.getState('materials')} onToggle={() => sort.toggle('materials')} />
+              <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('isActive')} onToggle={() => sort.toggle('isActive')} />
+              <th aria-label="فتح" />
+            </tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {sortedRows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.name}`}>
                   <td><strong>{r.name}</strong></td>
                   <td>{r.description ?? '—'}</td>
@@ -389,11 +431,13 @@ function MaterialsTab() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [deleteMaterialId, setDeleteMaterialId] = useState<number | null>(null);
+  // فرز خادمي — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
+  const sort = useTableSort('inventory-materials', () => setPage(1));
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const res = await api.get('/inventory/materials', { params: { page, pageSize: 15, search: search || undefined } }); setRows(res.data.data.data ?? []); setMeta(res.data.data.meta ?? null); } finally { setLoading(false); }
-  }, [page, search]);
+    try { const res = await api.get('/inventory/materials', { params: { page, pageSize: 15, search: search || undefined, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) } }); setRows(res.data.data.data ?? []); setMeta(res.data.data.meta ?? null); } finally { setLoading(false); }
+  }, [page, search, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
   async function executeDeleteMaterial(id: number) {
@@ -416,7 +460,16 @@ function MaterialsTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="category" tone="neutral" title={t('empty.inv.materials')} action={hasPermission('inventory.create') ? <Button variant="primary" icon="add" onClick={() => setEditing({})}>{t('btn.inv.new_material')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.code')}</th><th>{t('col.inv.material')}</th><th>{t('col.category')}</th><th>{t('col.inv.unit')}</th><th>{t('col.inv.current_stock')}</th><th>{fcMoneyHeader(t('col.inv.unit_cost'))}</th><th>{t('col.status')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr>
+              <SortableHeader label={t('col.code')} title={t('col.code')} state={sort.getState('code')} onToggle={() => sort.toggle('code')} />
+              <SortableHeader label={t('col.inv.material')} title={t('col.inv.material')} state={sort.getState('name')} onToggle={() => sort.toggle('name')} />
+              <SortableHeader label={t('col.category')} title={t('col.category')} state={sort.getState('category')} onToggle={() => sort.toggle('category')} />
+              <SortableHeader label={t('col.inv.unit')} title={t('col.inv.unit')} state={sort.getState('unit')} onToggle={() => sort.toggle('unit')} />
+              <SortableHeader label={t('col.inv.current_stock')} title={t('col.inv.current_stock')} state={sort.getState('currentStock')} onToggle={() => sort.toggle('currentStock')} />
+              <SortableHeader label={fcMoneyHeader(t('col.inv.unit_cost'))} title={t('col.inv.unit_cost')} state={sort.getState('unitCost')} onToggle={() => sort.toggle('unitCost')} />
+              <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('isActive')} onToggle={() => sort.toggle('isActive')} />
+              <th aria-label="فتح" />
+            </tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.name}`}>
@@ -465,11 +518,13 @@ function PurchaseOrdersTab() {
   const [busy, setBusy] = useState(false);
   const [pendingPost, setPendingPost] = useState<{ endpoint: string; confirmMsg: string; successMsg: string } | null>(null);
   const [deletePOId, setDeletePOId] = useState<number | null>(null);
+  // فرز خادمي — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
+  const sort = useTableSort('inventory-po', () => setPage(1));
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const res = await api.get('/inventory/purchase-orders', { params: { page, pageSize: 15, status: statusFilter || undefined } }); setRows(res.data.data.data ?? []); setMeta(res.data.data.meta ?? null); } finally { setLoading(false); }
-  }, [page, statusFilter]);
+    try { const res = await api.get('/inventory/purchase-orders', { params: { page, pageSize: 15, status: statusFilter || undefined, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) } }); setRows(res.data.data.data ?? []); setMeta(res.data.data.meta ?? null); } finally { setLoading(false); }
+  }, [page, statusFilter, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
   async function executePost(endpoint: string, successMsg: string) {
@@ -498,7 +553,15 @@ function PurchaseOrdersTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="shopping_cart" tone="neutral" title={t('empty.inv.po')} action={hasPermission('inventory.create') ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('btn.inv.new_po')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.number')}</th><th>{t('col.supplier')}</th><th>{t('col.date')}</th><th>{t('col.inv.expected_date')}</th><th>{t('col.status')}</th><th>{fcMoneyHeader(t('col.inv.total'))}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr>
+              <SortableHeader label={t('col.number')} title={t('col.number')} state={sort.getState('number')} onToggle={() => sort.toggle('number')} />
+              <SortableHeader label={t('col.supplier')} title={t('col.supplier')} state={sort.getState('supplier')} onToggle={() => sort.toggle('supplier')} />
+              <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
+              <SortableHeader label={t('col.inv.expected_date')} title={t('col.inv.expected_date')} state={sort.getState('expectedDate')} onToggle={() => sort.toggle('expectedDate')} />
+              <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
+              <SortableHeader label={fcMoneyHeader(t('col.inv.total'))} title={t('col.inv.total')} state={sort.getState('totalAmount')} onToggle={() => sort.toggle('totalAmount')} />
+              <th aria-label="فتح" />
+            </tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.number}`}>
@@ -559,11 +622,13 @@ function GoodsReceiptsTab() {
   const [busy, setBusy] = useState(false);
   const [postGRId, setPostGRId] = useState<number | null>(null);
   const [deleteGRId, setDeleteGRId] = useState<number | null>(null);
+  // فرز خادمي — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
+  const sort = useTableSort('inventory-gr', () => setPage(1));
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const res = await api.get('/inventory/goods-receipts', { params: { page, pageSize: 15 } }); setRows(res.data.data.data ?? []); setMeta(res.data.data.meta ?? null); } finally { setLoading(false); }
-  }, [page]);
+    try { const res = await api.get('/inventory/goods-receipts', { params: { page, pageSize: 15, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) } }); setRows(res.data.data.data ?? []); setMeta(res.data.data.meta ?? null); } finally { setLoading(false); }
+  }, [page, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
   async function executePostGR(id: number) {
@@ -590,7 +655,15 @@ function GoodsReceiptsTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="inventory_2" tone="neutral" title={t('empty.inv.gr')} action={hasPermission('inventory.create') ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('btn.inv.new_gr')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.number')}</th><th>{t('col.supplier')}</th><th>{t('col.inv.po_ref')}</th><th>{t('col.date')}</th><th>{t('col.status')}</th><th>{fcMoneyHeader(t('col.inv.total'))}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr>
+              <SortableHeader label={t('col.number')} title={t('col.number')} state={sort.getState('number')} onToggle={() => sort.toggle('number')} />
+              <SortableHeader label={t('col.supplier')} title={t('col.supplier')} state={sort.getState('supplier')} onToggle={() => sort.toggle('supplier')} />
+              <SortableHeader label={t('col.inv.po_ref')} title={t('col.inv.po_ref')} state={sort.getState('purchaseOrder')} onToggle={() => sort.toggle('purchaseOrder')} />
+              <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
+              <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
+              <SortableHeader label={fcMoneyHeader(t('col.inv.total'))} title={t('col.inv.total')} state={sort.getState('totalCost')} onToggle={() => sort.toggle('totalCost')} />
+              <th aria-label="فتح" />
+            </tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.number}`}>
@@ -653,11 +726,13 @@ function MaterialIssuesTab() {
   const [postMIId, setPostMIId] = useState<number | null>(null);
   const [cancelMIId, setCancelMIId] = useState<number | null>(null);
   const [deleteMIId, setDeleteMIId] = useState<number | null>(null);
+  // فرز خادمي — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
+  const sort = useTableSort('inventory-mi', () => setPage(1));
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const res = await api.get('/inventory/material-issues', { params: { page, pageSize: 15, status: statusFilter || undefined } }); setRows(res.data.data.data ?? []); setMeta(res.data.data.meta ?? null); } finally { setLoading(false); }
-  }, [page, statusFilter]);
+    try { const res = await api.get('/inventory/material-issues', { params: { page, pageSize: 15, status: statusFilter || undefined, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) } }); setRows(res.data.data.data ?? []); setMeta(res.data.data.meta ?? null); } finally { setLoading(false); }
+  }, [page, statusFilter, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
   async function executePostMI(id: number) { setPostMIId(null); if (busy) return; setBusy(true); try { await api.post(`/inventory/material-issues/${id}/post`); toast.ok('تم الترحيل بنجاح'); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }
@@ -679,7 +754,14 @@ function MaterialIssuesTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="output" tone="neutral" title={t('empty.inv.mi')} action={hasPermission('inventory.create') ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('btn.inv.new_mi')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.number')}</th><th>{t('col.contract_no')}</th><th>{t('col.date')}</th><th>{t('col.status')}</th><th>{fcMoneyHeader(t('col.inv.total'))}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr>
+              <SortableHeader label={t('col.number')} title={t('col.number')} state={sort.getState('number')} onToggle={() => sort.toggle('number')} />
+              <SortableHeader label={t('col.contract_no')} title={t('col.contract_no')} state={sort.getState('contract')} onToggle={() => sort.toggle('contract')} />
+              <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
+              <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
+              <SortableHeader label={fcMoneyHeader(t('col.inv.total'))} title={t('col.inv.total')} state={sort.getState('totalCost')} onToggle={() => sort.toggle('totalCost')} />
+              <th aria-label="فتح" />
+            </tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.number}`}>

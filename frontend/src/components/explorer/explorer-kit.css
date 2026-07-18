@@ -540,6 +540,10 @@
   background: var(--xpl-faint) !important;
   box-shadow: inset 2px 0 0 var(--xpl-primary), inset -2px 0 0 var(--xpl-primary);
 }
+/* صفوف متعرّجة فائقة الخفوت — أساس اختياري مطفأ افتراضيًا (Data Grid Foundation v1).
+   لا تُطبَّق حتى تُضاف الفئة xpl-table--zebra صراحةً؛ التمرير والتحديد أعلى أولويةً. */
+.xpl-table--zebra tbody tr:nth-child(even) { background: color-mix(in srgb, var(--xpl-faint-2) 45%, transparent); }
+.xpl-table--zebra tbody tr:hover { background: var(--xpl-faint-2); }
 .xpl-mono { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--xpl-muted); font-variant-numeric: tabular-nums; }
 
 /* Shared row-affordance chevron (last table cell).

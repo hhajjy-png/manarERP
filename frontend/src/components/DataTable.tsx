@@ -1,6 +1,8 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import { useT } from '../lib/i18n';
 import { fcMoneyHeader } from './financial/financialLabels';
+import SortableHeader from './SortableHeader';
+import type { TableSortController } from '../hooks/useTableSort';
 
 export interface Column {
   /** عمود مالي: عنوانه يحمل رمز العملة مرّة واحدة («المبلغ (KWD)»)، وخلاياه أرقام مجرّدة. */
@@ -15,6 +17,19 @@ export interface Column {
   multiline?: boolean;
   /** Fixed column width (CSS value, e.g. '120px' or '10%') */
   width?: string;
+  /**
+   * فرز خادمي معتمد (Enterprise Data Grid Foundation v1) — شرط لازم لا كافٍ:
+   * العمود يُفرز فقط إذا حمل هذا العلم **و** كان مفتاحه مُدرجًا في القائمة
+   * البيضاء لوحدته في الخادم (حدّ الأمان الفعلي). بدونه الترويسة كما هي تمامًا.
+   */
+  sortable?: boolean;
+  /**
+   * عمود ترقيم تسلسلي «#» (معيار ترقيم الصفوف) — بديل المعرّفات التجارية غير
+   * الضرورية. الرقم موضعي فوق نتيجة الاستعلام الحالية فيحترم الفرز والبحث
+   * والفلاتر تلقائيًا، ويتابع عبر الصفحات: صفحة 2 بحجم 15 تبدأ من 16.
+   * غير قابل للفرز بطبيعته (لا حقل خلفي له).
+   */
+  rowNumber?: boolean;
 }
 
 export interface PageMeta {
@@ -47,6 +62,10 @@ interface Props {
   /** Called when a data row is clicked (not the expand toggle) */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onRowClick?: (row: any) => void;
+  /** متحكّم الفرز الموحّد — غيابه = سلوك اليوم حرفيًا (لا ترويسات قابلة للفرز). */
+  sort?: TableSortController;
+  /** صفوف متعرّجة فائقة الخفوت — اختيارية ومطفأة افتراضيًا (أساس v1 فقط). */
+  zebra?: boolean;
 }
 
 const SKELETON_ROWS = 5;
@@ -86,6 +105,8 @@ export default function DataTable({
   onColumnVisibilityChange,
   expandRow,
   onRowClick,
+  sort,
+  zebra,
 }: Props) {
   const { t } = useT();
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(
@@ -165,6 +186,11 @@ export default function DataTable({
         .dt-clickable-row:hover td { background: var(--surface-2) !important; }
         .dt-truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; display: block; }
         .dt-multiline { white-space: normal; word-break: break-word; }
+        /* تمرير خافت موحّد فوق صفوف البيانات (Enterprise Data Grid Foundation v1) */
+        .dt-table tbody tr:not(.skeleton-row):not(.dt-expand-row):hover td { background: var(--surface-2); }
+        /* صفوف متعرّجة اختيارية — مطفأة افتراضيًا؛ التمرير أعلاها أولويةً بترتيب القواعد */
+        .dt-table--zebra tbody tr:nth-child(even):not(.skeleton-row):not(.dt-expand-row) td { background: color-mix(in srgb, var(--surface-2) 45%, transparent); }
+        .dt-table--zebra tbody tr:not(.skeleton-row):not(.dt-expand-row):hover td { background: var(--surface-2); }
       `}</style>
       <div className="card panel" style={{ padding: 0 }}>
         {/* Column visibility toolbar */}
@@ -216,15 +242,27 @@ export default function DataTable({
         </div>
 
         <div className="table-responsive" style={{ minHeight: 120 }}>
-          <table aria-busy={loading ? true : false}>
+          <table className={`dt-table${zebra ? ' dt-table--zebra' : ''}`} aria-busy={loading ? true : false}>
             <thead>
               <tr>
                 {hasExpand && <th scope="col" aria-label={t('action.expand')} style={{ width: 32 }} />}
-                {visibleColumns.map((c) => (
-                  <th key={c.key} scope="col" style={c.width ? { width: c.width } : undefined}>
-                    {c.money ? fcMoneyHeader(t(c.label)) : t(c.label)}
-                  </th>
-                ))}
+                {visibleColumns.map((c) => {
+                  const headerLabel = c.money ? fcMoneyHeader(t(c.label)) : t(c.label);
+                  return c.sortable && sort ? (
+                    <SortableHeader
+                      key={c.key}
+                      label={headerLabel}
+                      title={t(c.label)}
+                      state={sort.getState(c.key)}
+                      onToggle={() => sort.toggle(c.key)}
+                      width={c.width}
+                    />
+                  ) : (
+                    <th key={c.key} scope="col" style={c.width ? { width: c.width } : undefined}>
+                      {headerLabel}
+                    </th>
+                  );
+                })}
                 {actions && <th scope="col" className="th-actions">{t('col.actions')}</th>}
               </tr>
             </thead>
@@ -281,6 +319,10 @@ export default function DataTable({
                           </td>
                         )}
                         {visibleColumns.map((c) => {
+                          if (c.rowNumber) {
+                            const seq = meta ? (meta.page - 1) * meta.pageSize + i + 1 : i + 1;
+                            return <td key={c.key} style={{ color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{seq}</td>;
+                          }
                           const rawVal = row[c.key];
                           const rendered = c.render ? c.render(row) : (rawVal ?? '—');
                           if (c.truncate && !c.render) {

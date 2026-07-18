@@ -5,6 +5,7 @@ import { prisma } from '@config/database';
 import { AppError } from '@core/errors/AppError';
 import { recordAudit } from '@core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '@core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '@core/utils/sort';
 import { transactionsService } from '@modules/transactions/transactions.service';
 import {
   CreateCategoryInput,
@@ -20,6 +21,41 @@ import {
 import { roundCost, calcWAC, sufficientStock } from './inventory.calc';
 
 type DbClient = typeof prisma | Prisma.TransactionClient;
+
+// القوائم البيضاء للفرز (Enterprise Data Grid Foundation) — أربع قوائم مخزون
+// مرقّمة خادميًا. المفاتيح مطابقة لأعمدة واجهة Inventory.tsx.
+const MATERIALS_SORTABLE: SortWhitelist = {
+  code: 'code',
+  name: 'name',
+  category: (dir) => ({ category: { name: dir } }),
+  unit: 'unit',
+  currentStock: 'currentStock',
+  unitCost: 'unitCost',
+  isActive: 'isActive',
+};
+const PO_SORTABLE: SortWhitelist = {
+  number: 'number',
+  supplier: (dir) => ({ supplier: { name: dir } }),
+  date: 'date',
+  expectedDate: { field: 'expectedDate', nullable: true },
+  status: 'status',
+  totalAmount: 'totalAmount',
+};
+const GR_SORTABLE: SortWhitelist = {
+  number: 'number',
+  supplier: (dir) => ({ supplier: { name: dir } }),
+  purchaseOrder: (dir) => ({ purchaseOrder: { number: dir } }),
+  date: 'date',
+  status: 'status',
+  totalCost: 'totalCost',
+};
+const MI_SORTABLE: SortWhitelist = {
+  number: 'number',
+  contract: (dir) => ({ contract: { code: dir } }),
+  date: 'date',
+  status: 'status',
+  totalCost: 'totalCost',
+};
 
 // ── تصنيفات المواد ────────────────────────────────────────────────────────
 
@@ -106,12 +142,13 @@ export class MaterialsService {
       ];
     }
 
+    const orderBy = buildOrderBy(query, MATERIALS_SORTABLE, [{ name: 'asc' }], [{ id: 'desc' }]) as Prisma.MaterialOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
       prisma.material.findMany({
         where,
         skip: pagination.skip,
         take: pagination.take,
-        orderBy: { name: 'asc' },
+        orderBy,
         include: { category: { select: { id: true, name: true } } },
       }),
       prisma.material.count({ where }),
@@ -181,12 +218,13 @@ export class PurchaseOrdersService {
     if (query.supplierId) where.supplierId = Number(query.supplierId);
     if (query.status) where.status = query.status;
     if (query.search) where.number = { contains: query.search };
+    const orderBy = buildOrderBy(query, PO_SORTABLE, [{ date: 'desc' }], [{ id: 'desc' }]) as Prisma.PurchaseOrderOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
       prisma.purchaseOrder.findMany({
         where,
         skip: pagination.skip,
         take: pagination.take,
-        orderBy: { date: 'desc' },
+        orderBy,
         include: {
           supplier: { select: { id: true, name: true } },
           _count: { select: { items: true, receipts: true } },
@@ -345,12 +383,13 @@ export class GoodsReceiptsService {
     if (query.status) where.status = query.status;
     if (query.purchaseOrderId) where.purchaseOrderId = Number(query.purchaseOrderId);
     if (query.search) where.number = { contains: query.search };
+    const orderBy = buildOrderBy(query, GR_SORTABLE, [{ date: 'desc' }], [{ id: 'desc' }]) as Prisma.GoodsReceiptOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
       prisma.goodsReceipt.findMany({
         where,
         skip: pagination.skip,
         take: pagination.take,
-        orderBy: { date: 'desc' },
+        orderBy,
         include: {
           supplier: { select: { id: true, name: true } },
           purchaseOrder: { select: { id: true, number: true } },
@@ -518,12 +557,13 @@ export class MaterialIssuesService {
     if (query.contractId) where.contractId = Number(query.contractId);
     if (query.status) where.status = query.status;
     if (query.search) where.number = { contains: query.search };
+    const orderBy = buildOrderBy(query, MI_SORTABLE, [{ date: 'desc' }], [{ id: 'desc' }]) as Prisma.MaterialIssueOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
       prisma.materialIssue.findMany({
         where,
         skip: pagination.skip,
         take: pagination.take,
-        orderBy: { date: 'desc' },
+        orderBy,
         include: {
           contract: { select: { id: true, code: true, asphaltPlant: true } },
           _count: { select: { items: true } },

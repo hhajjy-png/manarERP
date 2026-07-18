@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { money, dateText, MoneyText, MoneyCell } from '../config/modules';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { useTableSort } from '../hooks/useTableSort';
+import { sortRowsClient } from '../lib/clientSort';
+import SortableHeader from '../components/SortableHeader';
 import {
   ExecutiveHeader,
   IdChip,
@@ -73,6 +76,10 @@ function clickRow(handler: () => void) {
 const Chevron = () => <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>;
 function TableShell({ loading, empty, children }: { loading: boolean; empty: React.ReactNode; children: React.ReactNode }) {
   return <section className="xpl-card" style={{ overflow: 'hidden' }}>{loading ? <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div> : empty ? empty : children}</section>;
+}
+// مستخرج قيمة الفرز المشترك لجداول الصيانة — عمود «المعدة» يُفرز برمزها المتداخل
+function maintSortValue<T extends { equipment?: { code: string } }>(row: T, key: string): unknown {
+  return key === 'equipment' ? row.equipment?.code ?? '' : (row as unknown as Record<string, unknown>)[key];
 }
 
 // ── Summary KPIs ──────────────────────────────────────────────────────────────
@@ -217,6 +224,8 @@ function RecordsTab() {
   const [filterType, setFilterType] = usePersistedState('maint:records:type', '');
   const [filterDateFrom, setFilterDateFrom] = usePersistedState('maint:records:from', '');
   const [filterDateTo, setFilterDateTo] = usePersistedState('maint:records:to', '');
+  // فرز محلي موحّد (Enterprise Data Grid Foundation v1) — المجموعة محمّلة بكاملها
+  const sort = useTableSort('maintenance-records');
 
   const [showCreate, setShowCreate] = useState(false);
   const [viewing, setViewing] = useState<MaintenanceRecord | null>(null);
@@ -255,6 +264,9 @@ function RecordsTab() {
         return (r.equipment?.code ?? '').toLowerCase().includes(q) || (r.equipment?.name ?? '').toLowerCase().includes(q) || r.description.toLowerCase().includes(q) || (r.performedBy ?? '').toLowerCase().includes(q);
       })
     : rows;
+
+  // الفرز المحلي يُطبَّق بعد فلترة البحث الموجودة
+  const sorted = useMemo(() => sortRowsClient(visible, sort.sortBy, sort.sortDir, maintSortValue), [visible, sort.sortBy, sort.sortDir]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -334,9 +346,18 @@ function RecordsTab() {
       <TableShell loading={loading} empty={!loading && visible.length === 0 && <EmptyState icon="build" tone="neutral" title={t('empty.maint.records')} action={hasPermission('maintenance.create') ? <Button variant="primary" icon="add" onClick={() => { setCreateForm(EMPTY_FORM); setShowCreate(true); }}>{t('action.maint.add_record')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.equipment_no')}</th><th>{t('col.maint.type')}</th><th>{t('col.description')}</th><th>{fcMoneyHeader(t('col.amount'))}</th><th>{t('col.maint.performed_by')}</th><th>{t('col.date')}</th><th>{t('col.status')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr>
+              <SortableHeader label={t('col.equipment_no')} title={t('col.equipment_no')} state={sort.getState('equipment')} onToggle={() => sort.toggle('equipment')} />
+              <SortableHeader label={t('col.maint.type')} title={t('col.maint.type')} state={sort.getState('type')} onToggle={() => sort.toggle('type')} />
+              <SortableHeader label={t('col.description')} title={t('col.description')} state={sort.getState('description')} onToggle={() => sort.toggle('description')} />
+              <SortableHeader label={fcMoneyHeader(t('col.amount'))} title={t('col.amount')} state={sort.getState('cost')} onToggle={() => sort.toggle('cost')} />
+              <SortableHeader label={t('col.maint.performed_by')} title={t('col.maint.performed_by')} state={sort.getState('performedBy')} onToggle={() => sort.toggle('performedBy')} />
+              <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
+              <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
+              <th aria-label="فتح" />
+            </tr></thead>
             <tbody>
-              {visible.map((r) => (
+              {sorted.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل صيانة ${r.equipment?.code ?? r.equipmentId}`}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span>{r.equipment?.name ? <span style={{ color: 'var(--xpl-muted)', fontSize: 12, marginInlineStart: 6 }}>{r.equipment.name}</span> : null}</td>
                   <td>{maintType[r.type] ?? r.type}</td>
@@ -418,6 +439,8 @@ function FuelTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterEquip, setFilterEquip] = usePersistedState('maint:fuel:equip', '');
+  // فرز محلي موحّد (Enterprise Data Grid Foundation v1) — المجموعة محمّلة بكاملها
+  const sort = useTableSort('maintenance-fuel');
   const [showCreate, setShowCreate] = useState(false);
   const [viewing, setViewing] = useState<FuelLog | null>(null);
   const [saving, setSaving] = useState(false);
@@ -451,6 +474,8 @@ function FuelTab() {
     } catch (e) { setError(errorMessage(e)); } finally { setSaving(false); }
   }
 
+  const sorted = useMemo(() => sortRowsClient(rows, sort.sortBy, sort.sortDir, maintSortValue), [rows, sort.sortBy, sort.sortDir]);
+
   const totalLiters = rows.reduce((s, r) => s + r.liters, 0);
   const totalCost = rows.reduce((s, r) => s + r.cost, 0);
 
@@ -479,9 +504,17 @@ function FuelTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="local_gas_station" tone="neutral" title={t('empty.maint.fuel')} action={hasPermission('maintenance.create') ? <Button variant="primary" icon="add" onClick={() => setShowCreate(true)}>{t('action.maint.add_fuel')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.equipment_no')}</th><th>{t('col.maint.liters')}</th><th>{fcMoneyHeader(t('col.amount'))}</th><th>{t('col.maint.odometer')}</th><th>{t('col.date')}</th><th>{t('col.notes')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr>
+              <SortableHeader label={t('col.equipment_no')} title={t('col.equipment_no')} state={sort.getState('equipment')} onToggle={() => sort.toggle('equipment')} />
+              <SortableHeader label={t('col.maint.liters')} title={t('col.maint.liters')} state={sort.getState('liters')} onToggle={() => sort.toggle('liters')} />
+              <SortableHeader label={fcMoneyHeader(t('col.amount'))} title={t('col.amount')} state={sort.getState('cost')} onToggle={() => sort.toggle('cost')} />
+              <SortableHeader label={t('col.maint.odometer')} title={t('col.maint.odometer')} state={sort.getState('odometer')} onToggle={() => sort.toggle('odometer')} />
+              <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
+              <th>{t('col.notes')}</th>
+              <th aria-label="فتح" />
+            </tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {sorted.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل وقود ${r.equipment?.code ?? r.equipmentId}`}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span></td>
                   <td>{r.liters.toLocaleString()} L</td>
@@ -542,6 +575,8 @@ function BreakdownsTab() {
   const [error, setError] = useState('');
   const [filterEquip, setFilterEquip] = usePersistedState('maint:bd:equip', '');
   const [filterStatus, setFilterStatus] = usePersistedState('maint:bd:status', '');
+  // فرز محلي موحّد (Enterprise Data Grid Foundation v1) — المجموعة محمّلة بكاملها
+  const sort = useTableSort('maintenance-breakdowns');
   const [showCreate, setShowCreate] = useState(false);
   const [viewing, setViewing] = useState<Breakdown | null>(null);
   const [saving, setSaving] = useState(false);
@@ -578,6 +613,8 @@ function BreakdownsTab() {
     try { await api.patch(`/maintenance/breakdowns/${id}/resolve`); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setResolving(null); }
   }
 
+  const sorted = useMemo(() => sortRowsClient(rows, sort.sortBy, sort.sortDir, maintSortValue), [rows, sort.sortBy, sort.sortDir]);
+
   const openCount = rows.filter((r) => r.status === 'OPEN').length;
   const resolvedCount = rows.filter((r) => r.status === 'RESOLVED').length;
   const STATUS_CHIPS = [['', t('filter.all_statuses')], ['OPEN', t('opt.maint.breakdown_open')], ['RESOLVED', t('opt.maint.breakdown_resolved')]];
@@ -610,9 +647,17 @@ function BreakdownsTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="report" tone="neutral" title={t('empty.maint.breakdowns')} action={hasPermission('maintenance.create') ? <Button variant="primary" icon="add" onClick={() => setShowCreate(true)}>{t('action.maint.report_breakdown')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.equipment_no')}</th><th>{t('col.description')}</th><th>{t('col.maint.severity')}</th><th>{t('col.status')}</th><th>{t('col.maint.reported_at')}</th><th>{t('col.maint.resolved_at')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr>
+              <SortableHeader label={t('col.equipment_no')} title={t('col.equipment_no')} state={sort.getState('equipment')} onToggle={() => sort.toggle('equipment')} />
+              <SortableHeader label={t('col.description')} title={t('col.description')} state={sort.getState('description')} onToggle={() => sort.toggle('description')} />
+              <SortableHeader label={t('col.maint.severity')} title={t('col.maint.severity')} state={sort.getState('severity')} onToggle={() => sort.toggle('severity')} />
+              <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
+              <SortableHeader label={t('col.maint.reported_at')} title={t('col.maint.reported_at')} state={sort.getState('reportedAt')} onToggle={() => sort.toggle('reportedAt')} />
+              <SortableHeader label={t('col.maint.resolved_at')} title={t('col.maint.resolved_at')} state={sort.getState('resolvedAt')} onToggle={() => sort.toggle('resolvedAt')} />
+              <th aria-label="فتح" />
+            </tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {sorted.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل عطل ${r.equipment?.code ?? r.equipmentId}`}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span></td>
                   <td><span className="mntx-desc">{r.description}</span></td>
@@ -678,6 +723,8 @@ function SparePartsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterEquip, setFilterEquip] = usePersistedState('maint:spare:equip', '');
+  // فرز محلي موحّد (Enterprise Data Grid Foundation v1) — المجموعة محمّلة بكاملها
+  const sort = useTableSort('maintenance-spares');
   const [showCreate, setShowCreate] = useState(false);
   const [viewing, setViewing] = useState<SparePart | null>(null);
   const [saving, setSaving] = useState(false);
@@ -709,6 +756,8 @@ function SparePartsTab() {
     } catch (e) { setError(errorMessage(e)); } finally { setSaving(false); }
   }
 
+  const sorted = useMemo(() => sortRowsClient(rows, sort.sortBy, sort.sortDir, maintSortValue), [rows, sort.sortBy, sort.sortDir]);
+
   const totalCost = rows.reduce((s, r) => s + r.totalCost, 0);
 
   return (
@@ -736,9 +785,17 @@ function SparePartsTab() {
       <TableShell loading={loading} empty={!loading && rows.length === 0 && <EmptyState icon="settings" tone="neutral" title={t('empty.maint.spare_parts')} action={hasPermission('maintenance.create') ? <Button variant="primary" icon="add" onClick={() => setShowCreate(true)}>{t('action.maint.add_spare_part')}</Button> : undefined} />}>
         <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table className="xpl-table">
-            <thead><tr><th>{t('col.equipment_no')}</th><th>{t('col.maint.part_name')}</th><th>{t('col.maint.quantity')}</th><th>{fcMoneyHeader(t('col.maint.unit_cost'))}</th><th>{fcMoneyHeader(t('col.maint.total_cost'))}</th><th>{t('col.date')}</th><th aria-label="فتح" /></tr></thead>
+            <thead><tr>
+              <SortableHeader label={t('col.equipment_no')} title={t('col.equipment_no')} state={sort.getState('equipment')} onToggle={() => sort.toggle('equipment')} />
+              <SortableHeader label={t('col.maint.part_name')} title={t('col.maint.part_name')} state={sort.getState('partName')} onToggle={() => sort.toggle('partName')} />
+              <SortableHeader label={t('col.maint.quantity')} title={t('col.maint.quantity')} state={sort.getState('quantity')} onToggle={() => sort.toggle('quantity')} />
+              <SortableHeader label={fcMoneyHeader(t('col.maint.unit_cost'))} title={t('col.maint.unit_cost')} state={sort.getState('unitCost')} onToggle={() => sort.toggle('unitCost')} />
+              <SortableHeader label={fcMoneyHeader(t('col.maint.total_cost'))} title={t('col.maint.total_cost')} state={sort.getState('totalCost')} onToggle={() => sort.toggle('totalCost')} />
+              <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
+              <th aria-label="فتح" />
+            </tr></thead>
             <tbody>
-              {rows.map((r) => (
+              {sorted.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل قطعة ${r.partName}`}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span></td>
                   <td><strong>{r.partName}</strong></td>

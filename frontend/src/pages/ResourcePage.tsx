@@ -5,6 +5,8 @@ import { MODULES, money } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import DataTable, { PageMeta } from '../components/DataTable';
+import SortableHeader from '../components/SortableHeader';
+import { useTableSort } from '../hooks/useTableSort';
 import FormDialog from '../components/FormDialog';
 import Modal from '../components/Modal';
 import ForceDeleteEquipmentModal from '../components/ForceDeleteEquipmentModal';
@@ -65,6 +67,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [search, setSearch] = usePersistedState(`rp:${cfg.key}:search`, '');
   const [query, setQuery] = usePersistedState(`rp:${cfg.key}:query`, '');
   const [filterValue, setFilterValue] = usePersistedState(`rp:${cfg.key}:filter`, '');
+  // فرز خادمي موحّد لكل وحدة (rp:<module>:sort) — تغيير الفرز استعلام جديد فيعود
+  // للصفحة الأولى؛ البحث/الفلاتر/الترقيم لا تمسّ حالة الفرز (حالة عرض مستقلة).
+  const sort = useTableSort(cfg.key, () => setPage(1));
   const [error, setError] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);
@@ -104,6 +109,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           search: query,
           pageSize: 15,
           ...(cfg.statusFilter && filterValue ? { [cfg.statusFilter.param]: filterValue } : {}),
+          ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
         },
       });
       setRows(res.data.data.data ?? []);
@@ -113,7 +119,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     } finally {
       setLoading(false);
     }
-  }, [cfg.endpoint, page, query, filterValue, cfg.statusFilter]);
+  }, [cfg.endpoint, page, query, filterValue, cfg.statusFilter, sort.sortBy, sort.sortDir]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -387,7 +393,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   if (explorer) {
     const kpis = explorerKpis();
     const useHero = kpis.length >= 3;
-    function resetAll() { setSearch(''); setQuery(''); setFilterValue(''); setPage(1); }
+    function resetAll() { setSearch(''); setQuery(''); setFilterValue(''); sort.reset(); setPage(1); }
 
     // Information Hub for this module, if one is registered (currently: customers
     // only). When present it replaces the drawer body and draws its own header
@@ -399,7 +405,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     // two drawer branches below don't duplicate the field-rendering markup.
     const basicSection = viewing ? (
       <DrawerSection title={t(cfg.title)}>
-        {cfg.columns.map((c) => (
+        {cfg.columns.filter((c) => !c.rowNumber).map((c) => (
           <div className="xpl-drawer-field" key={c.key}>
             <span className="xpl-drawer-field-label">{t(c.label)}</span>
             <span className="xpl-drawer-field-value">{c.render ? c.render(viewing) : (viewing[c.key] ?? '—')}</span>
@@ -508,17 +514,33 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
                 <table className="xpl-table">
                   <thead>
                     <tr>
-                      {cfg.columns.map((c) => <th key={c.key}>{t(c.label)}</th>)}
+                      {cfg.columns.map((c) => c.sortable ? (
+                        <SortableHeader
+                          key={c.key}
+                          label={t(c.label)}
+                          title={t(c.label)}
+                          state={sort.getState(c.key)}
+                          onToggle={() => sort.toggle(c.key)}
+                        />
+                      ) : (
+                        <th key={c.key}>{t(c.label)}</th>
+                      ))}
                       <th aria-label="فتح" />
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((r) => (
-                      <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
+                    {rows.map((r, i) => (
+                      <tr key={r.id} className={`xpl-row--click${viewing?.id === r.id ? ' xpl-row--selected' : ''}`} tabIndex={0} role="button"
                         aria-label={`تفاصيل ${r.name ?? r.fullName ?? r.code ?? r.id}`}
                         onClick={() => setViewing(r)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
-                        {cfg.columns.map((c) => <td key={c.key}>{c.render ? c.render(r) : (r[c.key] ?? '—')}</td>)}
+                        {cfg.columns.map((c) => (
+                          <td key={c.key} style={c.rowNumber ? { color: 'var(--xpl-muted)', fontVariantNumeric: 'tabular-nums', width: 44 } : undefined}>
+                            {c.rowNumber
+                              ? (meta ? (meta.page - 1) * meta.pageSize + i + 1 : i + 1)
+                              : (c.render ? c.render(r) : (r[c.key] ?? '—'))}
+                          </td>
+                        ))}
                         <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
                       </tr>
                     ))}
@@ -728,7 +750,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         onPage={setPage}
         emptyText={cfg.emptyText ? t(cfg.emptyText) : undefined}
         isFiltered={!!(query || filterValue)}
-        onResetFilters={() => { setSearch(''); setQuery(''); setFilterValue(''); setPage(1); }}
+        onResetFilters={() => { setSearch(''); setQuery(''); setFilterValue(''); sort.reset(); setPage(1); }}
+        sort={sort}
         emptyAction={canCreate ? (
           <button type="button" className="btn" onClick={() => setCreating(true)}>＋ {t(cfg.createLabel)}</button>
         ) : undefined}

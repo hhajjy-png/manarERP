@@ -5,12 +5,23 @@ import { customersRepository } from './customers.repository';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
 import { CreateCustomerInput, UpdateCustomerInput } from './customers.schema';
 
 interface CustomerQuery extends PaginationQuery {
   type?: string;
   archived?: string;
 }
+
+// القائمة البيضاء للفرز — المفاتيح مطابقة لمفاتيح أعمدة الواجهة (modules.tsx).
+const SORTABLE: SortWhitelist = {
+  code: 'code',
+  name: 'name',
+  type: 'type',
+  phone: { field: 'phone', nullable: true },
+  contactName: { field: 'contactName', nullable: true },
+};
+const DEFAULT_ORDER = [{ id: 'desc' as const }];
 
 interface ChildCounts {
   contracts: number;
@@ -38,7 +49,8 @@ export class CustomersService {
       ];
     }
 
-    const { data, total } = await customersRepository.findMany({ where, pagination });
+    const orderBy = buildOrderBy(query, SORTABLE, DEFAULT_ORDER);
+    const { data, total } = await customersRepository.findMany({ where, pagination, orderBy });
     return buildPaginatedResult(data, total, pagination);
   }
 

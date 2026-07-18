@@ -9,6 +9,15 @@ import { normalizeMoney, calculateRunningBalances, calculateClosingBalance, sumD
 import { sanitizeFilters }             from '@shared/services/financial/summary.utils';
 import { calculateAgingBuckets, toAgingEntries, DEFAULT_AGING_BUCKETS } from '@shared/services/financial/aging.utils';
 import { endOfDay } from '@core/utils/dateWindows';
+import { sortRowsInMemory, RowValueGetter } from '@core/utils/sort';
+
+// القائمة البيضاء لفرز تقرير الأستاذ العام (أعمدة الحساب الاسمية فقط —
+// الأرصدة تُحسب للصفحة المقتطعة وحدها فلا يمكن الفرز عليها دون إعادة هيكلة).
+const GL_REPORT_SORTABLE: Record<string, RowValueGetter<{ code: string; name: string; type: string }>> = {
+  code: (a) => a.code,
+  name: (a) => a.name,
+  type: (a) => a.type,
+};
 import { toStatementReportInput }      from '@shared/services/financial/export/statement.export.adapter';
 import { toAgingReportInput }          from '@shared/services/financial/export/aging.export.adapter';
 import { toGlStatementReportInput, toGlReportInput } from '@shared/services/financial/export/gl.export.adapter';
@@ -417,6 +426,8 @@ export class FinancialService {
     accountType?: string;
     page?:        number;
     pageSize?:    number;
+    sortBy?:      string;
+    sortDir?:     string;
   }): Promise<GlReportResponse> {
     const page     = filters.page     ?? 1;
     const pageSize = filters.pageSize ?? 20;
@@ -426,8 +437,13 @@ export class FinancialService {
       orderBy: { code: 'asc' },
     });
 
-    const total             = allAccounts.length;
-    const paginatedAccounts = allAccounts.slice((page - 1) * pageSize, page * pageSize);
+    // فرز أعمدة الحساب الاسمية فقط (Enterprise Data Grid Foundation) — يقع قبل
+    // اقتطاع الصفحة لأن التجميعات المالية تُحسب للصفحة المقتطعة وحدها؛ أعمدة
+    // الأرصدة المحسوبة (افتتاحي/مدين/دائن/إقفال) غير قابلة للفرز عمدًا لهذا السبب.
+    const sortedAccounts = sortRowsInMemory(allAccounts, filters, GL_REPORT_SORTABLE);
+
+    const total             = sortedAccounts.length;
+    const paginatedAccounts = sortedAccounts.slice((page - 1) * pageSize, page * pageSize);
     const paginatedIds      = paginatedAccounts.map(a => a.id);
 
     // Two grouped aggregate queries instead of N×2 per-account queries

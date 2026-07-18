@@ -31,6 +31,8 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './Prices.css';
+import { useTableSort } from '../hooks/useTableSort';
+import SortableHeader from '../components/SortableHeader';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 const contractUnits = ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'] as const;
@@ -57,6 +59,8 @@ export default function Prices() {
   const [filterCompany, setFilterCompany] = useState('');
   const [filterUnit, setFilterUnit] = useState('');
   const [filterCustomer, setFilterCustomer] = useState('');
+  // فرز الأعمدة الموحّد (خادمي — القائمة الرئيسية فقط) — فرز جديد يعيد إلى الصفحة الأولى.
+  const sort = useTableSort('prices', () => setPage(1));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [customers, setCustomers] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,14 +101,14 @@ export default function Prices() {
     setLoading(true);
     try {
       const res = await api.get('/prices', {
-        params: { page, pageSize: 20, search: search || undefined, asphaltPlant: filterPlant || undefined, companyName: filterCompany || undefined, contractUnit: filterUnit || undefined, customerId: filterCustomer || undefined },
+        params: { page, pageSize: 20, search: search || undefined, asphaltPlant: filterPlant || undefined, companyName: filterCompany || undefined, contractUnit: filterUnit || undefined, customerId: filterCustomer || undefined, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) },
       });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } finally {
       setLoading(false);
     }
-  }, [page, search, filterPlant, filterCompany, filterUnit, filterCustomer]);
+  }, [page, search, filterPlant, filterCompany, filterUnit, filterCustomer, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
   async function loadUsageReport() {
@@ -152,6 +156,7 @@ export default function Prices() {
 
   function resetFilters() {
     setSearch(''); setFilterPlant(''); setFilterCompany(''); setFilterUnit(''); setFilterCustomer(''); setPage(1);
+    sort.reset();
   }
   const hasFilters = !!(search || filterPlant || filterCompany || filterUnit || filterCustomer);
 
@@ -249,12 +254,12 @@ export default function Prices() {
               <table className="xpl-table">
                 <thead>
                   <tr>
-                    <th>العميل</th>
-                    <th>{t('col.prices.plant')}</th>
-                    <th>{t('col.prices.company')}</th>
-                    <th>{t('col.prices.location')}</th>
-                    <th>{t('col.prices.unit')}</th>
-                    <th>{fcMoneyHeader(t('col.prices.unit_price'))}</th>
+                    <SortableHeader label="العميل" title="العميل" state={sort.getState('customer')} onToggle={() => sort.toggle('customer')} />
+                    <SortableHeader label={t('col.prices.plant')} title={t('col.prices.plant')} state={sort.getState('asphaltPlant')} onToggle={() => sort.toggle('asphaltPlant')} />
+                    <SortableHeader label={t('col.prices.company')} title={t('col.prices.company')} state={sort.getState('companyName')} onToggle={() => sort.toggle('companyName')} />
+                    <SortableHeader label={t('col.prices.location')} title={t('col.prices.location')} state={sort.getState('contractLocation')} onToggle={() => sort.toggle('contractLocation')} />
+                    <SortableHeader label={t('col.prices.unit')} title={t('col.prices.unit')} state={sort.getState('contractUnit')} onToggle={() => sort.toggle('contractUnit')} />
+                    <SortableHeader label={fcMoneyHeader(t('col.prices.unit_price'))} title={t('col.prices.unit_price')} state={sort.getState('unitPrice')} onToggle={() => sort.toggle('unitPrice')} />
                     <th aria-label="فتح" />
                   </tr>
                 </thead>

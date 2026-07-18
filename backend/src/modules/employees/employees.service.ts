@@ -5,6 +5,7 @@ import { BaseRepository } from '../../shared/repositories/BaseRepository';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
 import {
   AdjustmentInput,
   AttendanceInput,
@@ -30,6 +31,36 @@ class EmployeesRepository extends BaseRepository<{ id: number }> {
   }
 }
 const repo = new EmployeesRepository();
+
+// القائمة البيضاء للفرز — المفاتيح مطابقة لمفاتيح أعمدة الواجهة (modules.tsx).
+// تواريخ الوثائق كلها اختيارية → nulls: 'last' كي لا تتصدّر الخلايا الفارغة.
+const SORTABLE: SortWhitelist = {
+  code: 'code',
+  fullName: 'fullName',
+  fullNameEn: { field: 'fullNameEn', nullable: true },
+  civilId: { field: 'civilId', nullable: true },
+  jobTitle: { field: 'jobTitle', nullable: true },
+  nationality: { field: 'nationality', nullable: true },
+  salary: 'salary',
+  status: 'status',
+  hireDate: { field: 'hireDate', nullable: true },
+  residencyExpiry: { field: 'residencyExpiry', nullable: true },
+  passportExpiry: { field: 'passportExpiry', nullable: true },
+  licenseExpiry: { field: 'licenseExpiry', nullable: true },
+  vehicleLicenseExpiry: { field: 'vehicleLicenseExpiry', nullable: true },
+};
+const DEFAULT_ORDER = [{ id: 'desc' as const }];
+
+// القائمة البيضاء لجدول الحضور — «الموظف» عمود علاقة (فرز على الاسم الكامل).
+const ATTENDANCE_SORTABLE: SortWhitelist = {
+  employee: (dir) => ({ employee: { fullName: dir } }),
+  date: 'date',
+  checkIn: { field: 'checkIn', nullable: true },
+  checkOut: { field: 'checkOut', nullable: true },
+  workHours: { field: 'workHours', nullable: true },
+  status: 'status',
+};
+const ATTENDANCE_DEFAULT_ORDER = [{ date: 'desc' as const }];
 
 function diffHours(checkIn?: Date, checkOut?: Date): number | null {
   if (!checkIn || !checkOut) return null;
@@ -58,7 +89,8 @@ export class EmployeesService {
         { jobTitle: { contains: query.search } },
       ];
     }
-    const { data, total } = await repo.findMany({ where, pagination });
+    const orderBy = buildOrderBy(query, SORTABLE, DEFAULT_ORDER);
+    const { data, total } = await repo.findMany({ where, pagination, orderBy });
     return buildPaginatedResult(data, total, pagination);
   }
 
@@ -150,9 +182,10 @@ export class EmployeesService {
     const pagination = getPagination(query);
     const where = buildAttendanceWhere(query);
     const include = { employee: { select: { id: true, code: true, fullName: true } } };
+    const orderBy = buildOrderBy(query, ATTENDANCE_SORTABLE, ATTENDANCE_DEFAULT_ORDER, [{ id: 'desc' }]) as Prisma.AttendanceOrderByWithRelationInput[];
 
     const [data, statusCounts] = await Promise.all([
-      prisma.attendance.findMany({ where, skip: pagination.skip, take: pagination.take, orderBy: { date: 'desc' }, include }),
+      prisma.attendance.findMany({ where, skip: pagination.skip, take: pagination.take, orderBy, include }),
       prisma.attendance.groupBy({ by: ['status'], where, _count: { status: true } }),
     ]);
     const total = statusCounts.reduce((sum, r) => sum + r._count.status, 0);

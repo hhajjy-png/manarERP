@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
@@ -11,6 +11,9 @@ import { formatCurrency, formatPercent, formatCompact } from '../lib/format';
 import { expenseCategoryLabel } from '../config/expenseCategories';
 import '../components/dashboard/dashboard.css';
 import { money, MoneyText } from '../config/modules';
+import { useTableSort } from '../hooks/useTableSort';
+import { sortRowsClient } from '../lib/clientSort';
+import SortableHeader from '../components/SortableHeader';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -116,6 +119,10 @@ function ContractProfitabilityTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
 
+  // فرز محلي موحّد (Enterprise Data Grid Foundation v1) — المجموعة محمّلة بكاملها
+  const sort = useTableSort('finops-contracts');
+  const sorted = useMemo(() => sortRowsClient(rows ?? [], sort.sortBy, sort.sortDir), [rows, sort.sortBy, sort.sortDir]);
+
   useEffect(() => {
     api.get<{ data: ContractProfitRow[] }>('/executive/contract-profitability')
       .then(r => setRows(r.data.data))
@@ -132,18 +139,18 @@ function ContractProfitabilityTab() {
       <table className="fin-ops-table">
         <thead>
           <tr>
-            <th>الكود</th>
-            <th>المصنع</th>
-            <th>العميل</th>
-            <th style={{ textAlign: 'left' }}>الإيرادات</th>
-            <th style={{ textAlign: 'left' }}>المصروفات</th>
-            <th style={{ textAlign: 'left' }}>الربح</th>
-            <th>هامش الربح</th>
-            <th>معدل التحصيل</th>
+            <SortableHeader label="الكود" title="الكود" state={sort.getState('code')} onToggle={() => sort.toggle('code')} />
+            <SortableHeader label="المصنع" title="المصنع" state={sort.getState('asphaltPlant')} onToggle={() => sort.toggle('asphaltPlant')} />
+            <SortableHeader label="العميل" title="العميل" state={sort.getState('customerName')} onToggle={() => sort.toggle('customerName')} />
+            <SortableHeader label="الإيرادات" title="الإيرادات" state={sort.getState('revenue')} onToggle={() => sort.toggle('revenue')} />
+            <SortableHeader label="المصروفات" title="المصروفات" state={sort.getState('expenses')} onToggle={() => sort.toggle('expenses')} />
+            <SortableHeader label="الربح" title="الربح" state={sort.getState('profit')} onToggle={() => sort.toggle('profit')} />
+            <SortableHeader label="هامش الربح" title="هامش الربح" state={sort.getState('profitMargin')} onToggle={() => sort.toggle('profitMargin')} />
+            <SortableHeader label="معدل التحصيل" title="معدل التحصيل" state={sort.getState('collectionRate')} onToggle={() => sort.toggle('collectionRate')} />
           </tr>
         </thead>
         <tbody>
-          {rows.map(r => (
+          {sorted.map(r => (
             <tr key={r.id}>
               <td><code style={{ fontSize: 12 }}>{r.code}</code></td>
               <td>{r.asphaltPlant}</td>
@@ -249,6 +256,10 @@ function CustomerAnalyticsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
 
+  // فرز محلي موحّد (Enterprise Data Grid Foundation v1) — المجموعة محمّلة بكاملها
+  const sort = useTableSort('finops-customers');
+  const sorted = useMemo(() => sortRowsClient(rows ?? [], sort.sortBy, sort.sortDir), [rows, sort.sortBy, sort.sortDir]);
+
   useEffect(() => {
     api.get<{ data: CustomerAnalyticsRow[] }>('/executive/customer-analytics')
       .then(r => setRows(r.data.data))
@@ -265,17 +276,17 @@ function CustomerAnalyticsTab() {
       <table className="fin-ops-table">
         <thead>
           <tr>
-            <th>العميل</th>
-            <th>الكود</th>
-            <th style={{ textAlign: 'left' }}>الإيرادات</th>
-            <th style={{ textAlign: 'left' }}>المحصّل</th>
-            <th style={{ textAlign: 'left' }}>المستحق</th>
-            <th>عدد الفواتير</th>
-            <th>معدل التحصيل</th>
+            <SortableHeader label="العميل" title="العميل" state={sort.getState('name')} onToggle={() => sort.toggle('name')} />
+            <SortableHeader label="الكود" title="الكود" state={sort.getState('code')} onToggle={() => sort.toggle('code')} />
+            <SortableHeader label="الإيرادات" title="الإيرادات" state={sort.getState('revenue')} onToggle={() => sort.toggle('revenue')} />
+            <SortableHeader label="المحصّل" title="المحصّل" state={sort.getState('collected')} onToggle={() => sort.toggle('collected')} />
+            <SortableHeader label="المستحق" title="المستحق" state={sort.getState('outstanding')} onToggle={() => sort.toggle('outstanding')} />
+            <SortableHeader label="عدد الفواتير" title="عدد الفواتير" state={sort.getState('invoiceCount')} onToggle={() => sort.toggle('invoiceCount')} />
+            <SortableHeader label="معدل التحصيل" title="معدل التحصيل" state={sort.getState('collectionRate')} onToggle={() => sort.toggle('collectionRate')} />
           </tr>
         </thead>
         <tbody>
-          {rows.map(r => (
+          {sorted.map(r => (
             <tr key={r.id}>
               <td>{r.name}</td>
               <td><code style={{ fontSize: 12 }}>{r.code}</code></td>

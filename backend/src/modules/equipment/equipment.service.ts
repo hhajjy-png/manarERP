@@ -5,6 +5,7 @@ import { BaseRepository } from '../../shared/repositories/BaseRepository';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
 import { CreateEquipmentInput, UpdateEquipmentInput } from './equipment.schema';
 
 class EquipmentRepository extends BaseRepository<{ id: number }> {
@@ -23,6 +24,21 @@ class EquipmentRepository extends BaseRepository<{ id: number }> {
   }
 }
 const repo = new EquipmentRepository();
+
+// القائمة البيضاء للفرز — المفاتيح مطابقة لمفاتيح أعمدة الواجهة (modules.tsx).
+// `regExpiry` عمود عرضي مشتق من `registration` — تُترجمه القائمة إلى الحقل
+// الفعلي `registrationExpiry`. أمّا `regRemaining` فمشتق بلا حقل خلفي → غير قابل
+// للفرز عمدًا (غير مُدرج هنا وغير مُعلَّم sortable في الواجهة).
+const SORTABLE: SortWhitelist = {
+  code: 'code',
+  type: 'type',
+  status: 'status',
+  ownerName: { field: 'ownerName', nullable: true },
+  driverName: { field: 'driverName', nullable: true },
+  plateNumber: { field: 'plateNumber', nullable: true },
+  regExpiry: { field: 'registrationExpiry', nullable: true },
+};
+const DEFAULT_ORDER = [{ id: 'desc' as const }];
 
 const MS_DAY = 86_400_000;
 
@@ -86,7 +102,8 @@ export class EquipmentService {
         { name: { contains: query.search } },
       ];
     }
-    const { data, total } = await repo.findMany({ where, pagination });
+    const orderBy = buildOrderBy(query, SORTABLE, DEFAULT_ORDER);
+    const { data, total } = await repo.findMany({ where, pagination, orderBy });
     return buildPaginatedResult(data.map(withRegistration), total, pagination);
   }
 

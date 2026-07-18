@@ -16,6 +16,8 @@ import {
 } from 'recharts';
 import { CHART_INITIAL_DIMENSION } from '../lib/rechartsDefaults';
 import { Pagination } from '../components/explorer/ExplorerKit';
+import SortableHeader from '../components/SortableHeader';
+import { usePersistedState } from '../hooks/usePersistedState';
 import './BankSalaryAnalytics.css';
 import { money, MoneyText } from '../config/modules';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
@@ -207,23 +209,6 @@ function Skel({ w, h }: { w?: string; h?: number }) {
   return <div className="psa-skel" style={{ width: w ?? '100%', height: h ?? 13 }} />;
 }
 
-function SortTh({ field, label, sortBy, sortDir, onSort }: {
-  field: string; label: string; sortBy: string; sortDir: 'asc' | 'desc';
-  onSort: (f: string) => void;
-}) {
-  const active = sortBy === field;
-  return (
-    <th className="psa-sort-th" onClick={() => onSort(field)}>
-      <span className="psa-sort-th-inner">
-        {label}
-        <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
-          {active ? (sortDir === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more'}
-        </span>
-      </span>
-    </th>
-  );
-}
-
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function BankSalaryAnalytics() {
@@ -252,8 +237,11 @@ export default function BankSalaryAnalytics() {
 
   const [txPage, setTxPage]       = useState(1);
   const [txPageSize, setTxPageSize] = useState<number>(25);
-  const [txSortBy, setTxSortBy]   = useState('paymentDate');
-  const [txSortDir, setTxSortDir] = useState<'asc' | 'desc'>('desc');
+  // فرز خادمي كان قائمًا هنا قبل الأساس الموحّد (السابقة المرجعية) — واجهته الآن
+  // موحّدة (SortableHeader) ودورته قياسية (افتراضي→تصاعدي→تنازلي→افتراضي؛
+  // الافتراضي = paymentDate تنازليًا) وحالته محفوظة كسائر الشبكات.
+  const [txSortBy, setTxSortBy]   = usePersistedState('sal:bankTx:sortBy', 'paymentDate');
+  const [txSortDir, setTxSortDir] = usePersistedState<'asc' | 'desc'>('sal:bankTx:sortDir', 'desc');
   const [txData, setTxData]       = useState<PaginatedResult<TransactionRow> | null>(null);
   const [txLoading, setTxLoading] = useState(false);
 
@@ -459,10 +447,15 @@ export default function BankSalaryAnalytics() {
   // ── Sort ───────────────────────────────────────────────────────────────────
 
   const handleSort = (field: string) => {
-    if (txSortBy === field) {
-      setTxSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
+    // الدورة القياسية للأساس الموحّد: عمود جديد → تصاعدي؛ تصاعدي → تنازلي؛
+    // تنازلي → العودة للافتراضي (paymentDate تنازليًا).
+    if (txSortBy !== field) {
       setTxSortBy(field);
+      setTxSortDir('asc');
+    } else if (txSortDir === 'asc') {
+      setTxSortDir('desc');
+    } else {
+      setTxSortBy('paymentDate');
       setTxSortDir('desc');
     }
     setTxPage(1);
@@ -1405,10 +1398,10 @@ export default function BankSalaryAnalytics() {
                           <thead>
                             <tr>
                               <th>رقم المعاملة</th>
-                              <SortTh field="sourceMonth"     label="الشهر"        sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
-                              <SortTh field="paymentDate"     label="تاريخ الدفع"   sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
-                              <SortTh field="beneficiaryName" label="المستفيد"      sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
-                              <SortTh field="amount"          label="المبلغ (KWD)"  sortBy={txSortBy} sortDir={txSortDir} onSort={handleSort} />
+                              <SortableHeader label="الشهر"       title="الشهر"       state={txSortBy === 'sourceMonth' ? txSortDir : 'none'}     onToggle={() => handleSort('sourceMonth')} />
+                              <SortableHeader label="تاريخ الدفع"  title="تاريخ الدفع"  state={txSortBy === 'paymentDate' ? txSortDir : 'none'}     onToggle={() => handleSort('paymentDate')} />
+                              <SortableHeader label="المستفيد"     title="المستفيد"     state={txSortBy === 'beneficiaryName' ? txSortDir : 'none'} onToggle={() => handleSort('beneficiaryName')} />
+                              <SortableHeader label="المبلغ (KWD)" title="المبلغ"       state={txSortBy === 'amount' ? txSortDir : 'none'}          onToggle={() => handleSort('amount')} />
                               <th>الرقم المدني</th>
                               {appliedFilters.employeeId && <th>مطابقة بـ</th>}
                               <th>الحالة</th>

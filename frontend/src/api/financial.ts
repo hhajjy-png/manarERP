@@ -98,7 +98,7 @@ export const financialApi = {
   },
 
   // ── GL Report (routes added in Part 4) ───────────────────────────────────
-  getGlReport(filters: { fromDate?: string; toDate?: string; accountType?: string; page?: number; pageSize?: number }) {
+  getGlReport(filters: { fromDate?: string; toDate?: string; accountType?: string; page?: number; pageSize?: number; sortBy?: string; sortDir?: 'asc' | 'desc' }) {
     return api.get<{ data: GlReportResponse }>(
       '/financial/gl-report', { params: filters }
     ).then(r => r.data.data);

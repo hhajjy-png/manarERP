@@ -6,12 +6,30 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
 import { CreateContractInput, UpdateContractInput } from './contracts.schema';
 
 interface ContractQuery extends PaginationQuery {
   status?: string;
   customerId?: string;
 }
+
+// القائمة البيضاء للفرز — المفاتيح مطابقة لمفاتيح أعمدة الواجهة (modules.tsx).
+// `customerName` عمود علاقة → يُترجم إلى فرز على اسم العميل المرتبط.
+// ملاحظة: `nulls` غير مدعومة على حقول العلاقات (P2009) فالعقود بلا عميل تتبع
+// ترتيب SQLite الافتراضي للفراغات.
+const SORTABLE: SortWhitelist = {
+  code: 'code',
+  asphaltPlant: 'asphaltPlant',
+  status: 'status',
+  companyName: { field: 'companyName', nullable: true },
+  location: { field: 'location', nullable: true },
+  unitName: { field: 'unitName', nullable: true },
+  price: { field: 'price', nullable: true },
+  monthlyTransportValue: 'monthlyTransportValue',
+  customerName: (dir) => ({ customer: { name: dir } }),
+};
+const DEFAULT_ORDER = [{ id: 'desc' as const }];
 
 interface ChildCounts {
   invoices: number;
@@ -39,7 +57,8 @@ export class ContractsService {
       ];
     }
 
-    const [data, total] = await contractsRepository.listWithRelations(where, pagination.skip, pagination.take);
+    const orderBy = buildOrderBy(query, SORTABLE, DEFAULT_ORDER) as Prisma.ContractOrderByWithRelationInput[];
+    const [data, total] = await contractsRepository.listWithRelations(where, pagination.skip, pagination.take, orderBy);
     return buildPaginatedResult(data, total, pagination);
   }
 

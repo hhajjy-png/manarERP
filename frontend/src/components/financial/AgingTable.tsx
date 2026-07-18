@@ -1,8 +1,10 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ArAgingRow, ApAgingRow } from '../../types/financial.types';
 import type { FinancialDrillDownState } from './DrillDownLink';
 import { fcCurrency } from './financialLabels';
+import SortableHeader from '../SortableHeader';
+import { useTableSort } from '../../hooks/useTableSort';
+import { sortRowsClient } from '../../lib/clientSort';
 
 type AgingRow = ArAgingRow | ApAgingRow;
 
@@ -14,8 +16,6 @@ const BUCKETS = [
   { key: '91_120',   label: '91–120'    },
   { key: 'over_120', label: '+120 يوم'  },
 ] as const;
-
-type BucketKey = (typeof BUCKETS)[number]['key'] | 'total';
 
 function fmt(n: number) {
   return n ? fcCurrency(n) : '';
@@ -36,20 +36,17 @@ interface Props {
 }
 
 export function AgingTable({ rows, type, currentState }: Props) {
-  const navigate    = useNavigate();
-  const [sortField, setSortField] = useState<BucketKey>('total');
-  const [sortDir,   setSortDir]   = useState<'asc' | 'desc'>('desc');
-
-  function toggleSort(field: BucketKey) {
-    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortField(field); setSortDir('desc'); }
-  }
-
-  const sorted = [...rows].sort((a, b) => {
-    const av = (a as Record<string, unknown>)[sortField] as number ?? 0;
-    const bv = (b as Record<string, unknown>)[sortField] as number ?? 0;
-    return sortDir === 'asc' ? av - bv : bv - av;
-  });
+  const navigate = useNavigate();
+  // أساس الشبكة الموحّد (كان لهذا الجدول فرز محلي خاص — استُبدل بالتنفيذ الواحد).
+  // البيانات محمَّلة بكاملها بلا ترقيم خادمي → الفرز المحلي فوق المجموعة الكاملة صحيح.
+  // الافتراضي التاريخي للجدول (الإجمالي تنازليًا) محفوظ عندما لا يوجد عمود نشط.
+  const sort = useTableSort(`aging-${type}`);
+  const sorted = sortRowsClient(
+    rows,
+    sort.sortBy ?? 'total',
+    sort.sortBy ? sort.sortDir : 'desc',
+    (row, key) => ((row as Record<string, unknown>)[key] as number) ?? 0,
+  );
 
   function handleEntityClick(row: AgingRow) {
     const entityType = type === 'ar' ? 'customer' : 'supplier';
@@ -71,11 +68,6 @@ export function AgingTable({ rows, type, currentState }: Props) {
   const nameKey = type === 'ar' ? 'customerName' : 'supplierName';
   const codeKey = type === 'ar' ? 'customerCode' : 'supplierCode';
 
-  function sortIcon(field: BucketKey) {
-    if (sortField !== field) return '';
-    return sortDir === 'asc' ? ' ↑' : ' ↓';
-  }
-
   if (rows.length === 0) {
     return <p className="fc-empty">لا توجد بيانات مديونية بالمعايير المحددة.</p>;
   }
@@ -93,17 +85,22 @@ export function AgingTable({ rows, type, currentState }: Props) {
             <th>الكود</th>
             <th>الاسم</th>
             {BUCKETS.map(b => (
-              <th
+              <SortableHeader
                 key={b.key}
-                className="sortable num"
-                onClick={() => toggleSort(b.key)}
-              >
-                {b.label}{sortIcon(b.key)}
-              </th>
+                label={b.label}
+                title={b.label}
+                className="num"
+                state={sort.getState(b.key)}
+                onToggle={() => sort.toggle(b.key)}
+              />
             ))}
-            <th className="sortable num aging-total-col" onClick={() => toggleSort('total')}>
-              الإجمالي{sortIcon('total')}
-            </th>
+            <SortableHeader
+              label="الإجمالي"
+              title="الإجمالي"
+              className="num aging-total-col"
+              state={sort.getState('total')}
+              onToggle={() => sort.toggle('total')}
+            />
           </tr>
         </thead>
         <tbody>

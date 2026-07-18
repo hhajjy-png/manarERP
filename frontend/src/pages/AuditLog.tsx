@@ -5,6 +5,8 @@ import DateInput from '../components/DateInput';
 import { useUI } from '../stores/uiStore';
 import { useT } from '../lib/i18n';
 import { formatDateTime, formatDateTimeWithSeconds } from '../lib/date';
+import { useTableSort } from '../hooks/useTableSort';
+import SortableHeader from '../components/SortableHeader';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -317,6 +319,9 @@ export default function AuditLog() {
   const [filterTo, setFilterTo] = useState('');
   const [page, setPage] = useState(1);
 
+  // Server-side column sort — a new sort is a new query, so reset to page 1
+  const sort = useTableSort('audit', () => setPage(1));
+
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [meta, setMeta] = useState<Meta>({ page: 1, pageSize: 25, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
@@ -346,7 +351,7 @@ export default function AuditLog() {
     setLoading(true);
     setError(null);
     try {
-      const params: Record<string, string> = { page: String(p), pageSize: '25' };
+      const params: Record<string, string> = { page: String(p), pageSize: '25', ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) };
       if (search) params.search = search;
       if (filterModule) params.module = filterModule;
       if (filterAction) params.action = filterAction;
@@ -363,7 +368,7 @@ export default function AuditLog() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterModule, filterAction, filterUser, filterFrom, filterTo]);
+  }, [search, filterModule, filterAction, filterUser, filterFrom, filterTo, sort.sortBy, sort.sortDir]);
 
   useEffect(() => { setPage(1); }, [search, filterModule, filterAction, filterUser, filterFrom, filterTo]);
   useEffect(() => { load(page); }, [load, page]);
@@ -386,6 +391,7 @@ export default function AuditLog() {
     setFilterUser('');
     setFilterFrom('');
     setFilterTo('');
+    sort.reset();
   }
 
   return (
@@ -521,12 +527,13 @@ export default function AuditLog() {
           <table>
             <thead>
               <tr>
-                <th>{t('col.audit.datetime')}</th>
-                <th>{t('col.audit.module')}</th>
-                <th>{t('col.audit.action')}</th>
-                <th>{t('col.audit.entity')}</th>
+                <SortableHeader label={t('col.audit.datetime')} title={t('col.audit.datetime')} state={sort.getState('createdAt')} onToggle={() => sort.toggle('createdAt')} />
+                <SortableHeader label={t('col.audit.module')} title={t('col.audit.module')} state={sort.getState('module')} onToggle={() => sort.toggle('module')} />
+                <SortableHeader label={t('col.audit.action')} title={t('col.audit.action')} state={sort.getState('action')} onToggle={() => sort.toggle('action')} />
+                <SortableHeader label={t('col.audit.entity')} title={t('col.audit.entity')} state={sort.getState('entityId')} onToggle={() => sort.toggle('entityId')} />
+                {/* Summary is derived client-side — not sortable */}
                 <th>{t('col.audit.summary')}</th>
-                <th>{t('col.audit.user')}</th>
+                <SortableHeader label={t('col.audit.user')} title={t('col.audit.user')} state={sort.getState('user')} onToggle={() => sort.toggle('user')} />
               </tr>
             </thead>
             <tbody>

@@ -8,6 +8,8 @@ import { tafqeetKWD } from '../lib/tafqeet';
 import { formatDate, todayDateOnly, formatDisplayDate } from '../lib/date';
 import { formatNumber } from '../lib/format';
 import { PageMeta } from '../components/DataTable';
+import { useTableSort } from '../hooks/useTableSort';
+import SortableHeader from '../components/SortableHeader';
 import DateInput from '../components/DateInput';
 import ConfirmModal from '../components/ConfirmModal';
 import ForceDeleteChequeModal from '../components/ForceDeleteChequeModal';
@@ -199,6 +201,8 @@ export default function Cheques() {
   const [saving, setSaving] = useState(false);
   const [pvLoading, setPvLoading] = useState(false);
   const [page, setPage] = useState(1);
+  // فرز خادمي موحّد (Enterprise Data Grid Foundation) — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
+  const sort = useTableSort('cheques', () => setPage(1));
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatus, setHistoryStatus] = useState('');
   const [formError, setFormError] = useState('');
@@ -235,7 +239,7 @@ export default function Cheques() {
     const dateParams = { from, to };
     try {
       const [listRes, statsRes] = await Promise.all([
-        api.get('/cheques', { params: { page: p, pageSize: 20, search: historySearch || undefined, status: historyStatus || undefined, ...dateParams } }),
+        api.get('/cheques', { params: { page: p, pageSize: 20, search: historySearch || undefined, status: historyStatus || undefined, ...dateParams, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) } }),
         api.get('/cheques/stats', { params: dateParams }),
       ]);
       setCheques(listRes.data.data.data ?? []);
@@ -246,7 +250,7 @@ export default function Cheques() {
     } finally {
       setLoading(false);
     }
-  }, [historySearch, historyStatus, period.fromDate, period.toDate, period.isAllPeriods]);
+  }, [historySearch, historyStatus, period.fromDate, period.toDate, period.isAllPeriods, sort.sortBy, sort.sortDir]);
 
   useEffect(() => { loadData(1); }, [loadData]);
 
@@ -697,7 +701,7 @@ export default function Cheques() {
       <div className="xpl-toolbar xpl-toolbar--sticky">
         <div className="xpl-toolbar-row">
           <SearchBox value={historySearch} onChange={(v) => { setHistorySearch(v); setPage(1); }} placeholder={t('action.search_placeholder')} ariaLabel={t('action.search_placeholder')} />
-          {hasFilters && <button type="button" className="xpl-clear-link" onClick={() => { setHistorySearch(''); setHistoryStatus(''); setPage(1); }}>{t('action.reset_filters')}</button>}
+          {hasFilters && <button type="button" className="xpl-clear-link" onClick={() => { setHistorySearch(''); setHistoryStatus(''); sort.reset(); setPage(1); }}>{t('action.reset_filters')}</button>}
         </div>
         <div className="xpl-toolbar-row">
           {STATUS_CHIPS.map(([v, l]) => <FilterChip key={v} active={historyStatus === v} onClick={() => { setHistoryStatus(v); setPage(1); }}>{l}</FilterChip>)}
@@ -712,7 +716,7 @@ export default function Cheques() {
         ) : cheques.length === 0 ? (
           <EmptyState icon="receipt_long" tone="neutral" title={t('empty.cheques')}
             message={hasFilters ? 'لا توجد شيكات مطابقة للفلاتر.' : undefined}
-            action={hasFilters ? <Button variant="secondary" icon="restart_alt" onClick={() => { setHistorySearch(''); setHistoryStatus(''); setPage(1); }}>{t('action.reset_filters')}</Button>
+            action={hasFilters ? <Button variant="secondary" icon="restart_alt" onClick={() => { setHistorySearch(''); setHistoryStatus(''); sort.reset(); setPage(1); }}>{t('action.reset_filters')}</Button>
               : canCreate ? <Button variant="primary" icon="add" onClick={openNew}>{t('page.cheques.new')}</Button> : undefined} />
         ) : (
           <>
@@ -720,13 +724,13 @@ export default function Cheques() {
               <table className="xpl-table">
                 <thead>
                   <tr>
-                    <th>{t('col.cheque.number')}</th>
-                    <th>{t('col.cheque.beneficiary')}</th>
-                    <th>{t('col.cheque.bank')}</th>
-                    <th>{t('col.cheque.amount')}</th>
-                    <th>{t('col.cheque.date')}</th>
-                    <th>{t('col.cheque.status')}</th>
-                    <th>{t('col.cheque.pv_number')}</th>
+                    <SortableHeader label={t('col.cheque.number')} title={t('col.cheque.number')} state={sort.getState('chequeNumber')} onToggle={() => sort.toggle('chequeNumber')} />
+                    <SortableHeader label={t('col.cheque.beneficiary')} title={t('col.cheque.beneficiary')} state={sort.getState('beneficiaryName')} onToggle={() => sort.toggle('beneficiaryName')} />
+                    <SortableHeader label={t('col.cheque.bank')} title={t('col.cheque.bank')} state={sort.getState('bankName')} onToggle={() => sort.toggle('bankName')} />
+                    <SortableHeader label={t('col.cheque.amount')} title={t('col.cheque.amount')} state={sort.getState('amount')} onToggle={() => sort.toggle('amount')} />
+                    <SortableHeader label={t('col.cheque.date')} title={t('col.cheque.date')} state={sort.getState('chequeDate')} onToggle={() => sort.toggle('chequeDate')} />
+                    <SortableHeader label={t('col.cheque.status')} title={t('col.cheque.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
+                    <SortableHeader label={t('col.cheque.pv_number')} title={t('col.cheque.pv_number')} state={sort.getState('paymentVoucherNumber')} onToggle={() => sort.toggle('paymentVoucherNumber')} />
                     <th aria-label="فتح" />
                   </tr>
                 </thead>

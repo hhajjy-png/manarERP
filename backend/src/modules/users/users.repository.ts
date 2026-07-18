@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { BaseRepository } from '../../shared/repositories/BaseRepository';
 import { prisma } from '../../config/database';
 
@@ -28,9 +29,14 @@ class UsersRepository extends BaseRepository<{ id: number }> {
     return prisma.user.findUnique({ where: { id }, select: SAFE_SELECT });
   }
 
-  async list(where: object, skip: number, take: number) {
+  async list(
+    where: object,
+    skip: number,
+    take: number,
+    orderBy: Prisma.UserOrderByWithRelationInput[] = [{ id: 'desc' }],
+  ) {
     const [data, total] = await Promise.all([
-      prisma.user.findMany({ where, select: SAFE_SELECT, skip, take, orderBy: { id: 'desc' } }),
+      prisma.user.findMany({ where, select: SAFE_SELECT, skip, take, orderBy }),
       prisma.user.count({ where }),
     ]);
     return { data, total };

@@ -1,16 +1,22 @@
+import { Prisma } from '@prisma/client';
 import { BaseRepository } from '../../shared/repositories/BaseRepository';
 import { prisma } from '../../config/database';
 
 class ContractsRepository extends BaseRepository<{ id: number }> {
   protected readonly model = 'contract';
 
-  listWithRelations(where: object, skip: number, take: number) {
+  listWithRelations(
+    where: object,
+    skip: number,
+    take: number,
+    orderBy: Prisma.ContractOrderByWithRelationInput[] = [{ id: 'desc' }],
+  ) {
     return Promise.all([
       prisma.contract.findMany({
         where,
         skip,
         take,
-        orderBy: { id: 'desc' },
+        orderBy,
         include: {
           customer: { select: { id: true, name: true } },
           manager: { select: { id: true, fullName: true } },

@@ -1,10 +1,22 @@
 import { Request } from 'express';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@config/database';
 import { AppError } from '@core/errors/AppError';
 import { recordAudit } from '@core/middleware/audit';
+import { buildOrderBy, SortWhitelist } from '@core/utils/sort';
 import type { CreatePriceInput, UpdatePriceInput } from './prices.schema';
 
 const customerSelect = { select: { id: true, name: true } } as const;
+
+// القائمة البيضاء للفرز (Enterprise Data Grid Foundation) — قائمة اتفاقيات الأسعار.
+const PRICES_SORTABLE: SortWhitelist = {
+  customer: (dir) => ({ customer: { name: dir } }),
+  asphaltPlant: 'asphaltPlant',
+  companyName: 'companyName',
+  contractLocation: 'contractLocation',
+  contractUnit: 'contractUnit',
+  unitPrice: 'unitPrice',
+};
 
 export async function listPrices(params: {
   page: number;
@@ -14,6 +26,8 @@ export async function listPrices(params: {
   companyName?: string;
   contractUnit?: string;
   customerId?: number;
+  sortBy?: string;
+  sortDir?: string;
 }) {
   const { page, pageSize, search, asphaltPlant, companyName, contractUnit, customerId } = params;
   const skip = (page - 1) * pageSize;
@@ -35,12 +49,13 @@ export async function listPrices(params: {
       : {}),
   };
 
+  const orderBy = buildOrderBy(params, PRICES_SORTABLE, [{ createdAt: 'desc' }], [{ id: 'desc' }]) as Prisma.ProjectPriceOrderByWithRelationInput[];
   const [data, total] = await Promise.all([
     prisma.projectPrice.findMany({
       where,
       skip,
       take: pageSize,
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       include: { customer: customerSelect },
     }),
     prisma.projectPrice.count({ where }),

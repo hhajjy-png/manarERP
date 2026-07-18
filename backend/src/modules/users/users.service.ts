@@ -5,7 +5,19 @@ import { AppError } from '../../core/errors/AppError';
 import { hashPassword } from '../../core/utils/password';
 import { recordAudit } from '../../core/middleware/audit';
 import { getPagination, buildPaginatedResult, PaginationQuery } from '../../core/utils/pagination';
+import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
 import { CreateUserInput, UpdateUserInput } from './users.schema';
+
+// القائمة البيضاء للفرز — المفاتيح مطابقة لمفاتيح أعمدة الواجهة (modules.tsx).
+// `role` عمود علاقة → فرز على الاسم المعروض للدور. SAFE_SELECT في المستودع يبقى
+// كما هو: الفرز لا يوسّع الحقول المعادة إطلاقًا.
+const SORTABLE: SortWhitelist = {
+  username: 'username',
+  fullName: 'fullName',
+  isActive: 'isActive',
+  role: (dir) => ({ role: { displayName: dir } }),
+};
+const DEFAULT_ORDER = [{ id: 'desc' as const }];
 
 export class UsersService {
   async list(query: PaginationQuery & { isActive?: string }) {
@@ -21,7 +33,8 @@ export class UsersService {
     if (query.isActive === 'true') where.isActive = true;
     if (query.isActive === 'false') where.isActive = false;
 
-    const { data, total } = await usersRepository.list(where, pagination.skip, pagination.take);
+    const orderBy = buildOrderBy(query, SORTABLE, DEFAULT_ORDER) as Prisma.UserOrderByWithRelationInput[];
+    const { data, total } = await usersRepository.list(where, pagination.skip, pagination.take, orderBy);
     return buildPaginatedResult(data, total, pagination);
   }
 

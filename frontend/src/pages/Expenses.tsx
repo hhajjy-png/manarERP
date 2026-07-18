@@ -12,6 +12,8 @@ import ConfirmModal from '../components/ConfirmModal';
 import { money, moneyParts, dateText, MoneyText, MoneyCell } from '../config/modules';
 import { KpiStat, KpiStatGrid } from '../components/KpiStat';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { useTableSort } from '../hooks/useTableSort';
+import SortableHeader from '../components/SortableHeader';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
 import { periodToReportParams } from '../lib/financialPeriod';
@@ -81,6 +83,8 @@ export default function Expenses() {
   const [supplierFilter, setSupplierFilter] = usePersistedState('exp:supplier', '');
   const [monthFilter, setMonthFilter] = usePersistedState('exp:month', '');
   const [yearFilter, setYearFilter] = usePersistedState('exp:year', '');
+  // فرز الأعمدة الموحّد (خادمي) — فرز جديد يعيد إلى الصفحة الأولى.
+  const sort = useTableSort('expenses', () => setPage(1));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [suppliers, setSuppliers] = useState<any[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,12 +122,13 @@ export default function Expenses() {
     setSearch(''); setStatusFilter(''); setCategoryFilter('');
     setSupplierFilter(''); setMonthFilter(''); setYearFilter('');
     setPage(1);
+    sort.reset();
   }
 
   const load = useCallback(async () => {
     setLoading(true); setLoadError('');
     try {
-      const res = await api.get('/expenses', { params: { page, pageSize: 15, ...filterParams } });
+      const res = await api.get('/expenses', { params: { page, pageSize: 15, ...filterParams, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) } });
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } catch (e) { setLoadError(errorMessage(e)); }
@@ -134,7 +139,7 @@ export default function Expenses() {
       .catch(() => {});
   // الفترة العالمية ضمن التبعيات ليُعاد الجلب عند تغييرها.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, search, statusFilter, categoryFilter, supplierFilter, monthFilter, yearFilter, period.fromDate, period.toDate, period.isAllPeriods]);
+  }, [page, search, statusFilter, categoryFilter, supplierFilter, monthFilter, yearFilter, period.fromDate, period.toDate, period.isAllPeriods, sort.sortBy, sort.sortDir]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -365,13 +370,15 @@ export default function Expenses() {
               <table className="xpl-table">
                 <thead>
                   <tr>
-                    <th>{t('col.code')}</th>
-                    <th>{t('col.category')}</th>
-                    <th>{t('col.description')}</th>
+                    <SortableHeader label={t('col.code')} title={t('col.code')} state={sort.getState('code')} onToggle={() => sort.toggle('code')} />
+                    <SortableHeader label={t('col.category')} title={t('col.category')} state={sort.getState('category')} onToggle={() => sort.toggle('category')} />
+                    <SortableHeader label={t('col.description')} title={t('col.description')} state={sort.getState('description')} onToggle={() => sort.toggle('description')} />
+                    {/* المورد غير قابل للفرز — مصدر مختلط (علاقة supplier.name أو الحقل النصي supplierName). */}
                     <th>{t('field.supplier')}</th>
+                    {/* فترة الفوترة غير قابلة للفرز — قيمة مركّبة (شهر/سنة الفوترة أو التاريخ). */}
                     <th>{t('lbl.inv.billing_period')}</th>
-                    <th>{fcMoneyHeader(t('col.amount'))}</th>
-                    <th>{t('col.status')}</th>
+                    <SortableHeader label={fcMoneyHeader(t('col.amount'))} title={t('col.amount')} state={sort.getState('amount')} onToggle={() => sort.toggle('amount')} />
+                    <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
                     <th aria-label="فتح" />
                   </tr>
                 </thead>
