@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `5d9bf90` (merge of `feature/cash-transactions-table-alignment-polish-v1`) |
-| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Documentation Commit** | `75b41be` — "docs: record Cash Transactions Table Alignment & Layout Polish Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
 | **Current Stable Tag** | `stable-cash-transactions-table-alignment-layout-polish-pack-v1` |
 | **Current Release Date** | 2026-07-19 |
 | **Total Stable Releases** | 312 (window 2026-06-07 → 2026-07-19) |
