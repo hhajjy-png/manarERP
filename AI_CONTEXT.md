@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `f841d1d` (merge of `feature/employee-entitlements-experience-refactor-v1`) |
-| **Current Documentation Commit** | `9dc6bf4` — "docs: record Employee Entitlements Experience Refactor v1 release in PROJECT_STATE / AI_CONTEXT" |
-| **Current Stable Tag** | `stable-employee-entitlements-experience-refactor-v1` |
+| **Current Merge Commit** | `75ed8c3` (merge of `feature/kuwait-holiday-intelligence-pack-v1`) |
+| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Stable Tag** | `stable-kuwait-holiday-intelligence-pack-v1` |
 | **Current Release Date** | 2026-07-19 |
-| **Total Stable Releases** | 317 (window 2026-06-07 → 2026-07-19) |
+| **Total Stable Releases** | 319 (window 2026-06-07 → 2026-07-19) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,39 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Kuwait Holiday Intelligence Pack v1** (2026-07-19, `stable-kuwait-holiday-intelligence-pack-v1`) —
+  extends the Employee Entitlements Foundation with a complete Kuwait Holiday generation and planning system, built
+  entirely on the Foundation's `HolidayEngine`/`HolidayService`. **Providers:** `HolidaySourceProvider` interface +
+  `FixedHolidayProvider` (the 3 fixed Kuwait holidays) + `HijriHolidayProvider` (wraps `HijriHolidayService`, still
+  returns `[]` — no future Hijri dates hardcoded or guessed); `DEFAULT_HOLIDAY_PROVIDERS` is the single list the
+  planner consumes, so a future source is one array entry. **Comparison/conflict:** one algorithm
+  (`compareHolidayYear()`) classifies every generated candidate as `NEW`/`EXISTING`/`CHANGED`/`SKIPPED`/`CONFLICT`
+  against the DB; `HolidayConflictService` derives its view from this result rather than re-detecting. **Services:**
+  `HolidayValidationService`, `HolidayGenerationPlanner` (read-only preview — nothing written during planning),
+  `HolidayGenerationExecutor` (re-plans server-side, creates only the `NEW` bucket, idempotent "safe regeneration").
+  **API:** two new additive routes on the existing `/api/holidays` router — `POST /generate/preview`
+  (`employees.read`, no write) and `POST /generate/apply` (`employees.update`, writes only after explicit UI
+  confirmation); the 3 pre-existing routes are unchanged, `GET /` gained only additive `origin`/`status` fields.
+  **Frontend:** Settings → "العطل الرسمية" gained a year selector + "توليد العطل" button opening
+  `GenerateHolidaysDialog` (preview → conflict summary → explicit confirm → generation report), built entirely
+  from existing ExplorerKit components. **No legal-calculation, Rule 2/5, Leave Settlement, Historical Ledger, EOS,
+  database schema, or existing API contract change.** Backend **130 files / 1822 tests pass** (27 new, zero
+  regressions). **Gemini review: APPROVED.**
+- **Employee Entitlements Intelligence Suite v1 (Foundation)** (2026-07-19, `stable-employee-entitlements-intelligence-suite-foundation-v1`) —
+  establishes Employee Entitlements as an independent backend domain (`backend/src/modules/employee-entitlements/`)
+  without changing any legal calculation, business rule, database schema, API contract, or permission — architecture
+  only, nothing wired into any existing calculation path or HTTP route. New domain: `models/` (clean public
+  interfaces — `EmployeeProfile`, `Holiday`, `LeavePeriod`, `LeaveAdvance`, `Settlement`, `EntitlementSummary` as a
+  type alias over the existing `EntitlementResult`, `TimelineEvent`); `holidays/` (fixed Kuwait holiday definitions,
+  a documented Hijri architecture stub with no hardcoded future dates, `classifyHoliday()` for read-time
+  origin/status derivation, a first-cut generation workflow); `engines/HolidayEngine.ts` (holiday/weekend/working-day
+  detection and counting, its leave-exclusion method delegating 100% to the unmodified
+  `computeEffectiveAnnualLeaveDays()`); `services/` (`HolidayService`, `WorkingDaysService`, `HijriHolidayService`);
+  `calculators/legalEntitlementCalculator.ts` (re-export surface over `entitlements.calc.ts` — the original file was
+  not relocated); `timeline/buildEntitlementTimeline.ts`. Dependency audit confirmed zero imports from Accounting,
+  Transactions, Invoices, Contracts, Inventory, Equipment, Banks, Cash, Expenses, Purchases, Suppliers, or Customers.
+  Backend **123 files / 1795 tests pass** (29 new, zero regressions); no frontend files touched. **Gemini review:
+  APPROVED.**
 - **Employee Entitlements Experience Refactor v1** (2026-07-19, `stable-employee-entitlements-experience-refactor-v1`) —
   presentation/navigation-only split of the Employee Entitlements experience into two layers. The employee drawer tab
   (`EmployeeEntitlementsTab.tsx`, 484 → ~110 lines) is now a lightweight summary: 4 KPI cards (current leave balance,

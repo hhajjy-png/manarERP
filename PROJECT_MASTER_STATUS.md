@@ -596,6 +596,14 @@ re-added. Each remaining item is unbuilt per repository evidence.
    **not** implement, because each requires **formal legal interpretation** before any calculation change can
    be made safely. Do not implement without an explicit legal-confirmation instruction from the project owner.
    *(Medium — blocked on external input, not on engineering effort)*
+9. **Real Hijri/Al-Ojairi holiday auto-generation** — `HijriHolidayProvider`/`HijriHolidayService`
+   (`stable-employee-entitlements-intelligence-suite-foundation-v1`, extended by
+   `stable-kuwait-holiday-intelligence-pack-v1`) are a complete, documented architectural stub —
+   `getExpectedHijriHolidays()` always returns `[]`. Real Hijri↔Gregorian conversion requires a genuine
+   Umm al-Qura or Al-Ojairi almanac data source/library not currently in the project; deliberately never
+   hardcoded or guessed. Implementing this only requires filling in that one method — the provider,
+   planner, executor, comparison, and UI already consume it correctly. *(Medium — blocked on sourcing a
+   calendar data provider, not on architecture)*
 
 ### Reviewed & declined — do not re-add, do not recommend as "next"
 
