@@ -597,6 +597,12 @@ re-added. Each remaining item is unbuilt per repository evidence.
    leave-advance payments, and the remaining amount expected at final settlement. **Must NOT modify the legal
    calculation engine introduced in the Kuwait Labour Law Compliance Pack v1** (`entitlements.calc.ts`'s
    ÷26 divisor, wage-base composition, or dual gratuity scenarios) — display/reconciliation layer only. *(Medium)*
+9. **Kuwait Labour Law Compliance — Rules 4, 6, 18** — the independent Kuwait Labour Law Compliance Audit
+   flagged 3 remaining findings against the Employee Entitlements calculation engine that Pack v1 (Rules 10,
+   13, 16, 17) and Pack v2 (Rules 2, 5 — see `stable-kuwait-labour-law-compliance-pack-v2`) deliberately did
+   **not** implement, because each requires **formal legal interpretation** before any calculation change can
+   be made safely. Do not implement without an explicit legal-confirmation instruction from the project owner.
+   *(Medium — blocked on external input, not on engineering effort)*
 
 ### Reviewed & declined — do not re-add, do not recommend as "next"
 

@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `f306e1a` (merge of `feature/kuwait-labour-law-compliance-pack-v1`) |
-| **Current Documentation Commit** | `4216df2` — "docs: record Kuwait Labour Law Compliance Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
-| **Current Stable Tag** | `stable-kuwait-labour-law-compliance-pack-v1` |
+| **Current Merge Commit** | `339bab1` (merge of `feature/kuwait-labour-law-compliance-pack-v2`) |
+| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Stable Tag** | `stable-kuwait-labour-law-compliance-pack-v2` |
 | **Current Release Date** | 2026-07-19 |
-| **Total Stable Releases** | 315 (window 2026-06-07 → 2026-07-19) |
+| **Total Stable Releases** | 316 (window 2026-06-07 → 2026-07-19) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,24 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Kuwait Labour Law Compliance Pack v2 — Employee Entitlements** (2026-07-19, `stable-kuwait-labour-law-compliance-pack-v2`) —
+  implements the two remaining confirmed items from the independent Kuwait Labour Law Compliance Audit (Rules 2
+  and 5); Rules 4/6/18 stay out of scope pending formal legal interpretation. **Rule 2 (Art. 70, first-year
+  eligibility):** a single `isFirstYearEligible()` gate on `calculateEntitlements()` forces `accruedLeaveDays`/
+  `remainingLeaveDays`/`leaveAllowanceDays`/`leaveAllowanceValue` to explicit `0` before 9 completed calendar
+  months of service; the existing proportional accrual formula resumes automatically and unchanged once
+  eligible — no parallel formula. **Rule 5 (Art. 70, holiday/sick exclusion):** new pure
+  `computeEffectiveAnnualLeaveDays()` excludes official holidays and approved sick-leave days falling inside
+  each approved annual-leave interval, using day-index `Set` deduplication so a day matching both is only
+  excluded once; `employees.service.ts` now sums this per leave record instead of the previous raw
+  `Leave.days` aggregate. **New minimum holiday infrastructure:** additive `Holiday` table (hand-authored
+  surgical migration) + 4-file `backend/src/modules/holidays` module (`/api/holidays`, reusing existing
+  `employees.read`/`employees.update` permissions — no new permission keys) + a genuine management UI (list/
+  add/delete) added to `Settings.tsx`. **No changes** to EOS/gratuity, wage-base composition, resignation
+  scenarios, the ÷26 divisor, Leave Settlement architecture, or the Historical Ledger; no accounting/payroll/
+  bank changes. Tests: `entitlements.calc.test.ts` 19 → 29 (10 new: 4 Rule 2 boundary/EOS-unaffected cases, 6
+  Rule 5 exclusion/dedup cases). Backend **116 files / 1766 tests pass**, zero regressions. backend/frontend/
+  electron `tsc --noEmit`, `prisma validate`, and frontend build all green. **Gemini Final Review: APPROVED.**
 - **Kuwait Labour Law Compliance Pack v1 — Employee Entitlements** (2026-07-19, `stable-kuwait-labour-law-compliance-pack-v1`) —
   legal remediation of the Employee Entitlements calculation engine addressing 4 findings from the Kuwait
   Labour Law Compliance Audit (Rules 10, 13, 16, 17). **Rule 13:** daily-wage divisor centralized to the
