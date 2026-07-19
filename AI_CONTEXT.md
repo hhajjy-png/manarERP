@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `86292d5` (merge of `feature/user-management-header-cleanup-pack-v1`) |
-| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Documentation Commit** | `be8a26d` — "docs: record User Management Header Cleanup Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
 | **Current Stable Tag** | `stable-user-management-header-cleanup-pack-v1` |
 | **Current Release Date** | 2026-07-19 |
 | **Total Stable Releases** | 311 (window 2026-06-07 → 2026-07-19) |
