@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `f841d1d` (merge of `feature/employee-entitlements-experience-refactor-v1`) |
-| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Documentation Commit** | `9dc6bf4` — "docs: record Employee Entitlements Experience Refactor v1 release in PROJECT_STATE / AI_CONTEXT" |
 | **Current Stable Tag** | `stable-employee-entitlements-experience-refactor-v1` |
 | **Current Release Date** | 2026-07-19 |
 | **Total Stable Releases** | 317 (window 2026-06-07 → 2026-07-19) |
