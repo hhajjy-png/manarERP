@@ -8,11 +8,11 @@
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This 2026-07-19 pass, like the 2026-07-17 pass before it, refreshed the "Current Production State" table
-> only (re-derived directly from `git` for the Al-Ojairi Integration Pack v1 release) — the "Repository Status"
-> quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit sections further down) were
-> last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in this pass — treat their
-> specifics as of those dates, not current-day.
+> below. This pass (Employee Entitlements Executive Redesign v1), like the Al-Ojairi Integration Pack v1 pass and
+> the 2026-07-17 pass before it, refreshed the "Current Production State" table only (re-derived directly from
+> `git`) — the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/
+> ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been
+> re-audited in this pass — treat their specifics as of those dates, not current-day.
 
 ---
 
@@ -35,9 +35,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `70fa096` — merge of `feature/al-ojairi-integration-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-al-ojairi-integration-pack-v1` (merge commit `70fa096`) | High |
-| **Previous stable tag** | `stable-kuwait-holiday-intelligence-pack-v1` (`75ed8c3`) | High |
+| **Current HEAD** | `56f18d4` — merge of `feature/employee-entitlements-executive-redesign-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-employee-entitlements-executive-redesign-v1` (merge commit `56f18d4`) | High |
+| **Previous stable tag** | `stable-al-ojairi-integration-pack-v1` (`70fa096`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -64,7 +64,33 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-al-ojairi-integration-pack-v1` (`70fa096`, 2026-07-19)
+### Latest Release — `stable-employee-entitlements-executive-redesign-v1` (`56f18d4`, 2026-07-19)
+
+Visual-only redesign of the Employee Entitlements Center page (`pages/EmployeeEntitlementsCenter.tsx`)
+from an approved HTML mockup, to Microsoft Dynamics 365 / SAP Fiori / Oracle Fusion Cloud ERP quality.
+Built entirely on the existing ExplorerKit design system — no new components, no parallel UI system.
+
+- **Executive header:** subtle radial tonal accent wash + larger title; employee info strip restyled
+  into a 3-field label-over-value layout with vertical dividers.
+- **KPI hierarchy:** the same 8 `MetricCard`s (unchanged props) regrouped into 4 larger primary tiles
+  (الاستحقاق القانوني الإجمالي، رصيد الإجازة الحالي، قيمة بدل الإجازة، مكافأة نهاية الخدمة) and 4 denser
+  secondary tiles (عطل رسمية مستثناة، إجازة مرضية مستثناة، الإجازة المستخدمة، إجمالي الدفعات المقدَّمة).
+  The shared `.ent-kpis` class used by the employee-drawer summary tab is untouched.
+- **Leave balance settlement:** reconciliation connectors restyled as chained circular badges instead of
+  floating arrows; the net-used subtotal row gets a weight-only emphasis (no new color).
+- **Advance payment settlement:** dashed-divider mini-flow with the final balance highlighted.
+- **Historical ledger:** journal-style header tint on the disbursed-entitlements table only.
+- **Timeline, empty states, collapsible sections:** page-scoped density/icon-tile/hover/fade-in polish.
+- **Scope guarantee:** every CSS rule is scoped under `.entc-page` or to classes verified exclusive to
+  this page's own rendering — no shared/global `.xpl-*` ExplorerKit rule was modified, so no other page
+  using the same components changed appearance. 3 files (+202/−30; 0 added, 3 modified). Feature branch
+  `feature/employee-entitlements-executive-redesign-v1` (kept, pushed). Feature commit `cf2f3be`, merge
+  commit `56f18d4`.
+- **Validation:** frontend `tsc --noEmit` ✅ · frontend build ✅ (page CSS chunk +4.02 kB / 1.22 kB gzip,
+  no new JS logic) · zero backend files touched. Manual visual review: **APPROVED** (Product Owner).
+  *Confidence: High (this pass's own git/build evidence).*
+
+### Previous Release — `stable-al-ojairi-integration-pack-v1` (`70fa096`, 2026-07-19)
 
 Completes the Kuwait Hijri holiday generation pipeline that Kuwait Holiday Intelligence Pack v1 (2026-07-19,
 `75ed8c3`) left as an architecture-only stub — `HijriHolidayService` previously always returned `[]`.

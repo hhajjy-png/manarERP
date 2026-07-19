@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `70fa096` (merge of `feature/al-ojairi-integration-pack-v1`) |
-| **Current Documentation Commit** | `3c88002` — "docs: record Al-Ojairi Integration Pack v1 release" |
-| **Current Stable Tag** | `stable-al-ojairi-integration-pack-v1` |
+| **Current Merge Commit** | `56f18d4` (merge of `feature/employee-entitlements-executive-redesign-v1`) |
+| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Stable Tag** | `stable-employee-entitlements-executive-redesign-v1` |
 | **Current Release Date** | 2026-07-19 |
-| **Total Stable Releases** | 320 (window 2026-06-07 → 2026-07-19) |
+| **Total Stable Releases** | 321 (window 2026-06-07 → 2026-07-19) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,21 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Employee Entitlements Executive Redesign v1** (2026-07-19, `stable-employee-entitlements-executive-redesign-v1`) —
+  visual-only redesign of the Employee Entitlements Center page from an approved HTML mockup, to Microsoft
+  Dynamics 365 / SAP Fiori / Oracle Fusion Cloud quality, built entirely on the existing ExplorerKit design
+  system (no new components, no parallel UI system). The same 8 KPI `MetricCard`s (unchanged props) were
+  regrouped into 4 larger primary tiles and 4 denser secondary tiles; the leave-settlement reconciliation
+  flow got chained circular connector badges; the advance-payment settlement got a dashed-divider mini-flow
+  with a highlighted total; the historical ledger table got a journal-style header tint; the timeline, empty
+  states, and collapsible sections (تفاصيل إضافية والاحتساب / سجل الإجازات / سجل الدفعات المقدَّمة) got
+  density/icon/hover/fade-in polish. Every CSS rule is scoped to the page or to classes verified exclusive to
+  it (no shared/global ExplorerKit `.xpl-*` rule was touched), so no other page's appearance changed; the
+  `.ent-kpis` grid shared with the employee-drawer summary tab is untouched. **No change to Rule 2, Rule 5,
+  EOS, Leave Settlement, Historical Ledger, database schema, existing API contracts, permissions, or business
+  logic/workflow — same values, same labels, same section order, same terminology throughout.** 3 files
+  (+202/−30). Zero backend files touched. Frontend `tsc --noEmit` and build both clean; negligible bundle
+  impact (+4.02 kB / 1.22 kB gzip CSS, no new JS logic). Manual visual review: APPROVED.
 - **Al-Ojairi Integration Pack v1** (2026-07-19, `stable-al-ojairi-integration-pack-v1`) — completes the Kuwait
   Hijri holiday generation pipeline that Kuwait Holiday Intelligence Pack v1 left as an architecture-only stub
   (`HijriHolidayService` previously always returned `[]`). **Data source:** a real, deterministic, fully offline
