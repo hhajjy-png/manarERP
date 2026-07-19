@@ -208,7 +208,6 @@ export default function Users() {
             <IdChip icon="shield" tone="orange">{kpi.roles} دور</IdChip>
           </>
         }
-        aside={tab === 'users' && canCreate ? <Button variant="primary" icon="person_add" onClick={openCreate}>{t('btn.users.new_user')}</Button> : undefined}
       />
 
       <div className="xpl-kpi-grid">
