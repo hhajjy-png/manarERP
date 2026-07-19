@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `f306e1a` (merge of `feature/kuwait-labour-law-compliance-pack-v1`) |
-| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Documentation Commit** | `4216df2` — "docs: record Kuwait Labour Law Compliance Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
 | **Current Stable Tag** | `stable-kuwait-labour-law-compliance-pack-v1` |
 | **Current Release Date** | 2026-07-19 |
 | **Total Stable Releases** | 315 (window 2026-06-07 → 2026-07-19) |
