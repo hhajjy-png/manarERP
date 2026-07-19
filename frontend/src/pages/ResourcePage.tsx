@@ -39,6 +39,7 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import EmployeeFinancialTab from '../components/employee/EmployeeFinancialTab';
+import EmployeeEntitlementsTab from '../components/employee/EmployeeEntitlementsTab';
 import CustomerHub from '../components/explorer/hubs/CustomerHub';
 import EquipmentHub from '../components/explorer/hubs/EquipmentHub';
 import type { HubComponent } from '../components/explorer/hubs/hubTypes';
@@ -78,7 +79,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [viewing, setViewing] = useState<any | null>(null);
   // Employee drawer only: which detail tab is active. Reset to 'basic' on every
   // employee change so payroll data is never fetched until the user opens مالية.
-  const [drawerTab, setDrawerTab] = useState<'basic' | 'financial'>('basic');
+  const [drawerTab, setDrawerTab] = useState<'basic' | 'financial' | 'entitlements'>('basic');
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [contractStats, setContractStats] = useState<ContractStats | null>(null);
   const [equipmentStats, setEquipmentStats] = useState<EquipmentStats | null>(null);
@@ -599,14 +600,20 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
                   tabs={[
                     { key: 'basic', label: 'البيانات الأساسية', icon: 'badge' },
                     { key: 'financial', label: 'المالية', icon: 'payments' },
+                    { key: 'entitlements', label: 'الاستحقاقات', icon: 'volunteer_activism' },
                   ]}
                   active={drawerTab}
                   onChange={setDrawerTab}
                 />
-                {drawerTab === 'basic' ? basicSection : (
+                {drawerTab === 'basic' ? (
+                  basicSection
+                ) : drawerTab === 'financial' ? (
                   // Keyed by employee id → remounts per employee (no stale payroll);
                   // only mounts here, so payroll fetch is lazy to the مالية tab.
                   <EmployeeFinancialTab key={viewing.id} employee={viewing} />
+                ) : (
+                  // Entitlements: lazy — mounts only when the tab is active, keyed by id.
+                  <EmployeeEntitlementsTab key={viewing.id} employee={viewing} />
                 )}
               </>
             ) : basicSection}

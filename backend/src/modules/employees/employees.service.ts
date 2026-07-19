@@ -16,6 +16,7 @@ import {
 } from './employees.schema';
 import { buildDocumentAlerts } from './employees.alertBuilder';
 import { aggregateAttendanceStats, AttendanceFilters, buildAttendanceWhere } from './attendance.filters';
+import { calculateEntitlements } from './entitlements.calc';
 
 class EmployeesRepository extends BaseRepository<{ id: number }> {
   protected readonly model = 'employee';
@@ -136,6 +137,48 @@ export class EmployeesService {
     const employee = await repo.findFull(id);
     if (!employee) throw AppError.notFound('الموظف غير موجود');
     return employee;
+  }
+
+  /**
+   * استحقاقات الموظف (قراءة فقط) — مدة الخدمة، رصيد الإجازة، بدل الإجازة، ومكافأة
+   * نهاية الخدمة محسوبة حتى اليوم وفق قانون العمل الكويتي 6/2010 (المادتان 70 و51).
+   * الحساب يتم في دالة نقيّة (entitlements.calc.ts)؛ هنا فقط جمع المدخلات من مصادرها
+   * الحالية دون تكرار منطق: أيام الإجازة المستخدمة تُجمَع من Leave.days المخزّن مباشرةً.
+   */
+  async getEntitlements(id: number) {
+    const employee = await prisma.employee.findUnique({
+      where: { id },
+      select: { id: true, code: true, fullName: true, salary: true, hireDate: true, status: true },
+    });
+    if (!employee) throw AppError.notFound('الموظف غير موجود');
+
+    // مصدر واحد للحقيقة: مجموع أيام الإجازات السنوية المعتمدة كما هي مخزّنة في Leave.days.
+    const usedAgg = await prisma.leave.aggregate({
+      where: { employeeId: id, type: 'ANNUAL', status: 'APPROVED' },
+      _sum: { days: true },
+    });
+
+    const leaveHistory = await prisma.leave.findMany({
+      where: { employeeId: id },
+      orderBy: { startDate: 'desc' },
+      select: { id: true, type: true, startDate: true, endDate: true, days: true, status: true },
+    });
+
+    const result = calculateEntitlements({
+      hireDate: employee.hireDate,
+      monthlySalary: employee.salary,
+      asOf: new Date(),
+      usedAnnualLeaveDays: usedAgg._sum.days ?? 0,
+    });
+
+    return {
+      employee,
+      result,
+      leaveHistory,
+      // لا يوجد مصدر بيانات لعمليات صرف بدل الإجازة السابقة في النظام الحالي — تُعرض فارغة
+      // (لا يُضاف جدول ولا عمود غير مستخدَم في هذا الإصدار).
+      settlements: [] as never[],
+    };
   }
 
   async create(input: CreateEmployeeInput, req: Request) {
