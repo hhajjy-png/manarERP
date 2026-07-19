@@ -1220,13 +1220,10 @@ export function TimelineTab({
                       <td className="bae-col-type">
                         <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
                       </td>
-                      {/* Description: structured category (line 1) + safe detail (line 2) */}
+                      {/* Description: single-line, ellipsis-truncated; full text via title tooltip */}
                       <td className="bae-col-desc-main">
-                        <span className="bae-tx-cell-text">
-                          <span className="bae-tx-desc" title={t.description}>{pres.category.label}</span>
-                          {pres.detail && (
-                            <span className="bae-tx-sub" title={pres.detail.text}>{pres.detail.text}</span>
-                          )}
+                        <span className="bae-tx-desc" title={t.description}>
+                          {pres.detail ? `${pres.category.label} — ${pres.detail.text}` : pres.category.label}
                         </span>
                       </td>
                       <td className="bae-col-amount">
