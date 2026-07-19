@@ -185,24 +185,19 @@ export default function EmployeeEntitlementsCenter() {
         <DrawerField label="الأجر المعتمد" value={wageBase.total > 0 ? <PrivateAmount value={wageBase.total} level={1} /> : (moneyReason ? <Incomplete reason={moneyReason} /> : '—')} />
       </div>
 
-      {/* Executive KPI cards (الجزء 4) */}
+      {/* Executive KPI cards (الجزء 4) — هرمية بصرية معتمَدة: 4 مؤشرات أساسية أكبر
+          حجمًا، ثم 4 مؤشرات ثانوية أكثر كثافة. نفس الثماني بطاقات ونفس الأيقونة/اللون/
+          القيمة/الملاحظة لكل بطاقة تمامًا — إعادة تجميع بصري فقط عبر .entc-kpis-primary/
+          .entc-kpis-secondary (مُعرَّفتان محليًا لهذه الصفحة، لا تُغيّران .ent-kpis
+          المشتركة مع تبويب الدرج المختصر). */}
       <div className="ent-section-heading">الملخص التنفيذي</div>
-      <div className="ent-kpis">
+      <div className="entc-kpis-primary">
         <MetricCard
           icon="event_available"
           label="الاستحقاق القانوني الإجمالي"
           tone="indigo"
           value={daysOrIncomplete(r.accruedLeaveDays, leaveReason)}
         />
-        <MetricCard
-          icon="event_busy"
-          label="الإجازة المستخدمة"
-          tone="blue"
-          value={daysText(r.usedLeaveDays)}
-          sub={brk.grossAnnualLeaveDays > r.usedLeaveDays ? `من أصل ${daysText(brk.grossAnnualLeaveDays)} محجوزة` : undefined}
-        />
-        <MetricCard icon="celebration" label="عطل رسمية مستثناة" tone="green" value={daysText(brk.holidaysExcludedDays)} />
-        <MetricCard icon="medical_information" label="إجازة مرضية مستثناة" tone="green" value={daysText(brk.sickExcludedDays)} />
         <MetricCard
           icon="beach_access"
           label="رصيد الإجازة الحالي"
@@ -217,13 +212,6 @@ export default function EmployeeEntitlementsCenter() {
           }
         />
         <MetricCard
-          icon="savings"
-          label="إجمالي الدفعات المقدَّمة"
-          tone="orange"
-          value={String(settlementTotals.count)}
-          sub={settlementTotals.count > 0 ? <PrivateAmount value={settlementTotals.totalAmount} level={1} /> : 'لا توجد دفعات'}
-        />
-        <MetricCard
           icon="payments"
           label="قيمة بدل الإجازة"
           tone="green"
@@ -236,6 +224,24 @@ export default function EmployeeEntitlementsCenter() {
           tone="orange"
           value={<span className="ent-kpi-value-sm">{eosAmount !== null ? <PrivateAmount value={eosAmount} level={1} /> : '—'}</span>}
           sub={eosAmount !== null ? (separationType === 'RESIGNATION' ? 'أساس: استقالة' : 'أساس: إنهاء من صاحب العمل') : (moneyReason ? `بيانات غير مكتملة — ${moneyReason}` : undefined)}
+        />
+      </div>
+      <div className="entc-kpis-secondary">
+        <MetricCard icon="celebration" label="عطل رسمية مستثناة" tone="green" value={daysText(brk.holidaysExcludedDays)} />
+        <MetricCard icon="medical_information" label="إجازة مرضية مستثناة" tone="green" value={daysText(brk.sickExcludedDays)} />
+        <MetricCard
+          icon="event_busy"
+          label="الإجازة المستخدمة"
+          tone="blue"
+          value={daysText(r.usedLeaveDays)}
+          sub={brk.grossAnnualLeaveDays > r.usedLeaveDays ? `من أصل ${daysText(brk.grossAnnualLeaveDays)} محجوزة` : undefined}
+        />
+        <MetricCard
+          icon="savings"
+          label="إجمالي الدفعات المقدَّمة"
+          tone="orange"
+          value={String(settlementTotals.count)}
+          sub={settlementTotals.count > 0 ? <PrivateAmount value={settlementTotals.totalAmount} level={1} /> : 'لا توجد دفعات'}
         />
       </div>
 
@@ -326,7 +332,7 @@ export default function EmployeeEntitlementsCenter() {
                 <span className="ent-recon-step-val">{daysText(brk.sickExcludedDays)}</span>
               </div>
               <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
-              <div className="ent-recon-step">
+              <div className="ent-recon-step ent-recon-step--subtotal">
                 <span className="ent-recon-step-label">= الإجازة المستخدمة صافيًا</span>
                 <span className="ent-recon-step-val">{daysText(r.usedLeaveDays)}</span>
               </div>
@@ -353,7 +359,7 @@ export default function EmployeeEntitlementsCenter() {
       <SectionCard title="تسوية الدفعات المقدَّمة على الإجازة" icon="balance">
         {r.accruedLeaveDays !== null ? (
           <>
-            <div className="ent-fields">
+            <div className="ent-fields ent-fields--flow">
               <DrawerField label="إجمالي الاستحقاق القانوني" value={daysText(r.accruedLeaveDays)} />
               <DrawerField label="الإجازة المدفوعة مقدَّمًا" value={daysText(settlementTotals.totalDays)} />
               <DrawerField
@@ -466,7 +472,7 @@ export default function EmployeeEntitlementsCenter() {
           {ledger.length === 0 ? (
             <EmptyState icon="receipt_long" title="لا توجد مستحقات مصروفة" message="لم يُسجَّل أي مستحق مصروف لهذا الموظف بعد." tone="neutral" />
           ) : (
-            <div className="xpl-table-wrap">
+            <div className="xpl-table-wrap entc-table--journal">
               <table className="xpl-table">
                 <thead>
                   <tr><th>التاريخ</th><th>النوع</th><th>الوصف</th><th>عدد الأيام</th><th>الرصيد وقت الصرف</th><th>المبلغ</th><th>طريقة الدفع</th><th>ملاحظات</th></tr>
