@@ -171,4 +171,8 @@ export const ENUMS = {
   goodsReceiptStatus: ['DRAFT', 'POSTED'] as const,
   materialIssueStatus: ['DRAFT', 'POSTED', 'CANCELLED'] as const,
   chequeStatus: ['DRAFT', 'PRINTED', 'CANCELLED'] as const,
+  // طريقة دفع تسوية رصيد الإجازة (تسجيل يدوي فقط — بلا ربط محاسبي/بنكي/شيكات).
+  leaveSettlementPaymentMethod: ['CASH', 'BANK_TRANSFER', 'CHEQUE', 'OTHER'] as const,
+  // نوع المستحق في سجل المستحقات المصروفة (سجل تاريخي فقط — لا يؤثر في أي احتساب).
+  entitlementLedgerType: ['LEAVE_ALLOWANCE', 'END_OF_SERVICE', 'OTHER'] as const,
 } as const;

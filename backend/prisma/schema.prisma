@@ -159,6 +159,8 @@ model Employee {
   recurringDeductions EmployeeRecurringDeduction[]
   advances            PayrollAdvance[]
   leaves              Leave[]
+  leaveSettlements    LeaveSettlement[]
+  entitlementLedger   EmployeeEntitlementLedger[]
   deductions          Deduction[]
   bonuses             Bonus[]
   performanceRevs     PerformanceReview[]
@@ -214,6 +216,53 @@ model Leave {
   @@index([employeeId])
   @@index([status])
   @@map("leaves")
+}
+
+// تسويات رصيد الإجازة اليدوية — سجل فقط. ليست وحدة محاسبية، ولا ترتبط بقيود اليومية
+// أو التحويلات البنكية أو الشيكات أو سندات الصرف أو الرواتب. كل تسوية تصبح خط الأساس
+// الجديد لاحتساب رصيد الإجازة (من تاريخ آخر تسوية إلى اليوم؛ وإلا من تاريخ التعيين).
+model LeaveSettlement {
+  id               Int      @id @default(autoincrement())
+  employeeId       Int
+  settlementDate   DateTime
+  leaveDaysSettled Float    @default(0)
+  settlementAmount Float    @default(0)
+  paymentMethod    String // CASH | BANK_TRANSFER | CHEQUE | OTHER
+  notes            String?
+  createdAt        DateTime @default(now())
+  createdBy        Int? // معرّف المستخدم الذي سجّل التسوية (تسجيل فقط، بلا علاقة FK)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([settlementDate])
+  @@map("leave_settlements")
+}
+
+// سجل المستحقات المصروفة — سجل تاريخي للمراجعة فقط. مستقلٌّ تمامًا عن LeaveSettlement:
+// لا يؤثر في أي احتساب (رصيد الإجازة/بدل الإجازة/مكافأة نهاية الخدمة)، ولا ينشئ قيودًا
+// محاسبية أو حركات بنكية أو شيكات أو سندات أو رواتب. تسجيل يدوي بحت.
+model EmployeeEntitlementLedger {
+  id            Int      @id @default(autoincrement())
+  employeeId    Int
+  entryType     String // LEAVE_ALLOWANCE | END_OF_SERVICE | OTHER
+  entryDate     DateTime
+  description   String?
+  leaveDays     Float? // يُخزَّن لبدل الإجازة فقط
+  // لقطة رصيد الإجازة المحتسَب لحظة إنشاء الصف (لبدل الإجازة فقط). للعرض التاريخي فقط —
+  // تُكتب مرة واحدة عند الإنشاء، لا تتحدّث تلقائيًا، ولا تدخل في أي احتساب إطلاقًا.
+  leaveBalanceSnapshot Float?
+  amount        Float    @default(0)
+  paymentMethod String // CASH | BANK_TRANSFER | CHEQUE | OTHER
+  notes         String?
+  createdAt     DateTime @default(now())
+  createdBy     Int? // معرّف المستخدم الذي سجّل الصف (تسجيل فقط، بلا علاقة FK)
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([entryDate])
+  @@map("employee_entitlement_ledger")
 }
 
 model Deduction {

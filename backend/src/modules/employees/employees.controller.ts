@@ -15,6 +15,18 @@ export const employeesController = {
   async getEntitlements(req: Request, res: Response) {
     ok(res, await employeesService.getEntitlements(Number(req.params.id)));
   },
+  async listLeaveSettlements(req: Request, res: Response) {
+    ok(res, await employeesService.listLeaveSettlements(Number(req.params.id)));
+  },
+  async createLeaveSettlement(req: Request, res: Response) {
+    created(res, await employeesService.createLeaveSettlement(Number(req.params.id), req.body, req), 'تم تسجيل التسوية بنجاح');
+  },
+  async listEntitlementLedger(req: Request, res: Response) {
+    ok(res, await employeesService.listEntitlementLedger(Number(req.params.id)));
+  },
+  async createEntitlementLedgerEntry(req: Request, res: Response) {
+    created(res, await employeesService.createEntitlementLedgerEntry(Number(req.params.id), req.body, req), 'تمت إضافة المستحق بنجاح');
+  },
   async expiringDocuments(req: Request, res: Response) {
     const days = req.query.days ? Number(req.query.days) : 30;
     ok(res, await employeesService.expiringDocuments(days));

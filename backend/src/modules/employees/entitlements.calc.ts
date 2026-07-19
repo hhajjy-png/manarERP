@@ -43,12 +43,34 @@ const round3 = (n: number): number => Math.round(n * 1000) / 1000;
 export interface EntitlementInput {
   /** تاريخ التعيين — قد يكون غير مُدخل (null) فتُعرض البطاقات المعتمدة عليه كـ«بيانات غير مكتملة». */
   hireDate: Date | null;
+  /**
+   * خط أساس احتساب رصيد الإجازة: تاريخ آخر تسوية إجازة إن وُجدت، وإلا تاريخ التعيين.
+   * يُستخدم لبدء تراكم الإجازة فقط (لا يؤثر في مدة الخدمة ولا مكافأة نهاية الخدمة،
+   * فكلاهما يظل من تاريخ التعيين). عند إغفاله يعود التراكم إلى تاريخ التعيين.
+   */
+  leaveBaselineDate?: Date | null;
   /** الراتب الشهري المسجّل (Employee.salary). */
   monthlySalary: number;
   /** لحظة الاحتساب — عادةً «اليوم». */
   asOf: Date;
-  /** مجموع أيام الإجازات السنوية المعتمدة المستخدمة (مصدر واحد: Leave.days المخزّن). */
+  /** مجموع أيام الإجازات السنوية المعتمدة المستخدمة منذ خط الأساس (مصدر واحد: Leave.days). */
   usedAnnualLeaveDays: number;
+}
+
+/**
+ * يحدّد خط أساس احتساب رصيد الإجازة: أحدث تاريخ تسوية إن وُجد (يفوز الأحدث)، وإلا
+ * تاريخ التعيين. دالة نقيّة قابلة للاختبار (منطق «الأحدث يفوز» و«الرجوع لتاريخ التعيين»).
+ */
+export function resolveLeaveBaseline(
+  hireDate: Date | null,
+  settlementDates: (Date | null)[],
+): { baselineDate: Date | null; isSettlement: boolean } {
+  const valid = settlementDates.filter((d): d is Date => d instanceof Date && !Number.isNaN(d.getTime()));
+  if (valid.length > 0) {
+    const latest = valid.reduce((a, b) => (b.getTime() > a.getTime() ? b : a));
+    return { baselineDate: latest, isSettlement: true };
+  }
+  return { baselineDate: hireDate, isSettlement: false };
 }
 
 export interface GratuityBreakdown {
@@ -156,8 +178,17 @@ export function calculateEntitlements(input: EntitlementInput): EntitlementResul
   const duration = hasHireDate ? serviceDuration(input.hireDate as Date, input.asOf) : null;
   const serviceYears = duration ? duration.totalDays / DAYS_PER_YEAR : null;
 
+  // خط أساس تراكم الإجازة: تاريخ آخر تسوية إن مُرِّر وكان صالحًا، وإلا تاريخ التعيين.
+  const baseline =
+    input.leaveBaselineDate instanceof Date && !Number.isNaN(input.leaveBaselineDate.getTime())
+      ? input.leaveBaselineDate
+      : hasHireDate
+        ? (input.hireDate as Date)
+        : null;
+  const accrualDays = baseline ? Math.max(0, Math.floor((input.asOf.getTime() - baseline.getTime()) / MS_PER_DAY)) : null;
+
   const accruedLeaveDays =
-    duration !== null ? round2(ANNUAL_LEAVE_DAYS_PER_YEAR * (duration.totalDays / DAYS_PER_YEAR)) : null;
+    accrualDays !== null ? round2(ANNUAL_LEAVE_DAYS_PER_YEAR * (accrualDays / DAYS_PER_YEAR)) : null;
   const remainingLeaveDays = accruedLeaveDays !== null ? round2(Math.max(0, accruedLeaveDays - usedLeaveDays)) : null;
 
   const dailyWage = hasSalary ? round3(input.monthlySalary / DAYS_PER_MONTH) : null;

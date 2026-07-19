@@ -41,9 +41,19 @@
   color: var(--xpl-muted);
 }
 
-/* ── Section 3: سجل عمليات الصرف ─────────────────────────────────────────────── */
-.ent-settlements {
-  margin-top: 10px;
+/* ── Section 7: سجل تسويات الإجازة ───────────────────────────────────────────── */
+.ent-settlement-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 10px;
+}
+
+/* خلية النوع + شارة «مرتبط بتسوية الإجازة» (مؤشّر بصري فقط) */
+.ent-ledger-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 /* ── Section 4: مكافأة نهاية الخدمة ──────────────────────────────────────────── */
