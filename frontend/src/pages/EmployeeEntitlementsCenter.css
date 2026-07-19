@@ -1,26 +1,128 @@
-/* مركز المستحقات — صفحة كاملة مستقلة (حزمة إعادة هيكلة تجربة الاستحقاقات v1).
-   ExplorerKit tokens، RTL، متجاوب. يستورد أيضًا EmployeeEntitlementsTab.css لإعادة
-   استخدام تنسيقات .ent-* المشتركة (KPIs، التسوية، التنبيهات، الجدول الزمني...) بلا تكرار. */
+/* مركز المستحقات — صفحة كاملة مستقلة (حزمة إعادة هيكلة تجربة الاستحقاقات v1؛
+   حزمة إعادة التصميم التنفيذي المعتمدة v1 — إعادة تصميم بصري فقط، بلا أي منطق/
+   احتساب/API/صلاحية جديدة). ExplorerKit tokens، RTL، متجاوب. يستورد أيضًا
+   EmployeeEntitlementsTab.css لإعادة استخدام تنسيقات .ent-* المشتركة (التسوية،
+   التنبيهات، الجدول الزمني...) بلا تكرار.
+
+   كل قواعد هذا الملف مُحدَّدة النطاق بادئةً بـ .entc-page (أو بأصناف محلية لهذه
+   الصفحة فقط مثل .entc-kpis-primary) — لا تُعدَّل أي قاعدة .xpl-* العامة مباشرةً،
+   فلا تتأثر أي صفحة أخرى تستخدم نفس مكوّنات ExplorerKit (البطاقات، الجداول،
+   الجدول الزمني، الحالات الفارغة) خارج هذه الصفحة. */
 
 .entc-page {
   padding-bottom: 32px;
 }
 
-/* ── شريط بيانات الموظف تحت الترويسة ──────────────────────────────────────────── */
+/* ── ترويسة تنفيذية — وميض تويني هادئ في الزاوية + عنوان أكبر (نطاق هذه الصفحة فقط) ── */
+.entc-page .xpl-exec-header {
+  position: relative;
+  overflow: hidden;
+}
+.entc-page .xpl-exec-header::before {
+  content: "";
+  position: absolute;
+  inset-inline-end: -70px;
+  top: -70px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle at center, var(--xpl-faint), transparent 70%);
+  pointer-events: none;
+}
+.entc-page .xpl-exec-title {
+  position: relative;
+  font-size: 23px;
+}
+.entc-page .xpl-exec-identity {
+  position: relative;
+}
+
+/* ── شريط بيانات الموظف تحت الترويسة — ثلاثة حقول بفواصل رأسية، تسمية فوق القيمة ── */
 .entc-info-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
-  padding: 12px 16px;
+  gap: 14px 0;
+  padding: 14px 18px;
   border: 1px solid var(--xpl-border);
   border-radius: 12px;
   background: var(--xpl-surface);
 }
 .entc-info-row .xpl-drawer-field {
   border-bottom: none;
-  padding: 0;
+  flex: 1 1 45%;
   min-width: 160px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0 18px;
 }
+.entc-info-row .xpl-drawer-field:first-child { padding-inline-start: 0; }
+.entc-info-row .xpl-drawer-field-label { font-size: 11.5px; }
+.entc-info-row .xpl-drawer-field-value {
+  font-size: 15px;
+  font-weight: 700;
+  text-align: start;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 701px) {
+  .entc-info-row .xpl-drawer-field { flex: 1; }
+  .entc-info-row .xpl-drawer-field + .xpl-drawer-field { border-inline-start: 1px solid var(--xpl-border); }
+}
+
+/* ── هرمية بطاقات الملخّص التنفيذي — أساسية أكبر / ثانوية أكثف (نطاق هذه الصفحة فقط،
+   .ent-kpis المشتركة مع تبويب الدرج المختصر تبقى بلا أي تغيير) ─────────────────── */
+.entc-kpis-primary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.entc-kpis-primary .xpl-metric {
+  padding: 18px 18px 16px;
+  border-radius: 16px;
+  align-items: center;
+}
+.entc-kpis-primary .xpl-metric-icon { width: 42px; height: 42px; border-radius: 12px; }
+.entc-kpis-primary .xpl-metric-icon .material-symbols-outlined { font-size: 22px !important; }
+.entc-kpis-primary .xpl-metric-label { font-size: 12.5px; font-weight: 600; }
+.entc-kpis-primary .xpl-metric-value { font-size: 23px; }
+
+.entc-kpis-secondary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+.entc-kpis-secondary .xpl-metric {
+  padding: 11px 13px;
+  border-radius: 12px;
+  gap: 9px;
+}
+.entc-kpis-secondary .xpl-metric-icon { width: 28px; height: 28px; border-radius: 8px; }
+.entc-kpis-secondary .xpl-metric-icon .material-symbols-outlined { font-size: 15px !important; }
+.entc-kpis-secondary .xpl-metric-label { font-size: 10.5px; }
+.entc-kpis-secondary .xpl-metric-value { font-size: 15px; }
+.entc-kpis-secondary .xpl-metric-sub { font-size: 9.5px; }
+
+@media (max-width: 900px) {
+  .entc-kpis-primary,
+  .entc-kpis-secondary { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── جداول السجلات — إبراز دفتر المستحقات التاريخي كسجل مالي (نطاق هذه الصفحة فقط) ── */
+.entc-page .xpl-table td { font-variant-numeric: tabular-nums; }
+.entc-table--journal thead th { background: var(--xpl-bg); }
+.entc-table--journal tbody tr:hover { background: var(--xpl-faint); }
+
+/* ── الجدول الزمني التاريخي — تكثيف بصري خفيف (نطاق هذه الصفحة فقط) ─────────────── */
+.entc-page .xpl-timeline-item { padding: 7px 0; }
+.entc-page .xpl-timeline-dot { width: 28px; height: 28px; }
+
+/* ── الحالات الفارغة — علامة أكثر إحكامًا (نطاق هذه الصفحة فقط) ─────────────────── */
+.entc-page .xpl-empty { padding: 40px 20px 34px; }
+.entc-page .xpl-empty-illus { width: 56px; height: 56px; border-radius: 14px; }
+.entc-page .xpl-empty-illus .material-symbols-outlined { font-size: 26px !important; }
+.entc-page .xpl-empty h3 { font-size: 14.5px; }
+.entc-page .xpl-empty p { font-size: 12.5px; }
 
 /* ── عنوان فرعي صغير داخل بطاقة قابلة للطيّ ──────────────────────────────────── */
 .entc-subhead {
@@ -59,4 +161,29 @@
 }
 .entc-collapsible[open] > summary .entc-collapsible-chevron {
   transform: rotate(180deg);
+}
+
+/* ── تحسين بصري إضافي للعنوان القابل للطيّ (حزمة إعادة التصميم التنفيذي v1) ─────── */
+.entc-collapsible > summary.entc-collapsible-summary:hover {
+  background: var(--xpl-surface-2);
+}
+.entc-collapsible-summary > .material-symbols-outlined:first-child {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--xpl-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px !important;
+}
+.entc-collapsible[open] > .xpl-card--pad {
+  animation: entc-fade-in 0.18s ease;
+}
+@keyframes entc-fade-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .entc-collapsible[open] > .xpl-card--pad { animation: none; }
 }

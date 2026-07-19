@@ -91,18 +91,36 @@
   font-weight: 800;
   color: var(--xpl-text);
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 .ent-recon-step--primary {
   border-color: var(--xpl-primary, #6366f1);
   background: var(--xpl-primary-faint, rgba(99, 102, 241, 0.08));
 }
 .ent-recon-step--primary .ent-recon-step-label { color: var(--xpl-text); }
+.ent-recon-step--primary .ent-recon-step-val { color: var(--xpl-primary); font-size: 15px; }
 .ent-recon-step--exclude .ent-recon-step-val { color: var(--xpl-green); }
+/* بند الوسيط («= الإجازة المستخدمة صافيًا») — تمييز خفيف بالوزن فقط، بلا لون جديد
+   (حزمة إعادة التصميم التنفيذي v1، متطلّب «Grouped calculations»). */
+.ent-recon-step--subtotal .ent-recon-step-label,
+.ent-recon-step--subtotal .ent-recon-step-val { font-weight: 800; }
+/* موصل بصري بين خطوات التسوية — شارة دائرية صغيرة «تلتحم» بالصندوقين المجاورين بدل
+   سهم عائم، فيقرأ المستخدم التدفق كسلسلة واحدة (متطلّب «Visual connectors»). */
 .ent-recon-arrow {
   align-self: center;
-  font-size: 16px;
+  width: 22px;
+  height: 22px;
+  margin: -3px auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px !important;
   color: var(--xpl-muted);
-  margin: -2px 0;
+  background: var(--xpl-surface-2);
+  border: 1px solid var(--xpl-border);
+  border-radius: 50%;
+  position: relative;
+  z-index: 1;
 }
 .ent-recon-note {
   display: flex;
@@ -148,6 +166,25 @@
 /* ── حقول الأقسام (label/value) ───────────────────────────────────────────────── */
 .ent-fields .xpl-drawer-field:first-of-type { padding-top: 0; }
 .ent-fields .xpl-drawer-field:last-child { border-bottom: none; padding-bottom: 0; }
+
+/* ── متغيّر «تدفّق مصغَّر» لتسوية الدفعات المقدَّمة — فواصل منقّطة + إبراز الناتج
+   النهائي (حزمة إعادة التصميم التنفيذي v1). لا يغيّر أي حقل/قيمة، تصميم بصري فقط. */
+.ent-fields--flow .xpl-drawer-field {
+  border-bottom: 1px dashed var(--xpl-border);
+  padding: 10px 2px;
+}
+.ent-fields--flow .xpl-drawer-field:last-child {
+  border-bottom: none;
+  margin-top: 4px;
+  padding: 12px 14px;
+  background: var(--xpl-primary-faint, rgba(99, 102, 241, 0.08));
+  border-radius: 10px;
+}
+.ent-fields--flow .xpl-drawer-field:last-child .xpl-drawer-field-value {
+  color: var(--xpl-primary);
+  font-size: 15px;
+  font-weight: 800;
+}
 
 /* ── حالة «بيانات غير مكتملة» — لا تكسر التخطيط ──────────────────────────────────── */
 .ent-incomplete {
@@ -199,6 +236,7 @@
   font-weight: 800;
   line-height: 1.15;
   color: var(--xpl-text);
+  font-variant-numeric: tabular-nums;
 }
 .ent-eos-fraction {
   font-size: 11.5px;
@@ -240,6 +278,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── الإشعار القانوني ────────────────────────────────────────────────────────── */
