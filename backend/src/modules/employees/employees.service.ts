@@ -26,6 +26,22 @@ import {
   WageBaseComposition,
 } from './entitlements.calc';
 
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * تفصيل استهلاك رصيد الإجازة السنوية لأغراض العرض التنفيذي فقط (حزمة تجربة الاستحقاقات
+ * النهائية v1) — عرض/تسوية بصرية بلا أي احتساب قانوني جديد. netUsedLeaveDays مُشتقّة
+ * رياضيًا من نفس منطق الاستثناء المركزي في computeEffectiveAnnualLeaveDays (المادة 70)
+ * فتساوي دائمًا r.usedLeaveDays الفعلية — لا يمكن لعرض التسوية أن ينحرف عن الرصيد القانوني.
+ */
+export interface LeaveExclusionBreakdown {
+  grossAnnualLeaveDays: number;
+  holidaysExcludedDays: number;
+  sickExcludedDays: number;
+  netUsedLeaveDays: number;
+  holidaysConfiguredCount: number;
+}
+
 class EmployeesRepository extends BaseRepository<{ id: number }> {
   protected readonly model = 'employee';
   findFull(id: number) {
@@ -180,27 +196,33 @@ export class EmployeesService {
     employeeId: number,
     employee: { hireDate: Date | null; salary: number },
     asOf: Date,
-  ): Promise<{ result: EntitlementResult; wageBase: WageBaseComposition }> {
+  ): Promise<{ result: EntitlementResult; wageBase: WageBaseComposition; leaveExclusionBreakdown: LeaveExclusionBreakdown }> {
     const wageBase = await this.resolveWageBase(employeeId, employee.salary, asOf);
-    const usedAnnualLeaveDays = await this.computeUsedAnnualLeaveDays(employeeId, employee.hireDate);
+    const leaveExclusionBreakdown = await this.computeLeaveExclusionBreakdown(employeeId, employee.hireDate);
 
     const result = calculateEntitlements({
       hireDate: employee.hireDate,
       monthlyWageBase: wageBase.total,
       asOf,
-      usedAnnualLeaveDays,
+      usedAnnualLeaveDays: leaveExclusionBreakdown.netUsedLeaveDays,
     });
 
-    return { result, wageBase };
+    return { result, wageBase, leaveExclusionBreakdown };
   }
 
   /**
-   * مجموع أيام الإجازة السنوية المستهلكة فعليًا، مستثنيًا العطلات الرسمية وأيام الإجازة
-   * المرضية المعتمدة الواقعة داخل كل فترة إجازة سنوية معتمدة (المادة 70). يُحتسب الاستثناء
-   * لكل سجل إجازة سنوية على حدة عبر الدالة النقيّة المركزية (computeEffectiveAnnualLeaveDays)
-   * في entitlements.calc.ts — لا تكرار للمنطق، ولا تغيير في تخزين Leave.days نفسه.
+   * تفصيل استهلاك رصيد الإجازة السنوية (المادة 70). الرقم القانوني الفعلي
+   * (netUsedLeaveDays) يُحتسب حصريًا عبر الدالة النقيّة المركزية
+   * (computeEffectiveAnnualLeaveDays) في entitlements.calc.ts — لا تكرار للقاعدة
+   * القانونية، ولا تغيير في محرك الاحتساب. تفكيك «إجمالي خام / عطلات مستثناة / إجازة
+   * مرضية مستثناة» أدناه تصنيف عرضي إضافي فقط (لكل يوم مُستثنى داخل فترة إجازة سنوية
+   * معتمدة: عطلة رسمية إن كان كذلك، وإلا فمرضي) — لا يُستخدم في أي احتساب، ومجموعه
+   * يساوي دائمًا netUsedLeaveDays بالبناء (نفس المدخلات، نفس منطق الاستثناء).
    */
-  private async computeUsedAnnualLeaveDays(employeeId: number, hireDate: Date | null): Promise<number> {
+  private async computeLeaveExclusionBreakdown(
+    employeeId: number,
+    hireDate: Date | null,
+  ): Promise<LeaveExclusionBreakdown> {
     const [annualLeaves, holidays, sickLeaves] = await Promise.all([
       prisma.leave.findMany({
         where: {
@@ -221,11 +243,44 @@ export class EmployeesService {
     const holidayDates = holidays.map((h) => h.date);
     const sickIntervals: DateInterval[] = sickLeaves.map((s) => ({ start: s.startDate, end: s.endDate }));
 
-    return annualLeaves.reduce(
-      (sum, leave) =>
-        sum + computeEffectiveAnnualLeaveDays({ start: leave.startDate, end: leave.endDate }, holidayDates, sickIntervals),
-      0,
-    );
+    const dayIndex = (d: Date) => Math.floor(d.getTime() / MS_PER_DAY);
+    const holidaySet = new Set(holidayDates.map(dayIndex));
+    const sickRanges = sickIntervals.map((s) => {
+      const a = dayIndex(s.start);
+      const b = dayIndex(s.end);
+      return { lo: Math.min(a, b), hi: Math.max(a, b) };
+    });
+    const isSickDay = (day: number) => sickRanges.some((r) => day >= r.lo && day <= r.hi);
+
+    let grossAnnualLeaveDays = 0;
+    let holidaysExcludedDays = 0;
+    let sickExcludedDays = 0;
+    let netUsedLeaveDays = 0;
+
+    for (const leave of annualLeaves) {
+      const interval = { start: leave.startDate, end: leave.endDate };
+      // المصدر الوحيد للرقم القانوني — محرك الاحتساب المركزي، بلا تغيير.
+      netUsedLeaveDays += computeEffectiveAnnualLeaveDays(interval, holidayDates, sickIntervals);
+
+      // تصنيف عرضي فقط (لا يُغذّي أي احتساب) — نفس منطق الاستثناء، مطبَّق يوميًا للعرض.
+      const a = dayIndex(leave.startDate);
+      const b = dayIndex(leave.endDate);
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
+      grossAnnualLeaveDays += hi - lo + 1;
+      for (let day = lo; day <= hi; day++) {
+        if (holidaySet.has(day)) holidaysExcludedDays += 1;
+        else if (isSickDay(day)) sickExcludedDays += 1;
+      }
+    }
+
+    return {
+      grossAnnualLeaveDays,
+      holidaysExcludedDays,
+      sickExcludedDays,
+      netUsedLeaveDays,
+      holidaysConfiguredCount: holidays.length,
+    };
   }
 
   /**
@@ -242,7 +297,7 @@ export class EmployeesService {
     if (!employee) throw AppError.notFound('الموظف غير موجود');
 
     const asOf = new Date();
-    const { result, wageBase } = await this.computeCurrentEntitlements(id, employee, asOf);
+    const { result, wageBase, leaveExclusionBreakdown } = await this.computeCurrentEntitlements(id, employee, asOf);
 
     // سجل الدفعات المقدَّمة على الإجازة (الأحدث أولًا) — تاريخي/توثيقي فقط. لا يُعاد
     // احتساب أي خط أساس منها؛ رصيد الإجازة أعلاه محسوب من تاريخ التعيين دائمًا.
@@ -267,6 +322,7 @@ export class EmployeesService {
       employee,
       result,
       wageBase,
+      leaveExclusionBreakdown,
       leaveHistory,
       settlements,
       ledger,

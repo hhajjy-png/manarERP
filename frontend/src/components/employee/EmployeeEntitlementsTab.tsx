@@ -1,194 +1,34 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../../api/client';
 import { useAuth } from '../../stores/authStore';
 import { dateText } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
+import { MetricCard, EmptyState, ErrorBanner, SkeletonRows, Button } from '../explorer/ExplorerKit';
 import {
-  SectionCard,
-  MetricCard,
-  StatusChip,
-  DrawerField,
-  EmptyState,
-  ErrorBanner,
-  SkeletonRows,
-  Button,
-  Tabs,
-} from '../explorer/ExplorerKit';
-import LeaveSettlementDialog from './LeaveSettlementDialog';
-import EntitlementLedgerDialog from './EntitlementLedgerDialog';
-import { dayKey, hasMatchingSettlement } from './entitlementLedgerDisplay';
+  type EntitlementsResponse,
+  type EmployeeLike,
+  daysText,
+} from './entitlementsShared';
 import './EmployeeEntitlementsTab.css';
 
-type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
-type SeparationType = 'EMPLOYER_TERMINATION' | 'RESIGNATION';
-
-/** يطابق EntitlementResult في backend/src/modules/employees/entitlements.calc.ts (قراءة فقط). */
-interface EntitlementResult {
-  hasHireDate: boolean;
-  hasWageBase: boolean;
-  duration: { years: number; months: number; days: number; totalDays: number } | null;
-  /** هل أتم الموظف 9 أشهر خدمة (المادة 70)؟ null فقط عند غياب تاريخ التعيين. */
-  firstYearEligible: boolean | null;
-  annualEntitlementDays: number;
-  accruedLeaveDays: number | null;
-  usedLeaveDays: number;
-  remainingLeaveDays: number | null;
-  dailyWage: number | null;
-  leaveAllowanceDays: number | null;
-  leaveAllowanceValue: number | null;
-  gratuity: {
-    serviceYears: number;
-    approvedWage: number;
-    dailyWage: number;
-    firstTierYears: number;
-    firstTierAmount: number;
-    secondTierYears: number;
-    secondTierAmount: number;
-    rawTotal: number;
-    capAmount: number;
-    capApplied: boolean;
-    total: number; // إنهاء الخدمة من صاحب العمل (الاستحقاق الكامل، المادة 51)
-    resignationFraction: number; // نسبة الاستقالة (المادة 53)
-    resignationAmount: number; // إنهاء الخدمة بالاستقالة = total × resignationFraction
-  } | null;
-  assumptionsApplied: boolean;
-}
-
-/** تركيبة الأجر المعتمد (المادتان 55/62) — راتب أساسي + بدلات دورية نشطة. للعرض/الشفافية فقط. */
-interface WageBaseComposition {
-  baseSalary: number;
-  allowancesTotal: number;
-  total: number;
-}
-
-interface LeaveRow {
-  id: number;
-  type: string;
-  startDate: string;
-  endDate: string;
-  days: number;
-  status: string;
-}
-
-interface EntitlementsResponse {
-  employee: { id: number; code: string; fullName: string; salary: number; hireDate: string | null; status: string };
-  result: EntitlementResult;
-  wageBase: WageBaseComposition;
-  leaveHistory: LeaveRow[];
-  settlements: SettlementRow[];
-  ledger: LedgerRow[];
-}
-
-interface LedgerRow {
-  id: number;
-  entryType: string;
-  entryDate: string;
-  description: string | null;
-  leaveDays: number | null;
-  leaveBalanceSnapshot: number | null;
-  amount: number;
-  paymentMethod: string;
-  notes: string | null;
-}
-
-const LEDGER_TYPE_LABEL: Record<string, string> = {
-  LEAVE_ALLOWANCE: 'بدل الإجازة',
-  END_OF_SERVICE: 'مكافأة نهاية الخدمة',
-  OTHER: 'مستحق آخر',
-};
-
-/** دفعة مقدَّمة يدوية على رصيد الإجازة — توثيق تاريخي فقط (لا تُسقط الاستحقاق، المادتان 73/74). */
-interface SettlementRow {
-  id: number;
-  settlementDate: string;
-  leaveDaysSettled: number;
-  settlementAmount: number;
-  paymentMethod: string;
-  notes: string | null;
-  createdAt: string;
-}
-
-const SETTLEMENT_METHOD_LABEL: Record<string, string> = {
-  CASH: 'نقدًا',
-  BANK_TRANSFER: 'تحويل بنكي',
-  CHEQUE: 'شيك',
-  OTHER: 'أخرى',
-};
-
-type EmployeeLike = { id: number; fullName?: string | null };
-
-const LEAVE_TYPE_LABEL: Record<string, string> = {
-  ANNUAL: 'سنوية',
-  SICK: 'مرضية',
-  UNPAID: 'بدون راتب',
-  EMERGENCY: 'طارئة',
-};
-const LEAVE_STATUS: Record<string, { label: string; tone: Tone; icon: string }> = {
-  APPROVED: { label: 'معتمدة', tone: 'green', icon: 'task_alt' },
-  PENDING: { label: 'قيد الاعتماد', tone: 'orange', icon: 'schedule' },
-  REJECTED: { label: 'مرفوضة', tone: 'red', icon: 'block' },
-};
-
-function formatDurationLong(d: { years: number; months: number; days: number }): string {
-  const parts: string[] = [];
-  if (d.years) parts.push(`${d.years} سنة`);
-  if (d.months) parts.push(`${d.months} شهر`);
-  if (d.days || parts.length === 0) parts.push(`${d.days} يوم`);
-  return parts.join(' و ');
-}
-
-/** يوم/أيام مع لاحقة عربية بسيطة. */
-function daysText(n: number): string {
-  return `${n} يوم`;
-}
-
-/** نسبة مكافأة الاستقالة (المادة 53) كنص عربي مفهوم مع نطاق سنوات الخدمة. */
-function resignationFractionLabel(fraction: number): string {
-  if (fraction === 0) return 'لا يستحق مكافأة (أقل من 3 سنوات خدمة)';
-  if (fraction === 1) return '100% — كامل المكافأة (10 سنوات خدمة فأكثر)';
-  if (Math.abs(fraction - 0.5) < 1e-9) return '50% (3 إلى أقل من 5 سنوات خدمة)';
-  if (Math.abs(fraction - 2 / 3) < 1e-9) return '66.7% (5 إلى أقل من 10 سنوات خدمة)';
-  return `${Math.round(fraction * 1000) / 10}%`;
-}
-
-/** سبب النقص الدقيق للحقل المطلوب (بلا تخمين). */
-function missingReason(needsHire: boolean, needsWageBase: boolean, r: EntitlementResult): string | null {
-  if (needsHire && !r.hasHireDate) return 'تاريخ التعيين غير مُدخل';
-  if (needsWageBase && !r.hasWageBase) return 'الأجر الشهري غير مُدخل';
-  return null;
-}
-
-/** يعرض «—» + حالة «بيانات غير مكتملة» مع السبب، دون كسر التخطيط. */
-function Incomplete({ reason }: { reason: string }) {
-  return (
-    <span className="ent-incomplete">
-      <span className="ent-incomplete-dash">—</span>
-      <StatusChip tone="neutral" icon="info">بيانات غير مكتملة</StatusChip>
-      <span className="ent-incomplete-reason">{reason}</span>
-    </span>
-  );
-}
-
 /**
- * تبويب «الاستحقاقات» في درج تفاصيل الموظف — قراءة فقط.
+ * تبويب «الاستحقاقات» في درج تفاصيل الموظف — ملخّص سريع فقط (حزمة إعادة هيكلة تجربة
+ * الاستحقاقات v1). التجربة الكاملة (الملخص التنفيذي، التسوية، الجدول الزمني، تسوية
+ * الدفعات المقدَّمة، التنبيهات الذكية، دفتر المستحقات، الجداول التفصيلية) انتقلت إلى
+ * صفحة مستقلة (pages/EmployeeEntitlementsCenter.tsx) — يفتحها زر «فتح مركز المستحقات».
  * يُحمَّل بكسل (Lazy): يُركَّب فقط عند تنشيط التبويب، ومُفتاحه معرّف الموظف في الأب
- * فيُعاد تركيبه عند تبديل الموظف (لا بيانات قديمة). الحسابات كلها من الخادم.
+ * فيُعاد تركيبه عند تبديل الموظف (لا بيانات قديمة). الحسابات كلها من الخادم — نفس
+ * نقطة القراءة GET /employees/:id/entitlements التي تستخدمها صفحة المركز أيضًا.
  */
 export default function EmployeeEntitlementsTab({ employee }: { employee: EmployeeLike }) {
   const { hasPermission } = useAuth();
   const canRead = hasPermission('employees.read');
-  // إنشاء الدفعة المقدَّمة/المستحق يعيد استخدام صلاحية تعديل الموظف (لا مفتاح صلاحية جديد).
-  const canManage = hasPermission('employees.update');
+  const navigate = useNavigate();
 
   const [data, setData] = useState<EntitlementsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [reloadKey, setReloadKey] = useState(0);
-  const [showSettlementDialog, setShowSettlementDialog] = useState(false);
-  const [showLedgerDialog, setShowLedgerDialog] = useState(false);
-  // أساس احتساب مكافأة نهاية الخدمة المعروض — إنهاء من صاحب العمل (الافتراضي) أو استقالة
-  // (المادة 53). كلا السيناريوهين متاحان دومًا من الخادم؛ هذا تبديل عرض فقط في الواجهة.
-  const [separationType, setSeparationType] = useState<SeparationType>('EMPLOYER_TERMINATION');
 
   useEffect(() => {
     if (!canRead || !employee?.id) return;
@@ -201,282 +41,70 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
       .catch((e) => { if (alive) setError(errorMessage(e)); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-    // reloadKey forces a refetch after a settlement/ledger entry is recorded.
-  }, [employee?.id, canRead, reloadKey]);
+  }, [employee?.id, canRead]);
+
+  // إجمالي أيام/مبلغ الدفعات المقدَّمة لبطاقة «ملخص التسويات» فقط — بلا استدعاء API إضافي.
+  const settlementTotals = useMemo(() => {
+    if (!data) return { count: 0, totalAmount: 0 };
+    return {
+      count: data.settlements.length,
+      totalAmount: data.settlements.reduce((sum, s) => sum + s.settlementAmount, 0),
+    };
+  }, [data]);
 
   if (!canRead) {
     return <EmptyState icon="lock" title="صلاحية غير متوفرة" message="لا تملك صلاحية عرض استحقاقات هذا الموظف." tone="neutral" />;
   }
   if (error) return <ErrorBanner>{error}</ErrorBanner>;
-  if (loading || !data) return <SkeletonRows rows={6} withAvatar={false} />;
+  if (loading || !data) return <SkeletonRows rows={4} withAvatar={false} />;
 
-  const { result: r, employee: emp, wageBase, leaveHistory, settlements, ledger } = data;
-  const g = r.gratuity;
-  // مبلغ مكافأة نهاية الخدمة وفق الأساس المختار — الاثنان محتسَبان دومًا في الخادم.
-  const eosAmount = g ? (separationType === 'RESIGNATION' ? g.resignationAmount : g.total) : null;
-  // مجموعة أيام الدفعات المقدَّمة (YYYY-MM-DD) — لمطابقة شارة العرض البصرية فقط.
-  const settlementDayKeys = new Set(settlements.map((s) => dayKey(s.settlementDate)));
-
-  const durReason = missingReason(true, false, r);
-  const moneyReason = missingReason(true, true, r);
-  const leaveReason = missingReason(true, false, r);
-
-  // قيمة نقدية موحّدة (يظهر رمز العملة تلقائيًا حسب الإعداد) أو حالة نقص.
-  const money = (v: number | null, reason: string | null): ReactNode =>
-    v !== null ? <PrivateAmount value={v} level={1} /> : reason ? <Incomplete reason={reason} /> : '—';
-  const daysOrIncomplete = (v: number | null, reason: string | null): ReactNode =>
-    v !== null ? daysText(v) : reason ? <Incomplete reason={reason} /> : '—';
+  const { result: r, employee: emp } = data;
 
   return (
-    <div className="ent-tab">
-      {/* SECTION 1 — بطاقات ملخّص */}
+    <div className="ent-tab ent-tab--summary">
+      {/* بطاقات ملخّص مختصرة — أربع فقط (الجزء 1، حزمة إعادة الهيكلة v1) */}
       <div className="ent-kpis">
         <MetricCard
-          icon="badge"
-          label="مدة الخدمة"
-          tone="indigo"
-          value={<span className="ent-kpi-value-sm">{r.duration ? formatDurationLong({ years: r.duration.years, months: r.duration.months, days: r.duration.days }) : '—'}</span>}
-          sub={!r.duration && durReason ? `بيانات غير مكتملة — ${durReason}` : undefined}
-        />
-        <MetricCard
           icon="beach_access"
-          label="رصيد الإجازات"
+          label="رصيد الإجازة الحالي"
           tone="blue"
           value={r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays) : '—'}
-          sub={
-            r.firstYearEligible === false
-              ? 'غير مؤهل بعد — يلزم إتمام 9 أشهر خدمة'
-              : r.remainingLeaveDays === null && leaveReason
-                ? `بيانات غير مكتملة — ${leaveReason}`
-                : undefined
-          }
+          sub={r.firstYearEligible === false ? 'غير مؤهل بعد' : undefined}
         />
         <MetricCard
-          icon="payments"
-          label="قيمة بدل الإجازة"
+          icon="event_available"
+          label="الاستحقاق القانوني الإجمالي"
+          tone="indigo"
+          value={r.accruedLeaveDays !== null ? daysText(r.accruedLeaveDays) : '—'}
+        />
+        <MetricCard
+          icon="event_busy"
+          label="الإجازة المستخدمة"
           tone="green"
-          value={<span className="ent-kpi-value-sm">{r.leaveAllowanceValue !== null ? <PrivateAmount value={r.leaveAllowanceValue} level={1} /> : '—'}</span>}
-          sub={r.leaveAllowanceValue === null && moneyReason ? `بيانات غير مكتملة — ${moneyReason}` : undefined}
+          value={daysText(r.usedLeaveDays)}
         />
         <MetricCard
-          icon="volunteer_activism"
-          label="مكافأة نهاية الخدمة"
+          icon="savings"
+          label="ملخّص التسويات"
           tone="orange"
-          value={<span className="ent-kpi-value-sm">{eosAmount !== null ? <PrivateAmount value={eosAmount} level={1} /> : '—'}</span>}
-          sub={eosAmount !== null ? (separationType === 'RESIGNATION' ? 'أساس: استقالة' : 'أساس: إنهاء من صاحب العمل') : (moneyReason ? `بيانات غير مكتملة — ${moneyReason}` : undefined)}
+          value={String(settlementTotals.count)}
+          sub={settlementTotals.count > 0 ? <PrivateAmount value={settlementTotals.totalAmount} level={1} /> : 'لا توجد دفعات'}
         />
       </div>
 
-      {/* SECTION 2 — الإجازات */}
-      <SectionCard title="الإجازات" icon="event_available">
-        <div className="ent-fields">
-          <DrawerField label="تاريخ التعيين" value={emp.hireDate ? dateText(emp.hireDate) : <Incomplete reason="تاريخ التعيين غير مُدخل" />} />
-          <DrawerField label="الاستحقاق السنوي" value={daysText(r.annualEntitlementDays)} />
-          <DrawerField label="الرصيد الحالي" value={daysOrIncomplete(r.accruedLeaveDays, leaveReason)} />
-          <DrawerField label="الأيام المستخدمة" value={daysText(r.usedLeaveDays)} />
-          <DrawerField label="الأيام المتبقية" value={daysOrIncomplete(r.remainingLeaveDays, leaveReason)} />
-        </div>
-      </SectionCard>
+      {/* ملخّص صغير جدًا فقط — التفاصيل الكاملة في مركز المستحقات */}
+      <p className="ent-mini-summary">
+        {emp.hireDate ? `على رأس العمل منذ ${dateText(emp.hireDate)}` : 'تاريخ التعيين غير مُدخل'}
+        {r.firstYearEligible === false && ' — لم يكتمل شرط أهلية إجازة السنة الأولى بعد (9 أشهر خدمة)'}
+      </p>
 
-      {/* SECTION 3 — بدل الإجازة */}
-      <SectionCard title="بدل الإجازة" icon="savings">
-        <div className="ent-fields">
-          <DrawerField label="الأيام المستحقة للصرف" value={daysOrIncomplete(r.leaveAllowanceDays, leaveReason)} />
-          <DrawerField label="القيمة النقدية" value={money(r.leaveAllowanceValue, moneyReason)} />
-        </div>
-      </SectionCard>
-
-      {/* SECTION 4 — مكافأة نهاية الخدمة: سيناريوهان صريحان (المادتان 51 و53) */}
-      <SectionCard title="مكافأة نهاية الخدمة" icon="workspace_premium">
-        <Tabs
-          tabs={[
-            { key: 'EMPLOYER_TERMINATION', label: 'إنهاء من صاحب العمل', icon: 'business_center' },
-            { key: 'RESIGNATION', label: 'استقالة', icon: 'exit_to_app' },
-          ]}
-          active={separationType}
-          onChange={setSeparationType}
-        />
-        <div className="ent-eos">
-          <span className="ent-eos-label">
-            {separationType === 'RESIGNATION'
-              ? 'الاستحقاق حتى اليوم — بافتراض استقالة الموظف (المادة 53)'
-              : 'الاستحقاق حتى اليوم — بافتراض إنهاء الخدمة من صاحب العمل (المادة 51)'}
-          </span>
-          <span className="ent-eos-value">
-            {eosAmount !== null ? <PrivateAmount value={eosAmount} level={1} /> : moneyReason ? <Incomplete reason={moneyReason} /> : '—'}
-          </span>
-          {g && separationType === 'RESIGNATION' && (
-            <span className="ent-eos-fraction">نسبة الاستحقاق: {resignationFractionLabel(g.resignationFraction)}</span>
-          )}
-          {g?.capApplied && separationType === 'EMPLOYER_TERMINATION' && (
-            <span className="ent-eos-cap"><StatusChip tone="orange" icon="info">طُبّق الحد الأقصى (أجر 18 شهرًا)</StatusChip></span>
-          )}
-        </div>
-      </SectionCard>
-
-      {/* SECTION 5 — تفاصيل الاحتساب (بطاقات مدمجة، لا جداول طويلة) */}
-      <SectionCard title="تفاصيل الاحتساب" icon="calculate">
-        {g ? (
-          <div className="ent-calc-grid">
-            <div className="ent-calc-cell"><span className="ent-calc-label">مدة الخدمة</span><span className="ent-calc-val">{g.serviceYears} سنة</span></div>
-            <div className="ent-calc-cell"><span className="ent-calc-label">الأجر المعتمد</span><span className="ent-calc-val"><PrivateAmount value={g.approvedWage} level={1} /></span></div>
-            {wageBase.allowancesTotal > 0 && (
-              <div className="ent-calc-cell"><span className="ent-calc-label">منها بدلات دورية نشطة</span><span className="ent-calc-val"><PrivateAmount value={wageBase.allowancesTotal} level={1} /></span></div>
-            )}
-            <div className="ent-calc-cell"><span className="ent-calc-label">الأجر اليومي</span><span className="ent-calc-val"><PrivateAmount value={g.dailyWage} level={1} /></span></div>
-            <div className="ent-calc-cell"><span className="ent-calc-label">استحقاق أول مدة</span><span className="ent-calc-val"><PrivateAmount value={g.firstTierAmount} level={1} /></span></div>
-            <div className="ent-calc-cell"><span className="ent-calc-label">استحقاق المدة الإضافية</span><span className="ent-calc-val"><PrivateAmount value={g.secondTierAmount} level={1} /></span></div>
-            <div className="ent-calc-cell"><span className="ent-calc-label">معامل الاحتساب</span><span className="ent-calc-val">{separationType === 'RESIGNATION' ? resignationFractionLabel(g.resignationFraction) : '100% (إنهاء من صاحب العمل)'}</span></div>
-            <div className="ent-calc-cell ent-calc-cell--total"><span className="ent-calc-label">إجمالي المكافأة</span><span className="ent-calc-val"><PrivateAmount value={eosAmount ?? 0} level={1} /></span></div>
-          </div>
-        ) : (
-          <div className="ent-fields"><DrawerField label="الاحتساب" value={moneyReason ? <Incomplete reason={moneyReason} /> : '—'} /></div>
-        )}
-      </SectionCard>
-
-      {/* SECTION 6 — سجل الإجازات */}
-      <SectionCard title="سجل الإجازات" icon="history">
-        {leaveHistory.length === 0 ? (
-          <EmptyState icon="event_busy" title="لا يوجد سجل إجازات" message="لم تُسجَّل أي إجازات لهذا الموظف بعد." tone="neutral" />
-        ) : (
-          <div className="xpl-table-wrap">
-            <table className="xpl-table">
-              <thead>
-                <tr><th>النوع</th><th>تاريخ البداية</th><th>تاريخ النهاية</th><th>عدد الأيام</th><th>الحالة</th></tr>
-              </thead>
-              <tbody>
-                {leaveHistory.map((l) => {
-                  const st = LEAVE_STATUS[l.status] ?? { label: l.status, tone: 'neutral' as Tone, icon: 'help' };
-                  return (
-                    <tr key={l.id}>
-                      <td>{LEAVE_TYPE_LABEL[l.type] ?? l.type}</td>
-                      <td>{dateText(l.startDate)}</td>
-                      <td>{dateText(l.endDate)}</td>
-                      <td>{daysText(l.days)}</td>
-                      <td><StatusChip tone={st.tone} icon={st.icon}>{st.label}</StatusChip></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
-
-      {/* SECTION 7 — سجل الدفعات المقدَّمة على الإجازة (توثيق تاريخي فقط — المادتان 73/74:
-          لا تُسقط ولا تُنقص استحقاق الإجازة القانوني، ولا تُنشئ خط أساس احتساب جديدًا) */}
-      <SectionCard title="سجل الدفعات المقدَّمة على الإجازة" icon="savings">
-        {canManage && (
-          <div className="ent-settlement-actions">
-            <Button variant="primary" icon="add" onClick={() => setShowSettlementDialog(true)}>تسجيل دفعة مقدَّمة</Button>
-          </div>
-        )}
-        {settlements.length === 0 ? (
-          <EmptyState icon="receipt_long" title="لا توجد دفعات مقدَّمة" message="لم تُسجَّل أي دفعة مقدَّمة على الإجازة بعد." tone="neutral" />
-        ) : (
-          <div className="xpl-table-wrap">
-            <table className="xpl-table">
-              <thead>
-                <tr><th>التاريخ</th><th>عدد الأيام</th><th>المبلغ</th><th>طريقة الدفع</th><th>ملاحظات</th></tr>
-              </thead>
-              <tbody>
-                {settlements.map((s) => (
-                  <tr key={s.id}>
-                    <td>{dateText(s.settlementDate)}</td>
-                    <td>{daysText(s.leaveDaysSettled)}</td>
-                    <td><PrivateAmount value={s.settlementAmount} level={1} /></td>
-                    <td>{SETTLEMENT_METHOD_LABEL[s.paymentMethod] ?? s.paymentMethod}</td>
-                    <td>{s.notes || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
-
-      {/* SECTION 8 — سجل المستحقات المصروفة (تاريخي فقط — لا يؤثر في أي احتساب) */}
-      <SectionCard title="سجل المستحقات المصروفة" icon="account_balance_wallet">
-        {canManage && (
-          <div className="ent-settlement-actions">
-            <Button variant="primary" icon="add" onClick={() => setShowLedgerDialog(true)}>إضافة مستحق</Button>
-          </div>
-        )}
-        {ledger.length === 0 ? (
-          <EmptyState icon="receipt_long" title="لا توجد مستحقات مصروفة" message="لم يُسجَّل أي مستحق مصروف لهذا الموظف بعد." tone="neutral" />
-        ) : (
-          <div className="xpl-table-wrap">
-            <table className="xpl-table">
-              <thead>
-                <tr><th>التاريخ</th><th>النوع</th><th>الوصف</th><th>عدد الأيام</th><th>الرصيد وقت الصرف</th><th>المبلغ</th><th>طريقة الدفع</th><th>ملاحظات</th></tr>
-              </thead>
-              <tbody>
-                {ledger.map((e) => {
-                  const isLeaveAllowance = e.entryType === 'LEAVE_ALLOWANCE';
-                  // مؤشّر بصري فقط: هل توجد دفعة مقدَّمة بنفس اليوم؟ لا ربط منطقي/حسابي.
-                  const linked = isLeaveAllowance && hasMatchingSettlement(e.entryDate, settlementDayKeys);
-                  return (
-                    <tr key={e.id}>
-                      <td>{dateText(e.entryDate)}</td>
-                      <td>
-                        <span className="ent-ledger-type">
-                          {LEDGER_TYPE_LABEL[e.entryType] ?? e.entryType}
-                          {linked && <StatusChip tone="blue" icon="link">مرتبط بدفعة مقدَّمة</StatusChip>}
-                        </span>
-                      </td>
-                      <td>{e.description || '—'}</td>
-                      <td>{isLeaveAllowance && e.leaveDays != null ? daysText(e.leaveDays) : '—'}</td>
-                      <td>{isLeaveAllowance && e.leaveBalanceSnapshot != null ? daysText(e.leaveBalanceSnapshot) : '—'}</td>
-                      <td><PrivateAmount value={e.amount} level={1} /></td>
-                      <td>{SETTLEMENT_METHOD_LABEL[e.paymentMethod] ?? e.paymentMethod}</td>
-                      <td>{e.notes || '—'}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </SectionCard>
-
-      {/* الإشعار القانوني — دائم الظهور (لا يُخفى عند اكتمال البيانات) ليوضّح منهجية
-          الاحتساب في كل الأحوال: قاسم الأجر اليومي، تركيب الأجر المعتمد، سيناريوَا مكافأة
-          نهاية الخدمة، وأن الدفعات المقدَّمة لا تُسقط استحقاق الإجازة. */}
-      <div className="ent-legal" role="note">
-        <span className="material-symbols-outlined" aria-hidden="true">gavel</span>
-        <p>
-          القيم أعلاه تقديرية للاسترشاد فقط، محسوبة حتى تاريخ اليوم وفق قانون العمل الكويتي رقم 6
-          لسنة 2010. الأجر اليومي = الأجر الشهري المعتمد ÷ 26 (خط الأساس القانوني المعتمد للمشروع).
-          الأجر الشهري المعتمد = الراتب الأساسي + البدلات الدورية النشطة حاليًا (المادتان 55 و62).
-          مكافأة نهاية الخدمة (المادة 51) تُعرض بسيناريوهَين صريحَين: الاستحقاق الكامل عند إنهاء
-          الخدمة من صاحب العمل، أو المخفَّض بنسبة الاستقالة (المادة 53) — تحقّق من اختيار الأساس
-          الصحيح أعلاه قبل الاعتماد على أي رقم. رصيد الإجازة السنوية (المادة 70) يتراكم دومًا من
-          تاريخ التعيين؛ أي دفعة مقدَّمة مسجَّلة في «سجل الدفعات المقدَّمة على الإجازة» توثيق تاريخي
-          فقط ولا تُسقط أو تُنقص هذا الاستحقاق (المادتان 73 و74). هذه الأرقام ليست بديلاً عن التسوية
-          النهائية الرسمية المعتمدة.
-        </p>
-      </div>
-
-      {showSettlementDialog && (
-        <LeaveSettlementDialog
-          employeeId={employee.id}
-          defaultDays={r.leaveAllowanceDays}
-          defaultAmount={r.leaveAllowanceValue}
-          onClose={() => setShowSettlementDialog(false)}
-          onSaved={() => { setShowSettlementDialog(false); setReloadKey((k) => k + 1); }}
-        />
-      )}
-
-      {showLedgerDialog && (
-        <EntitlementLedgerDialog
-          employeeId={employee.id}
-          leaveBalanceDays={r.leaveAllowanceDays}
-          leaveAllowanceValue={r.leaveAllowanceValue}
-          eosValue={eosAmount}
-          onClose={() => setShowLedgerDialog(false)}
-          onSaved={() => { setShowLedgerDialog(false); setReloadKey((k) => k + 1); }}
-        />
-      )}
+      <Button
+        variant="primary"
+        icon="open_in_new"
+        onClick={() => navigate(`/employees/${employee.id}/entitlements`)}
+      >
+        فتح مركز المستحقات
+      </Button>
     </div>
   );
 }

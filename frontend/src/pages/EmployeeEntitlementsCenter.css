@@ -1,0 +1,62 @@
+/* مركز المستحقات — صفحة كاملة مستقلة (حزمة إعادة هيكلة تجربة الاستحقاقات v1).
+   ExplorerKit tokens، RTL، متجاوب. يستورد أيضًا EmployeeEntitlementsTab.css لإعادة
+   استخدام تنسيقات .ent-* المشتركة (KPIs، التسوية، التنبيهات، الجدول الزمني...) بلا تكرار. */
+
+.entc-page {
+  padding-bottom: 32px;
+}
+
+/* ── شريط بيانات الموظف تحت الترويسة ──────────────────────────────────────────── */
+.entc-info-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 12px 16px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 12px;
+  background: var(--xpl-surface);
+}
+.entc-info-row .xpl-drawer-field {
+  border-bottom: none;
+  padding: 0;
+  min-width: 160px;
+}
+
+/* ── عنوان فرعي صغير داخل بطاقة قابلة للطيّ ──────────────────────────────────── */
+.entc-subhead {
+  margin: 14px 0 4px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--xpl-muted);
+}
+
+/* ── بطاقة قابلة للطيّ — نفس هيئة xpl-card/xpl-card-head بلا لغة تصميم جديدة ──── */
+.entc-collapsible > summary.entc-collapsible-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--xpl-text);
+}
+.entc-collapsible > summary.entc-collapsible-summary::-webkit-details-marker {
+  display: none;
+}
+.entc-collapsible-summary > .material-symbols-outlined:first-child {
+  font-size: 19px;
+  color: var(--xpl-primary);
+}
+.entc-collapsible-title {
+  flex: 1;
+}
+.entc-collapsible-chevron {
+  font-size: 20px;
+  color: var(--xpl-muted);
+  transition: transform 0.15s ease;
+}
+.entc-collapsible[open] > summary .entc-collapsible-chevron {
+  transform: rotate(180deg);
+}
