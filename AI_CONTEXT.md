@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `0178ba2` (merge of `feature/employee-entitlements-historical-ledger-v1`) |
-| **Current Documentation Commit** | `2fb537e` — "docs: record Historical Ledger Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
-| **Current Stable Tag** | `stable-historical-ledger-pack-v1` |
+| **Current Merge Commit** | `f306e1a` (merge of `feature/kuwait-labour-law-compliance-pack-v1`) |
+| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Stable Tag** | `stable-kuwait-labour-law-compliance-pack-v1` |
 | **Current Release Date** | 2026-07-19 |
-| **Total Stable Releases** | 314 (window 2026-06-07 → 2026-07-19) |
+| **Total Stable Releases** | 315 (window 2026-06-07 → 2026-07-19) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,29 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Kuwait Labour Law Compliance Pack v1 — Employee Entitlements** (2026-07-19, `stable-kuwait-labour-law-compliance-pack-v1`) —
+  legal remediation of the Employee Entitlements calculation engine addressing 4 findings from the Kuwait
+  Labour Law Compliance Audit (Rules 10, 13, 16, 17). **Rule 13:** daily-wage divisor centralized to the
+  project-adopted legal baseline of **26** (was 30), via one constant (`DAILY_WAGE_DIVISOR`) with a single
+  shared raw intermediate value (no duplicated division); Art. 51 tier-2 ("one month's wage/year beyond 5
+  years") now multiplies the wage base directly, staying exactly one month independent of the divisor.
+  **Rule 16:** entitlement wage base centralized to `Employee.salary + Σ(active recurring EmployeeAllowance
+  amounts within their date window)` (Art. 55/62), resolved once (`resolveWageBase`) and consumed by every
+  calculation path via a new `computeCurrentEntitlements()` (also removed prior duplication between the read
+  path and the ledger snapshot path). **Rule 17:** `computeGratuity()` now always returns both the full Art.
+  51 (employer-termination) amount and the Art. 53 resignation-reduced amount (0 / ½ / ⅔ / 1 by service-year
+  band), with no implicit default scenario; frontend adds an explicit Employer-Termination/Resignation toggle
+  and a **permanent** (no longer conditional) legal-basis notice. **Rule 10:** `LeaveSettlement` redesigned
+  per Art. 73/74 (no waiver of annual leave, paid or unpaid, during service) — it no longer resets or narrows
+  the leave-accrual baseline; `leaveBaselineDate`/`resolveLeaveBaseline` removed entirely from the pure
+  calculator (no settlement-shaped input exists anymore, so settlements structurally cannot affect any
+  calculation); existing `LeaveSettlement` rows are preserved unchanged (schema doc-comment redesign only —
+  verified via `prisma migrate diff` to introduce zero structural drift, no migration). **No accounting /
+  payroll / bank changes; no database migration.** Tests rewritten (19 cases: divisor/no-duplication proof, 5
+  Art. 53 boundary tests, 3 tests proving the calculator has no settlement/ledger input). Backend **116 files
+  / 1756 tests pass**; frontend suite unchanged from baseline (1 pre-existing, unrelated failure in
+  `routerFutureFlags.test.tsx` — stale `lazy()` count on the untouched `App.tsx`, outside this release's
+  scope). Independent architectural review + **Gemini Final Review: APPROVED**.
 - **Historical Ledger Pack v1 — Employee Entitlements** (2026-07-19, `stable-historical-ledger-pack-v1`) —
   extends the Employee Entitlements drawer with two **independent** manual concepts + a review polish (17
   files, +904/−33; two new tables + one nullable column, all additive). **(A) Leave Settlement Baseline**

@@ -590,6 +590,13 @@ re-added. Each remaining item is unbuilt per repository evidence.
 6. Historical Import Batch Review (`ImportBatch`); recurring invoices; VAT report; end-of-service accrual. *(Low)*
 7. **AuditLog retention** — *maintenance consideration only.* No purge path exists; harmless for a single-user
    local deployment. Revisit **only if database growth becomes measurable**. Not a risk, not near-term. *(Low)*
+8. **Leave Advance Reconciliation Pack v1** — Employee Entitlements currently shows the full legal leave
+   entitlement (Section 3) and the historical advance-payment ledger (Section 7, `LeaveSettlement` — see
+   `stable-kuwait-labour-law-compliance-pack-v1`) as two independent, unreconciled figures: no screen computes
+   "legal entitlement − Σ advances paid = remaining net owed." Scope: display total legal entitlement, total
+   leave-advance payments, and the remaining amount expected at final settlement. **Must NOT modify the legal
+   calculation engine introduced in the Kuwait Labour Law Compliance Pack v1** (`entitlements.calc.ts`'s
+   ÷26 divisor, wage-base composition, or dual gratuity scenarios) — display/reconciliation layer only. *(Medium)*
 
 ### Reviewed & declined — do not re-add, do not recommend as "next"
 
