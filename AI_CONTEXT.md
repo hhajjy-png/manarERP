@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `75ed8c3` (merge of `feature/kuwait-holiday-intelligence-pack-v1`) |
-| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Documentation Commit** | `d319b99` — "docs: record Employee Entitlements Foundation + Kuwait Holiday Intelligence Pack v1 releases" |
 | **Current Stable Tag** | `stable-kuwait-holiday-intelligence-pack-v1` |
 | **Current Release Date** | 2026-07-19 |
 | **Total Stable Releases** | 319 (window 2026-06-07 → 2026-07-19) |
