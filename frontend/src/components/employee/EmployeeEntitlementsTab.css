@@ -6,11 +6,136 @@
   gap: 12px;
 }
 
-/* ── Section 1: بطاقات ملخّص KPI ──────────────────────────────────────────────── */
+/* ── Section 1: بطاقات ملخّص KPI (الملخص التنفيذي — الجزء 1) ─────────────────── */
+.ent-section-heading {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--xpl-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 4px 0 -4px;
+}
 .ent-kpis {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 8px;
+}
+
+/* ── ملخّص مختصر في الدرج (حزمة إعادة الهيكلة v1) ─────────────────────────────── */
+.ent-tab--summary {
+  gap: 10px;
+}
+.ent-mini-summary {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--xpl-muted);
+}
+
+/* ── Section 1b: تنبيهات ذكية (الجزء 6) ───────────────────────────────────────── */
+.ent-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ent-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--xpl-border);
+  font-size: 12px;
+  line-height: 1.5;
+  background: var(--xpl-surface-2);
+  color: var(--xpl-text);
+}
+.ent-warning .material-symbols-outlined { font-size: 18px; flex-shrink: 0; }
+.ent-warning--red     { border-color: rgba(239, 68, 68, .35);   background: rgba(239, 68, 68, .08); }
+.ent-warning--red .material-symbols-outlined     { color: var(--xpl-red); }
+.ent-warning--orange  { border-color: rgba(245, 158, 11, .35);  background: rgba(245, 158, 11, .08); }
+.ent-warning--orange .material-symbols-outlined  { color: var(--xpl-orange); }
+.ent-warning--blue    { border-color: rgba(59, 130, 246, .35);  background: rgba(59, 130, 246, .08); }
+.ent-warning--blue .material-symbols-outlined    { color: var(--xpl-blue); }
+.ent-warning--green   { border-color: rgba(16, 185, 129, .35);  background: rgba(16, 185, 129, .08); }
+.ent-warning--green .material-symbols-outlined   { color: var(--xpl-green); }
+.ent-warning--indigo  { border-color: var(--xpl-border); background: var(--xpl-faint); }
+.ent-warning--indigo .material-symbols-outlined  { color: var(--xpl-primary); }
+.ent-warning--neutral { color: var(--xpl-muted); }
+.ent-warning--neutral .material-symbols-outlined { color: var(--xpl-muted); }
+
+/* ── Section 1c: تسوية رصيد الإجازة — الجدول الزمني البصري (الجزء 2) ─────────── */
+.ent-recon-flow {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+.ent-recon-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 10px;
+  background: var(--xpl-surface-2);
+}
+.ent-recon-step-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--xpl-muted);
+}
+.ent-recon-step-val {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--xpl-text);
+  white-space: nowrap;
+}
+.ent-recon-step--primary {
+  border-color: var(--xpl-primary, #6366f1);
+  background: var(--xpl-primary-faint, rgba(99, 102, 241, 0.08));
+}
+.ent-recon-step--primary .ent-recon-step-label { color: var(--xpl-text); }
+.ent-recon-step--exclude .ent-recon-step-val { color: var(--xpl-green); }
+.ent-recon-arrow {
+  align-self: center;
+  font-size: 16px;
+  color: var(--xpl-muted);
+  margin: -2px 0;
+}
+.ent-recon-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: var(--xpl-surface-2);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--xpl-muted);
+}
+.ent-recon-note .material-symbols-outlined { font-size: 17px; flex-shrink: 0; }
+.ent-recon-note--warn {
+  background: rgba(239, 68, 68, .08);
+  color: var(--xpl-text);
+}
+.ent-recon-note--warn .material-symbols-outlined { color: var(--xpl-red); }
+
+/* ── Section 5b: النشاط التاريخي الموحَّد (الجزء 4) ───────────────────────────── */
+.ent-timeline-more {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--xpl-muted);
+  text-align: center;
+}
+
+/* ── Section 6b: ملخص الدفعات المقدَّمة — أزرار التنقّل (الجزء 3) ───────────────── */
+.ent-settlement-summary-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* تصغير قيمة KPI بنحو 15% لبطاقات محددة فقط (مدة الخدمة، قيمة بدل الإجازة، مكافأة

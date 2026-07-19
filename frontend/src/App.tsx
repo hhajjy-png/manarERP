@@ -57,6 +57,7 @@ const DocumentVerify = lazy(() => import('./pages/DocumentVerify'));
 const PaymentVoucher = lazy(() => import('./pages/PaymentVoucher'));
 const ReceiptVoucher = lazy(() => import('./pages/ReceiptVoucher'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
+const EmployeeEntitlementsCenter = lazy(() => import('./pages/EmployeeEntitlementsCenter'));
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -114,6 +115,7 @@ export default function App() {
             <Route path="/customers" element={<ResourcePage moduleKey="customers" />} />
             <Route path="/equipment" element={<ResourcePage moduleKey="equipment" />} />
             <Route path="/employees" element={<ResourcePage moduleKey="employees" />} />
+            <Route path="/employees/:id/entitlements" element={<EmployeeEntitlementsCenter />} />
             <Route path="/suppliers" element={<ResourcePage moduleKey="suppliers" />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/users" element={<Users />} />
