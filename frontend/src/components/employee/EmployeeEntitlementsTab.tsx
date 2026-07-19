@@ -11,7 +11,11 @@ import {
   EmptyState,
   ErrorBanner,
   SkeletonRows,
+  Button,
 } from '../explorer/ExplorerKit';
+import LeaveSettlementDialog from './LeaveSettlementDialog';
+import EntitlementLedgerDialog from './EntitlementLedgerDialog';
+import { dayKey, hasMatchingSettlement } from './entitlementLedgerDisplay';
 import './EmployeeEntitlementsTab.css';
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
@@ -57,8 +61,45 @@ interface EntitlementsResponse {
   employee: { id: number; code: string; fullName: string; salary: number; hireDate: string | null; status: string };
   result: EntitlementResult;
   leaveHistory: LeaveRow[];
-  settlements: { date: string; days: number; amount: number }[];
+  settlements: SettlementRow[];
+  leaveBaseline: { date: string | null; isSettlement: boolean };
+  ledger: LedgerRow[];
 }
+
+interface LedgerRow {
+  id: number;
+  entryType: string;
+  entryDate: string;
+  description: string | null;
+  leaveDays: number | null;
+  leaveBalanceSnapshot: number | null;
+  amount: number;
+  paymentMethod: string;
+  notes: string | null;
+}
+
+const LEDGER_TYPE_LABEL: Record<string, string> = {
+  LEAVE_ALLOWANCE: 'بدل الإجازة',
+  END_OF_SERVICE: 'مكافأة نهاية الخدمة',
+  OTHER: 'مستحق آخر',
+};
+
+interface SettlementRow {
+  id: number;
+  settlementDate: string;
+  leaveDaysSettled: number;
+  settlementAmount: number;
+  paymentMethod: string;
+  notes: string | null;
+  createdAt: string;
+}
+
+const SETTLEMENT_METHOD_LABEL: Record<string, string> = {
+  CASH: 'نقدًا',
+  BANK_TRANSFER: 'تحويل بنكي',
+  CHEQUE: 'شيك',
+  OTHER: 'أخرى',
+};
 
 type EmployeeLike = { id: number; fullName?: string | null };
 
@@ -113,10 +154,15 @@ function Incomplete({ reason }: { reason: string }) {
 export default function EmployeeEntitlementsTab({ employee }: { employee: EmployeeLike }) {
   const { hasPermission } = useAuth();
   const canRead = hasPermission('employees.read');
+  // إنشاء التسوية يعيد استخدام صلاحية تعديل الموظف (لا مفتاح صلاحية جديد).
+  const canManage = hasPermission('employees.update');
 
   const [data, setData] = useState<EntitlementsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
+  const [showSettlementDialog, setShowSettlementDialog] = useState(false);
+  const [showLedgerDialog, setShowLedgerDialog] = useState(false);
 
   useEffect(() => {
     if (!canRead || !employee?.id) return;
@@ -129,7 +175,8 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
       .catch((e) => { if (alive) setError(errorMessage(e)); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [employee?.id, canRead]);
+    // reloadKey forces a refetch after a settlement is recorded → recalculated baseline.
+  }, [employee?.id, canRead, reloadKey]);
 
   if (!canRead) {
     return <EmptyState icon="lock" title="صلاحية غير متوفرة" message="لا تملك صلاحية عرض استحقاقات هذا الموظف." tone="neutral" />;
@@ -137,8 +184,10 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
   if (error) return <ErrorBanner>{error}</ErrorBanner>;
   if (loading || !data) return <SkeletonRows rows={6} withAvatar={false} />;
 
-  const { result: r, employee: emp, leaveHistory, settlements } = data;
+  const { result: r, employee: emp, leaveHistory, settlements, ledger } = data;
   const g = r.gratuity;
+  // مجموعة أيام التسويات (YYYY-MM-DD) — لمطابقة شارة «مرتبط بتسوية الإجازة» بصريًا فقط.
+  const settlementDayKeys = new Set(settlements.map((s) => dayKey(s.settlementDate)));
 
   const durReason = missingReason(true, false, r);
   const moneyReason = missingReason(true, true, r);
@@ -205,24 +254,6 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
           <DrawerField label="الأيام المستحقة للصرف" value={daysOrIncomplete(r.leaveAllowanceDays, leaveReason)} />
           <DrawerField label="القيمة النقدية" value={money(r.leaveAllowanceValue, moneyReason)} />
         </div>
-        {settlements.length > 0 && (
-          <div className="xpl-table-wrap ent-settlements">
-            <table className="xpl-table">
-              <thead>
-                <tr><th>تاريخ الصرف</th><th>الأيام</th><th>القيمة</th></tr>
-              </thead>
-              <tbody>
-                {settlements.map((s, i) => (
-                  <tr key={i}>
-                    <td>{dateText(s.date)}</td>
-                    <td>{daysText(s.days)}</td>
-                    <td><PrivateAmount value={s.amount} level={1} /></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </SectionCard>
 
       {/* SECTION 4 — مكافأة نهاية الخدمة */}
@@ -283,6 +314,81 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
         )}
       </SectionCard>
 
+      {/* SECTION 7 — سجل تسويات الإجازة (تسجيل يدوي؛ أحدث تسوية تصبح خط أساس الاحتساب) */}
+      <SectionCard title="سجل تسويات الإجازة" icon="savings">
+        {canManage && (
+          <div className="ent-settlement-actions">
+            <Button variant="primary" icon="add" onClick={() => setShowSettlementDialog(true)}>تسوية رصيد الإجازة</Button>
+          </div>
+        )}
+        {settlements.length === 0 ? (
+          <EmptyState icon="receipt_long" title="لا توجد تسويات" message="لم تُسجَّل أي تسوية لرصيد الإجازة بعد." tone="neutral" />
+        ) : (
+          <div className="xpl-table-wrap">
+            <table className="xpl-table">
+              <thead>
+                <tr><th>التاريخ</th><th>عدد الأيام</th><th>المبلغ</th><th>طريقة الدفع</th><th>ملاحظات</th></tr>
+              </thead>
+              <tbody>
+                {settlements.map((s) => (
+                  <tr key={s.id}>
+                    <td>{dateText(s.settlementDate)}</td>
+                    <td>{daysText(s.leaveDaysSettled)}</td>
+                    <td><PrivateAmount value={s.settlementAmount} level={1} /></td>
+                    <td>{SETTLEMENT_METHOD_LABEL[s.paymentMethod] ?? s.paymentMethod}</td>
+                    <td>{s.notes || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
+      {/* SECTION 8 — سجل المستحقات المصروفة (تاريخي فقط — لا يؤثر في أي احتساب) */}
+      <SectionCard title="سجل المستحقات المصروفة" icon="account_balance_wallet">
+        {canManage && (
+          <div className="ent-settlement-actions">
+            <Button variant="primary" icon="add" onClick={() => setShowLedgerDialog(true)}>إضافة مستحق</Button>
+          </div>
+        )}
+        {ledger.length === 0 ? (
+          <EmptyState icon="receipt_long" title="لا توجد مستحقات مصروفة" message="لم يُسجَّل أي مستحق مصروف لهذا الموظف بعد." tone="neutral" />
+        ) : (
+          <div className="xpl-table-wrap">
+            <table className="xpl-table">
+              <thead>
+                <tr><th>التاريخ</th><th>النوع</th><th>الوصف</th><th>عدد الأيام</th><th>الرصيد وقت الصرف</th><th>المبلغ</th><th>طريقة الدفع</th><th>ملاحظات</th></tr>
+              </thead>
+              <tbody>
+                {ledger.map((e) => {
+                  const isLeaveAllowance = e.entryType === 'LEAVE_ALLOWANCE';
+                  // مؤشّر بصري فقط: هل توجد تسوية إجازة بنفس اليوم؟ لا ربط منطقي/حسابي.
+                  const linked = isLeaveAllowance && hasMatchingSettlement(e.entryDate, settlementDayKeys);
+                  return (
+                    <tr key={e.id}>
+                      <td>{dateText(e.entryDate)}</td>
+                      <td>
+                        <span className="ent-ledger-type">
+                          {LEDGER_TYPE_LABEL[e.entryType] ?? e.entryType}
+                          {linked && <StatusChip tone="blue" icon="link">مرتبط بتسوية الإجازة</StatusChip>}
+                        </span>
+                      </td>
+                      <td>{e.description || '—'}</td>
+                      <td>{isLeaveAllowance && e.leaveDays != null ? daysText(e.leaveDays) : '—'}</td>
+                      <td>{isLeaveAllowance && e.leaveBalanceSnapshot != null ? daysText(e.leaveBalanceSnapshot) : '—'}</td>
+                      <td><PrivateAmount value={e.amount} level={1} /></td>
+                      <td>{SETTLEMENT_METHOD_LABEL[e.paymentMethod] ?? e.paymentMethod}</td>
+                      <td>{e.notes || '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </SectionCard>
+
       {/* الإشعار القانوني — يظهر فقط عند وجود افتراضات أو نقص بيانات أثّرت في الاحتساب */}
       {showLegalNote && (
         <div className="ent-legal" role="note">
@@ -295,6 +401,27 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
             انتهاء الخدمة). ليست بديلاً عن التسوية النهائية المعتمدة.
           </p>
         </div>
+      )}
+
+      {showSettlementDialog && (
+        <LeaveSettlementDialog
+          employeeId={employee.id}
+          defaultDays={r.leaveAllowanceDays}
+          defaultAmount={r.leaveAllowanceValue}
+          onClose={() => setShowSettlementDialog(false)}
+          onSaved={() => { setShowSettlementDialog(false); setReloadKey((k) => k + 1); }}
+        />
+      )}
+
+      {showLedgerDialog && (
+        <EntitlementLedgerDialog
+          employeeId={employee.id}
+          leaveBalanceDays={r.leaveAllowanceDays}
+          leaveAllowanceValue={r.leaveAllowanceValue}
+          eosValue={g ? g.total : null}
+          onClose={() => setShowLedgerDialog(false)}
+          onSaved={() => { setShowLedgerDialog(false); setReloadKey((k) => k + 1); }}
+        />
       )}
     </div>
   );

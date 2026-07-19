@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateEntitlements } from '../entitlements.calc';
+import { calculateEntitlements, resolveLeaveBaseline } from '../entitlements.calc';
 
 /**
  * اختبارات حاسبة الاستحقاقات (قانون 6/2010، المادتان 70 و51).
@@ -107,5 +107,97 @@ describe('calculateEntitlements', () => {
     const r = calculateEntitlements({ hireDate, monthlySalary: 900, asOf, usedAnnualLeaveDays: 0 });
     // من 2023-06-15 إلى 2026-01-01 = سنتان و6 أشهر و17 يومًا.
     expect(r.duration).toEqual({ years: 2, months: 6, days: 17, totalDays: 931 });
+  });
+});
+
+describe('resolveLeaveBaseline — خط أساس رصيد الإجازة', () => {
+  const hire = new Date('2024-01-01T00:00:00Z');
+
+  it('falls back to hire date when there are no settlements', () => {
+    const { baselineDate, isSettlement } = resolveLeaveBaseline(hire, []);
+    expect(baselineDate).toEqual(hire);
+    expect(isSettlement).toBe(false);
+  });
+
+  it('uses the settlement date when one settlement exists', () => {
+    const s = new Date('2026-07-15T00:00:00Z');
+    const { baselineDate, isSettlement } = resolveLeaveBaseline(hire, [s]);
+    expect(baselineDate).toEqual(s);
+    expect(isSettlement).toBe(true);
+  });
+
+  it('picks the latest settlement when multiple exist (order-independent)', () => {
+    const older = new Date('2025-03-01T00:00:00Z');
+    const latest = new Date('2026-07-15T00:00:00Z');
+    const mid = new Date('2025-12-20T00:00:00Z');
+    const { baselineDate, isSettlement } = resolveLeaveBaseline(hire, [older, latest, mid]);
+    expect(baselineDate).toEqual(latest);
+    expect(isSettlement).toBe(true);
+  });
+
+  it('ignores invalid settlement dates and falls back to hire date', () => {
+    const bad = new Date('not-a-date');
+    const { baselineDate, isSettlement } = resolveLeaveBaseline(hire, [bad, null]);
+    expect(baselineDate).toEqual(hire);
+    expect(isSettlement).toBe(false);
+  });
+
+  it('returns null baseline when neither hire date nor settlement exists', () => {
+    const { baselineDate, isSettlement } = resolveLeaveBaseline(null, []);
+    expect(baselineDate).toBeNull();
+    expect(isSettlement).toBe(false);
+  });
+});
+
+describe('calculateEntitlements — accrual from leave baseline (settlement)', () => {
+  const asOf = new Date('2026-09-20T00:00:00Z');
+  const hire = new Date('2024-01-01T00:00:00Z'); // خدمة طويلة قبل التسوية
+
+  it('accrues leave from the hire date when no settlement baseline is passed', () => {
+    const r = calculateEntitlements({ hireDate: hire, monthlySalary: 900, asOf, usedAnnualLeaveDays: 0 });
+    // ~2.72 سنة × 30 ≈ 82 يومًا — رصيد كبير متراكم من التعيين.
+    expect(r.accruedLeaveDays).toBeGreaterThan(80);
+  });
+
+  it('accrues leave ONLY from the settlement date forward when a baseline is passed', () => {
+    const settlement = new Date('2026-07-15T00:00:00Z'); // آخر تسوية
+    const r = calculateEntitlements({
+      hireDate: hire,
+      leaveBaselineDate: settlement,
+      monthlySalary: 900,
+      asOf,
+      usedAnnualLeaveDays: 0,
+    });
+    // من 15/07/2026 إلى 20/09/2026 = 67 يومًا → 30 × 67/365 ≈ 5.51 يومًا (رصيد صغير جديد).
+    expect(r.accruedLeaveDays).toBeGreaterThan(5);
+    expect(r.accruedLeaveDays).toBeLessThan(6);
+    // مدة الخدمة ومكافأة نهاية الخدمة تبقى من تاريخ التعيين (لا تتأثر بالتسوية).
+    expect(r.duration!.years).toBe(2);
+    expect(r.gratuity!.serviceYears).toBeGreaterThan(2.6);
+  });
+});
+
+describe('Entitlement ledger is historical only — never feeds the calculation', () => {
+  const asOf = new Date('2026-09-20T00:00:00Z');
+  const hire = new Date('2024-01-01T00:00:00Z');
+
+  // العقد المعماري: للحاسبة النقيّة مدخلات محدّدة (تاريخ التعيين، خط أساس الإجازة،
+  // الراتب، الأيام المستخدمة، asOf) — ولا وجود لأي مدخل «سجل مستحقات». لذا فإضافة صفوف
+  // في سجل المستحقات المصروفة لا يمكنها أن تغيّر أي ناتج احتساب. تُوثّق هذه الاختبارات ذلك.
+
+  it('produces identical output for identical calc inputs (ledger rows are irrelevant to it)', () => {
+    const input = { hireDate: hire, leaveBaselineDate: hire, monthlySalary: 900, asOf, usedAnnualLeaveDays: 3 };
+    // «قبل» و«بعد» إضافة صفوف سجل — نفس مدخلات الاحتساب لأن السجل ليس مدخلًا أصلًا.
+    const before = calculateEntitlements({ ...input });
+    const after = calculateEntitlements({ ...input });
+    expect(after).toEqual(before);
+  });
+
+  it('EOS (gratuity) depends only on hire date + salary, not on any ledger/allowance record', () => {
+    const a = calculateEntitlements({ hireDate: hire, leaveBaselineDate: hire, monthlySalary: 900, asOf, usedAnnualLeaveDays: 0 });
+    // خط أساس الإجازة (تسوية) لا يغيّر المكافأة — المكافأة من تاريخ التعيين حصرًا.
+    const b = calculateEntitlements({ hireDate: hire, leaveBaselineDate: new Date('2026-07-15T00:00:00Z'), monthlySalary: 900, asOf, usedAnnualLeaveDays: 0 });
+    expect(b.gratuity!.total).toBe(a.gratuity!.total);
+    expect(b.gratuity!.serviceYears).toBe(a.gratuity!.serviceYears);
   });
 });
