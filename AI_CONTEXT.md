@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `ea62520` (merge of `feature/employee-entitlements-drawer-v1`) |
-| **Current Documentation Commit** | `28b31b0` — "docs: record Employee Entitlements Drawer Tab v1 release in PROJECT_STATE / AI_CONTEXT" |
-| **Current Stable Tag** | `stable-employee-entitlements-drawer-v1` |
+| **Current Merge Commit** | `0178ba2` (merge of `feature/employee-entitlements-historical-ledger-v1`) |
+| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Stable Tag** | `stable-historical-ledger-pack-v1` |
 | **Current Release Date** | 2026-07-19 |
-| **Total Stable Releases** | 313 (window 2026-06-07 → 2026-07-19) |
+| **Total Stable Releases** | 314 (window 2026-06-07 → 2026-07-19) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,25 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Historical Ledger Pack v1 — Employee Entitlements** (2026-07-19, `stable-historical-ledger-pack-v1`) —
+  extends the Employee Entitlements drawer with two **independent** manual concepts + a review polish (17
+  files, +904/−33; two new tables + one nullable column, all additive). **(A) Leave Settlement Baseline**
+  (`LeaveSettlement` table + pure `resolveLeaveBaseline`): leave accrual now runs from the **latest settlement
+  date** (else hire date) — drives leave accrual **only**, never gratuity or service duration (both stay
+  anchored to hire date). **(B) Employee Entitlement Ledger** (`EmployeeEntitlementLedger` table; types Leave
+  Allowance / End of Service / Other): **historical audit only** — never feeds any calculation, never creates
+  a journal/bank/cheque/cash-voucher/payroll record. **(C) Polish:** a **write-once** informational
+  `leaveBalanceSnapshot` (captured server-side at creation for Leave Allowance rows, never used in any calc,
+  no update path) + a **display-only** "مرتبط بتسوية الإجازة" badge derived at render from same-day settlement
+  matching (no FK, no coupling, no synchronization). New endpoints `GET/POST /employees/:id/leave-settlements`
+  and `GET/POST /employees/:id/entitlement-ledger` all reuse the existing `employees.read` / `employees.update`
+  permissions (no new keys); the entitlements response gained read-only `settlements[]`, `leaveBaseline`, and
+  `ledger[]`. Frontend reuses ExplorerKit dialogs/tables (RTL, dark mode, responsive). The pure calculator is
+  unit-tested to prove the ledger/snapshot/badge can **never** change calculations. Backend **1756 tests
+  pass**; backend/frontend/electron `tsc`, `prisma validate`, and frontend build all green. Code review +
+  manual visual review complete. **Known pre-existing, unrelated:** `routerFutureFlags.test.tsx` asserts a
+  stale `lazy()` count (48 vs actual 46 in the untouched `App.tsx`) — already red on the prior production HEAD,
+  outside this pack's scope.
 - **Employee Entitlements Drawer Tab v1** (2026-07-19, `stable-employee-entitlements-drawer-v1`) —
   new read-only "الاستحقاقات" tab in the Employee drawer (8 files, +782/−2; no DB/schema change). Shows
   service duration, annual-leave balance/used/remaining, leave cash allowance, and end-of-service gratuity
