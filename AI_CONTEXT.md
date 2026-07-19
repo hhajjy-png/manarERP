@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `0178ba2` (merge of `feature/employee-entitlements-historical-ledger-v1`) |
-| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Documentation Commit** | `2fb537e` — "docs: record Historical Ledger Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
 | **Current Stable Tag** | `stable-historical-ledger-pack-v1` |
 | **Current Release Date** | 2026-07-19 |
 | **Total Stable Releases** | 314 (window 2026-06-07 → 2026-07-19) |
