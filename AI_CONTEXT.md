@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `70fa096` (merge of `feature/al-ojairi-integration-pack-v1`) |
-| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Documentation Commit** | `3c88002` — "docs: record Al-Ojairi Integration Pack v1 release" |
 | **Current Stable Tag** | `stable-al-ojairi-integration-pack-v1` |
 | **Current Release Date** | 2026-07-19 |
 | **Total Stable Releases** | 320 (window 2026-06-07 → 2026-07-19) |
