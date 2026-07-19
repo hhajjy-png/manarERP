@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `7df6768` (merge of `feature/date-boundary-consistency-pack-v1`) |
-| **Current Documentation Commit** | `fb21a83` — "docs: record Date Boundary Consistency Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
-| **Current Stable Tag** | `stable-date-boundary-consistency-pack-v1` |
-| **Current Release Date** | 2026-07-18 |
-| **Total Stable Releases** | 310 (window 2026-06-07 → 2026-07-18) |
+| **Current Merge Commit** | `86292d5` (merge of `feature/user-management-header-cleanup-pack-v1`) |
+| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Stable Tag** | `stable-user-management-header-cleanup-pack-v1` |
+| **Current Release Date** | 2026-07-19 |
+| **Total Stable Releases** | 311 (window 2026-06-07 → 2026-07-19) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,11 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **User Management Header Cleanup Pack v1** (2026-07-19, `stable-user-management-header-cleanup-pack-v1`) —
+  frontend-only, presentation-only (1 file, `Users.tsx`, −1 line). Removed the duplicate "مستخدم جديد"
+  (new user) button rendered in the Users page `ExecutiveHeader` `aside` slot, leaving the toolbar button
+  above the table as the single add action on the page. No Business Logic / API / permission / handler /
+  layout change.
 - **Date Boundary Consistency Pack v1** (2026-07-18, `stable-date-boundary-consistency-pack-v1`) —
   backend-only, no UI changes. Standardized `toDate`/`asOfDate` end-of-period handling to the canonical
   `endOfDay()` helper across every financial report that previously used a bare `new Date(toDate)` (UTC
