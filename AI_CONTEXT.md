@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `339bab1` (merge of `feature/kuwait-labour-law-compliance-pack-v2`) |
-| **Current Documentation Commit** | `3d0d12e` — "docs: record Kuwait Labour Law Compliance Pack v2 release in PROJECT_STATE / AI_CONTEXT" |
-| **Current Stable Tag** | `stable-kuwait-labour-law-compliance-pack-v2` |
+| **Current Merge Commit** | `f841d1d` (merge of `feature/employee-entitlements-experience-refactor-v1`) |
+| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Stable Tag** | `stable-employee-entitlements-experience-refactor-v1` |
 | **Current Release Date** | 2026-07-19 |
-| **Total Stable Releases** | 316 (window 2026-06-07 → 2026-07-19) |
+| **Total Stable Releases** | 317 (window 2026-06-07 → 2026-07-19) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,25 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Employee Entitlements Experience Refactor v1** (2026-07-19, `stable-employee-entitlements-experience-refactor-v1`) —
+  presentation/navigation-only split of the Employee Entitlements experience into two layers. The employee drawer tab
+  (`EmployeeEntitlementsTab.tsx`, 484 → ~110 lines) is now a lightweight summary: 4 KPI cards (current leave balance,
+  total legal entitlement, leave used, settlement summary) + one mini-summary line + a "فتح مركز المستحقات" action that
+  **navigates** (not a dialog, not a drawer expansion) to a new page. The full experience — Executive KPI grid,
+  collapsible calculation/EOS detail, Smart Warnings, Leave Reconciliation, Leave Advance Reconciliation, Settlement
+  Summary, Historical Activity Timeline, Historical Ledger, and collapsible detailed tables — moved to a new
+  lazy-loaded route `/employees/:id/entitlements` (`pages/EmployeeEntitlementsCenter.tsx`), added inside the existing
+  `Layout`-wrapped route group (sidebar/topbar preserved). Collapsible sections use native `<details>`/`<summary>`
+  styled to match `xpl-card` — no new design language. A new shared module
+  (`components/employee/entitlementsShared.tsx`) centralizes every type/label-map/helper previously duplicated inline
+  in the old tab (`buildWarnings`, `buildTimeline`, formatting helpers) — single source for both surfaces, logic moved
+  verbatim, not rewritten. Both surfaces call the identical unmodified `GET /employees/:id/entitlements` endpoint.
+  Includes one additive backend prerequisite (`employees.service.ts`) the Center page depends on to render: a
+  `leaveExclusionBreakdown` field exposing a presentation-only holiday/sick breakdown — the legal `netUsedLeaveDays`
+  is still derived exclusively via the **unchanged** `computeEffectiveAnnualLeaveDays()` calculation-engine call
+  (mathematically guaranteed consistent by construction). **No calculation-engine, Rule 2/5, Leave Settlement,
+  Historical Ledger semantics, EOS/gratuity, DB schema, or permission changes.** Backend **116 files / 1766 tests
+  pass**, unaffected. **Gemini review: APPROVED.**
 - **Kuwait Labour Law Compliance Pack v2 — Employee Entitlements** (2026-07-19, `stable-kuwait-labour-law-compliance-pack-v2`) —
   implements the two remaining confirmed items from the independent Kuwait Labour Law Compliance Audit (Rules 2
   and 5); Rules 4/6/18 stay out of scope pending formal legal interpretation. **Rule 2 (Art. 70, first-year

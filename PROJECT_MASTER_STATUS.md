@@ -590,14 +590,7 @@ re-added. Each remaining item is unbuilt per repository evidence.
 6. Historical Import Batch Review (`ImportBatch`); recurring invoices; VAT report; end-of-service accrual. *(Low)*
 7. **AuditLog retention** — *maintenance consideration only.* No purge path exists; harmless for a single-user
    local deployment. Revisit **only if database growth becomes measurable**. Not a risk, not near-term. *(Low)*
-8. **Leave Advance Reconciliation Pack v1** — Employee Entitlements currently shows the full legal leave
-   entitlement (Section 3) and the historical advance-payment ledger (Section 7, `LeaveSettlement` — see
-   `stable-kuwait-labour-law-compliance-pack-v1`) as two independent, unreconciled figures: no screen computes
-   "legal entitlement − Σ advances paid = remaining net owed." Scope: display total legal entitlement, total
-   leave-advance payments, and the remaining amount expected at final settlement. **Must NOT modify the legal
-   calculation engine introduced in the Kuwait Labour Law Compliance Pack v1** (`entitlements.calc.ts`'s
-   ÷26 divisor, wage-base composition, or dual gratuity scenarios) — display/reconciliation layer only. *(Medium)*
-9. **Kuwait Labour Law Compliance — Rules 4, 6, 18** — the independent Kuwait Labour Law Compliance Audit
+8. **Kuwait Labour Law Compliance — Rules 4, 6, 18** — the independent Kuwait Labour Law Compliance Audit
    flagged 3 remaining findings against the Employee Entitlements calculation engine that Pack v1 (Rules 10,
    13, 16, 17) and Pack v2 (Rules 2, 5 — see `stable-kuwait-labour-law-compliance-pack-v2`) deliberately did
    **not** implement, because each requires **formal legal interpretation** before any calculation change can
@@ -618,6 +611,11 @@ re-added. Each remaining item is unbuilt per repository evidence.
 
 ### Proven shipped — removed from this roadmap (do not re-add)
 
+- **Leave Advance Reconciliation Pack v1.** ✅ **Implemented** — shipped as the "Leave Advance Reconciliation"
+  section of the Employee Entitlements Center (`stable-employee-entitlements-experience-refactor-v1`): total
+  legal entitlement, total leave-advance days paid, and the remaining amount expected at final settlement, with
+  an over-advance difference warning. Display/reconciliation layer only — the legal calculation engine
+  (`entitlements.calc.ts`) was not modified.
 - **Approval Workflow — Phase B.** The engine is now registered for expense/invoice/payroll and the domain
   services record `ApprovalHistory` via `approvalEngine.recordTransition()`. Approvals are **not** routed
   through `transition()` — doing so would double-audit and deadlock SQLite, and `invoices.approve()` has no
