@@ -23,8 +23,10 @@ interface Props {
 }
 
 /**
- * حوار «تسوية رصيد الإجازة» — تسجيل يدوي فقط. الحفظ ينشئ سجل تسوية واحدًا (POST
- * /employees/:id/leave-settlements) ولا ينشئ أي قيد محاسبي/حركة بنكية/شيك/سند/راتب.
+ * حوار «تسجيل دفعة مقدَّمة على الإجازة» — تسجيل يدوي/تاريخي فقط (POST
+ * /employees/:id/leave-settlements). لا ينشئ أي قيد محاسبي/حركة بنكية/شيك/سند/راتب،
+ * ولا يُسقط أو يُنقص استحقاق الإجازة القانوني المحتسَب (المادتان 73/74 — لا يجوز
+ * التنازل عن الإجازة السنوية بمقابل أثناء الخدمة؛ الصرف النقدي فقط عند انتهاء العقد).
  * يعيد ExplorerKit استخدام نفس الحوار/الحقول القياسية (RTL، الوضع الداكن، متجاوب).
  */
 export default function LeaveSettlementDialog({ employeeId, defaultDays, defaultAmount, onClose, onSaved }: Props) {
@@ -37,7 +39,7 @@ export default function LeaveSettlementDialog({ employeeId, defaultDays, default
   const [error, setError] = useState('');
 
   const save = async () => {
-    if (!settlementDate) { setError('تاريخ التسوية مطلوب'); return; }
+    if (!settlementDate) { setError('التاريخ مطلوب'); return; }
     setSaving(true);
     setError('');
     try {
@@ -58,22 +60,22 @@ export default function LeaveSettlementDialog({ employeeId, defaultDays, default
   return (
     <Dialog
       icon="savings"
-      title="تسوية رصيد الإجازة"
-      subtitle="تسجيل يدوي فقط — لا يُنشئ قيودًا محاسبية أو حركات بنكية أو رواتب"
+      title="تسجيل دفعة مقدَّمة على الإجازة"
+      subtitle="سجل تاريخي لدفعة مقدَّمة — لا يُسقط استحقاق الإجازة القانوني ولا يُنشئ قيودًا محاسبية أو حركات بنكية أو رواتب (المادة 74)"
       size="md"
       onClose={onClose}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={saving}>إلغاء</Button>
-          <Button variant="primary" icon="check" onClick={save} busy={saving}>حفظ التسوية</Button>
+          <Button variant="primary" icon="check" onClick={save} busy={saving}>حفظ</Button>
         </>
       }
     >
       {error && <ErrorBanner>{error}</ErrorBanner>}
       <DialogSection>
         <div className="xpl-field">
-          <label>تاريخ التسوية</label>
-          <DateInput className="xpl-input" value={settlementDate} onChange={(v) => setSettlementDate(v)} ariaLabel="تاريخ التسوية" />
+          <label>التاريخ</label>
+          <DateInput className="xpl-input" value={settlementDate} onChange={(v) => setSettlementDate(v)} ariaLabel="التاريخ" />
         </div>
         <div className="xpl-field">
           <label>عدد الأيام</label>
@@ -111,7 +113,7 @@ export default function LeaveSettlementDialog({ employeeId, defaultDays, default
         </div>
         <div className="xpl-field xpl-field--full">
           <label>ملاحظات (اختياري)</label>
-          <input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="ملاحظات التسوية" aria-label="ملاحظات" />
+          <input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="ملاحظات الدفعة" aria-label="ملاحظات" />
         </div>
       </DialogSection>
     </Dialog>
