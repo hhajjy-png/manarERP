@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `75ed8c3` (merge of `feature/kuwait-holiday-intelligence-pack-v1`) |
-| **Current Documentation Commit** | `d319b99` — "docs: record Employee Entitlements Foundation + Kuwait Holiday Intelligence Pack v1 releases" |
-| **Current Stable Tag** | `stable-kuwait-holiday-intelligence-pack-v1` |
+| **Current Merge Commit** | `70fa096` (merge of `feature/al-ojairi-integration-pack-v1`) |
+| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Stable Tag** | `stable-al-ojairi-integration-pack-v1` |
 | **Current Release Date** | 2026-07-19 |
-| **Total Stable Releases** | 319 (window 2026-06-07 → 2026-07-19) |
+| **Total Stable Releases** | 320 (window 2026-06-07 → 2026-07-19) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,26 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Al-Ojairi Integration Pack v1** (2026-07-19, `stable-al-ojairi-integration-pack-v1`) — completes the Kuwait
+  Hijri holiday generation pipeline that Kuwait Holiday Intelligence Pack v1 left as an architecture-only stub
+  (`HijriHolidayService` previously always returned `[]`). **Data source:** a real, deterministic, fully offline
+  Hijri↔Gregorian conversion (`holidays/hijriCalendarConversion.ts`) — the tabular/civil Islamic calendar
+  ("Kuwaiti algorithm": fixed epoch Julian Day 1948440 + the standard 11-leap-years-per-30-year cycle + standard
+  Julian-Day↔Gregorian conversion), verified against the public epoch correspondence (1 Muharram 1 AH = 19 July
+  622 CE) and structural invariants; no network call, no hardcoded or guessed future Gregorian date — only fixed
+  Hijri month/day facts are constants. **Hijri Provider:** `HijriHolidayService.generateExpectedHijriHolidays()`
+  covers Islamic New Year, Prophet's Birthday, Eid Al-Fitr, Arafat Day, Eid Al-Adha; every candidate is always
+  `EXPECTED_ALOJAIRI`, never auto-promoted to `OFFICIAL`; `HolidaySourceProvider.generateForYear()` now returns
+  `{candidates, warnings}` so unsupported years/provider failures fail safely instead of throwing. **Holiday
+  Engine evolution:** new static `HolidayEngine.generateCandidates(year, providers?)` is now the single
+  system-wide consumer of holiday providers — `HolidayGenerationPlanner` no longer calls providers directly;
+  every pre-existing calendar-math method is unchanged. **Supported range:** Gregorian 2020–2050 (one constant to
+  widen). **Extension mechanism:** a future provider needs only a `HolidaySourceProvider` implementation + one
+  `DEFAULT_HOLIDAY_PROVIDERS` entry — no change to `HolidayEngine`, the planner/executor, or the comparison
+  algorithm. **Status persistence:** `classifyHoliday()` parses an existing `[ORIGIN:STATUS]` tag already written
+  into the `notes` column, so generated status survives read-back — **no schema change**. **No change to Rule 2,
+  Rule 5, EOS, Leave Settlement, Historical Ledger, database schema, existing API contracts, or permissions.**
+  Backend **132 files / 1845 tests pass** (23 new, zero regressions). 22 files (+771/−95).
 - **Kuwait Holiday Intelligence Pack v1** (2026-07-19, `stable-kuwait-holiday-intelligence-pack-v1`) —
   extends the Employee Entitlements Foundation with a complete Kuwait Holiday generation and planning system, built
   entirely on the Foundation's `HolidayEngine`/`HolidayService`. **Providers:** `HolidaySourceProvider` interface +

@@ -2,15 +2,17 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-17 (previously 2026-07-01) · Read-only audit · No source code, Prisma, or PROJECT_STATE.md was modified.
+> Last refreshed: 2026-07-19 (previously 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This 2026-07-17 pass refreshed those two quantitative tables only (re-derived directly from `git`); the
-> deeper narrative surveys (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-01
-> and have not been re-audited in this pass — treat their specifics as of that date, not current-day.
+> below. This 2026-07-19 pass, like the 2026-07-17 pass before it, refreshed the "Current Production State" table
+> only (re-derived directly from `git` for the Al-Ojairi Integration Pack v1 release) — the "Repository Status"
+> quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit sections further down) were
+> last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in this pass — treat their
+> specifics as of those dates, not current-day.
 
 ---
 
@@ -33,9 +35,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `460e08c` — *docs: record Financial Center & Banking UX Fix Pack v2 release in PROJECT_STATE* | High |
-| **Current stable tag** | `stable-financial-center-banking-ux-fix-pack-v2` (merge commit `cd7aac9`) | High |
-| **Previous stable tag** | `stable-financial-center-banking-ux-consolidation-v1` (`d7ed0c6`) | High |
+| **Current HEAD** | `70fa096` — merge of `feature/al-ojairi-integration-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-al-ojairi-integration-pack-v1` (merge commit `70fa096`) | High |
+| **Previous stable tag** | `stable-kuwait-holiday-intelligence-pack-v1` (`75ed8c3`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -62,7 +64,43 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-stability-performance-pack-v1` (`d6ec309`, 2026-07-02)
+### Latest Release — `stable-al-ojairi-integration-pack-v1` (`70fa096`, 2026-07-19)
+
+Completes the Kuwait Hijri holiday generation pipeline that Kuwait Holiday Intelligence Pack v1 (2026-07-19,
+`75ed8c3`) left as an architecture-only stub — `HijriHolidayService` previously always returned `[]`.
+
+- **Data source (offline, deterministic):** `backend/src/modules/employee-entitlements/holidays/hijriCalendarConversion.ts`
+  implements the tabular/civil Islamic calendar ("Kuwaiti algorithm") — fixed epoch (Julian Day 1948440) + the
+  standard 11-leap-years-per-30-year cycle, composed with the standard Fliegel & Van Flandern Julian-Day↔Gregorian
+  conversion. No network call, no bundled dataset — mathematically verified against the public epoch correspondence
+  (1 Muharram 1 AH = 19 July 622 CE) and structural invariants (leap-year count, monotonicity, round-trip
+  integrity). No future Gregorian date is hardcoded; only fixed Hijri month/day *facts* are constants
+  (`kuwaitHijriHolidayDefinitions.ts`).
+- **Hijri Provider:** `HijriHolidayService.generateExpectedHijriHolidays(year)` covers Islamic New Year, Prophet's
+  Birthday, Eid Al-Fitr, Arafat Day, Eid Al-Adha; every candidate is `origin: 'HIJRI'`, `status: 'EXPECTED_ALOJAIRI'`
+  by construction — never `OFFICIAL`. `HolidaySourceProvider.generateForYear()` now returns
+  `{ candidates, warnings }` instead of a bare array, so unsupported years / provider failures surface as
+  structured warnings instead of throwing.
+- **Holiday Engine evolution:** new static `HolidayEngine.generateCandidates(year, providers?)` is the **only**
+  place in the system that calls a provider's `generateForYear` — `HolidayGenerationPlanner` no longer iterates
+  providers itself. Each provider call is individually try/caught, so one provider's failure never blocks another's
+  output. Every pre-existing `HolidayEngine` calendar-math method is unchanged.
+- **Supported range:** Gregorian 2020–2050 (`SUPPORTED_HIJRI_GENERATION_YEARS`) — a deliberate practical
+  HR-planning window, not a mathematical limit; widen by editing one constant.
+- **Extension mechanism:** a future holiday source needs only a `HolidaySourceProvider` implementation + one entry
+  in `DEFAULT_HOLIDAY_PROVIDERS` — no change to `HolidayEngine`, the planner/executor, `compareHolidayYear`, or the
+  frontend dialog.
+- **Status persistence, no schema change:** `classifyHoliday()` now parses an optional `[ORIGIN:STATUS]` tag
+  already written into the existing `notes` column by `HolidayGenerationExecutor`, so a generated Hijri holiday's
+  `EXPECTED_ALOJAIRI` status survives read-back instead of falling back to the old date heuristic.
+- **Scope guarantee:** 22 files (+771/−95; 4 added, 18 modified). No change to Rule 2, Rule 5, EOS, Leave
+  Settlement, Historical Ledger, Prisma schema, API contracts (additive `warnings` response field only), or
+  permissions. Feature branch `feature/al-ojairi-integration-pack-v1` (kept, pushed). Feature commit `43cd699`,
+  merge commit `70fa096`.
+- **Validation:** backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · backend vitest **132 files / 1845 tests**
+  ✅ (23 new, zero regressions) · frontend build ✅. *Confidence: High (this pass's own git/test evidence).*
+
+### Latest Release (previous audit pass) — `stable-stability-performance-pack-v1` (`d6ec309`, 2026-07-02)
 
 Frontend-only release of two independently Gemini-APPROVED packages, merged `--no-ff`.
 
