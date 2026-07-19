@@ -12,6 +12,9 @@ export const employeesController = {
   async getById(req: Request, res: Response) {
     ok(res, await employeesService.getById(Number(req.params.id)));
   },
+  async getEntitlements(req: Request, res: Response) {
+    ok(res, await employeesService.getEntitlements(Number(req.params.id)));
+  },
   async expiringDocuments(req: Request, res: Response) {
     const days = req.query.days ? Number(req.query.days) : 30;
     ok(res, await employeesService.expiringDocuments(days));

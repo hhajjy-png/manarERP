@@ -1,0 +1,123 @@
+/* درج تفاصيل الموظف — تبويب «الاستحقاقات» (قراءة فقط). ExplorerKit tokens، RTL، متجاوب. */
+
+.ent-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Section 1: بطاقات ملخّص KPI ──────────────────────────────────────────────── */
+.ent-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+/* تصغير قيمة KPI بنحو 15% لبطاقات محددة فقط (مدة الخدمة، قيمة بدل الإجازة، مكافأة
+   نهاية الخدمة) — نسبي إلى .xpl-metric-value فلا يتأثر حجم/تباعد البطاقة ولا بقية
+   البطاقات ولا أي MetricCard آخر في النظام. */
+.ent-kpi-value-sm {
+  font-size: 0.85em;
+}
+
+/* ── حقول الأقسام (label/value) ───────────────────────────────────────────────── */
+.ent-fields .xpl-drawer-field:first-of-type { padding-top: 0; }
+.ent-fields .xpl-drawer-field:last-child { border-bottom: none; padding-bottom: 0; }
+
+/* ── حالة «بيانات غير مكتملة» — لا تكسر التخطيط ──────────────────────────────────── */
+.ent-incomplete {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.ent-incomplete-dash {
+  font-weight: 800;
+  color: var(--xpl-muted);
+}
+.ent-incomplete-reason {
+  font-size: 11px;
+  color: var(--xpl-muted);
+}
+
+/* ── Section 3: سجل عمليات الصرف ─────────────────────────────────────────────── */
+.ent-settlements {
+  margin-top: 10px;
+}
+
+/* ── Section 4: مكافأة نهاية الخدمة ──────────────────────────────────────────── */
+.ent-eos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+.ent-eos-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--xpl-muted);
+}
+.ent-eos-value {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--xpl-text);
+}
+.ent-eos-cap { margin-top: 2px; }
+
+/* ── Section 5: تفاصيل الاحتساب — بطاقات مدمجة (لا جداول طويلة) ────────────────── */
+.ent-calc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+.ent-calc-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 12px;
+  background: var(--xpl-surface-2);
+}
+.ent-calc-cell--total {
+  border-color: var(--xpl-primary, #6366f1);
+  background: var(--xpl-primary-faint, rgba(99, 102, 241, 0.08));
+}
+.ent-calc-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--xpl-muted);
+}
+.ent-calc-val {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--xpl-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── الإشعار القانوني ────────────────────────────────────────────────────────── */
+.ent-legal {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 12px;
+  background: var(--xpl-surface-2);
+}
+.ent-legal .material-symbols-outlined {
+  font-size: 20px;
+  color: var(--xpl-muted);
+  flex-shrink: 0;
+}
+.ent-legal p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--xpl-muted);
+}

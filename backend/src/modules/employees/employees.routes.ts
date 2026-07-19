@@ -37,6 +37,8 @@ router.get('/expiring-documents', requirePermission('employees.read'), asyncHand
 
 // الموظفون (المسارات العامة بعد الفرعية لتفادي تعارض :id)
 router.get('/', requirePermission('employees.read'), asyncHandler(employeesController.list));
+// الاستحقاقات (قراءة فقط) — قبل مسار :id العام لتفادي التعارض
+router.get('/:id/entitlements', requirePermission('employees.read'), asyncHandler(employeesController.getEntitlements));
 router.get('/:id', requirePermission('employees.read'), asyncHandler(employeesController.getById));
 router.post('/', requirePermission('employees.create'), validate(createEmployeeSchema), asyncHandler(employeesController.create));
 router.put('/:id', requirePermission('employees.update'), validate(updateEmployeeSchema), asyncHandler(employeesController.update));
