@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `56f18d4` (merge of `feature/employee-entitlements-executive-redesign-v1`) |
-| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Documentation Commit** | `b836de7` — "docs: record Employee Entitlements Executive Redesign v1 release" |
 | **Current Stable Tag** | `stable-employee-entitlements-executive-redesign-v1` |
 | **Current Release Date** | 2026-07-19 |
 | **Total Stable Releases** | 321 (window 2026-06-07 → 2026-07-19) |
