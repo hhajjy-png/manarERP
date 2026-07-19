@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateEntitlements } from '../entitlements.calc';
+import { calculateEntitlements, computeEffectiveAnnualLeaveDays } from '../entitlements.calc';
 
 /**
  * اختبارات حاسبة الاستحقاقات (قانون 6/2010، المواد 51 و53 و55 و62 و70 و73 و74).
@@ -200,5 +200,97 @@ describe('calculateEntitlements — leave balance is never reset by a settlement
     const b = calculateEntitlements({ hireDate: hire, monthlyWageBase: 900, asOf, usedAnnualLeaveDays: 0 });
     expect(b.gratuity!.total).toBe(a.gratuity!.total);
     expect(b.gratuity!.serviceYears).toBe(a.gratuity!.serviceYears);
+  });
+});
+
+describe('calculateEntitlements — first-year annual leave eligibility (Article 70, 9 months)', () => {
+  const asOf = new Date('2026-01-01T00:00:00Z');
+  const wage = 900;
+
+  it('grants no payable annual leave entitlement at 8 months of service', () => {
+    const hireDate = new Date('2025-05-01T00:00:00Z'); // 8 أشهر تقويمية بالضبط حتى asOf
+    const r = calculateEntitlements({ hireDate, monthlyWageBase: wage, asOf, usedAnnualLeaveDays: 0 });
+    expect(r.duration).toEqual({ years: 0, months: 8, days: 0, totalDays: 245 });
+    expect(r.firstYearEligible).toBe(false);
+    expect(r.accruedLeaveDays).toBe(0);
+    expect(r.remainingLeaveDays).toBe(0);
+    // بدل الإجازة صفر صراحةً (وليس null) — لا شيء قابل للصرف قبل الأهلية.
+    expect(r.leaveAllowanceDays).toBe(0);
+    expect(r.leaveAllowanceValue).toBe(0);
+  });
+
+  it('begins accrual automatically at exactly 9 months of service, using the unchanged proportional formula', () => {
+    const hireDate = new Date('2025-04-01T00:00:00Z'); // 9 أشهر تقويمية بالضبط حتى asOf
+    const r = calculateEntitlements({ hireDate, monthlyWageBase: wage, asOf, usedAnnualLeaveDays: 0 });
+    expect(r.duration!.years * 12 + r.duration!.months).toBe(9);
+    expect(r.firstYearEligible).toBe(true);
+    // نفس صيغة التراكم التناسبي القائمة (30 × الأيام الكلية / 365) — بلا بوابة أخرى مضافة.
+    const expected = Math.round(30 * (r.duration!.totalDays / 365) * 100) / 100;
+    expect(r.accruedLeaveDays).toBe(expected);
+    expect(r.accruedLeaveDays).toBeGreaterThan(0);
+  });
+
+  it('continues normal accrual for more than 9 months of service', () => {
+    const hireDate = new Date('2025-02-01T00:00:00Z'); // 11 شهرًا تقويميًا
+    const r = calculateEntitlements({ hireDate, monthlyWageBase: wage, asOf, usedAnnualLeaveDays: 0 });
+    expect(r.duration!.years * 12 + r.duration!.months).toBe(11);
+    expect(r.firstYearEligible).toBe(true);
+    const expected = Math.round(30 * (r.duration!.totalDays / 365) * 100) / 100;
+    expect(r.accruedLeaveDays).toBe(expected);
+  });
+
+  it('does not affect end-of-service gratuity — EOS calculation is untouched by the 9-month gate', () => {
+    const hireDate = new Date('2025-05-01T00:00:00Z'); // نفس حالة الشهر الثامن غير المؤهلة للإجازة
+    const r = calculateEntitlements({ hireDate, monthlyWageBase: wage, asOf, usedAnnualLeaveDays: 0 });
+    expect(r.firstYearEligible).toBe(false);
+    expect(r.accruedLeaveDays).toBe(0);
+    // المكافأة تُحتسب دائمًا من مدة الخدمة والأجر فقط — لا علاقة لها ببوابة الإجازة.
+    expect(r.gratuity).not.toBeNull();
+    expect(r.gratuity!.total).toBeGreaterThan(0);
+  });
+});
+
+describe('computeEffectiveAnnualLeaveDays — official holiday & sick leave exclusion (Article 70)', () => {
+  it('excludes a single official holiday falling inside the leave interval', () => {
+    const leave = { start: new Date('2026-01-01T00:00:00Z'), end: new Date('2026-01-10T00:00:00Z') }; // 10 أيام شاملة
+    const holidays = [new Date('2026-01-05T00:00:00Z')];
+    expect(computeEffectiveAnnualLeaveDays(leave, holidays, [])).toBe(9);
+  });
+
+  it('excludes a sick leave period falling inside the leave interval', () => {
+    const leave = { start: new Date('2026-01-01T00:00:00Z'), end: new Date('2026-01-10T00:00:00Z') };
+    const sick = [{ start: new Date('2026-01-03T00:00:00Z'), end: new Date('2026-01-04T00:00:00Z') }]; // يومان
+    expect(computeEffectiveAnnualLeaveDays(leave, [], sick)).toBe(8);
+  });
+
+  it('excludes multiple official holidays inside the leave interval', () => {
+    const leave = { start: new Date('2026-01-01T00:00:00Z'), end: new Date('2026-01-10T00:00:00Z') };
+    const holidays = [new Date('2026-01-02T00:00:00Z'), new Date('2026-01-08T00:00:00Z')];
+    expect(computeEffectiveAnnualLeaveDays(leave, holidays, [])).toBe(8);
+  });
+
+  it('excludes multiple sick leave periods inside the leave interval', () => {
+    const leave = { start: new Date('2026-01-01T00:00:00Z'), end: new Date('2026-01-20T00:00:00Z') }; // 20 يومًا
+    const sick = [
+      { start: new Date('2026-01-03T00:00:00Z'), end: new Date('2026-01-04T00:00:00Z') }, // يومان
+      { start: new Date('2026-01-10T00:00:00Z'), end: new Date('2026-01-12T00:00:00Z') }, // 3 أيام
+    ];
+    expect(computeEffectiveAnnualLeaveDays(leave, [], sick)).toBe(15);
+  });
+
+  it('does not double-count a day that is both an official holiday and inside a sick leave period', () => {
+    const leave = { start: new Date('2026-01-01T00:00:00Z'), end: new Date('2026-01-10T00:00:00Z') };
+    const holidays = [new Date('2026-01-05T00:00:00Z')];
+    // فترة مرضية تتداخل جزئيًا مع العطلة الرسمية في نفس اليوم (05) — يوم فريد واحد إضافي (06).
+    const sick = [{ start: new Date('2026-01-05T00:00:00Z'), end: new Date('2026-01-06T00:00:00Z') }];
+    // لو حدث ازدواج عدّ، لكانت النتيجة 7 (10 - 1 - 2)؛ الصحيح 8 (10 - يومان فريدان: 05 و06).
+    expect(computeEffectiveAnnualLeaveDays(leave, holidays, sick)).toBe(8);
+  });
+
+  it('is unaffected when holidays and sick leave fall entirely outside the leave interval', () => {
+    const leave = { start: new Date('2026-01-01T00:00:00Z'), end: new Date('2026-01-10T00:00:00Z') }; // 10 أيام
+    const holidays = [new Date('2025-12-25T00:00:00Z')];
+    const sick = [{ start: new Date('2026-02-01T00:00:00Z'), end: new Date('2026-02-02T00:00:00Z') }];
+    expect(computeEffectiveAnnualLeaveDays(leave, holidays, sick)).toBe(10);
   });
 });

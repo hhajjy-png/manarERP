@@ -18,6 +18,7 @@ import transactionsRoutes from './modules/transactions/transactions.routes';
 import equipmentRoutes from './modules/equipment/equipment.routes';
 import maintenanceRoutes from './modules/maintenance/maintenance.routes';
 import employeesRoutes from './modules/employees/employees.routes';
+import holidaysRoutes from './modules/holidays/holidays.routes';
 import payrollRoutes from './modules/payroll/payroll.routes';
 import salariesRoutes from './modules/salaries/salaries.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
@@ -109,6 +110,7 @@ export function createApp(): Application {
   app.use('/api/equipment', equipmentRoutes);
   app.use('/api/maintenance', maintenanceRoutes);
   app.use('/api/employees', employeesRoutes);
+  app.use('/api/holidays', holidaysRoutes);
   app.use('/api/payroll', payrollRoutes);
   app.use('/api/salaries', salariesRoutes);
   app.use('/api/dashboard', dashboardRoutes);
