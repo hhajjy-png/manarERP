@@ -17,7 +17,7 @@ export class HolidayService {
         : undefined,
       orderBy: { date: 'asc' },
     });
-    return rows.map((row) => ({ ...row, ...classifyHoliday(row.date) }));
+    return rows.map((row) => ({ ...row, ...classifyHoliday(row.date, row.notes) }));
   }
 
   /** يبني محرّك العطل (HolidayEngine) محمَّلاً من كل العطل المسجَّلة حاليًا. */

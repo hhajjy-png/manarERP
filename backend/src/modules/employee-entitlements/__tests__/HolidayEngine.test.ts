@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { HolidayEngine } from '../engines/HolidayEngine';
 import { computeEffectiveAnnualLeaveDays } from '../../employees/entitlements.calc';
+import { FixedHolidayProvider } from '../holidays/providers/FixedHolidayProvider';
+import type { HolidaySourceProvider, HolidayProviderResult } from '../holidays/providers/HolidaySourceProvider';
 
 describe('HolidayEngine — holiday/weekend/working-day detection', () => {
   const holidays = [new Date('2026-02-25T00:00:00Z'), new Date('2026-02-26T00:00:00Z')];
@@ -44,6 +46,40 @@ describe('HolidayEngine — holiday/weekend/working-day detection', () => {
     const a = engine.countWorkingDays({ start: new Date('2026-02-22T00:00:00Z'), end: new Date('2026-02-28T00:00:00Z') });
     const b = engine.countWorkingDays({ start: new Date('2026-02-28T00:00:00Z'), end: new Date('2026-02-22T00:00:00Z') });
     expect(a).toBe(b);
+  });
+});
+
+describe('HolidayEngine.generateCandidates — the only consumer of holiday providers (Al-Ojairi Integration Pack v1, Part 7)', () => {
+  it('aggregates candidates and warnings from every provider', async () => {
+    const result = await HolidayEngine.generateCandidates(2027, [new FixedHolidayProvider()]);
+    expect(result.candidates).toHaveLength(3);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('never lets one failing provider break generation for the others (fail-safe — Part 5)', async () => {
+    const throwingProvider: HolidaySourceProvider = {
+      sourceName: 'BROKEN_SOURCE',
+      generateForYear(): HolidayProviderResult {
+        throw new Error('boom');
+      },
+    };
+    const result = await HolidayEngine.generateCandidates(2027, [new FixedHolidayProvider(), throwingProvider]);
+
+    expect(result.candidates).toHaveLength(3); // fixed holidays still generated
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toMatchObject({ code: 'PROVIDER_FAILURE', sourceName: 'BROKEN_SOURCE' });
+  });
+
+  it('passes through a provider-reported warning (e.g. unsupported year) without treating it as a crash', async () => {
+    const warningProvider: HolidaySourceProvider = {
+      sourceName: 'WARNING_SOURCE',
+      generateForYear(): HolidayProviderResult {
+        return { candidates: [], warnings: [{ code: 'UNSUPPORTED_YEAR', sourceName: 'WARNING_SOURCE', message: 'unsupported' }] };
+      },
+    };
+    const result = await HolidayEngine.generateCandidates(2027, [warningProvider]);
+    expect(result.candidates).toEqual([]);
+    expect(result.warnings).toEqual([{ code: 'UNSUPPORTED_YEAR', sourceName: 'WARNING_SOURCE', message: 'unsupported' }]);
   });
 });
 
