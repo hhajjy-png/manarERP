@@ -15,7 +15,7 @@ class HolidaysService {
   // فقط عبر classifyHoliday() المشتركة — لا عمود جديد، لا تكرار للتصنيف في مكان آخر.
   async list() {
     const rows = await prisma.holiday.findMany({ orderBy: { date: 'asc' } });
-    return rows.map((row) => ({ ...row, ...classifyHoliday(row.date) }));
+    return rows.map((row) => ({ ...row, ...classifyHoliday(row.date, row.notes) }));
   }
 
   async create(input: CreateHolidayInput, req: Request) {

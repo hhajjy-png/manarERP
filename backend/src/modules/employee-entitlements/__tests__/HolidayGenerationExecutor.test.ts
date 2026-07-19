@@ -6,6 +6,8 @@ vi.mock('../../../config/database', () => ({
 vi.mock('../../../core/middleware/audit', () => ({ recordAudit: vi.fn() }));
 
 import { HolidayGenerationExecutor } from '../services/HolidayGenerationExecutor';
+import { HolidayGenerationPlanner } from '../services/HolidayGenerationPlanner';
+import { FixedHolidayProvider } from '../holidays/providers/FixedHolidayProvider';
 import { prisma } from '../../../config/database';
 import { recordAudit } from '../../../core/middleware/audit';
 
@@ -13,6 +15,9 @@ const mockPrisma = prisma as unknown as {
   holiday: { findMany: ReturnType<typeof vi.fn>; create: ReturnType<typeof vi.fn> };
 };
 const fakeReq = {} as import('express').Request;
+
+/** يعزل هذه الاختبارات عن حساب العطل الهجرية الحقيقي (Al-Ojairi Integration Pack v1) — تختبر آلية المنفِّذ (create/skip/idempotency/audit) فقط. */
+const fixedOnlyExecutor = () => new HolidayGenerationExecutor(new HolidayGenerationPlanner([new FixedHolidayProvider()]));
 
 describe('HolidayGenerationExecutor', () => {
   beforeEach(() => {
@@ -23,7 +28,7 @@ describe('HolidayGenerationExecutor', () => {
     mockPrisma.holiday.findMany.mockResolvedValue([]);
     mockPrisma.holiday.create.mockImplementation(({ data }: { data: { name: string } }) => Promise.resolve({ id: 1, ...data }));
 
-    const report = await new HolidayGenerationExecutor().execute(2027, fakeReq);
+    const report = await fixedOnlyExecutor().execute(2027, fakeReq);
 
     expect(report.year).toBe(2027);
     expect(report.createdCount).toBe(3);
@@ -37,7 +42,7 @@ describe('HolidayGenerationExecutor', () => {
     ]);
     mockPrisma.holiday.create.mockImplementation(({ data }: { data: { name: string } }) => Promise.resolve({ id: 2, ...data }));
 
-    const report = await new HolidayGenerationExecutor().execute(2027, fakeReq);
+    const report = await fixedOnlyExecutor().execute(2027, fakeReq);
 
     expect(report.createdCount).toBe(2); // only the 2 remaining fixed holidays, not the mismatched Jan 1
     expect(report.conflictCount).toBe(1);
@@ -54,7 +59,7 @@ describe('HolidayGenerationExecutor', () => {
       { date: new Date('2027-02-26T00:00:00Z'), name: 'يوم التحرير', id: 3, notes: null, createdAt: new Date() },
     ]);
 
-    const report = await new HolidayGenerationExecutor().execute(2027, fakeReq);
+    const report = await fixedOnlyExecutor().execute(2027, fakeReq);
 
     expect(report.createdCount).toBe(0);
     expect(mockPrisma.holiday.create).not.toHaveBeenCalled();
@@ -64,8 +69,18 @@ describe('HolidayGenerationExecutor', () => {
     mockPrisma.holiday.findMany.mockResolvedValue([]);
     mockPrisma.holiday.create.mockImplementation(({ data }: { data: { name: string } }) => Promise.resolve({ id: 1, ...data }));
 
-    await new HolidayGenerationExecutor().execute(2027, fakeReq);
+    await fixedOnlyExecutor().execute(2027, fakeReq);
 
     expect(recordAudit).toHaveBeenCalledTimes(3);
+  });
+
+  it('tags a generated Hijri holiday note with [HIJRI:EXPECTED_ALOJAIRI] so status survives read-back (Part 3)', async () => {
+    mockPrisma.holiday.findMany.mockResolvedValue([]);
+    mockPrisma.holiday.create.mockImplementation(({ data }: { data: { name: string; notes: string } }) => Promise.resolve({ id: 1, ...data }));
+
+    await new HolidayGenerationExecutor().execute(2027, fakeReq); // default (Fixed + Hijri) providers
+
+    const hijriCall = mockPrisma.holiday.create.mock.calls.find((c) => c[0].data.notes === '[HIJRI:EXPECTED_ALOJAIRI]');
+    expect(hijriCall).toBeDefined();
   });
 });

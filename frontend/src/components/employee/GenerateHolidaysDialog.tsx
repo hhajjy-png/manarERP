@@ -18,6 +18,15 @@ interface HolidayComparisonEntry {
   reason?: string;
 }
 
+/** يطابق HolidayProviderWarningCode في backend/.../holidays/providers/HolidaySourceProvider.ts. */
+type HolidayProviderWarningCode = 'UNSUPPORTED_YEAR' | 'PROVIDER_FAILURE' | 'INVALID_DATA';
+
+interface HolidayProviderWarning {
+  code: HolidayProviderWarningCode;
+  sourceName: string;
+  message: string;
+}
+
 interface HolidayGenerationPlan {
   year: number;
   comparison: {
@@ -25,6 +34,8 @@ interface HolidayGenerationPlan {
     summary: Record<HolidayComparisonCategory, number>;
   };
   conflicts: HolidayComparisonEntry[];
+  /** رسائل تحقّق صادرة عن مصادر التوليد (سنة هجرية غير مدعومة، فشل مصدر...) — Al-Ojairi Integration Pack v1. */
+  warnings?: HolidayProviderWarning[];
 }
 
 interface HolidayGenerationReport {
@@ -46,6 +57,18 @@ const STATUS_LABEL: Record<HolidayStatus, string> = {
   OFFICIAL: 'رسمية',
   EXPECTED_ALOJAIRI: 'متوقَّعة (العجيري)',
   MANUALLY_ADJUSTED: 'مُعدَّلة يدويًا',
+};
+
+/** مصدر/مزوِّد كل عطلة — لعرض «Provider name / Holiday source» في المعاينة (Part 6). */
+const SOURCE_LABEL: Record<HolidayOrigin, string> = {
+  FIXED_GREGORIAN: 'ميلادي ثابت (FIXED_GREGORIAN)',
+  HIJRI: 'هجري متوقَّع — تقويم العجيري (HIJRI_ALOJAIRI)',
+};
+
+const WARNING_META: Record<HolidayProviderWarningCode, { label: string; tone: Tone; icon: string }> = {
+  UNSUPPORTED_YEAR: { label: 'سنة غير مدعومة', tone: 'orange', icon: 'event_busy' },
+  PROVIDER_FAILURE: { label: 'فشل مصدر التوليد', tone: 'red', icon: 'error' },
+  INVALID_DATA: { label: 'بيانات هجرية غير صالحة', tone: 'orange', icon: 'warning' },
 };
 
 interface Props {
@@ -95,6 +118,8 @@ export default function GenerateHolidaysDialog({ year, onClose, onApplied }: Pro
   const summary = plan?.comparison.summary;
   const newCount = summary?.NEW ?? 0;
   const hasConflicts = (plan?.conflicts.length ?? 0) > 0;
+  const warnings = plan?.warnings ?? [];
+  const hasWarnings = warnings.length > 0;
 
   return (
     <Dialog
@@ -137,6 +162,22 @@ export default function GenerateHolidaysDialog({ year, onClose, onApplied }: Pro
             </div>
           </DialogSection>
 
+          {/* رسائل التحقّق من مصادر التوليد (سنة غير مدعومة، فشل مصدر...) — Al-Ojairi Integration Pack v1، Part 4 + 5 + 6 */}
+          {hasWarnings && (
+            <DialogSection title="تنبيهات التحقّق" icon="error">
+              <div className="ghd-conflicts">
+                {warnings.map((w, i) => (
+                  <div key={i} className="ghd-conflict-row">
+                    <StatusChip tone={WARNING_META[w.code].tone} icon={WARNING_META[w.code].icon}>
+                      {WARNING_META[w.code].label}
+                    </StatusChip>
+                    <span>{w.message}</span>
+                  </div>
+                ))}
+              </div>
+            </DialogSection>
+          )}
+
           {/* ملخّص التعارض (الجزء 4 + 7) */}
           {hasConflicts && (
             <DialogSection title="تعارضات تحتاج مراجعة يدوية" icon="warning">
@@ -166,7 +207,7 @@ export default function GenerateHolidaysDialog({ year, onClose, onApplied }: Pro
               <div className="ghd-full xpl-table-wrap">
                 <table className="xpl-table">
                   <thead>
-                    <tr><th>التاريخ</th><th>الاسم المقترَح</th><th>الحالة</th><th>النوع</th><th>ملاحظة</th></tr>
+                    <tr><th>التاريخ</th><th>الاسم المقترَح</th><th>الحالة</th><th>النوع</th><th>المصدر</th><th>ملاحظة</th></tr>
                   </thead>
                   <tbody>
                     {plan.comparison.entries.map((entry, i) => (
@@ -175,6 +216,7 @@ export default function GenerateHolidaysDialog({ year, onClose, onApplied }: Pro
                         <td>{entry.candidateName ?? entry.existingName ?? '—'}</td>
                         <td><StatusChip tone={CATEGORY_META[entry.category].tone} icon={CATEGORY_META[entry.category].icon}>{CATEGORY_META[entry.category].label}</StatusChip></td>
                         <td>{entry.status ? STATUS_LABEL[entry.status] : '—'}</td>
+                        <td>{entry.origin ? SOURCE_LABEL[entry.origin] : '—'}</td>
                         <td>{entry.reason ?? '—'}</td>
                       </tr>
                     ))}

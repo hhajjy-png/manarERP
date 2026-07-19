@@ -1,10 +1,13 @@
 # Employee Entitlements Domain
 
-**Status:** Foundation + Holiday Intelligence. Introduced by the **Employee
-Entitlements Intelligence Suite v1 (Foundation)** package; extended by the
-**Kuwait Holiday Intelligence Pack v1** package (holiday generation, providers,
-conflict detection, year comparison — wired to two new additive
-`/api/holidays/generate/*` routes; no legal-calculation change in either package).
+**Status:** Foundation + Holiday Intelligence + Al-Ojairi Integration. Introduced
+by the **Employee Entitlements Intelligence Suite v1 (Foundation)** package;
+extended by the **Kuwait Holiday Intelligence Pack v1** package (holiday
+generation, providers, conflict detection, year comparison — wired to two new
+additive `/api/holidays/generate/*` routes); completed by the **Al-Ojairi
+Integration Pack v1** package (real, offline, deterministic Hijri↔Gregorian
+conversion — see "Hijri holiday generation" below). No legal-calculation change
+in any of the three packages.
 
 ## Purpose
 
@@ -40,31 +43,57 @@ employee-entitlements/
   holidays/
     providers/           HolidaySourceProvider interface + FixedHolidayProvider +
                           HijriHolidayProvider — pluggable holiday candidate sources.
-                          DEFAULT_HOLIDAY_PROVIDERS is the list the planner consumes;
-                          add a future source by adding one array entry, nothing else.
+                          generateForYear() returns a HolidayProviderResult
+                          (`{ candidates, warnings }`), never throws for expected
+                          conditions (unsupported year, etc.) — see "Hijri holiday
+                          generation" below. DEFAULT_HOLIDAY_PROVIDERS is the list
+                          HolidayEngine.generateCandidates consumes; add a future
+                          source by adding one array entry, nothing else.
     fixedKuwaitHolidays.ts   The 3 fixed Kuwait Gregorian holidays.
     hijriHolidayTypes.ts     Hijri holiday definition shape + known holiday names.
+    hijriCalendarConversion.ts  Real, offline, deterministic Hijri↔Gregorian date
+                              conversion (Kuwaiti/tabular algorithm) + the
+                              supported-year range. No network calls, ever.
+    kuwaitHijriHolidayDefinitions.ts  The 5 Kuwait Hijri holiday definitions
+                              (fixed Hijri month/day + duration — calendar facts,
+                              not future dates) + the occurrence-finder that maps a
+                              definition onto a target Gregorian year.
     holidayCandidate.ts      Shared HolidayCandidate shape used by every provider.
     classifyHoliday.ts       Derives origin/status for an already-stored Holiday row
-                              at read time (date-based heuristic) — no schema change.
+                              at read time — no schema change. Prefers an explicit
+                              `[ORIGIN:STATUS]` tag in `notes` (written by
+                              HolidayGenerationExecutor for every generated row) so
+                              a generated Hijri holiday still reads back as
+                              EXPECTED_ALOJAIRI later; falls back to the original
+                              date-based heuristic when no tag is present (manual
+                              pre-Pack-v1 rows).
     holidayYearComparison.ts THE single comparison/conflict-detection algorithm
                               (Part 5 + Part 4) — compareHolidayYear() classifies every
                               candidate as NEW / EXISTING / CHANGED / SKIPPED /
-                              CONFLICT. Nothing else re-implements this logic.
+                              CONFLICT, including duplicate-date/duplicate-name
+                              detection within one generation batch. Nothing else
+                              re-implements this logic.
     generateHolidaysWorkflow.ts  @deprecated thin compatibility shim over the
                               services below — kept only because this environment's
                               delete tooling was unavailable; delegates, does not
                               duplicate logic.
   engines/      HolidayEngine — holiday/working-day detection, exclusion, counting
-                for LEAVE CALCULATIONS. Deliberately does not know about holiday
-                *names* or generation — that is a different concern owned by
-                HolidayService/the generation services below.
+                for LEAVE CALCULATIONS (unchanged). Since Al-Ojairi Integration Pack
+                v1, it is also the **only** consumer of holiday providers in the
+                system (`HolidayEngine.generateCandidates(year, providers?)`) — a
+                purely additive static method; the leave-calculation instance
+                methods below it are untouched. Still does not know about holiday
+                *names* beyond what a candidate carries — record management stays
+                owned by HolidayService/the generation services below.
   services/
     HolidayService.ts             Reads Holiday rows as the public Holiday model
                                    (with derived origin/status). The only place that
                                    queries the Holiday table for "what exists".
     WorkingDaysService.ts         Thin working-day wrapper over HolidayEngine.
-    HijriHolidayService.ts        Architecture-only Hijri/Al-Ojairi stub (see below).
+    HijriHolidayService.ts        Real Hijri/Al-Ojairi generation (see below) —
+                                   isolates hijriCalendarConversion.ts +
+                                   kuwaitHijriHolidayDefinitions.ts behind the
+                                   standard provider interface.
     HolidayValidationService.ts   Structural candidate validation (Part 6).
     HolidayConflictService.ts     Extracts CHANGED/CONFLICT entries from a comparison
                                    result — a view, not a second detection algorithm.
@@ -88,7 +117,8 @@ Two new, purely additive routes on the existing `/api/holidays` router (the 3
 original routes — `GET /`, `POST /`, `DELETE /:id` — are unchanged):
 
 - `POST /api/holidays/generate/preview` (`employees.read`) — `{ year }` → the full
-  `HolidayGenerationPlan` (comparison + conflicts + invalid candidates). **No write.**
+  `HolidayGenerationPlan` (comparison + conflicts + invalid candidates + provider
+  `warnings`, additive field since Al-Ojairi Integration Pack v1). **No write.**
 - `POST /api/holidays/generate/apply` (`employees.update`) — `{ year }` → creates
   only the `NEW`-category rows, returns a `HolidayGenerationReport`. The frontend
   only calls this after the user explicitly confirms the preview.
@@ -96,18 +126,78 @@ original routes — `GET /`, `POST /`, `DELETE /:id` — are unchanged):
 `GET /api/holidays` now also returns derived `origin`/`status` per row (additive
 response fields, same underlying Prisma columns — no schema change).
 
+## Hijri holiday generation (Al-Ojairi Integration Pack v1)
+
+This package completed the Hijri generation pipeline that Kuwait Holiday
+Intelligence Pack v1 left as an architecture-only stub (`HijriHolidayService`
+previously always returned `[]`).
+
+### Data source
+
+The app is **offline-only** (see repo-root `CLAUDE.md`), so no live calendar API
+is used. The data source is a real, deterministic, publicly-documented arithmetic
+algorithm — the **tabular/civil Islamic calendar**, commonly called the "Kuwaiti
+algorithm" (`holidays/hijriCalendarConversion.ts`): a fixed epoch (Julian Day
+1948440, matching the well-known civil-calendar correspondence 1 Muharram 1 AH =
+19 July 622 CE) plus the standard 11-leap-years-per-30-year cycle, composed with
+the standard Fliegel & Van Flandern Julian-Day↔Gregorian conversion. This is the
+same *class* of calculation Kuwait's Al-Ojairi almanac itself performs — an
+astronomical/arithmetic **prediction** of a lunar month's start ahead of the
+official moon-sighting announcement — which is exactly why every holiday it
+produces carries `status: EXPECTED_ALOJAIRI`, never `OFFICIAL` (Part 3): it is a
+calculated estimate that may differ by a day from the eventual official
+announcement, by design, the same way the real Al-Ojairi calendar can. No future
+Gregorian date is ever hardcoded — only fixed Hijri month/day facts
+(`kuwaitHijriHolidayDefinitions.ts`) are constants; every Gregorian date is
+computed on demand.
+
+### Supported years
+
+`SUPPORTED_HIJRI_GENERATION_YEARS` in `hijriCalendarConversion.ts` — Gregorian
+2020–2050. The algorithm is mathematically valid far outside this window, but
+generation is scoped to a practical HR-planning horizon; a request outside it
+returns zero Hijri candidates plus a `UNSUPPORTED_YEAR` warning (fixed Gregorian
+holidays are unaffected). Widen the range by editing that one constant.
+
+### Provider architecture
+
+`HolidaySourceProvider.generateForYear(year)` returns a `HolidayProviderResult`
+(`{ candidates, warnings }`) and must never throw for an expected condition —
+warnings (`UNSUPPORTED_YEAR` / `PROVIDER_FAILURE` / `INVALID_DATA`) communicate
+that instead, so generation always "fails safely" (Part 5). `HolidayEngine.
+generateCandidates(year, providers?)` is the **only** place in the system that
+calls `provider.generateForYear` (Part 7) — it also wraps each provider call in
+its own try/catch, so an unexpected exception from any one provider becomes a
+`PROVIDER_FAILURE` warning instead of aborting generation for the others.
+`HolidayGenerationPlanner` consumes `HolidayEngine.generateCandidates` exclusively
+and threads `warnings` straight into the preview response for the UI to render.
+
+### Extension points
+
+A future holiday source (a different country's calendar, a company-specific
+calendar) needs only: (1) a class implementing `HolidaySourceProvider`, (2) one
+new entry in `DEFAULT_HOLIDAY_PROVIDERS` (`holidays/providers/index.ts`). No
+change to `HolidayEngine`, `HolidayGenerationPlanner`, `HolidayGenerationExecutor`,
+`compareHolidayYear`, or the frontend dialog is required — the dialog renders
+`origin`/provider labels and `warnings` generically from whatever the plan
+contains.
+
 ## What this package deliberately did NOT do
 
 - Did **not** move `entitlements.calc.ts` or `employees.service.ts` — too high-risk
   for a "no functional change" package; only a re-export surface was added.
-- Did **not** add any new Prisma model, column, or migration.
+- Did **not** add any new Prisma model, column, or migration — Hijri status
+  persistence (Part 3) reuses the existing `notes` text column via a parsed
+  `[ORIGIN:STATUS]` tag (see `classifyHoliday.ts` above), not a new column.
 - Did **not** change any of the 3 pre-existing `/api/holidays` route contracts —
   only 2 new routes were added, and `GET /` only gained additive response fields.
-- Did **not** implement real Hijri↔Gregorian date conversion. `HijriHolidayService`
-  is a documented architectural stub returning `[]` until a real Al-Ojairi/Umm
-  al-Qura data source is available — no future dates were hardcoded or guessed.
-  `HijriHolidayProvider` isolates this behind the standard provider interface so a
-  future real implementation requires no change anywhere else.
+- Did **not** build a "confirm as Official" workflow for a generated Hijri
+  holiday — Part 3 only requires that generation itself never assigns `OFFICIAL`
+  automatically, which is guaranteed by construction
+  (`HijriHolidayService` always emits `EXPECTED_ALOJAIRI`). Promoting a specific
+  holiday to `OFFICIAL` after a real government announcement remains a manual
+  edit via the existing `/api/holidays` add/delete flow, unchanged from Kuwait
+  Holiday Intelligence Pack v1.
 - Did **not** auto-apply `CHANGED`/`CONFLICT` entries — those always require a
   human decision via the existing manual add/delete flow.
 - Did **not** change any existing calculation, permission, or legal behavior.
