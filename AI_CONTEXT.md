@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `5d9bf90` (merge of `feature/cash-transactions-table-alignment-polish-v1`) |
-| **Current Documentation Commit** | `75b41be` — "docs: record Cash Transactions Table Alignment & Layout Polish Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
-| **Current Stable Tag** | `stable-cash-transactions-table-alignment-layout-polish-pack-v1` |
+| **Current Merge Commit** | `ea62520` (merge of `feature/employee-entitlements-drawer-v1`) |
+| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Stable Tag** | `stable-employee-entitlements-drawer-v1` |
 | **Current Release Date** | 2026-07-19 |
-| **Total Stable Releases** | 312 (window 2026-06-07 → 2026-07-19) |
+| **Total Stable Releases** | 313 (window 2026-06-07 → 2026-07-19) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,18 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Employee Entitlements Drawer Tab v1** (2026-07-19, `stable-employee-entitlements-drawer-v1`) —
+  new read-only "الاستحقاقات" tab in the Employee drawer (8 files, +782/−2; no DB/schema change). Shows
+  service duration, annual-leave balance/used/remaining, leave cash allowance, and end-of-service gratuity
+  calculated as of today per **Kuwait Private Sector Labour Law No. 6 of 2010** (Art. 70 annual leave 30
+  days/yr; Art. 51 monthly-paid gratuity — 15 days'/yr for first 5 years + one month's/yr thereafter, capped
+  at 18 months). Fixed statutory formulas in a pure, stateless, unit-tested calculator (`entitlements.calc.ts`,
+  10 tests) — no config, no rules engine, no editable formulas. New read-only endpoint
+  `GET /api/employees/:id/entitlements` (reuses the existing `employees.read` permission); used annual-leave
+  days summed from stored `Leave.days` (single source of truth). Frontend reuses ExplorerKit (lazy-mounted,
+  keyed by employee id; RTL, dark-mode, responsive); missing data shows per-card "بيانات غير مكتملة" with the
+  exact missing field (no estimation); legal disclaimer shown **only** when required data is missing. Gemini
+  review: APPROVED (no critical/medium/minor). No Business Logic regression.
 - **Cash Transactions Table Alignment & Layout Polish Pack v1** (2026-07-19, `stable-cash-transactions-table-alignment-layout-polish-pack-v1`) —
   frontend-only, presentation-only (2 files: `BankAccountExplorer.tsx`, `BankAccountExplorer.css`). Centers
   every column header of the Cash Transactions (Bank Account Explorer) timeline table; collapses the
