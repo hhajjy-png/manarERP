@@ -18,7 +18,7 @@ import {
 } from './employees.schema';
 import { buildDocumentAlerts } from './employees.alertBuilder';
 import { aggregateAttendanceStats, AttendanceFilters, buildAttendanceWhere } from './attendance.filters';
-import { calculateEntitlements, resolveLeaveBaseline } from './entitlements.calc';
+import { calculateEntitlements, EntitlementResult, WageBaseComposition } from './entitlements.calc';
 
 class EmployeesRepository extends BaseRepository<{ id: number }> {
   protected readonly model = 'employee';
@@ -142,10 +142,66 @@ export class EmployeesService {
   }
 
   /**
+   * الأجر الشهري المعتمد لاستحقاقات الموظف (المادتان 55/62) = الراتب الأساسي + إجمالي
+   * البدلات الدورية النشطة حاليًا (EmployeeAllowance.isActive ضمن نافذة startsAt/endsAt،
+   * إن وُجدت). كل البدلات النشطة تُعامَل كـ«عناصر دورية منتظمة» وفق القاعدة القانونية
+   * المعتمدة للمشروع — لا تصنيف إضافي متاح حاليًا في النظام لاستثناء بدل بعينه.
+   * نقطة مركزية واحدة يستدعيها كل مسار احتساب (لا تكرار).
+   */
+  private async resolveWageBase(employeeId: number, baseSalary: number, asOf: Date): Promise<WageBaseComposition> {
+    const allowances = await prisma.employeeAllowance.findMany({
+      where: {
+        employeeId,
+        isActive: true,
+        AND: [
+          { OR: [{ startsAt: null }, { startsAt: { lte: asOf } }] },
+          { OR: [{ endsAt: null }, { endsAt: { gte: asOf } }] },
+        ],
+      },
+      select: { amount: true },
+    });
+    const allowancesTotal = allowances.reduce((sum, a) => sum + a.amount, 0);
+    return { baseSalary, allowancesTotal, total: baseSalary + allowancesTotal };
+  }
+
+  /**
+   * نقطة مركزية واحدة لاحتساب استحقاقات موظف حتى لحظة معيّنة — يستدعيها مسار القراءة
+   * (getEntitlements) ولقطة السجل (snapshotLeaveBalanceDays) معًا، فلا يتكرر منطق تجميع
+   * الأجر المعتمد ولا أيام الإجازة المستخدمة في أكثر من موضع. رصيد الإجازة يتراكم دومًا
+   * من تاريخ التعيين — لا خط أساس بديل من أي تسوية (المادتان 73/74؛ انظر توثيق الحاسبة).
+   */
+  private async computeCurrentEntitlements(
+    employeeId: number,
+    employee: { hireDate: Date | null; salary: number },
+    asOf: Date,
+  ): Promise<{ result: EntitlementResult; wageBase: WageBaseComposition }> {
+    const wageBase = await this.resolveWageBase(employeeId, employee.salary, asOf);
+
+    const usedAgg = await prisma.leave.aggregate({
+      where: {
+        employeeId,
+        type: 'ANNUAL',
+        status: 'APPROVED',
+        ...(employee.hireDate ? { startDate: { gte: employee.hireDate } } : {}),
+      },
+      _sum: { days: true },
+    });
+
+    const result = calculateEntitlements({
+      hireDate: employee.hireDate,
+      monthlyWageBase: wageBase.total,
+      asOf,
+      usedAnnualLeaveDays: usedAgg._sum.days ?? 0,
+    });
+
+    return { result, wageBase };
+  }
+
+  /**
    * استحقاقات الموظف (قراءة فقط) — مدة الخدمة، رصيد الإجازة، بدل الإجازة، ومكافأة
-   * نهاية الخدمة محسوبة حتى اليوم وفق قانون العمل الكويتي 6/2010 (المادتان 70 و51).
-   * الحساب يتم في دالة نقيّة (entitlements.calc.ts)؛ هنا فقط جمع المدخلات من مصادرها
-   * الحالية دون تكرار منطق: أيام الإجازة المستخدمة تُجمَع من Leave.days المخزّن مباشرةً.
+   * نهاية الخدمة محسوبة حتى اليوم وفق قانون العمل الكويتي 6/2010 (المواد 51 و53 و55 و62
+   * و70). الحساب يتم في دالة نقيّة (entitlements.calc.ts) عبر computeCurrentEntitlements
+   * المركزية؛ هنا فقط جمع سجلات العرض الإضافية (السجل التاريخي، التسويات، دفتر المستحقات).
    */
   async getEntitlements(id: number) {
     const employee = await prisma.employee.findUnique({
@@ -154,27 +210,14 @@ export class EmployeesService {
     });
     if (!employee) throw AppError.notFound('الموظف غير موجود');
 
-    // سجل تسويات الإجازة (الأحدث أولًا). أحدث تسوية تصبح خط أساس احتساب رصيد الإجازة؛
-    // فإن لم توجد تسويات فالخط الأساس هو تاريخ التعيين.
+    const asOf = new Date();
+    const { result, wageBase } = await this.computeCurrentEntitlements(id, employee, asOf);
+
+    // سجل الدفعات المقدَّمة على الإجازة (الأحدث أولًا) — تاريخي/توثيقي فقط. لا يُعاد
+    // احتساب أي خط أساس منها؛ رصيد الإجازة أعلاه محسوب من تاريخ التعيين دائمًا.
     const settlements = await prisma.leaveSettlement.findMany({
       where: { employeeId: id },
       orderBy: { settlementDate: 'desc' },
-    });
-    const { baselineDate, isSettlement } = resolveLeaveBaseline(
-      employee.hireDate,
-      settlements.map((s) => s.settlementDate),
-    );
-
-    // مصدر واحد للحقيقة: مجموع أيام الإجازات السنوية المعتمدة (Leave.days) منذ خط الأساس
-    // فقط — فالإجازات السابقة لآخر تسوية تخصّ فترة سُوّيت بالفعل ولا تخصم من الرصيد الجديد.
-    const usedAgg = await prisma.leave.aggregate({
-      where: {
-        employeeId: id,
-        type: 'ANNUAL',
-        status: 'APPROVED',
-        ...(baselineDate ? { startDate: { gte: baselineDate } } : {}),
-      },
-      _sum: { days: true },
     });
 
     const leaveHistory = await prisma.leave.findMany({
@@ -183,26 +226,18 @@ export class EmployeesService {
       select: { id: true, type: true, startDate: true, endDate: true, days: true, status: true },
     });
 
-    // سجل المستحقات المصروفة — تاريخي فقط. يُقرأ للعرض ولا يدخل في أي احتساب أدناه.
+    // سجل المستحقات المصروفة — تاريخي فقط. يُقرأ للعرض ولا يدخل في أي احتساب أعلاه.
     const ledger = await prisma.employeeEntitlementLedger.findMany({
       where: { employeeId: id },
       orderBy: { entryDate: 'desc' },
     });
 
-    const result = calculateEntitlements({
-      hireDate: employee.hireDate,
-      leaveBaselineDate: baselineDate,
-      monthlySalary: employee.salary,
-      asOf: new Date(),
-      usedAnnualLeaveDays: usedAgg._sum.days ?? 0,
-    });
-
     return {
       employee,
       result,
+      wageBase,
       leaveHistory,
       settlements,
-      leaveBaseline: { date: baselineDate, isSettlement },
       ledger,
     };
   }
@@ -223,33 +258,12 @@ export class EmployeesService {
    */
   /**
    * لقطة رصيد الإجازة المحتسَب الحالي (بالأيام) للموظف — تُلتقط مرة واحدة لحظة إنشاء
-   * صف بدل الإجازة في السجل. تُشتق من نفس منطق الاحتساب (لا مصدر منفصل)، لكنها تُخزَّن
-   * كقيمة تاريخية جامدة ولا تُستخدم لاحقًا في أي احتساب. معزولة عمدًا عن getEntitlements
-   * (مسار القراءة) حتى لا يتأثر أي احتساب قائم.
+   * صف بدل الإجازة في السجل، عبر نفس نقطة الاحتساب المركزية (computeCurrentEntitlements)
+   * المستخدَمة في مسار القراءة — لا منطق مكرر. تُخزَّن كقيمة تاريخية جامدة ولا تُستخدم
+   * لاحقًا في أي احتساب.
    */
-  private async snapshotLeaveBalanceDays(employeeId: number, hireDate: Date | null, salary: number): Promise<number | null> {
-    const settlements = await prisma.leaveSettlement.findMany({
-      where: { employeeId },
-      orderBy: { settlementDate: 'desc' },
-      select: { settlementDate: true },
-    });
-    const { baselineDate } = resolveLeaveBaseline(hireDate, settlements.map((s) => s.settlementDate));
-    const usedAgg = await prisma.leave.aggregate({
-      where: {
-        employeeId,
-        type: 'ANNUAL',
-        status: 'APPROVED',
-        ...(baselineDate ? { startDate: { gte: baselineDate } } : {}),
-      },
-      _sum: { days: true },
-    });
-    const result = calculateEntitlements({
-      hireDate,
-      leaveBaselineDate: baselineDate,
-      monthlySalary: salary,
-      asOf: new Date(),
-      usedAnnualLeaveDays: usedAgg._sum.days ?? 0,
-    });
+  private async snapshotLeaveBalanceDays(employeeId: number, employee: { hireDate: Date | null; salary: number }): Promise<number | null> {
+    const { result } = await this.computeCurrentEntitlements(employeeId, employee, new Date());
     return result.remainingLeaveDays;
   }
 
@@ -263,7 +277,7 @@ export class EmployeesService {
     // لقطة الرصيد تُلتقط مرة واحدة هنا لبدل الإجازة فقط، وتبقى جامدة بعد الإنشاء.
     const leaveBalanceSnapshot =
       input.entryType === 'LEAVE_ALLOWANCE'
-        ? await this.snapshotLeaveBalanceDays(employeeId, employee.hireDate, employee.salary)
+        ? await this.snapshotLeaveBalanceDays(employeeId, employee)
         : null;
 
     const entry = await prisma.employeeEntitlementLedger.create({
@@ -290,7 +304,15 @@ export class EmployeesService {
     return entry;
   }
 
-  // ===== تسويات رصيد الإجازة (تسجيل يدوي فقط) =====
+  // ===== دفعات مقدَّمة على رصيد الإجازة (LeaveSettlement — تسجيل يدوي/تاريخي فقط) =====
+  //
+  // إعادة تصميم قانوني (المادتان 73/74): لا يجوز للعامل التنازل عن إجازته السنوية
+  // بمقابل أو بدونه (المادة 74)، والصرف النقدي لرصيد الإجازة يكون فقط عند انتهاء العقد
+  // (المادة 73). لذلك لم يعد هذا السجل يُنشئ أو يُزيح أي «خط أساس» لاحتساب رصيد الإجازة
+  // — رصيد الإجازة يتراكم دومًا من تاريخ التعيين بلا انقطاع (انظر entitlements.calc.ts).
+  // هذا السجل الآن توثيق تاريخي لدفعة مقدَّمة (Advance) فقط، ولا يُسقط ولا يُنقص الاستحقاق
+  // القانوني المحتسَب. البيانات التاريخية المُدخلة سابقًا محفوظة كما هي دون أي تعديل أو
+  // حذف — هذا تغيير في طريقة الاستخدام الحسابي فقط، وليس ترحيلاً للبيانات.
   async listLeaveSettlements(employeeId: number) {
     return prisma.leaveSettlement.findMany({
       where: { employeeId },
@@ -299,8 +321,9 @@ export class EmployeesService {
   }
 
   /**
-   * يسجّل تسوية رصيد إجازة يدوية فقط. لا ينشئ أي قيد محاسبي أو حركة بنكية أو شيك أو
-   * سند صرف أو راتب — تخزين السجل حصريًا. بعد الحفظ تصبح هذه التسوية خط الأساس الجديد.
+   * يسجّل دفعة مقدَّمة يدوية على رصيد الإجازة (توثيق تاريخي فقط). لا ينشئ أي قيد محاسبي
+   * أو حركة بنكية أو شيك أو سند صرف أو راتب. لا يُغيّر رصيد الإجازة المحتسَب ولا يُزيح
+   * خط أساس تراكمه — الاستحقاق القانوني لا يُسقَط بمقابل أثناء الخدمة (المادتان 73/74).
    */
   async createLeaveSettlement(employeeId: number, input: CreateLeaveSettlementInput, req: Request) {
     const employee = await prisma.employee.findUnique({ where: { id: employeeId }, select: { id: true } });

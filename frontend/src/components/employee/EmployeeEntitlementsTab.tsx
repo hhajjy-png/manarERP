@@ -12,6 +12,7 @@ import {
   ErrorBanner,
   SkeletonRows,
   Button,
+  Tabs,
 } from '../explorer/ExplorerKit';
 import LeaveSettlementDialog from './LeaveSettlementDialog';
 import EntitlementLedgerDialog from './EntitlementLedgerDialog';
@@ -19,11 +20,12 @@ import { dayKey, hasMatchingSettlement } from './entitlementLedgerDisplay';
 import './EmployeeEntitlementsTab.css';
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
+type SeparationType = 'EMPLOYER_TERMINATION' | 'RESIGNATION';
 
 /** يطابق EntitlementResult في backend/src/modules/employees/entitlements.calc.ts (قراءة فقط). */
 interface EntitlementResult {
   hasHireDate: boolean;
-  hasSalary: boolean;
+  hasWageBase: boolean;
   duration: { years: number; months: number; days: number; totalDays: number } | null;
   annualEntitlementDays: number;
   accruedLeaveDays: number | null;
@@ -43,9 +45,18 @@ interface EntitlementResult {
     rawTotal: number;
     capAmount: number;
     capApplied: boolean;
-    total: number;
+    total: number; // إنهاء الخدمة من صاحب العمل (الاستحقاق الكامل، المادة 51)
+    resignationFraction: number; // نسبة الاستقالة (المادة 53)
+    resignationAmount: number; // إنهاء الخدمة بالاستقالة = total × resignationFraction
   } | null;
   assumptionsApplied: boolean;
+}
+
+/** تركيبة الأجر المعتمد (المادتان 55/62) — راتب أساسي + بدلات دورية نشطة. للعرض/الشفافية فقط. */
+interface WageBaseComposition {
+  baseSalary: number;
+  allowancesTotal: number;
+  total: number;
 }
 
 interface LeaveRow {
@@ -60,9 +71,9 @@ interface LeaveRow {
 interface EntitlementsResponse {
   employee: { id: number; code: string; fullName: string; salary: number; hireDate: string | null; status: string };
   result: EntitlementResult;
+  wageBase: WageBaseComposition;
   leaveHistory: LeaveRow[];
   settlements: SettlementRow[];
-  leaveBaseline: { date: string | null; isSettlement: boolean };
   ledger: LedgerRow[];
 }
 
@@ -84,6 +95,7 @@ const LEDGER_TYPE_LABEL: Record<string, string> = {
   OTHER: 'مستحق آخر',
 };
 
+/** دفعة مقدَّمة يدوية على رصيد الإجازة — توثيق تاريخي فقط (لا تُسقط الاستحقاق، المادتان 73/74). */
 interface SettlementRow {
   id: number;
   settlementDate: string;
@@ -128,10 +140,19 @@ function daysText(n: number): string {
   return `${n} يوم`;
 }
 
+/** نسبة مكافأة الاستقالة (المادة 53) كنص عربي مفهوم مع نطاق سنوات الخدمة. */
+function resignationFractionLabel(fraction: number): string {
+  if (fraction === 0) return 'لا يستحق مكافأة (أقل من 3 سنوات خدمة)';
+  if (fraction === 1) return '100% — كامل المكافأة (10 سنوات خدمة فأكثر)';
+  if (Math.abs(fraction - 0.5) < 1e-9) return '50% (3 إلى أقل من 5 سنوات خدمة)';
+  if (Math.abs(fraction - 2 / 3) < 1e-9) return '66.7% (5 إلى أقل من 10 سنوات خدمة)';
+  return `${Math.round(fraction * 1000) / 10}%`;
+}
+
 /** سبب النقص الدقيق للحقل المطلوب (بلا تخمين). */
-function missingReason(needsHire: boolean, needsSalary: boolean, r: EntitlementResult): string | null {
+function missingReason(needsHire: boolean, needsWageBase: boolean, r: EntitlementResult): string | null {
   if (needsHire && !r.hasHireDate) return 'تاريخ التعيين غير مُدخل';
-  if (needsSalary && !r.hasSalary) return 'الراتب غير مُدخل';
+  if (needsWageBase && !r.hasWageBase) return 'الأجر الشهري غير مُدخل';
   return null;
 }
 
@@ -154,7 +175,7 @@ function Incomplete({ reason }: { reason: string }) {
 export default function EmployeeEntitlementsTab({ employee }: { employee: EmployeeLike }) {
   const { hasPermission } = useAuth();
   const canRead = hasPermission('employees.read');
-  // إنشاء التسوية يعيد استخدام صلاحية تعديل الموظف (لا مفتاح صلاحية جديد).
+  // إنشاء الدفعة المقدَّمة/المستحق يعيد استخدام صلاحية تعديل الموظف (لا مفتاح صلاحية جديد).
   const canManage = hasPermission('employees.update');
 
   const [data, setData] = useState<EntitlementsResponse | null>(null);
@@ -163,6 +184,9 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
   const [reloadKey, setReloadKey] = useState(0);
   const [showSettlementDialog, setShowSettlementDialog] = useState(false);
   const [showLedgerDialog, setShowLedgerDialog] = useState(false);
+  // أساس احتساب مكافأة نهاية الخدمة المعروض — إنهاء من صاحب العمل (الافتراضي) أو استقالة
+  // (المادة 53). كلا السيناريوهين متاحان دومًا من الخادم؛ هذا تبديل عرض فقط في الواجهة.
+  const [separationType, setSeparationType] = useState<SeparationType>('EMPLOYER_TERMINATION');
 
   useEffect(() => {
     if (!canRead || !employee?.id) return;
@@ -175,7 +199,7 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
       .catch((e) => { if (alive) setError(errorMessage(e)); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-    // reloadKey forces a refetch after a settlement is recorded → recalculated baseline.
+    // reloadKey forces a refetch after a settlement/ledger entry is recorded.
   }, [employee?.id, canRead, reloadKey]);
 
   if (!canRead) {
@@ -184,18 +208,16 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
   if (error) return <ErrorBanner>{error}</ErrorBanner>;
   if (loading || !data) return <SkeletonRows rows={6} withAvatar={false} />;
 
-  const { result: r, employee: emp, leaveHistory, settlements, ledger } = data;
+  const { result: r, employee: emp, wageBase, leaveHistory, settlements, ledger } = data;
   const g = r.gratuity;
-  // مجموعة أيام التسويات (YYYY-MM-DD) — لمطابقة شارة «مرتبط بتسوية الإجازة» بصريًا فقط.
+  // مبلغ مكافأة نهاية الخدمة وفق الأساس المختار — الاثنان محتسَبان دومًا في الخادم.
+  const eosAmount = g ? (separationType === 'RESIGNATION' ? g.resignationAmount : g.total) : null;
+  // مجموعة أيام الدفعات المقدَّمة (YYYY-MM-DD) — لمطابقة شارة العرض البصرية فقط.
   const settlementDayKeys = new Set(settlements.map((s) => dayKey(s.settlementDate)));
 
   const durReason = missingReason(true, false, r);
   const moneyReason = missingReason(true, true, r);
   const leaveReason = missingReason(true, false, r);
-
-  // الإشعار القانوني يظهر فقط عند نقص بيانات مطلوبة (تاريخ التعيين/الراتب) — أي عندما
-  // لا يكون الاحتساب مدعومًا بالكامل بالبيانات المتاحة. مع اكتمال البيانات يبقى الدرج نظيفًا.
-  const showLegalNote = !r.hasHireDate || !r.hasSalary;
 
   // قيمة نقدية موحّدة (يظهر رمز العملة تلقائيًا حسب الإعداد) أو حالة نقص.
   const money = (v: number | null, reason: string | null): ReactNode =>
@@ -232,8 +254,8 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
           icon="volunteer_activism"
           label="مكافأة نهاية الخدمة"
           tone="orange"
-          value={<span className="ent-kpi-value-sm">{g ? <PrivateAmount value={g.total} level={1} /> : '—'}</span>}
-          sub={!g && moneyReason ? `بيانات غير مكتملة — ${moneyReason}` : undefined}
+          value={<span className="ent-kpi-value-sm">{eosAmount !== null ? <PrivateAmount value={eosAmount} level={1} /> : '—'}</span>}
+          sub={eosAmount !== null ? (separationType === 'RESIGNATION' ? 'أساس: استقالة' : 'أساس: إنهاء من صاحب العمل') : (moneyReason ? `بيانات غير مكتملة — ${moneyReason}` : undefined)}
         />
       </div>
 
@@ -256,14 +278,29 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
         </div>
       </SectionCard>
 
-      {/* SECTION 4 — مكافأة نهاية الخدمة */}
+      {/* SECTION 4 — مكافأة نهاية الخدمة: سيناريوهان صريحان (المادتان 51 و53) */}
       <SectionCard title="مكافأة نهاية الخدمة" icon="workspace_premium">
+        <Tabs
+          tabs={[
+            { key: 'EMPLOYER_TERMINATION', label: 'إنهاء من صاحب العمل', icon: 'business_center' },
+            { key: 'RESIGNATION', label: 'استقالة', icon: 'exit_to_app' },
+          ]}
+          active={separationType}
+          onChange={setSeparationType}
+        />
         <div className="ent-eos">
-          <span className="ent-eos-label">الاستحقاق حتى اليوم</span>
-          <span className="ent-eos-value">
-            {g ? <PrivateAmount value={g.total} level={1} /> : moneyReason ? <Incomplete reason={moneyReason} /> : '—'}
+          <span className="ent-eos-label">
+            {separationType === 'RESIGNATION'
+              ? 'الاستحقاق حتى اليوم — بافتراض استقالة الموظف (المادة 53)'
+              : 'الاستحقاق حتى اليوم — بافتراض إنهاء الخدمة من صاحب العمل (المادة 51)'}
           </span>
-          {g?.capApplied && (
+          <span className="ent-eos-value">
+            {eosAmount !== null ? <PrivateAmount value={eosAmount} level={1} /> : moneyReason ? <Incomplete reason={moneyReason} /> : '—'}
+          </span>
+          {g && separationType === 'RESIGNATION' && (
+            <span className="ent-eos-fraction">نسبة الاستحقاق: {resignationFractionLabel(g.resignationFraction)}</span>
+          )}
+          {g?.capApplied && separationType === 'EMPLOYER_TERMINATION' && (
             <span className="ent-eos-cap"><StatusChip tone="orange" icon="info">طُبّق الحد الأقصى (أجر 18 شهرًا)</StatusChip></span>
           )}
         </div>
@@ -275,10 +312,14 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
           <div className="ent-calc-grid">
             <div className="ent-calc-cell"><span className="ent-calc-label">مدة الخدمة</span><span className="ent-calc-val">{g.serviceYears} سنة</span></div>
             <div className="ent-calc-cell"><span className="ent-calc-label">الأجر المعتمد</span><span className="ent-calc-val"><PrivateAmount value={g.approvedWage} level={1} /></span></div>
+            {wageBase.allowancesTotal > 0 && (
+              <div className="ent-calc-cell"><span className="ent-calc-label">منها بدلات دورية نشطة</span><span className="ent-calc-val"><PrivateAmount value={wageBase.allowancesTotal} level={1} /></span></div>
+            )}
             <div className="ent-calc-cell"><span className="ent-calc-label">الأجر اليومي</span><span className="ent-calc-val"><PrivateAmount value={g.dailyWage} level={1} /></span></div>
             <div className="ent-calc-cell"><span className="ent-calc-label">استحقاق أول مدة</span><span className="ent-calc-val"><PrivateAmount value={g.firstTierAmount} level={1} /></span></div>
             <div className="ent-calc-cell"><span className="ent-calc-label">استحقاق المدة الإضافية</span><span className="ent-calc-val"><PrivateAmount value={g.secondTierAmount} level={1} /></span></div>
-            <div className="ent-calc-cell ent-calc-cell--total"><span className="ent-calc-label">إجمالي المكافأة</span><span className="ent-calc-val"><PrivateAmount value={g.total} level={1} /></span></div>
+            <div className="ent-calc-cell"><span className="ent-calc-label">معامل الاحتساب</span><span className="ent-calc-val">{separationType === 'RESIGNATION' ? resignationFractionLabel(g.resignationFraction) : '100% (إنهاء من صاحب العمل)'}</span></div>
+            <div className="ent-calc-cell ent-calc-cell--total"><span className="ent-calc-label">إجمالي المكافأة</span><span className="ent-calc-val"><PrivateAmount value={eosAmount ?? 0} level={1} /></span></div>
           </div>
         ) : (
           <div className="ent-fields"><DrawerField label="الاحتساب" value={moneyReason ? <Incomplete reason={moneyReason} /> : '—'} /></div>
@@ -314,15 +355,16 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
         )}
       </SectionCard>
 
-      {/* SECTION 7 — سجل تسويات الإجازة (تسجيل يدوي؛ أحدث تسوية تصبح خط أساس الاحتساب) */}
-      <SectionCard title="سجل تسويات الإجازة" icon="savings">
+      {/* SECTION 7 — سجل الدفعات المقدَّمة على الإجازة (توثيق تاريخي فقط — المادتان 73/74:
+          لا تُسقط ولا تُنقص استحقاق الإجازة القانوني، ولا تُنشئ خط أساس احتساب جديدًا) */}
+      <SectionCard title="سجل الدفعات المقدَّمة على الإجازة" icon="savings">
         {canManage && (
           <div className="ent-settlement-actions">
-            <Button variant="primary" icon="add" onClick={() => setShowSettlementDialog(true)}>تسوية رصيد الإجازة</Button>
+            <Button variant="primary" icon="add" onClick={() => setShowSettlementDialog(true)}>تسجيل دفعة مقدَّمة</Button>
           </div>
         )}
         {settlements.length === 0 ? (
-          <EmptyState icon="receipt_long" title="لا توجد تسويات" message="لم تُسجَّل أي تسوية لرصيد الإجازة بعد." tone="neutral" />
+          <EmptyState icon="receipt_long" title="لا توجد دفعات مقدَّمة" message="لم تُسجَّل أي دفعة مقدَّمة على الإجازة بعد." tone="neutral" />
         ) : (
           <div className="xpl-table-wrap">
             <table className="xpl-table">
@@ -363,7 +405,7 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
               <tbody>
                 {ledger.map((e) => {
                   const isLeaveAllowance = e.entryType === 'LEAVE_ALLOWANCE';
-                  // مؤشّر بصري فقط: هل توجد تسوية إجازة بنفس اليوم؟ لا ربط منطقي/حسابي.
+                  // مؤشّر بصري فقط: هل توجد دفعة مقدَّمة بنفس اليوم؟ لا ربط منطقي/حسابي.
                   const linked = isLeaveAllowance && hasMatchingSettlement(e.entryDate, settlementDayKeys);
                   return (
                     <tr key={e.id}>
@@ -371,7 +413,7 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
                       <td>
                         <span className="ent-ledger-type">
                           {LEDGER_TYPE_LABEL[e.entryType] ?? e.entryType}
-                          {linked && <StatusChip tone="blue" icon="link">مرتبط بتسوية الإجازة</StatusChip>}
+                          {linked && <StatusChip tone="blue" icon="link">مرتبط بدفعة مقدَّمة</StatusChip>}
                         </span>
                       </td>
                       <td>{e.description || '—'}</td>
@@ -389,19 +431,23 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
         )}
       </SectionCard>
 
-      {/* الإشعار القانوني — يظهر فقط عند وجود افتراضات أو نقص بيانات أثّرت في الاحتساب */}
-      {showLegalNote && (
-        <div className="ent-legal" role="note">
-          <span className="material-symbols-outlined" aria-hidden="true">gavel</span>
-          <p>
-            القيم تقديرية للاسترشاد فقط ومحسوبة حتى تاريخ اليوم وفق قانون العمل الكويتي رقم 6 لسنة 2010
-            (المادتان 70 و51). تعتمد على الافتراضات التالية عند غياب البيانات في النظام: الراتب الشهري المسجّل
-            يُعدّ الأجر الشامل للاحتساب، والأجر اليومي = الراتب ÷ 30، ومكافأة نهاية الخدمة تُحتسب على أساس إنهاء
-            الخدمة من صاحب العمل أو انتهاء العقد (الاستحقاق الكامل دون تخفيض استقالة، إذ لا يُسجّل النظام سبب
-            انتهاء الخدمة). ليست بديلاً عن التسوية النهائية المعتمدة.
-          </p>
-        </div>
-      )}
+      {/* الإشعار القانوني — دائم الظهور (لا يُخفى عند اكتمال البيانات) ليوضّح منهجية
+          الاحتساب في كل الأحوال: قاسم الأجر اليومي، تركيب الأجر المعتمد، سيناريوَا مكافأة
+          نهاية الخدمة، وأن الدفعات المقدَّمة لا تُسقط استحقاق الإجازة. */}
+      <div className="ent-legal" role="note">
+        <span className="material-symbols-outlined" aria-hidden="true">gavel</span>
+        <p>
+          القيم أعلاه تقديرية للاسترشاد فقط، محسوبة حتى تاريخ اليوم وفق قانون العمل الكويتي رقم 6
+          لسنة 2010. الأجر اليومي = الأجر الشهري المعتمد ÷ 26 (خط الأساس القانوني المعتمد للمشروع).
+          الأجر الشهري المعتمد = الراتب الأساسي + البدلات الدورية النشطة حاليًا (المادتان 55 و62).
+          مكافأة نهاية الخدمة (المادة 51) تُعرض بسيناريوهَين صريحَين: الاستحقاق الكامل عند إنهاء
+          الخدمة من صاحب العمل، أو المخفَّض بنسبة الاستقالة (المادة 53) — تحقّق من اختيار الأساس
+          الصحيح أعلاه قبل الاعتماد على أي رقم. رصيد الإجازة السنوية (المادة 70) يتراكم دومًا من
+          تاريخ التعيين؛ أي دفعة مقدَّمة مسجَّلة في «سجل الدفعات المقدَّمة على الإجازة» توثيق تاريخي
+          فقط ولا تُسقط أو تُنقص هذا الاستحقاق (المادتان 73 و74). هذه الأرقام ليست بديلاً عن التسوية
+          النهائية الرسمية المعتمدة.
+        </p>
+      </div>
 
       {showSettlementDialog && (
         <LeaveSettlementDialog
@@ -418,7 +464,7 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
           employeeId={employee.id}
           leaveBalanceDays={r.leaveAllowanceDays}
           leaveAllowanceValue={r.leaveAllowanceValue}
-          eosValue={g ? g.total : null}
+          eosValue={eosAmount}
           onClose={() => setShowLedgerDialog(false)}
           onSaved={() => { setShowLedgerDialog(false); setReloadKey((k) => k + 1); }}
         />
