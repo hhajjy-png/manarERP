@@ -24,6 +24,15 @@
  *  • المادة 55/62: تُحتسب المستحقات على أساس «الأجر المعتمد» — الأجر الأساسي مضافًا إليه
  *    العناصر الدورية المنتظمة (بدلات، مكافآت دورية، إلخ). القاعدة القانونية الحاكمة على
  *    قاسم الأجر اليومي معتمَدة كخط أساس ثابت للمشروع (انظر DAILY_WAGE_DIVISOR أدناه).
+ *  • المادة 70 (استحقاق السنة الأولى): لا يُستحق إجازة السنة الأولى إلا بعد إتمام تسعة
+ *    (9) أشهر خدمة. قبل ذلك: لا رصيد إجازة مستحَق، ولا بدل إجازة قابل للصرف (صفر). فور
+ *    إتمام 9 أشهر، يبدأ الاحتساب تلقائيًا وفق نفس صيغة التراكم التناسبي القائمة (بلا أي
+ *    تغيير في الصيغة نفسها) — بوابة أهلية واحدة على مخرج التراكم، لا صيغة موازية.
+ *  • المادة 70 (استثناء العطلات وأيام المرض): العطلات الرسمية وأيام الإجازة المرضية
+ *    المعتمدة الواقعة داخل فترة إجازة سنوية معتمدة لا تُحتسب استهلاكًا من رصيد الإجازة
+ *    السنوية. يُطبَّق هذا الاستثناء عبر دالة نقيّة واحدة (computeEffectiveAnnualLeaveDays)
+ *    تستدعيها طبقة الخدمة عند تجميع الأيام المستخدمة — لا تكرار للمنطق، ولا تغيير في كيفية
+ *    تخزين سجلات الإجازة نفسها (Leave.days يبقى كما هو، للعرض التاريخي فقط).
  *
  * ── الافتراضات المتبقية (لعدم وجود بيانات إضافية في النظام — لا تُخمَّن ولا تُختلق) ──
  *  1) الأجر المعتمد = الراتب الشهري المسجّل + البدلات الدورية النشطة للموظف حاليًا
@@ -53,6 +62,9 @@ const RESIGNATION_FRACTION_UNDER_3_YEARS = 0;
 const RESIGNATION_FRACTION_3_TO_5_YEARS = 0.5;
 const RESIGNATION_FRACTION_5_TO_10_YEARS = 2 / 3;
 const RESIGNATION_FRACTION_10_PLUS_YEARS = 1;
+
+// المادة 70 — لا يُستحق إجازة السنة الأولى إلا بعد إتمام هذا العدد من الأشهر خدمةً.
+const FIRST_YEAR_ELIGIBILITY_MONTHS = 9;
 
 const MS_PER_DAY = 86_400_000;
 
@@ -105,8 +117,14 @@ export interface EntitlementResult {
 
   duration: { years: number; months: number; days: number; totalDays: number } | null;
 
+  /**
+   * هل أتم الموظف 9 أشهر خدمة (المادة 70)؟ null فقط عند غياب تاريخ التعيين (لا يمكن
+   * تحديد الأهلية). قبل الأهلية: accruedLeaveDays/remainingLeaveDays/leaveAllowance* = صفر.
+   */
+  firstYearEligible: boolean | null;
+
   annualEntitlementDays: number; // 30 دائمًا (نسبة الاستحقاق القانونية)
-  accruedLeaveDays: number | null; // الرصيد المستحق حتى اليوم من تاريخ التعيين (يحتاج تاريخ التعيين)
+  accruedLeaveDays: number | null; // الرصيد المستحق حتى اليوم من تاريخ التعيين (يحتاج تاريخ التعيين + إتمام 9 أشهر)
   usedLeaveDays: number; // الأيام المستخدمة (معروف دائمًا)
   remainingLeaveDays: number | null; // الأيام المتبقية = المستحق − المستخدم
 
@@ -146,6 +164,57 @@ function serviceDuration(hire: Date, asOf: Date): { years: number; months: numbe
     return { years: 0, months: 0, days: 0, totalDays: 0 };
   }
   return { years, months, days, totalDays };
+}
+
+/** هل أتم الموظف 9 أشهر خدمة تقويميًا (المادة 70 — استحقاق إجازة السنة الأولى)؟ */
+function isFirstYearEligible(duration: { years: number; months: number }): boolean {
+  return duration.years * 12 + duration.months >= FIRST_YEAR_ELIGIBILITY_MONTHS;
+}
+
+/** فترة تاريخية شاملة الطرفين (Start/End Date Inclusive) — لأغراض استثناء أيام الإجازة. */
+export interface DateInterval {
+  start: Date;
+  end: Date;
+}
+
+function dayIndex(d: Date): number {
+  return Math.floor(d.getTime() / MS_PER_DAY);
+}
+
+/**
+ * يحسب عدد أيام إجازة سنوية واحدة المستهلكة فعليًا من الرصيد، مستثنيًا (المادة 70):
+ *  - العطلات الرسمية الواقعة داخل فترة الإجازة.
+ *  - أيام الإجازة المرضية المعتمدة المتداخلة مع فترة الإجازة.
+ * دالة نقيّة حتمية (Deterministic) — لا وصول لقاعدة بيانات، ولا تأثر بترتيب المدخلات.
+ * لا ازدواج عدّ: تُبنى الأيام المستثناة كمجموعة فهارس أيام فريدة (Set) قبل الطرح، فإذا
+ * كان يوم واحد عطلة رسمية ومتداخلًا مع إجازة مرضية معًا، يُخصَم مرة واحدة فقط.
+ * الطرفان (start/end) في كل فترة شاملان (Inclusive)، ويُطبَّع كل تاريخ إلى فهرس يوم صحيح
+ * (منذ الحقبة، بمعزل عن توقيت اليوم) فلا يتأثر العدّ بأي مكوّن زمني ضمن التاريخ المخزَّن.
+ */
+export function computeEffectiveAnnualLeaveDays(
+  leaveInterval: DateInterval,
+  holidays: Date[],
+  sickLeaveIntervals: DateInterval[],
+): number {
+  const excludedDayIndexes = new Set<number>();
+  for (const holiday of holidays) {
+    excludedDayIndexes.add(dayIndex(holiday));
+  }
+  for (const sick of sickLeaveIntervals) {
+    const sickStart = dayIndex(sick.start);
+    const sickEnd = dayIndex(sick.end);
+    for (let i = Math.min(sickStart, sickEnd); i <= Math.max(sickStart, sickEnd); i++) {
+      excludedDayIndexes.add(i);
+    }
+  }
+
+  const leaveStart = dayIndex(leaveInterval.start);
+  const leaveEnd = dayIndex(leaveInterval.end);
+  let effectiveDays = 0;
+  for (let i = Math.min(leaveStart, leaveEnd); i <= Math.max(leaveStart, leaveEnd); i++) {
+    if (!excludedDayIndexes.has(i)) effectiveDays += 1;
+  }
+  return effectiveDays;
 }
 
 /** نسبة مكافأة الاستقالة وفق سنوات الخدمة (المادة 53، عقد غير محدد المدة). */
@@ -209,9 +278,18 @@ export function calculateEntitlements(input: EntitlementInput): EntitlementResul
   const duration = hasHireDate ? serviceDuration(input.hireDate as Date, input.asOf) : null;
   const serviceYears = duration ? duration.totalDays / DAYS_PER_YEAR : null;
 
-  // رصيد الإجازة يتراكم دومًا من تاريخ التعيين — لا خط أساس بديل (المادتان 73/74).
+  // بوابة أهلية واحدة على مخرج التراكم (المادة 70) — الصيغة نفسها لا تتغيّر بعد الأهلية.
+  const firstYearEligible = duration !== null ? isFirstYearEligible(duration) : null;
+
+  // رصيد الإجازة يتراكم دومًا من تاريخ التعيين — لا خط أساس بديل (المادتان 73/74) — لكن
+  // لا يُستحق شيء قبل إتمام 9 أشهر خدمة (المادة 70)؛ فور الأهلية يبدأ نفس التراكم التناسبي
+  // من تاريخ التعيين تلقائيًا وبلا أي تغيير في الصيغة.
   const accruedLeaveDays =
-    duration !== null ? round2(ANNUAL_LEAVE_DAYS_PER_YEAR * (duration.totalDays / DAYS_PER_YEAR)) : null;
+    duration !== null
+      ? firstYearEligible
+        ? round2(ANNUAL_LEAVE_DAYS_PER_YEAR * (duration.totalDays / DAYS_PER_YEAR))
+        : 0
+      : null;
   const remainingLeaveDays = accruedLeaveDays !== null ? round2(Math.max(0, accruedLeaveDays - usedLeaveDays)) : null;
 
   // قيمة يومية خام واحدة (غير مقرَّبة) يُشتق منها كل من dailyWage المعروض وبدل الإجازة —
@@ -234,6 +312,7 @@ export function calculateEntitlements(input: EntitlementInput): EntitlementResul
     hasHireDate,
     hasWageBase,
     duration,
+    firstYearEligible,
     annualEntitlementDays: ANNUAL_LEAVE_DAYS_PER_YEAR,
     accruedLeaveDays,
     usedLeaveDays,

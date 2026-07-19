@@ -18,7 +18,13 @@ import {
 } from './employees.schema';
 import { buildDocumentAlerts } from './employees.alertBuilder';
 import { aggregateAttendanceStats, AttendanceFilters, buildAttendanceWhere } from './attendance.filters';
-import { calculateEntitlements, EntitlementResult, WageBaseComposition } from './entitlements.calc';
+import {
+  calculateEntitlements,
+  computeEffectiveAnnualLeaveDays,
+  DateInterval,
+  EntitlementResult,
+  WageBaseComposition,
+} from './entitlements.calc';
 
 class EmployeesRepository extends BaseRepository<{ id: number }> {
   protected readonly model = 'employee';
@@ -176,25 +182,50 @@ export class EmployeesService {
     asOf: Date,
   ): Promise<{ result: EntitlementResult; wageBase: WageBaseComposition }> {
     const wageBase = await this.resolveWageBase(employeeId, employee.salary, asOf);
-
-    const usedAgg = await prisma.leave.aggregate({
-      where: {
-        employeeId,
-        type: 'ANNUAL',
-        status: 'APPROVED',
-        ...(employee.hireDate ? { startDate: { gte: employee.hireDate } } : {}),
-      },
-      _sum: { days: true },
-    });
+    const usedAnnualLeaveDays = await this.computeUsedAnnualLeaveDays(employeeId, employee.hireDate);
 
     const result = calculateEntitlements({
       hireDate: employee.hireDate,
       monthlyWageBase: wageBase.total,
       asOf,
-      usedAnnualLeaveDays: usedAgg._sum.days ?? 0,
+      usedAnnualLeaveDays,
     });
 
     return { result, wageBase };
+  }
+
+  /**
+   * مجموع أيام الإجازة السنوية المستهلكة فعليًا، مستثنيًا العطلات الرسمية وأيام الإجازة
+   * المرضية المعتمدة الواقعة داخل كل فترة إجازة سنوية معتمدة (المادة 70). يُحتسب الاستثناء
+   * لكل سجل إجازة سنوية على حدة عبر الدالة النقيّة المركزية (computeEffectiveAnnualLeaveDays)
+   * في entitlements.calc.ts — لا تكرار للمنطق، ولا تغيير في تخزين Leave.days نفسه.
+   */
+  private async computeUsedAnnualLeaveDays(employeeId: number, hireDate: Date | null): Promise<number> {
+    const [annualLeaves, holidays, sickLeaves] = await Promise.all([
+      prisma.leave.findMany({
+        where: {
+          employeeId,
+          type: 'ANNUAL',
+          status: 'APPROVED',
+          ...(hireDate ? { startDate: { gte: hireDate } } : {}),
+        },
+        select: { startDate: true, endDate: true },
+      }),
+      prisma.holiday.findMany({ select: { date: true } }),
+      prisma.leave.findMany({
+        where: { employeeId, type: 'SICK', status: 'APPROVED' },
+        select: { startDate: true, endDate: true },
+      }),
+    ]);
+
+    const holidayDates = holidays.map((h) => h.date);
+    const sickIntervals: DateInterval[] = sickLeaves.map((s) => ({ start: s.startDate, end: s.endDate }));
+
+    return annualLeaves.reduce(
+      (sum, leave) =>
+        sum + computeEffectiveAnnualLeaveDays({ start: leave.startDate, end: leave.endDate }, holidayDates, sickIntervals),
+      0,
+    );
   }
 
   /**

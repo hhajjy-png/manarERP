@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useUI } from '../stores/uiStore';
+import { useAuth } from '../stores/authStore';
 import { useSettings } from '../stores/settingsStore';
 import type { CurrencyLanguage } from '../lib/format';
 import { useT, type Lang } from '../lib/i18n';
@@ -78,12 +79,21 @@ const BACKUP_FIELDS = FIELDS.filter((f) => f.group === 'backup');
 
 const NAV_SECTIONS: { id: string; icon: string; label: string }[] = [
   { id: 'sec-identity', icon: 'corporate_fare', label: 'هوية الشركة' },
+  { id: 'sec-holidays', icon: 'event_busy', label: 'العطل الرسمية' },
   { id: 'sec-backup', icon: 'backup', label: 'النسخ الاحتياطي' },
   { id: 'sec-signatures', icon: 'draw', label: 'التواقيع' },
   { id: 'sec-stamp', icon: 'approval', label: 'ختم الشركة' },
   { id: 'sec-print', icon: 'print', label: 'الطباعة والقوالب' },
   { id: 'sec-dict', icon: 'translate', label: 'قاموس الترجمة' },
 ];
+
+/** يطابق Holiday في backend/prisma/schema.prisma (قراءة/كتابة عبر /api/holidays فقط). */
+interface Holiday {
+  id: number;
+  date: string;
+  name: string;
+  notes: string | null;
+}
 
 function scrollToSection(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -203,7 +213,14 @@ export default function Settings() {
   const { lang, setLang } = useUI();
   const { t } = useT();
   const toast = useToast();
+  const { hasPermission } = useAuth();
+  const canManageHolidays = hasPermission('employees.update');
   const [values, setValues] = useState<Record<string, string>>({});
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [holidaysLoading, setHolidaysLoading] = useState(true);
+  const [holidaySaving, setHolidaySaving] = useState(false);
+  const [newHolidayDate, setNewHolidayDate] = useState('');
+  const [newHolidayName, setNewHolidayName] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signatures, setSignatures] = useState<SigSlot[]>([]);
@@ -247,6 +264,51 @@ export default function Settings() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!hasPermission('employees.read')) { setHolidaysLoading(false); return; }
+    (async () => {
+      try {
+        const res = await api.get('/holidays');
+        setHolidays((res.data?.data ?? []) as Holiday[]);
+      } catch (err) {
+        toast.error(errorMessage(err));
+      } finally {
+        setHolidaysLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function addHoliday() {
+    if (!newHolidayDate || !newHolidayName.trim()) return;
+    setHolidaySaving(true);
+    try {
+      const res = await api.post('/holidays', { date: newHolidayDate, name: newHolidayName.trim() });
+      const created = res.data.data as Holiday;
+      setHolidays((prev) => [...prev, created].sort((a, b) => a.date.localeCompare(b.date)));
+      setNewHolidayDate('');
+      setNewHolidayName('');
+      toast.ok('تمت إضافة العطلة بنجاح');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setHolidaySaving(false);
+    }
+  }
+
+  async function removeHoliday(id: number) {
+    setHolidaySaving(true);
+    try {
+      await api.delete(`/holidays/${id}`);
+      setHolidays((prev) => prev.filter((h) => h.id !== id));
+      toast.ok('تم حذف العطلة');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setHolidaySaving(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -558,6 +620,89 @@ export default function Settings() {
               </select>
             </div>
           </div>
+        </SectionCard>
+      </div>
+
+      {/* ── 1a · Official holidays (Article 70 — excluded from annual leave day counts) ── */}
+      <div id="sec-holidays" className="settings-section">
+        <SectionCard title="العطل الرسمية" icon="event_busy">
+          <p className="settings-dict-desc">
+            العطل الرسمية المسجّلة هنا تُستثنى تلقائيًا من عدّ أيام الإجازة السنوية المستهلكة عند وقوعها داخل فترة إجازة معتمدة (المادة 70).
+          </p>
+
+          {canManageHolidays && (
+            <div className="form-grid" style={{ marginBottom: 12 }}>
+              <div className="field">
+                <label htmlFor="new-holiday-date">التاريخ</label>
+                <input
+                  id="new-holiday-date"
+                  type="date"
+                  value={newHolidayDate}
+                  onChange={(e) => setNewHolidayDate(e.target.value)}
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="new-holiday-name">اسم العطلة</label>
+                <input
+                  id="new-holiday-name"
+                  value={newHolidayName}
+                  onChange={(e) => setNewHolidayName(e.target.value)}
+                  placeholder="مثال: اليوم الوطني"
+                />
+              </div>
+              <div className="field" style={{ alignSelf: 'end' }}>
+                <Button
+                  variant="primary"
+                  icon="add"
+                  busy={holidaySaving}
+                  disabled={!newHolidayDate || !newHolidayName.trim()}
+                  onClick={addHoliday}
+                >
+                  إضافة عطلة
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {holidaysLoading ? (
+            <p className="settings-dict-desc">جارٍ التحميل...</p>
+          ) : holidays.length === 0 ? (
+            <p className="settings-dict-desc">لا توجد عطل رسمية مسجّلة بعد.</p>
+          ) : (
+            <div className="settings-dict-grid">
+              <table className="settings-dict-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '25%' }}>التاريخ</th>
+                    <th style={{ width: '55%' }}>الاسم</th>
+                    {canManageHolidays && <th className="settings-dict-actions" aria-label="حذف"></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {holidays.map((h) => (
+                    <tr key={h.id}>
+                      <td>{h.date.slice(0, 10)}</td>
+                      <td>{h.name}</td>
+                      {canManageHolidays && (
+                        <td className="settings-dict-actions">
+                          <button
+                            type="button"
+                            className="settings-dict-del"
+                            onClick={() => removeHoliday(h.id)}
+                            disabled={holidaySaving}
+                            title="حذف"
+                            aria-label="حذف العطلة"
+                          >
+                            <span className="material-symbols-outlined" aria-hidden="true">delete</span>
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </SectionCard>
       </div>
 

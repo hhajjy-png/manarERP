@@ -27,6 +27,8 @@ interface EntitlementResult {
   hasHireDate: boolean;
   hasWageBase: boolean;
   duration: { years: number; months: number; days: number; totalDays: number } | null;
+  /** هل أتم الموظف 9 أشهر خدمة (المادة 70)؟ null فقط عند غياب تاريخ التعيين. */
+  firstYearEligible: boolean | null;
   annualEntitlementDays: number;
   accruedLeaveDays: number | null;
   usedLeaveDays: number;
@@ -241,7 +243,13 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
           label="رصيد الإجازات"
           tone="blue"
           value={r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays) : '—'}
-          sub={r.remainingLeaveDays === null && leaveReason ? `بيانات غير مكتملة — ${leaveReason}` : undefined}
+          sub={
+            r.firstYearEligible === false
+              ? 'غير مؤهل بعد — يلزم إتمام 9 أشهر خدمة'
+              : r.remainingLeaveDays === null && leaveReason
+                ? `بيانات غير مكتملة — ${leaveReason}`
+                : undefined
+          }
         />
         <MetricCard
           icon="payments"
