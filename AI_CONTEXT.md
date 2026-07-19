@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `ea62520` (merge of `feature/employee-entitlements-drawer-v1`) |
-| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Documentation Commit** | `28b31b0` — "docs: record Employee Entitlements Drawer Tab v1 release in PROJECT_STATE / AI_CONTEXT" |
 | **Current Stable Tag** | `stable-employee-entitlements-drawer-v1` |
 | **Current Release Date** | 2026-07-19 |
 | **Total Stable Releases** | 313 (window 2026-06-07 → 2026-07-19) |
