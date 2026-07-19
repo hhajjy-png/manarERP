@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `86292d5` (merge of `feature/user-management-header-cleanup-pack-v1`) |
-| **Current Documentation Commit** | `be8a26d` — "docs: record User Management Header Cleanup Pack v1 release in PROJECT_STATE / AI_CONTEXT" |
-| **Current Stable Tag** | `stable-user-management-header-cleanup-pack-v1` |
+| **Current Merge Commit** | `5d9bf90` (merge of `feature/cash-transactions-table-alignment-polish-v1`) |
+| **Current Documentation Commit** | *(pending — filled in by the immediate follow-up commit, per this file's own self-referencing convention)* |
+| **Current Stable Tag** | `stable-cash-transactions-table-alignment-layout-polish-pack-v1` |
 | **Current Release Date** | 2026-07-19 |
-| **Total Stable Releases** | 311 (window 2026-06-07 → 2026-07-19) |
+| **Total Stable Releases** | 312 (window 2026-06-07 → 2026-07-19) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,13 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Cash Transactions Table Alignment & Layout Polish Pack v1** (2026-07-19, `stable-cash-transactions-table-alignment-layout-polish-pack-v1`) —
+  frontend-only, presentation-only (2 files: `BankAccountExplorer.tsx`, `BankAccountExplorer.css`). Centers
+  every column header of the Cash Transactions (Bank Account Explorer) timeline table; collapses the
+  Description cell from a two-line stacked layout to a single non-wrapping ellipsis-truncated line (full
+  text still available via the project's existing `title`-tooltip pattern); rebalances column widths
+  (date/type/amount/balance/description) for a more consistent layout. No Business Logic / API / handler /
+  data / column-order / DataTable / ExplorerKit-token changes.
 - **User Management Header Cleanup Pack v1** (2026-07-19, `stable-user-management-header-cleanup-pack-v1`) —
   frontend-only, presentation-only (1 file, `Users.tsx`, −1 line). Removed the duplicate "مستخدم جديد"
   (new user) button rendered in the Users page `ExecutiveHeader` `aside` slot, leaving the toolbar button
