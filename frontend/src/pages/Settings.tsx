@@ -23,6 +23,7 @@ import {
 import '../components/explorer/explorer-kit.css';
 import './Settings.css';
 import PeriodLockSettings from '../components/period/PeriodLockSettings';
+import GenerateHolidaysDialog from '../components/employee/GenerateHolidaysDialog';
 
 interface SigSlot {
   id: string;
@@ -93,6 +94,21 @@ interface Holiday {
   date: string;
   name: string;
   notes: string | null;
+  /** مُشتقّ وقت القراءة فقط (Kuwait Holiday Intelligence Pack v1) — ليس عمودًا مخزَّنًا. */
+  origin?: 'FIXED_GREGORIAN' | 'HIJRI';
+  status?: 'OFFICIAL' | 'EXPECTED_ALOJAIRI' | 'MANUALLY_ADJUSTED';
+}
+
+const HOLIDAY_STATUS_META: Record<string, { label: string; tone: 'green' | 'orange' | 'neutral' }> = {
+  OFFICIAL: { label: 'رسمية', tone: 'green' },
+  EXPECTED_ALOJAIRI: { label: 'متوقَّعة (العجيري)', tone: 'orange' },
+  MANUALLY_ADJUSTED: { label: 'مُعدَّلة يدويًا', tone: 'neutral' },
+};
+
+/** سنوات مختارة للتوليد — السنة الحالية والقادمتان (الأكثر فائدة عمليًا). */
+function generatableYears(): number[] {
+  const y = new Date().getFullYear();
+  return [y, y + 1, y + 2];
 }
 
 function scrollToSection(id: string) {
@@ -221,6 +237,8 @@ export default function Settings() {
   const [holidaySaving, setHolidaySaving] = useState(false);
   const [newHolidayDate, setNewHolidayDate] = useState('');
   const [newHolidayName, setNewHolidayName] = useState('');
+  const [generateYear, setGenerateYear] = useState(() => new Date().getFullYear());
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [signatures, setSignatures] = useState<SigSlot[]>([]);
@@ -265,18 +283,20 @@ export default function Settings() {
     })();
   }, []);
 
+  async function reloadHolidays() {
+    try {
+      const res = await api.get('/holidays');
+      setHolidays((res.data?.data ?? []) as Holiday[]);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setHolidaysLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (!hasPermission('employees.read')) { setHolidaysLoading(false); return; }
-    (async () => {
-      try {
-        const res = await api.get('/holidays');
-        setHolidays((res.data?.data ?? []) as Holiday[]);
-      } catch (err) {
-        toast.error(errorMessage(err));
-      } finally {
-        setHolidaysLoading(false);
-      }
-    })();
+    reloadHolidays();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -625,7 +645,27 @@ export default function Settings() {
 
       {/* ── 1a · Official holidays (Article 70 — excluded from annual leave day counts) ── */}
       <div id="sec-holidays" className="settings-section">
-        <SectionCard title="العطل الرسمية" icon="event_busy">
+        <SectionCard
+          title="العطل الرسمية"
+          icon="event_busy"
+          actions={
+            canManageHolidays ? (
+              <div className="settings-generate-actions">
+                <select
+                  className="settings-generate-year"
+                  value={generateYear}
+                  onChange={(e) => setGenerateYear(Number(e.target.value))}
+                  aria-label="سنة التوليد"
+                >
+                  {generatableYears().map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <Button variant="secondary" icon="event_repeat" onClick={() => setShowGenerateDialog(true)}>
+                  توليد العطل
+                </Button>
+              </div>
+            ) : undefined
+          }
+        >
           <p className="settings-dict-desc">
             العطل الرسمية المسجّلة هنا تُستثنى تلقائيًا من عدّ أيام الإجازة السنوية المستهلكة عند وقوعها داخل فترة إجازة معتمدة (المادة 70).
           </p>
@@ -673,16 +713,20 @@ export default function Settings() {
               <table className="settings-dict-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '25%' }}>التاريخ</th>
-                    <th style={{ width: '55%' }}>الاسم</th>
+                    <th style={{ width: '20%' }}>التاريخ</th>
+                    <th style={{ width: '40%' }}>الاسم</th>
+                    <th style={{ width: '20%' }}>الحالة</th>
                     {canManageHolidays && <th className="settings-dict-actions" aria-label="حذف"></th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {holidays.map((h) => (
+                  {holidays.map((h) => {
+                    const statusMeta = h.status ? HOLIDAY_STATUS_META[h.status] : undefined;
+                    return (
                     <tr key={h.id}>
                       <td>{h.date.slice(0, 10)}</td>
                       <td>{h.name}</td>
+                      <td>{statusMeta ? <StatusChip tone={statusMeta.tone} icon="verified">{statusMeta.label}</StatusChip> : '—'}</td>
                       {canManageHolidays && (
                         <td className="settings-dict-actions">
                           <button
@@ -698,7 +742,8 @@ export default function Settings() {
                         </td>
                       )}
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -978,6 +1023,14 @@ export default function Settings() {
           }
         </SectionCard>
       </div>
+
+      {showGenerateDialog && (
+        <GenerateHolidaysDialog
+          year={generateYear}
+          onClose={() => setShowGenerateDialog(false)}
+          onApplied={reloadHolidays}
+        />
+      )}
 
       {studioOpen && (
         <TemplateStudioEditor onClose={() => setStudioOpen(false)} />
