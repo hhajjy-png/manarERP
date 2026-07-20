@@ -2,15 +2,15 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-19 (previously 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-20 (previously 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Employee Entitlements Executive Redesign v1), like the Al-Ojairi Integration Pack v1 pass and
-> the 2026-07-17 pass before it, refreshed the "Current Production State" table only (re-derived directly from
-> `git`) — the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/
+> below. This pass (Global Smart Overflow Tooltip Pack v1), like the Employee Entitlements Executive Redesign v1
+> pass and the 2026-07-17 pass before it, refreshed the "Current Production State" table only (re-derived directly
+> from `git`) — the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/
 > ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been
 > re-audited in this pass — treat their specifics as of those dates, not current-day.
 
@@ -35,9 +35,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `56f18d4` — merge of `feature/employee-entitlements-executive-redesign-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-employee-entitlements-executive-redesign-v1` (merge commit `56f18d4`) | High |
-| **Previous stable tag** | `stable-al-ojairi-integration-pack-v1` (`70fa096`) | High |
+| **Current HEAD** | `ce106b4` — merge of `feature/global-smart-overflow-tooltip-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-global-smart-overflow-tooltip-pack-v1` (merge commit `ce106b4`) | High |
+| **Previous stable tag** | `stable-employee-entitlements-executive-redesign-v1` (`56f18d4`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -64,7 +64,37 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-employee-entitlements-executive-redesign-v1` (`56f18d4`, 2026-07-19)
+### Latest Release — `stable-global-smart-overflow-tooltip-pack-v1` (`ce106b4`, 2026-07-20)
+
+Replaces the app's ad-hoc, per-component reliance on the native `title=` attribute for truncated text
+with a single reusable global tooltip system built once and mounted once — zero page-level integration.
+
+- **Architecture:** one provider, `frontend/src/components/tooltip/GlobalOverflowTooltip.tsx`, mounted
+  exactly once in `main.tsx`. A single delegated `pointerover`/`pointerout`/`focusin`/`focusout`/`keydown`
+  listener set on `document` (plus `scroll`/`resize` on `window`) — no per-element listeners, no
+  `ResizeObserver`, no polling, no upfront DOM scan.
+- **Detection:** `overflowDetection.ts` walks up to 5 ancestors from the hovered/focused element on-demand,
+  matching the nearest one whose `scrollWidth/scrollHeight` exceeds its `clientWidth/clientHeight` while
+  computed `overflow` is `hidden`/`clip` (excludes intentionally-scrollable containers such as virtualized
+  lists, which use `auto`/`scroll`) and whose own height is under a 160px cap (excludes large scroll-locked
+  containers like open Drawers/Dialogs). Text priority: `data-tooltip-text` override → the element's own
+  `title` → `textContent`. Opt-out via `data-tooltip-disable`.
+- **Native title interplay:** an existing `title` attribute is stashed and removed while the custom tooltip
+  is shown, then restored on hide — no double tooltip, and the app's pre-existing `title`-based fallback
+  (64+ usages, e.g. DataTable's `.dt-truncate` cells) still works unmodified without any code change,
+  including if JavaScript were ever unavailable.
+- **Design:** ExplorerKit-consistent — white surface, thin border, soft shadow, 8px radius, dark-mode-aware
+  via existing theme tokens, RTL/LTR-aware alignment, 120ms fade-in respecting `prefers-reduced-motion`,
+  `pointer-events: none`, viewport-clamped auto-flip positioning, hidden under `@media print`. New
+  `--z-tooltip: 600` token added to `theme.css` (above Popover 550, below toasts 9999).
+- **Scope guarantee:** 5 files (+308/−1; 3 added, 2 modified — `main.tsx` and `app/theme.css` only).
+  Feature branch `feature/global-smart-overflow-tooltip-pack-v1` (kept, pushed). Feature commit `41f93cf`,
+  merge commit `ce106b4`.
+- **Validation:** frontend `tsc --noEmit` ✅ (pre-merge and on merged HEAD) · frontend build ✅ · zero
+  backend files touched. No business logic, backend, API, database, calculation, or workflow change.
+  Manual visual review: **APPROVED** (Product Owner). *Confidence: High (this pass's own git/build evidence).*
+
+### Previous Release — `stable-employee-entitlements-executive-redesign-v1` (`56f18d4`, 2026-07-19)
 
 Visual-only redesign of the Employee Entitlements Center page (`pages/EmployeeEntitlementsCenter.tsx`)
 from an approved HTML mockup, to Microsoft Dynamics 365 / SAP Fiori / Oracle Fusion Cloud ERP quality.

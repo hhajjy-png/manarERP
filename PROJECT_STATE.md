@@ -61,7 +61,27 @@ in a table cell.
 
 ---
 
-## Latest Release — Employee Entitlements Executive Redesign v1
+## Latest Release — Global Smart Overflow Tooltip Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Global Smart Overflow Tooltip Pack v1 |
+| **Goal** | Replace the app's ad-hoc, per-component reliance on the native `title=` attribute for truncated text with a single reusable global tooltip system: any element whose rendered text is actually clipped (ellipsis or line-clamp) shows its full text in an enterprise-quality ExplorerKit-styled tooltip on hover/focus, with zero page-level integration required. |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-20 |
+| **Feature branch** | `feature/global-smart-overflow-tooltip-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `2edd447` (immediately after the Employee Entitlements Executive Redesign v1 documentation-commit-hash fill-in) |
+| **Feature commit** | `41f93cf` |
+| **Production merge commit** | `ce106b4` |
+| **Stable tag** | `stable-global-smart-overflow-tooltip-pack-v1` → merge `ce106b4` (annotated) |
+| **Architecture** | One provider component, `frontend/src/components/tooltip/GlobalOverflowTooltip.tsx`, mounted exactly once in `main.tsx` (sibling to `<App />`). It attaches a single delegated `pointerover`/`pointerout`/`focusin`/`focusout`/`keydown` listener set on `document` (plus `scroll`/`resize` on `window`) — no per-element listeners, no `ResizeObserver`, no polling, no upfront DOM scan. Detection (`overflowDetection.ts`) walks up to 5 ancestors from the hovered/focused element on-demand, looking for the nearest one whose `scrollWidth/scrollHeight` exceeds its `clientWidth/clientHeight` while `overflow` is computed `hidden`/`clip` (this guard is what excludes intentionally-scrollable containers, e.g. virtualized lists, which use `auto`/`scroll`) and whose own height is under a 160px sanity cap (excludes large scroll-locked containers like open Drawers/Dialogs). Displayed text priority: explicit `data-tooltip-text` override → the element's own `title` attribute (the app's pre-existing convention, e.g. DataTable's `.dt-truncate` cells) → `textContent`. Opt-out via `data-tooltip-disable` on any ancestor. |
+| **Native title interplay** | If the matched element has a `title` attribute, it is removed for the duration of the custom tooltip (stashed in `data-tooltip-native-title`) and restored on hide — so the two tooltip mechanisms never show simultaneously, and the app's existing `title`-based fallback (64+ pre-existing usages) still works unmodified if JavaScript is ever unavailable. No page (DataTable included) required any code change to gain coverage. |
+| **Tooltip design** | `GlobalOverflowTooltip.css` — white surface (`var(--surface)`, dark-mode-aware via the existing `html[data-theme="dark"]` tokens), 1px `var(--border)`, `var(--shadow-lg)`, 8px radius, `role="tooltip"` + `aria-describedby` wiring for keyboard accessibility, RTL/LTR-aware text alignment (`dir` attribute set via Arabic/Hebrew Unicode-range detection or the target's computed `direction`), 120ms fade-in respecting `prefers-reduced-motion`, `pointer-events: none`, viewport-clamped + auto-flip positioning computed in a `useLayoutEffect` (after the tooltip's real rendered size is known, so there is no visible jump and it never leaves the viewport), `@media print { display: none }`. New `--z-tooltip: 600` token added to `theme.css` (documented in the existing z-index comment block — above Popover 550, below toasts 9999). |
+| **Release scope** | **5 files, +308/−1** (3 added: `components/tooltip/{GlobalOverflowTooltip.tsx,GlobalOverflowTooltip.css,overflowDetection.ts}`; 2 modified: `main.tsx` — mounts the provider, `app/theme.css` — adds `--z-tooltip` token). |
+| **Validation** | frontend `tsc --noEmit` ✅ (both pre-merge and re-verified on the merged `production` HEAD) · frontend `vite build` ✅ · backend untouched (no backend file changed, re-verification not applicable). Manual visual review: **APPROVED** (Product Owner). |
+| **Business logic verification** | No business logic, backend, API, database, calculation, or workflow change of any kind — this is a pure frontend UX/presentation addition. Database schema: unchanged (no file touched). Existing API contracts: unchanged (zero backend files touched). Existing permissions: unchanged. |
+
+## Previous Release — Employee Entitlements Executive Redesign v1
 
 | Field | Value |
 |-------|-------|

@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `56f18d4` (merge of `feature/employee-entitlements-executive-redesign-v1`) |
-| **Current Documentation Commit** | `b836de7` — "docs: record Employee Entitlements Executive Redesign v1 release" |
-| **Current Stable Tag** | `stable-employee-entitlements-executive-redesign-v1` |
-| **Current Release Date** | 2026-07-19 |
-| **Total Stable Releases** | 321 (window 2026-06-07 → 2026-07-19) |
+| **Current Merge Commit** | `ce106b4` (merge of `feature/global-smart-overflow-tooltip-pack-v1`) |
+| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Stable Tag** | `stable-global-smart-overflow-tooltip-pack-v1` |
+| **Current Release Date** | 2026-07-20 |
+| **Total Stable Releases** | 326 (window 2026-06-07 → 2026-07-20) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,28 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Global Smart Overflow Tooltip Pack v1** (2026-07-20, `stable-global-smart-overflow-tooltip-pack-v1`) —
+  replaces the app's ad-hoc, per-component reliance on the native `title=` attribute for truncated text with
+  a single reusable global tooltip system, mounted once, requiring zero page-level integration. One provider,
+  `components/tooltip/GlobalOverflowTooltip.tsx`, mounted in `main.tsx`, attaches a single delegated
+  `pointerover`/`pointerout`/`focusin`/`focusout`/`keydown` listener set on `document` (plus `scroll`/`resize`
+  on `window`) — no per-element listeners, no `ResizeObserver`, no polling, no upfront DOM scan. Detection
+  (`overflowDetection.ts`) walks up to 5 ancestors from the hovered/focused element on demand, matching the
+  nearest one whose `scrollWidth/scrollHeight` exceeds its `clientWidth/clientHeight` while computed
+  `overflow` is `hidden`/`clip` (excludes intentionally-scrollable containers like virtualized lists, which
+  use `auto`/`scroll`) and whose own height is under a 160px cap (excludes large scroll-locked containers like
+  open Drawers/Dialogs). Text priority: `data-tooltip-text` override → the element's own `title` →
+  `textContent`; opt-out via `data-tooltip-disable`. An existing `title` attribute is stashed and removed
+  while the custom tooltip is shown, then restored on hide, so there is never a double tooltip and the app's
+  pre-existing `title`-based fallback (64+ usages, e.g. DataTable's `.dt-truncate` cells) keeps working
+  unmodified with zero code change. Styling is ExplorerKit-consistent (white surface, thin border, soft
+  shadow, 8px radius, dark-mode-aware via existing theme tokens, RTL/LTR-aware alignment, `prefers-reduced-
+  motion`-safe fade-in, `pointer-events: none`, viewport-clamped auto-flip positioning, hidden under
+  `@media print`); new `--z-tooltip: 600` token added to `theme.css`. **No change to any business logic,
+  backend, API, database, calculation, or workflow — pure frontend UX/presentation addition.** 5 files
+  (+308/−1; 3 added, 2 modified: `main.tsx`, `app/theme.css`). Zero backend files touched. Frontend
+  `tsc --noEmit` and build both clean, verified both pre-merge and on the merged `production` HEAD. Manual
+  visual review: APPROVED.
 - **Employee Entitlements Executive Redesign v1** (2026-07-19, `stable-employee-entitlements-executive-redesign-v1`) —
   visual-only redesign of the Employee Entitlements Center page from an approved HTML mockup, to Microsoft
   Dynamics 365 / SAP Fiori / Oracle Fusion Cloud quality, built entirely on the existing ExplorerKit design
