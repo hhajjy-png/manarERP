@@ -37,76 +37,95 @@
   position: relative;
 }
 
-/* ── شريط بيانات الموظف تحت الترويسة — ثلاثة حقول بفواصل رأسية، تسمية فوق القيمة ── */
-.entc-info-row {
+/* ════════════════════════════════════════════════════════════════════════════
+   لوحة المركز المالي التنفيذي (Employee Financial Position Dashboard v1)
+   إعادة تصميم بصري فقط بمكوّنات ExplorerKit وtokensها — بلا لغة تصميم جديدة، بلا أي
+   منطق/احتساب/API. كل القواعد مُحدَّدة النطاق بـ .entc-* فلا تتأثر أي صفحة أخرى.
+   ════════════════════════════════════════════════════════════════════════════ */
+.entc-dashboard {
   display: flex;
-  flex-wrap: wrap;
-  gap: 14px 0;
-  padding: 14px 18px;
-  border: 1px solid var(--xpl-border);
-  border-radius: 12px;
-  background: var(--xpl-surface);
-}
-.entc-info-row .xpl-drawer-field {
-  border-bottom: none;
-  flex: 1 1 45%;
-  min-width: 160px;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  padding: 0 18px;
+  gap: 14px;
 }
-.entc-info-row .xpl-drawer-field:first-child { padding-inline-start: 0; }
-.entc-info-row .xpl-drawer-field-label { font-size: 11.5px; }
-.entc-info-row .xpl-drawer-field-value {
-  font-size: 15px;
+
+/* ── بطاقة المركز المالي — العنوان التنفيذي الكبير (الالتزام المالي الحالي) ─────── */
+.entc-fin-headline {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 14px;
+}
+.entc-fin-headline-label {
+  font-size: 12px;
   font-weight: 700;
-  text-align: start;
+  color: var(--xpl-muted);
+}
+.entc-fin-headline-value {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+  color: var(--xpl-text);
   font-variant-numeric: tabular-nums;
 }
-@media (min-width: 701px) {
-  .entc-info-row .xpl-drawer-field { flex: 1; }
-  .entc-info-row .xpl-drawer-field + .xpl-drawer-field { border-inline-start: 1px solid var(--xpl-border); }
+.entc-fin-headline-hint {
+  font-size: 11px;
+  color: var(--xpl-muted);
 }
 
-/* ── هرمية بطاقات الملخّص التنفيذي — أساسية أكبر / ثانوية أكثف (نطاق هذه الصفحة فقط،
-   .ent-kpis المشتركة مع تبويب الدرج المختصر تبقى بلا أي تغيير) ─────────────────── */
-.entc-kpis-primary {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-.entc-kpis-primary .xpl-metric {
-  padding: 18px 18px 16px;
-  border-radius: 16px;
-  align-items: center;
-}
-.entc-kpis-primary .xpl-metric-icon { width: 42px; height: 42px; border-radius: 12px; }
-.entc-kpis-primary .xpl-metric-icon .material-symbols-outlined { font-size: 22px !important; }
-.entc-kpis-primary .xpl-metric-label { font-size: 12.5px; font-weight: 600; }
-.entc-kpis-primary .xpl-metric-value { font-size: 23px; }
-
-.entc-kpis-secondary {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+/* ── مكوّنات المركز المالي — بطاقات MetricCard تنفيذية موصولة بعامل ( + ) ──────── */
+.entc-fin-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
   gap: 8px;
-  margin-top: 8px;
 }
-.entc-kpis-secondary .xpl-metric {
-  padding: 11px 13px;
-  border-radius: 12px;
-  gap: 9px;
+.entc-fin-term {
+  flex: 1 1 175px;
+  display: flex;
 }
-.entc-kpis-secondary .xpl-metric-icon { width: 28px; height: 28px; border-radius: 8px; }
-.entc-kpis-secondary .xpl-metric-icon .material-symbols-outlined { font-size: 15px !important; }
-.entc-kpis-secondary .xpl-metric-label { font-size: 10.5px; }
-.entc-kpis-secondary .xpl-metric-value { font-size: 15px; }
-.entc-kpis-secondary .xpl-metric-sub { font-size: 9.5px; }
-
+.entc-fin-term .xpl-metric {
+  width: 100%;
+  padding: 15px 15px 13px;
+  border-radius: 14px;
+}
+.entc-fin-op {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--xpl-muted);
+}
 @media (max-width: 900px) {
-  .entc-kpis-primary,
-  .entc-kpis-secondary { grid-template-columns: repeat(2, 1fr); }
+  .entc-fin-flow { flex-direction: column; }
+  .entc-fin-term { flex: 1 1 auto; }
+  .entc-fin-op { transform: rotate(90deg); margin: -2px auto; }
 }
+
+/* ── المؤشرات الصحية — تُعيد استخدام هيئة .ent-warning تمامًا (بلا لغة تصميم جديدة) ── */
+.entc-health {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.entc-health-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+@media (max-width: 700px) {
+  .entc-health-grid { grid-template-columns: 1fr; }
+}
+
+/* ── تحليلات الخدمة — شبكة إحصاءات متجاوبة نظيفة (نفس مكوّن MetricCard) ─────────── */
+.entc-analytics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 8px;
+}
+.entc-analytics .xpl-metric-value { font-size: 16px; }
 
 /* ── جداول السجلات — إبراز دفتر المستحقات التاريخي كسجل مالي (نطاق هذه الصفحة فقط) ── */
 .entc-page .xpl-table td { font-variant-numeric: tabular-nums; }
