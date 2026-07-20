@@ -16,6 +16,7 @@ import {
   SkeletonRows,
   Button,
   Tabs,
+  type Tone,
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import LeaveSettlementDialog from '../components/employee/LeaveSettlementDialog';
@@ -39,6 +40,12 @@ import {
 } from '../components/employee/entitlementsShared';
 import '../components/employee/EmployeeEntitlementsTab.css';
 import './EmployeeEntitlementsCenter.css';
+
+/* عتبات عرضية للمؤشرات الصحية فقط (لا قاعدة قانونية جديدة) — تُسمّي حالات موجودة أصلاً
+   في البيانات بصريًا. أرقام إرشادية للعرض لا تدخل أي احتساب قانوني. */
+const DAY_MS = 86_400_000;
+const STALE_DISBURSEMENT_DAYS = 365;
+const HIGH_LEAVE_BALANCE_DAYS = 30;
 
 /** بطاقة قابلة للطيّ (تصميم متّسق مع SectionCard/xpl-card — بلا لغة تصميم جديدة). */
 function CollapsibleCard({
@@ -118,6 +125,17 @@ export default function EmployeeEntitlementsCenter() {
     };
   }, [data]);
 
+  // أحدث تاريخ صرف مستحق — يُستخدم فقط في مؤشّر «قِدَم آخر صرف» ضمن المؤشرات الصحية
+  // (لا نفترض ترتيب الخادم فنحسب الأقصى صراحةً).
+  const lastLedgerDate = useMemo(() => {
+    if (!data) return null;
+    let lastDate: string | null = null;
+    for (const e of data.ledger) {
+      if (lastDate === null || e.entryDate > lastDate) lastDate = e.entryDate;
+    }
+    return lastDate;
+  }, [data]);
+
   const warnings = useMemo(
     () => (data ? buildWarnings(data.result, data.leaveExclusionBreakdown, settlementTotals.totalDays, data.ledger) : []),
     [data, settlementTotals.totalDays],
@@ -160,6 +178,41 @@ export default function EmployeeEntitlementsCenter() {
   const daysOrIncomplete = (v: number | null, reason: string | null): ReactNode =>
     v !== null ? daysText(v) : reason ? <Incomplete reason={reason} /> : '—';
 
+  // ── مشتقّات عرضية للوحة المركز المالي (Employee Financial Position Dashboard v1) ──
+  // «إجمالي الالتزام الحالي» = بدل الإجازة + مكافأة نهاية الخدمة فقط — جمع عرضي مباشر
+  // لقيمتين قانونيتين من المحرّك، بلا أي تفسير مشتق ولا أي مرجع لسجل المستحقات. بدل الإجازة
+  // ومكافأة نهاية الخدمة يكونان null معًا عند نقص البيانات (moneyReason).
+  const hasLiability = r.leaveAllowanceValue !== null && eosAmount !== null;
+  const liability = hasLiability ? (r.leaveAllowanceValue as number) + (eosAmount as number) : null;
+  const finMoney = (v: number | null): ReactNode =>
+    v !== null ? <PrivateAmount value={v} level={1} /> : moneyReason ? <Incomplete reason={moneyReason} /> : '—';
+
+  // المؤشّرات الصحية — عرض فقط، مشتقّة حصريًا من قيم موجودة في الاستجابة. الحالات الإيجابية
+  // تُعرض فقط حين لا يغطّي أحد التنبيهات (buildWarnings) نفس الحالة، فلا يتكرر أي معنى؛ ثم
+  // تُدمج التنبيهات الفعلية كما هي بلا فقدان أي منها.
+  const lastLedgerMs = lastLedgerDate ? new Date(lastLedgerDate).getTime() : null;
+  const disbursementAgeDays = lastLedgerMs !== null ? Math.floor((Date.now() - lastLedgerMs) / DAY_MS) : null;
+  const healthItems: { id: string; tone: Tone; icon: string; text: string }[] = [];
+  if (r.firstYearEligible === true) {
+    healthItems.push({ id: 'h-eligible', tone: 'green', icon: 'verified', text: 'الموظف مؤهل للإجازة السنوية (أتمّ 9 أشهر خدمة).' });
+  }
+  if (r.hasHireDate && r.hasWageBase) {
+    healthItems.push({ id: 'h-complete', tone: 'green', icon: 'task_alt', text: 'بيانات الموظف الأساسية مكتملة (تاريخ التعيين والأجر المعتمد).' });
+  }
+  if (ledger.length === 0) {
+    healthItems.push({ id: 'h-no-disb', tone: 'neutral', icon: 'account_balance_wallet', text: 'لا توجد مستحقات مصروفة مسجَّلة لهذا الموظف بعد.' });
+  } else if (disbursementAgeDays !== null && disbursementAgeDays > STALE_DISBURSEMENT_DAYS && lastLedgerDate) {
+    healthItems.push({ id: 'h-old-disb', tone: 'blue', icon: 'history', text: `آخر صرف مستحق كان قبل أكثر من سنة (${dateText(lastLedgerDate)}).` });
+  } else if (lastLedgerDate) {
+    healthItems.push({ id: 'h-recent-disb', tone: 'green', icon: 'schedule', text: `آخر صرف مستحق: ${dateText(lastLedgerDate)}.` });
+  }
+  if (r.remainingLeaveDays !== null && r.remainingLeaveDays > HIGH_LEAVE_BALANCE_DAYS) {
+    healthItems.push({ id: 'h-high-leave', tone: 'orange', icon: 'beach_access', text: `رصيد إجازة مرتفع (${daysText(r.remainingLeaveDays)}) — قد يستدعي جدولة إجازة أو تسوية.` });
+  }
+  for (const w of warnings) {
+    healthItems.push({ id: w.id, tone: w.tone, icon: w.icon, text: w.text });
+  }
+
   return (
     <div className="xpl-scope xpl-page entc-page" dir="rtl">
       {/* Header (الجزء 4) */}
@@ -178,71 +231,130 @@ export default function EmployeeEntitlementsCenter() {
         }
       />
 
-      {/* Employee information (الجزء 4) */}
-      <div className="entc-info-row">
-        <DrawerField label="تاريخ التعيين" value={emp.hireDate ? dateText(emp.hireDate) : <Incomplete reason="تاريخ التعيين غير مُدخل" />} />
-        <DrawerField label="مدة الخدمة" value={r.duration ? formatDurationLong({ years: r.duration.years, months: r.duration.months, days: r.duration.days }) : (durReason ? <Incomplete reason={durReason} /> : '—')} />
-        <DrawerField label="الأجر المعتمد" value={wageBase.total > 0 ? <PrivateAmount value={wageBase.total} level={1} /> : (moneyReason ? <Incomplete reason={moneyReason} /> : '—')} />
-      </div>
+      {/* ══ لوحة المركز المالي التنفيذي (Employee Financial Position Dashboard v1) ══
+          إعادة تنظيم بصري فقط: كل القيم تأتي حرفيًا من نفس استجابة API، بلا أي احتساب/
+          منطق/قاعدة قانونية جديدة. «قيمة بدل الإجازة» و«مكافأة نهاية الخدمة» انتقلتا هنا
+          كطرفَي معادلة المركز المالي؛ وأُعيد تجميع باقي الإحصاءات في «تحليلات الخدمة»
+          أدناه — لا حذف لأي قيمة، ظهور واحد لكل قيمة في أنسب موضع. مبنيّة بمكوّنات
+          ExplorerKit (SectionCard/MetricCard) وtokensها، RTL، متجاوبة. */}
+      <div className="entc-dashboard">
+        {/* 1 + 2. الملخص المالي التنفيذي + بطاقة المركز المالي — قيم قانونية مباشرة فقط:
+             «إجمالي الالتزام الحالي» = بدل الإجازة + مكافأة نهاية الخدمة. لا يُشتقّ أي رقم
+             من سجل المستحقات ولا يُعرض أي «مصروف/مدفوع/رصيد/متبقٍّ». */}
+        <SectionCard title="المركز المالي" icon="account_balance">
+          <div className="entc-fin-headline">
+            <span className="entc-fin-headline-label">إجمالي الالتزام الحالي</span>
+            <span className="entc-fin-headline-value">
+              {liability !== null ? <PrivateAmount value={liability} level={1} /> : moneyReason ? <Incomplete reason={moneyReason} /> : '—'}
+            </span>
+            <span className="entc-fin-headline-hint">بدل الإجازة + مكافأة نهاية الخدمة (تقديري حتى تاريخ اليوم)</span>
+          </div>
 
-      {/* Executive KPI cards (الجزء 4) — هرمية بصرية معتمَدة: 4 مؤشرات أساسية أكبر
-          حجمًا، ثم 4 مؤشرات ثانوية أكثر كثافة. نفس الثماني بطاقات ونفس الأيقونة/اللون/
-          القيمة/الملاحظة لكل بطاقة تمامًا — إعادة تجميع بصري فقط عبر .entc-kpis-primary/
-          .entc-kpis-secondary (مُعرَّفتان محليًا لهذه الصفحة، لا تُغيّران .ent-kpis
-          المشتركة مع تبويب الدرج المختصر). */}
-      <div className="ent-section-heading">الملخص التنفيذي</div>
-      <div className="entc-kpis-primary">
-        <MetricCard
-          icon="event_available"
-          label="الاستحقاق القانوني الإجمالي"
-          tone="indigo"
-          value={daysOrIncomplete(r.accruedLeaveDays, leaveReason)}
-        />
-        <MetricCard
-          icon="beach_access"
-          label="رصيد الإجازة الحالي"
-          tone="blue"
-          value={r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays) : '—'}
-          sub={
-            r.firstYearEligible === false
-              ? 'غير مؤهل بعد — يلزم إتمام 9 أشهر خدمة'
-              : r.remainingLeaveDays === null && leaveReason
-                ? `بيانات غير مكتملة — ${leaveReason}`
-                : undefined
-          }
-        />
-        <MetricCard
-          icon="payments"
-          label="قيمة بدل الإجازة"
-          tone="green"
-          value={<span className="ent-kpi-value-sm">{r.leaveAllowanceValue !== null ? <PrivateAmount value={r.leaveAllowanceValue} level={1} /> : '—'}</span>}
-          sub={r.leaveAllowanceValue === null && moneyReason ? `بيانات غير مكتملة — ${moneyReason}` : undefined}
-        />
-        <MetricCard
-          icon="volunteer_activism"
-          label="مكافأة نهاية الخدمة"
-          tone="orange"
-          value={<span className="ent-kpi-value-sm">{eosAmount !== null ? <PrivateAmount value={eosAmount} level={1} /> : '—'}</span>}
-          sub={eosAmount !== null ? (separationType === 'RESIGNATION' ? 'أساس: استقالة' : 'أساس: إنهاء من صاحب العمل') : (moneyReason ? `بيانات غير مكتملة — ${moneyReason}` : undefined)}
-        />
-      </div>
-      <div className="entc-kpis-secondary">
-        <MetricCard icon="celebration" label="عطل رسمية مستثناة" tone="green" value={daysText(brk.holidaysExcludedDays)} />
-        <MetricCard icon="medical_information" label="إجازة مرضية مستثناة" tone="green" value={daysText(brk.sickExcludedDays)} />
-        <MetricCard
-          icon="event_busy"
-          label="الإجازة المستخدمة"
-          tone="blue"
-          value={daysText(r.usedLeaveDays)}
-          sub={brk.grossAnnualLeaveDays > r.usedLeaveDays ? `من أصل ${daysText(brk.grossAnnualLeaveDays)} محجوزة` : undefined}
-        />
-        <MetricCard
-          icon="savings"
-          label="إجمالي الدفعات المقدَّمة"
-          tone="orange"
-          value={String(settlementTotals.count)}
-          sub={settlementTotals.count > 0 ? <PrivateAmount value={settlementTotals.totalAmount} level={1} /> : 'لا توجد دفعات'}
-        />
+          <div className="entc-fin-flow">
+            <div className="entc-fin-term">
+              <MetricCard
+                icon="payments"
+                label="بدل الإجازة"
+                tone="green"
+                value={<span className="ent-kpi-value-sm">{finMoney(r.leaveAllowanceValue)}</span>}
+              />
+            </div>
+            <span className="entc-fin-op" aria-hidden="true">+</span>
+            <div className="entc-fin-term">
+              <MetricCard
+                icon="volunteer_activism"
+                label="مكافأة نهاية الخدمة"
+                tone="orange"
+                value={<span className="ent-kpi-value-sm">{finMoney(eosAmount)}</span>}
+                sub={eosAmount !== null ? (separationType === 'RESIGNATION' ? 'أساس: استقالة' : 'أساس: إنهاء من صاحب العمل') : undefined}
+              />
+            </div>
+          </div>
+
+          <div className="ent-recon-note">
+            <span className="material-symbols-outlined" aria-hidden="true">info</span>
+            <span>
+              قيم قانونية تقديرية حتى تاريخ اليوم فقط (المحرّك القانوني) — ليست بديلاً عن التسوية
+              النهائية الرسمية.
+            </span>
+          </div>
+        </SectionCard>
+
+        {/* 3. المؤشرات الصحية — مشتقّة من بيانات موجودة فقط، تُعيد استخدام هيئة .ent-warning
+             العامة بلا لغة تصميم جديدة */}
+        {healthItems.length > 0 && (
+          <div className="entc-health">
+            <div className="ent-section-heading">المؤشرات الصحية</div>
+            <div className="entc-health-grid">
+              {healthItems.map((h) => (
+                <div key={h.id} className={`ent-warning ent-warning--${h.tone}`}>
+                  <span className="material-symbols-outlined" aria-hidden="true">{h.icon}</span>
+                  <span>{h.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 4. تحليلات الخدمة — إحصاءات الموظف موحَّدة في شبكة متجاوبة نظيفة (نفس القيم
+             السابقة تمامًا، إعادة تجميع فقط: تاريخ التعيين/مدة الخدمة/الأجر انتقلت من شريط
+             البيانات، وبقية الإحصاءات من بطاقات KPI السابقة) */}
+        <div className="ent-section-heading">تحليلات الخدمة</div>
+        <div className="entc-analytics">
+          <MetricCard
+            icon="event"
+            label="تاريخ التعيين"
+            tone="indigo"
+            value={<span className="ent-kpi-value-sm">{emp.hireDate ? dateText(emp.hireDate) : <Incomplete reason="تاريخ التعيين غير مُدخل" />}</span>}
+          />
+          <MetricCard
+            icon="badge"
+            label="مدة الخدمة"
+            tone="indigo"
+            value={<span className="ent-kpi-value-sm">{r.duration ? formatDurationLong({ years: r.duration.years, months: r.duration.months, days: r.duration.days }) : (durReason ? <Incomplete reason={durReason} /> : '—')}</span>}
+          />
+          <MetricCard
+            icon="account_balance_wallet"
+            label="الأجر المعتمد"
+            tone="indigo"
+            value={<span className="ent-kpi-value-sm">{wageBase.total > 0 ? <PrivateAmount value={wageBase.total} level={1} /> : (moneyReason ? <Incomplete reason={moneyReason} /> : '—')}</span>}
+          />
+          <MetricCard
+            icon="event_available"
+            label="الاستحقاق القانوني الإجمالي"
+            tone="indigo"
+            value={daysOrIncomplete(r.accruedLeaveDays, leaveReason)}
+          />
+          <MetricCard
+            icon="beach_access"
+            label="رصيد الإجازة الحالي"
+            tone="blue"
+            value={r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays) : '—'}
+            sub={
+              r.firstYearEligible === false
+                ? 'غير مؤهل بعد — يلزم إتمام 9 أشهر خدمة'
+                : r.remainingLeaveDays === null && leaveReason
+                  ? `بيانات غير مكتملة — ${leaveReason}`
+                  : undefined
+            }
+          />
+          <MetricCard
+            icon="event_busy"
+            label="الإجازة المستخدمة"
+            tone="blue"
+            value={daysText(r.usedLeaveDays)}
+            sub={brk.grossAnnualLeaveDays > r.usedLeaveDays ? `من أصل ${daysText(brk.grossAnnualLeaveDays)} محجوزة` : undefined}
+          />
+          <MetricCard icon="celebration" label="عطل رسمية مستثناة" tone="green" value={daysText(brk.holidaysExcludedDays)} />
+          <MetricCard icon="medical_information" label="إجازة مرضية مستثناة" tone="green" value={daysText(brk.sickExcludedDays)} />
+          <MetricCard
+            icon="savings"
+            label="إجمالي الدفعات المقدَّمة"
+            tone="orange"
+            value={String(settlementTotals.count)}
+            sub={settlementTotals.count > 0 ? <PrivateAmount value={settlementTotals.totalAmount} level={1} /> : 'لا توجد دفعات'}
+          />
+        </div>
       </div>
 
       {/* تفاصيل إضافية — مطويّة افتراضيًا لتقليل التمرير (الجزء 4: «تجنّب كتل تمرير طويلة») */}
@@ -295,17 +407,8 @@ export default function EmployeeEntitlementsCenter() {
         )}
       </CollapsibleCard>
 
-      {/* Warnings (الجزء 4) */}
-      {warnings.length > 0 && (
-        <div className="ent-warnings">
-          {warnings.map((w) => (
-            <div key={w.id} className={`ent-warning ent-warning--${w.tone}`}>
-              <span className="material-symbols-outlined" aria-hidden="true">{w.icon}</span>
-              <span>{w.text}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* التنبيهات الذكية أُدمجت الآن ضمن «المؤشرات الصحية» أعلى الصفحة (نفس نصوص
+          buildWarnings حرفيًا، بلا فقدان أي تنبيه) — إعادة تنظيم بصري فقط. */}
 
       {/* Leave Reconciliation (الجزء 4) — شرح بصري فقط، بلا أي احتساب جديد */}
       <SectionCard title="تسوية رصيد الإجازة" icon="account_tree">
