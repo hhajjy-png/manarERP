@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `ce106b4` (merge of `feature/global-smart-overflow-tooltip-pack-v1`) |
-| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Documentation Commit** | `e552337` — "docs: record Global Smart Overflow Tooltip Pack v1 release" |
 | **Current Stable Tag** | `stable-global-smart-overflow-tooltip-pack-v1` |
 | **Current Release Date** | 2026-07-20 |
 | **Total Stable Releases** | 326 (window 2026-06-07 → 2026-07-20) |
