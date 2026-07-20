@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `9d0c6ff` (merge of `feature/employee-financial-position-dashboard-v1`) |
-| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Documentation Commit** | `1cddfec` — "docs: record Employee Financial Position Dashboard v1 release" |
 | **Current Stable Tag** | `stable-employee-financial-position-dashboard-v1` |
 | **Current Release Date** | 2026-07-20 |
 | **Total Stable Releases** | 329 (window 2026-06-07 → 2026-07-20) |
