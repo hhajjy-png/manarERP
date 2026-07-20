@@ -5,7 +5,8 @@ import { deriveInvoiceYearFromIssueDate } from '../lib/invoiceNumber';
 import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
 import { useT } from '../lib/i18n';
 import Modal from '../components/Modal';
-import { MoneyText } from '../config/modules';
+import { Dialog, DialogSection, Button as XplButton, DrawerField } from '../components/explorer/ExplorerKit';
+import { MoneyText, dateText } from '../config/modules';
 import { todayDateOnly } from '../lib/date';
 import { DEFAULT_WORK_TYPE } from '../utils/invoiceDescription';
 import { toInvoiceItemPayload } from '../utils/invoicePayload';
@@ -38,6 +39,9 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
   const [discount, setDiscount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [pendingPayload, setPendingPayload] = useState<Record<string, any> | null>(null);
   const submittingRef = useRef(false);
 
   const {
@@ -53,12 +57,14 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
 
   const subtotal = items.reduce((s, it) => s + invoiceLineTotal(it), 0);
   const total = Math.max(0, subtotal - Number(discount));
+  const invoiceNumber = `MN-INV-${invoiceYear}-${invoiceNumberSuffix.trim()}`;
+  const partyName = parties.find((p) => String(p.id) === partyId)?.name ?? '—';
 
-  async function submit() {
+  /** يتحقق من كل حقول الفاتورة، ثم — بدل الإنشاء الفوري — يجهّز الحمولة ويعرض حوار التأكيد. */
+  function submit() {
     if (submittingRef.current) return; // حارس مزامن ضد النقر المزدوج قبل إعادة رسم React
     submittingRef.current = true;
     setError('');
-    const invoiceNumber = `MN-INV-${invoiceYear}-${invoiceNumberSuffix.trim()}`;
     if (!invoiceNumberSuffix.trim()) { submittingRef.current = false; setError(t('error.inv_number_required')); return; }
 
     const resolvedDirection = directionChoice === 'OTHER' ? customDirection.trim() : directionChoice;
@@ -72,33 +78,50 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
     if (items.some((it) => !it.unit)) { submittingRef.current = false; setError(t('error.select_unit')); return; }
     if (items.some((it) => Number(it.quantity) <= 0)) { submittingRef.current = false; setError(t('error.qty_positive')); return; }
     if (items.some((it) => Number(it.unitPrice) < 0)) { submittingRef.current = false; setError(t('error.price_negative')); return; }
+    // فاتورة مستقبلية التاريخ ممنوعة — الخادم يتحقق أيضًا؛ هذا فحص واجهة مبكر فقط.
+    if (issueDate && issueDate > todayDateOnly()) { submittingRef.current = false; setError(t('error.future_issue_date')); return; }
 
+    setPendingPayload({
+      invoiceNumber,
+      direction: resolvedDirection,
+      invoiceType: resolvedInvoiceType,
+      customerId: effectivePartySource === 'SALES' ? Number(partyId) : undefined,
+      supplierId: effectivePartySource === 'PURCHASE' ? Number(partyId) : undefined,
+      issueDate: issueDate || undefined,
+      deliveryDate: deliveryDate || null,
+      billingMonth,
+      billingYear,
+      discount: Number(discount),
+      items: items.map(toInvoiceItemPayload),
+    });
+    submittingRef.current = false;
+    setConfirming(true);
+  }
+
+  /** يُستدعى فقط بعد التأكيد الصريح من حوار المراجعة — هنا فقط يُنشأ السجل فعليًا. */
+  async function confirmCreate() {
+    if (!pendingPayload || saving) return;
     setSaving(true);
     try {
-      await api.post('/invoices', {
-        invoiceNumber,
-        direction: resolvedDirection,
-        invoiceType: resolvedInvoiceType,
-        customerId: effectivePartySource === 'SALES' ? Number(partyId) : undefined,
-        supplierId: effectivePartySource === 'PURCHASE' ? Number(partyId) : undefined,
-        issueDate: issueDate || undefined,
-        deliveryDate: deliveryDate || null,
-        billingMonth,
-        billingYear,
-        discount: Number(discount),
-        items: items.map(toInvoiceItemPayload),
-      });
+      await api.post('/invoices', pendingPayload);
+      setConfirming(false);
       onSaved();
       onClose();
     } catch (err) {
+      setConfirming(false);
       setError(errorMessage(err));
     } finally {
-      submittingRef.current = false;
       setSaving(false);
     }
   }
 
+  function cancelConfirm() {
+    if (saving) return;
+    setConfirming(false);
+  }
+
   return (
+    <>
     <Modal title={t('modal.new_invoice')} size="xl" onClose={onClose} footer={
       <>
         <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('btn.save_invoice')}</button>
@@ -145,6 +168,7 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
               }
             }}
             title="تاريخ الفاتورة"
+            max={todayDateOnly()}
           />
           <HistoricalDateNotice date={issueDate} />
         </div>
@@ -280,5 +304,33 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
         </div>
       </div>
     </Modal>
+    {confirming && pendingPayload && (
+      <Dialog
+        icon="fact_check"
+        title={t('dlg.confirm_invoice.title')}
+        subtitle={t('dlg.confirm_invoice.subtitle')}
+        size="sm"
+        onClose={cancelConfirm}
+        footer={
+          <>
+            <XplButton variant="primary" icon="check_circle" busy={saving} onClick={confirmCreate}>
+              {t('dlg.confirm_invoice.confirm_btn')}
+            </XplButton>
+            <XplButton variant="ghost" onClick={cancelConfirm} disabled={saving}>
+              {t('action.cancel')}
+            </XplButton>
+          </>
+        }
+      >
+        <DialogSection>
+          <DrawerField label={t('col.inv.number')} value={invoiceNumber} mono />
+          <DrawerField label={effectivePartySource === 'SALES' ? t('col.customer') : t('col.supplier')} value={partyName} />
+          <DrawerField label={t('lbl.inv.issue_date')} value={dateText(issueDate)} />
+          <DrawerField label={t('dlg.confirm_invoice.items_count')} value={items.length} />
+          <DrawerField label={t('lbl.inv.grand_total')} value={<MoneyText value={total} />} />
+        </DialogSection>
+      </Dialog>
+    )}
+    </>
   );
 }

@@ -11,6 +11,7 @@
 
 import { toInvoiceItemPayload } from '../utils/invoicePayload';
 import { DEFAULT_WORK_TYPE } from '../utils/invoiceDescription';
+import { todayDateOnly } from '../lib/date';
 
 export type InvoiceEntryMode = 'SINGLE' | 'MULTI';
 
@@ -108,6 +109,8 @@ export function buildInvoiceCreatePayload(shared: InvoiceSharedFields, row: Invo
 export function validateInvoiceRow(shared: InvoiceSharedFields, row: InvoiceRowFields): string | null {
   if (!INVOICE_NUMBER_RE.test(row.invoiceNumber.trim())) return 'رقم الفاتورة غير صالح — الصيغة MN-INV-YYYY-...';
   if (!resolveInvoiceParty(shared, row).customerId) return 'يجب اختيار العميل';
+  // فاتورة مستقبلية التاريخ ممنوعة — الخادم يتحقق أيضًا؛ هذا فحص واجهة مبكر فقط.
+  if (shared.issueDate && shared.issueDate > todayDateOnly()) return 'تاريخ الفاتورة لا يمكن أن يكون في المستقبل';
   if (!row.items.length) return 'يجب إضافة بند واحد على الأقل';
   for (const it of row.items) {
     if (!String(it.description).trim()) return 'وصف البند مطلوب';

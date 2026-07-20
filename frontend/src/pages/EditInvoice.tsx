@@ -121,6 +121,8 @@ export default function EditInvoice({ invoice, onClose, onSaved }: { invoice: an
     if (items.some((it) => !it.unit)) { submittingRef.current = false; setError(t('error.select_unit')); return; }
     if (items.some((it) => Number(it.quantity) <= 0)) { submittingRef.current = false; setError(t('error.qty_positive')); return; }
     if (items.some((it) => Number(it.unitPrice) < 0)) { submittingRef.current = false; setError(t('error.price_negative')); return; }
+    // فاتورة مستقبلية التاريخ ممنوعة — الخادم يتحقق أيضًا؛ هذا فحص واجهة مبكر فقط.
+    if (issueDate && issueDate > todayDateOnly()) { submittingRef.current = false; setError(t('error.future_issue_date')); return; }
     setSaving(true);
     try {
       await api.put(`/invoices/${invoice.id as number}`, {
@@ -200,7 +202,7 @@ export default function EditInvoice({ invoice, onClose, onSaved }: { invoice: an
               setBillingMonth(Number(mm));
               setBillingYear(Number(yy));
             }
-          }} title="تاريخ الفاتورة" />
+          }} title="تاريخ الفاتورة" max={todayDateOnly()} />
           <HistoricalDateNotice date={issueDate} />
         </div>
         <div className="field">
