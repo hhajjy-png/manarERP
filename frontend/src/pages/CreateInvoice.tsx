@@ -122,7 +122,11 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
 
   return (
     <>
-    <Modal title={t('modal.new_invoice')} size="xl" onClose={onClose} footer={
+    {/* onClose is inert while the confirmation dialog is open — Escape is a
+        document-level listener in both Modal and Dialog, so without this guard
+        a single Escape press would close both stacked layers at once instead
+        of just the top-most confirmation. */}
+    <Modal title={t('modal.new_invoice')} size="xl" onClose={confirming ? () => {} : onClose} footer={
       <>
         <button type="button" className="btn" onClick={submit} disabled={saving}>{saving ? t('msg.saving') : t('btn.save_invoice')}</button>
         <button type="button" className="btn secondary" onClick={onClose}>{t('action.cancel')}</button>
@@ -310,6 +314,7 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
         title={t('dlg.confirm_invoice.title')}
         subtitle={t('dlg.confirm_invoice.subtitle')}
         size="sm"
+        elevated
         onClose={cancelConfirm}
         footer={
           <>

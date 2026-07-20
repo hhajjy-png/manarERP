@@ -700,6 +700,7 @@ export function Dialog({
   footer,
   size = 'md',
   labelledById = 'xpl-dialog-title',
+  elevated = false,
 }: {
   icon?: string;
   title: string;
@@ -709,10 +710,15 @@ export function Dialog({
   footer?: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
   labelledById?: string;
+  /** Opt in when this Dialog is opened as a confirmation step ON TOP OF an
+   *  already-open legacy Modal (`components/Modal.tsx`, z-index 500) — the
+   *  default Dialog overlay (410) sits below Modal by design (see theme.css),
+   *  so without this it renders hidden behind the Modal it's meant to confirm. */
+  elevated?: boolean;
 }) {
   const panelRef = useFocusTrap(onClose);
   return (
-    <div className="xpl-dialog-overlay" onClick={onClose}>
+    <div className={`xpl-dialog-overlay${elevated ? ' xpl-dialog-overlay--elevated' : ''}`} onClick={onClose}>
       <div
         className={`xpl-dialog xpl-dialog--${size}`}
         dir="rtl"

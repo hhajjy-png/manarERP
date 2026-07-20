@@ -888,6 +888,11 @@
   overflow-y: auto;
   animation: xpl-fade-in .2s ease;
 }
+/* `elevated` variant (see the Dialog component's `elevated` prop) — used when this
+   Dialog is a confirmation step stacked on top of an already-open legacy Modal.
+   z-index value and rationale are centralized in app/theme.css next to the rest
+   of the app's stacking-order ladder. */
+.xpl-dialog-overlay--elevated { z-index: var(--z-dialog-elevated, 510); }
 .xpl-dialog {
   background: var(--xpl-surface);
   border: 1px solid var(--xpl-border);
