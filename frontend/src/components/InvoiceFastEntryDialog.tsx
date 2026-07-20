@@ -274,7 +274,7 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
                 patch.numberYear = deriveInvoiceYearFromIssueDate(v, Number(yy));
               }
               patchShared(patch);
-            }} ariaLabel="تاريخ الفاتورة" />
+            }} ariaLabel="تاريخ الفاتورة" max={todayDateOnly()} />
             <HistoricalDateNotice date={shared.issueDate} />
           </div>
           <div className="xpl-field">

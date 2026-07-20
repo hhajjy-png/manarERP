@@ -1,5 +1,13 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
+import { endOfDay } from '../../core/utils/dateWindows';
+
+// فاتورة مستقبلية التاريخ ممنوعة: تاريخ الإصدار لا يتجاوز نهاية اليوم المحلي الحالي.
+// دالة واحدة يشترك فيها create/update حتى لا تنحرف رسالة أو حدّ الفحص بين المسارين.
+const FUTURE_ISSUE_DATE_MESSAGE = 'تاريخ الفاتورة لا يمكن أن يكون في المستقبل';
+function isNotFutureIssueDate(d: { issueDate?: Date }): boolean {
+  return !d.issueDate || d.issueDate <= endOfDay(new Date());
+}
 
 // GL payment method for purchase invoice routing (Part 2 — Phase D)
 const glPaymentMethod = z.enum(ENUMS.glPaymentMethod).optional();
@@ -52,7 +60,8 @@ export const createInvoiceSchema = z.object({
     .refine((d) => !d.dueDate || !d.issueDate || d.dueDate >= d.issueDate, {
       message: 'تاريخ الاستحقاق لا يمكن أن يسبق تاريخ الإصدار',
       path: ['dueDate'],
-    }),
+    })
+    .refine(isNotFutureIssueDate, { message: FUTURE_ISSUE_DATE_MESSAGE, path: ['issueDate'] }),
 });
 
 export const updateInvoiceSchema = z.object({
@@ -76,7 +85,7 @@ export const updateInvoiceSchema = z.object({
   }).refine((d) => !d.dueDate || !d.issueDate || d.dueDate >= d.issueDate, {
     message: 'تاريخ الاستحقاق لا يمكن أن يسبق تاريخ الإصدار',
     path: ['dueDate'],
-  }),
+  }).refine(isNotFutureIssueDate, { message: FUTURE_ISSUE_DATE_MESSAGE, path: ['issueDate'] }),
 });
 
 export const addPaymentSchema = z.object({
