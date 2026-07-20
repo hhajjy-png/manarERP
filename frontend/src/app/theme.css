@@ -187,9 +187,13 @@ tbody tr:nth-child(even) .td-actions { background: var(--surface-2); }
    (9999) and the skip link (10000).
    z-index 550: DateCalendarPicker's Popover (shadcn Calendar) — must
    out-stack the legacy Modal (500) since DateInput renders inside
-   Modal/Dialog/Drawer-hosted forms. Stays below toasts (9999). */
+   Modal/Dialog/Drawer-hosted forms. Stays below toasts (9999).
+   z-index 600: GlobalOverflowTooltip — must out-stack every surface it can
+   be triggered from (Popover, Modal, ExplorerKit Drawer/Dialog), since any
+   of them can contain truncated text. Stays below toasts (9999). */
 :root {
   --z-popover: 550;
+  --z-tooltip: 600;
 }
 .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: flex; align-items: flex-start; justify-content: center; padding: 40px 16px; z-index: 500; overflow-y: auto; }
 .modal { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); width: 100%; max-width: 640px; }
