@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `96651b3` (merge of `feature/invoice-confirmation-dialog-layering-fix-v1`) |
-| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Documentation Commit** | `42a8116` — "docs: record Invoice Confirmation Dialog Layering Fix v1 release" |
 | **Current Stable Tag** | `stable-invoice-confirmation-dialog-layering-fix-v1` |
 | **Current Release Date** | 2026-07-20 |
 | **Total Stable Releases** | 328 (window 2026-06-07 → 2026-07-20) |
