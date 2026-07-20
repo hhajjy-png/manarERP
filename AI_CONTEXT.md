@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `db6a8a1` (merge of `feature/employee-equipment-tables-visual-consistency-pack-v1`) |
-| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Documentation Commit** | `b2f058b` — "docs: record Employee & Equipment Tables Visual Consistency Pack v1 release" |
 | **Current Stable Tag** | `stable-employee-equipment-tables-visual-consistency-pack-v1` |
 | **Current Release Date** | 2026-07-20 |
 | **Total Stable Releases** | 330 (window 2026-06-07 → 2026-07-20) |
