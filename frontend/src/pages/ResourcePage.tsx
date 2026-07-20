@@ -4,7 +4,7 @@ import { api, errorMessage } from '../api/client';
 import { MODULES, money } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
-import DataTable, { PageMeta } from '../components/DataTable';
+import DataTable, { PageMeta, Column } from '../components/DataTable';
 import SortableHeader from '../components/SortableHeader';
 import { useTableSort } from '../hooks/useTableSort';
 import FormDialog from '../components/FormDialog';
@@ -430,6 +430,29 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     // exactly as before.
     const showFooter = !['customers', 'equipment', 'employees'].includes(cfg.key);
 
+    // Frozen identity columns (Executive Visual Polish Pack v1) — presentation
+    // only. Sticky offsets are derived from each frozen column's explicit width,
+    // summed in column order; the last frozen column gets the shadow separator.
+    // No-op for any module without `frozen` columns.
+    const frozenInsets: Record<string, number> = {};
+    let lastFrozenKey: string | null = null;
+    {
+      let acc = 0;
+      for (const c of cfg.columns) {
+        if (!c.frozen) continue;
+        frozenInsets[c.key] = acc;
+        acc += parseInt(String(c.width ?? '0'), 10) || 0;
+        lastFrozenKey = c.key;
+      }
+    }
+    const colClass = (c: Column): string | undefined =>
+      c.frozen ? `emp-frozen${c.key === lastFrozenKey ? ' emp-frozen-edge' : ''}` : undefined;
+    const colStyle = (c: Column): React.CSSProperties | undefined => {
+      if (c.frozen) return { insetInlineStart: frozenInsets[c.key], width: c.width, minWidth: c.width, maxWidth: c.width };
+      if (c.width) return { width: c.width };
+      return undefined;
+    };
+
     return (
       <div className="xpl-scope xpl-page" dir="rtl">
         <ExecutiveHeader
@@ -512,7 +535,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           ) : (
             <>
               <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
-                <table className="xpl-table">
+                <table className={`xpl-table${cfg.key === 'employees' ? ' xpl-table--emp' : ''}`}>
                   <thead>
                     <tr>
                       {cfg.columns.map((c) => c.sortable ? (
@@ -522,11 +545,13 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
                           title={t(c.label)}
                           state={sort.getState(c.key)}
                           onToggle={() => sort.toggle(c.key)}
+                          className={colClass(c)}
+                          style={colStyle(c)}
                         />
                       ) : (
-                        <th key={c.key}>{t(c.label)}</th>
+                        <th key={c.key} className={colClass(c)} style={colStyle(c)}>{t(c.label)}</th>
                       ))}
-                      <th aria-label="فتح" />
+                      <th aria-label="فتح" style={cfg.key === 'employees' ? { width: 40 } : undefined} />
                     </tr>
                   </thead>
                   <tbody>
@@ -536,7 +561,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
                         onClick={() => setViewing(r)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                         {cfg.columns.map((c) => (
-                          <td key={c.key} style={c.rowNumber ? { color: 'var(--xpl-muted)', fontVariantNumeric: 'tabular-nums', width: 44 } : undefined}>
+                          <td key={c.key} className={colClass(c)}
+                            style={c.rowNumber ? { color: 'var(--xpl-muted)', fontVariantNumeric: 'tabular-nums', width: 44 } : colStyle(c)}>
                             {c.rowNumber
                               ? (meta ? (meta.page - 1) * meta.pageSize + i + 1 : i + 1)
                               : (c.render ? c.render(r) : (r[c.key] ?? '—'))}

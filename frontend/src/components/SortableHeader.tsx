@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { CSSProperties, ReactNode } from 'react';
 import type { SortHeaderState } from '../hooks/useTableSort';
 import './sortable-header.css';
 
@@ -38,16 +38,18 @@ interface Props {
   /** عرض ثابت اختياري (نفس عقد Column.width في DataTable). */
   width?: string;
   className?: string;
+  /** أنماط إضافية على الـ<th> (مثل إزاحة العمود المُجمَّد) — تُدمج فوق العرض. */
+  style?: CSSProperties;
 }
 
-export default function SortableHeader({ label, title, state, onToggle, width, className }: Props) {
+export default function SortableHeader({ label, title, state, onToggle, width, className, style }: Props) {
   const active = state !== 'none';
   return (
     <th
       scope="col"
       aria-sort={ARIA_SORT[state]}
       className={`sort-th${active ? ' sort-th--active' : ''}${className ? ` ${className}` : ''}`}
-      style={width ? { width } : undefined}
+      style={{ ...(width ? { width } : {}), ...style }}
     >
       <button
         type="button"
