@@ -5,6 +5,8 @@ import { formatDate } from '../lib/date';
 import { formatCurrency, formatMoneyParts, formatMoneyCell } from '../lib/format';
 import { currentCurrencyLanguage } from '../stores/settingsStore';
 import { expenseCategoryArMap } from './expenseCategories';
+import { NameCell, ExpiryCell } from '../components/employees/employeeCells';
+import { RegRemainingCell } from '../components/equipment/equipmentCells';
 
 // ===== أدوات عرض =====
 export function money(v: unknown): string {
@@ -301,12 +303,9 @@ export const MODULES: Record<string, ModuleConfig> = {
         const reg = r.registration;
         return reg?.expiry ? dateText(reg.expiry) : '—';
       }},
-      { key: 'regRemaining', label: 'col.reg_remaining', render: (r) => {
-        const reg = r.registration;
-        if (!reg?.expiry) return '—';
-        const cls: PillCls = reg.expired ? 'red' : reg.expiringSoon ? 'amber' : 'green';
-        return pill((reg.expired || reg.expiringSoon ? '⚠ ' : '') + reg.remainingText, cls);
-      }},
+      // Equipment Table Visual Consistency Pack — soft tint + accent (shared
+      // ToneCell), matching the Employee table's approved tone system exactly.
+      { key: 'regRemaining', label: 'col.reg_remaining', render: (r) => <RegRemainingCell registration={r.registration} /> },
       { key: 'status', label: 'col.status', sortable: true, render: (r) => equipmentStatus(r.status) },
     ],
     fields: [
@@ -342,22 +341,27 @@ export const MODULES: Record<string, ModuleConfig> = {
         { value: 'TERMINATED', labelKey: 'opt.emp.terminated' },
       ],
     },
+    // Executive Visual Polish Pack v1.1 — presentation-only. Frozen identity
+    // block = code + Arabic name only; single-line name cells; profession &
+    // nationality are plain text; every expiry column shares one label-free
+    // ExpiryCell (soft tint + thin colour accent). Keys, sortability and data
+    // are unchanged.
     columns: [
-      { key: 'code', label: 'col.code', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: 12 }}>{r.code}</span> },
-      { key: 'fullName', label: 'col.fullname_ar', sortable: true, render: (r) => <strong>{r.fullName}</strong> },
-      { key: 'fullNameEn', label: 'col.fullname_en', sortable: true },
-      { key: 'civilId', label: 'col.civil_id', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.civilId ?? '—'}</span> },
-      { key: 'jobTitle', label: 'col.job_title', sortable: true },
-      { key: 'nationality', label: 'col.nationality', sortable: true },
-      { key: 'residencyExpiry', label: 'col.residency_expiry', sortable: true, render: (r) => dateText(r.residencyExpiry) },
-      { key: 'passportNumber', label: 'col.passport_number', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.passportNumber ?? '—'}</span> },
-      { key: 'passportExpiry', label: 'col.passport_expiry', sortable: true, render: (r) => dateText(r.passportExpiry) },
-      { key: 'licenseExpiry', label: 'col.license_expiry', sortable: true, render: (r) => dateText(r.licenseExpiry) },
-      { key: 'vehiclePlate', label: 'col.vehicle_plate', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.vehiclePlate ?? '—'}</span> },
-      { key: 'vehicleLicenseExpiry', label: 'col.vehicle_license_expiry', sortable: true, render: (r) => dateText(r.vehicleLicenseExpiry) },
-      { key: 'salary', label: 'col.salary', money: true, sortable: true, render: (r) => <MoneyCell value={r.salary} /> },
-      { key: 'hireDate', label: 'col.hire_date', sortable: true, render: (r) => dateText(r.hireDate) },
-      { key: 'status', label: 'col.status', sortable: true, render: (r) => employeeStatus(r.status) },
+      { key: 'code', label: 'col.code', sortable: true, frozen: true, width: '90px', render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: 12 }}>{r.code}</span> },
+      { key: 'fullName', label: 'col.fullname_ar', sortable: true, frozen: true, width: '230px', render: (r) => <NameCell value={r.fullName} lang="ar" strong /> },
+      { key: 'fullNameEn', label: 'col.fullname_en', sortable: true, width: '215px', render: (r) => <NameCell value={r.fullNameEn} lang="en" /> },
+      { key: 'civilId', label: 'col.civil_id', sortable: true, width: '112px', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.civilId ?? '—'}</span> },
+      { key: 'jobTitle', label: 'col.job_title', sortable: true, width: '132px', render: (r) => <NameCell value={r.jobTitle} lang="ar" /> },
+      { key: 'nationality', label: 'col.nationality', sortable: true, width: '104px' },
+      { key: 'residencyExpiry', label: 'col.residency_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.residencyExpiry} /> },
+      { key: 'passportNumber', label: 'col.passport_number', width: '112px', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.passportNumber ?? '—'}</span> },
+      { key: 'passportExpiry', label: 'col.passport_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.passportExpiry} /> },
+      { key: 'licenseExpiry', label: 'col.license_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.licenseExpiry} /> },
+      { key: 'vehiclePlate', label: 'col.vehicle_plate', width: '100px', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.vehiclePlate ?? '—'}</span> },
+      { key: 'vehicleLicenseExpiry', label: 'col.vehicle_license_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.vehicleLicenseExpiry} /> },
+      { key: 'salary', label: 'col.salary', money: true, sortable: true, width: '128px', render: (r) => <MoneyCell value={r.salary} /> },
+      { key: 'hireDate', label: 'col.hire_date', sortable: true, width: '120px', render: (r) => dateText(r.hireDate) },
+      { key: 'status', label: 'col.status', sortable: true, width: '124px', render: (r) => employeeStatus(r.status) },
     ],
     fields: [
       { name: 'code', label: 'field.emp_code', required: true, section: 'identity' },

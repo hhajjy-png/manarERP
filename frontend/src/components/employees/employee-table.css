@@ -1,0 +1,123 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Employee Table Executive Visual Polish Pack v1.1  —  presentation only
+   --------------------------------------------------------------------------
+   Calm, executive-grade polish for the Employees explorer table: single-line
+   name cells, a frozen identity block (code + Arabic name), a stronger-but-
+   quiet row hover, and label-free expiry cells that convey status through a
+   soft pastel tint + a thin colour accent only.
+
+   Nothing here alters data, sorting, filtering, permissions or API shape.
+   Structural rules are gated under `.xpl-table--emp` so every other explorer
+   module keeps its exact current appearance. Tone colours resolve from the
+   global theme tokens (theme.css) so light & dark both stay intentional.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.xpl-scope {
+  /* Single source of truth for row-state tint intensity, shared by the
+     translucent row background (painted through the transparent English-name
+     td) AND the opaque frozen-column overlay below. Both MUST read the same
+     percentage — independently-tuned values are what caused the Arabic-name
+     (frozen) cell to visibly drift from the English-name (non-frozen) cell. */
+  --emp-hover-pct:    7%;              /* matches .xpl-table--emp tbody tr:hover */
+  --emp-selected-pct: 10%;             /* matches --xpl-faint (ExplorerKit selected/focus-visible) */
+
+  /* Solid backgrounds for the frozen identity columns. They must be opaque so
+     scrolled cells never show through; the mixes below equal the translucent
+     row states painted on the non-frozen cells (same primary + same %, only
+     composited onto the opaque surface instead of transparent). */
+  --emp-frozen-bg:       var(--xpl-surface);
+  --emp-frozen-hover:    color-mix(in srgb, var(--xpl-primary) var(--emp-hover-pct),    var(--xpl-surface));
+  --emp-frozen-selected: color-mix(in srgb, var(--xpl-primary) var(--emp-selected-pct), var(--xpl-surface));
+}
+
+/* ── Names & plain text — single line, ellipsis, direction-aware ─────────── */
+.emp-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.emp-name--strong { font-weight: 700; color: var(--xpl-text); }
+.emp-name--en { font-size: 12.5px; letter-spacing: .01em; color: var(--xpl-muted); }
+
+.emp-muted { color: var(--xpl-muted); }
+
+/* Expiry cells (soft tint + thin colour accent, no label) render through the
+   shared `ToneCell` component (../explorer/ToneCell.tsx + toneCell.css) — the
+   ONE tone-colour system reused by every explorer table (Equipment Table
+   Visual Consistency Pack). No employee-specific tone CSS lives here anymore. */
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Employee table structure — frozen identity columns, stronger hover, widths
+   All gated under `.xpl-table--emp`; other explorer modules are untouched.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Fixed layout makes every column width authoritative, so the frozen sticky
+   offsets (derived from those same widths) line up exactly and the width
+   reductions hold. Min-width gives the wider layout room to breathe and
+   engages horizontal scroll. */
+.xpl-table--emp { table-layout: fixed; min-width: 1420px; }
+
+/* Headers can't widen a fixed column, so clip long labels with an ellipsis
+   (the full text stays available via the header's native tooltip). */
+.xpl-table--emp thead th { overflow: hidden; }
+.xpl-table--emp .sort-th-btn { max-width: 100%; }
+.xpl-table--emp .sort-th-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.xpl-table--emp td { overflow: hidden; }
+
+/* Executive density — a steadier text baseline across body cells. Padding is
+   left at the base 11px 12px so the expiry full-bleed (margin: -11px -12px)
+   still lines up exactly and every row keeps a uniform height. */
+.xpl-table--emp tbody td { line-height: 1.45; }
+
+/* Stronger, still-calm row hover (background only — no layout movement).
+   `.xpl-scope` prefix lifts specificity above the base `.xpl-table tbody tr:hover`
+   so the override is order-independent. */
+.xpl-scope .xpl-table--emp tbody tr { transition: background .15s ease; }
+.xpl-scope .xpl-table--emp tbody tr:hover {
+  background: color-mix(in srgb, var(--xpl-primary) var(--emp-hover-pct), transparent);
+}
+
+/* Raise this table's headers above the frozen body cells (z 3) at the corner. */
+.xpl-table--emp thead th { z-index: 4; }
+
+/* Frozen identity columns (code + Arabic name). Opaque bg keeps scrolled
+   content hidden; inset-inline-start offset is supplied inline. */
+.xpl-table--emp td.emp-frozen {
+  position: sticky;
+  z-index: 3;
+  background: var(--emp-frozen-bg);
+}
+.xpl-table--emp thead th.emp-frozen {
+  position: sticky;
+  z-index: 6;
+  background: var(--emp-frozen-bg);
+  box-shadow: inset 0 -1px 0 var(--xpl-border);
+}
+
+/* Frozen cells must repaint on the row states (they can't be translucent).
+   focus-visible uses the SELECTED token (not hover) — ExplorerKit's base rule
+   (.xpl-table tbody tr.xpl-row--click:focus-visible) paints --xpl-faint, the
+   same 10% tint as selected, not the lighter hover tint. */
+.xpl-table--emp tbody tr:hover td.emp-frozen { background: var(--emp-frozen-hover); }
+.xpl-table--emp tbody tr.xpl-row--selected td.emp-frozen,
+.xpl-table--emp tbody tr.xpl-row--selected:hover td.emp-frozen { background: var(--emp-frozen-selected); }
+.xpl-table--emp tbody tr.xpl-row--click:focus-visible td.emp-frozen { background: var(--emp-frozen-selected); }
+
+/* Shadow separator on the last frozen column (RTL: content scrolls to the left,
+   so the shadow falls left). */
+.xpl-table--emp td.emp-frozen-edge { box-shadow: -8px 0 8px -7px rgba(15, 23, 42, .20); }
+.xpl-table--emp thead th.emp-frozen-edge {
+  box-shadow: inset 0 -1px 0 var(--xpl-border), -8px 0 8px -7px rgba(15, 23, 42, .20);
+}
+html[data-theme="dark"] .xpl-table--emp td.emp-frozen-edge { box-shadow: -8px 0 8px -7px rgba(0, 0, 0, .45); }
+html[data-theme="dark"] .xpl-table--emp thead th.emp-frozen-edge {
+  box-shadow: inset 0 -1px 0 var(--xpl-border), -8px 0 8px -7px rgba(0, 0, 0, .45);
+}
