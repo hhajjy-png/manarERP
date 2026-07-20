@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `ac2b6bd` (merge of `feature/invoice-creation-reliability-confirmation-pack-v1`) |
-| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Documentation Commit** | `01799ed` — "docs: record Invoice Creation Reliability & Confirmation Pack v1 release" |
 | **Current Stable Tag** | `stable-invoice-creation-reliability-confirmation-pack-v1` |
 | **Current Release Date** | 2026-07-20 |
 | **Total Stable Releases** | 327 (window 2026-06-07 → 2026-07-20) |
