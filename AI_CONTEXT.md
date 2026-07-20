@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `ce106b4` (merge of `feature/global-smart-overflow-tooltip-pack-v1`) |
-| **Current Documentation Commit** | `e552337` — "docs: record Global Smart Overflow Tooltip Pack v1 release" |
-| **Current Stable Tag** | `stable-global-smart-overflow-tooltip-pack-v1` |
+| **Current Merge Commit** | `ac2b6bd` (merge of `feature/invoice-creation-reliability-confirmation-pack-v1`) |
+| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Stable Tag** | `stable-invoice-creation-reliability-confirmation-pack-v1` |
 | **Current Release Date** | 2026-07-20 |
-| **Total Stable Releases** | 326 (window 2026-06-07 → 2026-07-20) |
+| **Total Stable Releases** | 327 (window 2026-06-07 → 2026-07-20) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,26 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Invoice Creation Reliability & Confirmation Pack v1** (2026-07-20, `stable-invoice-creation-reliability-confirmation-pack-v1`) —
+  two reliability/UX guarantees for invoice creation. **Future-date prevention:** one shared
+  `isNotFutureIssueDate` Zod refine (`invoices.schema.ts`) applied to both `createInvoiceSchema` and
+  `updateInvoiceSchema` — `issueDate <= endOfDay(now)` — enforced by the existing `validate` middleware ahead
+  of every create/update route, so no entry point (standard form, edit form, fast-entry dialog, or a direct
+  API call) can bypass it; mirrored client-side with a `max`-bounded date picker and an early pre-save check
+  (clear Arabic message) across `CreateInvoice.tsx`, `EditInvoice.tsx`, and `invoiceFastEntry.validateInvoiceRow()`.
+  Live-verified: future date rejected on create and update, today/past dates still accepted. **Save
+  confirmation dialog:** `CreateInvoice.tsx`'s save flow now stages the payload and opens an ExplorerKit
+  `Dialog` (RTL, focus-trapped, Escape/backdrop-cancel) summarizing invoice number, party, issue date, item
+  count, and total — `POST /invoices` fires only after explicit confirmation; cancelling returns to the
+  still-editable form with nothing sent. Scoped to the standard create flow only — the fast-entry accelerator
+  keeps its no-confirmation rapid-entry design by intent, gaining only the future-date guard. **Prior test-data
+  cleanup:** the test invoice used to investigate an earlier "audit log without visible invoice" case
+  (`MN-INV-2026-0221`, id 49) and every artifact it produced were permanently deleted ahead of this release
+  with zero orphans and zero impact on any other record — a separate one-off data operation, not part of this
+  release's commit. **No change to business logic, accounting/GL/posting logic, inventory logic, taxes, or
+  database schema.** 6 files (+97/−21; 0 added, 6 modified). Backend `tsc --noEmit`, frontend `tsc --noEmit`,
+  and frontend build all clean; backend vitest invoices module 160/160 tests pass, zero regressions. Manual
+  visual review: APPROVED. Gemini final review: APPROVED.
 - **Global Smart Overflow Tooltip Pack v1** (2026-07-20, `stable-global-smart-overflow-tooltip-pack-v1`) —
   replaces the app's ad-hoc, per-component reliance on the native `title=` attribute for truncated text with
   a single reusable global tooltip system, mounted once, requiring zero page-level integration. One provider,

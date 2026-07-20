@@ -61,7 +61,27 @@ in a table cell.
 
 ---
 
-## Latest Release — Global Smart Overflow Tooltip Pack v1
+## Latest Release — Invoice Creation Reliability & Confirmation Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Invoice Creation Reliability & Confirmation Pack v1 |
+| **Goal** | Two reliability/UX guarantees for invoice creation: (1) an invoice issue date can never be in the future, enforced at every layer so it cannot be bypassed via direct API calls; (2) a mandatory confirmation step summarizing the invoice before it is actually created, so a save click can never silently create the wrong invoice. |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-20 |
+| **Feature branch** | `feature/invoice-creation-reliability-confirmation-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `a4e1a16` (immediately after the Global Smart Overflow Tooltip Pack v1 documentation-commit-hash fill-in) |
+| **Feature commit** | `b495628` |
+| **Production merge commit** | `ac2b6bd` |
+| **Stable tag** | `stable-invoice-creation-reliability-confirmation-pack-v1` → merge `ac2b6bd` (annotated) |
+| **Future-date prevention** | One shared `isNotFutureIssueDate` Zod refine (`backend/src/modules/invoices/invoices.schema.ts`) applied to both `createInvoiceSchema` and `updateInvoiceSchema` — `issueDate <= endOfDay(now)`, reusing the same `endOfDay` helper the invoices list-filter already uses. Enforced by the existing `validate` middleware ahead of every create/update route, so no entry point (standard form, edit form, fast-entry dialog, or a direct API call) can bypass it. Mirrored client-side: `max={todayDateOnly()}` on the issue-date picker plus an early pre-save check with a clear Arabic message (`error.future_issue_date`) in `CreateInvoice.tsx`, `EditInvoice.tsx`, and `invoiceFastEntry.validateInvoiceRow()` — pure UX responsiveness, the backend refine is the actual guarantee. Live-verified: a future date is rejected on both create and update with `"تاريخ الفاتورة لا يمكن أن يكون في المستقبل"`; today and any past date are still accepted. |
+| **Save confirmation dialog** | New step in `CreateInvoice.tsx`'s save flow: "حفظ" now validates and stages the payload instead of posting immediately, then opens an ExplorerKit `Dialog`/`DialogSection`/`Button`/`DrawerField` confirmation (RTL, focus-trapped, Escape/backdrop-cancel — all pre-existing ExplorerKit behavior, no new dialog/accessibility code) summarizing رقم الفاتورة، العميل/المورّد، تاريخ الفاتورة، عدد البنود، الإجمالي الكلي. `POST /invoices` fires only from the dialog's "إنشاء الفاتورة" button; cancelling returns to the still-editable form with nothing sent. Scoped to the standard create flow only — the fast-entry accelerator (`InvoiceFastEntryDialog.tsx`) intentionally keeps its no-confirmation, rapid-entry design (it only gained the future-date guard, per above), since a per-row confirmation would defeat its purpose. |
+| **Prior test-data cleanup** | The test invoice used to investigate the "audit log without visible invoice" case (`MN-INV-2026-0221`, id 49) and every artifact it produced (2 `InvoiceItem` rows via cascade, 1 `JournalEntry` + 2 `JournalEntryLine` rows, 1 `AuditLog` row) were permanently deleted in one atomic transaction ahead of this release, verified to leave zero orphans and zero impact on any other invoice or on the unrelated `AuditLog` rows that happen to share the same numeric id under a different module (`expenses`). Not part of this release's commit — a direct, one-off data operation performed and verified separately. |
+| **Release scope** | **6 files, +97/−21** (0 added, 6 modified: `backend/src/modules/invoices/invoices.schema.ts`, `frontend/src/pages/{CreateInvoice,EditInvoice}.tsx`, `frontend/src/pages/invoiceFastEntry.ts`, `frontend/src/components/InvoiceFastEntryDialog.tsx`, `frontend/src/lib/i18n.ts`). |
+| **Validation** | backend `tsc --noEmit` ✅ (pre-merge and re-verified on merged `production` HEAD) · frontend `tsc --noEmit` ✅ (same) · frontend `vite build` ✅ · backend `vitest` invoices module — **160/160 tests pass**, zero regressions · live Zod-schema verification of the future-date refine (accept/reject cases above). Manual visual review: **APPROVED** (Product Owner). Gemini final review: **APPROVED**. |
+| **Business logic verification** | No business logic, backend calculation, accounting/GL/posting logic, inventory logic, tax logic, or database schema change of any kind — `invoices.calc.ts`, `invoices.accounting.ts`, and every create/update service method are untouched; only a Zod-schema-level date guard plus frontend UI/confirmation-flow changes were made. Database schema: unchanged (no file touched, no migration). Existing API contracts: unchanged except the intentional additive validation rejection on `issueDate`. Existing permissions: unchanged. |
+
+## Previous Release — Global Smart Overflow Tooltip Pack v1
 
 | Field | Value |
 |-------|-------|

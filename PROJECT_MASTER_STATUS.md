@@ -2,17 +2,17 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-20 (previously 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-20 (previously 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Global Smart Overflow Tooltip Pack v1), like the Employee Entitlements Executive Redesign v1
-> pass and the 2026-07-17 pass before it, refreshed the "Current Production State" table only (re-derived directly
-> from `git`) — the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/
-> ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been
-> re-audited in this pass — treat their specifics as of those dates, not current-day.
+> below. This pass (Invoice Creation Reliability & Confirmation Pack v1), like the Global Smart Overflow Tooltip
+> Pack v1 pass and the 2026-07-17 pass before it, refreshed the "Current Production State" table only (re-derived
+> directly from `git`) — the "Repository Status" quantitative table and the deeper narrative surveys (Banking/
+> Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01 respectively and have
+> not been re-audited in this pass — treat their specifics as of those dates, not current-day.
 
 ---
 
@@ -35,9 +35,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `ce106b4` — merge of `feature/global-smart-overflow-tooltip-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-global-smart-overflow-tooltip-pack-v1` (merge commit `ce106b4`) | High |
-| **Previous stable tag** | `stable-employee-entitlements-executive-redesign-v1` (`56f18d4`) | High |
+| **Current HEAD** | `ac2b6bd` — merge of `feature/invoice-creation-reliability-confirmation-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-invoice-creation-reliability-confirmation-pack-v1` (merge commit `ac2b6bd`) | High |
+| **Previous stable tag** | `stable-global-smart-overflow-tooltip-pack-v1` (`ce106b4`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -64,7 +64,40 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-global-smart-overflow-tooltip-pack-v1` (`ce106b4`, 2026-07-20)
+### Latest Release — `stable-invoice-creation-reliability-confirmation-pack-v1` (`ac2b6bd`, 2026-07-20)
+
+Two reliability/UX guarantees for invoice creation: an issue date can never be in the future (enforced at
+every layer, not bypassable via direct API), and a save click can never silently create the wrong invoice
+(mandatory confirmation summary before the record is actually created).
+
+- **Future-date prevention:** one shared `isNotFutureIssueDate` Zod refine (`invoices.schema.ts`) applied to
+  both `createInvoiceSchema` and `updateInvoiceSchema` — `issueDate <= endOfDay(now)`, reusing the same
+  `endOfDay` helper already used by the invoices list-filter. Enforced by the existing `validate` middleware
+  ahead of every create/update route, so no entry point — standard form, edit form, fast-entry dialog, or a
+  direct API call — can bypass it. Mirrored client-side (UX only, not the real guarantee): `max` date bound
+  on the issue-date picker plus an early pre-save check with a clear Arabic message, across `CreateInvoice.tsx`,
+  `EditInvoice.tsx`, and `invoiceFastEntry.validateInvoiceRow()`. Live-verified accept/reject on both create
+  and update; today and any past date remain accepted.
+- **Save confirmation dialog:** `CreateInvoice.tsx`'s "حفظ" now validates and stages the payload instead of
+  posting immediately, then opens an ExplorerKit `Dialog` (RTL, focus-trapped, Escape/backdrop-cancel — all
+  pre-existing ExplorerKit behavior) summarizing invoice number, party, issue date, item count, and total.
+  `POST /invoices` fires only from the dialog's explicit confirm button. Scoped to the standard create flow
+  only — the fast-entry accelerator intentionally keeps its no-confirmation rapid-entry design (it only
+  gained the future-date guard), since a per-row confirmation would defeat its purpose.
+- **Prior test-data cleanup:** the test invoice used to investigate an earlier "audit log without visible
+  invoice" case (`MN-INV-2026-0221`, id 49) and every artifact it produced were permanently deleted ahead of
+  this release, verified to leave zero orphans and zero impact on any other record — a direct one-off data
+  operation, not part of this release's commit.
+- **Scope guarantee:** 6 files (+97/−21; 0 added, 6 modified). Feature branch
+  `feature/invoice-creation-reliability-confirmation-pack-v1` (kept, pushed). Feature commit `b495628`,
+  merge commit `ac2b6bd`.
+- **Validation:** backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ (pre-merge and on merged HEAD) ·
+  frontend build ✅ · backend vitest invoices module — **160/160 tests pass**, zero regressions · live
+  Zod-schema verification of the future-date refine. No business logic, accounting/GL/posting logic, or
+  database schema change. Manual visual review: **APPROVED** (Product Owner). Gemini final review:
+  **APPROVED**. *Confidence: High (this pass's own git/build/test evidence).*
+
+### Previous Release — `stable-global-smart-overflow-tooltip-pack-v1` (`ce106b4`, 2026-07-20)
 
 Replaces the app's ad-hoc, per-component reliance on the native `title=` attribute for truncated text
 with a single reusable global tooltip system built once and mounted once — zero page-level integration.
