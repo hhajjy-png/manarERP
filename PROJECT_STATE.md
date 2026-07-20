@@ -61,7 +61,27 @@ in a table cell.
 
 ---
 
-## Latest Release — Invoice Confirmation Dialog Layering Fix v1
+## Latest Release — Employee Financial Position Dashboard v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Employee Financial Position Dashboard v1 |
+| **Goal** | Presentation-only redesign of the top of `EmployeeEntitlementsCenter.tsx` into an executive financial dashboard (Financial Position, Health Indicators, Service Analytics), preserving every calculation and business rule exactly as before. |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-20 |
+| **Feature branch** | `feature/employee-financial-position-dashboard-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `010f218` (immediately after the Invoice Confirmation Dialog Layering Fix v1 documentation-commit-hash fill-in) |
+| **Feature commit** | `df8be37` |
+| **Production merge commit** | `9d0c6ff` |
+| **Stable tag** | `stable-employee-financial-position-dashboard-v1` → merge `9d0c6ff` (annotated) |
+| **Financial Position card** | One `SectionCard` headline ("إجمالي الالتزام الحالي") plus two executive `MetricCard`s — Leave Allowance and End of Service — summed directly from the existing legal engine (`r.leaveAllowanceValue + eosAmount`, both already computed server-side in `entitlements.calc.ts`). No ledger-derived or accounting-style figure is shown in the final release: a "Previously Paid"/"Remaining Expected Liability" pair (derived from `sum(ledger[].amount)`) was implemented in an earlier iteration of this same feature branch and then deliberately removed via a dedicated follow-up correction, because the append-only historical entitlements ledger must never be presented as an actual paid/accounting balance — future ledger entries (settlements, adjustments, manual entries, historical imports) could make that sum misleading. |
+| **Health Indicators panel** | Compact grid reusing the existing `.ent-warning` styling, derived purely from data already in the API response (leave eligibility, data completeness, last-disbursement recency, high leave balance), merged with the existing `buildWarnings()` output verbatim — no new business rule introduced, no existing warning dropped. |
+| **Service Analytics grid** | Consolidates hire date, service duration, approved wage, legal accrual, leave balance/used, holidays/sick excluded, and advances count into one responsive `auto-fit` `MetricCard` grid — same values as the previous layout, each now appearing exactly once (removes the prior duplication between the top info strip and the KPI card rows). |
+| **Release scope** | **2 files, +253/−131** (0 added, 2 modified: `frontend/src/pages/EmployeeEntitlementsCenter.tsx`, `frontend/src/pages/EmployeeEntitlementsCenter.css`). |
+| **Validation** | frontend `tsc --noEmit` ✅ · frontend `vite build` ✅ · backend `tsc --noEmit` ✅ · backend build (`tsc` + `tsc-alias`) ✅ — all four, both pre-merge and on merged `production` HEAD. Zero backend files touched (backend checks pass because the feature never touches backend code, not because they were skipped). Gemini final review: **APPROVED**. |
+| **Business logic verification** | No business logic, legal calculation, accounting/GL logic, API, or database schema change. `entitlements.calc.ts`, `employees.service.ts`, and the `GET /employees/:id/entitlements` route are untouched — every displayed number maps 1:1 to a pre-existing field of that same API response. Built entirely from ExplorerKit (`SectionCard`/`MetricCard`) and its `--xpl-*` design tokens, RTL, responsive at 900px/700px breakpoints. |
+
+## Previous Release — Invoice Confirmation Dialog Layering Fix v1
 
 | Field | Value |
 |-------|-------|

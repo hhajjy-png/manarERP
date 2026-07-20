@@ -2,14 +2,14 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-20 (previously 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-20 (previously 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Invoice Confirmation Dialog Layering Fix v1), like the Invoice Creation Reliability &
-> Confirmation Pack v1 pass and the 2026-07-17 pass before it, refreshed the "Current Production State" table
+> below. This pass (Employee Financial Position Dashboard v1), like the Invoice Confirmation Dialog Layering Fix
+> v1 pass and the 2026-07-17 pass before it, refreshed the "Current Production State" table
 > only (re-derived directly from `git`) — the "Repository Status" quantitative table and the deeper narrative
 > surveys (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01
 > respectively and have not been re-audited in this pass — treat their specifics as of those dates, not current-day.
@@ -35,9 +35,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `96651b3` — merge of `feature/invoice-confirmation-dialog-layering-fix-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-invoice-confirmation-dialog-layering-fix-v1` (merge commit `96651b3`) | High |
-| **Previous stable tag** | `stable-invoice-creation-reliability-confirmation-pack-v1` (`ac2b6bd`) | High |
+| **Current HEAD** | `9d0c6ff` — merge of `feature/employee-financial-position-dashboard-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-employee-financial-position-dashboard-v1` (merge commit `9d0c6ff`) | High |
+| **Previous stable tag** | `stable-invoice-confirmation-dialog-layering-fix-v1` (`96651b3`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -64,7 +64,36 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-invoice-confirmation-dialog-layering-fix-v1` (`96651b3`, 2026-07-20)
+### Latest Release — `stable-employee-financial-position-dashboard-v1` (`9d0c6ff`, 2026-07-20)
+
+Presentation-only redesign of the top of `EmployeeEntitlementsCenter.tsx` into an executive financial
+dashboard. Legal engine, backend, API, and database are all untouched.
+
+- **Financial Position card:** one `SectionCard` headline ("إجمالي الالتزام الحالي") plus two executive
+  `MetricCard`s — Leave Allowance and End of Service — summed directly from the existing legal engine
+  (`r.leaveAllowanceValue + eosAmount`, both already computed server-side). No ledger-derived or
+  accounting-style figure is shown: a "Previously Paid"/"Remaining Expected Liability" pair (originally
+  derived from `sum(ledger[].amount)`) was implemented and then deliberately removed in a follow-up
+  correction, because the append-only historical entitlements ledger must never be presented as an actual
+  paid/accounting balance.
+- **Health Indicators panel:** compact grid reusing the existing `.ent-warning` styling, derived purely from
+  existing response data (leave eligibility, data completeness, last-disbursement recency, high leave
+  balance) merged with the existing `buildWarnings()` output — no new business rule, no warning dropped.
+- **Service Analytics grid:** consolidates hire date, service duration, approved wage, legal accrual, leave
+  balance/used, holidays/sick excluded, and advances count into one responsive `auto-fit` grid — same values
+  as before, each now appearing exactly once (removes the prior duplication between the info strip and the
+  KPI cards).
+- **Scope guarantee:** 2 files (+253/−131; 0 added, 2 modified: `EmployeeEntitlementsCenter.tsx`,
+  `EmployeeEntitlementsCenter.css`). Feature branch `feature/employee-financial-position-dashboard-v1` (kept,
+  pushed). Feature commit `df8be37`, merge commit `9d0c6ff`.
+- **Validation:** frontend `tsc --noEmit` ✅ · frontend `vite build` ✅ · backend `tsc --noEmit` ✅ · backend
+  build ✅ (all four, both pre-merge and on merged HEAD) · zero backend files touched. No business logic,
+  legal calculation, accounting/GL logic, or database schema change — every displayed number maps 1:1 to the
+  same pre-existing `GET /employees/:id/entitlements` API field. Built entirely from ExplorerKit components
+  and `--xpl-*` tokens, RTL, responsive. Gemini final review: **APPROVED**.
+  *Confidence: High (this pass's own git/build evidence).*
+
+### Previous Release — `stable-invoice-confirmation-dialog-layering-fix-v1` (`96651b3`, 2026-07-20)
 
 Bug fix: the invoice save-confirmation dialog (introduced by Invoice Creation Reliability & Confirmation
 Pack v1) rendered behind the Create Invoice window instead of above it, making it unusable.
