@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `ac2b6bd` (merge of `feature/invoice-creation-reliability-confirmation-pack-v1`) |
-| **Current Documentation Commit** | `01799ed` — "docs: record Invoice Creation Reliability & Confirmation Pack v1 release" |
-| **Current Stable Tag** | `stable-invoice-creation-reliability-confirmation-pack-v1` |
+| **Current Merge Commit** | `96651b3` (merge of `feature/invoice-confirmation-dialog-layering-fix-v1`) |
+| **Current Documentation Commit** | *(filled in by the follow-up commit that records this release)* |
+| **Current Stable Tag** | `stable-invoice-confirmation-dialog-layering-fix-v1` |
 | **Current Release Date** | 2026-07-20 |
-| **Total Stable Releases** | 327 (window 2026-06-07 → 2026-07-20) |
+| **Total Stable Releases** | 328 (window 2026-06-07 → 2026-07-20) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,25 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Invoice Confirmation Dialog Layering Fix v1** (2026-07-20, `stable-invoice-confirmation-dialog-layering-fix-v1`) —
+  bug fix for the invoice save-confirmation dialog (introduced by Invoice Creation Reliability & Confirmation
+  Pack v1) rendering behind the Create Invoice window instead of above it. **Root cause:** the confirmation
+  dialog (ExplorerKit `Dialog`, z-index 410) and the Create Invoice window (legacy `Modal`, z-index 500) are
+  both non-portaled `position: fixed` overlays in the same stacking context; the app's documented z-index
+  ladder deliberately puts the legacy `Modal` *above* ExplorerKit `Dialog`/`Drawer` for the reverse case (a
+  Modal-style confirmation over an ExplorerKit-hosted form), so a Dialog confirming on top of a Modal had no
+  supported tier — no portal or stacking-context trap was involved. A related defect was also fixed: `Modal`
+  and `Dialog` each register an independent `document`-level Escape listener, so a single Escape press with
+  the confirmation open previously closed both layers at once. **Fix:** added an opt-in `elevated` prop to
+  ExplorerKit's `Dialog`, backed by a new centralized `--z-dialog-elevated: 510` token in the existing
+  documented z-index ladder (500 Modal → 510 elevated Dialog → 550 Popover → 600 Tooltip → 9999 toasts) — no
+  arbitrary z-index, every other `Dialog` usage across the app is unaffected (prop defaults to `false`);
+  `CreateInvoice.tsx`'s confirmation dialog now passes `elevated`, and the underlying `Modal`'s `onClose` is
+  guarded to a no-op while the confirmation is open. **No change to business logic, accounting/GL logic, or
+  database schema** — focus trap, Tab-cycling, Escape (now correctly scoped to the top-most dialog), and RTL
+  are all unchanged, still driven by the shared `useFocusTrap` hook. 4 files (+25/−2; 0 added, 4 modified).
+  Zero backend files touched. Frontend `tsc --noEmit` and build both clean, verified pre-merge and on the
+  merged `production` HEAD. Gemini final review: APPROVED.
 - **Invoice Creation Reliability & Confirmation Pack v1** (2026-07-20, `stable-invoice-creation-reliability-confirmation-pack-v1`) —
   two reliability/UX guarantees for invoice creation. **Future-date prevention:** one shared
   `isNotFutureIssueDate` Zod refine (`invoices.schema.ts`) applied to both `createInvoiceSchema` and

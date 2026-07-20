@@ -61,7 +61,26 @@ in a table cell.
 
 ---
 
-## Latest Release — Invoice Creation Reliability & Confirmation Pack v1
+## Latest Release — Invoice Confirmation Dialog Layering Fix v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Invoice Confirmation Dialog Layering Fix v1 |
+| **Goal** | Bug fix: the invoice save-confirmation dialog introduced by Invoice Creation Reliability & Confirmation Pack v1 rendered behind the Create Invoice window instead of above it, making it unusable. |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-20 |
+| **Feature branch** | `feature/invoice-confirmation-dialog-layering-fix-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `db2de18` (immediately after the Invoice Creation Reliability & Confirmation Pack v1 documentation-commit-hash fill-in) |
+| **Feature commit** | `846491e` |
+| **Production merge commit** | `96651b3` |
+| **Stable tag** | `stable-invoice-confirmation-dialog-layering-fix-v1` → merge `96651b3` (annotated) |
+| **Root cause** | The confirmation dialog (ExplorerKit `Dialog`, `.xpl-dialog-overlay`, `z-index: 410`) and the Create Invoice window (legacy `Modal`, `.modal-overlay`, `z-index: 500`) are both non-portaled `position: fixed` overlays in the same stacking context. The app's documented z-index ladder deliberately puts the legacy `Modal` *above* ExplorerKit `Dialog`/`Drawer` (for the reverse case: a Modal-style confirmation over an ExplorerKit-hosted form) — `CreateInvoice.tsx` needed the opposite relationship, which the existing hierarchy didn't support, so the Dialog painted underneath the Modal despite mounting later in the DOM. No portal or transform/filter/contain stacking-context trap was involved — verified clean on every ancestor. A related defect was also found: both `Modal` and `Dialog` register independent `document`-level Escape listeners, so with the confirmation open a single Escape press closed both layers at once instead of just the top-most one. |
+| **Fix** | Added an opt-in `elevated` prop to ExplorerKit's `Dialog` component (`ExplorerKit.tsx`), backed by a new centralized `--z-dialog-elevated: 510` token in the existing documented z-index ladder (`theme.css`: 500 Modal → 510 elevated Dialog → 550 Popover → 600 Tooltip → 9999 toasts) — no arbitrary z-index value, every other `Dialog` usage across the app is unaffected (prop defaults to `false`). `CreateInvoice.tsx`'s confirmation dialog now passes `elevated`, and the underlying `Modal`'s `onClose` is guarded to a no-op while the confirmation is open, so Escape/backdrop/× only ever affects the active top-most dialog. |
+| **Release scope** | **4 files, +25/−2** (0 added, 4 modified: `frontend/src/components/explorer/ExplorerKit.tsx`, `frontend/src/components/explorer/explorer-kit.css`, `frontend/src/app/theme.css`, `frontend/src/pages/CreateInvoice.tsx`). |
+| **Validation** | frontend `tsc --noEmit` ✅ (pre-merge and on merged `production` HEAD) · frontend `vite build` ✅ (pre-merge and on merged HEAD) · zero backend files touched. Gemini final review: **APPROVED**. |
+| **Business logic verification** | No business logic, accounting/GL logic, or database schema change — pure frontend stacking-order/CSS-variable fix plus one small guard on an event handler. Focus trap, Tab-cycling, Escape (now correctly scoped to the top-most dialog), and RTL are all unchanged, still driven by the shared `useFocusTrap` hook. |
+
+## Previous Release — Invoice Creation Reliability & Confirmation Pack v1
 
 | Field | Value |
 |-------|-------|

@@ -2,17 +2,17 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-20 (previously 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-20 (previously 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Invoice Creation Reliability & Confirmation Pack v1), like the Global Smart Overflow Tooltip
-> Pack v1 pass and the 2026-07-17 pass before it, refreshed the "Current Production State" table only (re-derived
-> directly from `git`) — the "Repository Status" quantitative table and the deeper narrative surveys (Banking/
-> Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01 respectively and have
-> not been re-audited in this pass — treat their specifics as of those dates, not current-day.
+> below. This pass (Invoice Confirmation Dialog Layering Fix v1), like the Invoice Creation Reliability &
+> Confirmation Pack v1 pass and the 2026-07-17 pass before it, refreshed the "Current Production State" table
+> only (re-derived directly from `git`) — the "Repository Status" quantitative table and the deeper narrative
+> surveys (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01
+> respectively and have not been re-audited in this pass — treat their specifics as of those dates, not current-day.
 
 ---
 
@@ -35,9 +35,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `ac2b6bd` — merge of `feature/invoice-creation-reliability-confirmation-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-invoice-creation-reliability-confirmation-pack-v1` (merge commit `ac2b6bd`) | High |
-| **Previous stable tag** | `stable-global-smart-overflow-tooltip-pack-v1` (`ce106b4`) | High |
+| **Current HEAD** | `96651b3` — merge of `feature/invoice-confirmation-dialog-layering-fix-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-invoice-confirmation-dialog-layering-fix-v1` (merge commit `96651b3`) | High |
+| **Previous stable tag** | `stable-invoice-creation-reliability-confirmation-pack-v1` (`ac2b6bd`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -64,7 +64,33 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-invoice-creation-reliability-confirmation-pack-v1` (`ac2b6bd`, 2026-07-20)
+### Latest Release — `stable-invoice-confirmation-dialog-layering-fix-v1` (`96651b3`, 2026-07-20)
+
+Bug fix: the invoice save-confirmation dialog (introduced by Invoice Creation Reliability & Confirmation
+Pack v1) rendered behind the Create Invoice window instead of above it, making it unusable.
+
+- **Root cause:** the confirmation dialog (ExplorerKit `Dialog`, z-index 410) and the Create Invoice window
+  (legacy `Modal`, z-index 500) are both non-portaled `position: fixed` overlays in the same stacking context.
+  The app's documented z-index ladder deliberately puts the legacy `Modal` *above* ExplorerKit `Dialog`/`Drawer`
+  (for the reverse case — a Modal-style confirmation over an ExplorerKit-hosted form); `CreateInvoice.tsx`
+  needed the opposite relationship, which the hierarchy didn't yet support. No portal or stacking-context trap
+  was involved — verified clean on every ancestor. A related defect was also found and fixed: `Modal` and
+  `Dialog` each register an independent `document`-level Escape listener, so a single Escape press with the
+  confirmation open closed both layers at once instead of just the top-most one.
+- **Fix:** added an opt-in `elevated` prop to ExplorerKit's `Dialog`, backed by a new centralized
+  `--z-dialog-elevated: 510` token in the existing documented z-index ladder (500 Modal → 510 elevated Dialog →
+  550 Popover → 600 Tooltip → 9999 toasts) — no arbitrary z-index, every other `Dialog` usage across the app is
+  unaffected. `CreateInvoice.tsx`'s confirmation dialog now passes `elevated`; the underlying `Modal`'s
+  `onClose` is guarded to a no-op while the confirmation is open.
+- **Scope guarantee:** 4 files (+25/−2; 0 added, 4 modified). Feature branch
+  `feature/invoice-confirmation-dialog-layering-fix-v1` (kept, pushed). Feature commit `846491e`, merge
+  commit `96651b3`.
+- **Validation:** frontend `tsc --noEmit` ✅ · frontend build ✅ (both pre-merge and on merged HEAD) · zero
+  backend files touched. No business logic, accounting/GL logic, or database schema change — focus trap,
+  Tab-cycling, Escape (now correctly scoped), and RTL all unchanged. Gemini final review: **APPROVED**.
+  *Confidence: High (this pass's own git/build evidence).*
+
+### Previous Release — `stable-invoice-creation-reliability-confirmation-pack-v1` (`ac2b6bd`, 2026-07-20)
 
 Two reliability/UX guarantees for invoice creation: an issue date can never be in the future (enforced at
 every layer, not bypassable via direct API), and a save click can never silently create the wrong invoice
