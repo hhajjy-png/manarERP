@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `f40579e` (merge of `feature/full-english-ltr-layout-pack-v1`, carrying Full English LTR Layout Pack v1) |
-| **Current Documentation Commit** | `87e7c5d` — "docs: record Full English LTR Layout Pack v1 release" |
-| **Current Stable Tag** | `stable-full-english-ltr-layout-pack-v1` |
+| **Current Merge Commit** | `954c0bd` (merge of `feature/english-unified-tafqeet-engine-pack-v1`, carrying English & Unified Tafqeet Engine Pack v1) |
+| **Current Documentation Commit** | `PENDING_DOC_HASH` — "docs: record English & Unified Tafqeet Engine Pack v1 release" |
+| **Current Stable Tag** | `stable-english-unified-tafqeet-engine-pack-v1` |
 | **Current Release Date** | 2026-07-21 |
-| **Total Stable Releases** | 333 (window 2026-06-07 → 2026-07-21) |
+| **Total Stable Releases** | 334 (window 2026-06-07 → 2026-07-21) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -219,6 +219,27 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **English & Unified Tafqeet Engine Pack v1** (2026-07-21,
+  `stable-english-unified-tafqeet-engine-pack-v1`) — consolidates the three previously-duplicated Arabic
+  amount-to-words (tafqeet) implementations into one canonical engine, `frontend/src/lib/tafqeet.ts`, and adds
+  a complete English amount-to-words engine for KWD (zero, negative, thousands/millions/billions, correct
+  Kuwaiti Dinar/Fils grammar), both auto-selected by document/UI language via new `amountToWordsKWD(amount,
+  lang)` / `amountToWordsInvoiceKWD(amount, lang)` dispatchers. The two pre-existing Arabic phrasings (a
+  "standard" variant and an "invoice-legacy" variant that produced genuinely different text for the same
+  amount) were preserved byte-for-byte rather than merged — verified via an exhaustive diff across ~4,000
+  sample amounts before the duplicate file (`print-templates/utils/tafqeet.ts`) was deleted.
+  `backend/src/core/utils/tafqeet.ts` intentionally kept untouched (separate npm-workspace package, no shared
+  source boundary, zero production backend call sites — used only by its own test suite). Wired into every
+  existing amount-in-words call site: Cheques (unchanged, no language toggle there), Payment Voucher, Receipt
+  Voucher (now read their existing `lang` prop), Salary Certificate (added the missing English row), Employment
+  Contract, Invoice print templates (adapter/builder gained an optional `lang` param, default `'ar'`, zero
+  behavior change for existing callers). **Fixes a live bug:** Employment Contract's English output was
+  embedding raw Arabic tafqeet text verbatim in both its English render path and the English column of its
+  bilingual layout — now renders correct English wording. **No amount-in-words feature added to documents that
+  never had it** (Quotation, RFQ, Reports, Payslips, Purchase Orders untouched). **No business logic, API,
+  database, or permission changes.** Product Owner visual review: **APPROVED**. Gemini final review:
+  **APPROVED**.
 
 - **Full English LTR Layout Pack v1** (2026-07-21,
   `stable-full-english-ltr-layout-pack-v1`) — when the UI language is English, the whole app now automatically
