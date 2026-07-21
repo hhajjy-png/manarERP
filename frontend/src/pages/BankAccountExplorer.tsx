@@ -26,15 +26,23 @@ import {
   quickRangeToDates, QUICK_RANGE_LABELS, TYPE_LABELS, timelineTotalLabel, safeAmount, safeNum,
   type QuickRange,
 } from './bankTimelineFilters';
-import { presentTransaction, CONFIDENCE_LABELS } from './bankTransactionPresentation';
+import {
+  presentTransaction, CONFIDENCE_LABELS,
+  type PresentationConfidence,
+} from './bankTransactionPresentation';
 import { formatCurrency, formatNumber } from '../lib/format';
 import { formatDate, formatMonthLabel } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import './BankAccountExplorer.css';
 import { moneyParts, MoneyText, money } from '../config/modules';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
+import { useT } from '../lib/i18n';
 
 // ── Constants (mirrors BankReconciliation patterns) ────────────────────────────
+
+// Local translate-fn type (mirrors bankTransactionPresentation's `TranslateFn`) —
+// lets module-level helpers (outside the React tree) accept the caller's `t()`.
+type TranslateFn = (key: string) => string;
 
 const CAT_LABELS: Record<string, string> = {
   BANK_TRANSFER:   'تحويل بنكي',
@@ -48,6 +56,50 @@ const CAT_LABELS: Record<string, string> = {
   CHEQUEBOOK_FEE:  'رسوم دفتر شيكات',
   OTHER_FEE:       'رسوم أخرى',
 };
+
+// Maps each CAT_LABELS code to its i18n key. Used only when a `translate`
+// callback is supplied (e.g. CSV export triggered from within a component);
+// falls back to the Arabic literal above when omitted.
+const CAT_LABEL_KEYS: Record<string, string> = {
+  BANK_TRANSFER:   'opt.sal.payment.bank_transfer', // reused: DICT.ar exact match 'تحويل بنكي'
+  CHEQUE_PAYMENT:  'opt.payment.cheque',            // reused: DICT.ar exact match 'شيك'
+  CASH_WITHDRAWAL: 'bank.explorer.cat.cash_withdrawal',
+  TRANSFER_FEE:    'bank.explorer.cat.transfer_fee',
+  MONTHLY_FEE:     'bank.explorer.cat.monthly_fee',
+  INTEREST:        'bank.explorer.cat.interest',
+  CHARGE:          'bank.explorer.cat.bank_charge',
+  ATM_FEE:         'bank.explorer.cat.atm_fee',
+  CHEQUEBOOK_FEE:  'bank.explorer.cat.chequebook_fee',
+  OTHER_FEE:       'bank.explorer.cat.other_fee',
+};
+
+// Confidence level → i18n key. `CONFIDENCE_LABELS` (bankTransactionPresentation.ts)
+// is pinned Arabic-only by an existing test, so this page maps to its own,
+// already-registered keys instead ('opt.maint.sev_high/_medium/_low' — verified
+// exact byte-match for the same three Arabic words).
+const CONFIDENCE_KEYS: Record<PresentationConfidence, string> = {
+  high:   'opt.maint.sev_high',
+  medium: 'opt.maint.sev_medium',
+  low:    'opt.maint.sev_low',
+};
+
+function confidenceLabel(level: PresentationConfidence, translate?: TranslateFn): string {
+  return trFallback(CONFIDENCE_KEYS[level], CONFIDENCE_LABELS[level], translate);
+}
+
+function catLabel(code: string, translate?: TranslateFn): string {
+  const fallback = CAT_LABELS[code] ?? code;
+  const key = CAT_LABEL_KEYS[code];
+  return translate && key ? translate(key) : fallback;
+}
+
+// Translate-with-fallback: identical pattern to bankTransactionPresentation's
+// `tr()` — when `translate` is omitted, returns the original Arabic literal
+// unchanged (module-level helpers here run outside the React tree, so a
+// caller-supplied `t()` is threaded through explicitly rather than via hook).
+function trFallback(key: string, fallback: string, translate?: TranslateFn): string {
+  return translate ? translate(key) : fallback;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -81,8 +133,18 @@ function exportTimelineCsv(
   transactions: TimelineTransaction[],
   bankName: string,
   accountKey: string,
+  translate?: TranslateFn,
 ): void {
-  const headers = ['التاريخ', 'الوصف', 'المرجع', 'مدين', 'دائن', 'الرصيد', 'النوع', 'الدفعة'];
+  const headers = [
+    trFallback('col.date', 'التاريخ', translate),
+    trFallback('col.description', 'الوصف', translate),
+    trFallback('col.acc.reference', 'المرجع', translate),
+    trFallback('col.acc.debit', 'مدين', translate),
+    trFallback('col.acc.credit', 'دائن', translate),
+    trFallback('bank.explorer.col_balance', 'الرصيد', translate),
+    trFallback('col.type', 'النوع', translate),
+    trFallback('bank.explorer.col_batch', 'الدفعة', translate),
+  ];
   const rows = transactions.map((t) => [
     t.statementDate ?? '',
     `"${t.description.replace(/"/g, '""')}"`,
@@ -90,7 +152,7 @@ function exportTimelineCsv(
     t.debit  > 0 ? t.debit.toFixed(3)  : '',
     t.credit > 0 ? t.credit.toFixed(3) : '',
     t.balance != null ? t.balance.toFixed(3) : '',
-    t.bankFeeType ? (CAT_LABELS[t.bankFeeType] ?? t.bankFeeType) : '',
+    t.bankFeeType ? catLabel(t.bankFeeType, translate) : '',
     `"${t.importBatchLabel.replace(/"/g, '""')}"`,
   ]);
   const csv  = '﻿' + [headers, ...rows].map((r) => r.join(',')).join('\r\n');
@@ -113,12 +175,16 @@ interface TxBadge { kind: TxBadgeKind; label: string; }
 
 // Derive a semantic transaction-type badge from the already-available flags.
 // Display-only — no reconciliation/accounting logic.
-function txTypeBadge(t: TimelineTransaction): TxBadge {
-  if (t.bankFeeType === 'BANK_TRANSFER') return { kind: 'transfer', label: 'تحويل' };
-  if (t.chequeNumber || t.bankFeeType === 'CHEQUE_PAYMENT') return { kind: 'cheque', label: 'شيك' };
-  if (t.isBankFee) return { kind: 'fee', label: 'رسوم' };
-  if (safeNum(t.credit) > 0) return { kind: 'deposit', label: 'إيداع' };
-  return { kind: 'withdrawal', label: 'سحب' };
+function txTypeBadge(t: TimelineTransaction, translate?: TranslateFn): TxBadge {
+  if (t.bankFeeType === 'BANK_TRANSFER') {
+    return { kind: 'transfer', label: trFallback('opt.payment.transfer', 'تحويل', translate) };
+  }
+  if (t.chequeNumber || t.bankFeeType === 'CHEQUE_PAYMENT') {
+    return { kind: 'cheque', label: trFallback('opt.payment.cheque', 'شيك', translate) };
+  }
+  if (t.isBankFee) return { kind: 'fee', label: trFallback('bank.explorer.badge_fee', 'رسوم', translate) };
+  if (safeNum(t.credit) > 0) return { kind: 'deposit', label: trFallback('bank.explorer.badge_deposit', 'إيداع', translate) };
+  return { kind: 'withdrawal', label: trFallback('bank.explorer.badge_withdrawal', 'سحب', translate) };
 }
 
 // Semantic icon per transaction kind (display-only).
@@ -139,6 +205,7 @@ function CopyButton({
   label:      string;
   className?: string;
 }) {
+  const { t } = useT();
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -155,7 +222,7 @@ function CopyButton({
   return (
     <button type="button" className={`btn secondary bae-copy-btn${className ? ` ${className}` : ''}`} onClick={onCopy}>
       <span className="material-symbols-outlined">{copied ? 'check' : 'content_copy'}</span>
-      {copied ? 'تم النسخ' : label}
+      {copied ? t('bank.explorer.copied') : label}
     </button>
   );
 }
@@ -163,6 +230,7 @@ function CopyButton({
 // ── Collapsible long description (banking-app style) ───────────────────────────
 
 function CollapsibleDescription({ text }: { text: string }) {
+  const { t } = useT();
   const [expanded, setExpanded] = useState(false);
   const isLong = text.length > 90;
   return (
@@ -170,7 +238,7 @@ function CollapsibleDescription({ text }: { text: string }) {
       <span className={expanded || !isLong ? '' : 'bae-desc-clamp'}>{text}</span>
       {isLong && (
         <button type="button" className="bae-desc-toggle" onClick={() => setExpanded((v) => !v)}>
-          {expanded ? 'عرض أقل' : 'عرض المزيد'}
+          {expanded ? t('bank.explorer.show_less') : t('bank.explorer.show_more')}
         </button>
       )}
     </div>
@@ -230,6 +298,7 @@ function KpiCard({
 // ── Account Health Card ───────────────────────────────────────────────────────
 
 function AccountHealthCard({ dashboard }: { dashboard: BankAccountDashboard }) {
+  const { t } = useT();
   const monthCount = useMemo(() => {
     if (!dashboard.coverageStart || !dashboard.coverageEnd) return 0;
     const s = new Date(dashboard.coverageStart);
@@ -249,9 +318,9 @@ function AccountHealthCard({ dashboard }: { dashboard: BankAccountDashboard }) {
 
   const freshnessLabel =
     daysSinceLast == null ? '—' :
-    daysSinceLast < 7    ? 'محدّث' :
-    daysSinceLast < 30   ? `${daysSinceLast} يوم` :
-    `${Math.floor(daysSinceLast / 30)} أشهر`;
+    daysSinceLast < 7    ? t('bank.explorer.freshness_updated') :
+    daysSinceLast < 30   ? t('bank.explorer.freshness_days', { days: daysSinceLast }) :
+    t('bank.explorer.freshness_months', { months: Math.floor(daysSinceLast / 30) });
 
   const avgMonthlyTx = monthCount > 0
     ? Math.round(dashboard.transactionCount / monthCount)
@@ -261,31 +330,31 @@ function AccountHealthCard({ dashboard }: { dashboard: BankAccountDashboard }) {
     <div className="bae-health-card">
       <h4 className="bae-health-title">
         <span className="material-symbols-outlined">monitor_heart</span>
-        صحة الحساب وتغطية البيانات
+        {t('bank.explorer.health_title')}
       </h4>
       <div className="bae-health-grid">
         <div className="bae-health-item">
-          <span className="bae-health-label">مدة التغطية</span>
-          <span className="bae-health-value">{monthCount > 0 ? `${monthCount} شهر` : '—'}</span>
+          <span className="bae-health-label">{t('bank.explorer.coverage_span')}</span>
+          <span className="bae-health-value">{monthCount > 0 ? t('bank.explorer.months_count', { months: monthCount }) : '—'}</span>
         </div>
         <div className="bae-health-item">
-          <span className="bae-health-label">دفعات الاستيراد</span>
+          <span className="bae-health-label">{t('bank.explorer.import_batches')}</span>
           <span className="bae-health-value">{dashboard.importCount}</span>
         </div>
         <div className="bae-health-item">
-          <span className="bae-health-label">متوسط العمليات / شهر</span>
+          <span className="bae-health-label">{t('bank.explorer.avg_tx_per_month')}</span>
           <span className="bae-health-value">{avgMonthlyTx.toLocaleString()}</span>
         </div>
         <div className="bae-health-item">
-          <span className="bae-health-label">عمليات الإيداع</span>
+          <span className="bae-health-label">{t('bank.explorer.deposit_count')}</span>
           <span className="bae-health-value good">{dashboard.depositCount.toLocaleString()}</span>
         </div>
         <div className="bae-health-item">
-          <span className="bae-health-label">عمليات السحب</span>
+          <span className="bae-health-label">{t('bank.explorer.withdrawal_count')}</span>
           <span className="bae-health-value">{dashboard.withdrawalCount.toLocaleString()}</span>
         </div>
         <div className="bae-health-item">
-          <span className="bae-health-label">حداثة البيانات</span>
+          <span className="bae-health-label">{t('bank.explorer.data_freshness')}</span>
           <span className={`bae-health-value ${freshnessClass}`}>{freshnessLabel}</span>
         </div>
       </div>
@@ -298,11 +367,18 @@ function AccountHealthCard({ dashboard }: { dashboard: BankAccountDashboard }) {
 // Derive a labelled account identifier from the stable accountKey. The dashboard
 // API returns no separate IBAN / account number, so we surface only what the key
 // encodes (IBAN / ACCT / BANK) under the correct label — never inventing data.
-function accountIdInfo(accountKey: string): { label: string; value: string } | null {
+function accountIdInfo(accountKey: string, translate?: TranslateFn): { label: string; value: string } | null {
   if (accountKey.startsWith('IBAN:')) return { label: 'IBAN', value: accountKey.slice(5) };
-  if (accountKey.startsWith('ACCT:')) return { label: 'رقم الحساب', value: accountKey.slice(5).replace(/:/g, ' · ') };
-  if (accountKey.startsWith('BANK:')) return { label: 'الحساب', value: accountKey.slice(5) };
-  return accountKey ? { label: 'الحساب', value: accountKey } : null;
+  if (accountKey.startsWith('ACCT:')) {
+    return {
+      label: trFallback('bank.explorer.account_number', 'رقم الحساب', translate),
+      value: accountKey.slice(5).replace(/:/g, ' · '),
+    };
+  }
+  if (accountKey.startsWith('BANK:')) {
+    return { label: trFallback('col.acc.account', 'الحساب', translate), value: accountKey.slice(5) };
+  }
+  return accountKey ? { label: trFallback('col.acc.account', 'الحساب', translate), value: accountKey } : null;
 }
 
 function ExecutiveHeader({
@@ -316,12 +392,13 @@ function ExecutiveHeader({
   onBack:         () => void;
   onAddStatement: () => void;
 }) {
+  const { t } = useT();
   const d = dashboard;
-  const idInfo = accountIdInfo(accountKey);
+  const idInfo = accountIdInfo(accountKey, t);
 
   return (
     <div className="bae-exec-header">
-      <button type="button" className="bae-back-btn" onClick={onBack} aria-label="رجوع">
+      <button type="button" className="bae-back-btn" onClick={onBack} aria-label={t('btn.inv.back')}>
         <span className="material-symbols-outlined">arrow_forward_ios</span>
       </button>
 
@@ -345,24 +422,24 @@ function ExecutiveHeader({
             </div>
           )}
           <div className="bae-exec-meta-cell">
-            <span className="bae-exec-meta-k">العملة</span>
+            <span className="bae-exec-meta-k">{t('field.cheque.currency')}</span>
             <span className="bae-exec-meta-v">KWD</span>
           </div>
           <div className="bae-exec-meta-cell">
-            <span className="bae-exec-meta-k">الحالة</span>
+            <span className="bae-exec-meta-k">{t('field.status')}</span>
             <span className="bae-exec-status">
               <span className="bae-status-dot" />
-              نشط
+              {t('status.active')}
             </span>
           </div>
           {d.coverageEnd && (
             <div className="bae-exec-meta-cell">
-              <span className="bae-exec-meta-k">آخر استيراد</span>
+              <span className="bae-exec-meta-k">{t('bank.explorer.last_import')}</span>
               <span className="bae-exec-meta-v">{fmtDate(d.coverageEnd)}</span>
             </div>
           )}
           <div className="bae-exec-meta-cell">
-            <span className="bae-exec-meta-k">عدد الكشوف</span>
+            <span className="bae-exec-meta-k">{t('bank.explorer.statement_count')}</span>
             <span className="bae-exec-meta-v">{d.importCount.toLocaleString()}</span>
           </div>
         </div>
@@ -372,7 +449,7 @@ function ExecutiveHeader({
       <div className="bae-exec-actions">
         <button type="button" className="btn bae-exec-add" onClick={onAddStatement}>
           <span className="material-symbols-outlined">upload_file</span>
-          إضافة كشف
+          {t('bank.explorer.add_statement')}
         </button>
       </div>
     </div>
@@ -385,6 +462,7 @@ function ExecutiveHeader({
 // The dashboard API exposes no fee aggregate, so "total transactions" is shown
 // instead of fees (no API change, no fabricated data).
 function KpiRow({ dashboard }: { dashboard: BankAccountDashboard }) {
+  const { t } = useT();
   const d = dashboard;
   const netVariant: 'green' | 'red' = safeNum(d.netCashFlow) >= 0 ? 'green' : 'red';
   return (
@@ -395,7 +473,7 @@ function KpiRow({ dashboard }: { dashboard: BankAccountDashboard }) {
           <span className="material-symbols-outlined">account_balance_wallet</span>
         </div>
         <div className="bae-balance-hero-body">
-          <span className="bae-balance-hero-label">الرصيد الحالي</span>
+          <span className="bae-balance-hero-label">{t('bank.explorer.current_balance')}</span>
           <div className="bae-balance-hero-value">
             <PrivateAmount value={d.currentBalance ?? 0} />
           </div>
@@ -403,7 +481,7 @@ function KpiRow({ dashboard }: { dashboard: BankAccountDashboard }) {
             <span className="material-symbols-outlined">
               {netVariant === 'green' ? 'trending_up' : 'trending_down'}
             </span>
-            {safeNum(d.netCashFlow) >= 0 ? '+' : ''}{<MoneyText value={d.netCashFlow} />} · صافي التدفق
+            {safeNum(d.netCashFlow) >= 0 ? '+' : ''}{<MoneyText value={d.netCashFlow} />} · {t('bank.explorer.net_flow')}
           </span>
         </div>
       </div>
@@ -411,39 +489,39 @@ function KpiRow({ dashboard }: { dashboard: BankAccountDashboard }) {
       {/* Movement + activity metrics — stat tiles */}
       <div className="bae-kpi-grid bae-kpi-grid--secondary">
         <KpiCard
-          label="إجمالي الإيداعات"
+          label={t('bank.explorer.total_deposits')}
           {...amountCard(d.totalDeposits)}
           icon="south_west"
           colorVariant="green"
-          sub={`${d.depositCount.toLocaleString()} عملية`}
+          sub={t('bank.explorer.tx_count_suffix', { count: d.depositCount.toLocaleString() })}
         />
         <KpiCard
-          label="إجمالي السحوبات"
+          label={t('bank.explorer.total_withdrawals')}
           {...amountCard(d.totalWithdrawals)}
           icon="north_east"
           colorVariant="red"
-          sub={`${d.withdrawalCount.toLocaleString()} عملية`}
+          sub={t('bank.explorer.tx_count_suffix', { count: d.withdrawalCount.toLocaleString() })}
         />
         <KpiCard
-          label="صافي الحركة"
+          label={t('bank.explorer.net_movement')}
           {...amountCard(d.netCashFlow)}
           icon="insights"
           colorVariant={netVariant}
-          sub="صافي التدفق النقدي"
+          sub={t('bank.explorer.net_cash_flow')}
         />
         <KpiCard
-          label="عدد العمليات"
+          label={t('bank.explorer.tx_count')}
           value={d.transactionCount.toLocaleString()}
           icon="receipt_long"
           colorVariant="indigo"
-          sub="عملية"
+          sub={t('bank.explorer.tx_unit')}
         />
         <KpiCard
-          label="عدد الكشوف"
+          label={t('bank.explorer.statement_count')}
           value={d.importCount.toLocaleString()}
           icon="description"
           colorVariant="orange"
-          sub="كشوف مستوردة"
+          sub={t('bank.explorer.statements_imported')}
         />
       </div>
     </div>
@@ -460,18 +538,35 @@ const RECONCILE_LABELS: Record<string, string> = {
   REVIEW:    'قيد المراجعة',
 };
 
+// i18n keys for the reconcile-status labels above (new — not yet in DICT).
+const RECONCILE_LABEL_KEYS: Record<string, string> = {
+  UNMATCHED: 'bank.explorer.reconcile_unmatched',
+  MATCHED:   'bank.explorer.reconcile_matched',
+  IGNORED:   'bank.explorer.reconcile_ignored',
+  DUPLICATE: 'bank.explorer.reconcile_duplicate',
+  REVIEW:    'bank.explorer.reconcile_review',
+};
+
+function reconcileLabel(status: string, translate?: TranslateFn): string {
+  const fallback = RECONCILE_LABELS[status] ?? status;
+  const key = RECONCILE_LABEL_KEYS[status];
+  return translate && key ? translate(key) : fallback;
+}
+
 const DRAWER_TITLE_ID = 'bae-drawer-title';
 
 // Information-Hub tabs (Phase v2). Each surfaces only the data that exists on the
 // transaction — unavailable fields are hidden, never faked (graceful degradation).
 type DrawerTab = 'basic' | 'financial' | 'import' | 'audit' | 'attachments';
 
-const DRAWER_TABS: { key: DrawerTab; label: string; icon: string }[] = [
-  { key: 'basic',       label: 'البيانات الأساسية', icon: 'article' },
-  { key: 'financial',   label: 'المالية',           icon: 'account_balance' },
-  { key: 'import',      label: 'الاستيراد',         icon: 'upload_file' },
-  { key: 'audit',       label: 'التدقيق',           icon: 'verified' },
-  { key: 'attachments', label: 'المرفقات',          icon: 'attach_file' },
+// `labelKey` is reused (report.group.financial / perm.module.import) where an
+// exact DICT.ar match exists; otherwise a new bank.explorer.tab_* key.
+const DRAWER_TABS: { key: DrawerTab; labelKey: string; icon: string }[] = [
+  { key: 'basic',       labelKey: 'bank.explorer.tab_basic', icon: 'article' },
+  { key: 'financial',   labelKey: 'report.group.financial',  icon: 'account_balance' },
+  { key: 'import',      labelKey: 'perm.module.import',      icon: 'upload_file' },
+  { key: 'audit',       labelKey: 'bank.explorer.tab_audit', icon: 'verified' },
+  { key: 'attachments', labelKey: 'bank.explorer.tab_attachments', icon: 'attach_file' },
 ];
 
 function TransactionDrawer({
@@ -485,10 +580,11 @@ function TransactionDrawer({
   // and a Tab focus trap that keeps keyboard focus inside the dialog (Phase E a11y) —
   // shared with ExplorerKit's Drawer/Dialog rather than a separate copy, so a future
   // a11y fix to the trap applies here too.
+  const { t } = useT();
   const panelRef = useFocusTrap(onClose);
   const [drawerTab, setDrawerTab] = useState<DrawerTab>('basic');
 
-  const badge      = txTypeBadge(tx);
+  const badge      = txTypeBadge(tx, t);
   const isIncoming = safeNum(tx.credit) > 0;
   const heroAmount = isIncoming ? safeNum(tx.credit) : safeNum(tx.debit);
   const reconcileClass = tx.reconcileStatus === 'MATCHED' ? 'good'
@@ -506,7 +602,7 @@ function TransactionDrawer({
 
   // Smart presentation (display-only): structured category + safe detail. The raw
   // bank text is still shown below when it carries more than the category label.
-  const pres      = presentTransaction(tx);
+  const pres      = presentTransaction(tx, t);
   const rawIsExtra = pres.raw.length > 0 && pres.raw !== pres.category.label;
 
   return (
@@ -523,13 +619,13 @@ function TransactionDrawer({
       >
         <div className="bae-drawer-header">
           <div className="bae-drawer-header-id">
-            <h3 className="bae-drawer-title" id={DRAWER_TITLE_ID}>تفاصيل العملية</h3>
+            <h3 className="bae-drawer-title" id={DRAWER_TITLE_ID}>{t('bank.explorer.tx_details_title')}</h3>
             <div className="bae-drawer-header-sub">
-              <span className="bae-drawer-txid mono">رقم العملية #{tx.id}</span>
+              <span className="bae-drawer-txid mono">{t('bank.explorer.tx_id_prefix')} #{tx.id}</span>
               <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
             </div>
           </div>
-          <button type="button" className="bae-drawer-close" onClick={onClose} aria-label="إغلاق">
+          <button type="button" className="bae-drawer-close" onClick={onClose} aria-label={t('action.close')}>
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -552,25 +648,25 @@ function TransactionDrawer({
               </div>
               {hasBalance && (
                 <div className="bae-drawer-hero-balance">
-                  الرصيد بعد العملية <strong>{<MoneyText value={afterBalance} />}</strong>
+                  {t('bank.explorer.balance_after')} <strong>{<MoneyText value={afterBalance} />}</strong>
                 </div>
               )}
             </div>
           </div>
 
           {/* ── Information-Hub tab bar ── */}
-          <div className="bae-drawer-tabs" role="tablist" aria-label="أقسام تفاصيل العملية">
-            {DRAWER_TABS.map((t) => (
+          <div className="bae-drawer-tabs" role="tablist" aria-label={t('bank.explorer.tx_sections_label')}>
+            {DRAWER_TABS.map((dt) => (
               <button
-                key={t.key}
+                key={dt.key}
                 type="button"
                 role="tab"
-                aria-selected={drawerTab === t.key ? 'true' : 'false'}
-                className={`bae-drawer-tab${drawerTab === t.key ? ' active' : ''}`}
-                onClick={() => setDrawerTab(t.key)}
+                aria-selected={drawerTab === dt.key ? 'true' : 'false'}
+                className={`bae-drawer-tab${drawerTab === dt.key ? ' active' : ''}`}
+                onClick={() => setDrawerTab(dt.key)}
               >
-                <span className="material-symbols-outlined">{t.icon}</span>
-                <span className="bae-drawer-tab-label">{t.label}</span>
+                <span className="material-symbols-outlined">{dt.icon}</span>
+                <span className="bae-drawer-tab-label">{t(dt.labelKey)}</span>
               </button>
             ))}
           </div>
@@ -581,47 +677,47 @@ function TransactionDrawer({
             {drawerTab === 'basic' && (
               <>
                 <section className="bae-drawer-section">
-                  <div className="bae-drawer-section-title">معلومات العملية</div>
+                  <div className="bae-drawer-section-title">{t('bank.explorer.tx_info')}</div>
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">التاريخ</span>
+                    <span className="bae-drawer-field-label">{t('col.date')}</span>
                     <span className="bae-drawer-field-value">{fmtDate(tx.statementDate)}</span>
                   </div>
                   {tx.postingDate && tx.postingDate !== tx.statementDate && (
                     <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">تاريخ الترحيل</span>
+                      <span className="bae-drawer-field-label">{t('bank.explorer.posting_date')}</span>
                       <span className="bae-drawer-field-value">{fmtDate(tx.postingDate)}</span>
                     </div>
                   )}
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">نوع العملية</span>
+                    <span className="bae-drawer-field-label">{t('bank.explorer.tx_type')}</span>
                     <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
                   </div>
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">العملة</span>
+                    <span className="bae-drawer-field-label">{t('field.cheque.currency')}</span>
                     <span className="bae-drawer-field-value">{tx.currency}</span>
                   </div>
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">الحالة</span>
+                    <span className="bae-drawer-field-label">{t('field.status')}</span>
                     <span className={`bae-status-badge bae-status-badge--${reconcileClass}`}>
-                      {RECONCILE_LABELS[tx.reconcileStatus] ?? tx.reconcileStatus}
+                      {reconcileLabel(tx.reconcileStatus, t)}
                     </span>
                   </div>
                   {tx.reference && (
                     <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">المرجع</span>
+                      <span className="bae-drawer-field-label">{t('col.acc.reference')}</span>
                       <span className="bae-drawer-field-value mono">{tx.reference}</span>
                     </div>
                   )}
                   {tx.chequeNumber && (
                     <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">رقم الشيك</span>
+                      <span className="bae-drawer-field-label">{t('field.cheque.number')}</span>
                       <span className="bae-drawer-field-value mono">{tx.chequeNumber}</span>
                     </div>
                   )}
                 </section>
 
                 <section className="bae-drawer-section">
-                  <div className="bae-drawer-section-title">الوصف</div>
+                  <div className="bae-drawer-section-title">{t('col.description')}</div>
                   <div className="bae-drawer-desc">
                     <span className="bae-drawer-desc-primary">{pres.category.label}</span>
                     {pres.detail && (
@@ -630,7 +726,7 @@ function TransactionDrawer({
                   </div>
                   {rawIsExtra && (
                     <div className="bae-drawer-desc-raw">
-                      <span className="bae-drawer-desc-raw-label">النص الأصلي</span>
+                      <span className="bae-drawer-desc-raw-label">{t('bank.explorer.original_text')}</span>
                       <CollapsibleDescription text={tx.description} />
                     </div>
                   )}
@@ -641,21 +737,21 @@ function TransactionDrawer({
             {/* Financial */}
             {drawerTab === 'financial' && (
               <section className="bae-drawer-section">
-                <div className="bae-drawer-section-title">التدفق المالي</div>
+                <div className="bae-drawer-section-title">{t('bank.explorer.cash_flow')}</div>
                 {credit > 0 && (
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">دائن (إيداع)</span>
+                    <span className="bae-drawer-field-label">{t('bank.explorer.credit_deposit')}</span>
                     <span className="bae-drawer-field-value bae-credit">+{formatNumber(credit)}</span>
                   </div>
                 )}
                 {debit > 0 && (
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">مدين (سحب)</span>
+                    <span className="bae-drawer-field-label">{t('bank.explorer.debit_withdrawal')}</span>
                     <span className="bae-drawer-field-value bae-debit">−{formatNumber(debit)}</span>
                   </div>
                 )}
                 <div className="bae-drawer-field">
-                  <span className="bae-drawer-field-label">الأثر على الرصيد</span>
+                  <span className="bae-drawer-field-label">{t('bank.explorer.balance_impact')}</span>
                   <span className={`bae-drawer-field-value ${impactClass}`}>
                     {impact >= 0 ? '+' : '−'}{formatNumber(Math.abs(impact))}
                   </span>
@@ -663,11 +759,11 @@ function TransactionDrawer({
                 {hasBalance && (
                   <>
                     <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">الرصيد قبل العملية</span>
+                      <span className="bae-drawer-field-label">{t('bank.explorer.balance_before')}</span>
                       <span className="bae-drawer-field-value">{formatNumber(beforeBalance)}</span>
                     </div>
                     <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">الرصيد بعد العملية</span>
+                      <span className="bae-drawer-field-label">{t('bank.explorer.balance_after')}</span>
                       <span className="bae-drawer-field-value bae-drawer-primary">{formatNumber(afterBalance)}</span>
                     </div>
                   </>
@@ -678,33 +774,33 @@ function TransactionDrawer({
             {/* Import */}
             {drawerTab === 'import' && (
               <section className="bae-drawer-section">
-                <div className="bae-drawer-section-title">بيانات الاستيراد</div>
+                <div className="bae-drawer-section-title">{t('bank.explorer.import_data')}</div>
                 <div className="bae-drawer-field">
-                  <span className="bae-drawer-field-label">الدفعة</span>
+                  <span className="bae-drawer-field-label">{t('bank.explorer.col_batch')}</span>
                   <span className="bae-drawer-field-value">{tx.importBatchLabel}</span>
                 </div>
                 <div className="bae-drawer-field bae-drawer-field--col">
-                  <span className="bae-drawer-field-label">اسم الملف</span>
+                  <span className="bae-drawer-field-label">{t('bank.explorer.file_name')}</span>
                   <span className="bae-drawer-field-value mono">{tx.fileName}</span>
                 </div>
                 <div className="bae-drawer-field">
-                  <span className="bae-drawer-field-label">تاريخ الكشف</span>
+                  <span className="bae-drawer-field-label">{t('bank.explorer.statement_date')}</span>
                   <span className="bae-drawer-field-value">{fmtDate(tx.statementDate)}</span>
                 </div>
                 <div className="bae-drawer-field">
-                  <span className="bae-drawer-field-label">تاريخ الاستيراد</span>
+                  <span className="bae-drawer-field-label">{t('bank.explorer.import_date')}</span>
                   <span className="bae-drawer-field-value">{fmtDate(tx.importedAt)}</span>
                 </div>
                 <div className="bae-drawer-field">
-                  <span className="bae-drawer-field-label">البنك</span>
+                  <span className="bae-drawer-field-label">{t('col.sal.bank')}</span>
                   <span className="bae-drawer-field-value">{tx.bankName}</span>
                 </div>
                 {(tx.isDuplicate || tx.isBankFee) && (
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">ملاحظات</span>
+                    <span className="bae-drawer-field-label">{t('field.notes')}</span>
                     <span className="bae-drawer-flags">
-                      {tx.isDuplicate && <span className="bae-status-badge bae-status-badge--warn">مكررة محتملة</span>}
-                      {tx.isBankFee   && <span className="bae-status-badge bae-status-badge--neutral">رسوم بنكية</span>}
+                      {tx.isDuplicate && <span className="bae-status-badge bae-status-badge--warn">{t('bank.explorer.possible_duplicate')}</span>}
+                      {tx.isBankFee   && <span className="bae-status-badge bae-status-badge--neutral">{catLabel('CHARGE', t)}</span>}
                     </span>
                   </div>
                 )}
@@ -715,24 +811,24 @@ function TransactionDrawer({
             {drawerTab === 'audit' && (
               <>
                 <section className="bae-drawer-section">
-                  <div className="bae-drawer-section-title">التدقيق والمصدر</div>
+                  <div className="bae-drawer-section-title">{t('bank.explorer.audit_source')}</div>
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">تاريخ الإدخال</span>
+                    <span className="bae-drawer-field-label">{t('bank.explorer.entry_date')}</span>
                     <span className="bae-drawer-field-value">{fmtDate(tx.importedAt)}</span>
                   </div>
                   <div className="bae-drawer-field bae-drawer-field--col">
-                    <span className="bae-drawer-field-label">المصدر</span>
+                    <span className="bae-drawer-field-label">{t('bank.explorer.source')}</span>
                     <span className="bae-drawer-field-value mono">{tx.fileName}</span>
                   </div>
                   {tx.accountKey && (
                     <div className="bae-drawer-field bae-drawer-field--col">
-                      <span className="bae-drawer-field-label">مفتاح الحساب</span>
+                      <span className="bae-drawer-field-label">{t('bank.explorer.account_key')}</span>
                       <span className="bae-drawer-field-value mono">{tx.accountKey}</span>
                     </div>
                   )}
                   {tx.transactionFingerprint && (
                     <div className="bae-drawer-field bae-drawer-field--col">
-                      <span className="bae-drawer-field-label">البصمة (Fingerprint · SHA-256)</span>
+                      <span className="bae-drawer-field-label">{t('bank.explorer.fingerprint_label')}</span>
                       <span className="bae-drawer-field-value mono bae-drawer-fingerprint">
                         {tx.transactionFingerprint}
                       </span>
@@ -742,37 +838,37 @@ function TransactionDrawer({
 
                 {/* Smart-presentation provenance (how the display label was derived) */}
                 <section className="bae-drawer-section">
-                  <div className="bae-drawer-section-title">التصنيف الذكي (كيفية العرض)</div>
+                  <div className="bae-drawer-section-title">{t('bank.explorer.smart_classification')}</div>
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">التصنيف</span>
+                    <span className="bae-drawer-field-label">{t('col.category')}</span>
                     <span className="bae-drawer-field-value">{pres.category.label}</span>
                   </div>
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">مستوى الثقة</span>
-                    <span className="bae-drawer-field-value">{CONFIDENCE_LABELS[pres.category.confidence]}</span>
+                    <span className="bae-drawer-field-label">{t('bank.explorer.confidence_level')}</span>
+                    <span className="bae-drawer-field-value">{confidenceLabel(pres.category.confidence, t)}</span>
                   </div>
                   <div className="bae-drawer-field bae-drawer-field--col">
-                    <span className="bae-drawer-field-label">القاعدة المطبَّقة</span>
+                    <span className="bae-drawer-field-label">{t('bank.explorer.applied_rule')}</span>
                     <span className="bae-drawer-field-value mono">{pres.provenance.rule}</span>
                   </div>
                   {pres.provenance.matchedOn && (
                     <div className="bae-drawer-field bae-drawer-field--col">
-                      <span className="bae-drawer-field-label">المصدر المطابق</span>
+                      <span className="bae-drawer-field-label">{t('bank.explorer.matched_source')}</span>
                       <span className="bae-drawer-field-value mono">{pres.provenance.matchedOn}</span>
                     </div>
                   )}
                   {pres.detail && (
                     <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">التفصيل المعروض</span>
+                      <span className="bae-drawer-field-label">{t('bank.explorer.displayed_detail')}</span>
                       <span className="bae-drawer-field-value">
                         {pres.detail.text}
-                        <span className="bae-drawer-txid"> · {CONFIDENCE_LABELS[pres.detail.confidence]}</span>
+                        <span className="bae-drawer-txid"> · {confidenceLabel(pres.detail.confidence, t)}</span>
                       </span>
                     </div>
                   )}
                   {pres.raw && (
                     <div className="bae-drawer-field bae-drawer-field--col">
-                      <span className="bae-drawer-field-label">النص الأصلي (كما ورد من البنك)</span>
+                      <span className="bae-drawer-field-label">{t('bank.explorer.original_text_from_bank')}</span>
                       <span className="bae-drawer-field-value mono">{pres.raw}</span>
                     </div>
                   )}
@@ -786,8 +882,8 @@ function TransactionDrawer({
                 <div className="bae-drawer-empty-illus">
                   <span className="material-symbols-outlined">attach_file</span>
                 </div>
-                <p className="bae-drawer-empty-title">لا توجد مرفقات</p>
-                <p className="bae-drawer-empty-msg">إرفاق المستندات بعمليات كشف الحساب غير مُفعّل حالياً.</p>
+                <p className="bae-drawer-empty-title">{t('bank.explorer.no_attachments')}</p>
+                <p className="bae-drawer-empty-msg">{t('bank.explorer.no_attachments_msg')}</p>
               </div>
             )}
           </div>
@@ -795,22 +891,22 @@ function TransactionDrawer({
           {/* ── Quick balance-flow summary (before → amount → after) ── */}
           {hasBalance && (
             <div className="bae-drawer-summary">
-              <div className="bae-drawer-summary-title">ملخص سريع</div>
+              <div className="bae-drawer-summary-title">{t('bank.explorer.quick_summary')}</div>
               <div className="bae-drawer-summary-flow">
                 <div className="bae-drawer-summary-cell">
-                  <span className="bae-drawer-summary-label">الرصيد قبل العملية</span>
+                  <span className="bae-drawer-summary-label">{t('bank.explorer.balance_before')}</span>
                   <span className="bae-drawer-summary-value money-cell">{moneyParts(beforeBalance).number}<span className="bae-drawer-summary-cur">{moneyParts(beforeBalance).currency}</span></span>
                 </div>
                 <span className="bae-drawer-summary-arrow material-symbols-outlined" aria-hidden="true">arrow_back</span>
                 <div className="bae-drawer-summary-cell">
-                  <span className="bae-drawer-summary-label">المبلغ</span>
+                  <span className="bae-drawer-summary-label">{t('col.amount')}</span>
                   <span className={`bae-drawer-summary-value money-cell ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
                     {isIncoming ? '+' : '−'}{moneyParts(heroAmount).number}<span className="bae-drawer-summary-cur">{moneyParts(heroAmount).currency}</span>
                   </span>
                 </div>
                 <span className="bae-drawer-summary-arrow material-symbols-outlined" aria-hidden="true">arrow_back</span>
                 <div className="bae-drawer-summary-cell">
-                  <span className="bae-drawer-summary-label">الرصيد بعد العملية</span>
+                  <span className="bae-drawer-summary-label">{t('bank.explorer.balance_after')}</span>
                   <span className="bae-drawer-summary-value bae-drawer-primary money-cell">{moneyParts(afterBalance).number}<span className="bae-drawer-summary-cur">{moneyParts(afterBalance).currency}</span></span>
                 </div>
               </div>
@@ -820,9 +916,9 @@ function TransactionDrawer({
 
         {/* ── Footer ── */}
         <div className="bae-drawer-footer">
-          {tx.reference && <CopyButton value={tx.reference} label="نسخ المرجع" />}
-          {tx.transactionFingerprint && <CopyButton value={tx.transactionFingerprint} label="نسخ البصمة" />}
-          <button type="button" className="btn bae-drawer-close-btn" onClick={onClose}>إغلاق</button>
+          {tx.reference && <CopyButton value={tx.reference} label={t('bank.explorer.copy_reference')} />}
+          {tx.transactionFingerprint && <CopyButton value={tx.transactionFingerprint} label={t('bank.explorer.copy_fingerprint')} />}
+          <button type="button" className="btn bae-drawer-close-btn" onClick={onClose}>{t('action.close')}</button>
         </div>
       </div>
     </>
@@ -843,6 +939,7 @@ export function TimelineTab({
   accountKey: string;
   bankName:   string;
 }) {
+  const { t } = useT();
   const PAGE_SIZE = 50;
 
   const [result, setResult]   = useState<TimelineResult | null>(null);
@@ -868,7 +965,7 @@ export function TimelineTab({
     setError(null);
     getTimeline(accountKey, page, PAGE_SIZE, filters)
       .then((r) => { if (!cancelled) setResult(r); })
-      .catch((e) => { if (!cancelled) setError(errorMessage(e) || 'فشل تحميل الحركات'); })
+      .catch((e) => { if (!cancelled) setError(errorMessage(e) || t('bank.explorer.load_tx_failed')); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [accountKey, page, filters]);
@@ -930,7 +1027,7 @@ export function TimelineTab({
   // Active filter chips.
   const chips: FilterChip[] = [];
   if (filters.search) {
-    chips.push({ key: 'search', label: `بحث: «${filters.search}»`, onRemove: () => onSearchInput('') });
+    chips.push({ key: 'search', label: t('bank.explorer.search_chip', { query: filters.search }), onRemove: () => onSearchInput('') });
   }
   if (filters.fromDate || filters.toDate) {
     const label = quick
@@ -942,13 +1039,13 @@ export function TimelineTab({
     chips.push({ key: 'type', label: TYPE_LABELS[filters.type], onRemove: () => patchFilters({ type: 'all' }) });
   }
   if (filters.minAmount != null) {
-    chips.push({ key: 'min', label: `من ${filters.minAmount}`, onRemove: () => { setMinInput(''); patchFilters({ minAmount: undefined }); } });
+    chips.push({ key: 'min', label: t('bank.explorer.min_amount_chip', { amount: filters.minAmount }), onRemove: () => { setMinInput(''); patchFilters({ minAmount: undefined }); } });
   }
   if (filters.maxAmount != null) {
-    chips.push({ key: 'max', label: `إلى ${filters.maxAmount}`, onRemove: () => { setMaxInput(''); patchFilters({ maxAmount: undefined }); } });
+    chips.push({ key: 'max', label: t('bank.explorer.max_amount_chip', { amount: filters.maxAmount }), onRemove: () => { setMaxInput(''); patchFilters({ maxAmount: undefined }); } });
   }
 
-  const openDrawer = (t: TimelineTransaction) => setDrawerTx(t);
+  const openDrawer = (tx: TimelineTransaction) => setDrawerTx(tx);
 
   return (
     <div className="bae-tab-content">
@@ -960,35 +1057,35 @@ export function TimelineTab({
             <span className="material-symbols-outlined bae-filter-icon">search</span>
             <input
               className="bae-filter-input"
-              placeholder="بحث في الوصف أو المرجع…"
+              placeholder={t('bank.explorer.search_placeholder')}
               value={searchInput}
               onChange={(e) => onSearchInput(e.target.value)}
             />
             {searchInput && (
-              <button type="button" className="bae-clear-btn" onClick={() => onSearchInput('')} aria-label="مسح البحث">
+              <button type="button" className="bae-clear-btn" onClick={() => onSearchInput('')} aria-label={t('bank.explorer.clear_search')}>
                 <span className="material-symbols-outlined">close</span>
               </button>
             )}
           </div>
           <div className="bae-filter-actions">
             {hasActiveFilters && (
-              <button type="button" className="btn secondary bae-clear-filters-inline" onClick={clearAllFilters} title="مسح جميع الفلاتر">
+              <button type="button" className="btn secondary bae-clear-filters-inline" onClick={clearAllFilters} title={t('bank.explorer.clear_all_filters')}>
                 <span className="material-symbols-outlined">filter_alt_off</span>
-                مسح
+                {t('page.warning.clear_confirm_btn')}
               </button>
             )}
-            <button type="button" className="btn secondary bae-icon-btn" onClick={refresh} title="تحديث" aria-label="تحديث">
+            <button type="button" className="btn secondary bae-icon-btn" onClick={refresh} title={t('action.refresh')} aria-label={t('action.refresh')}>
               <span className="material-symbols-outlined">refresh</span>
             </button>
             <button
               type="button"
               className="btn secondary bae-export-btn"
-              onClick={() => shown > 0 && result && exportTimelineCsv(result.transactions, bankName, accountKey)}
+              onClick={() => shown > 0 && result && exportTimelineCsv(result.transactions, bankName, accountKey, t)}
               disabled={shown === 0}
-              title="تصدير الصفحة الحالية"
+              title={t('bank.explorer.export_current_page')}
             >
               <span className="material-symbols-outlined">download</span>
-              تصدير CSV
+              {t('bank.explorer.export_csv')}
             </button>
           </div>
         </div>
@@ -998,17 +1095,17 @@ export function TimelineTab({
           <div className="bae-filter-group">
             <span className="bae-filter-group-label">
               <span className="material-symbols-outlined">category</span>
-              نوع المعاملة
+              {t('bank.explorer.tx_type_filter')}
             </span>
-            <div className="bae-type-group" role="group" aria-label="نوع المعاملة">
-              {TYPE_OPTIONS.map((t) => (
+            <div className="bae-type-group" role="group" aria-label={t('bank.explorer.tx_type_filter')}>
+              {TYPE_OPTIONS.map((opt) => (
                 <button
-                  key={t}
+                  key={opt}
                   type="button"
-                  className={`bae-chip-btn${(filters.type ?? 'all') === t ? ' active' : ''}`}
-                  onClick={() => patchFilters({ type: t })}
+                  className={`bae-chip-btn${(filters.type ?? 'all') === opt ? ' active' : ''}`}
+                  onClick={() => patchFilters({ type: opt })}
                 >
-                  {TYPE_LABELS[t]}
+                  {TYPE_LABELS[opt]}
                 </button>
               ))}
             </div>
@@ -1017,7 +1114,7 @@ export function TimelineTab({
           <div className="bae-filter-group">
             <span className="bae-filter-group-label">
               <span className="material-symbols-outlined">calendar_month</span>
-              الفترة
+              {t('col.sal.period')}
             </span>
             <div className="bae-quick-ranges">
               {QUICK_RANGES.map((r) => (
@@ -1036,16 +1133,16 @@ export function TimelineTab({
                 className="bae-date-input"
                 value={filters.fromDate ?? ''}
                 onChange={(v) => onDateChange('from', v)}
-                title="من تاريخ"
-                ariaLabel="من تاريخ"
+                title={t('filter.date_from')}
+                ariaLabel={t('filter.date_from')}
               />
               <span className="bae-range-sep" aria-hidden="true">—</span>
               <DateInput
                 className="bae-date-input"
                 value={filters.toDate ?? ''}
                 onChange={(v) => onDateChange('to', v)}
-                title="إلى تاريخ"
-                ariaLabel="إلى تاريخ"
+                title={t('filter.date_to')}
+                ariaLabel={t('filter.date_to')}
               />
             </div>
           </div>
@@ -1053,7 +1150,7 @@ export function TimelineTab({
           <div className="bae-filter-group">
             <span className="bae-filter-group-label">
               <span className="material-symbols-outlined">payments</span>
-              نطاق المبلغ (KWD)
+              {t('bank.explorer.amount_range_kwd')}
             </span>
             <div className="bae-amount-range">
               <input
@@ -1061,10 +1158,10 @@ export function TimelineTab({
                 type="number"
                 min="0"
                 step="0.001"
-                placeholder="من مبلغ"
+                placeholder={t('bank.explorer.min_amount_ph')}
                 value={minInput}
                 onChange={(e) => onAmountInput('min', e.target.value)}
-                aria-label="من مبلغ"
+                aria-label={t('bank.explorer.min_amount_ph')}
               />
               <span className="bae-range-sep" aria-hidden="true">—</span>
               <input
@@ -1072,10 +1169,10 @@ export function TimelineTab({
                 type="number"
                 min="0"
                 step="0.001"
-                placeholder="إلى مبلغ"
+                placeholder={t('bank.explorer.max_amount_ph')}
                 value={maxInput}
                 onChange={(e) => onAmountInput('max', e.target.value)}
-                aria-label="إلى مبلغ"
+                aria-label={t('bank.explorer.max_amount_ph')}
               />
             </div>
           </div>
@@ -1088,20 +1185,20 @@ export function TimelineTab({
               {chips.map((c) => (
                 <span key={c.key} className="bae-active-chip">
                   {c.label}
-                  <button type="button" onClick={c.onRemove} aria-label={`إزالة ${c.label}`}>
+                  <button type="button" onClick={c.onRemove} aria-label={t('bank.explorer.remove_chip', { label: c.label })}>
                     <span className="material-symbols-outlined">close</span>
                   </button>
                 </span>
               ))}
               {chips.length > 0 && (
                 <button type="button" className="bae-clear-all-link" onClick={clearAllFilters}>
-                  مسح الكل
+                  {t('bank.explorer.clear_all')}
                 </button>
               )}
             </div>
             {result && (
               <span className="bae-result-count">
-                {total.toLocaleString()} نتيجة
+                {t('bank.explorer.result_count', { count: total.toLocaleString() })}
                 {result.fromDate && <> · {fmtDate(result.fromDate)} — {fmtDate(result.toDate)}</>}
                 {' · '}
                 <span className="bae-result-total">
@@ -1115,7 +1212,7 @@ export function TimelineTab({
 
       {/* Loading skeleton */}
       {loading && (
-        <div className="bae-skeleton-table" aria-busy="true" aria-label="جارٍ التحميل">
+        <div className="bae-skeleton-table" aria-busy="true" aria-label={t('bank.explorer.loading_aria')}>
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="bae-skeleton-row">
               <span className="bae-skeleton-cell bae-sk-sm" />
@@ -1130,7 +1227,7 @@ export function TimelineTab({
       {!loading && error && (
         <div className="bae-error">
           <span>{error}</span>
-          <button type="button" className="btn secondary" onClick={refresh}>إعادة المحاولة</button>
+          <button type="button" className="btn secondary" onClick={refresh}>{t('page.dashboard.retry')}</button>
         </div>
       )}
 
@@ -1138,11 +1235,11 @@ export function TimelineTab({
       {!loading && !error && result && shown === 0 && hasActiveFilters && (
         <div className="bae-empty-state">
           <div className="bae-empty-illus bae-empty-illus--lg"><span className="material-symbols-outlined">filter_alt_off</span></div>
-          <h3>لا توجد معاملات مطابقة</h3>
-          <p className="bae-empty-msg">لم نعثر على أي معاملة تطابق الفلاتر الحالية. جرّب توسيع نطاق التاريخ، أو تغيير نوع المعاملة، أو مسح الفلاتر النشطة.</p>
+          <h3>{t('bank.explorer.no_matching_tx')}</h3>
+          <p className="bae-empty-msg">{t('bank.explorer.no_matching_tx_msg')}</p>
           <button type="button" className="btn bae-clear-filters-btn" onClick={clearAllFilters}>
             <span className="material-symbols-outlined">filter_alt_off</span>
-            مسح جميع الفلاتر
+            {t('bank.explorer.clear_all_filters')}
           </button>
         </div>
       )}
@@ -1151,11 +1248,11 @@ export function TimelineTab({
       {!loading && !error && result && shown === 0 && !hasActiveFilters && (
         <div className="bae-empty-state">
           <div className="bae-empty-illus bae-empty-illus--lg"><span className="material-symbols-outlined">receipt_long</span></div>
-          <h3>لا توجد معاملات في هذا الحساب</h3>
-          <p className="bae-empty-msg">لم يتم استيراد أي معاملات لهذا الحساب بعد. أضف كشف حساب بنكي لبدء استعراض السجل الزمني للعمليات.</p>
+          <h3>{t('bank.explorer.no_tx_in_account')}</h3>
+          <p className="bae-empty-msg">{t('bank.explorer.no_tx_in_account_msg')}</p>
           <button type="button" className="btn secondary" onClick={refresh}>
             <span className="material-symbols-outlined">refresh</span>
-            تحديث
+            {t('action.refresh')}
           </button>
         </div>
       )}
@@ -1170,39 +1267,39 @@ export function TimelineTab({
             <table className="bae-timeline-table bae-timeline-table--exec">
               <thead>
                 <tr>
-                  <th className="bae-col-op">العملية</th>
-                  <th className="bae-col-date">التاريخ</th>
-                  <th className="bae-col-type">النوع</th>
-                  <th className="bae-col-desc-main">الوصف</th>
-                  <th className="bae-col-amount">{fcMoneyHeader('المبلغ')}</th>
-                  <th className="bae-col-balance">{fcMoneyHeader('الرصيد بعد العملية')}</th>
-                  <th className="bae-col-chevron" aria-label="فتح" />
+                  <th className="bae-col-op">{t('bank.explorer.col_operation')}</th>
+                  <th className="bae-col-date">{t('col.date')}</th>
+                  <th className="bae-col-type">{t('col.type')}</th>
+                  <th className="bae-col-desc-main">{t('col.description')}</th>
+                  <th className="bae-col-amount">{fcMoneyHeader(t('col.amount'))}</th>
+                  <th className="bae-col-balance">{fcMoneyHeader(t('bank.explorer.balance_after'))}</th>
+                  <th className="bae-col-chevron" aria-label={t('bank.explorer.open_action')} />
                 </tr>
               </thead>
               <tbody>
-                {result.transactions.map((t) => {
-                  const isDeposit  = safeNum(t.credit) > 0;
-                  const isSelected = drawerTx?.id === t.id;
-                  const badge      = txTypeBadge(t);
-                  const pres       = presentTransaction(t);
-                  const amount     = isDeposit ? safeNum(t.credit) : safeNum(t.debit);
-                  const statusClass = t.reconcileStatus === 'MATCHED' ? 'good'
-                    : t.reconcileStatus === 'UNMATCHED' ? 'warn' : 'neutral';
+                {result.transactions.map((tx) => {
+                  const isDeposit  = safeNum(tx.credit) > 0;
+                  const isSelected = drawerTx?.id === tx.id;
+                  const badge      = txTypeBadge(tx, t);
+                  const pres       = presentTransaction(tx, t);
+                  const amount     = isDeposit ? safeNum(tx.credit) : safeNum(tx.debit);
+                  const statusClass = tx.reconcileStatus === 'MATCHED' ? 'good'
+                    : tx.reconcileStatus === 'UNMATCHED' ? 'warn' : 'neutral';
                   const rowClass = [
-                    t.isBankFee ? 'bae-row-fee' : '',
+                    tx.isBankFee ? 'bae-row-fee' : '',
                     isSelected ? 'bae-row-selected' : '',
                   ].filter(Boolean).join(' ');
                   return (
                     <tr
-                      key={t.id}
+                      key={tx.id}
                       className={rowClass}
-                      onClick={() => openDrawer(t)}
+                      onClick={() => openDrawer(tx)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrawer(t); }
+                        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDrawer(tx); }
                       }}
                       tabIndex={0}
                       role="button"
-                      aria-label={`تفاصيل معاملة ${t.description}`}
+                      aria-label={t('bank.explorer.tx_details_aria', { description: tx.description })}
                     >
                       {/* Operation: type icon + reconcile status dot */}
                       <td className="bae-col-op">
@@ -1212,17 +1309,17 @@ export function TimelineTab({
                           </span>
                           <span
                             className={`bae-status-dot-cell bae-status-dot-cell--${statusClass}`}
-                            title={RECONCILE_LABELS[t.reconcileStatus] ?? t.reconcileStatus}
+                            title={reconcileLabel(tx.reconcileStatus, t)}
                           />
                         </span>
                       </td>
-                      <td className="bae-col-date">{fmtDate(t.statementDate)}</td>
+                      <td className="bae-col-date">{fmtDate(tx.statementDate)}</td>
                       <td className="bae-col-type">
                         <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
                       </td>
                       {/* Description: single-line, ellipsis-truncated; full text via title tooltip */}
                       <td className="bae-col-desc-main">
-                        <span className="bae-tx-desc" title={t.description}>
+                        <span className="bae-tx-desc" title={tx.description}>
                           {pres.detail ? `${pres.category.label} — ${pres.detail.text}` : pres.category.label}
                         </span>
                       </td>
@@ -1232,7 +1329,7 @@ export function TimelineTab({
                         </span>
                       </td>
                       <td className="bae-col-balance">
-                        {t.balance != null ? formatNumber(safeNum(t.balance)) : '—'}
+                        {tx.balance != null ? formatNumber(safeNum(tx.balance)) : '—'}
                       </td>
                       <td className="bae-col-chevron">
                         <span className="material-symbols-outlined">chevron_left</span>
@@ -1269,6 +1366,7 @@ function monthLabel(m: MonthlyEntry): string {
 }
 
 export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard }) {
+  const { t } = useT();
   // Every array/number that reaches Recharts is sanitised here. Bad data renders
   // an empty state, never throws.
   const monthly = useMemo(
@@ -1303,16 +1401,16 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
 
   // Cash-flow distribution pie (drop zero slices so the chart never renders empty wedges).
   const pieData = useMemo(() => [
-    { name: 'إجمالي الإيداعات', value: safeAmount(dashboard.totalDeposits) },
-    { name: 'إجمالي السحوبات',  value: safeAmount(dashboard.totalWithdrawals) },
-  ].filter((d) => d.value > 0), [dashboard.totalDeposits, dashboard.totalWithdrawals]);
+    { name: t('bank.explorer.total_deposits'), value: safeAmount(dashboard.totalDeposits) },
+    { name: t('bank.explorer.total_withdrawals'), value: safeAmount(dashboard.totalWithdrawals) },
+  ].filter((d) => d.value > 0), [dashboard.totalDeposits, dashboard.totalWithdrawals, t]);
 
   if (monthly.length === 0) {
     return (
       <div className="bae-tab-content bae-empty-state">
         <div className="bae-empty-illus"><span className="material-symbols-outlined">bar_chart</span></div>
-        <h3>لا توجد بيانات كافية للتحليلات</h3>
-        <p>أضف كشف حساب بنكي يحتوي على معاملات لعرض الرسوم البيانية والتحليلات.</p>
+        <h3>{t('bank.explorer.no_analytics_data')}</h3>
+        <p>{t('bank.explorer.no_analytics_data_msg')}</p>
       </div>
     );
   }
@@ -1338,7 +1436,7 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
       <div className="bae-chart-section">
         <h4 className="bae-section-title">
           <span className="material-symbols-outlined">account_balance</span>
-          الرصيد التراكمي عبر الزمن
+          {t('bank.explorer.chart_running_balance')}
         </h4>
         <div className="bae-chart-wrap">
           <ResponsiveContainer width="100%" height={280}>
@@ -1347,7 +1445,7 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
               {xAxis}
               <YAxis tick={{ fontSize: 11, fill: 'var(--muted)' }} />
               <Tooltip content={<ChartTooltip />} />
-              <Line type="monotone" dataKey="الرصيد" stroke="#6366f1" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="الرصيد" name={t('bank.explorer.balance_series')} stroke="#6366f1" strokeWidth={2.5} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -1357,7 +1455,7 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
       <div className="bae-chart-section">
         <h4 className="bae-section-title">
           <span className="material-symbols-outlined">bar_chart</span>
-          التدفق الشهري — إيداعات مقابل سحوبات
+          {t('bank.explorer.chart_monthly_flow')}
         </h4>
         <div className="bae-chart-wrap">
           <ResponsiveContainer width="100%" height={300}>
@@ -1367,8 +1465,8 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
               <YAxis tick={{ fontSize: 11, fill: 'var(--muted)' }} />
               <Tooltip content={<ChartTooltip />} />
               <Legend wrapperStyle={{ fontFamily: ARABIC_FONT, fontSize: 12, direction: 'rtl' }} />
-              <Bar dataKey="إيداعات" fill="#10b981" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="سحوبات"  fill="#ef4444" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="إيداعات" name={t('bank.explorer.deposits_series')} fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="سحوبات"  name={t('bank.explorer.withdrawals_series')} fill="#ef4444" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -1379,7 +1477,7 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
         <div className="bae-chart-section">
           <h4 className="bae-section-title">
             <span className="material-symbols-outlined">insights</span>
-            عدد العمليات شهرياً
+            {t('bank.explorer.chart_monthly_tx_count')}
           </h4>
           <div className="bae-chart-wrap">
             <ResponsiveContainer width="100%" height={260}>
@@ -1388,7 +1486,7 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
                 {xAxis}
                 <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--muted)' }} />
                 <Tooltip content={<ChartTooltip />} />
-                <Bar dataKey="عمليات" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="عمليات" name={t('bank.explorer.tx_count_series')} fill="#6366f1" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1398,7 +1496,7 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
           <div className="bae-chart-section">
             <h4 className="bae-section-title">
               <span className="material-symbols-outlined">donut_large</span>
-              توزيع التدفق النقدي
+              {t('bank.explorer.chart_cash_flow_distribution')}
             </h4>
             <div className="bae-chart-wrap bae-chart-pie-wrap">
               <ResponsiveContainer width="100%" height={260}>
@@ -1430,16 +1528,16 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
           <div className="bae-top-section">
             <h4 className="bae-section-title">
               <span className="material-symbols-outlined">arrow_upward</span>
-              أعلى الإيداعات
+              {t('bank.explorer.top_deposits')}
             </h4>
             <table className="bae-top-table">
-              <thead><tr><th>التاريخ</th><th>الوصف</th><th>{fcMoneyHeader('المبلغ')}</th></tr></thead>
+              <thead><tr><th>{t('col.date')}</th><th>{t('col.description')}</th><th>{fcMoneyHeader(t('col.amount'))}</th></tr></thead>
               <tbody>
-                {topDeposits.map((t) => (
-                  <tr key={t.id}>
-                    <td>{fmtDate(t.statementDate)}</td>
-                    <td className="bae-desc-cell" title={t.description}>{t.description}</td>
-                    <td className="bae-amount-green">{fmtAmount(safeNum(t.amount))}</td>
+                {topDeposits.map((row) => (
+                  <tr key={row.id}>
+                    <td>{fmtDate(row.statementDate)}</td>
+                    <td className="bae-desc-cell" title={row.description}>{row.description}</td>
+                    <td className="bae-amount-green">{fmtAmount(safeNum(row.amount))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1450,16 +1548,16 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
           <div className="bae-top-section">
             <h4 className="bae-section-title">
               <span className="material-symbols-outlined">arrow_downward</span>
-              أعلى السحوبات
+              {t('bank.explorer.top_withdrawals')}
             </h4>
             <table className="bae-top-table">
-              <thead><tr><th>التاريخ</th><th>الوصف</th><th>{fcMoneyHeader('المبلغ')}</th></tr></thead>
+              <thead><tr><th>{t('col.date')}</th><th>{t('col.description')}</th><th>{fcMoneyHeader(t('col.amount'))}</th></tr></thead>
               <tbody>
-                {topWithdrawals.map((t) => (
-                  <tr key={t.id}>
-                    <td>{fmtDate(t.statementDate)}</td>
-                    <td className="bae-desc-cell" title={t.description}>{t.description}</td>
-                    <td className="bae-amount-red">{fmtAmount(safeNum(t.amount))}</td>
+                {topWithdrawals.map((row) => (
+                  <tr key={row.id}>
+                    <td>{fmtDate(row.statementDate)}</td>
+                    <td className="bae-desc-cell" title={row.description}>{row.description}</td>
+                    <td className="bae-amount-red">{fmtAmount(safeNum(row.amount))}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1472,14 +1570,14 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
       <div className="bae-chart-section">
         <h4 className="bae-section-title">
           <span className="material-symbols-outlined">table_chart</span>
-          تفاصيل شهرية
+          {t('bank.explorer.monthly_details')}
         </h4>
         <div className="bae-monthly-scroll">
           <table className="bae-top-table">
             <thead>
               <tr>
-                <th>الشهر</th><th>إيداعات</th><th>أكبر إيداع</th>
-                <th>سحوبات</th><th>أكبر سحب</th><th>صافي</th><th>عمليات</th>
+                <th>{t('bank.explorer.col_month')}</th><th>{t('bank.explorer.deposits_series')}</th><th>{t('bank.explorer.largest_deposit')}</th>
+                <th>{t('bank.explorer.withdrawals_series')}</th><th>{t('bank.explorer.largest_withdrawal')}</th><th>{t('bank.explorer.net')}</th><th>{t('bank.explorer.tx_count_series')}</th>
               </tr>
             </thead>
             <tbody>
@@ -1507,6 +1605,7 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
 // ── Tab: Imports ──────────────────────────────────────────────────────────────
 
 function ImportsTab({ accountKey }: { accountKey: string }) {
+  const { t } = useT();
   const [imports, setImports]   = useState<ImportListItem[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -1519,36 +1618,36 @@ function ImportsTab({ accountKey }: { accountKey: string }) {
         const filtered = r.items.filter((i) => i.accountKey === accountKey);
         setImports(filtered);
       })
-      .catch((e) => setError(errorMessage(e) || 'فشل تحميل الدفعات'))
+      .catch((e) => setError(errorMessage(e) || t('bank.explorer.load_batches_failed')))
       .finally(() => setLoading(false));
-  }, [accountKey]);
+  }, [accountKey, t]);
 
   return (
     <div className="bae-tab-content">
-      {loading && <div className="bae-loading"><span className="spinner" /> جارٍ التحميل…</div>}
+      {loading && <div className="bae-loading"><span className="spinner" /> {t('msg.loading')}</div>}
       {!loading && error && <div className="bae-error">{error}</div>}
       {!loading && !error && imports.length === 0 && (
         <div className="bae-empty-state">
           <span className="material-symbols-outlined">upload_file</span>
-          <p>لا توجد دفعات استيراد لهذا الحساب.</p>
+          <p>{t('bank.explorer.no_import_batches')}</p>
         </div>
       )}
       {!loading && !error && imports.length > 0 && (
         <>
-          <p className="bae-imports-count">{imports.length} دفعة استيراد</p>
+          <p className="bae-imports-count">{t('bank.explorer.batch_count', { count: imports.length })}</p>
           <div className="bae-table-wrap">
             <table className="bae-timeline-table">
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>الملف</th>
-                  <th>من تاريخ</th>
-                  <th>إلى تاريخ</th>
-                  <th>الصفوف</th>
-                  <th>إيداعات</th>
-                  <th>سحوبات</th>
-                  <th>مستورد بواسطة</th>
-                  <th>تاريخ الاستيراد</th>
+                  <th>{t('col.backup.file')}</th>
+                  <th>{t('filter.date_from')}</th>
+                  <th>{t('filter.date_to')}</th>
+                  <th>{t('bank.explorer.rows')}</th>
+                  <th>{t('bank.explorer.deposits_series')}</th>
+                  <th>{t('bank.explorer.withdrawals_series')}</th>
+                  <th>{t('bank.explorer.imported_by')}</th>
+                  <th>{t('bank.explorer.import_date')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1585,6 +1684,7 @@ function ExportTab({
   bankName:   string;
   dashboard:  BankAccountDashboard;
 }) {
+  const { t } = useT();
   const [loading, setLoading]   = useState(false);
   const [done, setDone]         = useState(false);
   const [error, setError]       = useState<string | null>(null);
@@ -1602,27 +1702,27 @@ function ExportTab({
         const r = await getTimeline(accountKey, p, PAGE);
         all.push(...r.transactions);
       }
-      exportTimelineCsv(all, bankName, accountKey);
+      exportTimelineCsv(all, bankName, accountKey, t);
       setDone(true);
     } catch (e) {
-      setError(errorMessage(e) || 'فشل التصدير');
+      setError(errorMessage(e) || t('bank.explorer.export_failed'));
     } finally {
       setLoading(false);
     }
-  }, [accountKey, bankName, dashboard.transactionCount]);
+  }, [accountKey, bankName, dashboard.transactionCount, t]);
 
   return (
     <div className="bae-tab-content bae-export-tab">
       <div className="bae-export-card">
         <span className="material-symbols-outlined bae-export-icon">download</span>
-        <h3>تصدير بيانات الحساب</h3>
+        <h3>{t('bank.explorer.export_account_data')}</h3>
         <p>
-          تصدير {dashboard.transactionCount.toLocaleString()} معاملة لحساب{' '}
-          <strong>{bankName}</strong> بصيغة CSV.
+          {t('bank.explorer.export_intro', { count: dashboard.transactionCount.toLocaleString() })}{' '}
+          <strong>{bankName}</strong> {t('bank.explorer.export_suffix')}
         </p>
         {dashboard.coverageStart && (
           <p className="bae-export-range">
-            الفترة: {fmtDate(dashboard.coverageStart)} — {fmtDate(dashboard.coverageEnd)}
+            {t('col.sal.period')}: {fmtDate(dashboard.coverageStart)} — {fmtDate(dashboard.coverageEnd)}
           </p>
         )}
         <button
@@ -1632,13 +1732,13 @@ function ExportTab({
           disabled={loading || dashboard.transactionCount === 0}
         >
           {loading
-            ? <><span className="spinner bae-btn-spinner" />  جارٍ التصدير…</>
-            : <><span className="material-symbols-outlined">download</span> تصدير CSV</>}
+            ? <><span className="spinner bae-btn-spinner" />  {t('bank.explorer.exporting')}</>
+            : <><span className="material-symbols-outlined">download</span> {t('bank.explorer.export_csv')}</>}
         </button>
         {done && (
           <p className="bae-export-done">
             <span className="material-symbols-outlined">check_circle</span>
-            تم تصدير الملف بنجاح
+            {t('bank.explorer.export_success')}
           </p>
         )}
         {error && <p className="bae-export-error">{error}</p>}
@@ -1654,14 +1754,17 @@ type Tab = 'timeline' | 'analytics' | 'imports' | 'export';
 // Secondary slim tabs — the executive header + KPI row + timeline form the
 // primary landing experience; Analytics / Imports / Export remain accessible
 // here so no existing functionality is lost.
-const TABS: { key: Tab; label: string; icon: string }[] = [
-  { key: 'timeline',   label: 'السجل الزمني',    icon: 'receipt_long' },
-  { key: 'analytics',  label: 'التحليلات',       icon: 'bar_chart' },
-  { key: 'imports',    label: 'دفعات الاستيراد', icon: 'upload_file' },
-  { key: 'export',     label: 'تصدير',           icon: 'download' },
+// `labelKey` reuses 'perm.action.export' and 'bank.explorer.import_batches'
+// where an exact DICT.ar match exists; otherwise a new bank.explorer.* key.
+const TABS: { key: Tab; labelKey: string; icon: string }[] = [
+  { key: 'timeline',   labelKey: 'bank.explorer.tab_timeline',   icon: 'receipt_long' },
+  { key: 'analytics',  labelKey: 'bank.explorer.tab_analytics',  icon: 'bar_chart' },
+  { key: 'imports',    labelKey: 'bank.explorer.import_batches', icon: 'upload_file' },
+  { key: 'export',     labelKey: 'perm.action.export',           icon: 'download' },
 ];
 
 export default function BankAccountExplorer() {
+  const { t } = useT();
   const { accountKey: rawKey } = useParams<{ accountKey: string }>();
   const navigate               = useNavigate();
   const { hasPermission }      = useAuth();
@@ -1681,9 +1784,9 @@ export default function BankAccountExplorer() {
     setError(null);
     getBankAccountDashboard(accountKey)
       .then(setDashboard)
-      .catch((e) => setError(errorMessage(e) || 'فشل تحميل بيانات الحساب'))
+      .catch((e) => setError(errorMessage(e) || t('bank.explorer.load_account_failed')))
       .finally(() => setLoading(false));
-  }, [accountKey, canView]);
+  }, [accountKey, canView, t]);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
 
@@ -1691,7 +1794,7 @@ export default function BankAccountExplorer() {
     return (
       <div className="bae-permission-error" dir="rtl">
         <span className="material-symbols-outlined">lock</span>
-        <p>ليس لديك صلاحية لعرض بيانات الحساب البنكي.</p>
+        <p>{t('bank.explorer.no_permission')}</p>
       </div>
     );
   }
@@ -1700,16 +1803,16 @@ export default function BankAccountExplorer() {
     <div className="bae-root" dir="rtl">
       {/* ── Page title + breadcrumb ── */}
       <div className="bae-page-head">
-        <nav className="bae-breadcrumb" aria-label="مسار التنقل">
-          <button type="button" onClick={() => navigate('/')}>الرئيسية</button>
+        <nav className="bae-breadcrumb" aria-label={t('bank.explorer.breadcrumb_nav')}>
+          <button type="button" onClick={() => navigate('/')}>{t('bank.explorer.home')}</button>
           <span className="bae-breadcrumb-sep" aria-hidden="true">/</span>
-          <button type="button" onClick={() => navigate('/bank-accounts')}>الحسابات البنكية</button>
+          <button type="button" onClick={() => navigate('/bank-accounts')}>{t('nav.bank_reconciliation')}</button>
           <span className="bae-breadcrumb-sep" aria-hidden="true">/</span>
-          <span className="bae-breadcrumb-current" aria-current="page">مستعرض الحسابات</span>
+          <span className="bae-breadcrumb-current" aria-current="page">{t('nav.bank_accounts')}</span>
         </nav>
         <h1 className="bae-page-title">
           <span className="material-symbols-outlined">account_balance</span>
-          مستعرض الحسابات البنكية
+          {t('bank.explorer.page_title')}
         </h1>
       </div>
 
@@ -1717,7 +1820,7 @@ export default function BankAccountExplorer() {
       {loading && (
         <div className="bae-loading-center">
           <span className="spinner" />
-          <span>جارٍ تحميل بيانات الحساب…</span>
+          <span>{t('bank.explorer.loading_account')}</span>
         </div>
       )}
 
@@ -1725,7 +1828,7 @@ export default function BankAccountExplorer() {
         <div className="bae-error-center">
           <span className="material-symbols-outlined">error_outline</span>
           <p>{error}</p>
-          <button type="button" className="btn secondary" onClick={loadDashboard}>إعادة المحاولة</button>
+          <button type="button" className="btn secondary" onClick={loadDashboard}>{t('page.dashboard.retry')}</button>
         </div>
       )}
 
@@ -1744,17 +1847,17 @@ export default function BankAccountExplorer() {
 
           {/* ── Primary navigation tabs ── */}
           <div className="bae-tab-bar bae-tab-bar--nav" role="tablist">
-            {TABS.map((t) => (
+            {TABS.map((tabItem) => (
               <button
                 type="button"
-                key={t.key}
+                key={tabItem.key}
                 role="tab"
-                aria-selected={tab === t.key ? 'true' : 'false'}
-                className={`bae-tab-btn${tab === t.key ? ' active' : ''}`}
-                onClick={() => setTab(t.key)}
+                aria-selected={tab === tabItem.key ? 'true' : 'false'}
+                className={`bae-tab-btn${tab === tabItem.key ? ' active' : ''}`}
+                onClick={() => setTab(tabItem.key)}
               >
-                <span className="material-symbols-outlined bae-tab-icon">{t.icon}</span>
-                {t.label}
+                <span className="material-symbols-outlined bae-tab-icon">{tabItem.icon}</span>
+                {t(tabItem.labelKey)}
               </button>
             ))}
           </div>
@@ -1763,7 +1866,7 @@ export default function BankAccountExplorer() {
           <ErrorBoundary
             resetKey={tab}
             onReset={() => setTab('timeline')}
-            resetLabel="العودة للسجل الزمني"
+            resetLabel={t('bank.explorer.back_to_timeline')}
           >
             {tab === 'timeline'  && <TimelineTab  accountKey={accountKey} bankName={dashboard.bankName} />}
             {tab === 'analytics' && <AnalyticsTab dashboard={dashboard} />}

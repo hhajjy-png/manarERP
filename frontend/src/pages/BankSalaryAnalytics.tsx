@@ -21,6 +21,7 @@ import { usePersistedState } from '../hooks/usePersistedState';
 import './BankSalaryAnalytics.css';
 import { money, MoneyText } from '../config/modules';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
+import { useT } from '../lib/i18n';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -136,17 +137,17 @@ const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
 type QuickChip = 'all' | '1m' | '3m' | '6m' | 'year' | 'lastyear' | 'highest' | 'lowest' | 'newest' | 'oldest';
 
-const QUICK_CHIPS: { key: QuickChip; label: string }[] = [
-  { key: 'all',      label: 'الكل' },
-  { key: '1m',       label: 'آخر شهر' },
-  { key: '3m',       label: 'آخر 3 أشهر' },
-  { key: '6m',       label: 'آخر 6 أشهر' },
-  { key: 'year',     label: 'هذه السنة' },
-  { key: 'lastyear', label: 'السنة الماضية' },
-  { key: 'highest',  label: 'أعلى الرواتب' },
-  { key: 'lowest',   label: 'أدنى الرواتب' },
-  { key: 'newest',   label: 'أحدث التحويلات' },
-  { key: 'oldest',   label: 'أقدم التحويلات' },
+const QUICK_CHIPS: { key: QuickChip; labelKey: string }[] = [
+  { key: 'all',      labelKey: 'bank.salary_analytics.chip_all' },
+  { key: '1m',       labelKey: 'bank.salary_analytics.chip_last_month' },
+  { key: '3m',       labelKey: 'bank.salary_analytics.chip_last_3_months' },
+  { key: '6m',       labelKey: 'bank.salary_analytics.chip_last_6_months' },
+  { key: 'year',     labelKey: 'bank.salary_analytics.chip_this_year' },
+  { key: 'lastyear', labelKey: 'bank.salary_analytics.chip_last_year' },
+  { key: 'highest',  labelKey: 'bank.salary_analytics.chip_highest_salaries' },
+  { key: 'lowest',   labelKey: 'bank.salary_analytics.chip_lowest_salaries' },
+  { key: 'newest',   labelKey: 'bank.salary_analytics.chip_newest_transfers' },
+  { key: 'oldest',   labelKey: 'bank.salary_analytics.chip_oldest_transfers' },
 ];
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -176,20 +177,20 @@ function buildParams(f: Filters, extra: Record<string, unknown> = {}): Record<st
 
 interface FilterChip { key: keyof Filters; label: string }
 
-function getActiveChips(f: Filters): FilterChip[] {
+function getActiveChips(f: Filters, t: (key: string, vars?: Record<string, string | number>) => string): FilterChip[] {
   const chips: FilterChip[] = [];
-  if (f.payrollYear) chips.push({ key: 'payrollYear', label: `السنة: ${f.payrollYear}` });
-  if (f.payrollMonth) chips.push({ key: 'payrollMonth', label: `الشهر: ${MONTHS_AR[(f.payrollMonth ?? 1) - 1]}` });
-  if (f.employeeId && f.employeeName) chips.push({ key: 'employeeId', label: `الموظف: ${f.employeeName}` });
-  if (f.dateFrom) chips.push({ key: 'dateFrom', label: `من: ${f.dateFrom}` });
-  if (f.dateTo) chips.push({ key: 'dateTo', label: `إلى: ${f.dateTo}` });
-  if (f.amountFrom) chips.push({ key: 'amountFrom', label: `م.من: ${f.amountFrom}` });
-  if (f.amountTo) chips.push({ key: 'amountTo', label: `م.إلى: ${f.amountTo}` });
-  if (f.transactionId) chips.push({ key: 'transactionId', label: `معاملة: ${f.transactionId}` });
-  if (f.civilId) chips.push({ key: 'civilId', label: `م.مدني: ${f.civilId}` });
-  if (f.bankAccount) chips.push({ key: 'bankAccount', label: `حساب: ${f.bankAccount}` });
-  if (f.status) chips.push({ key: 'status', label: `الحالة: ${f.status}` });
-  if (f.search) chips.push({ key: 'search', label: `بحث: ${f.search}` });
+  if (f.payrollYear) chips.push({ key: 'payrollYear', label: t('bank.salary_analytics.chip_year_value', { year: f.payrollYear }) });
+  if (f.payrollMonth) chips.push({ key: 'payrollMonth', label: t('bank.salary_analytics.chip_month_value', { month: MONTHS_AR[(f.payrollMonth ?? 1) - 1] }) });
+  if (f.employeeId && f.employeeName) chips.push({ key: 'employeeId', label: t('bank.salary_analytics.chip_employee_value', { name: f.employeeName }) });
+  if (f.dateFrom) chips.push({ key: 'dateFrom', label: t('bank.salary_analytics.chip_from_value', { date: f.dateFrom }) });
+  if (f.dateTo) chips.push({ key: 'dateTo', label: t('bank.salary_analytics.chip_to_value', { date: f.dateTo }) });
+  if (f.amountFrom) chips.push({ key: 'amountFrom', label: t('bank.salary_analytics.chip_amount_from_value', { amount: f.amountFrom }) });
+  if (f.amountTo) chips.push({ key: 'amountTo', label: t('bank.salary_analytics.chip_amount_to_value', { amount: f.amountTo }) });
+  if (f.transactionId) chips.push({ key: 'transactionId', label: t('bank.salary_analytics.chip_transaction_value', { id: f.transactionId }) });
+  if (f.civilId) chips.push({ key: 'civilId', label: t('bank.salary_analytics.chip_civil_id_value', { id: f.civilId }) });
+  if (f.bankAccount) chips.push({ key: 'bankAccount', label: t('bank.salary_analytics.chip_account_value', { account: f.bankAccount }) });
+  if (f.status) chips.push({ key: 'status', label: t('bank.salary_analytics.chip_status_value', { status: f.status }) });
+  if (f.search) chips.push({ key: 'search', label: t('bank.salary_analytics.chip_search_value', { query: f.search }) });
   return chips;
 }
 
@@ -215,6 +216,7 @@ export default function BankSalaryAnalytics() {
   const { lang } = useUI();
   const isRtl = lang === 'ar';
   const navigate = useNavigate();
+  const { t } = useT();
 
   const emptyFilters: Filters = {};
   const [draftFilters, setDraftFilters]     = useState<Filters>(emptyFilters);
@@ -280,11 +282,11 @@ export default function BankSalaryAnalytics() {
       const res = await api.get('/salaries/bank-payments/analytics', { params: buildParams(f) });
       setAnalytics(res.data.data);
     } catch {
-      setError('فشل تحميل بيانات التحليلات');
+      setError(t('bank.salary_analytics.load_failed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const loadTransactions = useCallback(async (f: Filters, page: number, pageSize: number, sortBy: string, sortDir: 'asc' | 'desc') => {
     setTxLoading(true);
@@ -467,8 +469,17 @@ export default function BankSalaryAnalytics() {
     setExportMenuOpen(false);
     if (format === 'print') { printCurrentView(); return; }
     if (format === 'csv') {
-      if (!txData?.data.length) { showToast('لا توجد بيانات للتصدير', 'error'); return; }
-      const headers = ['رقم المعاملة', 'الشهر', 'تاريخ الدفع', 'المستفيد', 'المبلغ', 'العملة', 'الرقم المدني', 'الحالة'];
+      if (!txData?.data.length) { showToast(t('bank.salary_analytics.no_export_data'), 'error'); return; }
+      const headers = [
+        t('bank.salary_analytics.transaction_no'),
+        t('bank.salary_analytics.month'),
+        t('col.sal.payment_date'),
+        t('col.sal.beneficiary'),
+        t('col.amount'),
+        t('col.cheque.currency'),
+        t('field.civil_id'),
+        t('field.status'),
+      ];
       const rows = txData.data.map((r) => [
         `"${r.transactionId}"`,
         r.sourceMonth ?? '',
@@ -486,7 +497,7 @@ export default function BankSalaryAnalytics() {
       a.download = generateExportFileName({ reportName: ReportName.BankAnalytics, identifier: empId ?? null, extension: 'csv' });
       a.click();
       URL.revokeObjectURL(a.href);
-      showToast('تم تصدير CSV بنجاح');
+      showToast(t('bank.salary_analytics.export_csv_success'));
       return;
     }
     try {
@@ -494,15 +505,15 @@ export default function BankSalaryAnalytics() {
       if (empId) params.employeeId = String(empId);
       const res = await api.get('/salaries/bank-payments/export', { params, responseType: 'blob' });
       downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.BankAnalytics, identifier: empId ?? null, extension: 'xlsx' }));
-      showToast('تم تصدير Excel بنجاح');
+      showToast(t('bank.salary_analytics.export_excel_success'));
     } catch {
-      showToast('فشل التصدير', 'error');
+      showToast(t('bank.salary_analytics.export_failed'), 'error');
     }
   };
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  const activeChips = getActiveChips(appliedFilters);
+  const activeChips = getActiveChips(appliedFilters, t);
   const varCls  = (v: number | null) => v === null ? 'psa-var-nil' : v >= 0 ? 'psa-var-pos' : 'psa-var-neg';
   const varLabel = (v: number | null) => v === null ? '—' : (v >= 0 ? '+' : '') + fmt3(v);
 
@@ -534,13 +545,13 @@ export default function BankSalaryAnalytics() {
   const qualityWarnings: { key: string; label: string }[] = [];
   if (analytics) {
     const unmatched = analytics.topEmployees.filter((e) => e.employeeId === null).length;
-    if (unmatched > 0) qualityWarnings.push({ key: 'unmatched', label: `${unmatched} مستفيد غير مرتبط بموظف` });
+    if (unmatched > 0) qualityWarnings.push({ key: 'unmatched', label: t('bank.salary_analytics.warn_unmatched', { count: unmatched }) });
     const noEmpMonths = analytics.months.filter((m) => !m.employeeCount).length;
-    if (noEmpMonths > 0) qualityWarnings.push({ key: 'noEmpMonths', label: `${noEmpMonths} شهر بدون إحصائيات موظفين` });
+    if (noEmpMonths > 0) qualityWarnings.push({ key: 'noEmpMonths', label: t('bank.salary_analytics.warn_no_emp_months', { count: noEmpMonths }) });
     const bigDrop = analytics.months.filter((m) => m.varianceFromPrev !== null && m.varianceFromPrev < -5000).length;
-    if (bigDrop > 0) qualityWarnings.push({ key: 'bigDrop', label: `${bigDrop} شهر بانخفاض مبلغ كبير (> 5,000 KWD)` });
+    if (bigDrop > 0) qualityWarnings.push({ key: 'bigDrop', label: t('bank.salary_analytics.warn_big_drop', { count: bigDrop }) });
     if (analytics.months.length === 0 && analytics.totalPayments > 0) {
-      qualityWarnings.push({ key: 'noMonths', label: 'لا توجد بيانات شهرية مصنّفة' });
+      qualityWarnings.push({ key: 'noMonths', label: t('bank.salary_analytics.warn_no_months') });
     }
   }
 
@@ -548,7 +559,7 @@ export default function BankSalaryAnalytics() {
 
   const kpiCards = analytics ? [
     {
-      label: 'إجمالي المبالغ المحوّلة',
+      label: t('bank.salary_analytics.kpi_total_amount_label'),
       // كان الرمز يُعرض كسطر «sub» **تحت** الرقم. صار بجواره في سطر واحد، ويتبع الإعداد.
       value: <PrivateAmount value={analytics.totalAmount} />,
       sub: '',
@@ -557,17 +568,17 @@ export default function BankSalaryAnalytics() {
       color: '#3B82F6',
     },
     {
-      label: 'عدد عمليات التحويل',
+      label: t('bank.salary_analytics.kpi_total_transfers_label'),
       value: analytics.totalPayments.toLocaleString('ar-KW'),
-      sub: 'عملية تحويل',
+      sub: t('bank.salary_analytics.unit_transfer'),
       icon: 'receipt_long',
       bg: 'rgba(139,92,246,0.12)',
       color: '#8B5CF6',
     },
     {
-      label: 'الموظفون المدرجون',
+      label: t('bank.salary_analytics.kpi_listed_employees_label'),
       value: analytics.uniqueEmployees.toLocaleString('ar-KW'),
-      sub: 'موظف فريد',
+      sub: t('bank.salary_analytics.unit_unique_employee'),
       icon: 'group',
       bg: 'rgba(16,185,129,0.12)',
       color: '#10B981',
@@ -575,41 +586,41 @@ export default function BankSalaryAnalytics() {
       onClick: () => { setFiltersOpen(true); },
     },
     {
-      label: 'الأشهر المرصودة',
+      label: t('bank.salary_analytics.kpi_tracked_months_label'),
       value: analytics.months.length.toLocaleString('ar-KW'),
-      sub: 'شهر بيانات',
+      sub: t('bank.salary_analytics.unit_data_month'),
       icon: 'calendar_month',
       bg: 'rgba(99,102,241,0.12)',
       color: '#6366F1',
     },
     {
-      label: 'متوسط الراتب',
+      label: t('bank.salary_analytics.kpi_avg_salary_label'),
       value: <PrivateAmount value={fmt3(avgSalary)} />,
-      sub: 'KWD لكل تحويل',
+      sub: t('bank.salary_analytics.unit_kwd_per_transfer'),
       icon: 'calculate',
       bg: 'rgba(20,184,166,0.12)',
       color: '#14B8A6',
     },
     {
-      label: 'أعلى شهر مبلغاً',
+      label: t('bank.salary_analytics.kpi_highest_month_label'),
       value: <PrivateAmount value={fmt3(maxMonthAmount)} />,
-      sub: 'KWD إجمالي شهري',
+      sub: t('bank.salary_analytics.unit_kwd_monthly_total'),
       icon: 'trending_up',
       bg: 'rgba(22,163,74,0.12)',
       color: '#16A34A',
     },
     {
-      label: 'آخر استيراد',
+      label: t('bank.salary_analytics.kpi_latest_import_label'),
       value: analytics.latestImport ? fmtDate(analytics.latestImport.importedAt) : '—',
-      sub: analytics.latestImport ? `${analytics.latestImport.batchCount} دفعة` : 'لا يوجد',
+      sub: analytics.latestImport ? t('bank.salary_analytics.batch_count', { count: analytics.latestImport.batchCount }) : t('bank.salary_analytics.none'),
       icon: 'upload_file',
       bg: 'var(--surface-2)',
       color: 'var(--text-muted)',
     },
     {
-      label: 'أشهر بزيادة',
+      label: t('bank.salary_analytics.kpi_increase_months_label'),
       value: posMonths.toLocaleString('ar-KW'),
-      sub: `من ${analytics.months.length} شهر`,
+      sub: t('bank.salary_analytics.of_months_count', { count: analytics.months.length }),
       icon: 'show_chart',
       bg: posMonths > 0 ? 'rgba(22,163,74,0.12)' : 'rgba(239,68,68,0.08)',
       color: posMonths > 0 ? '#16A34A' : '#ef4444',
@@ -622,7 +633,7 @@ export default function BankSalaryAnalytics() {
     {
       icon: 'arrow_upward',
       iconColor: '#16A34A',
-      label: 'أكبر تحويل فردي',
+      label: t('bank.salary_analytics.insight_max_transfer_label'),
       // القيمة الغائبة تعرض «—» وحدها — لا «— KWD».
       value: maxHighest > 0 ? <PrivateAmount value={maxHighest} /> : <span>—</span>,
       sub: '',
@@ -630,49 +641,49 @@ export default function BankSalaryAnalytics() {
     {
       icon: 'arrow_downward',
       iconColor: '#ef4444',
-      label: 'أصغر تحويل فردي',
+      label: t('bank.salary_analytics.insight_min_transfer_label'),
       value: minLowest < Infinity && minLowest > 0 ? <PrivateAmount value={minLowest} /> : <span>—</span>,
       sub: '',
     },
     {
       icon: 'workspace_premium',
       iconColor: '#F59E0B',
-      label: 'أعلى موظف راتباً',
+      label: t('bank.salary_analytics.insight_top_paid_employee_label'),
       value: analytics.topEmployees[0]?.beneficiaryName ?? '—',
       sub: analytics.topEmployees[0] ? <MoneyText value={analytics.topEmployees[0].totalAmount} /> : '',
     },
     {
       icon: 'emoji_events',
       iconColor: '#8B5CF6',
-      label: 'أكثر موظف تحويلاً',
+      label: t('bank.salary_analytics.insight_most_transfers_employee_label'),
       value: [...analytics.topEmployees].sort((a, b) => b.count - a.count)[0]?.beneficiaryName ?? '—',
-      sub: `${[...analytics.topEmployees].sort((a, b) => b.count - a.count)[0]?.count ?? 0} عملية`,
+      sub: t('bank.salary_analytics.op_count', { count: [...analytics.topEmployees].sort((a, b) => b.count - a.count)[0]?.count ?? 0 }),
     },
     {
       icon: 'trending_up',
       iconColor: '#3B82F6',
-      label: 'الأشهر الإيجابية',
+      label: t('bank.salary_analytics.insight_positive_months_label'),
       value: `${posMonths} / ${analytics.months.length}`,
-      sub: 'شهر بزيادة في الرواتب',
+      sub: t('bank.salary_analytics.months_with_salary_increase'),
     },
     {
       icon: 'people',
       iconColor: '#6366F1',
-      label: 'متوسط الموظفين شهرياً',
+      label: t('bank.salary_analytics.insight_avg_employees_monthly_label'),
       value: Number.isFinite(avgEmpCount) ? Math.round(avgEmpCount).toLocaleString('ar-KW') : '—',
-      sub: 'موظف لكل شهر',
+      sub: t('bank.salary_analytics.unit_employee_per_month'),
     },
     {
       icon: 'schedule',
       iconColor: '#14B8A6',
-      label: 'أحدث شهر بيانات',
+      label: t('bank.salary_analytics.insight_latest_data_month_label'),
       value: analytics.months.length > 0 ? analytics.months[analytics.months.length - 1].sourceMonth : '—',
       sub: analytics.months.length > 0 ? <MoneyText value={analytics.months[analytics.months.length - 1].totalAmount} /> : '',
     },
     {
       icon: 'change_history',
       iconColor: posMonths >= analytics.months.length / 2 ? '#16A34A' : '#ef4444',
-      label: 'التغيير الإجمالي',
+      label: t('bank.salary_analytics.insight_total_change_label'),
       value: analytics.months.length >= 2
         ? formatPercent((analytics.months[analytics.months.length - 1].totalAmount - analytics.months[0].totalAmount) / analytics.months[0].totalAmount * 100, 1)
         : '—',
@@ -688,8 +699,8 @@ export default function BankSalaryAnalytics() {
       {/* ── Package A: Professional Page Header ─────────────────────────── */}
       <div className="psa-header">
         <div className="psa-header-meta">
-          <h1>تحليلات الرواتب البنكية</h1>
-          <p>تحليل وإدارة تحويلات الرواتب المستوردة من البنك</p>
+          <h1>{t('bank.salary_analytics.page_title')}</h1>
+          <p>{t('bank.salary_analytics.page_subtitle')}</p>
           <div className="psa-header-chips">
             {analytics && (
               <>
@@ -699,11 +710,11 @@ export default function BankSalaryAnalytics() {
                 </span>
                 <span className="psa-header-tag green">
                   <span className="material-symbols-outlined" style={{ fontSize: 13 }}>group</span>
-                  {analytics.uniqueEmployees} موظف
+                  {t('bank.salary_analytics.employee_count', { count: analytics.uniqueEmployees })}
                 </span>
                 <span className="psa-header-tag gray">
                   <span className="material-symbols-outlined" style={{ fontSize: 13 }}>receipt_long</span>
-                  {analytics.totalPayments.toLocaleString('ar-KW')} عملية
+                  {t('bank.salary_analytics.op_count', { count: analytics.totalPayments.toLocaleString('ar-KW') })}
                 </span>
               </>
             )}
@@ -717,7 +728,7 @@ export default function BankSalaryAnalytics() {
             style={{ display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 16 }}>upload_file</span>
-            استيراد ملف
+            {t('bank.salary_analytics.import_file')}
           </button>
           {/* Package M: Export dropdown */}
           <div className="psa-export-wrap" ref={exportMenuRef}>
@@ -728,23 +739,23 @@ export default function BankSalaryAnalytics() {
               onClick={() => setExportMenuOpen((o) => !o)}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>download</span>
-              تصدير
+              {t('audit.action.EXPORT')}
               <span className="material-symbols-outlined" style={{ fontSize: 14, opacity: 0.8 }}>expand_more</span>
             </button>
             {exportMenuOpen && (
               <div className="psa-export-menu">
                 <button className="psa-export-item" onClick={() => handleExport(undefined, 'excel')}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#16a34a' }}>table_chart</span>
-                  تصدير Excel
+                  {t('page.salaries.export_excel')}
                 </button>
                 <button className="psa-export-item" onClick={() => handleExport(undefined, 'csv')}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#6366F1' }}>data_table</span>
-                  تصدير CSV
+                  {t('bank.salary_analytics.export_csv')}
                 </button>
                 <div className="psa-export-divider" />
                 <button className="psa-export-item" onClick={() => handleExport(undefined, 'print')}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--text-muted)' }}>print</span>
-                  طباعة
+                  {t('audit.action.PRINT')}
                 </button>
               </div>
             )}
@@ -800,14 +811,14 @@ export default function BankSalaryAnalytics() {
 
       {/* ── Package D: Quick Filter Chips (10 chips) ──────────────────── */}
       <div className="psa-chips">
-        {QUICK_CHIPS.map(({ key, label }) => (
+        {QUICK_CHIPS.map(({ key, labelKey }) => (
           <button
             key={key}
             type="button"
             className={`psa-chip${quickChip === key ? ' chip-active' : ''}`}
             onClick={() => handleQuickChip(key)}
           >
-            {label}
+            {t(labelKey)}
           </button>
         ))}
       </div>
@@ -821,7 +832,7 @@ export default function BankSalaryAnalytics() {
             onClick={() => setFiltersOpen((o) => !o)}
           >
             <span className="material-symbols-outlined" style={{ fontSize: 18 }}>tune</span>
-            {filtersOpen ? 'إخفاء الفلاتر' : 'إظهار الفلاتر'}
+            {filtersOpen ? t('bank.salary_analytics.hide_filters') : t('bank.salary_analytics.show_filters')}
             <span className="material-symbols-outlined" style={{ fontSize: 18, transition: 'transform 0.2s', transform: filtersOpen ? 'rotate(180deg)' : 'none' }}>expand_more</span>
             {activeChips.length > 0 && (
               <span className="psa-chip-badge">{activeChips.length}</span>
@@ -834,7 +845,7 @@ export default function BankSalaryAnalytics() {
               style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>filter_alt_off</span>
-              مسح الكل
+              {t('bank.salary_analytics.clear_all')}
             </button>
           )}
         </div>
@@ -844,15 +855,15 @@ export default function BankSalaryAnalytics() {
 
             {/* Group 1 — الموظف والفترة */}
             <div className="psa-filter-section">
-              <p className="psa-filter-section-title">الموظف والفترة</p>
+              <p className="psa-filter-section-title">{t('bank.salary_analytics.section_employee_and_period')}</p>
               <div className="psa-filter-row">
                 <div className="psa-filter-field" style={{ flex: 2 }}>
-                  <label>الموظف</label>
+                  <label>{t('filter.employee')}</label>
                   <div className="psa-autocomplete-wrap" ref={autocompleteRef}>
                     <div style={{ position: 'relative' }}>
                       <input
                         type="text"
-                        placeholder="بحث باسم أو رقم مدني أو كود…"
+                        placeholder={t('bank.salary_analytics.employee_search_placeholder')}
                         value={empQuery}
                         onChange={(e) => { setEmpQuery(e.target.value); searchEmployees(e.target.value); }}
                       />
@@ -884,25 +895,25 @@ export default function BankSalaryAnalytics() {
                   </div>
                 </div>
                 <div className="psa-filter-field">
-                  <label>السنة</label>
+                  <label>{t('bank.salary_analytics.year')}</label>
                   <select
-                    title="السنة"
+                    title={t('bank.salary_analytics.year')}
                     value={draftFilters.payrollYear ?? ''}
                     onChange={(e) => setDraftFilters((f) => ({ ...f, payrollYear: e.target.value ? Number(e.target.value) : undefined, payrollMonth: undefined }))}
                   >
-                    <option value="">كل السنوات</option>
+                    <option value="">{t('bank.salary_analytics.all_years')}</option>
                     {YEAR_OPTIONS.map((y) => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
                 <div className="psa-filter-field">
-                  <label>الشهر</label>
+                  <label>{t('bank.salary_analytics.month')}</label>
                   <select
-                    title="الشهر"
+                    title={t('bank.salary_analytics.month')}
                     value={draftFilters.payrollMonth ?? ''}
                     disabled={!draftFilters.payrollYear}
                     onChange={(e) => setDraftFilters((f) => ({ ...f, payrollMonth: e.target.value ? Number(e.target.value) : undefined }))}
                   >
-                    <option value="">كل الأشهر</option>
+                    <option value="">{t('bank.salary_analytics.all_months')}</option>
                     {MONTHS_AR.map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
                   </select>
                 </div>
@@ -911,29 +922,29 @@ export default function BankSalaryAnalytics() {
 
             {/* Group 2 — نطاق التاريخ */}
             <div className="psa-filter-section">
-              <p className="psa-filter-section-title">نطاق التاريخ</p>
+              <p className="psa-filter-section-title">{t('bank.salary_analytics.section_date_range')}</p>
               <div className="psa-filter-row">
                 <div className="psa-filter-field">
-                  <label>تاريخ من</label>
-                  <DateInput title="تاريخ من" value={draftFilters.dateFrom ?? ''} onChange={(v) => setDraftFilters((f) => ({ ...f, dateFrom: v || undefined }))} />
+                  <label>{t('bank.salary_analytics.date_from')}</label>
+                  <DateInput title={t('bank.salary_analytics.date_from')} value={draftFilters.dateFrom ?? ''} onChange={(v) => setDraftFilters((f) => ({ ...f, dateFrom: v || undefined }))} />
                 </div>
                 <div className="psa-filter-field">
-                  <label>تاريخ إلى</label>
-                  <DateInput title="تاريخ إلى" value={draftFilters.dateTo ?? ''} onChange={(v) => setDraftFilters((f) => ({ ...f, dateTo: v || undefined }))} />
+                  <label>{t('bank.salary_analytics.date_to')}</label>
+                  <DateInput title={t('bank.salary_analytics.date_to')} value={draftFilters.dateTo ?? ''} onChange={(v) => setDraftFilters((f) => ({ ...f, dateTo: v || undefined }))} />
                 </div>
               </div>
             </div>
 
             {/* Group 3 — نطاق المبلغ */}
             <div className="psa-filter-section">
-              <p className="psa-filter-section-title">نطاق المبلغ (KWD)</p>
+              <p className="psa-filter-section-title">{t('bank.salary_analytics.section_amount_range')}</p>
               <div className="psa-filter-row">
                 <div className="psa-filter-field">
-                  <label>المبلغ من</label>
+                  <label>{t('bank.salary_analytics.amount_from')}</label>
                   <input type="number" min="0" step="0.001" placeholder="0.000" value={draftFilters.amountFrom ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, amountFrom: e.target.value || undefined }))} />
                 </div>
                 <div className="psa-filter-field">
-                  <label>المبلغ إلى</label>
+                  <label>{t('bank.salary_analytics.amount_to')}</label>
                   <input type="number" min="0" step="0.001" placeholder="0.000" value={draftFilters.amountTo ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, amountTo: e.target.value || undefined }))} />
                 </div>
               </div>
@@ -941,39 +952,39 @@ export default function BankSalaryAnalytics() {
 
             {/* Group 4 — بحث متقدم */}
             <div className="psa-filter-section">
-              <p className="psa-filter-section-title">بحث متقدم</p>
+              <p className="psa-filter-section-title">{t('bank.salary_analytics.section_advanced_search')}</p>
               <div className="psa-filter-row">
                 <div className="psa-filter-field">
-                  <label>رقم المعاملة</label>
+                  <label>{t('bank.salary_analytics.transaction_no')}</label>
                   <input type="text" placeholder="TXN…" value={draftFilters.transactionId ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, transactionId: e.target.value || undefined }))} />
                 </div>
                 <div className="psa-filter-field">
-                  <label>الرقم المدني</label>
-                  <input type="text" placeholder="بحث في الرقم المدني" value={draftFilters.civilId ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, civilId: e.target.value || undefined }))} />
+                  <label>{t('field.civil_id')}</label>
+                  <input type="text" placeholder={t('bank.salary_analytics.civil_id_search_placeholder')} value={draftFilters.civilId ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, civilId: e.target.value || undefined }))} />
                 </div>
                 <div className="psa-filter-field">
-                  <label>رقم الحساب</label>
-                  <input type="text" placeholder="بحث في رقم الحساب" value={draftFilters.bankAccount ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, bankAccount: e.target.value || undefined }))} />
+                  <label>{t('bank.salary_analytics.account_no')}</label>
+                  <input type="text" placeholder={t('bank.salary_analytics.account_search_placeholder')} value={draftFilters.bankAccount ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, bankAccount: e.target.value || undefined }))} />
                 </div>
               </div>
             </div>
 
             {/* Group 5 — الحالة والبحث النصي */}
             <div className="psa-filter-section">
-              <p className="psa-filter-section-title">الحالة والبحث</p>
+              <p className="psa-filter-section-title">{t('bank.salary_analytics.section_status_and_search')}</p>
               <div className="psa-filter-row">
                 <div className="psa-filter-field" style={{ maxWidth: 200 }}>
-                  <label>الحالة</label>
-                  <select title="الحالة" value={draftFilters.status ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, status: e.target.value || undefined }))}>
-                    <option value="">كل الحالات</option>
+                  <label>{t('field.status')}</label>
+                  <select title={t('field.status')} value={draftFilters.status ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, status: e.target.value || undefined }))}>
+                    <option value="">{t('opt.all_statuses')}</option>
                     <option value="PROCESSED">PROCESSED</option>
                     <option value="PENDING">PENDING</option>
                     <option value="FAILED">FAILED</option>
                   </select>
                 </div>
                 <div className="psa-filter-field">
-                  <label>بحث نصي</label>
-                  <input type="text" placeholder="اسم المستفيد أو رقم المعاملة أو الرقم المدني…" value={draftFilters.search ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, search: e.target.value || undefined }))} />
+                  <label>{t('bank.salary_analytics.text_search')}</label>
+                  <input type="text" placeholder={t('bank.salary_analytics.text_search_placeholder')} value={draftFilters.search ?? ''} onChange={(e) => setDraftFilters((f) => ({ ...f, search: e.target.value || undefined }))} />
                 </div>
               </div>
             </div>
@@ -981,11 +992,11 @@ export default function BankSalaryAnalytics() {
             <div className="psa-filter-actions">
               <button type="button" className="btn" onClick={applyFilters} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>search</span>
-                تطبيق الفلاتر
+                {t('bank.salary_analytics.apply_filters')}
               </button>
               <button type="button" className="btn btn-secondary" onClick={clearAllFilters} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="material-symbols-outlined" style={{ fontSize: 16 }}>filter_alt_off</span>
-                إعادة تعيين
+                {t('bank.salary_analytics.reset')}
               </button>
             </div>
           </div>
@@ -997,7 +1008,7 @@ export default function BankSalaryAnalytics() {
             {activeChips.map((chip) => (
               <span key={chip.key} className="psa-active-chip">
                 {chip.label}
-                <button type="button" onClick={() => removeChip(chip.key)} aria-label={`إزالة ${chip.label}`}>
+                <button type="button" onClick={() => removeChip(chip.key)} aria-label={t('bank.salary_analytics.remove_chip_aria', { label: chip.label })}>
                   <span className="material-symbols-outlined" style={{ fontSize: 12 }}>close</span>
                 </button>
               </span>
@@ -1010,34 +1021,34 @@ export default function BankSalaryAnalytics() {
       {analytics && !loading && (
         <div className="psa-summary-bar">
           <div className="psa-summary-stat">
-            <span className="psa-summary-label">العمليات</span>
+            <span className="psa-summary-label">{t('bank.salary_analytics.operations')}</span>
             <span className="psa-summary-value">{txData?.meta.total.toLocaleString('ar-KW') ?? '—'}</span>
           </div>
           <div className="psa-summary-divider" />
           <div className="psa-summary-stat">
-            <span className="psa-summary-label">الموظفون</span>
+            <span className="psa-summary-label">{t('search.group.employee')}</span>
             <span className="psa-summary-value">{analytics.uniqueEmployees.toLocaleString('ar-KW')}</span>
           </div>
           <div className="psa-summary-divider" />
           <div className="psa-summary-stat">
-            <span className="psa-summary-label">الأشهر</span>
+            <span className="psa-summary-label">{t('bank.salary_analytics.months')}</span>
             <span className="psa-summary-value">{analytics.months.length}</span>
           </div>
           <div className="psa-summary-divider" />
           <div className="psa-summary-stat">
-            <span className="psa-summary-label">متوسط الراتب</span>
+            <span className="psa-summary-label">{t('bank.salary_analytics.kpi_avg_salary_label')}</span>
             <span className="psa-summary-value"><PrivateAmount value={avgSalary} /></span>
           </div>
           <div className="psa-summary-divider" />
           <div className="psa-summary-stat">
-            <span className="psa-summary-label">الإجمالي</span>
+            <span className="psa-summary-label">{t('msg.total')}</span>
             <span className="psa-summary-value"><PrivateAmount value={analytics.totalAmount} /></span>
           </div>
           {activeChips.length > 0 && (
             <>
               <div className="psa-summary-divider" />
               <div className="psa-summary-stat">
-                <span className="psa-summary-label">الفلاتر النشطة</span>
+                <span className="psa-summary-label">{t('bank.salary_analytics.active_filters')}</span>
                 <span className="psa-summary-value" style={{ color: 'var(--accent)' }}>{activeChips.length}</span>
               </div>
             </>
@@ -1074,7 +1085,7 @@ export default function BankSalaryAnalytics() {
         <div className="psa-quality-panel">
           <span className="material-symbols-outlined psa-quality-icon">warning</span>
           <div className="psa-quality-body">
-            <p className="psa-quality-title">مركز جودة البيانات — {qualityWarnings.length} تنبيه</p>
+            <p className="psa-quality-title">{t('bank.salary_analytics.data_quality_center_title', { count: qualityWarnings.length })}</p>
             <div className="psa-quality-list">
               {qualityWarnings.map((w) => (
                 <span key={w.key} className="psa-quality-tag">
@@ -1093,8 +1104,8 @@ export default function BankSalaryAnalytics() {
           <button type="button" className="psa-charts-toggle" onClick={() => setChartsOpen((o) => !o)}>
             <div className="psa-charts-toggle-left">
               <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--accent)' }}>bar_chart</span>
-              الرسوم البيانية
-              <span className="psa-chip-badge">{analytics.months.length} شهر</span>
+              {t('bank.salary_analytics.charts')}
+              <span className="psa-chip-badge">{t('bank.salary_analytics.month_count', { count: analytics.months.length })}</span>
             </div>
             <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--text-muted)', transition: 'transform 0.2s', transform: chartsOpen ? 'rotate(180deg)' : 'none' }}>expand_more</span>
           </button>
@@ -1102,7 +1113,7 @@ export default function BankSalaryAnalytics() {
             <div className="psa-charts-grid">
               {/* Chart 1: Monthly totals */}
               <div className="card panel psa-chart-card">
-                <h3 className="psa-chart-title">الرواتب الشهرية</h3>
+                <h3 className="psa-chart-title">{t('bank.salary_analytics.chart_monthly_salaries')}</h3>
                 <div className="psa-chart-wrap">
                   <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                     <BarChart data={analytics.months} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
@@ -1110,7 +1121,7 @@ export default function BankSalaryAnalytics() {
                       <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} />
                       <Tooltip content={<ChartTooltip />} />
-                      <Bar dataKey="totalAmount" name="المبلغ الإجمالي" fill="#3b82f6" radius={[4,4,0,0]} />
+                      <Bar dataKey="totalAmount" name={t('bank.salary_analytics.series_total_amount')} fill="#3b82f6" radius={[4,4,0,0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1118,7 +1129,7 @@ export default function BankSalaryAnalytics() {
 
               {/* Chart 2: Employee count per month */}
               <div className="card panel psa-chart-card">
-                <h3 className="psa-chart-title">عدد الموظفين شهرياً</h3>
+                <h3 className="psa-chart-title">{t('bank.salary_analytics.chart_employee_count_monthly')}</h3>
                 <div className="psa-chart-wrap">
                   <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                     <BarChart data={analytics.months.filter((m) => m.employeeCount != null)} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
@@ -1131,12 +1142,12 @@ export default function BankSalaryAnalytics() {
                           return (
                             <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 14px', direction: 'rtl' }}>
                               <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6, marginTop: 0 }}>{label}</p>
-                              <p style={{ color: '#10B981', fontSize: 13, fontWeight: 700, margin: 0 }}>{Number(payload[0].value).toLocaleString('ar-KW')} موظف</p>
+                              <p style={{ color: '#10B981', fontSize: 13, fontWeight: 700, margin: 0 }}>{t('bank.salary_analytics.employee_count', { count: Number(payload[0].value).toLocaleString('ar-KW') })}</p>
                             </div>
                           );
                         }}
                       />
-                      <Bar dataKey="employeeCount" name="الموظفون" fill="#10b981" radius={[4,4,0,0]} />
+                      <Bar dataKey="employeeCount" name={t('search.group.employee')} fill="#10b981" radius={[4,4,0,0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1145,7 +1156,7 @@ export default function BankSalaryAnalytics() {
               {/* Chart 3: Monthly variance (pos=green, neg=red) */}
               {varianceData.length > 0 && (
                 <div className="card panel psa-chart-card">
-                  <h3 className="psa-chart-title">الفروقات الشهرية</h3>
+                  <h3 className="psa-chart-title">{t('bank.salary_analytics.chart_monthly_variance')}</h3>
                   <div className="psa-chart-wrap">
                     <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                       <BarChart data={varianceData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
@@ -1153,7 +1164,7 @@ export default function BankSalaryAnalytics() {
                         <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
                         <YAxis tick={{ fontSize: 10 }} />
                         <Tooltip content={<ChartTooltip />} />
-                        <Bar dataKey="variance" name="الفرق" radius={[4,4,0,0]}>
+                        <Bar dataKey="variance" name={t('bank.salary_analytics.difference')} radius={[4,4,0,0]}>
                           {varianceData.map((d, i) => (
                             <Cell key={i} fill={d.isPositive ? '#16a34a' : '#ef4444'} />
                           ))}
@@ -1167,7 +1178,7 @@ export default function BankSalaryAnalytics() {
               {/* Chart 4: Top 5 employees */}
               {analytics.topEmployees.length > 0 && (
                 <div className="card panel psa-chart-card">
-                  <h3 className="psa-chart-title">أعلى 5 موظفين راتباً</h3>
+                  <h3 className="psa-chart-title">{t('bank.salary_analytics.chart_top_5_employees')}</h3>
                   <div className="psa-chart-wrap">
                     <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                       <BarChart data={analytics.topEmployees.slice(0, 5)} layout="vertical" margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
@@ -1175,7 +1186,7 @@ export default function BankSalaryAnalytics() {
                         <XAxis type="number" tick={{ fontSize: 10 }} />
                         <YAxis type="category" dataKey="beneficiaryName" tick={{ fontSize: 10 }} width={80} />
                         <Tooltip content={<ChartTooltip />} />
-                        <Bar dataKey="totalAmount" name="الإجمالي" fill="#8b5cf6" radius={[0,4,4,0]} />
+                        <Bar dataKey="totalAmount" name={t('msg.total')} fill="#8b5cf6" radius={[0,4,4,0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -1184,7 +1195,7 @@ export default function BankSalaryAnalytics() {
 
               {/* Chart 5: Highest/Average salary per month */}
               <div className="card panel psa-chart-card">
-                <h3 className="psa-chart-title">نطاق الرواتب الشهرية</h3>
+                <h3 className="psa-chart-title">{t('bank.salary_analytics.chart_monthly_salary_range')}</h3>
                 <div className="psa-chart-wrap">
                   <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                     <BarChart data={analytics.months.filter((m) => m.highest != null && m.avg != null)} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
@@ -1203,9 +1214,9 @@ export default function BankSalaryAnalytics() {
                         }}
                       />
                       <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Bar dataKey="highest" name="الأعلى" fill="#16a34a" radius={[4,4,0,0]} />
-                      <Bar dataKey="avg"     name="المتوسط" fill="#3b82f6" radius={[4,4,0,0]} />
-                      <Bar dataKey="lowest"  name="الأدنى"  fill="#ef4444" radius={[4,4,0,0]} />
+                      <Bar dataKey="highest" name={t('bank.salary_analytics.highest')} fill="#16a34a" radius={[4,4,0,0]} />
+                      <Bar dataKey="avg"     name={t('bank.salary_analytics.average')} fill="#3b82f6" radius={[4,4,0,0]} />
+                      <Bar dataKey="lowest"  name={t('bank.salary_analytics.lowest')}  fill="#ef4444" radius={[4,4,0,0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1214,7 +1225,7 @@ export default function BankSalaryAnalytics() {
               {/* Chart 6: Cumulative total */}
               {cumulativeData.length > 0 && (
                 <div className="card panel psa-chart-card">
-                  <h3 className="psa-chart-title">الإجمالي التراكمي</h3>
+                  <h3 className="psa-chart-title">{t('bank.salary_analytics.chart_cumulative_total')}</h3>
                   <div className="psa-chart-wrap">
                     <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                       <BarChart data={cumulativeData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
@@ -1222,7 +1233,7 @@ export default function BankSalaryAnalytics() {
                         <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
                         <YAxis tick={{ fontSize: 10 }} />
                         <Tooltip content={<ChartTooltip />} />
-                        <Bar dataKey="cumulative" name="الإجمالي التراكمي" fill="#14b8a6" radius={[4,4,0,0]} />
+                        <Bar dataKey="cumulative" name={t('bank.salary_analytics.chart_cumulative_total')} fill="#14b8a6" radius={[4,4,0,0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -1240,7 +1251,7 @@ export default function BankSalaryAnalytics() {
           {analytics.months.length > 0 && (
             <div className="psa-section-card">
               <div className="psa-section-head">
-                <h2>الملخص الشهري</h2>
+                <h2>{t('bank.salary_analytics.monthly_summary_title')}</h2>
                 <div className="psa-chips" style={{ margin: 0 }}>
                   {(['all', '3m', '6m', 'year'] as const).map((k) => (
                     <button
@@ -1250,7 +1261,7 @@ export default function BankSalaryAnalytics() {
                       style={{ fontSize: 12, padding: '3px 10px' }}
                       onClick={() => handleQuickChip(k)}
                     >
-                      {k === 'all' ? 'الكل' : k === '3m' ? 'آخر 3 أشهر' : k === '6m' ? 'آخر 6 أشهر' : 'هذه السنة'}
+                      {t(QUICK_CHIPS.find((c) => c.key === k)?.labelKey ?? 'bank.salary_analytics.chip_all')}
                     </button>
                   ))}
                 </div>
@@ -1259,14 +1270,14 @@ export default function BankSalaryAnalytics() {
                 <table>
                   <thead>
                     <tr>
-                      <th>الشهر</th>
-                      <th style={{ textAlign: 'end' }}>{fcMoneyHeader('المبلغ')}</th>
-                      <th style={{ textAlign: 'end' }}>المعاملات</th>
-                      <th style={{ textAlign: 'end' }}>الموظفون</th>
-                      <th style={{ textAlign: 'end' }}>المتوسط</th>
-                      <th style={{ textAlign: 'end' }}>الأعلى</th>
-                      <th style={{ textAlign: 'end' }}>الأدنى</th>
-                      <th style={{ textAlign: 'end' }}>الفرق</th>
+                      <th>{t('bank.salary_analytics.month')}</th>
+                      <th style={{ textAlign: 'end' }}>{fcMoneyHeader(t('col.amount'))}</th>
+                      <th style={{ textAlign: 'end' }}>{t('perm.module.transactions')}</th>
+                      <th style={{ textAlign: 'end' }}>{t('search.group.employee')}</th>
+                      <th style={{ textAlign: 'end' }}>{t('bank.salary_analytics.average')}</th>
+                      <th style={{ textAlign: 'end' }}>{t('bank.salary_analytics.highest')}</th>
+                      <th style={{ textAlign: 'end' }}>{t('bank.salary_analytics.lowest')}</th>
+                      <th style={{ textAlign: 'end' }}>{t('bank.salary_analytics.difference')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1294,19 +1305,19 @@ export default function BankSalaryAnalytics() {
           {!appliedFilters.employeeId && analytics.topEmployees.length > 0 && (
             <div className="psa-section-card">
               <div className="psa-section-head">
-                <h2>أعلى الموظفين مدفوعاتٍ</h2>
+                <h2>{t('bank.salary_analytics.top_paid_employees_title')}</h2>
               </div>
               <div className="psa-table-wrap" style={{ borderRadius: 0, border: 'none', boxShadow: 'none' }}>
                 <table>
                   <thead>
                     <tr>
                       <th>#</th>
-                      <th>المستفيد</th>
-                      <th>الرقم المدني</th>
-                      <th style={{ textAlign: 'end' }}>{fcMoneyHeader('إجمالي')}</th>
-                      <th style={{ textAlign: 'end' }}>المعاملات</th>
-                      <th style={{ textAlign: 'end' }}>متوسط (KWD)</th>
-                      <th>آخر دفعة</th>
+                      <th>{t('col.sal.beneficiary')}</th>
+                      <th>{t('field.civil_id')}</th>
+                      <th style={{ textAlign: 'end' }}>{fcMoneyHeader(t('bank.salary_analytics.total_bare'))}</th>
+                      <th style={{ textAlign: 'end' }}>{t('perm.module.transactions')}</th>
+                      <th style={{ textAlign: 'end' }}>{t('bank.salary_analytics.average_kwd')}</th>
+                      <th>{t('bank.salary_analytics.latest_payment')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1351,13 +1362,13 @@ export default function BankSalaryAnalytics() {
                 <div className="psa-table-header">
                   <h2 className="psa-table-title">
                     <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--accent)' }}>receipt_long</span>
-                    المعاملات
+                    {t('perm.module.transactions')}
                     {txData && <span className="psa-table-count">({txData.meta.total.toLocaleString('ar-KW')})</span>}
                   </h2>
                   <div className="psa-page-size-row">
-                    <label>الصفوف:</label>
+                    <label>{t('bank.salary_analytics.rows_label')}</label>
                     <select
-                      title="حجم الصفحة"
+                      title={t('bank.salary_analytics.page_size')}
                       value={txPageSize}
                       onChange={(e) => { setTxPageSize(Number(e.target.value)); setTxPage(1); }}
                     >
@@ -1385,11 +1396,11 @@ export default function BankSalaryAnalytics() {
                       /* Package K: Professional empty state */
                       <div className="psa-empty">
                         <span className="material-symbols-outlined psa-empty-icon">receipt_long</span>
-                        <div className="psa-empty-title">لا توجد معاملات</div>
-                        <div className="psa-empty-sub">لا توجد معاملات تطابق الفلاتر المحددة</div>
+                        <div className="psa-empty-title">{t('bank.salary_analytics.no_transactions')}</div>
+                        <div className="psa-empty-sub">{t('bank.salary_analytics.no_transactions_match_filters')}</div>
                         <button type="button" className="btn btn-secondary" onClick={clearAllFilters} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                           <span className="material-symbols-outlined" style={{ fontSize: 16 }}>filter_alt_off</span>
-                          مسح الفلاتر
+                          {t('action.reset_filters_inline')}
                         </button>
                       </div>
                     ) : (
@@ -1397,14 +1408,14 @@ export default function BankSalaryAnalytics() {
                         <table>
                           <thead>
                             <tr>
-                              <th>رقم المعاملة</th>
-                              <SortableHeader label="الشهر"       title="الشهر"       state={txSortBy === 'sourceMonth' ? txSortDir : 'none'}     onToggle={() => handleSort('sourceMonth')} />
-                              <SortableHeader label="تاريخ الدفع"  title="تاريخ الدفع"  state={txSortBy === 'paymentDate' ? txSortDir : 'none'}     onToggle={() => handleSort('paymentDate')} />
-                              <SortableHeader label="المستفيد"     title="المستفيد"     state={txSortBy === 'beneficiaryName' ? txSortDir : 'none'} onToggle={() => handleSort('beneficiaryName')} />
-                              <SortableHeader label="المبلغ (KWD)" title="المبلغ"       state={txSortBy === 'amount' ? txSortDir : 'none'}          onToggle={() => handleSort('amount')} />
-                              <th>الرقم المدني</th>
-                              {appliedFilters.employeeId && <th>مطابقة بـ</th>}
-                              <th>الحالة</th>
+                              <th>{t('bank.salary_analytics.transaction_no')}</th>
+                              <SortableHeader label={t('bank.salary_analytics.month')} title={t('bank.salary_analytics.month')} state={txSortBy === 'sourceMonth' ? txSortDir : 'none'}     onToggle={() => handleSort('sourceMonth')} />
+                              <SortableHeader label={t('col.sal.payment_date')} title={t('col.sal.payment_date')} state={txSortBy === 'paymentDate' ? txSortDir : 'none'}     onToggle={() => handleSort('paymentDate')} />
+                              <SortableHeader label={t('col.sal.beneficiary')} title={t('col.sal.beneficiary')} state={txSortBy === 'beneficiaryName' ? txSortDir : 'none'} onToggle={() => handleSort('beneficiaryName')} />
+                              <SortableHeader label={t('bank.salary_analytics.amount_kwd')} title={t('col.amount')} state={txSortBy === 'amount' ? txSortDir : 'none'}          onToggle={() => handleSort('amount')} />
+                              <th>{t('field.civil_id')}</th>
+                              {appliedFilters.employeeId && <th>{t('bank.salary_analytics.matched_by')}</th>}
+                              <th>{t('field.status')}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1452,9 +1463,9 @@ export default function BankSalaryAnalytics() {
                 <div className="psa-details-head">
                   <h3>
                     <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--accent)', verticalAlign: 'middle', marginInlineEnd: 5 }}>person</span>
-                    تفاصيل الموظف
+                    {t('bank.salary_analytics.employee_details_title')}
                   </h3>
-                  <button type="button" className="psa-close-btn" onClick={() => selectEmployee(null)} aria-label="إغلاق">
+                  <button type="button" className="psa-close-btn" onClick={() => selectEmployee(null)} aria-label={t('action.close')}>
                     <span className="material-symbols-outlined" style={{ fontSize: 16 }}>close</span>
                   </button>
                 </div>
@@ -1469,7 +1480,7 @@ export default function BankSalaryAnalytics() {
                   <>
                     {/* Profile section */}
                     <div className="psa-details-section">
-                      <p className="psa-details-sec-title">بيانات الموظف</p>
+                      <p className="psa-details-sec-title">{t('bank.salary_analytics.employee_data_title')}</p>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                         <div>
                           <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)' }}>{empDetail.employee.fullName}</div>
@@ -1477,16 +1488,16 @@ export default function BankSalaryAnalytics() {
                             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{empDetail.employee.fullNameEn}</div>
                           )}
                           {empDetail.employee.status !== 'active' && (
-                            <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, padding: '2px 8px', background: 'var(--red-light)', color: 'var(--red)', borderRadius: 20 }}>غير نشط</span>
+                            <span style={{ display: 'inline-block', marginTop: 4, fontSize: 11, padding: '2px 8px', background: 'var(--red-light)', color: 'var(--red)', borderRadius: 20 }}>{t('status.inactive')}</span>
                           )}
                         </div>
                       </div>
                       {[
-                        ['الكود', empDetail.employee.code],
-                        ['الرقم المدني', empDetail.employee.civilId ?? '—'],
-                        ['رقم الحساب', empDetail.employee.bankAccount ?? '—'],
-                        ['المسمى الوظيفي', empDetail.employee.jobTitle ?? '—'],
-                        ['القسم', empDetail.employee.department ?? '—'],
+                        [t('col.acc.code'), empDetail.employee.code],
+                        [t('field.civil_id'), empDetail.employee.civilId ?? '—'],
+                        [t('bank.salary_analytics.account_no'), empDetail.employee.bankAccount ?? '—'],
+                        [t('lbl.payslip.job_title'), empDetail.employee.jobTitle ?? '—'],
+                        [t('lbl.payslip.department'), empDetail.employee.department ?? '—'],
                       ].map(([k, v]) => (
                         <div key={k} className="psa-detail-row">
                           <span className="psa-detail-lbl">{k}</span>
@@ -1497,30 +1508,30 @@ export default function BankSalaryAnalytics() {
 
                     {/* Stats section */}
                     <div className="psa-details-section">
-                      <p className="psa-details-sec-title">إحصائيات المدفوعات</p>
+                      <p className="psa-details-sec-title">{t('bank.salary_analytics.payment_stats_title')}</p>
                       <div className="psa-emp-stat-grid">
                         <div className="psa-emp-stat">
-                          <div className="psa-emp-stat-lbl">إجمالي التحويلات</div>
+                          <div className="psa-emp-stat-lbl">{t('bank.salary_analytics.total_transfers')}</div>
                           <div className="psa-emp-stat-val">{empDetail.stats.totalPayments.toLocaleString('ar-KW')}</div>
                         </div>
                         <div className="psa-emp-stat">
-                          <div className="psa-emp-stat-lbl">الأشهر</div>
+                          <div className="psa-emp-stat-lbl">{t('bank.salary_analytics.months')}</div>
                           <div className="psa-emp-stat-val">{empDetail.stats.distinctMonths.toLocaleString('ar-KW')}</div>
                         </div>
                         <div className="psa-emp-stat">
-                          <div className="psa-emp-stat-lbl">الإجمالي (KWD)</div>
+                          <div className="psa-emp-stat-lbl">{t('bank.salary_analytics.total_kwd')}</div>
                           <div className="psa-emp-stat-val" style={{ fontSize: 12 }}><PrivateAmount value={fmt3(empDetail.stats.totalAmount)} /></div>
                         </div>
                         <div className="psa-emp-stat">
-                          <div className="psa-emp-stat-lbl">المتوسط (KWD)</div>
+                          <div className="psa-emp-stat-lbl">{t('bank.salary_analytics.stat_average_kwd')}</div>
                           <div className="psa-emp-stat-val" style={{ fontSize: 12 }}><PrivateAmount value={fmt3(empDetail.stats.avgMonthlyAmount)} /></div>
                         </div>
                         <div className="psa-emp-stat">
-                          <div className="psa-emp-stat-lbl" style={{ color: '#16a34a' }}>الأعلى (KWD)</div>
+                          <div className="psa-emp-stat-lbl" style={{ color: '#16a34a' }}>{t('bank.salary_analytics.stat_highest_kwd')}</div>
                           <div className="psa-emp-stat-val psa-var-pos" style={{ fontSize: 12 }}><PrivateAmount value={fmt3(empDetail.stats.highestPayment)} /></div>
                         </div>
                         <div className="psa-emp-stat">
-                          <div className="psa-emp-stat-lbl" style={{ color: '#ef4444' }}>الأدنى (KWD)</div>
+                          <div className="psa-emp-stat-lbl" style={{ color: '#ef4444' }}>{t('bank.salary_analytics.stat_lowest_kwd')}</div>
                           <div className="psa-emp-stat-val psa-var-neg" style={{ fontSize: 12 }}><PrivateAmount value={fmt3(empDetail.stats.lowestPayment)} /></div>
                         </div>
                       </div>
@@ -1529,7 +1540,7 @@ export default function BankSalaryAnalytics() {
                     {/* Salary change indicator */}
                     {empDetail.stats.distinctMonths > 1 && (
                       <div className="psa-details-section">
-                        <p className="psa-details-sec-title">تغيير الراتب</p>
+                        <p className="psa-details-sec-title">{t('bank.salary_analytics.salary_change_title')}</p>
                         <div className="psa-salary-change">
                           <span className="material-symbols-outlined psa-salary-change-icon" style={{ color: empDetail.stats.salaryChangeAmount >= 0 ? '#16a34a' : '#ef4444' }}>
                             {empDetail.stats.salaryChangeAmount >= 0 ? 'trending_up' : 'trending_down'}
@@ -1539,7 +1550,7 @@ export default function BankSalaryAnalytics() {
                               {empDetail.stats.salaryChangeAmount >= 0 ? '+' : ''}{<MoneyText value={empDetail.stats.salaryChangeAmount} />}
                             </div>
                             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                              {empDetail.stats.salaryChangePercent >= 0 ? '+' : ''}{formatPercent(empDetail.stats.salaryChangePercent, 1)} خلال {empDetail.stats.distinctMonths} شهر
+                              {empDetail.stats.salaryChangePercent >= 0 ? '+' : ''}{formatPercent(empDetail.stats.salaryChangePercent, 1)} {t('bank.salary_analytics.over_months', { months: empDetail.stats.distinctMonths })}
                             </div>
                           </div>
                         </div>
@@ -1549,14 +1560,14 @@ export default function BankSalaryAnalytics() {
                     {/* Monthly timeline */}
                     {empDetail.monthlyHistory.length > 0 && (
                       <div className="psa-details-section">
-                        <p className="psa-details-sec-title">الجدول الزمني</p>
+                        <p className="psa-details-sec-title">{t('bank.salary_analytics.timeline_title')}</p>
                         <div style={{ overflowX: 'auto' }}>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                             <thead>
                               <tr style={{ background: 'var(--surface-2)' }}>
-                                <th style={{ padding: '6px 8px', textAlign: 'start', fontWeight: 700, color: 'var(--text-muted)', fontSize: 10.5, textTransform: 'uppercase' }}>الشهر</th>
-                                <th style={{ padding: '6px 8px', textAlign: 'end',  fontWeight: 700, color: 'var(--text-muted)', fontSize: 10.5, textTransform: 'uppercase' }}>المبلغ</th>
-                                <th style={{ padding: '6px 8px', textAlign: 'end',  fontWeight: 700, color: 'var(--text-muted)', fontSize: 10.5, textTransform: 'uppercase' }}>الفرق</th>
+                                <th style={{ padding: '6px 8px', textAlign: 'start', fontWeight: 700, color: 'var(--text-muted)', fontSize: 10.5, textTransform: 'uppercase' }}>{t('bank.salary_analytics.month')}</th>
+                                <th style={{ padding: '6px 8px', textAlign: 'end',  fontWeight: 700, color: 'var(--text-muted)', fontSize: 10.5, textTransform: 'uppercase' }}>{t('col.amount')}</th>
+                                <th style={{ padding: '6px 8px', textAlign: 'end',  fontWeight: 700, color: 'var(--text-muted)', fontSize: 10.5, textTransform: 'uppercase' }}>{t('bank.salary_analytics.difference')}</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1581,19 +1592,19 @@ export default function BankSalaryAnalytics() {
                     <div className="psa-details-actions">
                       <button type="button" className="btn" onClick={() => handleExport(empDetail.employee.id, 'excel')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#16a34a', borderColor: '#16a34a', fontSize: 13 }}>
                         <span className="material-symbols-outlined" style={{ fontSize: 15 }}>download</span>
-                        تصدير سجله
+                        {t('bank.salary_analytics.export_his_record')}
                       </button>
                       <button type="button" className="btn btn-secondary" onClick={() => navigate('/employees')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}>
                         <span className="material-symbols-outlined" style={{ fontSize: 15 }}>open_in_new</span>
-                        عرض ملف الموظف
+                        {t('bank.salary_analytics.view_employee_profile')}
                       </button>
                     </div>
                   </>
                 ) : (
                   <div className="psa-empty" style={{ padding: '32px 20px' }}>
                     <span className="material-symbols-outlined psa-empty-icon" style={{ fontSize: 36 }}>person_off</span>
-                    <div className="psa-empty-title" style={{ fontSize: 13 }}>لا توجد مدفوعات</div>
-                    <div className="psa-empty-sub" style={{ fontSize: 12 }}>لا توجد مدفوعات لهذا الموظف في النطاق المحدد</div>
+                    <div className="psa-empty-title" style={{ fontSize: 13 }}>{t('bank.salary_analytics.no_payments')}</div>
+                    <div className="psa-empty-sub" style={{ fontSize: 12 }}>{t('bank.salary_analytics.no_payments_for_employee_in_range')}</div>
                   </div>
                 )}
               </div>
@@ -1607,11 +1618,11 @@ export default function BankSalaryAnalytics() {
         <div className="card panel">
           <div className="psa-empty">
             <span className="material-symbols-outlined psa-empty-icon">analytics</span>
-            <div className="psa-empty-title">لا توجد بيانات</div>
-            <div className="psa-empty-sub">قم باستيراد ملف رواتب بنكي لبدء التحليل</div>
+            <div className="psa-empty-title">{t('msg.empty')}</div>
+            <div className="psa-empty-sub">{t('bank.salary_analytics.import_to_start_hint')}</div>
             <button type="button" className="btn" onClick={() => navigate('/payroll/bank-import')} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
               <span className="material-symbols-outlined" style={{ fontSize: 16 }}>upload_file</span>
-              استيراد ملف جديد
+              {t('bank.salary_analytics.import_new_file')}
             </button>
           </div>
         </div>

@@ -7,13 +7,14 @@ import { Skeleton } from '../Skeleton';
 import { formatCurrency, formatCompact } from '../../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../../lib/date';
 import { MoneyText } from '../../../config/modules';
+import { useT } from '../../../lib/i18n';
 
 export interface TrendPoint { label: string; revenue: number; expense: number }
 
-const SERIES_LABEL: Record<string, string> = {
-  revenue: 'الإيرادات',
-  expense: 'المصروفات',
-  profit: 'صافي الربح',
+const SERIES_LABEL_KEY: Record<string, string> = {
+  revenue: 'today.revenue',
+  expense: 'today.expenses',
+  profit: 'kpi.net_profit',
 };
 const SERIES_COLOR: Record<string, string> = {
   revenue: '#10B981',
@@ -24,6 +25,7 @@ const SERIES_COLOR: Record<string, string> = {
 interface TipEntry { dataKey?: string; value?: number; color?: string }
 
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: TipEntry[]; label?: string }) {
+  const { t } = useT();
   if (!active || !payload?.length) return null;
   return (
     <div style={{
@@ -33,15 +35,18 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
       direction: 'rtl', minWidth: 190, boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
     }}>
       <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10, letterSpacing: '0.06em' }}>{formatMonthLabel(label)}</p>
-      {payload.map((p, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '5px 0' }}>
-          <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color, flexShrink: 0 }} />
-          <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
-            {SERIES_LABEL[p.dataKey ?? ''] ?? p.dataKey}:{' '}
-            <span style={{ color: p.color }}>{<MoneyText value={p.value} />}</span>
-          </p>
-        </div>
-      ))}
+      {payload.map((p, i) => {
+        const seriesKey = SERIES_LABEL_KEY[p.dataKey ?? ''];
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '5px 0' }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: p.color, flexShrink: 0 }} />
+            <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
+              {seriesKey ? t(seriesKey) : p.dataKey}:{' '}
+              <span style={{ color: p.color }}>{<MoneyText value={p.value} />}</span>
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -60,6 +65,7 @@ export default function PerformanceChartSection({
   trend?: TrendPoint[];
   loading: boolean;
 }) {
+  const { t } = useT();
   if (loading) return <Skeleton height={260} style={{ borderRadius: 12 }} />;
 
   const points = Array.isArray(trend) ? trend : [];
@@ -68,7 +74,7 @@ export default function PerformanceChartSection({
     return (
       <div className="db-empty">
         <div className="db-empty-icon">📊</div>
-        <div className="db-empty-text">لا توجد بيانات مالية كافية لعرض الأداء</div>
+        <div className="db-empty-text">{t('pcs.empty')}</div>
       </div>
     );
   }
@@ -113,7 +119,7 @@ export default function PerformanceChartSection({
           <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(148,163,184,0.12)' }} />
           <Legend formatter={(value: string) => (
             <span style={{ color: 'var(--db-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
-              {SERIES_LABEL[value] ?? value}
+              {SERIES_LABEL_KEY[value] ? t(SERIES_LABEL_KEY[value]) : value}
             </span>
           )} />
           <Bar dataKey="revenue" fill="url(#ccGradRevenue)" radius={[6, 6, 0, 0]} maxBarSize={34} />

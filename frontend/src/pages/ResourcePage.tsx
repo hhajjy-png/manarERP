@@ -152,7 +152,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           const items: AlertItem[] = [];
           list.forEach((e) => e.alerts?.forEach((a: { document: string; remainingDays: number }) => {
             const severity: 'warn' | 'error' = a.remainingDays <= 7 ? 'error' : 'warn';
-            items.push({ id: e.id, code: e.code, label: `${e.fullName} — ${a.document}: ${a.remainingDays < 0 ? 'منتهٍ' : a.remainingDays + ' يوم'}`, severity });
+            items.push({ id: e.id, code: e.code, label: `${e.fullName} — ${a.document}: ${a.remainingDays < 0 ? t('alert.rp.expired_now') : t('alert.rp.days_remaining', { days: a.remainingDays })}`, severity });
           }));
           setAlerts(items);
         }
@@ -218,7 +218,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     setBusy(true);
     try {
       await api.delete(`${cfg.endpoint}/${row.id}`);
-      toast.ok('تم الحذف بنجاح');
+      toast.ok(t('msg.rp.deleted_success'));
       setViewing(null);
       load();
     } catch (err) {
@@ -249,7 +249,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     try {
       await api.patch(`${cfg.endpoint}/${archiveCandidate.id}/archive`);
       setArchiveCandidate(null);
-      toast.ok('تم الأرشفة بنجاح');
+      toast.ok(t('msg.rp.archived_success'));
       load();
     } catch (err) {
       setError(errorMessage(err));
@@ -269,7 +269,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     setBusy(true);
     try {
       await api.patch(`${cfg.endpoint}/${id}/${action}`);
-      toast.ok(action === 'approve' ? 'تمت الموافقة بنجاح' : 'تم الرفض');
+      toast.ok(action === 'approve' ? t('msg.rp.approved_success') : t('msg.rp.rejected_success'));
       load();
     } catch (err) {
       setError(errorMessage(err));
@@ -293,9 +293,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
         { icon: 'speed', label: t('stat.rp.equipment.uptime'), value: `${uptime}%`, tone: 'blue' },
       ];
     }
-    const total = { icon: cfg.explorerIcon ?? 'category', label: 'الإجمالي', value: meta?.total ?? rows.length, tone: 'indigo' as Tone };
+    const total = { icon: cfg.explorerIcon ?? 'category', label: t('stat.rp.total'), value: meta?.total ?? rows.length, tone: 'indigo' as Tone };
     if (cfg.key === 'employees') {
-      return [total, { icon: 'event_busy', label: 'وثائق قاربت الانتهاء', value: alerts.length, tone: alerts.length ? 'orange' : 'green' }];
+      return [total, { icon: 'event_busy', label: t('stat.rp.employees.expiring_docs'), value: alerts.length, tone: alerts.length ? 'orange' : 'green' }];
     }
     return [total];
   }
@@ -307,7 +307,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       fields={cfg.fields}
       endpoint={cfg.endpoint}
       onClose={() => setCreating(false)}
-      onSaved={() => { toast.ok('تم الحفظ بنجاح'); load(); }}
+      onSaved={() => { toast.ok(t('msg.rp.saved_success')); load(); }}
       skin={explorer ? 'explorer' : 'legacy'}
       icon={cfg.explorerIcon}
       subtitle={explorer ? t(cfg.subtitle) : undefined}
@@ -322,7 +322,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       id={editing.id}
       initial={editing}
       onClose={() => setEditing(null)}
-      onSaved={() => { toast.ok('تم الحفظ بنجاح'); load(); }}
+      onSaved={() => { toast.ok(t('msg.rp.saved_success')); load(); }}
       skin={explorer ? 'explorer' : 'legacy'}
       icon={cfg.explorerIcon}
       subtitle={explorer ? t(cfg.subtitle) : undefined}
@@ -337,17 +337,17 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       {editDialog}
       {archiveCandidate && (
         <Modal
-          title="لا يمكن الحذف"
+          title={t('modal.rp.cannot_delete')}
           onClose={() => setArchiveCandidate(null)}
           footer={
             <>
-              <button type="button" className="btn secondary" onClick={() => setArchiveCandidate(null)}>إلغاء</button>
-              <button type="button" className="btn" onClick={onConfirmArchive} disabled={busy}>أرشفة</button>
+              <button type="button" className="btn secondary" onClick={() => setArchiveCandidate(null)}>{t('action.cancel')}</button>
+              <button type="button" className="btn" onClick={onConfirmArchive} disabled={busy}>{t('action.archive')}</button>
             </>
           }
         >
-          <p>{archiveCandidate.conflictMessage ?? 'لا يمكن حذف هذا السجل لأنه مرتبط ببيانات أخرى.'}</p>
-          <p>يمكنك أرشفته بدلاً من حذفه — سيختفي من القوائم ويبقى في قاعدة البيانات.</p>
+          <p>{archiveCandidate.conflictMessage ?? t('msg.rp.cannot_delete_linked')}</p>
+          <p>{t('msg.rp.archive_instead_hint')}</p>
         </Modal>
       )}
       {forceDeleteCandidate && (
@@ -367,9 +367,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       )}
       {deleteCandidate && (
         <ConfirmModal
-          title="تأكيد الحذف"
+          title={t('modal.rp.confirm_delete')}
           message={t('msg.confirm_delete', { id: deleteCandidate.code ?? deleteCandidate.name ?? deleteCandidate.username ?? deleteCandidate.id })}
-          confirmLabel="حذف"
+          confirmLabel={t('action.delete')}
           variant="danger"
           onConfirm={() => executeDelete(deleteCandidate)}
           onCancel={() => setDeleteCandidate(null)}
@@ -377,9 +377,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
       )}
       {approveCandidate && (
         <ConfirmModal
-          title={approveCandidate.action === 'approve' ? 'تأكيد الموافقة' : 'تأكيد الرفض'}
+          title={approveCandidate.action === 'approve' ? t('modal.rp.confirm_approve_title') : t('modal.rp.confirm_reject_title')}
           message={t(approveCandidate.action === 'approve' ? 'msg.confirm_approve' : 'msg.confirm_reject')}
-          confirmLabel={approveCandidate.action === 'approve' ? 'موافقة' : 'رفض'}
+          confirmLabel={approveCandidate.action === 'approve' ? t('action.approve_confirm') : t('action.reject')}
           variant={approveCandidate.action === 'approve' ? 'warning' : 'danger'}
           onConfirm={() => executeApprove(approveCandidate.id, approveCandidate.action)}
           onCancel={() => setApproveCandidate(null)}
@@ -461,8 +461,8 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           subtitle={t(cfg.subtitle)}
           chips={
             <>
-              <IdChip icon={cfg.explorerIcon ?? 'category'} tone="indigo">{meta?.total ?? rows.length} سجل</IdChip>
-              {alerts.length > 0 && <IdChip icon="warning" tone="orange">{alerts.length} تنبيه</IdChip>}
+              <IdChip icon={cfg.explorerIcon ?? 'category'} tone="indigo">{t('stat.rp.records_count', { n: meta?.total ?? rows.length })}</IdChip>
+              {alerts.length > 0 && <IdChip icon="warning" tone="orange">{t('stat.rp.alerts_count', { n: alerts.length })}</IdChip>}
             </>
           }
           aside={canCreate ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t(cfg.createLabel)}</Button> : undefined}
@@ -505,7 +505,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
             <SearchBox value={search} onChange={(v) => setSearch(v)} placeholder={t('action.search_placeholder')} ariaLabel={t('action.search')} />
             <Button variant="secondary" icon="search" onClick={() => { setPage(1); setQuery(search); }}>{t('action.search')}</Button>
             <Button variant="ghost" icon="refresh" busy={loading} onClick={load}>{t('action.refresh')}</Button>
-            {canExport && <Button variant="secondary" icon="table_view" busy={exportBusy} onClick={exportExcel}>تصدير Excel</Button>}
+            {canExport && <Button variant="secondary" icon="table_view" busy={exportBusy} onClick={exportExcel}>{t('page.salaries.export_excel')}</Button>}
           </div>
           {cfg.statusFilter && (
             <div className="xpl-toolbar-row">
@@ -514,7 +514,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
                 <FilterChip key={o.value} active={filterValue === o.value} onClick={() => { setFilterValue(o.value); setPage(1); }}>{t(o.labelKey)}</FilterChip>
               ))}
               {isFiltered && <button type="button" className="xpl-clear-link" onClick={resetAll}>{t('action.reset_filters')}</button>}
-              <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} نتيجة</span>
+              <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{t('stat.rp.results_count', { n: meta?.total ?? rows.length })}</span>
             </div>
           )}
         </form>
@@ -528,7 +528,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
               icon={cfg.explorerIcon ?? 'inbox'}
               tone="neutral"
               title={isFiltered ? t('msg.no_results') : (cfg.emptyText ? t(cfg.emptyText) : t('msg.empty'))}
-              message={isFiltered ? 'جرّب تعديل البحث أو الفلاتر.' : undefined}
+              message={isFiltered ? t('msg.rp.try_adjust_search_filters') : undefined}
               action={isFiltered ? <Button variant="secondary" icon="restart_alt" onClick={resetAll}>{t('action.reset_filters')}</Button>
                 : canCreate ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t(cfg.createLabel)}</Button> : undefined}
             />
@@ -551,13 +551,13 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
                       ) : (
                         <th key={c.key} className={colClass(c)} style={colStyle(c)}>{t(c.label)}</th>
                       ))}
-                      <th aria-label="فتح" style={cfg.key === 'employees' ? { width: 40 } : undefined} />
+                      <th aria-label={t('aria.rp.open')} style={cfg.key === 'employees' ? { width: 40 } : undefined} />
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((r, i) => (
                       <tr key={r.id} className={`xpl-row--click${viewing?.id === r.id ? ' xpl-row--selected' : ''}`} tabIndex={0} role="button"
-                        aria-label={`تفاصيل ${r.name ?? r.fullName ?? r.code ?? r.id}`}
+                        aria-label={t('aria.rp.details', { name: r.name ?? r.fullName ?? r.code ?? r.id })}
                         onClick={() => setViewing(r)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                         {cfg.columns.map((c) => (
@@ -624,9 +624,9 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
               <>
                 <Tabs
                   tabs={[
-                    { key: 'basic', label: 'البيانات الأساسية', icon: 'badge' },
-                    { key: 'financial', label: 'المالية', icon: 'payments' },
-                    { key: 'entitlements', label: 'الاستحقاقات', icon: 'volunteer_activism' },
+                    { key: 'basic', label: t('tab.rp.employees.basic'), icon: 'badge' },
+                    { key: 'financial', label: t('tab.rp.employees.financial'), icon: 'payments' },
+                    { key: 'entitlements', label: t('tab.rp.employees.entitlements'), icon: 'volunteer_activism' },
                   ]}
                   active={drawerTab}
                   onChange={setDrawerTab}

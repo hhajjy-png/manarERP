@@ -26,16 +26,16 @@ interface FuelLog {
   cost?: number | null;
 }
 
-const EQUIPMENT_STATUS: Record<string, { label: string; tone: Tone }> = {
-  WORKING: { label: 'تعمل', tone: 'green' },
-  NOT_WORKING: { label: 'لا تعمل', tone: 'red' },
+const EQUIPMENT_STATUS: Record<string, { key: string; tone: Tone }> = {
+  WORKING: { key: 'opt.eq.working', tone: 'green' },
+  NOT_WORKING: { key: 'opt.eq.not_working', tone: 'red' },
 };
 
-const MAINTENANCE_STATUS_LABEL: Record<string, string> = {
-  SCHEDULED: 'مجدولة',
-  IN_PROGRESS: 'قيد التنفيذ',
-  COMPLETED: 'مكتملة',
-  CANCELLED: 'ملغاة',
+const MAINTENANCE_STATUS_KEYS: Record<string, string> = {
+  SCHEDULED: 'opt.maint.scheduled',
+  IN_PROGRESS: 'opt.maint.in_progress',
+  COMPLETED: 'opt.maint.completed',
+  CANCELLED: 'opt.maint.cancelled',
 };
 
 export default function EquipmentHub({ entity, cfg, onEdit, onDelete, canUpdate, canDelete, busy }: EntityHubProps) {
@@ -78,20 +78,26 @@ export default function EquipmentHub({ entity, cfg, onEdit, onDelete, canUpdate,
     return () => { alive = false; };
   }, [id]);
 
+  function maintStatusLabel(status: string | undefined): string | undefined {
+    if (!status) return undefined;
+    const key = MAINTENANCE_STATUS_KEYS[status];
+    return key ? t(key) : status;
+  }
+
   const statusInfo = entity.status ? EQUIPMENT_STATUS[entity.status as string] : undefined;
   const registration = entity.registration as { remainingText?: string; expiry?: string } | undefined;
 
   const kpis: DrawerKpi[] = [
-    ...(statusInfo ? [{ label: 'الحالة', value: statusInfo.label, tone: statusInfo.tone }] : []),
-    ...(registration?.remainingText ? [{ label: 'باقي الترخيص', value: registration.remainingText }] : []),
-    ...(registration?.expiry ? [{ label: 'تاريخ انتهاء الترخيص', value: formatDate(registration.expiry) }] : []),
+    ...(statusInfo ? [{ label: t('col.status'), value: t(statusInfo.key), tone: statusInfo.tone }] : []),
+    ...(registration?.remainingText ? [{ label: t('hub.equipment.kpi_license_remaining'), value: registration.remainingText }] : []),
+    ...(registration?.expiry ? [{ label: t('hub.equipment.kpi_license_expiry'), value: formatDate(registration.expiry) }] : []),
   ];
 
   const actions: QuickAction[] = [
-    { key: 'request-maintenance', icon: 'build_circle', label: 'طلب صيانة', onClick: () => navigate('/maintenance') },
-    { key: 'log-fuel', icon: 'local_gas_station', label: 'تسجيل وقود', onClick: () => navigate('/maintenance') },
-    ...(canUpdate ? [{ key: 'edit', icon: 'edit', label: 'تعديل', tone: 'primary' as const, onClick: onEdit }] : []),
-    ...(canDelete ? [{ key: 'delete', icon: 'delete', label: 'حذف', tone: 'danger' as const, onClick: onDelete, disabled: busy }] : []),
+    { key: 'request-maintenance', icon: 'build_circle', label: t('hub.equipment.action_request_maintenance'), onClick: () => navigate('/maintenance') },
+    { key: 'log-fuel', icon: 'local_gas_station', label: t('hub.equipment.action_log_fuel'), onClick: () => navigate('/maintenance') },
+    ...(canUpdate ? [{ key: 'edit', icon: 'edit', label: t('action.edit'), tone: 'primary' as const, onClick: onEdit }] : []),
+    ...(canDelete ? [{ key: 'delete', icon: 'delete', label: t('action.delete'), tone: 'danger' as const, onClick: onDelete, disabled: busy }] : []),
   ];
 
   const maintenanceItems: RelatedItem[] = records.map((r) => ({
@@ -100,7 +106,7 @@ export default function EquipmentHub({ entity, cfg, onEdit, onDelete, canUpdate,
     primary: r.type ?? '—',
     secondary: formatDate(r.date),
     trailing: r.status
-      ? (MAINTENANCE_STATUS_LABEL[r.status] ?? r.status)
+      ? maintStatusLabel(r.status)
       : (r.cost != null ? money(r.cost) : undefined),
   }));
 
@@ -108,7 +114,7 @@ export default function EquipmentHub({ entity, cfg, onEdit, onDelete, canUpdate,
     key: String(f.id),
     icon: 'local_gas_station',
     primary: formatDate(f.date),
-    secondary: `${f.liters ?? 0} لتر${f.odometer != null ? ` • ${f.odometer} كم` : ''}`,
+    secondary: `${f.liters ?? 0} ${t('hub.equipment.unit_liters')}${f.odometer != null ? ` • ${f.odometer} ${t('hub.equipment.unit_km')}` : ''}`,
     trailing: f.cost != null ? money(f.cost) : undefined,
   }));
 
@@ -116,15 +122,15 @@ export default function EquipmentHub({ entity, cfg, onEdit, onDelete, canUpdate,
     ...records.map((r): ActivityItem & { _sort: number } => ({
       key: `maint-${r.id}`,
       icon: 'build_circle',
-      title: r.type ?? 'صيانة',
-      meta: r.status ? (MAINTENANCE_STATUS_LABEL[r.status] ?? r.status) : undefined,
+      title: r.type ?? t('hub.equipment.fallback_maintenance_title'),
+      meta: maintStatusLabel(r.status),
       timestamp: formatDate(r.date),
       _sort: r.date ? new Date(r.date).getTime() : 0,
     })),
     ...fuelLogs.map((f): ActivityItem & { _sort: number } => ({
       key: `fuel-${f.id}`,
       icon: 'local_gas_station',
-      title: `تعبئة وقود — ${f.liters ?? 0} لتر`,
+      title: t('hub.equipment.fuel_activity_title', { liters: f.liters ?? 0 }),
       meta: f.cost != null ? money(f.cost) : undefined,
       timestamp: formatDate(f.date),
       _sort: f.date ? new Date(f.date).getTime() : 0,
@@ -143,8 +149,8 @@ export default function EquipmentHub({ entity, cfg, onEdit, onDelete, canUpdate,
       />
       <DrawerQuickActions actions={actions} />
       <DrawerInfoGrid title={t('nav.equipment')} items={buildInfoItems(cfg, entity, t, ['code', 'type', 'plateNumber'])} />
-      <DrawerRelated title="سجل الصيانة" loading={loading} items={maintenanceItems} />
-      <DrawerRelated title="سجل الوقود" loading={loading} items={fuelItems} />
+      <DrawerRelated title={t('hub.equipment.related_maintenance')} loading={loading} items={maintenanceItems} />
+      <DrawerRelated title={t('hub.equipment.related_fuel')} loading={loading} items={fuelItems} />
       <DrawerActivity loading={loading} items={activity} />
     </>
   );

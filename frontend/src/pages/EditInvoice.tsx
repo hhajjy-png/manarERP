@@ -194,7 +194,7 @@ export default function EditInvoice({ invoice, onClose, onSaved }: { invoice: an
           </div>
         </div>
         <div className="field">
-          <label>تاريخ الفاتورة</label>
+          <label>{t('lbl.inv.issue_date')}</label>
           <DateInput value={issueDate} onChange={(v) => {
             setIssueDate(v);
             if (v) {
@@ -202,20 +202,20 @@ export default function EditInvoice({ invoice, onClose, onSaved }: { invoice: an
               setBillingMonth(Number(mm));
               setBillingYear(Number(yy));
             }
-          }} title="تاريخ الفاتورة" max={todayDateOnly()} />
+          }} title={t('lbl.inv.issue_date')} max={todayDateOnly()} />
           <HistoricalDateNotice date={issueDate} />
         </div>
         <div className="field">
-          <label>تاريخ التسليم</label>
-          <DateInput value={deliveryDate} onChange={setDeliveryDate} title="تاريخ تسليم الفاتورة" />
+          <label>{t('field.inv.delivery_date')}</label>
+          <DateInput value={deliveryDate} onChange={setDeliveryDate} title={t('title.inv.delivery_date')} />
         </div>
         <div className="field">
           <label>{t('lbl.inv.billing_period')}</label>
           <div style={{ display: 'flex', gap: 8 }}>
-            <select value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} title="شهر الحساب" style={{ flex: 1 }}>
+            <select value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} title={t('lbl.inv.billing_period')} style={{ flex: 1 }}>
               {ARABIC_MONTHS.map((name, idx) => <option key={idx + 1} value={idx + 1}>{name}</option>)}
             </select>
-            <select value={billingYear} onChange={(e) => setBillingYear(Number(e.target.value))} title="سنة الحساب" style={{ width: 90 }}>
+            <select value={billingYear} onChange={(e) => setBillingYear(Number(e.target.value))} title={t('field.inv.billing_year')} style={{ width: 90 }}>
               {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
@@ -264,9 +264,9 @@ export default function EditInvoice({ invoice, onClose, onSaved }: { invoice: an
         </div>
         {effectivePartySource === 'SALES' && partyId && contracts.length > 0 && (
           <div className="field">
-            <label>العقد / المصنع (لتضييق الأسعار)</label>
-            <select aria-label="اختر العقد" value={contractId} onChange={(e) => setContractId(e.target.value)}>
-              <option value="">كل العقود</option>
+            <label>{t('field.inv.contract_filter')}</label>
+            <select aria-label={t('aria.select_contract')} value={contractId} onChange={(e) => setContractId(e.target.value)}>
+              <option value="">{t('opt.all_contracts')}</option>
               {contracts.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.code}{c.asphaltPlant ? ` — ${c.asphaltPlant}` : ''}{c.companyName ? ` (${c.companyName})` : ''}
@@ -303,21 +303,21 @@ export default function EditInvoice({ invoice, onClose, onSaved }: { invoice: an
         const remaining = invTotal - paid;
         const pct = invTotal > 0 ? Math.round((paid / invTotal) * 100) : 0;
         const latestPmt = payments[0] ?? null;
-        const statusLabel: Record<string, string> = { PENDING: 'معلقة', PARTIAL: 'مدفوعة جزئياً', PAID: 'مدفوعة بالكامل', CANCELLED: 'ملغاة' };
+        const statusLabel: Record<string, string> = { PENDING: t('inv.status_edit.pending'), PARTIAL: t('inv.status_alt.partial'), PAID: t('inv.status_edit.paid_full'), CANCELLED: t('inv.status.cancelled') };
         return (
           <div style={{ marginTop: 14, padding: '12px 16px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10 }}>
-            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>تحصيل الفاتورة</div>
+            <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{t('lbl.inv.collection_panel_title')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 10 }}>
               <div style={{ textAlign: 'center', padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>إجمالي الفاتورة</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>{t('lbl.inv.invoice_total')}</div>
                 <div style={{ fontWeight: 800, fontSize: 14 }}>{<MoneyText value={invTotal} />}</div>
               </div>
               <div style={{ textAlign: 'center', padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>المحصّل</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>{t('lbl.inv.collected_amount')}</div>
                 <div style={{ fontWeight: 800, fontSize: 14, color: '#065f46' }}>{<MoneyText value={paid} />}</div>
               </div>
               <div style={{ textAlign: 'center', padding: '8px 10px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>المتبقي</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>{t('lbl.inv.remaining_amount')}</div>
                 <div style={{ fontWeight: 800, fontSize: 14, color: remaining > 0 ? '#dc2626' : '#065f46' }}>{<MoneyText value={remaining} />}</div>
               </div>
             </div>
@@ -330,9 +330,9 @@ export default function EditInvoice({ invoice, onClose, onSaved }: { invoice: an
             </div>
             {payments.length > 0 && (
               <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-                <span>عدد الدفعات: <strong style={{ color: 'var(--text)' }}>{payments.length}</strong></span>
-                {latestPmt && <span>آخر دفعة: <strong style={{ color: 'var(--text)' }}>{<MoneyText value={latestPmt.amount} />}</strong></span>}
-                {latestPmt?.date && <span>تاريخ آخر دفعة: <strong style={{ color: 'var(--text)' }}>{dateText(latestPmt.date)}</strong></span>}
+                <span>{t('lbl.inv.payment_count')} <strong style={{ color: 'var(--text)' }}>{payments.length}</strong></span>
+                {latestPmt && <span>{t('lbl.inv.last_payment')} <strong style={{ color: 'var(--text)' }}>{<MoneyText value={latestPmt.amount} />}</strong></span>}
+                {latestPmt?.date && <span>{t('lbl.inv.last_payment_date')} <strong style={{ color: 'var(--text)' }}>{dateText(latestPmt.date)}</strong></span>}
               </div>
             )}
           </div>

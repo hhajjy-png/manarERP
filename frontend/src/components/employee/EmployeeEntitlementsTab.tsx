@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../../api/client';
 import { useAuth } from '../../stores/authStore';
+import { useT } from '../../lib/i18n';
 import { dateText } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
 import { MetricCard, EmptyState, ErrorBanner, SkeletonRows, Button } from '../explorer/ExplorerKit';
@@ -25,6 +26,7 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
   const { hasPermission } = useAuth();
   const canRead = hasPermission('employees.read');
   const navigate = useNavigate();
+  const { t } = useT();
 
   const [data, setData] = useState<EntitlementsResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -53,7 +55,7 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
   }, [data]);
 
   if (!canRead) {
-    return <EmptyState icon="lock" title="صلاحية غير متوفرة" message="لا تملك صلاحية عرض استحقاقات هذا الموظف." tone="neutral" />;
+    return <EmptyState icon="lock" title={t('msg.ent.no_permission_title')} message={t('msg.ent.no_permission_message')} tone="neutral" />;
   }
   if (error) return <ErrorBanner>{error}</ErrorBanner>;
   if (loading || !data) return <SkeletonRows rows={4} withAvatar={false} />;
@@ -66,36 +68,36 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
       <div className="ent-kpis">
         <MetricCard
           icon="beach_access"
-          label="رصيد الإجازة الحالي"
+          label={t('field.ent.current_leave_balance')}
           tone="blue"
-          value={r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays) : '—'}
-          sub={r.firstYearEligible === false ? 'غير مؤهل بعد' : undefined}
+          value={r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays, t) : '—'}
+          sub={r.firstYearEligible === false ? t('msg.ent.not_yet_eligible_short') : undefined}
         />
         <MetricCard
           icon="event_available"
-          label="الاستحقاق القانوني الإجمالي"
+          label={t('field.ent.total_legal_entitlement')}
           tone="indigo"
-          value={r.accruedLeaveDays !== null ? daysText(r.accruedLeaveDays) : '—'}
+          value={r.accruedLeaveDays !== null ? daysText(r.accruedLeaveDays, t) : '—'}
         />
         <MetricCard
           icon="event_busy"
-          label="الإجازة المستخدمة"
+          label={t('field.ent.leave_used')}
           tone="green"
-          value={daysText(r.usedLeaveDays)}
+          value={daysText(r.usedLeaveDays, t)}
         />
         <MetricCard
           icon="savings"
-          label="ملخّص التسويات"
+          label={t('field.ent.settlements_summary')}
           tone="orange"
           value={String(settlementTotals.count)}
-          sub={settlementTotals.count > 0 ? <PrivateAmount value={settlementTotals.totalAmount} level={1} /> : 'لا توجد دفعات'}
+          sub={settlementTotals.count > 0 ? <PrivateAmount value={settlementTotals.totalAmount} level={1} /> : t('msg.ent.no_advances_short')}
         />
       </div>
 
       {/* ملخّص صغير جدًا فقط — التفاصيل الكاملة في مركز المستحقات */}
       <p className="ent-mini-summary">
-        {emp.hireDate ? `على رأس العمل منذ ${dateText(emp.hireDate)}` : 'تاريخ التعيين غير مُدخل'}
-        {r.firstYearEligible === false && ' — لم يكتمل شرط أهلية إجازة السنة الأولى بعد (9 أشهر خدمة)'}
+        {emp.hireDate ? t('msg.ent.employed_since', { date: dateText(emp.hireDate) }) : t('msg.ent.missing_hire_date')}
+        {r.firstYearEligible === false && t('msg.ent.first_year_not_met_suffix')}
       </p>
 
       <Button
@@ -103,7 +105,7 @@ export default function EmployeeEntitlementsTab({ employee }: { employee: Employ
         icon="open_in_new"
         onClick={() => navigate(`/employees/${employee.id}/entitlements`)}
       >
-        فتح مركز المستحقات
+        {t('action.ent.open_center')}
       </Button>
     </div>
   );

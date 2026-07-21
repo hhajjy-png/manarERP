@@ -5,6 +5,7 @@ import FormLayout from '../forms/shared/FormLayout';
 import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_FINANCE, useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PaymentVoucherTemplate from '../forms/PaymentVoucherTemplate';
+import { useT } from '../lib/i18n';
 
 interface ChequeData {
   id: number;
@@ -20,6 +21,7 @@ interface ChequeData {
 
 export default function PaymentVoucher() {
   const { chequeId } = useParams<{ chequeId: string }>();
+  const { t } = useT();
   const [cheque, setCheque] = useState<ChequeData | null>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
@@ -37,7 +39,7 @@ export default function PaymentVoucher() {
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE),
     title: lang === 'en' ? 'Payment Voucher' : 'سند صرف',
-    documentLabel: `سند صرف · ${cheque?.paymentVoucherNumber ?? ''}`,
+    documentLabel: t('voucher.payment.document_label', { number: cheque?.paymentVoucherNumber ?? '' }),
     lang,
   });
 
@@ -56,16 +58,16 @@ export default function PaymentVoucher() {
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
     title: lang === 'en' ? 'Payment Voucher' : 'سند صرف',
-    documentLabel: `سند صرف · ${cheque?.paymentVoucherNumber ?? ''}`,
+    documentLabel: t('voucher.payment.document_label', { number: cheque?.paymentVoucherNumber ?? '' }),
   });
 
 
-  if (error) return <div className="center-msg">خطأ: {error}</div>;
+  if (error) return <div className="center-msg">{t('msg.error')}: {error}</div>;
   if (!cheque)
     return (
       <div className="center-msg">
         <div className="spinner" />
-        جارٍ التحميل…
+        {t('msg.loading')}
       </div>
     );
   if (!cheque.paymentVoucherNumber)
@@ -74,9 +76,9 @@ export default function PaymentVoucher() {
         className="center-msg"
         style={{ direction: 'rtl', color: '#b91c1c', maxWidth: 480, margin: '80px auto', textAlign: 'center', lineHeight: 1.7 }}
       >
-        لم يتم إصدار رقم سند الصرف بعد.
+        {t('msg.payment.number_not_issued')}
         <br />
-        يرجى العودة إلى صفحة الشيكات والضغط على «طباعة سند الصرف».
+        {t('msg.payment.go_back_notice')}
       </div>
     );
 

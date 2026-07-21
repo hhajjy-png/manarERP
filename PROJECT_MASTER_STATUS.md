@@ -2,14 +2,14 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-20 (previously 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-20 (previously 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Invoice Confirmation Dialog Layering Fix v1), like the Invoice Creation Reliability &
-> Confirmation Pack v1 pass and the 2026-07-17 pass before it, refreshed the "Current Production State" table
+> below. This pass (Employee & Equipment Tables Visual Consistency Pack v1), like the Employee Financial Position
+> Dashboard v1 pass and the 2026-07-17 pass before it, refreshed the "Current Production State" table
 > only (re-derived directly from `git`) — the "Repository Status" quantitative table and the deeper narrative
 > surveys (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01
 > respectively and have not been re-audited in this pass — treat their specifics as of those dates, not current-day.
@@ -35,9 +35,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `96651b3` — merge of `feature/invoice-confirmation-dialog-layering-fix-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-invoice-confirmation-dialog-layering-fix-v1` (merge commit `96651b3`) | High |
-| **Previous stable tag** | `stable-invoice-creation-reliability-confirmation-pack-v1` (`ac2b6bd`) | High |
+| **Current HEAD** | `db6a8a1` — merge of `feature/employee-equipment-tables-visual-consistency-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-employee-equipment-tables-visual-consistency-pack-v1` (merge commit `db6a8a1`) | High |
+| **Previous stable tag** | `stable-employee-financial-position-dashboard-v1` (`9d0c6ff`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -64,7 +64,82 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-invoice-confirmation-dialog-layering-fix-v1` (`96651b3`, 2026-07-20)
+### Latest Release — `stable-employee-equipment-tables-visual-consistency-pack-v1` (`db6a8a1`, 2026-07-20)
+
+Executive-grade visual polish for the Employees explorer table, a numeric sorting regression fix for Employee
+Number, a frozen-cell background consistency fix, and migration of the Equipment table's Registration Remaining
+column onto the same shared visual system as Employee's expiry cells. Presentation-only except the Employee
+Number sort execution path — no API, Prisma, database, routing, filtering, or pagination change.
+
+- **Employee table polish:** single-line, ellipsis + tooltip Arabic/English name cells; profession and
+  nationality rendered as plain text (badges/flags/status labels — added in an earlier iteration — removed
+  after explicit user feedback in favor of a calmer, label-free look); the four expiry columns share one
+  `ExpiryCell` (soft pastel tint + thin colour accent, no badge/icon/label); frozen identity columns limited to
+  Employee Number + Arabic Name (English Name unfrozen); rebalanced widths, denser rhythm, a stronger-but-quiet
+  hover.
+- **Employee Number numeric sort fix:** `code` is a digit string; SQLite/Prisma sorted it lexically
+  (1, 10, 11, 2). Removed from the DB sort whitelist and routed through the **existing shared**
+  `sortRowsInMemory` numeric collator (same pattern already used by payroll/financial) over the full filtered
+  set before paging — no duplicate sort logic, no API/Prisma/DB change. 3 regression tests added.
+- **Frozen cell background consistency fix:** the frozen cells' opaque hover/selected overlay used
+  independently hand-tuned percentages (8%/12%) instead of the actual row-level tint values (7%/10%), causing
+  visible drift from the non-frozen English Name cell. Both now derive from single-source
+  `--emp-hover-pct`/`--emp-selected-pct` tokens so they cannot drift apart again. CSS-only.
+- **Shared `ToneCell` + Equipment migration:** extracted the Employee expiry-tint system into a shared,
+  reusable `ToneCell` component (`frontend/src/components/explorer/`) — the one green/amber/orange/red system
+  for any explorer table's status/remaining-period cell, not a per-module copy. Employee's `ExpiryCell` now
+  delegates to it (zero visual change, re-verified via full test suite + build). Equipment's Registration
+  Remaining column migrated off the old loud `.pill` badge onto the same system (same
+  `expired`/`expiringSoon` flags, no calculation change) — removes the saturated badge background and the
+  warning-icon prefix. Equipment's WORKING/NOT_WORKING status column intentionally left on the classic pill
+  (Employee's own status column also still uses it — keeps both tables internally consistent with the same
+  reference).
+- **Scope guarantee:** 11 files (+427/−31; 5 added, 6 modified: `employees.service.ts`,
+  `employees.sort.test.ts`, `DataTable.tsx`, `SortableHeader.tsx`, `modules.tsx`, `ResourcePage.tsx` modified;
+  `employeeCells.tsx`, `employee-table.css`, `equipmentCells.tsx`, `ToneCell.tsx`, `toneCell.css` added).
+  Checkpoint tag `pre-employee-equipment-tables-visual-consistency-pack-v1`. Feature branch
+  `feature/employee-equipment-tables-visual-consistency-pack-v1` (kept, pushed). Feature commit `f46d203`,
+  merge commit `db6a8a1`.
+- **Validation:** backend `tsc --noEmit` ✅ · backend build ✅ · backend vitest **1848/1848 pass** ✅ ·
+  frontend `tsc --noEmit` ✅ · frontend build ✅ · frontend vitest **1775/1776 pass** (1 pre-existing, unrelated
+  failure — a hardcoded `lazy()`-import counter in `routerFutureFlags.test.tsx` already stale against untouched
+  `App.tsx`; confirmed to reproduce identically on vanilla `production`) — all validated both pre-merge (in an
+  isolated git worktree with its own dependency install + Prisma client generation) and on the merged
+  `production` HEAD. No business logic, accounting/GL logic, or database schema change beyond the Employee
+  Number sort path described above. Product Owner manual visual review: **APPROVED**. Gemini final review:
+  **APPROVED**.
+  *Confidence: High (this pass's own git/build evidence).*
+
+### Previous Release — `stable-employee-financial-position-dashboard-v1` (`9d0c6ff`, 2026-07-20)
+
+Presentation-only redesign of the top of `EmployeeEntitlementsCenter.tsx` into an executive financial
+dashboard. Legal engine, backend, API, and database are all untouched.
+
+- **Financial Position card:** one `SectionCard` headline ("إجمالي الالتزام الحالي") plus two executive
+  `MetricCard`s — Leave Allowance and End of Service — summed directly from the existing legal engine
+  (`r.leaveAllowanceValue + eosAmount`, both already computed server-side). No ledger-derived or
+  accounting-style figure is shown: a "Previously Paid"/"Remaining Expected Liability" pair (originally
+  derived from `sum(ledger[].amount)`) was implemented and then deliberately removed in a follow-up
+  correction, because the append-only historical entitlements ledger must never be presented as an actual
+  paid/accounting balance.
+- **Health Indicators panel:** compact grid reusing the existing `.ent-warning` styling, derived purely from
+  existing response data (leave eligibility, data completeness, last-disbursement recency, high leave
+  balance) merged with the existing `buildWarnings()` output — no new business rule, no warning dropped.
+- **Service Analytics grid:** consolidates hire date, service duration, approved wage, legal accrual, leave
+  balance/used, holidays/sick excluded, and advances count into one responsive `auto-fit` grid — same values
+  as before, each now appearing exactly once (removes the prior duplication between the info strip and the
+  KPI cards).
+- **Scope guarantee:** 2 files (+253/−131; 0 added, 2 modified: `EmployeeEntitlementsCenter.tsx`,
+  `EmployeeEntitlementsCenter.css`). Feature branch `feature/employee-financial-position-dashboard-v1` (kept,
+  pushed). Feature commit `df8be37`, merge commit `9d0c6ff`.
+- **Validation:** frontend `tsc --noEmit` ✅ · frontend `vite build` ✅ · backend `tsc --noEmit` ✅ · backend
+  build ✅ (all four, both pre-merge and on merged HEAD) · zero backend files touched. No business logic,
+  legal calculation, accounting/GL logic, or database schema change — every displayed number maps 1:1 to the
+  same pre-existing `GET /employees/:id/entitlements` API field. Built entirely from ExplorerKit components
+  and `--xpl-*` tokens, RTL, responsive. Gemini final review: **APPROVED**.
+  *Confidence: High (this pass's own git/build evidence).*
+
+### Previous Release — `stable-invoice-confirmation-dialog-layering-fix-v1` (`96651b3`, 2026-07-20)
 
 Bug fix: the invoice save-confirmation dialog (introduced by Invoice Creation Reliability & Confirmation
 Pack v1) rendered behind the Create Invoice window instead of above it, making it unusable.

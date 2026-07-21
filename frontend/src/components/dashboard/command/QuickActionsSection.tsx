@@ -1,9 +1,10 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../stores/authStore';
+import { useT } from '../../../lib/i18n';
 
 interface QuickAction {
   key: string;
-  label: string;
+  labelKey: string;
   icon: string;
   route: string;
   permission: string;
@@ -12,11 +13,11 @@ interface QuickAction {
 
 // All routes and permission keys already exist in the system — nothing new is created.
 const ACTIONS: QuickAction[] = [
-  { key: 'invoice',  label: 'فاتورة جديدة', icon: '🧾', route: '/invoices',  permission: 'invoices.create',  tone: '#3B82F6' },
-  { key: 'customer', label: 'عميل جديد',    icon: '👥', route: '/customers', permission: 'customers.create', tone: '#A855F7' },
-  { key: 'expense',  label: 'مصروف جديد',   icon: '💸', route: '/expenses',  permission: 'expenses.create',  tone: '#EF4444' },
-  { key: 'contract', label: 'عقد جديد',     icon: '📄', route: '/contracts', permission: 'contracts.create', tone: '#10B981' },
-  { key: 'cheque',   label: 'شيك جديد',     icon: '🖋️', route: '/cheques',   permission: 'cheques.create',   tone: '#F59E0B' },
+  { key: 'invoice',  labelKey: 'page.invoices.create', icon: '🧾', route: '/invoices',  permission: 'invoices.create',  tone: '#3B82F6' },
+  { key: 'customer', labelKey: 'qas.new_customer',    icon: '👥', route: '/customers', permission: 'customers.create', tone: '#A855F7' },
+  { key: 'expense',  labelKey: 'qas.new_expense',   icon: '💸', route: '/expenses',  permission: 'expenses.create',  tone: '#EF4444' },
+  { key: 'contract', labelKey: 'mod.contracts.create',     icon: '📄', route: '/contracts', permission: 'contracts.create', tone: '#10B981' },
+  { key: 'cheque',   labelKey: 'page.cheques.new',     icon: '🖋️', route: '/cheques',   permission: 'cheques.create',   tone: '#F59E0B' },
 ];
 
 /**
@@ -24,6 +25,7 @@ const ACTIONS: QuickAction[] = [
  * current user is allowed to create are shown; navigation uses current routes only.
  */
 export default function QuickActionsSection() {
+  const { t } = useT();
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
 
@@ -33,7 +35,7 @@ export default function QuickActionsSection() {
     return (
       <div className="db-empty">
         <div className="db-empty-icon">🔒</div>
-        <div className="db-empty-text">لا توجد إجراءات متاحة بصلاحياتك الحالية</div>
+        <div className="db-empty-text">{t('qas.empty')}</div>
       </div>
     );
   }
@@ -49,7 +51,7 @@ export default function QuickActionsSection() {
           style={{ ['--qa-tone' as string]: a.tone }}
         >
           <span className="db-qa-icon">{a.icon}</span>
-          <span className="db-qa-label">{a.label}</span>
+          <span className="db-qa-label">{t(a.labelKey)}</span>
         </button>
       ))}
     </div>

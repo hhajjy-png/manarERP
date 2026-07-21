@@ -86,6 +86,40 @@ function buildLabel(preset: FinancialPeriodPreset, from?: string, to?: string, y
   return PRESET_LABELS[preset as keyof typeof PRESET_LABELS] ?? 'الفترة المعروضة';
 }
 
+/** Reuses the same i18n keys as `PeriodControl.tsx`'s PRESETS list — the Arabic text is identical. */
+const PRESET_LABEL_KEYS: Record<Exclude<FinancialPeriodPreset, 'year' | 'custom' | 'all'>, string> = {
+  'current-year':   'fc.period.current_year',
+  'previous-year':  'fc.period.previous_year',
+  'current-month':  'fc.period.current_month',
+  'previous-month': 'fc.period.previous_month',
+  'year-to-date':   'fc.period.year_to_date',
+};
+
+/**
+ * Language-aware equivalent of `buildLabel()`, for callers that display
+ * `FinancialPeriod.label` in the UI. `FinancialPeriod.label` itself stays
+ * Arabic-only (backward-compatible for existing tests/consumers) — callers
+ * that need the active UI language should call this with their `t()` instead
+ * of reading `.label` directly.
+ */
+export function buildLocalizedPeriodLabel(
+  period: Pick<FinancialPeriod, 'preset' | 'fromDate' | 'toDate' | 'selectedYear'>,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  /** When true, the range case returns the bare "{from} – {to}" without a "Period:" prefix — for embedding inline in a sentence (e.g. "No expenses in {period}."), mirroring the Arabic original's `.replace('الفترة المعروضة: ', 'الفترة ')` shortening. */
+  short = false,
+): string {
+  if (period.preset === 'all') return t('fc.period.all');
+  if (period.preset === 'year' && period.selectedYear) {
+    return t('fc.period.label_year', { year: period.selectedYear });
+  }
+  if (period.fromDate && period.toDate) {
+    const from = displayDate(period.fromDate), to = displayDate(period.toDate);
+    return short ? t('fc.period.range_bare', { from, to }) : t('fc.period.label_range', { from, to });
+  }
+  const key = PRESET_LABEL_KEYS[period.preset as keyof typeof PRESET_LABEL_KEYS];
+  return key ? t(key) : t('fc.period.label_generic');
+}
+
 /**
  * يحسب حدود الفترة من preset (وسنة/نطاق مخصص عند اللزوم).
  *

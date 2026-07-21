@@ -16,6 +16,7 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
+import { useT } from '../../lib/i18n';
 
 export type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
@@ -101,10 +102,11 @@ export function ExecutiveHeader({
   chips?: ReactNode;
   aside?: ReactNode;
 }) {
+  const { t } = useT();
   return (
     <header className="xpl-exec-header">
       {onBack && (
-        <button type="button" className="xpl-back-btn" onClick={onBack} aria-label="رجوع">
+        <button type="button" className="xpl-back-btn" onClick={onBack} aria-label={t('btn.inv.back')}>
           <Icon name="arrow_forward" />
         </button>
       )}
@@ -289,6 +291,7 @@ export function SearchBox({
   placeholder?: string;
   ariaLabel?: string;
 }) {
+  const { t } = useT();
   return (
     <div className="xpl-search">
       <Icon name="search" />
@@ -297,10 +300,10 @@ export function SearchBox({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
-        aria-label={ariaLabel ?? placeholder ?? 'بحث'}
+        aria-label={ariaLabel ?? placeholder ?? t('action.search')}
       />
       {value && (
-        <button type="button" className="xpl-search-clear" onClick={() => onChange('')} aria-label="مسح البحث">
+        <button type="button" className="xpl-search-clear" onClick={() => onChange('')} aria-label={t('a11y.clear_search')}>
           <Icon name="close" />
         </button>
       )}
@@ -382,8 +385,9 @@ export function ErrorBanner({ children }: { children: ReactNode }) {
 // ─── Skeleton rows ─────────────────────────────────────────────────────────────
 
 export function SkeletonRows({ rows = 5, withAvatar = true }: { rows?: number; withAvatar?: boolean }) {
+  const { t } = useT();
   return (
-    <div className="xpl-skeleton" aria-busy="true" aria-label="جارٍ التحميل">
+    <div className="xpl-skeleton" aria-busy="true" aria-label={t('a11y.loading')}>
       {Array.from({ length: rows }).map((_, i) => (
         <div className="xpl-skeleton-row" key={i}>
           {withAvatar && <div className="xpl-skeleton-cell xpl-sk-circle" />}
@@ -414,6 +418,7 @@ export function Drawer({
   labelledById?: string;
 }) {
   const panelRef = useFocusTrap(onClose);
+  const { t } = useT();
 
   return (
     <>
@@ -429,7 +434,7 @@ export function Drawer({
       >
         <div className="xpl-drawer-header">
           <h3 className="xpl-drawer-title" id={labelledById}>{title}</h3>
-          <button type="button" className="xpl-drawer-close" onClick={onClose} aria-label="إغلاق">
+          <button type="button" className="xpl-drawer-close" onClick={onClose} aria-label={t('action.close')}>
             <Icon name="close" />
           </button>
         </div>
@@ -568,6 +573,7 @@ export function DrawerRelated({
   items?: RelatedItem[];
   onSeeAll?: () => void;
 }) {
+  const { t } = useT();
   if (!loading && !error && (!items || items.length === 0)) return null; // hide when empty
   return (
     <DrawerSection title={title}>
@@ -598,7 +604,7 @@ export function DrawerRelated({
               </div>
             ),
           )}
-          {onSeeAll && <button type="button" className="xpl-related-seeall" onClick={onSeeAll}>عرض الكل</button>}
+          {onSeeAll && <button type="button" className="xpl-related-seeall" onClick={onSeeAll}>{t('page.dashboard.view_all')}</button>}
         </div>
       )}
     </DrawerSection>
@@ -615,15 +621,16 @@ export interface ActivityItem {
 }
 
 export function DrawerActivity({
-  title = 'آخر النشاط', loading, items,
+  title, loading, items,
 }: {
   title?: string;
   loading?: boolean;
   items?: ActivityItem[];
 }) {
+  const { t } = useT();
   if (!loading && (!items || items.length === 0)) return null;
   return (
-    <DrawerSection title={title}>
+    <DrawerSection title={title ?? t('section.recent_activity')}>
       {loading ? (
         <SkeletonRows rows={3} />
       ) : (
@@ -717,6 +724,7 @@ export function Dialog({
   elevated?: boolean;
 }) {
   const panelRef = useFocusTrap(onClose);
+  const { t } = useT();
   return (
     <div className={`xpl-dialog-overlay${elevated ? ' xpl-dialog-overlay--elevated' : ''}`} onClick={onClose}>
       <div
@@ -737,7 +745,7 @@ export function Dialog({
               {subtitle && <p className="xpl-dialog-subtitle">{subtitle}</p>}
             </div>
           </div>
-          <button type="button" className="xpl-drawer-close" onClick={onClose} aria-label="إغلاق">
+          <button type="button" className="xpl-drawer-close" onClick={onClose} aria-label={t('action.close')}>
             <Icon name="close" />
           </button>
         </div>
@@ -804,6 +812,7 @@ export function Pagination({
   /** Disables both nav buttons regardless of page position — e.g. while a fetch is in flight. */
   disabled?: boolean;
 }) {
+  const { t } = useT();
   if (!meta || meta.total === 0) return null;
   const from = (meta.page - 1) * meta.pageSize + 1;
   const to = Math.min(meta.page * meta.pageSize, meta.total);
@@ -811,16 +820,16 @@ export function Pagination({
     <div className="xpl-pagination">
       <span className="xpl-pagination-info">
         {meta.totalPages > 1
-          ? <>عرض {from}–{to} من {meta.total} · صفحة {meta.page} من {meta.totalPages}</>
-          : <>الإجمالي {meta.total}</>}
+          ? <>{t('msg.showing_range', { from, to, total: meta.total })} · {t('msg.page')} {meta.page} {t('msg.of')} {meta.totalPages}</>
+          : <>{t('msg.total')} {meta.total}</>}
       </span>
       {meta.totalPages > 1 && (
         <div className="xpl-pagination-btns">
           <button type="button" className="xpl-btn xpl-btn--secondary xpl-btn--sm" disabled={meta.page <= 1 || disabled} onClick={() => onPage(meta.page - 1)}>
-            <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>السابق
+            <span className="material-symbols-outlined" aria-hidden="true">chevron_right</span>{t('action.prev')}
           </button>
           <button type="button" className="xpl-btn xpl-btn--secondary xpl-btn--sm" disabled={meta.page >= meta.totalPages || disabled} onClick={() => onPage(meta.page + 1)}>
-            التالي<span className="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+            {t('action.next')}<span className="material-symbols-outlined" aria-hidden="true">chevron_left</span>
           </button>
         </div>
       )}

@@ -9,7 +9,8 @@ import { exportReportAsPdf } from '../utils/pdfExport';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { downloadBlob } from '../utils/exportUtils';
 import { formatDate } from '../lib/date';
-import { fcCurrency, referenceTypeAr, accountTypeAr, fcMoneyCell, fcMoneyHeader } from '../components/financial/financialLabels';
+import { fcCurrency, referenceTypeLabel, accountTypeLabel, fcMoneyCell, fcMoneyHeader } from '../components/financial/financialLabels';
+import { useT } from '../lib/i18n';
 import type {
   FinancialResponse, StatementRow, ArAgingRow, ApAgingRow,
   GlStatementRow, GlReportResponse,
@@ -47,21 +48,21 @@ import SortableHeader from '../components/SortableHeader';
 interface EntityOption { id: number; name: string; code: string; }
 
 const FINANCIAL_TABS = [
-  { key: 'statement', label: 'كشف الحساب',      permission: 'statements.read'   },
-  { key: 'aging',     label: 'أعمار الذمم',     permission: 'aging.read'         },
-  { key: 'gl',        label: 'دفتر الأستاذ',    permission: 'gl.read'            },
-  { key: 'trial',     label: 'ميزان المراجعة',  permission: 'trialbalance.read'  },
-  { key: 'journal',   label: 'دفتر اليومية',    permission: 'journal.read'       },
-  { key: 'finreport', label: 'التقارير المالية', permission: 'finreports.read'   },
+  { key: 'statement', labelKey: 'nav.statements',   permission: 'statements.read'   },
+  { key: 'aging',     labelKey: 'fc.tab.aging',     permission: 'aging.read'         },
+  { key: 'gl',        labelKey: 'fc.tab.gl',        permission: 'gl.read'            },
+  { key: 'trial',     labelKey: 'fc.tab.trial',     permission: 'trialbalance.read'  },
+  { key: 'journal',   labelKey: 'fc.tab.journal',   permission: 'journal.read'       },
+  { key: 'finreport', labelKey: 'fc.tab.finreport', permission: 'finreports.read'   },
 ];
 
-const AGING_BUCKETS: AgingBucketData[] = [
-  { key: 'current',  label: 'جاري',       amount: 0 },
-  { key: '0_30',     label: '0–30 يوم',   amount: 0 },
-  { key: '31_60',    label: '31–60 يوم',  amount: 0 },
-  { key: '61_90',    label: '61–90 يوم',  amount: 0 },
-  { key: '91_120',   label: '91–120 يوم', amount: 0 },
-  { key: 'over_120', label: '+120 يوم',   amount: 0 },
+const AGING_BUCKETS: { key: string; labelKey: string }[] = [
+  { key: 'current',  labelKey: 'fc.aging.current' },
+  { key: '0_30',     labelKey: 'fc.aging.f_0_30' },
+  { key: '31_60',    labelKey: 'fc.aging.f_31_60' },
+  { key: '61_90',    labelKey: 'fc.aging.f_61_90' },
+  { key: '91_120',   labelKey: 'fc.aging.f_91_120' },
+  { key: 'over_120', labelKey: 'fc.aging.over_120' },
 ];
 
 // الرمز في **عنوان العمود** لا في كل خليّة؛ والخليّة رقم مجرّد («12,455.000»).
@@ -71,6 +72,7 @@ function fmtKwd(n?: number) {
 }
 
 export default function FinancialCenter() {
+  const { t } = useT();
   const [searchParams, setSearchParams] = useSearchParams();
   const { hasPermission } = useAuth();
   const navigate = useNavigate();
@@ -149,7 +151,7 @@ export default function FinancialCenter() {
     firstRunRef.current = false;
     prevSigRef.current = sig;
     const f = period.fromDate ?? '';
-    const t = period.toDate ?? '';
+    const toD = period.toDate ?? '';
     const asOf = period.asOfDate ?? '';
     const overwrite = !isFirst; // على التركيب: لا تدهس القيم الموجودة (drill-down)
     setSearchParams(prev => {
@@ -158,10 +160,10 @@ export default function FinancialCenter() {
         if (!overwrite && next.get(k)) return; // ملء الفارغ فقط عند التركيب
         if (v) next.set(k, v); else if (overwrite) next.delete(k);
       };
-      put('fromDate', f); put('toDate', t);
-      put('glFrom', f);   put('glTo', t);
-      put('jFrom', f);    put('jTo', t);
-      put('frFrom', f);   put('frTo', t);
+      put('fromDate', f); put('toDate', toD);
+      put('glFrom', f);   put('glTo', toD);
+      put('jFrom', f);    put('jTo', toD);
+      put('frFrom', f);   put('frTo', toD);
       put('asOfDate', asOf);
       put('trialAsOf', asOf);
       return next;
@@ -202,7 +204,7 @@ export default function FinancialCenter() {
       });
       setResult(data);
     } catch {
-      setError('تعذّر تحميل كشف الحساب');
+      setError(t('fc.err.statement'));
     } finally {
       setLoading(false);
     }
@@ -258,7 +260,7 @@ export default function FinancialCenter() {
         setApData(await financialApi.getApAging(filters));
       }
     } catch {
-      setAgingError('تعذّر تحميل أعمار الذمم');
+      setAgingError(t('fc.err.aging'));
     } finally {
       setAgingLoading(false);
     }
@@ -286,7 +288,7 @@ export default function FinancialCenter() {
       });
       setGlStatData(data);
     } catch {
-      setGlError('تعذّر تحميل كشف الأستاذ');
+      setGlError(t('fc.err.gl_statement'));
     } finally {
       setGlLoading(false);
     }
@@ -315,7 +317,7 @@ export default function FinancialCenter() {
       });
       setGlReportData(data);
     } catch {
-      setGlReportError('تعذّر تحميل دفتر الأستاذ العام');
+      setGlReportError(t('fc.err.gl_report'));
     } finally {
       setGlReportLoading(false);
     }
@@ -347,7 +349,7 @@ export default function FinancialCenter() {
       });
       setTrialData(data);
     } catch {
-      setTrialError('تعذّر تحميل ميزان المراجعة');
+      setTrialError(t('fc.err.trial_balance'));
     } finally {
       setTrialLoading(false);
     }
@@ -375,7 +377,7 @@ export default function FinancialCenter() {
       });
       setJournalData(data);
     } catch {
-      setJournalError('تعذّر تحميل دفتر اليومية');
+      setJournalError(t('fc.err.journal'));
     } finally {
       setJournalLoading(false);
     }
@@ -384,39 +386,41 @@ export default function FinancialCenter() {
   useEffect(() => { if (tab === 'journal') loadJournalBook(); }, [tab, loadJournalBook]);
 
   // ── RBAC ───────────────────────────────────────────────────────────────────
-  const visibleTabs = FINANCIAL_TABS.filter(t => hasPermission(t.permission));
+  const visibleTabs = FINANCIAL_TABS
+    .filter(td => hasPermission(td.permission))
+    .map(td => ({ ...td, label: t(td.labelKey) }));
   if (visibleTabs.length === 0) {
     return (
       <div className="financial-center xpl-scope" dir="rtl">
-        <p className="fc-no-permission">لا توجد صلاحيات لعرض هذا القسم.</p>
+        <p className="fc-no-permission">{t('fc.msg.no_permission')}</p>
       </div>
     );
   }
 
-  const activeTab = visibleTabs.find(t => t.key === tab) ? tab : visibleTabs[0].key;
+  const activeTab = visibleTabs.find(vt => vt.key === tab) ? tab : visibleTabs[0].key;
 
   // ── DrillDown states ────────────────────────────────────────────────────────
   const statementDrillDown: FinancialDrillDownState = {
-    returnTo: '/financial', reportLabel: 'كشف الحساب',
+    returnTo: '/financial', reportLabel: t('nav.statements'),
     tab: 'statement', entityType, entityId: entityId ?? undefined,
     fromDate: fromDate || undefined, toDate: toDate || undefined,
   };
 
   const agingDrillDown: FinancialDrillDownState = {
-    returnTo: '/financial', reportLabel: 'أعمار الذمم',
+    returnTo: '/financial', reportLabel: t('fc.tab.aging'),
     tab: 'aging', subTab: agingSubTab,
     fromDate: agingAsOfDate || undefined,
   };
 
   const glStatDrillDown: FinancialDrillDownState = {
-    returnTo: '/financial', reportLabel: 'كشف الأستاذ',
+    returnTo: '/financial', reportLabel: t('fc.gl.statement_tab'),
     tab: 'gl', subTab: 'statement',
     accountId: glAccountId ?? undefined,
     fromDate: glFrom || undefined, toDate: glTo || undefined,
   };
 
   const journalDrillDown: FinancialDrillDownState = {
-    returnTo: '/financial', reportLabel: 'دفتر اليومية',
+    returnTo: '/financial', reportLabel: t('fc.tab.journal'),
     tab: 'journal', page: jPage,
     fromDate: jFrom || undefined, toDate: jTo || undefined,
   };
@@ -430,7 +434,8 @@ export default function FinancialCenter() {
   // ── Aging chart data ────────────────────────────────────────────────────────
   const activeAgingData  = agingSubTab === 'ar' ? arData : apData;
   const agingChartData: AgingBucketData[] = AGING_BUCKETS.map(b => ({
-    ...b,
+    key: b.key,
+    label: t(b.labelKey),
     amount: activeAgingData
       ? activeAgingData.rows.reduce((s, r) => s + ((r as Record<string, number>)[b.key] ?? 0), 0)
       : 0,
@@ -447,8 +452,8 @@ export default function FinancialCenter() {
       <div className="fc-header">
         <span className="material-symbols-outlined fc-header-icon">account_balance</span>
         <div className="fc-header-text">
-          <h1 className="fc-title">المركز المالي</h1>
-          <p className="fc-subtitle">الكشوف المحاسبية والتقارير المالية — مركز عمل المحاسب</p>
+          <h1 className="fc-title">{t('fc.title')}</h1>
+          <p className="fc-subtitle">{t('fc.subtitle')}</p>
         </div>
         <div style={{ marginInlineStart: 'auto' }}>
           <PeriodControl />
@@ -466,16 +471,16 @@ export default function FinancialCenter() {
         <div className="fc-tab-content">
           <div className="fc-entity-type-toggle">
             <button type="button" className={`entity-type-btn ${entityType === 'customer' ? 'active' : ''}`}
-              onClick={() => { setParam('entityType', 'customer'); setParam('entityId', ''); }}>عملاء</button>
+              onClick={() => { setParam('entityType', 'customer'); setParam('entityId', ''); }}>{t('fc.entity.customers_plural')}</button>
             <button type="button" className={`entity-type-btn ${entityType === 'supplier' ? 'active' : ''}`}
-              onClick={() => { setParam('entityType', 'supplier'); setParam('entityId', ''); }}>موردون</button>
+              onClick={() => { setParam('entityType', 'supplier'); setParam('entityId', ''); }}>{t('fc.entity.suppliers_plural')}</button>
           </div>
 
           <div className="fc-entity-selector">
-            <label htmlFor="fc-entity-select">{entityType === 'customer' ? 'العميل' : 'المورد'}</label>
+            <label htmlFor="fc-entity-select">{entityType === 'customer' ? t('filter.customer') : t('fc.entity.supplier')}</label>
             <select id="fc-entity-select" value={entityId ?? ''} onChange={e => setParam('entityId', e.target.value)}
-              aria-label={entityType === 'customer' ? 'اختر العميل' : 'اختر المورد'}>
-              <option value="">— اختر —</option>
+              aria-label={entityType === 'customer' ? t('error.select_customer') : t('fc.entity.select_supplier')}>
+              <option value="">{t('msg.select_placeholder')}</option>
               {entities.map(e => <option key={e.id} value={e.id}>{e.code} — {e.name}</option>)}
             </select>
           </div>
@@ -489,15 +494,15 @@ export default function FinancialCenter() {
 
           <div className="fc-action-bar">
             <button type="button" className="fc-load-btn" onClick={loadStatement} disabled={!entityId || loading}>
-              {loading ? 'جارٍ التحميل...' : 'تحميل'}
+              {loading ? t('fc.loading_dots') : t('fc.btn.load')}
             </button>
             <div className="fc-view-toggles">
-              <button type="button" className={`view-mode-btn ${viewMode === 'flat'    ? 'active' : ''}`} onClick={() => setViewMode('flat')}>مسطّح</button>
-              <button type="button" className={`view-mode-btn ${viewMode === 'grouped' ? 'active' : ''}`} onClick={() => setViewMode('grouped')}>مجمّع</button>
+              <button type="button" className={`view-mode-btn ${viewMode === 'flat'    ? 'active' : ''}`} onClick={() => setViewMode('flat')}>{t('fc.view.flat')}</button>
+              <button type="button" className={`view-mode-btn ${viewMode === 'grouped' ? 'active' : ''}`} onClick={() => setViewMode('grouped')}>{t('fc.view.grouped')}</button>
             </div>
             <label className="fc-hide-settled">
               <input type="checkbox" checked={hideSettled} onChange={e => setHideSettled(e.target.checked)} />
-              إخفاء المسددة
+              {t('fc.hide_settled')}
             </label>
             {result && <ExportBar onExcelExport={() => doExport('excel')} onPdfExport={() => doExport('pdf')} loading={exporting} />}
           </div>
@@ -511,24 +516,24 @@ export default function FinancialCenter() {
 
           {/* Statement context — selected entity + period (shown once loaded) */}
           {result && (
-            <div className="fc-statement-context" aria-label="سياق كشف الحساب">
+            <div className="fc-statement-context" aria-label={t('fc.aria.statement_context')}>
               <span className="fc-statement-context-entity">
                 <span className="material-symbols-outlined" aria-hidden="true">{entityType === 'customer' ? 'person' : 'store'}</span>
-                كشف حساب {entities.find(e => String(e.id) === String(entityId))?.name ?? (entityType === 'customer' ? 'العميل' : 'المورد')}
+                {t('fc.statement_of')} {entities.find(e => String(e.id) === String(entityId))?.name ?? (entityType === 'customer' ? t('filter.customer') : t('fc.entity.supplier'))}
               </span>
               <span className="fc-statement-context-period">
                 <span className="material-symbols-outlined" aria-hidden="true">event</span>
-                {fromDate ? formatDate(fromDate) : 'من البداية'} — {toDate ? formatDate(toDate) : 'حتى اليوم'}
+                {fromDate ? formatDate(fromDate) : t('fc.period.from_start')} — {toDate ? formatDate(toDate) : t('fc.period.until_today')}
               </span>
             </div>
           )}
 
           {result?.summary && (
             <SummaryCards cards={[
-              { label: 'رصيد افتتاحي',  value: result.summary.openingBalance, variant: 'neutral' },
-              { label: 'إجمالي المدين', value: result.summary.totalDebit,    variant: 'blue'    },
-              { label: 'إجمالي الدائن', value: result.summary.totalCredit,   variant: 'green'   },
-              { label: 'رصيد ختامي',    value: result.summary.closingBalance,
+              { label: t('fc.opening_balance'),      value: result.summary.openingBalance, variant: 'neutral' },
+              { label: t('lbl.acc.total_debit'),  value: result.summary.totalDebit,    variant: 'blue'    },
+              { label: t('lbl.acc.total_credit'), value: result.summary.totalCredit,   variant: 'green'   },
+              { label: t('fc.closing_balance'),      value: result.summary.closingBalance,
                 variant: (result.summary.closingBalance ?? 0) < 0 ? 'red' : 'neutral' },
             ]} />
           )}
@@ -541,7 +546,7 @@ export default function FinancialCenter() {
           {result && displayRows.length === 0 && !loading && (
             <div className="fc-empty">
               <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">search_off</span>
-              لا توجد حركات بالمعايير المحددة.
+              {t('fc.msg.no_transactions')}
             </div>
           )}
 
@@ -549,28 +554,28 @@ export default function FinancialCenter() {
           {!result && loading && (
             <div className="fc-hint">
               <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
-              جارٍ تحميل كشف الحساب…
+              {t('fc.msg.loading_statement')}
             </div>
           )}
           {!result && !loading && !entityId && (
             <div className="fc-empty">
               <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">person_search</span>
-              اختر {entityType === 'customer' ? 'عميلاً' : 'موردًا'} من القائمة أعلاه لعرض كشف حسابه.
+              {t('fc.hint.select_entity', { type: entityType === 'customer' ? t('fc.entity.customer_acc') : t('fc.entity.supplier_acc') })}
             </div>
           )}
           {!result && !loading && entityId && (
-            <div className="fc-load-card" role="region" aria-label="جاهز لتحميل كشف الحساب">
+            <div className="fc-load-card" role="region" aria-label={t('fc.aria.ready_load_statement')}>
               <span className="material-symbols-outlined fc-load-card-icon" aria-hidden="true">description</span>
               <div className="fc-load-card-body">
                 <h3 className="fc-load-card-title">
-                  كشف حساب {entities.find(e => String(e.id) === String(entityId))?.name ?? (entityType === 'customer' ? 'العميل' : 'المورد')}
+                  {t('fc.statement_of')} {entities.find(e => String(e.id) === String(entityId))?.name ?? (entityType === 'customer' ? t('filter.customer') : t('fc.entity.supplier'))}
                 </h3>
                 <p className="fc-load-card-period">
-                  الفترة: {fromDate ? formatDate(fromDate) : 'من البداية'} — {toDate ? formatDate(toDate) : 'حتى اليوم'}
-                  {search ? ` · بحث: «${search}»` : ''}
+                  {t('fc.period_label')}{fromDate ? formatDate(fromDate) : t('fc.period.from_start')} — {toDate ? formatDate(toDate) : t('fc.period.until_today')}
+                  {search ? t('fc.search_suffix', { term: search }) : ''}
                 </p>
                 <p className="fc-load-card-hint">
-                  اضغط «تحميل الكشف» لعرض جميع الحركات والأرصدة (افتتاحي، مدين، دائن، ختامي) للفترة المحددة.
+                  {t('fc.hint.load_statement')}
                 </p>
               </div>
               <button
@@ -578,10 +583,10 @@ export default function FinancialCenter() {
                 className="fc-load-btn fc-load-card-btn"
                 onClick={loadStatement}
                 disabled={loading}
-                aria-label="تحميل كشف الحساب"
+                aria-label={t('fc.aria.load_statement')}
               >
                 <span className="material-symbols-outlined" aria-hidden="true">download</span>
-                تحميل الكشف
+                {t('fc.btn.load_statement_full')}
               </button>
             </div>
           )}
@@ -593,27 +598,27 @@ export default function FinancialCenter() {
         <div className="fc-tab-content">
           <div className="aging-subtabs">
             <button type="button" className={`subtab-btn ${agingSubTab === 'ar' ? 'active' : ''}`}
-              onClick={() => setParam('subTab', 'ar')}>ذمم العملاء</button>
+              onClick={() => setParam('subTab', 'ar')}>{t('fc.ar_receivables')}</button>
             <button type="button" className={`subtab-btn ${agingSubTab === 'ap' ? 'active' : ''}`}
-              onClick={() => setParam('subTab', 'ap')}>ذمم الموردين</button>
+              onClick={() => setParam('subTab', 'ap')}>{t('field.exp.payment_method.accounts_payable')}</button>
           </div>
 
           <FilterBar search={agingSearch} onSearch={v => setParam('agingSearch', v)}>
             <div className="filter-field">
-              <label htmlFor="aging-as-of-date">حتى تاريخ</label>
-              <DateInput id="aging-as-of-date" title="تاريخ التقرير"
+              <label htmlFor="aging-as-of-date">{t('fc.until_date')}</label>
+              <DateInput id="aging-as-of-date" title={t('fc.title.report_date')}
                 value={agingAsOfDate} onChange={(v) => setParam('asOfDate', v)} />
             </div>
             <label className="filter-field fc-hide-settled">
               <input type="checkbox" checked={agingHideZero}
                 onChange={e => setParam('hideZero', String(e.target.checked))} />
-              إخفاء الصفرية
+              {t('fc.hide_zero')}
             </label>
           </FilterBar>
 
           <div className="fc-action-bar">
             <button type="button" className="fc-load-btn" onClick={loadAging} disabled={agingLoading}>
-              {agingLoading ? 'جارٍ التحميل...' : 'تحديث'}
+              {agingLoading ? t('fc.loading_dots') : t('action.refresh')}
             </button>
             {activeAgingData && (
               <ExportBar
@@ -649,14 +654,14 @@ export default function FinancialCenter() {
           )}
           {activeAgingData && (
             <>
-              <div className="fc-statement-context" aria-label="سياق أعمار الذمم">
+              <div className="fc-statement-context" aria-label={t('fc.aria.aging_context')}>
                 <span className="fc-statement-context-entity">
                   <span className="material-symbols-outlined" aria-hidden="true">{agingSubTab === 'ar' ? 'groups' : 'store'}</span>
-                  أعمار {agingSubTab === 'ar' ? 'ذمم العملاء' : 'ذمم الموردين'}
+                  {t('fc.aging_prefix')}{agingSubTab === 'ar' ? t('fc.ar_receivables') : t('field.exp.payment_method.accounts_payable')}
                 </span>
                 <span className="fc-statement-context-period">
                   <span className="material-symbols-outlined" aria-hidden="true">event</span>
-                  حتى {agingAsOfDate ? formatDate(agingAsOfDate) : 'اليوم'}
+                  {t('fc.until_prefix')}{agingAsOfDate ? formatDate(agingAsOfDate) : t('fc.today')}
                 </span>
               </div>
               <AgingSummaryCards summary={activeAgingData.summary} type={agingSubTab} />
@@ -667,13 +672,13 @@ export default function FinancialCenter() {
           {agingLoading && !activeAgingData && (
             <div className="fc-hint">
               <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
-              جارٍ تحميل أعمار الذمم…
+              {t('fc.msg.loading_aging')}
             </div>
           )}
           {!agingLoading && !activeAgingData && !agingError && (
             <div className="fc-empty">
               <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_disabled</span>
-              اضغط «تحديث» لتحميل أعمار الذمم للفترة المحددة.
+              {t('fc.hint.load_aging')}
             </div>
           )}
         </div>
@@ -684,15 +689,15 @@ export default function FinancialCenter() {
         <div className="fc-tab-content">
           <div className="aging-subtabs">
             <button type="button" className={`subtab-btn ${glSubTab === 'statement' ? 'active' : ''}`}
-              onClick={() => setParam('glSubTab', 'statement')}>كشف الأستاذ</button>
+              onClick={() => setParam('glSubTab', 'statement')}>{t('fc.gl.statement_tab')}</button>
             <button type="button" className={`subtab-btn ${glSubTab === 'report' ? 'active' : ''}`}
-              onClick={() => setParam('glSubTab', 'report')}>دفتر الأستاذ العام</button>
+              onClick={() => setParam('glSubTab', 'report')}>{t('fc.gl.report_title')}</button>
           </div>
 
           {/* GL Statement sub-tab */}
           {glSubTab === 'statement' && (
             <>
-              <div className="fc-section-hint">اختر الحساب ثم حدد الفترة وانقر «تحميل».</div>
+              <div className="fc-section-hint">{t('fc.hint.select_account_period')}</div>
               <AccountSelector value={glAccountId ?? undefined} onChange={id => setParam('accountId', id)} />
 
               <FilterBar
@@ -704,7 +709,7 @@ export default function FinancialCenter() {
 
               <div className="fc-action-bar">
                 <button type="button" className="fc-load-btn" onClick={loadGlStatement} disabled={!glAccountId || glLoading}>
-                  {glLoading ? 'جارٍ التحميل...' : 'تحميل'}
+                  {glLoading ? t('fc.loading_dots') : t('fc.btn.load')}
                 </button>
                 {glStatData && (
                   <ExportBar
@@ -740,24 +745,24 @@ export default function FinancialCenter() {
               )}
 
               {glStatData && (
-                <div className="fc-statement-context" aria-label="سياق كشف الأستاذ">
+                <div className="fc-statement-context" aria-label={t('fc.aria.gl_statement_context')}>
                   <span className="fc-statement-context-entity">
                     <span className="material-symbols-outlined" aria-hidden="true">account_tree</span>
-                    كشف حساب الأستاذ
+                    {t('fc.gl.statement_title')}
                   </span>
                   <span className="fc-statement-context-period">
                     <span className="material-symbols-outlined" aria-hidden="true">event</span>
-                    {glFrom ? formatDate(glFrom) : 'من البداية'} — {glTo ? formatDate(glTo) : 'حتى اليوم'}
+                    {glFrom ? formatDate(glFrom) : t('fc.period.from_start')} — {glTo ? formatDate(glTo) : t('fc.period.until_today')}
                   </span>
                 </div>
               )}
 
               {glStatData?.summary && (
                 <SummaryCards cards={[
-                  { label: 'رصيد افتتاحي',  formattedValue: <BalanceDisplay value={glStatData.summary.openingBalance ?? 0} />, variant: 'neutral' },
-                  { label: 'إجمالي المدين', value: glStatData.summary.totalDebit,  variant: 'blue'  },
-                  { label: 'إجمالي الدائن', value: glStatData.summary.totalCredit, variant: 'green' },
-                  { label: 'رصيد ختامي',    formattedValue: <BalanceDisplay value={glStatData.summary.closingBalance ?? 0} />,
+                  { label: t('fc.opening_balance'),  formattedValue: <BalanceDisplay value={glStatData.summary.openingBalance ?? 0} />, variant: 'neutral' },
+                  { label: t('lbl.acc.total_debit'), value: glStatData.summary.totalDebit,  variant: 'blue'  },
+                  { label: t('lbl.acc.total_credit'), value: glStatData.summary.totalCredit, variant: 'green' },
+                  { label: t('fc.closing_balance'),    formattedValue: <BalanceDisplay value={glStatData.summary.closingBalance ?? 0} />,
                     variant: (glStatData.summary.closingBalance ?? 0) < 0 ? 'red' : 'neutral' },
                 ]} />
               )}
@@ -767,9 +772,9 @@ export default function FinancialCenter() {
                   <table className="financial-table statement-table" dir="rtl">
                     <thead>
                       <tr>
-                        <th>التاريخ</th><th>رقم القيد</th><th>النوع</th>
-                        <th>البيان</th><th className="num">{fcMoneyHeader('مدين')}</th>
-                        <th className="num">{fcMoneyHeader('دائن')}</th><th className="num">{fcMoneyHeader('الرصيد')}</th>
+                        <th>{t('col.date')}</th><th>{t('col.acc.entry_number')}</th><th>{t('col.acc.type')}</th>
+                        <th>{t('col.acc.description')}</th><th className="num">{fcMoneyHeader(t('acc.balance.debit'))}</th>
+                        <th className="num">{fcMoneyHeader(t('acc.balance.credit'))}</th><th className="num">{fcMoneyHeader(t('fc.col.balance'))}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -781,7 +786,7 @@ export default function FinancialCenter() {
                               {row.journalNumber}
                             </DrillDownLink>
                           </td>
-                          <td>{referenceTypeAr(row.referenceType)}</td>
+                          <td>{referenceTypeLabel(row.referenceType, t)}</td>
                           <td>{row.description}</td>
                           <td className="num">{fmtKwd(row.debit)}</td>
                           <td className="num">{fmtKwd(row.credit)}</td>
@@ -797,37 +802,37 @@ export default function FinancialCenter() {
               {glStatData && glStatData.rows.length === 0 && !glLoading && (
                 <div className="fc-empty">
                   <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">search_off</span>
-                  لا توجد حركات بالمعايير المحددة.
+                  {t('fc.msg.no_transactions')}
                 </div>
               )}
               {!glStatData && glLoading && (
                 <div className="fc-hint">
                   <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
-                  جارٍ تحميل كشف الأستاذ…
+                  {t('fc.msg.loading_gl_statement')}
                 </div>
               )}
               {!glStatData && !glLoading && !glAccountId && (
                 <div className="fc-empty">
                   <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">account_balance_wallet</span>
-                  اختر حسابًا من القائمة أعلاه لعرض كشف الأستاذ.
+                  {t('fc.hint.select_account_gl')}
                 </div>
               )}
               {!glStatData && !glLoading && glAccountId && (
-                <div className="fc-load-card" role="region" aria-label="جاهز لتحميل كشف الأستاذ">
+                <div className="fc-load-card" role="region" aria-label={t('fc.aria.ready_load_gl_statement')}>
                   <span className="material-symbols-outlined fc-load-card-icon" aria-hidden="true">account_tree</span>
                   <div className="fc-load-card-body">
-                    <h3 className="fc-load-card-title">كشف حساب الأستاذ</h3>
+                    <h3 className="fc-load-card-title">{t('fc.gl.statement_title')}</h3>
                     <p className="fc-load-card-period">
-                      الفترة: {glFrom ? formatDate(glFrom) : 'من البداية'} — {glTo ? formatDate(glTo) : 'حتى اليوم'}
-                      {glSearch ? ` · بحث: «${glSearch}»` : ''}
+                      {t('fc.period_label')}{glFrom ? formatDate(glFrom) : t('fc.period.from_start')} — {glTo ? formatDate(glTo) : t('fc.period.until_today')}
+                      {glSearch ? t('fc.search_suffix', { term: glSearch }) : ''}
                     </p>
                     <p className="fc-load-card-hint">
-                      اضغط «تحميل» لعرض حركات الحساب والأرصدة (افتتاحي، مدين، دائن، ختامي) للفترة المحددة.
+                      {t('fc.hint.load_gl_statement')}
                     </p>
                   </div>
-                  <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadGlStatement} disabled={glLoading} aria-label="تحميل كشف الأستاذ">
+                  <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadGlStatement} disabled={glLoading} aria-label={t('fc.aria.load_gl_statement')}>
                     <span className="material-symbols-outlined" aria-hidden="true">download</span>
-                    تحميل
+                    {t('fc.btn.load')}
                   </button>
                 </div>
               )}
@@ -845,7 +850,7 @@ export default function FinancialCenter() {
 
               <div className="fc-action-bar">
                 <button type="button" className="fc-load-btn" onClick={loadGlReport} disabled={glReportLoading}>
-                  {glReportLoading ? 'جارٍ التحميل...' : 'تحميل'}
+                  {glReportLoading ? t('fc.loading_dots') : t('fc.btn.load')}
                 </button>
                 {glReportData && (
                   <ExportBar
@@ -884,14 +889,14 @@ export default function FinancialCenter() {
                     <table className="financial-table gl-report-table" dir="rtl">
                       <thead>
                         <tr>
-                          <SortableHeader label="الكود" title="الكود" state={glReportSort.getState('code')} onToggle={() => glReportSort.toggle('code')} />
-                          <SortableHeader label="اسم الحساب" title="اسم الحساب" state={glReportSort.getState('name')} onToggle={() => glReportSort.toggle('name')} />
-                          <SortableHeader label="النوع" title="النوع" state={glReportSort.getState('type')} onToggle={() => glReportSort.toggle('type')} />
+                          <SortableHeader label={t('col.acc.code')} title={t('col.acc.code')} state={glReportSort.getState('code')} onToggle={() => glReportSort.toggle('code')} />
+                          <SortableHeader label={t('col.acc.name')} title={t('col.acc.name')} state={glReportSort.getState('name')} onToggle={() => glReportSort.toggle('name')} />
+                          <SortableHeader label={t('col.acc.type')} title={t('col.acc.type')} state={glReportSort.getState('type')} onToggle={() => glReportSort.toggle('type')} />
                           {/* أعمدة الأرصدة الأربعة غير قابلة للفرز — تُحسب خادميًا لكل صفحة على حدة */}
-                          <th className="num">{fcMoneyHeader('رصيد الافتتاح')}</th>
-                          <th className="num">{fcMoneyHeader('إجمالي مدين')}</th>
-                          <th className="num">{fcMoneyHeader('إجمالي دائن')}</th>
-                          <th className="num">{fcMoneyHeader('رصيد الإقفال')}</th>
+                          <th className="num">{fcMoneyHeader(t('fc.tb.opening_balance'))}</th>
+                          <th className="num">{fcMoneyHeader(t('fc.tb.total_debit'))}</th>
+                          <th className="num">{fcMoneyHeader(t('fc.tb.total_credit'))}</th>
+                          <th className="num">{fcMoneyHeader(t('fc.tb.closing_balance'))}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -909,7 +914,7 @@ export default function FinancialCenter() {
                                 {acc.accountName}
                               </button>
                             </td>
-                            <td>{accountTypeAr(acc.accountType)}</td>
+                            <td>{accountTypeLabel(acc.accountType, t)}</td>
                             <td className="num"><BalanceDisplay value={acc.openingBalance} /></td>
                             <td className="num">{fmtKwd(acc.totalDebit)}</td>
                             <td className="num">{fmtKwd(acc.totalCredit)}</td>
@@ -927,30 +932,30 @@ export default function FinancialCenter() {
               {glReportData && glReportData.accounts.length === 0 && !glReportLoading && (
                 <div className="fc-empty">
                   <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">search_off</span>
-                  لا توجد حسابات بالمعايير المحددة.
+                  {t('fc.msg.no_accounts')}
                 </div>
               )}
               {glReportLoading && !glReportData && (
                 <div className="fc-hint">
                   <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
-                  جارٍ تحميل دفتر الأستاذ العام…
+                  {t('fc.msg.loading_gl_report')}
                 </div>
               )}
               {!glReportLoading && !glReportData && !glReportError && (
-                <div className="fc-load-card" role="region" aria-label="جاهز لتحميل دفتر الأستاذ العام">
+                <div className="fc-load-card" role="region" aria-label={t('fc.aria.ready_load_gl_report')}>
                   <span className="material-symbols-outlined fc-load-card-icon" aria-hidden="true">menu_book</span>
                   <div className="fc-load-card-body">
-                    <h3 className="fc-load-card-title">دفتر الأستاذ العام</h3>
+                    <h3 className="fc-load-card-title">{t('fc.gl.report_title')}</h3>
                     <p className="fc-load-card-period">
-                      الفترة: {glFrom ? formatDate(glFrom) : 'من البداية'} — {glTo ? formatDate(glTo) : 'حتى اليوم'}
+                      {t('fc.period_label')}{glFrom ? formatDate(glFrom) : t('fc.period.from_start')} — {glTo ? formatDate(glTo) : t('fc.period.until_today')}
                     </p>
                     <p className="fc-load-card-hint">
-                      اضغط «تحميل» لعرض جميع الحسابات مع أرصدة الافتتاح والإقفال وإجماليات المدين والدائن.
+                      {t('fc.hint.load_gl_report')}
                     </p>
                   </div>
-                  <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadGlReport} disabled={glReportLoading} aria-label="تحميل دفتر الأستاذ العام">
+                  <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadGlReport} disabled={glReportLoading} aria-label={t('fc.aria.load_gl_report')}>
                     <span className="material-symbols-outlined" aria-hidden="true">download</span>
-                    تحميل
+                    {t('fc.btn.load')}
                   </button>
                 </div>
               )}
@@ -967,8 +972,8 @@ export default function FinancialCenter() {
           {trialMode === 'as-of' ? (
             <FilterBar>
               <div className="filter-field">
-                <label htmlFor="trial-as-of">حتى تاريخ</label>
-                <DateInput id="trial-as-of" title="حتى تاريخ"
+                <label htmlFor="trial-as-of">{t('fc.until_date')}</label>
+                <DateInput id="trial-as-of" title={t('fc.until_date')}
                   value={trialAsOf} onChange={(v) => setParam('trialAsOf', v)} />
               </div>
             </FilterBar>
@@ -982,7 +987,7 @@ export default function FinancialCenter() {
 
           <div className="fc-action-bar">
             <button type="button" className="fc-load-btn" onClick={loadTrialBalance} disabled={trialLoading}>
-              {trialLoading ? 'جارٍ التحميل...' : 'تحميل'}
+              {trialLoading ? t('fc.loading_dots') : t('fc.btn.load')}
             </button>
             {trialData && (
               <ExportBar
@@ -1027,20 +1032,20 @@ export default function FinancialCenter() {
           )}
 
           {trialData && (
-            <div className="fc-statement-context" aria-label="سياق ميزان المراجعة">
+            <div className="fc-statement-context" aria-label={t('fc.aria.trial_context')}>
               <span className="fc-statement-context-entity">
                 <span className="material-symbols-outlined" aria-hidden="true">balance</span>
-                ميزان المراجعة
+                {t('fc.tab.trial')}
               </span>
               <span className="fc-statement-context-period">
                 <span className="material-symbols-outlined" aria-hidden="true">event</span>
                 {trialMode === 'as-of'
-                  ? `حتى ${trialAsOf ? formatDate(trialAsOf) : 'اليوم'}`
-                  : `${trialFrom ? formatDate(trialFrom) : 'من البداية'} — ${trialTo ? formatDate(trialTo) : 'حتى اليوم'}`}
+                  ? `${t('fc.until_prefix')}${trialAsOf ? formatDate(trialAsOf) : t('fc.today')}`
+                  : `${trialFrom ? formatDate(trialFrom) : t('fc.period.from_start')} — ${trialTo ? formatDate(trialTo) : t('fc.period.until_today')}`}
               </span>
               <span className={`fc-balance-chip ${trialIsBalanced ? 'ok' : 'bad'}`}>
                 <span className="material-symbols-outlined" aria-hidden="true">{trialIsBalanced ? 'check_circle' : 'error'}</span>
-                {trialIsBalanced ? 'متوازن' : 'غير متوازن'}
+                {trialIsBalanced ? t('lbl.acc.balanced') : t('lbl.acc.unbalanced')}
               </span>
             </div>
           )}
@@ -1049,8 +1054,8 @@ export default function FinancialCenter() {
 
           {trialData?.summary && (
             <SummaryCards cards={[
-              { label: 'إجمالي المدين', value: trialData.summary.totalDebit,  variant: 'blue'  },
-              { label: 'إجمالي الدائن', value: trialData.summary.totalCredit, variant: 'green' },
+              { label: t('lbl.acc.total_debit'), value: trialData.summary.totalDebit,  variant: 'blue'  },
+              { label: t('lbl.acc.total_credit'), value: trialData.summary.totalCredit, variant: 'green' },
             ]} />
           )}
 
@@ -1064,32 +1069,32 @@ export default function FinancialCenter() {
           {trialData && trialData.rows.length === 0 && !trialLoading && (
             <div className="fc-empty">
               <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">search_off</span>
-              لا توجد بيانات بالمعايير المحددة.
+              {t('fc.msg.no_data_criteria')}
             </div>
           )}
           {trialLoading && !trialData && (
             <div className="fc-hint">
               <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
-              جارٍ تحميل ميزان المراجعة…
+              {t('fc.msg.loading_trial_balance')}
             </div>
           )}
           {!trialLoading && !trialData && !trialError && (
-            <div className="fc-load-card" role="region" aria-label="جاهز لتحميل ميزان المراجعة">
+            <div className="fc-load-card" role="region" aria-label={t('fc.aria.ready_load_trial_balance')}>
               <span className="material-symbols-outlined fc-load-card-icon" aria-hidden="true">balance</span>
               <div className="fc-load-card-body">
-                <h3 className="fc-load-card-title">ميزان المراجعة</h3>
+                <h3 className="fc-load-card-title">{t('fc.tab.trial')}</h3>
                 <p className="fc-load-card-period">
                   {trialMode === 'as-of'
-                    ? `حتى تاريخ: ${trialAsOf ? formatDate(trialAsOf) : 'اليوم'}`
-                    : `الفترة: ${trialFrom ? formatDate(trialFrom) : 'من البداية'} — ${trialTo ? formatDate(trialTo) : 'حتى اليوم'}`}
+                    ? `${t('fc.until_date')}: ${trialAsOf ? formatDate(trialAsOf) : t('fc.today')}`
+                    : `${t('fc.period_label')}${trialFrom ? formatDate(trialFrom) : t('fc.period.from_start')} — ${trialTo ? formatDate(trialTo) : t('fc.period.until_today')}`}
                 </p>
                 <p className="fc-load-card-hint">
-                  اضغط «تحميل» لعرض أرصدة جميع الحسابات مع إجماليات المدين والدائن والتحقق من التوازن.
+                  {t('fc.hint.load_trial_balance')}
                 </p>
               </div>
-              <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadTrialBalance} disabled={trialLoading} aria-label="تحميل ميزان المراجعة">
+              <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadTrialBalance} disabled={trialLoading} aria-label={t('fc.aria.load_trial_balance')}>
                 <span className="material-symbols-outlined" aria-hidden="true">download</span>
-                تحميل
+                {t('fc.btn.load')}
               </button>
             </div>
           )}
@@ -1106,23 +1111,23 @@ export default function FinancialCenter() {
             onSearch={v   => { setParam('jSearch', v); setParam('jPage', '1'); }}
           >
             <div className="filter-field">
-              <label htmlFor="j-status">الحالة</label>
+              <label htmlFor="j-status">{t('col.status')}</label>
               <select
                 id="j-status"
-                title="حالة القيد"
+                title={t('fc.journal.status_title')}
                 value={jStatus}
                 onChange={e => { setParam('jStatus', e.target.value); setParam('jPage', '1'); }}
               >
-                <option value="">الكل</option>
-                <option value="POSTED">مرحّل</option>
-                <option value="DRAFT">مسودة</option>
+                <option value="">{t('opt.all_plain')}</option>
+                <option value="POSTED">{t('acc.journal.posted')}</option>
+                <option value="DRAFT">{t('acc.journal.draft')}</option>
               </select>
             </div>
           </FilterBar>
 
           <div className="fc-action-bar">
             <button type="button" className="fc-load-btn" onClick={loadJournalBook} disabled={journalLoading}>
-              {journalLoading ? 'جارٍ التحميل...' : 'تحميل'}
+              {journalLoading ? t('fc.loading_dots') : t('fc.btn.load')}
             </button>
             {journalData && (
               <ExportBar
@@ -1156,24 +1161,24 @@ export default function FinancialCenter() {
           )}
 
           {journalData && (
-            <div className="fc-statement-context" aria-label="سياق دفتر اليومية">
+            <div className="fc-statement-context" aria-label={t('fc.aria.journal_context')}>
               <span className="fc-statement-context-entity">
                 <span className="material-symbols-outlined" aria-hidden="true">menu_book</span>
-                دفتر اليومية
+                {t('fc.tab.journal')}
               </span>
               <span className="fc-statement-context-period">
                 <span className="material-symbols-outlined" aria-hidden="true">event</span>
-                {jFrom ? formatDate(jFrom) : 'من البداية'} — {jTo ? formatDate(jTo) : 'حتى اليوم'}
-                {jStatus ? ` · ${jStatus === 'POSTED' ? 'المرحّلة' : 'المسودات'}` : ''}
+                {jFrom ? formatDate(jFrom) : t('fc.period.from_start')} — {jTo ? formatDate(jTo) : t('fc.period.until_today')}
+                {jStatus ? ` · ${jStatus === 'POSTED' ? t('fc.journal.posted_plural') : t('fc.journal.draft_plural')}` : ''}
               </span>
             </div>
           )}
 
           {journalData?.summary && (
             <SummaryCards cards={[
-              { label: 'إجمالي المدين',    value: journalData.summary.totalDebit,       variant: 'blue'    },
-              { label: 'إجمالي الدائن',    value: journalData.summary.totalCredit,      variant: 'green'   },
-              { label: 'عدد القيود',       value: journalData.summary.transactionCount, variant: 'neutral' },
+              { label: t('lbl.acc.total_debit'),    value: journalData.summary.totalDebit,       variant: 'blue'    },
+              { label: t('lbl.acc.total_credit'),    value: journalData.summary.totalCredit,      variant: 'green'   },
+              { label: t('col.acc.journal_count'),       value: journalData.summary.transactionCount, variant: 'neutral' },
             ]} />
           )}
 
@@ -1183,7 +1188,7 @@ export default function FinancialCenter() {
           {journalData && journalData.rows.length === 0 && !journalLoading && (
             <div className="fc-empty">
               <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">search_off</span>
-              لا توجد قيود بالمعايير المحددة.
+              {t('fc.msg.no_entries')}
             </div>
           )}
 
@@ -1193,26 +1198,26 @@ export default function FinancialCenter() {
           {journalLoading && !journalData && (
             <div className="fc-hint">
               <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
-              جارٍ تحميل دفتر اليومية…
+              {t('fc.msg.loading_journal')}
             </div>
           )}
           {!journalLoading && !journalData && !journalError && (
-            <div className="fc-load-card" role="region" aria-label="جاهز لتحميل دفتر اليومية">
+            <div className="fc-load-card" role="region" aria-label={t('fc.aria.ready_load_journal')}>
               <span className="material-symbols-outlined fc-load-card-icon" aria-hidden="true">menu_book</span>
               <div className="fc-load-card-body">
-                <h3 className="fc-load-card-title">دفتر اليومية</h3>
+                <h3 className="fc-load-card-title">{t('fc.tab.journal')}</h3>
                 <p className="fc-load-card-period">
-                  الفترة: {jFrom ? formatDate(jFrom) : 'من البداية'} — {jTo ? formatDate(jTo) : 'حتى اليوم'}
-                  {jStatus ? ` · ${jStatus === 'POSTED' ? 'المرحّلة' : 'المسودات'}` : ''}
-                  {jSearch ? ` · بحث: «${jSearch}»` : ''}
+                  {t('fc.period_label')}{jFrom ? formatDate(jFrom) : t('fc.period.from_start')} — {jTo ? formatDate(jTo) : t('fc.period.until_today')}
+                  {jStatus ? ` · ${jStatus === 'POSTED' ? t('fc.journal.posted_plural') : t('fc.journal.draft_plural')}` : ''}
+                  {jSearch ? t('fc.search_suffix', { term: jSearch }) : ''}
                 </p>
                 <p className="fc-load-card-hint">
-                  اضغط «تحميل» لعرض القيود مع إجماليات المدين والدائن؛ يمكن توسيع كل قيد لعرض بنوده التفصيلية.
+                  {t('fc.hint.load_journal')}
                 </p>
               </div>
-              <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadJournalBook} disabled={journalLoading} aria-label="تحميل دفتر اليومية">
+              <button type="button" className="fc-load-btn fc-load-card-btn" onClick={loadJournalBook} disabled={journalLoading} aria-label={t('fc.aria.load_journal')}>
                 <span className="material-symbols-outlined" aria-hidden="true">download</span>
-                تحميل
+                {t('fc.btn.load')}
               </button>
             </div>
           )}

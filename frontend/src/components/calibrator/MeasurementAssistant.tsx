@@ -16,7 +16,8 @@ import {
   type CalibrationGeometry,
   type CorrectionResult,
 } from '../../utils/chequeGeometry';
-import { FIELD_KEYS, FIELD_LABELS, type ChequeTemplate, type FieldKey } from '../../utils/chequeTemplate';
+import { FIELD_KEYS, FIELD_LABEL_KEYS, type ChequeTemplate, type FieldKey } from '../../utils/chequeTemplate';
+import { useT } from '../../lib/i18n';
 
 export interface CorrectionProposal {
   scope: 'field' | 'all';
@@ -48,6 +49,7 @@ export default function MeasurementAssistant({
   onApply,
   applyBusy,
 }: Props) {
+  const { t } = useT();
   const [scope, setScope] = useState<'field' | 'all'>('field');
   const [rightMm, setRightMm] = useState(0);
   const [downMm, setDownMm] = useState(0);
@@ -104,8 +106,8 @@ export default function MeasurementAssistant({
       <div className="chq-ma__head">
         <span className="material-symbols-outlined" aria-hidden="true">straighten</span>
         <div>
-          <strong>مساعد القياس</strong>
-          <p>قِس إزاحة الطباعة على ورقة الاختبار وأدخلها لاقتراح تصحيح دقيق.</p>
+          <strong>{t('sec.calib.measurement_assistant')}</strong>
+          <p>{t('hint.calib.measurement_assistant_subtitle')}</p>
         </div>
       </div>
 
@@ -121,33 +123,33 @@ export default function MeasurementAssistant({
       </div>
 
       {/* Scope */}
-      <div className="chq-ma__scope" role="group" aria-label="نطاق التصحيح">
+      <div className="chq-ma__scope" role="group" aria-label={t('a11y.calib.correction_scope')}>
         <button type="button" className={scope === 'field' ? 'is-active' : ''} onClick={() => setScope('field')}>
-          الحقل الحالي: {FIELD_LABELS[selectedField]}
+          {t('lbl.calib.current_field_prefix', { field: t(FIELD_LABEL_KEYS[selectedField]) })}
         </button>
         <button type="button" className={scope === 'all' ? 'is-active' : ''} onClick={() => setScope('all')}>
-          كل الحقول
+          {t('lbl.calib.all_fields')}
         </button>
       </div>
 
       {/* mm inputs */}
       <div className="chq-ma__inputs">
         <label>
-          <span>إزاحة أفقية (مم) · − يسار / + يمين</span>
+          <span>{t('lbl.calib.offset_x_hint')}</span>
           <input
             type="number"
             step={0.5}
-            aria-label="إزاحة أفقية بالمليمتر"
+            aria-label={t('a11y.calib.offset_x_mm')}
             value={rightMm}
             onChange={(e) => { setRightMm(safeNum(e.target.value)); setPreviewed(true); }}
           />
         </label>
         <label>
-          <span>إزاحة رأسية (مم) · − أعلى / + أسفل</span>
+          <span>{t('lbl.calib.offset_y_hint')}</span>
           <input
             type="number"
             step={0.5}
-            aria-label="إزاحة رأسية بالمليمتر"
+            aria-label={t('a11y.calib.offset_y_mm')}
             value={downMm}
             onChange={(e) => { setDownMm(safeNum(e.target.value)); setPreviewed(true); }}
           />
@@ -157,17 +159,17 @@ export default function MeasurementAssistant({
       {/* Live correction / before-after */}
       {hasMeasurements ? (
         <div className="chq-ma__preview">
-          <div className="chq-ma__preview-head">التصحيح المقترح</div>
+          <div className="chq-ma__preview-head">{t('sec.calib.proposed_correction')}</div>
           <table>
             <thead>
-              <tr><th>الحقل</th><th>الحالي</th><th>المقترح</th><th>Δ</th></tr>
+              <tr><th>{t('col.calib.field')}</th><th>{t('col.calib.current')}</th><th>{t('col.calib.proposed')}</th><th>Δ</th></tr>
             </thead>
             <tbody>
               {affectedFields.map((fk) => {
                 const r = results[fk];
                 return (
                   <tr key={fk} className={r.clamped ? 'is-clamped' : ''}>
-                    <td>{FIELD_LABELS[fk]}</td>
+                    <td>{t(FIELD_LABEL_KEYS[fk])}</td>
                     <td>{template[fk].left.toFixed(1)} / {template[fk].top.toFixed(1)}</td>
                     <td>{r.newLeft.toFixed(1)} / {r.newTop.toFixed(1)}</td>
                     <td>{r.dLeftPct >= 0 ? '+' : ''}{r.dLeftPct.toFixed(2)} / {r.dTopPct >= 0 ? '+' : ''}{r.dTopPct.toFixed(2)}</td>
@@ -179,18 +181,18 @@ export default function MeasurementAssistant({
           {anyClamped && (
             <p className="chq-ma__warn">
               <span className="material-symbols-outlined" aria-hidden="true">warning</span>
-              بعض القيم تجاوزت الحدود المسموحة وتم قصّها إلى الحد.
+              {t('msg.calib.clamped_hint')}
             </p>
           )}
           <p className="chq-ma__ghost-hint">
             <span className="material-symbols-outlined" aria-hidden="true">layers</span>
-            المعاينة: الموضع الحالي (خط متصل) مقابل المقترح (خط متقطّع) على لوحة المعايرة.
+            {t('hint.calib.ghost_preview_explain')}
           </p>
         </div>
       ) : previewed ? (
-        <p className="chq-ma__empty">الإزاحة المقيسة صفر — لا حاجة إلى تصحيح.</p>
+        <p className="chq-ma__empty">{t('msg.calib.zero_offset')}</p>
       ) : (
-        <p className="chq-ma__empty">أدخل قياس الإزاحة لعرض التصحيح المقترح ومعاينة قبل/بعد.</p>
+        <p className="chq-ma__empty">{t('hint.calib.enter_offset')}</p>
       )}
 
       {/* Actions */}
@@ -201,10 +203,10 @@ export default function MeasurementAssistant({
           disabled={!hasMeasurements || applyBusy}
           onClick={() => hasMeasurements && onApply({ scope, rightMm, downMm, proposedTemplate, affectedFields, anyClamped, maxRemainingMm })}
         >
-          {applyBusy ? 'جارٍ الحفظ…' : 'تطبيق كنسخة جديدة'}
+          {applyBusy ? t('msg.saving_ellipsis') : t('action.calib.apply_as_new_version')}
         </button>
         <button type="button" className="chq-btn chq-btn--ghost" onClick={reset} disabled={!hasMeasurements || applyBusy}>
-          تراجع
+          {t('action.undo')}
         </button>
       </div>
     </div>

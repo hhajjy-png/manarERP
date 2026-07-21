@@ -78,7 +78,7 @@ export default function Layout() {
         <div className="brand">
           <img
             src={theme === 'dark' ? almanarLogoDark : almanarLogo}
-            alt="شركة المنار"
+            alt={t('layout.brand_name')}
             className="brand-logo"
           />
         </div>
@@ -178,10 +178,10 @@ export default function Layout() {
             </button>
             <div className="user" onClick={onLogout} title={t('layout.logout')}>
               <div className="user-info">
-                <strong>{user?.fullName ?? 'مستخدم'}</strong>
+                <strong>{user?.fullName ?? t('layout.user_fallback')}</strong>
                 <small>{user?.role.displayName}</small>
               </div>
-              <div className="avatar">{(user?.fullName ?? 'م').charAt(0)}</div>
+              <div className="avatar">{(user?.fullName ?? t('layout.user_fallback')).charAt(0)}</div>
             </div>
           </div>
         </header>

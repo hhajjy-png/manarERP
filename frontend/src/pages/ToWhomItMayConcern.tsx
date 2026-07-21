@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import { useParams, useLocation } from 'react-router-dom';
+import { useT } from '../lib/i18n';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -20,6 +21,7 @@ const FORM_KEY = 'to-whom-it-may-concern';
 const INITIAL_PRINT_FIELDS = { certPurpose: '' };
 
 export default function ToWhomItMayConcern() {
+  const { t } = useT();
   const { employeeId } = useParams<{ employeeId: string }>();
   const { search } = useLocation();
   const formNumber = useMemo(() => generateFormNumber('to-whom-it-may-concern'), []);
@@ -72,8 +74,8 @@ export default function ToWhomItMayConcern() {
      ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
-    title: lang === 'en' ? 'To Whom It May Concern' : 'إلى من يهمه الأمر',
-    documentLabel: `إلى من يهمه الأمر · ${formNumber}`,
+    title: t('page.towhom.title'),
+    documentLabel: `${t('page.towhom.title')} · ${formNumber}`,
     lang,
   });
 
@@ -91,17 +93,17 @@ export default function ToWhomItMayConcern() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: lang === 'en' ? 'To Whom It May Concern' : 'إلى من يهمه الأمر',
-    documentLabel: `إلى من يهمه الأمر · ${formNumber}`,
+    title: t('page.towhom.title'),
+    documentLabel: `${t('page.towhom.title')} · ${formNumber}`,
   });
 
 
-  if (error) return <div className="center-msg">خطأ: {error}</div>;
+  if (error) return <div className="center-msg">{t('msg.error')}: {error}</div>;
   if (!data)
     return (
       <div className="center-msg">
         <div className="spinner" />
-        جارٍ التحميل…
+        {t('msg.loading')}
       </div>
     );
 
@@ -116,7 +118,7 @@ export default function ToWhomItMayConcern() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
-      title={lang === 'en' ? 'To Whom It May Concern' : 'إلى من يهمه الأمر'}
+      title={t('page.towhom.title')}
       profile={profile}
       // HR Print Templates – Shared Visual Consistency Pack v1: reuse the Salary
       // Certificate's opt-in ApprovalSection/FormLayout behavior.
@@ -131,7 +133,7 @@ export default function ToWhomItMayConcern() {
             type="button"
             className="btn secondary"
             style={{ fontSize: 12, padding: '4px 8px' }}
-            title="حفظ مسودة"
+            title={t('page.warning.save_draft_title')}
             onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
           >
             💾
@@ -141,7 +143,7 @@ export default function ToWhomItMayConcern() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
-              title="استعادة المسودة"
+              title={t('page.warning.load_draft_title')}
               onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
             >
               ↩
@@ -152,7 +154,7 @@ export default function ToWhomItMayConcern() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px' }}
-              title="مسح المسودة"
+              title={t('page.warning.clear_draft_title')}
               onClick={() => clearDraft(FORM_KEY)}
             >
               ✕
@@ -170,13 +172,13 @@ export default function ToWhomItMayConcern() {
       }}
     >
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{t('page.warning.print_fields_header')}</div>
         <div className="field" style={{ maxWidth: 400 }}>
-          <label>الغرض من الشهادة / Purpose</label>
+          <label>{t('page.towhom.field.purpose')}</label>
           <input
             value={printFields.certPurpose}
             onChange={(e) => setPrintFields(p => ({ ...p, certPurpose: e.target.value }))}
-            placeholder="مثال: السفارة الهندية / Indian Embassy"
+            placeholder={t('page.towhom.ph.purpose')}
           />
         </div>
         <div style={{ marginTop: 10 }}>
@@ -186,7 +188,7 @@ export default function ToWhomItMayConcern() {
             style={{ fontSize: 12 }}
             onClick={resetPrintFields}
           >
-            ↺ مسح حقول الطباعة
+            {t('page.warning.clear_fields_btn')}
           </button>
         </div>
       </div>
@@ -197,7 +199,7 @@ export default function ToWhomItMayConcern() {
         printFields={printFields}
       />
       {showClearConfirm && (
-        <ConfirmModal message="سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+        <ConfirmModal message={t('page.warning.clear_confirm')} confirmLabel={t('page.warning.clear_confirm_btn')} variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
     </>

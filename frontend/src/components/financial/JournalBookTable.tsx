@@ -3,7 +3,8 @@ import type { JournalBookRow } from '../../types/financial.types';
 import { DrillDownLink } from './DrillDownLink';
 import type { FinancialDrillDownState } from './DrillDownLink';
 import { formatDate } from '../../lib/date';
-import { referenceTypeAr, journalStatusAr, fcMoneyCell, fcMoneyHeader } from './financialLabels';
+import { referenceTypeLabel, journalStatusLabel, fcMoneyCell, fcMoneyHeader } from './financialLabels';
+import { useT } from '../../lib/i18n';
 
 // الرمز في **عنوان العمود** لا في كل خليّة. الخليّة رقم مجرّد، والصفر يبقى «0.000».
 function fmt(n: number) {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function JournalBookTable({ rows, currentState }: Props) {
+  const { t } = useT();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   function toggleRow(id: string) {
@@ -33,21 +35,21 @@ export function JournalBookTable({ rows, currentState }: Props) {
   return (
     <div className="journal-book-container" dir="rtl">
       <div className="journal-book-controls">
-        <button type="button" onClick={() => toggleAll(true)}>فتح الكل</button>
-        <button type="button" onClick={() => toggleAll(false)}>إغلاق الكل</button>
+        <button type="button" onClick={() => toggleAll(true)}>{t('fc.journal.expand_all')}</button>
+        <button type="button" onClick={() => toggleAll(false)}>{t('fc.journal.collapse_all')}</button>
       </div>
       <div className="table-responsive">
         <table className="financial-table journal-book-table">
           <thead>
             <tr>
               <th className="journal-expand-icon" />
-              <th>رقم القيد</th>
-              <th>التاريخ</th>
-              <th>البيان</th>
-              <th>المرجع</th>
-              <th>الحالة</th>
-              <th className="num">{fcMoneyHeader('مدين')}</th>
-              <th className="num">{fcMoneyHeader('دائن')}</th>
+              <th>{t('col.acc.entry_number')}</th>
+              <th>{t('col.date')}</th>
+              <th>{t('col.acc.description')}</th>
+              <th>{t('col.acc.reference')}</th>
+              <th>{t('col.status')}</th>
+              <th className="num">{fcMoneyHeader(t('acc.balance.debit'))}</th>
+              <th className="num">{fcMoneyHeader(t('acc.balance.credit'))}</th>
             </tr>
           </thead>
           <tbody>
@@ -68,12 +70,12 @@ export function JournalBookTable({ rows, currentState }: Props) {
                   <td>{row.description}</td>
                   <td>
                     <DrillDownLink drillDown={row.drillDown} currentState={currentState}>
-                      {referenceTypeAr(row.referenceType)}
+                      {referenceTypeLabel(row.referenceType, t)}
                     </DrillDownLink>
                   </td>
                   <td>
                     <span className={`journal-status journal-status-${row.status.toLowerCase()}`}>
-                      {journalStatusAr(row.status)}
+                      {journalStatusLabel(row.status, t)}
                     </span>
                   </td>
                   <td className="num">{fmt(row.totalDebit)}</td>
@@ -85,11 +87,11 @@ export function JournalBookTable({ rows, currentState }: Props) {
                       <table className="journal-lines-table">
                         <thead>
                           <tr>
-                            <th>الحساب</th>
-                            <th>اسم الحساب</th>
-                            <th>البيان</th>
-                            <th className="num">{fcMoneyHeader('مدين')}</th>
-                            <th className="num">{fcMoneyHeader('دائن')}</th>
+                            <th>{t('col.acc.account')}</th>
+                            <th>{t('col.acc.name')}</th>
+                            <th>{t('col.acc.description')}</th>
+                            <th className="num">{fcMoneyHeader(t('acc.balance.debit'))}</th>
+                            <th className="num">{fcMoneyHeader(t('acc.balance.credit'))}</th>
                           </tr>
                         </thead>
                         <tbody>

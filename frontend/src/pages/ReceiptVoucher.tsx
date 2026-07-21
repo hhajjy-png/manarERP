@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import DateInput from '../components/DateInput';
 import { todayDateOnly } from '../lib/date';
+import { useT } from '../lib/i18n';
 import FormHeader from '../forms/shared/FormHeader';
 import ApprovalSection from '../forms/shared/ApprovalSection';
 import FormQRCode from '../forms/shared/FormQRCode';
@@ -65,6 +66,7 @@ const labelStyle: CSSProperties = {
 
 export default function ReceiptVoucher() {
   const navigate = useNavigate();
+  const { t } = useT();
   const [form, setForm] = useState<FormState>(INITIAL);
   const [rcvNumber, setRcvNumber] = useState('');
   const [printing, setPrinting] = useState(false);
@@ -85,14 +87,14 @@ export default function ReceiptVoucher() {
   /** يبني مستند المعاينة من نفس عنصر الطباعة المعروض — لا إعادة رسم. */
   const composePreview = useCallback((): string => {
     const node = previewRef.current;
-    if (!node) throw new Error('تعذّر تجهيز المستند للمعاينة.');
+    if (!node) throw new Error(t('dlg.receipt.compose_failed'));
     return composeFromNode({
       node,
       pageSpec: RECEIPT_VOUCHER_PAGE_SPEC,
-      title: `سند قبض ${rcvNumber || '---'}`,
+      title: `${t('voucher.receipt.title')} ${rcvNumber || '---'}`,
       lang,
     });
-  }, [rcvNumber, lang]);
+  }, [rcvNumber, lang, t]);
 
   /**
    * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
@@ -107,8 +109,8 @@ export default function ReceiptVoucher() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     compose: composePreview,
     onPrint: () => { void handlePrint(); },
-    title: `سند قبض ${rcvNumber || '---'}`,
-    documentLabel: `سند قبض · ${rcvNumber || '---'}`,
+    title: `${t('voucher.receipt.title')} ${rcvNumber || '---'}`,
+    documentLabel: `${t('voucher.receipt.title')} · ${rcvNumber || '---'}`,
     lang,
   });
 
@@ -180,11 +182,11 @@ export default function ReceiptVoucher() {
   }
 
   function validate(): string {
-    if (!form.partyName.trim()) return 'اسم الجهة الدافعة مطلوب.';
+    if (!form.partyName.trim()) return t('error.receipt.payer_required');
     const amt = parseFloat(form.amount);
-    if (!form.amount || isNaN(amt) || amt <= 0) return 'المبلغ مطلوب ويجب أن يكون أكبر من صفر.';
-    if (!form.date) return 'التاريخ مطلوب.';
-    if (!form.reason.trim()) return 'البيان / السبب مطلوب.';
+    if (!form.amount || isNaN(amt) || amt <= 0) return t('error.receipt.amount_required');
+    if (!form.date) return t('error.receipt.date_required');
+    if (!form.reason.trim()) return t('error.receipt.reason_required');
     return '';
   }
 
@@ -233,8 +235,8 @@ export default function ReceiptVoucher() {
       <div className="rcv-no-print page" style={{ paddingBottom: 0 }}>
         <div className="page-head" style={{ marginBottom: 20 }}>
           <div>
-            <h2>سند قبض</h2>
-            <p>أدخل بيانات السند ثم اضغط «طباعة» لإصدار الرقم وطباعة المستند.</p>
+            <h2>{t('voucher.receipt.title')}</h2>
+            <p>{t('page.receipt.subtitle')}</p>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <LanguageToggle lang={lang} onChange={setLang} />
@@ -274,11 +276,11 @@ export default function ReceiptVoucher() {
         >
           {/* Party name */}
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={labelStyle}>اسم الجهة الدافعة / المُسلِّم <span style={{ color: '#e11d48' }}>*</span></label>
+            <label style={labelStyle}>{t('field.receipt.payer_name')} <span style={{ color: '#e11d48' }}>*</span></label>
             <input
               style={inputStyle}
               type="text"
-              placeholder="استلمنا من السيد / السادة…"
+              placeholder={t('field.receipt.payer_placeholder')}
               value={form.partyName}
               onChange={(e) => set('partyName', e.target.value)}
             />
@@ -286,7 +288,7 @@ export default function ReceiptVoucher() {
 
           {/* Amount */}
           <div>
-            <label style={labelStyle}>المبلغ ( د.ك ) <span style={{ color: '#e11d48' }}>*</span></label>
+            <label style={labelStyle}>{t('field.receipt.amount_kd')} <span style={{ color: '#e11d48' }}>*</span></label>
             <input
               style={{ ...inputStyle, direction: 'ltr', textAlign: 'right' }}
               type="number"
@@ -300,7 +302,7 @@ export default function ReceiptVoucher() {
 
           {/* Date */}
           <div>
-            <label style={labelStyle}>التاريخ <span style={{ color: '#e11d48' }}>*</span></label>
+            <label style={labelStyle}>{t('field.date')} <span style={{ color: '#e11d48' }}>*</span></label>
             <DateInput
               style={{ ...inputStyle, direction: 'ltr' }}
               value={form.date}
@@ -310,11 +312,11 @@ export default function ReceiptVoucher() {
 
           {/* Reason */}
           <div style={{ gridColumn: '1 / -1' }}>
-            <label style={labelStyle}>البيان / السبب <span style={{ color: '#e11d48' }}>*</span></label>
+            <label style={labelStyle}>{t('field.receipt.reason')} <span style={{ color: '#e11d48' }}>*</span></label>
             <input
               style={inputStyle}
               type="text"
-              placeholder="وذلك عن…"
+              placeholder={t('field.receipt.reason_placeholder')}
               value={form.reason}
               onChange={(e) => set('reason', e.target.value)}
             />
@@ -322,7 +324,7 @@ export default function ReceiptVoucher() {
 
           {/* Payment method */}
           <div>
-            <label style={labelStyle}>طريقة القبض</label>
+            <label style={labelStyle}>{t('field.receipt.method')}</label>
             <div style={{ display: 'flex', gap: 20, alignItems: 'center', paddingTop: 6 }}>
               {(['cash', 'cheque', 'transfer'] as PaymentMethod[]).map((m) => (
                 <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
@@ -333,7 +335,7 @@ export default function ReceiptVoucher() {
                     checked={form.method === m}
                     onChange={() => set('method', m)}
                   />
-                  {m === 'cash' ? 'نقداً' : m === 'cheque' ? 'شيك' : 'تحويل'}
+                  {m === 'cash' ? t('field.exp.payment_method.cash') : m === 'cheque' ? t('opt.payment.cheque') : t('opt.payment.transfer')}
                 </label>
               ))}
             </div>
@@ -341,11 +343,11 @@ export default function ReceiptVoucher() {
 
           {/* Cheque / bank reference */}
           <div>
-            <label style={labelStyle}>رقم الشيك / البنك</label>
+            <label style={labelStyle}>{t('field.receipt.cheque_bank')}</label>
             <input
               style={inputStyle}
               type="text"
-              placeholder="اختياري…"
+              placeholder={t('field.receipt.optional_placeholder')}
               value={form.chequeBank}
               onChange={(e) => set('chequeBank', e.target.value)}
             />
@@ -355,10 +357,10 @@ export default function ReceiptVoucher() {
         <div style={{ padding: '12px 0', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
           {rcvNumber ? (
             <span style={{ color: '#16a34a', fontWeight: 700 }}>
-              تم إصدار الرقم: {rcvNumber} — يمكنك الطباعة مجدداً بالضغط على «طباعة».
+              {t('msg.receipt.issued_notice', { number: rcvNumber })}
             </span>
           ) : (
-            'رقم السند يُصدر ويُثبّت فور الضغط على «طباعة» حتى في حال إلغاء نافذة الطباعة.'
+            t('msg.receipt.number_note')
           )}
         </div>
       </div>
@@ -380,7 +382,7 @@ export default function ReceiptVoucher() {
               }),
             );
           }}
-          documentLabel={`سند قبض · ${rcvNumber || '---'}`}
+          documentLabel={`${t('voucher.receipt.title')} · ${rcvNumber || '---'}`}
           lang={lang}
         />
       )}

@@ -41,26 +41,30 @@ interface SparePart { id: number; equipmentId: number; equipment?: { id: number;
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
-const maintStatus: Record<string, { label: string; tone: Tone; icon: string }> = {
-  SCHEDULED: { label: 'مجدولة', tone: 'orange', icon: 'event' },
-  IN_PROGRESS: { label: 'قيد التنفيذ', tone: 'blue', icon: 'autorenew' },
-  COMPLETED: { label: 'مكتملة', tone: 'green', icon: 'check_circle' },
-  CANCELLED: { label: 'ملغاة', tone: 'neutral', icon: 'block' },
+const maintStatus: Record<string, { key: string; tone: Tone; icon: string }> = {
+  SCHEDULED: { key: 'opt.maint.scheduled', tone: 'orange', icon: 'event' },
+  IN_PROGRESS: { key: 'opt.maint.in_progress', tone: 'blue', icon: 'autorenew' },
+  COMPLETED: { key: 'opt.maint.completed', tone: 'green', icon: 'check_circle' },
+  CANCELLED: { key: 'opt.maint.cancelled', tone: 'neutral', icon: 'block' },
 };
-const maintType: Record<string, string> = { PREVENTIVE: 'وقائية', CORRECTIVE: 'تصحيحية' };
-const severity: Record<string, { label: string; tone: Tone; icon: string }> = {
-  LOW: { label: 'منخفضة', tone: 'neutral', icon: 'low_priority' },
-  MEDIUM: { label: 'متوسطة', tone: 'orange', icon: 'remove' },
-  HIGH: { label: 'عالية', tone: 'red', icon: 'priority_high' },
-  CRITICAL: { label: 'حرجة', tone: 'red', icon: 'warning' },
+const maintType: Record<string, string> = { PREVENTIVE: 'opt.maint.preventive', CORRECTIVE: 'opt.maint.corrective' };
+const severity: Record<string, { key: string; tone: Tone; icon: string }> = {
+  LOW: { key: 'opt.maint.sev_low', tone: 'neutral', icon: 'low_priority' },
+  MEDIUM: { key: 'opt.maint.sev_medium', tone: 'orange', icon: 'remove' },
+  HIGH: { key: 'opt.maint.sev_high', tone: 'red', icon: 'priority_high' },
+  CRITICAL: { key: 'opt.maint.sev_critical', tone: 'red', icon: 'warning' },
 };
-const bdStatus: Record<string, { label: string; tone: Tone; icon: string }> = {
-  OPEN: { label: 'مفتوح', tone: 'red', icon: 'error' },
-  RESOLVED: { label: 'محلول', tone: 'green', icon: 'check_circle' },
+const bdStatus: Record<string, { key: string; tone: Tone; icon: string }> = {
+  OPEN: { key: 'opt.maint.breakdown_open', tone: 'red', icon: 'error' },
+  RESOLVED: { key: 'opt.maint.breakdown_resolved', tone: 'green', icon: 'check_circle' },
 };
-function smchip(map: Record<string, { label: string; tone: Tone; icon: string }>, val: string) {
-  const m = map[val] ?? { label: val, tone: 'neutral' as Tone, icon: 'help' };
-  return <StatusChip tone={m.tone} icon={m.icon}>{m.label}</StatusChip>;
+function smchip(map: Record<string, { key: string; tone: Tone; icon: string }>, val: string, t: (key: string) => string) {
+  const m = map[val] ?? { key: '', tone: 'neutral' as Tone, icon: 'help' };
+  return <StatusChip tone={m.tone} icon={m.icon}>{m.key ? t(m.key) : val}</StatusChip>;
+}
+function maintTypeLabel(t: (key: string) => string, val: string) {
+  const key = maintType[val];
+  return key ? t(key) : val;
 }
 
 type Tab = 'records' | 'fuel' | 'breakdowns' | 'spare-parts';
@@ -109,7 +113,7 @@ function SummaryKPIs() {
 
   return (
     <div className="mntx-metrics">
-      <HeroMetric icon="build" label={t('stat.maint.total')} value={totalRecords} sub={<><span className="material-symbols-outlined">check_circle</span>{`${completed} مكتملة`}</>} />
+      <HeroMetric icon="build" label={t('stat.maint.total')} value={totalRecords} sub={<><span className="material-symbols-outlined">check_circle</span>{`${completed} ${t('lbl.maint.completed_suffix')}`}</>} />
       <div className="xpl-kpi-grid">
         <MetricCard icon="check_circle" tone="green" label={t('stat.maint.completed')} value={completed} />
         <MetricCard icon="error" tone={openBreakdowns > 0 ? 'red' : 'green'} label={t('stat.maint.open')} value={openBreakdowns} sub={openBreakdowns > 0 ? t('stat.maint.needs_attention') : undefined} />
@@ -176,7 +180,7 @@ function RecordFormBody({ form, setForm, equipmentList, isEdit }: { form: typeof
   return (
     <>
       {!isEdit && <EquipmentSelect value={form.equipmentId} plate={form.plateNumber} equipmentList={equipmentList} onChange={(id, plate) => setForm({ ...form, equipmentId: id, plateNumber: plate })} />}
-      <DialogSection title="تفاصيل الصيانة" icon="build">
+      <DialogSection title={t('sec.maint.details')} icon="build">
         <div className="xpl-field">
           <label>{t('field.maint.type')} <span className="req">*</span></label>
           <select className="xpl-select" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} aria-label={t('field.maint.type')}>
@@ -198,11 +202,11 @@ function RecordFormBody({ form, setForm, equipmentList, isEdit }: { form: typeof
           <textarea className="xpl-textarea" required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} aria-label={t('field.description')} />
         </div>
       </DialogSection>
-      <DialogSection title="التكلفة والتنفيذ" icon="payments">
+      <DialogSection title={t('sec.maint.cost_execution')} icon="payments">
         <div className="xpl-field"><label>{t('field.amount_kd')}</label><input className="xpl-input" type="number" min="0" step="0.001" value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} style={{ direction: 'ltr' }} aria-label={t('field.amount_kd')} /></div>
         <div className="xpl-field"><label>{t('field.maint.performed_by')}</label><input className="xpl-input" value={form.performedBy} onChange={(e) => setForm({ ...form, performedBy: e.target.value })} aria-label={t('field.maint.performed_by')} /></div>
       </DialogSection>
-      <DialogSection title="الجدولة" icon="event">
+      <DialogSection title={t('sec.scheduling')} icon="event">
         <div className="xpl-field"><label>{t('field.date')}</label><DateInput className="xpl-input" value={form.date} onChange={(v) => setForm({ ...form, date: v })} ariaLabel={t('field.date')} /></div>
         <div className="xpl-field"><label>{t('field.maint.next_due')}</label><DateInput className="xpl-input" value={form.nextDueDate} onChange={(v) => setForm({ ...form, nextDueDate: v })} ariaLabel={t('field.maint.next_due')} /></div>
       </DialogSection>
@@ -354,18 +358,18 @@ function RecordsTab() {
               <SortableHeader label={t('col.maint.performed_by')} title={t('col.maint.performed_by')} state={sort.getState('performedBy')} onToggle={() => sort.toggle('performedBy')} />
               <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
               <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
-              <th aria-label="فتح" />
+              <th aria-label={t('a11y.open_row')} />
             </tr></thead>
             <tbody>
               {sorted.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل صيانة ${r.equipment?.code ?? r.equipmentId}`}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.maint.record_details', { equip: r.equipment?.code ?? r.equipmentId })}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span>{r.equipment?.name ? <span style={{ color: 'var(--xpl-muted)', fontSize: 12, marginInlineStart: 6 }}>{r.equipment.name}</span> : null}</td>
-                  <td>{maintType[r.type] ?? r.type}</td>
+                  <td>{maintTypeLabel(t, r.type)}</td>
                   <td><span className="mntx-desc">{r.description}</span></td>
                   <td>{r.cost != null ? <MoneyCell value={r.cost} /> : '—'}</td>
                   <td>{r.performedBy ?? '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
-                  <td>{smchip(maintStatus, r.status)}</td>
+                  <td>{smchip(maintStatus, r.status, t)}</td>
                   <Chevron />
                 </tr>
               ))}
@@ -376,24 +380,24 @@ function RecordsTab() {
 
       {viewing && (
         <Drawer
-          title={`${maintType[viewing.type] ?? viewing.type} — ${viewing.equipment?.code ?? viewing.equipmentId}`}
+          title={`${maintTypeLabel(t, viewing.type)} — ${viewing.equipment?.code ?? viewing.equipmentId}`}
           onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">build</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.equipment?.code ?? viewing.equipmentId}</span><span className="xpl-drawer-hero-sub">{viewing.equipment?.name ?? ''} · {maintType[viewing.type] ?? viewing.type}</span><div style={{ marginTop: 4 }}>{smchip(maintStatus, viewing.status)}</div></div></div>}
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">build</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.equipment?.code ?? viewing.equipmentId}</span><span className="xpl-drawer-hero-sub">{viewing.equipment?.name ?? ''} · {maintTypeLabel(t, viewing.type)}</span><div style={{ marginTop: 4 }}>{smchip(maintStatus, viewing.status, t)}</div></div></div>}
           footer={<>
             {hasPermission('maintenance.update') && <Button variant="primary" icon="edit" onClick={() => { openEdit(viewing); setViewing(null); }}>{t('action.maint.edit')}</Button>}
             {hasPermission('maintenance.delete') && <Button variant="danger" icon="delete" busy={deleting} onClick={() => setDeleteTarget(viewing)}>{t('action.maint.delete')}</Button>}
           </>}
         >
-          <DrawerSection title="المعدة والتفاصيل">
+          <DrawerSection title={t('sec.maint.equipment_details')}>
             <DrawerField label={t('field.equipment')} value={viewing.equipment ? `${viewing.equipment.code}${viewing.equipment.name ? ' — ' + viewing.equipment.name : ''}` : String(viewing.equipmentId)} />
-            <DrawerField label={t('field.maint.type')} value={maintType[viewing.type] ?? viewing.type} />
-            <DrawerField label={t('field.status')} value={smchip(maintStatus, viewing.status)} />
+            <DrawerField label={t('field.maint.type')} value={maintTypeLabel(t, viewing.type)} />
+            <DrawerField label={t('field.status')} value={smchip(maintStatus, viewing.status, t)} />
           </DrawerSection>
-          <DrawerSection title="التكلفة والتنفيذ">
+          <DrawerSection title={t('sec.maint.cost_execution')}>
             <DrawerField label={t('col.amount')} value={viewing.cost != null ? <MoneyText value={viewing.cost} /> : '—'} />
             <DrawerField label={t('field.maint.performed_by')} value={viewing.performedBy ?? '—'} />
           </DrawerSection>
-          <DrawerSection title="الجدولة">
+          <DrawerSection title={t('sec.scheduling')}>
             <DrawerField label={t('field.date')} value={dateText(viewing.date)} />
             <DrawerField label={t('field.maint.next_due')} value={viewing.nextDueDate ? dateText(viewing.nextDueDate) : '—'} />
             <DrawerField label={t('col.created_at')} value={dateText(viewing.createdAt)} />
@@ -422,7 +426,7 @@ function RecordsTab() {
         <Dialog icon="delete" title={t('action.maint.delete')} size="sm" onClose={() => setDeleteTarget(null)}
           footer={<><Button variant="danger" icon="delete" busy={deleting} onClick={handleDelete}>{t('action.maint.delete')}</Button><Button variant="ghost" onClick={() => setDeleteTarget(null)}>{t('action.cancel')}</Button></>}>
           <p style={{ margin: 0 }}>{t('action.maint.confirm_delete')}</p>
-          <p style={{ margin: '8px 0 0', fontWeight: 700, color: 'var(--xpl-muted)', fontSize: 13 }}>{deleteTarget.equipment?.code ?? deleteTarget.equipmentId} — {maintType[deleteTarget.type] ?? deleteTarget.type} — {dateText(deleteTarget.date)}</p>
+          <p style={{ margin: '8px 0 0', fontWeight: 700, color: 'var(--xpl-muted)', fontSize: 13 }}>{deleteTarget.equipment?.code ?? deleteTarget.equipmentId} — {maintTypeLabel(t, deleteTarget.type)} — {dateText(deleteTarget.date)}</p>
         </Dialog>
       )}
     </>
@@ -511,11 +515,11 @@ function FuelTab() {
               <SortableHeader label={t('col.maint.odometer')} title={t('col.maint.odometer')} state={sort.getState('odometer')} onToggle={() => sort.toggle('odometer')} />
               <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
               <th>{t('col.notes')}</th>
-              <th aria-label="فتح" />
+              <th aria-label={t('a11y.open_row')} />
             </tr></thead>
             <tbody>
               {sorted.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل وقود ${r.equipment?.code ?? r.equipmentId}`}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.maint.fuel_details', { equip: r.equipment?.code ?? r.equipmentId })}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span></td>
                   <td>{r.liters.toLocaleString()} L</td>
                   <td>{<MoneyCell value={r.cost} />}</td>
@@ -533,7 +537,7 @@ function FuelTab() {
       {viewing && (
         <Drawer title={`${t('tab.maint.fuel')} — ${viewing.equipment?.code ?? viewing.equipmentId}`} onClose={() => setViewing(null)}
           hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">local_gas_station</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.liters.toLocaleString()} L</span><span className="xpl-drawer-hero-sub">{viewing.equipment?.code ?? viewing.equipmentId} · {<MoneyText value={viewing.cost} />}</span></div></div>}>
-          <DrawerSection title="التفاصيل">
+          <DrawerSection title={t('sec.details')}>
             <DrawerField label={t('col.equipment_no')} value={viewing.equipment?.code ?? viewing.equipmentId} mono />
             <DrawerField label={t('col.maint.liters')} value={`${viewing.liters.toLocaleString()} L`} />
             <DrawerField label={t('col.amount')} value={<MoneyText value={viewing.cost} />} />
@@ -549,7 +553,7 @@ function FuelTab() {
           footer={<><Button variant="primary" icon="save" type="submit" form="maint-fuel-form" busy={saving}>{t('action.save')}</Button><Button variant="ghost" onClick={() => setShowCreate(false)}>{t('action.cancel')}</Button></>}>
           <form id="maint-fuel-form" onSubmit={handleCreate}>
             <EquipmentSelect value={form.equipmentId} plate={form.plateNumber} equipmentList={equipmentList} onChange={(id, plate) => setForm({ ...form, equipmentId: id, plateNumber: plate })} />
-            <DialogSection title="بيانات الوقود" icon="local_gas_station">
+            <DialogSection title={t('sec.maint.fuel_info')} icon="local_gas_station">
               <div className="xpl-field"><label>{t('field.maint.liters')} <span className="req">*</span></label><input className="xpl-input" type="number" min="0.001" step="0.001" required value={form.liters} onChange={(e) => setForm({ ...form, liters: e.target.value })} style={{ direction: 'ltr' }} aria-label={t('field.maint.liters')} /></div>
               <div className="xpl-field"><label>{t('field.amount_kd')} <span className="req">*</span></label><input className="xpl-input" type="number" min="0" step="0.001" required value={form.cost} onChange={(e) => setForm({ ...form, cost: e.target.value })} style={{ direction: 'ltr' }} aria-label={t('field.amount_kd')} /></div>
               <div className="xpl-field"><label>{t('field.maint.odometer')}</label><input className="xpl-input" type="number" min="0" value={form.odometer} onChange={(e) => setForm({ ...form, odometer: e.target.value })} style={{ direction: 'ltr' }} aria-label={t('field.maint.odometer')} /></div>
@@ -654,15 +658,15 @@ function BreakdownsTab() {
               <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
               <SortableHeader label={t('col.maint.reported_at')} title={t('col.maint.reported_at')} state={sort.getState('reportedAt')} onToggle={() => sort.toggle('reportedAt')} />
               <SortableHeader label={t('col.maint.resolved_at')} title={t('col.maint.resolved_at')} state={sort.getState('resolvedAt')} onToggle={() => sort.toggle('resolvedAt')} />
-              <th aria-label="فتح" />
+              <th aria-label={t('a11y.open_row')} />
             </tr></thead>
             <tbody>
               {sorted.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل عطل ${r.equipment?.code ?? r.equipmentId}`}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.maint.breakdown_details', { equip: r.equipment?.code ?? r.equipmentId })}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span></td>
                   <td><span className="mntx-desc">{r.description}</span></td>
-                  <td>{smchip(severity, r.severity)}</td>
-                  <td>{smchip(bdStatus, r.status)}</td>
+                  <td>{smchip(severity, r.severity, t)}</td>
+                  <td>{smchip(bdStatus, r.status, t)}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.reportedAt)}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{r.resolvedAt ? dateText(r.resolvedAt) : '—'}</td>
                   <Chevron />
@@ -675,12 +679,12 @@ function BreakdownsTab() {
 
       {viewing && (
         <Drawer title={`${t('tab.maint.breakdowns')} — ${viewing.equipment?.code ?? viewing.equipmentId}`} onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">report</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.equipment?.code ?? viewing.equipmentId}</span><div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' }}>{smchip(severity, viewing.severity)}{smchip(bdStatus, viewing.status)}</div></div></div>}
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">report</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.equipment?.code ?? viewing.equipmentId}</span><div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' }}>{smchip(severity, viewing.severity, t)}{smchip(bdStatus, viewing.status, t)}</div></div></div>}
           footer={viewing.status === 'OPEN' && hasPermission('maintenance.create') ? <Button variant="primary" icon="task_alt" busy={resolving === viewing.id} onClick={() => handleResolve(viewing.id)}>{t('action.maint.resolve')}</Button> : undefined}>
-          <DrawerSection title="التفاصيل">
+          <DrawerSection title={t('sec.details')}>
             <DrawerField label={t('col.equipment_no')} value={viewing.equipment?.code ?? viewing.equipmentId} mono />
-            <DrawerField label={t('col.maint.severity')} value={smchip(severity, viewing.severity)} />
-            <DrawerField label={t('col.status')} value={smchip(bdStatus, viewing.status)} />
+            <DrawerField label={t('col.maint.severity')} value={smchip(severity, viewing.severity, t)} />
+            <DrawerField label={t('col.status')} value={smchip(bdStatus, viewing.status, t)} />
             <DrawerField label={t('col.maint.reported_at')} value={dateText(viewing.reportedAt)} />
             <DrawerField label={t('col.maint.resolved_at')} value={viewing.resolvedAt ? dateText(viewing.resolvedAt) : '—'} />
           </DrawerSection>
@@ -693,7 +697,7 @@ function BreakdownsTab() {
           footer={<><Button variant="primary" icon="save" type="submit" form="maint-breakdown-form" busy={saving}>{t('action.save')}</Button><Button variant="ghost" onClick={() => setShowCreate(false)}>{t('action.cancel')}</Button></>}>
           <form id="maint-breakdown-form" onSubmit={handleCreate}>
             <EquipmentSelect value={form.equipmentId} plate={form.plateNumber} equipmentList={equipmentList} onChange={(id, plate) => setForm({ ...form, equipmentId: id, plateNumber: plate })} />
-            <DialogSection title="تفاصيل العطل" icon="report">
+            <DialogSection title={t('sec.maint.breakdown_details')} icon="report">
               <div className="xpl-field xpl-field--full"><label>{t('field.description')} <span className="req">*</span></label><textarea className="xpl-textarea" required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} aria-label={t('field.description')} /></div>
               <div className="xpl-field xpl-field--full">
                 <label>{t('field.maint.severity')}</label>
@@ -792,11 +796,11 @@ function SparePartsTab() {
               <SortableHeader label={fcMoneyHeader(t('col.maint.unit_cost'))} title={t('col.maint.unit_cost')} state={sort.getState('unitCost')} onToggle={() => sort.toggle('unitCost')} />
               <SortableHeader label={fcMoneyHeader(t('col.maint.total_cost'))} title={t('col.maint.total_cost')} state={sort.getState('totalCost')} onToggle={() => sort.toggle('totalCost')} />
               <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
-              <th aria-label="فتح" />
+              <th aria-label={t('a11y.open_row')} />
             </tr></thead>
             <tbody>
               {sorted.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل قطعة ${r.partName}`}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.maint.spare_part_details', { name: r.partName })}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span></td>
                   <td><strong>{r.partName}</strong></td>
                   <td>{r.quantity}</td>
@@ -814,7 +818,7 @@ function SparePartsTab() {
       {viewing && (
         <Drawer title={`${viewing.partName}`} onClose={() => setViewing(null)}
           hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">settings</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.partName}</span><span className="xpl-drawer-hero-sub">{viewing.equipment?.code ?? viewing.equipmentId} · {<MoneyText value={viewing.totalCost} />}</span></div></div>}>
-          <DrawerSection title="التفاصيل">
+          <DrawerSection title={t('sec.details')}>
             <DrawerField label={t('col.equipment_no')} value={viewing.equipment?.code ?? viewing.equipmentId} mono />
             <DrawerField label={t('col.maint.part_name')} value={viewing.partName} />
             <DrawerField label={t('col.maint.quantity')} value={viewing.quantity} />
@@ -830,7 +834,7 @@ function SparePartsTab() {
           footer={<><Button variant="primary" icon="save" type="submit" form="maint-spare-form" busy={saving}>{t('action.save')}</Button><Button variant="ghost" onClick={() => setShowCreate(false)}>{t('action.cancel')}</Button></>}>
           <form id="maint-spare-form" onSubmit={handleCreate}>
             <EquipmentSelect value={form.equipmentId} plate={form.plateNumber} equipmentList={equipmentList} onChange={(id, plate) => setForm({ ...form, equipmentId: id, plateNumber: plate })} />
-            <DialogSection title="بيانات القطعة" icon="settings">
+            <DialogSection title={t('sec.maint.spare_part_info')} icon="settings">
               <div className="xpl-field xpl-field--full"><label>{t('field.maint.part_name')} <span className="req">*</span></label><input className="xpl-input" required value={form.partName} onChange={(e) => setForm({ ...form, partName: e.target.value })} aria-label={t('field.maint.part_name')} /></div>
               <div className="xpl-field"><label>{t('field.maint.quantity')} <span className="req">*</span></label><input className="xpl-input" type="number" min="1" required value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} style={{ direction: 'ltr' }} aria-label={t('field.maint.quantity')} /></div>
               <div className="xpl-field"><label>{t('field.maint.unit_cost')} <span className="req">*</span></label><input className="xpl-input" type="number" min="0" step="0.001" required value={form.unitCost} onChange={(e) => setForm({ ...form, unitCost: e.target.value })} style={{ direction: 'ltr' }} aria-label={t('field.maint.unit_cost')} /></div>

@@ -74,7 +74,39 @@ export const FIELD_LABELS: Record<FieldKey, string> = {
   numeric: 'المبلغ الرقمي',
 };
 
+// i18n keys for the SAME field labels, for on-screen calibrator UI consumers only
+// (ChequeCalibrator.tsx, MeasurementAssistant.tsx). CalibrationTestSheet.tsx (the
+// printed test sheet) keeps reading FIELD_LABELS directly — its output is out of
+// localization scope and must stay exactly as-is.
+export const FIELD_LABEL_KEYS: Record<FieldKey, string> = {
+  beneficiary: 'field.cheque.beneficiary',
+  date: 'col.date',
+  tafqeet: 'lbl.cheque.tafqeet',
+  numeric: 'lbl.cheque.numeric_amount',
+};
+
 export const FIELD_KEYS: FieldKey[] = ['beneficiary', 'date', 'tafqeet', 'numeric'];
+
+// Stored bank-name values stay Arabic (matched against Settings rows keyed by bank name and
+// sent to the backend as-is) — only the on-screen LABEL is localized via this lookup. Shared
+// by Cheques.tsx and the calibrator UI (ChequeCalibrator.tsx) so both display the same
+// English bank name.
+export const BANK_NAME_KEYS: Record<string, string> = {
+  'بنك الكويت الوطني': 'bank.name.nbk',
+  'بيت التمويل الكويتي': 'bank.name.kfh',
+  'بنك الخليج': 'bank.name.gulf',
+  'البنك التجاري الكويتي': 'bank.name.cbk',
+  'بنك برقان': 'bank.name.burgan',
+  'بنك بوبيان': 'bank.name.boubyan',
+  'بنك وربة': 'bank.name.warba',
+  'البنك الأهلي الكويتي': 'bank.name.abk',
+  'البنك الأهلي المتحد': 'bank.name.ahli_united',
+  'بنك الكويت الدولي': 'bank.name.kib',
+};
+export function bankLabel(bank: string, t: (k: string) => string): string {
+  const key = BANK_NAME_KEYS[bank];
+  return key ? t(key) : bank;
+}
 
 export const SETTING_KEY_PREFIX = 'cheque.template.';
 
@@ -132,6 +164,16 @@ export const REPRINT_REASON_LABELS: Record<ReprintReason, string> = {
   MISALIGNMENT: 'عدم تطابق المحاذاة',
   USER_REQUEST: 'طلب المستخدم',
   OTHER: 'أخرى',
+};
+
+/** i18n keys for the reprint-reason select (Cheques.tsx) and print-log reason display. */
+export const REPRINT_REASON_KEYS: Record<ReprintReason, string> = {
+  PAPER_JAM: 'reprint_reason.paper_jam',
+  PRINTER_ISSUE: 'reprint_reason.printer_issue',
+  CALIBRATION: 'reprint_reason.calibration',
+  MISALIGNMENT: 'reprint_reason.misalignment',
+  USER_REQUEST: 'reprint_reason.user_request',
+  OTHER: 'reprint_reason.other',
 };
 
 /** A saved cheque calibration template version (server row). */

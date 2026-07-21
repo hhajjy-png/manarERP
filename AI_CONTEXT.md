@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `96651b3` (merge of `feature/invoice-confirmation-dialog-layering-fix-v1`) |
-| **Current Documentation Commit** | `42a8116` — "docs: record Invoice Confirmation Dialog Layering Fix v1 release" |
-| **Current Stable Tag** | `stable-invoice-confirmation-dialog-layering-fix-v1` |
-| **Current Release Date** | 2026-07-20 |
-| **Total Stable Releases** | 328 (window 2026-06-07 → 2026-07-20) |
+| **Current Merge Commit** | `fa57fb4` (merge of `feature/erp-terminology-standardization-pack-v1`) |
+| **Current Documentation Commit** | `c4fc21b` — "docs: record ERP Terminology Standardization Pack v1 release" |
+| **Current Stable Tag** | `stable-erp-terminology-standardization-pack-v1` |
+| **Current Release Date** | 2026-07-21 |
+| **Total Stable Releases** | 331 (window 2026-06-07 → 2026-07-21) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -220,6 +220,79 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **ERP Terminology Standardization Pack v1** (2026-07-21,
+  `stable-erp-terminology-standardization-pack-v1`) — one professional English ERP terminology standard for the
+  whole app. **English (`en`) localization only — Arabic baseline byte-for-byte unchanged; key parity 1211 ↔ 1211.**
+  25 strings standardized in `frontend/src/lib/i18n.ts` against Dynamics 365 / SAP / Oracle Fusion / Odoo norms:
+  canonical terms (Customer not Client, Invoice not "Invoices & Claims", Outstanding not Uncollected), unified
+  `New X` create verbs, `Sign In`/`Sign Out`, `Expense via X` categories (Nazeer transliteration fix), title
+  cleanups (`Accounting`, `Cheque Management`), and the official company legal name `Al Manar Al Duwaliya
+  Company L.L.C` on payslip + cheque. Spelling standard: US English + retained `Cheque`. Adds
+  `docs/ERP_TERMINOLOGY_STANDARD.md` as the permanent source of truth. **No** logic / API / DB / Prisma / routes /
+  permissions / CSS / layout / print change. Independent Claude Opus review: **APPROVED**. Product Owner visual
+  review: **APPROVED**. Gemini final review: **APPROVED**.
+
+- **Employee & Equipment Tables Visual Consistency Pack v1** (2026-07-20,
+  `stable-employee-equipment-tables-visual-consistency-pack-v1`) — executive-grade visual polish for the
+  Employees explorer table plus a numeric sorting regression fix, a frozen-cell background consistency fix, and
+  migration of the Equipment table's registration-remaining column onto the same shared visual system.
+  **Presentation-only except the Employee Number sort fix** (server-side sort path change; no API/Prisma/DB
+  change). **Employee table polish:** single-line, ellipsis + tooltip Arabic/English name cells; profession and
+  nationality rendered as plain text (badges/flags/status labels removed after user feedback, in favor of a
+  calmer, label-free look); the four expiry columns (residency/passport/license/vehicle license) share one
+  `ExpiryCell` — soft pastel tint + thin colour accent, no badge/icon/label; frozen identity columns limited to
+  Employee Number + Arabic Name (English Name unfrozen); rebalanced column widths, denser row rhythm, a
+  stronger-but-quiet hover. **Employee Number numeric sort fix:** `code` is a digit string, and SQLite/Prisma
+  sorted it lexically (1, 10, 11, 2); removed from the DB sort whitelist and routed through the existing shared
+  `sortRowsInMemory` numeric collator (same pattern already used by payroll/financial) over the full filtered set
+  before paging — no duplicate sort logic, no API/Prisma/DB change; regression tests added. **Frozen cell
+  background consistency fix:** the frozen cells' opaque hover/selected overlay used independently hand-tuned
+  percentages (8%/12%) instead of the actual row-level tint values (7%/10%), causing visible drift from the
+  non-frozen English Name cell; both now derive from single-source `--emp-hover-pct`/`--emp-selected-pct` tokens.
+  **Shared `ToneCell` + Equipment migration:** extracted the Employee expiry-tint system into a shared, reusable
+  `ToneCell` component (`frontend/src/components/explorer/`) — the one green/amber/orange/red system for any
+  explorer table's status/remaining-period cell, not a per-module copy; Employee's `ExpiryCell` now delegates to
+  it (zero visual change, re-verified via full test suite + build); Equipment's Registration Remaining column
+  migrated off the old loud `.pill` badge onto the same system (same `expired`/`expiringSoon` flags, no
+  calculation change) — removes the saturated badge background and the warning-icon prefix. Equipment's
+  WORKING/NOT_WORKING status column intentionally kept on the classic pill (Employee's own status column also
+  still uses it, keeping both tables internally consistent with the same reference). 11 files (+427/−31; 5
+  added, 6 modified: `backend/src/modules/employees/employees.service.ts`,
+  `backend/src/modules/employees/__tests__/employees.sort.test.ts`, `frontend/src/components/DataTable.tsx`,
+  `frontend/src/components/SortableHeader.tsx`, `frontend/src/config/modules.tsx`,
+  `frontend/src/pages/ResourcePage.tsx` modified; `frontend/src/components/employees/employeeCells.tsx`,
+  `frontend/src/components/employees/employee-table.css`, `frontend/src/components/equipment/equipmentCells.tsx`,
+  `frontend/src/components/explorer/ToneCell.tsx`, `frontend/src/components/explorer/toneCell.css` added).
+  Backend `tsc --noEmit` ✅ · backend build ✅ · backend vitest **1848/1848 pass** ✅ · frontend `tsc --noEmit` ✅ ·
+  frontend build ✅ · frontend vitest **1775/1776 pass** (1 pre-existing, unrelated failure — a hardcoded
+  `lazy()`-import counter in `routerFutureFlags.test.tsx` already stale against untouched `App.tsx`; reproduces
+  identically on vanilla `production`) — all validated both pre-merge and on the merged `production` HEAD.
+  Checkpoint tag `pre-employee-equipment-tables-visual-consistency-pack-v1`. Branched from `production` @
+  `e52dc75`; feature branch `feature/employee-equipment-tables-visual-consistency-pack-v1` (kept — pushed, not
+  deleted), feature commit `f46d203`, merge commit `db6a8a1`, stable tag
+  `stable-employee-equipment-tables-visual-consistency-pack-v1`. Product Owner manual visual review: **APPROVED**.
+  Gemini final review: **APPROVED**.
+- **Employee Financial Position Dashboard v1** (2026-07-20, `stable-employee-financial-position-dashboard-v1`) —
+  presentation-only redesign of the top of `EmployeeEntitlementsCenter.tsx` into an executive financial
+  dashboard. **Financial Position card:** one `SectionCard` headline ("إجمالي الالتزام الحالي") plus two
+  executive `MetricCard`s — Leave Allowance and End of Service — summed directly from the existing legal
+  engine (`r.leaveAllowanceValue + eosAmount`, both already computed server-side); no ledger-derived or
+  accounting-style figure is shown ("Previously Paid"/"Remaining Expected Liability" cards were deliberately
+  dropped in a follow-up correction — the append-only historical ledger must never be presented as an actual
+  paid/accounting balance). **Health Indicators panel:** compact `.ent-warning`-styled grid derived purely
+  from existing response data (leave eligibility, data completeness, last-disbursement recency, high leave
+  balance) merged with the existing `buildWarnings()` output — no new business rule, no warning lost.
+  **Service Analytics grid:** consolidates hire date, service duration, approved wage, legal accrual,
+  leave balance/used, holidays/sick excluded, and advances count into one responsive `auto-fit` grid — same
+  values as before, each now appearing exactly once (no duplication). Built entirely from ExplorerKit
+  (`SectionCard`/`MetricCard`) and its `--xpl-*` tokens, RTL, responsive (900px/700px breakpoints). **No
+  backend, database, Prisma, or API change** — same single `GET /employees/:id/entitlements` read; every
+  displayed number maps 1:1 to the same pre-existing API field; `entitlements.calc.ts` and
+  `employees.service.ts` untouched. 2 files (+253/−131; 0 added, 2 modified:
+  `frontend/src/pages/EmployeeEntitlementsCenter.tsx`, `frontend/src/pages/EmployeeEntitlementsCenter.css`).
+  Zero backend files touched. Frontend `tsc --noEmit` and build both clean, verified pre-merge and on the
+  merged `production` HEAD; backend `tsc --noEmit` and build also verified clean on merged HEAD (untouched by
+  this feature). Gemini final review: APPROVED.
 - **Invoice Confirmation Dialog Layering Fix v1** (2026-07-20, `stable-invoice-confirmation-dialog-layering-fix-v1`) —
   bug fix for the invoice save-confirmation dialog (introduced by Invoice Creation Reliability & Confirmation
   Pack v1) rendering behind the Create Invoice window instead of above it. **Root cause:** the confirmation

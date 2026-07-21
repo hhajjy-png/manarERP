@@ -3,7 +3,8 @@ import type { StatementRow } from '../../types/financial.types';
 import type { FinancialDrillDownState } from './DrillDownLink';
 import { DrillDownLink } from './DrillDownLink';
 import { formatDate, formatMonthLabel } from '../../lib/date';
-import { referenceTypeAr, fcMoneyHeader, fcMoneyCell } from './financialLabels';
+import { referenceTypeLabel, fcMoneyHeader, fcMoneyCell } from './financialLabels';
+import { useT } from '../../lib/i18n';
 
 interface Props {
   rows: StatementRow[];
@@ -47,6 +48,7 @@ function fmt(n: number) {
 }
 
 export function GroupedTable({ rows, currentState, highlightId }: Props) {
+  const { t } = useT();
   const groups = groupRows(rows);
   const [collapsedYears,  setCollapsedYears]  = useState<Set<string>>(new Set());
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
@@ -72,13 +74,13 @@ export function GroupedTable({ rows, currentState, highlightId }: Props) {
       <table className="financial-table grouped-table" dir="rtl">
         <thead>
           <tr>
-            <th>التاريخ</th>
-            <th>المرجع</th>
-            <th>النوع</th>
-            <th>البيان</th>
-            <th className="num">{fcMoneyHeader('مدين')}</th>
-            <th className="num">{fcMoneyHeader('دائن')}</th>
-            <th className="num">{fcMoneyHeader('الرصيد')}</th>
+            <th>{t('col.date')}</th>
+            <th>{t('col.acc.reference')}</th>
+            <th>{t('col.acc.type')}</th>
+            <th>{t('col.acc.description')}</th>
+            <th className="num">{fcMoneyHeader(t('acc.balance.debit'))}</th>
+            <th className="num">{fcMoneyHeader(t('acc.balance.credit'))}</th>
+            <th className="num">{fcMoneyHeader(t('fc.col.balance'))}</th>
           </tr>
         </thead>
         <tbody>
@@ -118,7 +120,7 @@ export function GroupedTable({ rows, currentState, highlightId }: Props) {
                               {row.reference}
                             </DrillDownLink>
                           </td>
-                          <td>{referenceTypeAr(row.referenceType)}</td>
+                          <td>{referenceTypeLabel(row.referenceType, t)}</td>
                           <td>{row.description}</td>
                           <td className="num">{fmt(row.debit)}</td>
                           <td className="num">{fmt(row.credit)}</td>

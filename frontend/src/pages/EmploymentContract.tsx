@@ -13,6 +13,7 @@ import { api, errorMessage } from '../api/client';
 import DateInput from '../components/DateInput';
 import { todayDateOnly } from '../lib/date';
 import { generateFormNumber } from '../forms/shared/formNumber';
+import { useT } from '../lib/i18n';
 import EmploymentContractTemplate, {
   type ContractParams,
   type ContractEmployee,
@@ -23,6 +24,8 @@ import { usePrintDraftStore } from '../stores/printDraftStore';
 import { usePrintLogStore } from '../stores/printLogStore';
 import { getNationalityEn, getJobTitleEn, applyTranslationOverrides } from '../forms/shared/contractTranslations';
 import { AUTHORIZED_SIGNATORIES, DEFAULT_AUTHORIZED_SIGNATORY_ID } from '../forms/shared/authorizedSignatories';
+
+type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
 function todayISO(): string {
   return todayDateOnly();
@@ -140,9 +143,10 @@ interface DialogProps {
   onChange: <K extends keyof ContractParams>(key: K, value: ContractParams[K]) => void;
   onConfirm: () => void;
   onBack: () => void;
+  t: Translate;
 }
 
-function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }: DialogProps) {
+function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack, t }: DialogProps) {
   function handleDuration(ar: string) {
     const opt = DURATION_OPTIONS.find(o => o.ar === ar);
     if (!opt) return;
@@ -155,9 +159,9 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
       <style>{ENTERPRISE_FORM_STYLES}</style>
       <div className="page-head">
         <div>
-          <h2>عقد العمل — بيانات العقد</h2>
+          <h2>{t('page.contract.params_title')}</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
-            الموظف: <strong>{employee.fullName}</strong>
+            {t('page.contract.employee_label')} <strong>{employee.fullName}</strong>
             {employee.fullNameEn ? ` / ${employee.fullNameEn}` : ''}
           </p>
         </div>
@@ -168,23 +172,23 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
           <div className="ecx-panel-head">
             <span className="ecx-panel-icon" aria-hidden="true">📅</span>
             <div>
-              <h3 className="ecx-panel-title">التواريخ ومدة العقد</h3>
-              <p className="ecx-panel-desc">تاريخ التحرير، بداية النفاذ، والمدة التعاقدية</p>
+              <h3 className="ecx-panel-title">{t('page.contract.dates_section_title')}</h3>
+              <p className="ecx-panel-desc">{t('page.contract.dates_section_desc')}</p>
             </div>
           </div>
           <div className="ecx-grid-2" style={{ marginBottom: 16 }}>
             <div className="field">
-              <label>تاريخ تحرير العقد</label>
+              <label>{t('page.contract.field.issue_date')}</label>
               <DateInput value={params.issueDate} onChange={v => onChange('issueDate', v)} />
             </div>
             <div className="field">
-              <label>تاريخ بداية نفاذ العقد</label>
+              <label>{t('page.contract.field.effective_date')}</label>
               <DateInput value={params.startDate} onChange={v => onChange('startDate', v)} />
             </div>
           </div>
           <div className="field">
-            <label>مدة العقد</label>
-            <select title="مدة العقد" value={params.durationAr}
+            <label>{t('page.contract.field.duration')}</label>
+            <select title={t('page.contract.field.duration')} value={params.durationAr}
               onChange={e => handleDuration(e.target.value)}>
               {DURATION_OPTIONS.map(o => (
                 <option key={o.ar} value={o.ar}>{o.ar} / {o.en}</option>
@@ -197,13 +201,13 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
           <div className="ecx-panel-head">
             <span className="ecx-panel-icon" aria-hidden="true">🖋️</span>
             <div>
-              <h3 className="ecx-panel-title">المفوض بالتوقيع</h3>
-              <p className="ecx-panel-desc">ممثل الطرف الأول (صاحب العمل) في هذا العقد — يُحدَّث تلقائياً في كامل العقد</p>
+              <h3 className="ecx-panel-title">{t('page.contract.signatory')}</h3>
+              <p className="ecx-panel-desc">{t('page.contract.signatory_desc')}</p>
             </div>
           </div>
           <div className="field">
-            <label>المفوض بالتوقيع</label>
-            <select title="المفوض بالتوقيع" value={params.authorizedSignatoryId}
+            <label>{t('page.contract.signatory')}</label>
+            <select title={t('page.contract.signatory')} value={params.authorizedSignatoryId}
               onChange={e => onChange('authorizedSignatoryId', e.target.value)}>
               {AUTHORIZED_SIGNATORIES.map(s => (
                 <option key={s.id} value={s.id}>{s.nameAr}</option>
@@ -216,18 +220,18 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
           <div className="ecx-panel-head">
             <span className="ecx-panel-icon" aria-hidden="true">⏱️</span>
             <div>
-              <h3 className="ecx-panel-title">فترة التجربة والإجازة السنوية</h3>
+              <h3 className="ecx-panel-title">{t('page.contract.probation_section_title')}</h3>
             </div>
           </div>
           <div className="ecx-grid-2">
             <div className="field">
-              <label>فترة التجربة (أيام)</label>
+              <label>{t('page.contract.field.probation_days')}</label>
               <input type="number" lang="en" min={1} max={365}
                 value={params.probationDays}
                 onChange={e => onChange('probationDays', Math.max(1, Number(e.target.value)))} />
             </div>
             <div className="field">
-              <label>الإجازة السنوية (أيام)</label>
+              <label>{t('page.contract.field.annual_leave_days')}</label>
               <input type="number" lang="en" min={1} max={60}
                 value={params.annualLeaveDays}
                 onChange={e => onChange('annualLeaveDays', Math.max(1, Number(e.target.value)))} />
@@ -239,18 +243,18 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
           <div className="ecx-panel-head">
             <span className="ecx-panel-icon" aria-hidden="true">📝</span>
             <div>
-              <h3 className="ecx-panel-title">الشروط الخاصة</h3>
+              <h3 className="ecx-panel-title">{t('page.contract.special_conditions_title')}</h3>
             </div>
           </div>
           <div className="ecx-grid-2">
             <div className="field">
-              <label>الشروط الخاصة (عربي)</label>
+              <label>{t('page.contract.field.special_conditions_ar')}</label>
               <input type="text" value={params.specialConditionsAr}
                 onChange={e => onChange('specialConditionsAr', e.target.value)}
                 placeholder="لايوجد" />
             </div>
             <div className="field">
-              <label>الشروط الخاصة (English)</label>
+              <label>{t('page.contract.field.special_conditions_en')}</label>
               <input type="text" value={params.specialConditionsEn}
                 onChange={e => onChange('specialConditionsEn', e.target.value)}
                 placeholder="NOTHING" />
@@ -260,9 +264,9 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
 
         <div className="ecx-actions">
           <button className="btn" style={{ flex: 1 }} onClick={onConfirm}>
-            معاينة وطباعة
+            {t('page.contract.preview_print_btn')}
           </button>
-          <button className="btn secondary" onClick={onBack}>رجوع</button>
+          <button className="btn secondary" onClick={onBack}>{t('btn.payslip.back')}</button>
         </div>
       </div>
     </div>
@@ -271,9 +275,10 @@ function ContractParamsDialog({ employee, params, onChange, onConfirm, onBack }:
 
 // ─── New employee form ────────────────────────────────────────────────────────
 
-function NewEmployeeForm({ onComplete, onBack }: {
+function NewEmployeeForm({ onComplete, onBack, t }: {
   onComplete: (emp: ContractEmployee) => void;
   onBack: () => void;
+  t: Translate;
 }) {
   const [data, setData] = useState({
     fullName: '',
@@ -295,10 +300,10 @@ function NewEmployeeForm({ onComplete, onBack }: {
   }
 
   function handleSubmit() {
-    if (!data.fullName.trim()) { setError('الاسم بالعربي مطلوب'); return; }
+    if (!data.fullName.trim()) { setError(t('page.contract.err_name_required')); return; }
     const sal = Number(data.salary);
     if (!data.salary || isNaN(sal) || sal <= 0) {
-      setError('الراتب مطلوب ويجب أن يكون رقماً أكبر من صفر');
+      setError(t('page.contract.err_salary_required'));
       return;
     }
     setError('');
@@ -324,9 +329,9 @@ function NewEmployeeForm({ onComplete, onBack }: {
       <style>{ENTERPRISE_FORM_STYLES}</style>
       <div className="page-head">
         <div>
-          <h2>عقد العمل — بيانات الموظف الجديد</h2>
+          <h2>{t('page.contract.new_employee_title')}</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
-            أدخل البيانات يدوياً — لن يُنشأ سجل للموظف في النظام
+            {t('page.contract.new_employee_hint')}
           </p>
         </div>
       </div>
@@ -338,19 +343,19 @@ function NewEmployeeForm({ onComplete, onBack }: {
           <div className="ecx-panel-head">
             <span className="ecx-panel-icon" aria-hidden="true">🧑</span>
             <div>
-              <h3 className="ecx-panel-title">الهوية</h3>
-              <p className="ecx-panel-desc">الاسم والرقم المدني وجواز السفر</p>
+              <h3 className="ecx-panel-title">{t('page.contract.identity_section_title')}</h3>
+              <p className="ecx-panel-desc">{t('page.contract.identity_section_desc')}</p>
             </div>
           </div>
           <div className="ecx-grid-2" style={{ marginBottom: 16 }}>
             <div className="field">
-              <label>الاسم بالعربي <span style={{ color: '#dc2626' }}>*</span></label>
+              <label>{t('page.contract.field.name_ar')} <span style={{ color: '#dc2626' }}>*</span></label>
               <input value={data.fullName}
                 onChange={e => set('fullName', e.target.value)}
-                placeholder="الاسم الكامل بالعربي" />
+                placeholder={t('page.contract.ph.name_ar')} />
             </div>
             <div className="field">
-              <label>الاسم بالإنجليزي</label>
+              <label>{t('page.contract.field.name_en')}</label>
               <input value={data.fullNameEn}
                 onChange={e => set('fullNameEn', e.target.value)}
                 placeholder="Full name in English" />
@@ -358,13 +363,13 @@ function NewEmployeeForm({ onComplete, onBack }: {
           </div>
           <div className="ecx-grid-2">
             <div className="field">
-              <label>الرقم المدني</label>
+              <label>{t('col.civil_id')}</label>
               <input value={data.civilId}
                 onChange={e => set('civilId', e.target.value)}
                 placeholder="00000000000" />
             </div>
             <div className="field">
-              <label>رقم الجواز</label>
+              <label>{t('page.contract.field.passport')}</label>
               <input value={data.passportNumber}
                 onChange={e => set('passportNumber', e.target.value)} />
             </div>
@@ -375,27 +380,27 @@ function NewEmployeeForm({ onComplete, onBack }: {
           <div className="ecx-panel-head">
             <span className="ecx-panel-icon" aria-hidden="true">🌍</span>
             <div>
-              <h3 className="ecx-panel-title">الجنسية والوظيفة</h3>
+              <h3 className="ecx-panel-title">{t('page.contract.nationality_job_title')}</h3>
             </div>
           </div>
           <div className="ecx-grid-2" style={{ marginBottom: 16 }}>
             <div className="field">
-              <label>الجنسية</label>
+              <label>{t('col.nationality')}</label>
               <input value={data.nationality}
                 onChange={e => set('nationality', e.target.value)}
-                placeholder="مثال: كويتي" />
+                placeholder={t('page.contract.ph.nationality')} />
             </div>
             <div className="field">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <label>الجنسية بالإنجليزي</label>
+                <label>{t('page.contract.field.nationality_en')}</label>
                 {data.nationality && (
                   <button
                     type="button"
                     className="ecx-translate-btn"
-                    title="ترجمة الجنسية من العربي تلقائياً"
+                    title={t('page.contract.translate_nationality_title')}
                     onClick={() => set('nationalityEn', getNationalityEn(data.nationality))}
                   >
-                    ترجمة ←
+                    {t('page.contract.translate_btn')}
                   </button>
                 )}
               </div>
@@ -406,22 +411,22 @@ function NewEmployeeForm({ onComplete, onBack }: {
           </div>
           <div className="ecx-grid-2">
             <div className="field">
-              <label>المسمى الوظيفي</label>
+              <label>{t('page.contract.field.job_title')}</label>
               <input value={data.jobTitle}
                 onChange={e => set('jobTitle', e.target.value)}
-                placeholder="مثال: مهندس مدني" />
+                placeholder={t('page.contract.ph.job_title')} />
             </div>
             <div className="field">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <label>المسمى الوظيفي بالإنجليزي</label>
+                <label>{t('page.contract.field.job_title_en')}</label>
                 {data.jobTitle && (
                   <button
                     type="button"
                     className="ecx-translate-btn"
-                    title="ترجمة المسمى الوظيفي من العربي تلقائياً"
+                    title={t('page.contract.translate_job_title_title')}
                     onClick={() => set('jobTitleEn', getJobTitleEn(data.jobTitle))}
                   >
-                    ترجمة ←
+                    {t('page.contract.translate_btn')}
                   </button>
                 )}
               </div>
@@ -436,48 +441,44 @@ function NewEmployeeForm({ onComplete, onBack }: {
           <div className="ecx-panel-head">
             <span className="ecx-panel-icon" aria-hidden="true">📞</span>
             <div>
-              <h3 className="ecx-panel-title">التواصل والراتب</h3>
+              <h3 className="ecx-panel-title">{t('page.contract.contact_salary_title')}</h3>
             </div>
           </div>
           <div className="ecx-grid-2" style={{ marginBottom: 16 }}>
             <div className="field">
-              <label>الراتب الشهري (د.ك) <span style={{ color: '#dc2626' }}>*</span></label>
+              <label>{t('page.contract.field.monthly_salary')} <span style={{ color: '#dc2626' }}>*</span></label>
               <input type="number" lang="en" value={data.salary}
                 onChange={e => set('salary', e.target.value)}
                 placeholder="0.000" min={0} step={0.001} />
             </div>
             <div className="field">
-              <label>رقم الهاتف</label>
+              <label>{t('page.contract.field.phone')}</label>
               <input value={data.phone}
                 onChange={e => set('phone', e.target.value)}
                 placeholder="+965 XXXX XXXX" />
             </div>
           </div>
           <div className="field">
-            <label>العنوان</label>
+            <label>{t('field.address')}</label>
             <input value={data.address}
               onChange={e => set('address', e.target.value)}
-              placeholder="المنطقة، الشارع، القطعة، البناية..." />
+              placeholder={t('page.contract.ph.address')} />
           </div>
         </div>
 
         <div className="ecx-actions">
           <button className="btn" style={{ flex: 1 }} onClick={handleSubmit}>
-            متابعة — بيانات العقد
+            {t('page.contract.continue_btn')}
           </button>
-          <button className="btn secondary" onClick={onBack}>رجوع</button>
+          <button className="btn secondary" onClick={onBack}>{t('btn.payslip.back')}</button>
         </div>
 
         {/* Informational notice */}
         <div className="ecx-hint-banner">
           <strong style={{ color: 'var(--text)', display: 'block', marginBottom: 2 }}>
-            ملاحظة:
+            {t('page.contract.note_label')}
           </strong>
-          البيانات المدخلة هنا تُستخدم لإنشاء وطباعة عقد العمل فقط، ولن يتم إنشاء سجل موظف جديد في النظام.
-          <br />
-          <span style={{ direction: 'ltr', display: 'block', marginTop: 2, opacity: 0.75 }}>
-            Note: The information entered here is used only to generate and print this employment contract. It will not create a new employee record in the system.
-          </span>
+          {t('page.contract.note_text')}
         </div>
       </div>
     </div>
@@ -486,10 +487,11 @@ function NewEmployeeForm({ onComplete, onBack }: {
 
 // ─── Mode selector ────────────────────────────────────────────────────────────
 
-function ModeSelector({ onSelectNew, onSelectExisting, onBackToForms }: {
+function ModeSelector({ onSelectNew, onSelectExisting, onBackToForms, t }: {
   onSelectNew: () => void;
   onSelectExisting: () => void;
   onBackToForms: () => void;
+  t: Translate;
 }) {
   return (
     <div className="page">
@@ -537,9 +539,9 @@ function ModeSelector({ onSelectNew, onSelectExisting, onBackToForms }: {
       <div className="ecx-mode">
         <div className="page-head" style={{ marginBottom: 16 }}>
           <div>
-            <h2 style={{ margin: 0 }}>عقد العمل</h2>
+            <h2 style={{ margin: 0 }}>{t('page.contract.mode_title')}</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '4px 0 0' }}>
-              اختر طريقة إدخال بيانات الموظف
+              {t('page.contract.mode_subtitle')}
             </p>
           </div>
           {/* رجوع **صريح** إلى مركز النماذج — لا navigate(-1)، فالمستخدم قد يكون وصل
@@ -548,22 +550,22 @@ function ModeSelector({ onSelectNew, onSelectExisting, onBackToForms }: {
             <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, verticalAlign: 'text-bottom', marginInlineEnd: 4 }}>
               arrow_forward
             </span>
-            الرجوع إلى مركز النماذج
+            {t('page.contract.back_to_forms')}
           </button>
         </div>
 
         <div className="ecx-cards">
           <button type="button" className="ecx-card" onClick={onSelectExisting}>
             <span className="ecx-card-icon" aria-hidden="true">🔍</span>
-            <span className="ecx-card-title">موظف موجود في النظام</span>
-            <span className="ecx-card-desc">اختيار موظف مسجل واستكمال بيانات عقده</span>
+            <span className="ecx-card-title">{t('page.contract.mode_existing_title')}</span>
+            <span className="ecx-card-desc">{t('page.contract.mode_existing_desc')}</span>
           </button>
 
           <button type="button" className="ecx-card" onClick={onSelectNew}>
             <span className="ecx-card-icon" aria-hidden="true">✏️</span>
-            <span className="ecx-card-title">موظف جديد — إدخال يدوي</span>
-            <span className="ecx-card-desc">إدخال بيانات الموظف لغرض طباعة العقد فقط</span>
-            <span className="ecx-note">⚠️ لن يتم إنشاء سجل موظف في النظام</span>
+            <span className="ecx-card-title">{t('page.contract.mode_new_title')}</span>
+            <span className="ecx-card-desc">{t('page.contract.mode_new_desc')}</span>
+            <span className="ecx-note">{t('page.contract.mode_new_note')}</span>
           </button>
         </div>
       </div>
@@ -573,22 +575,23 @@ function ModeSelector({ onSelectNew, onSelectExisting, onBackToForms }: {
 
 // ─── Existing employee lookup ─────────────────────────────────────────────────
 
-function ExistingEmployeeLookup({ onFound, onBack }: {
+function ExistingEmployeeLookup({ onFound, onBack, t }: {
   onFound: (emp: ContractEmployee) => void;
   onBack: () => void;
+  t: Translate;
 }) {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   async function handleSearch() {
-    if (!query.trim()) { setError('أدخل رقم الموظف أو الرقم المدني'); return; }
+    if (!query.trim()) { setError(t('page.contract.err_search_required')); return; }
     setError('');
     setLoading(true);
     try {
       const res = await api.get(`/employees?search=${encodeURIComponent(query.trim())}&limit=1`);
       const rows: ContractEmployee[] = res.data.data?.data ?? [];
-      if (rows.length === 0) { setError('لم يُعثر على موظف بهذا الرقم أو الاسم'); return; }
+      if (rows.length === 0) { setError(t('page.contract.err_not_found')); return; }
       const emp = rows[0];
       const detail = await api.get(`/forms/employment-contract/${emp.id}`);
       onFound(detail.data.data.employee);
@@ -604,7 +607,7 @@ function ExistingEmployeeLookup({ onFound, onBack }: {
       <style>{ENTERPRISE_FORM_STYLES}</style>
       <div className="page-head">
         <div>
-          <h2>عقد العمل — البحث عن موظف</h2>
+          <h2>{t('page.contract.lookup_title')}</h2>
         </div>
       </div>
 
@@ -613,18 +616,18 @@ function ExistingEmployeeLookup({ onFound, onBack }: {
           {error && <div className="ecx-error-banner">{error}</div>}
 
           <div className="field" style={{ marginBottom: 16 }}>
-            <label>ابحث بالاسم أو الرقم المدني أو رمز الموظف</label>
+            <label>{t('page.contract.field.search_label')}</label>
             <input value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
-              placeholder="مثال: أحمد، EMP-001، 287..." />
+              placeholder={t('page.contract.ph.search')} />
           </div>
 
           <div className="ecx-actions">
             <button className="btn" style={{ flex: 1 }} onClick={handleSearch} disabled={loading}>
-              {loading ? 'جارٍ البحث…' : 'بحث'}
+              {loading ? t('search.loading') : t('action.search')}
             </button>
-            <button className="btn secondary" onClick={onBack}>رجوع</button>
+            <button className="btn secondary" onClick={onBack}>{t('btn.payslip.back')}</button>
           </div>
         </div>
       </div>
@@ -637,6 +640,7 @@ function ExistingEmployeeLookup({ onFound, onBack }: {
 type Mode = 'selector' | 'existing-lookup' | 'new-form' | 'params' | 'preview';
 
 export default function EmploymentContract() {
+  const { t } = useT();
   const { employeeId } = useParams<{ employeeId?: string }>();
   const navigate = useNavigate();
   const formNumber = useMemo(() => generateFormNumber('employment-contract'), []);
@@ -697,10 +701,12 @@ export default function EmploymentContract() {
   /** الجذر القابل للطباعة — نفس ما يطبعه المسار القديم (شريط الأوامر `.no-print` يُقتطع). */
   const printRootRef = useRef<HTMLDivElement>(null);
 
+  const contractDocLabel = `${t('page.contract.doc_title')} · ${formNumber}`;
+
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL),
-    title: 'عقد عمل',
-    documentLabel: `عقد عمل · ${formNumber}`,
+    title: t('page.contract.doc_title'),
+    documentLabel: contractDocLabel,
   });
 
   /**
@@ -714,8 +720,8 @@ export default function EmploymentContract() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printRootRef.current,
     onPrint: () => handlePrint(),
-    title: 'عقد عمل',
-    documentLabel: `عقد عمل · ${formNumber}`,
+    title: t('page.contract.doc_title'),
+    documentLabel: contractDocLabel,
   });
 
   /**
@@ -767,14 +773,14 @@ export default function EmploymentContract() {
   // ── Loading / error states ─────────────────────────────────────────────────
 
   if (fetchError) {
-    return <div className="center-msg">تعذّر تحميل بيانات الموظف: {fetchError}</div>;
+    return <div className="center-msg">{t('page.contract.err_load_failed')} {fetchError}</div>;
   }
 
   if (employeeId && !employee) {
     return (
       <div className="center-msg">
         <div className="spinner" />
-        جارٍ التحميل…
+        {t('msg.loading')}
       </div>
     );
   }
@@ -787,6 +793,7 @@ export default function EmploymentContract() {
         onSelectNew={() => setMode('new-form')}
         onSelectExisting={() => setMode('existing-lookup')}
         onBackToForms={() => navigate('/forms')}
+        t={t}
       />
     );
   }
@@ -796,6 +803,7 @@ export default function EmploymentContract() {
       <ExistingEmployeeLookup
         onFound={emp => { setEmployee(emp); setMode('params'); }}
         onBack={() => setMode('selector')}
+        t={t}
       />
     );
   }
@@ -805,6 +813,7 @@ export default function EmploymentContract() {
       <NewEmployeeForm
         onComplete={emp => { setEmployee(emp); setMode('params'); }}
         onBack={() => setMode('selector')}
+        t={t}
       />
     );
   }
@@ -819,6 +828,7 @@ export default function EmploymentContract() {
         onChange={handleChange}
         onConfirm={() => setMode('preview')}
         onBack={() => employeeId ? navigate(-1) : setMode(employee.id === 0 ? 'new-form' : 'existing-lookup')}
+        t={t}
       />
     );
   }
@@ -837,18 +847,18 @@ export default function EmploymentContract() {
           style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'center' }}
         >
           <button className="btn" onClick={requestPrint}>
-            🖨️ طباعة / حفظ PDF
+            {t('page.contract.print_save_pdf')}
           </button>
           {accurate.button}
           <button className="btn secondary" onClick={() => setMode('params')}>
-            ✏️ تعديل البيانات
+            {t('page.contract.edit_details')}
           </button>
           <button className="btn secondary" onClick={() => employeeId ? navigate(-1) : setMode('selector')}>
-            رجوع
+            {t('btn.payslip.back')}
           </button>
           {printCount > 0 && getDraft('employment-contract') && (
-            <button type="button" className="btn secondary" onClick={restoreLastDraft} title="استعادة آخر مسودة مطبوعة">
-              ↩ استعادة المسودة
+            <button type="button" className="btn secondary" onClick={restoreLastDraft} title={t('page.contract.restore_draft_title')}>
+              {t('page.contract.restore_draft_btn')}
             </button>
           )}
           <PrintProfileToggle profile={profile} onChange={setProfile} />

@@ -9,6 +9,7 @@ import PrivateAmount from '../PrivateAmount';
 import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
 import { getRecommendationBody, type RecommendationV2 } from './command/types';
+import { useT } from '../../lib/i18n';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -91,11 +92,11 @@ function safeNum(v: number | null | undefined): number {
 
 const SEV_COLOR: Record<string, string> = { HIGH: 'var(--db-red)', MEDIUM: 'var(--db-amber)', LOW: 'var(--db-muted)' };
 const SEV_BG:    Record<string, string> = { HIGH: 'rgba(239,68,68,0.10)', MEDIUM: 'rgba(245,158,11,0.10)', LOW: 'rgba(156,163,175,0.10)' };
-const SEV_LABEL: Record<string, string> = { HIGH: 'عالٍ', MEDIUM: 'متوسط', LOW: 'منخفض' };
+const SEV_LABEL_KEY: Record<string, string> = { HIGH: 'intelv2.sev.high', MEDIUM: 'intelv2.sev.medium', LOW: 'intelv2.sev.low' };
 const RISK_COLOR: Record<string, string> = { LOW: 'var(--db-green)', MEDIUM: 'var(--db-amber)', HIGH: 'var(--db-red)' };
-const RISK_LABEL: Record<string, string> = { LOW: 'منخفض', MEDIUM: 'متوسط', HIGH: 'مرتفع' };
+const RISK_LABEL_KEY: Record<string, string> = { LOW: 'intelv2.sev.low', MEDIUM: 'intelv2.sev.medium', HIGH: 'intelv2.risk.high' };
 const HLTH_COLOR: Record<string, string> = { HEALTHY: 'var(--db-green)', WATCH: 'var(--db-amber)', RISK: 'var(--db-red)' };
-const HLTH_LABEL: Record<string, string> = { HEALTHY: 'سليم', WATCH: 'مراقبة', RISK: 'خطر' };
+const HLTH_LABEL_KEY: Record<string, string> = { HEALTHY: 'intelv2.health.healthy', WATCH: 'intelv2.health.watch', RISK: 'intelv2.health.risk' };
 const PRI_COLOR:  Record<string, string> = { HIGH: 'var(--db-red)', MEDIUM: 'var(--db-amber)', LOW: 'var(--db-muted)' };
 
 function deltaBadge(pct: number | null, invert = false) {
@@ -119,8 +120,9 @@ interface TrendTooltipProps {
 }
 
 function TrendTooltip({ active, payload, label }: TrendTooltipProps) {
+  const { t } = useT();
   if (!active || !payload?.length) return null;
-  const labels: Record<string, string> = { revenue: 'الإيرادات', expenses: 'المصروفات', collections: 'التحصيلات', profit: 'الربح' };
+  const labels: Record<string, string> = { revenue: t('today.revenue'), expenses: t('today.expenses'), collections: t('today.collections'), profit: t('finops.col.profit') };
   return (
     <div style={{
       background: 'var(--db-card)', backdropFilter: 'blur(14px)',
@@ -145,6 +147,7 @@ function TrendTooltip({ active, payload, label }: TrendTooltipProps) {
 }
 
 function TrendChart({ data, loading }: { data: TrendPoint[]; loading: boolean }) {
+  const { t } = useT();
   if (loading) return <Skeleton height={240} style={{ borderRadius: 12 }} />;
   const safe = data.map(d => ({
     month: d.month,
@@ -155,9 +158,9 @@ function TrendChart({ data, loading }: { data: TrendPoint[]; loading: boolean })
   }));
   const hasData = safe.some(d => d.revenue > 0 || d.expenses > 0 || d.collections > 0);
   if (!hasData) return (
-    <div className="db-empty"><div className="db-empty-icon">📊</div><div className="db-empty-text">لا بيانات للاتجاهات</div></div>
+    <div className="db-empty"><div className="db-empty-icon">📊</div><div className="db-empty-text">{t('intelv2.empty.trends')}</div></div>
   );
-  const legendLabels: Record<string, string> = { revenue: 'الإيرادات', expenses: 'المصروفات', collections: 'التحصيلات' };
+  const legendLabels: Record<string, string> = { revenue: t('today.revenue'), expenses: t('today.expenses'), collections: t('today.collections') };
   return (
     <div style={{ height: 240 }}>
       <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
@@ -213,8 +216,9 @@ function ListSkeleton({ rows = 4 }: { rows?: number }) {
 // ── Alerts Section ─────────────────────────────────────────────────────────
 
 function AlertsSection({ alerts, loading }: { alerts: IntelAlert[]; loading: boolean }) {
+  const { t } = useT();
   if (loading) return <ListSkeleton rows={3} />;
-  if (!alerts.length) return <p style={{ color: 'var(--db-muted)', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>لا تنبيهات حالية</p>;
+  if (!alerts.length) return <p style={{ color: 'var(--db-muted)', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>{t('intelv2.empty.alerts')}</p>;
 
   const grouped = {
     HIGH:   alerts.filter(a => a.severity === 'HIGH'),
@@ -236,7 +240,7 @@ function AlertsSection({ alerts, loading }: { alerts: IntelAlert[]; loading: boo
                 <span style={{
                   background: SEV_COLOR[sev], color: '#fff', fontSize: 10, fontWeight: 800,
                   padding: '2px 7px', borderRadius: 20,
-                }}>{SEV_LABEL[sev]}</span>
+                }}>{t(SEV_LABEL_KEY[sev])}</span>
                 <span style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>{a.title}</span>
               </div>
               <p style={{ color: 'var(--db-muted)', fontSize: 11, margin: 0 }}>{a.description}</p>
@@ -256,13 +260,14 @@ function AlertsSection({ alerts, loading }: { alerts: IntelAlert[]; loading: boo
 // ── Forecast Section ───────────────────────────────────────────────────────
 
 function ForecastSection({ forecast, loading }: { forecast: Forecast | null; loading: boolean }) {
+  const { t } = useT();
   if (loading) return <CardRowSkeleton count={4} />;
   // تعذّر الحساب (لم تصل بيانات التوقّع) — حالة صريحة بدل بطاقة فارغة.
   if (!forecast) {
     return (
       <div className="db-empty">
         <div className="db-empty-icon">🔮</div>
-        <div className="db-empty-text">تعذّر حساب التوقّعات المالية حالياً</div>
+        <div className="db-empty-text">{t('intelv2.err.forecast_failed')}</div>
       </div>
     );
   }
@@ -273,37 +278,37 @@ function ForecastSection({ forecast, loading }: { forecast: Forecast | null; loa
     return (
       <div className="db-empty">
         <div className="db-empty-icon">📭</div>
-        <div className="db-empty-text">لا توجد ذمم مستحقة ضمن نطاق التوقّع (حتى 90 يوماً)</div>
+        <div className="db-empty-text">{t('intelv2.empty.forecast')}</div>
       </div>
     );
   }
   const riskColor = RISK_COLOR[forecast.cashRisk];
-  const riskLabel = RISK_LABEL[forecast.cashRisk];
+  const riskLabel = t(RISK_LABEL_KEY[forecast.cashRisk]);
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14 }}>
       <div className="db-kpi c-green">
         <div className="db-kpi-icon">📅</div>
-        <div className="db-kpi-label">متوقع خلال 30 يوم</div>
+        <div className="db-kpi-label">{t('intelv2.forecast.expected_30')}</div>
         <div className="db-kpi-val"><PrivateAmount value={forecast.expectedCollections30} /></div>
-        <div className="db-kpi-sub">متأخرة + مستحقة قريباً</div>
+        <div className="db-kpi-sub">{t('intelv2.forecast.overdue_plus_soon')}</div>
       </div>
       <div className="db-kpi c-amber">
         <div className="db-kpi-icon">⏳</div>
-        <div className="db-kpi-label">متوقع 31–60 يوم</div>
+        <div className="db-kpi-label">{t('intelv2.forecast.expected_31_60')}</div>
         <div className="db-kpi-val"><PrivateAmount value={forecast.expectedCollections60} /></div>
-        <div className="db-kpi-sub">مستحقة 31–60 يوماً</div>
+        <div className="db-kpi-sub">{t('intelv2.forecast.due_31_60')}</div>
       </div>
       <div className="db-kpi c-red">
         <div className="db-kpi-icon">⚠️</div>
-        <div className="db-kpi-label">متوقع 61–90 يوم</div>
+        <div className="db-kpi-label">{t('intelv2.forecast.expected_61_90')}</div>
         <div className="db-kpi-val"><PrivateAmount value={forecast.expectedCollections90} /></div>
-        <div className="db-kpi-sub">مستحقة 61–90 يوماً</div>
+        <div className="db-kpi-sub">{t('intelv2.forecast.due_61_90')}</div>
       </div>
       <div className="db-kpi" style={{ border: `1px solid color-mix(in srgb, ${riskColor} 25%, transparent)` }}>
         <div className="db-kpi-icon">🛡️</div>
-        <div className="db-kpi-label">مخاطر السيولة</div>
+        <div className="db-kpi-label">{t('intelv2.forecast.liquidity_risk')}</div>
         <div className="db-kpi-val" style={{ color: riskColor, fontSize: 22 }}>{riskLabel}</div>
-        <div className="db-kpi-sub">تقدير rule-based</div>
+        <div className="db-kpi-sub">{t('intelv2.forecast.rule_based_estimate')}</div>
       </div>
     </div>
   );
@@ -312,20 +317,21 @@ function ForecastSection({ forecast, loading }: { forecast: Forecast | null; loa
 // ── KPI Comparison Section ─────────────────────────────────────────────────
 
 function KPIComparisonSection({ kpi, loading }: { kpi: KPIComparisons | null; loading: boolean }) {
+  const { t } = useT();
   if (loading) return <CardRowSkeleton count={4} />;
   if (!kpi) {
     return (
       <div className="db-empty">
         <div className="db-empty-icon">📊</div>
-        <div className="db-empty-text">لا تتوفر مقارنات المؤشرات حالياً</div>
+        <div className="db-empty-text">{t('intelv2.empty.kpi_comparisons')}</div>
       </div>
     );
   }
   const items = [
-    { label: 'الإيرادات', thisVal: kpi.thisMonth.revenue, pct: kpi.revenueChangePct, icon: '📈', invert: false },
-    { label: 'المصروفات', thisVal: kpi.thisMonth.expenses, pct: kpi.expensesChangePct, icon: '📤', invert: true },
-    { label: 'التحصيلات', thisVal: kpi.thisMonth.collections, pct: kpi.collectionsChangePct, icon: '💰', invert: false },
-    { label: 'صافي الربح', thisVal: kpi.thisMonth.profit, pct: kpi.profitChangePct, icon: '📊', invert: false },
+    { label: t('today.revenue'), thisVal: kpi.thisMonth.revenue, pct: kpi.revenueChangePct, icon: '📈', invert: false },
+    { label: t('today.expenses'), thisVal: kpi.thisMonth.expenses, pct: kpi.expensesChangePct, icon: '📤', invert: true },
+    { label: t('today.collections'), thisVal: kpi.thisMonth.collections, pct: kpi.collectionsChangePct, icon: '💰', invert: false },
+    { label: t('kpi.net_profit'), thisVal: kpi.thisMonth.profit, pct: kpi.profitChangePct, icon: '📊', invert: false },
   ];
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14 }}>
@@ -335,7 +341,7 @@ function KPIComparisonSection({ kpi, loading }: { kpi: KPIComparisons | null; lo
             <div className="db-kpi-icon">{item.icon}</div>
             {deltaBadge(item.pct, item.invert)}
           </div>
-          <div className="db-kpi-label">{item.label} — هذا الشهر</div>
+          <div className="db-kpi-label">{item.label} {t('intelv2.this_month_suffix')}</div>
           <div className="db-kpi-val" style={{ fontSize: 16 }}><PrivateAmount value={item.thisVal} /></div>
         </div>
       ))}
@@ -346,6 +352,7 @@ function KPIComparisonSection({ kpi, loading }: { kpi: KPIComparisons | null; lo
 // ── Contract Health Section ────────────────────────────────────────────────
 
 function HealthRow({ h }: { h: HealthEntry }) {
+  const { t } = useT();
   const sc = HLTH_COLOR[h.status];
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -353,7 +360,7 @@ function HealthRow({ h }: { h: HealthEntry }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
           <span style={{ color: sc, fontSize: 13, fontWeight: 800 }}>{h.code}</span>
           <span style={{ background: `${sc}20`, color: sc, fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 20 }}>
-            {HLTH_LABEL[h.status]}
+            {t(HLTH_LABEL_KEY[h.status])}
           </span>
         </div>
         <p style={{ color: 'var(--db-muted)', fontSize: 11, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -371,8 +378,9 @@ function HealthRow({ h }: { h: HealthEntry }) {
 }
 
 function ContractHealthSection({ health, loading }: { health: IntelV2Data['contractHealth'] | null; loading: boolean }) {
+  const { t } = useT();
   if (loading) return <ListSkeleton rows={4} />;
-  if (!health || health.summary.total === 0) return <p style={{ color: 'var(--db-muted)', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>لا عقود نشطة</p>;
+  if (!health || health.summary.total === 0) return <p style={{ color: 'var(--db-muted)', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>{t('intelv2.empty.contracts')}</p>;
 
   const { summary, riskContracts, watchContracts } = health;
   return (
@@ -380,9 +388,9 @@ function ContractHealthSection({ health, loading }: { health: IntelV2Data['contr
       {/* Summary chips */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         {[
-          { label: `سليم (${summary.healthy})`, color: 'var(--db-green)' },
-          { label: `مراقبة (${summary.watch})`, color: 'var(--db-amber)' },
-          { label: `خطر (${summary.risk})`, color: 'var(--db-red)' },
+          { label: `${t('intelv2.health.healthy')} (${summary.healthy})`, color: 'var(--db-green)' },
+          { label: `${t('intelv2.health.watch')} (${summary.watch})`, color: 'var(--db-amber)' },
+          { label: `${t('intelv2.health.risk')} (${summary.risk})`, color: 'var(--db-red)' },
         ].map(chip => (
           <span key={chip.label} style={{ background: `color-mix(in srgb, ${chip.color} 14%, transparent)`, color: chip.color, fontSize: 12, fontWeight: 800, padding: '4px 12px', borderRadius: 20 }}>
             {chip.label}
@@ -391,13 +399,13 @@ function ContractHealthSection({ health, loading }: { health: IntelV2Data['contr
       </div>
       {riskContracts.length > 0 && (
         <div>
-          <p style={{ color: 'var(--db-red)', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>▼ عقود في خطر</p>
+          <p style={{ color: 'var(--db-red)', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>▼ {t('intelv2.contracts_at_risk')}</p>
           {riskContracts.map(h => <HealthRow key={h.contractId} h={h} />)}
         </div>
       )}
       {watchContracts.length > 0 && (
         <div style={{ marginTop: riskContracts.length > 0 ? 16 : 0 }}>
-          <p style={{ color: 'var(--db-amber)', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>● عقود تحت المراقبة</p>
+          <p style={{ color: 'var(--db-amber)', fontSize: 12, fontWeight: 800, marginBottom: 8 }}>● {t('intelv2.contracts_watch')}</p>
           {watchContracts.slice(0, 3).map(h => <HealthRow key={h.contractId} h={h} />)}
         </div>
       )}
@@ -408,8 +416,9 @@ function ContractHealthSection({ health, loading }: { health: IntelV2Data['contr
 // ── Recommendations Section ────────────────────────────────────────────────
 
 function RecommendationsSection({ recs, loading }: { recs: Recommendation[]; loading: boolean }) {
+  const { t } = useT();
   if (loading) return <ListSkeleton rows={4} />;
-  if (!recs.length) return <p style={{ color: 'var(--db-muted)', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>لا توصيات حالياً</p>;
+  if (!recs.length) return <p style={{ color: 'var(--db-muted)', fontSize: 13, textAlign: 'center', margin: '16px 0 0' }}>{t('intelv2.empty.recommendations')}</p>;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {recs.map(r => (
@@ -421,7 +430,7 @@ function RecommendationsSection({ recs, loading }: { recs: Recommendation[]; loa
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
             <span style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 800 }}>{r.title}</span>
             <span style={{ background: `${PRI_COLOR[r.priority]}20`, color: PRI_COLOR[r.priority], fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, flexShrink: 0, marginRight: 8 }}>
-              {r.priority === 'HIGH' ? 'عالي' : r.priority === 'MEDIUM' ? 'متوسط' : 'منخفض'}
+              {r.priority === 'HIGH' ? t('intelv2.priority.high') : r.priority === 'MEDIUM' ? t('intelv2.sev.medium') : t('intelv2.sev.low')}
             </span>
           </div>
           <p style={{ color: 'var(--db-muted)', fontSize: 12, margin: '0 0 6px' }}><TextWithMoney text={getRecommendationBody(r)} /></p>
@@ -437,6 +446,7 @@ function RecommendationsSection({ recs, loading }: { recs: Recommendation[]; loa
 interface Props { data: IntelV2Data | null; loading: boolean; }
 
 export default function ExecutiveIntelligenceV2Panel({ data, loading }: Props) {
+  const { t } = useT();
   if (!data && !loading) return null;
 
   const highAlerts = (data?.alerts ?? []).filter(a => a.severity === 'HIGH').length;
@@ -446,23 +456,23 @@ export default function ExecutiveIntelligenceV2Panel({ data, loading }: Props) {
       {/* Section header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <h2 style={{ color: 'var(--db-text)', fontSize: 18, fontWeight: 800, margin: 0 }}>
-          الذكاء التنفيذي
+          {t('intelv2.title')}
         </h2>
         {highAlerts > 0 && !loading && (
-          <span className="db-pill red">{highAlerts} تنبيه عالٍ</span>
+          <span className="db-pill red">{t('intelv2.high_alerts_count', { count: highAlerts })}</span>
         )}
       </div>
 
       {/* Row 1: Alerts + Recommendations side by side */}
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16, marginBottom: 16 }}>
         <div className="db-card">
-          <div className="db-card-head"><div><h3>التنبيهات التنفيذية</h3><p>مخاطر تحتاج متابعة</p></div></div>
+          <div className="db-card-head"><div><h3>{t('intelv2.section.alerts_title')}</h3><p>{t('intelv2.section.alerts_sub')}</p></div></div>
           <div className="db-card-body scrollable">
             <AlertsSection alerts={data?.alerts ?? []} loading={loading} />
           </div>
         </div>
         <div className="db-card">
-          <div className="db-card-head"><div><h3>التوصيات الذكية</h3><p>إجراءات مقترحة</p></div></div>
+          <div className="db-card-head"><div><h3>{t('section.smart_recommendations')}</h3><p>{t('intelv2.section.recommendations_sub')}</p></div></div>
           <div className="db-card-body scrollable">
             <RecommendationsSection recs={data?.recommendations ?? []} loading={loading} />
           </div>
@@ -471,7 +481,7 @@ export default function ExecutiveIntelligenceV2Panel({ data, loading }: Props) {
 
       {/* Row 2: Forecast */}
       <div className="db-card" style={{ marginBottom: 16 }}>
-        <div className="db-card-head"><div><h3>التوقعات المالية</h3><p>تقدير قاعدي — 30/60/90 يوم</p></div></div>
+        <div className="db-card-head"><div><h3>{t('intelv2.section.forecast_title')}</h3><p>{t('intelv2.section.forecast_sub')}</p></div></div>
         <div className="db-card-body">
           <ForecastSection forecast={data?.forecast ?? null} loading={loading} />
         </div>
@@ -479,7 +489,7 @@ export default function ExecutiveIntelligenceV2Panel({ data, loading }: Props) {
 
       {/* Row 3: KPI Comparisons */}
       <div className="db-card" style={{ marginBottom: 16 }}>
-        <div className="db-card-head"><div><h3>مقارنة KPI</h3><p>هذا الشهر مقابل الشهر السابق</p></div></div>
+        <div className="db-card-head"><div><h3>{t('intelv2.section.kpi_compare_title')}</h3><p>{t('intelv2.section.kpi_compare_sub')}</p></div></div>
         <div className="db-card-body">
           <KPIComparisonSection kpi={data?.kpiComparisons ?? null} loading={loading} />
         </div>
@@ -488,13 +498,13 @@ export default function ExecutiveIntelligenceV2Panel({ data, loading }: Props) {
       {/* Row 4: Trends + Contract Health */}
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16 }}>
         <div className="db-card">
-          <div className="db-card-head"><div><h3>الاتجاهات الشهرية</h3><p>إيرادات، مصروفات، تحصيلات — منذ بداية العام</p></div></div>
+          <div className="db-card-head"><div><h3>{t('intelv2.section.trends_title')}</h3><p>{t('intelv2.section.trends_sub')}</p></div></div>
           <div className="db-card-body">
             <TrendChart data={data?.monthlyTrends ?? []} loading={loading} />
           </div>
         </div>
         <div className="db-card">
-          <div className="db-card-head"><div><h3>صحة العقود</h3><p>تقييم rule-based للعقود النشطة</p></div></div>
+          <div className="db-card-head"><div><h3>{t('intelv2.section.contract_health_title')}</h3><p>{t('intelv2.section.contract_health_sub')}</p></div></div>
           <div className="db-card-body scrollable">
             <ContractHealthSection health={data?.contractHealth ?? null} loading={loading} />
           </div>

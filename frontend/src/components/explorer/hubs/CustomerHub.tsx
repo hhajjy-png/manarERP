@@ -86,17 +86,17 @@ export default function CustomerHub({ entity, cfg, onEdit, onDelete, canUpdate, 
   }, [id]);
 
   const kpis: DrawerKpi[] = [
-    ...(balance != null ? [{ label: 'الرصيد الحالي', value: money(balance) }] : []),
-    ...(stats?.count != null ? [{ label: 'عدد الفواتير', value: stats.count }] : []),
-    ...(stats?.totalRemaining != null ? [{ label: 'المتبقي', value: money(stats.totalRemaining), tone: 'red' as const }] : []),
+    ...(balance != null ? [{ label: t('hub.customer.kpi_balance'), value: money(balance) }] : []),
+    ...(stats?.count != null ? [{ label: t('hub.customer.kpi_invoice_count'), value: stats.count }] : []),
+    ...(stats?.totalRemaining != null ? [{ label: t('lbl.inv.remaining_amount'), value: money(stats.totalRemaining), tone: 'red' as const }] : []),
   ];
 
   const actions: QuickAction[] = [
-    { key: 'statement', icon: 'receipt_long', label: 'كشف حساب', onClick: () => navigate(`/financial?tab=statement&entityType=customer&entityId=${id}`) },
-    { key: 'new-invoice', icon: 'note_add', label: 'إنشاء فاتورة', onClick: () => navigate('/invoices') },
-    { key: 'add-contract', icon: 'description', label: 'إضافة عقد', onClick: () => navigate('/contracts') },
-    ...(canUpdate ? [{ key: 'edit', icon: 'edit', label: 'تعديل', tone: 'primary' as const, onClick: onEdit }] : []),
-    ...(canDelete ? [{ key: 'delete', icon: 'delete', label: 'حذف', tone: 'danger' as const, onClick: onDelete, disabled: busy }] : []),
+    { key: 'statement', icon: 'receipt_long', label: t('hub.customer.action_statement'), onClick: () => navigate(`/financial?tab=statement&entityType=customer&entityId=${id}`) },
+    { key: 'new-invoice', icon: 'note_add', label: t('hub.customer.action_new_invoice'), onClick: () => navigate('/invoices') },
+    { key: 'add-contract', icon: 'description', label: t('hub.customer.action_new_contract'), onClick: () => navigate('/contracts') },
+    ...(canUpdate ? [{ key: 'edit', icon: 'edit', label: t('action.edit'), tone: 'primary' as const, onClick: onEdit }] : []),
+    ...(canDelete ? [{ key: 'delete', icon: 'delete', label: t('action.delete'), tone: 'danger' as const, onClick: onDelete, disabled: busy }] : []),
   ];
 
   const invoiceItems: RelatedItem[] = invoices.map((inv) => ({
@@ -120,8 +120,8 @@ export default function CustomerHub({ entity, cfg, onEdit, onDelete, canUpdate, 
       />
       <DrawerQuickActions actions={actions} />
       <DrawerInfoGrid title={t('nav.customers')} items={buildInfoItems(cfg, entity, t, ['code'])} />
-      <DrawerRelated title="أحدث الفواتير" loading={loading} items={invoiceItems} />
-      <DrawerRelated title="العقود" loading={loading} items={contractItems} />
+      <DrawerRelated title={t('hub.customer.related_invoices')} loading={loading} items={invoiceItems} />
+      <DrawerRelated title={t('search.page.contracts')} loading={loading} items={contractItems} />
       <DrawerActivity loading={loading} items={activity} />
     </>
   );

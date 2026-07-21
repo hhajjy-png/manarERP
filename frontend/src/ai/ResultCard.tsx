@@ -3,11 +3,14 @@ import { money } from '../config/modules';
 import { useState } from 'react';
 import { printCurrentView } from '../utils/print';
 import { useNavigate } from 'react-router-dom';
+import { useT } from '../lib/i18n';
 import type {
   SkillResult, SkillStatistic, SkillHighlight, SkillDataCard, SkillWarning,
   RouterDecision, RichSource, ExplanationStep, SkillAction, RelatedSkill,
   RelatedPage, CapabilityLevel,
 } from './types';
+
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
 // ─── Value formatter ──────────────────────────────────────────────────────────
 
@@ -21,7 +24,7 @@ function fmt(value: string | number, kind?: string): string {
 
 // ─── Download helper ──────────────────────────────────────────────────────────
 
-function downloadResultTxt(result: SkillResult): void {
+function downloadResultTxt(result: SkillResult, t: TFn): void {
   const lines: string[] = [
     result.title,
     '─'.repeat(40),
@@ -29,7 +32,7 @@ function downloadResultTxt(result: SkillResult): void {
     '',
   ];
   if (result.statistics.length) {
-    lines.push('الإحصائيات:');
+    lines.push(t('ai.rc.export_stats_label'));
     for (const s of result.statistics) lines.push(`  ${s.labelAr}: ${fmt(s.value, s.kind)}`);
     lines.push('');
   }
@@ -40,7 +43,7 @@ function downloadResultTxt(result: SkillResult): void {
       lines.push('');
     }
   }
-  lines.push(`تم التنفيذ: ${new Date(result.executedAt).toLocaleString('ar-KW')}`);
+  lines.push(`${t('ai.rc.export_executed_label')}${new Date(result.executedAt).toLocaleString('ar-KW')}`);
 
   const blob = new Blob(['﻿' + lines.join('\n')], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -54,11 +57,12 @@ function downloadResultTxt(result: SkillResult): void {
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function CapabilityBadge({ level }: { level: CapabilityLevel }) {
+  const { t } = useT();
   const MAP: Record<CapabilityLevel, { label: string; mod: string }> = {
-    complete:   { label: 'مكتملة',     mod: 'complete'  },
-    partial:    { label: 'جزئية',      mod: 'partial'   },
-    preview:    { label: 'معاينة',     mod: 'preview'   },
-    comingSoon: { label: 'قريباً',     mod: 'soon'      },
+    complete:   { label: t('ai.rc.capability_complete'), mod: 'complete'  },
+    partial:    { label: t('ai.rc.capability_partial'),  mod: 'partial'   },
+    preview:    { label: t('ai.rc.capability_preview'),  mod: 'preview'   },
+    comingSoon: { label: t('ai.common.soon'),            mod: 'soon'      },
   };
   const { label, mod } = MAP[level];
   return <span className={`ai-rc-capability ai-rc-capability--${mod}`}>{label}</span>;
@@ -118,12 +122,13 @@ function WarnBanner({ w }: { w: SkillWarning }) {
 }
 
 function QualityGauge({ score, issues }: { score: number; issues?: Array<{ severity: string; messageAr: string }> }) {
+  const { t } = useT();
   const fillClass = score >= 80 ? 'high' : score >= 60 ? 'medium' : 'low';
-  const label = score >= 80 ? 'جيدة' : score >= 60 ? 'مقبولة' : 'تحتاج مراجعة';
+  const label = score >= 80 ? t('ai.rc.quality_good') : score >= 60 ? t('ai.rc.quality_acceptable') : t('ai.rc.quality_needs_review');
   return (
     <div className="ai-rc-quality">
       <div className="ai-rc-quality-header">
-        <span className="ai-rc-quality-label">جودة البيانات</span>
+        <span className="ai-rc-quality-label">{t('ai.rc.quality_label')}</span>
         <span className={`ai-rc-quality-score ai-rc-quality-score--${fillClass}`}>{score}% — {label}</span>
       </div>
       <div className="ai-rc-quality-bar">
@@ -146,6 +151,7 @@ function QualityGauge({ score, issues }: { score: number; issues?: Array<{ sever
 }
 
 function ExplainPanel({ steps }: { steps: ExplanationStep[] }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   return (
     <div className="ai-rc-explain">
@@ -155,7 +161,7 @@ function ExplainPanel({ steps }: { steps: ExplanationStep[] }) {
         onClick={() => setOpen(v => !v)}
       >
         <span>⚙</span>
-        <span>كيف تم إعداد هذه النتيجة؟</span>
+        <span>{t('ai.rc.explain_toggle')}</span>
         <span className="ai-rc-explain-arrow">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
@@ -175,26 +181,26 @@ function ExplainPanel({ steps }: { steps: ExplanationStep[] }) {
   );
 }
 
-const SOURCE_TYPE_AR: Record<string, string> = {
-  primary:    'أساسي',
-  derived:    'مشتق',
-  aggregated: 'مجمّع',
-  historical: 'تاريخي',
-};
-
 function RichSourcesPanel({ sources }: { sources: RichSource[] }) {
+  const { t } = useT();
+  const SOURCE_TYPE_LABEL: Record<string, string> = {
+    primary:    t('ai.rc.source_primary'),
+    derived:    t('ai.rc.source_derived'),
+    aggregated: t('ai.rc.source_aggregated'),
+    historical: t('ai.rc.source_historical'),
+  };
   return (
     <div className="ai-rc-rich-sources">
-      <div className="ai-rc-rich-sources-title">مصادر البيانات</div>
+      <div className="ai-rc-rich-sources-title">{t('ai.sources.title')}</div>
       {sources.map((s, i) => (
         <div key={i} className="ai-rc-rich-source-row">
           <div className="ai-rc-rich-source-main">
             <span className="ai-rc-rich-source-name">{s.datasetName}</span>
-            <span className="ai-rc-source-type-chip">{SOURCE_TYPE_AR[s.sourceType] ?? s.sourceType}</span>
+            <span className="ai-rc-source-type-chip">{SOURCE_TYPE_LABEL[s.sourceType] ?? s.sourceType}</span>
           </div>
           <div className="ai-rc-rich-source-meta">
             {s.recordCount !== undefined && (
-              <span className="ai-rc-rich-source-count">{s.recordCount.toLocaleString('ar-KW')} سجل</span>
+              <span className="ai-rc-rich-source-count">{s.recordCount.toLocaleString('ar-KW')} {t('ai.rc.record_unit')}</span>
             )}
             {s.dateRange && <span className="ai-rc-rich-source-range">{s.dateRange}</span>}
             <div className="ai-rc-completeness-mini">
@@ -220,6 +226,7 @@ function ActionCards({
   result: SkillResult;
   onNavigate: (path: string) => void;
 }) {
+  const { t } = useT();
   const handleAction = (action: SkillAction) => {
     if (!action.available) return;
     switch (action.kind) {
@@ -230,7 +237,7 @@ function ActionCards({
         void navigator.clipboard.writeText(result.summary);
         break;
       case 'exportResult':
-        downloadResultTxt(result);
+        downloadResultTxt(result, t);
         break;
       case 'print':
         printCurrentView();
@@ -246,7 +253,7 @@ function ActionCards({
           className={`ai-rc-action-btn${!a.available ? ' ai-rc-action-btn--disabled' : ''}`}
           onClick={() => handleAction(a)}
           disabled={!a.available}
-          title={!a.available ? 'غير متاح حالياً' : undefined}
+          title={!a.available ? t('ai.rc.action_unavailable') : undefined}
         >
           <span>{a.icon}</span>
           <span>{a.labelAr}</span>
@@ -267,12 +274,13 @@ function RelatedPanel({
   onFollowUp: (q: string) => void;
   onNavigate: (path: string) => void;
 }) {
+  const { t } = useT();
   const hasSkills = relatedSkills && relatedSkills.length > 0;
   const hasPages  = relatedPages && relatedPages.length > 0;
   if (!hasSkills && !hasPages) return null;
   return (
     <div className="ai-rc-related">
-      <div className="ai-rc-related-label">🔗 تحليلات ذات صلة</div>
+      <div className="ai-rc-related-label">{t('ai.rc.related_label')}</div>
       {hasSkills && (
         <div className="ai-rc-related-row">
           {relatedSkills!.map((s, i) => (
@@ -306,12 +314,13 @@ function RelatedPanel({
 }
 
 function MetaPanel({ meta }: { meta: NonNullable<SkillResult['skillMetadata']> }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   return (
     <div className="ai-rc-meta">
       <button type="button" className="ai-rc-meta-toggle" onClick={() => setOpen(v => !v)}>
         <span>ⓘ</span>
-        <span>بيانات المهارة</span>
+        <span>{t('ai.rc.meta_label')}</span>
         <span className="ai-rc-meta-arrow">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
@@ -333,10 +342,11 @@ function MetaPanel({ meta }: { meta: NonNullable<SkillResult['skillMetadata']> }
 }
 
 function FollowUps({ questions, onFollowUp }: { questions: string[]; onFollowUp: (q: string) => void }) {
+  const { t } = useT();
   if (!questions.length) return null;
   return (
     <div className="ai-rc-followups">
-      <div className="ai-rc-followups-label">أسئلة متابعة مقترحة:</div>
+      <div className="ai-rc-followups-label">{t('ai.rc.followups_label')}</div>
       <div className="ai-rc-followups-grid">
         {questions.map((q, i) => (
           <button
@@ -413,6 +423,7 @@ interface ResultCardProps {
 export default function ResultCard({ result, onFollowUp, routerDecision }: ResultCardProps) {
   const isDev    = import.meta.env.DEV;
   const navigate = useNavigate();
+  const { t }    = useT();
 
   const onNavigate = (path: string) => navigate(path);
 
@@ -422,7 +433,7 @@ export default function ResultCard({ result, onFollowUp, routerDecision }: Resul
       <div className="ai-rc-root ai-rc-root--insufficient">
         <div className="ai-rc-header">
           <div className="ai-rc-title">{result.title}</div>
-          <span className="ai-rc-badge ai-rc-badge--soon">قريباً</span>
+          <span className="ai-rc-badge ai-rc-badge--soon">{t('ai.common.soon')}</span>
         </div>
         <p className="ai-rc-summary">{result.summary}</p>
 
@@ -430,7 +441,7 @@ export default function ResultCard({ result, onFollowUp, routerDecision }: Resul
 
         {result.sources.length > 0 && (
           <div className="ai-rc-sources">
-            <span className="ai-rc-sources-label">الانتقال إلى:</span>
+            <span className="ai-rc-sources-label">{t('ai.rc.goto_label')}</span>
             {result.sources.map((s, i) => (
               <span key={i} className="ai-rc-source-chip">{s.icon} {s.labelAr}</span>
             ))}
@@ -449,7 +460,7 @@ export default function ResultCard({ result, onFollowUp, routerDecision }: Resul
       <div className="ai-rc-root ai-rc-root--error">
         <div className="ai-rc-header">
           <div className="ai-rc-title">{result.title}</div>
-          <span className="ai-rc-badge ai-rc-badge--error">خطأ</span>
+          <span className="ai-rc-badge ai-rc-badge--error">{t('msg.error')}</span>
         </div>
         <p className="ai-rc-summary">{result.summary}</p>
         {result.warnings.map((w, i) => <WarnBanner key={i} w={w} />)}
@@ -546,7 +557,7 @@ export default function ResultCard({ result, onFollowUp, routerDecision }: Resul
       {/* 13. Sources chips */}
       {hasSources && (
         <div className="ai-rc-sources">
-          <span className="ai-rc-sources-label">المصادر:</span>
+          <span className="ai-rc-sources-label">{t('ai.rc.sources_label')}</span>
           {result.sources.map((s, i) => (
             <span key={i} className="ai-rc-source-chip">{s.icon} {s.labelAr}</span>
           ))}

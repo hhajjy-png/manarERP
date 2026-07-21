@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import { useParams, useLocation } from 'react-router-dom';
+import { useT } from '../lib/i18n';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -27,6 +28,7 @@ const INITIAL_PRINT_OVERRIDES: PrintOverrides = {
 };
 
 export default function SalaryCertificate() {
+  const { t } = useT();
   const { employeeId } = useParams<{ employeeId: string }>();
   const { search } = useLocation();
   const formNumber = useMemo(() => generateFormNumber('salary-certificate'), []);
@@ -79,8 +81,8 @@ export default function SalaryCertificate() {
      ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
-    title: lang === 'en' ? 'Salary Certificate' : 'شـهـادة راتـب',
-    documentLabel: `شهادة راتب · ${formNumber}`,
+    title: t('page.salaryCert.title'),
+    documentLabel: `${t('page.salaryCert.doc_label')} · ${formNumber}`,
     lang,
   });
 
@@ -98,18 +100,18 @@ export default function SalaryCertificate() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: lang === 'en' ? 'Salary Certificate' : 'شـهـادة راتـب',
-    documentLabel: `شهادة راتب · ${formNumber}`,
+    title: t('page.salaryCert.title'),
+    documentLabel: `${t('page.salaryCert.doc_label')} · ${formNumber}`,
   });
 
 
   if (error)
-    return <div className="center-msg">تعذّر تحميل بيانات الشهادة: {error}</div>;
+    return <div className="center-msg">{t('page.salaryCert.err_load_failed')} {error}</div>;
   if (!data)
     return (
       <div className="center-msg">
         <div className="spinner" />
-        جارٍ تجهيز الشهادة…
+        {t('page.salaryCert.loading')}
       </div>
     );
 
@@ -124,7 +126,7 @@ export default function SalaryCertificate() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
-      title={lang === 'en' ? 'Salary Certificate' : 'شـهـادة راتـب'}
+      title={t('page.salaryCert.title')}
       profile={profile}
       // Overflows the official-letterhead band by a few mm — reclaim the 10mm
       // bottom margin so it stays on one page (letterhead only; top unchanged).
@@ -142,7 +144,7 @@ export default function SalaryCertificate() {
             type="button"
             className="btn secondary"
             style={{ fontSize: 12, padding: '4px 8px' }}
-            title="حفظ مسودة"
+            title={t('page.warning.save_draft_title')}
             onClick={() => saveDraft(FORM_KEY, printOverrides as unknown as Record<string, unknown>)}
           >
             💾
@@ -152,7 +154,7 @@ export default function SalaryCertificate() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
-              title="استعادة المسودة"
+              title={t('page.warning.load_draft_title')}
               onClick={() => setPrintOverrides(draftEntry.state as PrintOverrides)}
             >
               ↩
@@ -163,7 +165,7 @@ export default function SalaryCertificate() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px' }}
-              title="مسح المسودة"
+              title={t('page.warning.clear_draft_title')}
               onClick={() => clearDraft(FORM_KEY)}
             >
               ✕
@@ -182,20 +184,20 @@ export default function SalaryCertificate() {
     >
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
         <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
-          تعديلات الطباعة — لن تُحفظ في قاعدة البيانات / Print Overrides — not saved
+          {t('page.salaryCert.print_overrides_header')}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', maxWidth: 700 }}>
           <div className="field">
-            <label>الغرض / Purpose</label>
+            <label>{t('page.salaryCert.field.purpose')}</label>
             <input
               maxLength={120}
               value={printOverrides.purpose ?? ''}
               onChange={(e) => setPrintOverrides(p => ({ ...p, purpose: e.target.value }))}
-              placeholder="مثال: للتقديم إلى البنك"
+              placeholder={t('page.salaryCert.ph.purpose')}
             />
           </div>
           <div className="field">
-            <label>المسمى الوظيفي / Job Title</label>
+            <label>{t('page.salaryCert.field.job_title')}</label>
             <input
               maxLength={100}
               value={printOverrides.jobTitle ?? ''}
@@ -204,7 +206,7 @@ export default function SalaryCertificate() {
             />
           </div>
           <div className="field">
-            <label>القسم / Department</label>
+            <label>{t('page.salaryCert.field.department')}</label>
             <input
               maxLength={100}
               value={printOverrides.department ?? ''}
@@ -213,30 +215,30 @@ export default function SalaryCertificate() {
             />
           </div>
           <div className="field">
-            <label>نص الراتب / Salary Text</label>
+            <label>{t('page.salaryCert.field.salary_text')}</label>
             <input
               maxLength={120}
               value={printOverrides.salaryText ?? ''}
               onChange={(e) => setPrintOverrides(p => ({ ...p, salaryText: e.target.value }))}
-              placeholder="مثال: مئتان وخمسون دينارًا كويتيًا"
+              placeholder={t('page.salaryCert.ph.salary_text')}
             />
           </div>
           <div className="field">
-            <label>تاريخ الإصدار / Issue Date</label>
+            <label>{t('page.salaryCert.field.issue_date')}</label>
             <input
               maxLength={60}
               value={printOverrides.issueDate ?? ''}
               onChange={(e) => setPrintOverrides(p => ({ ...p, issueDate: e.target.value }))}
-              placeholder="اتركه فارغًا للتاريخ التلقائي"
+              placeholder={t('page.salaryCert.ph.issue_date')}
             />
           </div>
           <div className="field">
-            <label>ملاحظات / Notes</label>
+            <label>{t('field.notes')}</label>
             <input
               maxLength={200}
               value={printOverrides.notes ?? ''}
               onChange={(e) => setPrintOverrides(p => ({ ...p, notes: e.target.value }))}
-              placeholder="ملاحظات إضافية تظهر في الطباعة"
+              placeholder={t('page.salaryCert.ph.notes')}
             />
           </div>
         </div>
@@ -247,7 +249,7 @@ export default function SalaryCertificate() {
             style={{ fontSize: 12 }}
             onClick={resetPrintOverrides}
           >
-            ↺ مسح تعديلات الطباعة
+            {t('page.salaryCert.clear_overrides_btn')}
           </button>
         </div>
       </div>
@@ -258,7 +260,7 @@ export default function SalaryCertificate() {
         printOverrides={printOverrides}
       />
       {showClearConfirm && (
-        <ConfirmModal message="سيتم مسح جميع تعديلات الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+        <ConfirmModal message={t('page.salaryCert.clear_confirm')} confirmLabel={t('page.warning.clear_confirm_btn')} variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
     </>

@@ -6,6 +6,7 @@ import { useToast } from '../../stores/toastStore';
 import { invalidatePeriodLock } from '../../hooks/usePeriodLock';
 import { displayDate } from '../../lib/financialPeriod';
 import { SectionCard, StatusChip, Button } from '../explorer/ExplorerKit';
+import { useT } from '../../lib/i18n';
 import './period-lock-settings.css';
 
 /**
@@ -17,6 +18,7 @@ import './period-lock-settings.css';
  * التاريخي يتطلب `financial.overrideLock` (مبني سابقًا) ويُسجَّل في التدقيق.
  */
 export default function PeriodLockSettings() {
+  const { t } = useT();
   const { hasPermission } = useAuth();
   const toast = useToast();
   const canManage = hasPermission('settings.update');
@@ -44,7 +46,7 @@ export default function PeriodLockSettings() {
       await api.put('/settings', { settings: [{ key: 'finance.lockBeforeDate', value, group: 'finance' }] });
       setCurrent(value || null);
       invalidatePeriodLock(); // تُبطِل تخبئة النماذج فورًا
-      toast.ok(value ? `تم قفل الفترة قبل ${displayDate(value)}` : 'تم إلغاء قفل الفترة');
+      toast.ok(value ? t('fc.lock.msg_set', { date: displayDate(value) }) : t('fc.lock.msg_cleared'));
     } catch (e) {
       toast.error(errorMessage(e));
     } finally {
@@ -55,38 +57,38 @@ export default function PeriodLockSettings() {
 
   return (
     <SectionCard
-      title="قفل الفترة المالية"
+      title={t('fc.lock.title')}
       icon="lock_clock"
       actions={
         <StatusChip tone={current ? 'red' : 'neutral'} icon={current ? 'lock' : 'lock_open'}>
-          {current ? `مقفلة قبل ${displayDate(current)}` : 'لا يوجد قفل'}
+          {current ? t('fc.lock.locked_before', { date: displayDate(current) }) : t('fc.lock.none')}
         </StatusChip>
       }
     >
       <div className="plk">
         <p className="plk__desc">
-          يمنع القفل إنشاء أو تعديل أو حذف أو عكس أو ترحيل أي معاملة مالية بتاريخ أقدم من التاريخ المحدَّد.
-          تجاوز القفل يتطلب صلاحية <code>financial.overrideLock</code>، وكل تجاوز يُسجَّل في سجل التدقيق.
+          {t('fc.lock.desc_part1')}
+          <code>financial.overrideLock</code>{t('fc.lock.desc_part2')}
         </p>
 
         {!canManage && (
           <div className="plk__note plk__note--warn">
             <span className="material-symbols-outlined" aria-hidden>info</span>
-            إدارة قفل الفترة تتطلب صلاحية تعديل الإعدادات.
+            {t('fc.lock.permission_required')}
           </div>
         )}
 
         {loading ? (
-          <div className="plk__note">جارٍ التحميل…</div>
+          <div className="plk__note">{t('msg.loading')}</div>
         ) : (
           <div className="plk__row">
             <label className="plk__field">
-              <span>يقفل قبل تاريخ</span>
+              <span>{t('fc.lock.field_label')}</span>
               <DateInput
                 value={draft}
                 disabled={!canManage || saving}
                 onChange={setDraft}
-                ariaLabel="تاريخ قفل الفترة"
+                ariaLabel={t('fc.lock.field_aria')}
               />
             </label>
             <div className="plk__actions">
@@ -97,11 +99,11 @@ export default function PeriodLockSettings() {
                 disabled={!canManage || !draft || draft === (current ?? '')}
                 onClick={() => setConfirming('set')}
               >
-                {current ? 'تحديث القفل' : 'تفعيل القفل'}
+                {current ? t('fc.lock.btn_update') : t('fc.lock.btn_activate')}
               </Button>
               {current && (
                 <Button variant="danger" icon="lock_open" disabled={!canManage || saving} onClick={() => setConfirming('clear')}>
-                  إلغاء القفل
+                  {t('fc.lock.btn_clear')}
                 </Button>
               )}
             </div>
@@ -109,26 +111,25 @@ export default function PeriodLockSettings() {
         )}
 
         {confirming && (
-          <div className="plk__confirm" role="alertdialog" aria-label="تأكيد قفل الفترة">
+          <div className="plk__confirm" role="alertdialog" aria-label={t('fc.lock.confirm_aria')}>
             <div className="plk__confirm-body">
               <span className="material-symbols-outlined" aria-hidden>warning</span>
               {confirming === 'set' ? (
                 <span>
-                  تأكيد قفل كل المعاملات المالية قبل <strong>{displayDate(draft)}</strong>؟ لن يتمكّن المستخدمون من
-                  إنشاء أو تعديل أو عكس أي معاملة أقدم من هذا التاريخ إلا بصلاحية التجاوز.
+                  {t('fc.lock.confirm_set_part1')}<strong>{displayDate(draft)}</strong>{t('fc.lock.confirm_set_part2')}
                 </span>
               ) : (
-                <span>تأكيد إلغاء قفل الفترة؟ ستُتاح المعاملات القديمة للتعديل للجميع حسب صلاحياتهم المعتادة.</span>
+                <span>{t('fc.lock.confirm_clear')}</span>
               )}
             </div>
             <div className="plk__confirm-actions">
-              <Button variant="secondary" onClick={() => setConfirming(null)} disabled={saving}>إلغاء</Button>
+              <Button variant="secondary" onClick={() => setConfirming(null)} disabled={saving}>{t('action.cancel')}</Button>
               <Button
                 variant={confirming === 'set' ? 'primary' : 'danger'}
                 busy={saving}
                 onClick={() => persist(confirming === 'set' ? draft : '')}
               >
-                تأكيد
+                {t('page.salaries.confirm')}
               </Button>
             </div>
           </div>

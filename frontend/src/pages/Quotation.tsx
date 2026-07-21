@@ -12,6 +12,7 @@ import {
 } from '../printing';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
+import { useT } from '../lib/i18n';
 import { todayDateOnly } from '../lib/date';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
@@ -101,6 +102,7 @@ const lbl: React.CSSProperties = {
 
 export default function Quotation() {
   const navigate = useNavigate();
+  const { t } = useT();
   const [profile, setProfile] = usePrintProfileMemory(FORM_KEY);
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [printFields, setPrintFields] = useState<QuotationPrintFields>(makeInitial);
@@ -192,18 +194,18 @@ export default function Quotation() {
         ? window.manar.exportPdfFromHtml(html, suggestedName)
         : window.manar?.exportPdf(suggestedName)); // بيئة قديمة بلا الجسر — السلوك السابق كما هو
       if (!result) {
-        setPdfError('تصدير PDF غير متاح في هذه البيئة');
+        setPdfError(t('toast.pdf_not_available'));
         return;
       }
       if (result.canceled) return;
       if (result.success && result.path) {
-        setPdfMsg(`تم الحفظ: ${result.path}`);
+        setPdfMsg(t('toast.pdf_saved', { path: result.path }));
         setTimeout(() => setPdfMsg(''), 6000);
       } else {
-        setPdfError(result.error ?? 'فشل تصدير PDF');
+        setPdfError(result.error ?? t('toast.pdf_export_failed'));
       }
     } catch (err) {
-      setPdfError(err instanceof Error ? err.message : 'فشل تصدير PDF');
+      setPdfError(err instanceof Error ? err.message : t('toast.pdf_export_failed'));
     } finally {
       setPdfExporting(false);
     }
@@ -278,7 +280,7 @@ export default function Quotation() {
    */
   const composeQuotationPreview = useCallback((sourceNode?: HTMLElement | null): string => {
     const node = sourceNode ?? printRootRef.current;
-    if (!node) throw new Error('تعذّر تجهيز عرض السعر للمعاينة.');
+    if (!node) throw new Error(t('err.prepare_quotation_preview_failed'));
     return composeStyledFromNode({
       node,
       pageSpec: getPageSpec('a4-portrait'),
@@ -320,7 +322,7 @@ export default function Quotation() {
     compose: () => composeQuotationPreview(printRootRef.current),
     onPrint: () => printCurrentView(),
     title: `عرض سعر ${printFields.quotationNumber || '---'}`,
-    documentLabel: `عرض سعر · ${printFields.quotationNumber || '---'}`,
+    documentLabel: t('lbl.doc_label.quotation', { number: printFields.quotationNumber || '---' }),
     lang,
   });
 
@@ -329,7 +331,7 @@ export default function Quotation() {
     compose: () => composeQuotationPreview(printApiRef.current?.getNode() ?? null),
     onPrint: () => printApiRef.current?.print(),
     title: `عرض سعر ${printFields.quotationNumber || '---'}`,
-    documentLabel: `عرض سعر · ${printFields.quotationNumber || '---'}`,
+    documentLabel: t('lbl.doc_label.quotation', { number: printFields.quotationNumber || '---' }),
     lang,
   });
 
@@ -389,7 +391,7 @@ export default function Quotation() {
 
   function switchToEngine() {
     if (!printData) {
-      setAdapterError('تعذّر تحويل البيانات إلى قالب الطباعة. يُرجى التحقق من البنود.');
+      setAdapterError(t('msg.adapt_quotation_failed'));
       return;
     }
     setAdapterError(null);
@@ -408,7 +410,7 @@ export default function Quotation() {
             onClose={() => setPrintCenterOpen(false)}
             compose={composeQuotationPreview}
             onPrint={() => printCurrentView()}
-            documentLabel={`عرض سعر · ${printFields.quotationNumber || '---'}`}
+            documentLabel={t('lbl.doc_label.quotation', { number: printFields.quotationNumber || '---' })}
             lang={lang}
           />
         )}
@@ -432,11 +434,11 @@ export default function Quotation() {
               Flag OFF → the original direct-print button, unchanged. */}
           {usePrintCenterQuotation ? (
             <button type="button" className="btn" onClick={() => setPrintCenterOpen(true)}>
-              🔍 معاينة قبل الطباعة
+              🔍 {t('btn.preview_before_print')}
             </button>
           ) : (
             <button type="button" className="btn" onClick={() => printCurrentView()}>
-              🖨️ طباعة
+              🖨️ {t('page.forms.print_btn')}
             </button>
           )}
           {accurateEngine.button}
@@ -446,7 +448,7 @@ export default function Quotation() {
             onClick={handleExportPdf}
             disabled={pdfExporting}
           >
-            {pdfExporting ? '⏳ جارٍ التصدير…' : '⬇️ PDF'}
+            {pdfExporting ? `⏳ ${t('msg.exporting')}` : '⬇️ PDF'}
           </button>
           {pdfMsg && (
             <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>✓ {pdfMsg}</span>
@@ -461,7 +463,7 @@ export default function Quotation() {
               onClick={() => designer.isActive ? designer.deactivate() : designer.activate()}
               style={{ fontWeight: 600 }}
             >
-              {designer.isActive ? '✓ إنهاء التصميم' : '🔧 وضع التصميم'}
+              {designer.isActive ? `✓ ${t('btn.finish_design')}` : `🔧 ${t('btn.design_mode')}`}
             </button>
           )}
           <button
@@ -470,10 +472,10 @@ export default function Quotation() {
             onClick={() => layoutDesigner.isActive ? layoutDesigner.deactivate() : layoutDesigner.activate()}
             style={{ fontWeight: 600 }}
           >
-            {layoutDesigner.isActive ? '✓ إنهاء التخطيط' : '🔲 تخطيط'}
+            {layoutDesigner.isActive ? `✓ ${t('btn.finish_layout')}` : `🔲 ${t('btn.layout_mode')}`}
           </button>
           <button type="button" className="btn secondary" onClick={() => navigate(-1)}>
-            رجوع
+            {t('btn.inv.back')}
           </button>
           <button
             type="button"
@@ -481,7 +483,7 @@ export default function Quotation() {
             style={{ fontSize: 12, padding: '4px 10px' }}
             onClick={() => setPreviewMode('legacy')}
           >
-            📋 العرض الكلاسيكي
+            📋 {t('btn.classic_view')}
           </button>
           {printOptionsInitialized && (
             /* الخلفية كانت مثبَّتة على `#f8fafc` بينما لون النص موروث من الثيم — ففي الوضع
@@ -496,7 +498,7 @@ export default function Quotation() {
                   onChange={(e) => setPrintShowSignature(e.target.checked)}
                 />
                 <span style={{ color: branding.signatureUrl ? 'var(--text)' : 'var(--text-muted)' }}>
-                  التوقيع{!branding.signatureUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
+                  {t('lbl.signature_chrome')}{!branding.signatureUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>{t('lbl.not_uploaded')}</span>}
                 </span>
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.stampUrl ? 'pointer' : 'not-allowed' }}>
@@ -507,7 +509,7 @@ export default function Quotation() {
                   onChange={(e) => setPrintShowStamp(e.target.checked)}
                 />
                 <span style={{ color: branding.stampUrl ? 'var(--text)' : 'var(--text-muted)' }}>
-                  الختم{!branding.stampUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
+                  {t('lbl.stamp_chrome')}{!branding.stampUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>{t('lbl.not_uploaded')}</span>}
                 </span>
               </label>
             </span>
@@ -522,7 +524,7 @@ export default function Quotation() {
                 checked={useStudio}
                 onChange={(e) => setUseStudio(e.target.checked)}
               />
-              استخدام قالب Template Studio
+              {t('lbl.use_template_studio')}
             </label>
           )}
         </div>
@@ -554,7 +556,7 @@ export default function Quotation() {
             staticTextDesigner={staticTextDesigner}
             signatureUrl={branding.signatureUrl}
             stampUrl={branding.stampUrl}
-            docLabel="عرض السعر"
+            docLabel={t('lbl.doc.quotation')}
             onSave={async () => {
               await Promise.all([layoutDesigner.save(), designer.save(), textDesigner.save(), staticTextDesigner.save()]);
             }}
@@ -595,7 +597,7 @@ export default function Quotation() {
             designer={designer}
             textStyleDesigner={textDesigner}
             staticTextDesigner={staticTextDesigner}
-            docLabel="عرض السعر"
+            docLabel={t('lbl.doc.quotation')}
             onClose={designer.deactivate}
             onSave={async () => {
               await Promise.all([designer.save(), textDesigner.save(), staticTextDesigner.save()]);
@@ -608,7 +610,7 @@ export default function Quotation() {
             layoutDesigner={layoutDesigner}
             designer={designer}
             textStyleDesigner={textDesigner}
-            docLabel="عرض السعر"
+            docLabel={t('lbl.doc.quotation')}
             onClose={layoutDesigner.deactivate}
             onSave={async () => {
               await Promise.all([layoutDesigner.save(), designer.save(), textDesigner.save(), staticTextDesigner.save()]);
@@ -632,7 +634,7 @@ export default function Quotation() {
           onClose={() => setPrintCenterOpen(false)}
           compose={composeLegacyPreview}
           onPrint={runLegacyPrint}
-          documentLabel={`عرض سعر · ${printFields.quotationNumber || '---'}`}
+          documentLabel={t('lbl.doc_label.quotation', { number: printFields.quotationNumber || '---' })}
           lang={lang}
         />
       )}
@@ -654,7 +656,7 @@ export default function Quotation() {
             style={{ fontSize: 12, padding: '4px 10px' }}
             onClick={switchToEngine}
           >
-            ✨ قالب الطباعة
+            ✨ {t('btn.print_template')}
           </button>
           {adapterError && (
             <span style={{ fontSize: 11, color: '#dc2626' }}>{adapterError}</span>
@@ -666,7 +668,7 @@ export default function Quotation() {
             type="button"
             className="btn secondary"
             style={{ fontSize: 12, padding: '4px 8px' }}
-            title="حفظ مسودة"
+            title={t('page.warning.save_draft_title')}
             onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
           >
             💾
@@ -676,7 +678,7 @@ export default function Quotation() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
-              title="استعادة المسودة"
+              title={t('page.warning.load_draft_title')}
               onClick={() => setPrintFields(draftEntry.state as QuotationPrintFields)}
             >
               ↩
@@ -687,7 +689,7 @@ export default function Quotation() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px' }}
-              title="مسح المسودة"
+              title={t('page.warning.clear_draft_title')}
               onClick={() => clearDraft(FORM_KEY)}
             >
               ✕
@@ -715,13 +717,13 @@ export default function Quotation() {
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-          حقول الطباعة فقط — لن تُحفظ
+          {t('page.warning.print_fields_header')}
         </div>
 
         {/* Row 1: number, date, validUntil, currency */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div>
-            <label style={lbl}>رقم العرض</label>
+            <label style={lbl}>{t('page.quotation.field.quotation_number')}</label>
             <input
               style={inp}
               value={printFields.quotationNumber}
@@ -729,7 +731,7 @@ export default function Quotation() {
             />
           </div>
           <div>
-            <label style={lbl}>التاريخ</label>
+            <label style={lbl}>{t('col.date')}</label>
             <DateInput
               style={inp}
               value={printFields.date}
@@ -737,7 +739,7 @@ export default function Quotation() {
             />
           </div>
           <div>
-            <label style={lbl}>صالح حتى</label>
+            <label style={lbl}>{t('page.quotation.field.valid_until')}</label>
             <DateInput
               style={inp}
               value={printFields.validUntil}
@@ -745,16 +747,16 @@ export default function Quotation() {
             />
           </div>
           <div>
-            <label style={lbl}>العملة</label>
+            <label style={lbl}>{t('field.cheque.currency')}</label>
             <select
-              title="العملة"
+              title={t('field.cheque.currency')}
               style={inp}
               value={printFields.currency}
               onChange={(e) => set('currency', e.target.value)}
             >
-              <option value="KWD">د.ك — KWD</option>
-              <option value="USD">دولار — USD</option>
-              <option value="SAR">ريال — SAR</option>
+              <option value="KWD">{t('opt.quotation.currency.kwd')}</option>
+              <option value="USD">{t('opt.quotation.currency.usd')}</option>
+              <option value="SAR">{t('opt.quotation.currency.sar')}</option>
             </select>
           </div>
         </div>
@@ -762,7 +764,7 @@ export default function Quotation() {
         {/* Row 2: customer, contact, phone, project */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div>
-            <label style={lbl}>اسم العميل</label>
+            <label style={lbl}>{t('field.customer_name')}</label>
             <input
               style={inp}
               value={printFields.customerName}
@@ -770,7 +772,7 @@ export default function Quotation() {
             />
           </div>
           <div>
-            <label style={lbl}>جهة الاتصال</label>
+            <label style={lbl}>{t('page.quotation.field.contact_person')}</label>
             <input
               style={inp}
               value={printFields.contactPerson}
@@ -778,7 +780,7 @@ export default function Quotation() {
             />
           </div>
           <div>
-            <label style={lbl}>الهاتف</label>
+            <label style={lbl}>{t('field.phone')}</label>
             <input
               style={inp}
               value={printFields.phone}
@@ -786,7 +788,7 @@ export default function Quotation() {
             />
           </div>
           <div>
-            <label style={lbl}>المشروع</label>
+            <label style={lbl}>{t('page.quotation.field.project')}</label>
             <input
               style={inp}
               value={printFields.project}
@@ -797,7 +799,7 @@ export default function Quotation() {
 
         {/* Subject */}
         <div style={{ marginBottom: 10 }}>
-          <label style={lbl}>الموضوع / Subject</label>
+          <label style={lbl}>{t('page.quotation.field.subject')}</label>
           <input
             style={inp}
             value={printFields.subject}
@@ -808,24 +810,24 @@ export default function Quotation() {
         {/* Items table */}
         <div style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <label style={lbl}>البنود</label>
+            <label style={lbl}>{t('lbl.items')}</label>
             <button
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '3px 8px' }}
               onClick={addItem}
             >
-              + إضافة بند
+              {t('page.quotation.add_item_btn')}
             </button>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: 'var(--surface-2)' }}>
-                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right', border: '1px solid var(--border)', width: '35%' }}>الوصف</th>
-                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center', border: '1px solid var(--border)', width: '12%' }}>الكمية</th>
-                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center', border: '1px solid var(--border)', width: '12%' }}>الوحدة</th>
-                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'end', border: '1px solid var(--border)', width: '18%' }}>سعر الوحدة</th>
-                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'end', border: '1px solid var(--border)', width: '15%' }}>الإجمالي</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right', border: '1px solid var(--border)', width: '35%' }}>{t('col.description')}</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center', border: '1px solid var(--border)', width: '12%' }}>{t('col.qty')}</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center', border: '1px solid var(--border)', width: '12%' }}>{t('col.inv.unit')}</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'end', border: '1px solid var(--border)', width: '18%' }}>{t('lbl.inv.unit_price')}</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'end', border: '1px solid var(--border)', width: '15%' }}>{t('col.inv.total')}</th>
                 <th style={{ border: '1px solid var(--border)', width: '8%' }} />
               </tr>
             </thead>
@@ -894,7 +896,7 @@ export default function Quotation() {
         {/* Notes + terms */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div>
-            <label style={lbl}>ملاحظات</label>
+            <label style={lbl}>{t('field.notes')}</label>
             <textarea
               style={{ ...inp, minHeight: 60, resize: 'vertical' }}
               value={printFields.notes}
@@ -902,7 +904,7 @@ export default function Quotation() {
             />
           </div>
           <div>
-            <label style={lbl}>شروط الدفع</label>
+            <label style={lbl}>{t('page.quotation.field.payment_terms')}</label>
             <textarea
               style={{ ...inp, minHeight: 60, resize: 'vertical' }}
               value={printFields.paymentTerms}
@@ -913,14 +915,14 @@ export default function Quotation() {
 
         {/* Reset */}
         <button type="button" className="btn secondary" style={{ fontSize: 12 }} onClick={resetForm}>
-          ↺ إعادة تعيين
+          {t('page.purchaseReq.reset_btn')}
         </button>
       </div>
 
       {/* Print template */}
       <QuotationTemplate printFields={printFields} lang={lang} />
       {showClearConfirm && (
-        <ConfirmModal message="سيتم مسح جميع الحقول. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+        <ConfirmModal message={t('page.purchaseReq.clear_confirm')} confirmLabel={t('page.warning.clear_confirm_btn')} variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
     </>

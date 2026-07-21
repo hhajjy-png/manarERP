@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
+import { useT } from '../lib/i18n';
 import Modal from './Modal';
 
 interface ChildCounts {
@@ -21,14 +22,15 @@ interface Props {
   onDeleted: () => void;
 }
 
-const CHILD_LABELS: Record<keyof ChildCounts, string> = {
-  maintenanceRecords: 'سجلات الصيانة',
-  fuelLogs: 'سجلات الوقود',
-  breakdowns: 'سجلات الأعطال',
-  spareParts: 'قطع الغيار',
+const CHILD_KEYS: Record<keyof ChildCounts, string> = {
+  maintenanceRecords: 'dlg.force_delete.equipment.count.maintenance_records',
+  fuelLogs: 'dlg.force_delete.equipment.count.fuel_logs',
+  breakdowns: 'dlg.force_delete.equipment.count.breakdowns',
+  spareParts: 'dlg.force_delete.equipment.count.spare_parts',
 };
 
 export default function ForceDeleteEquipmentModal({ equipmentId, onClose, onDeleted }: Props) {
+  const { t } = useT();
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [loadError, setLoadError] = useState('');
   const [confirmCode, setConfirmCode] = useState('');
@@ -62,12 +64,12 @@ export default function ForceDeleteEquipmentModal({ equipmentId, onClose, onDele
 
   return (
     <Modal
-      title="⚠️ حذف إجباري للمعدة"
+      title={t('dlg.force_delete.equipment.title')}
       onClose={onClose}
       footer={
         <>
           <button type="button" className="btn secondary" onClick={onClose} disabled={deleting}>
-            إلغاء
+            {t('action.cancel')}
           </button>
           <button
             type="button"
@@ -75,7 +77,7 @@ export default function ForceDeleteEquipmentModal({ equipmentId, onClose, onDele
             onClick={onConfirm}
             disabled={!codeMatches || deleting}
           >
-            {deleting ? 'جارٍ الحذف...' : 'تأكيد الحذف الإجباري'}
+            {deleting ? t('dlg.force_delete.deleting') : t('dlg.force_delete.confirm_force')}
           </button>
         </>
       }
@@ -84,16 +86,16 @@ export default function ForceDeleteEquipmentModal({ equipmentId, onClose, onDele
         <p className="alert error">{loadError}</p>
       )}
       {!preview && !loadError && (
-        <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>جارٍ التحميل...</p>
+        <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>{t('dlg.force_delete.loading')}</p>
       )}
       {preview && (
         <>
           <div className="alert error" style={{ marginBottom: 16 }}>
-            <strong>تحذير:</strong> هذه العملية لا يمكن التراجع عنها. سيتم حذف المعدة وجميع بياناتها بشكل نهائي.
+            <strong>{t('dlg.force_delete.warning_label')}</strong> {t('dlg.force_delete.equipment.warning_body')}
           </div>
 
           <p style={{ marginBottom: 12 }}>
-            <strong>المعدة:</strong>{' '}
+            <strong>{t('dlg.force_delete.equipment.entity_label')}</strong>{' '}
             <code style={{ background: 'var(--bg-alt)', padding: '2px 6px', borderRadius: 4 }}>
               {preview.equipment.code}
             </code>
@@ -103,26 +105,26 @@ export default function ForceDeleteEquipmentModal({ equipmentId, onClose, onDele
           {preview.totalChildRecords > 0 ? (
             <>
               <p style={{ marginBottom: 8, fontWeight: 600 }}>
-                السجلات التي ستُحذف ({preview.totalChildRecords} سجل):
+                {t('dlg.force_delete.equipment.related_records', { n: preview.totalChildRecords })}
               </p>
               <ul style={{ margin: '0 0 16px', paddingInlineStart: 20, lineHeight: 2 }}>
                 {(Object.entries(preview.childCounts) as [keyof ChildCounts, number][])
                   .filter(([, count]) => count > 0)
                   .map(([key, count]) => (
                     <li key={key}>
-                      {CHILD_LABELS[key]}: <strong>{count}</strong>
+                      {t(CHILD_KEYS[key])}: <strong>{count}</strong>
                     </li>
                   ))}
               </ul>
             </>
           ) : (
             <p style={{ marginBottom: 16, color: 'var(--text-muted)' }}>
-              لا توجد سجلات مرتبطة بهذه المعدة.
+              {t('dlg.force_delete.equipment.no_related')}
             </p>
           )}
 
           <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
-            اكتب رمز المعدة للتأكيد:{' '}
+            {t('dlg.force_delete.equipment.confirm_prompt')}{' '}
             <code style={{ background: 'var(--bg-alt)', padding: '2px 6px', borderRadius: 4 }}>
               {preview.equipment.code}
             </code>
