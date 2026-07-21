@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
+import { useT } from '../lib/i18n';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -24,6 +25,7 @@ const INITIAL_PRINT_FIELDS = {
 };
 
 export default function Resignation() {
+  const { t } = useT();
   const { employeeId } = useParams<{ employeeId: string }>();
   const { search } = useLocation();
   const formNumber = useMemo(() => generateFormNumber('resignation'), []);
@@ -76,8 +78,8 @@ export default function Resignation() {
      ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
-    title: 'طلب استقالة',
-    documentLabel: `طلب استقالة · ${formNumber}`,
+    title: t('page.resignation.title'),
+    documentLabel: `${t('page.resignation.title')} · ${formNumber}`,
     lang,
   });
 
@@ -95,17 +97,17 @@ export default function Resignation() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: 'طلب استقالة',
-    documentLabel: `طلب استقالة · ${formNumber}`,
+    title: t('page.resignation.title'),
+    documentLabel: `${t('page.resignation.title')} · ${formNumber}`,
   });
 
 
-  if (error) return <div className="center-msg">خطأ: {error}</div>;
+  if (error) return <div className="center-msg">{t('msg.error')}: {error}</div>;
   if (!data)
     return (
       <div className="center-msg">
         <div className="spinner" />
-        جارٍ التحميل…
+        {t('msg.loading')}
       </div>
     );
 
@@ -120,7 +122,7 @@ export default function Resignation() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
-      title="طلب استقالة"
+      title={t('page.resignation.title')}
       profile={profile}
       toolbarExtra={
         <>
@@ -130,7 +132,7 @@ export default function Resignation() {
             type="button"
             className="btn secondary"
             style={{ fontSize: 12, padding: '4px 8px' }}
-            title="حفظ مسودة"
+            title={t('page.warning.save_draft_title')}
             onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
           >
             💾
@@ -140,7 +142,7 @@ export default function Resignation() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
-              title="استعادة المسودة"
+              title={t('page.warning.load_draft_title')}
               onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
             >
               ↩
@@ -151,7 +153,7 @@ export default function Resignation() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px' }}
-              title="مسح المسودة"
+              title={t('page.warning.clear_draft_title')}
               onClick={() => clearDraft(FORM_KEY)}
             >
               ✕
@@ -169,12 +171,12 @@ export default function Resignation() {
       }}
     >
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{t('page.warning.print_fields_header')}</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="field"><label>آخر يوم عمل</label><DateInput title="آخر يوم عمل" value={printFields.lastWorkingDay} onChange={(v) => setPrintFields(p => ({ ...p, lastWorkingDay: v }))} /></div>
-          <div className="field"><label>فترة الإشعار</label><input value={printFields.noticePeriod} onChange={(e) => setPrintFields(p => ({ ...p, noticePeriod: e.target.value }))} placeholder="مثال: شهر واحد" /></div>
-          <div className="field"><label>سبب الاستقالة</label><input title="سبب الاستقالة" value={printFields.resignationReason} onChange={(e) => setPrintFields(p => ({ ...p, resignationReason: e.target.value }))} /></div>
-          <div className="field"><label>التزامات التسليم</label><input title="التزامات التسليم" value={printFields.handoverObligations} onChange={(e) => setPrintFields(p => ({ ...p, handoverObligations: e.target.value }))} /></div>
+          <div className="field"><label>{t('page.resignation.field.last_working_day')}</label><DateInput title={t('page.resignation.field.last_working_day')} value={printFields.lastWorkingDay} onChange={(v) => setPrintFields(p => ({ ...p, lastWorkingDay: v }))} /></div>
+          <div className="field"><label>{t('page.resignation.field.notice_period')}</label><input value={printFields.noticePeriod} onChange={(e) => setPrintFields(p => ({ ...p, noticePeriod: e.target.value }))} placeholder={t('page.resignation.ph.notice_period')} /></div>
+          <div className="field"><label>{t('page.resignation.field.reason')}</label><input title={t('page.resignation.field.reason')} value={printFields.resignationReason} onChange={(e) => setPrintFields(p => ({ ...p, resignationReason: e.target.value }))} /></div>
+          <div className="field"><label>{t('page.resignation.field.handover')}</label><input title={t('page.resignation.field.handover')} value={printFields.handoverObligations} onChange={(e) => setPrintFields(p => ({ ...p, handoverObligations: e.target.value }))} /></div>
         </div>
         <div style={{ marginTop: 10 }}>
           <button
@@ -183,13 +185,13 @@ export default function Resignation() {
             style={{ fontSize: 12 }}
             onClick={resetPrintFields}
           >
-            ↺ مسح حقول الطباعة
+            {t('page.warning.clear_fields_btn')}
           </button>
         </div>
       </div>
       <ResignationTemplate employee={data.employee} lang={lang} printFields={printFields} />
       {showClearConfirm && (
-        <ConfirmModal message="سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+        <ConfirmModal message={t('page.warning.clear_confirm')} confirmLabel={t('page.warning.clear_confirm_btn')} variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
     </>

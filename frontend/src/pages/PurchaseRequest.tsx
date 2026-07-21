@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
+import { useT } from '../lib/i18n';
 import { todayDateOnly } from '../lib/date';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -67,6 +68,7 @@ const lbl: React.CSSProperties = {
 };
 
 export default function PurchaseRequest() {
+  const { t } = useT();
   const [profile, setProfile] = usePrintProfileMemory(FORM_KEY);
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [printFields, setPrintFields] = useState<PurchaseRequestPrintFields>(makeInitial);
@@ -121,8 +123,8 @@ export default function PurchaseRequest() {
      ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE),
-    title: lang === 'ar' ? 'طلب شراء' : 'Purchase Request',
-    documentLabel: `طلب شراء · ${printFields.requestNumber || ''}`,
+    title: t('page.purchaseReq.title'),
+    documentLabel: `${t('page.purchaseReq.title')} · ${printFields.requestNumber || ''}`,
     lang,
   });
 
@@ -140,8 +142,8 @@ export default function PurchaseRequest() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: lang === 'ar' ? 'طلب شراء' : 'Purchase Request',
-    documentLabel: `طلب شراء · ${printFields.requestNumber || ''}`,
+    title: t('page.purchaseReq.title'),
+    documentLabel: `${t('page.purchaseReq.title')} · ${printFields.requestNumber || ''}`,
   });
 
 
@@ -156,7 +158,7 @@ export default function PurchaseRequest() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready={false}
       formNumber={printFields.requestNumber || generateFormNumber(FORM_KEY)}
-      title={lang === 'ar' ? 'طلب شراء' : 'Purchase Request'}
+      title={t('page.purchaseReq.title')}
       profile={profile}
       toolbarExtra={
         <>
@@ -166,7 +168,7 @@ export default function PurchaseRequest() {
             type="button"
             className="btn secondary"
             style={{ fontSize: 12, padding: '4px 8px' }}
-            title="حفظ مسودة"
+            title={t('page.warning.save_draft_title')}
             onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
           >
             💾
@@ -176,7 +178,7 @@ export default function PurchaseRequest() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
-              title="استعادة المسودة"
+              title={t('page.warning.load_draft_title')}
               onClick={() => setPrintFields(draftEntry.state as PurchaseRequestPrintFields)}
             >
               ↩
@@ -187,7 +189,7 @@ export default function PurchaseRequest() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px' }}
-              title="مسح المسودة"
+              title={t('page.warning.clear_draft_title')}
               onClick={() => clearDraft(FORM_KEY)}
             >
               ✕
@@ -216,13 +218,13 @@ export default function PurchaseRequest() {
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-          حقول الطباعة فقط — لن تُحفظ
+          {t('page.warning.print_fields_header')}
         </div>
 
         {/* Row 1: number, date, requiredDate, priority */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div>
-            <label style={lbl}>رقم الطلب</label>
+            <label style={lbl}>{t('page.purchaseReq.field.request_number')}</label>
             <input
               style={inp}
               value={printFields.requestNumber}
@@ -230,7 +232,7 @@ export default function PurchaseRequest() {
             />
           </div>
           <div>
-            <label style={lbl}>التاريخ</label>
+            <label style={lbl}>{t('col.date')}</label>
             <DateInput
               style={inp}
               value={printFields.date}
@@ -238,7 +240,7 @@ export default function PurchaseRequest() {
             />
           </div>
           <div>
-            <label style={lbl}>التاريخ المطلوب</label>
+            <label style={lbl}>{t('page.purchaseReq.field.required_date')}</label>
             <DateInput
               style={inp}
               value={printFields.requiredDate}
@@ -246,18 +248,18 @@ export default function PurchaseRequest() {
             />
           </div>
           <div>
-            <label style={lbl}>الأولوية</label>
+            <label style={lbl}>{t('page.purchaseReq.field.priority')}</label>
             <select
-              title="الأولوية"
+              title={t('page.purchaseReq.field.priority')}
               style={inp}
               value={printFields.priority}
               onChange={(e) => set('priority', e.target.value as PriorityLevel)}
             >
-              <option value="">— اختر —</option>
-              <option value="LOW">منخفضة / Low</option>
-              <option value="MEDIUM">متوسطة / Medium</option>
-              <option value="HIGH">عالية / High</option>
-              <option value="URGENT">عاجل / Urgent</option>
+              <option value="">{t('msg.select_placeholder')}</option>
+              <option value="LOW">{t('page.purchaseReq.opt.low')}</option>
+              <option value="MEDIUM">{t('page.purchaseReq.opt.medium')}</option>
+              <option value="HIGH">{t('page.purchaseReq.opt.high')}</option>
+              <option value="URGENT">{t('page.purchaseReq.opt.urgent')}</option>
             </select>
           </div>
         </div>
@@ -265,7 +267,7 @@ export default function PurchaseRequest() {
         {/* Row 2: requesterName, department, reason */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div>
-            <label style={lbl}>اسم مقدم الطلب</label>
+            <label style={lbl}>{t('page.purchaseReq.field.requester_name')}</label>
             <input
               style={inp}
               value={printFields.requesterName}
@@ -273,7 +275,7 @@ export default function PurchaseRequest() {
             />
           </div>
           <div>
-            <label style={lbl}>القسم</label>
+            <label style={lbl}>{t('page.purchaseReq.field.department')}</label>
             <input
               style={inp}
               value={printFields.department}
@@ -281,7 +283,7 @@ export default function PurchaseRequest() {
             />
           </div>
           <div>
-            <label style={lbl}>سبب الطلب</label>
+            <label style={lbl}>{t('page.leaveReq.field.reason')}</label>
             <input
               style={inp}
               value={printFields.reason}
@@ -293,23 +295,23 @@ export default function PurchaseRequest() {
         {/* Items */}
         <div style={{ marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <label style={lbl}>المواد المطلوبة</label>
+            <label style={lbl}>{t('page.purchaseReq.items_section_title')}</label>
             <button
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '3px 8px' }}
               onClick={addItem}
             >
-              + إضافة مادة
+              {t('page.purchaseReq.add_material_btn')}
             </button>
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ background: 'var(--surface-2)' }}>
-                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right', border: '1px solid var(--border)', width: '30%' }}>الوصف</th>
-                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center', border: '1px solid var(--border)', width: '12%' }}>الكمية</th>
-                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center', border: '1px solid var(--border)', width: '12%' }}>الوحدة</th>
-                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right', border: '1px solid var(--border)' }}>المواصفات</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right', border: '1px solid var(--border)', width: '30%' }}>{t('col.description')}</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center', border: '1px solid var(--border)', width: '12%' }}>{t('col.qty')}</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'center', border: '1px solid var(--border)', width: '12%' }}>{t('col.inv.unit')}</th>
+                <th style={{ padding: '4px 6px', fontWeight: 700, color: 'var(--text-muted)', textAlign: 'right', border: '1px solid var(--border)' }}>{t('page.purchaseReq.col.specification')}</th>
                 <th style={{ border: '1px solid var(--border)', width: '8%' }} />
               </tr>
             </thead>
@@ -366,7 +368,7 @@ export default function PurchaseRequest() {
         {/* Approval names */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
           <div>
-            <label style={lbl}>طلب بواسطة</label>
+            <label style={lbl}>{t('page.purchaseReq.field.requested_by')}</label>
             <input
               style={inp}
               value={printFields.requestedBy}
@@ -374,7 +376,7 @@ export default function PurchaseRequest() {
             />
           </div>
           <div>
-            <label style={lbl}>مراجعة بواسطة</label>
+            <label style={lbl}>{t('page.purchaseReq.field.reviewed_by')}</label>
             <input
               style={inp}
               value={printFields.reviewedBy}
@@ -382,7 +384,7 @@ export default function PurchaseRequest() {
             />
           </div>
           <div>
-            <label style={lbl}>اعتماد بواسطة</label>
+            <label style={lbl}>{t('page.purchaseReq.field.approved_by')}</label>
             <input
               style={inp}
               value={printFields.approvedBy}
@@ -393,7 +395,7 @@ export default function PurchaseRequest() {
 
         {/* Notes */}
         <div style={{ marginBottom: 10 }}>
-          <label style={lbl}>ملاحظات</label>
+          <label style={lbl}>{t('field.notes')}</label>
           <textarea
             style={{ ...inp, minHeight: 52, resize: 'vertical' }}
             value={printFields.notes}
@@ -403,14 +405,14 @@ export default function PurchaseRequest() {
 
         {/* Reset */}
         <button type="button" className="btn secondary" style={{ fontSize: 12 }} onClick={resetForm}>
-          ↺ إعادة تعيين
+          {t('page.purchaseReq.reset_btn')}
         </button>
       </div>
 
       {/* Print template */}
       <PurchaseRequestTemplate printFields={printFields} lang={lang} />
       {showClearConfirm && (
-        <ConfirmModal message="سيتم مسح جميع الحقول. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+        <ConfirmModal message={t('page.purchaseReq.clear_confirm')} confirmLabel={t('page.warning.clear_confirm_btn')} variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
     </>

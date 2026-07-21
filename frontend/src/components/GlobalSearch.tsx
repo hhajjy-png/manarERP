@@ -37,31 +37,31 @@ interface Entry {
   group: string;
 }
 
-const TYPE_META: Record<SearchHit['type'], { icon: string; group: string }> = {
-  customer:  { icon: '🧑‍💼', group: 'العملاء' },
-  invoice:   { icon: '🧾', group: 'الفواتير' },
-  employee:  { icon: '👤', group: 'الموظفون' },
-  equipment: { icon: '🚜', group: 'المعدات' },
-  expense:   { icon: '💸', group: 'المصروفات' },
-  cheque:    { icon: '🏦', group: 'الشيكات' },
+const TYPE_META: Record<SearchHit['type'], { icon: string; groupKey: string }> = {
+  customer:  { icon: '🧑‍💼', groupKey: 'search.group.customer' },
+  invoice:   { icon: '🧾', groupKey: 'search.group.invoice' },
+  employee:  { icon: '👤', groupKey: 'search.group.employee' },
+  equipment: { icon: '🚜', groupKey: 'search.group.equipment' },
+  expense:   { icon: '💸', groupKey: 'search.group.expense' },
+  cheque:    { icon: '🏦', groupKey: 'search.group.cheque' },
 };
 
 /** الصفحات القابلة للفتح — كل واحدة بصلاحيتها، فلا تظهر صفحة لا يملكها المستخدم. */
-const PAGES: { label: string; route: string; permission?: string }[] = [
-  { label: 'لوحة التحكم',       route: '/',            permission: 'dashboard.read' },
-  { label: 'العملاء',           route: '/customers',   permission: 'customers.read' },
-  { label: 'الفواتير',          route: '/invoices',    permission: 'invoices.read' },
-  { label: 'المصروفات',         route: '/expenses',    permission: 'expenses.read' },
-  { label: 'الموظفون',          route: '/employees',   permission: 'employees.read' },
-  { label: 'الرواتب',           route: '/salaries',    permission: 'payroll.read' },
-  { label: 'المعدات',           route: '/equipment',   permission: 'equipment.read' },
-  { label: 'العقود',            route: '/contracts',   permission: 'contracts.read' },
-  { label: 'الشيكات',           route: '/cheques',     permission: 'cheques.read' },
-  { label: 'المركز المالي',     route: '/financial',   permission: 'financial.read' },
-  { label: 'مركز التقارير',     route: '/reports',     permission: 'reports.read' },
-  { label: 'المحاسبة',          route: '/accounting',  permission: 'transactions.read' },
-  { label: 'سجل التدقيق',       route: '/audit',       permission: 'audit.read' },
-  { label: 'الإعدادات',         route: '/settings',    permission: 'settings.read' },
+const PAGES: { labelKey: string; route: string; permission?: string }[] = [
+  { labelKey: 'nav.dashboard',          route: '/',            permission: 'dashboard.read' },
+  { labelKey: 'search.group.customer',  route: '/customers',   permission: 'customers.read' },
+  { labelKey: 'search.group.invoice',   route: '/invoices',    permission: 'invoices.read' },
+  { labelKey: 'search.group.expense',   route: '/expenses',    permission: 'expenses.read' },
+  { labelKey: 'search.group.employee',  route: '/employees',   permission: 'employees.read' },
+  { labelKey: 'nav.salaries',           route: '/salaries',    permission: 'payroll.read' },
+  { labelKey: 'search.group.equipment', route: '/equipment',   permission: 'equipment.read' },
+  { labelKey: 'search.page.contracts',  route: '/contracts',   permission: 'contracts.read' },
+  { labelKey: 'search.group.cheque',    route: '/cheques',     permission: 'cheques.read' },
+  { labelKey: 'nav.financial',          route: '/financial',   permission: 'financial.read' },
+  { labelKey: 'search.page.reports',    route: '/reports',     permission: 'reports.read' },
+  { labelKey: 'search.page.accounting', route: '/accounting',  permission: 'transactions.read' },
+  { labelKey: 'nav.audit',              route: '/audit',       permission: 'audit.read' },
+  { labelKey: 'search.page.settings',   route: '/settings',    permission: 'settings.read' },
 ];
 
 const MIN_TERM = 2;
@@ -124,8 +124,8 @@ export default function GlobalSearch() {
   const entries = useMemo<Entry[]>(() => {
     if (trimmed.length < MIN_TERM) return [];
     const pages: Entry[] = PAGES.filter(
-      (p) => (!p.permission || hasPermission(p.permission)) && matches(p.label, trimmed),
-    ).map((p) => ({ key: `page:${p.route}`, icon: '📂', title: p.label, route: p.route, group: 'الصفحات' }));
+      (p) => (!p.permission || hasPermission(p.permission)) && matches(t(p.labelKey), trimmed),
+    ).map((p) => ({ key: `page:${p.route}`, icon: '📂', title: t(p.labelKey), route: p.route, group: t('search.group.pages') }));
 
     const records: Entry[] = hits.map((h) => ({
       key: `${h.type}:${h.id}`,
@@ -133,11 +133,11 @@ export default function GlobalSearch() {
       title: h.title,
       subtitle: h.subtitle,
       route: h.route,
-      group: TYPE_META[h.type].group,
+      group: t(TYPE_META[h.type].groupKey),
     }));
 
     return [...pages, ...records];
-  }, [hits, trimmed, hasPermission]);
+  }, [hits, trimmed, hasPermission, t]);
 
   useEffect(() => setActive(0), [entries.length]);
 
@@ -220,12 +220,12 @@ export default function GlobalSearch() {
 
       {showPanel && (
         <div className="gsx-panel" id="gsx-results" role="listbox">
-          {loading && entries.length === 0 && <div className="gsx-state">جارٍ البحث…</div>}
+          {loading && entries.length === 0 && <div className="gsx-state">{t('search.loading')}</div>}
 
-          {failed && <div className="gsx-state gsx-state-error">تعذّر البحث. حاول مجددًا.</div>}
+          {failed && <div className="gsx-state gsx-state-error">{t('search.failed')}</div>}
 
           {!loading && !failed && entries.length === 0 && (
-            <div className="gsx-state">لا نتائج لـ «{trimmed}»</div>
+            <div className="gsx-state">{t('search.no_results_for', { term: trimmed })}</div>
           )}
 
           {entries.map((entry, i) => (

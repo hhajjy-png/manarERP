@@ -2,11 +2,12 @@ import { Skeleton } from '../Skeleton';
 import type { RecommendationV2 } from './types';
 import { getRecommendationBody } from './types';
 import { TextWithMoney } from '../../../config/modules';
+import { useT } from '../../../lib/i18n';
 
-const PRI_META: Record<RecommendationV2['priority'], { color: string; icon: string; label: string }> = {
-  HIGH:   { color: 'var(--db-red)', icon: '⚠️', label: 'أولوية عالية' },
-  MEDIUM: { color: 'var(--db-amber)', icon: '📌', label: 'أولوية متوسطة' },
-  LOW:    { color: 'var(--db-green)', icon: '💡', label: 'للمتابعة' },
+const PRI_META: Record<RecommendationV2['priority'], { color: string; icon: string; labelKey: string }> = {
+  HIGH:   { color: 'var(--db-red)', icon: '⚠️', labelKey: 'recsec.priority.high' },
+  MEDIUM: { color: 'var(--db-amber)', icon: '📌', labelKey: 'recsec.priority.medium' },
+  LOW:    { color: 'var(--db-green)', icon: '💡', labelKey: 'recsec.priority.low' },
 };
 const PRI_RANK: Record<RecommendationV2['priority'], number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 
@@ -23,6 +24,7 @@ export default function RecommendationsSection({
   recommendations: RecommendationV2[];
   loading: boolean;
 }) {
+  const { t } = useT();
   if (loading) {
     return (
       <div className="db-rec-grid">
@@ -37,7 +39,7 @@ export default function RecommendationsSection({
     return (
       <div className="db-empty">
         <div className="db-empty-icon">💡</div>
-        <div className="db-empty-text">لا توجد توصيات حالياً — لا مؤشرات تستدعي إجراءً</div>
+        <div className="db-empty-text">{t('recsec.empty')}</div>
       </div>
     );
   }
@@ -53,7 +55,7 @@ export default function RecommendationsSection({
             <div className="db-rec-head">
               <span className="db-rec-icon">{meta.icon}</span>
               <span className="db-rec-pri" style={{ color: meta.color, background: `color-mix(in srgb, ${meta.color} 11%, transparent)` }}>
-                {meta.label}
+                {t(meta.labelKey)}
               </span>
             </div>
             <div className="db-rec-title">{rec.title}</div>

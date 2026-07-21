@@ -33,6 +33,10 @@ interface BankColumnMap {
 }
 
 interface BankTemplateConfig {
+  // i18n fallback: Arabic literal, byte-for-byte identical to DICT.ar[nameKey].
+  // Consumers should call t(nameKey) rather than reading nameAr directly — see
+  // PayrollBankImport.tsx.
+  nameKey: string;
   nameAr: string;
   detectionSignature: string[];
   columns: BankColumnMap;
@@ -40,6 +44,7 @@ interface BankTemplateConfig {
 
 export const BANK_CONFIGS: Record<BankTemplate, BankTemplateConfig> = {
   NBK: {
+    nameKey: 'bank.payroll_name.nbk',
     nameAr: 'بنك الكويت الوطني (NBK)',
     detectionSignature: ['transaction id', 'beneficiary account number'],
     columns: {
@@ -56,6 +61,7 @@ export const BANK_CONFIGS: Record<BankTemplate, BankTemplateConfig> = {
     },
   },
   KFH: {
+    nameKey: 'bank.payroll_name.kfh',
     nameAr: 'بيت التمويل الكويتي (KFH)',
     detectionSignature: ['civil number', 'transaction reference'],
     columns: {
@@ -72,6 +78,7 @@ export const BANK_CONFIGS: Record<BankTemplate, BankTemplateConfig> = {
     },
   },
   Boubyan: {
+    nameKey: 'bank.name.boubyan',
     nameAr: 'بنك بوبيان',
     detectionSignature: ['civil id', 'iban'],
     columns: {
@@ -88,6 +95,7 @@ export const BANK_CONFIGS: Record<BankTemplate, BankTemplateConfig> = {
     },
   },
   GulfBank: {
+    nameKey: 'bank.name.gulf',
     nameAr: 'بنك الخليج',
     detectionSignature: ['employee code', 'civil id', 'bank account'],
     columns: {
@@ -104,6 +112,7 @@ export const BANK_CONFIGS: Record<BankTemplate, BankTemplateConfig> = {
     },
   },
   Warba: {
+    nameKey: 'bank.name.warba',
     nameAr: 'بنك وربة',
     detectionSignature: ['reference number', 'civil number'],
     columns: {
@@ -120,6 +129,7 @@ export const BANK_CONFIGS: Record<BankTemplate, BankTemplateConfig> = {
     },
   },
   AhliUnited: {
+    nameKey: 'bank.payroll_name.ahli_united',
     nameAr: 'بنك الأهلي المتحد',
     detectionSignature: ['employee id', 'national id'],
     columns: {
@@ -136,6 +146,7 @@ export const BANK_CONFIGS: Record<BankTemplate, BankTemplateConfig> = {
     },
   },
   Unknown: {
+    nameKey: 'bank.payroll_name.unknown_format',
     nameAr: 'نموذج غير معروف',
     detectionSignature: [],
     columns: {

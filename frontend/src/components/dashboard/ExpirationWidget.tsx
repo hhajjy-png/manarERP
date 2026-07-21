@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
+import { useT } from '../../lib/i18n';
 
 interface Summary {
   expired: number;
@@ -12,6 +13,7 @@ interface Summary {
 }
 
 export default function ExpirationWidget() {
+  const { t } = useT();
   const [data, setData] = useState<Summary | null>(null);
 
   useEffect(() => {
@@ -25,17 +27,17 @@ export default function ExpirationWidget() {
   if (data.total === 0) return null; // hide widget when nothing is urgent
 
   const items = [
-    { label: 'منتهية',    count: data.expired, color: 'var(--db-red)' },
-    { label: '≤ 7 أيام', count: data.days7,   color: 'var(--db-orange, #f97316)' },
-    { label: '≤ 30 يوم', count: data.days30,  color: 'var(--db-amber)' },
-    { label: '≤ 90 يوم', count: data.days90,  color: 'var(--db-blue)' },
+    { label: t('decx.filter.expired'),    count: data.expired, color: 'var(--db-red)' },
+    { label: t('expwidget.le_7'), count: data.days7,   color: 'var(--db-orange, #f97316)' },
+    { label: t('expwidget.le_30'), count: data.days30,  color: 'var(--db-amber)' },
+    { label: t('expwidget.le_90'), count: data.days90,  color: 'var(--db-blue)' },
   ].filter(i => i.count > 0);
 
   return (
     <div className="db-card db-exp-widget">
       <div className="db-exp-widget-head">
-        <strong className="db-exp-widget-title">وثائق تنتهي قريبًا</strong>
-        <Link to="/expirations" className="db-exp-widget-link">عرض الكل</Link>
+        <strong className="db-exp-widget-title">{t('expwidget.title')}</strong>
+        <Link to="/expirations" className="db-exp-widget-link">{t('page.dashboard.view_all')}</Link>
       </div>
       <div className="db-exp-chips">
         {items.map(item => (

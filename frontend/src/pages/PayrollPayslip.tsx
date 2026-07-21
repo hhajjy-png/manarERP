@@ -80,8 +80,8 @@ export default function PayrollPayslip() {
 
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL),
-    title: 'قسيمة راتب',
-    documentLabel: data ? `قسيمة راتب · ${data.employee.fullName} · ${data.month}/${data.year}` : '',
+    title: t('page.payslip.doc_label'),
+    documentLabel: data ? `${t('page.payslip.doc_label')} · ${data.employee.fullName} · ${data.month}/${data.year}` : '',
   });
 
   /**
@@ -95,8 +95,8 @@ export default function PayrollPayslip() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printRootRef.current,
     onPrint: () => printCurrentView(),
-    title: 'قسيمة راتب',
-    documentLabel: data ? `قسيمة راتب · ${data.employee.fullName} · ${data.month}/${data.year}` : '',
+    title: t('page.payslip.doc_label'),
+    documentLabel: data ? `${t('page.payslip.doc_label')} · ${data.employee.fullName} · ${data.month}/${data.year}` : '',
   });
 
   /**

@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { api, errorMessage } from '../../api/client';
 import { todayDateOnly } from '../../lib/date';
+import { useT } from '../../lib/i18n';
 import DateInput from '../DateInput';
 import { Dialog, DialogSection, Button, ErrorBanner } from '../explorer/ExplorerKit';
+import { SETTLEMENT_METHOD_LABEL } from './entitlementsShared';
 
 /** خيارات طريقة الدفع — تطابق ENUMS.leaveSettlementPaymentMethod في الخادم. */
-const PAYMENT_METHODS: { value: string; label: string }[] = [
-  { value: 'CASH', label: 'نقدًا' },
-  { value: 'BANK_TRANSFER', label: 'تحويل بنكي' },
-  { value: 'CHEQUE', label: 'شيك' },
-  { value: 'OTHER', label: 'أخرى' },
+const PAYMENT_METHODS: { value: string; labelKey: string }[] = [
+  { value: 'CASH', labelKey: SETTLEMENT_METHOD_LABEL.CASH },
+  { value: 'BANK_TRANSFER', labelKey: SETTLEMENT_METHOD_LABEL.BANK_TRANSFER },
+  { value: 'CHEQUE', labelKey: SETTLEMENT_METHOD_LABEL.CHEQUE },
+  { value: 'OTHER', labelKey: SETTLEMENT_METHOD_LABEL.OTHER },
 ];
 
 interface Props {
@@ -30,6 +32,7 @@ interface Props {
  * يعيد ExplorerKit استخدام نفس الحوار/الحقول القياسية (RTL، الوضع الداكن، متجاوب).
  */
 export default function LeaveSettlementDialog({ employeeId, defaultDays, defaultAmount, onClose, onSaved }: Props) {
+  const { t } = useT();
   const [settlementDate, setSettlementDate] = useState<string>(todayDateOnly(new Date()));
   const [leaveDaysSettled, setLeaveDaysSettled] = useState<string>(defaultDays != null ? String(defaultDays) : '');
   const [settlementAmount, setSettlementAmount] = useState<string>(defaultAmount != null ? String(defaultAmount) : '');
@@ -39,7 +42,7 @@ export default function LeaveSettlementDialog({ employeeId, defaultDays, default
   const [error, setError] = useState('');
 
   const save = async () => {
-    if (!settlementDate) { setError('التاريخ مطلوب'); return; }
+    if (!settlementDate) { setError(t('msg.ent.date_required')); return; }
     setSaving(true);
     setError('');
     try {
@@ -60,25 +63,25 @@ export default function LeaveSettlementDialog({ employeeId, defaultDays, default
   return (
     <Dialog
       icon="savings"
-      title="تسجيل دفعة مقدَّمة على الإجازة"
-      subtitle="سجل تاريخي لدفعة مقدَّمة — لا يُسقط استحقاق الإجازة القانوني ولا يُنشئ قيودًا محاسبية أو حركات بنكية أو رواتب (المادة 74)"
+      title={t('page.ent.record_leave_advance')}
+      subtitle={t('msg.ent.leave_advance_dialog_subtitle')}
       size="md"
       onClose={onClose}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>إلغاء</Button>
-          <Button variant="primary" icon="check" onClick={save} busy={saving}>حفظ</Button>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>{t('action.cancel')}</Button>
+          <Button variant="primary" icon="check" onClick={save} busy={saving}>{t('action.save')}</Button>
         </>
       }
     >
       {error && <ErrorBanner>{error}</ErrorBanner>}
       <DialogSection>
         <div className="xpl-field">
-          <label>التاريخ</label>
-          <DateInput className="xpl-input" value={settlementDate} onChange={(v) => setSettlementDate(v)} ariaLabel="التاريخ" />
+          <label>{t('field.date')}</label>
+          <DateInput className="xpl-input" value={settlementDate} onChange={(v) => setSettlementDate(v)} ariaLabel={t('field.date')} />
         </div>
         <div className="xpl-field">
-          <label>عدد الأيام</label>
+          <label>{t('field.ent.days_count')}</label>
           <input
             className="xpl-input"
             type="number"
@@ -87,11 +90,11 @@ export default function LeaveSettlementDialog({ employeeId, defaultDays, default
             value={leaveDaysSettled}
             onChange={(e) => setLeaveDaysSettled(e.target.value)}
             style={{ direction: 'ltr' }}
-            aria-label="عدد الأيام"
+            aria-label={t('field.ent.days_count')}
           />
         </div>
         <div className="xpl-field">
-          <label>القيمة</label>
+          <label>{t('field.ent.value')}</label>
           <input
             className="xpl-input"
             type="number"
@@ -100,20 +103,20 @@ export default function LeaveSettlementDialog({ employeeId, defaultDays, default
             value={settlementAmount}
             onChange={(e) => setSettlementAmount(e.target.value)}
             style={{ direction: 'ltr' }}
-            aria-label="القيمة"
+            aria-label={t('field.ent.value')}
           />
         </div>
         <div className="xpl-field">
-          <label>طريقة الدفع</label>
-          <select className="xpl-select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label="طريقة الدفع">
+          <label>{t('field.payment_method')}</label>
+          <select className="xpl-select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label={t('field.payment_method')}>
             {PAYMENT_METHODS.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
+              <option key={m.value} value={m.value}>{t(m.labelKey)}</option>
             ))}
           </select>
         </div>
         <div className="xpl-field xpl-field--full">
-          <label>ملاحظات (اختياري)</label>
-          <input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="ملاحظات الدفعة" aria-label="ملاحظات" />
+          <label>{t('field.ent.notes_optional')}</label>
+          <input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('ph.ent.settlement_notes')} aria-label={t('field.notes')} />
         </div>
       </DialogSection>
     </Dialog>

@@ -8,6 +8,7 @@ import { money, TextWithMoney, MoneyText } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
 import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
+import { useT } from '../../lib/i18n';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -78,6 +79,7 @@ interface TooltipProps {
 }
 
 function CollectionTooltip({ active, payload, label }: TooltipProps) {
+  const { t } = useT();
   if (!active || !payload?.length) return null;
   return (
     <div style={{
@@ -95,7 +97,7 @@ function CollectionTooltip({ active, payload, label }: TooltipProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 8, height: 8, borderRadius: 2, background: payload[0]?.fill, flexShrink: 0 }} />
         <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700 }}>
-          التحصيلات:{' '}
+          {t('finintel.collections_prefix')}
           <span style={{ color: payload[0]?.fill }}>
             {<MoneyText value={payload[0]?.value ?? 0} />}
           </span>
@@ -145,6 +147,7 @@ function CollectionChart({ data, loading }: { data: TrendPoint[]; loading: boole
 }
 
 function DebtorList({ debtors, loading }: { debtors: DebtorEntry[]; loading: boolean }) {
+  const { t } = useT();
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -158,7 +161,7 @@ function DebtorList({ debtors, loading }: { debtors: DebtorEntry[]; loading: boo
     );
   }
   if (!debtors.length) {
-    return <p style={{ color: 'var(--db-muted)', fontSize: 13, margin: '16px 0 0', textAlign: 'center' }}>لا توجد ذمم مدينة</p>;
+    return <p style={{ color: 'var(--db-muted)', fontSize: 13, margin: '16px 0 0', textAlign: 'center' }}>{t('finintel.empty.debtors')}</p>;
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -210,6 +213,7 @@ function AgingBar({ label, amount, total, color }: { label: string; amount: numb
 }
 
 function AgingSummaryBars({ aging, loading }: { aging: AgingSummary | null; loading: boolean }) {
+  const { t } = useT();
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -229,19 +233,19 @@ function AgingSummaryBars({ aging, loading }: { aging: AgingSummary | null; load
     return (
       <div className="db-empty">
         <div className="db-empty-icon">📊</div>
-        <div className="db-empty-text">لا تتوفر بيانات أعمار الذمم حالياً</div>
+        <div className="db-empty-text">{t('finintel.empty.aging')}</div>
       </div>
     );
   }
   const total = aging.totalOutstanding || 1;
   return (
     <div>
-      <AgingBar label="0 – 30 يوم"  amount={aging.bucket0_30}   total={total} color="#10B981" />
-      <AgingBar label="31 – 60 يوم" amount={aging.bucket31_60}  total={total} color="#F59E0B" />
-      <AgingBar label="61 – 90 يوم" amount={aging.bucket61_90}  total={total} color="#F97316" />
-      <AgingBar label="+90 يوم"     amount={aging.bucket90Plus} total={total} color="#EF4444" />
+      <AgingBar label={t('finintel.aging.bucket_0_30')}  amount={aging.bucket0_30}   total={total} color="#10B981" />
+      <AgingBar label={t('finintel.aging.bucket_31_60')} amount={aging.bucket31_60}  total={total} color="#F59E0B" />
+      <AgingBar label={t('finintel.aging.bucket_61_90')} amount={aging.bucket61_90}  total={total} color="#F97316" />
+      <AgingBar label={t('finintel.aging.bucket_90_plus')}     amount={aging.bucket90Plus} total={total} color="#EF4444" />
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 12, marginTop: 4, display: 'flex', justifyContent: 'space-between' }}>
-        <span style={{ color: 'var(--db-muted)', fontSize: 12, fontWeight: 600 }}>إجمالي الذمم</span>
+        <span style={{ color: 'var(--db-muted)', fontSize: 12, fontWeight: 600 }}>{t('finintel.total_outstanding')}</span>
         <span style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 800 }}><PrivateAmount value={aging.totalOutstanding} /></span>
       </div>
     </div>
@@ -249,6 +253,7 @@ function AgingSummaryBars({ aging, loading }: { aging: AgingSummary | null; load
 }
 
 function ContractProfitRow({ c, rank }: { c: ContractProfit; rank: 'top' | 'low' }) {
+  const { t } = useT();
   const margin = c.profitMargin;
   const marginColor = rank === 'top' ? '#10B981' : '#EF4444';
   return (
@@ -266,7 +271,7 @@ function ContractProfitRow({ c, rank }: { c: ContractProfit; rank: 'top' | 'low'
         ) : (
           <span style={{ color: 'var(--db-muted)', fontSize: 12 }}>—</span>
         )}
-        <p style={{ color: 'var(--db-muted)', fontSize: 10, margin: '2px 0 0', textAlign: 'left' }}>ربح <PrivateAmount value={c.profit} /></p>
+        <p style={{ color: 'var(--db-muted)', fontSize: 10, margin: '2px 0 0', textAlign: 'left' }}>{t('finintel.profit_prefix')}<PrivateAmount value={c.profit} /></p>
       </div>
     </div>
   );
@@ -280,6 +285,7 @@ interface Props {
 }
 
 export default function FinancialIntelPanel({ data, loading }: Props) {
+  const { t } = useT();
   const collections = data?.collectionsThisMonth ?? 0;
   const expenses    = data?.expensesThisMonth ?? 0;
   const outstanding = data?.agingSummary.totalOutstanding ?? 0;
@@ -295,10 +301,10 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
       {/* Section header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <h2 style={{ color: 'var(--db-text)', fontSize: 18, fontWeight: 800, margin: 0 }}>
-          المؤشرات المالية التنفيذية
+          {t('finintel.title')}
         </h2>
         {alerts.length > 0 && !loading && (
-          <span className="db-pill red">{alerts.length} تنبيه</span>
+          <span className="db-pill red">{t('finintel.alert_count', { count: alerts.length })}</span>
         )}
       </div>
 
@@ -340,17 +346,17 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
           <>
             <div className="db-kpi c-green">
               <div className="db-kpi-icon">💰</div>
-              <div className="db-kpi-label">تحصيلات هذا الشهر</div>
+              <div className="db-kpi-label">{t('finintel.kpi.collections_this_month')}</div>
               <div className="db-kpi-val"><PrivateAmount value={collections} /></div>
             </div>
             <div className="db-kpi c-red">
               <div className="db-kpi-icon">📤</div>
-              <div className="db-kpi-label">مصروفات هذا الشهر</div>
+              <div className="db-kpi-label">{t('finintel.kpi.expenses_this_month')}</div>
               <div className="db-kpi-val"><PrivateAmount value={expenses} /></div>
             </div>
             <div className={`db-kpi ${outstanding > 0 ? 'c-amber' : 'c-blue'}`}>
               <div className="db-kpi-icon">⏳</div>
-              <div className="db-kpi-label">إجمالي الذمم المدينة</div>
+              <div className="db-kpi-label">{t('finintel.kpi.total_outstanding')}</div>
               <div className="db-kpi-val"><PrivateAmount value={outstanding} /></div>
             </div>
           </>
@@ -363,8 +369,8 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>اتجاه التحصيلات</h3>
-              <p>منذ بداية العام</p>
+              <h3>{t('finintel.section.collection_trend_title')}</h3>
+              <p>{t('finintel.section.ytd')}</p>
             </div>
           </div>
           <div className="db-card-body">
@@ -376,8 +382,8 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>كبار المدينين</h3>
-              <p>أعلى 5 بالذمم القائمة</p>
+              <h3>{t('exec.top_debtors')}</h3>
+              <p>{t('finintel.section.top_debtors_sub')}</p>
             </div>
           </div>
           <div className="db-card-body">
@@ -392,8 +398,8 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>تحليل أعمار الديون</h3>
-              <p>توزيع الذمم المدينة حسب التقادم</p>
+              <h3>{t('finintel.section.aging_title')}</h3>
+              <p>{t('finintel.section.aging_sub')}</p>
             </div>
           </div>
           <div className="db-card-body">
@@ -405,8 +411,8 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
         <div className="db-card">
           <div className="db-card-head">
             <div>
-              <h3>ربحية العقود</h3>
-              <p>أعلى وأدنى هامش ربح للعقود النشطة</p>
+              <h3>{t('finops.tab.contract_profitability')}</h3>
+              <p>{t('finintel.section.contract_profit_sub')}</p>
             </div>
           </div>
           <div className="db-card-body">
@@ -422,14 +428,14 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                 <div>
-                  <p style={{ color: 'var(--db-green)', fontSize: 12, fontWeight: 800, marginBottom: 10 }}>▲ الأعلى ربحية</p>
+                  <p style={{ color: 'var(--db-green)', fontSize: 12, fontWeight: 800, marginBottom: 10 }}>▲ {t('finintel.top_profitable')}</p>
                   {topContracts.length === 0
                     ? <p style={{ color: 'var(--db-muted)', fontSize: 12 }}>—</p>
                     : topContracts.slice(0, 3).map((c) => <ContractProfitRow key={c.id} c={c} rank="top" />)
                   }
                 </div>
                 <div>
-                  <p style={{ color: 'var(--db-red)', fontSize: 12, fontWeight: 800, marginBottom: 10 }}>▼ الأدنى ربحية</p>
+                  <p style={{ color: 'var(--db-red)', fontSize: 12, fontWeight: 800, marginBottom: 10 }}>▼ {t('finintel.lowest_profitable')}</p>
                   {lowContracts.length === 0
                     ? <p style={{ color: 'var(--db-muted)', fontSize: 12 }}>—</p>
                     : lowContracts.slice(0, 3).map((c) => <ContractProfitRow key={c.id} c={c} rank="low" />)

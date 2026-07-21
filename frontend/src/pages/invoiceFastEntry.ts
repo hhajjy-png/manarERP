@@ -106,17 +106,17 @@ export function buildInvoiceCreatePayload(shared: InvoiceSharedFields, row: Invo
 }
 
 /** يتحقق من الصف بنفس قواعد الإنشاء العادي. يعيد رسالة الخطأ أو null. */
-export function validateInvoiceRow(shared: InvoiceSharedFields, row: InvoiceRowFields): string | null {
-  if (!INVOICE_NUMBER_RE.test(row.invoiceNumber.trim())) return 'رقم الفاتورة غير صالح — الصيغة MN-INV-YYYY-...';
-  if (!resolveInvoiceParty(shared, row).customerId) return 'يجب اختيار العميل';
+export function validateInvoiceRow(shared: InvoiceSharedFields, row: InvoiceRowFields, t: (key: string) => string): string | null {
+  if (!INVOICE_NUMBER_RE.test(row.invoiceNumber.trim())) return t('error.inv_number_format');
+  if (!resolveInvoiceParty(shared, row).customerId) return t('error.customer_required');
   // فاتورة مستقبلية التاريخ ممنوعة — الخادم يتحقق أيضًا؛ هذا فحص واجهة مبكر فقط.
-  if (shared.issueDate && shared.issueDate > todayDateOnly()) return 'تاريخ الفاتورة لا يمكن أن يكون في المستقبل';
-  if (!row.items.length) return 'يجب إضافة بند واحد على الأقل';
+  if (shared.issueDate && shared.issueDate > todayDateOnly()) return t('error.future_issue_date');
+  if (!row.items.length) return t('error.min_one_item');
   for (const it of row.items) {
-    if (!String(it.description).trim()) return 'وصف البند مطلوب';
-    if (!String(it.unit).trim()) return 'الوحدة مطلوبة';
-    if (!(Number(it.quantity) > 0)) return 'الكمية يجب أن تكون موجبة';
-    if (Number(it.unitPrice) < 0) return 'السعر يجب ألا يكون سالبًا';
+    if (!String(it.description).trim()) return t('error.item_desc_required_single');
+    if (!String(it.unit).trim()) return t('error.unit_required_single');
+    if (!(Number(it.quantity) > 0)) return t('error.qty_positive_alt');
+    if (Number(it.unitPrice) < 0) return t('error.price_negative_alt');
   }
   return null;
 }

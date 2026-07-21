@@ -4,6 +4,8 @@ import { FormField, FormSection } from '../components/FormDialog';
 import { formatDate } from '../lib/date';
 import { formatCurrency, formatMoneyParts, formatMoneyCell } from '../lib/format';
 import { currentCurrencyLanguage } from '../stores/settingsStore';
+import { t as translate } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
 import { expenseCategoryArMap } from './expenseCategories';
 import { NameCell, ExpiryCell } from '../components/employees/employeeCells';
 import { RegRemainingCell } from '../components/equipment/equipmentCells';
@@ -83,6 +85,11 @@ export function dateText(v: unknown): string {
   return formatDate(v);
 }
 
+/** Current UI language read outside React (same getState() pattern as currentCurrencyLanguage()). */
+function currentLang() {
+  return useUI.getState().lang;
+}
+
 type PillCls = 'green' | 'amber' | 'red' | 'blue' | 'gray';
 function pill(label: string, cls: PillCls): ReactNode {
   return <span className={`pill ${cls}`}>{label}</span>;
@@ -137,15 +144,15 @@ export interface ModuleConfig {
 
 export const MODULES: Record<string, ModuleConfig> = {
   contracts: {
-    key: 'contracts', endpoint: '/contracts', label: 'إدارة العقود',
+    key: 'contracts', endpoint: '/contracts', label: 'nav.contracts',
     title: 'mod.contracts.title', subtitle: 'mod.contracts.subtitle',
-    icon: '📄', group: 'العمليات الأساسية', createLabel: 'mod.contracts.create',
+    icon: '📄', group: 'nav.group.core', createLabel: 'mod.contracts.create',
     emptyText: 'empty.contracts', supportsExport: true,
     explorer: true, explorerIcon: 'description',
     formSections: [
-      { id: 'basic', title: 'بيانات العقد', icon: 'badge' },
-      { id: 'pricing', title: 'التسعير والاتفاقية', icon: 'sell' },
-      { id: 'period', title: 'مدة العقد', icon: 'event' },
+      { id: 'basic', title: 'page.form.contracts.basic', icon: 'badge' },
+      { id: 'pricing', title: 'page.form.contracts.pricing', icon: 'sell' },
+      { id: 'period', title: 'page.form.contracts.period', icon: 'event' },
     ],
     statusFilter: {
       param: 'status',
@@ -205,15 +212,15 @@ export const MODULES: Record<string, ModuleConfig> = {
   },
 
   customers: {
-    key: 'customers', endpoint: '/customers', label: 'العملاء والجهات',
+    key: 'customers', endpoint: '/customers', label: 'nav.customers',
     title: 'mod.customers.title', subtitle: 'mod.customers.subtitle',
-    icon: '👥', group: 'العمليات الأساسية', createLabel: 'mod.customers.create',
+    icon: '👥', group: 'nav.group.core', createLabel: 'mod.customers.create',
     emptyText: 'empty.customers', supportsArchive: true, supportsExport: true,
     explorer: true, explorerIcon: 'groups',
     formSections: [
-      { id: 'identity', title: 'هوية العميل', icon: 'badge' },
-      { id: 'contact', title: 'معلومات الاتصال', icon: 'contacts' },
-      { id: 'notes', title: 'ملاحظات', icon: 'sticky_note_2' },
+      { id: 'identity', title: 'page.form.customers.identity', icon: 'badge' },
+      { id: 'contact', title: 'page.form.customers.contact', icon: 'contacts' },
+      { id: 'notes', title: 'field.notes', icon: 'sticky_note_2' },
     ],
     statusFilter: {
       param: 'type',
@@ -230,29 +237,29 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'contactName', label: 'col.contact_name', sortable: true },
     ],
     fields: [
-      { name: 'code', label: 'field.customer_code', required: true, placeholder: 'مثال: C-001', section: 'identity' },
-      { name: 'name', label: 'field.customer_name', required: true, placeholder: 'الاسم الرسمي للعميل', section: 'identity' },
+      { name: 'code', label: 'field.customer_code', required: true, placeholder: 'placeholder.customers.code', section: 'identity' },
+      { name: 'name', label: 'field.customer_name', required: true, placeholder: 'placeholder.customers.name', section: 'identity' },
       { name: 'type', label: 'field.type', type: 'select', defaultValue: 'PRIVATE', section: 'identity', options: [
         { value: 'GOVERNMENT', label: 'opt.customer.government' },
         { value: 'PRIVATE', label: 'opt.customer.private' }] },
       { name: 'phone', label: 'field.phone', placeholder: '+965 XXXX XXXX', section: 'contact' },
       { name: 'email', label: 'field.email', placeholder: 'example@domain.com', section: 'contact' },
-      { name: 'contactName', label: 'field.contact_name', placeholder: 'اسم الشخص المسؤول', section: 'contact' },
-      { name: 'address', label: 'field.address', placeholder: 'العنوان التفصيلي', section: 'contact' },
+      { name: 'contactName', label: 'field.contact_name', placeholder: 'placeholder.customers.contact_name', section: 'contact' },
+      { name: 'address', label: 'field.address', placeholder: 'placeholder.customers.address', section: 'contact' },
       { name: 'notes', label: 'field.notes', type: 'textarea', half: false, section: 'notes' },
     ],
   },
 
   suppliers: {
-    key: 'suppliers', endpoint: '/suppliers', label: 'الموردون',
+    key: 'suppliers', endpoint: '/suppliers', label: 'nav.suppliers',
     title: 'mod.suppliers.title', subtitle: 'mod.suppliers.subtitle',
-    icon: '📦', group: 'المالية', createLabel: 'mod.suppliers.create',
+    icon: '📦', group: 'mod.group.financial_short', createLabel: 'mod.suppliers.create',
     emptyText: 'empty.suppliers', supportsArchive: true, supportsExport: true,
     explorer: true, explorerIcon: 'inventory_2',
     formSections: [
-      { id: 'identity', title: 'هوية المورد', icon: 'badge' },
-      { id: 'contact', title: 'بيانات التواصل', icon: 'contacts' },
-      { id: 'notes', title: 'ملاحظات', icon: 'sticky_note_2' },
+      { id: 'identity', title: 'page.form.suppliers.identity', icon: 'badge' },
+      { id: 'contact', title: 'page.form.suppliers.contact', icon: 'contacts' },
+      { id: 'notes', title: 'field.notes', icon: 'sticky_note_2' },
     ],
     columns: [
       { key: 'code', label: 'col.code', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
@@ -272,15 +279,15 @@ export const MODULES: Record<string, ModuleConfig> = {
   },
 
   equipment: {
-    key: 'equipment', endpoint: '/equipment', label: 'المعدات والآليات',
+    key: 'equipment', endpoint: '/equipment', label: 'nav.equipment',
     title: 'mod.equipment.title', subtitle: 'mod.equipment.subtitle',
-    icon: '🚜', group: 'العمليات الأساسية', createLabel: 'mod.equipment.create',
+    icon: '🚜', group: 'nav.group.core', createLabel: 'mod.equipment.create',
     emptyText: 'empty.equipment', supportsExport: true,
     explorer: true, explorerIcon: 'construction',
     formSections: [
-      { id: 'identity', title: 'بيانات المعدة', icon: 'badge' },
-      { id: 'ownership', title: 'الملكية والتشغيل', icon: 'person' },
-      { id: 'registration', title: 'الترخيص', icon: 'event' },
+      { id: 'identity', title: 'page.form.equipment.identity', icon: 'badge' },
+      { id: 'ownership', title: 'page.form.equipment.ownership', icon: 'person' },
+      { id: 'registration', title: 'page.form.equipment.registration', icon: 'event' },
     ],
     statusFilter: {
       param: 'status',
@@ -322,16 +329,16 @@ export const MODULES: Record<string, ModuleConfig> = {
   },
 
   employees: {
-    key: 'employees', endpoint: '/employees', label: 'الموظفون والكوادر',
+    key: 'employees', endpoint: '/employees', label: 'nav.employees',
     title: 'mod.employees.title', subtitle: 'mod.employees.subtitle',
-    icon: '👷', group: 'العمليات الأساسية', createLabel: 'mod.employees.create',
+    icon: '👷', group: 'nav.group.core', createLabel: 'mod.employees.create',
     emptyText: 'empty.employees', supportsExport: true,
     explorer: true, explorerIcon: 'badge',
     formSections: [
-      { id: 'identity', title: 'البيانات الشخصية', icon: 'badge' },
-      { id: 'job', title: 'الوظيفة والراتب', icon: 'work' },
-      { id: 'documents', title: 'الوثائق والصلاحيات', icon: 'description' },
-      { id: 'contact', title: 'العنوان', icon: 'contacts' },
+      { id: 'identity', title: 'page.form.employees.identity', icon: 'badge' },
+      { id: 'job', title: 'page.form.employees.job', icon: 'work' },
+      { id: 'documents', title: 'page.form.employees.documents', icon: 'description' },
+      { id: 'contact', title: 'field.address', icon: 'contacts' },
     ],
     statusFilter: {
       param: 'status',
@@ -390,9 +397,9 @@ export const MODULES: Record<string, ModuleConfig> = {
   },
 
   expenses: {
-    key: 'expenses', endpoint: '/expenses', label: 'المصروفات والتشغيل',
+    key: 'expenses', endpoint: '/expenses', label: 'nav.expenses',
     title: 'mod.expenses.title', subtitle: 'mod.expenses.subtitle',
-    icon: '💸', group: 'المالية', createLabel: 'mod.expenses.create', canApprove: true,
+    icon: '💸', group: 'mod.group.financial_short', createLabel: 'mod.expenses.create', canApprove: true,
     emptyText: 'empty.expenses',
     statusFilter: {
       param: 'status',
@@ -422,15 +429,15 @@ export const MODULES: Record<string, ModuleConfig> = {
   },
 
   users: {
-    key: 'users', endpoint: '/users', label: 'المستخدمون والصلاحيات',
+    key: 'users', endpoint: '/users', label: 'mod.users.title',
     title: 'mod.users.title', subtitle: 'mod.users.subtitle',
-    icon: '🔐', group: 'النظام', createLabel: 'mod.users.create',
+    icon: '🔐', group: 'nav.group.system', createLabel: 'mod.users.create',
     emptyText: 'empty.users',
     columns: [
       { key: 'username', label: 'col.username', sortable: true, render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.username}</strong> },
       { key: 'fullName', label: 'col.fullname', sortable: true },
       { key: 'role', label: 'col.role', sortable: true, render: (r) => pill(r.role?.displayName ?? '—', 'blue') },
-      { key: 'isActive', label: 'col.status', sortable: true, render: (r) => r.isActive ? pill('نشط', 'green') : pill('موقوف', 'gray') },
+      { key: 'isActive', label: 'col.status', sortable: true, render: (r) => r.isActive ? pill(translate('status.active', currentLang()), 'green') : pill(translate('status.suspended', currentLang()), 'gray') },
     ],
     fields: [
       { name: 'username', label: 'field.username', required: true },

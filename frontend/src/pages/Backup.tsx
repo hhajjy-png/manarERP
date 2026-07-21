@@ -23,11 +23,11 @@ interface BackupRecord {
   verificationNote:   string | null;
 }
 
-function fmt(bytes: number): string {
-  if (bytes === 0) return '0 ب';
-  if (bytes < 1024) return `${bytes} ب`;
-  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} ك.ب`;
-  return `${(bytes / 1048576).toFixed(2)} م.ب`;
+function fmt(bytes: number, t: (key: string) => string): string {
+  if (bytes === 0) return `0 ${t('unit.bytes')}`;
+  if (bytes < 1024) return `${bytes} ${t('unit.bytes')}`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} ${t('unit.kilobytes')}`;
+  return `${(bytes / 1048576).toFixed(2)} ${t('unit.megabytes')}`;
 }
 
 export default function Backup() {
@@ -111,7 +111,7 @@ export default function Backup() {
     const result = await window.manar!.backupCreate();
     setBusy(false);
     if (result.success) {
-      toast.ok(t('msg.backup.direct_done', { size: fmt(result.sizeBytes ?? 0) }));
+      toast.ok(t('msg.backup.direct_done', { size: fmt(result.sizeBytes ?? 0, t) }));
     } else if (!result.canceled) {
       toast.error(result.error ?? t('msg.backup.create_fail'));
     }
@@ -153,7 +153,7 @@ export default function Backup() {
     const result = await window.manar!.backupRestore(sourcePath);
     setBusy(false);
     if (result.success) {
-      toast.warn(t('msg.backup.restored_restart', { size: fmt(result.sizeBytes ?? 0) }));
+      toast.warn(t('msg.backup.restored_restart', { size: fmt(result.sizeBytes ?? 0, t) }));
       await new Promise((r) => setTimeout(r, 3000));
       await window.manar!.restartApp();
     } else {
@@ -178,8 +178,8 @@ export default function Backup() {
   }
 
   function verifyBadge(status: string | null, note: string | null) {
-    if (status === 'PASS') return <span style={{ color: '#10B981', fontWeight: 600 }} title={note ?? undefined}>✓ ناجح</span>;
-    if (status === 'FAIL') return <span style={{ color: '#EF4444', fontWeight: 600 }} title={note ?? undefined}>✗ فشل</span>;
+    if (status === 'PASS') return <span style={{ color: '#10B981', fontWeight: 600 }} title={note ?? undefined}>✓ {t('backup.verify.passed')}</span>;
+    if (status === 'FAIL') return <span style={{ color: '#EF4444', fontWeight: 600 }} title={note ?? undefined}>✗ {t('backup.verify.failed')}</span>;
     return <span style={{ color: '#9CA3AF' }}>—</span>;
   }
 
@@ -225,7 +225,7 @@ export default function Backup() {
               </tr>
               <tr>
                 <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>{t('col.backup.size')}</td>
-                <td><strong>{fmt(dbInfo.sizeBytes)}</strong></td>
+                <td><strong>{fmt(dbInfo.sizeBytes, t)}</strong></td>
               </tr>
               <tr>
                 <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>{t('col.status')}</td>
@@ -338,7 +338,7 @@ export default function Backup() {
         <div className="table-responsive">
           <table>
             <thead>
-              <tr><th>{t('col.backup.file')}</th><th>{t('col.backup.size')}</th><th>{t('col.backup.type')}</th><th>{t('col.date')}</th><th>التحقق</th><th></th></tr>
+              <tr><th>{t('col.backup.file')}</th><th>{t('col.backup.size')}</th><th>{t('col.backup.type')}</th><th>{t('col.date')}</th><th>{t('col.backup.verification')}</th><th></th></tr>
             </thead>
             <tbody>
               {loading ? (
@@ -348,7 +348,7 @@ export default function Backup() {
               ) : list.map((b) => (
                 <tr key={b.id}>
                   <td style={{ fontFamily: 'monospace', fontSize: 13 }}><strong>{b.fileName}</strong></td>
-                  <td>{fmt(b.sizeBytes)}</td>
+                  <td>{fmt(b.sizeBytes, t)}</td>
                   <td>
                     <span className={`pill ${b.type === 'MANUAL' ? 'blue' : b.type === 'AUTO' ? 'gray' : 'amber'}`}>
                       {b.type === 'MANUAL' ? t('backup.type.manual') : b.type === 'AUTO' ? t('backup.type.auto') : t('backup.type.scheduled')}
@@ -358,7 +358,7 @@ export default function Backup() {
                   <td>{verifyBadge(b.verificationStatus ?? null, b.verificationNote ?? null)}</td>
                   <td style={{ textAlign: 'left', whiteSpace: 'nowrap' }}>
                     <button type="button" className="btn secondary sm" disabled={verifying === b.id || busy} onClick={() => verifyBackup(b.id)}>
-                      {verifying === b.id ? '⏳' : '✓'} تحقق
+                      {verifying === b.id ? '⏳' : '✓'} {t('btn.backup.verify')}
                     </button>{' '}
                     {canRestore && <><button type="button" className="btn secondary sm" disabled={busy} onClick={() => restoreFromList(b.id, b.fileName)}>↩️ {t('btn.backup.restore')}</button>{' '}</>}
                     {canRestore && <button type="button" className="btn danger sm" onClick={() => remove(b.id)} disabled={busy}>{t('action.delete')}</button>}
@@ -376,9 +376,9 @@ export default function Backup() {
 
       {restoreListConfirm && (
         <ConfirmModal
-          title="تأكيد الاستعادة"
+          title={t('confirm.backup.restore_title')}
           message={t('confirm.backup.restore_list', { fileName: restoreListConfirm.fileName })}
-          confirmLabel="استعادة"
+          confirmLabel={t('btn.backup.restore')}
           variant="warning"
           onConfirm={() => executeRestoreFromList(restoreListConfirm.id)}
           onCancel={() => setRestoreListConfirm(null)}
@@ -386,9 +386,9 @@ export default function Backup() {
       )}
       {restoreFileConfirm && (
         <ConfirmModal
-          title="تأكيد الاستعادة من ملف"
+          title={t('confirm.backup.restore_file_title')}
           message={t('confirm.backup.restore_file', { path: restoreFileConfirm })}
-          confirmLabel="استعادة"
+          confirmLabel={t('btn.backup.restore')}
           variant="warning"
           onConfirm={() => executeRestoreFromFile(restoreFileConfirm)}
           onCancel={() => setRestoreFileConfirm(null)}
@@ -396,9 +396,9 @@ export default function Backup() {
       )}
       {deleteBackupId !== null && (
         <ConfirmModal
-          title="تأكيد الحذف"
+          title={t('confirm.backup.delete_title')}
           message={t('confirm.backup.delete')}
-          confirmLabel="حذف"
+          confirmLabel={t('action.delete')}
           variant="danger"
           onConfirm={() => executeRemove(deleteBackupId)}
           onCancel={() => setDeleteBackupId(null)}

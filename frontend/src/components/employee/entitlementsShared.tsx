@@ -109,66 +109,66 @@ export interface EntitlementsResponse {
 export type EmployeeLike = { id: number; fullName?: string | null };
 
 export const LEDGER_TYPE_LABEL: Record<string, string> = {
-  LEAVE_ALLOWANCE: 'بدل الإجازة',
-  END_OF_SERVICE: 'مكافأة نهاية الخدمة',
-  OTHER: 'مستحق آخر',
+  LEAVE_ALLOWANCE: 'field.ent.leave_allowance',
+  END_OF_SERVICE: 'field.ent.eos',
+  OTHER: 'opt.ent.ledger_type.other',
 };
 
 export const SETTLEMENT_METHOD_LABEL: Record<string, string> = {
-  CASH: 'نقدًا',
-  BANK_TRANSFER: 'تحويل بنكي',
-  CHEQUE: 'شيك',
-  OTHER: 'أخرى',
+  CASH: 'opt.payment.cash',
+  BANK_TRANSFER: 'opt.sal.payment.bank_transfer',
+  CHEQUE: 'opt.payment.cheque',
+  OTHER: 'cat.other',
 };
 
 export const LEAVE_TYPE_LABEL: Record<string, string> = {
-  ANNUAL: 'سنوية',
-  SICK: 'مرضية',
-  UNPAID: 'بدون راتب',
-  EMERGENCY: 'طارئة',
+  ANNUAL: 'opt.ent.leave_type.annual',
+  SICK: 'opt.ent.leave_type.sick',
+  UNPAID: 'opt.ent.leave_type.unpaid',
+  EMERGENCY: 'opt.ent.leave_type.emergency',
 };
 
-export const LEAVE_STATUS: Record<string, { label: string; tone: Tone; icon: string }> = {
-  APPROVED: { label: 'معتمدة', tone: 'green', icon: 'task_alt' },
-  PENDING: { label: 'قيد الاعتماد', tone: 'orange', icon: 'schedule' },
-  REJECTED: { label: 'مرفوضة', tone: 'red', icon: 'block' },
+export const LEAVE_STATUS: Record<string, { key: string; tone: Tone; icon: string }> = {
+  APPROVED: { key: 'opt.ent.leave_status.approved', tone: 'green', icon: 'task_alt' },
+  PENDING: { key: 'opt.ent.leave_status.pending', tone: 'orange', icon: 'schedule' },
+  REJECTED: { key: 'opt.ent.leave_status.rejected', tone: 'red', icon: 'block' },
 };
 
-export function formatDurationLong(d: { years: number; months: number; days: number }): string {
+export function formatDurationLong(d: { years: number; months: number; days: number }, t: (key: string, vars?: Record<string, string | number>) => string): string {
   const parts: string[] = [];
-  if (d.years) parts.push(`${d.years} سنة`);
-  if (d.months) parts.push(`${d.months} شهر`);
-  if (d.days || parts.length === 0) parts.push(`${d.days} يوم`);
-  return parts.join(' و ');
+  if (d.years) parts.push(t('unit.ent.years', { n: d.years }));
+  if (d.months) parts.push(t('unit.ent.months', { n: d.months }));
+  if (d.days || parts.length === 0) parts.push(t('unit.ent.days', { n: d.days }));
+  return parts.join(t('msg.ent.duration_join'));
 }
 
 /** يوم/أيام مع لاحقة عربية بسيطة. */
-export function daysText(n: number): string {
-  return `${n} يوم`;
+export function daysText(n: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
+  return t('unit.ent.days', { n });
 }
 
 /** نسبة مكافأة الاستقالة (المادة 53) كنص عربي مفهوم مع نطاق سنوات الخدمة. */
-export function resignationFractionLabel(fraction: number): string {
-  if (fraction === 0) return 'لا يستحق مكافأة (أقل من 3 سنوات خدمة)';
-  if (fraction === 1) return '100% — كامل المكافأة (10 سنوات خدمة فأكثر)';
-  if (Math.abs(fraction - 0.5) < 1e-9) return '50% (3 إلى أقل من 5 سنوات خدمة)';
-  if (Math.abs(fraction - 2 / 3) < 1e-9) return '66.7% (5 إلى أقل من 10 سنوات خدمة)';
+export function resignationFractionLabel(fraction: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
+  if (fraction === 0) return t('msg.ent.resignation_fraction.none');
+  if (fraction === 1) return t('msg.ent.resignation_fraction.full');
+  if (Math.abs(fraction - 0.5) < 1e-9) return t('msg.ent.resignation_fraction.half');
+  if (Math.abs(fraction - 2 / 3) < 1e-9) return t('msg.ent.resignation_fraction.two_thirds');
   return `${Math.round(fraction * 1000) / 10}%`;
 }
 
 /** سبب النقص الدقيق للحقل المطلوب (بلا تخمين). */
-export function missingReason(needsHire: boolean, needsWageBase: boolean, r: EntitlementResult): string | null {
-  if (needsHire && !r.hasHireDate) return 'تاريخ التعيين غير مُدخل';
-  if (needsWageBase && !r.hasWageBase) return 'الأجر الشهري غير مُدخل';
+export function missingReason(needsHire: boolean, needsWageBase: boolean, r: EntitlementResult, t: (key: string) => string): string | null {
+  if (needsHire && !r.hasHireDate) return t('msg.ent.missing_hire_date');
+  if (needsWageBase && !r.hasWageBase) return t('msg.ent.missing_wage_base');
   return null;
 }
 
 /** يعرض «—» + حالة «بيانات غير مكتملة» مع السبب، دون كسر التخطيط. */
-export function Incomplete({ reason }: { reason: string }) {
+export function Incomplete({ reason, t }: { reason: string; t: (key: string) => string }) {
   return (
     <span className="ent-incomplete">
       <span className="ent-incomplete-dash">—</span>
-      <StatusChip tone="neutral" icon="info">بيانات غير مكتملة</StatusChip>
+      <StatusChip tone="neutral" icon="info">{t('tag.ent.incomplete_data')}</StatusChip>
       <span className="ent-incomplete-reason">{reason}</span>
     </span>
   );
@@ -192,6 +192,7 @@ export function buildWarnings(
   breakdown: LeaveExclusionBreakdown,
   totalSettlementDays: number,
   ledger: LedgerRow[],
+  t: (key: string, vars?: Record<string, string | number>) => string,
 ): EntWarning[] {
   const warnings: EntWarning[] = [];
 
@@ -200,7 +201,7 @@ export function buildWarnings(
       id: 'first-year',
       tone: 'orange',
       icon: 'hourglass_empty',
-      text: 'استحقاق إجازة السنة الأولى معلَّق — يلزم إتمام 9 أشهر خدمة (المادة 70).',
+      text: t('msg.ent.warning.first_year_pending'),
     });
   }
 
@@ -209,7 +210,7 @@ export function buildWarnings(
       id: 'over-used',
       tone: 'red',
       icon: 'warning',
-      text: 'الأيام المستخدمة تتجاوز الرصيد المستحق حاليًا — الرصيد المتبقي وصل إلى الصفر.',
+      text: t('msg.ent.warning.over_used'),
     });
   }
 
@@ -218,7 +219,7 @@ export function buildWarnings(
       id: 'no-holidays',
       tone: 'orange',
       icon: 'event_busy',
-      text: 'لا توجد عطل رسمية مسجَّلة في النظام — قد تُحتسب أيام العطل الرسمية ضمن الإجازة المستخدمة. راجع الإعدادات ← العطل الرسمية.',
+      text: t('msg.ent.warning.no_holidays_registered'),
     });
   }
 
@@ -227,7 +228,10 @@ export function buildWarnings(
       id: 'settlement-over-advance',
       tone: 'red',
       icon: 'balance',
-      text: `دفعات الإجازة المقدَّمة (${daysText(totalSettlementDays)}) تتجاوز الاستحقاق القانوني الحالي (${daysText(r.accruedLeaveDays)}) — فرق يستحق المراجعة.`,
+      text: t('msg.ent.warning.advance_exceeds', {
+        advanceDays: daysText(totalSettlementDays, t),
+        accruedDays: daysText(r.accruedLeaveDays, t),
+      }),
     });
   }
 
@@ -239,7 +243,7 @@ export function buildWarnings(
       id: 'pending-reconciliation',
       tone: 'blue',
       icon: 'sync_problem',
-      text: 'يوجد رصيد مسجَّل في سجل المستحقات يختلف عن الرصيد الحالي — طبيعي لأنه لقطة تاريخية جامدة وقت الصرف، وليس مؤشر خطأ.',
+      text: t('msg.ent.warning.pending_reconciliation_snapshot'),
     });
   }
 
@@ -248,7 +252,7 @@ export function buildWarnings(
       id: 'incomplete-data',
       tone: 'neutral',
       icon: 'info',
-      text: 'بيانات الموظف غير مكتملة (تاريخ التعيين و/أو الراتب) — بعض الاستحقاقات لا يمكن احتسابها حتى تكتمل.',
+      text: t('msg.ent.warning.incomplete_employee_data'),
     });
   }
 
@@ -266,18 +270,24 @@ export interface EntTimelineEntry {
 }
 
 /** يدمج سجل الإجازات + الدفعات المقدَّمة + المستحقات المصروفة في جدول زمني واحد مرتَّب زمنيًا (الأحدث أولًا). لا بيانات جديدة — دمج/فرز عرضي فقط. */
-export function buildTimeline(leaveHistory: LeaveRow[], settlements: SettlementRow[], ledger: LedgerRow[]): EntTimelineEntry[] {
+export function buildTimeline(
+  leaveHistory: LeaveRow[],
+  settlements: SettlementRow[],
+  ledger: LedgerRow[],
+  t: (key: string, vars?: Record<string, string | number>) => string,
+): EntTimelineEntry[] {
   const entries: EntTimelineEntry[] = [];
 
   for (const l of leaveHistory) {
-    const st = LEAVE_STATUS[l.status] ?? { label: l.status, tone: 'neutral' as Tone, icon: 'help' };
+    const st = LEAVE_STATUS[l.status] ?? { key: '', tone: 'neutral' as Tone, icon: 'help' };
+    const stLabel = st.key ? t(st.key) : l.status;
     entries.push({
       key: `leave-${l.id}`,
       dateIso: l.startDate,
       icon: st.icon,
       tone: st.tone,
-      title: `إجازة ${LEAVE_TYPE_LABEL[l.type] ?? l.type} — ${daysText(l.days)}`,
-      meta: <StatusChip tone={st.tone} icon={st.icon}>{st.label}</StatusChip>,
+      title: t('msg.ent.timeline.leave_title', { type: LEAVE_TYPE_LABEL[l.type] ? t(LEAVE_TYPE_LABEL[l.type]) : l.type, days: daysText(l.days, t) }),
+      meta: <StatusChip tone={st.tone} icon={st.icon}>{stLabel}</StatusChip>,
     });
   }
 
@@ -287,7 +297,7 @@ export function buildTimeline(leaveHistory: LeaveRow[], settlements: SettlementR
       dateIso: s.settlementDate,
       icon: 'savings',
       tone: 'blue',
-      title: `دفعة مقدَّمة على الإجازة — ${daysText(s.leaveDaysSettled)}`,
+      title: t('msg.ent.timeline.settlement_title', { days: daysText(s.leaveDaysSettled, t) }),
       meta: <PrivateAmount value={s.settlementAmount} level={1} />,
     });
   }
@@ -298,7 +308,7 @@ export function buildTimeline(leaveHistory: LeaveRow[], settlements: SettlementR
       dateIso: e.entryDate,
       icon: 'account_balance_wallet',
       tone: 'indigo',
-      title: LEDGER_TYPE_LABEL[e.entryType] ?? e.entryType,
+      title: LEDGER_TYPE_LABEL[e.entryType] ? t(LEDGER_TYPE_LABEL[e.entryType]) : e.entryType,
       meta: <PrivateAmount value={e.amount} level={1} />,
     });
   }

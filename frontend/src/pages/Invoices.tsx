@@ -6,7 +6,7 @@ import { ReturnToReportButton } from '../components/financial/ReturnToReportButt
 import { useAuth } from '../stores/authStore';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
-import { periodToReportParams } from '../lib/financialPeriod';
+import { periodToReportParams, buildLocalizedPeriodLabel } from '../lib/financialPeriod';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
@@ -209,7 +209,7 @@ export default function Invoices() {
     setCancelCandidate(null);
     if (cancelBusy) return;
     setCancelBusy(true);
-    try { await api.patch(`/invoices/${id}/cancel`); toast.ok('تم إلغاء الفاتورة بنجاح'); load(); } catch (e) { setLoadError(errorMessage(e)); } finally { setCancelBusy(false); }
+    try { await api.patch(`/invoices/${id}/cancel`); toast.ok(t('toast.inv.cancelled')); load(); } catch (e) { setLoadError(errorMessage(e)); } finally { setCancelBusy(false); }
   }
 
   async function exportExcel() {
@@ -262,7 +262,7 @@ export default function Invoices() {
         aside={(
           <>
             <PeriodControl />
-            {hasPermission('invoices.create') && <Button variant="secondary" icon="bolt" onClick={() => setFastEntry(true)}>إدخال فواتير سريع</Button>}
+            {hasPermission('invoices.create') && <Button variant="secondary" icon="bolt" onClick={() => setFastEntry(true)}>{t('btn.inv.fast_entry')}</Button>}
             {hasPermission('invoices.create') && <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('page.invoices.create')}</Button>}
           </>
         )}
@@ -297,10 +297,10 @@ export default function Invoices() {
         return customer ? (
           <div className="invcx-customer-strip">
             <span className="name"><span className="material-symbols-outlined" aria-hidden="true">badge</span>{customer.name}</span>
-            <span>{stats.count} فاتورة</span>
-            <span>إجمالي: <strong><MoneyText value={stats.totalSales} /></strong></span>
-            <span>محصل: <strong className="invcx-paid">{<MoneyText value={stats.totalCollected} />}</strong></span>
-            <span>متبقي: <strong className={stats.totalRemaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}>{<MoneyText value={stats.totalRemaining} />}</strong></span>
+            <span>{stats.count} {t('page.dashboard.invoice_unit')}</span>
+            <span>{t('lbl.inv.total_label')} <strong><MoneyText value={stats.totalSales} /></strong></span>
+            <span>{t('lbl.inv.collected_label')} <strong className="invcx-paid">{<MoneyText value={stats.totalCollected} />}</strong></span>
+            <span>{t('lbl.inv.remaining_label')} <strong className={stats.totalRemaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}>{<MoneyText value={stats.totalRemaining} />}</strong></span>
           </div>
         ) : null;
       })()}
@@ -309,20 +309,20 @@ export default function Invoices() {
       <div className="xpl-toolbar xpl-toolbar--sticky">
         <div className="xpl-toolbar-row">
           <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('page.invoices.search')} ariaLabel={t('page.invoices.search')} />
-          <select className="xpl-select" value={customerFilter} onChange={(e) => { setCustomerFilter(e.target.value); setPage(1); }} aria-label="الجهة">
-            <option value="">الجهة — الكل</option>
+          <select className="xpl-select" value={customerFilter} onChange={(e) => { setCustomerFilter(e.target.value); setPage(1); }} aria-label={t('col.inv.party')}>
+            <option value="">{t('opt.party_all')}</option>
             {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-          <select className="xpl-select" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }} aria-label="شهر الحساب">
-            <option value="">الشهر — الكل</option>
+          <select className="xpl-select" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }} aria-label={t('lbl.inv.billing_period')}>
+            <option value="">{t('opt.month_all')}</option>
             {ARABIC_MONTHS.map((name, idx) => <option key={idx + 1} value={idx + 1}>{name}</option>)}
           </select>
-          <select className="xpl-select" value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }} aria-label="سنة الفوترة">
-            <option value="">السنة — الكل</option>
+          <select className="xpl-select" value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }} aria-label={t('field.inv.billing_year_filter')}>
+            <option value="">{t('opt.year_all')}</option>
             {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
           {isFiltered && <button type="button" className="xpl-clear-link" onClick={resetFilters}>{t('action.reset_filters')}</button>}
-          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{(meta?.total ?? rows.length)} فاتورة</span>
+          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{(meta?.total ?? rows.length)} {t('page.dashboard.invoice_unit')}</span>
         </div>
         <div className="xpl-toolbar-row">
           <FilterChip active={!statusFilter} onClick={() => { setStatusFilter(''); setPage(1); }}>{t('opt.all')}</FilterChip>
@@ -354,8 +354,8 @@ export default function Invoices() {
             title={t('empty.invoices')}
             message={
               !period.isAllPeriods
-                ? `لا توجد فواتير ضمن ${period.label.replace('الفترة المعروضة: ', 'الفترة ')}.`
-                : isFiltered ? 'لا توجد فواتير مطابقة للفلاتر.' : undefined
+                ? t('msg.empty.invoices_in_period', { period: buildLocalizedPeriodLabel(period, t, true) })
+                : isFiltered ? t('msg.empty.invoices_no_match') : undefined
             }
             action={isFiltered
               ? <Button variant="secondary" icon="restart_alt" onClick={resetFilters}>{t('action.reset_filters')}</Button>
@@ -380,7 +380,7 @@ export default function Invoices() {
                     {/* المتبقي: قيمة محسوبة (الإجمالي - المسدّد) بلا حقل خادمي — غير قابلة للفرز */}
                     <th>{t('lbl.inv.remaining_amount')}</th>
                     <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
-                    <th aria-label="فتح" />
+                    <th aria-label={t('aria.open')} />
                   </tr>
                 </thead>
                 <tbody>
@@ -388,7 +388,7 @@ export default function Invoices() {
                     const remaining = Math.max(0, Number(r.total) - Number(r.paidAmount ?? 0));
                     return (
                       <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
-                        aria-label={`تفاصيل الفاتورة ${r.invoiceNumber ?? r.number}`}
+                        aria-label={t('aria.invoice_details', { number: r.invoiceNumber ?? r.number })}
                         onClick={() => setViewing(r)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                         <td><span className="invcx-mono"><strong>{r.invoiceNumber ?? r.number}</strong></span></td>
@@ -445,7 +445,7 @@ export default function Invoices() {
         };
 
         const kpis: DrawerKpi[] = [
-          { label: 'العمر', value: ageDays != null ? `${ageDays} يوم` : '—' },
+          { label: t('lbl.age'), value: ageDays != null ? `${ageDays} ${t('unit.day')}` : '—' },
           { label: t('col.inv.paid'), value: <DrawerKpiMoney value={viewing.paidAmount} />, tone: 'green' },
           { label: t('lbl.inv.remaining_amount'), value: <DrawerKpiMoney value={remaining} />, tone: 'red' },
           { label: t('col.inv.total'), value: <DrawerKpiMoney value={viewing.total} /> },
@@ -461,10 +461,10 @@ export default function Invoices() {
         // buttons in the payments list below (explicit selection — never guesses which payment).
         if (correctAction.singlePaymentId != null) {
           const single = payments.find((p) => Number(p.id) === correctAction.singlePaymentId);
-          if (single) quickActions.push({ key: 'correct-date', icon: 'event_available', label: 'تعديل تاريخ التحصيل', onClick: () => openCorrect(single) });
+          if (single) quickActions.push({ key: 'correct-date', icon: 'event_available', label: t('action.correct_collection_date'), onClick: () => openCorrect(single) });
         }
         if (canCancel) quickActions.push({ key: 'cancel', icon: 'block', label: t('page.invoices.cancel_inv'), onClick: runCancel });
-        if (isSystemAdmin) quickActions.push({ key: 'delete', icon: 'delete_forever', label: 'حذف نهائي', tone: 'danger', onClick: runDelete });
+        if (isSystemAdmin) quickActions.push({ key: 'delete', icon: 'delete_forever', label: t('action.force_delete'), tone: 'danger', onClick: runDelete });
 
         const relatedPayments: RelatedItem[] = payments.map((p, idx) => ({
           key: String(p.id ?? idx),
@@ -479,17 +479,17 @@ export default function Invoices() {
               className="btn secondary invcx-pmt-correct"
               onClick={() => openCorrect(p)}
             >
-              تعديل تاريخ التحصيل
+              {t('action.correct_collection_date')}
             </button>
           ) : undefined,
         }));
 
         const activityItems: ActivityItem[] = [];
-        if (viewing.issueDate) activityItems.push({ key: 'created', icon: 'receipt_long', tone: 'blue', title: 'أُنشئت الفاتورة', timestamp: dateText(viewing.issueDate) });
+        if (viewing.issueDate) activityItems.push({ key: 'created', icon: 'receipt_long', tone: 'blue', title: t('activity.inv.created'), timestamp: dateText(viewing.issueDate) });
         payments.forEach((p, idx) => {
-          activityItems.push({ key: `pmt-${p.id ?? idx}`, icon: 'payments', tone: 'green', title: `دفعة ${money(p.amount)}`, timestamp: dateText(p.date) });
+          activityItems.push({ key: `pmt-${p.id ?? idx}`, icon: 'payments', tone: 'green', title: t('activity.inv.payment', { amount: money(p.amount) }), timestamp: dateText(p.date) });
         });
-        if (String(viewing.status) === 'CANCELLED') activityItems.push({ key: 'cancelled', icon: 'block', tone: 'neutral', title: 'أُلغيت الفاتورة' });
+        if (String(viewing.status) === 'CANCELLED') activityItems.push({ key: 'cancelled', icon: 'block', tone: 'neutral', title: t('activity.inv.cancelled') });
 
         return (
           <div className="invcx-detail-drawer">
@@ -509,31 +509,31 @@ export default function Invoices() {
               </>
             }
           >
-            <DrawerSection title="المعلومات الأساسية">
+            <DrawerSection title={t('drawer.inv.basic_info')}>
               <DrawerField label={t('col.inv.number')} value={viewing.invoiceNumber ?? viewing.number} mono />
               <DrawerField label={t('col.inv.party')} value={viewing.customer?.name ?? viewing.supplier?.name ?? '—'} />
               <DrawerField label={t('col.date')} value={dateText(viewing.issueDate)} />
               <DrawerField label={t('col.inv.type')} value={viewing.invoiceType ?? '—'} />
               <DrawerField label={t('col.inv.direction')} value={directionLabel(viewing.direction ?? '', t)} />
-              <DrawerField label="فترة الحساب" value={viewing.billingMonth && viewing.billingYear ? `${ARABIC_MONTHS[Number(viewing.billingMonth) - 1]} ${viewing.billingYear}` : '—'} />
+              <DrawerField label={t('lbl.inv.billing_period')} value={viewing.billingMonth && viewing.billingYear ? `${ARABIC_MONTHS[Number(viewing.billingMonth) - 1]} ${viewing.billingYear}` : '—'} />
             </DrawerSection>
 
-            <DrawerSection title="الملخص المالي">
+            <DrawerSection title={t('action.financial_summary')}>
               <div className="invcx-fin">
-                {viewing.subtotal != null && <div className="invcx-fin-row"><span className="invcx-fin-label">الإجمالي الفرعي</span><span className="invcx-fin-val">{<MoneyText value={viewing.subtotal} />}</span></div>}
-                {Number(viewing.discount) > 0 && <div className="invcx-fin-row"><span className="invcx-fin-label">الخصم</span><span className="invcx-fin-val">{<MoneyText value={viewing.discount} />}</span></div>}
-                {Number(viewing.taxAmount) > 0 && <div className="invcx-fin-row"><span className="invcx-fin-label">الضريبة</span><span className="invcx-fin-val">{<MoneyText value={viewing.taxAmount} />}</span></div>}
-                <div className="invcx-fin-row total"><span className="invcx-fin-label">الإجمالي</span><span className="invcx-fin-val">{<MoneyText value={viewing.total} />}</span></div>
+                {viewing.subtotal != null && <div className="invcx-fin-row"><span className="invcx-fin-label">{t('lbl.inv.subtotal')}</span><span className="invcx-fin-val">{<MoneyText value={viewing.subtotal} />}</span></div>}
+                {Number(viewing.discount) > 0 && <div className="invcx-fin-row"><span className="invcx-fin-label">{t('lbl.inv.discount_plain')}</span><span className="invcx-fin-val">{<MoneyText value={viewing.discount} />}</span></div>}
+                {Number(viewing.taxAmount) > 0 && <div className="invcx-fin-row"><span className="invcx-fin-label">{t('lbl.inv.tax')}</span><span className="invcx-fin-val">{<MoneyText value={viewing.taxAmount} />}</span></div>}
+                <div className="invcx-fin-row total"><span className="invcx-fin-label">{t('col.inv.total')}</span><span className="invcx-fin-val">{<MoneyText value={viewing.total} />}</span></div>
                 <div className="invcx-fin-row"><span className="invcx-fin-label">{t('col.inv.paid')}</span><span className="invcx-fin-val invcx-paid">{<MoneyText value={viewing.paidAmount} />}</span></div>
                 <div className="invcx-fin-row"><span className="invcx-fin-label">{t('lbl.inv.remaining_amount')}</span><span className={`invcx-fin-val ${remaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}`}>{<MoneyText value={remaining} />}</span></div>
               </div>
             </DrawerSection>
 
             {items.length > 0 && (
-              <DrawerSection title="بنود الفاتورة">
+              <DrawerSection title={t('lbl.inv.items_section')}>
                 <table className="invcx-detail-table">
                   <thead>
-                    <tr><th>الوصف</th><th>الكمية</th><th>{fcMoneyHeader('السعر')}</th><th>{fcMoneyHeader('الإجمالي')}</th></tr>
+                    <tr><th>{t('col.description')}</th><th>{t('ph.qty')}</th><th>{fcMoneyHeader(t('agreements.usage.col.price'))}</th><th>{fcMoneyHeader(t('col.inv.total'))}</th></tr>
                   </thead>
                   <tbody>
                     {items.map((it, idx) => (
@@ -550,16 +550,16 @@ export default function Invoices() {
             )}
 
             {viewing.notes && (
-              <DrawerSection title="ملاحظات">
-                <DrawerField label="ملاحظات" value={viewing.notes} />
+              <DrawerSection title={t('field.notes')}>
+                <DrawerField label={t('field.notes')} value={viewing.notes} />
               </DrawerSection>
             )}
 
-            <DrawerRelated title="الدفعات" items={relatedPayments} />
+            <DrawerRelated title={t('lbl.inv.payments_section')} items={relatedPayments} />
             <DrawerActivity items={activityItems} />
 
-            <DrawerSection title="بيانات تقنية">
-              <DrawerField label="المعرّف الداخلي" value={`#${viewing.id}`} mono />
+            <DrawerSection title={t('drawer.technical_info')}>
+              <DrawerField label={t('lbl.internal_id')} value={`#${viewing.id}`} mono />
             </DrawerSection>
           </Drawer>
           </div>
@@ -567,10 +567,10 @@ export default function Invoices() {
       })()}
 
       {fastEntry && <InvoiceFastEntryDialog onClose={() => setFastEntry(false)} onSaved={load} />}
-      {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ الفاتورة بنجاح'); load(); }} />}
-      {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ الفاتورة بنجاح'); load(); }} />}
-      {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={() => { toast.ok('تم تسجيل الدفعة بنجاح'); load(); }} />}
-      {correcting && <CorrectCollectionDate payment={correcting} onClose={() => setCorrecting(null)} onSaved={(msg) => { toast.ok(msg || 'تم تصحيح تاريخ التحصيل بنجاح'); load(); }} />}
+      {creating && <CreateInvoice onClose={() => setCreating(false)} onSaved={() => { toast.ok(t('toast.inv.saved')); load(); }} />}
+      {editing && <EditInvoice invoice={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok(t('toast.inv.saved')); load(); }} />}
+      {paying && <AddPayment invoice={paying} onClose={() => setPaying(null)} onSaved={() => { toast.ok(t('toast.inv.payment_recorded')); load(); }} />}
+      {correcting && <CorrectCollectionDate payment={correcting} onClose={() => setCorrecting(null)} onSaved={(msg) => { toast.ok(msg || t('toast.inv.collection_date_corrected')); load(); }} />}
       {showMonthlyReport && (
         <MonthlyReportModal
           filters={{
@@ -591,9 +591,9 @@ export default function Invoices() {
       )}
       {cancelCandidate !== null && (
         <ConfirmModal
-          title="تأكيد إلغاء الفاتورة"
+          title={t('dlg.cancel_invoice.title')}
           message={t('confirm.cancel_invoice')}
-          confirmLabel="إلغاء الفاتورة"
+          confirmLabel={t('dlg.cancel_invoice.confirm_btn')}
           variant="danger"
           onConfirm={() => executeCancel(cancelCandidate)}
           onCancel={() => setCancelCandidate(null)}

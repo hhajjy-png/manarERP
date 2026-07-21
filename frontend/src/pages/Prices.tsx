@@ -151,7 +151,7 @@ export default function Prices() {
   async function executeArchive(id: number) {
     setArchiveConfirmId(null);
     if (busy) return; setBusy(true);
-    try { await api.delete(`/prices/${id}`); toast.ok('تم الأرشفة بنجاح'); setViewing(null); load(); loadStats(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/prices/${id}`); toast.ok(t('msg.price.archived')); setViewing(null); load(); loadStats(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   function resetFilters() {
@@ -161,11 +161,11 @@ export default function Prices() {
   const hasFilters = !!(search || filterPlant || filterCompany || filterUnit || filterCustomer);
 
   const dashTabs = useMemo(() => ([
-    { key: 'unused' as const, label: `غير مستخدمة${agreementsDashboard ? ` (${agreementsDashboard.unusedCount})` : ''}` },
-    { key: 'expiring' as const, label: `تنتهي قريبًا${agreementsDashboard ? ` (${agreementsDashboard.expiringCount})` : ''}` },
-    { key: 'top5' as const, label: 'الأعلى استخدامًا' },
-    { key: 'least5' as const, label: 'الأقل استخدامًا' },
-  ]), [agreementsDashboard]);
+    { key: 'unused' as const, label: `${t('lbl.prices.dash_unused')}${agreementsDashboard ? ` (${agreementsDashboard.unusedCount})` : ''}` },
+    { key: 'expiring' as const, label: `${t('lbl.prices.dash_expiring')}${agreementsDashboard ? ` (${agreementsDashboard.expiringCount})` : ''}` },
+    { key: 'top5' as const, label: t('lbl.prices.dash_top5') },
+    { key: 'least5' as const, label: t('lbl.prices.dash_least5') },
+  ]), [agreementsDashboard, t]);
 
   return (
     <div className="xpl-scope xpl-page" dir="rtl">
@@ -175,8 +175,8 @@ export default function Prices() {
         subtitle={t('page.prices.subtitle')}
         chips={stats ? (
           <>
-            <IdChip icon="handshake" tone="indigo">{stats.count} اتفاقية</IdChip>
-            <IdChip icon="groups" tone="green">{stats.customerCount} عميل</IdChip>
+            <IdChip icon="handshake" tone="indigo">{stats.count} {t('unit.agreement')}</IdChip>
+            <IdChip icon="groups" tone="green">{stats.customerCount} {t('unit.customer')}</IdChip>
           </>
         ) : undefined}
         aside={
@@ -200,13 +200,13 @@ export default function Prices() {
 
       {/* Agreements dashboard */}
       {agreementsDashboard && (
-        <SectionCard title="لوحة الاتفاقيات" icon="dashboard">
+        <SectionCard title={t('sec.prices.agreements_board')} icon="dashboard">
           <div className="xpl-toolbar-row" style={{ marginBottom: 12 }}>
             {dashTabs.map((tb) => (
               <FilterChip key={tb.key} active={dashboardTab === tb.key} onClick={() => setDashboardTab(tb.key)}>{tb.label}</FilterChip>
             ))}
           </div>
-          <AgreementMiniTable rows={agreementsDashboard[dashboardTab]} />
+          <AgreementMiniTable rows={agreementsDashboard[dashboardTab]} t={t} />
         </SectionCard>
       )}
 
@@ -215,9 +215,9 @@ export default function Prices() {
         <div className="xpl-toolbar-row">
           <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('page.prices.search')} ariaLabel={t('page.prices.search')} />
           <div className="xpl-field" style={{ minWidth: 170 }}>
-            <span className="xpl-field-label">العميل</span>
-            <select className="xpl-select" aria-label="العميل" value={filterCustomer} onChange={(e) => { setFilterCustomer(e.target.value); setPage(1); }}>
-              <option value="">كل العملاء</option>
+            <span className="xpl-field-label">{t('col.customer')}</span>
+            <select className="xpl-select" aria-label={t('col.customer')} value={filterCustomer} onChange={(e) => { setFilterCustomer(e.target.value); setPage(1); }}>
+              <option value="">{t('opt.all_customers')}</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -229,13 +229,13 @@ export default function Prices() {
             <span className="xpl-field-label">{t('filter.prices.company')}</span>
             <input className="xpl-input" aria-label={t('filter.prices.company')} value={filterCompany} onChange={(e) => { setFilterCompany(e.target.value); setPage(1); }} />
           </div>
-          {hasPermission('reports.export') && <Button variant="secondary" icon="table_view" busy={exportBusy} onClick={exportExcel}>تصدير Excel</Button>}
+          {hasPermission('reports.export') && <Button variant="secondary" icon="table_view" busy={exportBusy} onClick={exportExcel}>{t('page.salaries.export_excel')}</Button>}
         </div>
         <div className="xpl-toolbar-row">
           <FilterChip active={filterUnit === ''} onClick={() => { setFilterUnit(''); setPage(1); }}>{t('opt.all')}</FilterChip>
           {contractUnits.map((u) => <FilterChip key={u} active={filterUnit === u} onClick={() => { setFilterUnit(u); setPage(1); }}>{u}</FilterChip>)}
           {hasFilters && <button type="button" className="xpl-clear-link" onClick={resetFilters}>{t('action.reset_filters')}</button>}
-          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} نتيجة</span>
+          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} {t('unit.result')}</span>
         </div>
       </div>
 
@@ -245,7 +245,7 @@ export default function Prices() {
           <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
         ) : rows.length === 0 ? (
           <EmptyState icon="sell" tone="neutral" title={t('empty.prices')}
-            message={hasFilters ? 'لا توجد اتفاقيات مطابقة للفلاتر.' : undefined}
+            message={hasFilters ? t('empty.prices.no_match_filters') : undefined}
             action={hasFilters ? <Button variant="secondary" icon="restart_alt" onClick={resetFilters}>{t('action.reset_filters')}</Button>
               : hasPermission('prices.create') ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('page.prices.create')}</Button> : undefined} />
         ) : (
@@ -254,19 +254,19 @@ export default function Prices() {
               <table className="xpl-table">
                 <thead>
                   <tr>
-                    <SortableHeader label="العميل" title="العميل" state={sort.getState('customer')} onToggle={() => sort.toggle('customer')} />
+                    <SortableHeader label={t('col.customer')} title={t('col.customer')} state={sort.getState('customer')} onToggle={() => sort.toggle('customer')} />
                     <SortableHeader label={t('col.prices.plant')} title={t('col.prices.plant')} state={sort.getState('asphaltPlant')} onToggle={() => sort.toggle('asphaltPlant')} />
                     <SortableHeader label={t('col.prices.company')} title={t('col.prices.company')} state={sort.getState('companyName')} onToggle={() => sort.toggle('companyName')} />
                     <SortableHeader label={t('col.prices.location')} title={t('col.prices.location')} state={sort.getState('contractLocation')} onToggle={() => sort.toggle('contractLocation')} />
                     <SortableHeader label={t('col.prices.unit')} title={t('col.prices.unit')} state={sort.getState('contractUnit')} onToggle={() => sort.toggle('contractUnit')} />
                     <SortableHeader label={fcMoneyHeader(t('col.prices.unit_price'))} title={t('col.prices.unit_price')} state={sort.getState('unitPrice')} onToggle={() => sort.toggle('unitPrice')} />
-                    <th aria-label="فتح" />
+                    <th aria-label={t('a11y.open_row')} />
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
-                      aria-label={`تفاصيل اتفاقية ${r.asphaltPlant}`}
+                      aria-label={t('a11y.price_details', { plant: r.asphaltPlant })}
                       onClick={() => setViewing(r)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                       <td>{r.customer?.name ?? <span style={{ color: 'var(--xpl-muted)' }}>—</span>}</td>
@@ -304,26 +304,26 @@ export default function Prices() {
             <>
               {hasPermission('prices.update') && <Button variant="primary" icon="edit" onClick={() => { setEditing(viewing); setViewing(null); }}>{t('action.edit')}</Button>}
               {hasPermission('prices.delete') && <Button variant="secondary" icon="archive" busy={busy} onClick={() => archiveRow(viewing.id)}>{t('action.delete')}</Button>}
-              {isSystemAdmin && <Button variant="danger" icon="delete_forever" onClick={() => setForceDeleteCandidate({ id: viewing.id, asphaltPlant: viewing.asphaltPlant })}>حذف نهائي</Button>}
+              {isSystemAdmin && <Button variant="danger" icon="delete_forever" onClick={() => setForceDeleteCandidate({ id: viewing.id, asphaltPlant: viewing.asphaltPlant })}>{t('action.force_delete')}</Button>}
             </>
           }
         >
-          <DrawerSection title="المشروع والعميل">
+          <DrawerSection title={t('sec.prices.project_customer')}>
             <DrawerField label={t('col.prices.plant')} value={viewing.asphaltPlant} />
-            <DrawerField label="العميل" value={viewing.customer?.name ?? '—'} />
+            <DrawerField label={t('col.customer')} value={viewing.customer?.name ?? '—'} />
             <DrawerField label={t('col.prices.company')} value={viewing.companyName} />
             <DrawerField label={t('col.prices.location')} value={viewing.contractLocation} />
           </DrawerSection>
-          <DrawerSection title="التسعير">
+          <DrawerSection title={t('sec.pricing')}>
             <DrawerField label={t('col.prices.unit')} value={viewing.contractUnit} />
             <DrawerField label={t('col.prices.unit_price')} value={<MoneyText value={viewing.unitPrice} />} />
-            {viewing.validUntil && <DrawerField label="صالح حتى" value={<span className="prx-valid">{String(viewing.validUntil).slice(0, 10)}</span>} />}
+            {viewing.validUntil && <DrawerField label={t('field.valid_until')} value={<span className="prx-valid">{String(viewing.validUntil).slice(0, 10)}</span>} />}
           </DrawerSection>
         </Drawer>
       )}
 
-      {creating && <PriceForm customers={customers} onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ السعر بنجاح'); load(); loadStats(); }} />}
-      {editing && <PriceForm customers={customers} price={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ السعر بنجاح'); load(); loadStats(); }} />}
+      {creating && <PriceForm customers={customers} onClose={() => setCreating(false)} onSaved={() => { toast.ok(t('msg.price.saved')); load(); loadStats(); }} />}
+      {editing && <PriceForm customers={customers} price={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok(t('msg.price.saved')); load(); loadStats(); }} />}
 
       {forceDeleteCandidate && (
         <ForceDeleteProjectPriceModal
@@ -346,13 +346,13 @@ export default function Prices() {
             <span className="material-symbols-outlined">info</span>
             <div>
               {t('agreements.usage.note')}
-              {usageReport.hasDirectTracking && <div className="prx-note-ok">يعتمد هذا التقرير على الفواتير المنشأة بعد تفعيل تتبع اتفاقيات الأسعار.</div>}
+              {usageReport.hasDirectTracking && <div className="prx-note-ok">{t('hint.prices.direct_tracking')}</div>}
             </div>
           </div>
 
           <div className="xpl-toolbar-row">
-            <FilterChip active={!groupByCompany} onClick={() => setGroupByCompany(false)}>تفصيل الاتفاقيات</FilterChip>
-            <FilterChip active={groupByCompany} onClick={() => { setGroupByCompany(true); loadCompanyUsage(); }}>تجميع حسب الشركة</FilterChip>
+            <FilterChip active={!groupByCompany} onClick={() => setGroupByCompany(false)}>{t('lbl.prices.detail_view')}</FilterChip>
+            <FilterChip active={groupByCompany} onClick={() => { setGroupByCompany(true); loadCompanyUsage(); }}>{t('lbl.prices.group_by_company')}</FilterChip>
           </div>
 
           {!groupByCompany ? (
@@ -391,11 +391,11 @@ export default function Prices() {
               <table className="prx-mini">
                 <thead>
                   <tr>
-                    <th>الشركة</th>
-                    <th className="prx-center">عدد الاتفاقيات</th>
-                    <th className="prx-center">مرات الاستخدام</th>
-                    <th className="prx-center">إجمالي الكمية</th>
-                    <th>{fcMoneyHeader('إجمالي الإيرادات')}</th>
+                    <th>{t('field.company')}</th>
+                    <th className="prx-center">{t('col.prices.agreement_count')}</th>
+                    <th className="prx-center">{t('col.prices.usage_count')}</th>
+                    <th className="prx-center">{t('col.prices.total_qty')}</th>
+                    <th>{fcMoneyHeader(t('col.prices.total_revenue'))}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -416,27 +416,27 @@ export default function Prices() {
       )}
 
       {archiveConfirmId !== null && (
-        <ConfirmModal title="تأكيد الأرشفة" message={t('confirm.archive_price')} confirmLabel="أرشفة" variant="warning" onConfirm={() => executeArchive(archiveConfirmId)} onCancel={() => setArchiveConfirmId(null)} />
+        <ConfirmModal title={t('confirm.archive_price_title')} message={t('confirm.archive_price')} confirmLabel={t('action.archive')} variant="warning" onConfirm={() => executeArchive(archiveConfirmId)} onCancel={() => setArchiveConfirmId(null)} />
       )}
     </div>
   );
 }
 
 // ── Agreements mini table ──────────────────────────────────────────────────────
-function AgreementMiniTable({ rows }: { rows: AgreementRow[] }) {
-  if (!rows.length) return <div style={{ fontSize: 13, color: 'var(--xpl-muted)', padding: '8px 0' }}>لا توجد بيانات</div>;
+function AgreementMiniTable({ rows, t }: { rows: AgreementRow[]; t: (key: string, vars?: Record<string, string | number>) => string }) {
+  if (!rows.length) return <div style={{ fontSize: 13, color: 'var(--xpl-muted)', padding: '8px 0' }}>{t('empty.no_data')}</div>;
   return (
     <div className="xpl-table-wrap" style={{ maxHeight: 320 }}>
       <table className="prx-mini">
         <thead>
           <tr>
-            <th>المصنع</th>
-            <th>الشركة</th>
-            <th>العميل</th>
-            <th>{fcMoneyHeader('السعر')}</th>
-            <th className="prx-center">الاستخدام</th>
-            <th>{fcMoneyHeader('إجمالي الفاتورة')}</th>
-            <th>صالح حتى</th>
+            <th>{t('col.prices.plant_short')}</th>
+            <th>{t('field.company')}</th>
+            <th>{t('col.customer')}</th>
+            <th>{fcMoneyHeader(t('col.price'))}</th>
+            <th className="prx-center">{t('col.prices.usage')}</th>
+            <th>{fcMoneyHeader(t('col.prices.invoice_total'))}</th>
+            <th>{t('field.valid_until')}</th>
           </tr>
         </thead>
         <tbody>
@@ -479,7 +479,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
     if (!companyName.trim()) { setError(t('error.prices.company_required')); return; }
     if (!contractLocation.trim()) { setError(t('error.prices.location_required')); return; }
     if (unitPrice < 0) { setError(t('error.price_negative')); return; }
-    if (!isEdit && !customerId) { setError('يجب اختيار عميل'); return; }
+    if (!isEdit && !customerId) { setError(t('error.prices.customer_required')); return; }
 
     setSaving(true);
     try {
@@ -507,7 +507,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
     <Dialog
       icon="sell"
       title={isEdit ? t('modal.edit_price') : t('modal.new_price')}
-      subtitle={isEdit ? asphaltPlant : 'إضافة اتفاقية سعر جديدة'}
+      subtitle={isEdit ? asphaltPlant : t('page.prices.new_subtitle')}
       size="lg"
       onClose={onClose}
       footer={
@@ -519,18 +519,18 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
     >
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
 
-      <DialogSection title="المشروع" icon="factory">
+      <DialogSection title={t('sec.prices.project')} icon="factory">
         <div className="xpl-field xpl-field--full">
           <label>{t('col.prices.plant')} <span className="req">*</span></label>
           <input className="xpl-input" value={asphaltPlant} onChange={(e) => setAsphaltPlant(e.target.value)} placeholder={t('ph.prices.plant')} autoFocus aria-label={t('col.prices.plant')} />
         </div>
       </DialogSection>
 
-      <DialogSection title="الشركة والعميل" icon="apartment">
+      <DialogSection title={t('sec.prices.company_customer')} icon="apartment">
         <div className="xpl-field">
-          <label>العميل {!isEdit ? <span className="req">*</span> : null}</label>
-          <select className="xpl-select" value={customerId} onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : '')} aria-label="العميل">
-            <option value="">— اختر عميل —</option>
+          <label>{t('col.customer')} {!isEdit ? <span className="req">*</span> : null}</label>
+          <select className="xpl-select" value={customerId} onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : '')} aria-label={t('col.customer')}>
+            <option value="">{t('opt.select_customer')}</option>
             {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
@@ -540,14 +540,14 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
         </div>
       </DialogSection>
 
-      <DialogSection title="الموقع" icon="location_on">
+      <DialogSection title={t('sec.location')} icon="location_on">
         <div className="xpl-field xpl-field--full">
           <label>{t('col.prices.location')} <span className="req">*</span></label>
           <input className="xpl-input" value={contractLocation} onChange={(e) => setContractLocation(e.target.value)} placeholder={t('ph.prices.location')} aria-label={t('col.prices.location')} />
         </div>
       </DialogSection>
 
-      <DialogSection title="التسعير" icon="payments">
+      <DialogSection title={t('sec.pricing')} icon="payments">
         <div className="xpl-field">
           <label>{t('col.prices.unit')}</label>
           <select className="xpl-select" value={contractUnit} onChange={(e) => setContractUnit(e.target.value as (typeof contractUnits)[number])} aria-label={t('col.prices.unit')}>
@@ -560,10 +560,10 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
         </div>
       </DialogSection>
 
-      <DialogSection title="بيانات إضافية" icon="event">
+      <DialogSection title={t('sec.additional_info')} icon="event">
         <div className="xpl-field">
-          <label>صالح حتى (تاريخ انتهاء الاتفاقية)</label>
-          <DateInput className="xpl-input" value={validUntil} onChange={setValidUntil} ariaLabel="تاريخ انتهاء الاتفاقية" />
+          <label>{t('field.valid_until_full')}</label>
+          <DateInput className="xpl-input" value={validUntil} onChange={setValidUntil} ariaLabel={t('a11y.agreement_expiry_date')} />
         </div>
       </DialogSection>
     </Dialog>

@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { useUI } from '../stores/uiStore';
+import { t } from '../lib/i18n';
 
 /** عنوان الخدمة المحلية — من جسر Electron إن وُجد، وإلا الافتراضي. */
 declare global {
@@ -102,28 +104,41 @@ api.interceptors.response.use(
   },
 );
 
-const STATUS_LABELS: Record<string, string> = {
-  UNPAID: 'غير مدفوعة', PARTIAL: 'مدفوعة جزئياً', PAID: 'مدفوعة',
-  OVERDUE: 'متأخرة', CANCELLED: 'ملغاة',
+// UNPAID/OVERDUE/CANCELLED reuse the existing inv.status.* dictionary keys
+// (byte-identical Arabic wording); PARTIAL/PAID use their own error.invoice_status.*
+// keys because inv.status.partial/paid carry different Arabic wording.
+const STATUS_LABEL_KEYS: Record<string, string> = {
+  UNPAID: 'inv.status.unpaid',
+  PARTIAL: 'error.invoice_status.partial',
+  PAID: 'error.invoice_status.paid',
+  OVERDUE: 'inv.status.overdue',
+  CANCELLED: 'inv.status.cancelled',
 };
 
 const NETWORK_ERROR_STRINGS = ['network error', 'econnrefused', 'err_connection_refused', 'failed to fetch', 'networkerror'];
 
-const HTTP_STATUS_MESSAGES: Record<number, string> = {
-  400: 'البيانات المرسلة غير صحيحة — يرجى مراجعة الحقول والمحاولة مرة أخرى',
-  403: 'ليس لديك صلاحية لتنفيذ هذا الإجراء',
-  404: 'البيانات المطلوبة غير موجودة',
-  408: 'انتهت مهلة الاتصال بالخادم — حاول مرة أخرى',
-  409: 'تعارض في البيانات — قد يكون السجل موجوداً مسبقاً',
-  413: 'حجم الملف أكبر من الحد المسموح به',
-  422: 'البيانات لا تستوفي المتطلبات المطلوبة',
-  429: 'طلبات كثيرة جداً — يرجى الانتظار ثم المحاولة مرة أخرى',
-  500: 'حدث خطأ في الخادم — يرجى المحاولة مرة أخرى أو إعادة تشغيل التطبيق',
-  503: 'الخادم غير متاح مؤقتاً — تأكد من تشغيل التطبيق',
+const HTTP_STATUS_MESSAGE_KEYS: Record<number, string> = {
+  400: 'error.http.400',
+  403: 'error.http.403',
+  404: 'error.http.404',
+  408: 'error.http.408',
+  409: 'error.http.409',
+  413: 'error.http.413',
+  422: 'error.http.422',
+  429: 'error.http.429',
+  500: 'error.http.500',
+  503: 'error.http.503',
 };
 
-/** استخراج رسالة الخطأ العربية الموحّدة من الخادم. */
+/**
+ * Extracts the unified, lang-aware error message from a server/network error.
+ * Reads the current UI language directly from the uiStore (outside React —
+ * this file has no hook access and is called from ~70 call sites app-wide,
+ * so the function signature must not change). `errorMessage(err)` keeps
+ * working exactly as before; it simply now resolves strings via `t()`.
+ */
 export function errorMessage(err: unknown): string {
+  const lang = useUI.getState().lang;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const e = err as any;
   const data = e?.response?.data;
@@ -132,18 +147,19 @@ export function errorMessage(err: unknown): string {
   if (!e?.response) {
     const msg = (e?.message ?? '').toLowerCase();
     if (NETWORK_ERROR_STRINGS.some(s => msg.includes(s)) || e?.code === 'ECONNREFUSED' || e?.code === 'ERR_NETWORK') {
-      return 'تعذّر الاتصال بخادم التطبيق — تأكد من تشغيل نظام المنار وحاول مرة أخرى';
+      return t('error.network.no_connection', lang);
     }
     if (e?.code === 'ECONNABORTED' || msg.includes('timeout')) {
-      return 'انتهت مهلة الاتصال — يرجى المحاولة مرة أخرى';
+      return t('error.network.timeout', lang);
     }
-    return e?.message ?? 'حدث خطأ غير متوقع';
+    return e?.message ?? t('error.generic_unexpected', lang);
   }
 
   // رسالة الخادم إن وُجدت
   if (!data) {
     const status = e?.response?.status as number | undefined;
-    return (status !== undefined ? HTTP_STATUS_MESSAGES[status] : undefined) ?? 'حدث خطأ غير متوقع';
+    const key = status !== undefined ? HTTP_STATUS_MESSAGE_KEYS[status] : undefined;
+    return (key ? t(key, lang) : undefined) ?? t('error.generic_unexpected', lang);
   }
 
   const details = data.details;
@@ -151,24 +167,28 @@ export function errorMessage(err: unknown): string {
   // رسالة تفصيلية لتعارض رقم الفاتورة
   if (details && typeof details === 'object' && details.code === 'DUPLICATE_INVOICE_NUMBER') {
     const rec = details.conflictingRecord;
-    const lines = [`رقم الفاتورة مستخدم مسبقاً: ${details.value ?? ''}`];
-    if (rec?.partyName) lines.push(`الجهة: ${rec.partyName}`);
+    const lines = [t('error.duplicate_invoice.number_used', lang, { value: details.value ?? '' })];
+    if (rec?.partyName) lines.push(t('error.duplicate_invoice.party', lang, { value: rec.partyName }));
     if (rec?.issueDate) {
       const d = new Date(rec.issueDate as string);
-      if (!isNaN(d.getTime())) lines.push(`التاريخ: ${d.toLocaleDateString('ar-KW')}`);
+      if (!isNaN(d.getTime())) lines.push(t('error.duplicate_invoice.date', lang, { value: d.toLocaleDateString('ar-KW') }));
     }
-    if (rec?.status) lines.push(`الحالة: ${STATUS_LABELS[rec.status as string] ?? rec.status}`);
+    if (rec?.status) {
+      const statusKey = STATUS_LABEL_KEYS[rec.status as string];
+      const statusLabel = statusKey ? t(statusKey, lang) : rec.status;
+      lines.push(t('error.duplicate_invoice.status', lang, { value: statusLabel }));
+    }
     return lines.join('\n');
   }
 
   // تعارض رقم قيد اليومية (entryNumber)
   if (details && typeof details === 'object' && details.code === 'DUPLICATE_ENTRY_NUMBER') {
-    return 'حدث تعارض في ترقيم القيود المحاسبية — يرجى المحاولة مرة أخرى';
+    return t('error.duplicate_journal_entry_numbering', lang);
   }
 
   // ترحيل مزدوج للقيد المحاسبي
   if (details && typeof details === 'object' && details.code === 'DUPLICATE_JOURNAL_ENTRY') {
-    return data.message ?? 'قيد محاسبي موجود مسبقاً لهذا المستند';
+    return data.message ?? t('error.duplicate_journal_entry_exists', lang);
   }
 
   // أخطاء حقول Zod — نعرض أول خطأ
@@ -179,5 +199,5 @@ export function errorMessage(err: unknown): string {
     if (firstArr) return `${data.message}: ${firstArr[0]}`;
   }
 
-  return data.message ?? e?.message ?? 'حدث خطأ غير متوقع';
+  return data.message ?? e?.message ?? t('error.generic_unexpected', lang);
 }

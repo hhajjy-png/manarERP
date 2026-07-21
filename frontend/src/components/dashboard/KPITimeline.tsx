@@ -7,6 +7,7 @@ import { api } from '../../api/client';
 import { Skeleton } from './Skeleton';
 import { formatCurrency, formatNumber, formatCompact } from '../../lib/format';
 import { money } from '../../config/modules';
+import { useT } from '../../lib/i18n';
 
 type Period = '1m' | '3m' | '6m' | '12m';
 
@@ -19,14 +20,15 @@ interface TimelinePoint {
   outstandingEnd: number;
 }
 
-const PERIOD_LABELS: Record<Period, string> = {
-  '1m':  'آخر شهر',
-  '3m':  'آخر 3 أشهر',
-  '6m':  'آخر 6 أشهر',
-  '12m': 'آخر 12 شهر',
+const PERIOD_LABEL_KEY: Record<Period, string> = {
+  '1m':  'kpitl.period.1m',
+  '3m':  'kpitl.period.3m',
+  '6m':  'kpitl.period.6m',
+  '12m': 'kpitl.period.12m',
 };
 
 export default function KPITimeline() {
+  const { t } = useT();
   const [period, setPeriod] = useState<Period>('6m');
   const [data, setData]     = useState<TimelinePoint[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -37,14 +39,14 @@ export default function KPITimeline() {
     setError('');
     api.get<{ success: boolean; data: TimelinePoint[] }>(`/executive/kpi-timeline?period=${period}`)
       .then(r => { setData(r.data.data); })
-      .catch(() => { setError('تعذّر تحميل البيانات'); })
+      .catch(() => { setError(t('kpitl.err.load_failed')); })
       .finally(() => setLoading(false));
   }, [period]);
 
   return (
     <div style={{ background: 'var(--db-card)', borderRadius: 'var(--db-radius)', padding: '20px', border: '1px solid var(--db-border)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--db-text)' }}>📊 مسار المؤشرات الزمني</h3>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--db-text)' }}>📊 {t('kpitl.title')}</h3>
         <div style={{ display: 'flex', gap: 6 }}>
           {(['1m', '3m', '6m', '12m'] as Period[]).map(p => (
             <button
@@ -57,7 +59,7 @@ export default function KPITimeline() {
                 color: period === p ? '#fff' : 'var(--db-muted)',
                 transition: 'all 0.2s',
               }}
-            >{PERIOD_LABELS[p]}</button>
+            >{t(PERIOD_LABEL_KEY[p])}</button>
           ))}
         </div>
       </div>
@@ -93,9 +95,9 @@ export default function KPITimeline() {
                 formatter={(v) => typeof v === 'number' ? money(v) : String(v)}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: 'var(--db-muted)' }} />
-              <Area type="monotone" dataKey="revenue"    name="الإيرادات"   stroke="#3B82F6" fill="url(#kpi-rev)" strokeWidth={2} dot={false} />
-              <Area type="monotone" dataKey="expenses"   name="المصروفات"   stroke="#EF4444" fill="url(#kpi-exp)" strokeWidth={2} dot={false} />
-              <Area type="monotone" dataKey="collections" name="التحصيلات" stroke="#10B981" fill="url(#kpi-col)" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="revenue"    name={t('today.revenue')}   stroke="#3B82F6" fill="url(#kpi-rev)" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="expenses"   name={t('today.expenses')}   stroke="#EF4444" fill="url(#kpi-exp)" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="collections" name={t('today.collections')} stroke="#10B981" fill="url(#kpi-col)" strokeWidth={2} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
 
@@ -105,11 +107,11 @@ export default function KPITimeline() {
             return (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, marginTop: 12 }}>
                 {[
-                  { label: 'إيرادات', value: last.revenue, color: '#3B82F6' },
-                  { label: 'مصروفات', value: last.expenses, color: '#EF4444' },
-                  { label: 'تحصيلات', value: last.collections, color: '#10B981' },
-                  { label: 'صافي ربح', value: last.profit, color: last.profit >= 0 ? '#10B981' : '#EF4444' },
-                  { label: 'ذمم مستحقة', value: last.outstandingEnd, color: '#F59E0B' },
+                  { label: t('dash.lbl.revenue'), value: last.revenue, color: '#3B82F6' },
+                  { label: t('dash.lbl.expenses'), value: last.expenses, color: '#EF4444' },
+                  { label: t('exec.lbl.collections'), value: last.collections, color: '#10B981' },
+                  { label: t('kpitl.lbl.net_profit'), value: last.profit, color: last.profit >= 0 ? '#10B981' : '#EF4444' },
+                  { label: t('kpitl.lbl.outstanding'), value: last.outstandingEnd, color: '#F59E0B' },
                 ].map(item => (
                   <div key={item.label} style={{
                     background: 'var(--db-inner)', borderRadius: 8, padding: '8px 10px', textAlign: 'center',

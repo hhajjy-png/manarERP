@@ -2,12 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { printCurrentView } from '../utils/print';
 import chequeImg from '../assets/cheakv1.png';
+import { useT } from '../lib/i18n';
 import {
   DEFAULT_TEMPLATE,
   FIELD_KEYS,
   FIELD_LABELS,
+  FIELD_LABEL_KEYS,
   FONT_FAMILIES,
   FONT_SIZES,
+  bankLabel,
 } from '../utils/chequeTemplate';
 import type {
   ChequeTemplate,
@@ -49,13 +52,13 @@ interface Props {
 const ZOOM_LEVELS = [50, 75, 100, 125, 150, 200] as const;
 const BASE_CHEQUE_WIDTH = 820;
 
-const GEOMETRY_FIELDS: { key: keyof CalibrationGeometry; label: string }[] = [
-  { key: 'pageWidthMm', label: 'عرض الصفحة (مم)' },
-  { key: 'pageHeightMm', label: 'ارتفاع الصفحة (مم)' },
-  { key: 'chequeWidthMm', label: 'عرض الشيك (مم)' },
-  { key: 'chequeHeightMm', label: 'ارتفاع الشيك (مم)' },
-  { key: 'offsetXMm', label: 'إزاحة أفقية (مم)' },
-  { key: 'offsetYMm', label: 'إزاحة رأسية (مم)' },
+const GEOMETRY_FIELDS: { key: keyof CalibrationGeometry; labelKey: string }[] = [
+  { key: 'pageWidthMm', labelKey: 'lbl.geom.page_width' },
+  { key: 'pageHeightMm', labelKey: 'lbl.geom.page_height' },
+  { key: 'chequeWidthMm', labelKey: 'lbl.geom.cheque_width' },
+  { key: 'chequeHeightMm', labelKey: 'lbl.geom.cheque_height' },
+  { key: 'offsetXMm', labelKey: 'lbl.geom.offset_x' },
+  { key: 'offsetYMm', labelKey: 'lbl.geom.offset_y' },
 ];
 
 // ── Validation helper for import ───────────────────────────────────────────────
@@ -113,6 +116,7 @@ export default function ChequeCalibrator({
   onClose,
   isSystemAdmin = false,
 }: Props) {
+  const { t } = useT();
   const [currentBank, setCurrentBank] = useState(initialBank);
   const [workingTemplates, setWorkingTemplates] = useState<Record<string, ChequeTemplate>>(() => {
     const result: Record<string, ChequeTemplate> = {};
@@ -285,11 +289,11 @@ export default function ChequeCalibrator({
       });
       onSaved(currentBank, currentTemplate);
       setSaveNote('');
-      setSaveMsg({ type: 'ok', text: `تم حفظ نموذج ${currentBank} كنسخة جديدة` });
+      setSaveMsg({ type: 'ok', text: t('msg.calib.template_saved', { bank: bankLabel(currentBank, t) }) });
       setTimeout(() => setSaveMsg(null), 4000);
       loadVersions(currentBank);
     } catch {
-      setSaveMsg({ type: 'error', text: 'حدث خطأ أثناء الحفظ' });
+      setSaveMsg({ type: 'error', text: t('error.calib.save_failed') });
     } finally {
       setSaving(false);
     }
@@ -305,16 +309,16 @@ export default function ChequeCalibrator({
       const restoredJson: string = res.data?.data?.template ?? v.template;
       const parsed = JSON.parse(restoredJson) as unknown;
       if (!isValidTemplate(parsed)) {
-        setSaveMsg({ type: 'error', text: 'النسخة المستعادة غير صالحة' });
+        setSaveMsg({ type: 'error', text: t('error.calib.invalid_restored_version') });
         return;
       }
       setWorkingTemplates((prev) => ({ ...prev, [currentBank]: parsed }));
       onSaved(currentBank, parsed);
-      setSaveMsg({ type: 'ok', text: `تم استعادة النسخة ${v.version} لبنك ${currentBank}` });
+      setSaveMsg({ type: 'ok', text: t('msg.calib.version_restored', { version: v.version, bank: bankLabel(currentBank, t) }) });
       setTimeout(() => setSaveMsg(null), 4000);
       loadVersions(currentBank);
     } catch {
-      setSaveMsg({ type: 'error', text: 'تعذّر استعادة النسخة' });
+      setSaveMsg({ type: 'error', text: t('error.calib.restore_failed') });
     } finally {
       setRestoringId(null);
     }
@@ -399,10 +403,10 @@ export default function ChequeCalibrator({
       const res = await api.put('/cheques/calibration-geometry', geomDraft);
       const g = (res.data?.data as CalibrationGeometry) ?? geomDraft;
       setGeometry(g);
-      setSaveMsg({ type: 'ok', text: 'تم حفظ إعدادات القياس' });
+      setSaveMsg({ type: 'ok', text: t('msg.calib.geometry_saved') });
       setTimeout(() => setSaveMsg(null), 4000);
     } catch {
-      setSaveMsg({ type: 'error', text: 'تعذّر حفظ إعدادات القياس' });
+      setSaveMsg({ type: 'error', text: t('error.calib.geometry_save_failed') });
     } finally {
       setGeomBusy(false);
     }
@@ -426,11 +430,11 @@ export default function ChequeCalibrator({
       onSaved(currentBank, p.proposedTemplate);
       setProposal(null);
       setCorrectionSaved(true);
-      setSaveMsg({ type: 'ok', text: `تم حفظ التصحيح لبنك ${currentBank} كنسخة جديدة` });
+      setSaveMsg({ type: 'ok', text: t('msg.calib.correction_saved', { bank: bankLabel(currentBank, t) }) });
       setTimeout(() => setSaveMsg(null), 4000);
       loadVersions(currentBank);
     } catch {
-      setSaveMsg({ type: 'error', text: 'تعذّر حفظ التصحيح' });
+      setSaveMsg({ type: 'error', text: t('error.calib.correction_save_failed') });
     } finally {
       setApplyBusy(false);
       setPendingProposal(null);
@@ -441,7 +445,7 @@ export default function ChequeCalibrator({
 
   function handleRestore() {
     setWorkingTemplates((prev) => ({ ...prev, [currentBank]: deepCopy(DEFAULT_TEMPLATE) }));
-    setSaveMsg({ type: 'ok', text: 'تم استعادة الافتراضي (لم يُحفظ بعد)' });
+    setSaveMsg({ type: 'ok', text: t('msg.calib.restored_default_unsaved') });
     setTimeout(() => setSaveMsg(null), 4000);
   }
 
@@ -475,15 +479,15 @@ export default function ChequeCalibrator({
       try {
         const raw = JSON.parse(ev.target?.result as string) as Record<string, unknown>;
         if (!raw?.template || !isValidTemplate(raw.template)) {
-          setSaveMsg({ type: 'error', text: 'الملف لا يحتوي على قالب صالح' });
+          setSaveMsg({ type: 'error', text: t('error.calib.invalid_template_file') });
           setTimeout(() => setSaveMsg(null), 5000);
           return;
         }
         setWorkingTemplates((prev) => ({ ...prev, [currentBank]: raw.template as ChequeTemplate }));
-        setSaveMsg({ type: 'ok', text: 'تم الاستيراد — احفظ لتطبيقه' });
+        setSaveMsg({ type: 'ok', text: t('msg.calib.imported') });
         setTimeout(() => setSaveMsg(null), 5000);
       } catch {
-        setSaveMsg({ type: 'error', text: 'فشل قراءة الملف — تأكد أنه JSON صحيح' });
+        setSaveMsg({ type: 'error', text: t('error.calib.file_read_failed') });
         setTimeout(() => setSaveMsg(null), 5000);
       }
     };
@@ -514,11 +518,11 @@ export default function ChequeCalibrator({
       setWorkingTemplates((prev) => ({ ...prev, ...updates }));
       setShowCopyModal(false);
       setCopyTargets([]);
-      setSaveMsg({ type: 'ok', text: `تم نسخ النموذج إلى ${copyTargets.length} بنك` });
+      setSaveMsg({ type: 'ok', text: t('msg.calib.copied_to_n_banks', { n: copyTargets.length }) });
       setTimeout(() => setSaveMsg(null), 4000);
       loadVersions(currentBank);
     } catch {
-      setSaveMsg({ type: 'error', text: 'حدث خطأ أثناء نسخ النموذج' });
+      setSaveMsg({ type: 'error', text: t('error.calib.copy_failed') });
     } finally {
       setCopyBusy(false);
     }
@@ -615,7 +619,7 @@ export default function ChequeCalibrator({
         }}
       >
         <strong style={{ fontSize: 14, color: 'var(--text)', minWidth: 130 }}>
-          ⚙ معايرة الشيكات
+          {t('calib.toolbar.title')}
         </strong>
 
         <label
@@ -626,7 +630,7 @@ export default function ChequeCalibrator({
             whiteSpace: 'nowrap',
           }}
         >
-          البنك:
+          {t('lbl.bank_colon')}
         </label>
         <select
           className="line-input"
@@ -640,7 +644,7 @@ export default function ChequeCalibrator({
         >
           {banks.map((b) => (
             <option key={b} value={b}>
-              {b}
+              {bankLabel(b, t)}
             </option>
           ))}
         </select>
@@ -654,7 +658,7 @@ export default function ChequeCalibrator({
             marginInlineStart: 8,
           }}
         >
-          تكبير:
+          {t('lbl.zoom_colon')}
         </label>
         <select
           className="line-input"
@@ -691,17 +695,17 @@ export default function ChequeCalibrator({
           type="button"
           className="btn secondary sm"
           onClick={handleExport}
-          title="تصدير القالب كـ JSON"
+          title={t('action.calib.export_title')}
         >
-          ⬇ تصدير
+          {t('action.calib.export')}
         </button>
         <button
           type="button"
           className="btn secondary sm"
           onClick={() => importInputRef.current?.click()}
-          title="استيراد قالب من ملف JSON"
+          title={t('action.calib.import_title')}
         >
-          ⬆ استيراد
+          {t('action.calib.import')}
         </button>
         <button
           type="button"
@@ -710,9 +714,9 @@ export default function ChequeCalibrator({
             setShowCopyModal(true);
             setCopyTargets([]);
           }}
-          title="نسخ القالب إلى بنوك أخرى"
+          title={t('sec.calib.copy_to_other_banks')}
         >
-          نسخ إلى...
+          {t('action.calib.copy_to')}
         </button>
         <button
           ref={testPrintBtnRef}
@@ -722,30 +726,30 @@ export default function ChequeCalibrator({
           disabled={printing}
           title={
             previewEnabled
-              ? 'معاينة ورقة اختبار المحاذاة قبل طباعتها (علامات الحقول فقط — لا تُطبع شيكاً ولا تُسجّل أي عملية)'
-              : 'طباعة ورقة اختبار المحاذاة (علامات الحقول فقط — لا تُطبع شيكاً ولا تُسجّل أي عملية)'
+              ? t('hint.calib.preview_test_sheet')
+              : t('hint.calib.print_test_sheet')
           }
         >
-          🖨 اختبار المعايرة
+          {t('action.calib.test_print')}
         </button>
         <input
           type="text"
           className="line-input"
           value={saveNote}
           onChange={(e) => setSaveNote(e.target.value)}
-          placeholder="ملاحظة النسخة (اختياري)"
-          title="ملاحظة تُحفظ مع نسخة النموذج"
+          placeholder={t('ph.calib.version_note')}
+          title={t('hint.calib.version_note_tooltip')}
           style={{ width: 160, fontSize: 12 }}
           maxLength={300}
         />
         <button type="button" className="btn" onClick={handleSave} disabled={saving}>
-          {saving ? 'جاري الحفظ...' : 'حفظ نسخة'}
+          {saving ? t('msg.calib.saving_dots') : t('action.calib.save_version')}
         </button>
         <button type="button" className="btn secondary" onClick={handleRestore}>
-          استعادة الافتراضي
+          {t('action.restore_default')}
         </button>
         <button type="button" className="btn secondary" onClick={onClose}>
-          إغلاق
+          {t('action.close')}
         </button>
       </div>
 
@@ -756,10 +760,10 @@ export default function ChequeCalibrator({
           type="button"
           className="chq-btn chq-btn--ghost"
           onClick={() => { setCorrectionSaved(false); setShowWizard(true); }}
-          title="معالج معايرة الطابعة خطوة بخطوة"
+          title={t('hint.calib.wizard_tooltip')}
         >
           <span className="material-symbols-outlined" aria-hidden="true">auto_fix_high</span>
-          معالج المعايرة
+          {t('action.calib.wizard')}
         </button>
       </div>
 
@@ -786,7 +790,7 @@ export default function ChequeCalibrator({
               textAlign: 'center',
             }}
           >
-            اسحب لتغيير الموضع · انقر لتحديد العنصر · أسهم لوحة المفاتيح = ±1 · Shift+سهم = ±10
+            {t('hint.calib.controls')}
           </p>
 
           {/* Cheque container — explicit pixel width for zoom, scrollable at high zoom */}
@@ -898,7 +902,7 @@ export default function ChequeCalibrator({
                       pointerEvents: 'none',
                     }}
                   >
-                    {FIELD_LABELS[fieldKey]}
+                    {t(FIELD_LABEL_KEYS[fieldKey])}
                   </span>
                   {fieldText(fieldKey)}
                 </div>
@@ -916,7 +920,7 @@ export default function ChequeCalibrator({
                     className="chq-ghost"
                     style={{ top: `${gcfg.top}%`, left: `${gcfg.left}%`, width: `${gcfg.width}%`, height: `${gcfg.fontSize * 1.6}pt` }}
                   >
-                    <span className="chq-ghost__tag">{FIELD_LABELS[fk]} — مقترح</span>
+                    <span className="chq-ghost__tag">{t('lbl.calib.ghost_suggested', { field: t(FIELD_LABEL_KEYS[fk]) })}</span>
                   </div>
                 );
               })}
@@ -938,7 +942,7 @@ export default function ChequeCalibrator({
                 className={`btn ${selected === fieldKey ? '' : 'secondary'} sm`}
                 onClick={() => setSelected(fieldKey)}
               >
-                {FIELD_LABELS[fieldKey]}
+                {t(FIELD_LABEL_KEYS[fieldKey])}
               </button>
             ))}
           </div>
@@ -961,14 +965,14 @@ export default function ChequeCalibrator({
           {/* Selected field title */}
           <div style={{ paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
             <strong style={{ fontSize: 14, color: 'var(--text)' }}>
-              {FIELD_LABELS[selected]}
+              {t(FIELD_LABEL_KEYS[selected])}
             </strong>
           </div>
 
           {/* X / Y */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <NumInput
-              label="X (يسار %)"
+              label={t('lbl.calib.x_left_pct')}
               value={selectedCfg.left}
               step={0.1}
               min={0}
@@ -976,7 +980,7 @@ export default function ChequeCalibrator({
               onChange={(v) => updateField({ left: v })}
             />
             <NumInput
-              label="Y (أعلى %)"
+              label={t('lbl.calib.y_top_pct')}
               value={selectedCfg.top}
               step={0.1}
               min={0}
@@ -987,7 +991,7 @@ export default function ChequeCalibrator({
 
           {/* Width */}
           <NumInput
-            label="العرض %"
+            label={t('lbl.calib.width_pct')}
             value={selectedCfg.width}
             step={0.5}
             min={5}
@@ -997,7 +1001,7 @@ export default function ChequeCalibrator({
 
           {/* Font family */}
           <PropSelect
-            label="نوع الخط"
+            label={t('lbl.calib.font_family')}
             value={selectedCfg.fontFamily}
             options={[...FONT_FAMILIES].map((f) => ({ value: f, label: f }))}
             onChange={(v) => updateField({ fontFamily: v })}
@@ -1005,7 +1009,7 @@ export default function ChequeCalibrator({
 
           {/* Font size */}
           <PropSelect
-            label="حجم الخط"
+            label={t('lbl.calib.font_size')}
             value={String(selectedCfg.fontSize)}
             options={[...FONT_SIZES].map((s) => ({ value: String(s), label: `${s}pt` }))}
             onChange={(v) => updateField({ fontSize: Number(v) })}
@@ -1039,7 +1043,7 @@ export default function ChequeCalibrator({
 
           {/* Text align */}
           <div>
-            <label style={labelStyle}>المحاذاة</label>
+            <label style={labelStyle}>{t('lbl.calib.alignment')}</label>
             <div style={{ display: 'flex', gap: 4 }}>
               {(['right', 'center', 'left'] as const).map((align) => (
                 <button
@@ -1049,7 +1053,7 @@ export default function ChequeCalibrator({
                   style={{ flex: 1 }}
                   onClick={() => updateField({ textAlign: align })}
                 >
-                  {align === 'right' ? 'يمين' : align === 'center' ? 'وسط' : 'يسار'}
+                  {align === 'right' ? t('opt.align.right') : align === 'center' ? t('opt.align.center') : t('opt.align.left')}
                 </button>
               ))}
             </div>
@@ -1057,7 +1061,7 @@ export default function ChequeCalibrator({
 
           {/* Color */}
           <div>
-            <label style={labelStyle}>اللون</label>
+            <label style={labelStyle}>{t('lbl.calib.color')}</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <input
                 type="color"
@@ -1108,7 +1112,7 @@ export default function ChequeCalibrator({
                 marginBottom: 2,
               }}
             >
-              {FIELD_LABELS[selected]}
+              {t(FIELD_LABEL_KEYS[selected])}
             </strong>
             X: {selectedCfg.left.toFixed(2)}%&nbsp; Y: {selectedCfg.top.toFixed(2)}%
             <br />
@@ -1120,13 +1124,13 @@ export default function ChequeCalibrator({
           {/* ── Version history ── */}
           <div style={{ marginTop: 8, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
             <strong style={{ fontSize: 13, color: 'var(--text)', display: 'block', marginBottom: 6 }}>
-              📚 نسخ نموذج {currentBank}
+              {t('sec.calib.versions_of', { bank: bankLabel(currentBank, t) })}
             </strong>
             {versionsLoading ? (
-              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>جارٍ التحميل…</p>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>{t('msg.loading')}</p>
             ) : versions.length === 0 ? (
               <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>
-                لا توجد نسخ محفوظة بعد. احفظ لإنشاء أول نسخة.
+                {t('empty.calib.no_versions')}
               </p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
@@ -1145,10 +1149,10 @@ export default function ChequeCalibrator({
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
-                        نسخة {v.version}
+                        {t('lbl.calib.version_n', { n: v.version })}
                         {i === 0 && (
                           <span style={{ marginInlineStart: 6, fontSize: 10, color: 'var(--success, #16a34a)', fontWeight: 700 }}>
-                            (الحالية)
+                            {t('lbl.calib.current_suffix')}
                           </span>
                         )}
                       </div>
@@ -1163,10 +1167,10 @@ export default function ChequeCalibrator({
                       className="btn secondary sm"
                       disabled={i === 0 || restoringId !== null}
                       onClick={() => handleRestoreVersion(v)}
-                      title={i === 0 ? 'هذه هي النسخة الحالية' : `استعادة النسخة ${v.version}`}
+                      title={i === 0 ? t('hint.calib.is_current_version') : t('action.calib.restore_version_n', { n: v.version })}
                       style={{ flexShrink: 0 }}
                     >
-                      {restoringId === v.id ? '…' : 'استعادة'}
+                      {restoringId === v.id ? '…' : t('action.restore')}
                     </button>
                   </div>
                 ))}
@@ -1194,7 +1198,7 @@ export default function ChequeCalibrator({
             <div className="chq-geom" style={{ marginTop: 10 }}>
               <button type="button" className="chq-geom__head" onClick={() => setShowGeom((v) => !v)}>
                 <span className="material-symbols-outlined" aria-hidden="true">tune</span>
-                إعدادات القياس المتقدمة (مسؤول النظام)
+                {t('sec.calib.advanced_geometry')}
                 <span style={{ marginInlineStart: 'auto' }}>{showGeom ? '▲' : '▼'}</span>
               </button>
               {showGeom && (
@@ -1202,7 +1206,7 @@ export default function ChequeCalibrator({
                   <div className="chq-geom__grid">
                     {GEOMETRY_FIELDS.map((gf) => (
                       <label key={gf.key}>
-                        <span>{gf.label}</span>
+                        <span>{t(gf.labelKey)}</span>
                         <input
                           type="number"
                           step={0.5}
@@ -1216,10 +1220,10 @@ export default function ChequeCalibrator({
                   </div>
                   <div className="chq-geom__foot">
                     <button type="button" className="chq-btn chq-btn--primary" onClick={handleSaveGeometry} disabled={geomBusy}>
-                      {geomBusy ? 'جارٍ الحفظ…' : 'حفظ إعدادات القياس'}
+                      {geomBusy ? t('msg.saving_ellipsis') : t('action.calib.save_geometry')}
                     </button>
                     <button type="button" className="chq-btn chq-btn--ghost" onClick={() => setGeomDraft(geometry)}>
-                      إعادة تعيين
+                      {t('action.reset')}
                     </button>
                   </div>
                 </>
@@ -1298,9 +1302,9 @@ export default function ChequeCalibrator({
               boxShadow: '0 8px 32px rgba(0,0,0,0.22)',
             }}
           >
-            <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>نسخ القالب إلى بنوك أخرى</h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: 15 }}>{t('sec.calib.copy_to_other_banks')}</h3>
             <p style={{ margin: '0 0 16px', fontSize: 12, color: 'var(--text-muted)' }}>
-              المصدر: <strong>{currentBank}</strong> — اختر البنوك المستهدفة:
+              {t('lbl.calib.copy_source_prefix')} <strong>{bankLabel(currentBank, t)}</strong> {t('lbl.calib.copy_choose_targets')}
             </p>
 
             <div
@@ -1322,7 +1326,7 @@ export default function ChequeCalibrator({
                       )
                     }
                   />
-                  {bank}
+                  {bankLabel(bank, t)}
                 </label>
               ))}
             </div>
@@ -1335,8 +1339,8 @@ export default function ChequeCalibrator({
                 disabled={copyTargets.length === 0 || copyBusy}
               >
                 {copyBusy
-                  ? 'جاري النسخ...'
-                  : `نسخ إلى ${copyTargets.length} بنك`}
+                  ? t('msg.calib.copying_ellipsis')
+                  : t('action.calib.copy_to_n', { n: copyTargets.length })}
               </button>
               <button
                 type="button"
@@ -1346,7 +1350,7 @@ export default function ChequeCalibrator({
                   setCopyTargets([]);
                 }}
               >
-                إلغاء
+                {t('action.cancel')}
               </button>
             </div>
           </div>
@@ -1360,30 +1364,32 @@ export default function ChequeCalibrator({
           style={{ zIndex: 3400 }}
           onClick={(e) => e.target === e.currentTarget && !applyBusy && setPendingProposal(null)}
         >
-          <div className="chq-wiz" role="dialog" aria-label="تأكيد التصحيح" style={{ width: 'min(440px, 96vw)' }}>
+          <div className="chq-wiz" role="dialog" aria-label={t('a11y.calib.confirm_correction')} style={{ width: 'min(440px, 96vw)' }}>
             <div className="chq-wiz__head">
               <div>
-                <strong>تأكيد تطبيق التصحيح</strong>
-                <span>{currentBank}</span>
+                <strong>{t('sec.calib.confirm_apply_correction')}</strong>
+                <span>{bankLabel(currentBank, t)}</span>
               </div>
             </div>
             <div style={{ padding: '16px 20px' }}>
               <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--text)' }}>
-                سيتم إنشاء نسخة جديدة من نموذج «{currentBank}» بالتصحيح المقترح (
-                {pendingProposal.scope === 'all' ? 'كل الحقول' : FIELD_LABELS[selected]}). النسخة الحالية تبقى متاحة للاستعادة.
+                {t('msg.calib.confirm_correction_body', {
+                  bank: bankLabel(currentBank, t),
+                  scope: pendingProposal.scope === 'all' ? t('lbl.calib.all_fields') : t(FIELD_LABEL_KEYS[selected]),
+                })}
               </p>
               {pendingProposal.anyClamped && (
                 <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--danger, #dc2626)' }}>
-                  ⚠️ بعض القيم تجاوزت الحدود وتم قصّها إلى الحد المسموح.
+                  {t('msg.calib.clamped_warning')}
                 </p>
               )}
             </div>
             <div className="chq-wiz__foot">
               <button type="button" className="chq-btn chq-btn--ghost" onClick={() => setPendingProposal(null)} disabled={applyBusy}>
-                إلغاء
+                {t('action.cancel')}
               </button>
               <button type="button" className="chq-btn chq-btn--primary" onClick={() => performApplyCorrection(pendingProposal)} disabled={applyBusy}>
-                {applyBusy ? 'جارٍ الحفظ…' : 'تطبيق كنسخة جديدة'}
+                {applyBusy ? t('msg.saving_ellipsis') : t('action.calib.apply_as_new_version')}
               </button>
             </div>
           </div>
@@ -1420,8 +1426,8 @@ export default function ChequeCalibrator({
           onClose={closePreview}
           compose={composePreview}
           onPrint={runTestPrint}
-          title="معاينة اختبار المعايرة"
-          documentLabel={`معاينة اختبار المعايرة — ${currentBank}`}
+          title={t('page.calib.test_preview_title')}
+          documentLabel={t('page.calib.test_preview_doc_label', { bank: bankLabel(currentBank, t) })}
           pageWidthMm={geometry.pageWidthMm}
           pageHeightMm={geometry.pageHeightMm}
           lang="ar"

@@ -158,7 +158,7 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
           </div>
         </div>
         <div className="field">
-          <label>تاريخ الفاتورة</label>
+          <label>{t('lbl.inv.issue_date')}</label>
           <DateInput
             value={issueDate}
             onChange={(v) => {
@@ -171,17 +171,17 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
                 setInvoiceYear(String(deriveInvoiceYearFromIssueDate(v, Number(yy))));
               }
             }}
-            title="تاريخ الفاتورة"
+            title={t('lbl.inv.issue_date')}
             max={todayDateOnly()}
           />
           <HistoricalDateNotice date={issueDate} />
         </div>
         <div className="field">
-          <label>تاريخ التسليم</label>
+          <label>{t('field.inv.delivery_date')}</label>
           <DateInput
             value={deliveryDate}
             onChange={setDeliveryDate}
-            title="تاريخ تسليم الفاتورة"
+            title={t('title.inv.delivery_date')}
           />
         </div>
         <div className="field">
@@ -190,7 +190,7 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
             <select
               value={billingMonth}
               onChange={(e) => setBillingMonth(Number(e.target.value))}
-              title="شهر الحساب"
+              title={t('lbl.inv.billing_period')}
               style={{ flex: 1 }}
             >
               {ARABIC_MONTHS.map((name, idx) => (
@@ -200,7 +200,7 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
             <select
               value={billingYear}
               onChange={(e) => setBillingYear(Number(e.target.value))}
-              title="سنة الحساب"
+              title={t('field.inv.billing_year')}
               style={{ width: 90 }}
             >
               {billingYearOptions().map((y) => (
@@ -261,9 +261,9 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
         </div>
         {effectivePartySource === 'SALES' && partyId && contracts.length > 0 && (
           <div className="field">
-            <label>العقد / المصنع (لتضييق الأسعار)</label>
-            <select aria-label="اختر العقد" value={contractId} onChange={(e) => setContractId(e.target.value)}>
-              <option value="">كل العقود</option>
+            <label>{t('field.inv.contract_filter')}</label>
+            <select aria-label={t('aria.select_contract')} value={contractId} onChange={(e) => setContractId(e.target.value)}>
+              <option value="">{t('opt.all_contracts')}</option>
               {contracts.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.code}{c.asphaltPlant ? ` — ${c.asphaltPlant}` : ''}{c.companyName ? ` (${c.companyName})` : ''}

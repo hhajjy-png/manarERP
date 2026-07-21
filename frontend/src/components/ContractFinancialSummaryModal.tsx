@@ -7,6 +7,7 @@ import { formatCurrency, formatPercent, formatCompact } from '../lib/format';
 import { formatDate } from '../lib/date';
 import Modal from './Modal';
 import { money } from '../config/modules';
+import { useT } from '../lib/i18n';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -108,8 +109,8 @@ function clampPct(value: number | null | undefined): number {
   return Math.max(0, Math.min(100, value));
 }
 
-const CONTRACT_STATUS_AR: Record<string, string> = {
-  ACTIVE: 'ساري', EXPIRED: 'منتهٍ', RENEWING: 'قيد التجديد', SUSPENDED: 'موقوف',
+const CONTRACT_STATUS_KEY: Record<string, string> = {
+  ACTIVE: 'opt.contract.active', EXPIRED: 'opt.contract.expired', RENEWING: 'opt.contract.renewing', SUSPENDED: 'opt.contract.suspended',
 };
 const STATUS_COLOR: Record<string, string> = {
   ACTIVE: 'var(--success)', EXPIRED: 'var(--text-muted)', RENEWING: 'var(--warning)', SUSPENDED: 'var(--danger)',
@@ -117,8 +118,8 @@ const STATUS_COLOR: Record<string, string> = {
 const PROFIT_COLOR: Record<string, string> = {
   GREEN: '#22c55e', YELLOW: '#f59e0b', ORANGE: '#f97316', RED: '#ef4444',
 };
-const PROFIT_LABEL: Record<string, string> = {
-  GREEN: 'ممتازة (≥25%)', YELLOW: 'جيدة (10-25%)', ORANGE: 'منخفضة (<10%)', RED: 'خسارة',
+const PROFIT_LABEL_KEY: Record<string, string> = {
+  GREEN: 'profit.status.excellent', YELLOW: 'profit.status.good', ORANGE: 'profit.status.low', RED: 'profit.status.loss',
 };
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -210,6 +211,7 @@ function ChartTooltip({ active, payload, label }: any) {
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function ContractFinancialSummaryModal({ contractId, contractCode, onClose }: Props) {
+  const { t } = useT();
   const [data, setData] = useState<FinancialSummary | null>(null);
   const [loadError, setLoadError] = useState('');
 
@@ -224,10 +226,10 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
 
   return (
     <Modal
-      title={`📊 الملخص المالي — ${contractCode}`}
+      title={`📊 ${t('action.financial_summary')} — ${contractCode}`}
       onClose={onClose}
       className="modal-wide"
-      footer={<button type="button" className="btn secondary" onClick={onClose}>إغلاق</button>}
+      footer={<button type="button" className="btn secondary" onClick={onClose}>{t('action.close')}</button>}
     >
       {loadError && <div className="alert error">⚠️ {loadError}</div>}
       {!data && !loadError && <Skeleton />}
@@ -246,69 +248,69 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
               background: STATUS_COLOR[data.contract.status] + '22',
               color: STATUS_COLOR[data.contract.status],
             }}>
-              {CONTRACT_STATUS_AR[data.contract.status] ?? data.contract.status}
+              {CONTRACT_STATUS_KEY[data.contract.status] ? t(CONTRACT_STATUS_KEY[data.contract.status]) : data.contract.status}
             </span>
           </div>
           {data.contract.customer && (
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-              الجهة: {data.contract.customer.name}
+              {t('lbl.party_colon')} {data.contract.customer.name}
               {data.contract.startDate && ` | ${fmtDate(data.contract.startDate)} — ${fmtDate(data.contract.endDate)}`}
-              {data.contract.contractDurationMonths && ` (${data.contract.contractDurationMonths} شهر)`}
+              {data.contract.contractDurationMonths && ` (${data.contract.contractDurationMonths} ${t('unit.month')})`}
             </div>
           )}
 
           {/* ── KPI Cards ── */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
             <KpiCard
-              label="القيمة الشهرية للعقد"
+              label={t('lbl.contract.monthly_value')}
               value={kwd(data.contract.monthlyTransportValue)}
-              sub={data.revenue.estimatedContractValue ? `الإجمالي التقديري: ${kwd(data.revenue.estimatedContractValue)}` : undefined}
+              sub={data.revenue.estimatedContractValue ? t('lbl.estimated_total_colon', { value: kwd(data.revenue.estimatedContractValue) }) : undefined}
             />
             <KpiCard
-              label="إجمالي المفوتر"
+              label={t('lbl.total_invoiced')}
               value={kwd(data.revenue.totalInvoiced)}
-              sub={`${data.revenue.invoiceCount} فاتورة`}
+              sub={`${data.revenue.invoiceCount} ${t('page.dashboard.invoice_unit')}`}
             />
             <KpiCard
-              label="إجمالي المحصّل"
+              label={t('lbl.total_collected_chip')}
               value={kwd(data.collections.totalCollected)}
-              sub={`${pct(data.collections.collectionRate)} من المفوتر`}
+              sub={t('lbl.pct_of_invoiced', { pct: pct(data.collections.collectionRate) })}
               color={(data.collections.collectionRate ?? 0) >= 80 ? '#22c55e' : (data.collections.collectionRate ?? 0) >= 50 ? '#f59e0b' : '#ef4444'}
             />
             <KpiCard
-              label="إجمالي المصروفات"
+              label={t('kpi.total_expenses')}
               value={kwd(data.expenses.totalExpenses)}
-              sub={`${data.expenses.expenseCount} بند`}
+              sub={`${data.expenses.expenseCount} ${t('unit.line_item')}`}
             />
             <KpiCard
-              label="صافي الربح"
+              label={t('kpi.net_profit')}
               value={kwd(data.profitability.profit)}
               color={profitColor}
             />
             <KpiCard
-              label="هامش الربح"
+              label={t('kpi.profit_margin')}
               value={pct(data.profitability.profitMargin)}
-              sub={ps ? PROFIT_LABEL[ps] : undefined}
+              sub={ps ? t(PROFIT_LABEL_KEY[ps]) : undefined}
               color={profitColor}
             />
           </div>
 
           {/* ── Revenue ── */}
-          <SectionTitle>الإيرادات</SectionTitle>
+          <SectionTitle>{t('today.revenue')}</SectionTitle>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
             <div>
-              <Row label="إجمالي المفوتر" value={kwd(data.revenue.totalInvoiced)} />
-              <Row label="عدد الفواتير" value={String(data.revenue.invoiceCount)} />
-              <Row label="متوسط الفاتورة" value={kwd(data.revenue.avgInvoice)} />
-              <Row label="آخر فاتورة" value={fmtDate(data.revenue.lastInvoiceDate)} />
+              <Row label={t('lbl.total_invoiced')} value={kwd(data.revenue.totalInvoiced)} />
+              <Row label={t('inv.stats.count')} value={String(data.revenue.invoiceCount)} />
+              <Row label={t('inv.stats.average')} value={kwd(data.revenue.avgInvoice)} />
+              <Row label={t('lbl.last_invoice')} value={fmtDate(data.revenue.lastInvoiceDate)} />
             </div>
             <div>
-              <Row label="القيمة التقديرية للعقد" value={kwd(data.revenue.estimatedContractValue)} />
-              <Row label="المتبقي للإصدار" value={kwd(data.revenue.remainingToInvoice)} />
+              <Row label={t('lbl.estimated_contract_value')} value={kwd(data.revenue.estimatedContractValue)} />
+              <Row label={t('lbl.remaining_to_invoice')} value={kwd(data.revenue.remainingToInvoice)} />
               {data.progress.billingProgress !== null && (
                 <div style={{ padding: '8px 0' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>تقدم الفوترة</span>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('lbl.billing_progress')}</span>
                     <span style={{ fontSize: 12, fontWeight: 600 }}>{pct(data.progress.billingProgress)}</span>
                   </div>
                   <ProgressBar value={data.progress.billingProgress} color="#3b82f6" />
@@ -318,26 +320,26 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
           </div>
 
           {/* ── Collections ── */}
-          <SectionTitle>التحصيلات</SectionTitle>
+          <SectionTitle>{t('today.collections')}</SectionTitle>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
             <div>
-              <Row label="إجمالي المحصّل" value={kwd(data.collections.totalCollected)} />
+              <Row label={t('lbl.total_collected_chip')} value={kwd(data.collections.totalCollected)} />
               <Row
-                label="الذمم المستحقة"
+                label={t('lbl.outstanding_receivables')}
                 value={kwd(data.collections.outstanding)}
                 valueColor={data.collections.outstanding > 0 ? '#f97316' : '#22c55e'}
               />
-              <Row label="آخر دفعة" value={fmtDate(data.collections.lastPaymentDate)} />
+              <Row label={t('lbl.last_payment')} value={fmtDate(data.collections.lastPaymentDate)} />
             </div>
             <div>
-              <Row label="نسبة التحصيل" value={pct(data.collections.collectionRate)} />
+              <Row label={t('lbl.collection_rate')} value={pct(data.collections.collectionRate)} />
               <Row
-                label="متوسط أيام التحصيل"
-                value={data.collections.avgCollectionDays !== null ? `${data.collections.avgCollectionDays} يوم` : '—'}
+                label={t('lbl.avg_collection_days')}
+                value={data.collections.avgCollectionDays !== null ? `${data.collections.avgCollectionDays} ${t('unit.day')}` : '—'}
               />
               <div style={{ padding: '8px 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>تقدم التحصيل</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('lbl.collection_progress')}</span>
                   <span style={{ fontSize: 12, fontWeight: 600 }}>{pct(data.progress.collectionProgress)}</span>
                 </div>
                 <ProgressBar value={data.progress.collectionProgress} color="#22c55e" />
@@ -346,17 +348,17 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
           </div>
 
           {/* ── Expenses ── */}
-          <SectionTitle>المصروفات</SectionTitle>
+          <SectionTitle>{t('today.expenses')}</SectionTitle>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
             <div>
-              <Row label="إجمالي المصروفات" value={kwd(data.expenses.totalExpenses)} />
-              <Row label="عدد بنود المصروفات" value={String(data.expenses.expenseCount)} />
-              <Row label="آخر مصروف" value={fmtDate(data.expenses.lastExpenseDate)} />
+              <Row label={t('kpi.total_expenses')} value={kwd(data.expenses.totalExpenses)} />
+              <Row label={t('lbl.expense_item_count')} value={String(data.expenses.expenseCount)} />
+              <Row label={t('lbl.last_expense')} value={fmtDate(data.expenses.lastExpenseDate)} />
             </div>
             <div>
               <div style={{ padding: '8px 0' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>نسبة المصروفات من الإيرادات</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t('lbl.expense_ratio')}</span>
                   <span style={{ fontSize: 12, fontWeight: 600 }}>{pct(data.progress.expenseRatio)}</span>
                 </div>
                 <ProgressBar
@@ -368,19 +370,19 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
           </div>
 
           {/* ── Profitability ── */}
-          <SectionTitle>الربحية</SectionTitle>
+          <SectionTitle>{t('section.profitability')}</SectionTitle>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
             <div>
-              <Row label="الإيرادات" value={kwd(data.profitability.revenue)} />
-              <Row label="المصروفات" value={kwd(data.profitability.expenses)} />
-              <Row label="صافي الربح" value={kwd(data.profitability.profit)} valueColor={profitColor} />
+              <Row label={t('today.revenue')} value={kwd(data.profitability.revenue)} />
+              <Row label={t('today.expenses')} value={kwd(data.profitability.expenses)} />
+              <Row label={t('kpi.net_profit')} value={kwd(data.profitability.profit)} valueColor={profitColor} />
             </div>
             <div>
-              <Row label="هامش الربح" value={pct(data.profitability.profitMargin)} valueColor={profitColor} />
+              <Row label={t('kpi.profit_margin')} value={pct(data.profitability.profitMargin)} valueColor={profitColor} />
               <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8, background: (profitColor ?? '#6b7280') + '22', border: `1px solid ${profitColor ?? '#6b7280'}44` }}>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>حالة الربحية</div>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('lbl.profitability_status')}</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: profitColor }}>
-                  {ps ? PROFIT_LABEL[ps] : '—'}
+                  {ps ? t(PROFIT_LABEL_KEY[ps]) : '—'}
                 </div>
               </div>
             </div>
@@ -389,7 +391,7 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
           {/* ── Monthly Chart ── */}
           {data.monthlyData.length > 0 && (
             <>
-              <SectionTitle>التطور الشهري</SectionTitle>
+              <SectionTitle>{t('section.monthly_trend')}</SectionTitle>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart
                   data={data.monthlyData}
@@ -427,7 +429,7 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
                   <Tooltip content={<ChartTooltip />} />
                   <Legend
                     wrapperStyle={{ fontSize: 12, paddingTop: 8, direction: 'rtl' }}
-                    formatter={(v) => v === 'invoiced' ? 'مفوتر' : v === 'collected' ? 'محصّل' : 'مصروفات'}
+                    formatter={(v) => v === 'invoiced' ? t('lbl.invoiced_short') : v === 'collected' ? t('lbl.collected_short') : t('acc.type.expense')}
                   />
                   <Bar dataKey="invoiced" fill="url(#cfs-inv)" radius={[3, 3, 0, 0]} name="invoiced" />
                   <Bar dataKey="collected" fill="url(#cfs-col)" radius={[3, 3, 0, 0]} name="collected" />
@@ -439,7 +441,7 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
 
           {data.monthlyData.length === 0 && (
             <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px 0', fontSize: 13 }}>
-              لا توجد بيانات شهرية متاحة بعد
+              {t('empty.no_monthly_data')}
             </div>
           )}
         </div>

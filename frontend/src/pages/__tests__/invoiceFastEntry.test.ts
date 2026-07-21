@@ -13,6 +13,12 @@ import {
   InvoiceRowFields,
 } from '../invoiceFastEntry';
 import { DEFAULT_WORK_TYPE } from '../../utils/invoiceDescription';
+import { t as translate } from '../../lib/i18n';
+
+// validateInvoiceRow now takes a translator (i18n key policy — see English Localization
+// Completion Pack v2). Tests assert against the Arabic strings, matching the app's
+// production baseline language.
+const tAr = (key: string) => translate(key, 'ar');
 
 const shared = (over: Partial<InvoiceSharedFields> = {}): InvoiceSharedFields => ({
   entryMode: 'SINGLE',
@@ -92,21 +98,21 @@ describe('invoiceFastEntry.resolveInvoiceParty', () => {
 
 describe('invoiceFastEntry.validateInvoiceRow — same rules as normal creation', () => {
   it('rejects a malformed invoice number', () => {
-    expect(validateInvoiceRow(shared(), row({ invoiceNumber: 'INV-2026-1' }))).toMatch(/رقم الفاتورة/);
+    expect(validateInvoiceRow(shared(), row({ invoiceNumber: 'INV-2026-1' }), tAr)).toMatch(/رقم الفاتورة/);
   });
   it('requires a customer (SALES)', () => {
-    expect(validateInvoiceRow(shared({ customerId: '' }), row())).toMatch(/العميل/);
-    expect(validateInvoiceRow(shared({ entryMode: 'MULTI', customerId: '' }), row({ customerId: '' }))).toMatch(/العميل/);
+    expect(validateInvoiceRow(shared({ customerId: '' }), row(), tAr)).toMatch(/العميل/);
+    expect(validateInvoiceRow(shared({ entryMode: 'MULTI', customerId: '' }), row({ customerId: '' }), tAr)).toMatch(/العميل/);
   });
   it('requires at least one item and valid item fields', () => {
-    expect(validateInvoiceRow(shared(), row({ items: [] }))).toMatch(/بند/);
-    expect(validateInvoiceRow(shared(), row({ items: [{ uid: 'a', description: '  ', quantity: 1, unit: 'درب', unitPrice: 1 }] }))).toMatch(/وصف/);
-    expect(validateInvoiceRow(shared(), row({ items: [{ uid: 'a', description: 'x', quantity: 0, unit: 'درب', unitPrice: 1 }] }))).toMatch(/الكمية/);
-    expect(validateInvoiceRow(shared(), row({ items: [{ uid: 'a', description: 'x', quantity: 1, unit: 'درب', unitPrice: -1 }] }))).toMatch(/السعر/);
-    expect(validateInvoiceRow(shared(), row({ items: [{ uid: 'a', description: 'x', quantity: 1, unit: '', unitPrice: 1 }] }))).toMatch(/الوحدة/);
+    expect(validateInvoiceRow(shared(), row({ items: [] }), tAr)).toMatch(/بند/);
+    expect(validateInvoiceRow(shared(), row({ items: [{ uid: 'a', description: '  ', quantity: 1, unit: 'درب', unitPrice: 1 }] }), tAr)).toMatch(/وصف/);
+    expect(validateInvoiceRow(shared(), row({ items: [{ uid: 'a', description: 'x', quantity: 0, unit: 'درب', unitPrice: 1 }] }), tAr)).toMatch(/الكمية/);
+    expect(validateInvoiceRow(shared(), row({ items: [{ uid: 'a', description: 'x', quantity: 1, unit: 'درب', unitPrice: -1 }] }), tAr)).toMatch(/السعر/);
+    expect(validateInvoiceRow(shared(), row({ items: [{ uid: 'a', description: 'x', quantity: 1, unit: '', unitPrice: 1 }] }), tAr)).toMatch(/الوحدة/);
   });
   it('passes a valid row', () => {
-    expect(validateInvoiceRow(shared(), row())).toBeNull();
+    expect(validateInvoiceRow(shared(), row(), tAr)).toBeNull();
   });
 });
 

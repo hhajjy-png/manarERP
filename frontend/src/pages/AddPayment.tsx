@@ -32,12 +32,12 @@ export default function AddPayment({ invoice, onClose, onSaved }: { invoice: any
 
   async function submit() {
     setError('');
-    if (Number(amount) <= 0) { setError('المبلغ يجب أن يكون أكبر من صفر'); return; }
-    if (Number(amount) > remaining) { setError('المبلغ المدخل أكبر من المتبقي للفاتورة'); return; }
-    if (method === 'CHEQUE' && !chequeNumber.trim()) { setError('رقم الشيك مطلوب'); return; }
-    if (method === 'CASH' && !recipientName.trim()) { setError('اسم المستلم مطلوب'); return; }
-    if (method === 'TRANSFER' && !transferNumber.trim()) { setError('رقم التحويل مطلوب'); return; }
-    if (!collectionDate) { setError('تاريخ التحصيل مطلوب'); return; }
+    if (Number(amount) <= 0) { setError(t('error.amount_gt_zero')); return; }
+    if (Number(amount) > remaining) { setError(t('error.amount_exceeds_remaining')); return; }
+    if (method === 'CHEQUE' && !chequeNumber.trim()) { setError(t('error.cheque.number_required')); return; }
+    if (method === 'CASH' && !recipientName.trim()) { setError(t('error.recipient_name_required')); return; }
+    if (method === 'TRANSFER' && !transferNumber.trim()) { setError(t('error.transfer_number_required')); return; }
+    if (!collectionDate) { setError(t('error.collection_date_required')); return; }
     if (saving) return;
     setSaving(true);
     try {
@@ -86,19 +86,19 @@ export default function AddPayment({ invoice, onClose, onSaved }: { invoice: any
       </div>
       {method === 'CHEQUE' && (
         <div className="field">
-          <label>رقم الشيك *</label>
+          <label>{t('field.cheque.number')} *</label>
           <input className="line-input" value={chequeNumber} onChange={(e) => setChequeNumber(e.target.value)} autoFocus={false} />
         </div>
       )}
       {method === 'CASH' && (
         <div className="field">
-          <label>اسم المستلم *</label>
+          <label>{t('field.recipient_name')} *</label>
           <input className="line-input" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
         </div>
       )}
       {method === 'TRANSFER' && (
         <div className="field">
-          <label>رقم التحويل *</label>
+          <label>{t('col.sal.transaction')} *</label>
           <input className="line-input" value={transferNumber} onChange={(e) => setTransferNumber(e.target.value)} />
         </div>
       )}

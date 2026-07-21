@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import type { TrialBalanceAsOfRow, TrialBalancePeriodRow } from '../../types/financial.types';
 import { BalanceDisplay } from './BalanceDisplay';
-import { fcCurrency, accountTypeAr, fcMoneyHeader, fcMoneyCell } from './financialLabels';
+import { fcCurrency, accountTypeLabel, fcMoneyHeader, fcMoneyCell } from './financialLabels';
+import { useT } from '../../lib/i18n';
 
 type AnyRow = TrialBalanceAsOfRow | TrialBalancePeriodRow;
 
@@ -20,6 +21,7 @@ interface Props {
 
 export function TrialBalanceTable({ rows, mode, totals }: Props) {
   const navigate = useNavigate();
+  const { t } = useT();
 
   function handleAccountClick(accountId: number) {
     navigate(`/financial?tab=gl&subTab=statement&accountId=${accountId}`);
@@ -33,9 +35,9 @@ export function TrialBalanceTable({ rows, mode, totals }: Props) {
         <table className="financial-table trial-balance-table" dir="rtl">
           <thead>
             <tr>
-              <th>الكود</th><th>اسم الحساب</th><th>النوع</th>
-              <th className="num">{fcMoneyHeader('إجمالي مدين')}</th><th className="num">{fcMoneyHeader('إجمالي دائن')}</th>
-              <th className="num">{fcMoneyHeader('الرصيد')}</th><th>طبيعة</th>
+              <th>{t('col.acc.code')}</th><th>{t('col.acc.name')}</th><th>{t('col.acc.type')}</th>
+              <th className="num">{fcMoneyHeader(t('fc.tb.total_debit'))}</th><th className="num">{fcMoneyHeader(t('fc.tb.total_credit'))}</th>
+              <th className="num">{fcMoneyHeader(t('fc.col.balance'))}</th><th>{t('fc.tb.nature')}</th>
             </tr>
           </thead>
           <tbody>
@@ -47,20 +49,20 @@ export function TrialBalanceTable({ rows, mode, totals }: Props) {
                     {row.accountName}
                   </button>
                 </td>
-                <td>{accountTypeAr(row.accountType)}</td>
+                <td>{accountTypeLabel(row.accountType, t)}</td>
                 <td className="num">{fmt(row.totalDebit)}</td>
                 <td className="num">{fmt(row.totalCredit)}</td>
                 <td className={`num ${(row.balance ?? 0) < 0 ? 'negative' : ''}`}>
                   {fmt(Math.abs(row.balance ?? 0))}
                 </td>
-                <td>{row.balanceType === 'DEBIT' ? 'مدين' : 'دائن'}</td>
+                <td>{row.balanceType === 'DEBIT' ? t('acc.balance.debit') : t('acc.balance.credit')}</td>
               </tr>
             ))}
           </tbody>
           {totalsAs && (
             <tfoot>
               <tr className="totals-row">
-                <td colSpan={3}>الإجمالي</td>
+                <td colSpan={3}>{t('msg.total')}</td>
                 <td className="num">{fmt(totalsAs.totalDebit)}</td>
                 <td className="num">{fmt(totalsAs.totalCredit)}</td>
                 <td colSpan={2} />
@@ -80,11 +82,11 @@ export function TrialBalanceTable({ rows, mode, totals }: Props) {
       <table className="financial-table trial-balance-table" dir="rtl">
         <thead>
           <tr>
-            <th>الكود</th><th>اسم الحساب</th>
-            <th className="num">{fcMoneyHeader('رصيد الافتتاح')}</th>
-            <th className="num">{fcMoneyHeader('مدين الفترة')}</th>
-            <th className="num">{fcMoneyHeader('دائن الفترة')}</th>
-            <th className="num">{fcMoneyHeader('رصيد الإقفال')}</th>
+            <th>{t('col.acc.code')}</th><th>{t('col.acc.name')}</th>
+            <th className="num">{fcMoneyHeader(t('fc.tb.opening_balance'))}</th>
+            <th className="num">{fcMoneyHeader(t('fc.tb.period_debit'))}</th>
+            <th className="num">{fcMoneyHeader(t('fc.tb.period_credit'))}</th>
+            <th className="num">{fcMoneyHeader(t('fc.tb.closing_balance'))}</th>
           </tr>
         </thead>
         <tbody>
@@ -106,7 +108,7 @@ export function TrialBalanceTable({ rows, mode, totals }: Props) {
         {totalsP && (
           <tfoot>
             <tr className="totals-row">
-              <td colSpan={2}>الإجمالي</td>
+              <td colSpan={2}>{t('msg.total')}</td>
               <td />
               <td className="num">{fmt(totalsP.periodDebit)}</td>
               <td className="num">{fmt(totalsP.periodCredit)}</td>

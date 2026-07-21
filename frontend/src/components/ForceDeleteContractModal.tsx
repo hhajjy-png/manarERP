@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
+import { useT } from '../lib/i18n';
 import Modal from './Modal';
 
 interface ChildCounts {
@@ -24,24 +25,25 @@ interface Props {
   onDeleted: () => void;
 }
 
-const DELETED_LABELS: Record<string, string> = {
-  contract: 'العقد',
-  contractDocuments: 'مستندات العقد',
+const DELETED_KEYS: Record<string, string> = {
+  contract: 'dlg.force_delete.contract.deleted.contract',
+  contractDocuments: 'dlg.force_delete.contract.deleted.contract_documents',
 };
 
-const NULLIFIED_LABELS: Record<string, string> = {
-  'expenses.contractId': 'المصروفات (إلغاء ربطها بالعقد)',
-  'materialIssues.contractId': 'سندات صرف المواد (إلغاء ربطها بالعقد)',
+const NULLIFIED_KEYS: Record<string, string> = {
+  'expenses.contractId': 'dlg.force_delete.customer.nullified.expenses',
+  'materialIssues.contractId': 'dlg.force_delete.contract.nullified.material_issues',
 };
 
-const CHILD_COUNT_LABELS: Record<keyof ChildCounts, string> = {
-  invoices: 'فواتير مرتبطة بالعقد',
-  expenses: 'مصروفات',
-  materialIssues: 'سندات صرف مواد',
-  contractDocuments: 'مستندات العقد',
+const CHILD_COUNT_KEYS: Record<keyof ChildCounts, string> = {
+  invoices: 'dlg.force_delete.contract.count.invoices',
+  expenses: 'dlg.force_delete.count.expenses',
+  materialIssues: 'dlg.force_delete.contract.count.material_issues',
+  contractDocuments: 'dlg.force_delete.contract.deleted.contract_documents',
 };
 
 export default function ForceDeleteContractModal({ contractId, onClose, onDeleted }: Props) {
+  const { t } = useT();
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [loadError, setLoadError] = useState('');
   const [confirmCode, setConfirmCode] = useState('');
@@ -78,12 +80,12 @@ export default function ForceDeleteContractModal({ contractId, onClose, onDelete
 
   return (
     <Modal
-      title="⚠️ حذف إجباري للعقد"
+      title={t('dlg.force_delete.contract.title')}
       onClose={onClose}
       footer={
         <>
           <button type="button" className="btn secondary" onClick={onClose} disabled={deleting}>
-            {isBlocked ? 'إغلاق' : 'إلغاء'}
+            {isBlocked ? t('action.close') : t('action.cancel')}
           </button>
           {!isBlocked && (
             <button
@@ -92,7 +94,7 @@ export default function ForceDeleteContractModal({ contractId, onClose, onDelete
               onClick={onConfirm}
               disabled={!codeMatches || deleting}
             >
-              {deleting ? 'جارٍ الحذف...' : 'تأكيد الحذف الإجباري'}
+              {deleting ? t('dlg.force_delete.deleting') : t('dlg.force_delete.confirm_force')}
             </button>
           )}
         </>
@@ -101,23 +103,23 @@ export default function ForceDeleteContractModal({ contractId, onClose, onDelete
       {loadError && <p className="alert error">{loadError}</p>}
 
       {!preview && !loadError && (
-        <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>جارٍ التحميل...</p>
+        <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>{t('dlg.force_delete.loading')}</p>
       )}
 
       {preview && (
         <>
           {isBlocked ? (
             <div className="alert error" style={{ marginBottom: 16 }}>
-              <strong>الحذف غير ممكن:</strong> {preview.blockedReason}
+              <strong>{t('dlg.force_delete.blocked_prefix')}</strong> {preview.blockedReason}
             </div>
           ) : (
             <div className="alert error" style={{ marginBottom: 16 }}>
-              <strong>تحذير:</strong> هذه العملية لا يمكن التراجع عنها. سيتم حذف العقد وجميع بياناته بشكل نهائي.
+              <strong>{t('dlg.force_delete.warning_label')}</strong> {t('dlg.force_delete.contract.warning_body')}
             </div>
           )}
 
           <p style={{ marginBottom: 12 }}>
-            <strong>العقد:</strong>{' '}
+            <strong>{t('dlg.force_delete.contract.entity_label')}</strong>{' '}
             <code style={{ background: 'var(--bg-alt)', padding: '2px 6px', borderRadius: 4 }}>
               {preview.contract.code}
             </code>
@@ -127,14 +129,14 @@ export default function ForceDeleteContractModal({ contractId, onClose, onDelete
           {preview.totalChildRecords > 0 && (
             <>
               <p style={{ marginBottom: 8, fontWeight: 600 }}>
-                السجلات المرتبطة ({preview.totalChildRecords} سجل):
+                {t('dlg.force_delete.related_records', { n: preview.totalChildRecords })}
               </p>
               <ul style={{ margin: '0 0 8px', paddingInlineStart: 20, lineHeight: 2 }}>
                 {(Object.entries(preview.childCounts) as [keyof ChildCounts, number][])
                   .filter(([, count]) => count > 0)
                   .map(([key, count]) => (
                     <li key={key}>
-                      {CHILD_COUNT_LABELS[key]}: <strong>{count}</strong>
+                      {t(CHILD_COUNT_KEYS[key])}: <strong>{count}</strong>
                     </li>
                   ))}
               </ul>
@@ -145,19 +147,19 @@ export default function ForceDeleteContractModal({ contractId, onClose, onDelete
             <>
               {preview.willBeDeleted.length > 1 && (
                 <p style={{ marginBottom: 4, fontSize: 13, color: 'var(--danger)' }}>
-                  <strong>سيُحذف نهائياً:</strong>{' '}
-                  {preview.willBeDeleted.map((k) => DELETED_LABELS[k] ?? k).join('، ')}
+                  <strong>{t('dlg.force_delete.will_delete')}</strong>{' '}
+                  {preview.willBeDeleted.map((k) => (DELETED_KEYS[k] ? t(DELETED_KEYS[k]) : k)).join(t('dlg.force_delete.list_separator'))}
                 </p>
               )}
               {preview.willBeNullified.length > 0 && (
                 <p style={{ marginBottom: 16, fontSize: 13, color: 'var(--text-muted)' }}>
-                  <strong>سيُلغى ربطه:</strong>{' '}
-                  {preview.willBeNullified.map((k) => NULLIFIED_LABELS[k] ?? k).join('، ')}
+                  <strong>{t('dlg.force_delete.will_nullify')}</strong>{' '}
+                  {preview.willBeNullified.map((k) => (NULLIFIED_KEYS[k] ? t(NULLIFIED_KEYS[k]) : k)).join(t('dlg.force_delete.list_separator'))}
                 </p>
               )}
 
               <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
-                اكتب رمز العقد للتأكيد:{' '}
+                {t('dlg.force_delete.contract.confirm_prompt')}{' '}
                 <code style={{ background: 'var(--bg-alt)', padding: '2px 6px', borderRadius: 4 }}>
                   {preview.contract.code}
                 </code>

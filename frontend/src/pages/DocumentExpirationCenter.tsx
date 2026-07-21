@@ -24,6 +24,7 @@ import './DocumentExpirationCenter.css';
 import { useTableSort } from '../hooks/useTableSort';
 import { sortRowsClient } from '../lib/clientSort';
 import SortableHeader from '../components/SortableHeader';
+import { useT } from '../lib/i18n';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Types
@@ -64,15 +65,22 @@ interface ExpirationSummary {
 //  Lookup tables
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CATEGORY_AR: Record<string, string> = {
-  EMPLOYEE_RESIDENCY:       'إقامة موظف',
-  EMPLOYEE_PASSPORT:        'جواز سفر موظف',
-  EMPLOYEE_DRIVING_LICENSE: 'رخصة قيادة موظف',
-  EMPLOYEE_VEHICLE_LICENSE: 'رخصة مركبة موظف',
-  EQUIPMENT_REGISTRATION:   'تسجيل معدة',
-  EQUIPMENT_INSURANCE:      'تأمين معدة',
-  CONTRACT_EXPIRY:          'انتهاء عقد',
+type TFn = (key: string, vars?: Record<string, string | number>) => string;
+
+const CATEGORY_KEY: Record<string, string> = {
+  EMPLOYEE_RESIDENCY:       'decx.cat.employee_residency',
+  EMPLOYEE_PASSPORT:        'decx.cat.employee_passport',
+  EMPLOYEE_DRIVING_LICENSE: 'decx.cat.employee_driving_license',
+  EMPLOYEE_VEHICLE_LICENSE: 'decx.cat.employee_vehicle_license',
+  EQUIPMENT_REGISTRATION:   'decx.cat.equipment_registration',
+  EQUIPMENT_INSURANCE:      'decx.cat.equipment_insurance',
+  CONTRACT_EXPIRY:          'decx.cat.contract_expiry',
 };
+
+function categoryLabel(t: TFn, category: string): string {
+  const key = CATEGORY_KEY[category];
+  return key ? t(key) : category;
+}
 
 const CATEGORY_ICON: Record<string, string> = {
   EMPLOYEE_RESIDENCY:       'badge',
@@ -84,29 +92,38 @@ const CATEGORY_ICON: Record<string, string> = {
   CONTRACT_EXPIRY:          'description',
 };
 
-const URGENCY_AR: Record<string, string> = {
-  expired: 'منتهي',
-  '7':     'خلال 7 أيام',
-  '30':    'خلال 30 يوم',
-  '60':    'خلال 60 يوم',
-  '90':    'خلال 90 يوم',
-  ok:      'جيد',
+const URGENCY_KEY: Record<string, string> = {
+  expired: 'status.expired',
+  '7':     'decx.urgency.7d',
+  '30':    'page.dashboard.within_30',
+  '60':    'decx.urgency.60d',
+  '90':    'decx.urgency.90d',
+  ok:      'decx.urgency.ok',
 };
 
-const CATEGORY_OPTIONS = Object.entries(CATEGORY_AR).map(([value, label]) => ({ value, label }));
+function urgencyLabel(t: TFn, urgency: string): string {
+  const key = URGENCY_KEY[urgency];
+  return key ? t(key) : urgency;
+}
+
+function categoryOptions(t: TFn) {
+  return Object.entries(CATEGORY_KEY).map(([value, key]) => ({ value, label: t(key) }));
+}
 
 // رتبة شدّة الاستعجال للفرز — الأشد أولًا تصاعديًا (وليس ترتيبًا أبجديًا)
 const URGENCY_RANK: Record<UrgencyBand, number> = { expired: 0, '7': 1, '30': 2, '60': 3, '90': 4, ok: 5 };
 
-const URGENCY_OPTIONS: { value: string; label: string }[] = [
-  { value: 'all',     label: 'الكل' },
-  { value: 'expired', label: 'منتهية' },
-  { value: '7',       label: 'أقل من 7 أيام' },
-  { value: '30',      label: 'أقل من 30 يوم' },
-  { value: '60',      label: 'أقل من 60 يوم' },
-  { value: '90',      label: 'أقل من 90 يوم' },
-  { value: 'ok',      label: 'جيد (أكثر من 90)' },
-];
+function urgencyOptions(t: TFn): { value: string; label: string }[] {
+  return [
+    { value: 'all',     label: t('decx.filter.all') },
+    { value: 'expired', label: t('decx.filter.expired') },
+    { value: '7',       label: t('decx.filter.within_7') },
+    { value: '30',      label: t('decx.filter.within_30') },
+    { value: '60',      label: t('decx.filter.within_60') },
+    { value: '90',      label: t('decx.filter.within_90') },
+    { value: 'ok',      label: t('decx.filter.ok') },
+  ];
+}
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
@@ -129,8 +146,8 @@ function urgencyVar(u: string): string {
   return `var(--xpl-${urgencyTone(u)})`;
 }
 
-function daysLabel(d: number): string {
-  return d < 0 ? `منتهي منذ ${Math.abs(d)} يوم` : `${d} يوم`;
+function daysLabel(t: TFn, d: number): string {
+  return d < 0 ? t('decx.days_overdue', { days: Math.abs(d) }) : t('decx.days_remaining', { days: d });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -138,6 +155,7 @@ function daysLabel(d: number): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function DocumentExpirationCenter() {
+  const { t } = useT();
   const [summary, setSummary] = useState<ExpirationSummary | null>(null);
   const [records, setRecords] = useState<ExpirationRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,11 +175,11 @@ export default function DocumentExpirationCenter() {
   const sort = useTableSort('expirations');
   const sortedRecords = useMemo(
     () => sortRowsClient(records, sort.sortBy, sort.sortDir, (r, key) => {
-      if (key === 'category') return CATEGORY_AR[r.category] ?? r.category;
+      if (key === 'category') return categoryLabel(t, r.category);
       if (key === 'urgency') return URGENCY_RANK[r.urgency];
       return (r as unknown as Record<string, unknown>)[key];
     }),
-    [records, sort.sortBy, sort.sortDir],
+    [records, sort.sortBy, sort.sortDir, t],
   );
 
   const loadSummary = useCallback(() => {
@@ -182,7 +200,7 @@ export default function DocumentExpirationCenter() {
     api
       .get<{ data: ExpirationRecord[] }>('/expirations', { params })
       .then(r => setRecords(r.data.data))
-      .catch(() => setError('حدث خطأ أثناء تحميل البيانات'))
+      .catch(() => setError(t('decx.err.load_failed')))
       .finally(() => setLoading(false));
   }, [urgency, category, search]);
 
@@ -205,7 +223,7 @@ export default function DocumentExpirationCenter() {
       const res = await api.get('/expirations/export', { params, responseType: 'blob' });
       downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.DocumentExpirations, extension: 'xlsx' }));
     } catch {
-      setError('فشل التصدير');
+      setError(t('decx.err.export_failed'));
     } finally {
       setExporting(false);
     }
@@ -221,11 +239,11 @@ export default function DocumentExpirationCenter() {
 
   const activeChips = useMemo(() => {
     const chips: { key: string; label: string; clear: () => void }[] = [];
-    if (urgency !== 'all') chips.push({ key: 'u', label: URGENCY_AR[urgency] ?? urgency, clear: () => setUrgency('all') });
-    if (category) chips.push({ key: 'c', label: CATEGORY_AR[category] ?? category, clear: () => setCategory('') });
-    if (search) chips.push({ key: 's', label: `بحث: ${search}`, clear: () => setSearch('') });
+    if (urgency !== 'all') chips.push({ key: 'u', label: urgencyLabel(t, urgency), clear: () => setUrgency('all') });
+    if (category) chips.push({ key: 'c', label: categoryLabel(t, category), clear: () => setCategory('') });
+    if (search) chips.push({ key: 's', label: `${t('decx.search_prefix')}${search}`, clear: () => setSearch('') });
     return chips;
-  }, [urgency, category, search]);
+  }, [urgency, category, search, t]);
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
@@ -235,7 +253,7 @@ export default function DocumentExpirationCenter() {
       {/* ── Document detail drawer ── */}
       {selected && (
         <Drawer
-          title="تفاصيل الوثيقة"
+          title={t('decx.drawer.title')}
           onClose={() => setSelected(null)}
           hero={
             <div className="xpl-drawer-hero">
@@ -244,45 +262,45 @@ export default function DocumentExpirationCenter() {
               </div>
               <div className="xpl-drawer-hero-body">
                 <span className="xpl-drawer-hero-title">{selected.entityName}</span>
-                <span className="xpl-drawer-hero-sub">{CATEGORY_AR[selected.category] ?? selected.category}</span>
+                <span className="xpl-drawer-hero-sub">{categoryLabel(t, selected.category)}</span>
                 <div style={{ marginTop: 4 }}>
                   <StatusChip tone={urgencyTone(selected.urgency)} icon={selected.daysRemaining < 0 ? 'event_busy' : 'schedule'}>
-                    {URGENCY_AR[selected.urgency] ?? selected.urgency}
+                    {urgencyLabel(t, selected.urgency)}
                   </StatusChip>
                 </div>
               </div>
             </div>
           }
-          footer={<Button variant="ghost" icon="close" onClick={() => setSelected(null)}>إغلاق</Button>}
+          footer={<Button variant="ghost" icon="close" onClick={() => setSelected(null)}>{t('action.close')}</Button>}
         >
-          <DrawerSection title="بيانات الجهة">
+          <DrawerSection title={t('decx.section.entity_data')}>
             <div className="xpl-drawer-field">
-              <span className="xpl-drawer-field-label">الاسم</span>
+              <span className="xpl-drawer-field-label">{t('col.fullname')}</span>
               <span className="xpl-drawer-field-value">{selected.entityName}</span>
             </div>
             <div className="xpl-drawer-field">
-              <span className="xpl-drawer-field-label">الرمز</span>
+              <span className="xpl-drawer-field-label">{t('decx.col.entity_code')}</span>
               <span className="xpl-drawer-field-value mono">{selected.entityCode || '—'}</span>
             </div>
             <div className="xpl-drawer-field">
-              <span className="xpl-drawer-field-label">نوع الوثيقة</span>
-              <span className="xpl-drawer-field-value">{CATEGORY_AR[selected.category] ?? selected.category}</span>
+              <span className="xpl-drawer-field-label">{t('decx.col.doc_type')}</span>
+              <span className="xpl-drawer-field-value">{categoryLabel(t, selected.category)}</span>
             </div>
           </DrawerSection>
 
-          <DrawerSection title="الصلاحية والمدة">
+          <DrawerSection title={t('decx.section.validity')}>
             <div className="xpl-drawer-field">
-              <span className="xpl-drawer-field-label">تاريخ الانتهاء</span>
+              <span className="xpl-drawer-field-label">{t('decx.col.expiry_date')}</span>
               <span className="xpl-drawer-field-value">{formatDate(selected.expiryDate)}</span>
             </div>
             <div className="xpl-drawer-field">
-              <span className="xpl-drawer-field-label">الأيام المتبقية</span>
+              <span className="xpl-drawer-field-label">{t('decx.col.days_remaining')}</span>
               <span className={`xpl-drawer-field-value ${daysClass(selected.urgency)}`} style={{ color: urgencyVar(selected.urgency) }}>
-                {daysLabel(selected.daysRemaining)}
+                {daysLabel(t, selected.daysRemaining)}
               </span>
             </div>
             <div className="xpl-drawer-field" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-              <span className="xpl-drawer-field-label">المؤشر الزمني</span>
+              <span className="xpl-drawer-field-label">{t('decx.timeline_indicator')}</span>
               <div className="decx-gauge">
                 <div
                   className="decx-gauge-fill"
@@ -294,20 +312,20 @@ export default function DocumentExpirationCenter() {
               </div>
             </div>
             <div className="xpl-drawer-field">
-              <span className="xpl-drawer-field-label">الحالة</span>
+              <span className="xpl-drawer-field-label">{t('col.status')}</span>
               <span className="xpl-drawer-field-value">
-                <StatusChip tone={urgencyTone(selected.urgency)}>{URGENCY_AR[selected.urgency] ?? selected.urgency}</StatusChip>
+                <StatusChip tone={urgencyTone(selected.urgency)}>{urgencyLabel(t, selected.urgency)}</StatusChip>
               </span>
             </div>
           </DrawerSection>
 
-          <DrawerSection title="إجراءات سريعة">
+          <DrawerSection title={t('section.quick_actions_panel')}>
             <div className="decx-drawer-actions">
               <Button variant="secondary" icon="filter_alt" block onClick={() => { setCategory(selected.category); setSelected(null); }}>
-                تصفية حسب هذا النوع
+                {t('decx.filter_by_type')}
               </Button>
               <Button variant="ghost" icon="download" block busy={exporting} onClick={handleExport}>
-                تصدير النتائج الحالية
+                {t('decx.export_current_results')}
               </Button>
             </div>
           </DrawerSection>
@@ -317,20 +335,20 @@ export default function DocumentExpirationCenter() {
       {/* ── Executive header ── */}
       <ExecutiveHeader
         icon="event_busy"
-        title="مركز انتهاء الوثائق"
-        subtitle="متابعة مواعيد انتهاء وثائق الموظفين والمعدات والعقود في مكان واحد"
+        title={t('decx.header.title')}
+        subtitle={t('decx.header.subtitle')}
         chips={
           summary ? (
             <>
-              <IdChip icon="inventory_2" tone="indigo">{summary.total} وثيقة متابَعة</IdChip>
-              <IdChip icon="event_busy" tone="red">{summary.expired} منتهية</IdChip>
-              <IdChip icon="warning" tone="orange">{summary.days7 + summary.days30} قريبة الانتهاء</IdChip>
+              <IdChip icon="inventory_2" tone="indigo">{t('decx.chip.tracked_docs', { count: summary.total })}</IdChip>
+              <IdChip icon="event_busy" tone="red">{t('decx.chip.expired', { count: summary.expired })}</IdChip>
+              <IdChip icon="warning" tone="orange">{t('decx.chip.expiring_soon', { count: summary.days7 + summary.days30 })}</IdChip>
             </>
           ) : undefined
         }
         aside={
           <Button variant="primary" icon="download" busy={exporting} onClick={handleExport}>
-            تصدير Excel
+            {t('page.salaries.export_excel')}
           </Button>
         }
       />
@@ -340,21 +358,21 @@ export default function DocumentExpirationCenter() {
         <div className="decx-metrics">
           <HeroMetric
             icon="fact_check"
-            label="إجمالي الوثائق المتابَعة"
+            label={t('decx.metric.total_tracked')}
             value={summary.total}
-            sub={<><span className="material-symbols-outlined">priority_high</span>{`${summary.expired} منتهية تحتاج إجراءً فورياً`}</>}
+            sub={<><span className="material-symbols-outlined">priority_high</span>{t('decx.metric.expired_urgent', { count: summary.expired })}</>}
           />
           <div className="decx-metrics-secondary">
-            <MetricCard icon="event_busy" tone="red" label="منتهية" value={summary.expired}
-              onClick={() => setUrgency('expired')} active={urgency === 'expired'} ariaLabel="عرض الوثائق المنتهية" />
-            <MetricCard icon="hourglass_bottom" tone="red" label="خلال 7 أيام" value={summary.days7}
-              onClick={() => setUrgency('7')} active={urgency === '7'} ariaLabel="عرض ما ينتهي خلال 7 أيام" />
-            <MetricCard icon="schedule" tone="orange" label="خلال 30 يوم" value={summary.days30}
-              onClick={() => setUrgency('30')} active={urgency === '30'} ariaLabel="عرض ما ينتهي خلال 30 يوم" />
-            <MetricCard icon="calendar_month" tone="orange" label="خلال 60 يوم" value={summary.days60}
-              onClick={() => setUrgency('60')} active={urgency === '60'} ariaLabel="عرض ما ينتهي خلال 60 يوم" />
-            <MetricCard icon="event_available" tone="blue" label="خلال 90 يوم" value={summary.days90}
-              onClick={() => setUrgency('90')} active={urgency === '90'} ariaLabel="عرض ما ينتهي خلال 90 يوم" />
+            <MetricCard icon="event_busy" tone="red" label={t('decx.filter.expired')} value={summary.expired}
+              onClick={() => setUrgency('expired')} active={urgency === 'expired'} ariaLabel={t('decx.aria.view_expired')} />
+            <MetricCard icon="hourglass_bottom" tone="red" label={urgencyLabel(t, '7')} value={summary.days7}
+              onClick={() => setUrgency('7')} active={urgency === '7'} ariaLabel={t('decx.aria.view_within', { days: 7 })} />
+            <MetricCard icon="schedule" tone="orange" label={urgencyLabel(t, '30')} value={summary.days30}
+              onClick={() => setUrgency('30')} active={urgency === '30'} ariaLabel={t('decx.aria.view_within', { days: 30 })} />
+            <MetricCard icon="calendar_month" tone="orange" label={urgencyLabel(t, '60')} value={summary.days60}
+              onClick={() => setUrgency('60')} active={urgency === '60'} ariaLabel={t('decx.aria.view_within', { days: 60 })} />
+            <MetricCard icon="event_available" tone="blue" label={urgencyLabel(t, '90')} value={summary.days90}
+              onClick={() => setUrgency('90')} active={urgency === '90'} ariaLabel={t('decx.aria.view_within', { days: 90 })} />
           </div>
         </div>
       )}
@@ -362,20 +380,20 @@ export default function DocumentExpirationCenter() {
       {/* ── Sticky filter toolbar ── */}
       <div className="xpl-toolbar xpl-toolbar--sticky">
         <div className="xpl-toolbar-row">
-          <SearchBox value={search} onChange={setSearch} placeholder="ابحث باسم الجهة أو الرمز..." ariaLabel="بحث في الوثائق" />
+          <SearchBox value={search} onChange={setSearch} placeholder={t('decx.search.placeholder')} ariaLabel={t('decx.search.aria')} />
           <div className="xpl-field" style={{ minWidth: 190 }}>
-            <span className="xpl-field-label">نوع الوثيقة</span>
-            <select className="xpl-select" aria-label="نوع الوثيقة" value={category} onChange={e => setCategory(e.target.value)}>
-              <option value="">كل الأنواع</option>
-              {CATEGORY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <span className="xpl-field-label">{t('decx.col.doc_type')}</span>
+            <select className="xpl-select" aria-label={t('decx.col.doc_type')} value={category} onChange={e => setCategory(e.target.value)}>
+              <option value="">{t('decx.filter.all_types')}</option>
+              {categoryOptions(t).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           {hasFilters && (
-            <Button variant="ghost" icon="restart_alt" onClick={resetFilters}>إعادة تعيين</Button>
+            <Button variant="ghost" icon="restart_alt" onClick={resetFilters}>{t('decx.reset')}</Button>
           )}
         </div>
         <div className="xpl-toolbar-row">
-          {URGENCY_OPTIONS.map(o => (
+          {urgencyOptions(t).map(o => (
             <FilterChip key={o.value} active={urgency === o.value} onClick={() => setUrgency(o.value)}>
               {o.label}
             </FilterChip>
@@ -384,19 +402,19 @@ export default function DocumentExpirationCenter() {
         <div className="xpl-active-row">
           <div className="xpl-active-chips">
             {activeChips.length === 0 ? (
-              <span className="xpl-result-count">لا توجد فلاتر مطبّقة</span>
+              <span className="xpl-result-count">{t('decx.no_filters_applied')}</span>
             ) : (
               activeChips.map(c => (
                 <span key={c.key} className="xpl-active-chip">
                   {c.label}
-                  <button type="button" onClick={c.clear} aria-label={`إزالة ${c.label}`}>
+                  <button type="button" onClick={c.clear} aria-label={t('decx.aria.remove_filter', { label: c.label })}>
                     <span className="material-symbols-outlined">close</span>
                   </button>
                 </span>
               ))
             )}
           </div>
-          <span className="xpl-result-count">{records.length} نتيجة</span>
+          <span className="xpl-result-count">{t('decx.result_count', { count: records.length })}</span>
         </div>
       </div>
 
@@ -404,28 +422,28 @@ export default function DocumentExpirationCenter() {
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
       {/* ── Timeline table ── */}
-      <SectionCard title="الجدول الزمني للوثائق" icon="table_rows" padded={false}>
+      <SectionCard title={t('decx.section.timeline')} icon="table_rows" padded={false}>
         {loading ? (
           <div className="xpl-card--pad"><SkeletonRows rows={6} /></div>
         ) : records.length === 0 ? (
           <EmptyState
             icon="event_available"
             tone="neutral"
-            title="لا توجد وثائق مطابقة"
-            message="لا توجد نتائج للفلاتر المحددة. جرّب توسيع نطاق البحث أو إعادة تعيين الفلاتر."
-            action={hasFilters ? <Button variant="secondary" icon="restart_alt" onClick={resetFilters}>إعادة تعيين الفلاتر</Button> : undefined}
+            title={t('decx.empty.title')}
+            message={t('decx.empty.message')}
+            action={hasFilters ? <Button variant="secondary" icon="restart_alt" onClick={resetFilters}>{t('decx.reset_filters_btn')}</Button> : undefined}
           />
         ) : (
           <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
             <table className="xpl-table">
               <thead>
                 <tr>
-                  <SortableHeader label="نوع الوثيقة" title="نوع الوثيقة" state={sort.getState('category')} onToggle={() => sort.toggle('category')} />
-                  <SortableHeader label="الجهة" title="الجهة" state={sort.getState('entityName')} onToggle={() => sort.toggle('entityName')} />
-                  <SortableHeader label="تاريخ الانتهاء" title="تاريخ الانتهاء" state={sort.getState('expiryDate')} onToggle={() => sort.toggle('expiryDate')} />
-                  <SortableHeader label="الأيام المتبقية" title="الأيام المتبقية" state={sort.getState('daysRemaining')} onToggle={() => sort.toggle('daysRemaining')} />
-                  <SortableHeader label="الحالة" title="الحالة" state={sort.getState('urgency')} onToggle={() => sort.toggle('urgency')} />
-                  <th aria-label="فتح" />
+                  <SortableHeader label={t('decx.col.doc_type')} title={t('decx.col.doc_type')} state={sort.getState('category')} onToggle={() => sort.toggle('category')} />
+                  <SortableHeader label={t('decx.col.entity')} title={t('decx.col.entity')} state={sort.getState('entityName')} onToggle={() => sort.toggle('entityName')} />
+                  <SortableHeader label={t('decx.col.expiry_date')} title={t('decx.col.expiry_date')} state={sort.getState('expiryDate')} onToggle={() => sort.toggle('expiryDate')} />
+                  <SortableHeader label={t('decx.col.days_remaining')} title={t('decx.col.days_remaining')} state={sort.getState('daysRemaining')} onToggle={() => sort.toggle('daysRemaining')} />
+                  <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('urgency')} onToggle={() => sort.toggle('urgency')} />
+                  <th aria-label={t('decx.aria.open')} />
                 </tr>
               </thead>
               <tbody>
@@ -435,7 +453,7 @@ export default function DocumentExpirationCenter() {
                     className="xpl-row--click"
                     tabIndex={0}
                     role="button"
-                    aria-label={`تفاصيل ${CATEGORY_AR[r.category] ?? r.category} — ${r.entityName}`}
+                    aria-label={t('decx.aria.row_details', { category: categoryLabel(t, r.category), entity: r.entityName })}
                     onClick={() => setSelected(r)}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(r); } }}
                   >
@@ -444,7 +462,7 @@ export default function DocumentExpirationCenter() {
                         <span className="decx-cat-icon">
                           <span className="material-symbols-outlined" aria-hidden="true">{CATEGORY_ICON[r.category] ?? 'description'}</span>
                         </span>
-                        {CATEGORY_AR[r.category] ?? r.category}
+                        {categoryLabel(t, r.category)}
                       </span>
                     </td>
                     <td>
@@ -454,8 +472,8 @@ export default function DocumentExpirationCenter() {
                       </span>
                     </td>
                     <td style={{ whiteSpace: 'nowrap' }}>{formatDate(r.expiryDate)}</td>
-                    <td><span className={`decx-days ${daysClass(r.urgency)}`}>{daysLabel(r.daysRemaining)}</span></td>
-                    <td><StatusChip tone={urgencyTone(r.urgency)}>{URGENCY_AR[r.urgency] ?? r.urgency}</StatusChip></td>
+                    <td><span className={`decx-days ${daysClass(r.urgency)}`}>{daysLabel(t, r.daysRemaining)}</span></td>
+                    <td><StatusChip tone={urgencyTone(r.urgency)}>{urgencyLabel(t, r.urgency)}</StatusChip></td>
                     <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
                   </tr>
                 ))}
@@ -465,7 +483,7 @@ export default function DocumentExpirationCenter() {
         )}
         {!loading && records.length > 0 && (
           <div className="xpl-card--pad" style={{ borderTop: '1px solid var(--xpl-border)', fontSize: 12.5, color: 'var(--xpl-muted)' }}>
-            إجمالي النتائج المعروضة: {records.length}
+            {t('decx.total_results_shown')}{records.length}
           </div>
         )}
       </SectionCard>

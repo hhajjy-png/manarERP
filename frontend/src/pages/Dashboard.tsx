@@ -7,6 +7,7 @@ import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
 import { periodToRangeParams } from '../lib/financialPeriod';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
 import PrivateAmount from '../components/PrivateAmount';
 import { MetricCard, SectionCard, StatusChip, Button } from '../components/explorer/ExplorerKit';
 
@@ -74,6 +75,7 @@ function GeneralDashboardContent() {
   const { user, hasPermission } = useAuth();
   const navigate = useNavigate();
   const { t } = useT();
+  const { lang } = useUI();
   const { period } = useFinancialPeriod();
 
   const [initialLoading, setInitialLoading] = useState(true);
@@ -240,13 +242,13 @@ function GeneralDashboardContent() {
       {/* ═══════════════ §1 — EXECUTIVE HEADER (title · period · refresh) ═══════════════ */}
       <div className="db-exec-head">
         <div className="db-exec-head-main">
-          <h2 className="db-exec-head-title">لوحة التحكم</h2>
-          <p className="db-exec-head-sub">نظرة عامة على أداء الشركة</p>
+          <h2 className="db-exec-head-title">{t('nav.dashboard')}</h2>
+          <p className="db-exec-head-sub">{t('dash.header.subtitle')}</p>
         </div>
         <div className="db-exec-head-actions">
           <PeriodControl />
           {!initialLoading && refreshAt && (
-            <span className="db-exec-updated">آخر تحديث {refreshAt.toLocaleTimeString('ar')}</span>
+            <span className="db-exec-updated">{t('dash.header.last_updated')} {refreshAt.toLocaleTimeString(lang === 'ar' ? 'ar' : 'en')}</span>
           )}
           <button
             type="button"
@@ -280,7 +282,7 @@ function GeneralDashboardContent() {
           Collapsed by default — header stays visible, user expands on demand. */}
       <div className="db-kpi-hero">
         <SectionCard
-          title="المؤشرات المالية الرئيسية"
+          title={t('section.key_financial_indicators')}
           icon="query_stats"
           actions={
             <button
@@ -289,7 +291,7 @@ function GeneralDashboardContent() {
               onClick={() => setKpiExpanded((v) => !v)}
               aria-expanded={kpiExpanded}
             >
-              {kpiExpanded ? 'إخفاء' : 'عرض'}
+              {kpiExpanded ? t('action.hide') : t('action.show')}
               <span className="material-symbols-outlined db-advanced-chevron db-kpi-toggle-icon" aria-hidden="true">expand_more</span>
             </button>
           }
@@ -358,11 +360,11 @@ function GeneralDashboardContent() {
       )}
 
       {/* ═══════════════ §4 — CRITICAL ALERTS & ACTIONS ═══════════════ */}
-      <div className="db-section-label">التنبيهات والإجراءات</div>
+      <div className="db-section-label">{t('section.alerts_actions')}</div>
 
       <ExpirationWidget />
 
-      <SectionCard title="يحتاج إجراءً الآن" icon="priority_high">
+      <SectionCard title={t('section.needs_action_now')} icon="priority_high">
         <ActionCenterSection cards={commandData.decisionCenter?.decisionCards ?? []} loading={commandData.loading} />
       </SectionCard>
 
@@ -518,19 +520,19 @@ function GeneralDashboardContent() {
 
       {/* ═══════════════ §5 — EXECUTIVE RECOMMENDATIONS (high priority — promoted) ═══════════════ */}
       <div className="db-reco-emphasis">
-        <SectionCard title="التوصيات الذكية" icon="lightbulb">
+        <SectionCard title={t('section.smart_recommendations')} icon="lightbulb">
           <RecommendationsSection recommendations={commandData.decisionCenter?.recommendations ?? []} loading={commandData.loading} />
         </SectionCard>
       </div>
 
       {/* ═══════════════ §6 — FINANCIAL ANALYTICS ═══════════════ */}
-      <div className="db-section-label">التحليلات المالية</div>
+      <div className="db-section-label">{t('section.financial_analytics')}</div>
 
       <div className="db-charts-row">
         <SectionCard title={t('section.revenue_flow')} icon="bar_chart">
           <RevenueChart data={trend} loading={initialLoading} />
         </SectionCard>
-        <SectionCard title="توزيع الإيرادات حسب العميل" icon="donut_small">
+        <SectionCard title={t('section.revenue_by_customer')} icon="donut_small">
           <RevenueDistributionSection slices={commandData.revenueDistribution} loading={commandData.loading} />
         </SectionCard>
       </div>
@@ -641,7 +643,7 @@ function GeneralDashboardContent() {
         </div>
       )}
 
-      <SectionCard title="حالة الشركة اليوم" icon="health_and_safety">
+      <SectionCard title={t('section.company_health_today')} icon="health_and_safety">
         <HealthGaugeSection health={commandData.decisionCenter?.healthScore ?? null} loading={commandData.loading} />
       </SectionCard>
 
@@ -657,7 +659,7 @@ function GeneralDashboardContent() {
       </SectionCard>
 
       {/* ═══════════════ §8 — RECENT ACTIVITY ═══════════════ */}
-      <SectionCard title="آخر النشاطات" icon="history">
+      <SectionCard title={t('section.recent_activity')} icon="history">
         <RecentActivityFeed rows={commandData.activity} loading={commandData.loading} />
       </SectionCard>
 
@@ -669,39 +671,39 @@ function GeneralDashboardContent() {
       <details className="db-advanced">
         <summary className="db-advanced-summary">
           <span className="material-symbols-outlined" aria-hidden="true">insights</span>
-          تحليلات متقدمة
+          {t('dash.advanced_analytics')}
           <span className="material-symbols-outlined db-advanced-chevron" aria-hidden="true">expand_more</span>
         </summary>
         <div className="db-advanced-body">
           {!initialLoading && exec && (
             <div className="db-src-note">
-              <div className="db-src-note-title">ℹ مصدر البيانات المالية</div>
+              <div className="db-src-note-title">ℹ {t('dash.src_note.title')}</div>
               <div className="db-src-note-items">
                 <span>
-                  <span className="db-src-note-rev">الإيرادات</span>
-                  {' '}— دفعات الفواتير المحصّلة من سجل المعاملات
+                  <span className="db-src-note-rev">{t('today.revenue')}</span>
+                  {' '}— {t('dash.src_note.revenue_desc')}
                 </span>
                 <span>
-                  <span className="db-src-note-exp">المصروفات</span>
-                  {' '}— المصروفات المعتمدة من سجل المعاملات
+                  <span className="db-src-note-exp">{t('today.expenses')}</span>
+                  {' '}— {t('dash.src_note.expenses_desc')}
                 </span>
                 <span>
-                  <span className="db-src-note-profit">الربح الصافي</span>
-                  {' '}= الإيرادات − المصروفات (قد يكون سالباً)
+                  <span className="db-src-note-profit">{t('dash.src_note.net_profit_label')}</span>
+                  {' '}= {t('dash.src_note.net_profit_desc')}
                 </span>
                 <span>
-                  <span className="db-src-note-pending">الفواتير المعلّقة</span>
-                  {' '}— بحالة غير مدفوعة أو جزئية أو متأخرة
+                  <span className="db-src-note-pending">{t('dash.src_note.pending_invoices_label')}</span>
+                  {' '}— {t('dash.src_note.pending_invoices_desc')}
                 </span>
               </div>
             </div>
           )}
 
-          <SectionCard title="الأداء المالي (منذ بداية العام)" icon="show_chart">
+          <SectionCard title={t('section.financial_performance_ytd')} icon="show_chart">
             <PerformanceChartSection trend={trend} loading={commandData.loading} />
           </SectionCard>
 
-          <SectionCard title="إجراءات سريعة" icon="bolt">
+          <SectionCard title={t('section.quick_actions_panel')} icon="bolt">
             <QuickActionsSection />
           </SectionCard>
 
@@ -714,7 +716,7 @@ function GeneralDashboardContent() {
       {/* ═══════════════ §10 — CONTRACTS (low priority — relocated to the bottom) ═══════════════
           The company rarely uses Contracts, so every contracts surface is de-prioritised to
           the tail of the dashboard. Nothing removed — only visual priority reduced. */}
-      <div className="db-section-label">العقود</div>
+      <div className="db-section-label">{t('search.page.contracts')}</div>
 
       {/* Active-contracts KPI preserved here (relocated from the operational stats row so
           contracts stay low-priority without dropping the insight). */}
