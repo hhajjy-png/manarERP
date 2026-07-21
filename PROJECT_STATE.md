@@ -61,7 +61,26 @@ in a table cell.
 
 ---
 
-## Latest Release — Employee & Equipment Tables Visual Consistency Pack v1
+## Latest Release — ERP Terminology Standardization Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | ERP Terminology Standardization Pack v1 |
+| **Goal** | Establish one professional, production-grade English ERP terminology standard for the entire application — standardize inconsistent English UI wording against Microsoft Dynamics 365 / SAP / Oracle Fusion / Odoo conventions, remove duplicate terminology for the same concept, and codify the result as a permanent source-of-truth dictionary. English localization only; Arabic production baseline untouched. |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-21 |
+| **Feature branch** | `feature/erp-terminology-standardization-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `75d454e` (Employee & Equipment Tables Visual Consistency Pack v1 documentation-commit-hash fill-in) |
+| **Feature commit** | `68c0949` |
+| **Production merge commit** | `fa57fb4` |
+| **Stable tag** | `stable-erp-terminology-standardization-pack-v1` → merge `fa57fb4` (annotated) |
+| **Checkpoint tag** | `pre-erp-terminology-standardization-pack-v1` (production baseline `75d454e`) |
+| **Scope** | English (`en`) values only in `frontend/src/lib/i18n.ts` — **25 strings changed (25 insert / 25 delete)**. Adds `docs/ERP_TERMINOLOGY_STANDARD.md` (the permanent English ERP terminology source of truth). Arabic (`ar`) block byte-for-byte unchanged; key parity **1211 ↔ 1211** (no missing / orphan / duplicate keys). |
+| **Terminology standardized** | Auth: `Logout`→`Sign Out`; audit `Login`/`Logout`→`Sign In`/`Sign Out`. Customer canonical: `Client Transport`→`Customer Transport`. Invoice canonical: `Invoices & Claims`→`Invoices`. Receivables canonical: `Uncollected Invoices` + dashboard `Overdue Invoices:` chip → `Outstanding Invoices`. Create verbs unified to `New X` (Customer / Supplier / Vehicle / Employee / Expense). Person-routed expense categories → `Expense via X` (نظير transliteration corrected Natheer→Nazeer). Titles: `Accounting Management`→`Accounting`, `Cheques Management`→`Cheque Management`. Accuracy: `Transaction`→`Transfer No.`, `Download Empty Template`→`Download Blank Template`. Company legal name applied to payslip + cheque: `Al Manar Al Duwaliya Company L.L.C`; login brand normalized `Al-Manar`→`Al Manar`. Spelling standard: US English + retained `Cheque` (Gulf banking exception). |
+| **Validation** | Frontend `tsc --noEmit` ✅. Arabic block byte-identical to pre-release (0 diff hunks below the `en` block; EOL-normalized full-string compare identical). Key parity 1211 ↔ 1211, no duplicate / orphan / missing keys. Net production change vs `origin/production` = exactly 2 files (`i18n.ts` +25/−25; new standard doc). **No** business logic / API / DB / Prisma / routes / permissions / calculations / CSS / component / layout / RTL-LTR / print-logic change. |
+| **Review** | Independent Claude Opus code review: **APPROVED FOR RELEASE**. Product Owner manual visual review: **APPROVED**. Gemini final review: **APPROVED**. |
+
+## Previous Release — Employee & Equipment Tables Visual Consistency Pack v1
 
 | Field | Value |
 |-------|-------|

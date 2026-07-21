@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `db6a8a1` (merge of `feature/employee-equipment-tables-visual-consistency-pack-v1`) |
-| **Current Documentation Commit** | `b2f058b` — "docs: record Employee & Equipment Tables Visual Consistency Pack v1 release" |
-| **Current Stable Tag** | `stable-employee-equipment-tables-visual-consistency-pack-v1` |
-| **Current Release Date** | 2026-07-20 |
-| **Total Stable Releases** | 330 (window 2026-06-07 → 2026-07-20) |
+| **Current Merge Commit** | `fa57fb4` (merge of `feature/erp-terminology-standardization-pack-v1`) |
+| **Current Documentation Commit** | `PENDING_DOC_HASH` — "docs: record ERP Terminology Standardization Pack v1 release" |
+| **Current Stable Tag** | `stable-erp-terminology-standardization-pack-v1` |
+| **Current Release Date** | 2026-07-21 |
+| **Total Stable Releases** | 331 (window 2026-06-07 → 2026-07-21) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -219,6 +219,18 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **ERP Terminology Standardization Pack v1** (2026-07-21,
+  `stable-erp-terminology-standardization-pack-v1`) — one professional English ERP terminology standard for the
+  whole app. **English (`en`) localization only — Arabic baseline byte-for-byte unchanged; key parity 1211 ↔ 1211.**
+  25 strings standardized in `frontend/src/lib/i18n.ts` against Dynamics 365 / SAP / Oracle Fusion / Odoo norms:
+  canonical terms (Customer not Client, Invoice not "Invoices & Claims", Outstanding not Uncollected), unified
+  `New X` create verbs, `Sign In`/`Sign Out`, `Expense via X` categories (Nazeer transliteration fix), title
+  cleanups (`Accounting`, `Cheque Management`), and the official company legal name `Al Manar Al Duwaliya
+  Company L.L.C` on payslip + cheque. Spelling standard: US English + retained `Cheque`. Adds
+  `docs/ERP_TERMINOLOGY_STANDARD.md` as the permanent source of truth. **No** logic / API / DB / Prisma / routes /
+  permissions / CSS / layout / print change. Independent Claude Opus review: **APPROVED**. Product Owner visual
+  review: **APPROVED**. Gemini final review: **APPROVED**.
 
 - **Employee & Equipment Tables Visual Consistency Pack v1** (2026-07-20,
   `stable-employee-equipment-tables-visual-consistency-pack-v1`) — executive-grade visual polish for the
