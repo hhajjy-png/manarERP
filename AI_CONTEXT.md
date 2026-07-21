@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `77c4f07` (merge of `feature/employee-financial-position-dashboard-v1`, carrying English Localization Completion Pack v1a + v2) |
-| **Current Documentation Commit** | `PENDING_DOC_HASH` — "docs: record English Localization Completion Pack v2 release" |
+| **Current Documentation Commit** | `8ee03bd` — "docs: record English Localization Completion Pack v2 release" |
 | **Current Stable Tag** | `stable-english-localization-completion-pack-v2` |
 | **Current Release Date** | 2026-07-21 |
 | **Total Stable Releases** | 332 (window 2026-06-07 → 2026-07-21) |
