@@ -1,5 +1,5 @@
 import { CSSProperties, useMemo } from 'react';
-import { tafqeetKWD } from '../lib/tafqeet';
+import { amountToWordsKWD } from '../lib/tafqeet';
 import { formatNumber } from '../lib/format';
 
 export type PaymentMethod = 'cash' | 'cheque' | 'transfer';
@@ -56,7 +56,7 @@ export default function ReceiptVoucherTemplate({
   chequeBank,
   lang = 'ar',
 }: ReceiptVoucherData & { lang?: 'ar' | 'en' }) {
-  const amountWords = useMemo(() => (amount > 0 ? tafqeetKWD(amount) : ''), [amount]);
+  const amountWords = useMemo(() => (amount > 0 ? amountToWordsKWD(amount, lang) : ''), [amount, lang]);
   const amountDisplay = amount > 0 ? formatNumber(amount) : '';
 
   const metaBox: CSSProperties = {

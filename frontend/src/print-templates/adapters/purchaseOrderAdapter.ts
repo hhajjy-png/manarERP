@@ -1,7 +1,6 @@
 import type { ApiInvoice } from './apiTypes';
 import type { PurchaseOrderPrintData, PrintLineItem } from '../engine/types';
 import { getDefaultCompanyPrintData } from './companyData';
-import { tafqeet } from '../utils/tafqeet';
 import { formatDateForPrint } from '../utils/formatDate';
 
 function toLineItems(items: ApiInvoice['items']): PrintLineItem[] {

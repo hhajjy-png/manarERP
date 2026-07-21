@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
-import { tafqeetKWD } from '../lib/tafqeet';
+import { amountToWordsKWD } from '../lib/tafqeet';
 import { formatDate, todayDateOnly, formatDisplayDate } from '../lib/date';
 import { formatNumber } from '../lib/format';
 import { PageMeta } from '../components/DataTable';
@@ -178,7 +178,7 @@ function ChequePrintOutput({ data, template }: { data: PreviewData; template: Ch
         <img src={gulfBankImg} className="cheque-bg-img" alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill' }} />
         <div style={fieldStyle('beneficiary')}>{data.beneficiaryName}</div>
         <div style={{ ...fieldStyle('date'), letterSpacing: 0.5 }}>{chequeDate}</div>
-        <div style={{ ...fieldStyle('tafqeet'), direction: 'rtl' }}>{amount > 0 ? tafqeetKWD(amount) : ''}</div>
+        <div style={{ ...fieldStyle('tafqeet'), direction: 'rtl' }}>{amount > 0 ? amountToWordsKWD(amount, 'ar') : ''}</div>
         <div style={{ ...fieldStyle('numeric'), letterSpacing: 0.5 }}>{amount > 0 ? fmtChequeAmount(amount) : ''}</div>
       </div>
     </div>
@@ -554,7 +554,7 @@ export default function Cheques() {
       const d = new Date(src);
       return isNaN(d.getTime()) ? '18 / 06 / 2026' : `${String(d.getDate()).padStart(2, '0')} / ${String(d.getMonth() + 1).padStart(2, '0')} / ${d.getFullYear()}`;
     })(),
-    tafqeetText: printTarget ? tafqeetKWD(Number(printTarget.amount)) : 'خمسة آلاف دينار كويتي لا غير',
+    tafqeetText: printTarget ? amountToWordsKWD(Number(printTarget.amount), 'ar') : 'خمسة آلاف دينار كويتي لا غير',
     numericText: printTarget ? fmtChequeAmount(Number(printTarget.amount)) : '#5,000#',
   };
 
@@ -792,7 +792,7 @@ export default function Cheques() {
           </DrawerSection>
           {viewing.currency === 'KWD' && Number(viewing.amount) > 0 && (
             <DrawerSection title={t('lbl.cheque.tafqeet')}>
-              <div className="chqx-tafqeet">{tafqeetKWD(Number(viewing.amount))}</div>
+              <div className="chqx-tafqeet">{amountToWordsKWD(Number(viewing.amount), 'ar')}</div>
             </DrawerSection>
           )}
           <DrawerSection title={t('sec.cheque.bank_info')}>
@@ -893,7 +893,7 @@ export default function Cheques() {
             {form.currency === 'KWD' && Number(form.amount) > 0 && (
               <div className="xpl-field xpl-field--full">
                 <label>{t('lbl.cheque.tafqeet')}</label>
-                <div className="chqx-tafqeet">{tafqeetKWD(Number(form.amount))}</div>
+                <div className="chqx-tafqeet">{amountToWordsKWD(Number(form.amount), 'ar')}</div>
               </div>
             )}
           </DialogSection>

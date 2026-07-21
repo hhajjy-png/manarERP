@@ -1,6 +1,6 @@
 import { CSSProperties } from 'react';
 import { getNationalityEn, getJobTitleEn } from './shared/contractTranslations';
-import { tafqeetKWD } from '../lib/tafqeet';
+import { amountToWordsKWD } from '../lib/tafqeet';
 import { ProfileId, DEFAULT_PROFILE_ID, PRINT_PROFILES, getPrintProfileStyle } from './shared/printProfiles';
 import ApprovalSection from './shared/ApprovalSection';
 import { longTextCell } from './shared/formStyles';
@@ -198,7 +198,8 @@ export default function EmploymentContractTemplate({
     // to the same object and must not be modified, so this can't be split out.
     formNumber,
   };
-  const salWords = tafqeetKWD(sal);
+  const salWordsAr = amountToWordsKWD(sal, 'ar');
+  const salWordsEn = amountToWordsKWD(sal, 'en');
   const dayAr = AR_DAYS[issueD.getDay()];
   const dayEn = EN_DAYS[issueD.getDay()];
 
@@ -276,7 +277,7 @@ export default function EmploymentContractTemplate({
             <span style={hdr}>Article Four — Wage: </span>
             {'The second party shall receive a monthly wage of '}
             <strong>{sal} KWD</strong>
-            {` (${salWords}) payable at the end of each month. The first party may not reduce the wage during the contract term.`}
+            {` (${salWordsEn}) payable at the end of each month. The first party may not reduce the wage during the contract term.`}
           </div>
 
           <div className="ec-row" style={{ ...enRow }}>
@@ -460,13 +461,13 @@ export default function EmploymentContractTemplate({
             <span style={hdr}>البند الرابع — قيمة الأجر: </span>
             {'يتقاضى الطرف الثاني عن تنفيذ هذا العقد أجراً شهرياً مقداره '}
             <strong>{sal} دينار كويتي</strong>
-            {` (${salWords}) يدفع في نهاية كل شهر، ولا يجوز للطرف الأول تخفيض الأجر أثناء سريان العقد.`}
+            {` (${salWordsAr}) يدفع في نهاية كل شهر، ولا يجوز للطرف الأول تخفيض الأجر أثناء سريان العقد.`}
           </div>
           <div className="ec-cell" style={en}>
             <span style={hdr}>Article Four — Wage: </span>
             {'The second party shall receive a monthly wage of '}
             <strong>{sal} KWD</strong>
-            {` (${salWords}) payable at the end of each month. The first party may not reduce the wage during the contract term.`}
+            {` (${salWordsEn}) payable at the end of each month. The first party may not reduce the wage during the contract term.`}
           </div>
         </div>
 
