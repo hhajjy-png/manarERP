@@ -10,7 +10,6 @@
   padding: 8px 16px 0;
   border-bottom: 2px solid var(--border);
   background: var(--surface);
-  direction: rtl;
 }
 .db-tab-btn {
   padding: 8px 22px;
@@ -61,7 +60,6 @@
   background: var(--db-bg);
   color: var(--db-text);
   font-family: "IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif;
-  direction: rtl;
 }
 
 @media (max-width: 900px) {
@@ -707,8 +705,8 @@
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-end: 0;
+  inset-inline-start: 0;
   height: 4px;
   border-radius: 16px 16px 0 0;
   pointer-events: none;

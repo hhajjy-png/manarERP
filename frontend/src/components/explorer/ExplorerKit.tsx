@@ -17,6 +17,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useT } from '../../lib/i18n';
+import { useUI } from '../../stores/uiStore';
 
 export type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
@@ -419,13 +420,14 @@ export function Drawer({
 }) {
   const panelRef = useFocusTrap(onClose);
   const { t } = useT();
+  const { lang } = useUI();
 
   return (
     <>
       <div className="xpl-drawer-overlay" onClick={onClose} />
       <div
         className="xpl-drawer"
-        dir="rtl"
+        dir={lang === 'ar' ? 'rtl' : 'ltr'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledById}
@@ -725,11 +727,12 @@ export function Dialog({
 }) {
   const panelRef = useFocusTrap(onClose);
   const { t } = useT();
+  const { lang } = useUI();
   return (
     <div className={`xpl-dialog-overlay${elevated ? ' xpl-dialog-overlay--elevated' : ''}`} onClick={onClose}>
       <div
         className={`xpl-dialog xpl-dialog--${size}`}
-        dir="rtl"
+        dir={lang === 'ar' ? 'rtl' : 'ltr'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledById}

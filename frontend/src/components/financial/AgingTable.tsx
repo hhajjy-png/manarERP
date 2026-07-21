@@ -84,7 +84,7 @@ export function AgingTable({ rows, type, currentState }: Props) {
   }
 
   return (
-    <div className="aging-table-container table-responsive" dir="rtl">
+    <div className="aging-table-container table-responsive">
       {type === 'ap' && (
         <div className="aging-note">
           {t('fc.aging.ap_note')}

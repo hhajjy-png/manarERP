@@ -12,7 +12,7 @@ interface Props {
  */
 export default function PageLoader({ label = 'جارٍ التحميل…' }: Props) {
   return (
-    <div className="pld-root" dir="rtl" role="status" aria-live="polite">
+    <div className="pld-root" role="status" aria-live="polite">
       <span className="pld-spinner" aria-hidden="true" />
       <span className="pld-label">{label}</span>
     </div>

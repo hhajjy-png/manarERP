@@ -27,7 +27,7 @@ export function AccountSelector({ value, onChange }: Props) {
   );
 
   return (
-    <div className="account-selector" dir="rtl">
+    <div className="account-selector">
       <input
         type="text"
         placeholder={t('fc.ph.search_account')}

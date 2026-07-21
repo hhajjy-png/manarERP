@@ -168,7 +168,7 @@ export default function Prices() {
   ]), [agreementsDashboard, t]);
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
       <ExecutiveHeader
         icon="sell"
         title={t('page.prices.title')}

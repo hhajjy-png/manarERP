@@ -314,7 +314,7 @@ export default function Attendance() {
   ];
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
       <ExecutiveHeader
         icon="fact_check"
         title={t('page.att.title')}

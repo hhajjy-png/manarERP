@@ -163,7 +163,7 @@ export default function BankAccounts() {
 
   if (!canView) {
     return (
-      <div className="page-error" dir="rtl">
+      <div className="page-error">
         <span className="material-symbols-outlined bac-lock-icon">lock</span>
         <p>{t('bank.accounts.no_permission')}</p>
       </div>
@@ -171,7 +171,7 @@ export default function BankAccounts() {
   }
 
   return (
-    <div className="bac-root" dir="rtl">
+    <div className="bac-root">
       {/* ── Header ── */}
       <div className="bac-header">
         <div className="bac-header-text">

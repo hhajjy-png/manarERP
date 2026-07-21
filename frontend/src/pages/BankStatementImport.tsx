@@ -369,14 +369,14 @@ export default function BankStatementImport() {
 
   if (!hasPermission('bankStatementImport.create')) {
     return (
-      <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }} dir="rtl">
+      <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)' }}>
         {t('bank.import.no_permission')}
       </div>
     );
   }
 
   return (
-    <div dir="rtl">
+    <div>
       {/* Header */}
       <div className="page-head">
         <div>

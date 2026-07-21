@@ -1,7 +1,6 @@
 /* ─── Financial Center — page shell ───────────────────────────────────────── */
 .financial-center {
   padding: 0 24px 40px;
-  direction: rtl;
 }
 .fc-header {
   display: flex;
@@ -173,7 +172,7 @@
 }
 
 /* ─── Export bar ───────────────────────────────────────────────────────────── */
-.financial-export-bar { display: flex; gap: 8px; margin-right: auto; }
+.financial-export-bar { display: flex; gap: 8px; margin-inline-start: auto; }
 .export-btn {
   display: flex;
   align-items: center;
@@ -232,7 +231,7 @@
 .financial-table th,
 .financial-table td {
   padding: 9px 12px;
-  text-align: right;
+  text-align: start;
   border-bottom: 1px solid var(--border, #e2e8f0);
   white-space: nowrap;
 }
@@ -252,7 +251,7 @@
 /* Grouped table headers */
 .group-header td { font-weight: 700; background: var(--surface-2, #f1f5f9); cursor: pointer; }
 .year-header  td { background: #e0e7ef; color: var(--xpl-primary, var(--accent, #1d4e6f)); font-size: 0.9rem; }
-.month-header td { background: var(--surface-2, #f1f5f9); color: #374151; padding-right: 28px; }
+.month-header td { background: var(--surface-2, #f1f5f9); color: #374151; padding-inline-start: 28px; }
 .toggle-icon  { display: inline-block; width: 18px; font-size: 0.7rem; }
 
 /* ─── DrillDown link ───────────────────────────────────────────────────────── */
@@ -266,7 +265,7 @@
   color: #3b82f6;
   text-decoration: underline;
   text-decoration-style: dotted;
-  text-align: right;
+  text-align: start;
 }
 .drill-down-link:hover { color: #2563eb; }
 .drill-down-text       { color: var(--text, #0f172a); }
@@ -333,7 +332,6 @@
   border-radius: 8px;
   font-size: 0.85rem;
   color: #92400e;
-  direction: rtl;
 }
 
 .aging-chart-container {
@@ -364,7 +362,7 @@
   text-decoration: underline;
   text-decoration-style: dotted;
   font-weight: 600;
-  text-align: right;
+  text-align: start;
 }
 .aging-entity-link:hover { color: var(--xpl-primary-2, var(--accent, #163d56)); }
 
@@ -480,7 +478,7 @@
   text-decoration: underline;
   text-decoration-style: dotted;
   font-weight: 600;
-  text-align: right;
+  text-align: start;
 }
 .account-link:hover { color: var(--xpl-primary-2, var(--accent, #163d56)); }
 
@@ -532,7 +530,7 @@
 .journal-lines-table th, .journal-lines-table td {
   padding: 5px 12px;
   border-bottom: 1px solid var(--border, #e2e8f0);
-  text-align: right;
+  text-align: start;
 }
 .journal-lines-table th { background: #e9f0f7; font-weight: 600; }
 
@@ -638,7 +636,7 @@
   font-size: 0.75rem;
   color: var(--text-muted, #64748b);
   margin-bottom: 16px;
-  text-align: left;
+  text-align: end;
 }
 .financial-dashboard-cards {
   display: grid;
@@ -677,7 +675,7 @@
   color: var(--xpl-primary, var(--accent, #1d4e6f));
   cursor: pointer;
   font-family: inherit;
-  text-align: right;
+  text-align: start;
   margin-top: 4px;
 }
 .fin-dash-link:hover { text-decoration: underline; }
@@ -703,7 +701,7 @@
 .fin-dash-table th,
 .fin-dash-table td {
   padding: 8px 10px;
-  text-align: right;
+  text-align: start;
   border-bottom: 1px solid var(--border, #e2e8f0);
 }
 .fin-dash-table th {
@@ -750,7 +748,7 @@
   cursor: pointer;
   font-size: 1rem;
   color: var(--text-muted, #64748b);
-  margin-right: auto;
+  margin-inline-start: auto;
   padding: 2px 6px;
   border-radius: 4px;
 }

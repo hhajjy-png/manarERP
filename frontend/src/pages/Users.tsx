@@ -196,7 +196,7 @@ export default function Users() {
   const selectedRole = useMemo(() => roles.find((r) => String(r.id) === form.roleId), [roles, form.roleId]);
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
       <ExecutiveHeader
         icon="admin_panel_settings"
         title={t('page.users.title')}

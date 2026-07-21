@@ -32,7 +32,7 @@ export function TrialBalanceTable({ rows, mode, totals }: Props) {
     const totalsAs  = totals as Partial<TrialBalanceAsOfRow> | undefined;
     return (
       <div className="table-responsive">
-        <table className="financial-table trial-balance-table" dir="rtl">
+        <table className="financial-table trial-balance-table">
           <thead>
             <tr>
               <th>{t('col.acc.code')}</th><th>{t('col.acc.name')}</th><th>{t('col.acc.type')}</th>
@@ -79,7 +79,7 @@ export function TrialBalanceTable({ rows, mode, totals }: Props) {
   const totalsP    = totals as Partial<TrialBalancePeriodRow> | undefined;
   return (
     <div className="table-responsive">
-      <table className="financial-table trial-balance-table" dir="rtl">
+      <table className="financial-table trial-balance-table">
         <thead>
           <tr>
             <th>{t('col.acc.code')}</th><th>{t('col.acc.name')}</th>

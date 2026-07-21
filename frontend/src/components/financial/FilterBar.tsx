@@ -15,7 +15,7 @@ interface FilterBarProps {
 export function FilterBar({ fromDate, toDate, search, onFromDate, onToDate, onSearch, children }: FilterBarProps) {
   const { t } = useT();
   return (
-    <div className="financial-filter-bar" dir="rtl">
+    <div className="financial-filter-bar">
       {children}
       {onFromDate && (
         <div className="filter-field">

@@ -606,7 +606,7 @@ export default function Integrations() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="ic-page" dir="rtl">
+    <div className="ic-page">
 
       {/* ── Package A — Hero Header ── */}
       <div className="ic-header">

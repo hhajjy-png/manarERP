@@ -53,7 +53,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (!this.state.hasError) return this.props.children;
 
     return (
-      <div className="bae-boundary" dir="rtl" role="alert">
+      <div className="bae-boundary" role="alert">
         <span className="material-symbols-outlined bae-boundary-icon">report</span>
         <h3 className="bae-boundary-title">
           {this.props.title ?? 'حدث خطأ أثناء عرض هذا القسم'}

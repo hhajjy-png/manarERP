@@ -246,7 +246,7 @@ export default function Invoices() {
     hasPermission('invoices.update') && r.status !== 'CANCELLED' && Number(r.paidAmount) === 0;
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
       <ReturnToReportButton />
       <ExecutiveHeader
         icon="receipt_long"

@@ -52,7 +52,7 @@ export default function PayrollBankExport() {
   const details = result?.sheets.find((s) => s.name === 'Salary Details');
 
   return (
-    <div className="xpl-stack" dir="rtl">
+    <div className="xpl-stack">
       <SectionCard title={t('payroll_bank.export.title')} icon="account_balance">
         <p className="xpl-help" style={{ marginTop: 0 }}>
           {t('payroll_bank.export.help_intro')} <strong>{t('payroll_bank.export.help_approved')}</strong>{t('payroll_bank.export.help_outro')}

@@ -207,7 +207,7 @@ export default function Expenses() {
   );
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
       <ReturnToReportButton />
 
       <ExecutiveHeader

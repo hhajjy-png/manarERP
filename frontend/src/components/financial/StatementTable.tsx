@@ -21,7 +21,7 @@ export function StatementTable({ rows, currentState, highlightId }: Props) {
   const { t } = useT();
   return (
     <div className="table-responsive">
-      <table className="financial-table statement-table" dir="rtl">
+      <table className="financial-table statement-table">
         <thead>
           <tr>
             <th>{t('col.date')}</th>
