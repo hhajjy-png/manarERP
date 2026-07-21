@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `fa57fb4` (merge of `feature/erp-terminology-standardization-pack-v1`) |
-| **Current Documentation Commit** | `c4fc21b` — "docs: record ERP Terminology Standardization Pack v1 release" |
-| **Current Stable Tag** | `stable-erp-terminology-standardization-pack-v1` |
+| **Current Merge Commit** | `77c4f07` (merge of `feature/employee-financial-position-dashboard-v1`, carrying English Localization Completion Pack v1a + v2) |
+| **Current Documentation Commit** | `PENDING_DOC_HASH` — "docs: record English Localization Completion Pack v2 release" |
+| **Current Stable Tag** | `stable-english-localization-completion-pack-v2` |
 | **Current Release Date** | 2026-07-21 |
-| **Total Stable Releases** | 331 (window 2026-06-07 → 2026-07-21) |
+| **Total Stable Releases** | 332 (window 2026-06-07 → 2026-07-21) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -219,6 +219,23 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **English Localization Completion Pack v2** (2026-07-21,
+  `stable-english-localization-completion-pack-v2`) — eliminates the remaining hardcoded Arabic UI strings
+  app-wide (bundles the previously-unreleased Pack v1a as its prerequisite, since neither had reached
+  `production` before this merge). **English localization only — Arabic UI, business logic, API, DB, routes,
+  permissions, CSS, layout, RTL/LTR, charts, print logic, and calculations all untouched.** Covers Banking
+  (BankReconciliation, BankAccounts, BankAccountExplorer, BankStatementImport, BankSalaryAnalytics,
+  PayrollBankImport/Export), Financial Center (statements, GL, trial balance, aging, journal, period lock),
+  Reports, Accounting, Integrations Hub, Employee Entitlements Center, Employment Contract, Cheque Calibrator +
+  Wizard, invoice/quotation fast-entry flows, the generic Excel importer, HR print-forms, and the remaining
+  ResourcePage/Prices/Cheques gaps. `frontend/src/lib/i18n.ts` grew from 1,211 to **3,879 keys in both
+  `DICT.ar`/`DICT.en`** (net +2,668, key parity confirmed, zero duplicate keys, zero existing key values
+  altered — purely additive). 138 files changed vs. the previous production baseline. Customer/supplier/employee
+  names, notes, and other business data intentionally remain in Arabic, as does `DocumentVerify.tsx` (a
+  localhost-only internal tool). **Known pre-existing, unrelated bug found during audit (not fixed here):** a
+  set of HR/print-document pages maintain their own page-local language toggle decoupled from the app-wide
+  one. Product Owner visual review: **APPROVED**. Gemini final review: **APPROVED**.
 
 - **ERP Terminology Standardization Pack v1** (2026-07-21,
   `stable-erp-terminology-standardization-pack-v1`) — one professional English ERP terminology standard for the
