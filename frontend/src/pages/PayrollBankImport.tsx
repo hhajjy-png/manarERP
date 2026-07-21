@@ -4,6 +4,7 @@ import { useAuth } from '../stores/authStore';
 import { errorMessage } from '../api/client';
 import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
 import { formatDate, formatDateTime } from '../lib/date';
+import { useT } from '../lib/i18n';
 import {
   previewImport, executeImport, exportReportExcel, exportReportPdf,
   type BankTemplate, type ParsedBankRow, type PreviewSummary, type ImportReport,
@@ -29,15 +30,22 @@ function fmtAmount(n: number): string {
   return formatNumber(n);
 }
 
+/** Localized bank-template display name — falls back to the raw template id. */
+function bankConfigLabel(tpl: BankTemplate | undefined, t: (key: string) => string): string {
+  const cfg = tpl ? BANK_CONFIGS[tpl] : undefined;
+  return cfg ? t(cfg.nameKey) : (tpl ?? '');
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function StepIndicator({ current }: { current: WizardStep }) {
+  const { t } = useT();
   const steps: { id: WizardStep; label: string; visual: string }[] = [
-    { id: 'upload',  label: 'رفع الملف',    visual: '① ' },
-    { id: 'preview', label: 'معاينة وتحقق', visual: '② ' },
-    { id: 'preview', label: 'ملخص التحقق',  visual: '③ ' },
-    { id: 'confirm', label: 'تأكيد',        visual: '④ ' },
-    { id: 'done',    label: 'اكتمل',        visual: '⑤ ' },
+    { id: 'upload',  label: t('bank.payroll_import.step.upload'),          visual: '① ' },
+    { id: 'preview', label: t('import.btn.validate'),                     visual: '② ' },
+    { id: 'preview', label: t('bank.payroll_import.step.review_summary'), visual: '③ ' },
+    { id: 'confirm', label: t('page.salaries.confirm'),                   visual: '④ ' },
+    { id: 'done',    label: t('bank.payroll_import.step.done'),           visual: '⑤ ' },
   ];
   const stepOrder: WizardStep[] = ['upload', 'preview', 'confirm', 'done'];
   const currentIdx = stepOrder.indexOf(current);
@@ -114,10 +122,11 @@ const TH: React.CSSProperties = { padding: '10px 12px', textAlign: 'start', font
 const TD: React.CSSProperties = { padding: '8px 12px', verticalAlign: 'top', fontSize: 13 };
 
 function StatusPill({ status, errors }: { status: 'valid'|'warning'|'error'; errors: string[] }) {
+  const { t } = useT();
   const map = {
-    valid:   { bg: '#dcfce7', color: '#16a34a', label: 'صالح' },
-    warning: { bg: '#fef3c7', color: '#d97706', label: 'تحذير' },
-    error:   { bg: '#fee2e2', color: '#dc2626', label: 'خطأ' },
+    valid:   { bg: '#dcfce7', color: '#16a34a', label: t('import.status.valid') },
+    warning: { bg: '#fef3c7', color: '#d97706', label: t('bank.payroll_import.status.warning') },
+    error:   { bg: '#fee2e2', color: '#dc2626', label: t('import.status.invalid') },
   };
   const { bg, color, label } = map[status];
   return (
@@ -131,12 +140,13 @@ function StatusPill({ status, errors }: { status: 'valid'|'warning'|'error'; err
 }
 
 function MatchBadge({ confidence }: { confidence: string | null }) {
+  const { t } = useT();
   if (!confidence) return <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>;
   const map: Record<string, { label: string; color: string }> = {
-    CODE_100:        { label: 'كود — 100%', color: '#16a34a' },
-    CIVIL_ID_100:    { label: 'مدني — 100%', color: '#16a34a' },
-    BANK_ACCOUNT_90: { label: 'حساب — 90%', color: '#2563eb' },
-    MANUAL:          { label: 'يدوية', color: '#d97706' },
+    CODE_100:        { label: t('bank.payroll_import.match.code_100'),        color: '#16a34a' },
+    CIVIL_ID_100:    { label: t('bank.payroll_import.match.civil_id_100'),    color: '#16a34a' },
+    BANK_ACCOUNT_90: { label: t('bank.payroll_import.match.bank_account_90'), color: '#2563eb' },
+    MANUAL:          { label: t('bank.payroll_import.match.manual'),          color: '#d97706' },
   };
   const m = map[confidence] ?? { label: confidence, color: '#6b7280' };
   return <span style={{ fontSize: 11, color: m.color, fontWeight: 600 }}>{m.label}</span>;
@@ -149,6 +159,7 @@ interface UploadStepProps {
 }
 
 function UploadStep({ onParsed }: UploadStepProps) {
+  const { t } = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [error, setError]       = useState<string | null>(null);
@@ -156,9 +167,9 @@ function UploadStep({ onParsed }: UploadStepProps) {
 
   function processFile(file: File) {
     setError(null);
-    if (file.size > 10 * 1024 * 1024) { setError('حجم الملف كبير جداً — الحد الأقصى 10 م.ب'); return; }
+    if (file.size > 10 * 1024 * 1024) { setError(t('bank.payroll_import.error.file_too_large')); return; }
     const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-    if (!['.xlsx', '.xls'].includes(ext)) { setError('يرجى اختيار ملف Excel بصيغة .xlsx أو .xls فقط'); return; }
+    if (!['.xlsx', '.xls'].includes(ext)) { setError(t('bank.payroll_import.error.invalid_extension')); return; }
 
     setLoading(true);
     const reader = new FileReader();
@@ -166,22 +177,22 @@ function UploadStep({ onParsed }: UploadStepProps) {
       try {
         const data = new Uint8Array(evt.target!.result as ArrayBuffer);
         const wb   = XLSX.read(data, { type: 'array', cellDates: true });
-        if (wb.SheetNames.length === 0) { setError('الملف فارغ'); setLoading(false); return; }
+        if (wb.SheetNames.length === 0) { setError(t('bank.payroll_import.error.empty_file')); setLoading(false); return; }
 
         const { rows, templateName } = parseWorkbook(wb);
         if (rows.length === 0) {
-          setError('لم يتم العثور على صفوف. تأكد أن أسماء الأوراق بصيغة "mar-2025"، أو أن الملف يحتوي على ورقة "All_Transactions"، أو أنه تقرير "File Upload - Transactions Details"');
+          setError(t('bank.payroll_import.error.no_rows'));
           setLoading(false);
           return;
         }
         if (rows.length > MAX_ROWS) {
-          setError(`الملف يحتوي على أكثر من ${MAX_ROWS} صف — قسّم الملف إلى دفعات أصغر`);
+          setError(t('bank.payroll_import.error.too_many_rows', { max: MAX_ROWS }));
           setLoading(false);
           return;
         }
         onParsed({ rows, templateName, fileName: file.name });
       } catch {
-        setError('تعذّر قراءة الملف — تأكد أنه ملف Excel صحيح (.xlsx أو .xls)');
+        setError(t('bank.payroll_import.error.read_failed'));
       } finally {
         setLoading(false);
       }
@@ -222,12 +233,12 @@ function UploadStep({ onParsed }: UploadStepProps) {
         <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={handleFileChange} />
         <div style={{ fontSize: 40, marginBottom: 12 }}>📂</div>
         <p style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary, #111827)', margin: '0 0 6px' }}>
-          اسحب الملف هنا أو انقر للاختيار
+          {t('bank.payroll_import.dropzone.title')}
         </p>
         <p style={{ fontSize: 13, color: 'var(--text-muted, #6b7280)', margin: 0 }}>
-          .xlsx أو .xls — الحد الأقصى 10 م.ب — {MAX_ROWS.toLocaleString('ar')} صف كحد أقصى
+          {t('bank.payroll_import.dropzone.hint', { max: MAX_ROWS.toLocaleString('ar') })}
         </p>
-        {loading && <p style={{ marginTop: 12, color: '#2563eb', fontSize: 14 }}>جارٍ قراءة الملف…</p>}
+        {loading && <p style={{ marginTop: 12, color: '#2563eb', fontSize: 14 }}>{t('bank.payroll_import.dropzone.reading')}</p>}
       </div>
 
       {/* Bank support info */}
@@ -235,14 +246,14 @@ function UploadStep({ onParsed }: UploadStepProps) {
         background: 'var(--bg-card, #f9fafb)', border: '1px solid var(--border, #e5e7eb)',
         borderRadius: 8, padding: '14px 18px', fontSize: 13, color: 'var(--text-muted, #6b7280)',
       }}>
-        <p style={{ margin: '0 0 8px', fontWeight: 600, color: 'var(--text-secondary, #374151)' }}>البنوك المدعومة (كشف التحقق التلقائي):</p>
+        <p style={{ margin: '0 0 8px', fontWeight: 600, color: 'var(--text-secondary, #374151)' }}>{t('bank.payroll_import.supported_banks_title')}</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {['NBK', 'KFH', 'Boubyan', 'GulfBank', 'Warba', 'AhliUnited'].map((b) => (
             <span key={b} style={{ background: '#dbeafe', color: '#1e40af', borderRadius: 4, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>{b}</span>
           ))}
         </div>
         <p style={{ margin: '10px 0 0', fontSize: 12 }}>
-          يُحدَّد النموذج تلقائياً من أسماء الأعمدة. الصيغ المدعومة: أوراق شهرية بصيغة <code>mar-2025</code>، أو ورقة <code>All_Transactions</code>، أو تقرير <code>File Upload - Transactions Details</code> (يُكتشف عنوان الجدول تلقائياً حتى لو لم يكن في الصف الأول).
+          {t('bank.payroll_import.format_hint.p1')}<code>mar-2025</code>{t('bank.payroll_import.format_hint.p2')}<code>All_Transactions</code>{t('bank.payroll_import.format_hint.p3')}<code>File Upload - Transactions Details</code>{t('bank.payroll_import.format_hint.p4')}
         </p>
       </div>
     </div>
@@ -251,21 +262,22 @@ function UploadStep({ onParsed }: UploadStepProps) {
 
 // ── Assistant (v1) — preview-only, non-blocking ───────────────────────────────
 
-const WARNING_LABELS: Record<string, string> = {
-  IBAN_INVALID:            'IBAN غير صالح',
-  WEAK_MATCH:              'مطابقة ضعيفة (بالاسم)',
-  INDEX_COLLISION_CIVILID: 'تعارض رقم مدني',
-  INDEX_COLLISION_ACCOUNT: 'تعارض رقم حساب',
-  DUP_IBAN_IN_FILE:        'IBAN مكرر في الملف',
-  SALARY_ANOMALY_HIGH:     'مبلغ مرتفع بشكل غير معتاد',
-  SALARY_ANOMALY_LOW:      'مبلغ منخفض بشكل غير معتاد',
-  DUP_PAYROLL_DB:          'راتب مسجّل مسبقاً لنفس الشهر',
-  DUP_EMPLOYEE_IN_FILE:    'موظف مكرّر لنفس الشهر بالملف',
-  MONTH_REIMPORT:          'شهر سبق استيراده',
+const WARNING_LABELS: Record<string, { key: string }> = {
+  IBAN_INVALID:            { key: 'bank.payroll_import.warning.iban_invalid' },
+  WEAK_MATCH:              { key: 'bank.payroll_import.warning.weak_match' },
+  INDEX_COLLISION_CIVILID: { key: 'bank.payroll_import.warning.index_collision_civilid' },
+  INDEX_COLLISION_ACCOUNT: { key: 'bank.payroll_import.warning.index_collision_account' },
+  DUP_IBAN_IN_FILE:        { key: 'bank.payroll_import.warning.dup_iban_in_file' },
+  SALARY_ANOMALY_HIGH:     { key: 'bank.payroll_import.warning.salary_anomaly_high' },
+  SALARY_ANOMALY_LOW:      { key: 'bank.payroll_import.warning.salary_anomaly_low' },
+  DUP_PAYROLL_DB:          { key: 'bank.payroll_import.warning.dup_payroll_db' },
+  DUP_EMPLOYEE_IN_FILE:    { key: 'bank.payroll_import.warning.dup_employee_in_file' },
+  MONTH_REIMPORT:          { key: 'bank.payroll_import.warning.month_reimport' },
 };
 
-function warningLabel(code: string): string {
-  return WARNING_LABELS[code] ?? code;
+function warningLabel(code: string, t: (key: string) => string): string {
+  const entry = WARNING_LABELS[code];
+  return entry ? t(entry.key) : code;
 }
 
 function qualityColor(score: number): string {
@@ -275,6 +287,7 @@ function qualityColor(score: number): string {
 }
 
 function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['assistant']> }) {
+  const { t } = useT();
   const { variance: v, quality: q, collisions } = assistant;
   const warnEntries = Object.entries(assistant.warningCounts).sort((a, b) => b[1] - a[1]);
   const [showMissing, setShowMissing] = useState(false);
@@ -294,17 +307,17 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
       borderRadius: 10, padding: '16px 18px', marginBottom: 20,
     }}>
       <p style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'var(--text-primary, #111827)' }}>
-        🤖 مساعد استيراد الرواتب
+        {t('bank.payroll_import.assistant.title')}
       </p>
 
       {/* Assistant cards */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 14 }}>
         <div style={card}>
-          <div style={cardLabel}>جودة الملف</div>
+          <div style={cardLabel}>{t('bank.payroll_import.assistant.file_quality')}</div>
           <div style={{ ...cardValue, color: qualityColor(q.score) }}>{q.score}<span style={{ fontSize: 13 }}> / 100</span></div>
         </div>
         <div style={card}>
-          <div style={cardLabel}>صحة IBAN</div>
+          <div style={cardLabel}>{t('bank.payroll_import.assistant.iban_validity')}</div>
           <div style={cardValue}>
             {assistant.ibanChecked === 0
               ? <span style={{ color: '#9ca3af' }}>—</span>
@@ -312,28 +325,28 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
           </div>
         </div>
         <div style={card}>
-          <div style={cardLabel}>موظفون في الملف</div>
+          <div style={cardLabel}>{t('bank.payroll_import.assistant.employees_in_file')}</div>
           <div style={cardValue}>{v.employeesInFile.toLocaleString('ar')}</div>
         </div>
         <div style={card}>
-          <div style={cardLabel}>موظفون غير مطابقين</div>
+          <div style={cardLabel}>{t('bank.payroll_import.assistant.unmatched_employees')}</div>
           <div style={{ ...cardValue, color: v.unmatchedCount > 0 ? '#dc2626' : '#9ca3af' }}>{v.unmatchedCount.toLocaleString('ar')}</div>
         </div>
       </div>
 
       {/* Variance panel */}
       <div style={{ background: 'var(--bg-card, #fff)', border: '1px solid var(--border, #e5e7eb)', borderRadius: 8, padding: '12px 16px', marginBottom: 14 }}>
-        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>تقرير الفروقات (Variance)</p>
+        <p style={{ margin: '0 0 8px', fontSize: 13, fontWeight: 700 }}>{t('bank.payroll_import.variance.title')}</p>
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 13 }}>
-          <span>الإجمالي المستورد: <strong style={{ fontFamily: 'monospace' }}>{<MoneyText value={v.totalImported} />}</strong></span>
-          <span>المطابق: <strong style={{ fontFamily: 'monospace' }}>{fmtAmount(v.totalMatched)}</strong></span>
-          <span>غير المطابق: <strong style={{ fontFamily: 'monospace', color: v.totalUnmatched > 0 ? '#dc2626' : undefined }}>{fmtAmount(v.totalUnmatched)}</strong></span>
+          <span>{t('bank.payroll_import.variance.total_imported')}: <strong style={{ fontFamily: 'monospace' }}>{<MoneyText value={v.totalImported} />}</strong></span>
+          <span>{t('bank.payroll_import.variance.matched')}: <strong style={{ fontFamily: 'monospace' }}>{fmtAmount(v.totalMatched)}</strong></span>
+          <span>{t('bank.payroll_import.variance.unmatched')}: <strong style={{ fontFamily: 'monospace', color: v.totalUnmatched > 0 ? '#dc2626' : undefined }}>{fmtAmount(v.totalUnmatched)}</strong></span>
           {v.previousPeriodLabel && v.previousTotal != null && (
             <>
               <span style={{ color: 'var(--text-muted, #6b7280)' }}>|</span>
-              <span>الشهر السابق ({v.previousPeriodLabel}): <strong style={{ fontFamily: 'monospace' }}>{fmtAmount(v.previousTotal)}</strong></span>
+              <span>{t('bank.payroll_import.variance.previous_month')} ({v.previousPeriodLabel}): <strong style={{ fontFamily: 'monospace' }}>{fmtAmount(v.previousTotal)}</strong></span>
               <span>
-                الفرق:{' '}
+                {t('bank.payroll_import.variance.difference')}:{' '}
                 <strong style={{ fontFamily: 'monospace', color: (v.varianceAmount ?? 0) < 0 ? '#dc2626' : '#16a34a' }}>
                   {fmtAmount(v.varianceAmount ?? 0)}
                   {v.variancePercent != null && ` (${v.variancePercent > 0 ? '+' : ''}${formatPercent(v.variancePercent, 1)})`}
@@ -342,7 +355,7 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
             </>
           )}
           {!v.previousPeriodLabel && (
-            <span style={{ color: 'var(--text-muted, #9ca3af)' }}>لا توجد بيانات شهر سابق للمقارنة</span>
+            <span style={{ color: 'var(--text-muted, #9ca3af)' }}>{t('bank.payroll_import.variance.no_previous_data')}</span>
           )}
         </div>
 
@@ -351,8 +364,8 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
           <div style={{ marginTop: 10, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {v.byPeriod.map((p) => (
               <span key={p.label} style={{ background: 'var(--bg-subtle, #f1f5f9)', borderRadius: 4, padding: '3px 10px', fontSize: 12 }}>
-                {p.label}: {p.rowCount.toLocaleString('ar')} صف · {fmtAmount(p.totalAmount)}
-                {p.existingInPeriod > 0 && <span style={{ color: '#d97706' }}> ⚠ سبق استيراده</span>}
+                {p.label}: {t('bank.payroll_import.variance.row_count', { count: p.rowCount.toLocaleString('ar') })} · {fmtAmount(p.totalAmount)}
+                {p.existingInPeriod > 0 && <span style={{ color: '#d97706' }}> {t('bank.payroll_import.variance.reimported_flag')}</span>}
               </span>
             ))}
           </div>
@@ -362,11 +375,11 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
       {/* Grouped warnings */}
       {warnEntries.length > 0 && (
         <div style={{ marginBottom: hasCollisions || v.missingEmployees.length > 0 ? 14 : 0 }}>
-          <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700 }}>التنبيهات حسب النوع (غير مانعة للاستيراد):</p>
+          <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700 }}>{t('bank.payroll_import.warnings_by_type_title')}</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {warnEntries.map(([code, count]) => (
               <span key={code} style={{ background: '#fffbeb', border: '1px solid #fcd34d', color: '#78350f', borderRadius: 4, padding: '3px 10px', fontSize: 12 }}>
-                {warningLabel(code)}: <strong>{count.toLocaleString('ar')}</strong>
+                {warningLabel(code, t)}: <strong>{count.toLocaleString('ar')}</strong>
               </span>
             ))}
           </div>
@@ -376,10 +389,10 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
       {/* Collisions */}
       {hasCollisions && (
         <div style={{ marginBottom: v.missingEmployees.length > 0 ? 14 : 0, fontSize: 12, color: '#92400e' }}>
-          ⚠ تعارضات محتملة في فهرس الموظفين:
-          {collisions.civilId.length > 0 && ` أرقام مدنية مكررة (${collisions.civilId.length})`}
-          {collisions.bankAccount.length > 0 && ` · حسابات مكررة (${collisions.bankAccount.length})`}
-          {collisions.ibanInFile.length > 0 && ` · IBAN مكرر بالملف (${collisions.ibanInFile.length})`}
+          {t('bank.payroll_import.collisions.intro')}
+          {collisions.civilId.length > 0 && t('bank.payroll_import.collisions.civil_id', { count: collisions.civilId.length })}
+          {collisions.bankAccount.length > 0 && t('bank.payroll_import.collisions.bank_account', { count: collisions.bankAccount.length })}
+          {collisions.ibanInFile.length > 0 && t('bank.payroll_import.collisions.iban_in_file', { count: collisions.ibanInFile.length })}
         </div>
       )}
 
@@ -387,7 +400,7 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
       {v.missingEmployees.length > 0 && (
         <div style={{ fontSize: 13 }}>
           <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#b45309' }}>
-            موظفون متوقعون وغير موجودين في الملف ({v.missingEmployees.length.toLocaleString('ar')}):
+            {t('bank.payroll_import.missing_employees.title', { count: v.missingEmployees.length.toLocaleString('ar') })}
           </p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {(showMissing ? v.missingEmployees : v.missingEmployees.slice(0, 12)).map((m) => (
@@ -398,7 +411,7 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
           </div>
           {v.missingEmployees.length > 12 && !showMissing && (
             <p style={{ margin: '6px 0 0', fontSize: 12, color: '#2563eb', cursor: 'pointer' }} onClick={() => setShowMissing(true)}>
-              ↓ عرض الكل ({v.missingEmployees.length.toLocaleString('ar')})
+              {t('bank.payroll_import.show_all_count', { count: v.missingEmployees.length.toLocaleString('ar') })}
             </p>
           )}
         </div>
@@ -418,8 +431,15 @@ interface PreviewStepProps {
 }
 
 function PreviewStep({ summary, templateName, fileName, onConfirm, onBack }: PreviewStepProps) {
+  const { t } = useT();
   const [showAll, setShowAll] = useState(false);
   const displayRows = showAll ? summary.rows : summary.rows.slice(0, 50);
+
+  const TABLE_HEADERS = [
+    t('bank.payroll_import.col.employee_code'), t('bank.payroll_import.col.matched_employee'), t('bank.payroll_import.col.match'),
+    t('col.civil_id'), 'IBAN', t('bank.payroll_import.col.account_number'), t('field.cheque.beneficiary'),
+    t('col.amount'), t('col.cheque.currency'), t('col.sal.payment_date'), t('bank.payroll_import.col.transaction_id'), t('col.status'),
+  ];
 
   return (
     <div>
@@ -431,21 +451,21 @@ function PreviewStep({ summary, templateName, fileName, onConfirm, onBack }: Pre
       }}>
         <span>📄 <strong>{fileName}</strong></span>
         <span style={{ color: 'var(--text-muted, #6b7280)' }}>|</span>
-        <span>🏦 {BANK_CONFIGS[templateName as BankTemplate]?.nameAr ?? templateName}</span>
+        <span>🏦 {bankConfigLabel(templateName as BankTemplate, t)}</span>
         <span style={{ color: 'var(--text-muted, #6b7280)' }}>|</span>
-        <span>{summary.totalRows.toLocaleString('ar')} صف</span>
+        <span>{t('bank.payroll_import.row_count', { count: summary.totalRows.toLocaleString('ar') })}</span>
       </div>
 
       {/* KPI cards */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
-        <KpiCard label="إجمالي الصفوف"      value={summary.totalRows}          color="var(--text-primary, #111827)" />
-        <KpiCard label="مطابقون"             value={summary.matched}             color="#16a34a" />
-        <KpiCard label="غير مطابقين"         value={summary.unmatched}           color={summary.unmatched   > 0 ? '#dc2626' : '#9ca3af'} />
-        <KpiCard label="صالحة"               value={summary.valid}               color="#16a34a" />
-        <KpiCard label="تحذيرات"             value={summary.withWarnings}        color={summary.withWarnings > 0 ? '#d97706' : '#9ca3af'} />
-        <KpiCard label="أخطاء"               value={summary.invalid}             color={summary.invalid      > 0 ? '#dc2626' : '#9ca3af'} />
-        <KpiCard label="مكررة"               value={summary.duplicates}          color={summary.duplicates   > 0 ? '#ca8a04' : '#9ca3af'} />
-        <KpiCard label="المبلغ الكلي (KWD)" value={fmtAmount(summary.totalAmount)} color="#1d4ed8" />
+        <KpiCard label={t('import.summary.total')}                          value={summary.totalRows}          color="var(--text-primary, #111827)" />
+        <KpiCard label={t('bank.payroll_import.kpi.matched')}                value={summary.matched}             color="#16a34a" />
+        <KpiCard label={t('bank.payroll_import.kpi.unmatched')}              value={summary.unmatched}           color={summary.unmatched   > 0 ? '#dc2626' : '#9ca3af'} />
+        <KpiCard label={t('import.summary.valid')}                          value={summary.valid}               color="#16a34a" />
+        <KpiCard label={t('bank.payroll_import.kpi.with_warnings')}         value={summary.withWarnings}        color={summary.withWarnings > 0 ? '#d97706' : '#9ca3af'} />
+        <KpiCard label={t('bank.payroll_import.kpi.errors')}                 value={summary.invalid}             color={summary.invalid      > 0 ? '#dc2626' : '#9ca3af'} />
+        <KpiCard label={t('import.summary.duplicate')}                      value={summary.duplicates}          color={summary.duplicates   > 0 ? '#ca8a04' : '#9ca3af'} />
+        <KpiCard label={t('bank.payroll_import.kpi.total_amount_kwd')}      value={fmtAmount(summary.totalAmount)} color="#1d4ed8" />
       </div>
 
       {/* Assistant (v1) — preview-only, non-blocking */}
@@ -457,7 +477,7 @@ function PreviewStep({ summary, templateName, fileName, onConfirm, onBack }: Pre
           background: '#fef3c7', border: '1px solid #d97706', borderRadius: 6,
           padding: '10px 14px', marginBottom: 16, color: '#78350f', fontSize: 13,
         }}>
-          ⚠️ لا يمكن التنفيذ — يجب أن تكون جميع الصفوف صحيحة ومطابقة لموظفين. راجع الأخطاء في الجدول أدناه.
+          {t('bank.payroll_import.cannot_execute_warning')}
         </div>
       )}
 
@@ -466,7 +486,7 @@ function PreviewStep({ summary, templateName, fileName, onConfirm, onBack }: Pre
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr>
-              {['رقم الموظف', 'الموظف المطابق', 'المطابقة', 'الرقم المدني', 'IBAN', 'رقم الحساب', 'اسم المستفيد', 'المبلغ', 'العملة', 'تاريخ الدفع', 'رقم المعاملة', 'الحالة'].map((h) => (
+              {TABLE_HEADERS.map((h) => (
                 <th key={h} style={TH}>{h}</th>
               ))}
             </tr>
@@ -481,7 +501,7 @@ function PreviewStep({ summary, templateName, fileName, onConfirm, onBack }: Pre
                   <td style={TD}>
                     {row.matchedEmployeeName
                       ? <span style={{ color: '#16a34a', fontWeight: 600 }}>{row.matchedEmployeeName}</span>
-                      : <span style={{ color: '#dc2626' }}>غير محدد</span>}
+                      : <span style={{ color: '#dc2626' }}>{t('bank.payroll_import.unmatched')}</span>}
                   </td>
                   <td style={TD}>
                     <MatchBadge confidence={row.matchConfidence} />
@@ -515,23 +535,23 @@ function PreviewStep({ summary, templateName, fileName, onConfirm, onBack }: Pre
       {/* Show more */}
       {summary.rows.length > 50 && !showAll && (
         <p style={{ fontSize: 13, color: '#2563eb', cursor: 'pointer', marginBottom: 16 }} onClick={() => setShowAll(true)}>
-          ↓ عرض جميع الصفوف ({summary.rows.length})
+          {t('bank.payroll_import.show_all_rows', { count: summary.rows.length })}
         </p>
       )}
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 10 }}>
         <button type="button" style={btn('secondary')} onClick={onBack}>
-          ← رجوع
+          ← {t('btn.inv.back')}
         </button>
         <button
           type="button"
           style={btn('primary', !summary.canExecute)}
           disabled={!summary.canExecute}
           onClick={onConfirm}
-          title={summary.canExecute ? undefined : 'أصلح الأخطاء أولاً قبل المتابعة'}
+          title={summary.canExecute ? undefined : t('bank.payroll_import.fix_errors_first')}
         >
-          التالي: تأكيد الاستيراد ←
+          {t('bank.payroll_import.next_confirm_import')} ←
         </button>
       </div>
     </div>
@@ -550,7 +570,14 @@ interface ConfirmStepProps {
 }
 
 function ConfirmStep({ summary, templateName, canExecute, executing, onExecute, onBack }: ConfirmStepProps) {
+  const { t } = useT();
   const [checked, setChecked] = useState(false);
+  const SUMMARY_ITEMS = [
+    { label: t('col.cheque.bank'), value: bankConfigLabel(templateName as BankTemplate, t) },
+    { label: t('import.summary.total'), value: summary.totalRows },
+    { label: t('bank.payroll_import.valid_rows'), value: summary.valid + summary.withWarnings },
+    { label: t('bank.payroll_import.total_amount_kwd'), value: fmtAmount(summary.totalAmount) },
+  ];
   return (
     <div>
       {/* Summary box */}
@@ -559,15 +586,10 @@ function ConfirmStep({ summary, templateName, canExecute, executing, onExecute, 
         padding: '20px 24px', marginBottom: 24,
       }}>
         <p style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700, color: '#0c4a6e' }}>
-          ملخص عملية الاستيراد
+          {t('bank.payroll_import.import_summary_title')}
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
-          {[
-            { label: 'البنك', value: BANK_CONFIGS[templateName as BankTemplate]?.nameAr ?? templateName },
-            { label: 'إجمالي الصفوف', value: summary.totalRows },
-            { label: 'الصفوف الصالحة', value: summary.valid + summary.withWarnings },
-            { label: 'المبلغ الإجمالي (KWD)', value: fmtAmount(summary.totalAmount) },
-          ].map(({ label, value }) => (
+          {SUMMARY_ITEMS.map(({ label, value }) => (
             <div key={label} style={{ fontSize: 13 }}>
               <span style={{ color: '#6b7280' }}>{label}: </span>
               <strong style={{ color: '#0c4a6e' }}>{value}</strong>
@@ -581,8 +603,8 @@ function ConfirmStep({ summary, templateName, canExecute, executing, onExecute, 
         background: '#fef3c7', border: '1px solid #f59e0b', borderRadius: 8,
         padding: '14px 18px', marginBottom: 20, fontSize: 14, color: '#78350f',
       }}>
-        <p style={{ margin: '0 0 8px', fontWeight: 700 }}>⚠️ تحذير — هذه العملية لا يمكن التراجع عنها</p>
-        <p style={{ margin: 0 }}>سيتم إنشاء {summary.valid + summary.withWarnings} سجل دفع في قاعدة البيانات. تأكد من صحة البيانات قبل المتابعة.</p>
+        <p style={{ margin: '0 0 8px', fontWeight: 700 }}>{t('bank.payroll_import.irreversible_warning')}</p>
+        <p style={{ margin: 0 }}>{t('bank.payroll_import.will_create_records', { count: summary.valid + summary.withWarnings })}</p>
       </div>
 
       {/* Confirmation checkbox */}
@@ -593,13 +615,13 @@ function ConfirmStep({ summary, templateName, canExecute, executing, onExecute, 
           onChange={(e) => setChecked(e.target.checked)}
           style={{ width: 18, height: 18 }}
         />
-        أؤكد صحة البيانات وأوافق على تنفيذ عملية الاستيراد
+        {t('bank.payroll_import.confirm_checkbox_label')}
       </label>
 
       {/* Actions */}
       <div style={{ display: 'flex', gap: 10 }}>
         <button type="button" style={btn('secondary')} onClick={onBack} disabled={executing}>
-          ← رجوع
+          ← {t('btn.inv.back')}
         </button>
         <button
           type="button"
@@ -607,7 +629,7 @@ function ConfirmStep({ summary, templateName, canExecute, executing, onExecute, 
           disabled={!checked || executing || !canExecute}
           onClick={onExecute}
         >
-          {executing ? '⏳ جارٍ الاستيراد…' : '⬆ تنفيذ الاستيراد'}
+          {executing ? t('bank.payroll_import.importing') : `⬆ ${t('import.btn.execute')}`}
         </button>
       </div>
     </div>
@@ -623,6 +645,7 @@ interface DoneStepProps {
 }
 
 function DoneStep({ report, canExport, onNewImport }: DoneStepProps) {
+  const { t } = useT();
   const [exporting, setExporting] = useState<'excel' | 'pdf' | null>(null);
 
   async function handleExport(format: 'excel' | 'pdf') {
@@ -650,18 +673,18 @@ function DoneStep({ report, canExport, onNewImport }: DoneStepProps) {
         background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 12,
         padding: '20px 24px', marginBottom: 24,
       }}>
-        <p style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: '#16a34a' }}>✅ اكتمل الاستيراد بنجاح</p>
+        <p style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700, color: '#16a34a' }}>{t('bank.payroll_import.done.success_title')}</p>
         <p style={{ margin: 0, fontSize: 13, color: '#15803d' }}>
-          تم تنفيذ الاستيراد في {formatDateTime(report.importedAt)} بواسطة {report.importedBy}
+          {t('bank.payroll_import.done.executed_by', { date: formatDateTime(report.importedAt), user: report.importedBy })}
         </p>
       </div>
 
       {/* Result KPIs */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 24 }}>
-        <KpiCard label="تم استيراده"          value={report.imported}              color="#16a34a" />
-        <KpiCard label="تم تخطيه"             value={report.skipped}               color={report.skipped > 0 ? '#dc2626' : '#9ca3af'} />
-        <KpiCard label="بتحذيرات"             value={report.withWarnings}           color={report.withWarnings > 0 ? '#d97706' : '#9ca3af'} />
-        <KpiCard label="المبلغ الكلي (KWD)"  value={fmtAmount(report.totalAmount)} color="#1d4ed8" />
+        <KpiCard label={t('bank.payroll_import.done.kpi_imported')}         value={report.imported}              color="#16a34a" />
+        <KpiCard label={t('bank.payroll_import.done.kpi_skipped')}          value={report.skipped}               color={report.skipped > 0 ? '#dc2626' : '#9ca3af'} />
+        <KpiCard label={t('bank.payroll_import.done.kpi_with_warnings')}    value={report.withWarnings}           color={report.withWarnings > 0 ? '#d97706' : '#9ca3af'} />
+        <KpiCard label={t('bank.payroll_import.kpi.total_amount_kwd')}      value={fmtAmount(report.totalAmount)} color="#1d4ed8" />
       </div>
 
       {/* Export + actions */}
@@ -669,25 +692,29 @@ function DoneStep({ report, canExport, onNewImport }: DoneStepProps) {
         {canExport && (
           <>
             <button type="button" style={btn('secondary', exporting === 'excel')} onClick={() => handleExport('excel')} disabled={!!exporting}>
-              {exporting === 'excel' ? '⏳ جارٍ التصدير…' : '📊 تصدير Excel'}
+              {exporting === 'excel' ? t('bank.payroll_import.exporting') : `📊 ${t('page.salaries.export_excel')}`}
             </button>
             <button type="button" style={btn('secondary', exporting === 'pdf')} onClick={() => handleExport('pdf')} disabled={!!exporting}>
-              {exporting === 'pdf' ? '⏳ جارٍ التصدير…' : '📄 تصدير PDF'}
+              {exporting === 'pdf' ? t('bank.payroll_import.exporting') : `📄 ${t('bank.payroll_import.export_pdf')}`}
             </button>
           </>
         )}
         <button type="button" style={btn('primary')} onClick={onNewImport}>
-          + استيراد جديد
+          + {t('import.btn.reset')}
         </button>
       </div>
 
       {/* Report detail table */}
-      <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>تفاصيل الاستيراد</h3>
+      <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 10 }}>{t('bank.payroll_import.done.detail_title')}</h3>
       <div style={{ overflowX: 'auto', border: '1px solid var(--border, #e5e7eb)', borderRadius: 8 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr>
-              {['رقم الموظف', 'الاسم', 'الرقم المدني', 'المبلغ (KWD)', 'العملة', 'رقم المعاملة', 'تاريخ الدفع', 'الشهر/السنة', 'الحالة', 'الملاحظة'].map((h) => (
+              {[
+                t('bank.payroll_import.col.employee_code'), t('col.fullname'), t('col.civil_id'),
+                t('bank.payroll_import.col.amount_kwd'), t('col.cheque.currency'), t('bank.payroll_import.col.transaction_id'),
+                t('col.sal.payment_date'), t('bank.payroll_import.col.month_year'), t('col.status'), t('bank.payroll_import.col.note'),
+              ].map((h) => (
                 <th key={h} style={TH}>{h}</th>
               ))}
             </tr>
@@ -712,7 +739,7 @@ function DoneStep({ report, canExport, onNewImport }: DoneStepProps) {
                     color:      row.status === 'imported' ? '#16a34a' : '#dc2626',
                     borderRadius: 4, padding: '2px 8px', fontSize: 12, fontWeight: 700,
                   }}>
-                    {row.status === 'imported' ? 'مستورد' : 'متخطى'}
+                    {row.status === 'imported' ? t('bank.payroll_import.report_status.imported') : t('bank.payroll_import.report_status.skipped')}
                   </span>
                 </td>
                 <td style={{ ...TD, fontSize: 12, color: '#6b7280' }}>{row.reason ?? '—'}</td>
@@ -729,11 +756,12 @@ function DoneStep({ report, canExport, onNewImport }: DoneStepProps) {
 
 export default function PayrollBankImport() {
   const { hasPermission } = useAuth();
+  const { t } = useT();
 
   if (!hasPermission('payrollBankImport.read')) {
     return (
       <div style={{ padding: 32, color: 'var(--text-muted, #6b7280)', fontSize: 14 }}>
-        ليس لديك صلاحية لعرض هذه الصفحة.
+        {t('bank.payroll_import.no_permission_view')}
       </div>
     );
   }
@@ -771,7 +799,7 @@ export default function PayrollBankImport() {
   }, []);
 
   async function handleExecute() {
-    if (!canCreate) { setError('ليس لديك صلاحية تنفيذ الاستيراد'); return; }
+    if (!canCreate) { setError(t('bank.payroll_import.no_permission_execute')); return; }
     setError(null);
     setLoading(true);
     try {
@@ -805,10 +833,10 @@ export default function PayrollBankImport() {
       <div style={{ marginBottom: 28 }}>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary, #111827)', margin: '0 0 4px' }}>
           <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', fontSize: 22, marginLeft: 8 }}>upload_file</span>
-          استيراد الرواتب البنكية
+          {t('bank.payroll_import.page_title')}
         </h1>
         <p style={{ fontSize: 13, color: 'var(--text-muted, #6b7280)', margin: 0 }}>
-          استيراد كشف التحويلات البنكية وربطه بسجلات الموظفين — يدعم NBK، KFH، بوبيان، بنك الخليج، وربة، الأهلي المتحد
+          {t('bank.payroll_import.page_subtitle')}
         </p>
       </div>
 
@@ -825,7 +853,7 @@ export default function PayrollBankImport() {
           borderRadius: 8, padding: '20px', textAlign: 'center', marginBottom: 16,
           color: 'var(--text-muted, #6b7280)', fontSize: 14,
         }}>
-          ⏳ جارٍ التحميل…
+          {t('page.reports.loading')}
         </div>
       )}
 
@@ -840,7 +868,7 @@ export default function PayrollBankImport() {
           templateName={templateName}
           fileName={fileName}
           onConfirm={() => {
-            if (!canCreate) { setError('ليس لديك صلاحية تنفيذ الاستيراد'); return; }
+            if (!canCreate) { setError(t('bank.payroll_import.no_permission_execute')); return; }
             setStep('confirm');
           }}
           onBack={handleReset}

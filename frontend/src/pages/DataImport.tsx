@@ -16,9 +16,9 @@ const BankStatementImport = lazy(() => import('./BankStatementImport'));
 // صلاحية كل بطاقة تطابق فحص الصلاحية الداخلي لنفس المعالج (PayrollBankImport /
 // BankStatementImport)، فلا تُعرض بطاقة يظهر خلفها معالج بلا صلاحية عرضه.
 type BankModuleKey = 'payroll' | 'statement';
-const BANK_MODULES: { key: BankModuleKey; permission: string; icon: string; label: string }[] = [
-  { key: 'payroll',   permission: 'payrollBankImport.read',  icon: 'payments',              label: 'استيراد الرواتب البنكية' },
-  { key: 'statement', permission: 'bankStatementImport.create', icon: 'account_balance_wallet', label: 'إضافة كشف بنكي' },
+const BANK_MODULES: { key: BankModuleKey; permission: string; icon: string; labelKey: string }[] = [
+  { key: 'payroll',   permission: 'payrollBankImport.read',  icon: 'payments',              labelKey: 'page.import.bank.payroll_label' },
+  { key: 'statement', permission: 'bankStatementImport.create', icon: 'account_balance_wallet', labelKey: 'page.import.bank.statement_label' },
 ];
 
 function parseBankModule(value: string | null): BankModuleKey | null {
@@ -71,7 +71,7 @@ export default function DataImport() {
     <div className="xpl-scope xpl-page" dir="rtl">
 
       {/* ── Import mode switch — data importer vs. banking ── */}
-      <div className="dicx-entities dicx-mode-switch" role="tablist" aria-label="وضع الاستيراد">
+      <div className="dicx-entities dicx-mode-switch" role="tablist" aria-label={t('page.import.mode_switch_aria')}>
         {hasImportPermission && (
           <button
             type="button"
@@ -83,7 +83,7 @@ export default function DataImport() {
             <span className="dicx-entity-icon">
               <span className="material-symbols-outlined" aria-hidden="true">upload_file</span>
             </span>
-            استيراد البيانات
+            {t('page.import.title')}
           </button>
         )}
         {visibleBankModules.length > 0 && (
@@ -97,7 +97,7 @@ export default function DataImport() {
             <span className="dicx-entity-icon">
               <span className="material-symbols-outlined" aria-hidden="true">account_balance</span>
             </span>
-            البنوك
+            {t('nav.group.import_center')}
           </button>
         )}
       </div>
@@ -106,13 +106,13 @@ export default function DataImport() {
         <>
           <ExecutiveHeader
             icon="account_balance"
-            title="البنوك"
-            subtitle="استيراد الرواتب البنكية أو إضافة كشف حساب بنكي"
+            title={t('nav.group.import_center')}
+            subtitle={t('page.import.bank.subtitle')}
           />
           <div className="dicx-layout">
           <div className="dicx-main">
             {bankModule === null ? (
-              <SectionCard title="اختر المعالج البنكي" icon="account_balance">
+              <SectionCard title={t('page.import.bank.choose_processor')} icon="account_balance">
                 <div className="dicx-entities">
                   {visibleBankModules.map((m) => (
                     <button
@@ -124,7 +124,7 @@ export default function DataImport() {
                       <span className="dicx-entity-icon">
                         <span className="material-symbols-outlined" aria-hidden="true">{m.icon}</span>
                       </span>
-                      {m.label}
+                      {t(m.labelKey)}
                     </button>
                   ))}
                 </div>
@@ -132,9 +132,9 @@ export default function DataImport() {
             ) : (
               <>
                 <Button variant="ghost" icon="arrow_forward" onClick={() => setBankModule(null)}>
-                  رجوع لاختيار المعالج البنكي
+                  {t('page.import.bank.back_to_choice')}
                 </Button>
-                <Suspense fallback={<EmptyState icon="hourglass_empty" tone="neutral" title="جارٍ التحميل" message="" />}>
+                <Suspense fallback={<EmptyState icon="hourglass_empty" tone="neutral" title={t('page.import.bank.loading')} message="" />}>
                   {bankModule === 'payroll' && <PayrollBankImport />}
                   {bankModule === 'statement' && <BankStatementImport />}
                 </Suspense>

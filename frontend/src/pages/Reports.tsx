@@ -46,142 +46,152 @@ interface ReportType {
   label: string;
   icon: string;
   group: string;
-  groupAr: string;
+  groupLabelKey: string;
   filters: FilterKey[];
   statuses?: [string, string][];
   statusLabel?: string;
-  descAr?: string;
+  descKey?: string;
   statusType?: 'ready' | 'needs-filter' | 'live';
 }
 
+// عربي «العمليات» هنا مختلف حرفيًا عن نص المفتاح report.group.operations («التشغيل») —
+// ونص «العمليات التشغيلية» و«المستحقات» يختلفان أيضًا عن قيم report.group.operational/
+// receivables الفعلية. حُفظت مفاتيح منفصلة لهذه النصوص كي لا يتغيّر العرض العربي حرفًا واحدًا.
+const RC_GRP_OPERATIONS = 'rc.grp.operations';
+const RC_GRP_OPERATIONAL_FULL = 'rc.grp.operational_full';
+const RC_GRP_RECEIVABLES = 'rc.grp.receivables';
+
 const REPORT_TYPES: ReportType[] = [
   {
-    key: 'invoices', label: 'report.type.invoices', icon: '🧾', group: 'report.group.financial', groupAr: 'المالية',
+    key: 'invoices', label: 'report.type.invoices', icon: '🧾', group: 'report.group.financial', groupLabelKey: 'report.group.financial',
     filters: ['date', 'customer', 'direction', 'status'],
     statuses: [['UNPAID', 'inv.status.unpaid'], ['PARTIAL', 'inv.status.partial'], ['PAID', 'inv.status.paid'], ['OVERDUE', 'inv.status.overdue'], ['CANCELLED', 'inv.status.cancelled']],
-    descAr: 'تقرير شامل بجميع الفواتير المبيعات والمشتريات مع الحالات والمجاميع',
+    descKey: 'report.desc.invoices',
     statusType: 'needs-filter',
   },
   {
-    key: 'expenses', label: 'report.type.expenses', icon: '💸', group: 'report.group.financial', groupAr: 'المالية',
+    key: 'expenses', label: 'report.type.expenses', icon: '💸', group: 'report.group.financial', groupLabelKey: 'report.group.financial',
     filters: ['date', 'status'],
     statuses: [['PENDING', 'status.pending'], ['APPROVED', 'status.approved'], ['REJECTED', 'status.rejected']],
-    descAr: 'تقرير المصروفات المعتمدة والمعلقة للفترة المختارة',
+    descKey: 'report.desc.expenses',
     statusType: 'needs-filter',
   },
   {
-    key: 'profit-loss', label: 'report.type.profit_loss', icon: '📈', group: 'report.group.financial', groupAr: 'المالية',
+    key: 'profit-loss', label: 'report.type.profit_loss', icon: '📈', group: 'report.group.financial', groupLabelKey: 'report.group.financial',
     filters: ['date'],
-    descAr: 'تقرير الأرباح والخسائر للفترة المالية المحددة',
+    descKey: 'report.desc.profit_loss',
     statusType: 'ready',
   },
   {
-    key: 'contracts', label: 'report.type.contracts', icon: '📄', group: 'report.group.business', groupAr: 'الأعمال',
+    key: 'contracts', label: 'report.type.contracts', icon: '📄', group: 'report.group.business', groupLabelKey: 'report.group.business',
     filters: ['customer', 'status'],
     statuses: [['ACTIVE', 'opt.contract.active'], ['EXPIRED', 'opt.contract.expired'], ['RENEWING', 'opt.contract.renewing'], ['SUSPENDED', 'opt.contract.suspended']],
-    descAr: 'قائمة العقود مع العملاء وحالاتها',
+    descKey: 'report.desc.contracts',
     statusType: 'ready',
   },
   {
-    key: 'customers', label: 'report.type.customers', icon: '👥', group: 'report.group.business', groupAr: 'الأعمال',
+    key: 'customers', label: 'report.type.customers', icon: '👥', group: 'report.group.business', groupLabelKey: 'report.group.business',
     filters: ['status'],
     statuses: [['GOVERNMENT', 'opt.customer.government'], ['PRIVATE', 'opt.customer.private']],
     statusLabel: 'filter.customer_type',
-    descAr: 'قائمة جميع العملاء مصنفةً حسب النوع',
+    descKey: 'report.desc.customers',
     statusType: 'ready',
   },
   {
-    key: 'employees', label: 'report.type.employees', icon: '👷', group: 'report.group.hr', groupAr: 'الموارد البشرية',
+    key: 'employees', label: 'report.type.employees', icon: '👷', group: 'report.group.hr', groupLabelKey: 'report.group.hr',
     filters: ['status'],
     statuses: [['ACTIVE', 'opt.emp.active'], ['ON_LEAVE', 'opt.emp.on_leave'], ['TERMINATED', 'opt.emp.terminated']],
-    descAr: 'قائمة الموظفين مع حالاتهم الوظيفية',
+    descKey: 'report.desc.employees',
     statusType: 'ready',
   },
   {
-    key: 'payroll', label: 'report.type.payroll', icon: '💵', group: 'report.group.hr', groupAr: 'الموارد البشرية',
+    key: 'payroll', label: 'report.type.payroll', icon: '💵', group: 'report.group.hr', groupLabelKey: 'report.group.hr',
     filters: ['date', 'employee', 'status'],
     statuses: [['DRAFT', 'payroll.status.draft'], ['APPROVED', 'payroll.status.approved'], ['PAID', 'payroll.status.paid'], ['CANCELLED', 'payroll.status.cancelled']],
-    descAr: 'تقرير مسير الرواتب للموظفين',
+    descKey: 'report.desc.payroll',
     statusType: 'needs-filter',
   },
   {
-    key: 'attendance', label: 'report.type.attendance', icon: '📅', group: 'report.group.hr', groupAr: 'الموارد البشرية',
+    key: 'attendance', label: 'report.type.attendance', icon: '📅', group: 'report.group.hr', groupLabelKey: 'report.group.hr',
     filters: ['date', 'employee', 'status'],
     statuses: [['PRESENT', 'att.present'], ['ABSENT', 'att.absent'], ['LATE', 'att.late'], ['LEAVE', 'att.leave']],
-    descAr: 'سجل الحضور والغياب للموظفين',
+    descKey: 'report.desc.attendance',
     statusType: 'needs-filter',
   },
   {
-    key: 'equipment', label: 'report.type.equipment', icon: '🚜', group: 'report.group.operations', groupAr: 'العمليات',
+    key: 'equipment', label: 'report.type.equipment', icon: '🚜', group: 'report.group.operations', groupLabelKey: RC_GRP_OPERATIONS,
     filters: ['status'],
     statuses: [['WORKING', 'opt.eq.working'], ['NOT_WORKING', 'opt.eq.not_working']],
-    descAr: 'حالة المعدات والآليات العاملة والمتوقفة',
+    descKey: 'report.desc.equipment',
     statusType: 'ready',
   },
   {
-    key: 'expenses-by-company', label: 'تقرير المصروفات حسب الشركة', icon: '🏗️', group: 'report.group.operational', groupAr: 'العمليات التشغيلية',
+    key: 'expenses-by-company', label: 'report.type.expenses_by_company', icon: '🏗️', group: 'report.group.operational', groupLabelKey: RC_GRP_OPERATIONAL_FULL,
     filters: ['date', 'billingMonth', 'billingYear', 'company', 'status'],
     statuses: [['PENDING', 'status.pending'], ['APPROVED', 'status.approved'], ['REJECTED', 'status.rejected']],
-    descAr: 'تقرير المصروفات مصنفاً حسب الشركة أو المسؤول',
+    descKey: 'report.desc.expenses_by_company',
     statusType: 'needs-filter',
   },
   {
-    key: 'invoices-by-customer', label: 'تقرير الفواتير حسب العميل', icon: '📊', group: 'report.group.operational', groupAr: 'العمليات التشغيلية',
+    key: 'invoices-by-customer', label: 'report.type.invoices_by_customer', icon: '📊', group: 'report.group.operational', groupLabelKey: RC_GRP_OPERATIONAL_FULL,
     filters: ['date', 'billingMonth', 'billingYear', 'customer', 'direction', 'status'],
     statuses: [['UNPAID', 'inv.status.unpaid'], ['PARTIAL', 'inv.status.partial'], ['PAID', 'inv.status.paid'], ['OVERDUE', 'inv.status.overdue']],
-    descAr: 'تقرير الفواتير مجمعاً ومصنفاً لكل عميل',
+    descKey: 'report.desc.invoices_by_customer',
     statusType: 'needs-filter',
   },
   {
-    key: 'prices-usage', label: 'تقرير استخدام الاتفاقيات', icon: '🤝', group: 'report.group.operational', groupAr: 'العمليات التشغيلية',
+    key: 'prices-usage', label: 'agreements.usage.title', icon: '🤝', group: 'report.group.operational', groupLabelKey: RC_GRP_OPERATIONAL_FULL,
     filters: ['customer', 'company', 'workType'],
-    descAr: 'تقرير استخدام اتفاقيات الأسعار حسب العميل ونوع العمل',
+    descKey: 'report.desc.prices_usage',
     statusType: 'ready',
   },
   {
-    key: 'customer-statement', label: 'report.type.customer_statement', icon: '📋', group: 'report.group.receivables', groupAr: 'المستحقات',
+    key: 'customer-statement', label: 'report.type.customer_statement', icon: '📋', group: 'report.group.receivables', groupLabelKey: RC_GRP_RECEIVABLES,
     filters: ['customer', 'date'],
-    descAr: 'كشف حساب تفصيلي لعميل محدد',
+    descKey: 'report.desc.customer_statement',
     statusType: 'needs-filter',
   },
   {
-    key: 'receivables-aging', label: 'report.type.receivables_aging', icon: '⏳', group: 'report.group.receivables', groupAr: 'المستحقات',
+    key: 'receivables-aging', label: 'report.type.receivables_aging', icon: '⏳', group: 'report.group.receivables', groupLabelKey: RC_GRP_RECEIVABLES,
     filters: ['date', 'customer'],
-    descAr: 'تحليل عمر الذمم المدينة مصنفاً حسب الفترات الزمنية',
+    descKey: 'report.desc.receivables_aging',
     statusType: 'live',
   },
   {
-    key: 'customer-balances', label: 'report.type.customer_balances', icon: '⚖️', group: 'report.group.receivables', groupAr: 'المستحقات',
+    key: 'customer-balances', label: 'report.type.customer_balances', icon: '⚖️', group: 'report.group.receivables', groupLabelKey: RC_GRP_RECEIVABLES,
     filters: ['customer', 'date'],
-    descAr: 'أرصدة العملاء الإجمالية والمستحقة',
+    descKey: 'report.desc.customer_balances',
     statusType: 'live',
   },
   {
-    key: 'collections-summary', label: 'report.type.collections_summary', icon: '💰', group: 'report.group.receivables', groupAr: 'المستحقات',
+    key: 'collections-summary', label: 'report.type.collections_summary', icon: '💰', group: 'report.group.receivables', groupLabelKey: RC_GRP_RECEIVABLES,
     filters: ['date', 'customer'],
-    descAr: 'ملخص تحصيلات الفترة المالية المختارة',
+    descKey: 'report.desc.collections_summary',
     statusType: 'live',
   },
 ];
 
+// وحدات العقد (طن/درب/معالجات…) قيمَ مرسَلة فعليًا كـ `value` للـ API (فلتر نوع العمل) —
+// نصّها العربي هو المعرّف المخزَّن خلفيًا، وليس مجرّد تسمية عرض. تُركت بلا ترجمة عمدًا
+// كي لا ينفصل العرض عن القيمة المرسَلة؛ راجع تقرير الحزمة لتفصيل السبب.
 const CONTRACT_UNITS = ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'];
 
 const COMPANY_GROUPS = [
-  { value: 'HASSAN', label: 'مصروف عن طريق حسن' },
-  { value: 'GHANEM', label: 'مصروف عن طريق غانم' },
-  { value: 'NATHEER', label: 'مصروف عن طريق نظير' },
-  { value: 'HAROON', label: 'مصروف عن طريق هارون' },
+  { value: 'HASSAN', labelKey: 'cat.hassan' },
+  { value: 'GHANEM', labelKey: 'cat.ghanem' },
+  { value: 'NATHEER', labelKey: 'cat.natheer' },
+  { value: 'HAROON', labelKey: 'cat.haroon' },
 ];
 
 const CHIP_GROUPS = [
-  { key: 'all', label: 'الكل', group: undefined },
-  { key: 'financial', label: 'المالية', group: 'report.group.financial' },
-  { key: 'business', label: 'الأعمال', group: 'report.group.business' },
-  { key: 'hr', label: 'الموارد البشرية', group: 'report.group.hr' },
-  { key: 'operations', label: 'العمليات', group: 'report.group.operations' },
-  { key: 'operational', label: 'التشغيلية', group: 'report.group.operational' },
-  { key: 'receivables', label: 'المستحقات', group: 'report.group.receivables' },
-  { key: 'favorites', label: 'المفضلة', group: undefined },
+  { key: 'all', labelKey: 'opt.all_plain', group: undefined },
+  { key: 'financial', labelKey: 'report.group.financial', group: 'report.group.financial' },
+  { key: 'business', labelKey: 'report.group.business', group: 'report.group.business' },
+  { key: 'hr', labelKey: 'report.group.hr', group: 'report.group.hr' },
+  { key: 'operations', labelKey: RC_GRP_OPERATIONS, group: 'report.group.operations' },
+  { key: 'operational', labelKey: 'report.group.operational', group: 'report.group.operational' },
+  { key: 'receivables', labelKey: RC_GRP_RECEIVABLES, group: 'report.group.receivables' },
+  { key: 'favorites', labelKey: 'rc.favorites', group: undefined },
 ];
 
 const LS_FAVORITES = 'rc_favorites_v1';
@@ -202,10 +212,10 @@ function pushRecent(key: string) {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 type StatusTone = 'green' | 'orange' | 'blue';
-function statusMeta(type: ReportType['statusType']): { tone: StatusTone; label: string; icon: string } {
-  if (type === 'needs-filter') return { tone: 'orange', label: 'يحتاج فلاتر', icon: 'tune' };
-  if (type === 'live')         return { tone: 'blue',   label: 'تقرير مباشر', icon: 'bolt' };
-  return                              { tone: 'green',  label: 'جاهز', icon: 'check_circle' };
+function statusMeta(type: ReportType['statusType'], t: (key: string) => string): { tone: StatusTone; label: string; icon: string } {
+  if (type === 'needs-filter') return { tone: 'orange', label: t('rc.status.needs_filter'), icon: 'tune' };
+  if (type === 'live')         return { tone: 'blue',   label: t('rc.status.live'), icon: 'bolt' };
+  return                              { tone: 'green',  label: t('rc.status.ready'), icon: 'check_circle' };
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -408,8 +418,8 @@ export default function Reports() {
       }
       if (!q) return true;
       const label = t(rt.label).toLowerCase();
-      const desc  = (rt.descAr ?? '').toLowerCase();
-      const grp   = rt.groupAr.toLowerCase();
+      const desc  = (rt.descKey ? t(rt.descKey) : '').toLowerCase();
+      const grp   = t(rt.groupLabelKey).toLowerCase();
       return label.includes(q) || desc.includes(q) || grp.includes(q) || rt.key.includes(q);
     });
   }, [search, activeChip, favorites, t]);
@@ -445,7 +455,7 @@ export default function Reports() {
 
   const hasAnyFilter = !!(from || to || customerId || employeeId || status || direction || billingMonth || billingYear || company || workType);
   const f = currentType.filters;
-  const curStatus = statusMeta(currentType.statusType);
+  const curStatus = statusMeta(currentType.statusType, t);
 
   // ─── Filter fields (rendered inside the report drawer) ────────────────────
 
@@ -503,18 +513,18 @@ export default function Reports() {
         )}
         {f.includes('billingMonth') && (
           <div className="rcx-filter-field">
-            <label>شهر الحساب</label>
-            <select aria-label="شهر الحساب" value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)}>
-              <option value="">الكل</option>
+            <label>{t('lbl.inv.billing_period')}</label>
+            <select aria-label={t('lbl.inv.billing_period')} value={billingMonth} onChange={(e) => setBillingMonth(e.target.value)}>
+              <option value="">{t('opt.all_plain')}</option>
               {ARABIC_MONTHS.map((name, i) => <option key={i + 1} value={i + 1}>{name}</option>)}
             </select>
           </div>
         )}
         {f.includes('billingYear') && (
           <div className="rcx-filter-field">
-            <label>السنة</label>
-            <select aria-label="السنة" value={billingYear} onChange={(e) => setBillingYear(e.target.value)}>
-              <option value="">الكل</option>
+            <label>{t('rc.filter.year')}</label>
+            <select aria-label={t('rc.filter.year')} value={billingYear} onChange={(e) => setBillingYear(e.target.value)}>
+              <option value="">{t('opt.all_plain')}</option>
               {[new Date().getFullYear() - 2, new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1].map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
@@ -523,18 +533,20 @@ export default function Reports() {
         )}
         {f.includes('company') && (
           <div className="rcx-filter-field">
-            <label>الشركة / المسؤول</label>
-            <select aria-label="الشركة / المسؤول" value={company} onChange={(e) => setCompany(e.target.value)}>
-              <option value="">الكل</option>
-              {COMPANY_GROUPS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+            <label>{t('rc.filter.company')}</label>
+            <select aria-label={t('rc.filter.company')} value={company} onChange={(e) => setCompany(e.target.value)}>
+              <option value="">{t('opt.all_plain')}</option>
+              {COMPANY_GROUPS.map((g) => <option key={g.value} value={g.value}>{t(g.labelKey)}</option>)}
             </select>
           </div>
         )}
         {f.includes('workType') && (
           <div className="rcx-filter-field">
-            <label>نوع العمل</label>
-            <select aria-label="نوع العمل" value={workType} onChange={(e) => setWorkType(e.target.value)}>
-              <option value="">الكل</option>
+            <label>{t('rc.filter.work_type')}</label>
+            {/* CONTRACT_UNITS: قيمة الخيار = النص العربي نفسه (مرسل كـ value إلى الـ API) —
+                لا تُترجَم التسمية المعروضة دون تنسيق مطابق في الخلفية؛ انظر تقرير الحزمة. */}
+            <select aria-label={t('rc.filter.work_type')} value={workType} onChange={(e) => setWorkType(e.target.value)}>
+              <option value="">{t('opt.all_plain')}</option>
               {CONTRACT_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
             </select>
           </div>
@@ -563,7 +575,7 @@ export default function Reports() {
               <div className="xpl-drawer-hero-icon" style={{ fontSize: 24 }}>{currentType.icon}</div>
               <div className="xpl-drawer-hero-body">
                 <span className="xpl-drawer-hero-title">{t(currentType.label)}</span>
-                <span className="xpl-drawer-hero-sub">{currentType.groupAr}</span>
+                <span className="xpl-drawer-hero-sub">{t(currentType.groupLabelKey)}</span>
                 <div style={{ marginTop: 4 }}>
                   <StatusChip tone={curStatus.tone} icon={curStatus.icon}>{curStatus.label}</StatusChip>
                 </div>
@@ -574,79 +586,79 @@ export default function Reports() {
             <>
               {canView && (
                 <Button variant="primary" icon="play_arrow" busy={loading} onClick={loadPreview}>
-                  تشغيل التقرير
+                  {t('rc.action.run_report')}
                 </Button>
               )}
               {hasAnyFilter && (
-                <Button variant="ghost" icon="restart_alt" onClick={resetFilters}>مسح الفلاتر</Button>
+                <Button variant="ghost" icon="restart_alt" onClick={resetFilters}>{t('action.reset_filters_inline')}</Button>
               )}
             </>
           }
         >
-          {currentType.descAr && (
-            <DrawerSection title="وصف التقرير">
-              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--xpl-text)' }}>{currentType.descAr}</p>
+          {currentType.descKey && (
+            <DrawerSection title={t('rc.drawer.desc_title')}>
+              <p style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: 'var(--xpl-text)' }}>{t(currentType.descKey)}</p>
             </DrawerSection>
           )}
 
-          <DrawerSection title="معلومات التقرير">
+          <DrawerSection title={t('rc.drawer.info_title')}>
             <div className="xpl-drawer-field">
-              <span className="xpl-drawer-field-label">الفئة</span>
-              <span className="xpl-drawer-field-value">{currentType.groupAr}</span>
+              <span className="xpl-drawer-field-label">{t('rc.drawer.category_label')}</span>
+              <span className="xpl-drawer-field-value">{t(currentType.groupLabelKey)}</span>
             </div>
             <div className="xpl-drawer-field">
-              <span className="xpl-drawer-field-label">الحالة</span>
+              <span className="xpl-drawer-field-label">{t('col.status')}</span>
               <span className="xpl-drawer-field-value">
                 <StatusChip tone={curStatus.tone} icon={curStatus.icon}>{curStatus.label}</StatusChip>
               </span>
             </div>
             <div className="xpl-drawer-field">
-              <span className="xpl-drawer-field-label">عدد النتائج</span>
+              <span className="xpl-drawer-field-label">{t('rc.drawer.results_count_label')}</span>
               <span className="xpl-drawer-field-value">
-                {preview ? `${preview.rows.length} سجل` : '— شغّل التقرير لعرض النتائج'}
+                {preview ? t('rc.unit.record_count', { count: preview.rows.length }) : t('rc.hint.run_to_view')}
               </span>
             </div>
             {generatedAt && preview && (
               <div className="xpl-drawer-field">
-                <span className="xpl-drawer-field-label">آخر تشغيل</span>
+                <span className="xpl-drawer-field-label">{t('rc.drawer.last_run_label')}</span>
                 <span className="xpl-drawer-field-value">{generatedAt.toLocaleTimeString('ar')}</span>
               </div>
             )}
           </DrawerSection>
 
           {f.length > 0 && (
-            <DrawerSection title="الفلاتر المطلوبة">
+            <DrawerSection title={t('rc.drawer.filters_title')}>
               {renderFilterFields()}
             </DrawerSection>
           )}
 
           {canExport && (
-            <DrawerSection title="التصدير والطباعة">
+            <DrawerSection title={t('rc.drawer.export_title')}>
               {preview ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <Button variant="secondary" icon="table_view" busy={excelBusy} onClick={downloadExcel} block>تصدير Excel</Button>
+                  <Button variant="secondary" icon="table_view" busy={excelBusy} onClick={downloadExcel} block>{t('page.salaries.export_excel')}</Button>
                   {window.manar?.exportPdfFromHtml && (
-                    <Button variant="secondary" icon="picture_as_pdf" busy={pdfBusy} onClick={downloadPdf} block>تصدير PDF</Button>
+                    <Button variant="secondary" icon="picture_as_pdf" busy={pdfBusy} onClick={downloadPdf} block>{t('rc.export.pdf')}</Button>
                   )}
-                  <Button variant="ghost" icon="print" onClick={openPrint} block>طباعة</Button>
+                  <Button variant="ghost" icon="print" onClick={openPrint} block>{t('btn.inv.print_invoice')}</Button>
                 </div>
               ) : (
                 <p className="rcx-note" style={{ margin: 0 }}>
                   <span className="material-symbols-outlined">info</span>
-                  شغّل التقرير أولاً لتفعيل خيارات التصدير والطباعة.
+                  {t('rc.drawer.export_hint')}
                 </p>
               )}
             </DrawerSection>
           )}
 
-          <DrawerSection title="ملاحظات">
+          <DrawerSection title={t('field.notes')}>
             <p className="rcx-note" style={{ margin: 0 }}>
               <span className="material-symbols-outlined">lightbulb</span>
               {currentType.statusType === 'needs-filter'
-                ? 'هذا التقرير يحتاج تحديد فترة أو فلاتر للحصول على نتائج دقيقة.'
+                ? t('rc.note.needs_filter')
                 : currentType.statusType === 'live'
-                  ? 'تقرير مباشر يُحسب لحظياً من البيانات الحالية في النظام.'
-                  : 'تقرير جاهز للتشغيل مباشرة دون الحاجة لفلاتر إلزامية.'}
+                  ? t('rc.note.live')
+                  : t('rc.note.ready')}
             </p>
           </DrawerSection>
         </Drawer>
@@ -655,15 +667,15 @@ export default function Reports() {
       {/* ── Executive Header ── */}
       <ExecutiveHeader
         icon="assessment"
-        title="مركز التقارير"
-        subtitle="استعرض وصدّر تقارير الأعمال والمالية والموارد البشرية والعمليات"
+        title={t('search.page.reports')}
+        subtitle={t('rc.header.subtitle')}
         chips={
           <>
-            <IdChip icon="summarize" tone="indigo">{kpi.total} تقرير</IdChip>
-            <IdChip icon="check_circle" tone="green">{kpi.ready} جاهز</IdChip>
-            <IdChip icon="tune" tone="orange">{kpi.needsFilter} يحتاج فلاتر</IdChip>
-            <IdChip icon="bolt" tone="indigo">{kpi.live} مباشر</IdChip>
-            {favorites.length > 0 && <IdChip icon="star" tone="orange">{favorites.length} مفضل</IdChip>}
+            <IdChip icon="summarize" tone="indigo">{kpi.total} {t('rc.unit.report')}</IdChip>
+            <IdChip icon="check_circle" tone="green">{kpi.ready} {t('rc.status.ready')}</IdChip>
+            <IdChip icon="tune" tone="orange">{kpi.needsFilter} {t('rc.status.needs_filter')}</IdChip>
+            <IdChip icon="bolt" tone="indigo">{kpi.live} {t('rc.unit.live')}</IdChip>
+            {favorites.length > 0 && <IdChip icon="star" tone="orange">{favorites.length} {t('rc.unit.favorite')}</IdChip>}
           </>
         }
         aside={<PeriodControl />}
@@ -677,7 +689,7 @@ export default function Reports() {
           background: 'var(--amber-light)', color: 'var(--amber)', fontWeight: 600, fontSize: 13,
         }}>
           <span className="material-symbols-outlined" aria-hidden>warning</span>
-          قائمة الدخل ستشمل كل السنوات — اختر فترة محددة من محدّد الفترة للحصول على نتيجة دقيقة.
+          {t('rc.warn.pl_all_years')}
         </div>
       )}
 
@@ -685,27 +697,27 @@ export default function Reports() {
       <div className="rcx-metrics">
         <HeroMetric
           icon="analytics"
-          label="إجمالي التقارير المتاحة"
+          label={t('rc.metric.total_available')}
           value={kpi.total}
-          sub={<><span className="material-symbols-outlined">category</span>{`${CHIP_GROUPS.length - 2} فئات رئيسية`}</>}
+          sub={<><span className="material-symbols-outlined">category</span>{t('rc.metric.main_categories', { count: CHIP_GROUPS.length - 2 })}</>}
         />
         <div className="rcx-metrics-secondary">
-          <MetricCard icon="payments" tone="green" label="التقارير المالية" value={kpi.financial} />
-          <MetricCard icon="groups" tone="blue" label="الموارد البشرية" value={kpi.hr} />
-          <MetricCard icon="construction" tone="orange" label="العمليات" value={kpi.ops} />
-          <MetricCard icon="request_quote" tone="indigo" label="المستحقات" value={kpi.recv} />
-          <MetricCard icon="check_circle" tone="green" label="جاهز للتشغيل" value={kpi.ready} />
-          <MetricCard icon="star" tone="orange" label="المفضلة" value={favorites.length} />
+          <MetricCard icon="payments" tone="green" label={t('fc.tab.finreport')} value={kpi.financial} />
+          <MetricCard icon="groups" tone="blue" label={t('report.group.hr')} value={kpi.hr} />
+          <MetricCard icon="construction" tone="orange" label={t(RC_GRP_OPERATIONS)} value={kpi.ops} />
+          <MetricCard icon="request_quote" tone="indigo" label={t(RC_GRP_RECEIVABLES)} value={kpi.recv} />
+          <MetricCard icon="check_circle" tone="green" label={t('rc.metric.ready_to_run')} value={kpi.ready} />
+          <MetricCard icon="star" tone="orange" label={t('rc.favorites')} value={favorites.length} />
         </div>
       </div>
 
       {/* ── Sticky toolbar: search + recent + filter chips ── */}
       <div className="xpl-toolbar xpl-toolbar--sticky">
         <div className="xpl-toolbar-row">
-          <SearchBox value={search} onChange={setSearch} placeholder="البحث في التقارير..." ariaLabel="البحث في التقارير" />
+          <SearchBox value={search} onChange={setSearch} placeholder={t('rc.search.placeholder')} ariaLabel={t('rc.search.aria')} />
           {recentReports.length > 0 && (
             <div className="rcx-recent">
-              <span className="rcx-recent-label"><span className="material-symbols-outlined">history</span>الأخيرة:</span>
+              <span className="rcx-recent-label"><span className="material-symbols-outlined">history</span>{t('rc.recent_label')}</span>
               {recentReports.map((r) => (
                 <button type="button" key={r.key} className="rcx-recent-btn" onClick={() => selectReport(r.key)}>
                   <span>{r.icon}</span>{t(r.label)}
@@ -723,14 +735,14 @@ export default function Reports() {
               icon={chip.key === 'favorites' ? 'star' : undefined}
               count={chipCounts[chip.key]}
             >
-              {chip.label}
+              {t(chip.labelKey)}
             </FilterChip>
           ))}
         </div>
         <div className="xpl-active-row">
           <span className="xpl-result-count">
-            يعرض <strong style={{ color: 'var(--xpl-text)' }}>{filteredReports.length}</strong> تقرير
-            {search && <> · نتائج "{search}"</>}
+            {t('rc.result_prefix')}<strong style={{ color: 'var(--xpl-text)' }}>{filteredReports.length}</strong> {t('rc.unit.report')}
+            {search && <>{t('rc.result_search_suffix', { term: search })}</>}
           </span>
         </div>
       </div>
@@ -740,14 +752,14 @@ export default function Reports() {
         <EmptyState
           icon="search_off"
           tone="neutral"
-          title="لا توجد تقارير مطابقة"
-          message="جرّب تعديل كلمة البحث أو اختيار فئة مختلفة من الأعلى."
-          action={<Button variant="secondary" icon="restart_alt" onClick={() => { setSearch(''); setActiveChip('all'); }}>إعادة التعيين</Button>}
+          title={t('rc.empty.title')}
+          message={t('rc.empty.message')}
+          action={<Button variant="secondary" icon="restart_alt" onClick={() => { setSearch(''); setActiveChip('all'); }}>{t('rc.empty.reset')}</Button>}
         />
       ) : (
         <div className="rcx-card-grid">
           {filteredReports.map((rt) => {
-            const meta  = statusMeta(rt.statusType);
+            const meta  = statusMeta(rt.statusType, t);
             const isFav = favorites.includes(rt.key);
             const isSel = selected === rt.key;
             return (
@@ -761,8 +773,8 @@ export default function Reports() {
                   <button
                     type="button"
                     className={`rcx-fav-btn${isFav ? ' active' : ''}`}
-                    title={isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
-                    aria-label={isFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
+                    title={isFav ? t('rc.fav.remove') : t('rc.fav.add')}
+                    aria-label={isFav ? t('rc.fav.remove') : t('rc.fav.add')}
                     aria-pressed={isFav ? 'true' : 'false'}
                     onClick={(e) => { e.stopPropagation(); toggleFavorite(rt.key); }}
                   >
@@ -771,11 +783,11 @@ export default function Reports() {
                 </div>
                 <div className="rcx-card-body">
                   <div className="rcx-card-name">{t(rt.label)}</div>
-                  {rt.descAr && <div className="rcx-card-desc">{rt.descAr}</div>}
+                  {rt.descKey && <div className="rcx-card-desc">{t(rt.descKey)}</div>}
                 </div>
                 <div className="rcx-card-meta">
                   <StatusChip tone={meta.tone} icon={meta.icon}>{meta.label}</StatusChip>
-                  <StatusChip tone="neutral">{rt.groupAr}</StatusChip>
+                  <StatusChip tone="neutral">{t(rt.groupLabelKey)}</StatusChip>
                 </div>
                 <div className="rcx-card-actions">
                   {canView && (
@@ -785,7 +797,7 @@ export default function Reports() {
                       small
                       onClick={(e) => { e.stopPropagation(); selectReport(rt.key); setTimeout(loadPreview, 0); }}
                     >
-                      تشغيل
+                      {t('rc.action.run')}
                     </Button>
                   )}
                   <Button
@@ -794,7 +806,7 @@ export default function Reports() {
                     small
                     onClick={(e) => { e.stopPropagation(); openReport(rt.key); }}
                   >
-                    تهيئة
+                    {t('rc.action.configure')}
                   </Button>
                 </div>
               </div>
@@ -810,7 +822,7 @@ export default function Reports() {
         padded={false}
         actions={
           <>
-            <Button variant="secondary" icon="tune" small onClick={() => setPanelOpen(true)}>الفلاتر</Button>
+            <Button variant="secondary" icon="tune" small onClick={() => setPanelOpen(true)}>{t('rc.action.filters')}</Button>
             {canView && (
               <Button variant="primary" icon="play_arrow" small busy={loading} onClick={loadPreview}>
                 {t('page.reports.view')}
@@ -822,21 +834,21 @@ export default function Reports() {
             {canExport && preview && (
               <div className="rcx-export-wrap" ref={exportRef}>
                 <Button variant="secondary" icon="ios_share" small onClick={() => setExportOpen((o) => !o)} disabled={excelBusy || pdfBusy}>
-                  تصدير
+                  {t('perm.action.export')}
                   <span className="material-symbols-outlined" aria-hidden="true">expand_more</span>
                 </Button>
                 {exportOpen && (
                   <div className="rcx-export-menu rcx-export-menu--down">
                     <button type="button" className="rcx-export-item" onClick={downloadExcel} disabled={excelBusy}>
-                      <span className="material-symbols-outlined">table_view</span>{excelBusy ? 'جاري...' : 'تصدير Excel'}
+                      <span className="material-symbols-outlined">table_view</span>{excelBusy ? t('rc.busy') : t('page.salaries.export_excel')}
                     </button>
                     {window.manar?.exportPdfFromHtml && (
                       <button type="button" className="rcx-export-item" onClick={downloadPdf} disabled={pdfBusy}>
-                        <span className="material-symbols-outlined">picture_as_pdf</span>{pdfBusy ? 'جاري...' : 'تصدير PDF'}
+                        <span className="material-symbols-outlined">picture_as_pdf</span>{pdfBusy ? t('rc.busy') : t('rc.export.pdf')}
                       </button>
                     )}
                     <button type="button" className="rcx-export-item" onClick={openPrint}>
-                      <span className="material-symbols-outlined">print</span>طباعة
+                      <span className="material-symbols-outlined">print</span>{t('btn.inv.print_invoice')}
                     </button>
                   </div>
                 )}
@@ -846,14 +858,14 @@ export default function Reports() {
         }
       >
         <div className="xpl-card--pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {currentType.descAr && <p style={{ margin: 0, fontSize: 13, color: 'var(--xpl-muted)', lineHeight: 1.6 }}>{currentType.descAr}</p>}
+          {currentType.descKey && <p style={{ margin: 0, fontSize: 13, color: 'var(--xpl-muted)', lineHeight: 1.6 }}>{t(currentType.descKey)}</p>}
 
           {/* Hints */}
           {['invoices', 'expenses', 'payroll'].includes(selected) && !from && !to && (
             <div className="rcx-hint"><span className="material-symbols-outlined">info</span>{t('page.reports.date_range_hint')}</div>
           )}
           {selected === 'customer-statement' && !customerId && (
-            <div className="rcx-hint warn"><span className="material-symbols-outlined">warning</span>يجب اختيار عميل لعرض كشف الحساب</div>
+            <div className="rcx-hint warn"><span className="material-symbols-outlined">warning</span>{t('rc.hint.customer_required')}</div>
           )}
           {error && <div className="xpl-error-banner"><span className="material-symbols-outlined">error</span><span>{error}</span></div>}
 
@@ -874,7 +886,7 @@ export default function Reports() {
           {!loading && preview && (
             <div className="rcx-results-bar">
               <span><strong>{preview.rows.length}</strong> {t('page.reports.results_count')}</span>
-              {generatedAt && <span>آخر تحديث: {generatedAt.toLocaleTimeString('ar')}</span>}
+              {generatedAt && <span>{t('page.dashboard.last_update')} {generatedAt.toLocaleTimeString('ar')}</span>}
             </div>
           )}
 

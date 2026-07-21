@@ -4,6 +4,7 @@ import { Skeleton } from '../Skeleton';
 import type { RevenueSlice } from './types';
 import { formatCurrency, formatInteger, formatPercent } from '../../../lib/format';
 import { MoneyText } from '../../../config/modules';
+import { useT } from '../../../lib/i18n';
 
 // Distinct palette; the last colour is reserved for the aggregated "أخرى" slice.
 const SLICE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#A855F7', '#06B6D4', '#9CA3AF'];
@@ -48,13 +49,14 @@ export default function RevenueDistributionSection({
   slices: RevenueSlice[];
   loading: boolean;
 }) {
+  const { t } = useT();
   if (loading) return <Skeleton height={260} style={{ borderRadius: 12 }} />;
 
   if (!slices.length) {
     return (
       <div className="db-empty">
         <div className="db-empty-icon">🥧</div>
-        <div className="db-empty-text">لا توجد بيانات إيرادات كافية حسب العميل</div>
+        <div className="db-empty-text">{t('rds.empty')}</div>
       </div>
     );
   }
@@ -86,7 +88,7 @@ export default function RevenueDistributionSection({
         </ResponsiveContainer>
         <div className="db-cc-donut-center">
           <div className="db-cc-donut-total">{formatInteger(total)}</div>
-          <div className="db-cc-donut-caption">إجمالي الإيرادات</div>
+          <div className="db-cc-donut-caption">{t('kpi.total_revenue')}</div>
         </div>
       </div>
 

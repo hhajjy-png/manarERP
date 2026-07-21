@@ -43,13 +43,21 @@ import TemplateStudioRenderer from '../print-templates/studio/TemplateStudioRend
 import { resolveInvoiceLineItems } from '../print-templates/studio/lineItemsResolver';
 import { DocumentVerificationQR } from '../print-templates/components/DocumentVerificationQR';
 
-const PAY_METHOD_AR: Record<string, string> = {
-  CASH: 'نقدًا', BANK: 'بنك', CHEQUE: 'شيك', TRANSFER: 'تحويل',
+// خريطة طريقة الدفع: تُستخدم في موضعين — شريحة ملخص التحصيل (شاشة فقط، no-print) وجدول
+// سجل الدفعات المطبوع (جزء من متن المستند المطبوع، يبقى عربيًا). لذلك تحمل كل قيمة
+// النص العربي الأصلي (يُقرأ حرفيًا في متن الطباعة) بالإضافة إلى مفتاح i18n (يُستخدم
+// فقط في الموضع الشاشي عبر t()).
+const PAY_METHOD_AR: Record<string, { ar: string; key: string }> = {
+  CASH: { ar: 'نقدًا', key: 'opt.payment.cash' },
+  BANK: { ar: 'بنك', key: 'opt.payment.bank' },
+  CHEQUE: { ar: 'شيك', key: 'opt.payment.cheque' },
+  TRANSFER: { ar: 'تحويل', key: 'opt.payment.transfer' },
 };
 
-const STATUS_LABEL_AR: Record<string, string> = {
-  UNPAID: 'غير مدفوعة', PARTIAL: 'مدفوعة جزئياً', PAID: 'مدفوعة',
-  OVERDUE: 'متأخرة', CANCELLED: 'ملغاة',
+// شارة الحالة (شاشة فقط — no-print): مفاتيح i18n للحالات الخمس.
+const STATUS_LABEL_KEY: Record<string, string> = {
+  UNPAID: 'inv.status.unpaid', PARTIAL: 'inv.status_alt.partial', PAID: 'inv.status_alt.paid',
+  OVERDUE: 'inv.status.overdue', CANCELLED: 'inv.status.cancelled',
 };
 const STATUS_COLOR: Record<string, string> = {
   UNPAID: '#dc2626', PARTIAL: '#d97706', PAID: '#16a34a',
@@ -241,18 +249,18 @@ export default function InvoicePreview() {
         ? window.manar.exportPdfFromHtml(html, suggestedName)
         : window.manar?.exportPdf(suggestedName)); // بيئة قديمة بلا الجسر — سلوك سابق كما هو
       if (!result) {
-        setPdfError('تصدير PDF غير متاح في هذه البيئة');
+        setPdfError(t('toast.pdf_not_available'));
         return;
       }
       if (result.canceled) return;
       if (result.success && result.path) {
-        setPdfMsg(`تم الحفظ: ${result.path}`);
+        setPdfMsg(t('toast.pdf_saved', { path: result.path }));
         setTimeout(() => setPdfMsg(''), 6000);
       } else {
-        setPdfError(result.error ?? 'فشل تصدير PDF');
+        setPdfError(result.error ?? t('toast.pdf_export_failed'));
       }
     } catch (err) {
-      setPdfError(err instanceof Error ? err.message : 'فشل تصدير PDF');
+      setPdfError(err instanceof Error ? err.message : t('toast.pdf_export_failed'));
     } finally {
       setPdfExporting(false);
     }
@@ -303,7 +311,7 @@ export default function InvoicePreview() {
    */
   const composeInvoicePreview = useCallback((): string => {
     const node = printRootRef.current;
-    if (!node || !data) throw new Error('تعذّر تجهيز الفاتورة للمعاينة.');
+    if (!node || !data) throw new Error(t('err.prepare_preview_failed'));
     const number = data.invoiceNumber ?? data.number;
     return composeStyledFromNode({
       node,
@@ -312,7 +320,7 @@ export default function InvoicePreview() {
       lang: 'ar',
       stripSelectors: ['.no-print'],
     });
-  }, [data]);
+  }, [data, t]);
 
   const printWarnings = useMemo(
     () => (printData ? validateInvoicePrintData(printData) : []),
@@ -324,9 +332,9 @@ export default function InvoicePreview() {
   useEffect(() => {
     if (data && printData === null) {
       setPreviewMode('legacy');
-      setEngineWarning('تعذّر تحميل بيانات القالب — جارٍ العرض في الوضع الكلاسيكي');
+      setEngineWarning(t('msg.template_load_failed'));
     }
-  }, [data, printData]);
+  }, [data, printData, t]);
 
   if (loadError) {
     return (
@@ -452,7 +460,7 @@ export default function InvoicePreview() {
           onClose={() => setPrintCenterOpen(false)}
           compose={composeInvoicePreview}
           onPrint={() => printCurrentView()}
-          documentLabel={data ? `فاتورة · ${data.invoiceNumber ?? data.number}` : ''}
+          documentLabel={data ? t('lbl.doc_label.invoice', { number: data.invoiceNumber ?? data.number }) : ''}
           lang="ar"
         />
       )}
@@ -466,7 +474,7 @@ export default function InvoicePreview() {
           compose={composeInvoicePreview}
           onPrint={() => printCurrentView()}
           onFallback={() => setPrintCenterOpen(true)}
-          documentLabel={data ? `فاتورة · ${data.invoiceNumber ?? data.number}` : ''}
+          documentLabel={data ? t('lbl.doc_label.invoice', { number: data.invoiceNumber ?? data.number }) : ''}
         />
       )}
 
@@ -504,7 +512,7 @@ export default function InvoicePreview() {
               className="btn secondary"
               onClick={() => setPrintCenterOpen(true)}
             >
-              🔍 معاينة قبل الطباعة
+              🔍 {t('btn.preview_before_print')}
             </button>
           )}
 
@@ -514,9 +522,9 @@ export default function InvoicePreview() {
               type="button"
               className="btn secondary"
               onClick={() => setWysiwygPocOpen(true)}
-              title="معاينة دقيقة — الصفحات وفواصلها كما ستخرج من الطابعة تمامًا. الطباعة تبقى على المسار الأصلي."
+              title={t('title.accurate_preview')}
             >
-              📄 معاينة دقيقة
+              📄 {t('btn.accurate_preview')}
             </button>
           )}
 
@@ -526,7 +534,7 @@ export default function InvoicePreview() {
             onClick={handleExportPdf}
             disabled={pdfExporting}
           >
-            {pdfExporting ? '⏳ جارٍ التصدير…' : '⬇️ PDF'}
+            {pdfExporting ? `⏳ ${t('msg.exporting')}` : '⬇️ PDF'}
           </button>
           {pdfMsg && (
             <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>✓ {pdfMsg}</span>
@@ -541,7 +549,7 @@ export default function InvoicePreview() {
               onClick={() => designer.isActive ? designer.deactivate() : designer.activate()}
               style={{ fontWeight: 600 }}
             >
-              {designer.isActive ? '✓ إنهاء التصميم' : '🔧 وضع التصميم'}
+              {designer.isActive ? `✓ ${t('btn.finish_design')}` : `🔧 ${t('btn.design_mode')}`}
             </button>
           )}
           {previewMode === 'engine' && (
@@ -551,7 +559,7 @@ export default function InvoicePreview() {
               onClick={() => layoutDesigner.isActive ? layoutDesigner.deactivate() : layoutDesigner.activate()}
               style={{ fontWeight: 600 }}
             >
-              {layoutDesigner.isActive ? '✓ إنهاء التخطيط' : '🔲 تخطيط'}
+              {layoutDesigner.isActive ? `✓ ${t('btn.finish_layout')}` : `🔲 ${t('btn.layout_mode')}`}
             </button>
           )}
           {hasPermission('invoices.update') && canEdit && (
@@ -576,7 +584,7 @@ export default function InvoicePreview() {
             <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16, verticalAlign: 'text-bottom', marginInlineEnd: 4 }}>
               {previewMode === 'engine' ? 'description' : 'dashboard_customize'}
             </span>
-            {previewMode === 'engine' ? 'العرض الكلاسيكي' : 'قالب الطباعة'}
+            {previewMode === 'engine' ? t('btn.classic_view') : t('btn.print_template')}
           </button>
           {studioTemplate && previewMode === 'engine' && (
             <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, cursor: 'pointer', padding: '5px 9px', background: useStudio ? '#dbeafe' : '#f8fafc', border: '1px solid #bfdbfe', borderRadius: 8 }}>
@@ -585,7 +593,7 @@ export default function InvoicePreview() {
                 checked={useStudio}
                 onChange={(e) => setUseStudio(e.target.checked)}
               />
-              استخدام قالب Template Studio
+              {t('lbl.use_template_studio')}
             </label>
           )}
           {actionError && <span style={{ color: '#dc2626', fontSize: 13, fontWeight: 600 }}>⚠️ {actionError}</span>}
@@ -605,7 +613,7 @@ export default function InvoicePreview() {
                   onChange={(e) => setPrintShowSignature(e.target.checked)}
                 />
                 <span style={{ color: branding.signatureUrl ? undefined : '#94a3b8' }}>
-                  التوقيع{!branding.signatureUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
+                  {t('lbl.signature_chrome')}{!branding.signatureUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>{t('lbl.not_uploaded')}</span>}
                 </span>
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.stampUrl ? 'pointer' : 'not-allowed' }}>
@@ -616,7 +624,7 @@ export default function InvoicePreview() {
                   onChange={(e) => setPrintShowStamp(e.target.checked)}
                 />
                 <span style={{ color: branding.stampUrl ? undefined : '#94a3b8' }}>
-                  الختم{!branding.stampUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>(لم يُرفع)</span>}
+                  {t('lbl.stamp_chrome')}{!branding.stampUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>{t('lbl.not_uploaded')}</span>}
                 </span>
               </label>
             </span>
@@ -648,7 +656,7 @@ export default function InvoicePreview() {
           staticTextDesigner={staticTextDesigner}
           signatureUrl={branding.signatureUrl}
           stampUrl={branding.stampUrl}
-          docLabel="الفاتورة"
+          docLabel={t('lbl.doc.invoice')}
           onSave={async () => {
             await Promise.all([layoutDesigner.save(), designer.save(), textDesigner.save(), staticTextDesigner.save()]);
           }}
@@ -659,11 +667,11 @@ export default function InvoicePreview() {
           {hasPayments && (
             <div className="no-print" style={{ marginBottom: 16, padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
               <div className="inv-quick-nav">
-                <span style={{ color: '#64748b', fontWeight: 700, fontSize: 12 }}>انتقل إلى:</span>
-                <a href="#inv-details">تفاصيل الفاتورة</a>
-                <a href="#inv-collections">ملخص التحصيل</a>
-                <a href="#inv-payments">سجل الدفعات</a>
-                <a href="#inv-summary">الملخص المالي</a>
+                <span style={{ color: '#64748b', fontWeight: 700, fontSize: 12 }}>{t('lbl.jump_to')}</span>
+                <a href="#inv-details">{t('nav.invoice_details')}</a>
+                <a href="#inv-collections">{t('nav.collection_summary')}</a>
+                <a href="#inv-payments">{t('nav.payment_log')}</a>
+                <a href="#inv-summary">{t('action.financial_summary')}</a>
               </div>
             </div>
           )}
@@ -721,7 +729,7 @@ export default function InvoicePreview() {
                 background: STATUS_COLOR[data.status] ?? '#6b7280',
                 color: '#fff', padding: '1px 10px', borderRadius: 12,
               }}>
-                {STATUS_LABEL_AR[data.status] ?? data.status}
+                {STATUS_LABEL_KEY[data.status] ? t(STATUS_LABEL_KEY[data.status]) : data.status}
               </span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px 24px' }}>
@@ -737,7 +745,7 @@ export default function InvoicePreview() {
           </div>
 
           {/* ── Section 2: Party & Contract ── */}
-          <div style={secTitle} data-designer-type="text" data-designer-id="invoice.sectionTitle">{data.contract ? t('page.invoice_preview.section.party') : 'الجهة'}</div>
+          <div style={secTitle} data-designer-type="text" data-designer-id="invoice.sectionTitle">{data.contract ? t('page.invoice_preview.section.party') : t('col.inv.party')}</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px 24px' }} data-designer-type="text" data-designer-id="invoice.customerBlock">
             <div className="inv-frow" style={fRow}>
               <span style={fLbl}>{data.customer ? t('col.customer') : t('col.supplier')}</span>
@@ -747,7 +755,7 @@ export default function InvoicePreview() {
               <>
                 {data.contract.code && (
                   <div className="inv-frow" style={fRow}>
-                    <span style={fLbl}>رقم العقد</span>
+                    <span style={fLbl}>{t('col.contract_no')}</span>
                     <span style={fVal}>{data.contract.code}</span>
                   </div>
                 )}
@@ -830,22 +838,22 @@ export default function InvoicePreview() {
             const methodBreakdown = Object.entries(methodTotals).filter(([, v]) => v > 0);
             return (
               <div id="inv-collections" className="inv-nav-anchor no-print">
-                <div style={secTitle}>ملخص التحصيل</div>
+                <div style={secTitle}>{t('nav.collection_summary')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 10 }}>
                   <div className="inv-collection-chip">
-                    <div className="inv-collection-chip-label">إجمالي المحصّل</div>
+                    <div className="inv-collection-chip-label">{t('lbl.total_collected_chip')}</div>
                     <div className="inv-collection-chip-val" style={{ ...moneyCell, color: '#16a34a' }}>{money(data.paidAmount)}</div>
                   </div>
                   <div className="inv-collection-chip">
-                    <div className="inv-collection-chip-label">المتبقي</div>
+                    <div className="inv-collection-chip-label">{t('lbl.inv.remaining_amount')}</div>
                     <div className="inv-collection-chip-val" style={{ ...moneyCell, color: remaining > 0 ? '#dc2626' : '#16a34a' }}>{money(remaining)}</div>
                   </div>
                   <div className="inv-collection-chip">
-                    <div className="inv-collection-chip-label">نسبة التحصيل</div>
+                    <div className="inv-collection-chip-label">{t('lbl.collection_rate')}</div>
                     <div className="inv-collection-chip-val" style={{ color: '#1d4e6f' }}>{collectionPct}%</div>
                   </div>
                   <div className="inv-collection-chip">
-                    <div className="inv-collection-chip-label">عدد الدفعات</div>
+                    <div className="inv-collection-chip-label">{t('lbl.payment_count_chip')}</div>
                     <div className="inv-collection-chip-val" style={{ color: '#0f172a' }}>{data.payments.length}</div>
                   </div>
                 </div>
@@ -857,14 +865,14 @@ export default function InvoicePreview() {
                         background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 20,
                         color: '#475569', fontWeight: 600,
                       }}>
-                        {PAY_METHOD_AR[method] ?? method}: <span style={{ ...moneyCell, display: 'inline-block', color: '#16a34a' }}>{money(total)}</span>
+                        {PAY_METHOD_AR[method] ? t(PAY_METHOD_AR[method].key) : method}: <span style={{ ...moneyCell, display: 'inline-block', color: '#16a34a' }}>{money(total)}</span>
                       </span>
                     ))}
                   </div>
                 )}
                 {lastPaymentDate && (
                   <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 4px' }}>
-                    📅 آخر دفعة: <strong>{dateText(lastPaymentDate)}</strong>
+                    {t('lbl.last_payment_prefix')} <strong>{dateText(lastPaymentDate)}</strong>
                   </p>
                 )}
               </div>
@@ -891,13 +899,13 @@ export default function InvoicePreview() {
                       <td style={{ ...td, textAlign: 'center', color: '#94a3b8', fontSize: 11 }}>{idx + 1}</td>
                       <td style={td}>{dateText(p.date)}</td>
                       <td style={{ ...td, fontWeight: 700, textAlign: 'end', color: '#16a34a' }}>{money(p.amount)}</td>
-                      <td style={td}>{PAY_METHOD_AR[p.method] ?? p.method}</td>
+                      <td style={td}>{PAY_METHOD_AR[p.method]?.ar ?? p.method}</td>
                       <td style={{ ...td, color: '#64748b' }}>{p.reference ?? '—'}</td>
                     </tr>
                   ))}
                   {/* Totals row */}
                   <tr style={{ background: '#f1f5f9' }}>
-                    <td colSpan={2} style={{ ...td, fontWeight: 700, fontSize: 13 }}>المجموع</td>
+                    <td colSpan={2} style={{ ...td, fontWeight: 700, fontSize: 13 }}>{t('lbl.total_row')}</td>
                     <td style={{ ...td, fontWeight: 800, textAlign: 'end', color: '#16a34a', fontSize: 14 }}>{money(data.paidAmount)}</td>
                     <td colSpan={2} style={td} />
                   </tr>
@@ -1015,7 +1023,7 @@ export default function InvoicePreview() {
           designer={designer}
           textStyleDesigner={textDesigner}
           staticTextDesigner={staticTextDesigner}
-          docLabel="الفاتورة"
+          docLabel={t('lbl.doc.invoice')}
           onClose={designer.deactivate}
           onSave={async () => {
             await Promise.all([designer.save(), textDesigner.save(), staticTextDesigner.save()]);
@@ -1028,7 +1036,7 @@ export default function InvoicePreview() {
           layoutDesigner={layoutDesigner}
           designer={designer}
           textStyleDesigner={textDesigner}
-          docLabel="الفاتورة"
+          docLabel={t('lbl.doc.invoice')}
           onClose={layoutDesigner.deactivate}
           onSave={async () => {
             await Promise.all([layoutDesigner.save(), designer.save(), textDesigner.save(), staticTextDesigner.save()]);
@@ -1037,9 +1045,9 @@ export default function InvoicePreview() {
       )}
       {showCancelConfirm && (
         <ConfirmModal
-          title="تأكيد إلغاء الفاتورة"
+          title={t('dlg.cancel_invoice.title')}
           message={t('confirm.cancel_invoice')}
-          confirmLabel="إلغاء الفاتورة"
+          confirmLabel={t('dlg.cancel_invoice.confirm_btn')}
           variant="danger"
           onConfirm={executeCancel}
           onCancel={() => setShowCancelConfirm(false)}

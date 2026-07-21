@@ -203,9 +203,9 @@ export default function Users() {
         subtitle={t('page.users.subtitle')}
         chips={
           <>
-            <IdChip icon="group" tone="indigo">{kpi.total} مستخدم</IdChip>
-            <IdChip icon="task_alt" tone="green">{kpi.active} نشط</IdChip>
-            <IdChip icon="shield" tone="orange">{kpi.roles} دور</IdChip>
+            <IdChip icon="group" tone="indigo">{t('page.users.count_users', { n: kpi.total })}</IdChip>
+            <IdChip icon="task_alt" tone="green">{t('page.users.count_active', { n: kpi.active })}</IdChip>
+            <IdChip icon="shield" tone="orange">{t('page.users.count_roles', { n: kpi.roles })}</IdChip>
           </>
         }
       />
@@ -230,7 +230,7 @@ export default function Users() {
         <>
           <div className="xpl-toolbar xpl-toolbar--sticky">
             <div className="xpl-toolbar-row">
-              <SearchBox value={search} onChange={setSearch} placeholder="ابحث بالاسم أو اسم المستخدم أو الدور…" ariaLabel="بحث في المستخدمين" />
+              <SearchBox value={search} onChange={setSearch} placeholder={t('page.users.search_placeholder')} ariaLabel={t('page.users.search_aria')} />
               {canCreate && <Button variant="primary" icon="person_add" onClick={openCreate}>{t('btn.users.new_user')}</Button>}
             </div>
           </div>
@@ -242,8 +242,8 @@ export default function Users() {
               <EmptyState
                 icon="group_off"
                 tone="neutral"
-                title={search ? 'لا يوجد مستخدم مطابق' : t('empty.users')}
-                message={search ? 'جرّب كلمة بحث مختلفة.' : undefined}
+                title={search ? t('page.users.no_match') : t('empty.users')}
+                message={search ? t('page.users.try_different_search') : undefined}
                 action={!search && canCreate ? <Button variant="primary" icon="person_add" onClick={openCreate}>{t('btn.users.new_user')}</Button> : undefined}
               />
             ) : (
@@ -255,13 +255,13 @@ export default function Users() {
                       <SortableHeader label={t('col.users.fullname')} title={t('col.users.fullname')} state={sort.getState('fullName')} onToggle={() => sort.toggle('fullName')} />
                       <SortableHeader label={t('col.users.role')} title={t('col.users.role')} state={sort.getState('role')} onToggle={() => sort.toggle('role')} />
                       <SortableHeader label={t('col.users.status')} title={t('col.users.status')} state={sort.getState('isActive')} onToggle={() => sort.toggle('isActive')} />
-                      <th aria-label="فتح" />
+                      <th aria-label={t('page.users.open_aria')} />
                     </tr>
                   </thead>
                   <tbody>
                     {sortedUsers.map((u) => (
                       <tr key={u.id} className="xpl-row--click" tabIndex={0} role="button"
-                        aria-label={`تفاصيل المستخدم ${u.fullName}`}
+                        aria-label={t('page.users.details_aria', { name: u.fullName })}
                         onClick={() => setViewing(u)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(u); } }}>
                         <td><strong style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{u.username}</strong></td>
@@ -354,7 +354,7 @@ export default function Users() {
             ) : undefined
           }
         >
-          <DrawerSection title="بيانات المستخدم">
+          <DrawerSection title={t('page.users.section.user_data')}>
             <DrawerField label={t('col.users.username')} value={viewing.username} mono />
             <DrawerField label={t('col.users.fullname')} value={viewing.fullName} />
             <DrawerField label={t('field.email')} value={viewing.email || '—'} />
@@ -371,7 +371,7 @@ export default function Users() {
         <Dialog
           icon={editingUser ? 'manage_accounts' : 'person_add'}
           title={editingUser ? t('modal.users.edit_prefix') + editingUser.username : t('modal.users.new')}
-          subtitle={editingUser ? t('col.users.role') + ': ' + editingUser.role.displayName : 'إنشاء حساب مستخدم جديد'}
+          subtitle={editingUser ? t('col.users.role') + ': ' + editingUser.role.displayName : t('page.users.create_subtitle')}
           size="md"
           onClose={() => setShowForm(false)}
           footer={
@@ -383,7 +383,7 @@ export default function Users() {
         >
           {formError && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{formError}</div>}
 
-          <DialogSection title="الهوية" icon="badge">
+          <DialogSection title={t('page.users.section.identity')} icon="badge">
             {!editingUser && (
               <div className="xpl-field">
                 <label>{t('col.users.username')} <span className="req">*</span></label>
@@ -400,7 +400,7 @@ export default function Users() {
             </div>
           </DialogSection>
 
-          <DialogSection title="الدور والصلاحيات" icon="shield">
+          <DialogSection title={t('page.users.section.role_permissions')} icon="shield">
             <div className="xpl-field">
               <label>{editingUser ? t('field.users.new_password_opt') : `${t('field.users.password')} `}{!editingUser && <span className="req">*</span>}</label>
               <input className="xpl-input" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="••••••••" autoComplete="new-password" autoFocus={!!editingUser} aria-label={t('field.users.password')} />

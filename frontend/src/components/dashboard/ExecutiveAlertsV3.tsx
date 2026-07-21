@@ -1,5 +1,6 @@
 import { formatCurrency } from '../../lib/format';
 import { MoneyText } from '../../config/modules';
+import { useT } from '../../lib/i18n';
 
 export interface AlertV3 {
   id: string;
@@ -15,12 +16,13 @@ export interface AlertV3 {
 
 const SEV_COLOR = { HIGH: '#EF4444', MEDIUM: '#F59E0B', LOW: '#9CA3AF' };
 const SEV_BG    = { HIGH: 'rgba(239,68,68,0.08)', MEDIUM: 'rgba(245,158,11,0.08)', LOW: 'rgba(156,163,175,0.06)' };
-const SEV_LABEL = { HIGH: 'عالٍ', MEDIUM: 'متوسط', LOW: 'منخفض' };
+const SEV_LABEL_KEY = { HIGH: 'intelv2.sev.high', MEDIUM: 'intelv2.sev.medium', LOW: 'intelv2.sev.low' };
 const SEV_ICON  = { HIGH: '🔴', MEDIUM: '🟡', LOW: '🔵' };
 
 interface Props { alerts: AlertV3[]; maxVisible?: number }
 
 export default function ExecutiveAlertsV3({ alerts, maxVisible = 12 }: Props) {
+  const { t } = useT();
   const visible = alerts.slice(0, maxVisible);
   const highCount = alerts.filter(a => a.severity === 'HIGH').length;
   const medCount  = alerts.filter(a => a.severity === 'MEDIUM').length;
@@ -28,9 +30,9 @@ export default function ExecutiveAlertsV3({ alerts, maxVisible = 12 }: Props) {
   if (alerts.length === 0) {
     return (
       <div style={{ background: 'var(--db-card)', borderRadius: 'var(--db-radius)', padding: '20px', border: '1px solid var(--db-border)' }}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'var(--db-text)' }}>🔔 التنبيهات التنفيذية V3</h3>
+        <h3 style={{ margin: '0 0 12px', fontSize: 15, fontWeight: 700, color: 'var(--db-text)' }}>🔔 {t('alertsv3.title')}</h3>
         <div style={{ color: '#10B981', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
-          ✅ لا توجد تنبيهات نشطة — الوضع سليم
+          ✅ {t('alertsv3.empty')}
         </div>
       </div>
     );
@@ -39,16 +41,16 @@ export default function ExecutiveAlertsV3({ alerts, maxVisible = 12 }: Props) {
   return (
     <div style={{ background: 'var(--db-card)', borderRadius: 'var(--db-radius)', padding: '20px', border: '1px solid var(--db-border)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
-        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--db-text)' }}>🔔 التنبيهات التنفيذية V3</h3>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--db-text)' }}>🔔 {t('alertsv3.title')}</h3>
         <div style={{ display: 'flex', gap: 8 }}>
           {highCount > 0 && (
             <span style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>
-              {highCount} عالية
+              {t('alertsv3.high_count', { count: highCount })}
             </span>
           )}
           {medCount > 0 && (
             <span style={{ background: 'rgba(245,158,11,0.12)', color: '#F59E0B', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700 }}>
-              {medCount} متوسطة
+              {t('alertsv3.medium_count', { count: medCount })}
             </span>
           )}
         </div>
@@ -71,7 +73,7 @@ export default function ExecutiveAlertsV3({ alerts, maxVisible = 12 }: Props) {
                   <span style={{
                     fontSize: 10, fontWeight: 700, color,
                     background: `${color}22`, padding: '1px 7px', borderRadius: 10,
-                  }}>{SEV_LABEL[alert.severity]}</span>
+                  }}>{t(SEV_LABEL_KEY[alert.severity])}</span>
                 </div>
                 <div style={{ fontSize: 12, color: 'var(--db-muted)', marginTop: 2 }}>{alert.description}</div>
                 {alert.amount != null && (
@@ -88,7 +90,7 @@ export default function ExecutiveAlertsV3({ alerts, maxVisible = 12 }: Props) {
 
       {alerts.length > maxVisible && (
         <div style={{ textAlign: 'center', marginTop: 10, fontSize: 12, color: 'var(--db-muted)' }}>
-          + {alerts.length - maxVisible} تنبيهات إضافية
+          {t('alertsv3.more_alerts', { count: alerts.length - maxVisible })}
         </div>
       )}
     </div>

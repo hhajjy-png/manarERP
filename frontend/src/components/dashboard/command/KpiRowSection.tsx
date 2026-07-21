@@ -2,6 +2,7 @@ import { MetricCard } from '../../explorer/ExplorerKit';
 import { Skeleton } from '../Skeleton';
 import PrivateAmount from '../../PrivateAmount';
 import type { FinancialSummary } from './types';
+import { useT } from '../../../lib/i18n';
 
 /**
  * Build a month-on-month trend indicator from a REAL change percentage.
@@ -33,6 +34,7 @@ export default function KpiRowSection({
   cashFlow: number | null;
   loading: boolean;
 }) {
+  const { t } = useT();
   if (loading) {
     return (
       <div className="xpl-kpi-grid">
@@ -47,7 +49,7 @@ export default function KpiRowSection({
     return (
       <div className="db-empty">
         <div className="db-empty-icon">📊</div>
-        <div className="db-empty-text">لا تتوفر المؤشرات المالية حالياً</div>
+        <div className="db-empty-text">{t('kpirow.empty')}</div>
       </div>
     );
   }
@@ -61,42 +63,42 @@ export default function KpiRowSection({
   return (
     <div className="xpl-kpi-grid">
       <MetricCard
-        label="إجمالي الإيرادات"
+        label={t('kpi.total_revenue')}
         value={<PrivateAmount value={f.totalRevenue} />}
         icon="payments"
         tone="green"
         trend={momTrend(mom.revenue)}
-        sub="إجمالي الإيرادات المسجّلة"
+        sub={t('kpirow.sub.total_revenue_recorded')}
       />
       <MetricCard
-        label="صافي الربح"
+        label={t('kpi.net_profit')}
         value={<PrivateAmount value={f.netProfit} />}
         icon="trending_up"
         tone={profitPositive ? 'blue' : 'red'}
         trend={momTrend(mom.profit)}
-        sub={profitPositive ? 'الإيرادات − المصروفات' : '⚠ المصروفات تتجاوز الإيرادات'}
+        sub={profitPositive ? t('kpirow.sub.revenue_minus_expenses') : t('kpirow.sub.expenses_exceed_revenue')}
       />
       <MetricCard
-        label="إجمالي المصروفات"
+        label={t('kpi.total_expenses')}
         value={<PrivateAmount value={f.totalExpenses} />}
         icon="trending_down"
         tone="red"
         trend={momTrend(mom.expenses, true)}
-        sub="إجمالي المصروفات المعتمدة"
+        sub={t('kpirow.sub.total_expenses_approved')}
       />
       <MetricCard
-        label="صافي النقد لهذا الشهر"
+        label={t('kpirow.net_cash_this_month')}
         value={<PrivateAmount value={cash} />}
         icon="account_balance_wallet"
         tone={cashPositive ? 'green' : 'red'}
-        sub={`${cashPositive ? 'فائض نقدي' : 'عجز نقدي'} — تحصيلات الشهر − مصروفات الشهر`}
+        sub={`${cashPositive ? t('kpirow.cash_surplus') : t('kpirow.cash_deficit')} ${t('kpirow.sub.net_cash_formula')}`}
       />
       <MetricCard
-        label="الذمم المستحقة"
+        label={t('exec.kpi.outstanding_receivables')}
         value={<PrivateAmount value={f.totalOutstanding} />}
         icon="hourglass_empty"
         tone="orange"
-        sub="مبالغ لم تُحصَّل بعد"
+        sub={t('kpirow.sub.outstanding_uncollected')}
       />
     </div>
   );

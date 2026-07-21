@@ -14,6 +14,7 @@ import { money, MoneyText } from '../config/modules';
 import { useTableSort } from '../hooks/useTableSort';
 import { sortRowsClient } from '../lib/clientSort';
 import SortableHeader from '../components/SortableHeader';
+import { useT } from '../lib/i18n';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -105,16 +106,17 @@ function ExpenseCategoryTick({ x, y, payload }: { x?: number; y?: number; payloa
 
 type Tab = 'contracts' | 'expenses' | 'customers' | 'trends';
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'contracts',  label: 'ربحية العقود' },
-  { key: 'expenses',   label: 'تحليل المصروفات' },
-  { key: 'customers',  label: 'تحليل العملاء' },
-  { key: 'trends',     label: 'الاتجاهات' },
+const TABS: { key: Tab; labelKey: string }[] = [
+  { key: 'contracts',  labelKey: 'finops.tab.contract_profitability' },
+  { key: 'expenses',   labelKey: 'finops.tab.expense_analysis' },
+  { key: 'customers',  labelKey: 'finops.tab.customer_analysis' },
+  { key: 'trends',     labelKey: 'finops.tab.trends' },
 ];
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 function ContractProfitabilityTab() {
+  const { t } = useT();
   const [rows, setRows]       = useState<ContractProfitRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
@@ -126,27 +128,27 @@ function ContractProfitabilityTab() {
   useEffect(() => {
     api.get<{ data: ContractProfitRow[] }>('/executive/contract-profitability')
       .then(r => setRows(r.data.data))
-      .catch(() => setError('تعذّر تحميل بيانات ربحية العقود'))
+      .catch(() => setError(t('finops.err.contracts_load_failed')))
       .finally(() => setLoading(false));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <Skeleton />;
   if (error)   return <div style={{ color: 'var(--db-danger)', padding: 20 }}>{error}</div>;
-  if (!rows || rows.length === 0) return <div style={{ padding: 20, color: 'var(--db-muted)' }}>لا توجد بيانات عقود</div>;
+  if (!rows || rows.length === 0) return <div style={{ padding: 20, color: 'var(--db-muted)' }}>{t('finops.empty.contracts')}</div>;
 
   return (
     <div style={{ overflowX: 'auto' }}>
       <table className="fin-ops-table">
         <thead>
           <tr>
-            <SortableHeader label="الكود" title="الكود" state={sort.getState('code')} onToggle={() => sort.toggle('code')} />
-            <SortableHeader label="المصنع" title="المصنع" state={sort.getState('asphaltPlant')} onToggle={() => sort.toggle('asphaltPlant')} />
-            <SortableHeader label="العميل" title="العميل" state={sort.getState('customerName')} onToggle={() => sort.toggle('customerName')} />
-            <SortableHeader label="الإيرادات" title="الإيرادات" state={sort.getState('revenue')} onToggle={() => sort.toggle('revenue')} />
-            <SortableHeader label="المصروفات" title="المصروفات" state={sort.getState('expenses')} onToggle={() => sort.toggle('expenses')} />
-            <SortableHeader label="الربح" title="الربح" state={sort.getState('profit')} onToggle={() => sort.toggle('profit')} />
-            <SortableHeader label="هامش الربح" title="هامش الربح" state={sort.getState('profitMargin')} onToggle={() => sort.toggle('profitMargin')} />
-            <SortableHeader label="معدل التحصيل" title="معدل التحصيل" state={sort.getState('collectionRate')} onToggle={() => sort.toggle('collectionRate')} />
+            <SortableHeader label={t('col.acc.code')} title={t('col.acc.code')} state={sort.getState('code')} onToggle={() => sort.toggle('code')} />
+            <SortableHeader label={t('finops.col.plant')} title={t('finops.col.plant')} state={sort.getState('asphaltPlant')} onToggle={() => sort.toggle('asphaltPlant')} />
+            <SortableHeader label={t('col.customer')} title={t('col.customer')} state={sort.getState('customerName')} onToggle={() => sort.toggle('customerName')} />
+            <SortableHeader label={t('today.revenue')} title={t('today.revenue')} state={sort.getState('revenue')} onToggle={() => sort.toggle('revenue')} />
+            <SortableHeader label={t('today.expenses')} title={t('today.expenses')} state={sort.getState('expenses')} onToggle={() => sort.toggle('expenses')} />
+            <SortableHeader label={t('finops.col.profit')} title={t('finops.col.profit')} state={sort.getState('profit')} onToggle={() => sort.toggle('profit')} />
+            <SortableHeader label={t('exec.kpi.profit_margin')} title={t('exec.kpi.profit_margin')} state={sort.getState('profitMargin')} onToggle={() => sort.toggle('profitMargin')} />
+            <SortableHeader label={t('exec.kpi.collection_rate')} title={t('exec.kpi.collection_rate')} state={sort.getState('collectionRate')} onToggle={() => sort.toggle('collectionRate')} />
           </tr>
         </thead>
         <tbody>
@@ -171,6 +173,7 @@ function ContractProfitabilityTab() {
 }
 
 function ExpenseBreakdownTab() {
+  const { t } = useT();
   const [rows, setRows]       = useState<ExpenseCategoryRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
@@ -178,13 +181,13 @@ function ExpenseBreakdownTab() {
   useEffect(() => {
     api.get<{ data: ExpenseCategoryRow[] }>('/executive/expense-breakdown')
       .then(r => setRows(r.data.data))
-      .catch(() => setError('تعذّر تحميل بيانات المصروفات'))
+      .catch(() => setError(t('finops.err.expenses_load_failed')))
       .finally(() => setLoading(false));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <Skeleton />;
   if (error)   return <div style={{ color: 'var(--db-danger)', padding: 20 }}>{error}</div>;
-  if (!rows || rows.length === 0) return <div style={{ padding: 20, color: 'var(--db-muted)' }}>لا توجد بيانات مصروفات</div>;
+  if (!rows || rows.length === 0) return <div style={{ padding: 20, color: 'var(--db-muted)' }}>{t('finops.empty.expenses')}</div>;
 
   const chartData = rows.map(r => ({ name: expenseCategoryLabel(r.category), total: r.total, pct: r.pct }));
 
@@ -210,7 +213,7 @@ function ExpenseBreakdownTab() {
             />
             <YAxis type="category" dataKey="name" tick={<ExpenseCategoryTick />} width={150} />
             <Tooltip
-              formatter={(value) => [money(Number(value ?? 0)), 'الإجمالي']}
+              formatter={(value) => [money(Number(value ?? 0)), t('msg.total')]}
               contentStyle={{ fontFamily: 'inherit', fontSize: 12 }}
             />
             <Bar dataKey="total" radius={[0, 4, 4, 0]}>
@@ -226,10 +229,10 @@ function ExpenseBreakdownTab() {
         <table className="fin-ops-table">
           <thead>
             <tr>
-              <th>الفئة</th>
-              <th style={{ textAlign: 'left' }}>الإجمالي</th>
-              <th>العدد</th>
-              <th>النسبة</th>
+              <th>{t('finops.col.category')}</th>
+              <th style={{ textAlign: 'left' }}>{t('msg.total')}</th>
+              <th>{t('finops.col.count')}</th>
+              <th>{t('finops.col.percentage')}</th>
             </tr>
           </thead>
           <tbody>
@@ -252,6 +255,7 @@ function ExpenseBreakdownTab() {
 }
 
 function CustomerAnalyticsTab() {
+  const { t } = useT();
   const [rows, setRows]       = useState<CustomerAnalyticsRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
@@ -263,26 +267,26 @@ function CustomerAnalyticsTab() {
   useEffect(() => {
     api.get<{ data: CustomerAnalyticsRow[] }>('/executive/customer-analytics')
       .then(r => setRows(r.data.data))
-      .catch(() => setError('تعذّر تحميل بيانات العملاء'))
+      .catch(() => setError(t('finops.err.customers_load_failed')))
       .finally(() => setLoading(false));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <Skeleton />;
   if (error)   return <div style={{ color: 'var(--db-danger)', padding: 20 }}>{error}</div>;
-  if (!rows || rows.length === 0) return <div style={{ padding: 20, color: 'var(--db-muted)' }}>لا توجد بيانات عملاء</div>;
+  if (!rows || rows.length === 0) return <div style={{ padding: 20, color: 'var(--db-muted)' }}>{t('finops.empty.customers')}</div>;
 
   return (
     <div style={{ overflowX: 'auto' }}>
       <table className="fin-ops-table">
         <thead>
           <tr>
-            <SortableHeader label="العميل" title="العميل" state={sort.getState('name')} onToggle={() => sort.toggle('name')} />
-            <SortableHeader label="الكود" title="الكود" state={sort.getState('code')} onToggle={() => sort.toggle('code')} />
-            <SortableHeader label="الإيرادات" title="الإيرادات" state={sort.getState('revenue')} onToggle={() => sort.toggle('revenue')} />
-            <SortableHeader label="المحصّل" title="المحصّل" state={sort.getState('collected')} onToggle={() => sort.toggle('collected')} />
-            <SortableHeader label="المستحق" title="المستحق" state={sort.getState('outstanding')} onToggle={() => sort.toggle('outstanding')} />
-            <SortableHeader label="عدد الفواتير" title="عدد الفواتير" state={sort.getState('invoiceCount')} onToggle={() => sort.toggle('invoiceCount')} />
-            <SortableHeader label="معدل التحصيل" title="معدل التحصيل" state={sort.getState('collectionRate')} onToggle={() => sort.toggle('collectionRate')} />
+            <SortableHeader label={t('col.customer')} title={t('col.customer')} state={sort.getState('name')} onToggle={() => sort.toggle('name')} />
+            <SortableHeader label={t('col.acc.code')} title={t('col.acc.code')} state={sort.getState('code')} onToggle={() => sort.toggle('code')} />
+            <SortableHeader label={t('today.revenue')} title={t('today.revenue')} state={sort.getState('revenue')} onToggle={() => sort.toggle('revenue')} />
+            <SortableHeader label={t('finops.col.collected')} title={t('finops.col.collected')} state={sort.getState('collected')} onToggle={() => sort.toggle('collected')} />
+            <SortableHeader label={t('finops.col.outstanding')} title={t('finops.col.outstanding')} state={sort.getState('outstanding')} onToggle={() => sort.toggle('outstanding')} />
+            <SortableHeader label={t('inv.stats.count')} title={t('inv.stats.count')} state={sort.getState('invoiceCount')} onToggle={() => sort.toggle('invoiceCount')} />
+            <SortableHeader label={t('exec.kpi.collection_rate')} title={t('exec.kpi.collection_rate')} state={sort.getState('collectionRate')} onToggle={() => sort.toggle('collectionRate')} />
           </tr>
         </thead>
         <tbody>
@@ -308,6 +312,7 @@ function CustomerAnalyticsTab() {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function FinancialOperationsDashboard() {
+  const { t } = useT();
   const [activeTab, setActiveTab] = useState<Tab>('contracts');
 
   const tabStyle = (key: Tab): React.CSSProperties => ({
@@ -329,10 +334,10 @@ export default function FinancialOperationsDashboard() {
       {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px', color: 'var(--db-text)' }}>
-          لوحة العمليات المالية التنفيذية
+          {t('finops.header.title')}
         </h1>
         <p style={{ margin: 0, fontSize: 13, color: 'var(--db-muted)' }}>
-          تحليل شامل لربحية العقود، تصنيف المصروفات، وأداء العملاء
+          {t('finops.header.subtitle')}
         </p>
       </div>
 
@@ -346,7 +351,7 @@ export default function FinancialOperationsDashboard() {
       }}>
         {TABS.map(tab => (
           <button key={tab.key} style={tabStyle(tab.key)} onClick={() => setActiveTab(tab.key)}>
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>

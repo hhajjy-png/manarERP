@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
+import { useT } from '../lib/i18n';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -26,6 +27,7 @@ const INITIAL_PRINT_FIELDS = {
 };
 
 export default function SalaryAdvance() {
+  const { t } = useT();
   const { employeeId } = useParams<{ employeeId: string }>();
   const { search } = useLocation();
   const formNumber = useMemo(() => generateFormNumber('salary-advance'), []);
@@ -85,8 +87,8 @@ export default function SalaryAdvance() {
      ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
-    title: 'طلب سلفة راتب',
-    documentLabel: `طلب سلفة راتب · ${formNumber}`,
+    title: t('page.salaryAdv.title'),
+    documentLabel: `${t('page.salaryAdv.title')} · ${formNumber}`,
     lang,
   });
 
@@ -104,17 +106,17 @@ export default function SalaryAdvance() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: 'طلب سلفة راتب',
-    documentLabel: `طلب سلفة راتب · ${formNumber}`,
+    title: t('page.salaryAdv.title'),
+    documentLabel: `${t('page.salaryAdv.title')} · ${formNumber}`,
   });
 
 
-  if (error) return <div className="center-msg">خطأ: {error}</div>;
+  if (error) return <div className="center-msg">{t('msg.error')}: {error}</div>;
   if (!data)
     return (
       <div className="center-msg">
         <div className="spinner" />
-        جارٍ التحميل…
+        {t('msg.loading')}
       </div>
     );
 
@@ -129,7 +131,7 @@ export default function SalaryAdvance() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
-      title="طلب سلفة راتب"
+      title={t('page.salaryAdv.title')}
       profile={profile}
       // Overflows the official-letterhead band by a few mm — reclaim the 10mm
       // bottom margin so it stays on one page (letterhead only; top unchanged).
@@ -147,7 +149,7 @@ export default function SalaryAdvance() {
             type="button"
             className="btn secondary"
             style={{ fontSize: 12, padding: '4px 8px' }}
-            title="حفظ مسودة"
+            title={t('page.warning.save_draft_title')}
             onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
           >
             💾
@@ -157,7 +159,7 @@ export default function SalaryAdvance() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
-              title="استعادة المسودة"
+              title={t('page.warning.load_draft_title')}
               onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
             >
               ↩
@@ -168,7 +170,7 @@ export default function SalaryAdvance() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px' }}
-              title="مسح المسودة"
+              title={t('page.warning.clear_draft_title')}
               onClick={() => clearDraft(FORM_KEY)}
             >
               ✕
@@ -186,35 +188,35 @@ export default function SalaryAdvance() {
       }}
     >
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{t('page.warning.print_fields_header')}</div>
         {!data.latestAdvance && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
             <div className="field">
-              <label>مبلغ السلفة (د.ك)</label>
-              <input type="number" lang="en" min="0" step="0.001" title="مبلغ السلفة" value={printFields.advanceAmount} onChange={(e) => setPrintFields(p => ({ ...p, advanceAmount: e.target.value }))} placeholder="0.000" />
+              <label>{t('page.salaryAdv.field.amount')}</label>
+              <input type="number" lang="en" min="0" step="0.001" title={t('page.salaryAdv.field.amount')} value={printFields.advanceAmount} onChange={(e) => setPrintFields(p => ({ ...p, advanceAmount: e.target.value }))} placeholder="0.000" />
             </div>
             <div className="field">
-              <label>تاريخ الطلب</label>
-              <DateInput title="تاريخ الطلب" value={printFields.requestDate} onChange={(v) => setPrintFields(p => ({ ...p, requestDate: v }))} />
+              <label>{t('page.salaryAdv.field.request_date')}</label>
+              <DateInput title={t('page.salaryAdv.field.request_date')} value={printFields.requestDate} onChange={(v) => setPrintFields(p => ({ ...p, requestDate: v }))} />
             </div>
             <div className="field">
-              <label>سبب السلفة</label>
-              <input title="سبب السلفة" value={printFields.reason} onChange={(e) => setPrintFields(p => ({ ...p, reason: e.target.value }))} />
+              <label>{t('page.salaryAdv.field.reason')}</label>
+              <input title={t('page.salaryAdv.field.reason')} value={printFields.reason} onChange={(e) => setPrintFields(p => ({ ...p, reason: e.target.value }))} />
             </div>
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
           <div className="field">
-            <label>عدد الأقساط</label>
-            <input type="number" lang="en" min="1" title="عدد الأقساط" value={printFields.installments} onChange={(e) => setPrintFields(p => ({ ...p, installments: e.target.value }))} />
+            <label>{t('page.salaryAdv.field.installments')}</label>
+            <input type="number" lang="en" min="1" title={t('page.salaryAdv.field.installments')} value={printFields.installments} onChange={(e) => setPrintFields(p => ({ ...p, installments: e.target.value }))} />
           </div>
           <div className="field">
-            <label>قيمة القسط (د.ك)</label>
-            <input type="number" lang="en" min="0" step="0.001" title="قيمة القسط" value={printFields.installmentAmount} onChange={(e) => setPrintFields(p => ({ ...p, installmentAmount: e.target.value }))} placeholder="0.000" />
+            <label>{t('page.salaryAdv.field.installment_amount')}</label>
+            <input type="number" lang="en" min="0" step="0.001" title={t('page.salaryAdv.field.installment_amount')} value={printFields.installmentAmount} onChange={(e) => setPrintFields(p => ({ ...p, installmentAmount: e.target.value }))} placeholder="0.000" />
           </div>
           <div className="field">
-            <label>جدول السداد</label>
-            <input title="جدول السداد" value={printFields.repaymentSchedule} onChange={(e) => setPrintFields(p => ({ ...p, repaymentSchedule: e.target.value }))} placeholder="مثال: 3 أقساط × 100 د.ك" />
+            <label>{t('page.salaryAdv.field.repayment_schedule')}</label>
+            <input title={t('page.salaryAdv.field.repayment_schedule')} value={printFields.repaymentSchedule} onChange={(e) => setPrintFields(p => ({ ...p, repaymentSchedule: e.target.value }))} placeholder={t('page.salaryAdv.ph.repayment_schedule')} />
           </div>
         </div>
         <div style={{ marginTop: 10 }}>
@@ -224,13 +226,13 @@ export default function SalaryAdvance() {
             style={{ fontSize: 12 }}
             onClick={resetPrintFields}
           >
-            ↺ مسح حقول الطباعة
+            {t('page.warning.clear_fields_btn')}
           </button>
         </div>
       </div>
       <SalaryAdvanceTemplate employee={data.employee} latestAdvance={data.latestAdvance} lang={lang} printFields={printFields} />
       {showClearConfirm && (
-        <ConfirmModal message="سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+        <ConfirmModal message={t('page.warning.clear_confirm')} confirmLabel={t('page.warning.clear_confirm_btn')} variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
     </>

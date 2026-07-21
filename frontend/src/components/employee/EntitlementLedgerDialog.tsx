@@ -1,22 +1,24 @@
 import { useState } from 'react';
 import { api, errorMessage } from '../../api/client';
 import { todayDateOnly } from '../../lib/date';
+import { useT } from '../../lib/i18n';
 import DateInput from '../DateInput';
 import { Dialog, DialogSection, Button, ErrorBanner } from '../explorer/ExplorerKit';
+import { LEDGER_TYPE_LABEL, SETTLEMENT_METHOD_LABEL } from './entitlementsShared';
 
 /** أنواع المستحق — تطابق ENUMS.entitlementLedgerType في الخادم. */
-const ENTRY_TYPES: { value: string; label: string }[] = [
-  { value: 'LEAVE_ALLOWANCE', label: 'بدل الإجازة' },
-  { value: 'END_OF_SERVICE', label: 'مكافأة نهاية الخدمة' },
-  { value: 'OTHER', label: 'مستحق آخر' },
+const ENTRY_TYPES: { value: string; labelKey: string }[] = [
+  { value: 'LEAVE_ALLOWANCE', labelKey: LEDGER_TYPE_LABEL.LEAVE_ALLOWANCE },
+  { value: 'END_OF_SERVICE', labelKey: LEDGER_TYPE_LABEL.END_OF_SERVICE },
+  { value: 'OTHER', labelKey: LEDGER_TYPE_LABEL.OTHER },
 ];
 
 /** طرق الدفع — تطابق ENUMS.leaveSettlementPaymentMethod. */
-const PAYMENT_METHODS: { value: string; label: string }[] = [
-  { value: 'CASH', label: 'نقدًا' },
-  { value: 'BANK_TRANSFER', label: 'تحويل بنكي' },
-  { value: 'CHEQUE', label: 'شيك' },
-  { value: 'OTHER', label: 'أخرى' },
+const PAYMENT_METHODS: { value: string; labelKey: string }[] = [
+  { value: 'CASH', labelKey: SETTLEMENT_METHOD_LABEL.CASH },
+  { value: 'BANK_TRANSFER', labelKey: SETTLEMENT_METHOD_LABEL.BANK_TRANSFER },
+  { value: 'CHEQUE', labelKey: SETTLEMENT_METHOD_LABEL.CHEQUE },
+  { value: 'OTHER', labelKey: SETTLEMENT_METHOD_LABEL.OTHER },
 ];
 
 interface Props {
@@ -39,6 +41,7 @@ const numStr = (v: number | null): string => (v != null ? String(v) : '');
  * قيد محاسبي/حركة بنكية/شيك/سند/راتب. يعيد استخدام حوار وحقول ExplorerKit القياسية.
  */
 export default function EntitlementLedgerDialog({ employeeId, leaveBalanceDays, leaveAllowanceValue, eosValue, onClose, onSaved }: Props) {
+  const { t } = useT();
   const defaultAmountFor = (type: string): string =>
     type === 'LEAVE_ALLOWANCE' ? numStr(leaveAllowanceValue) : type === 'END_OF_SERVICE' ? numStr(eosValue) : '';
 
@@ -53,16 +56,16 @@ export default function EntitlementLedgerDialog({ employeeId, leaveBalanceDays, 
   const [error, setError] = useState('');
 
   // تغيير النوع يعيد تعبئة المبلغ (وعدد الأيام لبدل الإجازة) بالقيمة المناسبة — قابلة للتعديل.
-  const changeType = (t: string) => {
-    setEntryType(t);
-    setAmount(defaultAmountFor(t));
-    if (t === 'LEAVE_ALLOWANCE') setLeaveDays(numStr(leaveBalanceDays));
+  const changeType = (newType: string) => {
+    setEntryType(newType);
+    setAmount(defaultAmountFor(newType));
+    if (newType === 'LEAVE_ALLOWANCE') setLeaveDays(numStr(leaveBalanceDays));
   };
 
   const isLeaveAllowance = entryType === 'LEAVE_ALLOWANCE';
 
   const save = async () => {
-    if (!entryDate) { setError('التاريخ مطلوب'); return; }
+    if (!entryDate) { setError(t('msg.ent.date_required')); return; }
     setSaving(true);
     setError('');
     try {
@@ -85,34 +88,34 @@ export default function EntitlementLedgerDialog({ employeeId, leaveBalanceDays, 
   return (
     <Dialog
       icon="history_edu"
-      title="إضافة مستحق"
-      subtitle="سجل تاريخي فقط — لا يغيّر الاحتساب ولا يُنشئ قيودًا محاسبية أو حركات بنكية أو رواتب"
+      title={t('page.ent.add_ledger_entry')}
+      subtitle={t('msg.ent.ledger_dialog_subtitle')}
       size="md"
       onClose={onClose}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={saving}>إلغاء</Button>
-          <Button variant="primary" icon="check" onClick={save} busy={saving}>حفظ</Button>
+          <Button variant="ghost" onClick={onClose} disabled={saving}>{t('action.cancel')}</Button>
+          <Button variant="primary" icon="check" onClick={save} busy={saving}>{t('action.save')}</Button>
         </>
       }
     >
       {error && <ErrorBanner>{error}</ErrorBanner>}
       <DialogSection>
         <div className="xpl-field">
-          <label>نوع المستحق</label>
-          <select className="xpl-select" value={entryType} onChange={(e) => changeType(e.target.value)} aria-label="نوع المستحق">
-            {ENTRY_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>{t.label}</option>
+          <label>{t('field.ent.ledger_type')}</label>
+          <select className="xpl-select" value={entryType} onChange={(e) => changeType(e.target.value)} aria-label={t('field.ent.ledger_type')}>
+            {ENTRY_TYPES.map((et) => (
+              <option key={et.value} value={et.value}>{t(et.labelKey)}</option>
             ))}
           </select>
         </div>
         <div className="xpl-field">
-          <label>التاريخ</label>
-          <DateInput className="xpl-input" value={entryDate} onChange={(v) => setEntryDate(v)} ariaLabel="التاريخ" />
+          <label>{t('field.date')}</label>
+          <DateInput className="xpl-input" value={entryDate} onChange={(v) => setEntryDate(v)} ariaLabel={t('field.date')} />
         </div>
         {isLeaveAllowance && (
           <div className="xpl-field">
-            <label>عدد الأيام</label>
+            <label>{t('field.ent.days_count')}</label>
             <input
               className="xpl-input"
               type="number"
@@ -121,12 +124,12 @@ export default function EntitlementLedgerDialog({ employeeId, leaveBalanceDays, 
               value={leaveDays}
               onChange={(e) => setLeaveDays(e.target.value)}
               style={{ direction: 'ltr' }}
-              aria-label="عدد الأيام"
+              aria-label={t('field.ent.days_count')}
             />
           </div>
         )}
         <div className="xpl-field">
-          <label>المبلغ</label>
+          <label>{t('col.amount')}</label>
           <input
             className="xpl-input"
             type="number"
@@ -135,24 +138,24 @@ export default function EntitlementLedgerDialog({ employeeId, leaveBalanceDays, 
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             style={{ direction: 'ltr' }}
-            aria-label="المبلغ"
+            aria-label={t('col.amount')}
           />
         </div>
         <div className="xpl-field">
-          <label>طريقة الدفع</label>
-          <select className="xpl-select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label="طريقة الدفع">
+          <label>{t('field.payment_method')}</label>
+          <select className="xpl-select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label={t('field.payment_method')}>
             {PAYMENT_METHODS.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
+              <option key={m.value} value={m.value}>{t(m.labelKey)}</option>
             ))}
           </select>
         </div>
         <div className="xpl-field xpl-field--full">
-          <label>الوصف (اختياري)</label>
-          <input className="xpl-input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف المستحق" aria-label="الوصف" />
+          <label>{t('field.ent.description_optional')}</label>
+          <input className="xpl-input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('ph.ent.ledger_description')} aria-label={t('col.description')} />
         </div>
         <div className="xpl-field xpl-field--full">
-          <label>ملاحظات (اختياري)</label>
-          <input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="ملاحظات" aria-label="ملاحظات" />
+          <label>{t('field.ent.notes_optional')}</label>
+          <input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('field.notes')} aria-label={t('field.notes')} />
         </div>
       </DialogSection>
     </Dialog>

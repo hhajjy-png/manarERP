@@ -35,34 +35,50 @@ import {
 import './BankReconciliation.css';
 import { MoneyText } from '../config/modules';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
+import { useT } from '../lib/i18n';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
+// NOTE: Arabic literals below are i18n fallbacks (byte-for-byte identical to
+// DICT.ar), consumed via labelFor()/keyFor() helpers that accept `t` from the
+// calling component — see the wiring pattern in pages/Maintenance.tsx.
 
-const PAGE_TITLE    = 'الحساب البنكي';
-const PAGE_SUBTITLE = 'السجل الزمني الكامل لعمليات حسابك البنكي مع فلاتر وإحصائيات متقدمة';
+const PAGE_TITLE_KEY    = 'bank.recon.page_title';
+const PAGE_TITLE_AR     = 'الحساب البنكي';
+const PAGE_SUBTITLE_KEY = 'bank.recon.page_subtitle';
+const PAGE_SUBTITLE_AR  = 'السجل الزمني الكامل لعمليات حسابك البنكي مع فلاتر وإحصائيات متقدمة';
 
-const BANK_NAMES: Record<string, string> = {
-  NBK:         'بنك الكويت الوطني',
-  KFH:         'بيت التمويل الكويتي',
-  GULF_BANK:   'بنك الخليج',
-  BOUBYAN:     'بنك بوبيان',
-  WARBA:       'بنك وربة',
-  AHLI_UNITED: 'البنك الأهلي المتحد',
-  UNKNOWN:     'بنك غير معروف',
+const BANK_NAMES: Record<string, { key: string; label: string }> = {
+  NBK:         { key: 'bank.name.nbk',         label: 'بنك الكويت الوطني' },
+  KFH:         { key: 'bank.name.kfh',         label: 'بيت التمويل الكويتي' },
+  GULF_BANK:   { key: 'bank.name.gulf',        label: 'بنك الخليج' },
+  BOUBYAN:     { key: 'bank.name.boubyan',     label: 'بنك بوبيان' },
+  WARBA:       { key: 'bank.name.warba',       label: 'بنك وربة' },
+  AHLI_UNITED: { key: 'bank.name.ahli_united', label: 'البنك الأهلي المتحد' },
+  UNKNOWN:     { key: 'bank.name.unknown',     label: 'بنك غير معروف' },
 };
 
-const CAT_LABELS: Record<string, string> = {
-  BANK_TRANSFER:   'تحويل بنكي',
-  CHEQUE_PAYMENT:  'شيك',
-  CASH_WITHDRAWAL: 'سحب نقدي',
-  TRANSFER_FEE:    'عمولة تحويل',
-  MONTHLY_FEE:     'رسوم شهرية',
-  INTEREST:        'فوائد / فوائد',
-  CHARGE:          'رسوم بنكية',
-  ATM_FEE:         'رسوم ATM',
-  CHEQUEBOOK_FEE:  'رسوم دفتر شيكات',
-  OTHER_FEE:       'رسوم أخرى',
+function bankLabelFor(code: string, t: (key: string) => string): string {
+  const entry = BANK_NAMES[code];
+  return entry ? t(entry.key) : code;
+}
+
+const CAT_LABELS: Record<string, { key: string; label: string }> = {
+  BANK_TRANSFER:   { key: 'opt.sal.payment.bank_transfer', label: 'تحويل بنكي' },
+  CHEQUE_PAYMENT:  { key: 'opt.payment.cheque',             label: 'شيك' },
+  CASH_WITHDRAWAL: { key: 'bank.cat.cash_withdrawal',       label: 'سحب نقدي' },
+  TRANSFER_FEE:    { key: 'bank.cat.transfer_commission',   label: 'عمولة تحويل' },
+  MONTHLY_FEE:     { key: 'bank.cat.monthly_fee',           label: 'رسوم شهرية' },
+  INTEREST:        { key: 'bank.cat.interest_fee',          label: 'فوائد / فوائد' },
+  CHARGE:          { key: 'bank.cat.bank_charge',           label: 'رسوم بنكية' },
+  ATM_FEE:         { key: 'bank.cat.atm_fee',                label: 'رسوم ATM' },
+  CHEQUEBOOK_FEE:  { key: 'bank.cat.chequebook_fee',        label: 'رسوم دفتر شيكات' },
+  OTHER_FEE:       { key: 'bank.cat.other_fee',             label: 'رسوم أخرى' },
 };
+
+function catLabelFor(code: string, t: (key: string) => string): string {
+  const entry = CAT_LABELS[code];
+  return entry ? t(entry.key) : code;
+}
 
 const CAT_ICONS: Record<string, string> = {
   BANK_TRANSFER:   '🟢',
@@ -90,24 +106,34 @@ const CAT_COLORS: Record<string, string> = {
   OTHER_FEE:       '#94a3b8',
 };
 
-const WARNING_LABELS: Record<string, string> = {
-  BALANCE_BREAK:          'رصيد غير متسلسل',
-  MISSING_DATE:           'تاريخ غير صالح',
-  MISSING_DESCRIPTION:    'وصف ناقص',
-  MISSING_AMOUNT:         'مبلغ صفر',
-  LARGE_AMOUNT:           'مبلغ كبير غير معتاد',
-  FUTURE_DATE:            'تاريخ مستقبلي',
-  VERY_OLD_DATE:          'تاريخ قديم جداً',
-  SUSPICIOUS_DESCRIPTION: 'وصف مشبوه',
+const WARNING_LABELS: Record<string, { key: string; label: string }> = {
+  BALANCE_BREAK:          { key: 'bank.warning.balance_break',          label: 'رصيد غير متسلسل' },
+  MISSING_DATE:           { key: 'bank.warning.invalid_date',           label: 'تاريخ غير صالح' },
+  MISSING_DESCRIPTION:    { key: 'bank.warning.missing_description',    label: 'وصف ناقص' },
+  MISSING_AMOUNT:         { key: 'bank.warning.zero_amount',            label: 'مبلغ صفر' },
+  LARGE_AMOUNT:           { key: 'bank.warning.large_amount',           label: 'مبلغ كبير غير معتاد' },
+  FUTURE_DATE:            { key: 'bank.warning.future_date',            label: 'تاريخ مستقبلي' },
+  VERY_OLD_DATE:          { key: 'bank.warning.old_date',                label: 'تاريخ قديم جداً' },
+  SUSPICIOUS_DESCRIPTION: { key: 'bank.warning.suspicious_description', label: 'وصف مشبوه' },
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  UNMATCHED: 'غير مطابق',
-  MATCHED:   'مطابق',
-  IGNORED:   'مستبعد',
-  DUPLICATE: 'مكرر',
-  REVIEW:    'قيد المراجعة',
+function warningLabelFor(code: string, t: (key: string) => string): string {
+  const entry = WARNING_LABELS[code];
+  return entry ? t(entry.key) : code;
+}
+
+const STATUS_LABELS: Record<string, { key: string; label: string }> = {
+  UNMATCHED: { key: 'bank.status.unmatched', label: 'غير مطابق' },
+  MATCHED:   { key: 'bank.status.matched',   label: 'مطابق' },
+  IGNORED:   { key: 'bank.status.ignored',   label: 'مستبعد' },
+  DUPLICATE: { key: 'import.status.duplicate', label: 'مكرر' },
+  REVIEW:    { key: 'bank.status.review',    label: 'قيد المراجعة' },
 };
+
+function statusLabelFor(code: string, t: (key: string) => string): string {
+  const entry = STATUS_LABELS[code];
+  return entry ? t(entry.key) : code;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -125,19 +151,23 @@ function exportTimelineCsv(
   accountKey:  string,
   fromDate:    string | null,
   toDate:      string | null,
+  t:           (key: string) => string,
 ): void {
-  const headers = ['التاريخ', 'الوصف', 'المرجع', 'مدين', 'دائن', 'الرصيد', 'النوع', 'الدفعة', 'الملف', 'الحالة'];
-  const rows = transactions.map((t) => [
-    t.statementDate ?? '',
-    `"${t.description.replace(/"/g, '""')}"`,
-    t.reference ?? '',
-    t.debit  > 0 ? t.debit.toFixed(3)  : '',
-    t.credit > 0 ? t.credit.toFixed(3) : '',
-    t.balance != null ? t.balance.toFixed(3) : '',
-    t.bankFeeType ? (CAT_LABELS[t.bankFeeType] ?? t.bankFeeType) : '',
-    `"${t.importBatchLabel.replace(/"/g, '""')}"`,
-    `"${t.fileName.replace(/"/g, '""')}"`,
-    STATUS_LABELS[t.reconcileStatus] ?? t.reconcileStatus,
+  const headers = [
+    t('col.date'), t('col.description'), t('col.acc.reference'), t('col.acc.debit'), t('col.acc.credit'),
+    t('bank.col.balance'), t('col.type'), t('bank.col.batch'), t('col.backup.file'), t('col.status'),
+  ];
+  const rows = transactions.map((t2) => [
+    t2.statementDate ?? '',
+    `"${t2.description.replace(/"/g, '""')}"`,
+    t2.reference ?? '',
+    t2.debit  > 0 ? t2.debit.toFixed(3)  : '',
+    t2.credit > 0 ? t2.credit.toFixed(3) : '',
+    t2.balance != null ? t2.balance.toFixed(3) : '',
+    t2.bankFeeType ? catLabelFor(t2.bankFeeType, t) : '',
+    `"${t2.importBatchLabel.replace(/"/g, '""')}"`,
+    `"${t2.fileName.replace(/"/g, '""')}"`,
+    statusLabelFor(t2.reconcileStatus, t),
   ]);
   const csv      = '﻿' + [headers, ...rows].map((r) => r.join(',')).join('\r\n');
   const blob     = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -192,7 +222,7 @@ const DEFAULT_CLIENT: ClientFilter = {
 // ── ConfirmModal ──────────────────────────────────────────────────────────────
 
 function ConfirmModal({
-  title, message, confirmLabel = 'تأكيد', onConfirm, onCancel, loading = false,
+  title, message, confirmLabel, onConfirm, onCancel, loading = false,
 }: {
   title:         string;
   message:       string;
@@ -201,6 +231,7 @@ function ConfirmModal({
   onCancel:      () => void;
   loading?:      boolean;
 }) {
+  const { t } = useT();
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div
@@ -219,7 +250,7 @@ function ConfirmModal({
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button className="btn secondary" onClick={onCancel} disabled={loading}>
-              إلغاء
+              {t('action.cancel')}
             </button>
             <button
               className="btn"
@@ -227,7 +258,7 @@ function ConfirmModal({
               disabled={loading}
               style={{ background: 'var(--red)', color: '#fff' }}
             >
-              {loading ? <span className="spinner" style={{ width: 14, height: 14 }} /> : confirmLabel}
+              {loading ? <span className="spinner" style={{ width: 14, height: 14 }} /> : (confirmLabel ?? t('bank.recon.confirm'))}
             </button>
           </div>
         </div>
@@ -262,6 +293,7 @@ function ImportSelector({
   canDelete: boolean;
   showToast: (msg: string, type?: 'ok' | 'error') => void;
 }) {
+  const { t } = useT();
   const [imports, setImports]         = useState<ImportListItem[]>([]);
   const [loading, setLoading]         = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -303,16 +335,16 @@ function ImportSelector({
       } else {
         await bulkDeleteImports(deleteIds);
       }
-      showToast(`تم حذف ${deleteIds.length === 1 ? 'الدفعة' : `${deleteIds.length} دفعات`} بنجاح`);
+      showToast(deleteIds.length === 1 ? t('bank.recon.delete_batch_success_one') : t('bank.recon.delete_batch_success_many', { count: deleteIds.length }));
       setDeleteIds(null);
       setSelectedIds(new Set());
       fetchImports();
     } catch (e) {
-      showToast(errorMessage(e) || 'فشل الحذف', 'error');
+      showToast(errorMessage(e) || t('bank.recon.delete_failed'), 'error');
     } finally {
       setDeleting(false);
     }
-  }, [deleteIds, showToast, fetchImports]);
+  }, [deleteIds, showToast, fetchImports, t]);
 
   const selectionStats = useMemo(() => {
     const sel = imports.filter((i) => selectedIds.has(i.id));
@@ -329,7 +361,7 @@ function ImportSelector({
     return (
       <div className="recon-ws" dir="rtl">
         <div className="page-head">
-          <div><h2>{PAGE_TITLE}</h2><p>{PAGE_SUBTITLE}</p></div>
+          <div><h2>{t(PAGE_TITLE_KEY)}</h2><p>{t(PAGE_SUBTITLE_KEY)}</p></div>
         </div>
         <div className="recon-import-selector">
           <div className="recon-import-grid">
@@ -358,18 +390,18 @@ function ImportSelector({
     return (
       <div className="recon-ws" dir="rtl">
         <div className="page-head">
-          <div><h2>{PAGE_TITLE}</h2><p>{PAGE_SUBTITLE}</p></div>
+          <div><h2>{t(PAGE_TITLE_KEY)}</h2><p>{t(PAGE_SUBTITLE_KEY)}</p></div>
           <button type="button" className="btn secondary" onClick={() => navigate('/bank-statement-import')}>
-            + إضافة كشف بنكي
+            + {t('bank.recon.add_statement')}
           </button>
         </div>
         <div className="recon-empty" style={{ paddingTop: 80 }}>
           <div className="recon-empty-icon">🏦</div>
-          <p className="recon-empty-title">لا توجد بيانات عمليات بنكية مستوردة حتى الآن</p>
-          <p className="recon-empty-sub">أضف كشف حساب بنكي لبدء استعراض السجل الزمني وتحليل عملياتك المالية</p>
+          <p className="recon-empty-title">{t('bank.recon.empty_title')}</p>
+          <p className="recon-empty-sub">{t('bank.recon.empty_sub')}</p>
           <div style={{ marginTop: 20 }}>
             <button type="button" className="btn" onClick={() => navigate('/bank-statement-import')}>
-              إضافة كشف بنكي
+              {t('bank.recon.add_statement')}
             </button>
           </div>
         </div>
@@ -385,21 +417,21 @@ function ImportSelector({
     <div className="recon-ws" dir="rtl">
       <div className="page-head">
         <div>
-          <h2>{PAGE_TITLE}</h2>
-          <p>{PAGE_SUBTITLE}</p>
+          <h2>{t(PAGE_TITLE_KEY)}</h2>
+          <p>{t(PAGE_SUBTITLE_KEY)}</p>
         </div>
         <button type="button" className="btn secondary" onClick={() => navigate('/bank-statement-import')}>
-          + إضافة كشف بنكي
+          + {t('bank.recon.add_statement')}
         </button>
       </div>
 
       {/* Multi-select action bar */}
       {selectedIds.size > 0 && (
         <div className="recon-bulk-bar" style={{ marginBottom: 14 }}>
-          <span className="recon-bulk-count">{selectionStats.count} دفعة محددة</span>
+          <span className="recon-bulk-count">{t('bank.recon.batches_selected', { count: selectionStats.count })}</span>
           <div className="recon-bulk-divider" />
           <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
-            {selectionStats.rows.toLocaleString()} عملية
+            {t('bank.recon.transactions_count', { count: selectionStats.rows.toLocaleString() })}
             {'  ·  '}
             ↓ {fmtAmount(selectionStats.debits)}
             {'  ·  '}
@@ -411,7 +443,7 @@ function ImportSelector({
               className="btn sm"
               onClick={() => onSelect(singleSelected.id, singleSelected)}
             >
-              🔍 عرض
+              🔍 {t('btn.inv.view')}
             </button>
           )}
           {canDelete && (
@@ -421,7 +453,7 @@ function ImportSelector({
               style={{ background: 'var(--red)', color: '#fff', marginInlineStart: 'auto' }}
               onClick={() => setDeleteIds([...selectedIds])}
             >
-              🗑 حذف المحددة
+              🗑 {t('bank.recon.delete_selected')}
             </button>
           )}
           <button
@@ -429,7 +461,7 @@ function ImportSelector({
             className="btn sm secondary"
             onClick={() => setSelectedIds(new Set())}
           >
-            إلغاء
+            {t('action.cancel')}
           </button>
         </div>
       )}
@@ -440,7 +472,7 @@ function ImportSelector({
           <div className="recon-import-select-header">
             <input
               type="checkbox"
-              aria-label="تحديد كل الدفعات"
+              aria-label={t('bank.recon.select_all_batches')}
               checked={selectedIds.size === imports.length && imports.length > 0}
               ref={(el) => {
                 if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < imports.length;
@@ -449,16 +481,16 @@ function ImportSelector({
               style={{ cursor: 'pointer', width: 16, height: 16 }}
             />
             <span>
-              {selectedIds.size === imports.length && imports.length > 0 ? 'إلغاء تحديد الكل' : 'تحديد الكل'}
+              {selectedIds.size === imports.length && imports.length > 0 ? t('bank.recon.deselect_all') : t('bank.recon.select_all')}
             </span>
-            <span style={{ marginInlineStart: 'auto', fontWeight: 600 }}>{imports.length} دفعة</span>
+            <span style={{ marginInlineStart: 'auto', fontWeight: 600 }}>{t('bank.recon.batch_count', { count: imports.length })}</span>
           </div>
         )}
 
         <div className="recon-import-grid">
           {imports.map((imp) => {
             const isChecked  = selectedIds.has(imp.id);
-            const bankLabel  = BANK_NAMES[imp.bankName] ?? imp.bankName;
+            const bankLabel  = bankLabelFor(imp.bankName, t);
             const fileName   = smartTruncate(imp.fileName, 34);
             const duration   = imp.fromDate && imp.toDate
               ? Math.ceil((new Date(imp.toDate).getTime() - new Date(imp.fromDate).getTime()) / 86_400_000) + 1
@@ -479,7 +511,7 @@ function ImportSelector({
                       type="checkbox"
                       checked={isChecked}
                       onChange={() => { /* controlled via parent onClick */ }}
-                      aria-label={`تحديد: ${bankLabel}`}
+                      aria-label={t('bank.recon.select_label', { label: bankLabel })}
                     />
                   </div>
                 )}
@@ -501,14 +533,14 @@ function ImportSelector({
                         : fmtDate(imp.importedAt.substring(0, 10))}
                     </span>
                     {duration != null && duration > 0 && (
-                      <span className="recon-import-dur-chip">{duration} يوم</span>
+                      <span className="recon-import-dur-chip">{t('bank.recon.day_count', { count: duration })}</span>
                     )}
                   </div>
                 </div>
 
                 <div className="recon-import-right">
                   <p className="recon-import-stat">
-                    <strong>{imp.totalRows.toLocaleString()}</strong> عملية
+                    <strong>{imp.totalRows.toLocaleString()}</strong> {t('bank.recon.transaction_unit')}
                   </p>
                   <p className="recon-import-stat" style={{ color: 'var(--red)' }}>
                     ↓ {fmtAmount(imp.totalDebits)}
@@ -523,8 +555,8 @@ function ImportSelector({
                     type="button"
                     className="recon-import-delete-btn"
                     onClick={(e) => { e.stopPropagation(); setDeleteIds([imp.id]); }}
-                    title="حذف دفعة الاستيراد"
-                    aria-label="حذف"
+                    title={t('bank.recon.delete_import_batch')}
+                    aria-label={t('action.delete')}
                   >
                     🗑
                   </button>
@@ -537,13 +569,13 @@ function ImportSelector({
 
       {deleteIds && (
         <ConfirmModal
-          title={deleteIds.length === 1 ? 'حذف دفعة الاستيراد' : `حذف ${deleteIds.length} دفعات استيراد`}
+          title={deleteIds.length === 1 ? t('bank.recon.delete_import_batch') : t('bank.recon.delete_import_batches', { count: deleteIds.length })}
           message={
             deleteIds.length === 1
-              ? 'سيؤدي حذف دفعة الاستيراد إلى إزالة جميع العمليات التي أضيفت من هذا الملف من السجل الزمني للحساب البنكي. لا يمكن التراجع عن هذا الإجراء.'
-              : `سيؤدي حذف ${deleteIds.length} دفعات استيراد إلى إزالة جميع العمليات التي أضيفت منها من السجل الزمني للحساب البنكي. لا يمكن التراجع عن هذا الإجراء.`
+              ? t('bank.recon.delete_import_batch_msg_one')
+              : t('bank.recon.delete_import_batches_msg', { count: deleteIds.length })
           }
-          confirmLabel="حذف"
+          confirmLabel={t('action.delete')}
           onConfirm={handleDeleteConfirmed}
           onCancel={() => setDeleteIds(null)}
           loading={deleting}
@@ -564,6 +596,7 @@ function DataQualityWarnings({
   activeWarningCode: string | null;
   onFilterWarning:   (code: string | null) => void;
 }) {
+  const { t } = useT();
   const warnings = useMemo(() => {
     const counts: Record<string, number> = {};
     transactions.forEach((tx) =>
@@ -578,7 +611,7 @@ function DataQualityWarnings({
     <div className="recon-warnings-panel">
       <span className="recon-warnings-icon">⚠</span>
       <div className="recon-warnings-body">
-        <p className="recon-warnings-title">تنبيهات جودة البيانات — انقر على تنبيه للتصفية</p>
+        <p className="recon-warnings-title">{t('bank.recon.dq_warnings_title')}</p>
         <div className="recon-warnings-list">
           {warnings.map(([code, count]) => (
             <button
@@ -586,9 +619,9 @@ function DataQualityWarnings({
               type="button"
               className={`recon-warning-tag${activeWarningCode === code ? ' recon-warning-tag-active' : ''}`}
               onClick={() => onFilterWarning(activeWarningCode === code ? null : code)}
-              title={activeWarningCode === code ? 'إلغاء فلتر التنبيه' : `تصفية: ${WARNING_LABELS[code] ?? code}`}
+              title={activeWarningCode === code ? t('bank.recon.clear_warning_filter') : t('bank.recon.filter_by', { label: warningLabelFor(code, t) })}
             >
-              {WARNING_LABELS[code] ?? code}
+              {warningLabelFor(code, t)}
               {count > 1 && <strong style={{ marginInlineStart: 3 }}>×{count}</strong>}
             </button>
           ))}
@@ -606,6 +639,7 @@ function SummaryBar({
   transactions: ReconciliationTransaction[];
   activeFilterCount: number;
 }) {
+  const { t } = useT();
   const stats = useMemo(() => {
     let first = '', last = '', debit = 0, credit = 0;
     transactions.forEach((tx) => {
@@ -627,23 +661,23 @@ function SummaryBar({
   return (
     <div className="recon-summary-bar">
       <div className="recon-summary-stat">
-        <span className="recon-summary-label">عدد العمليات</span>
+        <span className="recon-summary-label">{t('bank.recon.transaction_count')}</span>
         <span className="recon-summary-value">{transactions.length.toLocaleString()}</span>
       </div>
       {stats.first && (
         <>
           <div className="recon-summary-divider" />
           <div className="recon-summary-stat">
-            <span className="recon-summary-label">أول تاريخ</span>
+            <span className="recon-summary-label">{t('bank.recon.first_date')}</span>
             <span className="recon-summary-value">{fmtDate(stats.first)}</span>
           </div>
           <div className="recon-summary-stat">
-            <span className="recon-summary-label">آخر تاريخ</span>
+            <span className="recon-summary-label">{t('bank.recon.last_date')}</span>
             <span className="recon-summary-value">{fmtDate(stats.last)}</span>
           </div>
           {stats.dayCount > 0 && (
             <div className="recon-summary-stat">
-              <span className="recon-summary-label">عدد الأيام</span>
+              <span className="recon-summary-label">{t('bank.recon.day_count_label')}</span>
               <span className="recon-summary-value">{stats.dayCount.toLocaleString()}</span>
             </div>
           )}
@@ -651,13 +685,13 @@ function SummaryBar({
       )}
       <div className="recon-summary-divider" />
       <div className="recon-summary-stat">
-        <span className="recon-summary-label">المدين</span>
+        <span className="recon-summary-label">{t('bank.recon.debit_label')}</span>
         <span className="recon-summary-value" style={{ color: 'var(--red)' }}>
           <PrivateAmount value={stats.debit} currency="" />
         </span>
       </div>
       <div className="recon-summary-stat">
-        <span className="recon-summary-label">الدائن</span>
+        <span className="recon-summary-label">{t('bank.recon.credit_label')}</span>
         <span className="recon-summary-value" style={{ color: 'var(--green)' }}>
           <PrivateAmount value={stats.credit} currency="" />
         </span>
@@ -666,7 +700,7 @@ function SummaryBar({
         <>
           <div className="recon-summary-divider" style={{ marginInlineStart: 'auto' }} />
           <div className="recon-summary-stat">
-            <span className="recon-summary-label">فلاتر نشطة</span>
+            <span className="recon-summary-label">{t('bank.recon.active_filters')}</span>
             <span className="recon-summary-value" style={{ color: 'var(--accent)' }}>{activeFilterCount}</span>
           </div>
         </>
@@ -684,6 +718,7 @@ function TransactionDetailsPanel({
   onClose: () => void;
   onCopy: (text: string, label: string) => void;
 }) {
+  const { t } = useT();
   const [showRaw, setShowRaw] = useState(false);
 
   const rawData = useMemo(() => JSON.stringify({
@@ -708,42 +743,42 @@ function TransactionDetailsPanel({
   return (
     <div className="recon-details-side" dir="rtl">
       <div className="recon-details-head">
-        <h3>تفاصيل المعاملة</h3>
-        <button className="recon-close-btn" onClick={onClose} aria-label="إغلاق">×</button>
+        <h3>{t('bank.recon.transaction_details')}</h3>
+        <button className="recon-close-btn" onClick={onClose} aria-label={t('action.close')}>×</button>
       </div>
 
       {/* Transaction data */}
       <div className="recon-details-section">
-        <p className="recon-details-sec-title">بيانات المعاملة</p>
+        <p className="recon-details-sec-title">{t('bank.recon.transaction_data')}</p>
         <div className="recon-detail-row">
-          <span className="recon-detail-lbl">التاريخ</span>
+          <span className="recon-detail-lbl">{t('col.date')}</span>
           <span className="recon-detail-val">{fmtDate(tx.statementDate)}</span>
         </div>
         {tx.postingDate && tx.postingDate !== tx.statementDate && (
           <div className="recon-detail-row">
-            <span className="recon-detail-lbl">تاريخ الترحيل</span>
+            <span className="recon-detail-lbl">{t('bank.recon.posting_date')}</span>
             <span className="recon-detail-val">{fmtDate(tx.postingDate)}</span>
           </div>
         )}
         <div className="recon-detail-row">
-          <span className="recon-detail-lbl">الوصف</span>
+          <span className="recon-detail-lbl">{t('col.description')}</span>
           <span className="recon-detail-val recon-detail-desc">{tx.description}</span>
         </div>
         {tx.reference && (
           <div className="recon-detail-row">
-            <span className="recon-detail-lbl">المرجع</span>
+            <span className="recon-detail-lbl">{t('col.acc.reference')}</span>
             <span className="recon-detail-val">{tx.reference}</span>
           </div>
         )}
         {tx.chequeNumber && (
           <div className="recon-detail-row">
-            <span className="recon-detail-lbl">رقم الشيك</span>
+            <span className="recon-detail-lbl">{t('col.cheque.number')}</span>
             <span className="recon-detail-val">{tx.chequeNumber}</span>
           </div>
         )}
         {tx.transactionId && (
           <div className="recon-detail-row">
-            <span className="recon-detail-lbl">رقم العملية</span>
+            <span className="recon-detail-lbl">{t('bank.recon.transaction_no')}</span>
             <span className="recon-detail-val" style={{ fontSize: 11.5 }}>{tx.transactionId}</span>
           </div>
         )}
@@ -751,10 +786,10 @@ function TransactionDetailsPanel({
 
       {/* Financial values */}
       <div className="recon-details-section">
-        <p className="recon-details-sec-title">القيم المالية</p>
+        <p className="recon-details-sec-title">{t('bank.recon.financial_values')}</p>
         {tx.debit > 0 && (
           <div className="recon-detail-row">
-            <span className="recon-detail-lbl">مدين</span>
+            <span className="recon-detail-lbl">{t('col.acc.debit')}</span>
             <span className="recon-detail-val" style={{ color: 'var(--red)', fontFamily: 'monospace' }}>
               <PrivateAmount value={tx.debit} />
             </span>
@@ -762,7 +797,7 @@ function TransactionDetailsPanel({
         )}
         {tx.credit > 0 && (
           <div className="recon-detail-row">
-            <span className="recon-detail-lbl">دائن</span>
+            <span className="recon-detail-lbl">{t('col.acc.credit')}</span>
             <span className="recon-detail-val" style={{ color: 'var(--green)', fontFamily: 'monospace' }}>
               <PrivateAmount value={tx.credit} />
             </span>
@@ -770,41 +805,41 @@ function TransactionDetailsPanel({
         )}
         {tx.balance != null && (
           <div className="recon-detail-row">
-            <span className="recon-detail-lbl">الرصيد</span>
+            <span className="recon-detail-lbl">{t('bank.col.balance')}</span>
             <span className="recon-detail-val" style={{ fontFamily: 'monospace' }}>
               <PrivateAmount value={tx.balance} />
             </span>
           </div>
         )}
         <div className="recon-detail-row">
-          <span className="recon-detail-lbl">العملة</span>
+          <span className="recon-detail-lbl">{t('col.cheque.currency')}</span>
           <span className="recon-detail-val">{tx.currency || '—'}</span>
         </div>
       </div>
 
       {/* Classification */}
       <div className="recon-details-section">
-        <p className="recon-details-sec-title">التصنيف والمصدر</p>
+        <p className="recon-details-sec-title">{t('bank.recon.classification_source')}</p>
         <div className="recon-detail-row">
-          <span className="recon-detail-lbl">النوع</span>
+          <span className="recon-detail-lbl">{t('col.type')}</span>
           <span>
             {tx.bankFeeType ? (
               <span className={`recon-cat ${tx.bankFeeType}`}>
-                {CAT_ICONS[tx.bankFeeType] ?? '⚪'} {CAT_LABELS[tx.bankFeeType] ?? tx.bankFeeType}
+                {CAT_ICONS[tx.bankFeeType] ?? '⚪'} {catLabelFor(tx.bankFeeType, t)}
               </span>
             ) : (
-              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>⚪ غير مصنف</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>⚪ {t('bank.recon.unclassified')}</span>
             )}
           </span>
         </div>
         <div className="recon-detail-row">
-          <span className="recon-detail-lbl">البنك</span>
-          <span className="recon-detail-val">{BANK_NAMES[tx.bankName] ?? tx.bankName}</span>
+          <span className="recon-detail-lbl">{t('col.cheque.bank')}</span>
+          <span className="recon-detail-val">{bankLabelFor(tx.bankName, t)}</span>
         </div>
         {tx.isDuplicate && (
           <div className="recon-detail-row">
-            <span className="recon-detail-lbl">ملاحظة</span>
-            <span className="recon-cat CHARGE">⊙ صف مكرر</span>
+            <span className="recon-detail-lbl">{t('field.notes')}</span>
+            <span className="recon-cat CHARGE">⊙ {t('bank.recon.duplicate_row')}</span>
           </div>
         )}
       </div>
@@ -812,10 +847,10 @@ function TransactionDetailsPanel({
       {/* Data quality warnings */}
       {tx.warnings.length > 0 && (
         <div className="recon-details-section">
-          <p className="recon-details-sec-title">تنبيهات جودة البيانات</p>
+          <p className="recon-details-sec-title">{t('bank.recon.dq_warnings_title_short')}</p>
           <div className="recon-warnings-list">
             {tx.warnings.map((w, i) => (
-              <span key={i} className="recon-warning-tag">⚠ {WARNING_LABELS[w] ?? w}</span>
+              <span key={i} className="recon-warning-tag">⚠ {warningLabelFor(w, t)}</span>
             ))}
           </div>
         </div>
@@ -824,7 +859,7 @@ function TransactionDetailsPanel({
       {/* Raw data */}
       {showRaw && (
         <div className="recon-details-section">
-          <p className="recon-details-sec-title">البيانات الخام</p>
+          <p className="recon-details-sec-title">{t('bank.recon.raw_data')}</p>
           <div className="recon-raw-data"><code>{rawData}</code></div>
         </div>
       )}
@@ -833,31 +868,31 @@ function TransactionDetailsPanel({
       <div className="recon-details-actions">
         <button
           className="btn sm secondary"
-          onClick={() => onCopy(tx.description, 'الوصف')}
+          onClick={() => onCopy(tx.description, t('col.description'))}
         >
-          📋 نسخ الوصف
+          📋 {t('bank.recon.copy_description')}
         </button>
         {tx.reference && (
           <button
             className="btn sm secondary"
-            onClick={() => onCopy(tx.reference!, 'المرجع')}
+            onClick={() => onCopy(tx.reference!, t('col.acc.reference'))}
           >
-            📋 نسخ المرجع
+            📋 {t('bank.recon.copy_reference')}
           </button>
         )}
         {tx.chequeNumber && (
           <button
             className="btn sm secondary"
-            onClick={() => onCopy(tx.chequeNumber!, 'رقم الشيك')}
+            onClick={() => onCopy(tx.chequeNumber!, t('col.cheque.number'))}
           >
-            📋 نسخ رقم الشيك
+            📋 {t('bank.recon.copy_cheque_number')}
           </button>
         )}
         <button
           className="btn sm ghost"
           onClick={() => setShowRaw((v) => !v)}
         >
-          {'{}'} {showRaw ? 'إخفاء البيانات الخام' : 'عرض البيانات الخام'}
+          {'{}'} {showRaw ? t('bank.recon.hide_raw_data') : t('bank.recon.show_raw_data')}
         </button>
       </div>
     </div>
@@ -867,29 +902,33 @@ function TransactionDetailsPanel({
 // ── ExplorerCharts ────────────────────────────────────────────────────────────
 
 function ExplorerCharts({ workspace }: { workspace: ReconciliationWorkspace }) {
+  const { t } = useT();
   const categoryData = useMemo(() => {
     const counts: Record<string, { name: string; value: number; fill: string }> = {};
     workspace.transactions.forEach((tx) => {
       const key   = tx.bankFeeType ?? 'UNCLASSIFIED';
-      const label = CAT_LABELS[key] ?? 'غير مصنف';
+      const label = key === 'UNCLASSIFIED' ? t('bank.recon.unclassified') : catLabelFor(key, t);
       const fill  = CAT_COLORS[key] ?? '#94a3b8';
       if (!counts[key]) counts[key] = { name: label, value: 0, fill };
       counts[key].value++;
     });
     return Object.values(counts).sort((a, b) => b.value - a.value);
-  }, [workspace]);
+  }, [workspace, t]);
 
   const monthlyData = useMemo(() => {
-    const months: Record<string, { month: string; مدين: number; دائن: number }> = {};
+    // NOTE: object keys are English identifiers (not display text) so Recharts'
+    // dataKey stays locale-independent; the visible legend/axis text comes from
+    // the `name` prop on each <Bar> below.
+    const months: Record<string, { month: string; debit: number; credit: number }> = {};
     workspace.transactions.forEach((tx) => {
       if (!tx.statementDate) return;
       const d = new Date(tx.statementDate);
       if (isNaN(d.getTime())) return;
       const key   = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const label = formatMonthLabel(key);   // 'يناير 2026' — أرقام غربية (ar-KW كان يُخرج ٢٠٢٦)
-      if (!months[key]) months[key] = { month: label, مدين: 0, دائن: 0 };
-      months[key].مدين  += tx.debit;
-      months[key].دائن  += tx.credit;
+      if (!months[key]) months[key] = { month: label, debit: 0, credit: 0 };
+      months[key].debit  += tx.debit;
+      months[key].credit += tx.credit;
     });
     return Object.entries(months)
       .sort(([a], [b]) => a.localeCompare(b))
@@ -901,7 +940,7 @@ function ExplorerCharts({ workspace }: { workspace: ReconciliationWorkspace }) {
       <div className="recon-charts-grid">
         {/* Category distribution donut */}
         <div className="card recon-chart-card">
-          <p className="recon-chart-title">توزيع أنواع المعاملات</p>
+          <p className="recon-chart-title">{t('bank.recon.category_distribution')}</p>
           <div className="recon-chart-wrap">
             <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
               <PieChart>
@@ -934,7 +973,7 @@ function ExplorerCharts({ workspace }: { workspace: ReconciliationWorkspace }) {
 
         {/* Monthly debit vs credit */}
         <div className="card recon-chart-card">
-          <p className="recon-chart-title">المدين والدائن الشهري (الصفحة الحالية)</p>
+          <p className="recon-chart-title">{t('bank.recon.monthly_debit_credit')}</p>
           <div className="recon-chart-wrap">
             {monthlyData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
@@ -960,13 +999,13 @@ function ExplorerCharts({ workspace }: { workspace: ReconciliationWorkspace }) {
                       <span style={{ fontSize: 11, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif', fontWeight: 700, color: 'var(--text-muted)' }}>{v}</span>
                     )}
                   />
-                  <Bar dataKey="مدين"  fill="#ef4444" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="دائن"  fill="#10b981" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="debit"  name={t('col.acc.debit')}  fill="#ef4444" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="credit" name={t('col.acc.credit')} fill="#10b981" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
               <div className="recon-empty" style={{ padding: '24px 0' }}>
-                <p className="recon-empty-sub">لا تتوفر بيانات تاريخ لعرض المخطط</p>
+                <p className="recon-empty-sub">{t('bank.recon.no_chart_date_data')}</p>
               </div>
             )}
           </div>
@@ -994,6 +1033,7 @@ function SkeletonRows() {
 // ── Main: BankStatementExplorer ───────────────────────────────────────────────
 
 export default function BankReconciliation() {
+  const { t } = useT();
   const { importId: importIdParam } = useParams<{ importId?: string }>();
   const { hasPermission } = useAuth();
   const navigate           = useNavigate();
@@ -1083,9 +1123,9 @@ export default function BankReconciliation() {
   // ── Copy helper ──────────────────────────────────────────────────────────────
   const copyText = useCallback((text: string, label: string) => {
     navigator.clipboard.writeText(text)
-      .then(() => showToast(`تم نسخ ${label}`))
-      .catch(() => showToast('تعذّر النسخ', 'error'));
-  }, [showToast]);
+      .then(() => showToast(t('bank.recon.copied', { label })))
+      .catch(() => showToast(t('bank.recon.copy_failed'), 'error'));
+  }, [showToast, t]);
 
   // ── Export menu: close on outside click ───────────────────────────────────
   useEffect(() => {
@@ -1111,7 +1151,7 @@ export default function BankReconciliation() {
     setDeleting(true);
     try {
       await deleteImport(deleteConfirm);
-      showToast('تم حذف دفعة الاستيراد بنجاح');
+      showToast(t('bank.recon.delete_import_batch_success'));
       setDeleteConfirm(null);
       setSelectedImportId(null);
       setImportMeta(null);
@@ -1120,11 +1160,11 @@ export default function BankReconciliation() {
       setViewMode('batch');
       hasAutoSwitched.current = false;
     } catch (e) {
-      showToast(errorMessage(e) || 'فشل حذف دفعة الاستيراد', 'error');
+      showToast(errorMessage(e) || t('bank.recon.delete_import_batch_failed'), 'error');
     } finally {
       setDeleting(false);
     }
-  }, [deleteConfirm, showToast]);
+  }, [deleteConfirm, showToast, t]);
 
   // ── Load workspace ──────────────────────────────────────────────────────────
   const loadWorkspace = useCallback(async (importId: number, f: WorkspaceFilter) => {
@@ -1309,8 +1349,8 @@ export default function BankReconciliation() {
       <div className="recon-ws" dir="rtl">
         <div className="recon-empty">
           <div className="recon-empty-icon">🔒</div>
-          <p className="recon-empty-title">لا توجد صلاحية</p>
-          <p className="recon-empty-sub">ليس لديك صلاحية لعرض هذه الصفحة</p>
+          <p className="recon-empty-title">{t('bank.recon.no_permission_title')}</p>
+          <p className="recon-empty-sub">{t('bank.recon.no_permission_sub')}</p>
         </div>
       </div>
     );
@@ -1332,7 +1372,7 @@ export default function BankReconciliation() {
   // ── Workspace-level totals (from importMeta or pageTotals fallback) ─────────
   const wsDebit  = importMeta?.totalDebits  ?? pageTotals.debit;
   const wsCredit = importMeta?.totalCredits ?? pageTotals.credit;
-  const bankLabel = workspace ? (BANK_NAMES[workspace.bankName] ?? workspace.bankName) : '—';
+  const bankLabel = workspace ? bankLabelFor(workspace.bankName, t) : '—';
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -1341,24 +1381,24 @@ export default function BankReconciliation() {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="recon-ws-header">
         <div className="recon-ws-header-meta">
-          <h1>{PAGE_TITLE}</h1>
-          <p>{PAGE_SUBTITLE}</p>
+          <h1>{t(PAGE_TITLE_KEY)}</h1>
+          <p>{t(PAGE_SUBTITLE_KEY)}</p>
           {workspace && (
             <div className="recon-ws-header-chips">
               <span className="recon-header-tag blue">🏦 {bankLabel}</span>
               {viewMode === 'timeline' ? (
                 <>
                   {workspace.accountKey && (
-                    <span className="recon-header-tag gray" title="معرّف الحساب">{workspace.accountKey}</span>
+                    <span className="recon-header-tag gray" title={t('bank.recon.account_id')}>{workspace.accountKey}</span>
                   )}
                   {timeline && (
-                    <span className="recon-header-tag gray">📊 {timeline.totalCount.toLocaleString()} عملية</span>
+                    <span className="recon-header-tag gray">📊 {t('bank.recon.transactions_count', { count: timeline.totalCount.toLocaleString() })}</span>
                   )}
                 </>
               ) : (
                 <>
                   <span className="recon-header-tag gray">📄 {workspace.fileName}</span>
-                  <span className="recon-header-tag gray">📊 {workspace.totalRows.toLocaleString()} عملية في الدفعة</span>
+                  <span className="recon-header-tag gray">📊 {t('bank.recon.transactions_in_batch', { count: workspace.totalRows.toLocaleString() })}</span>
                 </>
               )}
             </div>
@@ -1369,7 +1409,7 @@ export default function BankReconciliation() {
           <div style={{ position: 'relative' }}>
             <input
               type="search"
-              placeholder="بحث في الوصف، المرجع، الشيك…"
+              placeholder={t('bank.recon.search_placeholder')}
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
               style={{
@@ -1390,7 +1430,7 @@ export default function BankReconciliation() {
             className="btn secondary sm"
             onClick={() => navigate('/bank-statement-import')}
           >
-            + إضافة كشف بنكي
+            + {t('bank.recon.add_statement')}
           </button>
           <button
             type="button"
@@ -1404,7 +1444,7 @@ export default function BankReconciliation() {
               hasAutoSwitched.current = false;
             }}
           >
-            ← الحسابات
+            ← {t('bank.recon.accounts')}
           </button>
           {canExport && selectedImportId && (
             <div style={{ position: 'relative' }} ref={exportMenuRef}>
@@ -1413,7 +1453,7 @@ export default function BankReconciliation() {
                 className="btn sm"
                 onClick={() => setExportMenuOpen((v) => !v)}
               >
-                📤 تصدير ▾
+                📤 {t('audit.action.EXPORT')} ▾
               </button>
               {exportMenuOpen && (
                 <div className="recon-export-menu">
@@ -1424,8 +1464,8 @@ export default function BankReconciliation() {
                       setExportMenuOpen(false);
                       try {
                         await downloadExport(selectedImportId, 'excel');
-                        showToast('تم تصدير ملف Excel بنجاح');
-                      } catch { showToast('فشل تصدير Excel', 'error'); }
+                        showToast(t('bank.recon.export_excel_success'));
+                      } catch { showToast(t('bank.recon.export_excel_failed'), 'error'); }
                     }}
                   >
                     📊 Excel (XLSX)
@@ -1437,8 +1477,8 @@ export default function BankReconciliation() {
                       setExportMenuOpen(false);
                       try {
                         await downloadExport(selectedImportId, 'pdf');
-                        showToast('تم تصدير ملف PDF بنجاح');
-                      } catch { showToast('فشل تصدير PDF', 'error'); }
+                        showToast(t('bank.recon.export_pdf_success'));
+                      } catch { showToast(t('bank.recon.export_pdf_failed'), 'error'); }
                     }}
                   >
                     📄 PDF
@@ -1449,10 +1489,10 @@ export default function BankReconciliation() {
                     onClick={() => {
                       setExportMenuOpen(false);
                       exportToCsv(displayedTransactions, generateExportFileName({ reportName: ReportName.BankStatement, identifier: selectedImportId, extension: 'csv' }));
-                      showToast('تم تصدير ملف CSV بنجاح');
+                      showToast(t('bank.recon.export_csv_success'));
                     }}
                   >
-                    📋 CSV (البيانات المعروضة)
+                    📋 {t('bank.recon.csv_displayed_data')}
                   </button>
                   <div className="recon-export-divider" />
                   <button
@@ -1460,7 +1500,7 @@ export default function BankReconciliation() {
                     className="recon-export-item"
                     onClick={() => { setExportMenuOpen(false); printCurrentView(); }}
                   >
-                    🖨 طباعة
+                    🖨 {t('audit.action.PRINT')}
                   </button>
                 </div>
               )}
@@ -1472,9 +1512,9 @@ export default function BankReconciliation() {
               className="btn sm secondary"
               style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
               onClick={() => setDeleteConfirm(selectedImportId)}
-              title="حذف دفعة الاستيراد"
+              title={t('bank.recon.delete_import_batch')}
             >
-              🗑 حذف
+              🗑 {t('action.delete')}
             </button>
           )}
         </div>
@@ -1493,24 +1533,24 @@ export default function BankReconciliation() {
               }
             }}
           >
-            📅 التسلسل الزمني الموحد
+            📅 {t('bank.recon.unified_timeline')}
           </button>
           <button
             type="button"
             className={`recon-chip${viewMode === 'batch' ? ' chip-active' : ''}`}
             onClick={() => setViewMode('batch')}
           >
-            📄 دفعة الاستيراد الحالية
+            📄 {t('bank.recon.current_import_batch')}
           </button>
           {viewMode === 'timeline' && timeline && (
             <span className="recon-view-toggle-hint">
-              يعرض كل العمليات المستوردة لهذا الحساب من جميع الكشوف.
-              {timeline.importCount > 0 && ` (${timeline.importCount} دفعة · ${timeline.totalCount.toLocaleString()} عملية)`}
+              {t('bank.recon.timeline_hint')}
+              {timeline.importCount > 0 && ` (${t('bank.recon.batch_count', { count: timeline.importCount })} · ${t('bank.recon.transactions_count', { count: timeline.totalCount.toLocaleString() })})`}
             </span>
           )}
           {viewMode === 'batch' && (
             <span className="recon-view-toggle-hint">
-              يعرض عمليات ملف الاستيراد المحدد فقط.
+              {t('bank.recon.batch_view_hint')}
             </span>
           )}
         </div>
@@ -1536,67 +1576,67 @@ export default function BankReconciliation() {
               <div className="recon-kpi">
                 <div className="recon-kpi-icon" style={{ background: 'var(--blue-light)' }}>📊</div>
                 <div className="recon-kpi-body">
-                  <p className="recon-kpi-label">إجمالي العمليات</p>
+                  <p className="recon-kpi-label">{t('bank.recon.total_transactions')}</p>
                   <p className="recon-kpi-value" style={{ color: 'var(--blue)' }}>
                     {timeline.totalCount.toLocaleString()}
                   </p>
-                  <p className="recon-kpi-sub">كل الكشوف</p>
+                  <p className="recon-kpi-sub">{t('bank.recon.all_statements')}</p>
                 </div>
               </div>
               <div className="recon-kpi">
                 <div className="recon-kpi-icon" style={{ background: 'var(--surface-2)' }}>📅</div>
                 <div className="recon-kpi-body">
-                  <p className="recon-kpi-label">أول عملية</p>
+                  <p className="recon-kpi-label">{t('bank.recon.first_transaction')}</p>
                   <p className="recon-kpi-value" style={{ fontSize: 14 }}>
                     {fmtDate(timeline.fromDate)}
                   </p>
-                  <p className="recon-kpi-sub">بداية التسلسل</p>
+                  <p className="recon-kpi-sub">{t('bank.recon.timeline_start')}</p>
                 </div>
               </div>
               <div className="recon-kpi">
                 <div className="recon-kpi-icon" style={{ background: 'var(--surface-2)' }}>📅</div>
                 <div className="recon-kpi-body">
-                  <p className="recon-kpi-label">آخر عملية</p>
+                  <p className="recon-kpi-label">{t('bank.recon.last_transaction')}</p>
                   <p className="recon-kpi-value" style={{ fontSize: 14 }}>
                     {fmtDate(timeline.toDate)}
                   </p>
-                  <p className="recon-kpi-sub">نهاية التسلسل</p>
+                  <p className="recon-kpi-sub">{t('bank.recon.timeline_end')}</p>
                 </div>
               </div>
               <div className="recon-kpi">
                 <div className="recon-kpi-icon" style={{ background: '#ede9fe' }}>📦</div>
                 <div className="recon-kpi-body">
-                  <p className="recon-kpi-label">دفعات الاستيراد</p>
+                  <p className="recon-kpi-label">{t('bank.recon.import_batches')}</p>
                   <p className="recon-kpi-value" style={{ color: '#5b21b6' }}>
                     {timeline.importCount.toLocaleString()}
                   </p>
-                  <p className="recon-kpi-sub">كشف مرتبط</p>
+                  <p className="recon-kpi-sub">{t('bank.recon.linked_statement')}</p>
                 </div>
               </div>
               <div className="recon-kpi">
                 <div className="recon-kpi-icon" style={{ background: 'var(--red-light)' }}>↓</div>
                 <div className="recon-kpi-body">
-                  <p className="recon-kpi-label">إجمالي المدين</p>
+                  <p className="recon-kpi-label">{t('bank.recon.total_debit')}</p>
                   <p className="recon-kpi-value" style={{ color: 'var(--red)', fontSize: 17 }}>
                     <PrivateAmount
                       value={timeline.transactions.reduce((s, t) => s + t.debit, 0)}
                       currency=""
                     />
                   </p>
-                  <p className="recon-kpi-sub">الصفحة الحالية</p>
+                  <p className="recon-kpi-sub">{t('bank.recon.current_page')}</p>
                 </div>
               </div>
               <div className="recon-kpi">
                 <div className="recon-kpi-icon" style={{ background: 'var(--green-light)' }}>↑</div>
                 <div className="recon-kpi-body">
-                  <p className="recon-kpi-label">إجمالي الدائن</p>
+                  <p className="recon-kpi-label">{t('bank.recon.total_credit')}</p>
                   <p className="recon-kpi-value" style={{ color: 'var(--green)', fontSize: 17 }}>
                     <PrivateAmount
                       value={timeline.transactions.reduce((s, t) => s + t.credit, 0)}
                       currency=""
                     />
                   </p>
-                  <p className="recon-kpi-sub">الصفحة الحالية</p>
+                  <p className="recon-kpi-sub">{t('bank.recon.current_page')}</p>
                 </div>
               </div>
             </div>
@@ -1605,14 +1645,14 @@ export default function BankReconciliation() {
           {/* Timeline filter bar */}
           <div className="recon-tl-filter-bar">
             <div className="recon-tl-filter-group">
-              <label>من</label>
+              <label>{t('bank.recon.from_short')}</label>
               <DateInput
                 value={tlFromDate}
                 onChange={setTlFromDate}
               />
             </div>
             <div className="recon-tl-filter-group">
-              <label>إلى</label>
+              <label>{t('bank.recon.to_short')}</label>
               <DateInput
                 value={tlToDate}
                 onChange={setTlToDate}
@@ -1621,7 +1661,7 @@ export default function BankReconciliation() {
             <div className="recon-tl-filter-group">
               <input
                 type="text"
-                placeholder="بحث في الوصف أو المرجع…"
+                placeholder={t('bank.recon.search_desc_ref')}
                 value={tlSearch}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -1641,12 +1681,12 @@ export default function BankReconciliation() {
                 loadTimeline(workspace.accountKey!, 1, tlFromDate, tlToDate, tlSearch);
               }}
             >
-              تطبيق
+              {t('bank.recon.apply')}
             </button>
             {timeline && timeline.transactions.length > 0 && (
               <button
                 className="btn sm secondary"
-                onClick={() => exportTimelineCsv(timeline.transactions, workspace.bankName, workspace.accountKey!, timeline.fromDate, timeline.toDate)}
+                onClick={() => exportTimelineCsv(timeline.transactions, workspace.bankName, workspace.accountKey!, timeline.fromDate, timeline.toDate, t)}
               >
                 ⬇ CSV
               </button>
@@ -1656,7 +1696,7 @@ export default function BankReconciliation() {
           {/* Loading / error */}
           {timelineLoading && (
             <div className="recon-empty" style={{ padding: '24px 0' }}>
-              <p className="recon-empty-sub">جارٍ تحميل التسلسل الزمني…</p>
+              <p className="recon-empty-sub">{t('bank.recon.loading_timeline')}</p>
             </div>
           )}
           {timelineError && (
@@ -1670,21 +1710,21 @@ export default function BankReconciliation() {
                 {timeline.transactions.length === 0 ? (
                   <div className="recon-empty">
                     <div className="recon-empty-icon">🔍</div>
-                    <p className="recon-empty-title">لا توجد عمليات</p>
-                    <p className="recon-empty-sub">جرّب تعديل نطاق التاريخ أو مصطلح البحث</p>
+                    <p className="recon-empty-title">{t('bank.recon.no_transactions')}</p>
+                    <p className="recon-empty-sub">{t('bank.recon.try_adjust_date_search')}</p>
                   </div>
                 ) : (
-                  <table aria-label="التسلسل الزمني الموحد">
+                  <table aria-label={t('bank.recon.unified_timeline')}>
                     <thead>
                       <tr>
-                        <th>التاريخ</th>
-                        <th style={{ minWidth: 200 }}>الوصف</th>
-                        <th>المرجع</th>
-                        <th style={{ textAlign: 'end' }}>{fcMoneyHeader('مدين')}</th>
-                        <th style={{ textAlign: 'end' }}>{fcMoneyHeader('دائن')}</th>
-                        <th style={{ textAlign: 'end' }}>{fcMoneyHeader('الرصيد')}</th>
-                        <th>الدفعة</th>
-                        <th>الحالة</th>
+                        <th>{t('col.date')}</th>
+                        <th style={{ minWidth: 200 }}>{t('col.description')}</th>
+                        <th>{t('col.acc.reference')}</th>
+                        <th style={{ textAlign: 'end' }}>{fcMoneyHeader(t('col.acc.debit'))}</th>
+                        <th style={{ textAlign: 'end' }}>{fcMoneyHeader(t('col.acc.credit'))}</th>
+                        <th style={{ textAlign: 'end' }}>{fcMoneyHeader(t('bank.col.balance'))}</th>
+                        <th>{t('bank.col.batch')}</th>
+                        <th>{t('col.status')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1720,7 +1760,7 @@ export default function BankReconciliation() {
                             </td>
                             <td>
                               <span className={`recon-tl-status ${tx.reconcileStatus.toLowerCase()}`}>
-                                {STATUS_LABELS[tx.reconcileStatus] ?? tx.reconcileStatus}
+                                {statusLabelFor(tx.reconcileStatus, t)}
                               </span>
                             </td>
                           </tr>
@@ -1735,8 +1775,11 @@ export default function BankReconciliation() {
               {timeline.totalCount > 50 && (
                 <div className="pagination" style={{ marginTop: 0, background: 'var(--surface)', borderRadius: '0 0 var(--radius) var(--radius)', border: '1px solid var(--border)', borderTop: 'none' }}>
                   <span style={{ fontSize: 12.5, color: 'var(--text-muted)', fontWeight: 600 }}>
-                    عرض {(tlPage - 1) * 50 + 1}–
-                    {Math.min(tlPage * 50, timeline.totalCount)} من {timeline.totalCount.toLocaleString()} عملية
+                    {t('bank.recon.pagination_range', {
+                      from: (tlPage - 1) * 50 + 1,
+                      to: Math.min(tlPage * 50, timeline.totalCount),
+                      total: timeline.totalCount.toLocaleString(),
+                    })}
                   </span>
                   <div className="pg-btns">
                     <button
@@ -1748,7 +1791,7 @@ export default function BankReconciliation() {
                         loadTimeline(workspace.accountKey!, p, tlFromDate, tlToDate, tlSearch);
                       }}
                     >
-                      السابق
+                      {t('bank.recon.previous')}
                     </button>
                     <button
                       className="btn sm secondary"
@@ -1759,7 +1802,7 @@ export default function BankReconciliation() {
                         loadTimeline(workspace.accountKey!, p, tlFromDate, tlToDate, tlSearch);
                       }}
                     >
-                      التالي
+                      {t('bank.recon.next')}
                     </button>
                   </div>
                 </div>
@@ -1781,11 +1824,11 @@ export default function BankReconciliation() {
           <div className="recon-kpi">
             <div className="recon-kpi-icon" style={{ background: 'var(--blue-light)' }}>📊</div>
             <div className="recon-kpi-body">
-              <p className="recon-kpi-label">إجمالي العمليات</p>
+              <p className="recon-kpi-label">{t('bank.recon.total_transactions')}</p>
               <p className="recon-kpi-value" style={{ color: 'var(--blue)' }}>
                 {workspace.totalRows.toLocaleString()}
               </p>
-              <p className="recon-kpi-sub">كل عمليات الكشف</p>
+              <p className="recon-kpi-sub">{t('bank.recon.all_statement_transactions')}</p>
             </div>
           </div>
 
@@ -1793,11 +1836,11 @@ export default function BankReconciliation() {
           <div className="recon-kpi">
             <div className="recon-kpi-icon" style={{ background: 'var(--red-light)' }}>↓</div>
             <div className="recon-kpi-body">
-              <p className="recon-kpi-label">إجمالي المدين</p>
+              <p className="recon-kpi-label">{t('bank.recon.total_debit')}</p>
               <p className="recon-kpi-value" style={{ color: 'var(--red)', fontSize: 17 }}>
                 <PrivateAmount value={wsDebit} currency="" />
               </p>
-              <p className="recon-kpi-sub">{importMeta ? 'كامل الكشف' : 'الصفحة الحالية'}</p>
+              <p className="recon-kpi-sub">{importMeta ? t('bank.recon.entire_statement') : t('bank.recon.current_page')}</p>
             </div>
           </div>
 
@@ -1805,11 +1848,11 @@ export default function BankReconciliation() {
           <div className="recon-kpi">
             <div className="recon-kpi-icon" style={{ background: 'var(--green-light)' }}>↑</div>
             <div className="recon-kpi-body">
-              <p className="recon-kpi-label">إجمالي الدائن</p>
+              <p className="recon-kpi-label">{t('bank.recon.total_credit')}</p>
               <p className="recon-kpi-value" style={{ color: 'var(--green)', fontSize: 17 }}>
                 <PrivateAmount value={wsCredit} currency="" />
               </p>
-              <p className="recon-kpi-sub">{importMeta ? 'كامل الكشف' : 'الصفحة الحالية'}</p>
+              <p className="recon-kpi-sub">{importMeta ? t('bank.recon.entire_statement') : t('bank.recon.current_page')}</p>
             </div>
           </div>
 
@@ -1820,11 +1863,11 @@ export default function BankReconciliation() {
           >
             <div className="recon-kpi-icon" style={{ background: '#dbeafe' }}>🔵</div>
             <div className="recon-kpi-body">
-              <p className="recon-kpi-label">شيكات</p>
+              <p className="recon-kpi-label">{t('bank.recon.cheques')}</p>
               <p className="recon-kpi-value" style={{ color: '#1d4ed8' }}>
                 {analyticalStats.cheques.toLocaleString()}
               </p>
-              <p className="recon-kpi-sub">الصفحة الحالية</p>
+              <p className="recon-kpi-sub">{t('bank.recon.current_page')}</p>
             </div>
           </button>
 
@@ -1835,11 +1878,11 @@ export default function BankReconciliation() {
           >
             <div className="recon-kpi-icon" style={{ background: '#d1fae5' }}>🟢</div>
             <div className="recon-kpi-body">
-              <p className="recon-kpi-label">تحويلات</p>
+              <p className="recon-kpi-label">{t('bank.recon.transfers')}</p>
               <p className="recon-kpi-value" style={{ color: '#065f46' }}>
                 {analyticalStats.transfers.toLocaleString()}
               </p>
-              <p className="recon-kpi-sub">الصفحة الحالية</p>
+              <p className="recon-kpi-sub">{t('bank.recon.current_page')}</p>
             </div>
           </button>
 
@@ -1850,11 +1893,11 @@ export default function BankReconciliation() {
           >
             <div className="recon-kpi-icon" style={{ background: '#ede9fe' }}>🟣</div>
             <div className="recon-kpi-body">
-              <p className="recon-kpi-label">رسوم البنك</p>
+              <p className="recon-kpi-label">{t('bank.recon.bank_fees')}</p>
               <p className="recon-kpi-value" style={{ color: '#5b21b6' }}>
                 {analyticalStats.bankFees.toLocaleString()}
               </p>
-              <p className="recon-kpi-sub">الصفحة الحالية</p>
+              <p className="recon-kpi-sub">{t('bank.recon.current_page')}</p>
             </div>
           </button>
 
@@ -1862,11 +1905,11 @@ export default function BankReconciliation() {
           <div className="recon-kpi">
             <div className="recon-kpi-icon" style={{ background: 'var(--red-light)' }}>⬇</div>
             <div className="recon-kpi-body">
-              <p className="recon-kpi-label">أعلى سحب</p>
+              <p className="recon-kpi-label">{t('bank.recon.max_withdrawal')}</p>
               <p className="recon-kpi-value" style={{ color: 'var(--red)', fontSize: 17 }}>
                 <PrivateAmount value={analyticalStats.maxDebit} currency="" />
               </p>
-              <p className="recon-kpi-sub">أكبر عملية مدين</p>
+              <p className="recon-kpi-sub">{t('bank.recon.max_debit_transaction')}</p>
             </div>
           </div>
 
@@ -1874,11 +1917,11 @@ export default function BankReconciliation() {
           <div className="recon-kpi">
             <div className="recon-kpi-icon" style={{ background: 'var(--green-light)' }}>⬆</div>
             <div className="recon-kpi-body">
-              <p className="recon-kpi-label">أعلى إيداع</p>
+              <p className="recon-kpi-label">{t('bank.recon.max_deposit')}</p>
               <p className="recon-kpi-value" style={{ color: 'var(--green)', fontSize: 17 }}>
                 <PrivateAmount value={analyticalStats.maxCredit} currency="" />
               </p>
-              <p className="recon-kpi-sub">أكبر عملية دائن</p>
+              <p className="recon-kpi-sub">{t('bank.recon.max_credit_transaction')}</p>
             </div>
           </div>
 
@@ -1886,11 +1929,11 @@ export default function BankReconciliation() {
           <div className="recon-kpi">
             <div className="recon-kpi-icon" style={{ background: 'var(--surface-2)' }}>≈</div>
             <div className="recon-kpi-body">
-              <p className="recon-kpi-label">متوسط المبلغ</p>
+              <p className="recon-kpi-label">{t('bank.recon.average_amount')}</p>
               <p className="recon-kpi-value" style={{ fontSize: 17 }}>
                 <PrivateAmount value={analyticalStats.avg} currency="" />
               </p>
-              <p className="recon-kpi-sub">الصفحة الحالية</p>
+              <p className="recon-kpi-sub">{t('bank.recon.current_page')}</p>
             </div>
           </div>
 
@@ -1899,11 +1942,11 @@ export default function BankReconciliation() {
             <div className="recon-kpi">
               <div className="recon-kpi-icon" style={{ background: 'var(--surface-2)' }}>📅</div>
               <div className="recon-kpi-body">
-                <p className="recon-kpi-label">أول عملية</p>
+                <p className="recon-kpi-label">{t('bank.recon.first_transaction')}</p>
                 <p className="recon-kpi-value" style={{ fontSize: 14 }}>
                   {fmtDate(importMeta.fromDate)}
                 </p>
-                <p className="recon-kpi-sub">بداية الكشف</p>
+                <p className="recon-kpi-sub">{t('bank.recon.statement_start')}</p>
               </div>
             </div>
           )}
@@ -1913,11 +1956,11 @@ export default function BankReconciliation() {
             <div className="recon-kpi">
               <div className="recon-kpi-icon" style={{ background: 'var(--surface-2)' }}>📅</div>
               <div className="recon-kpi-body">
-                <p className="recon-kpi-label">آخر عملية</p>
+                <p className="recon-kpi-label">{t('bank.recon.last_transaction')}</p>
                 <p className="recon-kpi-value" style={{ fontSize: 14 }}>
                   {fmtDate(importMeta.toDate)}
                 </p>
-                <p className="recon-kpi-sub">نهاية الكشف</p>
+                <p className="recon-kpi-sub">{t('bank.recon.statement_end')}</p>
               </div>
             </div>
           )}
@@ -1927,11 +1970,11 @@ export default function BankReconciliation() {
             <div className="recon-kpi">
               <div className="recon-kpi-icon" style={{ background: 'var(--surface-2)' }}>📆</div>
               <div className="recon-kpi-body">
-                <p className="recon-kpi-label">مدة الكشف</p>
+                <p className="recon-kpi-label">{t('bank.recon.statement_duration')}</p>
                 <p className="recon-kpi-value">
                   {statementDuration.toLocaleString()}
                 </p>
-                <p className="recon-kpi-sub">يوم</p>
+                <p className="recon-kpi-sub">{t('bank.recon.day_unit')}</p>
               </div>
             </div>
           )}
@@ -1950,65 +1993,65 @@ export default function BankReconciliation() {
 
       {/* ── Quick filter chips ──────────────────────────────────────────────── */}
       {workspace && (
-        <div className="recon-chips" role="group" aria-label="تصفية سريعة">
+        <div className="recon-chips" role="group" aria-label={t('bank.recon.quick_filter')}>
           <button
             className={`recon-chip ${activeChip === 'ALL' ? 'chip-active' : ''}`}
             onClick={() => setQuickFilter({})}
           >
-            الكل <span className="recon-chip-badge">{workspace.totalRows}</span>
+            {t('bank.recon.all')} <span className="recon-chip-badge">{workspace.totalRows}</span>
           </button>
           <button
             className={`recon-chip ${activeChip === 'debit' ? 'chip-active' : ''}`}
             onClick={() => setQuickFilter({}, { direction: activeChip === 'debit' ? null : 'debit' })}
           >
-            ↓ مدين فقط
+            ↓ {t('bank.recon.debit_only')}
           </button>
           <button
             className={`recon-chip ${activeChip === 'credit' ? 'chip-active' : ''}`}
             onClick={() => setQuickFilter({}, { direction: activeChip === 'credit' ? null : 'credit' })}
           >
-            ↑ دائن فقط
+            ↑ {t('bank.recon.credit_only')}
           </button>
           <button
             className={`recon-chip ${activeChip === 'cat:CHEQUE_PAYMENT' ? 'chip-active' : ''}`}
             onClick={() => setQuickFilter({}, { bankFeeType: activeChip === 'cat:CHEQUE_PAYMENT' ? null : 'CHEQUE_PAYMENT' })}
           >
-            🔵 شيكات
+            🔵 {t('bank.recon.cheques')}
             <span className="recon-chip-badge">{analyticalStats.cheques}</span>
           </button>
           <button
             className={`recon-chip ${activeChip === 'cat:BANK_TRANSFER' ? 'chip-active' : ''}`}
             onClick={() => setQuickFilter({}, { bankFeeType: activeChip === 'cat:BANK_TRANSFER' ? null : 'BANK_TRANSFER' })}
           >
-            🟢 تحويلات
+            🟢 {t('bank.recon.transfers')}
             <span className="recon-chip-badge">{analyticalStats.transfers}</span>
           </button>
           <button
             className={`recon-chip ${activeChip === 'cat:CASH_WITHDRAWAL' ? 'chip-active' : ''}`}
             onClick={() => setQuickFilter({}, { bankFeeType: activeChip === 'cat:CASH_WITHDRAWAL' ? null : 'CASH_WITHDRAWAL' })}
           >
-            🟡 سحب نقدي
+            🟡 {t('bank.cat.cash_withdrawal')}
             <span className="recon-chip-badge">{analyticalStats.withdrawals}</span>
           </button>
           <button
             className={`recon-chip ${activeChip === 'bankfee' ? 'chip-active' : ''}`}
             onClick={() => setQuickFilter({ isBankFee: activeChip === 'bankfee' ? undefined : true })}
           >
-            🟣 رسوم بنك
+            🟣 {t('bank.recon.bank_fee_chip')}
             <span className="recon-chip-badge">{analyticalStats.bankFees}</span>
           </button>
           <button
             className={`recon-chip ${activeChip === 'duplicate' ? 'chip-active' : ''}`}
             onClick={() => setQuickFilter({ isDuplicate: activeChip === 'duplicate' ? undefined : true })}
           >
-            ⊙ مكررات
+            ⊙ {t('bank.recon.duplicates_chip')}
             {workspace.duplicates > 0 && <span className="recon-chip-badge">{workspace.duplicates}</span>}
           </button>
           <button
             className={`recon-chip ${activeChip === 'warnings' ? 'chip-active' : ''}`}
             onClick={() => setQuickFilter({}, { hasWarnings: activeChip !== 'warnings' })}
           >
-            ⚠ تنبيهات
+            ⚠ {t('bank.recon.warnings_chip')}
           </button>
         </div>
       )}
@@ -2020,10 +2063,10 @@ export default function BankReconciliation() {
           onClick={() => filterOpen ? setFilterOpen(false) : openFilterPanel()}
         >
           <span>{filterOpen ? '▲' : '▼'}</span>
-          فلاتر متقدمة
+          {t('bank.recon.advanced_filters')}
           {activeFilterCount > 0 && (
             <span className="recon-header-tag blue" style={{ padding: '2px 8px', fontSize: 11 }}>
-              {activeFilterCount} نشط
+              {t('bank.recon.active_count', { count: activeFilterCount })}
             </span>
           )}
         </button>
@@ -2032,13 +2075,13 @@ export default function BankReconciliation() {
           <div className="recon-filter-body">
 
             <div className="recon-filter-section">
-              <p className="recon-filter-section-title">بحث نصي</p>
+              <p className="recon-filter-section-title">{t('bank.recon.text_search')}</p>
               <div className="recon-filter-row">
                 <div className="recon-filter-field" style={{ maxWidth: 400 }}>
-                  <label>بحث في الوصف أو المرجع أو رقم الشيك</label>
+                  <label>{t('bank.recon.search_desc_ref_cheque')}</label>
                   <input
                     type="text"
-                    placeholder="اكتب للبحث…"
+                    placeholder={t('bank.recon.type_to_search')}
                     value={filterDraft.search ?? ''}
                     onChange={(e) => setFilterDraft((d) => ({ ...d, search: e.target.value || undefined }))}
                   />
@@ -2047,17 +2090,17 @@ export default function BankReconciliation() {
             </div>
 
             <div className="recon-filter-section">
-              <p className="recon-filter-section-title">نطاق التاريخ</p>
+              <p className="recon-filter-section-title">{t('bank.recon.date_range')}</p>
               <div className="recon-filter-row">
                 <div className="recon-filter-field">
-                  <label>من تاريخ</label>
+                  <label>{t('bank.recon.from_date')}</label>
                   <DateInput
                     value={filterDraft.fromDate ?? ''}
                     onChange={(v) => setFilterDraft((d) => ({ ...d, fromDate: v || undefined }))}
                   />
                 </div>
                 <div className="recon-filter-field">
-                  <label>إلى تاريخ</label>
+                  <label>{t('bank.recon.to_date')}</label>
                   <DateInput
                     value={filterDraft.toDate ?? ''}
                     onChange={(v) => setFilterDraft((d) => ({ ...d, toDate: v || undefined }))}
@@ -2067,10 +2110,10 @@ export default function BankReconciliation() {
             </div>
 
             <div className="recon-filter-section">
-              <p className="recon-filter-section-title">نطاق المبلغ (KWD)</p>
+              <p className="recon-filter-section-title">{t('bank.recon.amount_range')}</p>
               <div className="recon-filter-row">
                 <div className="recon-filter-field">
-                  <label>من مبلغ</label>
+                  <label>{t('bank.recon.amount_from')}</label>
                   <input
                     type="number" min="0" step="0.001" placeholder="0.000"
                     value={filterDraft.minAmount ?? ''}
@@ -2078,9 +2121,9 @@ export default function BankReconciliation() {
                   />
                 </div>
                 <div className="recon-filter-field">
-                  <label>إلى مبلغ</label>
+                  <label>{t('bank.recon.amount_to')}</label>
                   <input
-                    type="number" min="0" step="0.001" placeholder="بلا حد"
+                    type="number" min="0" step="0.001" placeholder={t('bank.recon.no_limit')}
                     value={filterDraft.maxAmount ?? ''}
                     onChange={(e) => setFilterDraft((d) => ({ ...d, maxAmount: e.target.value ? parseFloat(e.target.value) : undefined }))}
                   />
@@ -2089,35 +2132,35 @@ export default function BankReconciliation() {
             </div>
 
             <div className="recon-filter-section">
-              <p className="recon-filter-section-title">نوع المعاملة والاتجاه</p>
+              <p className="recon-filter-section-title">{t('bank.recon.type_and_direction')}</p>
               <div className="recon-filter-row">
                 <div className="recon-filter-field">
-                  <label>التصنيف</label>
+                  <label>{t('bank.recon.classification')}</label>
                   <select
                     value={cfDraft.bankFeeType ?? ''}
                     onChange={(e) => setCfDraft((d) => ({ ...d, bankFeeType: (e.target.value as BankFeeType) || null }))}
                   >
-                    <option value="">كل الأنواع</option>
-                    {Object.entries(CAT_LABELS).map(([k, v]) => (
-                      <option key={k} value={k}>{CAT_ICONS[k]} {v}</option>
+                    <option value="">{t('bank.recon.all_types')}</option>
+                    {Object.keys(CAT_LABELS).map((k) => (
+                      <option key={k} value={k}>{CAT_ICONS[k]} {catLabelFor(k, t)}</option>
                     ))}
                   </select>
                 </div>
                 <div className="recon-filter-field">
-                  <label>الاتجاه</label>
+                  <label>{t('bank.recon.direction')}</label>
                   <select
                     value={cfDraft.direction ?? ''}
                     onChange={(e) => setCfDraft((d) => ({ ...d, direction: (e.target.value as 'debit' | 'credit') || null }))}
                   >
-                    <option value="">مدين ودائن</option>
-                    <option value="debit">↓ مدين فقط</option>
-                    <option value="credit">↑ دائن فقط</option>
+                    <option value="">{t('bank.recon.debit_and_credit')}</option>
+                    <option value="debit">↓ {t('bank.recon.debit_only')}</option>
+                    <option value="credit">↑ {t('bank.recon.credit_only')}</option>
                   </select>
                 </div>
                 <div className="recon-filter-field">
-                  <label>العملة</label>
+                  <label>{t('col.cheque.currency')}</label>
                   <input
-                    type="text" placeholder="KWD، USD…"
+                    type="text" placeholder={t('bank.recon.currency_placeholder')}
                     value={cfDraft.currency}
                     onChange={(e) => setCfDraft((d) => ({ ...d, currency: e.target.value }))}
                   />
@@ -2126,7 +2169,7 @@ export default function BankReconciliation() {
             </div>
 
             <div className="recon-filter-section">
-              <p className="recon-filter-section-title">جودة البيانات</p>
+              <p className="recon-filter-section-title">{t('bank.recon.data_quality')}</p>
               <div className="recon-filter-row">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
                   <input
@@ -2134,7 +2177,7 @@ export default function BankReconciliation() {
                     checked={cfDraft.hasWarnings}
                     onChange={(e) => setCfDraft((d) => ({ ...d, hasWarnings: e.target.checked }))}
                   />
-                  عمليات بها تنبيهات جودة فقط
+                  {t('bank.recon.warnings_only')}
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
                   <input
@@ -2142,7 +2185,7 @@ export default function BankReconciliation() {
                     checked={!!filterDraft.isDuplicate}
                     onChange={(e) => setFilterDraft((d) => ({ ...d, isDuplicate: e.target.checked || undefined }))}
                   />
-                  صفوف مكررة فقط
+                  {t('bank.recon.duplicates_only')}
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
                   <input
@@ -2150,14 +2193,14 @@ export default function BankReconciliation() {
                     checked={!!filterDraft.isBankFee}
                     onChange={(e) => setFilterDraft((d) => ({ ...d, isBankFee: e.target.checked || undefined }))}
                   />
-                  رسوم بنكية فقط
+                  {t('bank.recon.bank_charges_only')}
                 </label>
               </div>
             </div>
 
             <div className="recon-filter-actions">
-              <button className="btn secondary btn sm" onClick={resetFilter}>إعادة تعيين الكل</button>
-              <button className="btn btn sm" onClick={applyFilter}>تطبيق الفلاتر</button>
+              <button className="btn secondary btn sm" onClick={resetFilter}>{t('bank.recon.reset_all')}</button>
+              <button className="btn btn sm" onClick={applyFilter}>{t('bank.recon.apply_filters')}</button>
             </div>
           </div>
         )}
@@ -2166,19 +2209,19 @@ export default function BankReconciliation() {
       {/* ── Selection action bar ────────────────────────────────────────────── */}
       {selected.size > 0 && (
         <div className="recon-bulk-bar">
-          <span className="recon-bulk-count">تم اختيار {selected.size} عملية</span>
+          <span className="recon-bulk-count">{t('bank.recon.selected_count', { count: selected.size })}</span>
           <div className="recon-bulk-divider" />
           <button
             className="btn sm secondary"
             onClick={() => {
               const descs = displayedTransactions
-                .filter((t) => selected.has(t.id))
-                .map((t) => t.description)
+                .filter((tx) => selected.has(tx.id))
+                .map((tx) => tx.description)
                 .join('\n');
-              copyText(descs, `${selected.size} وصف`);
+              copyText(descs, t('bank.recon.description_count', { count: selected.size }));
             }}
           >
-            📋 نسخ الأوصاف
+            📋 {t('bank.recon.copy_descriptions')}
           </button>
           <div className="recon-bulk-divider" />
           <button
@@ -2186,7 +2229,7 @@ export default function BankReconciliation() {
             onClick={() => setSelected(new Set())}
             style={{ marginInlineStart: 'auto' }}
           >
-            إلغاء الاختيار
+            {t('bank.recon.clear_selection')}
           </button>
         </div>
       )}
@@ -2212,23 +2255,23 @@ export default function BankReconciliation() {
                   {activeChip === 'ALL' ? '📋' : '🔍'}
                 </div>
                 <p className="recon-empty-title">
-                  {activeChip === 'ALL' ? 'لا توجد معاملات في هذا الكشف' : 'لا توجد نتائج للفلتر الحالي'}
+                  {activeChip === 'ALL' ? t('bank.recon.no_transactions_in_statement') : t('bank.recon.no_filter_results')}
                 </p>
                 <p className="recon-empty-sub">
                   {activeChip === 'ALL'
-                    ? 'الكشف البنكي لا يحتوي على بيانات'
-                    : 'جرّب تعديل الفلاتر أو مسحها للعرض الكامل'}
+                    ? t('bank.recon.statement_no_data')
+                    : t('bank.recon.try_adjust_or_clear_filters')}
                 </p>
                 {activeChip !== 'ALL' && (
                   <div style={{ marginTop: 16 }}>
                     <button className="btn secondary btn sm" onClick={resetFilter}>
-                      مسح الفلاتر
+                      {t('bank.recon.clear_filters')}
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              <table aria-label="عمليات الكشف البنكي">
+              <table aria-label={t('bank.recon.statement_transactions')}>
                 <thead>
                   <tr>
                     <th style={{ width: 40, textAlign: 'center' }}>
@@ -2236,19 +2279,19 @@ export default function BankReconciliation() {
                         type="checkbox"
                         checked={selected.size === displayedTransactions.length && displayedTransactions.length > 0}
                         onChange={toggleSelectAll}
-                        aria-label="تحديد الكل"
+                        aria-label={t('bank.recon.select_all')}
                       />
                     </th>
-                    <th>النوع</th>
-                    <th>التاريخ</th>
-                    <th style={{ minWidth: 200 }}>الوصف</th>
-                    <th>المرجع</th>
-                    <th style={{ textAlign: 'end' }}>{fcMoneyHeader('مدين')}</th>
-                    <th style={{ textAlign: 'end' }}>{fcMoneyHeader('دائن')}</th>
-                    <th style={{ textAlign: 'end' }}>الرصيد</th>
-                    <th>العملة</th>
+                    <th>{t('col.type')}</th>
+                    <th>{t('col.date')}</th>
+                    <th style={{ minWidth: 200 }}>{t('col.description')}</th>
+                    <th>{t('col.acc.reference')}</th>
+                    <th style={{ textAlign: 'end' }}>{fcMoneyHeader(t('col.acc.debit'))}</th>
+                    <th style={{ textAlign: 'end' }}>{fcMoneyHeader(t('col.acc.credit'))}</th>
+                    <th style={{ textAlign: 'end' }}>{t('bank.col.balance')}</th>
+                    <th>{t('col.cheque.currency')}</th>
                     <th style={{ width: 36 }}>⚠</th>
-                    <th className="th-actions">إجراء</th>
+                    <th className="th-actions">{t('bank.recon.action_col')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2284,7 +2327,7 @@ export default function BankReconciliation() {
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => toggleSelect(tx.id)}
-                              aria-label={`تحديد: ${tx.description}`}
+                              aria-label={t('bank.recon.select_label', { label: tx.description })}
                             />
                           </td>
 
@@ -2292,10 +2335,10 @@ export default function BankReconciliation() {
                           <td>
                             {tx.bankFeeType ? (
                               <span className={`recon-cat ${tx.bankFeeType}`}>
-                                {CAT_ICONS[tx.bankFeeType] ?? '⚪'} {CAT_LABELS[tx.bankFeeType] ?? tx.bankFeeType}
+                                {CAT_ICONS[tx.bankFeeType] ?? '⚪'} {catLabelFor(tx.bankFeeType, t)}
                               </span>
                             ) : (
-                              <span style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>⚪ غير مصنف</span>
+                              <span style={{ color: 'var(--text-muted)', fontSize: 11.5 }}>⚪ {t('bank.recon.unclassified')}</span>
                             )}
                             {tx.isDuplicate && (
                               <span className="recon-cat CHARGE" style={{ marginInlineStart: 4, fontSize: 10.5 }}>⊙</span>
@@ -2322,8 +2365,8 @@ export default function BankReconciliation() {
                                 <button
                                   className="recon-expand-btn"
                                   onClick={(e) => { e.stopPropagation(); toggleExpandDesc(tx.id); }}
-                                  aria-label={isDescExpanded ? 'طي الوصف' : 'توسيع الوصف'}
-                                  title={isDescExpanded ? 'طي' : 'توسيع'}
+                                  aria-label={isDescExpanded ? t('bank.recon.collapse_description') : t('bank.recon.expand_description')}
+                                  title={isDescExpanded ? t('bank.recon.collapse') : t('bank.recon.expand')}
                                 >
                                   {isDescExpanded ? '▲' : '▼'}
                                 </button>
@@ -2363,7 +2406,7 @@ export default function BankReconciliation() {
                           </td>
 
                           {/* Warnings indicator */}
-                          <td style={{ textAlign: 'center', fontSize: 14 }} title={hasWarnings ? tx.warnings.map((w) => WARNING_LABELS[w] ?? w).join('، ') : undefined}>
+                          <td style={{ textAlign: 'center', fontSize: 14 }} title={hasWarnings ? tx.warnings.map((w) => warningLabelFor(w, t)).join('، ') : undefined}>
                             {hasWarnings ? '⚠' : ''}
                           </td>
 
@@ -2373,8 +2416,8 @@ export default function BankReconciliation() {
                               <button
                                 className="btn sm ghost"
                                 style={{ padding: '4px 8px', fontSize: 11 }}
-                                onClick={() => copyText(tx.description, 'الوصف')}
-                                title="نسخ الوصف"
+                                onClick={() => copyText(tx.description, t('col.description'))}
+                                title={t('bank.recon.copy_description')}
                               >
                                 📋
                               </button>
@@ -2382,7 +2425,7 @@ export default function BankReconciliation() {
                                 className="btn sm ghost"
                                 style={{ padding: '4px 8px', fontSize: 11 }}
                                 onClick={() => setSelectedTx(isActive ? null : tx)}
-                                title="عرض التفاصيل"
+                                title={t('bank.recon.view_details')}
                               >
                                 🔍
                               </button>
@@ -2401,8 +2444,11 @@ export default function BankReconciliation() {
           {workspace && workspace.total > (filter.pageSize ?? 50) && (
             <div className="pagination" style={{ marginTop: 0, background: 'var(--surface)', borderRadius: '0 0 var(--radius) var(--radius)', border: '1px solid var(--border)', borderTop: 'none' }}>
               <span style={{ fontSize: 12.5, color: 'var(--text-muted)', fontWeight: 600 }}>
-                عرض {((filter.page ?? 1) - 1) * (filter.pageSize ?? 50) + 1}–
-                {Math.min((filter.page ?? 1) * (filter.pageSize ?? 50), workspace.total)} من {workspace.total.toLocaleString()} عملية
+                {t('bank.recon.pagination_range', {
+                  from: ((filter.page ?? 1) - 1) * (filter.pageSize ?? 50) + 1,
+                  to: Math.min((filter.page ?? 1) * (filter.pageSize ?? 50), workspace.total),
+                  total: workspace.total.toLocaleString(),
+                })}
               </span>
               <div className="pg-btns">
                 <button
@@ -2410,14 +2456,14 @@ export default function BankReconciliation() {
                   disabled={(filter.page ?? 1) <= 1}
                   onClick={() => setFilter((f) => ({ ...f, page: (f.page ?? 1) - 1 }))}
                 >
-                  السابق
+                  {t('bank.recon.previous')}
                 </button>
                 <button
                   className="btn sm secondary"
                   disabled={(filter.page ?? 1) * (filter.pageSize ?? 50) >= workspace.total}
                   onClick={() => setFilter((f) => ({ ...f, page: (f.page ?? 1) + 1 }))}
                 >
-                  التالي
+                  {t('bank.recon.next')}
                 </button>
               </div>
             </div>
@@ -2438,12 +2484,12 @@ export default function BankReconciliation() {
       {workspace && workspace.totalRows > 0 && (
         <>
           <div className="recon-charts-head" style={{ marginTop: 24 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800 }}>التحليل البصري</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 800 }}>{t('bank.recon.visual_analysis')}</h3>
             <button
               className="btn sm secondary"
               onClick={() => setShowCharts((v) => !v)}
             >
-              {showCharts ? 'إخفاء الرسوم البيانية' : 'عرض الرسوم البيانية'}
+              {showCharts ? t('bank.recon.hide_charts') : t('bank.recon.show_charts')}
             </button>
           </div>
           {showCharts && <ExplorerCharts workspace={workspace} />}
@@ -2456,9 +2502,9 @@ export default function BankReconciliation() {
       {/* ── Delete current import confirmation (Package AD) ─────────────────── */}
       {deleteConfirm && (
         <ConfirmModal
-          title="حذف دفعة الاستيراد"
-          message="سيؤدي حذف دفعة الاستيراد إلى إزالة جميع العمليات التي أضيفت من هذا الملف من السجل الزمني للحساب البنكي. لا يمكن التراجع عن هذا الإجراء."
-          confirmLabel="حذف"
+          title={t('bank.recon.delete_import_batch')}
+          message={t('bank.recon.delete_import_batch_msg_one')}
+          confirmLabel={t('action.delete')}
           onConfirm={handleDeleteCurrentImport}
           onCancel={() => setDeleteConfirm(null)}
           loading={deleting}

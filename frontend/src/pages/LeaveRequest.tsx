@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
+import { useT } from '../lib/i18n';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -34,6 +35,7 @@ function calcDays(start: string, end: string): number {
 }
 
 export default function LeaveRequest() {
+  const { t } = useT();
   const { employeeId } = useParams<{ employeeId: string }>();
   const { search } = useLocation();
   const formNumber = useMemo(() => generateFormNumber('leave-request'), []);
@@ -105,8 +107,8 @@ export default function LeaveRequest() {
      ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
-    title: 'طلب إجازة',
-    documentLabel: `طلب إجازة · ${formNumber}`,
+    title: t('page.leaveReq.title'),
+    documentLabel: `${t('page.leaveReq.title')} · ${formNumber}`,
     lang,
   });
 
@@ -124,17 +126,17 @@ export default function LeaveRequest() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: 'طلب إجازة',
-    documentLabel: `طلب إجازة · ${formNumber}`,
+    title: t('page.leaveReq.title'),
+    documentLabel: `${t('page.leaveReq.title')} · ${formNumber}`,
   });
 
 
-  if (error) return <div className="center-msg">خطأ: {error}</div>;
+  if (error) return <div className="center-msg">{t('msg.error')}: {error}</div>;
   if (!data)
     return (
       <div className="center-msg">
         <div className="spinner" />
-        جارٍ التحميل…
+        {t('msg.loading')}
       </div>
     );
 
@@ -151,7 +153,7 @@ export default function LeaveRequest() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
-      title="طلب إجازة"
+      title={t('page.leaveReq.title')}
       profile={profile}
       // HR Print Templates – Shared Visual Consistency Pack v1: reuse the Salary
       // Certificate's opt-in ApprovalSection/FormLayout behavior.
@@ -166,7 +168,7 @@ export default function LeaveRequest() {
             type="button"
             className="btn secondary"
             style={{ fontSize: 12, padding: '4px 8px' }}
-            title="حفظ مسودة"
+            title={t('page.warning.save_draft_title')}
             onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
           >
             💾
@@ -176,7 +178,7 @@ export default function LeaveRequest() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
-              title="استعادة المسودة"
+              title={t('page.warning.load_draft_title')}
               onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
             >
               ↩
@@ -187,7 +189,7 @@ export default function LeaveRequest() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px' }}
-              title="مسح المسودة"
+              title={t('page.warning.clear_draft_title')}
               onClick={() => clearDraft(FORM_KEY)}
             >
               ✕
@@ -205,31 +207,31 @@ export default function LeaveRequest() {
       }}
     >
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{t('page.warning.print_fields_header')}</div>
 
         {!latestLeave && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <div className="field">
-              <label>نوع الإجازة</label>
+              <label>{t('page.leaveReq.field.leave_type')}</label>
               <select
-                title="نوع الإجازة"
+                title={t('page.leaveReq.field.leave_type')}
                 value={printFields.leaveType}
                 onChange={(e) => setPrintFields(p => ({ ...p, leaveType: e.target.value as typeof printFields.leaveType }))}
               >
-                <option value="">— اختر —</option>
-                <option value="ANNUAL">إجازة سنوية</option>
-                <option value="SICK">إجازة مرضية</option>
-                <option value="UNPAID">إجازة بدون راتب</option>
-                <option value="EMERGENCY">إجازة طارئة</option>
+                <option value="">{t('msg.select_placeholder')}</option>
+                <option value="ANNUAL">{t('page.leaveReq.opt.annual')}</option>
+                <option value="SICK">{t('page.leaveReq.opt.sick')}</option>
+                <option value="UNPAID">{t('page.leaveReq.opt.unpaid')}</option>
+                <option value="EMERGENCY">{t('page.leaveReq.opt.emergency')}</option>
               </select>
             </div>
             <div className="field">
-              <label>عدد الأيام</label>
+              <label>{t('page.leaveReq.field.days')}</label>
               <input
                 type="number"
                 lang="en"
                 min="1"
-                title="عدد الأيام"
+                title={t('page.leaveReq.field.days')}
                 value={printFields.days}
                 onChange={(e) => {
                   daysManuallyEdited.current = true;
@@ -237,29 +239,29 @@ export default function LeaveRequest() {
                 }}
               />
               <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3, display: 'block' }}>
-                يُحسب تلقائياً من التاريخين — يمكن التعديل يدوياً
+                {t('page.leaveReq.days_hint')}
               </span>
             </div>
             <div className="field">
-              <label>تاريخ البداية</label>
+              <label>{t('field.start_date')}</label>
               <DateInput
-                title="تاريخ البداية"
+                title={t('field.start_date')}
                 value={printFields.startDate}
                 onChange={(v) => setPrintFields(p => ({ ...p, startDate: v }))}
               />
             </div>
             <div className="field">
-              <label>تاريخ النهاية</label>
+              <label>{t('field.end_date')}</label>
               <DateInput
-                title="تاريخ النهاية"
+                title={t('field.end_date')}
                 value={printFields.endDate}
                 onChange={(v) => setPrintFields(p => ({ ...p, endDate: v }))}
               />
             </div>
             <div className="field" style={{ gridColumn: '1 / -1' }}>
-              <label>سبب الطلب</label>
+              <label>{t('page.leaveReq.field.reason')}</label>
               <input
-                title="سبب الطلب"
+                title={t('page.leaveReq.field.reason')}
                 value={printFields.reason}
                 onChange={(e) => setPrintFields(p => ({ ...p, reason: e.target.value }))}
               />
@@ -268,9 +270,9 @@ export default function LeaveRequest() {
         )}
 
         <div className="field" style={{ maxWidth: 280 }}>
-          <label>تاريخ العودة المتوقعة</label>
+          <label>{t('page.leaveReq.field.expected_return')}</label>
           <DateInput
-            title="تاريخ العودة المتوقعة"
+            title={t('page.leaveReq.field.expected_return')}
             value={printFields.expectedReturnDate}
             onChange={(v) => setPrintFields(p => ({ ...p, expectedReturnDate: v }))}
           />
@@ -282,13 +284,13 @@ export default function LeaveRequest() {
             style={{ fontSize: 12 }}
             onClick={resetPrintFields}
           >
-            ↺ مسح حقول الطباعة
+            {t('page.warning.clear_fields_btn')}
           </button>
         </div>
       </div>
       <LeaveRequestTemplate employee={data.employee} latestLeave={latestLeave} lang={lang} printFields={printFields} />
       {showClearConfirm && (
-        <ConfirmModal message="سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+        <ConfirmModal message={t('page.warning.clear_confirm')} confirmLabel={t('page.warning.clear_confirm_btn')} variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
     </>

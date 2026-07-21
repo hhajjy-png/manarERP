@@ -16,7 +16,7 @@ import { useTableSort } from '../hooks/useTableSort';
 import SortableHeader from '../components/SortableHeader';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
-import { periodToReportParams } from '../lib/financialPeriod';
+import { periodToReportParams, buildLocalizedPeriodLabel } from '../lib/financialPeriod';
 import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
 import { downloadBlob } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
@@ -153,9 +153,9 @@ export default function Expenses() {
     if (actionBusy) return;
     setActionBusy(true);
     try {
-      if (action === 'approve') { await api.patch(`/expenses/${id}/approve`); toast.ok('تمت الموافقة بنجاح'); }
-      else if (action === 'reject') { await api.patch(`/expenses/${id}/reject`); toast.ok('تم الرفض'); }
-      else { await api.delete(`/expenses/${id}`); toast.ok('تم الحذف بنجاح'); }
+      if (action === 'approve') { await api.patch(`/expenses/${id}/approve`); toast.ok(t('msg.expense.approved')); }
+      else if (action === 'reject') { await api.patch(`/expenses/${id}/reject`); toast.ok(t('msg.expense.rejected')); }
+      else { await api.delete(`/expenses/${id}`); toast.ok(t('msg.deleted_success')); }
       setViewing(null);
       load();
     } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
@@ -169,7 +169,7 @@ export default function Expenses() {
     setActionBusy(true);
     try {
       const res = await api.patch(`/expenses/${exp.id}/amend`);
-      toast.ok('تم إلغاء الاعتماد وأصبح المصروف قابلاً للتعديل');
+      toast.ok(t('msg.expense.unapproved_for_edit'));
       setViewing(null);
       const updated = res.data?.data ?? { ...exp, status: 'PENDING' };
       setEditing(updated);
@@ -217,14 +217,14 @@ export default function Expenses() {
         chips={stats ? (
           <>
             {/* الإجمالي معروض في البطاقة الرئيسية أدناه — نتجنّب تكراره كشريحة في الترويسة. */}
-            <IdChip icon="tag" tone="indigo">{stats.count} مصروف</IdChip>
-            {stats.pendingCount > 0 && <IdChip icon="schedule" tone="orange">{<MoneyText value={stats.pendingTotal} />} معلّق</IdChip>}
+            <IdChip icon="tag" tone="indigo">{stats.count} {t('unit.expense')}</IdChip>
+            {stats.pendingCount > 0 && <IdChip icon="schedule" tone="orange">{<MoneyText value={stats.pendingTotal} />} {t('lbl.pending_suffix')}</IdChip>}
           </>
         ) : undefined}
         aside={(
           <>
             <PeriodControl />
-            {canCreate && <Button variant="secondary" icon="calendar_month" onClick={() => setFastEntry(true)}>تسجيل مصروفات شهرية</Button>}
+            {canCreate && <Button variant="secondary" icon="calendar_month" onClick={() => setFastEntry(true)}>{t('action.expenses.monthly_entry')}</Button>}
             {canCreate && <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('mod.expenses.create')}</Button>}
           </>
         )}
@@ -235,22 +235,22 @@ export default function Expenses() {
         <div className="expx-metrics">
           <HeroMetric
             icon="account_balance_wallet"
-            label="إجمالي المصروفات"
+            label={t('kpi.total_expenses')}
             value={<MoneyText value={stats.total} />}
-            sub={<><span className="material-symbols-outlined">receipt_long</span>{`${stats.count} مصروف`}</>}
+            sub={<><span className="material-symbols-outlined">receipt_long</span>{`${stats.count} ${t('unit.expense')}`}</>}
           />
           <KpiStatGrid>
-            <KpiStat icon="tag" tone="indigo" label="عدد المصروفات" value={stats.count.toLocaleString()} />
-            {stats.pendingCount > 0 && <KpiStat icon="schedule" tone="orange" label="بانتظار الاعتماد" value={moneyParts(stats.pendingTotal).number} unit={moneyParts(stats.pendingTotal).currency} sub={`${stats.pendingCount} مصروف`} />}
-            {stats.periods?.currentMonth && <KpiStat icon="calendar_month" tone="blue" label={`${ARABIC_MONTHS[(stats.periods.currentMonth.month as number) - 1]} ${stats.periods.currentMonth.year}`} value={moneyParts(stats.periods.currentMonth.total).number} unit={moneyParts(stats.periods.currentMonth.total).currency} sub={`${stats.periods.currentMonth.count} مصروف`} />}
-            {stats.periods?.currentYear && <KpiStat icon="event" tone="green" label={`سنة ${stats.periods.currentYear.year}`} value={moneyParts(stats.periods.currentYear.total).number} unit={moneyParts(stats.periods.currentYear.total).currency} sub={`${stats.periods.currentYear.count} مصروف`} />}
+            <KpiStat icon="tag" tone="indigo" label={t('stat.expense_count')} value={stats.count.toLocaleString()} />
+            {stats.pendingCount > 0 && <KpiStat icon="schedule" tone="orange" label={t('stat.pending_approval')} value={moneyParts(stats.pendingTotal).number} unit={moneyParts(stats.pendingTotal).currency} sub={`${stats.pendingCount} ${t('unit.expense')}`} />}
+            {stats.periods?.currentMonth && <KpiStat icon="calendar_month" tone="blue" label={`${ARABIC_MONTHS[(stats.periods.currentMonth.month as number) - 1]} ${stats.periods.currentMonth.year}`} value={moneyParts(stats.periods.currentMonth.total).number} unit={moneyParts(stats.periods.currentMonth.total).currency} sub={`${stats.periods.currentMonth.count} ${t('unit.expense')}`} />}
+            {stats.periods?.currentYear && <KpiStat icon="event" tone="green" label={t('lbl.year_prefix', { year: stats.periods.currentYear.year })} value={moneyParts(stats.periods.currentYear.total).number} unit={moneyParts(stats.periods.currentYear.total).currency} sub={`${stats.periods.currentYear.count} ${t('unit.expense')}`} />}
           </KpiStatGrid>
         </div>
       )}
 
       {/* ── Breakdown: categories + company groups + top suppliers ── */}
       {stats && (!categoryFilter && stats.byCategory || stats.byCompanyGroup || stats.bySupplier) && (
-        <SectionCard title="التحليل حسب التصنيف والمورد" icon="insights">
+        <SectionCard title={t('sec.expenses.breakdown')} icon="insights">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {stats.byCompanyGroup && Object.keys(stats.byCompanyGroup as Record<string, number>).length > 0 && (
               <div className="expx-breakdown">
@@ -289,60 +289,60 @@ export default function Expenses() {
         </SectionCard>
       )}
 
-      {loadError && <ErrorBanner>{loadError} <button type="button" className="xpl-clear-link" onClick={load} disabled={loading}>تحديث</button></ErrorBanner>}
+      {loadError && <ErrorBanner>{loadError} <button type="button" className="xpl-clear-link" onClick={load} disabled={loading}>{t('action.refresh')}</button></ErrorBanner>}
       {error && <ErrorBanner>{error}</ErrorBanner>}
 
       {/* ── Sticky filters ── */}
       <div className="xpl-toolbar xpl-toolbar--sticky">
         <div className="xpl-toolbar-row">
-          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="بحث في الوصف…" ariaLabel="بحث في المصروفات" />
+          <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('ph.search_expense_desc')} ariaLabel={t('a11y.search_expenses')} />
           <div className="xpl-field" style={{ minWidth: 190 }}>
-            <span className="xpl-field-label">التصنيف</span>
+            <span className="xpl-field-label">{t('field.category')}</span>
             <SearchableSelect
               options={categoryOptions}
               value={categoryFilter}
               onChange={(v) => { setCategoryFilter(v); setPage(1); }}
-              emptyLabel="كل التصنيفات"
-              ariaLabel="التصنيف"
-              searchPlaceholder="ابحث في التصنيفات…"
+              emptyLabel={t('opt.all_categories')}
+              ariaLabel={t('field.category')}
+              searchPlaceholder={t('ph.search_categories')}
             />
           </div>
           <div className="xpl-field" style={{ minWidth: 190 }}>
-            <span className="xpl-field-label">المورد</span>
+            <span className="xpl-field-label">{t('field.supplier_plain')}</span>
             <SearchableSelect
               options={supplierOptions}
               value={supplierFilter}
               onChange={(v) => { setSupplierFilter(v); setPage(1); }}
-              emptyLabel="كل الموردين"
-              ariaLabel="المورد"
-              searchPlaceholder="ابحث في الموردين…"
+              emptyLabel={t('opt.all_suppliers')}
+              ariaLabel={t('field.supplier_plain')}
+              searchPlaceholder={t('ph.search_suppliers')}
             />
           </div>
           <div className="xpl-field" style={{ minWidth: 120 }}>
-            <span className="xpl-field-label">الشهر</span>
-            <select className="xpl-select" aria-label="الشهر" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }}>
-              <option value="">الكل</option>
+            <span className="xpl-field-label">{t('field.month')}</span>
+            <select className="xpl-select" aria-label={t('field.month')} value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }}>
+              <option value="">{t('opt.all_short')}</option>
               {ARABIC_MONTHS.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
             </select>
           </div>
           <div className="xpl-field" style={{ minWidth: 100 }}>
-            <span className="xpl-field-label">السنة</span>
-            <select className="xpl-select" aria-label="السنة" value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}>
-              <option value="">الكل</option>
+            <span className="xpl-field-label">{t('field.year')}</span>
+            <select className="xpl-select" aria-label={t('field.year')} value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }}>
+              <option value="">{t('opt.all_short')}</option>
               {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           {hasPermission('reports.export') && (
-            <Button variant="secondary" icon="table_view" busy={exportingExcel} onClick={exportExcel}>تصدير Excel</Button>
+            <Button variant="secondary" icon="table_view" busy={exportingExcel} onClick={exportExcel}>{t('page.salaries.export_excel')}</Button>
           )}
         </div>
         <div className="xpl-toolbar-row">
-          <FilterChip active={statusFilter === ''} onClick={() => { setStatusFilter(''); setPage(1); }}>كل الحالات</FilterChip>
+          <FilterChip active={statusFilter === ''} onClick={() => { setStatusFilter(''); setPage(1); }}>{t('opt.all_statuses')}</FilterChip>
           {(['PENDING', 'APPROVED', 'REJECTED', 'REVERSED', 'CANCELLED'] as const).map((s) => (
             <FilterChip key={s} active={statusFilter === s} onClick={() => { setStatusFilter(s); setPage(1); }} icon={STATUS_META[s].icon}>{t(STATUS_META[s].key)}</FilterChip>
           ))}
           {isFiltered && <button type="button" className="xpl-clear-link" onClick={resetFilters}>{t('action.reset_filters')}</button>}
-          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} نتيجة</span>
+          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} {t('unit.result')}</span>
         </div>
       </div>
 
@@ -354,8 +354,8 @@ export default function Expenses() {
           <EmptyState icon="receipt_long" tone="neutral" title={t('empty.expenses')}
             message={
               !period.isAllPeriods
-                ? `لا توجد مصروفات ضمن ${period.label.replace('الفترة المعروضة: ', 'الفترة ')}.`
-                : isFiltered ? 'لا توجد مصروفات مطابقة للفلاتر.' : 'لم تتم إضافة أي مصروف بعد.'
+                ? t('empty.expenses.in_period', { period: buildLocalizedPeriodLabel(period, t, true) })
+                : isFiltered ? t('empty.expenses.no_match_filters') : t('empty.expenses.none_yet')
             }
             action={isFiltered ? <Button variant="secondary" icon="restart_alt" onClick={resetFilters}>{t('action.reset_filters')}</Button>
               : canCreate ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('mod.expenses.create')}</Button> : undefined} />
@@ -374,7 +374,7 @@ export default function Expenses() {
                     <th>{t('lbl.inv.billing_period')}</th>
                     <SortableHeader label={fcMoneyHeader(t('col.amount'))} title={t('col.amount')} state={sort.getState('amount')} onToggle={() => sort.toggle('amount')} />
                     <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
-                    <th aria-label="فتح" />
+                    <th aria-label={t('a11y.open_row')} />
                   </tr>
                 </thead>
                 <tbody>
@@ -382,7 +382,7 @@ export default function Expenses() {
                     const sm = expenseStatusMeta(r.status);
                     return (
                       <tr key={r.id} id={`row-${r.id}`} className="xpl-row--click" tabIndex={0} role="button"
-                        aria-label={`تفاصيل المصروف ${r.code}`}
+                        aria-label={t('a11y.expense_details', { code: r.code })}
                         onClick={() => setViewing(r)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                         <td><span className="expx-code">{r.code}</span></td>
@@ -426,16 +426,16 @@ export default function Expenses() {
         // بنفس الأيقونات/الوظائف/الصلاحيات/ترتيب التنفيذ (Drawer Actions Consistency Pack v1).
         const quickActions: QuickAction[] = [
           ...(canEdit ? [{ key: 'edit', icon: 'edit', label: t('action.edit'), tone: 'primary' as const, onClick: () => { setEditing(viewing); setViewing(null); } }] : []),
-          ...(canAmend ? [{ key: 'amend', icon: 'lock_open', label: 'إلغاء الاعتماد والتعديل', onClick: () => setAmendConfirmOpen(true), disabled: actionBusy }] : []),
+          ...(canAmend ? [{ key: 'amend', icon: 'lock_open', label: t('action.expense.unapprove_edit'), onClick: () => setAmendConfirmOpen(true), disabled: actionBusy }] : []),
           ...(canApprove ? [{ key: 'approve', icon: 'check', label: t('action.approve'), onClick: () => approve(viewing.id), disabled: actionBusy }] : []),
           ...(canApprove ? [{ key: 'reject', icon: 'close', label: t('action.reject'), onClick: () => reject(viewing.id), disabled: actionBusy }] : []),
           ...(canDelete ? [{ key: 'delete', icon: 'delete', label: t('action.delete'), tone: 'danger' as const, onClick: () => remove(viewing.id), disabled: actionBusy }] : []),
-          ...(isSystemAdmin ? [{ key: 'force-delete', icon: 'delete_forever', label: 'حذف نهائي', tone: 'danger' as const, onClick: () => { setForceDeleteId(viewing.id); setViewing(null); } }] : []),
+          ...(isSystemAdmin ? [{ key: 'force-delete', icon: 'delete_forever', label: t('action.force_delete'), tone: 'danger' as const, onClick: () => { setForceDeleteId(viewing.id); setViewing(null); } }] : []),
         ];
 
         return (
           <Drawer
-            title={`مصروف ${viewing.code}`}
+            title={t('lbl.expense_code_title', { code: viewing.code })}
             onClose={() => setViewing(null)}
             hero={
               <>
@@ -451,13 +451,13 @@ export default function Expenses() {
               </>
             }
           >
-            <DrawerSection title="تفاصيل المصروف">
+            <DrawerSection title={t('sec.expense_details')}>
               <DrawerField label={t('col.code')} value={viewing.code} mono />
               <DrawerField label={t('col.category')} value={t(`cat.${String(viewing.category).toLowerCase()}`)} />
               <DrawerField label={t('col.description')} value={viewing.description} />
               <DrawerField label={t('col.amount')} value={<MoneyText value={viewing.amount} />} />
             </DrawerSection>
-            <DrawerSection title="الدفع والمورد">
+            <DrawerSection title={t('sec.payment_supplier')}>
               <DrawerField label={t('field.payment_method')} value={t(`field.exp.payment_method.${String(viewing.paymentMethod ?? 'CASH').toLowerCase()}`)} />
               <DrawerField label={t('field.supplier')} value={viewing.supplier?.name ?? viewing.supplierName ?? '—'} />
               <DrawerField label={t('lbl.inv.billing_period')} value={billingText(viewing)} />
@@ -473,13 +473,13 @@ export default function Expenses() {
       })()}
 
       {fastEntry && <FastMonthlyExpenseDialog onClose={() => setFastEntry(false)} onSaved={load} suppliers={suppliers as { id: number; name: string }[]} />}
-      {creating && <ExpenseForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
-      {editing && <ExpenseForm expense={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ المصروف بنجاح'); load(); }} suppliers={suppliers} />}
+      {creating && <ExpenseForm onClose={() => setCreating(false)} onSaved={() => { toast.ok(t('msg.expense.saved')); load(); }} suppliers={suppliers} />}
+      {editing && <ExpenseForm expense={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok(t('msg.expense.saved')); load(); }} suppliers={suppliers} />}
       {expenseConfirm && (
         <ConfirmModal
-          title={expenseConfirm.action === 'approve' ? 'تأكيد الموافقة' : expenseConfirm.action === 'reject' ? 'تأكيد الرفض' : 'تأكيد الحذف'}
-          message={expenseConfirm.action === 'approve' ? t('msg.confirm_approve') : expenseConfirm.action === 'reject' ? t('msg.confirm_reject') : 'هل أنت متأكد من حذف هذا المصروف؟'}
-          confirmLabel={expenseConfirm.action === 'approve' ? 'موافقة' : expenseConfirm.action === 'reject' ? 'رفض' : 'حذف'}
+          title={expenseConfirm.action === 'approve' ? t('confirm.approve_title') : expenseConfirm.action === 'reject' ? t('confirm.reject_title') : t('confirm.delete_title')}
+          message={expenseConfirm.action === 'approve' ? t('msg.confirm_approve') : expenseConfirm.action === 'reject' ? t('msg.confirm_reject') : t('confirm.delete_expense_msg')}
+          confirmLabel={expenseConfirm.action === 'approve' ? t('lbl.approve_plain') : expenseConfirm.action === 'reject' ? t('action.reject') : t('action.delete')}
           variant={expenseConfirm.action === 'delete' ? 'danger' : 'warning'}
           onConfirm={() => executeExpenseAction(expenseConfirm.id, expenseConfirm.action)}
           onCancel={() => setExpenseConfirm(null)}
@@ -487,15 +487,9 @@ export default function Expenses() {
       )}
       {amendConfirmOpen && viewing && (
         <ConfirmModal
-          title="إلغاء الاعتماد وفتح التعديل"
-          message={
-            'هذا المصروف معتمد ومُرحَّل محاسبيًا.\n\n'
-            + 'للتعديل بأمان سيقوم النظام أولًا بإلغاء الاعتماد وعكس أثره المحاسبي '
-            + '(إنشاء قيد عكسي دون حذف القيد الأصلي)، ثم يعيد المصروف إلى حالة «معلّق».\n\n'
-            + 'بعد التعديل يجب إعادة اعتماد المصروف ليُرحَّل من جديد بالقيمة المحدَّثة.\n\n'
-            + 'هل تريد المتابعة؟'
-          }
-          confirmLabel="إلغاء الاعتماد والتعديل"
+          title={t('confirm.amend_title')}
+          message={t('confirm.amend_message')}
+          confirmLabel={t('action.expense.unapprove_edit')}
           variant="warning"
           onConfirm={executeAmend}
           onCancel={() => setAmendConfirmOpen(false)}
@@ -505,7 +499,7 @@ export default function Expenses() {
         <ForceDeleteExpenseModal
           expenseId={forceDeleteId}
           onClose={() => setForceDeleteId(null)}
-          onDeleted={() => { setForceDeleteId(null); toast.ok('تم الحذف النهائي بنجاح'); load(); }}
+          onDeleted={() => { setForceDeleteId(null); toast.ok(t('msg.force_deleted')); load(); }}
         />
       )}
     </div>
@@ -555,9 +549,9 @@ function ExpenseForm({
 
   async function submit() {
     setError('');
-    if (!description.trim()) { setError('الوصف مطلوب'); return; }
+    if (!description.trim()) { setError(t('error.description_required')); return; }
     const amountNum = Number(amount);
-    if (!amount || isNaN(amountNum) || amountNum <= 0) { setError('المبلغ يجب أن يكون موجبًا'); return; }
+    if (!amount || isNaN(amountNum) || amountNum <= 0) { setError(t('error.amount_positive')); return; }
 
     setSaving(true);
     const payload: Record<string, unknown> = {
@@ -590,8 +584,8 @@ function ExpenseForm({
   return (
     <Dialog
       icon="receipt_long"
-      title={isEdit ? 'تعديل المصروف' : 'مصروف جديد'}
-      subtitle={isEdit ? String(expense?.code ?? '') : 'تسجيل مصروف جديد'}
+      title={isEdit ? t('modal.edit_expense') : t('modal.new_expense')}
+      subtitle={isEdit ? String(expense?.code ?? '') : t('page.expenses.new_subtitle')}
       size="lg"
       onClose={onClose}
       footer={
@@ -603,74 +597,74 @@ function ExpenseForm({
     >
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
 
-      <DialogSection title="المعلومات الأساسية" icon="info">
+      <DialogSection title={t('sec.basic_info')} icon="info">
         <div className="xpl-field">
-          <label>التصنيف <span className="req">*</span></label>
+          <label>{t('field.category')} <span className="req">*</span></label>
           <SearchableSelect
             options={categoryOptions}
             value={category}
             onChange={setCategory}
-            ariaLabel="التصنيف"
-            placeholder="اختر التصنيف…"
-            searchPlaceholder="ابحث في التصنيفات…"
+            ariaLabel={t('field.category')}
+            placeholder={t('ph.select_category')}
+            searchPlaceholder={t('ph.search_categories')}
           />
         </div>
         <div className="xpl-field">
-          <label>المبلغ (د.ك) <span className="req">*</span></label>
-          <input className="xpl-input" type="number" min="0.001" step="0.001" placeholder="0.000" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ direction: 'ltr' }} aria-label="المبلغ" />
+          <label>{t('field.amount_kd')} <span className="req">*</span></label>
+          <input className="xpl-input" type="number" min="0.001" step="0.001" placeholder="0.000" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ direction: 'ltr' }} aria-label={t('col.amount')} />
         </div>
         <div className="xpl-field xpl-field--full">
-          <label>الوصف <span className="req">*</span></label>
-          <input className="xpl-input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="وصف المصروف" aria-label="الوصف" />
+          <label>{t('field.description')} <span className="req">*</span></label>
+          <input className="xpl-input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('ph.expense_description')} aria-label={t('field.description')} />
         </div>
       </DialogSection>
 
-      <DialogSection title="الدفع والتاريخ" icon="payments">
+      <DialogSection title={t('sec.payment_date')} icon="payments">
         <div className="xpl-field">
-          <label>طريقة الدفع</label>
-          <select className="xpl-select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label="طريقة الدفع">
+          <label>{t('field.payment_method')}</label>
+          <select className="xpl-select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label={t('field.payment_method')}>
             {paymentMethodOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <div className="xpl-field">
-          <label>التاريخ</label>
+          <label>{t('field.date')}</label>
           <DateInput className="xpl-input" value={date} onChange={(v) => {
             setDate(v);
             // Derive billing month/year from the canonical YYYY-MM-DD string — no Date/UTC.
             if (v) { const [yy, mm] = v.split('-'); setBillingMonth(Number(mm)); setBillingYear(Number(yy)); }
-          }} ariaLabel="التاريخ" />
+          }} ariaLabel={t('field.date')} />
           <HistoricalDateNotice date={date} />
         </div>
       </DialogSection>
 
-      <DialogSection title="المورد" icon="storefront">
+      <DialogSection title={t('field.supplier_plain')} icon="storefront">
         <div className="xpl-field">
           <label>{t('field.supplier')}</label>
           <select className="xpl-select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} aria-label={t('field.supplier')}>
-            <option value="">— بدون مورد —</option>
+            <option value="">{t('opt.no_supplier')}</option>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {(suppliers as any[]).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            <option value="OTHER">مورد آخر (غير مسجّل)…</option>
+            <option value="OTHER">{t('opt.other_supplier')}</option>
           </select>
         </div>
         {supplierId === 'OTHER' && (
           <div className="xpl-field">
-            <label>اسم المورد</label>
-            <input className="xpl-input" value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="اكتب اسم المورد" aria-label="اسم المورد" />
+            <label>{t('field.supplier_name')}</label>
+            <input className="xpl-input" value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder={t('ph.supplier_name')} aria-label={t('field.supplier_name')} />
           </div>
         )}
       </DialogSection>
 
-      <DialogSection title="الفترة المحاسبية" icon="calendar_month">
+      <DialogSection title={t('sec.billing_period')} icon="calendar_month">
         <div className="xpl-field">
-          <label>شهر الحساب</label>
-          <select className="xpl-select" value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} aria-label="شهر الحساب">
+          <label>{t('field.billing_month')}</label>
+          <select className="xpl-select" value={billingMonth} onChange={(e) => setBillingMonth(Number(e.target.value))} aria-label={t('field.billing_month')}>
             {ARABIC_MONTHS.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
           </select>
         </div>
         <div className="xpl-field">
-          <label>سنة الحساب</label>
-          <select className="xpl-select" value={billingYear} onChange={(e) => setBillingYear(Number(e.target.value))} aria-label="سنة الحساب">
+          <label>{t('field.billing_year')}</label>
+          <select className="xpl-select" value={billingYear} onChange={(e) => setBillingYear(Number(e.target.value))} aria-label={t('field.billing_year')}>
             {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
@@ -679,13 +673,13 @@ function ExpenseForm({
       <DialogSection title={t('field.notes')} icon="sticky_note_2">
         <div className="xpl-field xpl-field--full">
           <label>{t('field.notes')}</label>
-          <textarea className="xpl-textarea" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="ملاحظات (اختياري)" aria-label={t('field.notes')} />
+          <textarea className="xpl-textarea" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder={t('ph.notes_optional')} aria-label={t('field.notes')} />
         </div>
       </DialogSection>
 
       {isEdit && expense?.id != null && (
         <section className="xpl-dialog-section">
-          <div className="xpl-dialog-section-title"><span className="material-symbols-outlined">attach_file</span>المرفقات</div>
+          <div className="xpl-dialog-section-title"><span className="material-symbols-outlined">attach_file</span>{t('sec.attachments')}</div>
           <AttachmentsPanel entityType="EXPENSE" entityId={Number(expense.id as number)} />
         </section>
       )}

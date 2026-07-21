@@ -78,14 +78,14 @@ const FIELDS: { key: string; label: string; group: string; type?: FieldType; opt
 const IDENTITY_FIELDS = FIELDS.filter((f) => f.group === 'company' || f.group === 'finance');
 const BACKUP_FIELDS = FIELDS.filter((f) => f.group === 'backup');
 
-const NAV_SECTIONS: { id: string; icon: string; label: string }[] = [
-  { id: 'sec-identity', icon: 'corporate_fare', label: 'هوية الشركة' },
-  { id: 'sec-holidays', icon: 'event_busy', label: 'العطل الرسمية' },
-  { id: 'sec-backup', icon: 'backup', label: 'النسخ الاحتياطي' },
-  { id: 'sec-signatures', icon: 'draw', label: 'التواقيع' },
-  { id: 'sec-stamp', icon: 'approval', label: 'ختم الشركة' },
-  { id: 'sec-print', icon: 'print', label: 'الطباعة والقوالب' },
-  { id: 'sec-dict', icon: 'translate', label: 'قاموس الترجمة' },
+const NAV_SECTIONS: { id: string; icon: string; labelKey: string }[] = [
+  { id: 'sec-identity', icon: 'corporate_fare', labelKey: 'page.settings.nav.identity' },
+  { id: 'sec-holidays', icon: 'event_busy', labelKey: 'page.settings.nav.holidays' },
+  { id: 'sec-backup', icon: 'backup', labelKey: 'page.settings.nav.backup' },
+  { id: 'sec-signatures', icon: 'draw', labelKey: 'page.settings.nav.signatures' },
+  { id: 'sec-stamp', icon: 'approval', labelKey: 'page.settings.nav.stamp' },
+  { id: 'sec-print', icon: 'print', labelKey: 'page.settings.nav.printing' },
+  { id: 'sec-dict', icon: 'translate', labelKey: 'page.settings.nav.dictionary' },
 ];
 
 /** يطابق Holiday في backend/prisma/schema.prisma (قراءة/كتابة عبر /api/holidays فقط). */
@@ -99,10 +99,10 @@ interface Holiday {
   status?: 'OFFICIAL' | 'EXPECTED_ALOJAIRI' | 'MANUALLY_ADJUSTED';
 }
 
-const HOLIDAY_STATUS_META: Record<string, { label: string; tone: 'green' | 'orange' | 'neutral' }> = {
-  OFFICIAL: { label: 'رسمية', tone: 'green' },
-  EXPECTED_ALOJAIRI: { label: 'متوقَّعة (العجيري)', tone: 'orange' },
-  MANUALLY_ADJUSTED: { label: 'مُعدَّلة يدويًا', tone: 'neutral' },
+const HOLIDAY_STATUS_META: Record<string, { labelKey: string; tone: 'green' | 'orange' | 'neutral' }> = {
+  OFFICIAL: { labelKey: 'page.settings.holiday_status.official', tone: 'green' },
+  EXPECTED_ALOJAIRI: { labelKey: 'page.settings.holiday_status.expected_alojairi', tone: 'orange' },
+  MANUALLY_ADJUSTED: { labelKey: 'page.settings.holiday_status.manually_adjusted', tone: 'neutral' },
 };
 
 /** سنوات مختارة للتوليد — السنة الحالية والقادمتان (الأكثر فائدة عمليًا). */
@@ -121,12 +121,14 @@ function DictTable({
   query,
   modifiedOnly,
   baseMap,
+  t,
 }: {
   rows: { ar: string; en: string }[];
   setRows: React.Dispatch<React.SetStateAction<{ ar: string; en: string }[]>>;
   query: string;
   modifiedOnly: boolean;
   baseMap: Record<string, string>;
+  t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   const tbodyRef = useRef<HTMLTableSectionElement>(null);
   const filtering = modifiedOnly || query.trim().length > 0;
@@ -166,9 +168,9 @@ function DictTable({
         <table className="settings-dict-table">
           <thead>
             <tr>
-              <th className="settings-dict-ar" style={{ width: '45%' }}>عربي</th>
+              <th className="settings-dict-ar" style={{ width: '45%' }}>{t('page.settings.dict.col_ar')}</th>
               <th className="settings-dict-en" style={{ width: '45%' }}>English</th>
-              <th className="settings-dict-actions" aria-label="حذف"></th>
+              <th className="settings-dict-actions" aria-label={t('action.delete')}></th>
             </tr>
           </thead>
           <tbody ref={tbodyRef}>
@@ -178,7 +180,7 @@ function DictTable({
                   <input
                     value={row.ar}
                     onChange={(e) => setRows((prev) => prev.map((r, j) => j === i ? { ...r, ar: e.target.value } : r))}
-                    title="الجنسية أو المسمى بالعربي"
+                    title={t('page.settings.dict.title_ar')}
                   />
                 </td>
                 <td className="settings-dict-en">
@@ -193,8 +195,8 @@ function DictTable({
                     type="button"
                     className="settings-dict-del"
                     onClick={() => setRows((prev) => prev.filter((_, j) => j !== i))}
-                    title="حذف"
-                    aria-label="حذف الصف"
+                    title={t('action.delete')}
+                    aria-label={t('page.settings.dict.delete_row_aria')}
                   >
                     <span className="material-symbols-outlined" aria-hidden="true">delete</span>
                   </button>
@@ -204,7 +206,7 @@ function DictTable({
             {visible.length === 0 && (
               <tr>
                 <td colSpan={3} className="settings-dict-empty">
-                  لا توجد نتائج مطابقة
+                  {t('msg.no_results')}
                 </td>
               </tr>
             )}
@@ -218,7 +220,7 @@ function DictTable({
           onClick={addRow}
         >
           <span className="material-symbols-outlined" aria-hidden="true">add</span>
-          إضافة صف
+          {t('page.settings.dict.add_row')}
         </button>
       )}
     </>
@@ -309,7 +311,7 @@ export default function Settings() {
       setHolidays((prev) => [...prev, created].sort((a, b) => a.date.localeCompare(b.date)));
       setNewHolidayDate('');
       setNewHolidayName('');
-      toast.ok('تمت إضافة العطلة بنجاح');
+      toast.ok(t('msg.settings.holiday_added'));
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -322,7 +324,7 @@ export default function Settings() {
     try {
       await api.delete(`/holidays/${id}`);
       setHolidays((prev) => prev.filter((h) => h.id !== id));
-      toast.ok('تم حذف العطلة');
+      toast.ok(t('msg.settings.holiday_deleted'));
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -365,7 +367,7 @@ export default function Settings() {
         ],
       });
       applyTranslationOverrides(natMap, jobMap);
-      toast.ok('تم حفظ قاموس الترجمة');
+      toast.ok(t('msg.settings.dict_saved'));
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -391,12 +393,12 @@ export default function Settings() {
         const dataUrl = canvas.toDataURL('image/png');
         const MAX_B64_BYTES = 300 * 1024;
         if (dataUrl.length > MAX_B64_BYTES) {
-          reject(new Error('حجم الصورة بعد المعالجة كبير جداً (الحد الأقصى 300KB). استخدم صورة أصغر.'));
+          reject(new Error(t('msg.settings.image_too_large_processed')));
           return;
         }
         resolve(dataUrl);
       };
-      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('فشل تحميل الصورة')); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(t('msg.settings.image_load_failed'))); };
       img.src = url;
     });
   }
@@ -408,16 +410,16 @@ export default function Settings() {
   async function handleStampUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { setBrandingError('يرجى اختيار ملف صورة'); return; }
-    if (file.size > 1_048_576) { setBrandingError('حجم الصورة يتجاوز 1 ميغابايت'); return; }
+    if (!file.type.startsWith('image/')) { setBrandingError(t('msg.settings.select_image_file')); return; }
+    if (file.size > 1_048_576) { setBrandingError(t('msg.settings.image_exceeds_1mb')); return; }
     setBrandingError('');
     setBrandingSaving(true);
     try {
       const dataUrl = await resizeImage(file, 400, 400);
       setValues(p => ({ ...p, 'print.stampImage': dataUrl }));
       await saveBrandingKey('print.stampImage', dataUrl);
-      toast.ok('تم حفظ الختم');
-    } catch (err) { setBrandingError(err instanceof Error ? err.message : 'فشل رفع الختم'); }
+      toast.ok(t('msg.settings.stamp_saved'));
+    } catch (err) { setBrandingError(err instanceof Error ? err.message : t('msg.settings.stamp_upload_failed')); }
     finally { setBrandingSaving(false); e.target.value = ''; }
   }
 
@@ -428,10 +430,10 @@ export default function Settings() {
       const serialized = serializeBrandingLayout(layout);
       await saveBrandingKey('print.brandingLayout', serialized);
       setBrandingLayout(layout);
-      toast.ok('تم حفظ إعدادات معايرة التوقيع والختم');
+      toast.ok(t('msg.settings.calibration_saved'));
       setDesignerOpen(false);
     } catch {
-      setBrandingError('فشل حفظ إعدادات المعايرة');
+      setBrandingError(t('msg.settings.calibration_save_failed'));
     } finally {
       setBrandingSaving(false);
     }
@@ -442,8 +444,8 @@ export default function Settings() {
     try {
       setValues(p => ({ ...p, 'print.stampImage': '' }));
       await saveBrandingKey('print.stampImage', '');
-      toast.ok('تم حذف الختم');
-    } catch { setBrandingError('فشل حذف الختم'); }
+      toast.ok(t('msg.settings.stamp_deleted'));
+    } catch { setBrandingError(t('msg.settings.stamp_delete_failed')); }
     finally { setBrandingSaving(false); }
   }
 
@@ -478,15 +480,15 @@ export default function Settings() {
   async function handleSigFileUpload(id: string, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { setBrandingError('يرجى اختيار ملف صورة'); return; }
-    if (file.size > 1_048_576) { setBrandingError('حجم الصورة يتجاوز 1 ميغابايت'); return; }
+    if (!file.type.startsWith('image/')) { setBrandingError(t('msg.settings.select_image_file')); return; }
+    if (file.size > 1_048_576) { setBrandingError(t('msg.settings.image_exceeds_1mb')); return; }
     setBrandingError('');
     setBrandingSaving(true);
     try {
       const dataUrl = await resizeImage(file, 500, 250);
       setSignatures((prev) => prev.map((s) => s.id === id ? { ...s, imageUrl: dataUrl } : s));
     } catch (err) {
-      setBrandingError(err instanceof Error ? err.message : 'فشل رفع التوقيع');
+      setBrandingError(err instanceof Error ? err.message : t('msg.settings.signature_upload_failed'));
     } finally {
       setBrandingSaving(false);
       e.target.value = '';
@@ -591,45 +593,45 @@ export default function Settings() {
 
       {/* ── Status metrics (existing state only) ── */}
       <div className="settings-metrics">
-        <MetricCard icon="translate" tone="indigo" label="لغة الواجهة" value={lang === 'ar' ? 'العربية' : 'English'} />
+        <MetricCard icon="translate" tone="indigo" label={t('page.settings.language')} value={lang === 'ar' ? 'العربية' : 'English'} />
         <MetricCard
           icon="backup"
           tone={backupEnabled ? 'green' : 'neutral'}
-          label="النسخ الاحتياطي"
-          value={backupEnabled ? 'مفعّل' : 'متوقف'}
-          sub={backupEnabled ? `يومياً · ${backupTime}` : undefined}
+          label={t('page.settings.nav.backup')}
+          value={backupEnabled ? t('page.settings.status.enabled') : t('page.settings.status.disabled')}
+          sub={backupEnabled ? t('page.settings.backup.daily_at', { time: backupTime ?? '' }) : undefined}
         />
-        <MetricCard icon="draw" tone="blue" label="عدد التواقيع" value={signatures.length} sub={`${visibleSigs} يظهر في المستندات`} />
+        <MetricCard icon="draw" tone="blue" label={t('page.settings.signature_count')} value={signatures.length} sub={t('page.settings.signatures_visible_count', { n: visibleSigs })} />
         <MetricCard
           icon="approval"
           tone={hasStamp ? 'green' : 'neutral'}
-          label="الختم"
-          value={hasStamp ? 'مُحمَّل' : 'غير مُحمَّل'}
-          sub={hasStamp ? (stampVisible ? 'يظهر في المستندات' : 'مخفي') : undefined}
+          label={t('page.settings.stamp_label')}
+          value={hasStamp ? t('page.settings.stamp.loaded') : t('page.settings.stamp.not_loaded')}
+          sub={hasStamp ? (stampVisible ? t('page.settings.visible_in_documents') : t('page.settings.hidden')) : undefined}
         />
         <MetricCard
           icon="dashboard_customize"
           tone="orange"
           label="Template Studio"
-          value="فتح"
+          value={t('page.settings.open')}
           onClick={() => setStudioOpen(true)}
-          ariaLabel="فتح Template Studio"
+          ariaLabel={t('page.settings.open_template_studio_aria')}
         />
       </div>
 
       {/* ── Sticky in-page navigation ── */}
-      <nav className="settings-nav" aria-label="التنقل داخل الإعدادات">
+      <nav className="settings-nav" aria-label={t('page.settings.nav_aria')}>
         {NAV_SECTIONS.map((n) => (
           <button key={n.id} type="button" className="settings-nav-item" onClick={() => scrollToSection(n.id)}>
             <span className="material-symbols-outlined" aria-hidden="true">{n.icon}</span>
-            {n.label}
+            {t(n.labelKey)}
           </button>
         ))}
       </nav>
 
       {/* ── 1 · Company identity ── */}
       <div id="sec-identity" className="settings-section">
-        <SectionCard title="هوية الشركة" icon="corporate_fare">
+        <SectionCard title={t('page.settings.nav.identity')} icon="corporate_fare">
           <div className="form-grid">
             {IDENTITY_FIELDS.map(renderField)}
             <div className="field">
@@ -646,7 +648,7 @@ export default function Settings() {
       {/* ── 1a · Official holidays (Article 70 — excluded from annual leave day counts) ── */}
       <div id="sec-holidays" className="settings-section">
         <SectionCard
-          title="العطل الرسمية"
+          title={t('page.settings.nav.holidays')}
           icon="event_busy"
           actions={
             canManageHolidays ? (
@@ -655,25 +657,25 @@ export default function Settings() {
                   className="settings-generate-year"
                   value={generateYear}
                   onChange={(e) => setGenerateYear(Number(e.target.value))}
-                  aria-label="سنة التوليد"
+                  aria-label={t('page.settings.holidays.generate_year_aria')}
                 >
                   {generatableYears().map((y) => <option key={y} value={y}>{y}</option>)}
                 </select>
                 <Button variant="secondary" icon="event_repeat" onClick={() => setShowGenerateDialog(true)}>
-                  توليد العطل
+                  {t('page.settings.holidays.generate_btn')}
                 </Button>
               </div>
             ) : undefined
           }
         >
           <p className="settings-dict-desc">
-            العطل الرسمية المسجّلة هنا تُستثنى تلقائيًا من عدّ أيام الإجازة السنوية المستهلكة عند وقوعها داخل فترة إجازة معتمدة (المادة 70).
+            {t('page.settings.holidays.explanation')}
           </p>
 
           {canManageHolidays && (
             <div className="form-grid" style={{ marginBottom: 12 }}>
               <div className="field">
-                <label htmlFor="new-holiday-date">التاريخ</label>
+                <label htmlFor="new-holiday-date">{t('col.date')}</label>
                 <input
                   id="new-holiday-date"
                   type="date"
@@ -682,12 +684,12 @@ export default function Settings() {
                 />
               </div>
               <div className="field">
-                <label htmlFor="new-holiday-name">اسم العطلة</label>
+                <label htmlFor="new-holiday-name">{t('page.settings.holidays.name_label')}</label>
                 <input
                   id="new-holiday-name"
                   value={newHolidayName}
                   onChange={(e) => setNewHolidayName(e.target.value)}
-                  placeholder="مثال: اليوم الوطني"
+                  placeholder={t('page.settings.holidays.name_placeholder')}
                 />
               </div>
               <div className="field" style={{ alignSelf: 'end' }}>
@@ -698,25 +700,25 @@ export default function Settings() {
                   disabled={!newHolidayDate || !newHolidayName.trim()}
                   onClick={addHoliday}
                 >
-                  إضافة عطلة
+                  {t('page.settings.holidays.add_btn')}
                 </Button>
               </div>
             </div>
           )}
 
           {holidaysLoading ? (
-            <p className="settings-dict-desc">جارٍ التحميل...</p>
+            <p className="settings-dict-desc">{t('page.settings.holidays.loading')}</p>
           ) : holidays.length === 0 ? (
-            <p className="settings-dict-desc">لا توجد عطل رسمية مسجّلة بعد.</p>
+            <p className="settings-dict-desc">{t('page.settings.holidays.empty')}</p>
           ) : (
             <div className="settings-dict-grid">
               <table className="settings-dict-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '20%' }}>التاريخ</th>
-                    <th style={{ width: '40%' }}>الاسم</th>
-                    <th style={{ width: '20%' }}>الحالة</th>
-                    {canManageHolidays && <th className="settings-dict-actions" aria-label="حذف"></th>}
+                    <th style={{ width: '20%' }}>{t('col.date')}</th>
+                    <th style={{ width: '40%' }}>{t('page.settings.holidays.name_col')}</th>
+                    <th style={{ width: '20%' }}>{t('col.status')}</th>
+                    {canManageHolidays && <th className="settings-dict-actions" aria-label={t('action.delete')}></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -726,7 +728,7 @@ export default function Settings() {
                     <tr key={h.id}>
                       <td>{h.date.slice(0, 10)}</td>
                       <td>{h.name}</td>
-                      <td>{statusMeta ? <StatusChip tone={statusMeta.tone} icon="verified">{statusMeta.label}</StatusChip> : '—'}</td>
+                      <td>{statusMeta ? <StatusChip tone={statusMeta.tone} icon="verified">{t(statusMeta.labelKey)}</StatusChip> : '—'}</td>
                       {canManageHolidays && (
                         <td className="settings-dict-actions">
                           <button
@@ -734,8 +736,8 @@ export default function Settings() {
                             className="settings-dict-del"
                             onClick={() => removeHoliday(h.id)}
                             disabled={holidaySaving}
-                            title="حذف"
-                            aria-label="حذف العطلة"
+                            title={t('action.delete')}
+                            aria-label={t('page.settings.holidays.delete_aria')}
                           >
                             <span className="material-symbols-outlined" aria-hidden="true">delete</span>
                           </button>
@@ -759,11 +761,11 @@ export default function Settings() {
       {/* ── 2 · Backup settings ── */}
       <div id="sec-backup" className="settings-section">
         <SectionCard
-          title="النسخ الاحتياطي"
+          title={t('page.settings.nav.backup')}
           icon="backup"
           actions={
             <StatusChip tone={backupEnabled ? 'green' : 'neutral'} icon={backupEnabled ? 'check_circle' : 'pause_circle'}>
-              {backupEnabled ? `مفعّل يومياً · ${backupTime}` : 'غير مفعّل'}
+              {backupEnabled ? t('page.settings.backup.enabled_daily', { time: backupTime ?? '' }) : t('page.settings.backup.disabled')}
             </StatusChip>
           }
         >
@@ -776,17 +778,17 @@ export default function Settings() {
       {/* ── 3 · Signatures ── */}
       <div id="sec-signatures" className="settings-section">
         <SectionCard
-          title="التواقيع"
+          title={t('page.settings.nav.signatures')}
           icon="draw"
           actions={
             <Button variant="secondary" icon="add" small onClick={addSignature} disabled={brandingSaving}>
-              إضافة توقيع
+              {t('page.settings.signatures.add_btn')}
             </Button>
           }
         >
           {signatures.length === 0 && (
             <p className="settings-dict-desc">
-              لا توجد توقيعات — انقر «إضافة توقيع» لإضافة الأول.
+              {t('page.settings.signatures.empty_hint')}
             </p>
           )}
 
@@ -797,12 +799,12 @@ export default function Settings() {
             >
               {/* Card header */}
               <div className="settings-sig-head">
-                <span className="settings-sig-index">توقيع {idx + 1}</span>
+                <span className="settings-sig-index">{t('page.settings.signatures.index_label', { n: idx + 1 })}</span>
                 {sig.isDefault && (
-                  <span className="settings-sig-default-badge">افتراضي</span>
+                  <span className="settings-sig-default-badge">{t('page.settings.default_badge')}</span>
                 )}
                 <StatusChip tone={sig.show ? 'green' : 'neutral'} icon={sig.show ? 'visibility' : 'visibility_off'}>
-                  {sig.show ? 'يظهر في المستندات' : 'مخفي'}
+                  {sig.show ? t('page.settings.visible_in_documents') : t('page.settings.hidden')}
                 </StatusChip>
                 <div className="settings-sig-spacer" />
                 {!sig.isDefault && (
@@ -812,7 +814,7 @@ export default function Settings() {
                     onClick={() => setAsDefault(sig.id)}
                     disabled={brandingSaving}
                   >
-                    تعيين كافتراضي
+                    {t('page.settings.set_default_btn')}
                   </button>
                 )}
                 <button
@@ -821,26 +823,26 @@ export default function Settings() {
                   onClick={() => removeSignature(sig.id)}
                   disabled={brandingSaving}
                 >
-                  حذف
+                  {t('action.delete')}
                 </button>
               </div>
 
               {/* Meta fields */}
               <div className="settings-sig-meta">
                 <div className="field">
-                  <label>الاسم (اختياري)</label>
+                  <label>{t('page.settings.signatures.name_label')}</label>
                   <input
                     value={sig.name}
                     onChange={(e) => updateSigField(sig.id, 'name', e.target.value)}
-                    placeholder="مثال: المدير العام"
+                    placeholder={t('page.settings.signatures.name_placeholder')}
                   />
                 </div>
                 <div className="field">
-                  <label>المسمى الوظيفي (اختياري)</label>
+                  <label>{t('page.settings.signatures.title_label')}</label>
                   <input
                     value={sig.title}
                     onChange={(e) => updateSigField(sig.id, 'title', e.target.value)}
-                    placeholder="مثال: General Manager"
+                    placeholder={t('page.settings.signatures.title_placeholder')}
                   />
                 </div>
               </div>
@@ -849,8 +851,8 @@ export default function Settings() {
                   dimensions are untouched: object-fit scales the view, not the image. */}
               <div className="settings-media-stage">
                 {sig.imageUrl
-                  ? <img src={sig.imageUrl} alt={`توقيع ${idx + 1}`} />
-                  : <span className="settings-media-stage--empty">لا توجد صورة توقيع</span>}
+                  ? <img src={sig.imageUrl} alt={t('page.settings.signatures.index_label', { n: idx + 1 })} />
+                  : <span className="settings-media-stage--empty">{t('page.settings.signatures.no_image')}</span>}
               </div>
 
               {/* Image row */}
@@ -868,7 +870,7 @@ export default function Settings() {
                   onClick={() => sigFileRefs.current[sig.id]?.click()}
                   disabled={brandingSaving}
                 >
-                  {sig.imageUrl ? 'تغيير الصورة' : 'رفع صورة'}
+                  {sig.imageUrl ? t('page.settings.change_image') : t('page.settings.upload_image')}
                 </button>
                 <label className="branding-toggle-label">
                   <input
@@ -876,7 +878,7 @@ export default function Settings() {
                     checked={sig.show}
                     onChange={() => toggleSigShow(sig.id)}
                   />
-                  إظهار في المستندات
+                  {t('page.settings.show_in_documents')}
                 </label>
               </div>
             </div>
@@ -891,19 +893,19 @@ export default function Settings() {
       {/* ── 4 · Company stamp ── */}
       <div id="sec-stamp" className="settings-section">
         <SectionCard
-          title="ختم الشركة"
+          title={t('page.settings.nav.stamp')}
           icon="approval"
           actions={
             <StatusChip tone={hasStamp ? (stampVisible ? 'green' : 'orange') : 'neutral'} icon={hasStamp ? 'approval' : 'block'}>
-              {hasStamp ? (stampVisible ? 'يظهر في المستندات' : 'مخفي') : 'غير مُحمّل'}
+              {hasStamp ? (stampVisible ? t('page.settings.visible_in_documents') : t('page.settings.hidden')) : t('page.settings.stamp.not_loaded_status')}
             </StatusChip>
           }
         >
           {/* Stamp stage — display only; the uploaded file keeps its real size. */}
           <div className="settings-media-stage settings-stamp-stage">
             {values['print.stampImage']
-              ? <img src={values['print.stampImage']} alt="ختم الشركة" />
-              : <span className="settings-media-stage--empty">لا يوجد ختم مُحمَّل</span>}
+              ? <img src={values['print.stampImage']} alt={t('page.settings.nav.stamp')} />
+              : <span className="settings-media-stage--empty">{t('page.settings.stamp.no_image')}</span>}
           </div>
 
           <div className="settings-media-row">
@@ -920,7 +922,7 @@ export default function Settings() {
               onClick={() => stmpInputRef.current?.click()}
               disabled={brandingSaving}
             >
-              {values['print.stampImage'] ? 'تغيير الختم' : 'رفع الختم'}
+              {values['print.stampImage'] ? t('page.settings.change_stamp') : t('page.settings.upload_stamp')}
             </button>
             {values['print.stampImage'] && (
               <button
@@ -929,7 +931,7 @@ export default function Settings() {
                 onClick={handleDeleteStamp}
                 disabled={brandingSaving}
               >
-                حذف الختم
+                {t('page.settings.delete_stamp')}
               </button>
             )}
             <label className="branding-toggle-label">
@@ -938,10 +940,10 @@ export default function Settings() {
                 checked={(values['print.showStamp'] ?? 'true') !== 'false'}
                 onChange={(e) => setValues(p => ({ ...p, 'print.showStamp': e.target.checked ? 'true' : 'false' }))}
               />
-              إظهار الختم في المستندات
+              {t('page.settings.show_stamp_in_documents')}
             </label>
           </div>
-          {brandingError && brandingError.includes('ختم') && (
+          {brandingError && (brandingError.includes('ختم') || brandingError.toLowerCase().includes('stamp')) && (
             <div className="branding-error">{brandingError}</div>
           )}
         </SectionCard>
@@ -949,10 +951,10 @@ export default function Settings() {
 
       {/* ── 5 · Print & Template Studio ── */}
       <div id="sec-print" className="settings-section">
-        <SectionCard title="الطباعة والقوالب" icon="print">
+        <SectionCard title={t('page.settings.nav.printing')} icon="print">
           <div className="settings-print-row branding-row-controls">
             <div className="branding-row-label" style={{ marginBottom: 0, flex: 1, minWidth: 180 }}>
-              معايرة موضع التوقيع والختم على المستندات المطبوعة
+              {t('page.settings.calibration_label')}
             </div>
             <button
               type="button"
@@ -960,7 +962,7 @@ export default function Settings() {
               onClick={() => setDesignerOpen(true)}
               disabled={brandingSaving}
             >
-              معايرة التوقيع والختم
+              {t('page.settings.calibrate_btn')}
             </button>
           </div>
 
@@ -970,10 +972,10 @@ export default function Settings() {
             </div>
             <div className="settings-studio-body">
               <p className="settings-studio-title">Template Studio</p>
-              <p className="settings-studio-desc">بناء قوالب طباعة مخصصة بدون برمجة.</p>
+              <p className="settings-studio-desc">{t('page.settings.studio_desc')}</p>
             </div>
             <Button variant="primary" icon="open_in_new" onClick={() => setStudioOpen(true)}>
-              فتح Template Studio
+              {t('page.settings.open_template_studio_aria')}
             </Button>
           </div>
         </SectionCard>
@@ -982,21 +984,21 @@ export default function Settings() {
       {/* ── 6 · Translation dictionary ── */}
       <div id="sec-dict" className="settings-section">
         <SectionCard
-          title="قاموس الترجمة"
+          title={t('page.settings.nav.dictionary')}
           icon="translate"
           actions={
             <Button variant="primary" icon="save" busy={dictSaving} onClick={saveDict}>
-              حفظ القاموس
+              {t('page.settings.dict.save_btn')}
             </Button>
           }
         >
           <p className="settings-dict-desc">
-            ترجمات الجنسيات والمسميات الوظيفية المستخدمة في عقود العمل
+            {t('page.settings.dict.desc')}
           </p>
 
           {/* Tabs */}
           <div className="settings-dict-tabs">
-            {([['nat', 'الجنسيات'], ['job', 'المسميات الوظيفية']] as const).map(([key, label]) => (
+            {([['nat', t('page.settings.dict.tab_nationalities')], ['job', t('page.settings.dict.tab_job_titles')]] as const).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
@@ -1010,16 +1012,16 @@ export default function Settings() {
 
           {/* Search + filter toolbar */}
           <div className="settings-dict-toolbar">
-            <SearchBox value={dictSearch} onChange={setDictSearch} placeholder="ابحث في القاموس (عربي أو English)..." ariaLabel="بحث في القاموس" />
-            <FilterChip active={!dictModifiedOnly} onClick={() => setDictModifiedOnly(false)}>الكل</FilterChip>
-            <FilterChip active={dictModifiedOnly} onClick={() => setDictModifiedOnly(true)} icon="edit">المعدلة فقط</FilterChip>
+            <SearchBox value={dictSearch} onChange={setDictSearch} placeholder={t('page.settings.dict.search_placeholder')} ariaLabel={t('page.settings.dict.search_aria')} />
+            <FilterChip active={!dictModifiedOnly} onClick={() => setDictModifiedOnly(false)}>{t('page.settings.dict.filter_all')}</FilterChip>
+            <FilterChip active={dictModifiedOnly} onClick={() => setDictModifiedOnly(true)} icon="edit">{t('page.settings.dict.filter_modified')}</FilterChip>
             <span className="settings-dict-count">{dictVisible} / {dictRows.length}</span>
           </div>
 
           {/* Dictionary Table */}
           {dictTab === 'nat'
-            ? <DictTable rows={natDict} setRows={setNatDict} query={dictSearch} modifiedOnly={dictModifiedOnly} baseMap={BASE_NATIONALITY_EN} />
-            : <DictTable rows={jobDict} setRows={setJobDict} query={dictSearch} modifiedOnly={dictModifiedOnly} baseMap={BASE_JOB_TITLE_EN} />
+            ? <DictTable rows={natDict} setRows={setNatDict} query={dictSearch} modifiedOnly={dictModifiedOnly} baseMap={BASE_NATIONALITY_EN} t={t} />
+            : <DictTable rows={jobDict} setRows={setJobDict} query={dictSearch} modifiedOnly={dictModifiedOnly} baseMap={BASE_JOB_TITLE_EN} t={t} />
           }
         </SectionCard>
       </div>

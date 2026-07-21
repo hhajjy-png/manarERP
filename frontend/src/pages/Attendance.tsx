@@ -105,7 +105,7 @@ function AttendanceFormBody({ form, setForm, employeeList, isEdit }: {
         </DialogSection>
       )}
 
-      <DialogSection title="الحضور" icon="event">
+      <DialogSection title={t('perm.module.attendance')} icon="event">
         <div className="xpl-field">
           <label>{t('field.date')} <span className="req">*</span></label>
           <DateInput className="xpl-input" required value={form.date} onChange={(v) => setForm({ ...form, date: v })} disabled={isEdit} autoFocus={!isEdit} ariaLabel={t('field.date')} />
@@ -121,7 +121,7 @@ function AttendanceFormBody({ form, setForm, employeeList, isEdit }: {
         </div>
       </DialogSection>
 
-      <DialogSection title="ساعات العمل" icon="schedule">
+      <DialogSection title={t('field.att.work_hours')} icon="schedule">
         <div className="xpl-field">
           <label>{t('field.att.check_in')}</label>
           <input className="xpl-input" type="time" value={form.checkIn} onChange={(e) => setForm({ ...form, checkIn: e.target.value })} aria-label={t('field.att.check_in')} />
@@ -133,7 +133,7 @@ function AttendanceFormBody({ form, setForm, employeeList, isEdit }: {
         {form.checkIn && form.checkOut && (
           <div className="xpl-field xpl-field--full">
             <label>{t('field.att.work_hours')}</label>
-            <div className="attx-computed"><span className="material-symbols-outlined">timer</span>{computedHours != null ? `${computedHours} ساعة` : '—'}</div>
+            <div className="attx-computed"><span className="material-symbols-outlined">timer</span>{computedHours != null ? t('unit.att.hours', { n: computedHours }) : '—'}</div>
           </div>
         )}
       </DialogSection>
@@ -228,7 +228,7 @@ export default function Attendance() {
       });
       setShowCreate(false);
       setCreateForm(EMPTY_FORM);
-      toast.ok('تم التسجيل بنجاح');
+      toast.ok(t('msg.att.created'));
       load();
     } catch (e) {
       setFormError(errorMessage(e));
@@ -267,7 +267,7 @@ export default function Attendance() {
         notes: editForm.notes || undefined,
       });
       setEditRecord(null);
-      toast.ok('تم الحفظ بنجاح');
+      toast.ok(t('msg.att.saved'));
       load();
     } catch (e) {
       setFormError(errorMessage(e));
@@ -283,7 +283,7 @@ export default function Attendance() {
       await api.delete(`/employees/attendance/${deleteTarget.id}`);
       setDeleteTarget(null);
       setViewing(null);
-      toast.ok('تم الحذف بنجاح');
+      toast.ok(t('msg.att.deleted'));
       load();
     } catch (e) {
       setError(errorMessage(e));
@@ -321,16 +321,16 @@ export default function Attendance() {
         subtitle={t('page.att.subtitle')}
         chips={
           <>
-            <IdChip icon="event_available" tone="indigo">{stats.total} سجل</IdChip>
-            <IdChip icon="check_circle" tone="green">{stats.present} حاضر</IdChip>
-            {stats.absent > 0 && <IdChip icon="cancel" tone="red">{stats.absent} غائب</IdChip>}
+            <IdChip icon="event_available" tone="indigo">{t('unit.att.records', { n: stats.total })}</IdChip>
+            <IdChip icon="check_circle" tone="green">{stats.present} {t('opt.att.present')}</IdChip>
+            {stats.absent > 0 && <IdChip icon="cancel" tone="red">{stats.absent} {t('opt.att.absent')}</IdChip>}
           </>
         }
         aside={hasPermission('attendance.create') ? <Button variant="primary" icon="add" onClick={() => { setShowCreate(true); setCreateForm(EMPTY_FORM); setFormError(''); }}>{t('action.att.create')}</Button> : undefined}
       />
 
       <div className="attx-metrics">
-        <HeroMetric icon="fact_check" label={t('stat.att.total')} value={stats.total} sub={<><span className="material-symbols-outlined">check_circle</span>{`${stats.present} حاضر`}</>} />
+        <HeroMetric icon="fact_check" label={t('stat.att.total')} value={stats.total} sub={<><span className="material-symbols-outlined">check_circle</span>{`${stats.present} ${t('opt.att.present')}`}</>} />
         <div className="xpl-kpi-grid">
           <MetricCard icon="check_circle" tone="green" label={t('stat.att.present')} value={stats.present} />
           <MetricCard icon="cancel" tone="red" label={t('stat.att.absent')} value={stats.absent} />
@@ -365,7 +365,7 @@ export default function Attendance() {
             <FilterChip key={s.value} active={filterStatus === s.value} onClick={() => { setFilterStatus(s.value); setPage(1); }}>{s.label}</FilterChip>
           ))}
           {hasFilters && <button type="button" className="xpl-clear-link" onClick={() => { setSearch(''); setFilterEmployee(''); setFilterStatus(''); setFilterDateFrom(''); setFilterDateTo(''); sort.reset(); setPage(1); }}>{t('action.reset_filters')}</button>}
-          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} نتيجة</span>
+          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} {t('page.reports.results_count')}</span>
         </div>
       </div>
 
@@ -377,7 +377,7 @@ export default function Attendance() {
           <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
         ) : rows.length === 0 ? (
           <EmptyState icon="event_busy" tone="neutral" title={t('empty.att.records')}
-            message={hasFilters ? 'لا توجد سجلات مطابقة للفلاتر.' : undefined}
+            message={hasFilters ? t('msg.att.no_filtered_records') : undefined}
             action={hasPermission('attendance.create') ? <Button variant="primary" icon="add" onClick={() => { setShowCreate(true); setCreateForm(EMPTY_FORM); setFormError(''); }}>{t('action.att.create')}</Button> : undefined} />
         ) : (
           <>
@@ -391,20 +391,20 @@ export default function Attendance() {
                     <SortableHeader label={t('col.att.check_out')} title={t('col.att.check_out')} state={sort.getState('checkOut')} onToggle={() => sort.toggle('checkOut')} />
                     <SortableHeader label={t('col.att.work_hours')} title={t('col.att.work_hours')} state={sort.getState('workHours')} onToggle={() => sort.toggle('workHours')} />
                     <SortableHeader label={t('field.status')} title={t('field.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
-                    <th aria-label="فتح" />
+                    <th aria-label={t('aria.att.open_row')} />
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
-                      aria-label={`تفاصيل حضور ${r.employee?.fullName ?? r.employeeId}`}
+                      aria-label={t('aria.att.row_details', { name: r.employee?.fullName ?? r.employeeId })}
                       onClick={() => setViewing(r)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                       <td><strong>{r.employee ? r.employee.fullName : r.employeeId}</strong></td>
                       <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
                       <td className="attx-time">{timeText(r.checkIn)}</td>
                       <td className="attx-time">{timeText(r.checkOut)}</td>
-                      <td>{r.workHours != null ? `${r.workHours} ساعة` : '—'}</td>
+                      <td>{r.workHours != null ? t('unit.att.hours', { n: r.workHours }) : '—'}</td>
                       <td>{statusChip(r.status, t)}</td>
                       <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
                     </tr>
@@ -439,17 +439,17 @@ export default function Attendance() {
             </>
           }
         >
-          <DrawerSection title="بيانات الموظف">
+          <DrawerSection title={t('section.att.employee_data')}>
             <DrawerField label={t('col.att.employee')} value={viewing.employee ? `${viewing.employee.fullName} (${viewing.employee.code})` : viewing.employeeId} />
             <DrawerField label={t('field.date')} value={dateText(viewing.date)} />
             <DrawerField label={t('field.status')} value={statusChip(viewing.status, t)} />
           </DrawerSection>
-          <DrawerSection title="ساعات العمل">
+          <DrawerSection title={t('field.att.work_hours')}>
             <DrawerField label={t('col.att.check_in')} value={timeText(viewing.checkIn)} />
             <DrawerField label={t('col.att.check_out')} value={timeText(viewing.checkOut)} />
-            <DrawerField label={t('col.att.work_hours')} value={viewing.workHours != null ? `${viewing.workHours} ساعة` : '—'} />
+            <DrawerField label={t('col.att.work_hours')} value={viewing.workHours != null ? t('unit.att.hours', { n: viewing.workHours }) : '—'} />
           </DrawerSection>
-          <DrawerSection title="معلومات إضافية">
+          <DrawerSection title={t('section.att.additional_info')}>
             <DrawerField label={t('col.created_at')} value={dateText(viewing.createdAt)} />
             {viewing.notes && <DrawerField label={t('field.notes')} value={viewing.notes} />}
           </DrawerSection>
@@ -461,7 +461,7 @@ export default function Attendance() {
         <Dialog
           icon="add_task"
           title={t('modal.att.create_title')}
-          subtitle="تسجيل حضور جديد"
+          subtitle={t('modal.att.create_title')}
           size="lg"
           onClose={createGuardClose}
           footer={
@@ -514,10 +514,10 @@ export default function Attendance() {
         />
       )}
       {showCreateUnsaved && (
-        <ConfirmModal title="تغييرات غير محفوظة" message={t('msg.unsaved_changes')} confirmLabel="تجاهل" variant="warning" onConfirm={executeCreateClose} onCancel={() => setShowCreateUnsaved(false)} />
+        <ConfirmModal title={t('msg.att.unsaved_title')} message={t('msg.unsaved_changes')} confirmLabel={t('action.att.discard')} variant="warning" onConfirm={executeCreateClose} onCancel={() => setShowCreateUnsaved(false)} />
       )}
       {showEditUnsaved && (
-        <ConfirmModal title="تغييرات غير محفوظة" message={t('msg.unsaved_changes')} confirmLabel="تجاهل" variant="warning" onConfirm={executeEditClose} onCancel={() => setShowEditUnsaved(false)} />
+        <ConfirmModal title={t('msg.att.unsaved_title')} message={t('msg.unsaved_changes')} confirmLabel={t('action.att.discard')} variant="warning" onConfirm={executeEditClose} onCancel={() => setShowEditUnsaved(false)} />
       )}
     </div>
   );

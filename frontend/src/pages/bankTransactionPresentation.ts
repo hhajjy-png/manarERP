@@ -20,6 +20,12 @@
    nothing is stored; bank text (Arabic or English) is preserved verbatim; and
    any value shown is a literal substring of the source — never fabricated.
 
+   i18n: category/detail label FRAGMENTS are UI vocabulary and are routed
+   through an optional `translate` callback (the caller's `t()`); interpolated
+   substrings extracted from the bank's raw text are never translated. When
+   `translate` is omitted (e.g. in unit tests), every label falls back to its
+   original Arabic literal — behavior is unchanged.
+
    Roadmap: docs/roadmap/SmartTransactionPresentationEngine-Phase1.md
    ════════════════════════════════════════════════════════════════════════════ */
 import type { TimelineTransaction, BankFeeType } from '../api/bankStatementImport';
@@ -47,20 +53,29 @@ export interface SmartTransactionPresentation {
   };
 }
 
+// Optional i18n hook. Callers pass their `t()` to localize labels; omitted in
+// unit tests (and by any caller that hasn't wired it up yet) falls back to
+// the Arabic literal, so behavior is identical either way.
+type TranslateFn = (key: string) => string;
+
+function tr(key: string, fallback: string, translate?: TranslateFn): string {
+  return translate ? translate(key) : fallback;
+}
+
 // ── Arabic-first category labels per backend-classified bankFeeType ─────────────
 // More specific than the generic type badge (which collapses all fees → "رسوم").
 // A `Record<BankFeeType, …>` so the type system guarantees every enum value maps.
-const FEE_TYPE_LABELS: Record<BankFeeType, string> = {
-  TRANSFER_FEE:    'رسوم تحويل',
-  MONTHLY_FEE:     'رسوم شهرية',
-  INTEREST:        'فائدة',
-  CHARGE:          'رسوم بنكية',
-  ATM_FEE:         'رسوم صراف آلي',
-  CHEQUEBOOK_FEE:  'رسوم دفتر شيكات',
-  OTHER_FEE:       'رسوم أخرى',
-  CASH_WITHDRAWAL: 'سحب نقدي',
-  CHEQUE_PAYMENT:  'دفع شيك',
-  BANK_TRANSFER:   'تحويل بنكي',
+const FEE_TYPE_LABELS: Record<BankFeeType, { key: string; label: string }> = {
+  TRANSFER_FEE:    { key: 'bank.presentation.transfer_fee',    label: 'رسوم تحويل' },
+  MONTHLY_FEE:     { key: 'bank.cat.monthly_fee',               label: 'رسوم شهرية' },
+  INTEREST:        { key: 'bank.presentation.interest',         label: 'فائدة' },
+  CHARGE:          { key: 'bank.cat.bank_charge',                label: 'رسوم بنكية' },
+  ATM_FEE:         { key: 'bank.presentation.atm_fee',          label: 'رسوم صراف آلي' },
+  CHEQUEBOOK_FEE:  { key: 'bank.cat.chequebook_fee',             label: 'رسوم دفتر شيكات' },
+  OTHER_FEE:       { key: 'bank.cat.other_fee',                  label: 'رسوم أخرى' },
+  CASH_WITHDRAWAL: { key: 'bank.cat.cash_withdrawal',            label: 'سحب نقدي' },
+  CHEQUE_PAYMENT:  { key: 'bank.presentation.cheque_payment',   label: 'دفع شيك' },
+  BANK_TRANSFER:   { key: 'opt.sal.payment.bank_transfer',       label: 'تحويل بنكي' },
 };
 
 // ── Anchored, high-confidence bank phrases that refine a category label ─────────
@@ -69,18 +84,19 @@ const FEE_TYPE_LABELS: Record<BankFeeType, string> = {
 // when `bankFeeType` is absent (e.g. Gulf Bank "Cheque Paid").
 interface SpecificCategory {
   re:     RegExp;
+  key:    string;
   label:  string;
   family: BankFeeType;
   rule:   string;
 }
 
 const SPECIFIC_CATEGORIES: SpecificCategory[] = [
-  { re: /inward\s+clearing\s+cheque/i,   label: 'شيك مقاصة وارد',   family: 'CHEQUE_PAYMENT',  rule: 'inward-clearing-cheque' },
-  { re: /outgoing\s+clearing\s+cheque/i, label: 'شيك مقاصة صادر',   family: 'CHEQUE_PAYMENT',  rule: 'outgoing-clearing-cheque' },
-  { re: /cheque\s+paid/i,                label: 'دفع شيك',          family: 'CHEQUE_PAYMENT',  rule: 'cheque-paid' },
-  { re: /outgoing\s+rtgs/i,              label: 'تحويل صادر (RTGS)', family: 'BANK_TRANSFER',   rule: 'outgoing-rtgs' },
-  { re: /atm\s+with(?:d|dr)a?wal/i,      label: 'سحب نقدي (صراف آلي)', family: 'CASH_WITHDRAWAL', rule: 'atm-withdrawal' },
-  { re: /cash\s+with(?:d|dr)a?wal/i,     label: 'سحب نقدي',          family: 'CASH_WITHDRAWAL', rule: 'cash-withdrawal' },
+  { re: /inward\s+clearing\s+cheque/i,   key: 'bank.presentation.inward_clearing_cheque',   label: 'شيك مقاصة وارد',     family: 'CHEQUE_PAYMENT',  rule: 'inward-clearing-cheque' },
+  { re: /outgoing\s+clearing\s+cheque/i, key: 'bank.presentation.outgoing_clearing_cheque', label: 'شيك مقاصة صادر',     family: 'CHEQUE_PAYMENT',  rule: 'outgoing-clearing-cheque' },
+  { re: /cheque\s+paid/i,                key: 'bank.presentation.cheque_payment',           label: 'دفع شيك',            family: 'CHEQUE_PAYMENT',  rule: 'cheque-paid' },
+  { re: /outgoing\s+rtgs/i,              key: 'bank.presentation.outgoing_rtgs',            label: 'تحويل صادر (RTGS)',  family: 'BANK_TRANSFER',   rule: 'outgoing-rtgs' },
+  { re: /atm\s+with(?:d|dr)a?wal/i,      key: 'bank.presentation.atm_withdrawal',           label: 'سحب نقدي (صراف آلي)', family: 'CASH_WITHDRAWAL', rule: 'atm-withdrawal' },
+  { re: /cash\s+with(?:d|dr)a?wal/i,     key: 'bank.cat.cash_withdrawal',                    label: 'سحب نقدي',           family: 'CASH_WITHDRAWAL', rule: 'cash-withdrawal' },
 ];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
@@ -121,7 +137,7 @@ interface ResolvedCategory {
   matchedOn:  string;
 }
 
-function resolveCategory(t: TimelineTransaction, raw: string): ResolvedCategory {
+function resolveCategory(t: TimelineTransaction, raw: string, translate?: TranslateFn): ResolvedCategory {
   const spec = firstSpecific(raw);
 
   if (t.bankFeeType) {
@@ -129,12 +145,13 @@ function resolveCategory(t: TimelineTransaction, raw: string): ResolvedCategory 
     // the label to something more specific (e.g. CHEQUE_PAYMENT → "شيك مقاصة وارد").
     if (spec && spec.family === t.bankFeeType) {
       return {
-        label: spec.label, source: 'bankFeeType', confidence: 'high',
+        label: tr(spec.key, spec.label, translate), source: 'bankFeeType', confidence: 'high',
         rule: `bankFeeType:${t.bankFeeType}+${spec.rule}`, matchedOn: t.bankFeeType,
       };
     }
+    const feeType = FEE_TYPE_LABELS[t.bankFeeType];
     return {
-      label: FEE_TYPE_LABELS[t.bankFeeType], source: 'bankFeeType', confidence: 'high',
+      label: tr(feeType.key, feeType.label, translate), source: 'bankFeeType', confidence: 'high',
       rule: `bankFeeType:${t.bankFeeType}`, matchedOn: t.bankFeeType,
     };
   }
@@ -142,7 +159,7 @@ function resolveCategory(t: TimelineTransaction, raw: string): ResolvedCategory 
   if (spec) {
     const matched = spec.re.exec(raw)?.[0] ?? spec.rule;
     return {
-      label: spec.label, source: 'text', confidence: 'high',
+      label: tr(spec.key, spec.label, translate), source: 'text', confidence: 'high',
       rule: `text:${spec.rule}`, matchedOn: matched,
     };
   }
@@ -150,15 +167,15 @@ function resolveCategory(t: TimelineTransaction, raw: string): ResolvedCategory 
   const credit = safeNum(t.credit);
   const debit  = safeNum(t.debit);
   if (credit > 0) {
-    return { label: 'إيداع', source: 'direction', confidence: 'high', rule: 'direction:credit', matchedOn: `credit=${credit}` };
+    return { label: tr('bank.presentation.deposit', 'إيداع', translate), source: 'direction', confidence: 'high', rule: 'direction:credit', matchedOn: `credit=${credit}` };
   }
   if (debit > 0) {
-    return { label: 'سحب', source: 'direction', confidence: 'high', rule: 'direction:debit', matchedOn: `debit=${debit}` };
+    return { label: tr('bank.presentation.withdrawal', 'سحب', translate), source: 'direction', confidence: 'high', rule: 'direction:debit', matchedOn: `debit=${debit}` };
   }
 
   // Nothing structured and no amount direction: show the bank's own text, clamped.
   return {
-    label: raw ? clamp(raw) : 'عملية',
+    label: raw ? clamp(raw) : tr('bank.presentation.transaction', 'عملية', translate),
     source: 'fallback', confidence: 'low',
     rule: 'fallback:raw', matchedOn: raw ? clamp(raw) : '',
   };
@@ -178,13 +195,13 @@ function acceptable(candidate: string, categoryLabel: string): boolean {
   return true;
 }
 
-function resolveDetail(t: TimelineTransaction, raw: string, categoryLabel: string): ResolvedDetail | null {
+function resolveDetail(t: TimelineTransaction, raw: string, categoryLabel: string, translate?: TranslateFn): ResolvedDetail | null {
   // 1) Inward-clearing: cheque number + presented-in channel (combined).
   const inward = raw.match(/inward\s+clearing\s+cheque\s*([0-9]{1,7})?/i);
   if (inward) {
-    const num  = inward[1] ? `رقم ${inward[1]}` : '';
+    const num  = inward[1] ? `${tr('bank.presentation.number_prefix', 'رقم', translate)} ${inward[1]}` : '';
     const chan = raw.match(/presented\s+in\s*([A-Za-z0-9]{1,10})\b/i);
-    const parts = [num, chan ? `مقدَّم في ${chan[1]}` : ''].filter(Boolean);
+    const parts = [num, chan ? `${tr('bank.presentation.presented_at', 'مقدَّم في', translate)} ${chan[1]}` : ''].filter(Boolean);
     const text = parts.join(' · ');
     if (acceptable(text, categoryLabel)) return { text, kind: num ? 'cheque' : 'channel', confidence: 'high' };
   }
@@ -192,20 +209,20 @@ function resolveDetail(t: TimelineTransaction, raw: string, categoryLabel: strin
   // 2) Cheque number from an anchored "Cheque Number: N" label.
   const chqText = raw.match(/cheque\s+number:?\s*([0-9]{1,7})\b/i);
   if (chqText) {
-    const text = `شيك رقم ${chqText[1]}`;
+    const text = `${tr('bank.presentation.cheque_no', 'شيك رقم', translate)} ${chqText[1]}`;
     if (acceptable(text, categoryLabel)) return { text, kind: 'cheque', confidence: 'high' };
   }
 
   // 3) Structured cheque-number field (NBK/KFH), when short & non-sensitive.
   if (t.chequeNumber && /^[0-9]{1,7}$/.test(t.chequeNumber.trim())) {
-    const text = `شيك رقم ${t.chequeNumber.trim()}`;
+    const text = `${tr('bank.presentation.cheque_no', 'شيك رقم', translate)} ${t.chequeNumber.trim()}`;
     if (acceptable(text, categoryLabel)) return { text, kind: 'cheque', confidence: 'high' };
   }
 
   // 4) Standalone "Presented in XXX" channel.
   const chan = raw.match(/presented\s+in\s*([A-Za-z0-9]{1,10})\b/i);
   if (chan) {
-    const text = `مقدَّم في ${chan[1]}`;
+    const text = `${tr('bank.presentation.presented_at', 'مقدَّم في', translate)} ${chan[1]}`;
     if (acceptable(text, categoryLabel)) return { text, kind: 'channel', confidence: 'high' };
   }
 
@@ -213,7 +230,7 @@ function resolveDetail(t: TimelineTransaction, raw: string, categoryLabel: strin
   if (t.reference) {
     const ref = t.reference.trim();
     if (ref && !isSensitive(ref) && !raw.includes(ref)) {
-      const text = `مرجع ${ref}`;
+      const text = `${tr('bank.presentation.reference_prefix', 'مرجع', translate)} ${ref}`;
       if (acceptable(text, categoryLabel)) return { text, kind: 'reference', confidence: 'high' };
     }
   }
@@ -228,7 +245,7 @@ function resolveDetail(t: TimelineTransaction, raw: string, categoryLabel: strin
   // 7) Explicitly-labelled project hint (safe: labelled + short token).
   const project = raw.match(/(?:project|مشروع)\s+([A-Za-z0-9-]{1,12})/i);
   if (project) {
-    const text = `مشروع ${project[1]}`;
+    const text = `${tr('bank.presentation.project_prefix', 'مشروع', translate)} ${project[1]}`;
     if (acceptable(text, categoryLabel)) return { text, kind: 'project', confidence: 'medium' };
   }
 
@@ -236,11 +253,14 @@ function resolveDetail(t: TimelineTransaction, raw: string, categoryLabel: strin
 }
 
 // ── Public entry point ──────────────────────────────────────────────────────────
+// `translate` is optional: pass the caller's `t()` to localize labels in
+// English mode. Omitted (e.g. in unit tests), every label is the original
+// Arabic literal — behavior is unchanged.
 
-export function presentTransaction(t: TimelineTransaction): SmartTransactionPresentation {
+export function presentTransaction(t: TimelineTransaction, translate?: TranslateFn): SmartTransactionPresentation {
   const raw = collapse(t.description ?? '');
-  const category = resolveCategory(t, raw);
-  const detail = resolveDetail(t, raw, category.label);
+  const category = resolveCategory(t, raw, translate);
+  const detail = resolveDetail(t, raw, category.label, translate);
 
   return {
     category: { label: category.label, source: category.source, confidence: category.confidence },
@@ -251,6 +271,11 @@ export function presentTransaction(t: TimelineTransaction): SmartTransactionPres
 }
 
 // Arabic labels for confidence levels (Audit tab display).
+// NOTE: kept as raw Arabic (not routed through t()) because this constant is
+// pinned byte-for-byte by __tests__/bankTransactionPresentation.test.ts.
+// Callers that need a localized confidence label should map
+// PresentationConfidence -> 'opt.maint.sev_high' / '_medium' / '_low' and
+// call their own t() — see BankAccountExplorer.tsx.
 export const CONFIDENCE_LABELS: Record<PresentationConfidence, string> = {
   high:   'عالية',
   medium: 'متوسطة',

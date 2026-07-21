@@ -21,7 +21,8 @@ import {
   fmtChequeAmount,
   templateFromSettings,
   REPRINT_REASONS,
-  REPRINT_REASON_LABELS,
+  REPRINT_REASON_KEYS,
+  bankLabel,
 } from '../utils/chequeTemplate';
 import type { ChequeTemplate, ChequePrintLogRow, ReprintReason } from '../utils/chequeTemplate';
 import {
@@ -123,9 +124,10 @@ function fmtAmount(v: number | string, currency = moneyParts(0).currency): strin
   return formatNumber(v) + ' ' + currency;
 }
 
-/** Arabic label for a stored reprint-reason key; falls back to the raw value. */
-function reprintReasonLabel(reason: string): string {
-  return (REPRINT_REASON_LABELS as Record<string, string>)[reason] ?? reason;
+/** Localized label for a stored reprint-reason key; falls back to the raw value. */
+function reprintReasonLabel(reason: string, t: (k: string) => string): string {
+  const key = (REPRINT_REASON_KEYS as Record<string, string>)[reason];
+  return key ? t(key) : reason;
 }
 
 // ── ChequePrintOutput (print engine — UNCHANGED) ───────────────────────────────
@@ -414,7 +416,7 @@ export default function Cheques() {
       });
       setShowReprintModal(false);
       printCurrentView();
-      setSuccess('تم تسجيل إعادة الطباعة');
+      setSuccess(t('msg.cheque.reprint_logged'));
       const res = await api.get(`/cheques/${printTarget.id}`);
       setPrintTarget(res.data.data);
       await loadData(page);
@@ -522,7 +524,7 @@ export default function Cheques() {
         note: 'استعادة القالب الافتراضي',
       });
       setAllTemplates((prev) => ({ ...prev, [form.bankName]: cloneDefaultTemplate() }));
-      setSuccess(`تم استعادة القالب الافتراضي لبنك ${form.bankName} (حُفظ كنسخة جديدة)`);
+      setSuccess(t('msg.cheque.template_restored', { bank: bankLabel(form.bankName, t) }));
     } catch (e) {
       setFormError(errorMessage(e));
     } finally {
@@ -576,10 +578,10 @@ export default function Cheques() {
   // أزرار العمليات أعلى Drawer الشيك — كانت سابقًا شريط أزرار سفلي، تجمّعت هنا
   // بنفس الأيقونات/الوظائف/الصلاحيات/ترتيب التنفيذ (Drawer Actions Consistency Pack v1).
   const chequeQuickActions: QuickAction[] = viewing ? [
-    { key: 'preview', icon: 'visibility', label: 'معاينة وطباعة', onClick: () => selectForPreview(viewing) },
+    { key: 'preview', icon: 'visibility', label: t('action.preview_and_print'), onClick: () => selectForPreview(viewing) },
     ...(canUpdate && viewing.status !== 'CANCELLED' ? [{ key: 'edit', icon: 'edit', label: t('action.edit'), tone: 'primary' as const, onClick: () => openEditor(viewing) }] : []),
     ...(canCancel && viewing.status === 'DRAFT' ? [{ key: 'cancel', icon: 'block', label: t('page.cheques.cancel_cheque'), onClick: () => setCancelConfirmCheque(viewing), disabled: busy }] : []),
-    ...(isSystemAdmin ? [{ key: 'delete', icon: 'delete_forever', label: 'حذف نهائي', tone: 'danger' as const, onClick: () => { const id = viewing.id; setViewing(null); setForceDeleteId(id); } }] : []),
+    ...(isSystemAdmin ? [{ key: 'delete', icon: 'delete_forever', label: t('action.force_delete'), tone: 'danger' as const, onClick: () => { const id = viewing.id; setViewing(null); setForceDeleteId(id); } }] : []),
   ] : [];
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -634,10 +636,10 @@ export default function Cheques() {
         subtitle={t('page.cheques.subtitle')}
         chips={
           <>
-            <IdChip icon="account_balance" tone="indigo">{form.bankName}</IdChip>
-            <IdChip icon="receipt_long" tone="indigo">{stats.total} شيك</IdChip>
-            <IdChip icon="print" tone="green">{stats.printed} مطبوع</IdChip>
-            {stats.draft > 0 && <IdChip icon="edit_note" tone="orange">{stats.draft} مسودة</IdChip>}
+            <IdChip icon="account_balance" tone="indigo">{bankLabel(form.bankName, t)}</IdChip>
+            <IdChip icon="receipt_long" tone="indigo">{stats.total} {t('unit.cheque')}</IdChip>
+            <IdChip icon="print" tone="green">{stats.printed} {t('cheque.status.printed')}</IdChip>
+            {stats.draft > 0 && <IdChip icon="edit_note" tone="orange">{stats.draft} {t('cheque.status.draft')}</IdChip>}
           </>
         }
         aside={(
@@ -649,26 +651,26 @@ export default function Cheques() {
       />
 
       {/* Alerts */}
-      {formError && <ErrorBanner>{formError} <button type="button" className="xpl-clear-link" onClick={() => setFormError('')}>إغلاق</button></ErrorBanner>}
-      {success && <div className="chqx-success"><span className="material-symbols-outlined">check_circle</span>{success}<button type="button" className="xpl-clear-link" onClick={() => setSuccess('')}>إغلاق</button></div>}
+      {formError && <ErrorBanner>{formError} <button type="button" className="xpl-clear-link" onClick={() => setFormError('')}>{t('action.close')}</button></ErrorBanner>}
+      {success && <div className="chqx-success"><span className="material-symbols-outlined">check_circle</span>{success}<button type="button" className="xpl-clear-link" onClick={() => setSuccess('')}>{t('action.close')}</button></div>}
 
       {/* Hero + KPIs
           ملاحظة نطاق: قيمة الإجمالي/الأعلى/المتوسط تُحسب من الشيكات المحمّلة في هذه الصفحة فقط
           (valueKpis)، بينما عدّادات الحالة (مسودة/مطبوع/ملغى) إجمالية من الخادم (stats).
           نوضّح ذلك في العناوين حتى لا تُقرأ الأرقام كإجمالي عام. */}
       <div className="chqx-metrics">
-        <HeroMetric icon="account_balance_wallet" label="قيمة الشيكات في هذه الصفحة" value={<MoneyText value={valueKpis.totalValue} />} sub={<><span className="material-symbols-outlined">receipt_long</span>{`${cheques.length} شيك معروض · ${stats.total} إجمالاً`}</>} />
+        <HeroMetric icon="account_balance_wallet" label={t('kpi.cheques.page_value_label')} value={<MoneyText value={valueKpis.totalValue} />} sub={<><span className="material-symbols-outlined">receipt_long</span>{t('kpi.cheques.page_value_sub', { shown: cheques.length, total: stats.total })}</>} />
         <div className="xpl-kpi-grid">
           <MetricCard icon="edit_note" tone="orange" label={t('stat.cheques.draft')} value={stats.draft} />
           <MetricCard icon="print" tone="green" label={t('stat.cheques.printed')} value={stats.printed} />
           <MetricCard icon="block" tone="red" label={t('stat.cheques.cancelled')} value={stats.cancelled} />
-          <MetricCard icon="trending_up" tone="blue" label="أعلى شيك (هذه الصفحة)" value={<MoneyText value={valueKpis.highest} />} />
-          <MetricCard icon="functions" tone="indigo" label="متوسط الشيك (هذه الصفحة)" value={<MoneyText value={valueKpis.average} />} />
+          <MetricCard icon="trending_up" tone="blue" label={t('kpi.cheques.highest_page')} value={<MoneyText value={valueKpis.highest} />} />
+          <MetricCard icon="functions" tone="indigo" label={t('kpi.cheques.average_page')} value={<MoneyText value={valueKpis.average} />} />
         </div>
       </div>
 
       {/* Preview workspace */}
-      <SectionCard title="معاينة الشيك" icon="visibility" actions={printTarget ? chequeChip(printTarget.status, t) : undefined}>
+      <SectionCard title={t('page.cheques.preview')} icon="visibility" actions={printTarget ? chequeChip(printTarget.status, t) : undefined}>
         {/* On-screen preview shown at 65% of natural size (presentation-only). Scales the
             whole preview — background + absolutely-positioned overlay fields — together, so
             template %/pt coordinates, the hidden print output (.cheque-print-only), and the
@@ -682,19 +684,19 @@ export default function Cheques() {
             لا تغيير على المعالِجات (handlePrint / printCurrentView / المعايرة). */}
         <div className="chqx-preview-actions">
           <div className="chqx-action-group">
-            {canPrint && <Button variant="primary" icon="print" busy={saving} disabled={!isPrintable} onClick={handlePrint}>طباعة الشيك</Button>}
-            {canPrint && isPrintedCheque && <Button variant="secondary" icon="receipt_long" busy={pvLoading} onClick={handlePrintPaymentVoucher}>طباعة سند الصرف</Button>}
+            {canPrint && <Button variant="primary" icon="print" busy={saving} disabled={!isPrintable} onClick={handlePrint}>{t('page.cheques.print')}</Button>}
+            {canPrint && isPrintedCheque && <Button variant="secondary" icon="receipt_long" busy={pvLoading} onClick={handlePrintPaymentVoucher}>{t('action.cheque.print_voucher')}</Button>}
           </div>
           <div className="chqx-action-group chqx-action-group--tools">
-            {canCalibrate && <Button variant="ghost" icon="tune" onClick={() => setShowCalibrator(true)}>معايرة الطباعة</Button>}
-            {canCalibrate && <Button variant="ghost" icon="restart_alt" busy={restoringDefault} onClick={() => setShowRestoreConfirm(true)}>استعادة الافتراضي</Button>}
+            {canCalibrate && <Button variant="ghost" icon="tune" onClick={() => setShowCalibrator(true)}>{t('action.cheque.calibrate_print')}</Button>}
+            {canCalibrate && <Button variant="ghost" icon="restart_alt" busy={restoringDefault} onClick={() => setShowRestoreConfirm(true)}>{t('action.restore_default')}</Button>}
             {canCancel && printTarget && printTarget.status === 'DRAFT' && <Button variant="danger" icon="block" busy={busy} onClick={() => setCancelConfirmCheque(printTarget)}>{t('page.cheques.cancel_cheque')}</Button>}
           </div>
         </div>
-        {!printTarget && <p className="chqx-preview-hint">احفظ الشيك أولاً لتفعيل الطباعة الرسمية وإنشاء سند الصرف.</p>}
-        {printTarget?.status === 'DRAFT' && <p className="chqx-preview-hint">تلميح: تأكّد من محاذاة الطباعة على ورق الشيك عبر «معايرة الطباعة» قبل الطباعة الفعلية.</p>}
+        {!printTarget && <p className="chqx-preview-hint">{t('hint.cheque.save_first')}</p>}
+        {printTarget?.status === 'DRAFT' && <p className="chqx-preview-hint">{t('hint.cheque.check_alignment')}</p>}
         {printTarget?.status === 'CANCELLED' && <p className="chqx-preview-hint warn">{t('error.cheque.is_cancelled')}</p>}
-        {printTarget?.status === 'PRINTED' && <p className="chqx-preview-hint">{printTarget.paymentVoucherNumber ? `رقم سند الصرف: ${printTarget.paymentVoucherNumber}` : 'اضغط «طباعة سند الصرف» لإنشاء السند الرسمي المرتبط بهذا الشيك.'}</p>}
+        {printTarget?.status === 'PRINTED' && <p className="chqx-preview-hint">{printTarget.paymentVoucherNumber ? t('lbl.cheque.pv_number_prefix', { number: printTarget.paymentVoucherNumber }) : t('hint.cheque.create_voucher')}</p>}
       </SectionCard>
 
       {/* Sticky filters */}
@@ -705,7 +707,7 @@ export default function Cheques() {
         </div>
         <div className="xpl-toolbar-row">
           {STATUS_CHIPS.map(([v, l]) => <FilterChip key={v} active={historyStatus === v} onClick={() => { setHistoryStatus(v); setPage(1); }}>{l}</FilterChip>)}
-          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? cheques.length} شيك</span>
+          <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? cheques.length} {t('unit.cheque')}</span>
         </div>
       </div>
 
@@ -715,7 +717,7 @@ export default function Cheques() {
           <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
         ) : cheques.length === 0 ? (
           <EmptyState icon="receipt_long" tone="neutral" title={t('empty.cheques')}
-            message={hasFilters ? 'لا توجد شيكات مطابقة للفلاتر.' : undefined}
+            message={hasFilters ? t('empty.cheques.no_match_filters') : undefined}
             action={hasFilters ? <Button variant="secondary" icon="restart_alt" onClick={() => { setHistorySearch(''); setHistoryStatus(''); sort.reset(); setPage(1); }}>{t('action.reset_filters')}</Button>
               : canCreate ? <Button variant="primary" icon="add" onClick={openNew}>{t('page.cheques.new')}</Button> : undefined} />
         ) : (
@@ -731,18 +733,18 @@ export default function Cheques() {
                     <SortableHeader label={t('col.cheque.date')} title={t('col.cheque.date')} state={sort.getState('chequeDate')} onToggle={() => sort.toggle('chequeDate')} />
                     <SortableHeader label={t('col.cheque.status')} title={t('col.cheque.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
                     <SortableHeader label={t('col.cheque.pv_number')} title={t('col.cheque.pv_number')} state={sort.getState('paymentVoucherNumber')} onToggle={() => sort.toggle('paymentVoucherNumber')} />
-                    <th aria-label="فتح" />
+                    <th aria-label={t('a11y.open_row')} />
                   </tr>
                 </thead>
                 <tbody>
                   {cheques.map((r) => (
                     <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
-                      aria-label={`تفاصيل الشيك ${r.chequeNumber}`}
+                      aria-label={t('a11y.cheque_details', { number: r.chequeNumber })}
                       onClick={() => setViewing(r)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                       <td><span className="chqx-mono"><strong>{r.chequeNumber}</strong></span></td>
                       <td><strong>{r.beneficiaryName}</strong></td>
-                      <td>{r.bankName}</td>
+                      <td>{bankLabel(r.bankName, t)}</td>
                       <td><span className="chqx-amount">{fmtAmount(r.amount, r.currency)}</span></td>
                       <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{formatDate(r.chequeDate)}</td>
                       <td>
@@ -774,7 +776,7 @@ export default function Cheques() {
                   {/* عملة الشيك من **سجلّه** لا من إعداد العرض — استثناء صحيح؛ العزل وحده
                       هو ما يلزم كي لا ينقلب ترتيب الرقم والرمز في الواجهة العربية. */}
                   <span className="xpl-drawer-hero-title money-cell">{fmtAmount(viewing.amount, viewing.currency)}</span>
-                  <span className="xpl-drawer-hero-sub">{viewing.beneficiaryName} · {viewing.bankName}</span>
+                  <span className="xpl-drawer-hero-sub">{viewing.beneficiaryName} · {bankLabel(viewing.bankName, t)}</span>
                   <div style={{ marginTop: 4 }}>{chequeChip(viewing.status, t)}</div>
                 </div>
               </div>
@@ -782,40 +784,40 @@ export default function Cheques() {
             </>
           }
         >
-          <DrawerSection title="المعلومات الأساسية">
+          <DrawerSection title={t('sec.basic_info')}>
             <DrawerField label={t('col.cheque.number')} value={viewing.chequeNumber} mono />
             <DrawerField label={t('col.cheque.date')} value={formatDate(viewing.chequeDate)} />
             <DrawerField label={t('col.cheque.beneficiary')} value={viewing.beneficiaryName} />
             <DrawerField label={t('col.cheque.amount')} value={<span className="money-cell">{fmtAmount(viewing.amount, viewing.currency)}</span>} />
           </DrawerSection>
           {viewing.currency === 'KWD' && Number(viewing.amount) > 0 && (
-            <DrawerSection title="التفقيط">
+            <DrawerSection title={t('lbl.cheque.tafqeet')}>
               <div className="chqx-tafqeet">{tafqeetKWD(Number(viewing.amount))}</div>
             </DrawerSection>
           )}
-          <DrawerSection title="بيانات البنك">
-            <DrawerField label={t('col.cheque.bank')} value={viewing.bankName} />
+          <DrawerSection title={t('sec.cheque.bank_info')}>
+            <DrawerField label={t('col.cheque.bank')} value={bankLabel(viewing.bankName, t)} />
             <DrawerField label={t('field.cheque.currency')} value={viewing.currency} />
           </DrawerSection>
-          <DrawerSection title="الطباعة">
+          <DrawerSection title={t('sec.printing')}>
             <DrawerField label={t('col.cheque.status')} value={chequeChip(viewing.status, t)} />
-            <DrawerField label="تاريخ الطباعة" value={viewing.printedAt ? formatDate(viewing.printedAt) : '—'} />
+            <DrawerField label={t('field.cheque.printed_at')} value={viewing.printedAt ? formatDate(viewing.printedAt) : '—'} />
             <DrawerField label={t('col.cheque.pv_number')} value={viewing.paymentVoucherNumber ?? '—'} mono />
           </DrawerSection>
-          <DrawerSection title="سجل الطباعة وإعادة الطباعة">
+          <DrawerSection title={t('sec.cheque.print_log')}>
             {printLogsLoading ? (
-              <DrawerField label="—" value="جارٍ التحميل…" />
+              <DrawerField label="—" value={t('msg.loading')} />
             ) : printLogs.length === 0 ? (
-              <DrawerField label="—" value="لا يوجد سجل طباعة لهذا الشيك." />
+              <DrawerField label="—" value={t('empty.cheque.print_log')} />
             ) : (
               <div className="chqx-printlog">
                 {printLogs.map((log) => (
                   <div key={log.id} className="chqx-printlog-row">
-                    <span className="chqx-printlog-seq">{log.sequence === 1 ? 'طباعة أولى' : `إعادة ${log.sequence - 1}`}</span>
+                    <span className="chqx-printlog-seq">{log.sequence === 1 ? t('lbl.cheque.first_print') : t('lbl.cheque.reprint_n', { n: log.sequence - 1 })}</span>
                     <span className="chqx-printlog-meta">
                       {formatDate(log.printedAt)}
                       {log.printedByName ? ` · ${log.printedByName}` : ''}
-                      {log.reason ? ` · ${reprintReasonLabel(log.reason)}` : ''}
+                      {log.reason ? ` · ${reprintReasonLabel(log.reason, t)}` : ''}
                       {log.note ? ` · ${log.note}` : ''}
                     </span>
                   </div>
@@ -823,18 +825,18 @@ export default function Cheques() {
               </div>
             )}
           </DrawerSection>
-          <DrawerSection title="السجل">
+          <DrawerSection title={t('sec.record_history')}>
             <DrawerField label={t('col.created_at')} value={formatDate(viewing.createdAt)} />
-            {viewing.cancelledAt && <DrawerField label="تاريخ الإلغاء" value={formatDate(viewing.cancelledAt)} />}
+            {viewing.cancelledAt && <DrawerField label={t('field.cheque.cancelled_at')} value={formatDate(viewing.cancelledAt)} />}
           </DrawerSection>
           {(viewing.description || viewing.notes) && (
-            <DrawerSection title="ملاحظات">
+            <DrawerSection title={t('field.notes')}>
               {viewing.description && <DrawerField label={t('field.cheque.description')} value={viewing.description} />}
               {viewing.notes && <DrawerField label={t('field.cheque.notes')} value={viewing.notes} />}
             </DrawerSection>
           )}
-          <DrawerSection title="بيانات تقنية">
-            <DrawerField label="المعرّف الداخلي" value={`#${viewing.id}`} mono />
+          <DrawerSection title={t('sec.technical_info')}>
+            <DrawerField label={t('field.internal_id')} value={`#${viewing.id}`} mono />
           </DrawerSection>
         </Drawer>
       )}
@@ -844,7 +846,7 @@ export default function Cheques() {
         <Dialog
           icon={editId ? 'edit' : 'add_card'}
           title={editId ? `${t('page.cheques.form')} #${editId}` : t('page.cheques.new')}
-          subtitle={editId ? form.chequeNumber : 'إنشاء شيك جديد'}
+          subtitle={editId ? form.chequeNumber : t('page.cheques.new_subtitle')}
           size="lg"
           onClose={() => setEditorOpen(false)}
           footer={
@@ -857,7 +859,7 @@ export default function Cheques() {
           }
         >
           {formError && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{formError}</div>}
-          <DialogSection title="المعلومات الأساسية" icon="badge">
+          <DialogSection title={t('sec.basic_info')} icon="badge">
             <div className="xpl-field xpl-field--full">
               <label>{t('field.cheque.beneficiary')} <span className="req">*</span></label>
               <input className="xpl-input" value={form.beneficiaryName} onChange={(e) => field('beneficiaryName', e.target.value)} placeholder={t('ph.cheque.beneficiary')} disabled={!!editId && !canUpdate} aria-label={t('field.cheque.beneficiary')} />
@@ -874,7 +876,7 @@ export default function Cheques() {
             </div>
           </DialogSection>
 
-          <DialogSection title="المبالغ" icon="payments">
+          <DialogSection title={t('sec.amounts')} icon="payments">
             <div className="xpl-field">
               <label>{t('field.cheque.amount')} <span className="req">*</span></label>
               <input className="xpl-input chqx-mono" type="number" min="0" step="0.001" value={form.amount} onChange={(e) => field('amount', e.target.value)} disabled={!!editId && !canUpdate} style={{ direction: 'ltr' }} aria-label={t('field.cheque.amount')} />
@@ -890,22 +892,22 @@ export default function Cheques() {
             </div>
             {form.currency === 'KWD' && Number(form.amount) > 0 && (
               <div className="xpl-field xpl-field--full">
-                <label>التفقيط</label>
+                <label>{t('lbl.cheque.tafqeet')}</label>
                 <div className="chqx-tafqeet">{tafqeetKWD(Number(form.amount))}</div>
               </div>
             )}
           </DialogSection>
 
-          <DialogSection title="البنك" icon="account_balance">
+          <DialogSection title={t('sec.bank')} icon="account_balance">
             <div className="xpl-field xpl-field--full">
               <label>{t('field.cheque.bank')} <span className="req">*</span></label>
               <select className="xpl-select" value={form.bankName} onChange={(e) => field('bankName', e.target.value)} disabled aria-label={t('field.cheque.bank')}>
-                {KUWAITI_BANKS.map((bank) => <option key={bank} value={bank}>{bank}</option>)}
+                {KUWAITI_BANKS.map((bank) => <option key={bank} value={bank}>{bankLabel(bank, t)}</option>)}
               </select>
             </div>
           </DialogSection>
 
-          <DialogSection title="ملاحظات" icon="sticky_note_2">
+          <DialogSection title={t('field.notes')} icon="sticky_note_2">
             <div className="xpl-field xpl-field--full">
               <label>{t('field.cheque.description')}</label>
               <input className="xpl-input" value={form.description} onChange={(e) => field('description', e.target.value)} placeholder={t('ph.cheque.description')} disabled={!!editId && !canUpdate} aria-label={t('field.cheque.description')} />
@@ -933,7 +935,7 @@ export default function Cheques() {
         <ForceDeleteChequeModal
           chequeId={forceDeleteId}
           onClose={() => setForceDeleteId(null)}
-          onDeleted={() => { setForceDeleteId(null); setSuccess('تم حذف الشيك نهائياً'); loadData(page); }}
+          onDeleted={() => { setForceDeleteId(null); setSuccess(t('msg.cheque.force_deleted')); loadData(page); }}
         />
       )}
 
@@ -941,31 +943,31 @@ export default function Cheques() {
       {showReprintModal && printTarget && (
         <Dialog
           icon="print"
-          title="إعادة طباعة الشيك"
+          title={t('page.cheques.reprint_title')}
           subtitle={`${printTarget.chequeNumber} · ${printTarget.beneficiaryName}`}
           size="sm"
           onClose={() => setShowReprintModal(false)}
           footer={
             <>
-              <Button variant="primary" icon="print" busy={reprintBusy} disabled={!reprintReason} onClick={handleConfirmReprint}>تسجيل وإعادة الطباعة</Button>
+              <Button variant="primary" icon="print" busy={reprintBusy} disabled={!reprintReason} onClick={handleConfirmReprint}>{t('action.cheque.record_reprint')}</Button>
               <Button variant="ghost" onClick={() => setShowReprintModal(false)}>{t('action.cancel')}</Button>
             </>
           }
         >
-          <DialogSection title="سبب إعادة الطباعة" icon="help">
+          <DialogSection title={t('sec.cheque.reprint_reason')} icon="help">
             <p className="chqx-preview-hint" style={{ textAlign: 'start', margin: '0 0 8px' }}>
-              هذا الشيك مطبوع مسبقاً. إعادة الطباعة مسموحة لكنها تُسجَّل في سجل الطباعة. اختر السبب:
+              {t('msg.cheque.reprint_notice')}
             </p>
             <div className="xpl-field xpl-field--full">
-              <label>السبب <span className="req">*</span></label>
-              <select className="xpl-select" value={reprintReason} onChange={(e) => setReprintReason(e.target.value as ReprintReason)} aria-label="سبب إعادة الطباعة">
-                <option value="">— اختر السبب —</option>
-                {REPRINT_REASONS.map((r) => <option key={r} value={r}>{REPRINT_REASON_LABELS[r]}</option>)}
+              <label>{t('field.reason')} <span className="req">*</span></label>
+              <select className="xpl-select" value={reprintReason} onChange={(e) => setReprintReason(e.target.value as ReprintReason)} aria-label={t('sec.cheque.reprint_reason')}>
+                <option value="">{t('opt.select_reason')}</option>
+                {REPRINT_REASONS.map((r) => <option key={r} value={r}>{t(REPRINT_REASON_KEYS[r])}</option>)}
               </select>
             </div>
             <div className="xpl-field xpl-field--full">
-              <label>ملاحظة (اختياري)</label>
-              <input className="xpl-input" value={reprintNote} onChange={(e) => setReprintNote(e.target.value)} placeholder="تفاصيل إضافية" maxLength={300} aria-label="ملاحظة إعادة الطباعة" />
+              <label>{t('field.note_optional')}</label>
+              <input className="xpl-input" value={reprintNote} onChange={(e) => setReprintNote(e.target.value)} placeholder={t('ph.additional_details')} maxLength={300} aria-label={t('a11y.cheque_reprint_note')} />
             </div>
           </DialogSection>
         </Dialog>
@@ -975,7 +977,7 @@ export default function Cheques() {
         <ConfirmModal title={t('page.cheques.cancel_cheque')} message={t('page.cheques.confirm_cancel')} variant="warning" onConfirm={() => executeCancel(cancelConfirmCheque)} onCancel={() => setCancelConfirmCheque(null)} />
       )}
       {showRestoreConfirm && (
-        <ConfirmModal message={`استعادة القالب الافتراضي لبنك "${form.bankName}"؟ سيُحفظ ذلك كنسخة جديدة ويصبح القالب الافتراضي هو الفعّال — والنسخ السابقة تبقى متاحة للاستعادة.`} variant="warning" onConfirm={executeRestoreDefault} onCancel={() => setShowRestoreConfirm(false)} />
+        <ConfirmModal message={t('confirm.cheque.restore_default', { bank: bankLabel(form.bankName, t) })} variant="warning" onConfirm={executeRestoreDefault} onCancel={() => setShowRestoreConfirm(false)} />
       )}
     </div>
   );

@@ -5,17 +5,26 @@ import { fcCurrency } from './financialLabels';
 import SortableHeader from '../SortableHeader';
 import { useTableSort } from '../../hooks/useTableSort';
 import { sortRowsClient } from '../../lib/clientSort';
+import { useT } from '../../lib/i18n';
 
 type AgingRow = ArAgingRow | ApAgingRow;
 
-const BUCKETS = [
-  { key: 'current',  label: 'جاري'      },
-  { key: '0_30',     label: '0–30'      },
-  { key: '31_60',    label: '31–60'     },
-  { key: '61_90',    label: '61–90'     },
-  { key: '91_120',   label: '91–120'    },
-  { key: 'over_120', label: '+120 يوم'  },
-] as const;
+const BUCKETS: { key: string; labelKey: string | null }[] = [
+  { key: 'current',  labelKey: 'fc.aging.current' },
+  { key: '0_30',     labelKey: null               },
+  { key: '31_60',    labelKey: null               },
+  { key: '61_90',    labelKey: null               },
+  { key: '91_120',   labelKey: null               },
+  { key: 'over_120', labelKey: 'fc.aging.over_120' },
+];
+
+// أرقام ومدى (0–30، 31–60…) بلا حروف عربية — عرضها ثابت بلا ترجمة.
+const BUCKET_RAW_LABEL: Record<string, string> = {
+  '0_30':   '0–30',
+  '31_60':  '31–60',
+  '61_90':  '61–90',
+  '91_120': '91–120',
+};
 
 function fmt(n: number) {
   return n ? fcCurrency(n) : '';
@@ -37,6 +46,8 @@ interface Props {
 
 export function AgingTable({ rows, type, currentState }: Props) {
   const navigate = useNavigate();
+  const { t } = useT();
+  const buckets = BUCKETS.map(b => ({ key: b.key, label: b.labelKey ? t(b.labelKey) : BUCKET_RAW_LABEL[b.key] }));
   // أساس الشبكة الموحّد (كان لهذا الجدول فرز محلي خاص — استُبدل بالتنفيذ الواحد).
   // البيانات محمَّلة بكاملها بلا ترقيم خادمي → الفرز المحلي فوق المجموعة الكاملة صحيح.
   // الافتراضي التاريخي للجدول (الإجمالي تنازليًا) محفوظ عندما لا يوجد عمود نشط.
@@ -69,22 +80,22 @@ export function AgingTable({ rows, type, currentState }: Props) {
   const codeKey = type === 'ar' ? 'customerCode' : 'supplierCode';
 
   if (rows.length === 0) {
-    return <p className="fc-empty">لا توجد بيانات مديونية بالمعايير المحددة.</p>;
+    return <p className="fc-empty">{t('fc.msg.no_aging_data')}</p>;
   }
 
   return (
     <div className="aging-table-container table-responsive" dir="rtl">
       {type === 'ap' && (
         <div className="aging-note">
-          ملاحظة: يعرض أعمار الذمم فواتير المشتريات فقط. للرصيد الشامل بما يتضمن المصروفات، راجع كشف الحساب.
+          {t('fc.aging.ap_note')}
         </div>
       )}
       <table className="financial-table aging-table">
         <thead>
           <tr>
-            <th>الكود</th>
-            <th>الاسم</th>
-            {BUCKETS.map(b => (
+            <th>{t('col.acc.code')}</th>
+            <th>{t('col.fullname')}</th>
+            {buckets.map(b => (
               <SortableHeader
                 key={b.key}
                 label={b.label}
@@ -95,8 +106,8 @@ export function AgingTable({ rows, type, currentState }: Props) {
               />
             ))}
             <SortableHeader
-              label="الإجمالي"
-              title="الإجمالي"
+              label={t('msg.total')}
+              title={t('msg.total')}
               className="num aging-total-col"
               state={sort.getState('total')}
               onToggle={() => sort.toggle('total')}
@@ -115,7 +126,7 @@ export function AgingTable({ rows, type, currentState }: Props) {
                     {name}
                   </button>
                 </td>
-                {BUCKETS.map(b => {
+                {buckets.map(b => {
                   const amount = (row as Record<string, unknown>)[b.key] as number ?? 0;
                   return (
                     <td key={b.key} className={`num ${bucketClass(b.key, amount)}`}>

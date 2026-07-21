@@ -317,8 +317,8 @@ export default function Salaries() {
         subtitle={t('page.salaries.subtitle')}
         chips={
           <>
-            <IdChip icon="badge" tone="indigo">{stats ? stats.count : (statsLoading ? '…' : '—')} مسير</IdChip>
-            <IdChip icon="task_alt" tone="green">{stats ? stats.paid : (statsLoading ? '…' : '—')} مدفوع</IdChip>
+            <IdChip icon="badge" tone="indigo">{stats ? stats.count : (statsLoading ? '…' : '—')} {t('unit.payroll_run')}</IdChip>
+            <IdChip icon="task_alt" tone="green">{stats ? stats.paid : (statsLoading ? '…' : '—')} {t('status.paid')}</IdChip>
           </>
         }
         aside={tab === 'payroll' && canGenerate ? <Button variant="primary" icon="bolt" busy={busy} onClick={generatePayroll}>{t('page.salaries.generate')}</Button> : undefined}
@@ -331,7 +331,7 @@ export default function Salaries() {
           { key: 'payroll', label: t('page.salaries.tab_payroll'), icon: 'payments' },
           { key: 'history', label: t('page.salaries.tab_history'), icon: 'history' },
           ...(hasPermission('payroll.read')
-            ? [{ key: 'bankExport' as const, label: 'التصدير البنكي', icon: 'account_balance' }]
+            ? [{ key: 'bankExport' as const, label: t('page.salaries.tab_bank_export'), icon: 'account_balance' }]
             : []),
         ]}
       />
@@ -347,10 +347,10 @@ export default function Salaries() {
             {/* Fallback: '…' while loading, '—' on error — never page-only totals. */}
             <HeroMetric icon="account_balance_wallet" label={t('stat.net_total')}
               value={stats ? <PrivateAmount value={stats.net} /> : (statsLoading ? '…' : '—')}
-              sub={<><span className="material-symbols-outlined">groups</span>{stats ? `${stats.count} مسير رواتب` : (statsLoading ? '…' : '—')}</>} />
+              sub={<><span className="material-symbols-outlined">groups</span>{stats ? `${stats.count} ${t('label.payroll_runs')}` : (statsLoading ? '…' : '—')}</>} />
             <div className="xpl-kpi-grid">
               <MetricCard icon="receipt_long" tone="indigo" label={t('stat.payroll_records')} value={stats ? stats.count : (statsLoading ? '…' : '—')} />
-              <MetricCard icon="payments" tone="blue" label={t('stat.gross_total') + (stats?.grossIsPartial ? ' (المحتسب فقط)' : '')} value={stats ? <PrivateAmount value={stats.gross} /> : (statsLoading ? '…' : '—')} />
+              <MetricCard icon="payments" tone="blue" label={t('stat.gross_total') + (stats?.grossIsPartial ? ' ' + t('label.computed_only') : '')} value={stats ? <PrivateAmount value={stats.gross} /> : (statsLoading ? '…' : '—')} />
               <MetricCard icon="task_alt" tone="green" label={t('stat.paid_records')} value={stats ? stats.paid : (statsLoading ? '…' : '—')} />
             </div>
           </div>
@@ -359,12 +359,12 @@ export default function Salaries() {
           <div className="xpl-toolbar xpl-toolbar--sticky">
             <div className="xpl-toolbar-row">
               <div className="xpl-field" style={{ width: 96 }}>
-                <span className="xpl-field-label">الشهر</span>
-                <input className="xpl-input salx-num" type="number" min={1} max={12} value={month} onChange={(e) => { setMonth(Number(e.target.value)); setPage(1); }} aria-label="الشهر" />
+                <span className="xpl-field-label">{t('field.month')}</span>
+                <input className="xpl-input salx-num" type="number" min={1} max={12} value={month} onChange={(e) => { setMonth(Number(e.target.value)); setPage(1); }} aria-label={t('field.month')} />
               </div>
               <div className="xpl-field" style={{ width: 110 }}>
-                <span className="xpl-field-label">السنة</span>
-                <input className="xpl-input" type="number" min={2000} max={2100} value={year} onChange={(e) => { setYear(Number(e.target.value)); setPage(1); }} aria-label="السنة" />
+                <span className="xpl-field-label">{t('field.year')}</span>
+                <input className="xpl-input" type="number" min={2000} max={2100} value={year} onChange={(e) => { setYear(Number(e.target.value)); setPage(1); }} aria-label={t('field.year')} />
               </div>
               <div className="xpl-field" style={{ minWidth: 180 }}>
                 <span className="xpl-field-label">{t('page.salaries.all_employees')}</span>
@@ -376,7 +376,7 @@ export default function Salaries() {
                   ).map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
                 </select>
               </div>
-              {canExport && <Button variant="secondary" icon="table_view" busy={excelBusy} onClick={downloadPayrollExcel}>تصدير Excel</Button>}
+              {canExport && <Button variant="secondary" icon="table_view" busy={excelBusy} onClick={downloadPayrollExcel}>{t('page.salaries.export_excel')}</Button>}
               {canImport && <Button variant="ghost" icon="upload" onClick={() => navigate('/import')}>{t('page.salaries.import_excel')}</Button>}
               {canAdjust && <Button variant="ghost" icon="tune" onClick={() => setAdjustOpen(true)}>{t('page.salaries.adjustments')}</Button>}
             </div>
@@ -384,7 +384,7 @@ export default function Salaries() {
               {STATUS_CHIPS.map((s) => (
                 <FilterChip key={s.value} active={status === s.value} onClick={() => { setStatus(s.value); setPage(1); }}>{s.label}</FilterChip>
               ))}
-              <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} نتيجة</span>
+              <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{meta?.total ?? rows.length} {t('page.reports.results_count')}</span>
             </div>
           </div>
 
@@ -392,7 +392,7 @@ export default function Salaries() {
             {loading ? (
               <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
             ) : rows.length === 0 ? (
-              <EmptyState icon="payments" tone="neutral" title="لا توجد مسيرات" message="لا توجد مسيرات رواتب لهذه الفترة."
+              <EmptyState icon="payments" tone="neutral" title={t('empty.payroll.title')} message={t('empty.payroll.message')}
                 action={canGenerate ? <Button variant="primary" icon="bolt" onClick={generatePayroll}>{t('page.salaries.generate')}</Button> : undefined} />
             ) : (
               <>
@@ -407,7 +407,7 @@ export default function Salaries() {
                         <SortableHeader label={fcMoneyHeader(t('col.sal.deductions'))} title={t('col.sal.deductions')} state={sort.getState('deductions')} onToggle={() => sort.toggle('deductions')} />
                         <SortableHeader label={fcMoneyHeader(t('col.sal.net'))} title={t('col.sal.net')} state={sort.getState('net')} onToggle={() => sort.toggle('net')} />
                         <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
-                        <th aria-label="فتح" />
+                        <th aria-label={t('action.open_row')} />
                       </tr>
                     </thead>
                     <tbody>
@@ -415,19 +415,19 @@ export default function Salaries() {
                         const imported = r.source === 'IMPORTED_TRANSFER';
                         return (
                         <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
-                          aria-label={`تفاصيل راتب ${r.employee?.fullName}`}
+                          aria-label={t('a11y.salary_details', { name: r.employee?.fullName ?? '' })}
                           onClick={() => setViewing(r)}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                           <td>
                             <strong>{r.employee?.fullName}</strong>
-                            {imported && <span style={{ marginInlineStart: 8, verticalAlign: 'middle' }}><StatusChip tone="indigo" icon="history">من سجل التحويل المستورد</StatusChip></span>}
+                            {imported && <span style={{ marginInlineStart: 8, verticalAlign: 'middle' }}><StatusChip tone="indigo" icon="history">{t('status.imported_transfer')}</StatusChip></span>}
                           </td>
                           <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{r.month}/{r.year}</td>
                           <td>{imported ? '—' : money(r.snapshotBaseSalary ?? r.baseSalary)}</td>
                           <td>{imported ? '—' : money(r.grossSalary)}</td>
                           <td>{imported ? '—' : money(Number(r.totalDeductions ?? 0) + Number(r.totalAdvances ?? 0))}</td>
                           <td><span className="salx-net">{<MoneyCell value={r.netSalary} />}</span></td>
-                          <td>{imported ? <StatusChip tone="neutral" icon="lock">للقراءة فقط</StatusChip> : statusChip(r.status)}</td>
+                          <td>{imported ? <StatusChip tone="neutral" icon="lock">{t('status.read_only')}</StatusChip> : statusChip(r.status)}</td>
                           <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
                         </tr>
                         );
@@ -451,7 +451,7 @@ export default function Salaries() {
             {historyLoading ? (
               <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
             ) : historyRows.length === 0 ? (
-              <EmptyState icon="history" tone="neutral" title="لا توجد دفعات" message="لا توجد دفعات رواتب مطابقة." />
+              <EmptyState icon="history" tone="neutral" title={t('empty.salary_payments.title')} message={t('empty.salary_payments.message')} />
             ) : (
               <>
                 <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
@@ -506,7 +506,7 @@ export default function Salaries() {
                 <div className="xpl-drawer-hero-body">
                   <span className="xpl-drawer-hero-title money-cell">{<MoneyText value={viewing.netSalary} />}</span>
                   <span className="xpl-drawer-hero-sub">{viewing.employee?.fullName} · {viewing.month}/{viewing.year}</span>
-                  <div style={{ marginTop: 4 }}>{imported ? <StatusChip tone="indigo" icon="history">من سجل التحويل المستورد</StatusChip> : statusChip(viewing.status)}</div>
+                  <div style={{ marginTop: 4 }}>{imported ? <StatusChip tone="indigo" icon="history">{t('status.imported_transfer')}</StatusChip> : statusChip(viewing.status)}</div>
                 </div>
               </div>
             }
@@ -523,33 +523,33 @@ export default function Salaries() {
               )
             }
           >
-            <DrawerSection title="بيانات الموظف">
+            <DrawerSection title={t('section.employee_data')}>
               <DrawerField label={t('col.sal.employee')} value={viewing.employee?.fullName} />
               <DrawerField label={t('col.code')} value={viewing.employee?.code} mono />
-              {viewing.employee?.department && <DrawerField label="القسم" value={viewing.employee.department} />}
+              {viewing.employee?.department && <DrawerField label={t('lbl.payslip.department')} value={viewing.employee.department} />}
               <DrawerField label={t('col.sal.period')} value={`${viewing.month}/${viewing.year}`} />
             </DrawerSection>
 
             {imported && (
-              <DrawerSection title="سجل تحويل مستورد">
+              <DrawerSection title={t('section.imported_transfer')}>
                 <DrawerField label={t('col.sal.net')} value={<span className="salx-net">{<MoneyText value={viewing.netSalary} />}</span>} />
                 {viewing.bankName && <DrawerField label={t('col.sal.bank')} value={viewing.bankName} />}
                 {viewing.paymentDate && <DrawerField label={t('col.sal.payment_date')} value={dateText(viewing.paymentDate)} />}
                 {viewing.transactionId && <DrawerField label={t('col.sal.transaction')} value={viewing.transactionId} mono />}
-                <div style={{ marginTop: 8, color: 'var(--xpl-muted)', fontSize: 13 }}>تفاصيل مكونات الراتب غير متوفرة لهذا السجل التاريخي</div>
+                <div style={{ marginTop: 8, color: 'var(--xpl-muted)', fontSize: 13 }}>{t('note.salary_breakdown_unavailable')}</div>
               </DrawerSection>
             )}
 
             {!imported && (<>
-            <DrawerSection title="الراتب">
+            <DrawerSection title={t('section.salary')}>
               <DrawerField label={t('col.sal.base')} value={<MoneyText value={viewing.snapshotBaseSalary ?? viewing.baseSalary} />} />
               <DrawerField label={t('col.sal.gross')} value={<MoneyText value={viewing.grossSalary} />} />
               <DrawerField label={t('col.sal.overtime')} value={`${Number(viewing.overtimeHours ?? 0).toFixed(3)}h · ${money(viewing.overtimeAmount)}`} />
               <DrawerField label={t('col.sal.net')} value={<span className="salx-net">{<MoneyText value={viewing.netSalary} />}</span>} />
             </DrawerSection>
 
-            <DrawerSection title="البدلات">
-              <DrawerField label="إجمالي البدلات" value={<MoneyText value={viewing.totalAllowances} />} />
+            <DrawerSection title={t('section.allowances')}>
+              <DrawerField label={t('field.total_allowances')} value={<MoneyText value={viewing.totalAllowances} />} />
               {allowanceLines.length > 0 && (
                 <div className="salx-lines">
                   {allowanceLines.map((l) => (
@@ -559,9 +559,9 @@ export default function Salaries() {
               )}
             </DrawerSection>
 
-            <DrawerSection title="الخصومات والسلف">
-              <DrawerField label="إجمالي الخصومات" value={<MoneyText value={viewing.totalDeductions} />} />
-              <DrawerField label="إجمالي السلف" value={<MoneyText value={viewing.totalAdvances} />} />
+            <DrawerSection title={t('section.deductions_advances')}>
+              <DrawerField label={t('field.total_deductions')} value={<MoneyText value={viewing.totalDeductions} />} />
+              <DrawerField label={t('field.total_advances')} value={<MoneyText value={viewing.totalAdvances} />} />
               {deductionLines.length > 0 && (
                 <div className="salx-lines">
                   {deductionLines.map((l) => (
@@ -572,11 +572,11 @@ export default function Salaries() {
             </DrawerSection>
 
             {canPay && viewing.status === 'APPROVED' && (
-              <DrawerSection title="الدفع">
+              <DrawerSection title={t('section.payment')}>
                 <div className="salx-pay">
                   <div className="xpl-field">
-                    <label>طريقة الدفع</label>
-                    <select className="xpl-select" value={payMethod} onChange={(e) => setPayMethod(e.target.value)} aria-label="طريقة الدفع">
+                    <label>{t('field.payment_method')}</label>
+                    <select className="xpl-select" value={payMethod} onChange={(e) => setPayMethod(e.target.value)} aria-label={t('field.payment_method')}>
                       {/* Values must match backend ENUMS.glPaymentMethod (CASH | BANK | ACCOUNTS_PAYABLE);
                           CHEQUE/TRANSFER are rejected by payPayrollSchema and have no GL routing. */}
                       <option value="CASH">{t('opt.payment.cash')}</option>
@@ -585,8 +585,8 @@ export default function Salaries() {
                     </select>
                   </div>
                   <div className="xpl-field">
-                    <label>تاريخ الصرف <span style={{ color: 'var(--xpl-muted)', fontWeight: 400 }}>(اختياري — يُرحَّل بآخر يوم في شهر الراتب عند تركه فارغًا)</span></label>
-                    <DateInput className="xpl-input" value={payDate} onChange={setPayDate} ariaLabel="تاريخ الصرف" />
+                    <label>{t('field.disbursement_date')} <span style={{ color: 'var(--xpl-muted)', fontWeight: 400 }}>{t('hint.disbursement_date_optional')}</span></label>
+                    <DateInput className="xpl-input" value={payDate} onChange={setPayDate} ariaLabel={t('field.disbursement_date')} />
                     {/* يعرض التنبيه التاريخي لتاريخ الصرف الصريح، أو لآخر يوم في شهر/سنة الراتب. */}
                     <HistoricalDateNotice date={payDate || toLocalDateOnly(new Date(viewing.year, viewing.month, 0))} />
                   </div>
@@ -606,12 +606,12 @@ export default function Salaries() {
         <Dialog
           icon="tune"
           title={t('page.salaries.adjustments')}
-          subtitle="مدخلات دورية وبنود يدوية على المسودات"
+          subtitle={t('dialog.adjustments.subtitle')}
           size="lg"
           onClose={() => setAdjustOpen(false)}
           footer={<Button variant="ghost" icon="close" onClick={() => setAdjustOpen(false)}>{t('action.close')}</Button>}
         >
-          <DialogSection title="مدخلات دورية" icon="repeat">
+          <DialogSection title={t('section.recurring_inputs')} icon="repeat">
             <div className="xpl-field">
               <label>{t('page.salaries.select_employee')}</label>
               <select className="xpl-select" value={inputEmployeeId} onChange={(e) => setInputEmployeeId(e.target.value)} aria-label={t('page.salaries.select_employee')}>
@@ -620,8 +620,8 @@ export default function Salaries() {
               </select>
             </div>
             <div className="xpl-field">
-              <label>النوع</label>
-              <select className="xpl-select" value={inputKind} onChange={(e) => setInputKind(e.target.value as 'allowance' | 'deduction' | 'advance')} aria-label="النوع">
+              <label>{t('field.type')}</label>
+              <select className="xpl-select" value={inputKind} onChange={(e) => setInputKind(e.target.value as 'allowance' | 'deduction' | 'advance')} aria-label={t('field.type')}>
                 <option value="allowance">{t('page.salaries.recurring_allowance')}</option>
                 <option value="deduction">{t('page.salaries.recurring_deduction')}</option>
                 <option value="advance">{t('page.salaries.advance')}</option>
@@ -640,7 +640,7 @@ export default function Salaries() {
             </div>
           </DialogSection>
 
-          <DialogSection title="بند يدوي على مسودة" icon="edit_note">
+          <DialogSection title={t('section.manual_draft_line')} icon="edit_note">
             <div className="xpl-field">
               <label>{t('page.salaries.draft_payroll')}</label>
               <select className="xpl-select" value={adjustPayrollId} onChange={(e) => setAdjustPayrollId(e.target.value)} aria-label={t('page.salaries.draft_payroll')}>
@@ -649,8 +649,8 @@ export default function Salaries() {
               </select>
             </div>
             <div className="xpl-field">
-              <label>النوع</label>
-              <select className="xpl-select" value={adjustType} onChange={(e) => setAdjustType(e.target.value as 'ALLOWANCE' | 'DEDUCTION')} aria-label="النوع">
+              <label>{t('field.type')}</label>
+              <select className="xpl-select" value={adjustType} onChange={(e) => setAdjustType(e.target.value as 'ALLOWANCE' | 'DEDUCTION')} aria-label={t('field.type')}>
                 <option value="ALLOWANCE">{t('page.salaries.manual_allowance')}</option>
                 <option value="DEDUCTION">{t('page.salaries.manual_deduction')}</option>
               </select>

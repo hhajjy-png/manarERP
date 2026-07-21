@@ -8,6 +8,8 @@ import QuickActionsSection from './QuickActionsSection';
 import RecentActivityFeed from './RecentActivityFeed';
 import RecommendationsSection from './RecommendationsSection';
 import type { ActivityRow, DashboardSection, DecisionCenterData, RevenueSlice } from './types';
+import { useT } from '../../../lib/i18n';
+import { useUI } from '../../../stores/uiStore';
 
 export interface CommandData {
   decisionCenter: DecisionCenterData | null;
@@ -45,24 +47,26 @@ export default function CommandCenter({
   refreshing?: boolean;
   refreshAt?: Date | null;
 }) {
+  const { t } = useT();
+  const { lang } = useUI();
   const dc = data.decisionCenter;
 
   const sections: CCSection[] = [
     {
       id: 'health',
-      title: 'حالة الشركة اليوم',
+      title: t('section.company_health_today'),
       region: 'side',
       node: <HealthGaugeSection health={dc?.healthScore ?? null} loading={data.loading} />,
     },
     {
       id: 'action-center',
-      title: 'يحتاج إجراءً الآن',
+      title: t('section.needs_action_now'),
       region: 'side',
       node: <ActionCenterSection cards={dc?.decisionCards ?? []} loading={data.loading} />,
     },
     {
       id: 'kpi',
-      title: 'المؤشرات المالية الرئيسية',
+      title: t('section.key_financial_indicators'),
       region: 'kpi',
       node: (
         <KpiRowSection
@@ -74,26 +78,26 @@ export default function CommandCenter({
     },
     {
       id: 'performance',
-      title: 'الأداء المالي (منذ بداية العام)',
+      title: t('section.financial_performance_ytd'),
       region: 'analytics',
       node: <PerformanceChartSection trend={trend} loading={data.loading} />,
     },
     {
       id: 'revenue-dist',
-      title: 'توزيع الإيرادات حسب العميل',
+      title: t('section.revenue_by_customer'),
       region: 'analytics',
       node: <RevenueDistributionSection slices={data.revenueDistribution} loading={data.loading} />,
     },
-    { id: 'quick-actions',   title: 'إجراءات سريعة',                region: 'flow',      node: <QuickActionsSection /> },
+    { id: 'quick-actions',   title: t('section.quick_actions_panel'),                region: 'flow',      node: <QuickActionsSection /> },
     {
       id: 'recent-activity',
-      title: 'آخر النشاطات',
+      title: t('section.recent_activity'),
       region: 'flow',
       node: <RecentActivityFeed rows={data.activity} loading={data.loading} />,
     },
     {
       id: 'recommendations',
-      title: 'التوصيات الذكية',
+      title: t('section.smart_recommendations'),
       region: 'full',
       node: <RecommendationsSection recommendations={dc?.recommendations ?? []} loading={data.loading} />,
     },
@@ -114,25 +118,25 @@ export default function CommandCenter({
   const full = inRegion('full');
 
   return (
-    <section className="db-command-center" aria-label="مركز القيادة التنفيذي">
+    <section className="db-command-center" aria-label={t('cc.aria.command_center')}>
       <div className="db-cc-titlebar">
         <div className="db-cc-titlebar-main">
-          <h1 className="db-cc-title">لوحة التحكم</h1>
-          <p className="db-cc-subtitle">نظرة عامة على أداء الشركة</p>
+          <h1 className="db-cc-title">{t('nav.dashboard')}</h1>
+          <p className="db-cc-subtitle">{t('dash.header.subtitle')}</p>
         </div>
         {onRefresh && (
           <div className="db-cc-titlebar-actions">
             {refreshAt && (
-              <span className="db-cc-updated">آخر تحديث {refreshAt.toLocaleTimeString('ar')}</span>
+              <span className="db-cc-updated">{t('dash.header.last_updated')} {refreshAt.toLocaleTimeString(lang === 'ar' ? 'ar' : 'en')}</span>
             )}
             <button
               type="button"
               className="db-cc-refresh"
               onClick={onRefresh}
               disabled={refreshing}
-              aria-label="تحديث بيانات لوحة التحكم"
+              aria-label={t('cc.aria.refresh_data')}
             >
-              {refreshing ? '⏳ جارٍ التحديث' : '↻ تحديث'}
+              {refreshing ? `⏳ ${t('cc.refreshing')}` : `↻ ${t('action.refresh')}`}
             </button>
           </div>
         )}

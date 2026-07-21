@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
+import { useT } from '../lib/i18n';
 import Modal from './Modal';
 import { formatNumber } from '../lib/format';
 import { formatDate } from '../lib/date';
@@ -22,10 +23,10 @@ interface PreviewData {
   warnings: string[];
 }
 
-const STATUS_AR: Record<string, string> = {
-  DRAFT: 'مسودة',
-  PRINTED: 'مطبوع',
-  CANCELLED: 'ملغى',
+const STATUS_KEYS: Record<string, string> = {
+  DRAFT: 'cheque.status.draft',
+  PRINTED: 'cheque.status.printed',
+  CANCELLED: 'dlg.force_delete.cheque.status.cancelled',
 };
 
 function fmtAmount(v: number, currency = 'KWD'): string {
@@ -44,6 +45,7 @@ interface Props {
 }
 
 export default function ForceDeleteChequeModal({ chequeId, onClose, onDeleted }: Props) {
+  const { t } = useT();
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [loadError, setLoadError] = useState('');
   const [confirmText, setConfirmText] = useState('');
@@ -77,12 +79,12 @@ export default function ForceDeleteChequeModal({ chequeId, onClose, onDeleted }:
 
   return (
     <Modal
-      title="⚠️ حذف نهائي للشيك"
+      title={t('dlg.force_delete.cheque.title')}
       onClose={onClose}
       footer={
         <>
           <button type="button" className="btn secondary" onClick={onClose} disabled={deleting}>
-            إلغاء
+            {t('action.cancel')}
           </button>
           <button
             type="button"
@@ -90,7 +92,7 @@ export default function ForceDeleteChequeModal({ chequeId, onClose, onDeleted }:
             onClick={onConfirm}
             disabled={!textMatches || deleting}
           >
-            {deleting ? 'جارٍ الحذف...' : 'تأكيد الحذف النهائي'}
+            {deleting ? t('dlg.force_delete.deleting') : t('dlg.force_delete.confirm_permanent')}
           </button>
         </>
       }
@@ -98,66 +100,66 @@ export default function ForceDeleteChequeModal({ chequeId, onClose, onDeleted }:
       {loadError && <p className="alert error">{loadError}</p>}
 
       {!preview && !loadError && (
-        <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>جارٍ التحميل...</p>
+        <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 0' }}>{t('dlg.force_delete.loading')}</p>
       )}
 
       {preview && (
         <>
           <div className="alert error" style={{ marginBottom: 16 }}>
-            <strong>تحذير:</strong> هذا الإجراء يحذف سجل الشيك نهائياً ولا يمكن التراجع عنه. الإلغاء هو الإجراء المعتاد؛ الحذف النهائي إجراء استثنائي لمدير النظام فقط.
+            <strong>{t('dlg.force_delete.warning_label')}</strong> {t('dlg.force_delete.cheque.warning_body')}
           </div>
 
           {(preview.status === 'PRINTED' || preview.hasPaymentVoucher) && (
             <div className="alert error" style={{ marginBottom: 16 }}>
-              <strong>تنبيه مشدّد:</strong>{' '}
-              {preview.status === 'PRINTED' && 'هذا الشيك مطبوع. '}
-              {preview.hasPaymentVoucher && `صدر له سند صرف رقم ${preview.paymentVoucherNumber}. `}
-              تأكد تماماً قبل المتابعة.
+              <strong>{t('dlg.force_delete.cheque.strict_warning_label')}</strong>{' '}
+              {preview.status === 'PRINTED' && t('dlg.force_delete.cheque.printed_note')}
+              {preview.hasPaymentVoucher && t('dlg.force_delete.cheque.voucher_note', { number: preview.paymentVoucherNumber ?? '' })}
+              {t('dlg.force_delete.cheque.confirm_before_proceed')}
             </div>
           )}
 
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12, fontSize: 14 }}>
             <tbody>
               <tr>
-                <td style={tdLabel}>رقم الشيك</td>
+                <td style={tdLabel}>{t('field.cheque.number')}</td>
                 <td><strong style={{ fontFamily: 'monospace' }}>{preview.chequeNumber}</strong></td>
               </tr>
               <tr>
-                <td style={tdLabel}>المستفيد</td>
+                <td style={tdLabel}>{t('dlg.force_delete.cheque.col_beneficiary')}</td>
                 <td>{preview.beneficiaryName}</td>
               </tr>
               <tr>
-                <td style={tdLabel}>المبلغ</td>
+                <td style={tdLabel}>{t('field.cheque.amount')}</td>
                 <td style={{ color: 'var(--text)', fontWeight: 700 }}>{fmtAmount(preview.amount, preview.currency)}</td>
               </tr>
               <tr>
-                <td style={tdLabel}>البنك</td>
+                <td style={tdLabel}>{t('dlg.force_delete.cheque.col_bank')}</td>
                 <td>{preview.bankName}</td>
               </tr>
               <tr>
-                <td style={tdLabel}>تاريخ الشيك</td>
+                <td style={tdLabel}>{t('field.cheque.date')}</td>
                 <td>{fmtDate(preview.chequeDate)}</td>
               </tr>
               <tr>
-                <td style={tdLabel}>الحالة</td>
-                <td>{STATUS_AR[preview.status] ?? preview.status}</td>
+                <td style={tdLabel}>{t('col.status')}</td>
+                <td>{STATUS_KEYS[preview.status] ? t(STATUS_KEYS[preview.status]) : preview.status}</td>
               </tr>
               <tr>
-                <td style={tdLabel}>تاريخ الطباعة</td>
+                <td style={tdLabel}>{t('dlg.force_delete.cheque.col_printed_at')}</td>
                 <td>{fmtDate(preview.printedAt)}</td>
               </tr>
               <tr>
-                <td style={tdLabel}>تاريخ الإلغاء</td>
+                <td style={tdLabel}>{t('dlg.force_delete.cheque.col_cancelled_at')}</td>
                 <td>{fmtDate(preview.cancelledAt)}</td>
               </tr>
               <tr>
-                <td style={tdLabel}>رقم سند الصرف</td>
+                <td style={tdLabel}>{t('dlg.force_delete.cheque.col_voucher_number')}</td>
                 <td style={{ fontFamily: 'monospace', color: preview.hasPaymentVoucher ? 'var(--red)' : undefined }}>
                   {preview.paymentVoucherNumber ?? '—'}
                 </td>
               </tr>
               <tr>
-                <td style={tdLabel}>حركات كشف بنكي مطابَقة</td>
+                <td style={tdLabel}>{t('dlg.force_delete.cheque.col_bank_matches')}</td>
                 <td style={{ fontWeight: preview.bankMatchesCount > 0 ? 700 : undefined, color: preview.bankMatchesCount > 0 ? 'var(--red)' : undefined }}>
                   {preview.bankMatchesCount}
                 </td>
@@ -167,13 +169,13 @@ export default function ForceDeleteChequeModal({ chequeId, onClose, onDeleted }:
 
           {preview.warnings.length > 0 && (
             <div style={{ background: 'var(--amber-bg, #fff8e1)', border: '1px solid var(--amber, #f59e0b)', borderRadius: 8, padding: '10px 14px', marginBottom: 12, fontSize: 13 }}>
-              <strong style={{ display: 'block', marginBottom: 4 }}>تنبيهات:</strong>
+              <strong style={{ display: 'block', marginBottom: 4 }}>{t('dlg.force_delete.warnings_heading')}</strong>
               {preview.warnings.map((w, i) => <div key={i}>• {w}</div>)}
             </div>
           )}
 
           <label style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
-            اكتب رقم الشيك للتأكيد:{' '}
+            {t('dlg.force_delete.cheque.confirm_prompt')}{' '}
             <code style={{ background: 'var(--bg-alt)', padding: '2px 6px', borderRadius: 4 }}>
               {preview.chequeNumber}
             </code>

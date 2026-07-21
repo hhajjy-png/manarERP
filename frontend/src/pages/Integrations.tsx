@@ -7,48 +7,59 @@ import {
   type IntegrationSettingsUpdate,
 } from '../api/integrations';
 import { useAuth } from '../stores/authStore';
+import { useT } from '../lib/i18n';
 import { formatDate } from '../lib/date';
 import './Integrations.css';
 
+type Translate = (key: string, vars?: Record<string, string | number>) => string;
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const CATEGORY_LABELS: Record<IntegrationCategory, string> = {
-  bank:       'البنوك والمدفوعات',
-  import:     'الاستيراد والبيانات',
-  backup:     'النسخ الاحتياطي',
-  automation: 'الأتمتة',
-  future:     'المستقبل',
-};
+function categoryLabels(t: Translate): Record<IntegrationCategory, string> {
+  return {
+    bank:       t('integrations.category.bank'),
+    import:     t('integrations.category.import'),
+    backup:     t('nav.backup'),
+    automation: t('integrations.category.automation'),
+    future:     t('integrations.category.future'),
+  };
+}
 
 // Package D — Quick filter chips
-const QUICK_CHIPS: { key: string; label: string }[] = [
-  { key: 'all',    label: 'الكل' },
-  { key: 'active', label: 'يعمل' },
-  { key: 'ready',  label: 'جاهز' },
-  { key: 'soon',   label: 'قريباً' },
-  { key: 'planned', label: 'مخطط' },
-  { key: 'backup', label: 'النسخ الاحتياطي' },
-  { key: 'bank',   label: 'البنوك' },
-  { key: 'excel',  label: 'Excel' },
-  { key: 'ai',     label: 'AI' },
-];
+function quickChips(t: Translate): { key: string; label: string }[] {
+  return [
+    { key: 'all',    label: t('filter.all') },
+    { key: 'active', label: t('integrations.status.working') },
+    { key: 'ready',  label: t('integrations.status.ready') },
+    { key: 'soon',   label: t('integrations.status.coming_soon') },
+    { key: 'planned', label: t('integrations.status.planned') },
+    { key: 'backup', label: t('nav.backup') },
+    { key: 'bank',   label: t('integrations.filter.banks') },
+    { key: 'excel',  label: 'Excel' },
+    { key: 'ai',     label: 'AI' },
+  ];
+}
 
 // Package O — Roadmap items (static, read-only)
-const ROADMAP_ITEMS: { icon: string; name: string; label: string; labelCls: string }[] = [
-  { icon: '🏦', name: 'Open Banking',      label: 'قريباً',    labelCls: 'amber' },
-  { icon: '🤖', name: 'AI Assistant',      label: 'مخطط',     labelCls: 'gray'  },
-  { icon: '📄', name: 'OCR Documents',     label: 'مخطط',     labelCls: 'gray'  },
-  { icon: '📱', name: 'Mobile Companion',  label: 'مستقبلاً', labelCls: 'blue'  },
-  { icon: '🔗', name: 'API Integrations',  label: 'مستقبلاً', labelCls: 'blue'  },
-];
+function roadmapItems(t: Translate): { icon: string; name: string; label: string; labelCls: string }[] {
+  return [
+    { icon: '🏦', name: 'Open Banking',      label: t('integrations.status.coming_soon'), labelCls: 'amber' },
+    { icon: '🤖', name: 'AI Assistant',      label: t('integrations.status.planned'),     labelCls: 'gray'  },
+    { icon: '📄', name: 'OCR Documents',     label: t('integrations.status.planned'),     labelCls: 'gray'  },
+    { icon: '📱', name: 'Mobile Companion',  label: t('integrations.status.eventually'),  labelCls: 'blue'  },
+    { icon: '🔗', name: 'API Integrations',  label: t('integrations.status.eventually'),  labelCls: 'blue'  },
+  ];
+}
 
 // Package N — Health panel items
-const HEALTH_ITEMS: { id: string; nameAr: string; icon: string }[] = [
-  { id: 'payroll-bank-import',   nameAr: 'استيراد رواتب البنك',     icon: '💰' },
-  { id: 'bank-statement-import', nameAr: 'استيراد كشف البنك',       icon: '📊' },
-  { id: 'enhanced-excel-import', nameAr: 'استيراد Excel المحسّن',   icon: '📈' },
-  { id: 'connector-sdk',         nameAr: 'AI Assistant',            icon: '🤖' },
-];
+function healthItems(t: Translate): { id: string; nameAr: string; icon: string }[] {
+  return [
+    { id: 'payroll-bank-import',   nameAr: t('integrations.health.payroll_bank_import'),   icon: '💰' },
+    { id: 'bank-statement-import', nameAr: t('integrations.health.bank_statement_import'), icon: '📊' },
+    { id: 'enhanced-excel-import', nameAr: t('integrations.health.enhanced_excel_import'), icon: '📈' },
+    { id: 'connector-sdk',         nameAr: 'AI Assistant',                                  icon: '🤖' },
+  ];
+}
 
 // ─── Per-integration extra metadata (Packages K, L, M) ───────────────────────
 
@@ -62,30 +73,34 @@ interface ExtraCardMeta {
   retention?: string;
 }
 
-function getExtraCardMeta(id: string): ExtraCardMeta {
+function getExtraCardMeta(id: string, t: Translate): ExtraCardMeta {
   switch (id) {
     case 'payroll-bank-import':
       return {
         formats:  ['Excel', 'CSV'],
-        banks:    ['Gulf Bank', 'NBK', 'KFH', 'Boubyan', '+2 بنوك'],
-        version:  'v1.0 مستقر',
+        banks:    ['Gulf Bank', 'NBK', 'KFH', 'Boubyan', t('integrations.meta.plus_banks_2')],
+        version:  t('integrations.version_stable'),
       };
     case 'bank-statement-import':
       return {
         formats: ['Excel', 'CSV', 'XML'],
         banks:   ['Gulf Bank', 'NBK', 'KFH', 'Boubyan', 'Warba', 'Ahli', '+1'],
-        version: 'v1.0 مستقر',
+        version: t('integrations.version_stable'),
       };
     case 'enhanced-excel-import':
       return {
         formats:  ['Excel', '.xlsx', '.xls'],
-        entities: ['عملاء', 'موردون', 'موظفون', 'معدات', 'عقود', 'مصروفات', 'أسعار'],
-        version:  'v1.0 مستقر',
+        entities: [
+          t('integrations.entity.customers'), t('integrations.entity.suppliers'), t('integrations.entity.employees'),
+          t('integrations.entity.equipment'), t('integrations.entity.contracts'), t('integrations.entity.expenses'),
+          t('integrations.entity.prices'),
+        ],
+        version:  t('integrations.version_stable'),
       };
     case 'bank-reconciliation':
-      return { version: 'مخطط' };
+      return { version: t('integrations.status.planned') };
     case 'connector-sdk':
-      return { version: 'قريباً' };
+      return { version: t('integrations.status.coming_soon') };
     default:
       return {};
   }
@@ -151,20 +166,20 @@ function statusDotCls(card: IntegrationCard): 'green' | 'amber' | 'gray' {
   return 'gray';
 }
 
-function statusLabel(card: IntegrationCard): string {
-  if (card.status === 'available' && card.enabled && card.health === 'ok') return '🟢 يعمل';
-  if (card.status === 'available' && card.health === 'needsSetup') return '🔵 جاهز';
-  if (card.status === 'available') return '🔵 متاح';
-  if (card.status === 'planned') return '🟡 قريباً';
-  return '⚪ مخطط';
+function statusLabel(card: IntegrationCard, t: Translate): string {
+  if (card.status === 'available' && card.enabled && card.health === 'ok') return `🟢 ${t('integrations.status.working')}`;
+  if (card.status === 'available' && card.health === 'needsSetup') return `🔵 ${t('integrations.status.ready')}`;
+  if (card.status === 'available') return `🔵 ${t('integrations.status.available')}`;
+  if (card.status === 'planned') return `🟡 ${t('integrations.status.coming_soon')}`;
+  return `⚪ ${t('integrations.status.planned')}`;
 }
 
-function healthLabel(health: IntegrationCard['health']): { text: string; dot: 'green' | 'amber' | 'gray' } {
+function healthLabel(health: IntegrationCard['health'], t: Translate): { text: string; dot: 'green' | 'amber' | 'gray' } {
   switch (health) {
-    case 'ok':          return { text: 'يعمل',             dot: 'green' };
-    case 'needsSetup':  return { text: 'يحتاج إعداد',      dot: 'amber' };
-    case 'disabled':    return { text: 'معطّل',            dot: 'gray'  };
-    case 'unavailable': return { text: 'غير متاح بعد',    dot: 'gray'  };
+    case 'ok':          return { text: t('integrations.status.working'),       dot: 'green' };
+    case 'needsSetup':  return { text: t('integrations.health.needs_setup'),   dot: 'amber' };
+    case 'disabled':    return { text: t('integrations.status.disabled'),      dot: 'gray'  };
+    case 'unavailable': return { text: t('integrations.status.not_available_yet'), dot: 'gray'  };
   }
 }
 
@@ -178,6 +193,7 @@ interface SettingsPanelProps {
 }
 
 function SettingsPanel({ card, canConfigure, onClose, onSaved }: SettingsPanelProps) {
+  const { t } = useT();
   const [enabled, setEnabled] = useState(card.enabled);
   const [notes, setNotes]     = useState((card.settings.notes as string) ?? '');
   const [saving, setSaving]   = useState(false);
@@ -191,7 +207,7 @@ function SettingsPanel({ card, canConfigure, onClose, onSaved }: SettingsPanelPr
       const updated = await integrationsApi.updateSettings(card.id, update);
       onSaved(updated);
     } catch {
-      setError('حدث خطأ أثناء الحفظ');
+      setError(t('integrations.error.save_failed'));
     } finally {
       setSaving(false);
     }
@@ -200,16 +216,16 @@ function SettingsPanel({ card, canConfigure, onClose, onSaved }: SettingsPanelPr
   return (
     <div className="ic-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="ic-modal">
-        <p className="ic-modal-title">⚙ إعدادات — {card.nameAr}</p>
+        <p className="ic-modal-title">⚙ {t('integrations.settings_title_prefix')} — {card.nameAr}</p>
 
         {!canConfigure && (
           <div className="ic-warn-box">
-            ليست لديك صلاحية تعديل إعدادات هذا التكامل.
+            {t('integrations.no_permission_settings')}
           </div>
         )}
 
         <div className="ic-form-group">
-          <label className="ic-form-label">حالة التكامل</label>
+          <label className="ic-form-label">{t('integrations.field.status')}</label>
           <label className={`ic-form-checkbox-label${canConfigure ? '' : ' disabled'}`}>
             <input
               type="checkbox"
@@ -218,12 +234,12 @@ function SettingsPanel({ card, canConfigure, onClose, onSaved }: SettingsPanelPr
               onChange={(e) => setEnabled(e.target.checked)}
               className="ic-form-checkbox"
             />
-            {enabled ? 'مفعّل' : 'معطّل'}
+            {enabled ? t('integrations.status.enabled') : t('integrations.status.disabled')}
           </label>
         </div>
 
         <div className="ic-form-group">
-          <label className="ic-form-label">ملاحظات</label>
+          <label className="ic-form-label">{t('field.notes')}</label>
           <textarea
             value={notes}
             disabled={!canConfigure}
@@ -231,23 +247,23 @@ function SettingsPanel({ card, canConfigure, onClose, onSaved }: SettingsPanelPr
             maxLength={500}
             rows={3}
             className="ic-form-input ic-form-textarea"
-            placeholder="ملاحظات إضافية…"
+            placeholder={t('field.notes_placeholder')}
           />
         </div>
 
         {(card.status === 'planned' || card.status === 'comingSoon') && (
           <p className="ic-form-note">
-            هذا التكامل لم يتم تطويره بعد — حفظ الإعدادات متاح ولكن التشغيل غير ممكن في هذه المرحلة.
+            {t('integrations.note.not_developed')}
           </p>
         )}
 
         {error && <p className="ic-error-text">{error}</p>}
 
         <div className="ic-modal-actions">
-          <button type="button" className="ic-btn ic-btn-ghost" onClick={onClose}>إغلاق</button>
+          <button type="button" className="ic-btn ic-btn-ghost" onClick={onClose}>{t('action.close')}</button>
           {canConfigure && (
             <button type="button" className="ic-btn ic-btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? 'جارٍ الحفظ…' : 'حفظ الإعدادات'}
+              {saving ? t('msg.saving') : t('btn.backup.save_settings')}
             </button>
           )}
         </div>
@@ -264,13 +280,14 @@ interface RunResultDialogProps {
 }
 
 function RunResultDialog({ messageAr, onClose }: RunResultDialogProps) {
+  const { t } = useT();
   return (
     <div className="ic-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="ic-modal ic-modal-sm">
-        <p className="ic-modal-title">نتيجة التشغيل</p>
+        <p className="ic-modal-title">{t('integrations.run_result_title')}</p>
         <div className="ic-result-box">{messageAr}</div>
         <div className="ic-modal-actions">
-          <button type="button" className="ic-btn ic-btn-primary" onClick={onClose}>موافق</button>
+          <button type="button" className="ic-btn ic-btn-primary" onClick={onClose}>{t('action.ok')}</button>
         </div>
       </div>
     </div>
@@ -280,6 +297,7 @@ function RunResultDialog({ messageAr, onClose }: RunResultDialogProps) {
 // ─── System Health Panel (Package N) ─────────────────────────────────────────
 
 function SystemHealthPanel({ cards }: { cards: IntegrationCard[] }) {
+  const { t } = useT();
   const byId = useMemo(
     () => Object.fromEntries(cards.map((c) => [c.id, c])),
     [cards],
@@ -289,12 +307,12 @@ function SystemHealthPanel({ cards }: { cards: IntegrationCard[] }) {
     <div className="ic-health-panel">
       <p className="ic-panel-title">
         <span>🩺</span>
-        حالة التكاملات
+        {t('integrations.panel.health_title')}
       </p>
       <div className="ic-health-rows">
-        {HEALTH_ITEMS.map((item) => {
+        {healthItems(t).map((item) => {
           const card = byId[item.id];
-          const hl = card ? healthLabel(card.health) : { text: 'غير محمّل', dot: 'gray' as const };
+          const hl = card ? healthLabel(card.health, t) : { text: t('integrations.status.not_loaded'), dot: 'gray' as const };
           return (
             <div key={item.id} className="ic-health-row">
               <span className="ic-health-row-icon">{item.icon}</span>
@@ -314,14 +332,15 @@ function SystemHealthPanel({ cards }: { cards: IntegrationCard[] }) {
 // ─── Roadmap Panel (Package O) ────────────────────────────────────────────────
 
 function RoadmapPanel() {
+  const { t } = useT();
   return (
     <div className="ic-roadmap-panel">
       <p className="ic-panel-title">
         <span>🗺</span>
-        خارطة الطريق
+        {t('integrations.panel.roadmap_title')}
       </p>
       <div className="ic-roadmap-items">
-        {ROADMAP_ITEMS.map((item) => (
+        {roadmapItems(t).map((item) => (
           <div key={item.name} className="ic-roadmap-item">
             <span className="ic-roadmap-icon">{item.icon}</span>
             <span className="ic-roadmap-name">{item.name}</span>
@@ -347,10 +366,11 @@ interface IntegrationCardViewProps {
 function IntegrationCardView({
   card, canConfigure, canRun, onSettings, onRun, onNavigate,
 }: IntegrationCardViewProps) {
+  const { t } = useT();
   const isActive   = card.status === 'available';
-  const extra      = getExtraCardMeta(card.id);
+  const extra      = getExtraCardMeta(card.id, t);
   const dotCls     = statusDotCls(card);
-  const statusText = statusLabel(card);
+  const statusText = statusLabel(card, t);
 
   // Package F — badge color
   const statusBadgeCls =
@@ -362,13 +382,13 @@ function IntegrationCardView({
     card.maturity === 'beta'       ? 'amber' : 'gray';
 
   const maturityLabel =
-    card.maturity === 'stable'     ? 'مستقر'   :
-    card.maturity === 'beta'       ? 'تجريبي'  :
-    card.maturity === 'foundation' ? 'أساسي'   : 'مخطط';
+    card.maturity === 'stable'     ? t('integrations.maturity.stable')     :
+    card.maturity === 'beta'       ? t('integrations.maturity.beta')       :
+    card.maturity === 'foundation' ? t('integrations.maturity.foundation') : t('integrations.status.planned');
 
   const statusLabelShort =
-    card.status === 'available'  ? 'متاح'   :
-    card.status === 'planned'    ? 'قريباً' : 'قادم';
+    card.status === 'available'  ? t('integrations.status.available')    :
+    card.status === 'planned'    ? t('integrations.status.coming_soon')  : t('integrations.status.next');
 
   return (
     <div className={`ic-card${isActive ? '' : ' ic-card-planned'}`}>
@@ -388,8 +408,8 @@ function IntegrationCardView({
       <div className="ic-badge-row">
         <span className={`ic-badge ${statusBadgeCls}`}>{statusLabelShort}</span>
         <span className={`ic-badge ${maturityBadgeCls}`}>{maturityLabel}</span>
-        {card.enabled  && isActive && <span className="ic-badge green">مفعّل</span>}
-        {card.configured && isActive && <span className="ic-badge blue">جاهز</span>}
+        {card.enabled  && isActive && <span className="ic-badge green">{t('integrations.status.enabled')}</span>}
+        {card.configured && isActive && <span className="ic-badge blue">{t('integrations.status.ready')}</span>}
       </div>
 
       {/* Description */}
@@ -427,7 +447,7 @@ function IntegrationCardView({
 
       {/* Version */}
       {extra.version && (
-        <p className="ic-card-meta">الإصدار: {extra.version}</p>
+        <p className="ic-card-meta">{t('integrations.label.version_prefix')} {extra.version}</p>
       )}
 
       {/* Package F — animated status indicator */}
@@ -436,7 +456,7 @@ function IntegrationCardView({
         {statusText}
         {card.lastRunAt && (
           <span className="ic-status-last-run">
-            آخر تشغيل: {formatDate(card.lastRunAt)}
+            {t('integrations.label.last_run_prefix')} {formatDate(card.lastRunAt)}
           </span>
         )}
       </div>
@@ -451,15 +471,15 @@ function IntegrationCardView({
           className={`ic-btn ic-btn-ghost${canConfigure ? '' : ''}`}
           onClick={canConfigure ? onSettings : undefined}
           disabled={!canConfigure}
-          title={canConfigure ? 'إعدادات التكامل' : 'تحتاج صلاحية integrations.configure'}
+          title={canConfigure ? t('integrations.title.settings') : t('integrations.title.needs_configure_permission')}
         >
-          ⚙ إعدادات
+          ⚙ {t('integrations.btn.settings')}
         </button>
 
         {/* Navigate — only for available integrations with a targetRoute */}
         {card.targetRoute && isActive && (
           <button type="button" className="ic-btn ic-btn-ghost" onClick={onNavigate}>
-            ℹ فتح
+            ℹ {t('action.open_row')}
           </button>
         )}
 
@@ -470,13 +490,13 @@ function IntegrationCardView({
             className="ic-btn ic-btn-primary"
             onClick={canRun ? onRun : undefined}
             disabled={!canRun}
-            title={canRun ? 'تشغيل التكامل' : 'تحتاج صلاحية integrations.run'}
+            title={canRun ? t('integrations.title.run') : t('integrations.title.needs_run_permission')}
           >
-            ▶ تشغيل
+            ▶ {t('integrations.btn.run')}
           </button>
         ) : (
-          <button type="button" className="ic-btn ic-btn-ghost" disabled title="هذا التكامل غير متاح بعد">
-            🕒 قريباً
+          <button type="button" className="ic-btn ic-btn-ghost" disabled title={t('integrations.title.not_available_yet')}>
+            🕒 {t('integrations.status.coming_soon')}
           </button>
         )}
       </div>
@@ -488,6 +508,7 @@ function IntegrationCardView({
 
 export default function Integrations() {
   const { hasPermission } = useAuth();
+  const { t } = useT();
   const navigate = useNavigate();
 
   // ── State (Package S — all preserved) ──
@@ -513,10 +534,11 @@ export default function Integrations() {
       const data = await integrationsApi.list();
       setCards(data);
     } catch {
-      setError('تعذّر تحميل قائمة التكاملات');
+      setError(t('integrations.error.load_failed'));
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => { void load(); }, [load]);
@@ -532,7 +554,7 @@ export default function Integrations() {
       const result = await integrationsApi.run(card.id);
       setRunResult(result.messageAr);
     } catch {
-      setRunResult('حدث خطأ أثناء محاولة التشغيل');
+      setRunResult(t('integrations.error.run_failed'));
     } finally {
       setRunningId(null);
     }
@@ -591,17 +613,17 @@ export default function Integrations() {
         <div className="ic-header-meta">
           <h1>
             <span className="material-symbols-outlined">hub</span>
-            مركز التكاملات
+            {t('integrations.page.title')}
           </h1>
           <p>
-            إدارة جميع تكاملات النظام والبنوك والاستيراد والنسخ الاحتياطي من مكان واحد.
+            {t('integrations.page.subtitle')}
           </p>
           {!loading && (
             <div className="ic-header-chips">
-              <span className="ic-header-tag green">✅ {headerCounts.active} تكامل نشط</span>
-              <span className="ic-header-tag blue">⚙️ {headerCounts.ready} جاهز</span>
-              <span className="ic-header-tag amber">🕒 {headerCounts.soon} قريباً</span>
-              <span className="ic-header-tag gray">📦 النظام v2.0</span>
+              <span className="ic-header-tag green">✅ {t('integrations.chip.active', { count: headerCounts.active })}</span>
+              <span className="ic-header-tag blue">⚙️ {t('integrations.chip.ready', { count: headerCounts.ready })}</span>
+              <span className="ic-header-tag amber">🕒 {t('integrations.chip.soon', { count: headerCounts.soon })}</span>
+              <span className="ic-header-tag gray">📦 {t('integrations.chip.system_version')}</span>
             </div>
           )}
         </div>
@@ -613,43 +635,43 @@ export default function Integrations() {
           <div className="ic-kpi-card">
             <span className="ic-kpi-icon">✅</span>
             <div className="ic-kpi-body">
-              <p className="ic-kpi-label">التكاملات المفعلة</p>
+              <p className="ic-kpi-label">{t('integrations.kpi.enabled_label')}</p>
               <p className={`ic-kpi-value ${kpiValues.activeCount > 0 ? 'green' : ''}`}>
                 {kpiValues.activeCount}
               </p>
-              <p className="ic-kpi-sub">من أصل {kpiValues.readyCount} متاح</p>
+              <p className="ic-kpi-sub">{t('integrations.kpi.enabled_sub', { count: kpiValues.readyCount })}</p>
             </div>
           </div>
 
           <div className="ic-kpi-card">
             <span className="ic-kpi-icon">⚙️</span>
             <div className="ic-kpi-body">
-              <p className="ic-kpi-label">التكاملات الجاهزة</p>
+              <p className="ic-kpi-label">{t('integrations.kpi.ready_label')}</p>
               <p className="ic-kpi-value blue">{kpiValues.readyCount}</p>
-              <p className="ic-kpi-sub">مستقرة وقابلة للاستخدام</p>
+              <p className="ic-kpi-sub">{t('integrations.kpi.ready_sub')}</p>
             </div>
           </div>
 
           <div className="ic-kpi-card">
             <span className="ic-kpi-icon">🕒</span>
             <div className="ic-kpi-body">
-              <p className="ic-kpi-label">التكاملات المستقبلية</p>
+              <p className="ic-kpi-label">{t('integrations.kpi.future_label')}</p>
               <p className="ic-kpi-value amber">{kpiValues.futureCount}</p>
-              <p className="ic-kpi-sub">مخططة أو قادمة قريباً</p>
+              <p className="ic-kpi-sub">{t('integrations.kpi.future_sub')}</p>
             </div>
           </div>
 
           <div className="ic-kpi-card">
             <span className="ic-kpi-icon">{kpiValues.systemOk ? '🟢' : '🟡'}</span>
             <div className="ic-kpi-body">
-              <p className="ic-kpi-label">حالة النظام</p>
+              <p className="ic-kpi-label">{t('integrations.kpi.system_status_label')}</p>
               <p className={`ic-kpi-value ${kpiValues.systemOk ? 'green' : 'amber'}`}>
-                {kpiValues.systemOk ? 'مستقر' : 'تحقق'}
+                {kpiValues.systemOk ? t('integrations.maturity.stable') : t('integrations.status.check_needed')}
               </p>
               <p className="ic-kpi-sub">
                 {kpiValues.lastRun
-                  ? `آخر تشغيل: ${formatDate(kpiValues.lastRun)}`
-                  : 'لا توجد عمليات سابقة'}
+                  ? `${t('integrations.label.last_run_prefix')} ${formatDate(kpiValues.lastRun)}`
+                  : t('integrations.kpi.no_prior_runs')}
               </p>
             </div>
           </div>
@@ -657,7 +679,7 @@ export default function Integrations() {
       )}
 
       {/* ── Loading state ── */}
-      {loading && <p className="ic-loading">جارٍ تحميل التكاملات…</p>}
+      {loading && <p className="ic-loading">{t('integrations.loading')}</p>}
 
       {/* ── Error state ── */}
       {error && <p className="ic-error-banner">{error}</p>}
@@ -670,13 +692,13 @@ export default function Integrations() {
             <input
               type="text"
               className="ic-search"
-              placeholder="ابحث عن تكامل..."
+              placeholder={t('integrations.search_placeholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <div className="ic-chip-row">
-            {QUICK_CHIPS.map((chip) => (
+            {quickChips(t).map((chip) => (
               <button
                 key={chip.key}
                 type="button"
@@ -694,7 +716,7 @@ export default function Integrations() {
       {!loading && !error && filteredCategories.length === 0 && (
         <div className="ic-empty">
           <span className="ic-empty-icon">🔍</span>
-          <span>لا توجد تكاملات مطابقة لبحثك</span>
+          <span>{t('integrations.empty_search')}</span>
         </div>
       )}
 
@@ -702,7 +724,7 @@ export default function Integrations() {
         const catCards = filteredCards.filter((c) => c.category === cat);
         return (
           <section key={cat}>
-            <p className="ic-section-title">{CATEGORY_LABELS[cat] ?? cat}</p>
+            <p className="ic-section-title">{categoryLabels(t)[cat] ?? cat}</p>
             <div className="ic-card-grid">
               {catCards.map((card) => (
                 <IntegrationCardView

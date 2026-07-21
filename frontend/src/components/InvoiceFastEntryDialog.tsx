@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { money } from '../config/modules';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
+import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { Dialog, DialogSection, Button } from './explorer/ExplorerKit';
 import DateInput from './DateInput';
@@ -40,6 +41,7 @@ interface Props {
  * مع إبقاء الحقول المشتركة، ويقترح الرقم التالي تلقائيًا. لا كيان جلسة، لا دفعة.
  */
 export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
+  const { t } = useT();
   const toast = useToast();
   const now = new Date();
   const [shared, setShared] = useState<InvoiceSharedFields>({
@@ -115,7 +117,7 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
   function patchShared(p: Partial<InvoiceSharedFields>) { setShared((s) => ({ ...s, ...p })); }
   function switchMode(mode: InvoiceSharedFields['entryMode']) {
     if (mode === shared.entryMode) return;
-    if (isInvoiceRowDirty(row) && !window.confirm('تغيير نمط الإدخال سيتجاهل الفاتورة الحالية غير المحفوظة. هل تريد المتابعة؟')) return;
+    if (isInvoiceRowDirty(row) && !window.confirm(t('confirm.discard_current_invoice'))) return;
     // انقل موقع حقل العميل حسب الوضع وأعد ضبط سياق العميل.
     setShared((s) => ({ ...s, entryMode: mode, customerId: '', contractId: '' }));
     setRow((r) => ({ ...r, customerId: '', contractId: '', items: r.items.map((it) => ({ ...it, unitPrice: 0, priceTouched: false })) }));
@@ -136,9 +138,9 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
   /** يحفظ الفاتورة الحالية عبر مسار الإنشاء العادي. يعيد نجاحًا + الرقم التالي المقترح. */
   async function saveCurrentRow(): Promise<{ ok: boolean; nextNumber: string }> {
     setError('');
-    const validationError = validateInvoiceRow(shared, row);
+    const validationError = validateInvoiceRow(shared, row, t);
     if (validationError) { setError(validationError); return { ok: false, nextNumber: row.invoiceNumber }; }
-    if (pricesLoading) { setError('يرجى الانتظار حتى تحميل أسعار العميل'); return { ok: false, nextNumber: row.invoiceNumber }; }
+    if (pricesLoading) { setError(t('msg.wait_customer_prices')); return { ok: false, nextNumber: row.invoiceNumber }; }
     if (saving) return { ok: false, nextNumber: row.invoiceNumber };
     setSaving(true);
     try {
@@ -163,7 +165,7 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
   async function saveAndNext() {
     const { ok, nextNumber } = await saveCurrentRow();
     if (!ok) return;
-    toast.ok(`✓ تم إنشاء الفاتورة ${row.invoiceNumber} بنجاح`);
+    toast.ok(t('toast.inv.fast_created', { number: row.invoiceNumber }));
     setRow(makeEmptyRow(nextNumber));
     focusFirstItem();
   }
@@ -171,14 +173,14 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
   async function saveAndFinish() {
     const { ok } = await saveCurrentRow();
     if (!ok) return;
-    toast.ok(`✓ تم إنشاء الفاتورة ${row.invoiceNumber} بنجاح`);
+    toast.ok(t('toast.inv.fast_created', { number: row.invoiceNumber }));
     onSaved();
     onClose();
   }
 
   function requestClose() {
     if (isInvoiceRowDirty(row)) {
-      if (!window.confirm('لديك فاتورة غير محفوظة في الصف الحالي. الإغلاق سيتجاهلها. هل تريد المتابعة؟')) return;
+      if (!window.confirm(t('confirm.discard_unsaved_invoice'))) return;
     }
     if (summary.count > 0) onSaved();
     onClose();
@@ -194,15 +196,15 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
   return (
     <Dialog
       icon="receipt_long"
-      title="إدخال فواتير سريع"
-      subtitle={`مبيعات · ${isMulti ? 'عملاء متعددون' : 'عميل واحد للجلسة'} — كل فاتورة تُحفظ كفاتورة عادية`}
+      title={t('btn.inv.fast_entry')}
+      subtitle={t('dlg.fast_entry.subtitle', { mode: isMulti ? t('opt.multi_customers') : t('opt.single_customer_session') })}
       size="xl"
       onClose={requestClose}
       footer={
         <>
-          <Button variant="primary" icon="playlist_add" busy={saving} disabled={pricesLoading} onClick={saveAndNext}>حفظ وإضافة التالي</Button>
-          <Button variant="secondary" icon="save" busy={saving} disabled={pricesLoading} onClick={saveAndFinish}>حفظ وإنهاء</Button>
-          <Button variant="ghost" onClick={requestClose}>إلغاء</Button>
+          <Button variant="primary" icon="playlist_add" busy={saving} disabled={pricesLoading} onClick={saveAndNext}>{t('btn.save_and_next')}</Button>
+          <Button variant="secondary" icon="save" busy={saving} disabled={pricesLoading} onClick={saveAndFinish}>{t('btn.save_and_finish')}</Button>
+          <Button variant="ghost" onClick={requestClose}>{t('action.cancel')}</Button>
         </>
       }
     >
@@ -210,60 +212,60 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
         {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
 
         {/* ── نمط الإدخال (اختيار أول) ── */}
-        <DialogSection title="اختر نمط الإدخال" icon="tune">
+        <DialogSection title={t('dlg.section.choose_entry_mode')} icon="tune">
           <div className="xpl-field xpl-field--full">
             <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                 <input type="radio" name="fe-mode" checked={!isMulti} onChange={() => switchMode('SINGLE')} />
-                <span>عميل واحد <span style={{ color: 'var(--xpl-muted)', fontSize: 12 }}>(موصى به)</span></span>
+                <span>{t('opt.single_customer')} <span style={{ color: 'var(--xpl-muted)', fontSize: 12 }}>{t('lbl.recommended')}</span></span>
               </label>
               <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
                 <input type="radio" name="fe-mode" checked={isMulti} onChange={() => switchMode('MULTI')} />
-                <span>عملاء متعددون</span>
+                <span>{t('opt.multi_customers')}</span>
               </label>
               <span className="xpl-chip xpl-chip--indigo" style={{ marginInlineStart: 'auto' }}>
-                {isMulti
-                  ? 'عملاء متعددون'
-                  : (customers.find((c) => String(c.id) === shared.customerId)?.name
-                      ? `عميل: ${customers.find((c) => String(c.id) === shared.customerId)?.name}`
-                      : 'عميل واحد')}
+                {(() => {
+                  if (isMulti) return t('opt.multi_customers');
+                  const activeSharedCustomerName = customers.find((c) => String(c.id) === shared.customerId)?.name;
+                  return activeSharedCustomerName ? t('lbl.customer_colon', { name: activeSharedCustomerName }) : t('opt.single_customer');
+                })()}
               </span>
             </div>
           </div>
         </DialogSection>
 
         {/* ── حقول مشتركة ثابتة ── */}
-        <DialogSection title="حقول مشتركة (ثابتة للجلسة)" icon="push_pin">
+        <DialogSection title={t('dlg.section.shared_fields')} icon="push_pin">
           {!isMulti && (
             <div className="xpl-field xpl-field--full">
-              <label>العميل (ثابت للجلسة) <span className="req">*</span></label>
+              <label>{t('field.customer_session')} <span className="req">*</span></label>
               <SearchableSelect
                 options={customerOptions}
                 value={shared.customerId}
                 onChange={(v) => patchShared({ customerId: v })}
-                ariaLabel="العميل"
-                placeholder="اختر العميل…"
-                searchPlaceholder="ابحث عن عميل…"
+                ariaLabel={t('aria.customer')}
+                placeholder={t('ph.select_customer')}
+                searchPlaceholder={t('ph.search_customer')}
               />
             </div>
           )}
           {!isMulti && contracts.length > 0 && (
             <div className="xpl-field">
-              <label>العقد (لتصفية الأسعار)</label>
-              <select className="xpl-select" value={shared.contractId} onChange={(e) => patchShared({ contractId: e.target.value })} aria-label="العقد">
-                <option value="">كل العقود</option>
+              <label>{t('field.contract_price_filter')}</label>
+              <select className="xpl-select" value={shared.contractId} onChange={(e) => patchShared({ contractId: e.target.value })} aria-label={t('aria.contract')}>
+                <option value="">{t('opt.all_contracts')}</option>
                 {contracts.map((c) => <option key={c.id} value={c.id}>{c.asphaltPlant ?? `#${c.id}`}</option>)}
               </select>
             </div>
           )}
           <div className="xpl-field">
-            <label>نوع الفاتورة</label>
-            <select className="xpl-select" value={shared.invoiceType} onChange={(e) => patchShared({ invoiceType: e.target.value })} aria-label="نوع الفاتورة">
+            <label>{t('col.inv.type')}</label>
+            <select className="xpl-select" value={shared.invoiceType} onChange={(e) => patchShared({ invoiceType: e.target.value })} aria-label={t('col.inv.type')}>
               {INVOICE_TYPES.map((it) => <option key={it} value={it}>{it}</option>)}
             </select>
           </div>
           <div className="xpl-field">
-            <label>تاريخ الفاتورة</label>
+            <label>{t('lbl.inv.issue_date')}</label>
             <DateInput className="xpl-input" value={shared.issueDate} onChange={(v) => {
               const patch: Partial<InvoiceSharedFields> = { issueDate: v };
               if (v) {
@@ -274,54 +276,54 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
                 patch.numberYear = deriveInvoiceYearFromIssueDate(v, Number(yy));
               }
               patchShared(patch);
-            }} ariaLabel="تاريخ الفاتورة" max={todayDateOnly()} />
+            }} ariaLabel={t('lbl.inv.issue_date')} max={todayDateOnly()} />
             <HistoricalDateNotice date={shared.issueDate} />
           </div>
           <div className="xpl-field">
-            <label>شهر الحساب</label>
-            <select className="xpl-select" value={shared.billingMonth} onChange={(e) => patchShared({ billingMonth: Number(e.target.value) })} aria-label="شهر الحساب">
+            <label>{t('lbl.inv.billing_period')}</label>
+            <select className="xpl-select" value={shared.billingMonth} onChange={(e) => patchShared({ billingMonth: Number(e.target.value) })} aria-label={t('lbl.inv.billing_period')}>
               {ARABIC_MONTHS.map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
             </select>
           </div>
           <div className="xpl-field">
-            <label>سنة الحساب</label>
-            <select className="xpl-select" value={shared.billingYear} onChange={(e) => patchShared({ billingYear: Number(e.target.value) })} aria-label="سنة الحساب">
+            <label>{t('field.inv.billing_year')}</label>
+            <select className="xpl-select" value={shared.billingYear} onChange={(e) => patchShared({ billingYear: Number(e.target.value) })} aria-label={t('field.inv.billing_year')}>
               {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
         </DialogSection>
 
         {/* ── الفاتورة الحالية ── */}
-        <DialogSection title="الفاتورة الحالية" icon="receipt_long">
+        <DialogSection title={t('dlg.section.current_invoice')} icon="receipt_long">
           {isMulti && (
             <div className="xpl-field xpl-field--full">
-              <label>العميل (لهذه الفاتورة) <span className="req">*</span></label>
+              <label>{t('field.customer_this_invoice')} <span className="req">*</span></label>
               <SearchableSelect
                 options={customerOptions}
                 value={row.customerId}
                 onChange={(v) => setRow((r) => ({ ...r, customerId: v }))}
-                ariaLabel="العميل"
-                placeholder="اختر العميل…"
-                searchPlaceholder="ابحث عن عميل…"
+                ariaLabel={t('aria.customer')}
+                placeholder={t('ph.select_customer')}
+                searchPlaceholder={t('ph.search_customer')}
               />
             </div>
           )}
           {isMulti && contracts.length > 0 && (
             <div className="xpl-field">
-              <label>العقد (لتصفية الأسعار)</label>
-              <select className="xpl-select" value={row.contractId} onChange={(e) => setRow((r) => ({ ...r, contractId: e.target.value }))} aria-label="العقد">
-                <option value="">كل العقود</option>
+              <label>{t('field.contract_price_filter')}</label>
+              <select className="xpl-select" value={row.contractId} onChange={(e) => setRow((r) => ({ ...r, contractId: e.target.value }))} aria-label={t('aria.contract')}>
+                <option value="">{t('opt.all_contracts')}</option>
                 {contracts.map((c) => <option key={c.id} value={c.id}>{c.asphaltPlant ?? `#${c.id}`}</option>)}
               </select>
             </div>
           )}
           <div className="xpl-field">
-            <label>رقم الفاتورة <span className="req">*</span></label>
-            <input className="xpl-input" value={row.invoiceNumber} onChange={(e) => setRow((r) => ({ ...r, invoiceNumber: e.target.value }))} placeholder="MN-INV-YYYY-…" style={{ direction: 'ltr' }} aria-label="رقم الفاتورة" />
+            <label>{t('col.inv.number')} <span className="req">*</span></label>
+            <input className="xpl-input" value={row.invoiceNumber} onChange={(e) => setRow((r) => ({ ...r, invoiceNumber: e.target.value }))} placeholder="MN-INV-YYYY-…" style={{ direction: 'ltr' }} aria-label={t('col.inv.number')} />
           </div>
           <div className="xpl-field">
-            <label>تاريخ التسليم</label>
-            <DateInput className="xpl-input" value={row.deliveryDate} onChange={(v) => setRow((r) => ({ ...r, deliveryDate: v }))} ariaLabel="تاريخ التسليم" />
+            <label>{t('field.inv.delivery_date')}</label>
+            <DateInput className="xpl-input" value={row.deliveryDate} onChange={(v) => setRow((r) => ({ ...r, deliveryDate: v }))} ariaLabel={t('field.inv.delivery_date')} />
           </div>
           <div className="xpl-field--full">
             <InvoiceLineItemsEditor
@@ -335,34 +337,34 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
             />
           </div>
           <div className="xpl-field">
-            <label>الخصم (د.ك)</label>
-            <input className="xpl-input" type="number" min="0" step="0.001" value={row.discount} onChange={(e) => setRow((r) => ({ ...r, discount: Number(e.target.value) }))} style={{ direction: 'ltr' }} aria-label="الخصم" />
+            <label>{t('field.inv.discount_kd')}</label>
+            <input className="xpl-input" type="number" min="0" step="0.001" value={row.discount} onChange={(e) => setRow((r) => ({ ...r, discount: Number(e.target.value) }))} style={{ direction: 'ltr' }} aria-label={t('lbl.inv.discount_plain')} />
           </div>
           <div className="xpl-field">
-            <label>الإجمالي</label>
+            <label>{t('col.inv.total')}</label>
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--xpl-primary)' }}>{money(total)}</div>
           </div>
           <p className="xpl-field--full" style={{ margin: 0, fontSize: 11.5, color: 'var(--xpl-muted)' }}>
-            اختصارات: Ctrl+Enter = حفظ وإضافة التالي · Ctrl+Shift+Enter = حفظ وإنهاء
+            {t('msg.fast_entry_shortcuts', { next: t('btn.save_and_next'), finish: t('btn.save_and_finish') })}
           </p>
         </DialogSection>
 
         {/* ── ملخص الجلسة (للعرض فقط) ── */}
-        <DialogSection title="ملخص الجلسة" icon="summarize">
+        <DialogSection title={t('dlg.section.session_summary')} icon="summarize">
           <div className="xpl-field">
-            <label>عدد الفواتير</label>
+            <label>{t('inv.stats.count')}</label>
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--xpl-text)' }}>{summary.count}</div>
           </div>
           <div className="xpl-field">
-            <label>إجمالي الجلسة</label>
+            <label>{t('lbl.session_total')}</label>
             <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--xpl-primary)' }}>{money(summary.total)}</div>
           </div>
           <div className="xpl-field">
-            <label>آخر رقم فاتورة</label>
+            <label>{t('lbl.last_invoice_number')}</label>
             <div style={{ fontSize: 13, color: 'var(--xpl-muted)', direction: 'ltr', textAlign: 'right' }}>{summary.lastNumber ?? '—'}</div>
           </div>
           <div className="xpl-field">
-            <label>الرقم التالي المقترح</label>
+            <label>{t('lbl.suggested_next_number')}</label>
             <div style={{ fontSize: 13, color: 'var(--xpl-muted)', direction: 'ltr', textAlign: 'right' }}>{summary.nextNumber ?? '—'}</div>
           </div>
         </DialogSection>

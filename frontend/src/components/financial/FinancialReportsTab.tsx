@@ -8,6 +8,7 @@ import { fcCurrency } from './financialLabels';
 import { formatDate } from '../../lib/date';
 import { FilterBar } from './FilterBar';
 import { ExportBar } from './ExportBar';
+import { useT } from '../../lib/i18n';
 
 function fmt(n?: number) {
   return fcCurrency(n ?? 0);
@@ -22,6 +23,7 @@ interface Props {
 
 export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: Props) {
   const navigate = useNavigate();
+  const { t } = useT();
   const [data, setData]       = useState<{ metadata?: Record<string, unknown> } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -58,21 +60,21 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
     <div className="financial-reports-tab" dir="rtl">
       <FilterBar fromDate={fromDate} toDate={toDate} onFromDate={onFromDate} onToDate={onToDate} />
 
-      <div className="fc-statement-context" aria-label="فترة التقارير المالية">
+      <div className="fc-statement-context" aria-label={t('fc.aria.reports_period')}>
         <span className="fc-statement-context-entity">
           <span className="material-symbols-outlined" aria-hidden="true">summarize</span>
-          التقارير المالية
+          {t('fc.tab.finreport')}
         </span>
         <span className="fc-statement-context-period">
           <span className="material-symbols-outlined" aria-hidden="true">event</span>
-          {fromDate ? formatDate(fromDate) : 'من البداية'} — {toDate ? formatDate(toDate) : 'حتى اليوم'}
+          {fromDate ? formatDate(fromDate) : t('fc.period.from_start')} — {toDate ? formatDate(toDate) : t('fc.period.until_today')}
         </span>
       </div>
 
       {loading && (
         <div className="loading-state">
           <span className="material-symbols-outlined fc-state-icon" aria-hidden="true">hourglass_top</span>
-          جارٍ تحميل الملخص المالي…
+          {t('fc.msg.loading_summary')}
         </div>
       )}
       {error && (
@@ -84,22 +86,22 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
 
       {data && (
         <div className="financial-summary-section">
-          <h3 className="section-title">الملخص المالي</h3>
+          <h3 className="section-title">{t('action.financial_summary')}</h3>
           <div className="financial-summary-cards">
             <div className="summary-card green">
-              <div className="card-label">الإيرادات</div>
+              <div className="card-label">{t('col.acc.revenue_lbl')}</div>
               <div className="card-value money-cell">{fmt(meta.totalRevenue as number)}</div>
             </div>
             <div className="summary-card blue">
-              <div className="card-label">التحصيلات</div>
+              <div className="card-label">{t('today.collections')}</div>
               <div className="card-value money-cell">{fmt(meta.totalCollected as number)}</div>
             </div>
             <div className="summary-card red">
-              <div className="card-label">المصاريف</div>
+              <div className="card-label">{t('fc.expenses_alt')}</div>
               <div className="card-value money-cell">{fmt(meta.totalExpenses as number)}</div>
             </div>
             <div className="summary-card neutral">
-              <div className="card-label">صافي الدخل</div>
+              <div className="card-label">{t('fc.net_income')}</div>
               <div className="card-value money-cell">{fmt(meta.netIncome as number)}</div>
             </div>
           </div>
@@ -116,7 +118,7 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
           المستخدم وتُخفي ميزة يملكها. الآن تفتحه في مركز التقارير — بنفس فترة الشاشة، وبلا
           تنفيذ ثانٍ للتقرير. */}
       <div className="future-reports-section">
-        <h3 className="section-title">تقارير متاحة</h3>
+        <h3 className="section-title">{t('fc.reports.available')}</h3>
         <div className="future-reports-grid">
           <button
             type="button"
@@ -129,25 +131,25 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
             }}
           >
             <span className="material-symbols-outlined future-report-icon" aria-hidden="true">trending_up</span>
-            <div className="future-report-name">الأرباح والخسائر</div>
-            <div className="future-report-open">فتح التقرير ←</div>
+            <div className="future-report-name">{t('report.type.profit_loss')}</div>
+            <div className="future-report-open">{t('fc.reports.open_report')}</div>
           </button>
         </div>
       </div>
 
       {/* التقارير غير المنفَّذة تبقى معلنةً بصدق — لا وعد بما لا وجود له، ولا إخفاء لخطة قائمة. */}
       <div className="future-reports-section">
-        <h3 className="section-title">تقارير قادمة</h3>
+        <h3 className="section-title">{t('fc.reports.upcoming')}</h3>
         <div className="future-reports-grid">
           {[
-            { name: 'الميزانية العمومية', icon: 'account_balance' },
-            { name: 'التدفقات النقدية',   icon: 'water_drop' },
-            { name: 'مقارنة الميزانية',   icon: 'compare_arrows' },
+            { name: 'الميزانية العمومية', labelKey: 'fc.reports.balance_sheet', icon: 'account_balance' },
+            { name: 'التدفقات النقدية',   labelKey: 'fc.reports.cash_flow',     icon: 'water_drop' },
+            { name: 'مقارنة الميزانية',   labelKey: 'fc.reports.budget_comparison', icon: 'compare_arrows' },
           ].map(r => (
             <div key={r.name} className="future-report-card disabled" aria-disabled="true">
               <span className="material-symbols-outlined future-report-icon" aria-hidden="true">{r.icon}</span>
-              <div className="future-report-name">{r.name}</div>
-              <div className="coming-soon-badge">قريباً</div>
+              <div className="future-report-name">{t(r.labelKey)}</div>
+              <div className="coming-soon-badge">{t('fc.coming_soon')}</div>
             </div>
           ))}
         </div>

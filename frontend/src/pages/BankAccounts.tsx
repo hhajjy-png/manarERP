@@ -6,6 +6,7 @@ import { errorMessage } from '../api/client';
 import PrivateAmount from '../components/PrivateAmount';
 import { formatNumber } from '../lib/format';
 import { formatDate } from '../lib/date';
+import { useT } from '../lib/i18n';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ function AccountCard({
   account: BankAccountSummary;
   onClick: () => void;
 }) {
+  const { t }   = useT();
   const parsed  = parseAccountKey(account.accountKey);
   const net     = (account.totalCredits ?? 0) - (account.totalDebits ?? 0);
   const hasData = account.transactionCount > 0;
@@ -73,7 +75,7 @@ function AccountCard({
       </div>
 
       <div className="bac-balance-row">
-        <span className="bac-balance-label">الرصيد الحالي</span>
+        <span className="bac-balance-label">{t('bank.accounts.current_balance')}</span>
         <span className="bac-balance-value">
           <PrivateAmount
             value={account.currentBalance ?? 0}
@@ -83,19 +85,19 @@ function AccountCard({
 
       <div className="bac-stats-row">
         <div className="bac-stat">
-          <span className="bac-stat-label">إيداعات</span>
+          <span className="bac-stat-label">{t('bank.accounts.deposits')}</span>
           <span className="bac-stat-value green">
             {hasData ? fmtAmount(account.totalCredits) : '—'}
           </span>
         </div>
         <div className="bac-stat">
-          <span className="bac-stat-label">سحوبات</span>
+          <span className="bac-stat-label">{t('bank.accounts.withdrawals')}</span>
           <span className="bac-stat-value red">
             {hasData ? fmtAmount(account.totalDebits) : '—'}
           </span>
         </div>
         <div className="bac-stat">
-          <span className="bac-stat-label">صافي التدفق</span>
+          <span className="bac-stat-label">{t('bank.accounts.net_flow')}</span>
           <span className={flowBadgeClass(net)}>
             {hasData ? fmtAmount(net) : '—'}
           </span>
@@ -105,11 +107,11 @@ function AccountCard({
       <div className="bac-footer">
         <span className="bac-footer-item">
           <span className="material-symbols-outlined bac-footer-icon">swap_horiz</span>
-          {account.transactionCount.toLocaleString()} معاملة
+          {t('bank.accounts.transaction_count', { count: account.transactionCount.toLocaleString() })}
         </span>
         <span className="bac-footer-item">
           <span className="material-symbols-outlined bac-footer-icon">upload_file</span>
-          {account.importCount} دفعة
+          {t('bank.recon.batch_count', { count: account.importCount })}
         </span>
         {account.firstTransactionDate && (
           <span className="bac-footer-item">
@@ -125,6 +127,7 @@ function AccountCard({
 // ── BankAccounts page ─────────────────────────────────────────────────────────
 
 export default function BankAccounts() {
+  const { t } = useT();
   const { hasPermission } = useAuth();
   const navigate          = useNavigate();
 
@@ -141,9 +144,9 @@ export default function BankAccounts() {
     setError(null);
     listBankAccounts()
       .then((r) => setAccounts(r.accounts))
-      .catch((e) => setError(errorMessage(e) || 'فشل تحميل الحسابات'))
+      .catch((e) => setError(errorMessage(e) || t('bank.accounts.load_failed')))
       .finally(() => setLoading(false));
-  }, [canView]);
+  }, [canView, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -162,7 +165,7 @@ export default function BankAccounts() {
     return (
       <div className="page-error" dir="rtl">
         <span className="material-symbols-outlined bac-lock-icon">lock</span>
-        <p>ليس لديك صلاحية لعرض الحسابات البنكية.</p>
+        <p>{t('bank.accounts.no_permission')}</p>
       </div>
     );
   }
@@ -174,16 +177,16 @@ export default function BankAccounts() {
         <div className="bac-header-text">
           <h1 className="bac-title">
             <span className="material-symbols-outlined bac-title-icon">account_balance</span>
-            الحسابات البنكية
+            {t('nav.bank_reconciliation')}
           </h1>
           <p className="bac-subtitle">
-            {loading ? 'جارٍ التحميل…' : `${accounts.length} حساب بنكي — انقر لاستعراض التفاصيل والإحصائيات`}
+            {loading ? t('msg.loading') : t('bank.accounts.subtitle', { count: accounts.length })}
           </p>
         </div>
         <div className="bac-header-actions">
           <button type="button" className="btn secondary" onClick={() => navigate('/bank-statement-import')}>
             <span className="material-symbols-outlined">upload_file</span>
-            إضافة كشف
+            {t('bank.accounts.add_statement_short')}
           </button>
         </div>
       </div>
@@ -195,7 +198,7 @@ export default function BankAccounts() {
           <input
             className="bac-search-input"
             type="text"
-            placeholder="بحث باسم البنك أو رقم الحساب أو IBAN…"
+            placeholder={t('bank.accounts.search_placeholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -211,7 +214,7 @@ export default function BankAccounts() {
       {loading && (
         <div className="bac-loading">
           <span className="spinner" />
-          <span>جارٍ تحميل الحسابات…</span>
+          <span>{t('bank.accounts.loading_accounts')}</span>
         </div>
       )}
 
@@ -219,7 +222,7 @@ export default function BankAccounts() {
         <div className="bac-error">
           <span className="material-symbols-outlined">error_outline</span>
           <span>{error}</span>
-          <button type="button" className="btn secondary" onClick={load}>إعادة المحاولة</button>
+          <button type="button" className="btn secondary" onClick={load}>{t('page.dashboard.retry')}</button>
         </div>
       )}
 
@@ -228,11 +231,11 @@ export default function BankAccounts() {
           <div className="bac-empty-illus">
             <span className="material-symbols-outlined">account_balance</span>
           </div>
-          <h3>لا توجد حسابات بنكية</h3>
-          <p>أضف أول كشف بنكي لبدء استعراض حساباتك ومعاملاتك المالية.</p>
+          <h3>{t('bank.accounts.empty_title')}</h3>
+          <p>{t('bank.accounts.empty_sub')}</p>
           <button type="button" className="btn" onClick={() => navigate('/bank-statement-import')}>
             <span className="material-symbols-outlined">upload_file</span>
-            إضافة كشف بنكي
+            {t('bank.recon.add_statement')}
           </button>
         </div>
       )}
@@ -242,11 +245,11 @@ export default function BankAccounts() {
           <div className="bac-empty-illus">
             <span className="material-symbols-outlined">search_off</span>
           </div>
-          <h3>لا توجد نتائج</h3>
-          <p>لا يوجد حساب مطابق لـ «{search}»</p>
+          <h3>{t('bank.accounts.no_results_title')}</h3>
+          <p>{t('bank.accounts.no_results_sub', { search })}</p>
           <button type="button" className="btn secondary" onClick={() => setSearch('')}>
             <span className="material-symbols-outlined">close</span>
-            مسح البحث
+            {t('bank.accounts.clear_search')}
           </button>
         </div>
       )}

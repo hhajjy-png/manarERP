@@ -38,9 +38,26 @@ export const TIMELINE_TOTAL_LABELS: Record<TimelineFilterType, string> = {
   transfers:   'إجمالي التحويلات',
 };
 
+// Optional i18n hook, mirroring bankTransactionPresentation.ts's `tr()` pattern: callers
+// pass their `t()` to localize the label; omitted (e.g. unit tests, or callers that
+// haven't wired it up yet — see BankAccountExplorer.tsx) falls back to the original
+// Arabic literal, so behavior is unchanged either way.
+type TranslateFn = (key: string) => string;
+
+/** i18n keys for the filtered-total label, one per active type filter. */
+const TIMELINE_TOTAL_KEYS: Record<TimelineFilterType, string> = {
+  all:         'bank.import.timeline.total.all',
+  deposits:    'bank.import.timeline.total.deposits',
+  withdrawals: 'bank.import.timeline.total.withdrawals',
+  fees:        'bank.import.timeline.total.fees',
+  cheques:     'bank.import.timeline.total.cheques',
+  transfers:   'bank.import.timeline.total.transfers',
+};
+
 /** Resolve the filtered-total label for the active type filter (defaults to «الإجمالي»). */
-export function timelineTotalLabel(type: TimelineFilterType | undefined): string {
-  return TIMELINE_TOTAL_LABELS[type ?? 'all'] ?? TIMELINE_TOTAL_LABELS.all;
+export function timelineTotalLabel(type: TimelineFilterType | undefined, translate?: TranslateFn): string {
+  const key = type ?? 'all';
+  return translate ? translate(TIMELINE_TOTAL_KEYS[key]) : (TIMELINE_TOTAL_LABELS[key] ?? TIMELINE_TOTAL_LABELS.all);
 }
 
 /** Local-date → YYYY-MM-DD (no timezone shift, unlike toISOString). */

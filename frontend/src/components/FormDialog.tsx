@@ -107,7 +107,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
     const errors: Record<string, string> = {};
     for (const field of fields) {
       if (field.required && !String(vals[field.name] ?? '').trim()) {
-        errors[field.name] = `الحقل «${t(field.label)}» مطلوب`;
+        errors[field.name] = t('msg.required_field', { field: t(field.label) });
       }
     }
     return errors;
@@ -182,7 +182,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
           aria-label={t(f.label)}
           className={cls('textarea')}
           autoFocus={autoFocus}
-          placeholder={f.placeholder}
+          placeholder={f.placeholder ? t(f.placeholder) : undefined}
           value={values[f.name] ?? ''}
           style={errStyle}
           onChange={(e) => { set(f.name, e.target.value); clearErr(); }}
@@ -209,7 +209,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
         aria-label={t(f.label)}
         className={cls('input')}
         type={f.type === 'number' ? 'number' : f.type === 'password' ? 'password' : 'text'}
-        placeholder={f.placeholder}
+        placeholder={f.placeholder ? t(f.placeholder) : undefined}
         value={values[f.name] ?? ''}
         style={errStyle}
         onChange={(e) => { set(f.name, e.target.value); clearErr(); }}
@@ -219,7 +219,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
 
   // ─── Explorer skin (sectioned kit dialog) ───────────────────────────────────
   if (skin === 'explorer') {
-    const secDefs: FormSection[] = sections && sections.length > 0 ? sections : [{ id: '__default', title: 'البيانات', icon: 'badge' }];
+    const secDefs: FormSection[] = sections && sections.length > 0 ? sections : [{ id: '__default', title: 'page.form.default_section', icon: 'badge' }];
     const grouped = secDefs.map((s) => ({
       sec: s,
       items: fields.filter((f) => (f.section ?? secDefs[0].id) === s.id),
@@ -248,7 +248,7 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
           {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
           {helperMsg && <div className="xpl-form-error" style={{ background: 'rgba(16,185,129,.07)', borderColor: 'rgba(16,185,129,.25)', color: 'var(--xpl-green)' }}><span className="material-symbols-outlined">check_circle</span>{helperMsg}</div>}
           {grouped.map((g) => (
-            <DialogSection key={g.sec.id} title={g.sec.title} icon={g.sec.icon}>
+            <DialogSection key={g.sec.id} title={t(g.sec.title)} icon={g.sec.icon}>
               {g.items.map((f) => {
                 const autoFocus = fieldIdx === 0 && f.type !== 'select';
                 fieldIdx += 1;
@@ -265,10 +265,10 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
         </Dialog>
         {showDiscardConfirm && (
           <ConfirmModal
-            title="تغييرات غير محفوظة"
+            title={t('msg.unsaved_changes_title')}
             message={t('msg.unsaved_changes')}
-            confirmLabel="إغلاق بدون حفظ"
-            cancelLabel="العودة"
+            confirmLabel={t('action.close_without_saving')}
+            cancelLabel={t('action.go_back')}
             variant="warning"
             onConfirm={onClose}
             onCancel={() => setShowDiscardConfirm(false)}
@@ -312,10 +312,10 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
       </Modal>
       {showDiscardConfirm && (
         <ConfirmModal
-          title="تغييرات غير محفوظة"
+          title={t('msg.unsaved_changes_title')}
           message={t('msg.unsaved_changes')}
-          confirmLabel="إغلاق بدون حفظ"
-          cancelLabel="العودة"
+          confirmLabel={t('action.close_without_saving')}
+          cancelLabel={t('action.go_back')}
           variant="warning"
           onConfirm={onClose}
           onCancel={() => setShowDiscardConfirm(false)}

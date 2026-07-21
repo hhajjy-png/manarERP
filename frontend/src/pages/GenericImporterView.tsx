@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
 import { IMPORT_ENTITIES, IMPORT_ENTITY_MAP } from '../config/importEntities';
 import {
   ExecutiveHeader,
@@ -93,40 +94,40 @@ const ENTITY_ICON: Record<string, string> = {
   payroll:   'account_balance_wallet',
 };
 
-// Arabic labels for warning codes (analytics display). Falls back to the raw code.
-const WARNING_LABEL: Record<string, string> = {
-  IDENTICAL_DATES: 'تواريخ متطابقة',
-  DATE_EXPIRED: 'وثيقة/تاريخ منتهٍ',
-  DATE_EXPIRING_SOON: 'قرب انتهاء',
-  ENUM_DEFAULTED: 'قيمة غير معروفة (افتراضية)',
-  MISSING_IMPORTANT_OPTIONAL: 'حقول مهمة فارغة',
-  DATE_RANGE_INVALID: 'ترتيب تواريخ غير صحيح',
-  AMOUNT_ZERO_SUSPICIOUS: 'قيمة صفرية مشبوهة',
-  NET_NEGATIVE: 'صافي سالب',
-  VALUE_OUT_OF_RANGE: 'قيمة خارج النطاق',
-  DUP_SECONDARY_KEY: 'احتمال تكرار',
-  ROW_IDENTICAL: 'صف مكرر بالكامل',
-  FUTURE_DATE: 'تاريخ في المستقبل',
-  AGE_TOO_LOW: 'عمر صغير جداً',
-  AGE_OUT_OF_RANGE: 'عمر غير معتاد',
-  DATE_ORDER_SUSPICIOUS: 'ترتيب تواريخ مشبوه',
-  YEAR_INVALID: 'سنة غير صحيحة',
-  DATE_FAR_OFF: 'تاريخ بعيد جداً',
+// i18n keys for warning codes (analytics display). Falls back to the raw code.
+const WARNING_LABEL_KEY: Record<string, string> = {
+  IDENTICAL_DATES: 'import.warning.identical_dates',
+  DATE_EXPIRED: 'import.warning.date_expired',
+  DATE_EXPIRING_SOON: 'import.warning.date_expiring_soon',
+  ENUM_DEFAULTED: 'import.warning.enum_defaulted',
+  MISSING_IMPORTANT_OPTIONAL: 'import.warning.missing_important_optional',
+  DATE_RANGE_INVALID: 'import.warning.date_range_invalid',
+  AMOUNT_ZERO_SUSPICIOUS: 'import.warning.amount_zero_suspicious',
+  NET_NEGATIVE: 'import.warning.net_negative',
+  VALUE_OUT_OF_RANGE: 'import.warning.value_out_of_range',
+  DUP_SECONDARY_KEY: 'import.warning.dup_secondary_key',
+  ROW_IDENTICAL: 'import.warning.row_identical',
+  FUTURE_DATE: 'import.warning.future_date',
+  AGE_TOO_LOW: 'import.warning.age_too_low',
+  AGE_OUT_OF_RANGE: 'import.warning.age_out_of_range',
+  DATE_ORDER_SUSPICIOUS: 'import.warning.date_order_suspicious',
+  YEAR_INVALID: 'import.warning.year_invalid',
+  DATE_FAR_OFF: 'import.warning.date_far_off',
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function StatusPill({ status }: { status: RowStatus }) {
-  const map: Record<RowStatus, { label: string; icon: string }> = {
-    valid:     { label: 'صالح', icon: 'check_circle' },
-    invalid:   { label: 'خطأ',  icon: 'error' },
-    duplicate: { label: 'مكرر', icon: 'content_copy' },
+function StatusPill({ status, t }: { status: RowStatus; t: (key: string) => string }) {
+  const map: Record<RowStatus, { key: string; icon: string }> = {
+    valid:     { key: 'import.status.valid',     icon: 'check_circle' },
+    invalid:   { key: 'import.status.invalid',   icon: 'error' },
+    duplicate: { key: 'import.status.duplicate', icon: 'content_copy' },
   };
-  const { label, icon } = map[status];
+  const { key, icon } = map[status];
   return (
     <span className={`dicx-pill dicx-pill--${status}`}>
       <span className="material-symbols-outlined" aria-hidden="true">{icon}</span>
-      {label}
+      {t(key)}
     </span>
   );
 }
@@ -153,6 +154,7 @@ function downloadTemplate(entityKey: string) {
 export default function GenericImporterView() {
   const { hasPermission } = useAuth();
   const { t } = useT();
+  const { lang } = useUI();
 
   const [entityKey, setEntityKey] = useState(IMPORT_ENTITIES[0].key);
   const [step, setStep] = useState<ImportStep>('idle');
@@ -207,7 +209,7 @@ export default function GenericImporterView() {
     // Guard 1: file size — prevent memory exhaustion from crafted/huge files
     const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
     if (file.size > MAX_FILE_BYTES) {
-      setError(`حجم الملف كبير جداً (${(file.size / 1048576).toFixed(1)} م.ب) — الحد الأقصى 10 م.ب`);
+      setError(t('import.error.file_too_large', { size: (file.size / 1048576).toFixed(1) }));
       if (fileRef.current) fileRef.current.value = '';
       return;
     }
@@ -220,7 +222,7 @@ export default function GenericImporterView() {
     ];
     const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
     if (!VALID_EXTENSIONS.includes(ext) || (file.type && !VALID_MIMES.includes(file.type))) {
-      setError('نوع الملف غير مدعوم — الرجاء اختيار ملف Excel بصيغة .xlsx أو .xls فقط');
+      setError(t('import.error.unsupported_type'));
       if (fileRef.current) fileRef.current.value = '';
       return;
     }
@@ -231,10 +233,10 @@ export default function GenericImporterView() {
         const data = new Uint8Array(evt.target!.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array', cellDates: false });
         const sheetName = workbook.SheetNames[0];
-        if (!sheetName) { setError('ملف Excel فارغ أو لا يحتوي على ورقة بيانات'); return; }
+        if (!sheetName) { setError(t('import.error.empty_workbook')); return; }
         const worksheet = workbook.Sheets[sheetName];
         const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: '' });
-        if (rows.length === 0) { setError('لا توجد صفوف في الملف'); return; }
+        if (rows.length === 0) { setError(t('import.error.no_rows')); return; }
         setRawRows(rows);
         setFileName(file.name);
         setPreview(null);
@@ -261,7 +263,7 @@ export default function GenericImporterView() {
           setStep('file_loaded');
         }
       } catch {
-        setError('تعذّر قراءة الملف — تأكد أنه ملف Excel صحيح (.xlsx / .xls)');
+        setError(t('import.error.read_failure'));
       }
     };
     reader.readAsArrayBuffer(file);
@@ -345,10 +347,10 @@ export default function GenericImporterView() {
   const previewDone = !!preview;
   const importDone = step === 'done';
   const STEPS: { label: string; done: boolean; active: boolean; icon: string }[] = [
-    { label: 'نوع البيانات', icon: 'category',     done: true,        active: false },
-    { label: 'رفع الملف',    icon: 'upload_file',  done: fileDone,    active: !fileDone },
-    { label: 'المعاينة والتحقق', icon: 'fact_check', done: previewDone, active: fileDone && !previewDone },
-    { label: 'تنفيذ الاستيراد', icon: 'database',  done: importDone,  active: previewDone && !importDone },
+    { label: t('import.step.data_type'),        icon: 'category',    done: true,        active: false },
+    { label: t('import.step.upload_file'),      icon: 'upload_file', done: fileDone,    active: !fileDone },
+    { label: t('import.step.preview_validate'), icon: 'fact_check',  done: previewDone, active: fileDone && !previewDone },
+    { label: t('import.step.execute_import'),   icon: 'database',    done: importDone,  active: previewDone && !importDone },
   ];
 
   return (
@@ -360,14 +362,14 @@ export default function GenericImporterView() {
         subtitle={t('page.import.subtitle')}
         chips={
           <>
-            <IdChip icon="category" tone="indigo">{cfg.labelAr}</IdChip>
-            {fileName && <IdChip icon="description" tone="green">{rawRows.length} صف</IdChip>}
-            {preview && <IdChip icon="task_alt" tone="green">{preview.validRows} صالح</IdChip>}
+            <IdChip icon="category" tone="indigo">{t(cfg.labelKey)}</IdChip>
+            {fileName && <IdChip icon="description" tone="green">{t('import.rows_count', { n: rawRows.length })}</IdChip>}
+            {preview && <IdChip icon="task_alt" tone="green">{t('import.valid_count', { n: preview.validRows })}</IdChip>}
           </>
         }
         aside={
           (step !== 'idle') ? (
-            <Button variant="ghost" icon="restart_alt" onClick={handleReset} disabled={isLoading}>بدء من جديد</Button>
+            <Button variant="ghost" icon="restart_alt" onClick={handleReset} disabled={isLoading}>{t('import.btn.start_over')}</Button>
           ) : undefined
         }
       />
@@ -386,11 +388,11 @@ export default function GenericImporterView() {
 
       {/* ── Import summary ── */}
       <div className="xpl-kpi-grid">
-        <MetricCard icon="category" tone="indigo" label="نوع البيانات" value={cfg.labelAr} />
-        <MetricCard icon="description" tone="blue" label="الصفوف المقروءة" value={fileName ? rawRows.length : '—'} sub={fileName || 'لم يُرفع ملف بعد'} />
-        <MetricCard icon="rule" tone={preview ? 'green' : 'neutral'} label="الصفوف الصالحة" value={preview ? preview.validRows : '—'} />
-        <MetricCard icon={importDone ? 'task_alt' : 'pending'} tone={importDone ? 'green' : 'orange'} label="حالة الاستيراد"
-          value={importDone ? 'مكتمل' : preview ? 'جاهز' : fileName ? 'بانتظار التحقق' : 'بانتظار الملف'} />
+        <MetricCard icon="category" tone="indigo" label={t('import.step.data_type')} value={t(cfg.labelKey)} />
+        <MetricCard icon="description" tone="blue" label={t('import.metric.rows_read')} value={fileName ? rawRows.length : '—'} sub={fileName || t('import.metric.no_file_yet')} />
+        <MetricCard icon="rule" tone={preview ? 'green' : 'neutral'} label={t('import.metric.valid_rows')} value={preview ? preview.validRows : '—'} />
+        <MetricCard icon={importDone ? 'task_alt' : 'pending'} tone={importDone ? 'green' : 'orange'} label={t('import.metric.import_status')}
+          value={importDone ? t('import.metric.status_done') : preview ? t('import.metric.status_ready') : fileName ? t('import.metric.status_waiting_validate') : t('import.metric.status_waiting_file')} />
       </div>
 
       <div className="dicx-layout">
@@ -398,7 +400,7 @@ export default function GenericImporterView() {
         <div className="dicx-main">
 
           {/* Step 1 — entity selector */}
-          <SectionCard title="١ · اختر نوع البيانات" icon="category">
+          <SectionCard title={t('import.step_header.data_type')} icon="category">
             <div className="dicx-entities">
               {IMPORT_ENTITIES.map((entity) => (
                 <button
@@ -412,7 +414,7 @@ export default function GenericImporterView() {
                   <span className="dicx-entity-icon">
                     <span className="material-symbols-outlined" aria-hidden="true">{ENTITY_ICON[entity.key] ?? 'table_chart'}</span>
                   </span>
-                  {entity.labelAr}
+                  {t(entity.labelKey)}
                 </button>
               ))}
             </div>
@@ -420,8 +422,8 @@ export default function GenericImporterView() {
 
           {/* Step 2 — upload zone */}
           {step !== 'done' && (
-            <SectionCard title="٢ · ارفع ملف Excel" icon="upload_file">
-              <input ref={fileRef} type="file" accept=".xlsx,.xls" aria-label="رفع ملف Excel" style={{ display: 'none' }} onChange={handleFileChange} />
+            <SectionCard title={t('import.step_header.upload_file')} icon="upload_file">
+              <input ref={fileRef} type="file" accept=".xlsx,.xls" aria-label={t('import.upload_excel_aria')} style={{ display: 'none' }} onChange={handleFileChange} />
               {!fileName ? (
                 <div
                   className={`dicx-dropzone${dragging ? ' dragging' : ''}`}
@@ -430,8 +432,8 @@ export default function GenericImporterView() {
                   onDrop={handleDrop}
                 >
                   <div className="dicx-dropzone-icon"><span className="material-symbols-outlined" aria-hidden="true">cloud_upload</span></div>
-                  <div className="dicx-dropzone-title">اسحب ملف Excel هنا أو اختر من جهازك</div>
-                  <div className="dicx-dropzone-hint">الصيغ المدعومة: ‎.xlsx، ‎.xls — الحد الأقصى 10 م.ب</div>
+                  <div className="dicx-dropzone-title">{t('import.dropzone_title')}</div>
+                  <div className="dicx-dropzone-hint">{t('import.dropzone_hint')}</div>
                   <div className="dicx-dropzone-actions">
                     <Button variant="primary" icon="folder_open" onClick={() => fileRef.current?.click()} disabled={isLoading}>
                       {t('import.btn.choose_file')}
@@ -447,10 +449,10 @@ export default function GenericImporterView() {
                     <div className="dicx-file-ready-icon"><span className="material-symbols-outlined" aria-hidden="true">description</span></div>
                     <div className="dicx-file-ready-body">
                       <span className="dicx-file-ready-name">{fileName}</span>
-                      <span className="dicx-file-ready-meta">{rawRows.length} صف جاهز للتحقق</span>
+                      <span className="dicx-file-ready-meta">{t('import.rows_ready', { n: rawRows.length })}</span>
                     </div>
                     <Button variant="ghost" icon="swap_horiz" small onClick={() => fileRef.current?.click()} disabled={isLoading}>
-                      تغيير الملف
+                      {t('import.btn.change_file')}
                     </Button>
                   </div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -470,30 +472,29 @@ export default function GenericImporterView() {
 
           {/* Step 2.5 — Header mapping review (Phase 2, only when needed) */}
           {step === 'mapping' && (
-            <SectionCard title="مراجعة ربط الأعمدة" icon="table_chart">
+            <SectionCard title={t('import.mapping.section_title')} icon="table_chart">
               {savedProfile && (
                 <div className="dicx-notice dicx-notice--info dicx-map-saved">
                   <span className="material-symbols-outlined" aria-hidden="true">bookmark</span>
-                  <span>تم العثور على ربط محفوظ لهذا النوع من الملفات — تم تطبيقه تلقائياً.</span>
+                  <span>{t('import.mapping.saved_found')}</span>
                   <div className="dicx-map-saved-actions">
                     <Button variant="ghost" small icon="delete" onClick={() => {
                       deleteProfile(entityKey, headerSignature(headerAnalysis.map((a) => a.header)));
                       setSavedProfile(null);
-                    }}>حذف المحفوظ</Button>
+                    }}>{t('import.mapping.delete_saved_btn')}</Button>
                   </div>
                 </div>
               )}
               <p className="dicx-map-hint">
-                طابقنا أعمدة الملف مع حقول النظام تلقائياً. راجع الربط وعدّله عند الحاجة، أو اختر «تجاهل العمود».
-                الملفات المطابقة تماماً لا تمرّ بهذه الخطوة.
+                {t('import.mapping.hint')}
               </p>
               <div className="xpl-table-wrap dicx-table-wrap">
                 <table className="xpl-table dicx-map-table">
                   <thead>
                     <tr>
-                      <th>عمود الملف</th>
-                      <th>الحقل في النظام</th>
-                      <th>الثقة</th>
+                      <th>{t('import.mapping.col_file_column')}</th>
+                      <th>{t('import.mapping.col_system_field')}</th>
+                      <th>{t('import.mapping.col_confidence')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -505,18 +506,18 @@ export default function GenericImporterView() {
                             className="dicx-map-select"
                             value={mapping[a.header] ?? IGNORE_FIELD}
                             onChange={(e) => setMapping((m) => ({ ...m, [a.header]: e.target.value }))}
-                            aria-label={`ربط العمود ${a.header}`}
+                            aria-label={t('import.mapping.map_column_aria', { header: a.header })}
                           >
-                            <option value={IGNORE_FIELD}>— تجاهل العمود —</option>
+                            <option value={IGNORE_FIELD}>{t('import.mapping.ignore_column')}</option>
                             {cfg.columns.map((c) => (
-                              <option key={c.key} value={c.key}>{c.labelAr} ({c.key})</option>
+                              <option key={c.key} value={c.key}>{lang === 'ar' ? c.labelAr : c.labelEn} ({c.key})</option>
                             ))}
                           </select>
                         </td>
                         <td>
-                          {a.status === 'exact' && <span className="dicx-conf dicx-conf--ok">مطابقة</span>}
-                          {a.status === 'suggested' && <span className="dicx-conf dicx-conf--maybe">مقترح {Math.round(a.confidence * 100)}%</span>}
-                          {a.status === 'unknown' && <span className="dicx-conf dicx-conf--no">غير معروف</span>}
+                          {a.status === 'exact' && <span className="dicx-conf dicx-conf--ok">{t('import.mapping.confidence_exact')}</span>}
+                          {a.status === 'suggested' && <span className="dicx-conf dicx-conf--maybe">{t('import.mapping.confidence_suggested', { pct: Math.round(a.confidence * 100) })}</span>}
+                          {a.status === 'unknown' && <span className="dicx-conf dicx-conf--no">{t('import.mapping.confidence_unknown')}</span>}
                         </td>
                       </tr>
                     ))}
@@ -525,13 +526,13 @@ export default function GenericImporterView() {
               </div>
               <div className="dicx-map-actions">
                 <Button variant="primary" icon="fact_check" onClick={handleValidate}>
-                  متابعة إلى المعاينة
+                  {t('import.mapping.continue_btn')}
                 </Button>
                 <Button variant="secondary" icon="bookmark_add" onClick={() => {
                   saveProfile(entityKey, headerSignature(headerAnalysis.map((a) => a.header)), mapping);
                   setSavedProfile(getProfile(entityKey, headerSignature(headerAnalysis.map((a) => a.header))));
-                }}>حفظ هذا الربط</Button>
-                <Button variant="ghost" icon="swap_horiz" onClick={() => fileRef.current?.click()}>تغيير الملف</Button>
+                }}>{t('import.mapping.save_btn')}</Button>
+                <Button variant="ghost" icon="swap_horiz" onClick={() => fileRef.current?.click()}>{t('import.btn.change_file')}</Button>
               </div>
             </SectionCard>
           )}
@@ -540,7 +541,7 @@ export default function GenericImporterView() {
           {entityKey === 'payroll' && step !== 'done' && (
             <div className="dicx-notice">
               <span className="material-symbols-outlined" aria-hidden="true">info</span>
-              <span>جميع الرواتب المستوردة تُنشأ بحالة (مسودة DRAFT)، بغض النظر عن الحالة الموجودة داخل ملف Excel، ويجب اعتمادها من داخل النظام.</span>
+              <span>{t('import.payroll_draft_notice')}</span>
             </div>
           )}
 
@@ -550,18 +551,18 @@ export default function GenericImporterView() {
           {/* Step 3 — validation summary + preview */}
           {preview && step !== 'done' && (
             <>
-              <SectionCard title="٣ · ملخص التحقق" icon="fact_check">
+              <SectionCard title={t('import.step_header.validate')} icon="fact_check">
                 <div className="dicx-validation">
                   <MetricCard icon="dataset" tone="indigo" label={t('import.summary.total')} value={preview.totalRows} />
                   <MetricCard icon="check_circle" tone="green" label={t('import.summary.valid')} value={preview.validRows} />
                   <MetricCard icon="error" tone="red" label={t('import.summary.invalid')} value={preview.invalidRows} />
                   <MetricCard icon="content_copy" tone="orange" label={t('import.summary.duplicate')} value={preview.duplicateRows} />
-                  <MetricCard icon="warning" tone="orange" label="تحذيرات" value={preview.warningRows ?? 0} />
+                  <MetricCard icon="warning" tone="orange" label={t('import.summary.warnings')} value={preview.warningRows ?? 0} />
                   {preview.qualityScore !== undefined && (
                     <MetricCard
                       icon="verified"
                       tone={preview.qualityScore >= 90 ? 'green' : preview.qualityScore >= 70 ? 'orange' : 'red'}
-                      label="جودة الملف"
+                      label={t('import.summary.quality')}
                       value={`${preview.qualityScore}/100`}
                     />
                   )}
@@ -569,22 +570,22 @@ export default function GenericImporterView() {
                 {(preview.warningRows ?? 0) > 0 && (
                   <div className="dicx-notice dicx-notice--warn">
                     <span className="material-symbols-outlined" aria-hidden="true">warning</span>
-                    <span>يوجد {preview.warningRows} صف يحمل تحذيرات (بيانات صالحة لكنها مشبوهة). التحذيرات <strong>لا تمنع الاستيراد</strong> — راجعها في الجدول أدناه.</span>
+                    <span>{t('import.warning_rows_notice_prefix', { n: preview.warningRows ?? 0 })} <strong>{t('import.warning_rows_notice_strong')}</strong> {t('import.warning_rows_notice_suffix')}</span>
                   </div>
                 )}
                 {preview.analytics && (preview.analytics.topWarningCodes.length > 0 || preview.analytics.topErrorReasons.length > 0) && (
                   <div className="dicx-analytics">
                     {preview.analytics.topWarningCodes.length > 0 && (
                       <div className="dicx-analytics-col">
-                        <div className="dicx-analytics-title">أكثر التحذيرات</div>
+                        <div className="dicx-analytics-title">{t('import.analytics.top_warnings')}</div>
                         {preview.analytics.topWarningCodes.map((e) => (
-                          <div key={e.key} className="dicx-analytics-row"><span>{WARNING_LABEL[e.key] ?? e.key}</span><span className="dicx-analytics-count">{e.count}</span></div>
+                          <div key={e.key} className="dicx-analytics-row"><span>{WARNING_LABEL_KEY[e.key] ? t(WARNING_LABEL_KEY[e.key]) : e.key}</span><span className="dicx-analytics-count">{e.count}</span></div>
                         ))}
                       </div>
                     )}
                     {preview.analytics.topAffectedFields.length > 0 && (
                       <div className="dicx-analytics-col">
-                        <div className="dicx-analytics-title">أكثر الحقول تأثراً</div>
+                        <div className="dicx-analytics-title">{t('import.analytics.top_affected_fields')}</div>
                         {preview.analytics.topAffectedFields.map((e) => (
                           <div key={e.key} className="dicx-analytics-row"><span>{e.key}</span><span className="dicx-analytics-count">{e.count}</span></div>
                         ))}
@@ -592,7 +593,7 @@ export default function GenericImporterView() {
                     )}
                     {preview.analytics.topErrorReasons.length > 0 && (
                       <div className="dicx-analytics-col">
-                        <div className="dicx-analytics-title">أكثر أسباب الأخطاء</div>
+                        <div className="dicx-analytics-title">{t('import.analytics.top_error_reasons')}</div>
                         {preview.analytics.topErrorReasons.map((e) => (
                           <div key={e.key} className="dicx-analytics-row"><span className="dicx-analytics-reason">{e.key}</span><span className="dicx-analytics-count">{e.count}</span></div>
                         ))}
@@ -608,12 +609,12 @@ export default function GenericImporterView() {
                   <span className="material-symbols-outlined" aria-hidden="true">{canImport ? 'verified' : 'block'}</span>
                 </div>
                 <div className="dicx-ready-body">
-                  <span className="dicx-ready-title">{canImport ? 'جاهز للاستيراد' : 'لا يمكن الاستيراد'}</span>
+                  <span className="dicx-ready-title">{canImport ? t('import.ready.title_ok') : t('import.ready.title_blocked')}</span>
                   <span className="dicx-ready-sub">
                     {preview.validRows > 0
-                      ? `سيتم استيراد ${preview.validRows} صف صالح${preview.invalidRows + preview.duplicateRows > 0 ? ` وتجاهل ${preview.invalidRows + preview.duplicateRows} صف غير صالح/مكرر` : ''}.`
-                      : 'لا توجد صفوف صالحة للاستيراد — صحّح الأخطاء أعلاه ثم أعد التحقق.'}
-                    {!hasPermission('import.create') && preview.validRows > 0 && ' — لا تملك صلاحية تنفيذ الاستيراد.'}
+                      ? t('import.ready.will_import', { n: preview.validRows }) + (preview.invalidRows + preview.duplicateRows > 0 ? t('import.ready.and_skip', { n: preview.invalidRows + preview.duplicateRows }) : '') + '.'
+                      : t('import.ready.no_valid_rows')}
+                    {!hasPermission('import.create') && preview.validRows > 0 && t('import.ready.no_permission_suffix')}
                   </span>
                 </div>
                 {hasPermission('import.create') && (
@@ -625,29 +626,29 @@ export default function GenericImporterView() {
 
               {/* Confirmation before executing when warnings exist (non-blocking) */}
               {confirmWarn && (
-                <div className="dicx-warn-confirm" role="alertdialog" aria-label="تأكيد الاستيراد مع وجود تحذيرات">
+                <div className="dicx-warn-confirm" role="alertdialog" aria-label={t('import.confirm_warn.aria')}>
                   <span className="material-symbols-outlined" aria-hidden="true">warning</span>
                   <div className="dicx-warn-confirm-body">
-                    <strong>يوجد {preview.warningRows} صف يحمل تحذيرات</strong>
-                    <span>التحذيرات لا تمنع الاستيراد، لكنها قد تشير إلى بيانات مشبوهة. هل تريد المتابعة؟</span>
+                    <strong>{t('import.confirm_warn.title', { n: preview.warningRows ?? 0 })}</strong>
+                    <span>{t('import.confirm_warn.body')}</span>
                   </div>
                   <div className="dicx-warn-confirm-actions">
-                    <Button variant="secondary" icon="fact_check" onClick={() => setConfirmWarn(false)}>مراجعة التحذيرات</Button>
-                    <Button variant="primary" icon="upload" busy={step === 'executing'} onClick={() => handleExecute(true)}>تأكيد الاستيراد رغم التحذيرات</Button>
+                    <Button variant="secondary" icon="fact_check" onClick={() => setConfirmWarn(false)}>{t('import.confirm_warn.review_btn')}</Button>
+                    <Button variant="primary" icon="upload" busy={step === 'executing'} onClick={() => handleExecute(true)}>{t('import.confirm_warn.confirm_btn')}</Button>
                   </div>
                 </div>
               )}
 
               {/* Preview table */}
-              <SectionCard title="معاينة الصفوف" icon="table_view" padded={false}>
+              <SectionCard title={t('import.preview.section_title')} icon="table_view" padded={false}>
                 {/* Row filter chips (view-only — never changes what gets imported) */}
-                <div className="dicx-filters" role="group" aria-label="تصفية الصفوف">
+                <div className="dicx-filters" role="group" aria-label={t('import.preview.filter_aria')}>
                   {([
-                    { key: 'all',       label: 'الكل',    count: preview.rows.length },
-                    { key: 'valid',     label: 'صالحة',   count: preview.validRows },
-                    { key: 'warning',   label: 'تحذيرات', count: preview.warningRows ?? 0 },
-                    { key: 'invalid',   label: 'أخطاء',   count: preview.invalidRows },
-                    { key: 'duplicate', label: 'مكرر',    count: preview.duplicateRows },
+                    { key: 'all',       label: t('import.preview.filter_all'),       count: preview.rows.length },
+                    { key: 'valid',     label: t('import.preview.filter_valid'),     count: preview.validRows },
+                    { key: 'warning',   label: t('import.preview.filter_warnings'),  count: preview.warningRows ?? 0 },
+                    { key: 'invalid',   label: t('import.preview.filter_invalid'),   count: preview.invalidRows },
+                    { key: 'duplicate', label: t('import.preview.filter_duplicate'), count: preview.duplicateRows },
                   ] as const).map((f) => (
                     <button
                       key={f.key}
@@ -666,9 +667,9 @@ export default function GenericImporterView() {
                       <tr>
                         <th>{t('import.col.row')}</th>
                         <th>{t('import.col.status')}</th>
-                        <th>{cfg.previewPrimaryHeader}</th>
-                        <th>{cfg.previewSecondaryHeader}</th>
-                        <th>{t('import.col.errors')} / تحذيرات</th>
+                        <th>{cfg.previewPrimaryHeaderKey ? t(cfg.previewPrimaryHeaderKey) : cfg.previewPrimaryHeader}</th>
+                        <th>{cfg.previewSecondaryHeaderKey ? t(cfg.previewSecondaryHeaderKey) : cfg.previewSecondaryHeader}</th>
+                        <th>{t('import.col.errors')}{t('import.preview.warnings_suffix')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -687,9 +688,9 @@ export default function GenericImporterView() {
                             <tr key={row.rowIndex} className={rowCls}>
                               <td>{row.rowIndex + 1}</td>
                               <td>
-                                <StatusPill status={row.status} />
+                                <StatusPill status={row.status} t={t} />
                                 {hasWarn && (
-                                  <span className="dicx-warn-count" title="عدد التحذيرات">
+                                  <span className="dicx-warn-count" title={t('import.preview.warning_count_title')}>
                                     <span className="material-symbols-outlined" aria-hidden="true">warning</span>
                                     {row.warnings!.length}
                                   </span>
@@ -699,12 +700,12 @@ export default function GenericImporterView() {
                               <td>{cfg.previewSecondary(row.data)}</td>
                               <td className="dicx-cell-err">
                                 {row.status === 'invalid' && row.errors?.join(' / ')}
-                                {row.status === 'duplicate' && `مكرر: ${row.duplicateValue}`}
+                                {row.status === 'duplicate' && t('import.preview.duplicate_of', { value: String(row.duplicateValue) })}
                                 {hasWarn && (
                                   <div className="dicx-cell-warn">
                                     {row.warnings!.map((w, i) => (
                                       <span key={i} className={`dicx-warn-badge sev-${w.severity}`} title={w.suggestedFix ?? ''}>
-                                        {w.messageAr}
+                                        {lang === 'ar' ? w.messageAr : w.messageEn}
                                       </span>
                                     ))}
                                   </div>
@@ -722,7 +723,7 @@ export default function GenericImporterView() {
 
           {/* Step 4 — success */}
           {step === 'done' && result && (
-            <SectionCard title="٤ · اكتمل الاستيراد" icon="task_alt">
+            <SectionCard title={t('import.step_header.done')} icon="task_alt">
               <div className="dicx-success">
                 <div className="dicx-success-icon"><span className="material-symbols-outlined" aria-hidden="true">task_alt</span></div>
                 <div className="dicx-success-title">{t('import.result.title')}</div>
@@ -743,15 +744,15 @@ export default function GenericImporterView() {
             <EmptyState
               icon="upload_file"
               tone="neutral"
-              title="ابدأ عملية الاستيراد"
-              message="اختر نوع البيانات وارفع ملف Excel للبدء. يمكنك تنزيل قالب جاهز لكل نوع من زر القالب."
+              title={t('import.idle.title')}
+              message={t('import.idle.message')}
             />
           )}
         </div>
 
         {/* ── Column mapping guide ── */}
         <div className="dicx-aside">
-          <SectionCard title="أعمدة الملف" icon="view_column">
+          <SectionCard title={t('import.cols_aside.title')} icon="view_column">
             <div className="dicx-cols">
               <div>
                 <div className="dicx-cols-group-title">
@@ -761,8 +762,8 @@ export default function GenericImporterView() {
                 {requiredCols.map((c) => (
                   <div key={c.key} className="dicx-col-row">
                     <code className="dicx-col-key">{c.key}</code>
-                    <span className="dicx-col-label">{c.labelAr}</span>
-                    <span className="dicx-col-req" title="مطلوب">✱</span>
+                    <span className="dicx-col-label">{lang === 'ar' ? c.labelAr : c.labelEn}</span>
+                    <span className="dicx-col-req" title={t('import.required_marker_title')}>✱</span>
                   </div>
                 ))}
               </div>
@@ -775,7 +776,7 @@ export default function GenericImporterView() {
                   {optionalCols.map((c) => (
                     <div key={c.key} className="dicx-col-row">
                       <code className="dicx-col-key">{c.key}</code>
-                      <span className="dicx-col-label">{c.labelAr}</span>
+                      <span className="dicx-col-label">{lang === 'ar' ? c.labelAr : c.labelEn}</span>
                     </div>
                   ))}
                 </div>

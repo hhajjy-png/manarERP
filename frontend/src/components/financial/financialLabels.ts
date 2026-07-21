@@ -1,11 +1,14 @@
 /* ════════════════════════════════════════════════════════════════════════════
    Financial Center — presentation-only label & currency helpers.
-   Pure display mapping: turns backend enum codes into Arabic labels and formats
+   Pure display mapping: turns backend enum codes into localized labels and formats
    currency using the company's currency-display-language setting (so the Financial
    Center matches the rest of the app). No business/accounting logic — display only.
    ════════════════════════════════════════════════════════════════════════════ */
 import { formatCurrency, formatMoneyCell, formatMoneyParts } from '../../lib/format';
 import { currentCurrencyLanguage } from '../../stores/settingsStore';
+
+/** A translator function, matching the shape returned by `useT()`. */
+type Translator = (key: string) => string;
 
 /**
  * Currency for the Financial Center, honoring `finance.currencyDisplayLanguage`
@@ -38,57 +41,60 @@ export function fcMoneyCell(value: unknown): string {
   return formatMoneyCell(value);
 }
 
-// ── Journal / statement reference type → Arabic (display only) ─────────────────
-const REFERENCE_TYPE_AR: Record<string, string> = {
-  INVOICE:          'فاتورة مبيعات',
-  PURCHASE_INVOICE: 'فاتورة مشتريات',
-  PURCHASE:         'مشتريات',
-  PAYMENT:          'تحصيل',
-  PURCHASE_PAYMENT: 'سداد مورد',
-  EXPENSE:          'مصروف',
-  PAYROLL:          'رواتب',
-  GOODS_RECEIPT:    'استلام بضاعة',
-  MATERIAL_ISSUE:   'صرف مواد',
-  MANUAL:           'قيد يدوي',
+// ── Journal / statement reference type → i18n key (display only) ──────────────
+const REFERENCE_TYPE_KEY: Record<string, string> = {
+  INVOICE:          'fc.ref.sales_invoice',
+  PURCHASE_INVOICE: 'fc.ref.purchase_invoice',
+  PURCHASE:         'cat.purchases',
+  PAYMENT:          'modal.collect_payment',
+  PURCHASE_PAYMENT: 'fc.ref.supplier_payment',
+  EXPENSE:          'ops.pending.expense_unit',
+  PAYROLL:          'cat.salaries',
+  GOODS_RECEIPT:    'fc.ref.goods_receipt',
+  MATERIAL_ISSUE:   'fc.ref.material_issue',
+  MANUAL:           'fc.ref.manual_entry',
 };
 
 /**
- * Arabic label for a reference type. Unknown codes fall back to the raw value
- * (never throws / never blanks), and `*_REVERSAL` codes render as "…(عكس)".
+ * Localized label for a reference type. Unknown codes fall back to the raw value
+ * (never throws / never blanks), and `*_REVERSAL` codes render with a "(Reversal)"
+ * suffix.
  */
-export function referenceTypeAr(type: string | null | undefined): string {
+export function referenceTypeLabel(type: string | null | undefined, t: Translator): string {
   if (!type) return '';
-  const direct = REFERENCE_TYPE_AR[type];
-  if (direct) return direct;
+  const key = REFERENCE_TYPE_KEY[type];
+  if (key) return t(key);
   if (type.endsWith('_REVERSAL')) {
     const base = type.slice(0, -'_REVERSAL'.length);
-    return `${referenceTypeAr(base)} (عكس)`;
+    return `${referenceTypeLabel(base, t)} ${t('fc.ref.reversal_suffix')}`;
   }
   return type;
 }
 
-// ── Account type → Arabic (display only) — matches the app-wide COA wording ─────
-const ACCOUNT_TYPE_AR: Record<string, string> = {
-  ASSET:     'أصول',
-  LIABILITY: 'التزامات',
-  EQUITY:    'حقوق ملكية',
-  REVENUE:   'إيرادات',
-  EXPENSE:   'مصروفات',
+// ── Account type → i18n key (display only) — matches the app-wide COA wording ──
+const ACCOUNT_TYPE_KEY: Record<string, string> = {
+  ASSET:     'acc.type.asset',
+  LIABILITY: 'acc.type.liability',
+  EQUITY:    'acc.type.equity',
+  REVENUE:   'acc.type.revenue',
+  EXPENSE:   'acc.type.expense',
 };
 
-export function accountTypeAr(type: string | null | undefined): string {
+export function accountTypeLabel(type: string | null | undefined, t: Translator): string {
   if (!type) return '';
-  return ACCOUNT_TYPE_AR[type] ?? type;
+  const key = ACCOUNT_TYPE_KEY[type];
+  return key ? t(key) : type;
 }
 
-// ── Journal status → Arabic (display only) — matches the FC status filter copy ──
-const JOURNAL_STATUS_AR: Record<string, string> = {
-  POSTED:    'مرحّل',
-  DRAFT:     'مسودة',
-  CANCELLED: 'ملغى',
+// ── Journal status → i18n key (display only) — matches the FC status filter copy ──
+const JOURNAL_STATUS_KEY: Record<string, string> = {
+  POSTED:    'acc.journal.posted',
+  DRAFT:     'acc.journal.draft',
+  CANCELLED: 'acc.journal.cancelled',
 };
 
-export function journalStatusAr(status: string | null | undefined): string {
+export function journalStatusLabel(status: string | null | undefined, t: Translator): string {
   if (!status) return '';
-  return JOURNAL_STATUS_AR[status] ?? status;
+  const key = JOURNAL_STATUS_KEY[status];
+  return key ? t(key) : status;
 }

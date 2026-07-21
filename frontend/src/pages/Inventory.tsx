@@ -168,7 +168,7 @@ function LineItemBuilder({ items, onChange, materials, showCost }: { items: Line
             </>
           )}
           {items.length > 1 && (
-            <button className="invx-line-remove" type="button" onClick={() => onChange(items.filter((_, idx) => idx !== i))} aria-label="حذف البند"><span className="material-symbols-outlined">close</span></button>
+            <button className="invx-line-remove" type="button" onClick={() => onChange(items.filter((_, idx) => idx !== i))} aria-label={t('a11y.remove_item')}><span className="material-symbols-outlined">close</span></button>
           )}
         </div>
       ))}
@@ -239,7 +239,7 @@ function BalanceTab() {
   return (
     <>
       <div className="invx-metrics">
-        <HeroMetric icon="account_balance_wallet" label={t('stat.inv.stock_value')} value={<MoneyText value={totalValue} />} sub={<><span className="material-symbols-outlined">inventory</span>{`${materials.length} مادة`}</>} />
+        <HeroMetric icon="account_balance_wallet" label={t('stat.inv.stock_value')} value={<MoneyText value={totalValue} />} sub={<><span className="material-symbols-outlined">inventory</span>{`${materials.length} ${t('unit.material')}`}</>} />
         <div className="xpl-kpi-grid">
           <MetricCard icon="inventory" tone="indigo" label={t('stat.inv.total_materials')} value={materials.length} />
           <MetricCard icon="warning" tone={lowStock.length > 0 ? 'orange' : 'green'} label={t('stat.inv.low_stock')} value={lowStock.length} sub={lowStock.length > 0 ? t('stat.inv.needs_restock') : undefined} />
@@ -259,11 +259,11 @@ function BalanceTab() {
               <SortableHeader label={fcMoneyHeader(t('col.inv.total_value'))} title={t('col.inv.total_value')} state={sort.getState('totalValue')} onToggle={() => sort.toggle('totalValue')} />
               {/* الحالة مشتقة من مقارنة الرصيد بالحد الأدنى — غير قابلة للفرز */}
               <th>{t('col.status')}</th>
-              <th aria-label="فتح" />
+              <th aria-label={t('a11y.open_row')} />
             </tr></thead>
             <tbody>
               {sortedMaterials.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.name}`}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_name', { name: r.name })}>
                   <td><span className="invx-code">{r.code}</span></td>
                   <td><strong>{r.name}</strong></td>
                   <td>{r.category?.name ?? '—'}</td>
@@ -302,13 +302,13 @@ function MaterialDrawer({ material, onClose, footer }: { material: Material; onC
         </div>
       }
     >
-      <DrawerSection title="الهوية">
+      <DrawerSection title={t('sec.identity')}>
         <DrawerField label={t('col.code')} value={material.code} mono />
         <DrawerField label={t('col.inv.material')} value={material.name} />
         <DrawerField label={t('col.category')} value={material.category?.name ?? '—'} />
         <DrawerField label={t('col.inv.unit')} value={material.unit} />
       </DrawerSection>
-      <DrawerSection title="المخزون والتكلفة">
+      <DrawerSection title={t('sec.inv.stock_and_cost')}>
         <DrawerField label={t('col.inv.current_stock')} value={<span className={material.currentStock <= material.minimumStock ? 'invx-stock--low' : ''}>{material.currentStock} {material.unit}</span>} />
         <DrawerField label={t('col.inv.min_stock')} value={`${material.minimumStock} ${material.unit}`} />
         <DrawerField label={t('col.inv.unit_cost')} value={<MoneyText value={material.unitCost} />} />
@@ -353,14 +353,14 @@ function CategoriesTab() {
   async function executeDeleteCategory(id: number) {
     setDeleteCategoryId(null);
     if (busy) return; setBusy(true);
-    try { await api.delete(`/inventory/categories/${id}`); toast.ok('تم الحذف بنجاح'); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/inventory/categories/${id}`); toast.ok(t('msg.deleted_success')); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   return (
     <>
       <div className="xpl-toolbar xpl-toolbar--sticky">
         <div className="xpl-toolbar-row">
-          <span className="xpl-result-count">{rows.length} تصنيف</span>
+          <span className="xpl-result-count">{rows.length} {t('unit.category')}</span>
           {hasPermission('inventory.create') && <Button variant="primary" icon="add" style={{ marginInlineStart: 'auto' }} onClick={() => setEditing({})}>{t('btn.inv.new_category')}</Button>}
         </div>
       </div>
@@ -374,11 +374,11 @@ function CategoriesTab() {
               <SortableHeader label={t('col.description')} title={t('col.description')} state={sort.getState('description')} onToggle={() => sort.toggle('description')} />
               <SortableHeader label={t('col.inv.mat_count')} title={t('col.inv.mat_count')} state={sort.getState('materials')} onToggle={() => sort.toggle('materials')} />
               <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('isActive')} onToggle={() => sort.toggle('isActive')} />
-              <th aria-label="فتح" />
+              <th aria-label={t('a11y.open_row')} />
             </tr></thead>
             <tbody>
               {sortedRows.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.name}`}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_name', { name: r.name })}>
                   <td><strong>{r.name}</strong></td>
                   <td>{r.description ?? '—'}</td>
                   <td>{r._count?.materials ?? 0}</td>
@@ -395,13 +395,13 @@ function CategoriesTab() {
         <Drawer
           title={viewing.name}
           onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">label</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.name}</span><span className="xpl-drawer-hero-sub">{viewing._count?.materials ?? 0} مادة</span><div style={{ marginTop: 4 }}>{viewing.isActive ? <StatusChip tone="green">{t('pill.active')}</StatusChip> : <StatusChip tone="neutral">{t('pill.inactive')}</StatusChip>}</div></div></div>}
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">label</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.name}</span><span className="xpl-drawer-hero-sub">{viewing._count?.materials ?? 0} {t('unit.material')}</span><div style={{ marginTop: 4 }}>{viewing.isActive ? <StatusChip tone="green">{t('pill.active')}</StatusChip> : <StatusChip tone="neutral">{t('pill.inactive')}</StatusChip>}</div></div></div>}
           footer={<>
             {hasPermission('inventory.update') && <Button variant="primary" icon="edit" onClick={() => { setEditing(viewing); setViewing(null); }}>{t('action.edit')}</Button>}
             {hasPermission('inventory.delete') && <Button variant="danger" icon="delete" busy={busy} onClick={() => setDeleteCategoryId(viewing.id)}>{t('action.delete')}</Button>}
           </>}
         >
-          <DrawerSection title="بيانات التصنيف">
+          <DrawerSection title={t('sec.inv.category_info')}>
             <DrawerField label={t('col.inv.cat_name')} value={viewing.name} />
             <DrawerField label={t('col.description')} value={viewing.description ?? '—'} />
             <DrawerField label={t('col.inv.mat_count')} value={viewing._count?.materials ?? 0} />
@@ -409,7 +409,7 @@ function CategoriesTab() {
         </Drawer>
       )}
 
-      {editing !== null && <CategoryForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم الحفظ بنجاح'); setEditing(null); load(); }} />}
+      {editing !== null && <CategoryForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok(t('msg.saved_success')); setEditing(null); load(); }} />}
       {deleteCategoryId !== null && <ConfirmModal message={t('confirm.delete_category')} onConfirm={() => executeDeleteCategory(deleteCategoryId)} onCancel={() => setDeleteCategoryId(null)} />}
     </>
   );
@@ -443,7 +443,7 @@ function MaterialsTab() {
   async function executeDeleteMaterial(id: number) {
     setDeleteMaterialId(null);
     if (busy) return; setBusy(true);
-    try { await api.delete(`/inventory/materials/${id}`); toast.ok('تم الحذف بنجاح'); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/inventory/materials/${id}`); toast.ok(t('msg.deleted_success')); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   return (
@@ -468,11 +468,11 @@ function MaterialsTab() {
               <SortableHeader label={t('col.inv.current_stock')} title={t('col.inv.current_stock')} state={sort.getState('currentStock')} onToggle={() => sort.toggle('currentStock')} />
               <SortableHeader label={fcMoneyHeader(t('col.inv.unit_cost'))} title={t('col.inv.unit_cost')} state={sort.getState('unitCost')} onToggle={() => sort.toggle('unitCost')} />
               <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('isActive')} onToggle={() => sort.toggle('isActive')} />
-              <th aria-label="فتح" />
+              <th aria-label={t('a11y.open_row')} />
             </tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.name}`}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_name', { name: r.name })}>
                   <td><span className="invx-code">{r.code}</span></td>
                   <td><strong>{r.name}</strong></td>
                   <td>{r.category?.name ?? '—'}</td>
@@ -495,7 +495,7 @@ function MaterialsTab() {
           {hasPermission('inventory.delete') && <Button variant="danger" icon="delete" busy={busy} onClick={() => setDeleteMaterialId(viewing.id)}>{t('action.delete')}</Button>}
         </>} />
       )}
-      {editing !== null && <MaterialForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم الحفظ بنجاح'); setEditing(null); load(); }} />}
+      {editing !== null && <MaterialForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok(t('msg.saved_success')); setEditing(null); load(); }} />}
       {deleteMaterialId !== null && <ConfirmModal message={t('confirm.delete_material')} onConfirm={() => executeDeleteMaterial(deleteMaterialId)} onCancel={() => setDeleteMaterialId(null)} />}
     </>
   );
@@ -535,7 +535,7 @@ function PurchaseOrdersTab() {
   async function executeDeletePO(id: number) {
     setDeletePOId(null);
     if (busy) return; setBusy(true);
-    try { await api.delete(`/inventory/purchase-orders/${id}`); toast.ok('تم الحذف بنجاح'); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/inventory/purchase-orders/${id}`); toast.ok(t('msg.deleted_success')); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const STATUS_CHIPS = [['', t('opt.all_statuses')], ['DRAFT', t('inv.po.status.draft')], ['SUBMITTED', t('inv.po.status.submitted')], ['RECEIVED', t('inv.po.status.received')], ['CANCELLED', t('inv.po.status.cancelled')]];
@@ -560,11 +560,11 @@ function PurchaseOrdersTab() {
               <SortableHeader label={t('col.inv.expected_date')} title={t('col.inv.expected_date')} state={sort.getState('expectedDate')} onToggle={() => sort.toggle('expectedDate')} />
               <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
               <SortableHeader label={fcMoneyHeader(t('col.inv.total'))} title={t('col.inv.total')} state={sort.getState('totalAmount')} onToggle={() => sort.toggle('totalAmount')} />
-              <th aria-label="فتح" />
+              <th aria-label={t('a11y.open_row')} />
             </tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.number}`}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_number', { number: r.number })}>
                   <td><span className="invx-code">{r.number}</span></td>
                   <td>{r.supplier?.name ?? '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
@@ -586,12 +586,12 @@ function PurchaseOrdersTab() {
           onClose={() => setViewing(null)}
           hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">shopping_cart</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{<MoneyText value={viewing.totalAmount} />}</span><span className="xpl-drawer-hero-sub">{viewing.number} · {viewing.supplier?.name ?? '—'}</span><div style={{ marginTop: 4 }}>{chip(poTone, viewing.status, t)}</div></div></div>}
           footer={<>
-            {hasPermission('inventory.update') && viewing.status === 'DRAFT' && <Button variant="primary" icon="send" busy={busy} onClick={() => setPendingPost({ endpoint: `/inventory/purchase-orders/${viewing.id}/submit`, confirmMsg: t('confirm.submit_po'), successMsg: 'تم الترحيل بنجاح' })}>{t('btn.inv.submit_po')}</Button>}
-            {hasPermission('inventory.update') && ['DRAFT', 'SUBMITTED'].includes(viewing.status) && <Button variant="secondary" icon="block" busy={busy} onClick={() => setPendingPost({ endpoint: `/inventory/purchase-orders/${viewing.id}/cancel`, confirmMsg: t('confirm.cancel_po'), successMsg: 'تم الإلغاء بنجاح' })}>{t('action.cancel')}</Button>}
+            {hasPermission('inventory.update') && viewing.status === 'DRAFT' && <Button variant="primary" icon="send" busy={busy} onClick={() => setPendingPost({ endpoint: `/inventory/purchase-orders/${viewing.id}/submit`, confirmMsg: t('confirm.submit_po'), successMsg: t('msg.posted_success') })}>{t('btn.inv.submit_po')}</Button>}
+            {hasPermission('inventory.update') && ['DRAFT', 'SUBMITTED'].includes(viewing.status) && <Button variant="secondary" icon="block" busy={busy} onClick={() => setPendingPost({ endpoint: `/inventory/purchase-orders/${viewing.id}/cancel`, confirmMsg: t('confirm.cancel_po'), successMsg: t('msg.cancelled_success') })}>{t('action.cancel')}</Button>}
             {hasPermission('inventory.delete') && viewing.status === 'DRAFT' && <Button variant="danger" icon="delete" busy={busy} onClick={() => setDeletePOId(viewing.id)}>{t('action.delete')}</Button>}
           </>}
         >
-          <DrawerSection title="المعلومات">
+          <DrawerSection title={t('sec.info')}>
             <DrawerField label={t('col.supplier')} value={viewing.supplier?.name ?? '—'} />
             <DrawerField label={t('col.date')} value={dateText(viewing.date)} />
             <DrawerField label={t('col.inv.expected_date')} value={dateText(viewing.expectedDate)} />
@@ -599,7 +599,7 @@ function PurchaseOrdersTab() {
           <DetailItemsSection endpoint="/inventory/purchase-orders" id={viewing.id} />
         </Drawer>
       )}
-      {creating && <PurchaseOrderForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم الحفظ بنجاح'); setCreating(false); load(); }} />}
+      {creating && <PurchaseOrderForm onClose={() => setCreating(false)} onSaved={() => { toast.ok(t('msg.saved_success')); setCreating(false); load(); }} />}
       {pendingPost !== null && <ConfirmModal message={pendingPost.confirmMsg} onConfirm={() => executePost(pendingPost!.endpoint, pendingPost!.successMsg)} onCancel={() => setPendingPost(null)} />}
       {deletePOId !== null && <ConfirmModal message={t('confirm.delete_po')} onConfirm={() => executeDeletePO(deletePOId)} onCancel={() => setDeletePOId(null)} />}
     </>
@@ -634,19 +634,19 @@ function GoodsReceiptsTab() {
   async function executePostGR(id: number) {
     setPostGRId(null);
     if (busy) return; setBusy(true);
-    try { await api.post(`/inventory/goods-receipts/${id}/post`); toast.ok('تم الترحيل بنجاح'); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.post(`/inventory/goods-receipts/${id}/post`); toast.ok(t('msg.posted_success')); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
   async function executeDeleteGR(id: number) {
     setDeleteGRId(null);
     if (busy) return; setBusy(true);
-    try { await api.delete(`/inventory/goods-receipts/${id}`); toast.ok('تم الحذف بنجاح'); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/inventory/goods-receipts/${id}`); toast.ok(t('msg.deleted_success')); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   return (
     <>
       <div className="xpl-toolbar xpl-toolbar--sticky">
         <div className="xpl-toolbar-row">
-          <span className="xpl-result-count">{meta?.total ?? rows.length} سند</span>
+          <span className="xpl-result-count">{meta?.total ?? rows.length} {t('unit.voucher')}</span>
           {hasPermission('inventory.create') && <Button variant="primary" icon="add" style={{ marginInlineStart: 'auto' }} onClick={() => setCreating(true)}>{t('btn.inv.new_gr')}</Button>}
         </div>
       </div>
@@ -662,11 +662,11 @@ function GoodsReceiptsTab() {
               <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
               <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
               <SortableHeader label={fcMoneyHeader(t('col.inv.total'))} title={t('col.inv.total')} state={sort.getState('totalCost')} onToggle={() => sort.toggle('totalCost')} />
-              <th aria-label="فتح" />
+              <th aria-label={t('a11y.open_row')} />
             </tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.number}`}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_number', { number: r.number })}>
                   <td><span className="invx-code">{r.number}</span></td>
                   <td>{r.supplier?.name ?? '—'}</td>
                   <td>{r.purchaseOrder?.number ?? '—'}</td>
@@ -692,7 +692,7 @@ function GoodsReceiptsTab() {
             {hasPermission('inventory.delete') && viewing.status === 'DRAFT' && <Button variant="danger" icon="delete" busy={busy} onClick={() => setDeleteGRId(viewing.id)}>{t('action.delete')}</Button>}
           </>}
         >
-          <DrawerSection title="المعلومات">
+          <DrawerSection title={t('sec.info')}>
             <DrawerField label={t('col.supplier')} value={viewing.supplier?.name ?? '—'} />
             <DrawerField label={t('col.inv.po_ref')} value={viewing.purchaseOrder?.number ?? '—'} />
             <DrawerField label={t('col.date')} value={dateText(viewing.date)} />
@@ -700,7 +700,7 @@ function GoodsReceiptsTab() {
           <DetailItemsSection endpoint="/inventory/goods-receipts" id={viewing.id} />
         </Drawer>
       )}
-      {creating && <GoodsReceiptForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم الحفظ بنجاح'); setCreating(false); load(); }} />}
+      {creating && <GoodsReceiptForm onClose={() => setCreating(false)} onSaved={() => { toast.ok(t('msg.saved_success')); setCreating(false); load(); }} />}
       {postGRId !== null && <ConfirmModal message={t('confirm.post_gr')} onConfirm={() => executePostGR(postGRId)} onCancel={() => setPostGRId(null)} />}
       {deleteGRId !== null && <ConfirmModal message={t('confirm.delete_gr')} onConfirm={() => executeDeleteGR(deleteGRId)} onCancel={() => setDeleteGRId(null)} />}
     </>
@@ -735,9 +735,9 @@ function MaterialIssuesTab() {
   }, [page, statusFilter, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
-  async function executePostMI(id: number) { setPostMIId(null); if (busy) return; setBusy(true); try { await api.post(`/inventory/material-issues/${id}/post`); toast.ok('تم الترحيل بنجاح'); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }
-  async function executeCancelMI(id: number) { setCancelMIId(null); if (busy) return; setBusy(true); try { await api.post(`/inventory/material-issues/${id}/cancel`); toast.ok('تم الإلغاء بنجاح'); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }
-  async function executeDeleteMI(id: number) { setDeleteMIId(null); if (busy) return; setBusy(true); try { await api.delete(`/inventory/material-issues/${id}`); toast.ok('تم الحذف بنجاح'); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }
+  async function executePostMI(id: number) { setPostMIId(null); if (busy) return; setBusy(true); try { await api.post(`/inventory/material-issues/${id}/post`); toast.ok(t('msg.posted_success')); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }
+  async function executeCancelMI(id: number) { setCancelMIId(null); if (busy) return; setBusy(true); try { await api.post(`/inventory/material-issues/${id}/cancel`); toast.ok(t('msg.cancelled_success')); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }
+  async function executeDeleteMI(id: number) { setDeleteMIId(null); if (busy) return; setBusy(true); try { await api.delete(`/inventory/material-issues/${id}`); toast.ok(t('msg.deleted_success')); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); } }
 
   const STATUS_CHIPS = [['', t('opt.all_statuses')], ['DRAFT', t('inv.mi.status.draft')], ['POSTED', t('inv.mi.status.posted')], ['CANCELLED', t('inv.mi.status.cancelled')]];
 
@@ -760,11 +760,11 @@ function MaterialIssuesTab() {
               <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('date')} onToggle={() => sort.toggle('date')} />
               <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
               <SortableHeader label={fcMoneyHeader(t('col.inv.total'))} title={t('col.inv.total')} state={sort.getState('totalCost')} onToggle={() => sort.toggle('totalCost')} />
-              <th aria-label="فتح" />
+              <th aria-label={t('a11y.open_row')} />
             </tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل ${r.number}`}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_number', { number: r.number })}>
                   <td><span className="invx-code">{r.number}</span></td>
                   <td>{r.contract ? r.contract.code : '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
@@ -791,15 +791,15 @@ function MaterialIssuesTab() {
             {hasPermission('inventory.delete') && viewing.status === 'DRAFT' && <Button variant="danger" icon="delete" busy={busy} onClick={() => setDeleteMIId(viewing.id)}>{t('action.delete')}</Button>}
           </>}
         >
-          <DrawerSection title="المعلومات">
+          <DrawerSection title={t('sec.info')}>
             <DrawerField label={t('col.contract_no')} value={viewing.contract ? viewing.contract.code : '—'} />
             <DrawerField label={t('col.date')} value={dateText(viewing.date)} />
           </DrawerSection>
           <DetailItemsSection endpoint="/inventory/material-issues" id={viewing.id} />
         </Drawer>
       )}
-      {creating && <MaterialIssueForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم الحفظ بنجاح'); setCreating(false); load(); }} />}
-      {editing !== null && <MaterialIssueForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم الحفظ بنجاح'); setEditing(null); load(); }} />}
+      {creating && <MaterialIssueForm onClose={() => setCreating(false)} onSaved={() => { toast.ok(t('msg.saved_success')); setCreating(false); load(); }} />}
+      {editing !== null && <MaterialIssueForm initial={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok(t('msg.saved_success')); setEditing(null); load(); }} />}
       {postMIId !== null && <ConfirmModal message={t('confirm.post_mi')} onConfirm={() => executePostMI(postMIId)} onCancel={() => setPostMIId(null)} />}
       {cancelMIId !== null && <ConfirmModal message={t('confirm.cancel_mi')} variant="warning" onConfirm={() => executeCancelMI(cancelMIId)} onCancel={() => setCancelMIId(null)} />}
       {deleteMIId !== null && <ConfirmModal message={t('confirm.delete_mi')} onConfirm={() => executeDeleteMI(deleteMIId)} onCancel={() => setDeleteMIId(null)} />}
@@ -834,7 +834,7 @@ function CategoryForm({ initial, onClose, onSaved }: { initial: Partial<Material
     <Dialog icon="label" title={isNew ? t('modal.inv.new_category') : t('modal.inv.edit_category')} size="md" onClose={onClose}
       footer={<><Button variant="primary" icon="save" busy={saving} onClick={submit}>{t('action.save')}</Button><Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button></>}>
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
-      <DialogSection title="بيانات التصنيف" icon="label">
+      <DialogSection title={t('sec.inv.category_info')} icon="label">
         <div className="xpl-field xpl-field--full"><label>{t('field.inv.cat_name')} <span className="req">*</span></label><input className="xpl-input" value={name} onChange={(e) => setName(e.target.value)} autoFocus aria-label={t('field.inv.cat_name')} /></div>
         <div className="xpl-field xpl-field--full"><label>{t('col.description')}</label><input className="xpl-input" value={description} onChange={(e) => setDescription(e.target.value)} aria-label={t('col.description')} /></div>
         <div className="xpl-field xpl-field--full"><label className="invx-check"><input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />{t('field.inv.active_check')}</label></div>
@@ -878,16 +878,16 @@ function MaterialForm({ initial, onClose, onSaved }: { initial: Partial<Material
     <Dialog icon="category" title={isNew ? t('modal.inv.new_material') : t('modal.inv.edit_material')} subtitle={!isNew ? initial.code : undefined} size="lg" onClose={onClose}
       footer={<><Button variant="primary" icon="save" busy={saving} onClick={submit}>{t('action.save')}</Button><Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button></>}>
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
-      <DialogSection title="الهوية" icon="badge">
+      <DialogSection title={t('sec.identity')} icon="badge">
         {isNew && <div className="xpl-field"><label>{t('field.inv.mat_code')} <span className="req">*</span></label><input className="xpl-input" value={code} onChange={(e) => setCode(e.target.value)} autoFocus aria-label={t('field.inv.mat_code')} /></div>}
         <div className="xpl-field"><label>{t('field.inv.mat_name')} <span className="req">*</span></label><input className="xpl-input" value={name} onChange={(e) => setName(e.target.value)} autoFocus={!isNew} aria-label={t('field.inv.mat_name')} /></div>
         <div className="xpl-field"><label>{t('col.category')} <span className="req">*</span></label><select className="xpl-select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label={t('col.category')}><option value="">{t('msg.select_placeholder')}</option>{categories.map((c) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}</select></div>
         <div className="xpl-field"><label>{t('field.inv.mat_unit')}</label><select className="xpl-select" value={unit} onChange={(e) => setUnit(e.target.value)} aria-label={t('field.inv.mat_unit')}>{UNITS.map((u) => <option key={u} value={u}>{u}</option>)}</select></div>
       </DialogSection>
-      <DialogSection title="المخزون" icon="inventory">
+      <DialogSection title={t('sec.inv.stock')} icon="inventory">
         <div className="xpl-field"><label>{t('field.inv.min_stock')}</label><input className="xpl-input" type="number" min="0" step="0.001" value={minimumStock} onChange={(e) => setMinimumStock(e.target.value)} style={{ direction: 'ltr' }} aria-label={t('field.inv.min_stock')} /></div>
       </DialogSection>
-      <DialogSection title="التكلفة" icon="payments">
+      <DialogSection title={t('sec.inv.cost')} icon="payments">
         <div className="xpl-field"><label>{t('field.inv.unit_cost_kd')}</label><input className="xpl-input" type="number" min="0" step="0.001" value={unitCost} onChange={(e) => setUnitCost(e.target.value)} style={{ direction: 'ltr' }} aria-label={t('field.inv.unit_cost_kd')} /></div>
       </DialogSection>
       <DialogSection title={t('field.notes')} icon="sticky_note_2">
@@ -931,7 +931,7 @@ function PurchaseOrderForm({ onClose, onSaved }: { onClose: () => void; onSaved:
     <Dialog icon="shopping_cart" title={t('modal.inv.new_po')} size="xl" onClose={onClose}
       footer={<><Button variant="primary" icon="save" busy={saving} onClick={submit}>{t('action.save')}</Button><Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button></>}>
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
-      <DialogSection title="المورد والتواريخ" icon="local_shipping">
+      <DialogSection title={t('sec.inv.supplier_dates')} icon="local_shipping">
         <div className="xpl-field"><label>{t('col.supplier')} <span className="req">*</span></label><select className="xpl-select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} aria-label={t('col.supplier')}><option value="">{t('msg.select_placeholder')}</option>{suppliers.map((s) => <option key={s.id} value={String(s.id)}>{s.name}</option>)}</select></div>
         <div className="xpl-field"><label>{t('field.inv.po_date')}</label><DateInput className="xpl-input" value={date} onChange={setDate} autoFocus ariaLabel={t('field.inv.po_date')} /></div>
         <div className="xpl-field"><label>{t('field.inv.expected_date')}</label><DateInput className="xpl-input" value={expectedDate} onChange={setExpectedDate} ariaLabel={t('field.inv.expected_date')} /></div>
@@ -976,7 +976,7 @@ function GoodsReceiptForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
     <Dialog icon="inventory_2" title={t('modal.inv.new_gr')} size="xl" onClose={onClose}
       footer={<><Button variant="primary" icon="save" busy={saving} onClick={submit}>{t('action.save')}</Button><Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button></>}>
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
-      <DialogSection title="المصدر والتواريخ" icon="local_shipping">
+      <DialogSection title={t('sec.inv.source_dates')} icon="local_shipping">
         <div className="xpl-field"><label>{t('col.supplier')} <span className="req">*</span></label><select className="xpl-select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} aria-label={t('col.supplier')}><option value="">{t('msg.select_placeholder')}</option>{suppliers.map((s) => <option key={s.id} value={String(s.id)}>{s.name}</option>)}</select></div>
         <div className="xpl-field"><label>{t('field.inv.po_optional')}</label><select className="xpl-select" value={purchaseOrderId} onChange={(e) => setPurchaseOrderId(e.target.value)} aria-label={t('field.inv.po_optional')}><option value="">— {t('opt.no_po')} —</option>{purchaseOrders.map((po) => <option key={po.id} value={String(po.id)}>{po.number}</option>)}</select></div>
         <div className="xpl-field"><label>{t('col.date')}</label><DateInput className="xpl-input" value={date} onChange={setDate} autoFocus ariaLabel={t('col.date')} /><HistoricalDateNotice date={date} /></div>
@@ -1028,7 +1028,7 @@ function MaterialIssueForm({ initial, onClose, onSaved }: { initial?: Partial<Ma
     <Dialog icon="output" title={isNew ? t('modal.inv.new_mi') : t('modal.inv.edit_mi')} size="xl" onClose={onClose}
       footer={<><Button variant="primary" icon="save" busy={saving} onClick={submit}>{t('action.save')}</Button><Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button></>}>
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
-      <DialogSection title="العقد والتاريخ" icon="description">
+      <DialogSection title={t('sec.inv.contract_date')} icon="description">
         <div className="xpl-field"><label>{t('field.inv.contract_optional')}</label><select className="xpl-select" value={contractId} onChange={(e) => setContractId(e.target.value)} aria-label={t('field.inv.contract_optional')}><option value="">— {t('opt.no_contract')} —</option>{contracts.map((c) => <option key={c.id} value={String(c.id)}>{c.code} — {c.asphaltPlant}</option>)}</select></div>
         <div className="xpl-field"><label>{t('col.date')}</label><DateInput className="xpl-input" value={date} onChange={setDate} autoFocus ariaLabel={t('col.date')} /><HistoricalDateNotice date={date} /></div>
         <div className="xpl-field xpl-field--full"><label>{t('field.notes')}</label><input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} aria-label={t('field.notes')} /></div>

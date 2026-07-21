@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { formatNumber } from '../../lib/format';
+import { useT } from '../../lib/i18n';
 
 type NormalBalance = 'DEBIT' | 'CREDIT';
 
@@ -34,6 +35,7 @@ interface Props {
  * Input `value` is in net-debit convention: positive = debit, negative = credit.
  */
 export function BalanceDisplay({ value, showIndicator = true, className }: Props): ReactNode {
+  const { t } = useT();
   const abs = Math.abs(value ?? 0);
 
   if (abs < 0.0005) {
@@ -42,7 +44,7 @@ export function BalanceDisplay({ value, showIndicator = true, className }: Props
 
   const fmtAbs    = formatNumber(abs);
   const side      = value > 0 ? 'debit' : 'credit';
-  const indicator = value > 0 ? 'مدين' : 'دائن';
+  const indicator = value > 0 ? t('acc.balance.debit') : t('acc.balance.credit');
 
   return (
     <span className={`balance-display balance-${side} ${className ?? ''}`}>

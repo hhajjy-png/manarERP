@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { api, errorMessage } from '../api/client';
 import { formatDate } from '../lib/date';
+import { useT } from '../lib/i18n';
 
 interface Attachment {
   id: number;
@@ -26,6 +27,7 @@ function formatBytes(bytes: number): string {
 }
 
 function InlineError({ msg, onDismiss }: { msg: string; onDismiss: () => void }) {
+  const { t } = useT();
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 8, padding: '8px 12px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 6, fontSize: 13, color: '#B91C1C' }}>
       <span style={{ flex: 1, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{msg}</span>
@@ -33,7 +35,7 @@ function InlineError({ msg, onDismiss }: { msg: string; onDismiss: () => void })
         type="button"
         onClick={onDismiss}
         style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B91C1C', padding: '0 2px', fontSize: 16, lineHeight: 1, flexShrink: 0 }}
-        aria-label="إغلاق"
+        aria-label={t('action.close')}
       >
         ×
       </button>
@@ -42,6 +44,7 @@ function InlineError({ msg, onDismiss }: { msg: string; onDismiss: () => void })
 }
 
 export default function AttachmentsPanel({ entityType, entityId, readOnly = false }: Props) {
+  const { t } = useT();
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -92,7 +95,7 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('هل تريد حذف هذا المرفق؟')) return;
+    if (!confirm(t('dlg.attachments.confirm_delete'))) return;
     setListError(null);
     try {
       await api.delete(`/attachments/${id}`);
@@ -105,20 +108,20 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
   async function handleOpen(filePath: string) {
     if (window.manar?.openAttachment) {
       const err = await window.manar.openAttachment(filePath);
-      if (err) setListError(`تعذّر فتح الملف: ${err}`);
+      if (err) setListError(t('dlg.attachments.open_failed', { err }));
     }
   }
 
   return (
     <div style={{ marginTop: 16 }}>
-      <strong style={{ fontSize: 13, color: '#374151' }}>المرفقات ({attachments.length})</strong>
+      <strong style={{ fontSize: 13, color: '#374151' }}>{t('dlg.attachments.heading', { n: attachments.length })}</strong>
 
       {!readOnly && (
         <>
           <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
             <input
               type="text"
-              placeholder="عنوان المرفق (اختياري)"
+              placeholder={t('dlg.attachments.title_placeholder')}
               value={titleInput}
               onChange={e => setTitleInput(e.target.value)}
               style={{ flex: 1, minWidth: 140, fontSize: 13 }}
@@ -127,11 +130,11 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
               ref={fileRef}
               type="file"
               accept=".pdf,.docx,.jpg,.jpeg,.png,.gif,.webp"
-              title="اختر ملفاً للرفع"
+              title={t('dlg.attachments.choose_file_title')}
               style={{ flex: 2, fontSize: 13 }}
             />
             <button type="button" onClick={handleUpload} disabled={uploading} className="btn-primary" style={{ fontSize: 13 }}>
-              {uploading ? 'جارٍ الرفع…' : 'رفع'}
+              {uploading ? t('dlg.attachments.uploading') : t('dlg.attachments.upload_btn')}
             </button>
           </div>
           {uploadError && <InlineError msg={uploadError} onDismiss={() => setUploadError(null)} />}
@@ -141,16 +144,16 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
       {listError && <InlineError msg={listError} onDismiss={() => setListError(null)} />}
 
       {loading ? (
-        <div style={{ marginTop: 10, color: '#9CA3AF', fontSize: 13 }}>جارٍ التحميل…</div>
+        <div style={{ marginTop: 10, color: '#9CA3AF', fontSize: 13 }}>{t('msg.loading')}</div>
       ) : attachments.length === 0 ? (
-        <div style={{ marginTop: 10, color: '#9CA3AF', fontSize: 13 }}>لا توجد مرفقات</div>
+        <div style={{ marginTop: 10, color: '#9CA3AF', fontSize: 13 }}>{t('dlg.attachments.empty')}</div>
       ) : (
         <table style={{ width: '100%', marginTop: 10, fontSize: 13, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-              <th style={{ textAlign: 'right', padding: '6px 8px' }}>العنوان</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px' }}>الحجم</th>
-              <th style={{ textAlign: 'right', padding: '6px 8px' }}>التاريخ</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px' }}>{t('dlg.attachments.col_title')}</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px' }}>{t('col.backup.size')}</th>
+              <th style={{ textAlign: 'right', padding: '6px 8px' }}>{t('col.date')}</th>
               <th style={{ padding: '6px 8px' }}></th>
             </tr>
           </thead>
@@ -177,7 +180,7 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
                       onClick={() => handleDelete(att.id)}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 13 }}
                     >
-                      حذف
+                      {t('action.delete')}
                     </button>
                   )}
                 </td>

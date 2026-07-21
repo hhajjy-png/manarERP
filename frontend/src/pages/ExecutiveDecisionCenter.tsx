@@ -15,6 +15,7 @@ import KPITimeline from '../components/dashboard/KPITimeline';
 import '../components/dashboard/dashboard.css';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { money, MoneyText } from '../config/modules';
+import { useT } from '../lib/i18n';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -73,21 +74,22 @@ function changeBadge(v: number | null, invertColor = false) {
 // ── Financial Summary Panel ────────────────────────────────────────────────
 
 function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
+  const { t } = useT();
   const kpis = [
-    { label: 'إجمالي الإيرادات',  value: money(data.totalRevenue),   color: '#3B82F6', icon: '💰', change: data.monthOnMonthChanges.revenue, invertColor: false },
-    { label: 'إجمالي المصروفات',  value: money(data.totalExpenses),  color: '#EF4444', icon: '💸', change: data.monthOnMonthChanges.expenses, invertColor: true },
-    { label: 'صافي الربح',         value: money(data.netProfit),      color: data.netProfit >= 0 ? '#10B981' : '#EF4444', icon: '📊', change: data.monthOnMonthChanges.profit, invertColor: false },
-    { label: 'إجمالي التحصيلات',  value: money(data.totalCollected), color: '#10B981', icon: '✅', change: data.monthOnMonthChanges.collections, invertColor: false },
-    { label: 'الذمم المستحقة',    value: money(data.totalOutstanding), color: '#F59E0B', icon: '⏳', change: null, invertColor: true },
-    { label: 'هامش الربح',        value: pct(data.overallProfitMargin), color: '#A855F7', icon: '📈', change: null, invertColor: false },
-    { label: 'معدل التحصيل',      value: pct(data.overallCollectionRate), color: '#06B6D4', icon: '🎯', change: null, invertColor: false },
-    { label: 'العقود النشطة',      value: `${data.activeContracts} / ${data.totalContracts}`, color: '#F97316', icon: '📄', change: null, invertColor: false, currentStatus: true },
+    { label: t('kpi.total_revenue'),  value: money(data.totalRevenue),   color: '#3B82F6', icon: '💰', change: data.monthOnMonthChanges.revenue, invertColor: false },
+    { label: t('kpi.total_expenses'),  value: money(data.totalExpenses),  color: '#EF4444', icon: '💸', change: data.monthOnMonthChanges.expenses, invertColor: true },
+    { label: t('kpi.net_profit'),         value: money(data.netProfit),      color: data.netProfit >= 0 ? '#10B981' : '#EF4444', icon: '📊', change: data.monthOnMonthChanges.profit, invertColor: false },
+    { label: t('exec.kpi.total_collected'),  value: money(data.totalCollected), color: '#10B981', icon: '✅', change: data.monthOnMonthChanges.collections, invertColor: false },
+    { label: t('exec.kpi.outstanding_receivables'),    value: money(data.totalOutstanding), color: '#F59E0B', icon: '⏳', change: null, invertColor: true },
+    { label: t('exec.kpi.profit_margin'),        value: pct(data.overallProfitMargin), color: '#A855F7', icon: '📈', change: null, invertColor: false },
+    { label: t('exec.kpi.collection_rate'),      value: pct(data.overallCollectionRate), color: '#06B6D4', icon: '🎯', change: null, invertColor: false },
+    { label: t('exec.kpi.active_contracts'),      value: `${data.activeContracts} / ${data.totalContracts}`, color: '#F97316', icon: '📄', change: null, invertColor: false, currentStatus: true },
   ];
 
   return (
     <div>
       <h3 style={{ margin: '0 0 14px', fontSize: 15, fontWeight: 700, color: 'var(--db-text)' }}>
-        📋 الملخص المالي التنفيذي
+        📋 {t('exec.summary_title')}
       </h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 12, marginBottom: 20 }}>
         {kpis.map(k => (
@@ -111,19 +113,19 @@ function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
 
       {/* Two-column: this month vs last month — حالة حالية لا تتبع الفترة المختارة */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--db-muted)' }}>المقارنة الشهرية</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--db-muted)' }}>{t('exec.monthly_comparison')}</span>
         <CurrentStatusBadge />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'هذا الشهر', d: data.thisMonth, color: '#3B82F6' },
-          { label: 'الشهر الماضي', d: data.lastMonth, color: '#9CA3AF' },
+          { label: t('exec.this_month'), d: data.thisMonth, color: '#3B82F6' },
+          { label: t('exec.last_month'), d: data.lastMonth, color: '#9CA3AF' },
         ].map(({ label, d, color }) => (
           <div key={label} style={{ background: 'var(--db-card)', borderRadius: 'var(--db-radius)', padding: '14px 16px', border: '1px solid var(--db-border)' }}>
             <div style={{ fontSize: 12, fontWeight: 700, color, marginBottom: 10 }}>{label}</div>
             {[
-              { l: 'إيرادات', v: d.revenue }, { l: 'مصروفات', v: d.expenses },
-              { l: 'تحصيلات', v: d.collections }, { l: 'ربح', v: d.profit },
+              { l: t('dash.lbl.revenue'), v: d.revenue }, { l: t('dash.lbl.expenses'), v: d.expenses },
+              { l: t('exec.lbl.collections'), v: d.collections }, { l: t('exec.lbl.profit'), v: d.profit },
             ].map(({ l, v }) => (
               <div key={l} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
                 <span style={{ color: 'var(--db-muted)' }}>{l}</span>
@@ -137,8 +139,8 @@ function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
       {/* Top debtors + top customers side by side */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div style={{ background: 'var(--db-card)', borderRadius: 'var(--db-radius)', padding: '14px 16px', border: '1px solid var(--db-border)' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 10 }}>كبار المدينين</div>
-          {data.topDebtors.length === 0 && <div style={{ color: 'var(--db-muted)', fontSize: 12 }}>لا يوجد</div>}
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#F59E0B', marginBottom: 10 }}>{t('exec.top_debtors')}</div>
+          {data.topDebtors.length === 0 && <div style={{ color: 'var(--db-muted)', fontSize: 12 }}>{t('exec.none')}</div>}
           {data.topDebtors.map(d => (
             <div key={d.customerId} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
               <span style={{ color: 'var(--db-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '60%' }}>{d.name}</span>
@@ -147,8 +149,8 @@ function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
           ))}
         </div>
         <div style={{ background: 'var(--db-card)', borderRadius: 'var(--db-radius)', padding: '14px 16px', border: '1px solid var(--db-border)' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#10B981', marginBottom: 10 }}>أعلى عقود ربحاً</div>
-          {data.topContractsByProfit.length === 0 && <div style={{ color: 'var(--db-muted)', fontSize: 12 }}>لا يوجد</div>}
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#10B981', marginBottom: 10 }}>{t('exec.top_profitable_contracts')}</div>
+          {data.topContractsByProfit.length === 0 && <div style={{ color: 'var(--db-muted)', fontSize: 12 }}>{t('exec.none')}</div>}
           {data.topContractsByProfit.map(c => (
             <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5, fontSize: 12 }}>
               <span style={{ color: 'var(--db-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '55%' }}>{c.code} — {c.asphaltPlant}</span>
@@ -164,6 +166,7 @@ function FinancialSummaryPanel({ data }: { data: FinancialSummary }) {
 // ── Main Page ──────────────────────────────────────────────────────────────
 
 export default function ExecutiveDecisionCenter() {
+  const { t } = useT();
   const { period } = useFinancialPeriod();
   const [data, setData]       = useState<DecisionCenterData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -184,13 +187,13 @@ export default function ExecutiveDecisionCenter() {
       params: { fromDate: params.fromDate, toDate: params.toDate },
     })
       .then(r => setData(r.data.data))
-      .catch(() => setError('تعذّر تحميل بيانات مركز القرار'))
+      .catch(() => setError(t('exec.err.load_failed')))
       .finally(() => setLoading(false));
   }, [period.fromDate, period.toDate, period.isAllPeriods]);
 
   async function handleExportPdf() {
     if (!window.manar?.exportPdf && !window.manar?.exportPdfFromHtml) {
-      setPdfErr('تصدير PDF غير متاح في هذه البيئة');
+      setPdfErr(t('exec.err.pdf_unavailable'));
       return;
     }
     setPdfBusy(true); setPdfMsg(''); setPdfErr('');
@@ -216,7 +219,7 @@ export default function ExecutiveDecisionCenter() {
             composeStyledFromNode({
               node,
               pageSpec: getPageSpec('a4-portrait'),
-              title: 'مركز القرار التنفيذي',
+              title: t('nav.executive'),
               lang: 'ar',
               stripSelectors: ['.no-print'],
             }),
@@ -225,25 +228,25 @@ export default function ExecutiveDecisionCenter() {
         : await window.manar?.exportPdf(name); // بيئة قديمة بلا الجسر — السلوك السابق كما هو
       if (result?.canceled) { return; }
       if (result?.success && result.path) {
-        setPdfMsg(`تم الحفظ: ${result.path}`);
+        setPdfMsg(`${t('exec.pdf.saved_prefix')}${result.path}`);
         setTimeout(() => setPdfMsg(''), 6000);
       } else {
-        setPdfErr(result?.error ?? 'فشل تصدير PDF');
+        setPdfErr(result?.error ?? t('exec.err.pdf_export_failed'));
       }
     } catch (e) {
-      setPdfErr(e instanceof Error ? e.message : 'فشل تصدير PDF');
+      setPdfErr(e instanceof Error ? e.message : t('exec.err.pdf_export_failed'));
     } finally {
       setPdfBusy(false);
     }
   }
 
   const tabs: { key: typeof activeTab; label: string; icon: string }[] = [
-    { key: 'summary',         label: 'الملخص المالي',  icon: '📋' },
-    { key: 'cards',           label: 'بطاقات القرار',  icon: '🃏' },
-    { key: 'alerts',          label: 'التنبيهات',       icon: '🔔' },
-    { key: 'timeline',        label: 'المؤشرات الزمنية', icon: '📊' },
-    { key: 'health',          label: 'صحة الشركة',     icon: '🏥' },
-    { key: 'recommendations', label: 'التوصيات',        icon: '💡' },
+    { key: 'summary',         label: t('action.financial_summary'),  icon: '📋' },
+    { key: 'cards',           label: t('exec.tab.cards'),  icon: '🃏' },
+    { key: 'alerts',          label: t('exec.tab.alerts'),       icon: '🔔' },
+    { key: 'timeline',        label: t('exec.tab.timeline'), icon: '📊' },
+    { key: 'health',          label: t('exec.tab.health'),     icon: '🏥' },
+    { key: 'recommendations', label: t('exec.tab.recommendations'),        icon: '💡' },
   ];
 
   const highAlerts = data?.alertsV3.filter(a => a.severity === 'HIGH').length ?? 0;
@@ -253,14 +256,14 @@ export default function ExecutiveDecisionCenter() {
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="db-header no-print">
         <div>
-          <h2>🎯 مركز القرار التنفيذي</h2>
-          <div className="db-header-sub">تحليل شامل — بيانات في الوقت الفعلي</div>
+          <h2>🎯 {t('nav.executive')}</h2>
+          <div className="db-header-sub">{t('exec.header.subtitle')}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <PeriodControl />
           {highAlerts > 0 && (
             <span style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 700 }}>
-              ⚠️ {highAlerts} تنبيهات عالية
+              ⚠️ {t('exec.high_alerts_count', { count: highAlerts })}
             </span>
           )}
           <button
@@ -273,7 +276,7 @@ export default function ExecutiveDecisionCenter() {
               fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6,
             }}
           >
-            {pdfBusy ? '⏳ جارٍ التصدير…' : '⬇️ تصدير PDF'}
+            {pdfBusy ? `⏳ ${t('exec.pdf.exporting')}` : `⬇️ ${t('exec.pdf.export_btn')}`}
           </button>
         </div>
       </div>
@@ -328,28 +331,28 @@ export default function ExecutiveDecisionCenter() {
 
           {activeTab === 'alerts' && (
             <>
-              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label="حالة حالية · لا تتبع الفترة المختارة" /></div>
+              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label={t('exec.current_status_note')} /></div>
               <ExecutiveAlertsV3 alerts={data.alertsV3} />
             </>
           )}
 
           {activeTab === 'timeline' && (
             <>
-              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label="حالة حالية · لا تتبع الفترة المختارة" /></div>
+              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label={t('exec.current_status_note')} /></div>
               <KPITimeline />
             </>
           )}
 
           {activeTab === 'health' && (
             <div style={{ maxWidth: 500 }}>
-              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label="حالة حالية · لا تتبع الفترة المختارة" /></div>
+              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label={t('exec.current_status_note')} /></div>
               <CompanyHealthScore data={data.healthScore} />
             </div>
           )}
 
           {activeTab === 'recommendations' && (
             <>
-              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label="حالة حالية · لا تتبع الفترة المختارة" /></div>
+              <div style={{ marginBottom: 10 }}><CurrentStatusBadge label={t('exec.current_status_note')} /></div>
               <ExecutiveRecommendationsPanel recommendations={data.recommendations} />
             </>
           )}

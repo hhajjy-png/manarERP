@@ -143,7 +143,7 @@ function SummaryTab() {
           icon="savings"
           label={t('stat.acc.net_profit')}
           value={<MoneyText value={summary?.netProfit} />}
-          sub={<><span className="material-symbols-outlined">{net >= 0 ? 'trending_up' : 'trending_down'}</span>{net >= 0 ? 'صافي ربح موجب' : 'صافي خسارة'}</>}
+          sub={<><span className="material-symbols-outlined">{net >= 0 ? 'trending_up' : 'trending_down'}</span>{net >= 0 ? t('acc.summary.positive_profit') : t('acc.summary.net_loss')}</>}
         />
         <div className="xpl-kpi-grid">
           <MetricCard icon="trending_up" tone="green" label={t('stat.acc.total_revenue')} value={<MoneyText value={summary?.totalRevenue} />} />
@@ -225,7 +225,7 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
     setDeleteConfirmId(null);
     if (busy) return;
     setBusy(true);
-    try { await api.delete(`/accounting/accounts/${id}`); toast.ok('تم حذف الحساب بنجاح'); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.delete(`/accounting/accounts/${id}`); toast.ok(t('acc.msg.account_deleted')); setViewing(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   const isFiltered = !!(search || typeFilter);
@@ -251,8 +251,8 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
         {loading ? (
           <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
         ) : rows.length === 0 ? (
-          <EmptyState icon="account_tree" tone="neutral" title="لا توجد حسابات"
-            message={isFiltered ? 'لا توجد حسابات مطابقة للبحث أو التصنيف.' : 'لم تتم إضافة أي حسابات بعد.'}
+          <EmptyState icon="account_tree" tone="neutral" title={t('acc.empty.accounts_title')}
+            message={isFiltered ? t('acc.empty.accounts_filtered') : t('acc.empty.accounts_none')}
             action={canCreate ? <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('btn.acc.new_account')}</Button> : undefined} />
         ) : (
           <>
@@ -267,13 +267,13 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
                     {/* الحساب الأب علاقة متداخلة — غير قابل للفرز */}
                     <th>{t('col.acc.parent')}</th>
                     <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('isActive')} onToggle={() => sort.toggle('isActive')} />
-                    <th aria-label="فتح" />
+                    <th aria-label={t('acc.aria.open')} />
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
-                      aria-label={`تفاصيل الحساب ${r.code} ${r.name}`}
+                      aria-label={t('acc.aria.account_details', { code: r.code, name: r.name })}
                       onClick={() => setViewing(r)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                       <td><span className="accx-code">{String(r.code)}</span></td>
@@ -316,7 +316,7 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
             </>
           }
         >
-          <DrawerSection title="بيانات الحساب">
+          <DrawerSection title={t('acc.section.account_data')}>
             <DrawerField label={t('col.acc.code')} value={viewing.code} mono />
             <DrawerField label={t('col.acc.name')} value={viewing.name} />
             <DrawerField label={t('col.acc.type')} value={t(accountTypeKey[String(viewing.type)] ?? 'acc.type.asset')} />
@@ -332,13 +332,13 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
         </Drawer>
       )}
 
-      {creating && <AccountForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم حفظ الحساب بنجاح'); load(); }} />}
-      {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok('تم حفظ الحساب بنجاح'); load(); }} />}
+      {creating && <AccountForm onClose={() => setCreating(false)} onSaved={() => { toast.ok(t('acc.msg.account_saved')); load(); }} />}
+      {editing && <AccountForm account={editing} onClose={() => setEditing(null)} onSaved={() => { toast.ok(t('acc.msg.account_saved')); load(); }} />}
       {deleteConfirmId !== null && (
         <ConfirmModal
-          title="تأكيد حذف الحساب"
+          title={t('acc.confirm.delete_account_title')}
           message={t('confirm.delete_account')}
-          confirmLabel="حذف"
+          confirmLabel={t('action.delete')}
           variant="danger"
           onConfirm={() => executeDeleteAccount(deleteConfirmId)}
           onCancel={() => setDeleteConfirmId(null)}
@@ -383,7 +383,7 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
     <Dialog
       icon="account_tree"
       title={isEdit ? t('modal.acc.edit_account') : t('modal.acc.new_account')}
-      subtitle={isEdit ? account.code : 'إضافة حساب جديد لدليل الحسابات'}
+      subtitle={isEdit ? account.code : t('acc.account_form.subtitle')}
       size="md"
       onClose={onClose}
       footer={
@@ -394,7 +394,7 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
       }
     >
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
-      <DialogSection title="بيانات الحساب" icon="badge">
+      <DialogSection title={t('acc.section.account_data')} icon="badge">
         <div className="xpl-field">
           <label>{t('field.acc.code')} <span className="req">*</span></label>
           <input className="xpl-input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="1100" style={{ direction: 'ltr' }} autoFocus aria-label={t('field.acc.code')} />
@@ -488,7 +488,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
     setCancelConfirmId(null);
     if (busy) return;
     setBusy(true);
-    try { await api.patch(`/accounting/journal/${id}/cancel`); toast.ok('تم إلغاء القيد بنجاح'); setExpanded(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
+    try { await api.patch(`/accounting/journal/${id}/cancel`); toast.ok(t('acc.msg.entry_cancelled')); setExpanded(null); load(); } catch (e) { setError(errorMessage(e)); } finally { setBusy(false); }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -509,7 +509,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
         {loading ? (
           <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
         ) : rows.length === 0 ? (
-          <EmptyState icon="menu_book" tone="neutral" title="لا توجد قيود" message="لم يتم تسجيل أي قيود يومية بعد."
+          <EmptyState icon="menu_book" tone="neutral" title={t('acc.empty.journal_title')} message={t('acc.empty.journal_message')}
             action={canCreate ? <Button variant="primary" icon="post_add" onClick={() => setCreating(true)}>{t('btn.acc.new_entry')}</Button> : undefined} />
         ) : (
           <>
@@ -523,7 +523,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
                     {/* إجمالي المدين محسوب من بنود القيد — غير قابل للفرز */}
                     <th>{fcMoneyHeader(t('col.acc.total_debit_lbl'))}</th>
                     <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
-                    <th aria-label="فتح" />
+                    <th aria-label={t('acc.aria.open')} />
                   </tr>
                 </thead>
                 <tbody>
@@ -531,7 +531,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
                     const sm = journalStatusMeta[String(r.status)] ?? journalStatusMeta.DRAFT;
                     return (
                       <tr key={r.id} id={`row-${r.id}`} className="xpl-row--click" tabIndex={0} role="button"
-                        aria-label={`تفاصيل القيد ${r.entryNumber}`}
+                        aria-label={t('acc.aria.entry_details', { number: r.entryNumber })}
                         onClick={() => setExpanded(r)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(r); } }}>
                         <td><span className="accx-code">{String(r.entryNumber)}</span></td>
@@ -551,7 +551,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
         )}
       </section>
 
-      {creating && <JournalEntryForm onClose={() => setCreating(false)} onSaved={() => { toast.ok('تم ترحيل القيد بنجاح'); load(); }} />}
+      {creating && <JournalEntryForm onClose={() => setCreating(false)} onSaved={() => { toast.ok(t('acc.msg.entry_posted')); load(); }} />}
       {expanded && (
         <JournalEntryDrawer
           entry={expanded}
@@ -562,9 +562,9 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
       )}
       {cancelConfirmId !== null && (
         <ConfirmModal
-          title="تأكيد إلغاء القيد"
+          title={t('acc.confirm.cancel_entry_title')}
           message={t('confirm.cancel_entry')}
-          confirmLabel="إلغاء القيد"
+          confirmLabel={t('acc.confirm.cancel_entry_label')}
           variant="danger"
           onConfirm={() => executeCancelEntry(cancelConfirmId)}
           onCancel={() => setCancelConfirmId(null)}
@@ -596,11 +596,11 @@ function JournalEntryDrawer({ entry, onClose, onCancelEntry, busy }: { entry: an
       }
       footer={onCancelEntry ? <Button variant="danger" icon="block" busy={busy} onClick={onCancelEntry}>{t('action.cancel')}</Button> : <Button variant="ghost" icon="close" onClick={onClose}>{t('action.close')}</Button>}
     >
-      <DrawerSection title="تفاصيل القيد">
+      <DrawerSection title={t('acc.section.entry_details')}>
         <DrawerField label={t('col.acc.description')} value={entry.description} />
         <DrawerField label={t('col.date')} value={dateText(entry.date)} />
       </DrawerSection>
-      <DrawerSection title="بنود القيد">
+      <DrawerSection title={t('acc.section.entry_lines')}>
         <table className="accx-detail-table">
           <thead><tr><th>{t('col.acc.account')}</th><th>{fcMoneyHeader(t('col.acc.debit'))}</th><th>{fcMoneyHeader(t('col.acc.credit'))}</th></tr></thead>
           <tbody>
@@ -677,7 +677,7 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
     <Dialog
       icon="post_add"
       title={t('modal.acc.new_entry')}
-      subtitle="قيد يومية متوازن (مدين = دائن)"
+      subtitle={t('acc.entry_form.subtitle')}
       size="xl"
       onClose={onClose}
       footer={
@@ -688,7 +688,7 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
       }
     >
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
-      <DialogSection title="معلومات القيد" icon="description">
+      <DialogSection title={t('acc.section.entry_info')} icon="description">
         <div className="xpl-field xpl-field--full">
           <label>{t('field.acc.desc')} <span className="req">*</span></label>
           <input className="xpl-input" value={description} onChange={(e) => setDescription(e.target.value)} autoFocus aria-label={t('field.acc.desc')} />
@@ -701,7 +701,7 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
       </DialogSection>
 
       <section className="xpl-dialog-section">
-        <div className="xpl-dialog-section-title"><span className="material-symbols-outlined">table_rows</span>بنود القيد</div>
+        <div className="xpl-dialog-section-title"><span className="material-symbols-outlined">table_rows</span>{t('acc.section.entry_lines')}</div>
         <div className="accx-jline-head">
           <span>{t('col.acc.account')}</span>
           <span>{t('col.acc.desc_opt')}</span>
@@ -719,7 +719,7 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
             <input className="xpl-input" type="number" min="0" step="0.001" value={l.debit} onChange={(e) => setLine(i, 'debit', e.target.value)} style={{ direction: 'ltr' }} placeholder="0" aria-label={`${t('col.acc.debit')} ${i + 1}`} />
             <input className="xpl-input" type="number" min="0" step="0.001" value={l.credit} onChange={(e) => setLine(i, 'credit', e.target.value)} style={{ direction: 'ltr' }} placeholder="0" aria-label={`${t('col.acc.credit')} ${i + 1}`} />
             {lines.length > 2
-              ? <button type="button" className="accx-jline-remove" onClick={() => setLines((p) => p.filter((_, idx) => idx !== i))} aria-label="حذف البند"><span className="material-symbols-outlined">close</span></button>
+              ? <button type="button" className="accx-jline-remove" onClick={() => setLines((p) => p.filter((_, idx) => idx !== i))} aria-label={t('acc.aria.remove_line')}><span className="material-symbols-outlined">close</span></button>
               : <span />}
           </div>
         ))}
@@ -783,7 +783,7 @@ function PaymentsTab() {
         {loading ? (
           <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
         ) : rows.length === 0 ? (
-          <EmptyState icon="payments" tone="neutral" title="لا توجد دفعات" message="لا توجد دفعات مطابقة." />
+          <EmptyState icon="payments" tone="neutral" title={t('acc.empty.payments_title')} message={t('acc.empty.payments_message')} />
         ) : (
           <>
             <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>

@@ -48,6 +48,7 @@ export function invoiceLineTotal(it: Item): number {
 
 // ===== الإكمال التلقائي للموقع =====
 export function LocationAutocomplete({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useT();
   const [topLocations, setTopLocations] = useState<string[]>([]);
   const [recentMatches, setRecentMatches] = useState<string[]>([]);
   const [groups, setGroups] = useState<CategoryGroup[]>([]);
@@ -89,7 +90,7 @@ export function LocationAutocomplete({ value, onChange }: { value: string; onCha
   return (
     <div style={{ position: 'relative' }}>
       <input
-        placeholder="المنطقة / الموقع"
+        placeholder={t('ph.location_area')}
         value={value}
         onChange={handleChange}
         onFocus={() => refresh(value)}
@@ -109,7 +110,7 @@ export function LocationAutocomplete({ value, onChange }: { value: string; onCha
           {topLocations.length > 0 && (
             <div>
               <div style={{ padding: '4px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted, #888)', background: 'var(--bg-subtle, var(--bg))', borderBottom: '1px solid var(--border)', letterSpacing: 0.5 }}>
-                ⭐ الأكثر استخداماً
+                {t('lbl.most_used_locations')}
               </div>
               {topLocations.map((name) => (
                 <button
@@ -126,7 +127,7 @@ export function LocationAutocomplete({ value, onChange }: { value: string; onCha
           {filteredRecent.length > 0 && (
             <div>
               <div style={{ padding: '4px 12px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted, #888)', background: 'var(--bg-subtle, var(--bg))', borderBottom: '1px solid var(--border)', letterSpacing: 0.5 }}>
-                آخر المواقع استخداماً
+                {t('lbl.recent_locations')}
               </div>
               {filteredRecent.map((name) => (
                 <button
@@ -248,33 +249,33 @@ export function InvoiceLineItemsEditor({
     <>
       <label style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 700, display: 'block', margin: '8px 0' }}>{t('lbl.items')}</label>
       <div style={{ display: 'grid', gridTemplateColumns: '2fr .9fr .9fr 1fr 1fr auto', gap: 8, marginBottom: 4, padding: '0 2px', borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
-        {['البنود', 'الكمية', 'الوحدة', 'السعر', 'الإجمالي'].map((h) => (
+        {[t('lbl.items'), t('ph.qty'), t('col.inv.unit'), t('agreements.usage.col.price'), t('col.inv.total')].map((h) => (
           <div key={h} style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700 }}>{h}</div>
         ))}
         <div />
       </div>
       {effectivePartySource === 'SALES' && !partyId && (
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 8px', fontStyle: 'italic' }}>
-          اختر العميل أولاً لعرض اتفاقيات أسعاره
+          {t('msg.select_customer_first_prices')}
         </p>
       )}
       {effectivePartySource === 'SALES' && partyId && prices.length === 0 && (
         <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 8px', fontStyle: 'italic' }}>
-          لا توجد اتفاقيات أسعار مسجّلة لهذا العميل
+          {t('msg.no_price_agreements')}
         </p>
       )}
       {effectivePartySource === 'SALES' && partyId && displayPrices.length === 0 && prices.length > 0 && (
         <p style={{ fontSize: 12, color: '#b45309', margin: '4px 0 8px', fontStyle: 'italic' }}>
-          لا توجد اتفاقيات أسعار مطابقة لهذا العميل / العقد / المصنع
+          {t('msg.no_matching_price_agreements')}
         </p>
       )}
       {effectivePartySource === 'SALES' && partyId && displayPrices.length > 0 && (
         <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 14px', marginBottom: 10, fontSize: 13 }}>
           <div style={{ fontWeight: 800, color: '#1e40af', marginBottom: 6, fontSize: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-            📋 اتفاقيات الأسعار
+            {t('lbl.price_agreements')}
             {filterAsphaltPlant && (
               <span style={{ background: '#dbeafe', color: '#1e40af', borderRadius: 6, padding: '1px 8px', fontSize: 11, fontWeight: 600 }}>
-                مصفّى: {filterAsphaltPlant}
+                {t('lbl.filtered_by', { plant: filterAsphaltPlant })}
               </span>
             )}
           </div>
@@ -295,7 +296,7 @@ export function InvoiceLineItemsEditor({
             <select
               value={it.workType ?? DEFAULT_WORK_TYPE}
               onChange={(e) => setItem(i, 'workType', e.target.value)}
-              title="نوع العمل"
+              title={t('field.work_type')}
               className="line-input"
               style={{ width: '100%', minWidth: 0, boxSizing: 'border-box', marginBottom: 4 }}
             >
@@ -310,7 +311,7 @@ export function InvoiceLineItemsEditor({
             <select
               value={unitSelectValue(it.unit)}
               onChange={(e) => setItem(i, 'unit', e.target.value)}
-              title="الوحدة"
+              title={t('col.inv.unit')}
               className="line-input"
               style={{ width: '100%', minWidth: 0, boxSizing: 'border-box' }}
             >
@@ -321,7 +322,7 @@ export function InvoiceLineItemsEditor({
               <input
                 value={it.unit}
                 onChange={(e) => setItem(i, 'unit', e.target.value)}
-                placeholder="اكتب الوحدة"
+                placeholder={t('ph.enter_unit')}
                 className="line-input"
                 style={{ width: '100%', minWidth: 0, boxSizing: 'border-box', marginTop: 4 }}
               />
@@ -358,7 +359,7 @@ export function InvoiceLineItemsEditor({
                         <div style={{ padding: '6px 12px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--bg)', zIndex: 1 }}>
                           <input
                             autoFocus
-                            placeholder="بحث (مصنع / موقع / شركة)…"
+                            placeholder={t('ph.search_plant_location_company')}
                             value={pickerSearch}
                             onChange={(e) => setPickerSearch(e.target.value)}
                             onMouseDown={(e) => e.stopPropagation()}
@@ -371,7 +372,7 @@ export function InvoiceLineItemsEditor({
                           </div>
                           {filtered.length === 0 ? (
                             <div style={{ padding: '12px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center' }}>
-                              لا توجد اتفاقيات أسعار مطابقة لهذا العميل / العقد / المصنع
+                              {t('msg.no_matching_price_agreements')}
                             </div>
                           ) : filtered.map((p) => (
                             <button

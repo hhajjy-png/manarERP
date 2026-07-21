@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { useT } from '../../lib/i18n';
 
 interface Account { id: number; code: string; name: string; type: string; }
 interface Props { value?: number; onChange: (id: number) => void; }
 
 export function AccountSelector({ value, onChange }: Props) {
+  const { t } = useT();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [search,   setSearch]   = useState('');
 
@@ -28,18 +30,18 @@ export function AccountSelector({ value, onChange }: Props) {
     <div className="account-selector" dir="rtl">
       <input
         type="text"
-        placeholder="بحث في الحسابات..."
+        placeholder={t('fc.ph.search_account')}
         value={search}
         onChange={e => setSearch(e.target.value)}
-        title="بحث في الحسابات"
-        aria-label="بحث في الحسابات"
+        title={t('fc.title.search_accounts')}
+        aria-label={t('fc.title.search_accounts')}
       />
       <select
         size={6}
         value={value ?? ''}
         onChange={e => onChange(Number(e.target.value))}
-        aria-label="اختر الحساب"
-        title="اختر الحساب"
+        aria-label={t('fc.title.select_account')}
+        title={t('fc.title.select_account')}
       >
         {filtered.map(a => (
           <option key={a.id} value={a.id}>{a.code} — {a.name}</option>

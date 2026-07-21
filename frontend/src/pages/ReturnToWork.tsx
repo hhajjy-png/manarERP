@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
+import { useT } from '../lib/i18n';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -34,6 +35,7 @@ function calcDays(start: string, end: string): number {
 }
 
 export default function ReturnToWork() {
+  const { t } = useT();
   const { employeeId } = useParams<{ employeeId: string }>();
   const { search } = useLocation();
   const formNumber = useMemo(() => generateFormNumber('return-to-work'), []);
@@ -105,8 +107,8 @@ export default function ReturnToWork() {
      ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
-    title: 'إشعار العودة إلى العمل',
-    documentLabel: `إشعار العودة إلى العمل · ${formNumber}`,
+    title: t('page.returnToWork.title'),
+    documentLabel: `${t('page.returnToWork.title')} · ${formNumber}`,
     lang,
   });
 
@@ -124,17 +126,17 @@ export default function ReturnToWork() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: 'إشعار العودة إلى العمل',
-    documentLabel: `إشعار العودة إلى العمل · ${formNumber}`,
+    title: t('page.returnToWork.title'),
+    documentLabel: `${t('page.returnToWork.title')} · ${formNumber}`,
   });
 
 
-  if (error) return <div className="center-msg">خطأ: {error}</div>;
+  if (error) return <div className="center-msg">{t('msg.error')}: {error}</div>;
   if (!data)
     return (
       <div className="center-msg">
         <div className="spinner" />
-        جارٍ التحميل…
+        {t('msg.loading')}
       </div>
     );
 
@@ -149,7 +151,7 @@ export default function ReturnToWork() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
-      title="إشعار العودة إلى العمل"
+      title={t('page.returnToWork.title')}
       profile={profile}
       // HR Print Templates – Shared Visual Consistency Pack v1: reuse the Salary
       // Certificate's opt-in ApprovalSection/FormLayout behavior.
@@ -164,7 +166,7 @@ export default function ReturnToWork() {
             type="button"
             className="btn secondary"
             style={{ fontSize: 12, padding: '4px 8px' }}
-            title="حفظ مسودة"
+            title={t('page.warning.save_draft_title')}
             onClick={() => saveDraft(FORM_KEY, printFields as unknown as Record<string, unknown>)}
           >
             💾
@@ -174,7 +176,7 @@ export default function ReturnToWork() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
-              title="استعادة المسودة"
+              title={t('page.warning.load_draft_title')}
               onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
             >
               ↩
@@ -185,7 +187,7 @@ export default function ReturnToWork() {
               type="button"
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px' }}
-              title="مسح المسودة"
+              title={t('page.warning.clear_draft_title')}
               onClick={() => clearDraft(FORM_KEY)}
             >
               ✕
@@ -203,26 +205,26 @@ export default function ReturnToWork() {
       }}
     >
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
-        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>حقول الطباعة فقط — لن تُحفظ</div>
+        <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>{t('page.warning.print_fields_header')}</div>
         {!data.latestLeave && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
             <div className="field">
-              <label>نوع الإجازة</label>
-              <select title="نوع الإجازة" value={printFields.leaveType} onChange={(e) => setPrintFields(p => ({ ...p, leaveType: e.target.value as typeof printFields.leaveType }))}>
-                <option value="">— اختر —</option>
-                <option value="ANNUAL">إجازة سنوية</option>
-                <option value="SICK">إجازة مرضية</option>
-                <option value="UNPAID">إجازة بدون راتب</option>
-                <option value="EMERGENCY">إجازة طارئة</option>
+              <label>{t('page.leaveReq.field.leave_type')}</label>
+              <select title={t('page.leaveReq.field.leave_type')} value={printFields.leaveType} onChange={(e) => setPrintFields(p => ({ ...p, leaveType: e.target.value as typeof printFields.leaveType }))}>
+                <option value="">{t('msg.select_placeholder')}</option>
+                <option value="ANNUAL">{t('page.leaveReq.opt.annual')}</option>
+                <option value="SICK">{t('page.leaveReq.opt.sick')}</option>
+                <option value="UNPAID">{t('page.leaveReq.opt.unpaid')}</option>
+                <option value="EMERGENCY">{t('page.leaveReq.opt.emergency')}</option>
               </select>
             </div>
             <div className="field">
-              <label>عدد الأيام</label>
+              <label>{t('page.leaveReq.field.days')}</label>
               <input
                 type="number"
                 lang="en"
                 min="1"
-                title="عدد الأيام"
+                title={t('page.leaveReq.field.days')}
                 value={printFields.leaveDays}
                 onChange={(e) => {
                   daysManuallyEdited.current = true;
@@ -230,22 +232,22 @@ export default function ReturnToWork() {
                 }}
               />
               <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3, display: 'block' }}>
-                يُحسب تلقائياً من التاريخين — يمكن التعديل يدوياً
+                {t('page.leaveReq.days_hint')}
               </span>
             </div>
             <div className="field">
-              <label>تاريخ بداية الإجازة</label>
-              <DateInput title="تاريخ بداية الإجازة" value={printFields.leaveStartDate} onChange={(v) => setPrintFields(p => ({ ...p, leaveStartDate: v }))} />
+              <label>{t('page.returnToWork.field.leave_start_date')}</label>
+              <DateInput title={t('page.returnToWork.field.leave_start_date')} value={printFields.leaveStartDate} onChange={(v) => setPrintFields(p => ({ ...p, leaveStartDate: v }))} />
             </div>
             <div className="field">
-              <label>تاريخ نهاية الإجازة</label>
-              <DateInput title="تاريخ نهاية الإجازة" value={printFields.leaveEndDate} onChange={(v) => setPrintFields(p => ({ ...p, leaveEndDate: v }))} />
+              <label>{t('page.returnToWork.field.leave_end_date')}</label>
+              <DateInput title={t('page.returnToWork.field.leave_end_date')} value={printFields.leaveEndDate} onChange={(v) => setPrintFields(p => ({ ...p, leaveEndDate: v }))} />
             </div>
           </div>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="field"><label>تاريخ العودة الفعلية</label><DateInput title="تاريخ العودة الفعلية" value={printFields.actualReturnDate} onChange={(v) => setPrintFields(p => ({ ...p, actualReturnDate: v }))} /></div>
-          <div className="field"><label>ملاحظات طبية / تقرير الطبيب</label><input title="ملاحظات طبية" value={printFields.medicalNotes} onChange={(e) => setPrintFields(p => ({ ...p, medicalNotes: e.target.value }))} /></div>
+          <div className="field"><label>{t('page.returnToWork.field.actual_return_date')}</label><DateInput title={t('page.returnToWork.field.actual_return_date')} value={printFields.actualReturnDate} onChange={(v) => setPrintFields(p => ({ ...p, actualReturnDate: v }))} /></div>
+          <div className="field"><label>{t('page.returnToWork.field.medical_notes')}</label><input title={t('page.returnToWork.medical_notes_short')} value={printFields.medicalNotes} onChange={(e) => setPrintFields(p => ({ ...p, medicalNotes: e.target.value }))} /></div>
         </div>
         <div style={{ marginTop: 10 }}>
           <button
@@ -254,13 +256,13 @@ export default function ReturnToWork() {
             style={{ fontSize: 12 }}
             onClick={resetPrintFields}
           >
-            ↺ مسح حقول الطباعة
+            {t('page.warning.clear_fields_btn')}
           </button>
         </div>
       </div>
       <ReturnToWorkTemplate employee={data.employee} latestLeave={data.latestLeave} lang={lang} printFields={printFields} />
       {showClearConfirm && (
-        <ConfirmModal message="سيتم مسح جميع حقول الطباعة. هل تريد المتابعة؟" confirmLabel="مسح" variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
+        <ConfirmModal message={t('page.warning.clear_confirm')} confirmLabel={t('page.warning.clear_confirm_btn')} variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
     </FormLayout>
     </>
