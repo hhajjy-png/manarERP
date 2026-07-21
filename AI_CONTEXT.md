@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `fa57fb4` (merge of `feature/erp-terminology-standardization-pack-v1`) |
-| **Current Documentation Commit** | `PENDING_DOC_HASH` — "docs: record ERP Terminology Standardization Pack v1 release" |
+| **Current Documentation Commit** | `c4fc21b` — "docs: record ERP Terminology Standardization Pack v1 release" |
 | **Current Stable Tag** | `stable-erp-terminology-standardization-pack-v1` |
 | **Current Release Date** | 2026-07-21 |
 | **Total Stable Releases** | 331 (window 2026-06-07 → 2026-07-21) |
