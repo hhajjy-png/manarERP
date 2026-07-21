@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `f40579e` (merge of `feature/full-english-ltr-layout-pack-v1`, carrying Full English LTR Layout Pack v1) |
-| **Current Documentation Commit** | `PENDING_DOC_HASH` — "docs: record Full English LTR Layout Pack v1 release" |
+| **Current Documentation Commit** | `87e7c5d` — "docs: record Full English LTR Layout Pack v1 release" |
 | **Current Stable Tag** | `stable-full-english-ltr-layout-pack-v1` |
 | **Current Release Date** | 2026-07-21 |
 | **Total Stable Releases** | 333 (window 2026-06-07 → 2026-07-21) |
