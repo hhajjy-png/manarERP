@@ -14,7 +14,6 @@
     "@fontsource/cairo": "^5.2.7",
     "@tailwindcss/vite": "^4.3.2",
     "axios": "^1.7.2",
-    "chart.js": "^4.4.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jszip": "3.10.1",

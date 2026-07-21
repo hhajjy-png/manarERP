@@ -1,0 +1,54 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Tone Cell — canonical soft status / remaining-period colour system
+   --------------------------------------------------------------------------
+   Extracted from the Employee Table Executive Visual Polish Pack v1.1 (the
+   approved reference). ANY explorer table's status/remaining-period cell must
+   render through `<ToneCell>` (see ToneCell.tsx) so there is exactly ONE green,
+   one amber, one orange, one red system across the app — never a second,
+   independently-tuned copy.
+
+   Presentation only: soft pastel tint + a thin colour accent on the leading
+   edge. No badge, no icon, no label — the tone alone communicates status.
+   Text stays neutral (var(--xpl-text)) in every tone; only background +
+   accent carry colour, so it never reads as loud or saturated.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.xpl-scope {
+  --xpl-tone-green:  var(--green,  #10b981);
+  --xpl-tone-amber:  #eab308;
+  --xpl-tone-orange: #f97316;
+  --xpl-tone-red:    var(--red,    #ef4444);
+}
+
+/* Default mode (e.g. reused outside a table — a detail drawer field): a neat,
+   self-contained rounded chip. */
+.xpl-tone-cell {
+  display: flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+/* Inside any ExplorerKit table cell: bleed to the full td padding box (base
+   `.xpl-table td` padding is 11px 12px) so the tint reads as the cell's own
+   background rather than a floating chip, and every row keeps a uniform height. */
+.xpl-table .xpl-tone-cell {
+  margin: -11px -12px;
+  padding: 11px 12px;
+  border-radius: 0;
+}
+
+.xpl-tone-text { font-variant-numeric: tabular-nums; color: var(--xpl-text); }
+.xpl-tone-text--muted { color: var(--xpl-muted); }
+
+/* Very soft pastel tint. Thin colour accent on the inline-start edge
+   (border-inline-start is RTL-safe — sits on the right in RTL tables). */
+.xpl-tone--green,
+.xpl-tone--amber,
+.xpl-tone--orange,
+.xpl-tone--red { border-inline-start: 3px solid transparent; }
+
+.xpl-tone--green  { background: color-mix(in srgb, var(--xpl-tone-green)  6%, transparent); border-inline-start-color: color-mix(in srgb, var(--xpl-tone-green)  70%, var(--xpl-surface)); }
+.xpl-tone--amber  { background: color-mix(in srgb, var(--xpl-tone-amber)  7%, transparent); border-inline-start-color: color-mix(in srgb, var(--xpl-tone-amber)  72%, var(--xpl-surface)); }
+.xpl-tone--orange { background: color-mix(in srgb, var(--xpl-tone-orange) 7%, transparent); border-inline-start-color: color-mix(in srgb, var(--xpl-tone-orange) 72%, var(--xpl-surface)); }
+.xpl-tone--red    { background: color-mix(in srgb, var(--xpl-tone-red)    8%, transparent); border-inline-start-color: color-mix(in srgb, var(--xpl-tone-red)    74%, var(--xpl-surface)); }

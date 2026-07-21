@@ -5,7 +5,7 @@ import { BaseRepository } from '../../shared/repositories/BaseRepository';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
-import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
+import { buildOrderBy, sortRowsInMemory, SortWhitelist, RowValueGetter } from '../../core/utils/sort';
 import {
   AdjustmentInput,
   AttendanceInput,
@@ -59,8 +59,11 @@ const repo = new EmployeesRepository();
 
 // القائمة البيضاء للفرز — المفاتيح مطابقة لمفاتيح أعمدة الواجهة (modules.tsx).
 // تواريخ الوثائق كلها اختيارية → nulls: 'last' كي لا تتصدّر الخلايا الفارغة.
+//
+// «code» (الرقم الوظيفي) غائب عمدًا: إنه سلسلة أرقام، وفرز TEXT في SQLite معجميّ
+// (1, 10, 11, 2). فيُفرز عدديًا في الذاكرة عبر المسار المخصّص أدناه (CODE_SORTABLE)
+// — مصدر واحد لفرز هذا العمود، لا فرز قاعدة بيانات معجميّ موازٍ.
 const SORTABLE: SortWhitelist = {
-  code: 'code',
   fullName: 'fullName',
   fullNameEn: { field: 'fullNameEn', nullable: true },
   civilId: { field: 'civilId', nullable: true },
@@ -75,6 +78,13 @@ const SORTABLE: SortWhitelist = {
   vehicleLicenseExpiry: { field: 'vehicleLicenseExpiry', nullable: true },
 };
 const DEFAULT_ORDER = [{ id: 'desc' as const }];
+
+// فرز الرقم الوظيفي عدديًا (المقارن العددي الموحّد numeric:true يرتّب «1 < 2 < 10»).
+// نفس نمط شبكة الرواتب: يُفرز فوق المجموعة الكاملة **قبل** اقتطاع الصفحة، وإلا رتّب
+// فرزُ الصفحة الواحدة 15 صفًا فقط فأضلّل. لا منطق فرز مكرّر — يُعاد استخدام sortRowsInMemory.
+const CODE_SORTABLE: Record<string, RowValueGetter<{ code: string }>> = {
+  code: (e) => e.code,
+};
 
 // القائمة البيضاء لجدول الحضور — «الموظف» عمود علاقة (فرز على الاسم الكامل).
 const ATTENDANCE_SORTABLE: SortWhitelist = {
@@ -114,6 +124,17 @@ export class EmployeesService {
         { jobTitle: { contains: query.search } },
       ];
     }
+    // الرقم الوظيفي وحده يُفرز عدديًا في الذاكرة (SQLite يرتّب TEXT معجميًا): نجلب
+    // المجموعة الكاملة المطابقة للفلاتر، نفرزها بالمقارن العددي، ثم نقتطع الصفحة.
+    // بقية الأعمدة تبقى على فرز قاعدة البيانات كما هي تمامًا.
+    if (query.sortBy === 'code') {
+      const { data, total } = await repo.findMany({ where });
+      const rows = data as Array<{ id: number; code: string }>;
+      const sorted = sortRowsInMemory(rows, query, CODE_SORTABLE);
+      const pageRows = sorted.slice(pagination.skip, pagination.skip + pagination.take);
+      return buildPaginatedResult(pageRows, total, pagination);
+    }
+
     const orderBy = buildOrderBy(query, SORTABLE, DEFAULT_ORDER);
     const { data, total } = await repo.findMany({ where, pagination, orderBy });
     return buildPaginatedResult(data, total, pagination);
