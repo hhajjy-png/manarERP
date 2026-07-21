@@ -26,15 +26,12 @@ import ForceDeleteExpenseModal from '../components/ForceDeleteExpenseModal';
 import FastMonthlyExpenseDialog from '../components/FastMonthlyExpenseDialog';
 import SearchableSelect, { SearchableOption } from '../components/SearchableSelect';
 import {
-  EXPENSE_CATEGORY_SELECT_OPTIONS,
-  expenseCategoryLabel,
   expenseCategoryIcon,
+  buildLocalizedCategorySelectOptions,
 } from '../config/expenseCategories';
 import {
   EXPENSE_STATUS_META as STATUS_META,
   expenseStatusMeta,
-  EXPENSE_PAYMENT_METHOD_OPTIONS,
-  expensePaymentMethodAr,
 } from '../config/expensePresentation';
 import {
   ExecutiveHeader,
@@ -61,15 +58,13 @@ import '../components/explorer/explorer-kit.css';
 import './Expenses.css';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
 
-// خيارات القائمة القابلة للبحث — من المصدر الموحّد (تُشارَك مع حوار الإدخال الشهري السريع).
-const CATEGORY_OPTIONS: SearchableOption[] = EXPENSE_CATEGORY_SELECT_OPTIONS;
-
 export default function Expenses() {
   const { hasPermission, isSystemAdmin: getIsSystemAdmin } = useAuth();
   const isSystemAdmin = getIsSystemAdmin();
   const { period } = useFinancialPeriod();
   const { t } = useT();
   const toast = useToast();
+  const categoryOptions = useMemo(() => buildLocalizedCategorySelectOptions(t), [t]);
   useHighlight();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
@@ -272,7 +267,7 @@ export default function Expenses() {
                   .map(([cat, amt]) => (
                     <span key={cat} className="expx-break-chip">
                       <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 16, color: 'var(--xpl-primary)' }}>{expenseCategoryIcon(cat)}</span>
-                      <span className="k">{expenseCategoryLabel(cat)}</span><span className="v">{<MoneyText value={amt as number} />}</span>
+                      <span className="k">{t(`cat.${cat.toLowerCase()}`)}</span><span className="v">{<MoneyText value={amt as number} />}</span>
                     </span>
                   ))}
               </div>
@@ -304,7 +299,7 @@ export default function Expenses() {
           <div className="xpl-field" style={{ minWidth: 190 }}>
             <span className="xpl-field-label">التصنيف</span>
             <SearchableSelect
-              options={CATEGORY_OPTIONS}
+              options={categoryOptions}
               value={categoryFilter}
               onChange={(v) => { setCategoryFilter(v); setPage(1); }}
               emptyLabel="كل التصنيفات"
@@ -391,7 +386,7 @@ export default function Expenses() {
                         onClick={() => setViewing(r)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                         <td><span className="expx-code">{r.code}</span></td>
-                        <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 17, color: 'var(--xpl-primary)' }}>{expenseCategoryIcon(r.category)}</span>{expenseCategoryLabel(r.category)}</span></td>
+                        <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 17, color: 'var(--xpl-primary)' }}>{expenseCategoryIcon(r.category)}</span>{t(`cat.${String(r.category).toLowerCase()}`)}</span></td>
                         <td><strong>{r.description}</strong></td>
                         <td>{r.supplier?.name ?? r.supplierName ?? '—'}</td>
                         <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{billingText(r)}</td>
@@ -458,12 +453,12 @@ export default function Expenses() {
           >
             <DrawerSection title="تفاصيل المصروف">
               <DrawerField label={t('col.code')} value={viewing.code} mono />
-              <DrawerField label={t('col.category')} value={expenseCategoryLabel(viewing.category)} />
+              <DrawerField label={t('col.category')} value={t(`cat.${String(viewing.category).toLowerCase()}`)} />
               <DrawerField label={t('col.description')} value={viewing.description} />
               <DrawerField label={t('col.amount')} value={<MoneyText value={viewing.amount} />} />
             </DrawerSection>
             <DrawerSection title="الدفع والمورد">
-              <DrawerField label="طريقة الدفع" value={expensePaymentMethodAr(viewing.paymentMethod)} />
+              <DrawerField label={t('field.payment_method')} value={t(`field.exp.payment_method.${String(viewing.paymentMethod ?? 'CASH').toLowerCase()}`)} />
               <DrawerField label={t('field.supplier')} value={viewing.supplier?.name ?? viewing.supplierName ?? '—'} />
               <DrawerField label={t('lbl.inv.billing_period')} value={billingText(viewing)} />
               {viewing.date && <DrawerField label={t('col.date')} value={dateText(viewing.date)} />}
@@ -532,6 +527,12 @@ function ExpenseForm({
   const { t } = useT();
   const isEdit = !!expense;
   const now = new Date();
+  const categoryOptions = useMemo(() => buildLocalizedCategorySelectOptions(t), [t]);
+  const paymentMethodOptions = useMemo(() => ([
+    { value: 'CASH', label: t('field.exp.payment_method.cash') },
+    { value: 'BANK', label: t('field.exp.payment_method.bank') },
+    { value: 'ACCOUNTS_PAYABLE', label: t('field.exp.payment_method.accounts_payable') },
+  ]), [t]);
 
   const [category, setCategory] = useState<string>(String(expense?.category ?? 'FUEL'));
   const [description, setDescription] = useState<string>(String(expense?.description ?? ''));
@@ -606,7 +607,7 @@ function ExpenseForm({
         <div className="xpl-field">
           <label>التصنيف <span className="req">*</span></label>
           <SearchableSelect
-            options={CATEGORY_OPTIONS}
+            options={categoryOptions}
             value={category}
             onChange={setCategory}
             ariaLabel="التصنيف"
@@ -628,7 +629,7 @@ function ExpenseForm({
         <div className="xpl-field">
           <label>طريقة الدفع</label>
           <select className="xpl-select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} aria-label="طريقة الدفع">
-            {EXPENSE_PAYMENT_METHOD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {paymentMethodOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         <div className="xpl-field">

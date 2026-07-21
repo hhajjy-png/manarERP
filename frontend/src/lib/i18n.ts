@@ -317,6 +317,32 @@ const DICT: Record<Lang, Record<string, string>> = {
     'cat.gifts': 'هدايا',
     'cat.misc': 'مصروفات متفرقة',
 
+    // ── English Localization Completion Pack v1a: expense group/payment labels ──
+    'grp.exp.operations': 'تشغيل عام',
+    'grp.exp.vehicles': 'مركبات',
+    'grp.exp.government': 'رسوم حكومية',
+    'grp.exp.people': 'عن طريق أشخاص',
+    'grp.exp.other': 'أخرى',
+    'field.exp.payment_method.cash': 'نقداً',
+    'field.exp.payment_method.bank': 'تحويل بنكي',
+    'field.exp.payment_method.accounts_payable': 'ذمم الموردين',
+
+    // ── English Localization Completion Pack v1a: Global Search ──────────────────
+    'search.group.customer': 'العملاء',
+    'search.group.invoice': 'الفواتير',
+    'search.group.employee': 'الموظفون',
+    'search.group.equipment': 'المعدات',
+    'search.group.expense': 'المصروفات',
+    'search.group.cheque': 'الشيكات',
+    'search.group.pages': 'الصفحات',
+    'search.page.contracts': 'العقود',
+    'search.page.reports': 'مركز التقارير',
+    'search.page.accounting': 'المحاسبة',
+    'search.page.settings': 'الإعدادات',
+    'search.loading': 'جارٍ البحث…',
+    'search.failed': 'تعذّر البحث. حاول مجددًا.',
+    'search.no_results_for': 'لا نتائج لـ «{term}»',
+
     // ── Phase 3: dashboard ────────────────────────────────────────────────────
     'page.dashboard.greeting': 'مرحباً، {name} 👋',
     'page.dashboard.today_summary': 'ملخص اليوم',
@@ -1630,6 +1656,32 @@ const DICT: Record<Lang, Record<string, string>> = {
     'cat.charity': 'Monthly Charity',
     'cat.gifts': 'Gifts',
     'cat.misc': 'Miscellaneous Expenses',
+
+    // ── English Localization Completion Pack v1a: expense group/payment labels ──
+    'grp.exp.operations': 'Operations',
+    'grp.exp.vehicles': 'Vehicles',
+    'grp.exp.government': 'Government Fees',
+    'grp.exp.people': 'Via Person',
+    'grp.exp.other': 'Other',
+    'field.exp.payment_method.cash': 'Cash',
+    'field.exp.payment_method.bank': 'Bank Transfer',
+    'field.exp.payment_method.accounts_payable': 'Accounts Payable',
+
+    // ── English Localization Completion Pack v1a: Global Search ──────────────────
+    'search.group.customer': 'Customers',
+    'search.group.invoice': 'Invoices',
+    'search.group.employee': 'Employees',
+    'search.group.equipment': 'Equipment',
+    'search.group.expense': 'Expenses',
+    'search.group.cheque': 'Cheques',
+    'search.group.pages': 'Pages',
+    'search.page.contracts': 'Contracts',
+    'search.page.reports': 'Reports Center',
+    'search.page.accounting': 'Accounting',
+    'search.page.settings': 'Settings',
+    'search.loading': 'Searching…',
+    'search.failed': 'Search failed. Try again.',
+    'search.no_results_for': 'No results for "{term}"',
 
     // ── Phase 3: dashboard ────────────────────────────────────────────────────
     'page.dashboard.greeting': 'Hello, {name} 👋',

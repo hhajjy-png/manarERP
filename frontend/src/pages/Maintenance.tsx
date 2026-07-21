@@ -41,26 +41,30 @@ interface SparePart { id: number; equipmentId: number; equipment?: { id: number;
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
-const maintStatus: Record<string, { label: string; tone: Tone; icon: string }> = {
-  SCHEDULED: { label: 'مجدولة', tone: 'orange', icon: 'event' },
-  IN_PROGRESS: { label: 'قيد التنفيذ', tone: 'blue', icon: 'autorenew' },
-  COMPLETED: { label: 'مكتملة', tone: 'green', icon: 'check_circle' },
-  CANCELLED: { label: 'ملغاة', tone: 'neutral', icon: 'block' },
+const maintStatus: Record<string, { key: string; tone: Tone; icon: string }> = {
+  SCHEDULED: { key: 'opt.maint.scheduled', tone: 'orange', icon: 'event' },
+  IN_PROGRESS: { key: 'opt.maint.in_progress', tone: 'blue', icon: 'autorenew' },
+  COMPLETED: { key: 'opt.maint.completed', tone: 'green', icon: 'check_circle' },
+  CANCELLED: { key: 'opt.maint.cancelled', tone: 'neutral', icon: 'block' },
 };
-const maintType: Record<string, string> = { PREVENTIVE: 'وقائية', CORRECTIVE: 'تصحيحية' };
-const severity: Record<string, { label: string; tone: Tone; icon: string }> = {
-  LOW: { label: 'منخفضة', tone: 'neutral', icon: 'low_priority' },
-  MEDIUM: { label: 'متوسطة', tone: 'orange', icon: 'remove' },
-  HIGH: { label: 'عالية', tone: 'red', icon: 'priority_high' },
-  CRITICAL: { label: 'حرجة', tone: 'red', icon: 'warning' },
+const maintType: Record<string, string> = { PREVENTIVE: 'opt.maint.preventive', CORRECTIVE: 'opt.maint.corrective' };
+const severity: Record<string, { key: string; tone: Tone; icon: string }> = {
+  LOW: { key: 'opt.maint.sev_low', tone: 'neutral', icon: 'low_priority' },
+  MEDIUM: { key: 'opt.maint.sev_medium', tone: 'orange', icon: 'remove' },
+  HIGH: { key: 'opt.maint.sev_high', tone: 'red', icon: 'priority_high' },
+  CRITICAL: { key: 'opt.maint.sev_critical', tone: 'red', icon: 'warning' },
 };
-const bdStatus: Record<string, { label: string; tone: Tone; icon: string }> = {
-  OPEN: { label: 'مفتوح', tone: 'red', icon: 'error' },
-  RESOLVED: { label: 'محلول', tone: 'green', icon: 'check_circle' },
+const bdStatus: Record<string, { key: string; tone: Tone; icon: string }> = {
+  OPEN: { key: 'opt.maint.breakdown_open', tone: 'red', icon: 'error' },
+  RESOLVED: { key: 'opt.maint.breakdown_resolved', tone: 'green', icon: 'check_circle' },
 };
-function smchip(map: Record<string, { label: string; tone: Tone; icon: string }>, val: string) {
-  const m = map[val] ?? { label: val, tone: 'neutral' as Tone, icon: 'help' };
-  return <StatusChip tone={m.tone} icon={m.icon}>{m.label}</StatusChip>;
+function smchip(map: Record<string, { key: string; tone: Tone; icon: string }>, val: string, t: (key: string) => string) {
+  const m = map[val] ?? { key: '', tone: 'neutral' as Tone, icon: 'help' };
+  return <StatusChip tone={m.tone} icon={m.icon}>{m.key ? t(m.key) : val}</StatusChip>;
+}
+function maintTypeLabel(t: (key: string) => string, val: string) {
+  const key = maintType[val];
+  return key ? t(key) : val;
 }
 
 type Tab = 'records' | 'fuel' | 'breakdowns' | 'spare-parts';
@@ -360,12 +364,12 @@ function RecordsTab() {
               {sorted.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل صيانة ${r.equipment?.code ?? r.equipmentId}`}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span>{r.equipment?.name ? <span style={{ color: 'var(--xpl-muted)', fontSize: 12, marginInlineStart: 6 }}>{r.equipment.name}</span> : null}</td>
-                  <td>{maintType[r.type] ?? r.type}</td>
+                  <td>{maintTypeLabel(t, r.type)}</td>
                   <td><span className="mntx-desc">{r.description}</span></td>
                   <td>{r.cost != null ? <MoneyCell value={r.cost} /> : '—'}</td>
                   <td>{r.performedBy ?? '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
-                  <td>{smchip(maintStatus, r.status)}</td>
+                  <td>{smchip(maintStatus, r.status, t)}</td>
                   <Chevron />
                 </tr>
               ))}
@@ -376,9 +380,9 @@ function RecordsTab() {
 
       {viewing && (
         <Drawer
-          title={`${maintType[viewing.type] ?? viewing.type} — ${viewing.equipment?.code ?? viewing.equipmentId}`}
+          title={`${maintTypeLabel(t, viewing.type)} — ${viewing.equipment?.code ?? viewing.equipmentId}`}
           onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">build</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.equipment?.code ?? viewing.equipmentId}</span><span className="xpl-drawer-hero-sub">{viewing.equipment?.name ?? ''} · {maintType[viewing.type] ?? viewing.type}</span><div style={{ marginTop: 4 }}>{smchip(maintStatus, viewing.status)}</div></div></div>}
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">build</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.equipment?.code ?? viewing.equipmentId}</span><span className="xpl-drawer-hero-sub">{viewing.equipment?.name ?? ''} · {maintTypeLabel(t, viewing.type)}</span><div style={{ marginTop: 4 }}>{smchip(maintStatus, viewing.status, t)}</div></div></div>}
           footer={<>
             {hasPermission('maintenance.update') && <Button variant="primary" icon="edit" onClick={() => { openEdit(viewing); setViewing(null); }}>{t('action.maint.edit')}</Button>}
             {hasPermission('maintenance.delete') && <Button variant="danger" icon="delete" busy={deleting} onClick={() => setDeleteTarget(viewing)}>{t('action.maint.delete')}</Button>}
@@ -386,8 +390,8 @@ function RecordsTab() {
         >
           <DrawerSection title="المعدة والتفاصيل">
             <DrawerField label={t('field.equipment')} value={viewing.equipment ? `${viewing.equipment.code}${viewing.equipment.name ? ' — ' + viewing.equipment.name : ''}` : String(viewing.equipmentId)} />
-            <DrawerField label={t('field.maint.type')} value={maintType[viewing.type] ?? viewing.type} />
-            <DrawerField label={t('field.status')} value={smchip(maintStatus, viewing.status)} />
+            <DrawerField label={t('field.maint.type')} value={maintTypeLabel(t, viewing.type)} />
+            <DrawerField label={t('field.status')} value={smchip(maintStatus, viewing.status, t)} />
           </DrawerSection>
           <DrawerSection title="التكلفة والتنفيذ">
             <DrawerField label={t('col.amount')} value={viewing.cost != null ? <MoneyText value={viewing.cost} /> : '—'} />
@@ -422,7 +426,7 @@ function RecordsTab() {
         <Dialog icon="delete" title={t('action.maint.delete')} size="sm" onClose={() => setDeleteTarget(null)}
           footer={<><Button variant="danger" icon="delete" busy={deleting} onClick={handleDelete}>{t('action.maint.delete')}</Button><Button variant="ghost" onClick={() => setDeleteTarget(null)}>{t('action.cancel')}</Button></>}>
           <p style={{ margin: 0 }}>{t('action.maint.confirm_delete')}</p>
-          <p style={{ margin: '8px 0 0', fontWeight: 700, color: 'var(--xpl-muted)', fontSize: 13 }}>{deleteTarget.equipment?.code ?? deleteTarget.equipmentId} — {maintType[deleteTarget.type] ?? deleteTarget.type} — {dateText(deleteTarget.date)}</p>
+          <p style={{ margin: '8px 0 0', fontWeight: 700, color: 'var(--xpl-muted)', fontSize: 13 }}>{deleteTarget.equipment?.code ?? deleteTarget.equipmentId} — {maintTypeLabel(t, deleteTarget.type)} — {dateText(deleteTarget.date)}</p>
         </Dialog>
       )}
     </>
@@ -661,8 +665,8 @@ function BreakdownsTab() {
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={`تفاصيل عطل ${r.equipment?.code ?? r.equipmentId}`}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span></td>
                   <td><span className="mntx-desc">{r.description}</span></td>
-                  <td>{smchip(severity, r.severity)}</td>
-                  <td>{smchip(bdStatus, r.status)}</td>
+                  <td>{smchip(severity, r.severity, t)}</td>
+                  <td>{smchip(bdStatus, r.status, t)}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.reportedAt)}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{r.resolvedAt ? dateText(r.resolvedAt) : '—'}</td>
                   <Chevron />
@@ -675,12 +679,12 @@ function BreakdownsTab() {
 
       {viewing && (
         <Drawer title={`${t('tab.maint.breakdowns')} — ${viewing.equipment?.code ?? viewing.equipmentId}`} onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">report</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.equipment?.code ?? viewing.equipmentId}</span><div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' }}>{smchip(severity, viewing.severity)}{smchip(bdStatus, viewing.status)}</div></div></div>}
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">report</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.equipment?.code ?? viewing.equipmentId}</span><div style={{ marginTop: 4, display: 'flex', gap: 6, flexWrap: 'wrap' }}>{smchip(severity, viewing.severity, t)}{smchip(bdStatus, viewing.status, t)}</div></div></div>}
           footer={viewing.status === 'OPEN' && hasPermission('maintenance.create') ? <Button variant="primary" icon="task_alt" busy={resolving === viewing.id} onClick={() => handleResolve(viewing.id)}>{t('action.maint.resolve')}</Button> : undefined}>
           <DrawerSection title="التفاصيل">
             <DrawerField label={t('col.equipment_no')} value={viewing.equipment?.code ?? viewing.equipmentId} mono />
-            <DrawerField label={t('col.maint.severity')} value={smchip(severity, viewing.severity)} />
-            <DrawerField label={t('col.status')} value={smchip(bdStatus, viewing.status)} />
+            <DrawerField label={t('col.maint.severity')} value={smchip(severity, viewing.severity, t)} />
+            <DrawerField label={t('col.status')} value={smchip(bdStatus, viewing.status, t)} />
             <DrawerField label={t('col.maint.reported_at')} value={dateText(viewing.reportedAt)} />
             <DrawerField label={t('col.maint.resolved_at')} value={viewing.resolvedAt ? dateText(viewing.resolvedAt) : '—'} />
           </DrawerSection>

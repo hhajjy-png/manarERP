@@ -111,3 +111,18 @@ export const EXPENSE_CATEGORY_SELECT_OPTIONS = EXPENSE_CATEGORIES.map((c) => ({
   icon: c.icon,
   group: EXPENSE_CATEGORY_GROUP_LABELS[c.group],
 }));
+
+/**
+ * Language-aware select options, built from the caller's own `t()` (via `useT()`).
+ * Kept separate from `EXPENSE_CATEGORY_SELECT_OPTIONS` (Arabic-only, relied on by
+ * the AI skills keyword layer) so existing consumers are unaffected.
+ */
+export function buildLocalizedCategorySelectOptions(t: (key: string) => string) {
+  return EXPENSE_CATEGORIES.map((c) => ({
+    value: c.value,
+    label: t(`cat.${c.value.toLowerCase()}`),
+    keywords: `${c.labelAr} ${c.labelEn}`,
+    icon: c.icon,
+    group: t(`grp.exp.${c.group}`),
+  }));
+}

@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
+import { useT } from '../lib/i18n';
 import { money } from '../config/modules';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
-import { EXPENSE_CATEGORY_SELECT_OPTIONS } from '../config/expenseCategories';
-import { EXPENSE_PAYMENT_METHOD_OPTIONS } from '../config/expensePresentation';
+import { buildLocalizedCategorySelectOptions } from '../config/expenseCategories';
 import SearchableSelect from './SearchableSelect';
 import DateInput from './DateInput';
 import { todayDateOnly } from '../lib/date';
@@ -35,6 +35,13 @@ interface Props {
  * عبر POST /expenses (نفس مسار الإنشاء)، ثم يمسح حقول الصف مع إبقاء المشترك.
  */
 export default function FastMonthlyExpenseDialog({ onClose, onSaved, suppliers }: Props) {
+  const { t } = useT();
+  const categoryOptions = useMemo(() => buildLocalizedCategorySelectOptions(t), [t]);
+  const paymentMethodOptions = useMemo(() => ([
+    { value: 'CASH', label: t('field.exp.payment_method.cash') },
+    { value: 'BANK', label: t('field.exp.payment_method.bank') },
+    { value: 'ACCOUNTS_PAYABLE', label: t('field.exp.payment_method.accounts_payable') },
+  ]), [t]);
   const now = new Date();
   const [shared, setShared] = useState<FastSharedFields>({
     date: todayDateOnly(now),
@@ -147,7 +154,7 @@ export default function FastMonthlyExpenseDialog({ onClose, onSaved, suppliers }
           <div className="xpl-field">
             <label>طريقة الدفع</label>
             <select className="xpl-select" value={shared.paymentMethod} onChange={(e) => patchShared({ paymentMethod: e.target.value })} aria-label="طريقة الدفع">
-              {EXPENSE_PAYMENT_METHOD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {paymentMethodOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           <div className="xpl-field">
@@ -188,7 +195,7 @@ export default function FastMonthlyExpenseDialog({ onClose, onSaved, suppliers }
           <div className="xpl-field" ref={rowRef}>
             <label>التصنيف <span className="req">*</span></label>
             <SearchableSelect
-              options={EXPENSE_CATEGORY_SELECT_OPTIONS}
+              options={categoryOptions}
               value={row.category}
               onChange={(v) => patchRow({ category: v })}
               ariaLabel="التصنيف"
