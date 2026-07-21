@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `954c0bd` (merge of `feature/english-unified-tafqeet-engine-pack-v1`, carrying English & Unified Tafqeet Engine Pack v1) |
-| **Current Documentation Commit** | `PENDING_DOC_HASH` — "docs: record English & Unified Tafqeet Engine Pack v1 release" |
+| **Current Documentation Commit** | `70c0be1` — "docs: record English & Unified Tafqeet Engine Pack v1 release" |
 | **Current Stable Tag** | `stable-english-unified-tafqeet-engine-pack-v1` |
 | **Current Release Date** | 2026-07-21 |
 | **Total Stable Releases** | 334 (window 2026-06-07 → 2026-07-21) |
