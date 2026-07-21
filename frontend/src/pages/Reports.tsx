@@ -563,7 +563,7 @@ export default function Reports() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
 
       {/* ── Report Preview / Config Drawer ── */}
       {panelOpen && (

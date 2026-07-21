@@ -33,6 +33,7 @@ function applyTheme(theme: Theme) {
 
 function applyLang(lang: Lang) {
   document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  document.documentElement.lang = lang;
 }
 
 /**

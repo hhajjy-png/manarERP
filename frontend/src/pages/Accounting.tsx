@@ -72,7 +72,7 @@ export default function Accounting() {
   const canCreate = hasPermission('transactions.create');
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
       <ReturnToReportButton />
       <ExecutiveHeader
         icon="account_balance"

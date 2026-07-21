@@ -26,7 +26,7 @@ export function FinancialDashboardTab() {
   if (!data)   return null;
 
   return (
-    <div className="financial-dashboard-tab" dir="rtl">
+    <div className="financial-dashboard-tab">
       <div className="dashboard-last-updated">آخر تحديث: {fmtTime(data.generatedAt)}</div>
 
       {/* Summary Cards */}

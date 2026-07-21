@@ -310,7 +310,7 @@ export default function Salaries() {
   }
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
       <ExecutiveHeader
         icon="payments"
         title={t('page.salaries.title')}

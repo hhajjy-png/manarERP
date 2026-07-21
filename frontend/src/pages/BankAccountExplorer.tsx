@@ -610,7 +610,6 @@ function TransactionDrawer({
       <div className="bae-drawer-overlay" onClick={onClose} />
       <div
         className="bae-drawer"
-        dir="rtl"
         role="dialog"
         aria-modal="true"
         aria-labelledby={DRAWER_TITLE_ID}
@@ -1792,7 +1791,7 @@ export default function BankAccountExplorer() {
 
   if (!canView) {
     return (
-      <div className="bae-permission-error" dir="rtl">
+      <div className="bae-permission-error">
         <span className="material-symbols-outlined">lock</span>
         <p>{t('bank.explorer.no_permission')}</p>
       </div>
@@ -1800,7 +1799,7 @@ export default function BankAccountExplorer() {
   }
 
   return (
-    <div className="bae-root" dir="rtl">
+    <div className="bae-root">
       {/* ── Page title + breadcrumb ── */}
       <div className="bae-page-head">
         <nav className="bae-breadcrumb" aria-label={t('bank.explorer.breadcrumb_nav')}>

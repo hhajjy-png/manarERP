@@ -129,7 +129,7 @@ export default function Maintenance() {
   const [tab, setTab] = usePersistedState<Tab>('maint:tab', 'records');
   const { t } = useT();
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
       <ExecutiveHeader icon="build" title={t('page.maint.title')} subtitle={t('page.maint.subtitle')} />
       <SummaryKPIs />
       <Tabs<Tab>

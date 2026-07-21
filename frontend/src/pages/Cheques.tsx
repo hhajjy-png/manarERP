@@ -587,7 +587,7 @@ export default function Cheques() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
       {/* Calibration overlay — UNCHANGED */}
       {showCalibrator && (
         <ChequeCalibrator banks={KUWAITI_BANKS} initialBank={form.bankName} loadedTemplates={allTemplates} previewData={calibPreviewData} onSaved={handleCalibSaved} onClose={() => setShowCalibrator(false)} isSystemAdmin={isSystemAdmin} />

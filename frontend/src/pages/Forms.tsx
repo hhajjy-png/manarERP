@@ -123,7 +123,7 @@ export default function Forms() {
   }), []);
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
       <ExecutiveHeader
         icon="print"
         title={t('page.forms.title')}

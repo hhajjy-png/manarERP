@@ -101,7 +101,6 @@ export default class RootErrorBoundary extends Component<Props, State> {
     return (
       <div
         className={`reb-root ${variant}`}
-        dir="rtl"
         role="alert"
         aria-live="assertive"
         ref={this.regionRef}

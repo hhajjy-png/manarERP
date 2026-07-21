@@ -58,7 +58,7 @@ export default function DataImport() {
 
   if (!hasImportPermission && visibleBankModules.length === 0) {
     return (
-      <div className="xpl-scope xpl-page" dir="rtl">
+      <div className="xpl-scope xpl-page">
         <div className="xpl-center-state">
           <span className="material-symbols-outlined">lock</span>
           {t('import.no_permission')}
@@ -68,7 +68,7 @@ export default function DataImport() {
   }
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
 
       {/* ── Import mode switch — data importer vs. banking ── */}
       <div className="dicx-entities dicx-mode-switch" role="tablist" aria-label={t('page.import.mode_switch_aria')}>

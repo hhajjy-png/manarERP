@@ -52,7 +52,7 @@ export default function PeriodControl() {
       : 'period-control--current';
 
   return (
-    <div className={`period-control ${stateClass}`} dir="rtl">
+    <div className={`period-control ${stateClass}`}>
       <button
         type="button"
         className="period-control__summary"

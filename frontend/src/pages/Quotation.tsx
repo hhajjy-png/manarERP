@@ -415,7 +415,7 @@ export default function Quotation() {
           />
         )}
         {accurateEngine.dialog}
-      <div ref={printRootRef} dir="rtl" style={{ minHeight: '100vh', background: '#f0f4f8' }}>
+      <div ref={printRootRef} style={{ minHeight: '100vh', background: '#f0f4f8' }}>
         <style>{`
           @media print {
             @page { size: A4; margin: 0; }

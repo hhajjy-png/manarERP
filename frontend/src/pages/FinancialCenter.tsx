@@ -391,7 +391,7 @@ export default function FinancialCenter() {
     .map(td => ({ ...td, label: t(td.labelKey) }));
   if (visibleTabs.length === 0) {
     return (
-      <div className="financial-center xpl-scope" dir="rtl">
+      <div className="financial-center xpl-scope">
         <p className="fc-no-permission">{t('fc.msg.no_permission')}</p>
       </div>
     );
@@ -446,7 +446,7 @@ export default function FinancialCenter() {
   const trialDifference = trialData?.metadata?.difference as number | undefined;
 
   return (
-    <div className="financial-center xpl-scope" dir="rtl">
+    <div className="financial-center xpl-scope">
       <ReturnToReportButton />
 
       <div className="fc-header">
@@ -769,7 +769,7 @@ export default function FinancialCenter() {
 
               {glStatData && glStatData.rows.length > 0 && (
                 <div className="table-responsive">
-                  <table className="financial-table statement-table" dir="rtl">
+                  <table className="financial-table statement-table">
                     <thead>
                       <tr>
                         <th>{t('col.date')}</th><th>{t('col.acc.entry_number')}</th><th>{t('col.acc.type')}</th>
@@ -886,7 +886,7 @@ export default function FinancialCenter() {
               {glReportData && glReportData.accounts.length > 0 && (
                 <>
                   <div className="table-responsive">
-                    <table className="financial-table gl-report-table" dir="rtl">
+                    <table className="financial-table gl-report-table">
                       <thead>
                         <tr>
                           <SortableHeader label={t('col.acc.code')} title={t('col.acc.code')} state={glReportSort.getState('code')} onToggle={() => glReportSort.toggle('code')} />

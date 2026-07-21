@@ -81,7 +81,7 @@ export default function Inventory() {
   const { t } = useT();
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
       <ExecutiveHeader icon="inventory_2" title={t('page.inventory.title')} subtitle={t('page.inventory.subtitle')} />
       <Tabs<Tab>
         active={tab}

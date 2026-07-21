@@ -149,7 +149,7 @@ export default function EmployeeEntitlementsCenter() {
   );
 
   const pageShell = (content: ReactNode) => (
-    <div className="xpl-scope xpl-page entc-page" dir="rtl">
+    <div className="xpl-scope xpl-page entc-page">
       <ExecutiveHeader icon="badge" title={t('page.ent.center_title')} onBack={() => navigate('/employees')} />
       {content}
     </div>
@@ -216,7 +216,7 @@ export default function EmployeeEntitlementsCenter() {
   }
 
   return (
-    <div className="xpl-scope xpl-page entc-page" dir="rtl">
+    <div className="xpl-scope xpl-page entc-page">
       {/* Header (الجزء 4) */}
       <ExecutiveHeader
         icon="badge"

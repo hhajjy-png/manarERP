@@ -3,7 +3,6 @@
 /* ── Page wrapper ─────────────────────────────────────────────────────────── */
 
 .ic-page {
-  direction: rtl;
   padding: 24px 32px;
   max-width: 1200px;
   margin: 0 auto;
@@ -165,7 +164,6 @@
   color: var(--text);
   box-sizing: border-box;
   transition: border-color 0.15s, box-shadow 0.15s;
-  direction: rtl;
 }
 
 .ic-search::placeholder {
@@ -581,7 +579,6 @@
   padding: 28px;
   width: 420px;
   max-width: 92vw;
-  direction: rtl;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18);
   font-family: inherit;
 }

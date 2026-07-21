@@ -33,7 +33,7 @@ export function JournalBookTable({ rows, currentState }: Props) {
   }
 
   return (
-    <div className="journal-book-container" dir="rtl">
+    <div className="journal-book-container">
       <div className="journal-book-controls">
         <button type="button" onClick={() => toggleAll(true)}>{t('fc.journal.expand_all')}</button>
         <button type="button" onClick={() => toggleAll(false)}>{t('fc.journal.collapse_all')}</button>

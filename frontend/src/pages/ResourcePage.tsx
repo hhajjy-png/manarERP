@@ -454,7 +454,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     };
 
     return (
-      <div className="xpl-scope xpl-page" dir="rtl">
+      <div className="xpl-scope xpl-page">
         <ExecutiveHeader
           icon={cfg.explorerIcon ?? 'category'}
           title={t(cfg.title)}

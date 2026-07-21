@@ -71,7 +71,7 @@ export function GroupedTable({ rows, currentState, highlightId }: Props) {
 
   return (
     <div className="table-responsive">
-      <table className="financial-table grouped-table" dir="rtl">
+      <table className="financial-table grouped-table">
         <thead>
           <tr>
             <th>{t('col.date')}</th>

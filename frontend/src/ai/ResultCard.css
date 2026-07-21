@@ -9,8 +9,7 @@
   gap: 12px;
   font-size: 13px;
   color: var(--text);
-  direction: rtl;
-  text-align: right;
+  text-align: start;
 }
 
 /* ─── Header ─────────────────────────────────────────────────────────────────── */
@@ -252,7 +251,6 @@
   color: var(--primary, #2563eb);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
-  direction: rtl;
 }
 .ai-rc-followup-btn:hover {
   background: rgba(37, 99, 235, 0.08);
@@ -413,12 +411,11 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted, #6b7280);
-  text-align: right;
-  direction: rtl;
+  text-align: start;
   transition: background 0.15s;
 }
 .ai-rc-explain-toggle:hover { background: var(--surface-2, rgba(0,0,0,0.06)); }
-.ai-rc-explain-arrow { margin-right: auto; font-size: 10px; }
+.ai-rc-explain-arrow { margin-inline-start: auto; font-size: 10px; }
 .ai-rc-explain-body {
   padding: 8px 12px;
   display: flex;
@@ -535,7 +532,6 @@
   color: var(--primary, #2563eb);
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
-  direction: rtl;
 }
 .ai-rc-action-btn:hover {
   background: rgba(37, 99, 235, 0.07);
@@ -579,7 +575,6 @@
   border: 1px solid var(--border, #e5e7eb);
   background: var(--surface, #fff);
   transition: background 0.14s, border-color 0.14s;
-  direction: rtl;
 }
 .ai-rc-related-chip--skill {
   color: var(--primary, #2563eb);
@@ -614,12 +609,11 @@
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted, #6b7280);
-  text-align: right;
-  direction: rtl;
+  text-align: start;
   transition: background 0.15s;
 }
 .ai-rc-meta-toggle:hover { background: var(--surface-2, rgba(0,0,0,0.06)); }
-.ai-rc-meta-arrow { margin-right: auto; font-size: 10px; }
+.ai-rc-meta-arrow { margin-inline-start: auto; font-size: 10px; }
 .ai-rc-meta-body {
   padding: 8px 12px;
   display: flex;

@@ -248,7 +248,7 @@ export default function DocumentExpirationCenter() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="xpl-scope xpl-page" dir="rtl">
+    <div className="xpl-scope xpl-page">
 
       {/* ── Document detail drawer ── */}
       {selected && (

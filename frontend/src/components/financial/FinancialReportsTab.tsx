@@ -57,7 +57,7 @@ export function FinancialReportsTab({ fromDate, toDate, onFromDate, onToDate }: 
   const meta = data?.metadata ?? {};
 
   return (
-    <div className="financial-reports-tab" dir="rtl">
+    <div className="financial-reports-tab">
       <FilterBar fromDate={fromDate} toDate={toDate} onFromDate={onFromDate} onToDate={onToDate} />
 
       <div className="fc-statement-context" aria-label={t('fc.aria.reports_period')}>

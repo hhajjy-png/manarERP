@@ -9,8 +9,7 @@
   background: rgba(59, 130, 246, 0.06);
   border: 1px solid rgba(59, 130, 246, 0.22);
   border-radius: 10px;
-  direction: rtl;
-  text-align: right;
+  text-align: start;
 }
 .ai-blocked-icon {
   font-size: 18px;
@@ -37,7 +36,6 @@
   border: 1px solid rgba(37, 99, 235, 0.2);
   cursor: pointer;
   transition: background 0.14s;
-  direction: rtl;
 }
 .ai-blocked-chip:hover {
   background: rgba(37, 99, 235, 0.15);
@@ -54,7 +52,7 @@
   background: rgba(13, 148, 136, 0.10);
   color: #0f766e;
   border: 1px solid rgba(13, 148, 136, 0.22);
-  margin-right: 5px;
+  margin-inline-start: 5px;
 }
 
 /* ─── Dev: Router decision panel — visible in DEV builds only ───────────────── */
@@ -77,7 +75,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  direction: rtl;
   position: relative;
 }
 
@@ -328,7 +325,7 @@
 .ai-quick-badge {
   position: absolute;
   top: 6px;
-  left: 6px;
+  inset-inline-end: 6px;
   padding: 2px 6px;
   border-radius: 8px;
   background: var(--amber-light);
@@ -341,7 +338,7 @@
   color: var(--blue);
   position: absolute;
   top: 6px;
-  left: 6px;
+  inset-inline-end: 6px;
 }
 
 /* ─── Two-Column Workspace Layout ────────────────────────────────────────────── */
@@ -445,7 +442,6 @@
   cursor: pointer;
   text-align: start;
   font-family: inherit;
-  direction: rtl;
   line-height: 1.4;
   transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
 }
@@ -546,7 +542,6 @@
   cursor: pointer;
   font-family: inherit;
   text-align: center;
-  direction: rtl;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .ai-chat-empty-prompt:hover { background: var(--surface); border-color: var(--primary); color: var(--primary); }
@@ -605,7 +600,7 @@
 .ai-message-skill .material-symbols-outlined { font-size: 11px; }
 
 /* Per-message copy actions (Package D) */
-.ai-msg-actions { display: flex; align-items: center; gap: 2px; margin-right: auto; }
+.ai-msg-actions { display: flex; align-items: center; gap: 2px; margin-inline-start: auto; }
 .ai-msg-action-btn {
   width: 24px;
   height: 24px;
@@ -665,7 +660,6 @@
   font-family: inherit;
   resize: none;
   outline: none;
-  direction: rtl;
   box-sizing: border-box;
   min-height: 44px;
   max-height: 120px;
@@ -802,7 +796,6 @@
   color: var(--text);
   font-family: inherit;
   outline: none;
-  direction: rtl;
   width: 100%;
   box-sizing: border-box;
 }

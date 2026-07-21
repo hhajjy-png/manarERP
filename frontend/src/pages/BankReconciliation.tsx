@@ -236,7 +236,6 @@ function ConfirmModal({
     <div className="modal-overlay" onClick={onCancel}>
       <div
         className="modal"
-        dir="rtl"
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 420 }}
       >
@@ -359,7 +358,7 @@ function ImportSelector({
   // ── Skeleton loading ──────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="recon-ws" dir="rtl">
+      <div className="recon-ws">
         <div className="page-head">
           <div><h2>{t(PAGE_TITLE_KEY)}</h2><p>{t(PAGE_SUBTITLE_KEY)}</p></div>
         </div>
@@ -388,7 +387,7 @@ function ImportSelector({
 
   if (imports.length === 0) {
     return (
-      <div className="recon-ws" dir="rtl">
+      <div className="recon-ws">
         <div className="page-head">
           <div><h2>{t(PAGE_TITLE_KEY)}</h2><p>{t(PAGE_SUBTITLE_KEY)}</p></div>
           <button type="button" className="btn secondary" onClick={() => navigate('/bank-statement-import')}>
@@ -414,7 +413,7 @@ function ImportSelector({
     : null;
 
   return (
-    <div className="recon-ws" dir="rtl">
+    <div className="recon-ws">
       <div className="page-head">
         <div>
           <h2>{t(PAGE_TITLE_KEY)}</h2>
@@ -741,7 +740,7 @@ function TransactionDetailsPanel({
   }, null, 2), [tx]);
 
   return (
-    <div className="recon-details-side" dir="rtl">
+    <div className="recon-details-side">
       <div className="recon-details-head">
         <h3>{t('bank.recon.transaction_details')}</h3>
         <button className="recon-close-btn" onClick={onClose} aria-label={t('action.close')}>×</button>
@@ -1346,7 +1345,7 @@ export default function BankReconciliation() {
   // ── Guard ───────────────────────────────────────────────────────────────────
   if (!hasPermission('bankStatementImport.read')) {
     return (
-      <div className="recon-ws" dir="rtl">
+      <div className="recon-ws">
         <div className="recon-empty">
           <div className="recon-empty-icon">🔒</div>
           <p className="recon-empty-title">{t('bank.recon.no_permission_title')}</p>
@@ -1376,7 +1375,7 @@ export default function BankReconciliation() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="recon-ws" dir="rtl">
+    <div className="recon-ws">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="recon-ws-header">
