@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tafqeet } from '../../print-templates/utils/tafqeet';
+import { tafqeet } from '../../lib/tafqeet';
 
 describe('tafqeet — KWD number-to-words', () => {
   // ── Zero ──────────────────────────────────────────────────────────────────

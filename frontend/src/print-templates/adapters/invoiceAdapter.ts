@@ -1,7 +1,7 @@
 import type { ApiInvoice } from './apiTypes';
 import type { InvoicePrintData, PrintLineItem } from '../engine/types';
 import { getDefaultCompanyPrintData } from './companyData';
-import { tafqeet } from '../utils/tafqeet';
+import { amountToWordsInvoiceKWD, type TafqeetLang } from '../../lib/tafqeet';
 import { splitKWD } from '../utils/formatKWD';
 import { formatDateForPrint } from '../utils/formatDate';
 
@@ -26,7 +26,7 @@ function toLineItems(items: ApiInvoice['items']): PrintLineItem[] {
  * <Template data={data} />
  * ```
  */
-export function adaptInvoice(invoice: ApiInvoice): InvoicePrintData {
+export function adaptInvoice(invoice: ApiInvoice, lang: TafqeetLang = 'ar'): InvoicePrintData {
   const { dinars, fils } = splitKWD(invoice.total);
   const partyName = invoice.customer?.name ?? invoice.supplier?.name ?? '';
 
@@ -39,7 +39,7 @@ export function adaptInvoice(invoice: ApiInvoice): InvoicePrintData {
     lineItems: toLineItems(invoice.items),
     totalDinars: dinars,
     totalFils: fils,
-    totalInWords: tafqeet(invoice.total),
+    totalInWords: amountToWordsInvoiceKWD(invoice.total, lang),
     notes: invoice.notes ?? undefined,
   };
 }

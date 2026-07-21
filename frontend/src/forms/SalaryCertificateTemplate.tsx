@@ -13,7 +13,7 @@ import {
   moneyEn,
   blankLine,
 } from './shared/formStyles';
-import { tafqeetKWD } from '../lib/tafqeet';
+import { amountToWordsKWD } from '../lib/tafqeet';
 
 const COMPANY_NAME_EN =
   'ALAMANAR ALDAWLIYA FOR STREET CONSTRUCTION & MAINTENANCE CO., W.L.L.';
@@ -137,6 +137,10 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
             </div>
           )}
           <div style={{ ...tableRow, direction: 'ltr' }}>
+            <div style={{ ...labelCell, textAlign: 'left' }}>Salary in Words</div>
+            <div style={valueCell}>{amountToWordsKWD(baseSalary, 'en')}</div>
+          </div>
+          <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Currency</div>
             <div style={valueCell}>Kuwaiti Dinar (KWD)</div>
           </div>
@@ -236,7 +240,7 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
         )}
         <div style={tableRow}>
           <div style={labelCell}>الراتب كتابة</div>
-          <div style={valueCell}>{tafqeetKWD(baseSalary)}</div>
+          <div style={valueCell}>{amountToWordsKWD(baseSalary, 'ar')}</div>
         </div>
       </div>
 

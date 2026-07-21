@@ -36,7 +36,7 @@ Future Production Pages
 | `service/` | Registry lookup API for production pages | ✅ Yes |
 | `adapters/` | API response → PrintData converters | Via `builders/` |
 | `builders/` | Composition entry point: adapter + overrides + future QR | ✅ Yes |
-| `utils/` | Pure functions: tafqeet, KWD format, date format, sanitizePrintText | Via adapters / builders |
+| `utils/` | Pure functions: KWD format, date format, sanitizePrintText (tafqeet re-exported from `../../lib/tafqeet`, the unified amount-to-words engine) | Via adapters / builders |
 | `hooks/` | React hooks: usePrintProfile, usePrintTemplate | ✅ Yes |
 | `components/` | Isolated UI: PrintTemplateSelector | ✅ Yes |
 | `integration/` | Form-state → PrintData adapters for pages that own form state | ✅ Yes (Quotation.tsx) |
@@ -157,10 +157,12 @@ Phase 2 production pages should call builders, not raw adapters.
 No React. No side effects. Safe to import anywhere including backend-adjacent tests.
 
 ```ts
-// tafqeet.ts
+// tafqeet.ts — now lives in frontend/src/lib/tafqeet.ts (the unified engine, Full
+// English & Unified Tafqeet Engine Pack v1); re-exported here for compatibility.
 tafqeet(amount: number) → string
 // "732.500" → "سبعمائة واثنا وثلاثون ديناراً كويتياً وخمسمائة فلساً فقط لا غير"
 // Handles 0 – 9,999,999.999 KWD. SSR-safe.
+// amountToWordsInvoiceKWD(amount, lang: 'ar' | 'en') → string — language-aware form.
 
 // formatKWD.ts
 splitKWD(total)   → { dinars, fils, filsPadded }
