@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `77c4f07` (merge of `feature/employee-financial-position-dashboard-v1`, carrying English Localization Completion Pack v1a + v2) |
-| **Current Documentation Commit** | `8ee03bd` — "docs: record English Localization Completion Pack v2 release" |
-| **Current Stable Tag** | `stable-english-localization-completion-pack-v2` |
+| **Current Merge Commit** | `f40579e` (merge of `feature/full-english-ltr-layout-pack-v1`, carrying Full English LTR Layout Pack v1) |
+| **Current Documentation Commit** | `PENDING_DOC_HASH` — "docs: record Full English LTR Layout Pack v1 release" |
+| **Current Stable Tag** | `stable-full-english-ltr-layout-pack-v1` |
 | **Current Release Date** | 2026-07-21 |
-| **Total Stable Releases** | 332 (window 2026-06-07 → 2026-07-21) |
+| **Total Stable Releases** | 333 (window 2026-06-07 → 2026-07-21) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -219,6 +219,22 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Full English LTR Layout Pack v1** (2026-07-21,
+  `stable-full-english-ltr-layout-pack-v1`) — when the UI language is English, the whole app now automatically
+  renders as a native LTR enterprise layout (sidebar moves left, navigation/dashboard/forms/drawers/dialogs/
+  tables/reports/search/filters/tabs/menus/toolbars/Print-Preview-UI all mirror); Arabic mode stays exactly as
+  before, byte-for-byte RTL. No manual toggle — layout follows the existing `useUI().lang` language switch.
+  `uiStore.applyLang()` now also syncs `document.documentElement.lang`. ExplorerKit's shared `Drawer`/`Dialog`
+  (app-wide detail-panel/modal primitives) made language-aware instead of hardcoded RTL. ~50 hardcoded
+  `dir="rtl"` overrides removed from 36 page/component roots so they inherit ambient direction; physical CSS
+  (`direction`, `text-align`/`margin`/`padding` left-right, `left`/`right`) converted to logical properties
+  across 17 stylesheets, preserving the exact current RTL appearance. **Frontend-only, 53 files, net code
+  reduction (97 insertions / 127 deletions). No business logic/API/schema/permissions/calculations changed.**
+  Deliberately excluded (stay Arabic/RTL always): official printed/legal documents (report print, payslip,
+  cheque calibration sheet, cheque amount-in-words), money/numeric-cell isolation, chart containers, the
+  always-LTR date-calendar popover, and pre-existing Arabic-only print-template tooling never wired into the
+  i18n system. Product Owner visual review: **APPROVED**. Gemini final review: **APPROVED**.
 
 - **English Localization Completion Pack v2** (2026-07-21,
   `stable-english-localization-completion-pack-v2`) — eliminates the remaining hardcoded Arabic UI strings
