@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `cd754ca` (merge of `feature/operational-reporting-migration-v1`, carrying Operational Reporting Migration v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `4d90896` — "docs: record Operational Reporting Migration v1 release" |
 | **Current Stable Tag** | `stable-operational-reporting-migration-v1` |
 | **Current Release Date** | 2026-07-22 |
 | **Total Stable Releases** | 340 (window 2026-06-07 → 2026-07-22) |
