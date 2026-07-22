@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `954c0bd` (merge of `feature/english-unified-tafqeet-engine-pack-v1`, carrying English & Unified Tafqeet Engine Pack v1) |
-| **Current Documentation Commit** | `70c0be1` — "docs: record English & Unified Tafqeet Engine Pack v1 release" |
-| **Current Stable Tag** | `stable-english-unified-tafqeet-engine-pack-v1` |
-| **Current Release Date** | 2026-07-21 |
-| **Total Stable Releases** | 334 (window 2026-06-07 → 2026-07-21) |
+| **Current Merge Commit** | `2b9e989` (merge of `feature/business-dictionary-reliability-pack-v1`, carrying Business Dictionary & Reliability Pack v1) |
+| **Current Documentation Commit** | `PENDING_DOC_HASH` — "docs: record Business Dictionary & Reliability Pack v1 release" |
+| **Current Stable Tag** | `stable-business-dictionary-reliability-pack-v1` |
+| **Current Release Date** | 2026-07-22 |
+| **Total Stable Releases** | 335 (window 2026-06-07 → 2026-07-22) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
