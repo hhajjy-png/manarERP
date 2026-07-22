@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `5a383ff` (merge of `feature/bank-transaction-intelligence-enhancement-pack-v2`, carrying Bank Transaction Experience Redesign Pack v2) |
-| **Current Documentation Commit** | `712a3bd` — "docs: record Bank Transaction Experience Redesign Pack v2 release" |
-| **Current Stable Tag** | `stable-bank-transaction-experience-redesign-pack-v2` |
+| **Current Merge Commit** | `c978bb2` (merge of `feature/leave-request-translation-fix-v1`, carrying Leave Request Translation Fix v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-leave-request-translation-fix-v1` |
 | **Current Release Date** | 2026-07-22 |
-| **Total Stable Releases** | 337 (window 2026-06-07 → 2026-07-22) |
+| **Total Stable Releases** | 338 (window 2026-06-07 → 2026-07-22) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
