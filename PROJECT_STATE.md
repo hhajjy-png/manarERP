@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `c978bb2` — release `stable-leave-request-translation-fix-v1` (Leave Request Translation Fix v1 — adds the missing `page.leaveReq.title` i18n key so the print preview and FormLayout header show the translated title instead of the raw key. Frontend-only, one file, no business-logic changes) |
+| **Production HEAD** | `61110df` — release `stable-employee-smart-forms-hub-localization-pack-v1` (Employee Smart Forms Hub & Forms Localization Integrity Pack v1 — registry-driven "نماذج الموظف" popover replacing the single print-forms drawer action, a Back-navigation history fix via native `replace: true`, and a full title-localization audit/unification across all 12 registered forms via a single `titleKey` → i18n pipeline. Frontend-only, no business-logic changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-leave-request-translation-fix-v1` (release date 2026-07-22) → merge `c978bb2` |
-| **Previous stable tag** | `stable-bank-transaction-experience-redesign-pack-v2` (2026-07-22) → merge `5a383ff` |
-| **Total stable releases** | 338 (all merged onto `production`; window 2026-06-07 → 2026-07-22) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · frontend `vite build` ✅ · frontend `vitest` targeted **127/127 pass** (legacyFormPreviewRolloutPhase1 + universalAccuratePreview + universalPrintPreviewFullEnablement) · 8 pre-existing unrelated test-file failures in the full suite verified via `git stash` to fail identically without this change |
-| **Remote sync** | `origin/production` — pushed with this release (merge `5a383ff` + tag `stable-bank-transaction-experience-redesign-pack-v2`) |
+| **Latest stable tag** | `stable-employee-smart-forms-hub-localization-pack-v1` (release date 2026-07-22) → merge `61110df` |
+| **Previous stable tag** | `stable-leave-request-translation-fix-v1` (2026-07-22) → merge `c978bb2` |
+| **Total stable releases** | 339 (all merged onto `production`; window 2026-06-07 → 2026-07-22) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · frontend `vite build` ✅ · frontend `vitest` **formsRegistryTranslationAudit 39/39** + **employeeSmartFormsHub 21/21** + explorerHubPrimitives + employmentContractNewEmployee + 3 print-preview suites all pass · same 8 pre-existing unrelated test-file failures as prior releases, unchanged |
+| **Remote sync** | `origin/production` — pushed with this release (merge `61110df` + tag `stable-employee-smart-forms-hub-localization-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,31 @@ in a table cell.
 
 ---
 
-## Latest Release — Leave Request Translation Fix v1
+## Latest Release — Employee Smart Forms Hub & Forms Localization Integrity Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Employee Smart Forms Hub & Forms Localization Integrity Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-22 |
+| **Feature branch** | `feature/employee-smart-forms-hub-localization-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `7b86565` (documentation commit from the prior release) |
+| **Feature commit** | `0850cc1` |
+| **Production merge commit** | `61110df` |
+| **Stable tag** | `stable-employee-smart-forms-hub-localization-pack-v1` → merge `61110df` (annotated) |
+| **Gemini review** | **APPROVED** — per user's release note. |
+| **Manual verification** | Product Owner visual review — **completed and accepted**. |
+| **Validation** | frontend `tsc --noEmit` ✅ · frontend `vite build` ✅ · `formsRegistryTranslationAudit` **39/39** + `employeeSmartFormsHub` **21/21** + `explorerHubPrimitives` + `employmentContractNewEmployee` + 3 print-preview suites all pass ✅ |
+
+**Scope.** Three linked pieces landed across four conversation turns: (1) **Smart Forms Hub** — the Employee Drawer's single "طباعة النماذج" action replaced with a "نماذج الموظف" popover built dynamically from a new `frontend/src/forms/shared/formsRegistry.ts` (no hardcoded form list; new forms appear automatically), navigating with `?employee=<id>&form=<key>` and auto-selecting both via the *same* handlers manual interaction uses. (2) **Back-navigation fix** — the auto-launch redirect was pushing an extra transit history entry, trapping the app's Back button on the same preview screen; fixed by making that one redirect use React Router's native `navigate(path, { replace: true })`, while manual in-hub printing keeps its original push (back-to-hub) behavior untouched. (3) **Forms Localization Integrity Audit** — discovered 5 forms (Salary Certificate, Return To Work, Salary Advance, Performance Evaluation, Purchase Request) silently displaying a raw i18n key as their title because those keys were never added to the dictionary (git history confirms this predates the Hub work — introduced 2026-07-21 by an unrelated localization commit, not reintroduced by this pack), plus Quotation's hardcoded, occasionally wrong-language title. Fixed all 6, and unified the architecture: `FormCard` now stores one `titleKey` (no more duplicated `titleAr`/`titleEn` strings); every consumer (Forms hub cards, Smart Forms Hub menu, each form's own preview) resolves the title through `t(titleKey)` against the single `i18n.ts` dictionary.
+
+**Regression prevention.** `formsRegistryTranslationAudit.test.ts` iterates `FORM_CARDS` directly (no per-form test to maintain) and fails if any registered form's `titleKey` is missing AR, missing EN, falls back to the raw key, or has drifted from the literal key its own page component calls — future forms are covered automatically.
+
+**Unchanged:** print engine · backend · database · APIs · document rendering · all existing permissions · every other administrative form not named above.
+
+---
+
+## Previous Release — Leave Request Translation Fix v1
 
 | Field | Value |
 |-------|-------|

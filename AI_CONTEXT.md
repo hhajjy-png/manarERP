@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `c978bb2` (merge of `feature/leave-request-translation-fix-v1`, carrying Leave Request Translation Fix v1) |
-| **Current Documentation Commit** | `eae7f19` — "docs: record Leave Request Translation Fix v1 release" |
-| **Current Stable Tag** | `stable-leave-request-translation-fix-v1` |
+| **Current Merge Commit** | `61110df` (merge of `feature/employee-smart-forms-hub-localization-pack-v1`, carrying Employee Smart Forms Hub & Forms Localization Integrity Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-employee-smart-forms-hub-localization-pack-v1` |
 | **Current Release Date** | 2026-07-22 |
-| **Total Stable Releases** | 338 (window 2026-06-07 → 2026-07-22) |
+| **Total Stable Releases** | 339 (window 2026-06-07 → 2026-07-22) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
