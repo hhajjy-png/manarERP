@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `61110df` (merge of `feature/employee-smart-forms-hub-localization-pack-v1`, carrying Employee Smart Forms Hub & Forms Localization Integrity Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `69f4da4` — "docs: record Employee Smart Forms Hub & Forms Localization Integrity Pack v1 release" |
 | **Current Stable Tag** | `stable-employee-smart-forms-hub-localization-pack-v1` |
 | **Current Release Date** | 2026-07-22 |
 | **Total Stable Releases** | 339 (window 2026-06-07 → 2026-07-22) |
