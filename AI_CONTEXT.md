@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `2b9e989` (merge of `feature/business-dictionary-reliability-pack-v1`, carrying Business Dictionary & Reliability Pack v1) |
-| **Current Documentation Commit** | `PENDING_DOC_HASH` — "docs: record Business Dictionary & Reliability Pack v1 release" |
+| **Current Documentation Commit** | `efc3ffa` — "docs: record Business Dictionary & Reliability Pack v1 release" |
 | **Current Stable Tag** | `stable-business-dictionary-reliability-pack-v1` |
 | **Current Release Date** | 2026-07-22 |
 | **Total Stable Releases** | 335 (window 2026-06-07 → 2026-07-22) |
