@@ -34,6 +34,7 @@
    ════════════════════════════════════════════════════════════════════════════ */
 import type { TimelineTransaction } from '../api/bankStatementImport';
 import { safeNum } from './bankTimelineFilters';
+import { formatNumber } from '../lib/format';
 import {
   presentTransaction,
   extractInwardClearingCheque, extractChequeNumberLabeled, extractPresentedChannel,
@@ -184,7 +185,7 @@ function detectChequePresentationType(raw: string, direction: ChequeDirection | 
 }
 
 export const CHEQUE_PRESENTATION_TYPE_LABELS: Record<ChequePresentationType, LabelEntry> = {
-  clearing: { key: 'bank.presentation.cheque_type_clearing', label: 'مقاصة' },
+  clearing: { key: 'bank.presentation.cheque_type_clearing', label: 'مُقدَّم للمقاصة' },
   returned: { key: 'bank.presentation.cheque_type_returned', label: 'مرتجع' },
 };
 
@@ -334,17 +335,23 @@ function resolveRichTitle(
 
 // ── Rich Summary ─────────────────────────────────────────────────────────────
 // A single ERP-style sentence recombining already-extracted values — never a
-// new inference. Generated only for a short list of high-confidence shapes;
-// every other transaction gets no summary at all (hidden, not guessed).
+// new inference. The transaction amount/currency are always genuine structured
+// fields (never extracted/guessed), so a summary is generated for essentially
+// every transaction — richer wording where a strong signal exists (cheque
+// clearing, ATM, internal transfer, counterparty), a plain amount-based
+// sentence otherwise. Only the true edge case of a zero-amount transaction
+// (no debit and no credit) produces no summary at all.
 
 const SUMMARY_TEMPLATES = {
   chequeClearedWithBranch: { key: 'bank.presentation.summary_cheque_cleared_branch', fallback: 'شيك رقم {number} تم تقديمه للمقاصة عبر فرع {branch}.' },
   chequeCleared:           { key: 'bank.presentation.summary_cheque_cleared',        fallback: 'شيك رقم {number} تم تقديمه للمقاصة.' },
-  atmWithdrawal:           { key: 'bank.presentation.summary_atm_withdrawal',        fallback: 'عملية سحب نقدي عبر جهاز الصراف.' },
-  atmDeposit:              { key: 'bank.presentation.summary_atm_deposit',           fallback: 'عملية إيداع نقدي عبر جهاز الصراف.' },
+  atmWithdrawal:           { key: 'bank.presentation.summary_atm_withdrawal',        fallback: 'تم سحب {amount} {currency} عبر جهاز الصراف.' },
+  atmDeposit:              { key: 'bank.presentation.summary_atm_deposit',           fallback: 'تم إيداع {amount} {currency} عبر جهاز الصراف.' },
   internalTransfer:        { key: 'bank.presentation.summary_internal_transfer',     fallback: 'تحويل داخلي بين الحسابات.' },
   transferFrom:            { key: 'bank.presentation.summary_transfer_from',         fallback: 'تحويل بنكي من {counterparty}.' },
   transferTo:              { key: 'bank.presentation.summary_transfer_to',           fallback: 'تحويل بنكي إلى {counterparty}.' },
+  genericWithdrawal:       { key: 'bank.presentation.summary_generic_withdrawal',    fallback: 'تم سحب {amount} {currency}.' },
+  genericDeposit:          { key: 'bank.presentation.summary_generic_deposit',       fallback: 'تم إيداع مبلغ {amount} {currency}.' },
 } as const;
 
 function summarize(entry: { key: string; fallback: string }, vars: Record<string, string>, translate?: TranslateFn): string {
@@ -362,11 +369,19 @@ function buildSummary(
       ? summarize(SUMMARY_TEMPLATES.chequeClearedWithBranch, { number: chequeNumber, branch: presentedBranch }, translate)
       : summarize(SUMMARY_TEMPLATES.chequeCleared, { number: chequeNumber }, translate);
   }
-  if (isAtm && isWithdrawal(tx)) return summarize(SUMMARY_TEMPLATES.atmWithdrawal, {}, translate);
-  if (isAtm && isDeposit(tx)) return summarize(SUMMARY_TEMPLATES.atmDeposit, {}, translate);
+
+  const deposit    = isDeposit(tx);
+  const withdrawal = isWithdrawal(tx);
+  const amount     = formatNumber(deposit ? tx.credit : tx.debit);
+  const currency   = tx.currency;
+
+  if (isAtm && withdrawal) return summarize(SUMMARY_TEMPLATES.atmWithdrawal, { amount, currency }, translate);
+  if (isAtm && deposit) return summarize(SUMMARY_TEMPLATES.atmDeposit, { amount, currency }, translate);
   if (INTERNAL_TRANSFER_PATTERN.test(raw)) return summarize(SUMMARY_TEMPLATES.internalTransfer, {}, translate);
-  if (counterparty && isDeposit(tx)) return summarize(SUMMARY_TEMPLATES.transferFrom, { counterparty }, translate);
-  if (counterparty && isWithdrawal(tx)) return summarize(SUMMARY_TEMPLATES.transferTo, { counterparty }, translate);
+  if (counterparty && deposit) return summarize(SUMMARY_TEMPLATES.transferFrom, { counterparty }, translate);
+  if (counterparty && withdrawal) return summarize(SUMMARY_TEMPLATES.transferTo, { counterparty }, translate);
+  if (deposit) return summarize(SUMMARY_TEMPLATES.genericDeposit, { amount, currency }, translate);
+  if (withdrawal) return summarize(SUMMARY_TEMPLATES.genericWithdrawal, { amount, currency }, translate);
   return undefined;
 }
 

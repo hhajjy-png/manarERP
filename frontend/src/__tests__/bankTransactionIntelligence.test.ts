@@ -50,14 +50,14 @@ describe('Bank Transaction Intelligence Engine v2 — buildTransactionIntelligen
     expect(m.title).toBe('شيك مرتجع');
   });
 
-  it('extracts an ATM ID via a strict labelled anchor and generates the ATM-withdrawal summary', () => {
+  it('extracts an ATM ID via a strict labelled anchor and generates the amount-aware ATM-withdrawal summary', () => {
     const m = buildTransactionIntelligence(tx({
       description: 'ATM Withdrawal ATM ID: 004521', debit: 20,
     }));
     expect(m.atmId).toBe('004521');
     expect(m.channel).toBe('atm');
     expect(m.title).toBe('سحب نقدي عبر جهاز الصراف');
-    expect(m.summary).toBe('عملية سحب نقدي عبر جهاز الصراف.');
+    expect(m.summary).toBe('تم سحب 20.000 KWD عبر جهاز الصراف.');
   });
 
   it('extracts a device ID via the relaxed no-separator numeric fallback ("ATM 004521")', () => {
@@ -74,13 +74,27 @@ describe('Bank Transaction Intelligence Engine v2 — buildTransactionIntelligen
     expect(m.atmId).toBeUndefined();
   });
 
-  it('resolves a cash deposit made via ATM: rich title + ATM-deposit summary', () => {
+  it('resolves a cash deposit made via ATM: rich title + amount-aware ATM-deposit summary', () => {
     const m = buildTransactionIntelligence(tx({
       description: 'Cash Deposit via ATM', credit: 50,
     }));
     expect(m.channel).toBe('atm');
     expect(m.title).toBe('إيداع نقدي');
-    expect(m.summary).toBe('عملية إيداع نقدي عبر جهاز الصراف.');
+    expect(m.summary).toBe('تم إيداع 50.000 KWD عبر جهاز الصراف.');
+  });
+
+  it('generates a plain amount-based withdrawal summary when no other signal applies', () => {
+    const m = buildTransactionIntelligence(tx({
+      description: 'Misc withdrawal', debit: 4670,
+    }));
+    expect(m.summary).toBe('تم سحب 4,670.000 KWD.');
+  });
+
+  it('generates a plain amount-based deposit summary when no other signal applies', () => {
+    const m = buildTransactionIntelligence(tx({
+      description: 'Salary payment', credit: 15459,
+    }));
+    expect(m.summary).toBe('تم إيداع مبلغ 15,459.000 KWD.');
   });
 
   it('detects an internal transfer keyword and extracts both accounts via the relaxed fallback', () => {
@@ -101,7 +115,7 @@ describe('Bank Transaction Intelligence Engine v2 — buildTransactionIntelligen
     expect(m.summary).toBe('تحويل بنكي من Ali Trading Co.');
   });
 
-  it('never fabricates structured fields or a summary when no anchored signal exists', () => {
+  it('never fabricates a structured field when no anchored signal exists (the amount-based summary is not fabrication — debit/credit are always genuine)', () => {
     const m = buildTransactionIntelligence(tx({
       description: 'Miscellaneous adjustment 12345', debit: 10,
     }));
@@ -109,6 +123,11 @@ describe('Bank Transaction Intelligence Engine v2 — buildTransactionIntelligen
     expect(m.chequeDirection).toBeUndefined();
     expect(m.atmId).toBeUndefined();
     expect(m.counterparty).toBeUndefined();
+    expect(m.summary).toBe('تم سحب 10.000 KWD.');
+  });
+
+  it('produces no summary at all for the true edge case of a zero-amount transaction', () => {
+    const m = buildTransactionIntelligence(tx({ description: 'Zero-amount marker', debit: 0, credit: 0 }));
     expect(m.summary).toBeUndefined();
   });
 

@@ -30,9 +30,8 @@ import {
   presentTransaction, CONFIDENCE_LABELS,
   type PresentationConfidence,
 } from './bankTransactionPresentation';
-import {
-  buildTransactionIntelligence, channelLabel, chequeDirectionLabel, chequePresentationTypeLabel,
-} from './bankTransactionIntelligence';
+import { buildTransactionIntelligence } from './bankTransactionIntelligence';
+import { TransactionIntelligencePanel } from './TransactionIntelligencePanel';
 import { formatCurrency, formatNumber } from '../lib/format';
 import { formatDate, formatMonthLabel } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
@@ -172,7 +171,7 @@ function exportTimelineCsv(
 
 // ── Transaction type badge ────────────────────────────────────────────────────
 
-type TxBadgeKind = 'deposit' | 'withdrawal' | 'fee' | 'cheque' | 'transfer';
+export type TxBadgeKind = 'deposit' | 'withdrawal' | 'fee' | 'cheque' | 'transfer';
 
 interface TxBadge { kind: TxBadgeKind; label: string; }
 
@@ -227,24 +226,6 @@ function CopyButton({
       <span className="material-symbols-outlined">{copied ? 'check' : 'content_copy'}</span>
       {copied ? t('bank.explorer.copied') : label}
     </button>
-  );
-}
-
-// ── Collapsible long description (banking-app style) ───────────────────────────
-
-function CollapsibleDescription({ text }: { text: string }) {
-  const { t } = useT();
-  const [expanded, setExpanded] = useState(false);
-  const isLong = text.length > 90;
-  return (
-    <div className="bae-collapsible-desc">
-      <span className={expanded || !isLong ? '' : 'bae-desc-clamp'}>{text}</span>
-      {isLong && (
-        <button type="button" className="bae-desc-toggle" onClick={() => setExpanded((v) => !v)}>
-          {expanded ? t('bank.explorer.show_less') : t('bank.explorer.show_more')}
-        </button>
-      )}
-    </div>
   );
 }
 
@@ -610,17 +591,8 @@ function TransactionDrawer({
   // Intelligence view model (display-only): structured, optional fields built on
   // top of `pres` — channel, counterparty, cheque/branch/account/reference/device
   // identifiers. Never fabricated; every value is a literal substring of the
-  // source. Powers the redesigned "structured info" block below.
+  // source. Powers the Transaction Intelligence Panel rendered below the hero.
   const intel = buildTransactionIntelligence(tx, t);
-  const structuredFieldValues = [
-    intel.chequeNumber, intel.branch, intel.referenceNumber,
-    intel.atmId, intel.terminalId, intel.sourceAccount, intel.destinationAccount,
-  ].filter((v): v is string => Boolean(v));
-  // The old single "detail" line is still shown, but only when it isn't already
-  // covered by one of the structured rows above (avoids showing the same value twice).
-  const extraDetail = intel.subtitle && !structuredFieldValues.some((v) => intel.subtitle!.includes(v))
-    ? intel.subtitle
-    : undefined;
 
   return (
     <>
@@ -670,6 +642,8 @@ function TransactionDrawer({
             </div>
           </div>
 
+          <TransactionIntelligencePanel intel={intel} badgeKind={badge.kind} />
+
           {/* ── Information-Hub tab bar ── */}
           <div className="bae-drawer-tabs" role="tablist" aria-label={t('bank.explorer.tx_sections_label')}>
             {DRAWER_TABS.map((dt) => (
@@ -691,133 +665,29 @@ function TransactionDrawer({
           <div className="bae-drawer-panel" role="tabpanel">
             {/* Basic */}
             {drawerTab === 'basic' && (
-              <>
-                <section className="bae-drawer-section">
-                  <div className="bae-drawer-section-title">{t('bank.explorer.tx_info')}</div>
+              <section className="bae-drawer-section">
+                <div className="bae-drawer-section-title">{t('bank.explorer.tx_info')}</div>
+                <div className="bae-drawer-field">
+                  <span className="bae-drawer-field-label">{t('col.date')}</span>
+                  <span className="bae-drawer-field-value">{fmtDate(tx.statementDate)}</span>
+                </div>
+                {tx.postingDate && tx.postingDate !== tx.statementDate && (
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">{t('col.date')}</span>
-                    <span className="bae-drawer-field-value">{fmtDate(tx.statementDate)}</span>
+                    <span className="bae-drawer-field-label">{t('bank.explorer.posting_date')}</span>
+                    <span className="bae-drawer-field-value">{fmtDate(tx.postingDate)}</span>
                   </div>
-                  {tx.postingDate && tx.postingDate !== tx.statementDate && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('bank.explorer.posting_date')}</span>
-                      <span className="bae-drawer-field-value">{fmtDate(tx.postingDate)}</span>
-                    </div>
-                  )}
-                  <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">{t('field.cheque.currency')}</span>
-                    <span className="bae-drawer-field-value">{tx.currency}</span>
-                  </div>
-                  <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">{t('field.status')}</span>
-                    <span className={`bae-status-badge bae-status-badge--${reconcileClass}`}>
-                      {reconcileLabel(tx.reconcileStatus, t)}
-                    </span>
-                  </div>
-                </section>
-
-                <section className="bae-drawer-section">
-                  <div className="bae-drawer-section-title">{t('col.description')}</div>
-
-                  {intel.summary && (
-                    <div className="bae-tx-summary">
-                      <span className="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
-                      <div>
-                        <span className="bae-tx-summary-label">{t('bank.explorer.tx_summary')}</span>
-                        <p className="bae-tx-summary-text">{intel.summary}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">{t('bank.explorer.tx_type')}</span>
-                    <span className="bae-drawer-field-value">{intel.title}</span>
-                  </div>
-                  {intel.channel && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('bank.explorer.tx_channel')}</span>
-                      <span className="bae-drawer-field-value">{channelLabel(intel.channel, t)}</span>
-                    </div>
-                  )}
-
-                  {(intel.counterparty || intel.sourceAccount || intel.destinationAccount) && (
-                    <div className="bae-drawer-field-group-title">{t('bank.explorer.group_parties')}</div>
-                  )}
-                  {intel.counterparty && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('bank.explorer.counterparty')}</span>
-                      <span className="bae-drawer-field-value">{intel.counterparty}</span>
-                    </div>
-                  )}
-                  {intel.sourceAccount && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('bank.explorer.source_account')}</span>
-                      <span className="bae-drawer-field-value mono">{intel.sourceAccount}</span>
-                    </div>
-                  )}
-                  {intel.destinationAccount && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('bank.explorer.destination_account')}</span>
-                      <span className="bae-drawer-field-value mono">{intel.destinationAccount}</span>
-                    </div>
-                  )}
-
-                  {(intel.chequeNumber || intel.chequeDirection || intel.chequePresentationType || intel.branch) && (
-                    <div className="bae-drawer-field-group-title">{t('bank.explorer.group_cheque')}</div>
-                  )}
-                  {intel.chequeNumber && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('field.cheque.number')}</span>
-                      <span className="bae-drawer-field-value mono">{intel.chequeNumber}</span>
-                    </div>
-                  )}
-                  {intel.chequeDirection && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('bank.explorer.cheque_direction')}</span>
-                      <span className="bae-drawer-field-value">{chequeDirectionLabel(intel.chequeDirection, t)}</span>
-                    </div>
-                  )}
-                  {intel.chequePresentationType && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('bank.explorer.cheque_presentation_type')}</span>
-                      <span className="bae-drawer-field-value">{chequePresentationTypeLabel(intel.chequePresentationType, t)}</span>
-                    </div>
-                  )}
-                  {intel.branch && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('bank.explorer.branch')}</span>
-                      <span className="bae-drawer-field-value mono">{intel.branch}</span>
-                    </div>
-                  )}
-
-                  {(intel.referenceNumber || intel.atmId || intel.terminalId) && (
-                    <div className="bae-drawer-field-group-title">{t('bank.explorer.group_reference')}</div>
-                  )}
-                  {intel.referenceNumber && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('bank.explorer.reference_number')}</span>
-                      <span className="bae-drawer-field-value mono">{intel.referenceNumber}</span>
-                    </div>
-                  )}
-                  {(intel.atmId || intel.terminalId) && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('bank.explorer.device_number')}</span>
-                      <span className="bae-drawer-field-value mono">{intel.atmId ?? intel.terminalId}</span>
-                    </div>
-                  )}
-                  {extraDetail && (
-                    <div className="bae-drawer-field bae-drawer-field--col">
-                      <span className="bae-drawer-field-label">{t('bank.explorer.additional_detail')}</span>
-                      <span className="bae-drawer-field-value">{extraDetail}</span>
-                    </div>
-                  )}
-
-                  <details className="bae-drawer-desc-raw">
-                    <summary className="bae-drawer-desc-raw-label">{t('bank.explorer.original_text')}</summary>
-                    <CollapsibleDescription text={tx.description} />
-                  </details>
-                </section>
-              </>
+                )}
+                <div className="bae-drawer-field">
+                  <span className="bae-drawer-field-label">{t('field.cheque.currency')}</span>
+                  <span className="bae-drawer-field-value">{tx.currency}</span>
+                </div>
+                <div className="bae-drawer-field">
+                  <span className="bae-drawer-field-label">{t('field.status')}</span>
+                  <span className={`bae-status-badge bae-status-badge--${reconcileClass}`}>
+                    {reconcileLabel(tx.reconcileStatus, t)}
+                  </span>
+                </div>
+              </section>
             )}
 
             {/* Financial */}

@@ -1112,18 +1112,6 @@ html[data-theme="dark"] .bae-tab-bar--nav .bae-tab-btn.active .bae-tab-icon { co
 }
 .bae-copy-btn .material-symbols-outlined { font-size: 16px !important; }
 
-/* ── Collapsible description ──────────────────────────────────────────────── */
-.bae-collapsible-desc { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
-.bae-collapsible-desc > span { font-size: 13px; color: var(--text); line-height: 1.55; word-break: break-word; }
-.bae-desc-clamp {
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.bae-desc-toggle {
-  background: none; border: none; cursor: pointer; padding: 0;
-  font-size: 12px; font-weight: 700; color: var(--primary);
-}
-.bae-desc-toggle:hover { text-decoration: underline; }
-
 /* ── Drawer — hero, sections, footer, status badges ───────────────────────── */
 .bae-drawer { width: 440px; }
 .bae-drawer-hero {
@@ -1395,52 +1383,6 @@ html[data-theme="dark"] .bae-drawer-tab.active {
 }
 html[data-theme="dark"] .bae-drawer-tab.active .material-symbols-outlined { color: #fff; }
 .bae-drawer-panel { display: flex; flex-direction: column; gap: 12px; }
-
-/* Parsed description card */
-.bae-drawer-desc-raw { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 4px; }
-.bae-drawer-desc-raw-label {
-  display: flex; align-items: center; gap: 6px;
-  cursor: pointer; list-style: none; user-select: none;
-  font-size: 10.5px; font-weight: 700; color: var(--muted);
-}
-.bae-drawer-desc-raw-label::-webkit-details-marker { display: none; }
-.bae-drawer-desc-raw-label::after {
-  content: '\203A'; margin-inline-start: auto; color: var(--muted);
-  transition: transform .15s ease; font-weight: 700;
-}
-.bae-drawer-desc-raw[open] .bae-drawer-desc-raw-label::after { transform: rotate(90deg); }
-.bae-drawer-desc-raw .bae-collapsible-desc { margin-top: 6px; }
-
-/* Structured-info group micro-headers (visual hierarchy, v2) */
-.bae-drawer-field-group-title {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 14px 0 2px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--border);
-}
-
-/* Transaction summary callout (v2) — Fiori/Dynamics-style highlighted recap */
-.bae-tx-summary {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  background: color-mix(in srgb, var(--xpl-primary, #6366f1) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--xpl-primary, #6366f1) 22%, transparent);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 14px;
-}
-.bae-tx-summary .material-symbols-outlined { font-size: 18px; color: var(--xpl-primary, #6366f1); margin-top: 1px; }
-.bae-tx-summary-label {
-  display: block;
-  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-  color: var(--xpl-primary, #6366f1); margin-bottom: 2px;
-}
-.bae-tx-summary-text { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text); }
 
 /* Attachments / empty tab state */
 .bae-drawer-empty {
