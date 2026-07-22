@@ -1,94 +1,124 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Accounting Integrity Pack v1 — financialSummary is now sourced from the GENERAL LEDGER,
-// accrual basis. Revenue/expense/net come from GL account-type sums (glProfitAndLoss); the
-// old operational-table computation (Invoice/Expense/Payment) with a cash-flavored
-// netProfit was retired because it produced a parallel figure that diverged from the
-// trial balance. This file locks the GL-single-source, accrual behavior in.
+// Operational Reporting Migration — Pack 6 — inverted invariant:
+// financialSummary() is now a HYBRID (per the Pack 5 audit, officially approved):
+//   Operational KPIs (totalRevenue, totalExpenses, totalCollected, netProfit) come from
+//   the Operational Financial Engine (Invoice / APPROVED Expense / Payment) — matching
+//   Dashboard, Executive, and the P&L Report exactly (Packs 2-4).
+//   Accounting KPIs (journalEntryCount, totalJournalDebit, totalJournalCredit) remain
+//   exactly as they were — GL-sourced, unchanged, no operational equivalent exists.
+// This file replaces the prior "GL single source" invariant (Accounting Integrity Pack
+// v1), which this pack deliberately supersedes for the four operational fields only.
 
 vi.mock('../../../config/database', () => ({
   prisma: {
+    invoice: { aggregate: vi.fn() },
+    expense: { aggregate: vi.fn() },
+    payment: { aggregate: vi.fn() },
+    // Still used, but ONLY for supplier-payments (AP control account, untouched by this
+    // pack) and the raw journal debit/credit grand totals — never for revenue/expense.
     journalEntryLine: { aggregate: vi.fn() },
-    journalEntry:     { count: vi.fn() },
+    journalEntry: { count: vi.fn() },
   },
 }));
 
 import { prisma } from '../../../config/database';
 import { accountingService } from '../accounting.service';
 
-interface LineMock {
-  revenueCredit?: number; revenueDebit?: number;
-  expenseDebit?: number;  expenseCredit?: number;
-  arCredit?: number;      apDebit?: number;
-  journalDebit?: number;  journalCredit?: number;
+/** Sets invoice/expense/payment aggregates to fixed operational sums for every call. */
+function mockOperational(revenue: number, expense: number, collected: number) {
+  vi.mocked(prisma.invoice.aggregate).mockResolvedValue({
+    _sum: { total: revenue, paidAmount: 0 },
+  } as never);
+  vi.mocked(prisma.expense.aggregate).mockResolvedValue({
+    _sum: { amount: expense },
+  } as never);
+  vi.mocked(prisma.payment.aggregate).mockResolvedValue({
+    _sum: { amount: collected },
+  } as never);
 }
 
-/** Route each journalEntryLine.aggregate call to the right figure by its where-clause. */
-function mockLines(m: LineMock = {}) {
+/**
+ * Routes journalEntryLine.aggregate calls by shape. Only two call shapes remain in
+ * financialSummary() after Pack 6: the AP control-account flow (account.code '2000',
+ * untouched) and the raw journal grand totals (no account filter, untouched).
+ */
+function mockJournalLines(m: { apDebit?: number; journalDebit?: number; journalCredit?: number } = {}) {
   vi.mocked(prisma.journalEntryLine.aggregate).mockImplementation((async (args: any) => {
-    const w = args?.where ?? {};
-    const type = w.account?.type;
-    const code = w.account?.code;
-    if (type === 'REVENUE') return { _sum: { credit: m.revenueCredit ?? 0, debit: m.revenueDebit ?? 0 } } as any;
-    if (type === 'EXPENSE') return { _sum: { debit: m.expenseDebit ?? 0, credit: m.expenseCredit ?? 0 } } as any;
-    if (code === '1100')    return { _sum: { credit: m.arCredit ?? 0, debit: 0 } } as any; // AR ← PAYMENT
-    if (code === '2000')    return { _sum: { debit: m.apDebit ?? 0, credit: 0 } } as any;  // AP ← PURCHASE_PAYMENT
-    // journal grand totals (no account filter)
-    return { _sum: { debit: m.journalDebit ?? 0, credit: m.journalCredit ?? 0 } } as any;
-  }) as any);
+    const code = args?.where?.account?.code;
+    if (code === '2000') return { _sum: { debit: m.apDebit ?? 0, credit: 0 } }; // AP ← PURCHASE_PAYMENT
+    return { _sum: { debit: m.journalDebit ?? 0, credit: m.journalCredit ?? 0 } }; // journal grand totals
+  }) as never);
 }
 
-describe('financialSummary — single accounting source (GL, accrual)', () => {
+describe('financialSummary — hybrid: Operational KPIs + Accounting KPIs (Pack 6)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockLines();
-    vi.mocked(prisma.journalEntry.count).mockResolvedValue(0 as any);
+    mockOperational(0, 0, 0);
+    mockJournalLines();
+    vi.mocked(prisma.journalEntry.count).mockResolvedValue(0 as never);
   });
 
-  it('revenue and expenses come from the GL (account-type sums), not operational tables', async () => {
-    mockLines({ revenueCredit: 10000, expenseDebit: 3000 });
+  it('totalRevenue/totalExpenses come from Invoice/APPROVED Expense, not GL', async () => {
+    mockOperational(10000, 3000, 0);
     const result = await accountingService.financialSummary();
 
     expect(result.totalRevenue).toBeCloseTo(10000, 3);
     expect(result.totalExpenses).toBeCloseTo(3000, 3);
 
-    // GL account-type aggregates were used, filtered to POSTED entries.
-    const calls = vi.mocked(prisma.journalEntryLine.aggregate).mock.calls;
-    const types = calls.map((c: any) => c[0]?.where?.account?.type);
-    expect(types).toContain('REVENUE');
-    expect(types).toContain('EXPENSE');
-    const statuses = calls.map((c: any) => c[0]?.where?.journalEntry?.status);
-    expect(statuses.every((s: string) => s === 'POSTED')).toBe(true);
+    const invoiceCall = vi.mocked(prisma.invoice.aggregate).mock.calls.find(
+      (c) => (c[0] as any)?.where?.status?.not === 'CANCELLED',
+    );
+    expect(invoiceCall).toBeDefined();
+    expect((invoiceCall![0] as any).where.direction).toBe('SALES');
+
+    const approvedExpenseCalls = vi.mocked(prisma.expense.aggregate).mock.calls.filter(
+      (c) => (c[0] as any).where?.status === 'APPROVED',
+    );
+    expect(approvedExpenseCalls.length).toBeGreaterThan(0);
+
+    // GL is never queried for revenue/expense account-type sums anymore.
+    const glCalls = vi.mocked(prisma.journalEntryLine.aggregate).mock.calls;
+    const glAccountTypes = glCalls.map((c: any) => c[0]?.where?.account?.type);
+    expect(glAccountTypes).not.toContain('REVENUE');
+    expect(glAccountTypes).not.toContain('EXPENSE');
   });
 
-  it('netProfit is ACCRUAL (revenue − expenses), not cash (collected − expenses)', async () => {
-    // revenue invoiced 10000, collected only 8000, expenses 3000.
-    mockLines({ revenueCredit: 10000, expenseDebit: 3000, arCredit: 8000 });
+  it('totalCollected comes from Payment, not the GL AR control-account flow', async () => {
+    mockOperational(0, 0, 4200);
     const result = await accountingService.financialSummary();
 
-    expect(result.netProfit).toBeCloseTo(7000, 3); // 10000 − 3000 (accrual), NOT 8000 − 3000
-    expect(result.totalCollected).toBeCloseTo(8000, 3);
-  });
-
-  it('reversal entries net out automatically on revenue/expense accounts', async () => {
-    // a reversed invoice leaves a debit on the revenue account that nets the credit down.
-    mockLines({ revenueCredit: 10000, revenueDebit: 2000, expenseDebit: 3000, expenseCredit: 500 });
-    const result = await accountingService.financialSummary();
-
-    expect(result.totalRevenue).toBeCloseTo(8000, 3);  // 10000 − 2000
-    expect(result.totalExpenses).toBeCloseTo(2500, 3); // 3000 − 500
-    expect(result.netProfit).toBeCloseTo(5500, 3);
-  });
-
-  it('totalCollected = customer collections (AR credit on PAYMENT entries)', async () => {
-    mockLines({ arCredit: 4200 });
-    const result = await accountingService.financialSummary();
     expect(result.totalCollected).toBeCloseTo(4200, 3);
+
+    // The old AR (code '1100') control-account query no longer exists in this function.
+    const glCalls = vi.mocked(prisma.journalEntryLine.aggregate).mock.calls;
+    const arCall = glCalls.find((c: any) => c[0]?.where?.account?.code === '1100');
+    expect(arCall).toBeUndefined();
   });
 
-  it('exposes GL grand totals and the posted-entry count', async () => {
-    mockLines({ journalDebit: 1000, journalCredit: 1000 });
-    vi.mocked(prisma.journalEntry.count).mockResolvedValue(3 as any);
+  it('netProfit comes from the Operational Financial Engine (revenue − expenses)', async () => {
+    // revenue 10000, expenses 3000, collected 8000 (collections must NOT leak into netProfit)
+    mockOperational(10000, 3000, 8000);
+    const result = await accountingService.financialSummary();
+
+    expect(result.netProfit).toBeCloseTo(7000, 3); // 10000 − 3000, not 8000 − 3000
+  });
+
+  it('cancelled invoices never contribute to totalRevenue', async () => {
+    mockOperational(5000, 0, 0);
+    await accountingService.financialSummary();
+
+    const invoiceCall = vi.mocked(prisma.invoice.aggregate).mock.calls.find(
+      (c) => (c[0] as any)?.where?.status?.not === 'CANCELLED',
+    );
+    expect(invoiceCall).toBeDefined();
+  });
+
+  it('journalEntryCount / totalJournalDebit / totalJournalCredit still come from GL, unaffected by operational values', async () => {
+    mockOperational(999999, 999999, 999999); // large operational values, must not leak into journal totals
+    mockJournalLines({ journalDebit: 1000, journalCredit: 1000 });
+    vi.mocked(prisma.journalEntry.count).mockResolvedValue(3 as never);
+
     const result = await accountingService.financialSummary();
 
     expect(result.journalEntryCount).toBe(3);
@@ -96,12 +126,39 @@ describe('financialSummary — single accounting source (GL, accrual)', () => {
     expect(result.totalJournalCredit).toBeCloseTo(1000, 3);
   });
 
-  it('date filters scope every GL query to the period', async () => {
+  it('an empty period returns zero for every operational and accounting field', async () => {
+    mockOperational(0, 0, 0);
+    mockJournalLines({ journalDebit: 0, journalCredit: 0 });
+    vi.mocked(prisma.journalEntry.count).mockResolvedValue(0 as never);
+
+    const result = await accountingService.financialSummary();
+
+    expect(result.totalRevenue).toBe(0);
+    expect(result.totalExpenses).toBe(0);
+    expect(result.totalCollected).toBe(0);
+    expect(result.netProfit).toBe(0);
+    expect(result.journalEntryCount).toBe(0);
+    expect(result.totalJournalDebit).toBe(0);
+    expect(result.totalJournalCredit).toBe(0);
+    expect(result.totalPaymentsRecorded).toBe(0);
+  });
+
+  it('date filters scope both the operational engine calls and the retained GL queries', async () => {
     await accountingService.financialSummary('2026-01-01', '2026-06-30');
 
-    const calls = vi.mocked(prisma.journalEntryLine.aggregate).mock.calls;
-    expect(calls.length).toBeGreaterThan(0);
-    for (const call of calls) {
+    const invoiceCall = vi.mocked(prisma.invoice.aggregate).mock.calls.find(
+      (c) => (c[0] as any)?.where?.status?.not === 'CANCELLED',
+    );
+    expect((invoiceCall![0] as any).where.issueDate).toBeDefined();
+
+    const expenseCall = vi.mocked(prisma.expense.aggregate).mock.calls.find(
+      (c) => (c[0] as any).where?.status === 'APPROVED',
+    );
+    expect((expenseCall![0] as any).where.date).toBeDefined();
+
+    const glCalls = vi.mocked(prisma.journalEntryLine.aggregate).mock.calls;
+    expect(glCalls.length).toBeGreaterThan(0);
+    for (const call of glCalls) {
       expect((call[0] as any).where?.journalEntry?.date).toBeDefined();
     }
     const countWhere = (vi.mocked(prisma.journalEntry.count).mock.calls[0][0] as any).where;

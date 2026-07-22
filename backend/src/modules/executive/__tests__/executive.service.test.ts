@@ -7,7 +7,10 @@ vi.mock('../../../config/database', () => ({
     payment:  { aggregate: vi.fn(), findMany: vi.fn() },
     contract: { count: vi.fn(), findMany: vi.fn(), groupBy: vi.fn() },
     customer: { count: vi.fn() },
-    // إجمالي المصروفات صار يُشتق من الأستاذ العام (glProfitAndLoss → journalEntryLine).
+    // Operational Reporting Migration — Pack 4: revenue/expenses/collections/receivables/
+    // net profit now come from the Operational Financial Engine (Invoice/APPROVED
+    // Expense/Payment), never GL. journalEntryLine is kept mocked solely so tests can
+    // assert it is NEVER called.
     journalEntryLine: { aggregate: vi.fn() },
   },
 }));
@@ -30,8 +33,29 @@ function defaultMocks() {
   vi.mocked(prisma.contract.findMany).mockResolvedValue([]);
   vi.mocked(prisma.contract.groupBy).mockResolvedValue([]);
   vi.mocked(prisma.customer.count).mockResolvedValue(0);
-  // GL P&L (إجمالي المصروفات) — صفر افتراضيًا: كل مجاميع REVENUE/EXPENSE فارغة.
+  // GL must never be touched by decisionCenter()/kpiTimeline() after Pack 4 — tests assert
+  // this mock is never called rather than seeding a return value for it.
   vi.mocked(prisma.journalEntryLine.aggregate).mockResolvedValue({ _sum: { debit: null, credit: null } } as any);
+}
+
+/**
+ * The Operational Financial Engine's `getExpenses()` filters `status: 'APPROVED'` (a plain
+ * string). The pre-existing this/last-month expense queries in `decisionCenter()` (left
+ * untouched by Pack 4 — out of scope, see the pack's summary) still filter with the older
+ * `status: { notIn: [...] }` shape. This lets a test target one or the other precisely,
+ * regardless of the engine's internal call ordering.
+ */
+function isEngineExpenseQuery(args: any): boolean {
+  return args?.where?.status === 'APPROVED';
+}
+
+/**
+ * The engine's `getCollections()`/`getAccountsReceivable()` always filter `invoice.status`
+ * (`{ not: 'CANCELLED' }`); the pre-existing this/last-month collection queries only filter
+ * `invoice.direction`, with no `status` key at all. This distinguishes them precisely.
+ */
+function isEnginePaymentQuery(args: any): boolean {
+  return !!args?.where?.invoice && 'status' in args.where.invoice;
 }
 
 describe('ExecutiveService — decisionCenter()', () => {
@@ -55,14 +79,15 @@ describe('ExecutiveService — decisionCenter()', () => {
     // نهاية الفترة بنهاية اليوم (لا منتصف الليل).
     expect(revWhere.issueDate.lte.getHours()).toBe(23);
 
-    // المصروفات صارت من الأستاذ العام (glProfitAndLoss → journalEntryLine على حسابات EXPENSE)،
-    // فتُفحص نافذة الفترة على قيد اليومية لا على جدول Expense.
-    const glCalls = vi.mocked(prisma.journalEntryLine.aggregate).mock.calls;
-    const glExpCall = glCalls.find((c: any) => c[0]?.where?.account?.type === 'EXPENSE');
-    expect(glExpCall).toBeDefined();
-    const glExpDate = (glExpCall![0] as any).where.journalEntry.date;
-    expect(glExpDate.gte).toBeInstanceOf(Date);
-    expect(glExpDate.lte.getHours()).toBe(23);
+    // المصروفات صارت من محرك التقارير التشغيلية (Expense المعتمدة)، لا الأستاذ العام —
+    // فتُفحص نافذة الفترة على جدول Expense مباشرة، ولا يُستدعى GL إطلاقًا.
+    const expCalls = vi.mocked(prisma.expense.aggregate).mock.calls;
+    const engineExpCall = expCalls.find((c: any) => isEngineExpenseQuery(c[0]));
+    expect(engineExpCall).toBeDefined();
+    const expDate = (engineExpCall![0] as any).where.date;
+    expect(expDate.gte).toBeInstanceOf(Date);
+    expect(expDate.lte.getHours()).toBe(23);
+    expect(vi.mocked(prisma.journalEntryLine.aggregate)).not.toHaveBeenCalled();
 
     const colWhere = (vi.mocked(prisma.payment.aggregate).mock.calls[0][0] as any).where;
     expect(colWhere.date.gte).toBeInstanceOf(Date);
@@ -199,19 +224,23 @@ describe('ExecutiveService — decisionCenter()', () => {
   });
 
   it('EXCELLENT label for high collection + high profit', async () => {
-    // revenue 10000, collected 9800 (98%), expenses 1000 (10% margin = 90%)
-    vi.mocked(prisma.invoice.aggregate)
-      .mockResolvedValueOnce({ _sum: { total: 10000 } } as any)   // totalRevenue
-      .mockResolvedValue({ _sum: { total: null, paidAmount: null } } as any);
-    vi.mocked(prisma.payment.aggregate)
-      .mockResolvedValueOnce({ _sum: { amount: 9800 } } as any)   // totalCollected
-      .mockResolvedValueOnce({ _sum: { amount: 1200 } } as any)   // thisMonthCol
-      .mockResolvedValueOnce({ _sum: { amount: 900 } } as any)    // lastMonthCol
-      .mockResolvedValue({ _sum: { amount: null } } as any);
-    vi.mocked(prisma.expense.aggregate)
-      .mockResolvedValueOnce({ _sum: { amount: 1000 } } as any)   // totalExpenses
-      .mockResolvedValueOnce({ _sum: { amount: 400 } } as any)    // thisMonthExp (< col)
-      .mockResolvedValue({ _sum: { amount: null } } as any);
+    // revenue 10000, collected 9800 (98%), expenses 1000 (10% margin = 90%). Shape-based
+    // mocks target the engine's own revenue/expense calls (both the direct and the
+    // P&L-internal ones get the same value — they represent the same underlying figure)
+    // and the fixed this/last-month comparison queries, regardless of call order.
+    vi.mocked(prisma.invoice.aggregate).mockImplementation((async () => ({
+      _sum: { total: 10000, paidAmount: null },
+    })) as never);
+    vi.mocked(prisma.expense.aggregate).mockImplementation((async (args: any) => {
+      if (isEngineExpenseQuery(args)) return { _sum: { amount: 1000 } };
+      // fixed this/last-month expense (old notIn[...] filter) — kept low, under collections
+      return { _sum: { amount: 400 } };
+    }) as never);
+    vi.mocked(prisma.payment.aggregate).mockImplementation((async (args: any) => {
+      if (isEnginePaymentQuery(args)) return { _sum: { amount: 9800 } }; // collections/AR
+      if (args?.where?.date?.lte) return { _sum: { amount: 900 } };     // lastMonthCol
+      return { _sum: { amount: 1200 } };                                // thisMonthCol
+    }) as never);
 
     const result = await service.decisionCenter();
     // With 98% collection and 90% margin the score should be GOOD or EXCELLENT
@@ -243,15 +272,17 @@ describe('ExecutiveService — decisionCenter()', () => {
   });
 
   it('CASH_FLOW_WARNING raised when this-month expenses > collections (>2x = HIGH)', async () => {
-    // thisMonthCol = 200, thisMonthExp = 5000
-    vi.mocked(prisma.payment.aggregate)
-      .mockResolvedValueOnce({ _sum: { amount: null } } as any)  // totalCollected
-      .mockResolvedValueOnce({ _sum: { amount: 200 } } as any)   // thisMonthCol
-      .mockResolvedValue({ _sum: { amount: null } } as any);
-    // إجمالي المصروفات صار من الأستاذ العام؛ أول expense.aggregate الآن = مصروف الشهر الحالي.
-    vi.mocked(prisma.expense.aggregate)
-      .mockResolvedValueOnce({ _sum: { amount: 5000 } } as any)  // thisMonthExp
-      .mockResolvedValue({ _sum: { amount: null } } as any);
+    // thisMonthCol = 200, thisMonthExp = 5000. Shape-based mocks (not positional) so the
+    // engine's own internal collections/expenses calls don't shadow these fixed-to-now
+    // comparison queries, regardless of how many calls the engine makes internally.
+    vi.mocked(prisma.payment.aggregate).mockImplementation((async (args: any) => {
+      if (isEnginePaymentQuery(args)) return { _sum: { amount: null } }; // engine collections/AR
+      return { _sum: { amount: 200 } }; // thisMonthCol (and lastMonthCol, harmlessly)
+    }) as never);
+    vi.mocked(prisma.expense.aggregate).mockImplementation((async (args: any) => {
+      if (isEngineExpenseQuery(args)) return { _sum: { amount: null } }; // engine totalExpenses
+      return { _sum: { amount: 5000 } }; // thisMonthExp
+    }) as never);
 
     const result = await service.decisionCenter();
     const alert = result.alertsV3.find(a => a.type === 'CASH_FLOW_WARNING');
@@ -260,12 +291,13 @@ describe('ExecutiveService — decisionCenter()', () => {
   });
 
   it('COLLECTION_DETERIORATION raised when this-month < last-month * 0.8', async () => {
-    // lastMonthCol = 1000, thisMonthCol = 600 (60%) → < 80%
-    vi.mocked(prisma.payment.aggregate)
-      .mockResolvedValueOnce({ _sum: { amount: null } } as any)   // totalCollected
-      .mockResolvedValueOnce({ _sum: { amount: 600 } } as any)    // thisMonthCol
-      .mockResolvedValueOnce({ _sum: { amount: 1000 } } as any)   // lastMonthCol
-      .mockResolvedValue({ _sum: { amount: null } } as any);
+    // lastMonthCol = 1000, thisMonthCol = 600 (60%) → < 80%. Distinguish this/last month by
+    // the presence of an upper bound (`lte`) on the date filter — only lastMonthCol has one.
+    vi.mocked(prisma.payment.aggregate).mockImplementation((async (args: any) => {
+      if (isEnginePaymentQuery(args)) return { _sum: { amount: null } }; // engine collections/AR
+      if (args?.where?.date?.lte) return { _sum: { amount: 1000 } };    // lastMonthCol
+      return { _sum: { amount: 600 } };                                 // thisMonthCol
+    }) as never);
 
     const result = await service.decisionCenter();
     const alert = result.alertsV3.find(a => a.type === 'COLLECTION_DETERIORATION');
@@ -273,11 +305,13 @@ describe('ExecutiveService — decisionCenter()', () => {
   });
 
   it('EXPENSE_SPIKE raised when this-month expenses > last-month * 1.25', async () => {
-    // إجمالي المصروفات صار من الأستاذ العام؛ أول expense.aggregate الآن = مصروف الشهر الحالي.
-    vi.mocked(prisma.expense.aggregate)
-      .mockResolvedValueOnce({ _sum: { amount: 2000 } } as any)   // thisMonthExp
-      .mockResolvedValueOnce({ _sum: { amount: 1000 } } as any)   // lastMonthExp
-      .mockResolvedValue({ _sum: { amount: null } } as any);
+    // thisMonthExp = 2000, lastMonthExp = 1000. Distinguished from the engine's own
+    // APPROVED-only calls, and from each other via the date upper bound.
+    vi.mocked(prisma.expense.aggregate).mockImplementation((async (args: any) => {
+      if (isEngineExpenseQuery(args)) return { _sum: { amount: null } }; // engine totalExpenses
+      if (args?.where?.date?.lte) return { _sum: { amount: 1000 } };     // lastMonthExp
+      return { _sum: { amount: 2000 } };                                 // thisMonthExp
+    }) as never);
 
     const result = await service.decisionCenter();
     const alert = result.alertsV3.find(a => a.type === 'EXPENSE_SPIKE');

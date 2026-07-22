@@ -3,11 +3,19 @@ import { prisma } from '../../config/database';
 import { roundMoney } from '../utils/money';
 
 /**
- * محرّك التقارير المالية من الأستاذ العام (القيد المزدوج) — **المصدر المحاسبي الوحيد**.
+ * محرّك التقارير المالية من الأستاذ العام (القيد المزدوج).
  *
- * كل أرقام الإيراد/المصروف/الربح في النظام (لوحة القيادة، الأرباح والخسائر، الملخص المالي)
- * تُشتق من هنا، فلا تبقى حسابات محاسبية موازية على الدفتر القديم (Transaction) أو على
- * الجداول التشغيلية تُنتج أرقامًا مختلفة لنفس الفترة.
+ * منذ Operational Reporting Migration (الحزم 1-6، معتمدة نهائيًا): هذا المحرك **لم يعد**
+ * مصدر أرقام الإدارة (لوحة التحكم، مركز القرار التنفيذي، تقرير الأرباح والخسائر، الملخص
+ * المالي في المحاسبة) — تلك تأتي الآن من محرك التقارير التشغيلية
+ * (`shared/services/operational.reporting.ts`). هذا الملف يبقى المصدر حصريًا لِـ: دفتر
+ * اليومية، دليل الحسابات، ميزان المراجعة، والمراجعة المحاسبية.
+ *
+ * استخدامان متبقيان فقط، كلاهما مقصود:
+ *   - `transactions.service.ts profitAndLoss()` — `/transactions/profit-loss`، لم يُهاجَر
+ *     بعد عمدًا (مؤجَّل لحزمة تنظيف لاحقة).
+ *   - `accounting.service.ts financialSummary()` — حركة حساب الرقابة لمدفوعات الموردين
+ *     (AP) فقط عبر `glAccountFlow`، أبقاها قرار الحزمة 6 دون تغيير.
  *
  * الأساس: استحقاقي (accrual). الإيراد يُعترَف عند إصدار الفاتورة (قيد Dr AR / Cr Revenue)،
  * والمصروف عند اعتماده/صرفه. القيود العكسية (‎*_REVERSAL) تُطرح تلقائيًا لأنها أسطر معاكسة
@@ -66,23 +74,10 @@ export async function glProfitAndLoss(
   return { revenue, expenses, netProfit: roundMoney(revenue - expenses) };
 }
 
-/** الأرباح والخسائر لكل شهر ضمن نوافذ مُعطاة (للاتجاه الشهري وتقرير الأرباح). */
-export async function glMonthlyProfitAndLoss(
-  months: { label: string; start: Date; end: Date }[],
-  client: Client = prisma,
-): Promise<{ label: string; revenue: number; expense: number; net: number }[]> {
-  return Promise.all(
-    months.map(async (m) => {
-      const pl = await glProfitAndLoss({ from: m.start, to: m.end }, client);
-      return { label: m.label, revenue: pl.revenue, expense: pl.expenses, net: pl.netProfit };
-    }),
-  );
-}
-
 /**
  * صافي حركة حساب نظام (بالرمز) على قيود من أنواع مرجع محدَّدة — لمؤشرات النقد.
- * يُرجع مجموع المدين والدائن (مقرَّبَين). مثال: تحصيلات العملاء = دائن حساب الذمم (1100)
- * على قيود PAYMENT.
+ * يُرجع مجموع المدين والدائن (مقرَّبَين). الاستخدام الوحيد المتبقي: مدفوعات الموردين في
+ * `accounting.service.ts` = مدين حساب ذمم الموردين (2000) على قيود PURCHASE_PAYMENT.
  */
 export async function glAccountFlow(
   accountCode: string,

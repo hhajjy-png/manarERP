@@ -2,7 +2,7 @@ import { prisma } from '../../config/database';
 import { roundMoney } from '../../shared/utils/money';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 import { ytdMonths } from '../../core/utils/dateWindows';
-import { glProfitAndLoss, glMonthlyProfitAndLoss } from '../../shared/services/gl.reporting';
+import { getOperationalSummary, getMonthlyOperationalProfitAndLoss } from '../../shared/services/operational.reporting';
 
 /** تجميع بيانات لوحة التحكم الرئيسية في استعلام واحد. */
 export class DashboardService {
@@ -36,9 +36,10 @@ export class DashboardService {
         _sum: { total: true, paidAmount: true },
         _count: { _all: true },
       }),
-      // المصدر المحاسبي الوحيد: الإيراد/المصروف/الربح من الأستاذ العام (بدل الدفتر القديم).
-      glProfitAndLoss(),
-      glProfitAndLoss({ from: monthStart }),
+      // السياسة الرسمية (Operational Reporting Migration — الحزمة 3): الإيراد/المصروف/
+      // الربح من محرك التقارير التشغيلية (Invoice/Expense المعتمد)، لا الأستاذ العام.
+      getOperationalSummary(),
+      getOperationalSummary({ from: monthStart }),
     ]);
 
     const totalRevenue = pl.revenue;
@@ -67,9 +68,9 @@ export class DashboardService {
 
   /** سلسلة الإيرادات/المصروفات — منذ بداية السنة حتى الشهر الحالي (YTD، تتضمّن يناير). */
   async monthlyTrend() {
-    // المصدر المحاسبي الوحيد: الاتجاه الشهري من الأستاذ العام (بدل الدفتر القديم).
+    // الحزمة 3: الاتجاه الشهري من محرك التقارير التشغيلية، لا الأستاذ العام.
     const months = ytdMonths();
-    const rows = await glMonthlyProfitAndLoss(months);
+    const rows = await getMonthlyOperationalProfitAndLoss(months);
     return rows.map((r) => ({ label: r.label, revenue: r.revenue, expense: r.expense }));
   }
 
@@ -117,8 +118,8 @@ export class DashboardService {
         prisma.employee.count({ where: { status: 'ACTIVE' } }),
         prisma.equipment.count(),
         prisma.equipment.count({ where: { status: 'WORKING' } }),
-        // المصدر المحاسبي الوحيد: إجمالي الإيراد/المصروف من الأستاذ العام.
-        glProfitAndLoss(),
+        // الحزمة 3: إجمالي الإيراد/المصروف/الربح من محرك التقارير التشغيلية، لا الأستاذ العام.
+        getOperationalSummary(),
         prisma.attendance.groupBy({
           by: ['status'],
           where: { date: { gte: todayStart, lt: todayEnd } },
@@ -152,8 +153,8 @@ export class DashboardService {
         }),
       ] as const),
 
-      // اتجاه الإيرادات والمصروفات (YTD) من الأستاذ العام — المصدر المحاسبي الوحيد.
-      glMonthlyProfitAndLoss(months).then((rows) =>
+      // اتجاه الإيرادات والمصروفات (YTD) من محرك التقارير التشغيلية — الحزمة 3.
+      getMonthlyOperationalProfitAndLoss(months).then((rows) =>
         rows.map((r) => ({ label: r.label, revenue: r.revenue, expense: r.expense })),
       ),
     ]);

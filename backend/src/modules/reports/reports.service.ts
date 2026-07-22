@@ -9,7 +9,7 @@ import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLa
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 import { monthWindowsBetween, endOfDay } from '../../core/utils/dateWindows';
 import { roundMoney } from '../../shared/utils/money';
-import { glMonthlyProfitAndLoss } from '../../shared/services/gl.reporting';
+import { getMonthlyOperationalProfitAndLoss } from '../../shared/services/operational.reporting';
 
 const num = (n: number | null | undefined) => Number(n ?? 0);
 // مُعاد استخدامها من وحدة النقود القانونية — لا تعريف ثانٍ لمنطق التقريب (كان
@@ -492,28 +492,45 @@ export class ReportsService {
   }
 
   private async profitLoss(q: ReportQuery): Promise<ReportInput> {
-    // المصدر المحاسبي الوحيد: الأرباح والخسائر من الأستاذ العام (القيد المزدوج). كان يقرأ
-    // من الدفتر القديم (Transaction) فيُنتج رقمًا موازيًا (بلا رواتب مثلًا) يخالف ميزان
-    // المراجعة ولوحة القيادة. الآن مصدر واحد عبر glMonthlyProfitAndLoss.
+    // السياسة الرسمية (Operational Reporting Migration — الحزمة 2): تقرير الأرباح
+    // والخسائر مصدره الآن محرك التقارير التشغيلية (Invoice للإيراد، Expense المعتمد
+    // للمصروف) — لا الأستاذ العام. GL يبقى دون مساس، مخصَّصًا حصريًا لدفتر اليومية/
+    // دليل الحسابات/ميزان المراجعة/المراجعة المحاسبية؛ هذا التقرير الإداري لا يقرأه بعد اليوم.
     //
-    // مدى الأشهر المعروضة: الفترة المختارة إن حُدِّدت بالكامل، وإلا أول/آخر قيد مُرحَّل فعلي.
+    // مدى الأشهر المعروضة: الفترة المختارة إن حُدِّدت بالكامل، وإلا أول/آخر تاريخ إيراد
+    // أو مصروف تشغيلي فعلي (بدل أول/آخر قيد مُرحَّل سابقًا).
     let rangeStart: Date;
     let rangeEnd: Date;
     if (q.from && q.to) {
       rangeStart = new Date(q.from);
       rangeEnd = endOfDay(new Date(q.to));
     } else {
-      const bounds = await prisma.journalEntry.aggregate({
-        where: { status: 'POSTED' },
-        _min: { date: true },
-        _max: { date: true },
-      });
-      rangeStart = q.from ? new Date(q.from) : (bounds._min.date ?? new Date());
-      rangeEnd = q.to ? endOfDay(new Date(q.to)) : (bounds._max.date ?? rangeStart);
+      const [invoiceBounds, expenseBounds] = await Promise.all([
+        prisma.invoice.aggregate({
+          where: { direction: 'SALES', status: { not: 'CANCELLED' } },
+          _min: { issueDate: true },
+          _max: { issueDate: true },
+        }),
+        prisma.expense.aggregate({
+          where: { status: 'APPROVED' },
+          _min: { date: true },
+          _max: { date: true },
+        }),
+      ]);
+      const mins = [invoiceBounds._min.issueDate, expenseBounds._min.date].filter(
+        (d): d is Date => d != null,
+      );
+      const maxes = [invoiceBounds._max.issueDate, expenseBounds._max.date].filter(
+        (d): d is Date => d != null,
+      );
+      const minBound = mins.length ? new Date(Math.min(...mins.map((d) => d.getTime()))) : null;
+      const maxBound = maxes.length ? new Date(Math.max(...maxes.map((d) => d.getTime()))) : null;
+      rangeStart = q.from ? new Date(q.from) : (minBound ?? new Date());
+      rangeEnd = q.to ? endOfDay(new Date(q.to)) : (maxBound ?? rangeStart);
     }
 
     const months = monthWindowsBetween(rangeStart, rangeEnd);
-    const monthly = await glMonthlyProfitAndLoss(months);
+    const monthly = await getMonthlyOperationalProfitAndLoss(months);
 
     const totalRevenue = monthly.reduce((s, m) => s + m.revenue, 0);
     const totalExpense = monthly.reduce((s, m) => s + m.expense, 0);

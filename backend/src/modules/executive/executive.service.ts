@@ -2,7 +2,7 @@ import { prisma } from '../../config/database';
 import { roundMoney } from '../../shared/utils/money';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 import { resolvePeriod } from '../../core/utils/periodFilter';
-import { glProfitAndLoss } from '../../shared/services/gl.reporting';
+import { getOperationalSummary, getMonthlyOperationalProfitAndLoss } from '../../shared/services/operational.reporting';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 const n  = (v: unknown) => Number(v ?? 0);
@@ -107,15 +107,10 @@ export class ExecutiveService {
     const flowInvoice = flow ? { issueDate: flow } : {};
     const flowDate    = flow ? { date: flow } : {};
     const asOfInvoice = asOf ? { issueDate: { lte: asOf } } : {};
-    const asOfPayment = asOf ? { date: { lte: asOf } } : {};
-    // نطاق الأستاذ العام لنفس الفترة — مصدر إجمالي المصروفات الوحيد (glProfitAndLoss).
-    const glRange = { from: flow?.gte, to: flow?.lte };
 
     // ── Single parallel fetch of all raw data ──────────────────────────────
     const [
-      totalRevenueAgg,
-      periodPL,
-      totalCollectionsAgg,
+      operationalSummary,
       thisMonthColAgg,
       lastMonthColAgg,
       thisMonthExpAgg,
@@ -132,24 +127,13 @@ export class ExecutiveService {
       topExpenseContracts,
       contractGroupCounts,
       salesRevByCustomer,
-      cumulativeRevenueAgg,
-      cumulativeCollectionsAgg,
     ] = await Promise.all([
-      // Revenue during the period (FLOW) — SALES invoices issued in-range
-      prisma.invoice.aggregate({
-        where: { direction: 'SALES', status: { notIn: ['CANCELLED'] }, ...flowInvoice },
-        _sum: { total: true },
-      }),
-      // Expenses during the period (FLOW) — **من الأستاذ العام (GL) وحده**، لا من جدول
-      // المصروفات التشغيلي. يشمل الرواتب والقيود اليدوية على حسابات EXPENSE التي لا يراها
-      // جدول Expense، فيتطابق «إجمالي المصروفات» مع الملخص المحاسبي/مركز المالية/الأرباح
-      // والخسائر لنفس الفترة (مصدر محاسبي واحد).
-      glProfitAndLoss(glRange),
-      // Collections during the period (FLOW)
-      prisma.payment.aggregate({
-        where: { invoice: { direction: 'SALES', status: { not: 'CANCELLED' } }, ...flowDate },
-        _sum: { amount: true },
-      }),
+      // السياسة الرسمية (Operational Reporting Migration — الحزمة 4): الإيراد/المصروف/
+      // التحصيل/الذمم/الربح للفترة كلها من محرك التقارير التشغيلية بنداء واحد — لا الأستاذ
+      // العام، ولا استعلامات منفصلة متكررة لكل مفهوم. يطابق هذا بالضبط ملخص لوحة التحكم
+      // وتقرير الأرباح والخسائر (الحزمتان 2 و3)، فتتطابق «إجمالي الإيرادات/المصروفات/صافي
+      // الربح» عبر الشاشات الثلاث.
+      getOperationalSummary({ from: flow?.gte, to: flow?.lte }),
       // This month collections
       prisma.payment.aggregate({
         where: { date: { gte: thisMonthStart }, invoice: { direction: 'SALES' } },
@@ -251,25 +235,21 @@ export class ExecutiveService {
         where: { direction: 'SALES', status: { not: 'CANCELLED' }, customerId: { not: null }, ...flowInvoice },
         _sum: { total: true, paidAmount: true },
       }),
-      // الرصيد اللحظي (Point-in-time): إيراد تراكمي حتى نهاية الفترة − تحصيل تراكمي حتى نهايتها.
-      // = إجمالي الذمم المستحقة «كما في» toDate (لا صافي حركة الفترة).
-      prisma.invoice.aggregate({
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, ...asOfInvoice },
-        _sum: { total: true },
-      }),
-      prisma.payment.aggregate({
-        where: { invoice: { direction: 'SALES', status: { not: 'CANCELLED' } }, ...asOfPayment },
-        _sum: { amount: true },
-      }),
     ]);
 
     // ── Compute base values ────────────────────────────────────────────────
-    const totalRevenue    = roundMoney(n(totalRevenueAgg._sum.total));      // FLOW خلال الفترة
-    const totalExpenses   = roundMoney(periodPL.expenses);                  // من الأستاذ العام (GL)
-    const totalCollected  = roundMoney(n(totalCollectionsAgg._sum.amount)); // FLOW
-    // الذمم = رصيد لحظي كما في نهاية الفترة، لا صافي حركة الفترة.
-    const totalOutstanding = roundMoney(Math.max(0, n(cumulativeRevenueAgg._sum.total) - n(cumulativeCollectionsAgg._sum.amount)));
-    const netProfit       = roundMoney(totalRevenue - totalExpenses);
+    // كل قيم الملخص المالي (الإيراد/المصروف/التحصيل/الذمم/صافي الربح) من نداء واحد لمحرك
+    // التقارير التشغيلية أعلاه — لا حساب محلي مكرَّر، ولا استعلام Invoice/Expense/Payment
+    // مباشر بعد اليوم لهذه القيم الخمس.
+    const totalRevenue    = operationalSummary.revenue;      // FLOW خلال الفترة
+    const totalExpenses   = operationalSummary.expenses;     // Expense المعتمدة (APPROVED) فقط
+    const totalCollected  = operationalSummary.collections;  // FLOW
+    // الذمم = رصيد لحظي كما في نهاية الفترة (asOf يساوي toDate تلقائيًا داخل المحرك). المحرك
+    // نفسه يُرجع الفارق الفعلي بلا تصفير (قد يكون سالبًا نظريًا عند تحصيل زائد — موثَّق
+    // ومُختبَر في الحزمة 1)؛ التصفير عند صفر هنا خيار عرض تنفيذي سابق على هذه الحزمة
+    // (لا تُعرَض «ذمم سالبة» على الشاشة) — يُطبَّق فوق قيمة المحرك، لا بدلًا منها.
+    const totalOutstanding = roundMoney(Math.max(0, operationalSummary.accountsReceivable));
+    const netProfit       = operationalSummary.netProfit;
     const overallProfitMargin = safe(netProfit, totalRevenue);
     const overallCollectionRate = safe(totalCollected, totalRevenue);
 
@@ -967,17 +947,13 @@ export class ExecutiveService {
       };
     });
 
+    // الحزمة 4: الإيراد/المصروف/الربح الشهري (الرسم الزمني) من محرك التقارير التشغيلية
+    // بنداء واحد لكل الأشهر معًا — لا استعلام Invoice/Expense مكرَّر لكل شهر داخل الحلقة.
+    const monthlyPL = await getMonthlyOperationalProfitAndLoss(months);
+
     const timeline: KPITimelinePoint[] = await Promise.all(
-      months.map(async (m) => {
-        const [revAgg, expAgg, colAgg, contractCount, customerCount, invoiceCount] = await Promise.all([
-          prisma.invoice.aggregate({
-            where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: m.start, lte: m.end } },
-            _sum: { total: true },
-          }),
-          prisma.expense.aggregate({
-            where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] }, date: { gte: m.start, lte: m.end } },
-            _sum: { amount: true },
-          }),
+      months.map(async (m, i) => {
+        const [colAgg, contractCount, customerCount, invoiceCount] = await Promise.all([
           prisma.payment.aggregate({
             where: { date: { gte: m.start, lte: m.end }, invoice: { direction: 'SALES' } },
             _sum: { amount: true },
@@ -987,8 +963,8 @@ export class ExecutiveService {
           prisma.invoice.count({ where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: m.start, lte: m.end } } }),
         ]);
 
-        const revenue    = roundMoney(n(revAgg._sum.total));
-        const expenses   = roundMoney(n(expAgg._sum.amount));
+        const revenue     = monthlyPL[i].revenue;
+        const expenses    = monthlyPL[i].expense;
         const collections = roundMoney(n(colAgg._sum.amount));
 
         // الرصيد اللحظي في نهاية الشهر = إيراد تراكمي (issueDate<=m.end) − تحصيل تراكمي
@@ -1009,7 +985,7 @@ export class ExecutiveService {
         return {
           period: m.label,
           revenue, expenses, collections,
-          profit: roundMoney(revenue - expenses),
+          profit: monthlyPL[i].net,
           outstandingEnd: osEnd,
           contracts: contractCount,
           customers: customerCount,

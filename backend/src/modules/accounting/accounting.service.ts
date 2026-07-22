@@ -31,7 +31,8 @@ const PAYMENTS_SORTABLE: SortWhitelist = {
 };
 import { validateJournalBalance } from './accounting.utils';
 import { generateEntryNumber, GL_REFERENCE_TYPES } from '../../shared/services/gl.service';
-import { glProfitAndLoss, glAccountFlow, GLDateRange } from '../../shared/services/gl.reporting';
+import { glAccountFlow, GLDateRange } from '../../shared/services/gl.reporting';
+import { getOperationalSummary } from '../../shared/services/operational.reporting';
 import { SYSTEM_ACCOUNT_CODES } from './accounting.accounts';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
@@ -306,13 +307,21 @@ export class AccountingService {
 
   // Financial Summary
   /**
-   * الملخص المالي — **من الأستاذ العام (GL) وحده**، الأساس استحقاقي.
+   * الملخص المالي — **هجين** منذ الحزمة 6 من هجرة التقارير التشغيلية (مبنيّ على قرار
+   * التدقيق المعماري في الحزمة 5، المعتمد نهائيًا):
    *
-   * كان يُحسب من الجداول التشغيلية (Invoice/Expense/Payment) بأساس مختلط (إيراد نقدي
-   * ناقص مصروف استحقاقي) فيُنتج رقمًا موازيًا يخالف ميزان المراجعة. الآن:
-   *   الإيراد/المصروف/صافي الربح ← glProfitAndLoss (نفس مصدر لوحة القيادة والأرباح).
-   *   التحصيلات/المدفوعات        ← حركة حسابات الرقابة (AR/AP) على قيود التحصيل/السداد،
-   *                                 من نفس الدفتر — لا مصدر موازٍ.
+   *   المقاييس التشغيلية (الإيراد/المصروف/التحصيل/صافي الربح) ← محرك التقارير التشغيلية
+   *   (getOperationalSummary) — تطابق تمامًا لوحة التحكم ومركز القرار وتقرير الأرباح
+   *   والخسائر (الحزم 2-4)، لأنها المفهوم نفسه في الحالتين: Invoice/Expense(APPROVED)/
+   *   Payment، لا حساب موازٍ.
+   *
+   *   مقاييس المحاسبة (عدد القيود، إجمالي المدين/الدائن) ← الأستاذ العام كما هي تمامًا —
+   *   لا معادل تشغيلي لها؛ تشمل كل الحسابات (أصول/خصوم/حقوق ملكية أيضًا)، لا الإيراد
+   *   والمصروف فقط.
+   *
+   * مدفوعات الموردين (`totalSupplierPaid`، وحقل `totalPaymentsRecorded` المشتق منها)
+   * تبقى من الأستاذ العام كما هي — خارج نطاق هذه الحزمة عمدًا؛ ستُعالَج في حزمة تالية.
+   * `/transactions/profit-loss` (transactions.service.ts) لم يُمَسّ ويبقى كما هو تمامًا.
    */
   async financialSummary(from?: string, to?: string) {
     // نفس دلالة الفترة المستخدمة في لوحة القيادة/مركز القرار (resolvePeriod): تحليل محلي
@@ -330,28 +339,29 @@ export class AccountingService {
       ...(hasDateFilter ? { date: journalDateFilter } : {}),
     };
 
-    const [pl, arFlow, apFlow, journalTotals, journalEntryCount] = await Promise.all([
-      glProfitAndLoss(range),
-      // تحصيلات العملاء = دائن حساب ذمم العملاء على قيود التحصيل (PAYMENT).
-      glAccountFlow(SYSTEM_ACCOUNT_CODES.ACCOUNTS_RECEIVABLE, { referenceTypes: [GL_REFERENCE_TYPES.PAYMENT], range }),
-      // مدفوعات الموردين = مدين حساب ذمم الموردين على قيود السداد (PURCHASE_PAYMENT).
+    const [operationalSummary, apFlow, journalTotals, journalEntryCount] = await Promise.all([
+      // التشغيلي: الإيراد/المصروف/التحصيل/صافي الربح بنداء واحد — لا الأستاذ العام.
+      getOperationalSummary(range),
+      // مدفوعات الموردين = مدين حساب ذمم الموردين على قيود السداد (PURCHASE_PAYMENT) —
+      // من الأستاذ العام كما هي، بلا تغيير (خارج نطاق هذه الحزمة).
       glAccountFlow(SYSTEM_ACCOUNT_CODES.ACCOUNTS_PAYABLE, { referenceTypes: [GL_REFERENCE_TYPES.PURCHASE_PAYMENT], range }),
+      // المحاسبي: عدد القيود وإجمالي المدين/الدائن — من الأستاذ العام كما هو، بلا تغيير.
       prisma.journalEntryLine.aggregate({ where: { journalEntry: journalWhere }, _sum: { debit: true, credit: true } }),
       prisma.journalEntry.count({ where: journalWhere }),
     ]);
 
-    const totalCollected = arFlow.credit;
+    const totalCollected = operationalSummary.collections;
     const totalSupplierPaid = apFlow.debit;
 
     return {
-      totalRevenue: pl.revenue,
+      totalRevenue: operationalSummary.revenue,
       totalCollected,
-      totalExpenses: pl.expenses,
+      totalExpenses: operationalSummary.expenses,
       totalPaymentsRecorded: roundMoney(totalCollected + totalSupplierPaid),
       journalEntryCount,
       totalJournalDebit: roundMoney(journalTotals._sum.debit ?? 0),
       totalJournalCredit: roundMoney(journalTotals._sum.credit ?? 0),
-      netProfit: pl.netProfit,
+      netProfit: operationalSummary.netProfit,
     };
   }
 }
