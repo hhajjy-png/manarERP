@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `2b9e989` (merge of `feature/business-dictionary-reliability-pack-v1`, carrying Business Dictionary & Reliability Pack v1) |
-| **Current Documentation Commit** | `efc3ffa` — "docs: record Business Dictionary & Reliability Pack v1 release" |
-| **Current Stable Tag** | `stable-business-dictionary-reliability-pack-v1` |
+| **Current Merge Commit** | `32d6665` (merge of `feature/bank-transaction-intelligence-presentation-pack-v1`, carrying Bank Transaction Intelligence Presentation Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-bank-transaction-intelligence-presentation-pack-v1` |
 | **Current Release Date** | 2026-07-22 |
-| **Total Stable Releases** | 335 (window 2026-06-07 → 2026-07-22) |
+| **Total Stable Releases** | 336 (window 2026-06-07 → 2026-07-22) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
