@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `c978bb2` (merge of `feature/leave-request-translation-fix-v1`, carrying Leave Request Translation Fix v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `eae7f19` — "docs: record Leave Request Translation Fix v1 release" |
 | **Current Stable Tag** | `stable-leave-request-translation-fix-v1` |
 | **Current Release Date** | 2026-07-22 |
 | **Total Stable Releases** | 338 (window 2026-06-07 → 2026-07-22) |
