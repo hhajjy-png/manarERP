@@ -5,6 +5,7 @@ export const createCustomerSchema = z.object({
   body: z.object({
     code: z.string().min(1, 'رقم العميل مطلوب'),
     name: z.string().min(1, 'اسم العميل مطلوب'),
+    nameEn: z.string().trim().optional(),
     type: z.enum(ENUMS.customerType).default('PRIVATE'),
     category: z.string().optional(),
     phone: z.string().optional(),

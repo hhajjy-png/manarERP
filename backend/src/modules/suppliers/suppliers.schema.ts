@@ -4,6 +4,7 @@ export const createSupplierSchema = z.object({
   body: z.object({
     code: z.string().min(1, 'رقم المورّد مطلوب'),
     name: z.string().min(1, 'اسم المورّد مطلوب'),
+    nameEn: z.string().trim().optional(),
     phone: z.string().optional(),
     email: z.string().email('بريد غير صحيح').optional().or(z.literal('')),
     address: z.string().optional(),

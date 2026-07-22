@@ -66,7 +66,10 @@ export class CategoriesService {
     if (query.active === 'true') where.isActive = true;
     if (query.active === 'false') where.isActive = false;
     if (query.search) {
-      where.name = { contains: query.search };
+      where.OR = [
+        { name: { contains: query.search } },
+        { nameEn: { contains: query.search } },
+      ];
     }
     const [data, total] = await Promise.all([
       prisma.materialCategory.findMany({
@@ -138,6 +141,7 @@ export class MaterialsService {
     if (query.search) {
       where.OR = [
         { name: { contains: query.search } },
+        { nameEn: { contains: query.search } },
         { code: { contains: query.search } },
       ];
     }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../stores/authStore';
 import { listBankAccounts, type BankAccountSummary } from '../api/bankAccounts';
@@ -138,15 +138,22 @@ export default function BankAccounts() {
 
   const canView = hasPermission('bankStatementImport.read');
 
+  // `t` from useT() is a new reference every render (unmemoized) — closing over it
+  // directly here would recreate `load` every render and infinitely re-fire the
+  // fetch effect below. A ref hands the callback the latest translator without
+  // making it a reactive dependency.
+  const tRef = useRef(t);
+  tRef.current = t;
+
   const load = useCallback(() => {
     if (!canView) return;
     setLoading(true);
     setError(null);
     listBankAccounts()
       .then((r) => setAccounts(r.accounts))
-      .catch((e) => setError(errorMessage(e) || t('bank.accounts.load_failed')))
+      .catch((e) => setError(errorMessage(e) || tRef.current('bank.accounts.load_failed')))
       .finally(() => setLoading(false));
-  }, [canView, t]);
+  }, [canView]);
 
   useEffect(() => { load(); }, [load]);
 

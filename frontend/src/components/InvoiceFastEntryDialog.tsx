@@ -3,6 +3,8 @@ import { api, errorMessage } from '../api/client';
 import { money } from '../config/modules';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import { useToast } from '../stores/toastStore';
 import { Dialog, DialogSection, Button } from './explorer/ExplorerKit';
 import DateInput from './DateInput';
@@ -42,6 +44,7 @@ interface Props {
  */
 export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const toast = useToast();
   const now = new Date();
   const [shared, setShared] = useState<InvoiceSharedFields>({
@@ -75,7 +78,7 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
   const subtotal = row.items.reduce((s, it) => s + invoiceLineTotal(it as Item), 0);
   const total = Math.max(0, subtotal - Number(row.discount));
 
-  const customerOptions: SearchableOption[] = customers.map((c) => ({ value: String(c.id), label: c.name }));
+  const customerOptions: SearchableOption[] = customers.map((c) => ({ value: String(c.id), label: resolveName(c, lang) }));
 
   // إعداد الرقم المقترح + تحميل العملاء عند الفتح.
   useEffect(() => {

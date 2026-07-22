@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { useT } from '../../lib/i18n';
+import { useUI } from '../../stores/uiStore';
+import { resolveName } from '../../lib/resolveName';
 
-interface Account { id: number; code: string; name: string; type: string; }
+interface Account { id: number; code: string; name: string; nameEn?: string | null; type: string; }
 interface Props { value?: number; onChange: (id: number) => void; }
 
 export function AccountSelector({ value, onChange }: Props) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [search,   setSearch]   = useState('');
 
@@ -23,7 +26,7 @@ export function AccountSelector({ value, onChange }: Props) {
   }, []);
 
   const filtered = accounts.filter(a =>
-    a.code.includes(search) || a.name.includes(search)
+    a.code.includes(search) || a.name.includes(search) || (a.nameEn ?? '').includes(search)
   );
 
   return (
@@ -44,7 +47,7 @@ export function AccountSelector({ value, onChange }: Props) {
         title={t('fc.title.select_account')}
       >
         {filtered.map(a => (
-          <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+          <option key={a.id} value={a.id}>{a.code} — {resolveName(a, lang)}</option>
         ))}
       </select>
     </div>

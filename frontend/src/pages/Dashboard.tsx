@@ -8,6 +8,7 @@ import PeriodControl from '../components/period/PeriodControl';
 import { periodToRangeParams } from '../lib/financialPeriod';
 import { useT } from '../lib/i18n';
 import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import PrivateAmount from '../components/PrivateAmount';
 import { MetricCard, SectionCard, StatusChip, Button } from '../components/explorer/ExplorerKit';
 
@@ -789,7 +790,7 @@ function GeneralDashboardContent() {
                       <span className="db-table-mono">{ct.code}</span>
                     </td>
                     <td className="db-table-strong">{ct.asphaltPlant}</td>
-                    <td>{ct.customer?.name ?? '—'}</td>
+                    <td>{ct.customer ? resolveName(ct.customer, lang) : '—'}</td>
                     <td>{ct.monthlyTransportValue ? <PrivateAmount value={ct.monthlyTransportValue} /> : '—'}</td>
                     <td>
                       <span className={`db-pill ${statusCls}`}>{statusLabel}</span>

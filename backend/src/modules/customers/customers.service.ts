@@ -43,6 +43,7 @@ export class CustomersService {
     if (query.search) {
       where.OR = [
         { name: { contains: query.search } },
+        { nameEn: { contains: query.search } },
         { code: { contains: query.search } },
         { phone: { contains: query.search } },
         { contactName: { contains: query.search } },

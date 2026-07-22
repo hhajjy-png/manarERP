@@ -8,6 +8,8 @@ import { PageMeta } from '../components/DataTable';
 import { money, dateText, MoneyText, MoneyCell } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { useTableSort } from '../hooks/useTableSort';
 import SortableHeader from '../components/SortableHeader';
@@ -181,6 +183,7 @@ function SummaryTab() {
 function AccountsTab({ canCreate }: { canCreate: boolean }) {
   const { t } = useT();
   const toast = useToast();
+  const lang = useUI((s) => s.lang);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
@@ -273,14 +276,14 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
-                      aria-label={t('acc.aria.account_details', { code: r.code, name: r.name })}
+                      aria-label={t('acc.aria.account_details', { code: r.code, name: resolveName(r, lang) })}
                       onClick={() => setViewing(r)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                       <td><span className="accx-code">{String(r.code)}</span></td>
-                      <td><strong>{String(r.name)}</strong></td>
+                      <td><strong>{resolveName(r, lang)}</strong></td>
                       <td><StatusChip tone={ACC_TYPE_TONE[String(r.type)] ?? 'neutral'} icon={ACC_TYPE_ICON[String(r.type)]}>{t(accountTypeKey[String(r.type)] ?? 'acc.type.asset')}</StatusChip></td>
                       <td>{t(normalBalanceKey[String(r.normalBalance)] ?? 'acc.balance.debit')}</td>
-                      <td>{r.parent ? `${r.parent.code} - ${r.parent.name}` : '—'}</td>
+                      <td>{r.parent ? `${r.parent.code} - ${resolveName(r.parent, lang)}` : '—'}</td>
                       <td><StatusChip tone={r.isActive ? 'green' : 'neutral'}>{r.isActive ? t('status.active') : t('status.suspended')}</StatusChip></td>
                       <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
                     </tr>
@@ -301,7 +304,7 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
             <div className="xpl-drawer-hero">
               <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">{ACC_TYPE_ICON[String(viewing.type)] ?? 'account_tree'}</span></div>
               <div className="xpl-drawer-hero-body">
-                <span className="xpl-drawer-hero-title">{viewing.name}</span>
+                <span className="xpl-drawer-hero-title">{resolveName(viewing, lang)}</span>
                 <span className="xpl-drawer-hero-sub">{viewing.code}</span>
                 <div style={{ marginTop: 4 }}>
                   <StatusChip tone={ACC_TYPE_TONE[String(viewing.type)] ?? 'neutral'} icon={ACC_TYPE_ICON[String(viewing.type)]}>{t(accountTypeKey[String(viewing.type)] ?? 'acc.type.asset')}</StatusChip>
@@ -318,10 +321,10 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
         >
           <DrawerSection title={t('acc.section.account_data')}>
             <DrawerField label={t('col.acc.code')} value={viewing.code} mono />
-            <DrawerField label={t('col.acc.name')} value={viewing.name} />
+            <DrawerField label={t('col.acc.name')} value={resolveName(viewing, lang)} />
             <DrawerField label={t('col.acc.type')} value={t(accountTypeKey[String(viewing.type)] ?? 'acc.type.asset')} />
             <DrawerField label={t('col.acc.normal_balance')} value={t(normalBalanceKey[String(viewing.normalBalance)] ?? 'acc.balance.debit')} />
-            <DrawerField label={t('col.acc.parent')} value={viewing.parent ? `${viewing.parent.code} - ${viewing.parent.name}` : '—'} />
+            <DrawerField label={t('col.acc.parent')} value={viewing.parent ? `${viewing.parent.code} - ${resolveName(viewing.parent, lang)}` : '—'} />
             <DrawerField label={t('col.status')} value={<StatusChip tone={viewing.isActive ? 'green' : 'neutral'}>{viewing.isActive ? t('status.active') : t('status.suspended')}</StatusChip>} />
           </DrawerSection>
           {viewing.notes && (
@@ -354,6 +357,7 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
   const isEdit = !!account;
   const [code, setCode] = useState(account?.code ?? '');
   const [name, setName] = useState(account?.name ?? '');
+  const [nameEn, setNameEn] = useState(account?.nameEn ?? '');
   const [type, setType] = useState(account?.type ?? 'ASSET');
   const [normalBalance, setNormalBalance] = useState(account?.normalBalance ?? 'DEBIT');
   const [isActive, setIsActive] = useState(account?.isActive ?? true);
@@ -367,7 +371,7 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
     if (!name.trim()) { setError(t('error.acc.name_required')); return; }
     setSaving(true);
     try {
-      const payload = { code: code.trim(), name: name.trim(), type, normalBalance, isActive, notes: notes || undefined };
+      const payload = { code: code.trim(), name: name.trim(), nameEn: nameEn.trim() || undefined, type, normalBalance, isActive, notes: notes || undefined };
       if (isEdit) await api.patch(`/accounting/accounts/${account.id}`, payload);
       else await api.post('/accounting/accounts', payload);
       onSaved();
@@ -402,6 +406,10 @@ function AccountForm({ account, onClose, onSaved }: { account?: any; onClose: ()
         <div className="xpl-field">
           <label>{t('field.acc.name')} <span className="req">*</span></label>
           <input className="xpl-input" value={name} onChange={(e) => setName(e.target.value)} aria-label={t('field.acc.name')} />
+        </div>
+        <div className="xpl-field">
+          <label>{t('field.acc.name_en')}</label>
+          <input className="xpl-input" value={nameEn} onChange={(e) => setNameEn(e.target.value)} style={{ direction: 'ltr' }} aria-label={t('field.acc.name_en')} />
         </div>
         <div className="xpl-field">
           <label>{t('field.acc.type')}</label>
@@ -577,6 +585,7 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function JournalEntryDrawer({ entry, onClose, onCancelEntry, busy }: { entry: any; onClose: () => void; onCancelEntry?: () => void; busy: boolean }) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const totalDebit = (entry.lines ?? []).reduce((s: number, l: { debit: number }) => s + l.debit, 0);
   const totalCredit = (entry.lines ?? []).reduce((s: number, l: { credit: number }) => s + l.credit, 0);
   const sm = journalStatusMeta[String(entry.status)] ?? journalStatusMeta.DRAFT;
@@ -606,7 +615,7 @@ function JournalEntryDrawer({ entry, onClose, onCancelEntry, busy }: { entry: an
           <tbody>
             {(entry.lines ?? []).map((l: { id: number; account?: { code: string; name: string }; description?: string; debit: number; credit: number }) => (
               <tr key={l.id}>
-                <td>{l.account ? `${l.account.code} - ${l.account.name}` : '—'}{l.description ? <div style={{ fontSize: 11, color: 'var(--xpl-muted)' }}>{l.description}</div> : null}</td>
+                <td>{l.account ? `${l.account.code} - ${resolveName(l.account, lang)}` : '—'}{l.description ? <div style={{ fontSize: 11, color: 'var(--xpl-muted)' }}>{l.description}</div> : null}</td>
                 <td className="accx-debit">{l.debit > 0 ? <MoneyCell value={l.debit} /> : '—'}</td>
                 <td className="accx-credit">{l.credit > 0 ? <MoneyCell value={l.credit} /> : '—'}</td>
               </tr>
@@ -627,6 +636,7 @@ interface JournalLine { accountId: string; description: string; debit: string; c
 
 function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(todayDateOnly());
   const [lines, setLines] = useState<JournalLine[]>([
@@ -713,7 +723,7 @@ function JournalEntryForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
           <div key={i} className="accx-jline">
             <select className="xpl-select" value={l.accountId} onChange={(e) => setLine(i, 'accountId', e.target.value)} aria-label={t('col.acc.account')}>
               <option value="">{t('msg.select_placeholder')}</option>
-              {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} - {a.name}</option>)}
+              {accounts.map((a) => <option key={a.id} value={a.id}>{a.code} - {resolveName(a, lang)}</option>)}
             </select>
             <input className="xpl-input" value={l.description} onChange={(e) => setLine(i, 'description', e.target.value)} placeholder={t('ph.acc.line_desc')} aria-label={t('col.acc.desc_opt')} />
             <input className="xpl-input" type="number" min="0" step="0.001" value={l.debit} onChange={(e) => setLine(i, 'debit', e.target.value)} style={{ direction: 'ltr' }} placeholder="0" aria-label={`${t('col.acc.debit')} ${i + 1}`} />

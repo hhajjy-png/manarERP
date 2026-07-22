@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import { useToast } from '../stores/toastStore';
 import { formatDate } from '../lib/date';
 import { PageMeta } from '../components/DataTable';
@@ -48,6 +50,7 @@ export default function Prices() {
   const { hasPermission, isSystemAdmin: getIsSystemAdmin } = useAuth();
   const isSystemAdmin = getIsSystemAdmin();
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const toast = useToast();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [rows, setRows] = useState<any[]>([]);
@@ -218,7 +221,7 @@ export default function Prices() {
             <span className="xpl-field-label">{t('col.customer')}</span>
             <select className="xpl-select" aria-label={t('col.customer')} value={filterCustomer} onChange={(e) => { setFilterCustomer(e.target.value); setPage(1); }}>
               <option value="">{t('opt.all_customers')}</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {customers.map((c) => <option key={c.id} value={c.id}>{resolveName(c, lang)}</option>)}
             </select>
           </div>
           <div className="xpl-field" style={{ minWidth: 150 }}>
@@ -269,7 +272,7 @@ export default function Prices() {
                       aria-label={t('a11y.price_details', { plant: r.asphaltPlant })}
                       onClick={() => setViewing(r)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
-                      <td>{r.customer?.name ?? <span style={{ color: 'var(--xpl-muted)' }}>—</span>}</td>
+                      <td>{r.customer ? resolveName(r.customer, lang) : <span style={{ color: 'var(--xpl-muted)' }}>—</span>}</td>
                       <td><strong>{r.asphaltPlant}</strong></td>
                       <td>{r.companyName}</td>
                       <td>{r.contractLocation}</td>
@@ -310,7 +313,7 @@ export default function Prices() {
         >
           <DrawerSection title={t('sec.prices.project_customer')}>
             <DrawerField label={t('col.prices.plant')} value={viewing.asphaltPlant} />
-            <DrawerField label={t('col.customer')} value={viewing.customer?.name ?? '—'} />
+            <DrawerField label={t('col.customer')} value={viewing.customer ? resolveName(viewing.customer, lang) : '—'} />
             <DrawerField label={t('col.prices.company')} value={viewing.companyName} />
             <DrawerField label={t('col.prices.location')} value={viewing.contractLocation} />
           </DrawerSection>
@@ -373,7 +376,7 @@ export default function Prices() {
                   {usageReport.report.map((row) => (
                     <tr key={row.id}>
                       <td><div style={{ fontWeight: 700 }}>{row.asphaltPlant}</div><div className="prx-mini-sub">{row.contractLocation}</div></td>
-                      <td>{row.customer?.name ?? '—'}</td>
+                      <td>{row.customer ? resolveName(row.customer, lang) : '—'}</td>
                       <td>{row.contractUnit}</td>
                       <td>{<MoneyCell value={row.unitPrice} />}</td>
                       <td className="prx-center"><span className={`prx-usage-badge${row.usageCount > 0 ? ' active' : ''}`}>{row.usageCount}</span></td>
@@ -424,6 +427,7 @@ export default function Prices() {
 
 // ── Agreements mini table ──────────────────────────────────────────────────────
 function AgreementMiniTable({ rows, t }: { rows: AgreementRow[]; t: (key: string, vars?: Record<string, string | number>) => string }) {
+  const lang = useUI((s) => s.lang);
   if (!rows.length) return <div style={{ fontSize: 13, color: 'var(--xpl-muted)', padding: '8px 0' }}>{t('empty.no_data')}</div>;
   return (
     <div className="xpl-table-wrap" style={{ maxHeight: 320 }}>
@@ -444,7 +448,7 @@ function AgreementMiniTable({ rows, t }: { rows: AgreementRow[]; t: (key: string
             <tr key={r.id}>
               <td><strong>{r.asphaltPlant}</strong></td>
               <td>{r.companyName}</td>
-              <td>{r.customer?.name ?? '—'}</td>
+              <td>{r.customer ? resolveName(r.customer, lang) : '—'}</td>
               <td>{<MoneyCell value={r.unitPrice} />}</td>
               <td className="prx-center"><span className={`prx-usage-badge${r.usageCount > 0 ? ' active' : ''}`}>{r.usageCount}</span></td>
               <td>{r.totalAmount > 0 ? <MoneyCell value={r.totalAmount} /> : '—'}</td>
@@ -461,6 +465,7 @@ function AgreementMiniTable({ rows, t }: { rows: AgreementRow[]; t: (key: string
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function PriceForm({ price, customers, onClose, onSaved }: { price?: any; customers: any[]; onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const isEdit = !!price;
 
   const [asphaltPlant, setAsphaltPlant] = useState(price?.asphaltPlant ?? '');
@@ -531,7 +536,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
           <label>{t('col.customer')} {!isEdit ? <span className="req">*</span> : null}</label>
           <select className="xpl-select" value={customerId} onChange={(e) => setCustomerId(e.target.value ? Number(e.target.value) : '')} aria-label={t('col.customer')}>
             <option value="">{t('opt.select_customer')}</option>
-            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {customers.map((c) => <option key={c.id} value={c.id}>{resolveName(c, lang)}</option>)}
           </select>
         </div>
         <div className="xpl-field">

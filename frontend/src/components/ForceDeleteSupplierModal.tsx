@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import Modal from './Modal';
 
 interface ChildCounts {
@@ -13,7 +15,7 @@ interface ChildCounts {
 }
 
 interface PreviewData {
-  supplier: { id: number; code: string; name?: string | null };
+  supplier: { id: number; code: string; name?: string | null; nameEn?: string | null };
   childCounts: ChildCounts;
   totalChildRecords: number;
   willBeDeleted: string[];
@@ -48,6 +50,7 @@ const CHILD_COUNT_KEYS: Record<keyof ChildCounts, string> = {
 
 export default function ForceDeleteSupplierModal({ supplierId, onClose, onDeleted }: Props) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [loadError, setLoadError] = useState('');
   const [confirmCode, setConfirmCode] = useState('');
@@ -127,7 +130,7 @@ export default function ForceDeleteSupplierModal({ supplierId, onClose, onDelete
             <code style={{ background: 'var(--bg-alt)', padding: '2px 6px', borderRadius: 4 }}>
               {preview.supplier.code}
             </code>
-            {preview.supplier.name && ` — ${preview.supplier.name}`}
+            {preview.supplier.name && ` — ${resolveName({ ...preview.supplier, name: preview.supplier.name }, lang)}`}
           </p>
 
           {preview.totalChildRecords > 0 && (

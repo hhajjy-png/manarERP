@@ -6,6 +6,8 @@ import SortableHeader from '../components/SortableHeader';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
@@ -37,15 +39,15 @@ import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 // ── Domain Types ──────────────────────────────────────────────────────────────
 
-interface MaterialCategory { id: number; name: string; description?: string | null; isActive: boolean; _count?: { materials: number }; }
-interface Material { id: number; code: string; name: string; unit: string; categoryId: number; category?: { name: string }; currentStock: number; minimumStock: number; unitCost: number; notes?: string | null; isActive: boolean; }
-interface PurchaseOrder { id: number; number: string; supplierId: number; supplier?: { name: string }; date: string; expectedDate?: string | null; status: string; totalAmount: number; notes?: string | null; }
-interface GoodsReceipt { id: number; number: string; supplierId: number; supplier?: { name: string }; purchaseOrderId?: number | null; purchaseOrder?: { number: string } | null; date: string; status: string; totalCost: number; notes?: string | null; }
-interface MaterialIssueItem { id: number; materialId: number; quantity: number; unitCostSnapshot: number; totalCost: number; material?: { name: string; unit: string }; }
+interface MaterialCategory { id: number; name: string; nameEn?: string | null; description?: string | null; isActive: boolean; _count?: { materials: number }; }
+interface Material { id: number; code: string; name: string; nameEn?: string | null; unit: string; categoryId: number; category?: { name: string; nameEn?: string | null }; currentStock: number; minimumStock: number; unitCost: number; notes?: string | null; isActive: boolean; }
+interface PurchaseOrder { id: number; number: string; supplierId: number; supplier?: { name: string; nameEn?: string | null }; date: string; expectedDate?: string | null; status: string; totalAmount: number; notes?: string | null; }
+interface GoodsReceipt { id: number; number: string; supplierId: number; supplier?: { name: string; nameEn?: string | null }; purchaseOrderId?: number | null; purchaseOrder?: { number: string } | null; date: string; status: string; totalCost: number; notes?: string | null; }
+interface MaterialIssueItem { id: number; materialId: number; quantity: number; unitCostSnapshot: number; totalCost: number; material?: { name: string; nameEn?: string | null; unit: string }; }
 interface MaterialIssue { id: number; number: string; contractId?: number | null; contract?: { code: string } | null; date: string; status: string; totalCost: number; notes?: string | null; items?: MaterialIssueItem[]; }
-interface Supplier { id: number; name: string; }
+interface Supplier { id: number; name: string; nameEn?: string | null; }
 interface Contract { id: number; code: string; asphaltPlant: string; }
-interface DetailItem { id: number; quantity: number; unitCost?: number; unitCostSnapshot?: number; totalCost: number; material?: { name: string; unit: string }; }
+interface DetailItem { id: number; quantity: number; unitCost?: number; unitCostSnapshot?: number; totalCost: number; material?: { name: string; nameEn?: string | null; unit: string }; }
 interface DetailRecord { notes?: string | null; items?: DetailItem[]; totalCost?: number; totalAmount?: number; }
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
@@ -109,6 +111,7 @@ export default function Inventory() {
 
 function DetailItemsSection({ endpoint, id }: { endpoint: string; id: number }) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const [detail, setDetail] = useState<DetailRecord | null>(null);
   useEffect(() => {
     api.get(`${endpoint}/${id}`).then((res) => setDetail(res.data.data as DetailRecord)).catch(() => {});
@@ -131,7 +134,7 @@ function DetailItemsSection({ endpoint, id }: { endpoint: string; id: number }) 
           <tbody>
             {detail.items?.map((it) => (
               <tr key={it.id}>
-                <td>{it.material?.name} <small style={{ color: 'var(--xpl-muted)' }}>({it.material?.unit})</small></td>
+                <td>{it.material ? resolveName(it.material, lang) : ''} <small style={{ color: 'var(--xpl-muted)' }}>({it.material?.unit})</small></td>
                 <td>{it.quantity}</td>
                 <td>{<MoneyCell value={it.unitCost ?? it.unitCostSnapshot ?? 0} />}</td>
                 <td>{<MoneyCell value={it.totalCost} />}</td>
@@ -149,6 +152,7 @@ function DetailItemsSection({ endpoint, id }: { endpoint: string; id: number }) 
 
 function LineItemBuilder({ items, onChange, materials, showCost }: { items: LineItem[]; onChange: (items: LineItem[]) => void; materials: Material[]; showCost: boolean; }) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   function updateItem(i: number, patch: Partial<LineItem>) { onChange(items.map((it, idx) => idx === i ? { ...it, ...patch } : it)); }
   const total = items.reduce((s, it) => s + it.quantity * it.unitCost, 0);
 
@@ -158,7 +162,7 @@ function LineItemBuilder({ items, onChange, materials, showCost }: { items: Line
         <div key={i} className={`invx-line ${showCost ? 'invx-line--cost' : 'invx-line--nocost'}`}>
           <select className="xpl-select" value={it.materialId} onChange={(e) => updateItem(i, { materialId: e.target.value })} aria-label={t('ph.inv.select_material')}>
             <option value="">{t('ph.inv.select_material')}</option>
-            {materials.map((m) => <option key={m.id} value={String(m.id)}>{m.name} ({m.unit})</option>)}
+            {materials.map((m) => <option key={m.id} value={String(m.id)}>{resolveName(m, lang)} ({m.unit})</option>)}
           </select>
           <input className="xpl-input" type="number" min="0.001" step="0.001" placeholder={t('ph.inv.qty')} value={it.quantity} onChange={(e) => updateItem(i, { quantity: Number(e.target.value) })} aria-label={t('ph.inv.qty')} />
           {showCost && (
@@ -205,6 +209,7 @@ const Chevron = () => <td className="decx-col-chevron" style={{ width: 32, textA
 
 function BalanceTab() {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -229,7 +234,7 @@ function BalanceTab() {
   // مستخرجات القيم المشتقة/المتداخلة — القيمة الإجمالية تطابق الخلية المحسوبة.
   const sortedMaterials = useMemo(
     () => sortRowsClient(materials, sort.sortBy, sort.sortDir, (r, key) => {
-      if (key === 'category') return r.category?.name;
+      if (key === 'category') return r.category ? resolveName(r.category, lang) : undefined;
       if (key === 'totalValue') return r.currentStock * r.unitCost;
       return r[key as keyof Material];
     }),
@@ -263,10 +268,10 @@ function BalanceTab() {
             </tr></thead>
             <tbody>
               {sortedMaterials.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_name', { name: r.name })}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_name', { name: resolveName(r, lang) })}>
                   <td><span className="invx-code">{r.code}</span></td>
-                  <td><strong>{r.name}</strong></td>
-                  <td>{r.category?.name ?? '—'}</td>
+                  <td><strong>{resolveName(r, lang)}</strong></td>
+                  <td>{r.category ? resolveName(r.category, lang) : '—'}</td>
                   <td><span className={`invx-stock${r.currentStock <= r.minimumStock ? ' invx-stock--low' : ''}`}>{r.currentStock}</span> {r.unit}</td>
                   <td>{<MoneyCell value={r.unitCost} />}</td>
                   <td>{<MoneyCell value={r.currentStock * r.unitCost} />}</td>
@@ -286,17 +291,20 @@ function BalanceTab() {
 
 function MaterialDrawer({ material, onClose, footer }: { material: Material; onClose: () => void; footer?: React.ReactNode }) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
+  const materialName = resolveName(material, lang);
+  const categoryName = material.category ? resolveName(material.category, lang) : '—';
   return (
     <Drawer
-      title={material.name}
+      title={materialName}
       onClose={onClose}
       footer={footer}
       hero={
         <div className="xpl-drawer-hero">
           <div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">inventory</span></div>
           <div className="xpl-drawer-hero-body">
-            <span className="xpl-drawer-hero-title">{material.name}</span>
-            <span className="xpl-drawer-hero-sub">{material.code} · {material.category?.name ?? '—'}</span>
+            <span className="xpl-drawer-hero-title">{materialName}</span>
+            <span className="xpl-drawer-hero-sub">{material.code} · {categoryName}</span>
             <div style={{ marginTop: 4 }}>{material.currentStock <= material.minimumStock ? <StatusChip tone="red" icon="warning">{t('pill.low_stock')}</StatusChip> : <StatusChip tone="green" icon="check_circle">{t('pill.adequate')}</StatusChip>}</div>
           </div>
         </div>
@@ -304,8 +312,8 @@ function MaterialDrawer({ material, onClose, footer }: { material: Material; onC
     >
       <DrawerSection title={t('sec.identity')}>
         <DrawerField label={t('col.code')} value={material.code} mono />
-        <DrawerField label={t('col.inv.material')} value={material.name} />
-        <DrawerField label={t('col.category')} value={material.category?.name ?? '—'} />
+        <DrawerField label={t('col.inv.material')} value={materialName} />
+        <DrawerField label={t('col.category')} value={categoryName} />
         <DrawerField label={t('col.inv.unit')} value={material.unit} />
       </DrawerSection>
       <DrawerSection title={t('sec.inv.stock_and_cost')}>
@@ -323,6 +331,7 @@ function MaterialDrawer({ material, onClose, footer }: { material: Material; onC
 
 function CategoriesTab() {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const { hasPermission } = useAuth();
   const toast = useToast();
   const [rows, setRows] = useState<MaterialCategory[]>([]);
@@ -378,8 +387,8 @@ function CategoriesTab() {
             </tr></thead>
             <tbody>
               {sortedRows.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_name', { name: r.name })}>
-                  <td><strong>{r.name}</strong></td>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_name', { name: resolveName(r, lang) })}>
+                  <td><strong>{resolveName(r, lang)}</strong></td>
                   <td>{r.description ?? '—'}</td>
                   <td>{r._count?.materials ?? 0}</td>
                   <td>{r.isActive ? <StatusChip tone="green">{t('pill.active')}</StatusChip> : <StatusChip tone="neutral">{t('pill.inactive')}</StatusChip>}</td>
@@ -393,16 +402,16 @@ function CategoriesTab() {
 
       {viewing && (
         <Drawer
-          title={viewing.name}
+          title={resolveName(viewing, lang)}
           onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">label</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{viewing.name}</span><span className="xpl-drawer-hero-sub">{viewing._count?.materials ?? 0} {t('unit.material')}</span><div style={{ marginTop: 4 }}>{viewing.isActive ? <StatusChip tone="green">{t('pill.active')}</StatusChip> : <StatusChip tone="neutral">{t('pill.inactive')}</StatusChip>}</div></div></div>}
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">label</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{resolveName(viewing, lang)}</span><span className="xpl-drawer-hero-sub">{viewing._count?.materials ?? 0} {t('unit.material')}</span><div style={{ marginTop: 4 }}>{viewing.isActive ? <StatusChip tone="green">{t('pill.active')}</StatusChip> : <StatusChip tone="neutral">{t('pill.inactive')}</StatusChip>}</div></div></div>}
           footer={<>
             {hasPermission('inventory.update') && <Button variant="primary" icon="edit" onClick={() => { setEditing(viewing); setViewing(null); }}>{t('action.edit')}</Button>}
             {hasPermission('inventory.delete') && <Button variant="danger" icon="delete" busy={busy} onClick={() => setDeleteCategoryId(viewing.id)}>{t('action.delete')}</Button>}
           </>}
         >
           <DrawerSection title={t('sec.inv.category_info')}>
-            <DrawerField label={t('col.inv.cat_name')} value={viewing.name} />
+            <DrawerField label={t('col.inv.cat_name')} value={resolveName(viewing, lang)} />
             <DrawerField label={t('col.description')} value={viewing.description ?? '—'} />
             <DrawerField label={t('col.inv.mat_count')} value={viewing._count?.materials ?? 0} />
           </DrawerSection>
@@ -419,6 +428,7 @@ function CategoriesTab() {
 
 function MaterialsTab() {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const { hasPermission } = useAuth();
   const toast = useToast();
   const [rows, setRows] = useState<Material[]>([]);
@@ -472,10 +482,10 @@ function MaterialsTab() {
             </tr></thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_name', { name: r.name })}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_name', { name: resolveName(r, lang) })}>
                   <td><span className="invx-code">{r.code}</span></td>
-                  <td><strong>{r.name}</strong></td>
-                  <td>{r.category?.name ?? '—'}</td>
+                  <td><strong>{resolveName(r, lang)}</strong></td>
+                  <td>{r.category ? resolveName(r.category, lang) : '—'}</td>
                   <td>{r.unit}</td>
                   <td><span className={`invx-stock${r.currentStock <= r.minimumStock ? ' invx-stock--low' : ''}`}>{r.currentStock}</span></td>
                   <td>{<MoneyCell value={r.unitCost} />}</td>
@@ -505,6 +515,7 @@ function MaterialsTab() {
 
 function PurchaseOrdersTab() {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const { hasPermission } = useAuth();
   const toast = useToast();
   const [rows, setRows] = useState<PurchaseOrder[]>([]);
@@ -566,7 +577,7 @@ function PurchaseOrdersTab() {
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_number', { number: r.number })}>
                   <td><span className="invx-code">{r.number}</span></td>
-                  <td>{r.supplier?.name ?? '—'}</td>
+                  <td>{r.supplier ? resolveName(r.supplier, lang) : '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.expectedDate)}</td>
                   <td>{chip(poTone, r.status, t)}</td>
@@ -584,7 +595,7 @@ function PurchaseOrdersTab() {
         <Drawer
           title={`${t('modal.inv.detail_po')} — ${viewing.number}`}
           onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">shopping_cart</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{<MoneyText value={viewing.totalAmount} />}</span><span className="xpl-drawer-hero-sub">{viewing.number} · {viewing.supplier?.name ?? '—'}</span><div style={{ marginTop: 4 }}>{chip(poTone, viewing.status, t)}</div></div></div>}
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">shopping_cart</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{<MoneyText value={viewing.totalAmount} />}</span><span className="xpl-drawer-hero-sub">{viewing.number} · {viewing.supplier ? resolveName(viewing.supplier, lang) : '—'}</span><div style={{ marginTop: 4 }}>{chip(poTone, viewing.status, t)}</div></div></div>}
           footer={<>
             {hasPermission('inventory.update') && viewing.status === 'DRAFT' && <Button variant="primary" icon="send" busy={busy} onClick={() => setPendingPost({ endpoint: `/inventory/purchase-orders/${viewing.id}/submit`, confirmMsg: t('confirm.submit_po'), successMsg: t('msg.posted_success') })}>{t('btn.inv.submit_po')}</Button>}
             {hasPermission('inventory.update') && ['DRAFT', 'SUBMITTED'].includes(viewing.status) && <Button variant="secondary" icon="block" busy={busy} onClick={() => setPendingPost({ endpoint: `/inventory/purchase-orders/${viewing.id}/cancel`, confirmMsg: t('confirm.cancel_po'), successMsg: t('msg.cancelled_success') })}>{t('action.cancel')}</Button>}
@@ -592,7 +603,7 @@ function PurchaseOrdersTab() {
           </>}
         >
           <DrawerSection title={t('sec.info')}>
-            <DrawerField label={t('col.supplier')} value={viewing.supplier?.name ?? '—'} />
+            <DrawerField label={t('col.supplier')} value={viewing.supplier ? resolveName(viewing.supplier, lang) : '—'} />
             <DrawerField label={t('col.date')} value={dateText(viewing.date)} />
             <DrawerField label={t('col.inv.expected_date')} value={dateText(viewing.expectedDate)} />
           </DrawerSection>
@@ -610,6 +621,7 @@ function PurchaseOrdersTab() {
 
 function GoodsReceiptsTab() {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const { hasPermission } = useAuth();
   const toast = useToast();
   const [rows, setRows] = useState<GoodsReceipt[]>([]);
@@ -668,7 +680,7 @@ function GoodsReceiptsTab() {
               {rows.map((r) => (
                 <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.details_of_number', { number: r.number })}>
                   <td><span className="invx-code">{r.number}</span></td>
-                  <td>{r.supplier?.name ?? '—'}</td>
+                  <td>{r.supplier ? resolveName(r.supplier, lang) : '—'}</td>
                   <td>{r.purchaseOrder?.number ?? '—'}</td>
                   <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.date)}</td>
                   <td>{chip(grTone, r.status, t)}</td>
@@ -686,14 +698,14 @@ function GoodsReceiptsTab() {
         <Drawer
           title={`${t('modal.inv.detail_gr')} — ${viewing.number}`}
           onClose={() => setViewing(null)}
-          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">inventory_2</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{<MoneyText value={viewing.totalCost} />}</span><span className="xpl-drawer-hero-sub">{viewing.number} · {viewing.supplier?.name ?? '—'}</span><div style={{ marginTop: 4 }}>{chip(grTone, viewing.status, t)}</div></div></div>}
+          hero={<div className="xpl-drawer-hero"><div className="xpl-drawer-hero-icon"><span className="material-symbols-outlined" aria-hidden="true">inventory_2</span></div><div className="xpl-drawer-hero-body"><span className="xpl-drawer-hero-title">{<MoneyText value={viewing.totalCost} />}</span><span className="xpl-drawer-hero-sub">{viewing.number} · {viewing.supplier ? resolveName(viewing.supplier, lang) : '—'}</span><div style={{ marginTop: 4 }}>{chip(grTone, viewing.status, t)}</div></div></div>}
           footer={<>
             {hasPermission('inventory.approve') && viewing.status === 'DRAFT' && <Button variant="primary" icon="check_circle" busy={busy} onClick={() => setPostGRId(viewing.id)}>{t('btn.inv.post')}</Button>}
             {hasPermission('inventory.delete') && viewing.status === 'DRAFT' && <Button variant="danger" icon="delete" busy={busy} onClick={() => setDeleteGRId(viewing.id)}>{t('action.delete')}</Button>}
           </>}
         >
           <DrawerSection title={t('sec.info')}>
-            <DrawerField label={t('col.supplier')} value={viewing.supplier?.name ?? '—'} />
+            <DrawerField label={t('col.supplier')} value={viewing.supplier ? resolveName(viewing.supplier, lang) : '—'} />
             <DrawerField label={t('col.inv.po_ref')} value={viewing.purchaseOrder?.number ?? '—'} />
             <DrawerField label={t('col.date')} value={dateText(viewing.date)} />
           </DrawerSection>
@@ -813,6 +825,7 @@ function CategoryForm({ initial, onClose, onSaved }: { initial: Partial<Material
   const { t } = useT();
   const isNew = !initial?.id;
   const [name, setName] = useState<string>(initial?.name ?? '');
+  const [nameEn, setNameEn] = useState<string>(initial?.nameEn ?? '');
   const [description, setDescription] = useState<string>(initial?.description ?? '');
   const [isActive, setIsActive] = useState<boolean>(initial?.isActive ?? true);
   const [saving, setSaving] = useState(false);
@@ -823,7 +836,7 @@ function CategoryForm({ initial, onClose, onSaved }: { initial: Partial<Material
     if (!name.trim()) { setError(t('error.cat_name_required')); return; }
     setSaving(true);
     try {
-      const body = { name: name.trim(), description: description || null, isActive };
+      const body = { name: name.trim(), nameEn: nameEn.trim() || null, description: description || null, isActive };
       if (isNew) await api.post('/inventory/categories', body);
       else await api.put(`/inventory/categories/${initial.id}`, body);
       onSaved();
@@ -836,6 +849,7 @@ function CategoryForm({ initial, onClose, onSaved }: { initial: Partial<Material
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
       <DialogSection title={t('sec.inv.category_info')} icon="label">
         <div className="xpl-field xpl-field--full"><label>{t('field.inv.cat_name')} <span className="req">*</span></label><input className="xpl-input" value={name} onChange={(e) => setName(e.target.value)} autoFocus aria-label={t('field.inv.cat_name')} /></div>
+        <div className="xpl-field xpl-field--full"><label>{t('field.inv.cat_name_en')}</label><input className="xpl-input" value={nameEn} onChange={(e) => setNameEn(e.target.value)} style={{ direction: 'ltr' }} aria-label={t('field.inv.cat_name_en')} /></div>
         <div className="xpl-field xpl-field--full"><label>{t('col.description')}</label><input className="xpl-input" value={description} onChange={(e) => setDescription(e.target.value)} aria-label={t('col.description')} /></div>
         <div className="xpl-field xpl-field--full"><label className="invx-check"><input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />{t('field.inv.active_check')}</label></div>
       </DialogSection>
@@ -845,10 +859,12 @@ function CategoryForm({ initial, onClose, onSaved }: { initial: Partial<Material
 
 function MaterialForm({ initial, onClose, onSaved }: { initial: Partial<Material>; onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const isNew = !initial?.id;
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
   const [code, setCode] = useState<string>(initial?.code ?? '');
   const [name, setName] = useState<string>(initial?.name ?? '');
+  const [nameEn, setNameEn] = useState<string>(initial?.nameEn ?? '');
   const [categoryId, setCategoryId] = useState<string>(String(initial?.categoryId ?? ''));
   const [unit, setUnit] = useState<string>(initial?.unit ?? UNITS[0]);
   const [unitCost, setUnitCost] = useState<string>(String(initial?.unitCost ?? '0'));
@@ -867,7 +883,7 @@ function MaterialForm({ initial, onClose, onSaved }: { initial: Partial<Material
     if (!categoryId) { setError(t('error.category_required')); return; }
     setSaving(true);
     try {
-      const body = { ...(isNew ? { code: code.trim() } : {}), name: name.trim(), categoryId: Number(categoryId), unit, unitCost: Number(unitCost), minimumStock: Number(minimumStock), notes: notes || null, isActive };
+      const body = { ...(isNew ? { code: code.trim() } : {}), name: name.trim(), nameEn: nameEn.trim() || null, categoryId: Number(categoryId), unit, unitCost: Number(unitCost), minimumStock: Number(minimumStock), notes: notes || null, isActive };
       if (isNew) await api.post('/inventory/materials', body);
       else await api.put(`/inventory/materials/${initial.id}`, body);
       onSaved();
@@ -881,7 +897,8 @@ function MaterialForm({ initial, onClose, onSaved }: { initial: Partial<Material
       <DialogSection title={t('sec.identity')} icon="badge">
         {isNew && <div className="xpl-field"><label>{t('field.inv.mat_code')} <span className="req">*</span></label><input className="xpl-input" value={code} onChange={(e) => setCode(e.target.value)} autoFocus aria-label={t('field.inv.mat_code')} /></div>}
         <div className="xpl-field"><label>{t('field.inv.mat_name')} <span className="req">*</span></label><input className="xpl-input" value={name} onChange={(e) => setName(e.target.value)} autoFocus={!isNew} aria-label={t('field.inv.mat_name')} /></div>
-        <div className="xpl-field"><label>{t('col.category')} <span className="req">*</span></label><select className="xpl-select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label={t('col.category')}><option value="">{t('msg.select_placeholder')}</option>{categories.map((c) => <option key={c.id} value={String(c.id)}>{c.name}</option>)}</select></div>
+        <div className="xpl-field"><label>{t('field.inv.mat_name_en')}</label><input className="xpl-input" value={nameEn} onChange={(e) => setNameEn(e.target.value)} style={{ direction: 'ltr' }} aria-label={t('field.inv.mat_name_en')} /></div>
+        <div className="xpl-field"><label>{t('col.category')} <span className="req">*</span></label><select className="xpl-select" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label={t('col.category')}><option value="">{t('msg.select_placeholder')}</option>{categories.map((c) => <option key={c.id} value={String(c.id)}>{resolveName(c, lang)}</option>)}</select></div>
         <div className="xpl-field"><label>{t('field.inv.mat_unit')}</label><select className="xpl-select" value={unit} onChange={(e) => setUnit(e.target.value)} aria-label={t('field.inv.mat_unit')}>{UNITS.map((u) => <option key={u} value={u}>{u}</option>)}</select></div>
       </DialogSection>
       <DialogSection title={t('sec.inv.stock')} icon="inventory">
@@ -900,6 +917,7 @@ function MaterialForm({ initial, onClose, onSaved }: { initial: Partial<Material
 
 function PurchaseOrderForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [supplierId, setSupplierId] = useState('');
@@ -932,7 +950,7 @@ function PurchaseOrderForm({ onClose, onSaved }: { onClose: () => void; onSaved:
       footer={<><Button variant="primary" icon="save" busy={saving} onClick={submit}>{t('action.save')}</Button><Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button></>}>
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
       <DialogSection title={t('sec.inv.supplier_dates')} icon="local_shipping">
-        <div className="xpl-field"><label>{t('col.supplier')} <span className="req">*</span></label><select className="xpl-select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} aria-label={t('col.supplier')}><option value="">{t('msg.select_placeholder')}</option>{suppliers.map((s) => <option key={s.id} value={String(s.id)}>{s.name}</option>)}</select></div>
+        <div className="xpl-field"><label>{t('col.supplier')} <span className="req">*</span></label><select className="xpl-select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} aria-label={t('col.supplier')}><option value="">{t('msg.select_placeholder')}</option>{suppliers.map((s) => <option key={s.id} value={String(s.id)}>{resolveName(s, lang)}</option>)}</select></div>
         <div className="xpl-field"><label>{t('field.inv.po_date')}</label><DateInput className="xpl-input" value={date} onChange={setDate} autoFocus ariaLabel={t('field.inv.po_date')} /></div>
         <div className="xpl-field"><label>{t('field.inv.expected_date')}</label><DateInput className="xpl-input" value={expectedDate} onChange={setExpectedDate} ariaLabel={t('field.inv.expected_date')} /></div>
         <div className="xpl-field xpl-field--full"><label>{t('field.notes')}</label><input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} aria-label={t('field.notes')} /></div>
@@ -944,6 +962,7 @@ function PurchaseOrderForm({ onClose, onSaved }: { onClose: () => void; onSaved:
 
 function GoodsReceiptForm({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
@@ -977,7 +996,7 @@ function GoodsReceiptForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
       footer={<><Button variant="primary" icon="save" busy={saving} onClick={submit}>{t('action.save')}</Button><Button variant="ghost" onClick={onClose}>{t('action.cancel')}</Button></>}>
       {error && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{error}</div>}
       <DialogSection title={t('sec.inv.source_dates')} icon="local_shipping">
-        <div className="xpl-field"><label>{t('col.supplier')} <span className="req">*</span></label><select className="xpl-select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} aria-label={t('col.supplier')}><option value="">{t('msg.select_placeholder')}</option>{suppliers.map((s) => <option key={s.id} value={String(s.id)}>{s.name}</option>)}</select></div>
+        <div className="xpl-field"><label>{t('col.supplier')} <span className="req">*</span></label><select className="xpl-select" value={supplierId} onChange={(e) => setSupplierId(e.target.value)} aria-label={t('col.supplier')}><option value="">{t('msg.select_placeholder')}</option>{suppliers.map((s) => <option key={s.id} value={String(s.id)}>{resolveName(s, lang)}</option>)}</select></div>
         <div className="xpl-field"><label>{t('field.inv.po_optional')}</label><select className="xpl-select" value={purchaseOrderId} onChange={(e) => setPurchaseOrderId(e.target.value)} aria-label={t('field.inv.po_optional')}><option value="">— {t('opt.no_po')} —</option>{purchaseOrders.map((po) => <option key={po.id} value={String(po.id)}>{po.number}</option>)}</select></div>
         <div className="xpl-field"><label>{t('col.date')}</label><DateInput className="xpl-input" value={date} onChange={setDate} autoFocus ariaLabel={t('col.date')} /><HistoricalDateNotice date={date} /></div>
         <div className="xpl-field xpl-field--full"><label>{t('field.notes')}</label><input className="xpl-input" value={notes} onChange={(e) => setNotes(e.target.value)} aria-label={t('field.notes')} /></div>
