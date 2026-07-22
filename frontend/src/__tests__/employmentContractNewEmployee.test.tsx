@@ -25,6 +25,9 @@ const code = (src: string) =>
 
 const formsCode = code(readFileSync('src/pages/Forms.tsx', 'utf8'));
 const contractCode = code(readFileSync('src/pages/EmploymentContract.tsx', 'utf8'));
+// Employee Smart Forms Hub v1 نقل بيانات البطاقات (FORM_CARDS) من Forms.tsx إلى
+// سجل مشترك يستهلكه أيضًا درج الموظف — فالتحقق من شكل البيانات صار من هنا.
+const formsRegistryCode = code(readFileSync('src/forms/shared/formsRegistry.ts', 'utf8'));
 
 let post: ReturnType<typeof vi.fn>;
 let put: ReturnType<typeof vi.fn>;
@@ -69,15 +72,17 @@ function fillManual(name = 'أحمد المنصور', salary = '850') {
 // ── المدخل: الخيار ظاهر ─────────────────────────────────────────────────────────
 describe('الوصول إلى الخيار', () => {
   it('مركز النماذج: بطاقة عقد العمل لا تُعطَّل بغياب اختيار موظف', () => {
-    expect(formsCode).toContain('employeeOptional: true');
+    expect(formsRegistryCode).toContain('employeeOptional: true');
     expect(formsCode).toContain('const disabled = needsEmployee && !card.employeeOptional && !selectedId;');
     // وبلا اختيار تُفتح الشاشة **بلا معرّف** ⇒ يظهر المُحدِّد.
+    // (إصلاح انحدار الرجوع: navigate() صار خلف مقبض go() محلي يتيح replace
+    // اختياريًا للإطلاق التلقائي فقط — المسار والسلوك اليدوي كما هما بحذافيرهما.)
     expect(formsCode).toContain('if (card.employeeOptional && !selectedId) {');
-    expect(formsCode).toContain('navigate(`/forms/${card.route}`);');
+    expect(formsCode).toContain('go(`/forms/${card.route}`);');
   });
 
   it('مسار الموظف المختار لم يتغيّر: يُفتح بالمعرّف وبنفس printMode', () => {
-    expect(formsCode).toContain('navigate(`/forms/${card.route}/${selectedId}?printMode=${printModes[card.key]}`);');
+    expect(formsCode).toContain('go(`/forms/${card.route}/${selectedId}?printMode=${printModes[card.key]}`);');
   });
 
   it('الشاشة تعرض الخيارين حين تُفتح بلا معرّف', async () => {
@@ -177,10 +182,10 @@ describe('الطباعة والمعاينة — بلا تغيير', () => {
 // ── الانحدار ────────────────────────────────────────────────────────────────────
 describe('الانحدار — لا شيء خارج المدخل تغيّر', () => {
   it('بقية بطاقات النماذج بسلوكها القديم', () => {
-    expect(formsCode).toContain("{ key: 'quotation'"); // requiresEmployee: false كما هو
+    expect(formsRegistryCode).toContain("{ key: 'quotation'"); // requiresEmployee: false كما هو
     expect(formsCode).toContain('if (card.requiresEmployee === false) {');
     // والموظف الاختياري محصور ببطاقة واحدة.
-    expect((formsCode.match(/employeeOptional: true/g) ?? []).length).toBe(1);
+    expect((formsRegistryCode.match(/employeeOptional: true/g) ?? []).length).toBe(1);
   });
 
   it('لا Backend ولا Database ولا Payroll: الشاشة لا تكتب شيئًا', () => {

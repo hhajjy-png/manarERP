@@ -284,7 +284,7 @@ export default function Quotation() {
     return composeStyledFromNode({
       node,
       pageSpec: getPageSpec('a4-portrait'),
-      title: `عرض سعر ${printFields.quotationNumber || '---'}`,
+      title: `${t('page.quotation.title')} ${printFields.quotationNumber || '---'}`,
       lang,
       stripSelectors: ['.no-print'],
     });
@@ -321,7 +321,7 @@ export default function Quotation() {
     enabled: accurateEnabled,
     compose: () => composeQuotationPreview(printRootRef.current),
     onPrint: () => printCurrentView(),
-    title: `عرض سعر ${printFields.quotationNumber || '---'}`,
+    title: `${t('page.quotation.title')} ${printFields.quotationNumber || '---'}`,
     documentLabel: t('lbl.doc_label.quotation', { number: printFields.quotationNumber || '---' }),
     lang,
   });
@@ -330,7 +330,7 @@ export default function Quotation() {
     enabled: accurateEnabled,
     compose: () => composeQuotationPreview(printApiRef.current?.getNode() ?? null),
     onPrint: () => printApiRef.current?.print(),
-    title: `عرض سعر ${printFields.quotationNumber || '---'}`,
+    title: `${t('page.quotation.title')} ${printFields.quotationNumber || '---'}`,
     documentLabel: t('lbl.doc_label.quotation', { number: printFields.quotationNumber || '---' }),
     lang,
   });
@@ -644,7 +644,7 @@ export default function Quotation() {
       lang={lang}
       ready={false}
       formNumber={printFields.quotationNumber || generateFormNumber(FORM_KEY)}
-      title={lang === 'ar' ? 'عرض سعر' : 'Quotation'}
+      title={t('page.quotation.title')}
       profile={profile}
       printIntercept={usePrintCenterQuotation ? legacyPrintIntercept : undefined}
       onPrintApiReady={(api) => { printApiRef.current = api; }}

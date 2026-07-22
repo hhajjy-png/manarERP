@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { PrintMode, PRINT_MODE_LABELS } from '../forms/shared/printMode';
+import { FORM_CARDS, type FormCard, type FormCategory } from '../forms/shared/formsRegistry';
 import PrintLogPanel from '../components/PrintLogPanel';
-import { useT } from '../lib/i18n';
+import { t as translate, useT } from '../lib/i18n';
 import { useUI } from '../stores/uiStore';
 import {
   ExecutiveHeader,
@@ -27,41 +28,6 @@ interface EmployeeOption {
   jobTitle: string | null;
 }
 
-type FormCategory = 'hr' | 'ops';
-
-interface FormCard {
-  key: string;
-  route: string;
-  titleAr: string;
-  titleEn: string;
-  description: string;
-  descriptionEn: string;
-  icon: string;
-  category: FormCategory;
-  requiresEmployee?: boolean;
-  /**
-   * الموظف **اختياري**: يمكن الطباعة بموظف مختار (فتُملأ بياناته تلقائيًا) أو بلا موظف
-   * إطلاقًا — فتفتح الشاشة على مُحدِّد النمط: «موظف موجود» أو «موظف جديد (إدخال يدوي)».
-   * عقد العمل هو الوحيد الذي يملك مسار إدخال يدوي **للطباعة فقط** (لا يُنشئ سجل موظف).
-   */
-  employeeOptional?: boolean;
-}
-
-const FORM_CARDS: FormCard[] = [
-  { key: 'salary-certificate', route: 'salary-certificate', titleAr: 'شهادة راتب', titleEn: 'Salary Certificate', description: 'شهادة رسمية تُثبت راتب الموظف الشهري للجهات الطالبة.', descriptionEn: 'An official certificate confirming the employee’s monthly salary for requesting parties.', icon: '📋', category: 'hr' },
-  { key: 'to-whom-it-may-concern', route: 'to-whom-it-may-concern', titleAr: 'إلى من يهمه الأمر', titleEn: 'To Whom It May Concern', description: 'شهادة عمل عامة لتقديمها للجهات الخارجية.', descriptionEn: 'A general employment certificate for submission to external parties.', icon: '📄', category: 'hr' },
-  { key: 'leave-request', route: 'leave-request', titleAr: 'طلب إجازة', titleEn: 'Leave Request', description: 'نموذج طلب إجازة سنوية أو مرضية أو طارئة.', descriptionEn: 'A form for requesting annual, sick, or emergency leave.', icon: '🗓️', category: 'hr' },
-  { key: 'return-to-work', route: 'return-to-work', titleAr: 'إشعار العودة إلى العمل', titleEn: 'Return To Work Notice', description: 'إشعار رسمي بعودة الموظف من الإجازة.', descriptionEn: 'An official notice of the employee’s return from leave.', icon: '↩️', category: 'hr' },
-  { key: 'salary-advance', route: 'salary-advance', titleAr: 'طلب سلفة راتب', titleEn: 'Salary Advance Request', description: 'نموذج طلب سلفة مالية يُخصم من الراتب الشهري.', descriptionEn: 'A form for requesting a salary advance deducted from the monthly salary.', icon: '💰', category: 'hr' },
-  { key: 'resignation', route: 'resignation', titleAr: 'طلب استقالة', titleEn: 'Resignation Request', description: 'نموذج استقالة رسمي مع تحديد آخر يوم عمل.', descriptionEn: 'An official resignation form specifying the last working day.', icon: '✉️', category: 'hr' },
-  { key: 'employee-warning', route: 'employee-warning', titleAr: 'إنذار موظف', titleEn: 'Employee Warning Notice', description: 'نموذج إنذار رسمي للموظف يُحدد درجة المخالفة وسببها.', descriptionEn: 'An official warning notice for the employee specifying the violation level and reason.', icon: '⚠️', category: 'hr' },
-  { key: 'performance-evaluation', route: 'performance-evaluation', titleAr: 'تقييم أداء الموظف', titleEn: 'Employee Performance Evaluation', description: 'نموذج تقييم الأداء السنوي بمعايير موضوعية.', descriptionEn: 'An annual performance evaluation form with objective criteria.', icon: '⭐', category: 'hr' },
-  { key: 'employment-contract', route: 'employment-contract', titleAr: 'عقد العمل', titleEn: 'Employment Contract', description: 'نموذج عقد العمل الرسمي الصادر عن الهيئة العامة للقوى العاملة، ثنائي اللغة (عربي / إنجليزي). يمكن طباعته لموظف مسجّل أو لموظف جديد بإدخال يدوي (للطباعة فقط).', descriptionEn: 'The official bilingual (Arabic/English) employment contract form issued by the Public Authority for Manpower. It can be printed for a registered employee or a new employee via manual entry (print only).', icon: '📝', category: 'hr', employeeOptional: true },
-  { key: 'quotation', route: 'quotation', titleAr: 'عرض سعر', titleEn: 'Quotation', description: 'نموذج عرض سعر رسمي للعملاء يتضمن جدول الأسعار والشروط.', descriptionEn: 'An official price quotation form for clients, including a price schedule and terms.', icon: '📊', category: 'ops', requiresEmployee: false },
-  { key: 'purchase-request', route: 'purchase-request', titleAr: 'طلب شراء', titleEn: 'Purchase Request', description: 'نموذج طلب شراء داخلي مع جدول المواد والكميات وبيانات الاعتماد.', descriptionEn: 'An internal purchase request form with a materials/quantities table and approval details.', icon: '🛒', category: 'ops', requiresEmployee: false },
-  { key: 'receipt-voucher', route: 'receipt-voucher', titleAr: 'سند قبض', titleEn: 'Receipt Voucher', description: 'سند قبض رسمي لتوثيق المبالغ المستلمة نقداً أو بشيك أو تحويل بنكي.', descriptionEn: 'An official receipt voucher documenting amounts received in cash, cheque, or bank transfer.', icon: '🧾', category: 'ops', requiresEmployee: false },
-];
-
 const CATEGORY_CHIPS: { key: 'all' | FormCategory; labelKey: string; icon?: string }[] = [
   { key: 'all', labelKey: 'page.forms.cat_all' },
   { key: 'hr', labelKey: 'page.forms.cat_hr', icon: 'badge' },
@@ -70,6 +36,9 @@ const CATEGORY_CHIPS: { key: 'all' | FormCategory; labelKey: string; icon?: stri
 
 export default function Forms() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectEmployeeId = searchParams.get('employee');
+  const preselectFormId = searchParams.get('form');
   const { t } = useT();
   const { lang } = useUI();
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
@@ -88,31 +57,82 @@ export default function Forms() {
       .catch((e) => setLoadError(errorMessage(e)));
   }, []);
 
+  // مقبض تحديد الموظف الوحيد للشاشة: يستدعيه اختيار المستخدم اليدوي من القائمة
+  // **وكذلك** التحديد التلقائي القادم من درج الموظف أدناه — فكل ما يتفرّع من
+  // selectedId (بطاقة المقاييس، تفعيل/تعطيل البطاقات، الطباعة) يتحدّث بنفس المسار
+  // بلا أي منطق مُكرَّر.
+  function selectEmployee(id: string) {
+    setSelectedId(id);
+  }
+
+  // Quick Launch من درج الموظف: يمرَّر رقم تعريف الموظف فقط عبر ?employee=<id>،
+  // فيُحل هنا من نفس مصدر البيانات الحالي — بلا تكرار وبلا ذاكرة مؤقتة. إن لم يوجد
+  // الموظف ضمن القائمة (مثلاً غير نشط أو محذوف) تبقى الشاشة بلا اختيار، بلا أي خطأ.
+  useEffect(() => {
+    if (!preselectEmployeeId) return;
+    if (employees.some((e) => String(e.id) === preselectEmployeeId)) {
+      selectEmployee(preselectEmployeeId);
+    }
+  }, [preselectEmployeeId, employees]);
+
   function setMode(key: string, mode: PrintMode) {
     setPrintModes((prev) => ({ ...prev, [key]: mode }));
   }
 
-  function handlePrint(card: FormCard) {
+  // مقبض الطباعة نفسه الذي يستدعيه زر «طباعة» في كل بطاقة — مُلفوف بـ useCallback
+  // فقط لإتاحة إعادة استخدامه بأمان من تأثير الإطلاق التلقائي أدناه (Employee Smart
+  // Forms Hub) بلا أي منطق مُكرَّر ولا استدعاء مباشر لأي حالة داخلية. `replace`
+  // يُستخدَم **فقط** من التأثير التلقائي أدناه — النقر اليدوي على بطاقة يبقى
+  // navigate() عاديًا (push) كما كان، فالرجوع من الطباعة اليدوية يعيد إلى مركز
+  // النماذج بلا أي تغيير في السلوك القائم.
+  const handlePrint = useCallback((card: FormCard, opts?: { replace?: boolean }) => {
+    const go = (path: string) => navigate(path, opts?.replace ? { replace: true } : undefined);
     if (card.requiresEmployee === false) {
-      navigate(`/forms/${card.route}`);
+      go(`/forms/${card.route}`);
       return;
     }
     // موظف اختياري وبلا اختيار ⇒ نفتح الشاشة **بلا معرّف**، فتعرض هي مُحدِّد النمط
     // (موظف موجود / موظف جديد). أما مع اختيار موظف فالمسار القديم كما هو بحذافيره.
     if (card.employeeOptional && !selectedId) {
-      navigate(`/forms/${card.route}`);
+      go(`/forms/${card.route}`);
       return;
     }
     if (!selectedId) return;
-    navigate(`/forms/${card.route}/${selectedId}?printMode=${printModes[card.key]}`);
-  }
+    go(`/forms/${card.route}/${selectedId}?printMode=${printModes[card.key]}`);
+  }, [navigate, selectedId, printModes]);
+
+  // Smart Forms Hub: طلب نموذج محدَّد عبر ?form=<key> من قائمة الدرج. يُنفَّذ فقط
+  // بعد أن يستقرّ selectedId على نفس معرّف الموظف المطلوب (أي بعد أن ينجح تأثير
+  // التحديد أعلاه فعليًا) — فإن كان معرّف الموظف غير صالح يبقى selectedId فارغًا
+  // إلى الأبد فلا يُنفَّذ شيء (سلوك اليوم تمامًا، بلا أخطاء). وإن كان النموذج
+  // المطلوب غير موجود في السجل، يبقى الموظف مُحدَّدًا فقط بلا أي تنقّل إضافي.
+  // ينادي **نفس** handlePrint الذي يستدعيه نقر المستخدم اليدوي على البطاقة — بلا
+  // أي تكرار لمنطق الاختيار أو التنقّل.
+  //
+  // `replace: true` هنا تحديدًا (انحدار الرجوع — إصلاح): هذا الرابط
+  // (?employee=<id>&form=<key>) هو رابط **عبور** لا صفحة يقصدها المستخدم أبدًا؛
+  // بلا `replace` يبقى مدخلًا خفيًا إضافيًا في سجل المتصفح بين الدرج والمعاينة،
+  // فيعيد زر «رجوع» (history.back الأصلي في FormLayout) المستخدمَ إلى رابط
+  // العبور هذا بالذات — وهو يُطلق نفس الانتقال التلقائي من جديد فورًا، فيبدو أن
+  // «رجوع» لا يفعل شيئًا. الاستبدال هنا يُسقط رابط العبور من السجل، فيصبح
+  // الانتقال بأكمله (الدرج ← المعاينة) مدخلاً واحدًا فقط — ويعود «رجوع» مباشرة
+  // إلى ما قبل الدرج، كما يفعل أي رابط عميق مباشر آخر لهذه الشاشة.
+  useEffect(() => {
+    if (!preselectFormId || !preselectEmployeeId) return;
+    if (selectedId !== preselectEmployeeId) return;
+    const card = FORM_CARDS.find((c) => c.key === preselectFormId);
+    if (!card) return;
+    handlePrint(card, { replace: true });
+  }, [preselectFormId, preselectEmployeeId, selectedId, handlePrint]);
 
   const filteredCards = useMemo(() => {
     const q = search.trim().toLowerCase();
     return FORM_CARDS.filter((c) => {
       if (category !== 'all' && c.category !== category) return false;
       if (!q) return true;
-      return c.titleAr.toLowerCase().includes(q) || c.titleEn.toLowerCase().includes(q) || c.description.toLowerCase().includes(q);
+      // العنوان يُحلّ عبر t(titleKey) بكلتا اللغتين (بحث ثنائي اللغة كما كان)،
+      // لا نصًا حرفيًا مخزَّنًا في السجل — مصدر الحقيقة الوحيد هو i18n.ts.
+      return translate(c.titleKey, 'ar').toLowerCase().includes(q) || translate(c.titleKey, 'en').toLowerCase().includes(q) || c.description.toLowerCase().includes(q);
     });
   }, [search, category]);
 
@@ -154,7 +174,7 @@ export default function Forms() {
           <div className="fmx-employee-icon"><span className="material-symbols-outlined" aria-hidden="true">badge</span></div>
           <div className="fmx-employee-field">
             <label>{t('page.forms.select_employee_label')}</label>
-            <select className="xpl-select" aria-label={t('page.forms.select_employee_label')} value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
+            <select className="xpl-select" aria-label={t('page.forms.select_employee_label')} value={selectedId} onChange={(e) => selectEmployee(e.target.value)}>
               <option value="">{t('page.forms.select_employee_ph')}</option>
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
@@ -198,8 +218,8 @@ export default function Forms() {
                 <div className="fmx-card-head">
                   <div className="fmx-card-icon">{card.icon}</div>
                   <div className="fmx-card-titles">
-                    <div className="fmx-card-title-ar">{card.titleAr}</div>
-                    <div className="fmx-card-title-en">{card.titleEn}</div>
+                    <div className="fmx-card-title-ar">{translate(card.titleKey, 'ar')}</div>
+                    <div className="fmx-card-title-en">{translate(card.titleKey, 'en')}</div>
                   </div>
                   <StatusChipInline category={card.category} t={t} />
                 </div>

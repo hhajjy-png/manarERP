@@ -33,13 +33,14 @@ import {
   Tabs,
   Drawer,
   DrawerSection,
-  DrawerQuickActions,
+  QuickActionTile,
   Button,
   type QuickAction,
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import EmployeeFinancialTab from '../components/employee/EmployeeFinancialTab';
 import EmployeeEntitlementsTab from '../components/employee/EmployeeEntitlementsTab';
+import EmployeeFormsMenu from '../components/employee/EmployeeFormsMenu';
 import CustomerHub from '../components/explorer/hubs/CustomerHub';
 import EquipmentHub from '../components/explorer/hubs/EquipmentHub';
 import type { HubComponent } from '../components/explorer/hubs/hubTypes';
@@ -97,6 +98,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const canCreate = hasPermission(`${cfg.key}.create`);
   const canUpdate = hasPermission(`${cfg.key}.update`);
   const canDelete = hasPermission(`${cfg.key}.delete`);
+  const canPrintForms = hasPermission('forms.read');
   const canExport = cfg.supportsExport && hasPermission('reports.export');
   const [exportBusy, setExportBusy] = useState(false);
 
@@ -594,7 +596,12 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
                       {viewing.code && <span className="xpl-drawer-hero-sub">{viewing.code}</span>}
                     </div>
                   </div>
-                  {cfg.key === 'employees' && <DrawerQuickActions actions={employeeQuickActions} />}
+                  {cfg.key === 'employees' && (canPrintForms || employeeQuickActions.length > 0) && (
+                    <div className="xpl-quick-actions">
+                      {canPrintForms && <EmployeeFormsMenu employeeId={viewing.id} />}
+                      {employeeQuickActions.map((a) => <QuickActionTile key={a.key} action={a} />)}
+                    </div>
+                  )}
                 </>
               )
             }

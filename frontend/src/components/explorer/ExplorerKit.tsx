@@ -21,7 +21,7 @@ import { useUI } from '../../stores/uiStore';
 
 export type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
-const Icon = ({ name, className }: { name: string; className?: string }) => (
+export const Icon = ({ name, className }: { name: string; className?: string }) => (
   <span className={`material-symbols-outlined${className ? ` ${className}` : ''}`} aria-hidden="true">
     {name}
   </span>
@@ -515,23 +515,29 @@ export interface QuickAction {
   disabled?: boolean;
 }
 
+/** Single quick-action tile — extracted so custom compositions (e.g. a menu
+ * trigger sharing the same grid as edit/delete) can reuse the exact markup
+ * without duplicating it. `DrawerQuickActions` below is just this, mapped. */
+export function QuickActionTile({ action }: { action: QuickAction }) {
+  return (
+    <button
+      type="button"
+      className={`xpl-quick-action${action.tone && action.tone !== 'default' ? ` xpl-quick-action--${action.tone}` : ''}`}
+      onClick={action.onClick}
+      disabled={action.disabled}
+      aria-label={action.label}
+    >
+      <span className="xpl-quick-action-icon"><Icon name={action.icon} /></span>
+      <span className="xpl-quick-action-label">{action.label}</span>
+    </button>
+  );
+}
+
 export function DrawerQuickActions({ actions }: { actions: QuickAction[] }) {
   if (!actions.length) return null;
   return (
     <div className="xpl-quick-actions">
-      {actions.map((a) => (
-        <button
-          type="button"
-          key={a.key}
-          className={`xpl-quick-action${a.tone && a.tone !== 'default' ? ` xpl-quick-action--${a.tone}` : ''}`}
-          onClick={a.onClick}
-          disabled={a.disabled}
-          aria-label={a.label}
-        >
-          <span className="xpl-quick-action-icon"><Icon name={a.icon} /></span>
-          <span className="xpl-quick-action-label">{a.label}</span>
-        </button>
-      ))}
+      {actions.map((a) => <QuickActionTile key={a.key} action={a} />)}
     </div>
   );
 }
