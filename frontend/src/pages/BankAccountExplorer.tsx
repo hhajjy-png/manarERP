@@ -31,7 +31,7 @@ import {
   type PresentationConfidence,
 } from './bankTransactionPresentation';
 import {
-  buildTransactionIntelligence, channelLabel,
+  buildTransactionIntelligence, channelLabel, chequeDirectionLabel, chequePresentationTypeLabel,
 } from './bankTransactionIntelligence';
 import { formatCurrency, formatNumber } from '../lib/format';
 import { formatDate, formatMonthLabel } from '../lib/date';
@@ -718,6 +718,17 @@ function TransactionDrawer({
 
                 <section className="bae-drawer-section">
                   <div className="bae-drawer-section-title">{t('col.description')}</div>
+
+                  {intel.summary && (
+                    <div className="bae-tx-summary">
+                      <span className="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+                      <div>
+                        <span className="bae-tx-summary-label">{t('bank.explorer.tx_summary')}</span>
+                        <p className="bae-tx-summary-text">{intel.summary}</p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bae-drawer-field">
                     <span className="bae-drawer-field-label">{t('bank.explorer.tx_type')}</span>
                     <span className="bae-drawer-field-value">{intel.title}</span>
@@ -727,6 +738,10 @@ function TransactionDrawer({
                       <span className="bae-drawer-field-label">{t('bank.explorer.tx_channel')}</span>
                       <span className="bae-drawer-field-value">{channelLabel(intel.channel, t)}</span>
                     </div>
+                  )}
+
+                  {(intel.counterparty || intel.sourceAccount || intel.destinationAccount) && (
+                    <div className="bae-drawer-field-group-title">{t('bank.explorer.group_parties')}</div>
                   )}
                   {intel.counterparty && (
                     <div className="bae-drawer-field">
@@ -746,10 +761,26 @@ function TransactionDrawer({
                       <span className="bae-drawer-field-value mono">{intel.destinationAccount}</span>
                     </div>
                   )}
+
+                  {(intel.chequeNumber || intel.chequeDirection || intel.chequePresentationType || intel.branch) && (
+                    <div className="bae-drawer-field-group-title">{t('bank.explorer.group_cheque')}</div>
+                  )}
                   {intel.chequeNumber && (
                     <div className="bae-drawer-field">
                       <span className="bae-drawer-field-label">{t('field.cheque.number')}</span>
                       <span className="bae-drawer-field-value mono">{intel.chequeNumber}</span>
+                    </div>
+                  )}
+                  {intel.chequeDirection && (
+                    <div className="bae-drawer-field">
+                      <span className="bae-drawer-field-label">{t('bank.explorer.cheque_direction')}</span>
+                      <span className="bae-drawer-field-value">{chequeDirectionLabel(intel.chequeDirection, t)}</span>
+                    </div>
+                  )}
+                  {intel.chequePresentationType && (
+                    <div className="bae-drawer-field">
+                      <span className="bae-drawer-field-label">{t('bank.explorer.cheque_presentation_type')}</span>
+                      <span className="bae-drawer-field-value">{chequePresentationTypeLabel(intel.chequePresentationType, t)}</span>
                     </div>
                   )}
                   {intel.branch && (
@@ -757,6 +788,10 @@ function TransactionDrawer({
                       <span className="bae-drawer-field-label">{t('bank.explorer.branch')}</span>
                       <span className="bae-drawer-field-value mono">{intel.branch}</span>
                     </div>
+                  )}
+
+                  {(intel.referenceNumber || intel.atmId || intel.terminalId) && (
+                    <div className="bae-drawer-field-group-title">{t('bank.explorer.group_reference')}</div>
                   )}
                   {intel.referenceNumber && (
                     <div className="bae-drawer-field">
@@ -776,10 +811,11 @@ function TransactionDrawer({
                       <span className="bae-drawer-field-value">{extraDetail}</span>
                     </div>
                   )}
-                  <div className="bae-drawer-desc-raw">
-                    <span className="bae-drawer-desc-raw-label">{t('bank.explorer.original_text')}</span>
+
+                  <details className="bae-drawer-desc-raw">
+                    <summary className="bae-drawer-desc-raw-label">{t('bank.explorer.original_text')}</summary>
                     <CollapsibleDescription text={tx.description} />
-                  </div>
+                  </details>
                 </section>
               </>
             )}
