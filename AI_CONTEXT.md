@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `32d6665` (merge of `feature/bank-transaction-intelligence-presentation-pack-v1`, carrying Bank Transaction Intelligence Presentation Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `a855bc5` — "docs: record Bank Transaction Intelligence Presentation Pack v1 release" |
 | **Current Stable Tag** | `stable-bank-transaction-intelligence-presentation-pack-v1` |
 | **Current Release Date** | 2026-07-22 |
 | **Total Stable Releases** | 336 (window 2026-06-07 → 2026-07-22) |
