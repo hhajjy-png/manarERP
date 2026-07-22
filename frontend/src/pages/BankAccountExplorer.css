@@ -1397,9 +1397,6 @@ html[data-theme="dark"] .bae-drawer-tab.active .material-symbols-outlined { colo
 .bae-drawer-panel { display: flex; flex-direction: column; gap: 12px; }
 
 /* Parsed description card */
-.bae-drawer-desc { display: flex; flex-direction: column; gap: 4px; }
-.bae-drawer-desc-primary { font-size: 13.5px; font-weight: 700; color: var(--text); line-height: 1.5; word-break: break-word; }
-.bae-drawer-desc-secondary { font-size: 12.5px; color: var(--muted); line-height: 1.5; word-break: break-word; }
 .bae-drawer-desc-raw { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 4px; }
 .bae-drawer-desc-raw-label { font-size: 10.5px; font-weight: 700; color: var(--muted); }
 
