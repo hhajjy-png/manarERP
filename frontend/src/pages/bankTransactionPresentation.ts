@@ -95,7 +95,7 @@ const SPECIFIC_CATEGORIES: SpecificCategory[] = [
   { re: /outgoing\s+clearing\s+cheque/i, key: 'bank.presentation.outgoing_clearing_cheque', label: 'شيك مقاصة صادر',     family: 'CHEQUE_PAYMENT',  rule: 'outgoing-clearing-cheque' },
   { re: /cheque\s+paid/i,                key: 'bank.presentation.cheque_payment',           label: 'دفع شيك',            family: 'CHEQUE_PAYMENT',  rule: 'cheque-paid' },
   { re: /outgoing\s+rtgs/i,              key: 'bank.presentation.outgoing_rtgs',            label: 'تحويل صادر (RTGS)',  family: 'BANK_TRANSFER',   rule: 'outgoing-rtgs' },
-  { re: /atm\s+with(?:d|dr)a?wal/i,      key: 'bank.presentation.atm_withdrawal',           label: 'سحب نقدي (صراف آلي)', family: 'CASH_WITHDRAWAL', rule: 'atm-withdrawal' },
+  { re: /atm\s+with(?:d|dr)a?wal/i,      key: 'bank.presentation.atm_withdrawal',           label: 'سحب نقدي عبر جهاز الصراف', family: 'CASH_WITHDRAWAL', rule: 'atm-withdrawal' },
   { re: /cash\s+with(?:d|dr)a?wal/i,     key: 'bank.cat.cash_withdrawal',                    label: 'سحب نقدي',           family: 'CASH_WITHDRAWAL', rule: 'cash-withdrawal' },
 ];
 
@@ -121,8 +121,36 @@ function isSensitive(s: string): boolean {
   return SENSITIVE_DIGITS.test(s);
 }
 
+// Exported alias — lets other presentation-layer modules (e.g. the intelligence
+// engine) reuse the same sensitive-digit-run guard instead of redefining it.
+export function isSensitiveValue(s: string): boolean {
+  return isSensitive(s);
+}
+
 function firstSpecific(raw: string): SpecificCategory | null {
   return SPECIFIC_CATEGORIES.find((s) => s.re.test(raw)) ?? null;
+}
+
+// ── Reusable low-level extractors ────────────────────────────────────────────
+// Anchored, labelled patterns only (never fuzzy free-text matching). Exported so
+// the intelligence engine (bankTransactionIntelligence.ts) can reuse the exact
+// same extraction rules instead of duplicating the regexes.
+
+export function extractInwardClearingCheque(raw: string): { number: string | null; channel: string | null } | null {
+  const inward = raw.match(/inward\s+clearing\s+cheque\s*([0-9]{1,7})?/i);
+  if (!inward) return null;
+  const channel = raw.match(/presented\s+in\s*([A-Za-z0-9]{1,10})\b/i);
+  return { number: inward[1] ?? null, channel: channel ? channel[1] : null };
+}
+
+export function extractChequeNumberLabeled(raw: string): string | null {
+  const m = raw.match(/cheque\s+number:?\s*([0-9]{1,7})\b/i);
+  return m ? m[1] : null;
+}
+
+export function extractPresentedChannel(raw: string): string | null {
+  const m = raw.match(/presented\s+in\s*([A-Za-z0-9]{1,10})\b/i);
+  return m ? m[1] : null;
 }
 
 // ── Category resolution (structured first) ──────────────────────────────────────
@@ -197,19 +225,18 @@ function acceptable(candidate: string, categoryLabel: string): boolean {
 
 function resolveDetail(t: TimelineTransaction, raw: string, categoryLabel: string, translate?: TranslateFn): ResolvedDetail | null {
   // 1) Inward-clearing: cheque number + presented-in channel (combined).
-  const inward = raw.match(/inward\s+clearing\s+cheque\s*([0-9]{1,7})?/i);
+  const inward = extractInwardClearingCheque(raw);
   if (inward) {
-    const num  = inward[1] ? `${tr('bank.presentation.number_prefix', 'رقم', translate)} ${inward[1]}` : '';
-    const chan = raw.match(/presented\s+in\s*([A-Za-z0-9]{1,10})\b/i);
-    const parts = [num, chan ? `${tr('bank.presentation.presented_at', 'مقدَّم في', translate)} ${chan[1]}` : ''].filter(Boolean);
+    const num  = inward.number ? `${tr('bank.presentation.number_prefix', 'رقم', translate)} ${inward.number}` : '';
+    const parts = [num, inward.channel ? `${tr('bank.presentation.presented_at', 'مقدَّم في', translate)} ${inward.channel}` : ''].filter(Boolean);
     const text = parts.join(' · ');
     if (acceptable(text, categoryLabel)) return { text, kind: num ? 'cheque' : 'channel', confidence: 'high' };
   }
 
   // 2) Cheque number from an anchored "Cheque Number: N" label.
-  const chqText = raw.match(/cheque\s+number:?\s*([0-9]{1,7})\b/i);
-  if (chqText) {
-    const text = `${tr('bank.presentation.cheque_no', 'شيك رقم', translate)} ${chqText[1]}`;
+  const chqNum = extractChequeNumberLabeled(raw);
+  if (chqNum) {
+    const text = `${tr('bank.presentation.cheque_no', 'شيك رقم', translate)} ${chqNum}`;
     if (acceptable(text, categoryLabel)) return { text, kind: 'cheque', confidence: 'high' };
   }
 
@@ -220,9 +247,9 @@ function resolveDetail(t: TimelineTransaction, raw: string, categoryLabel: strin
   }
 
   // 4) Standalone "Presented in XXX" channel.
-  const chan = raw.match(/presented\s+in\s*([A-Za-z0-9]{1,10})\b/i);
+  const chan = extractPresentedChannel(raw);
   if (chan) {
-    const text = `${tr('bank.presentation.presented_at', 'مقدَّم في', translate)} ${chan[1]}`;
+    const text = `${tr('bank.presentation.presented_at', 'مقدَّم في', translate)} ${chan}`;
     if (acceptable(text, categoryLabel)) return { text, kind: 'channel', confidence: 'high' };
   }
 

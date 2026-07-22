@@ -30,6 +30,9 @@ import {
   presentTransaction, CONFIDENCE_LABELS,
   type PresentationConfidence,
 } from './bankTransactionPresentation';
+import {
+  buildTransactionIntelligence, channelLabel,
+} from './bankTransactionIntelligence';
 import { formatCurrency, formatNumber } from '../lib/format';
 import { formatDate, formatMonthLabel } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
@@ -600,10 +603,24 @@ function TransactionDrawer({
   const beforeBalance = afterBalance - credit + debit;
   const impactClass   = impact >= 0 ? 'bae-credit' : 'bae-debit';
 
-  // Smart presentation (display-only): structured category + safe detail. The raw
-  // bank text is still shown below when it carries more than the category label.
-  const pres      = presentTransaction(tx, t);
-  const rawIsExtra = pres.raw.length > 0 && pres.raw !== pres.category.label;
+  // Smart presentation (display-only): structured category + safe detail, plus
+  // provenance for the Audit tab.
+  const pres = presentTransaction(tx, t);
+
+  // Intelligence view model (display-only): structured, optional fields built on
+  // top of `pres` — channel, counterparty, cheque/branch/account/reference/device
+  // identifiers. Never fabricated; every value is a literal substring of the
+  // source. Powers the redesigned "structured info" block below.
+  const intel = buildTransactionIntelligence(tx, t);
+  const structuredFieldValues = [
+    intel.chequeNumber, intel.branch, intel.referenceNumber,
+    intel.atmId, intel.terminalId, intel.sourceAccount, intel.destinationAccount,
+  ].filter((v): v is string => Boolean(v));
+  // The old single "detail" line is still shown, but only when it isn't already
+  // covered by one of the structured rows above (avoids showing the same value twice).
+  const extraDetail = intel.subtitle && !structuredFieldValues.some((v) => intel.subtitle!.includes(v))
+    ? intel.subtitle
+    : undefined;
 
   return (
     <>
@@ -688,10 +705,6 @@ function TransactionDrawer({
                     </div>
                   )}
                   <div className="bae-drawer-field">
-                    <span className="bae-drawer-field-label">{t('bank.explorer.tx_type')}</span>
-                    <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
-                  </div>
-                  <div className="bae-drawer-field">
                     <span className="bae-drawer-field-label">{t('field.cheque.currency')}</span>
                     <span className="bae-drawer-field-value">{tx.currency}</span>
                   </div>
@@ -701,34 +714,72 @@ function TransactionDrawer({
                       {reconcileLabel(tx.reconcileStatus, t)}
                     </span>
                   </div>
-                  {tx.reference && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('col.acc.reference')}</span>
-                      <span className="bae-drawer-field-value mono">{tx.reference}</span>
-                    </div>
-                  )}
-                  {tx.chequeNumber && (
-                    <div className="bae-drawer-field">
-                      <span className="bae-drawer-field-label">{t('field.cheque.number')}</span>
-                      <span className="bae-drawer-field-value mono">{tx.chequeNumber}</span>
-                    </div>
-                  )}
                 </section>
 
                 <section className="bae-drawer-section">
                   <div className="bae-drawer-section-title">{t('col.description')}</div>
-                  <div className="bae-drawer-desc">
-                    <span className="bae-drawer-desc-primary">{pres.category.label}</span>
-                    {pres.detail && (
-                      <span className="bae-drawer-desc-secondary">{pres.detail.text}</span>
-                    )}
+                  <div className="bae-drawer-field">
+                    <span className="bae-drawer-field-label">{t('bank.explorer.tx_type')}</span>
+                    <span className="bae-drawer-field-value">{intel.title}</span>
                   </div>
-                  {rawIsExtra && (
-                    <div className="bae-drawer-desc-raw">
-                      <span className="bae-drawer-desc-raw-label">{t('bank.explorer.original_text')}</span>
-                      <CollapsibleDescription text={tx.description} />
+                  {intel.channel && (
+                    <div className="bae-drawer-field">
+                      <span className="bae-drawer-field-label">{t('bank.explorer.tx_channel')}</span>
+                      <span className="bae-drawer-field-value">{channelLabel(intel.channel, t)}</span>
                     </div>
                   )}
+                  {intel.counterparty && (
+                    <div className="bae-drawer-field">
+                      <span className="bae-drawer-field-label">{t('bank.explorer.counterparty')}</span>
+                      <span className="bae-drawer-field-value">{intel.counterparty}</span>
+                    </div>
+                  )}
+                  {intel.sourceAccount && (
+                    <div className="bae-drawer-field">
+                      <span className="bae-drawer-field-label">{t('bank.explorer.source_account')}</span>
+                      <span className="bae-drawer-field-value mono">{intel.sourceAccount}</span>
+                    </div>
+                  )}
+                  {intel.destinationAccount && (
+                    <div className="bae-drawer-field">
+                      <span className="bae-drawer-field-label">{t('bank.explorer.destination_account')}</span>
+                      <span className="bae-drawer-field-value mono">{intel.destinationAccount}</span>
+                    </div>
+                  )}
+                  {intel.chequeNumber && (
+                    <div className="bae-drawer-field">
+                      <span className="bae-drawer-field-label">{t('field.cheque.number')}</span>
+                      <span className="bae-drawer-field-value mono">{intel.chequeNumber}</span>
+                    </div>
+                  )}
+                  {intel.branch && (
+                    <div className="bae-drawer-field">
+                      <span className="bae-drawer-field-label">{t('bank.explorer.branch')}</span>
+                      <span className="bae-drawer-field-value mono">{intel.branch}</span>
+                    </div>
+                  )}
+                  {intel.referenceNumber && (
+                    <div className="bae-drawer-field">
+                      <span className="bae-drawer-field-label">{t('bank.explorer.reference_number')}</span>
+                      <span className="bae-drawer-field-value mono">{intel.referenceNumber}</span>
+                    </div>
+                  )}
+                  {(intel.atmId || intel.terminalId) && (
+                    <div className="bae-drawer-field">
+                      <span className="bae-drawer-field-label">{t('bank.explorer.device_number')}</span>
+                      <span className="bae-drawer-field-value mono">{intel.atmId ?? intel.terminalId}</span>
+                    </div>
+                  )}
+                  {extraDetail && (
+                    <div className="bae-drawer-field bae-drawer-field--col">
+                      <span className="bae-drawer-field-label">{t('bank.explorer.additional_detail')}</span>
+                      <span className="bae-drawer-field-value">{extraDetail}</span>
+                    </div>
+                  )}
+                  <div className="bae-drawer-desc-raw">
+                    <span className="bae-drawer-desc-raw-label">{t('bank.explorer.original_text')}</span>
+                    <CollapsibleDescription text={tx.description} />
+                  </div>
                 </section>
               </>
             )}
