@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `5a383ff` (merge of `feature/bank-transaction-intelligence-enhancement-pack-v2`, carrying Bank Transaction Experience Redesign Pack v2) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `712a3bd` — "docs: record Bank Transaction Experience Redesign Pack v2 release" |
 | **Current Stable Tag** | `stable-bank-transaction-experience-redesign-pack-v2` |
 | **Current Release Date** | 2026-07-22 |
 | **Total Stable Releases** | 337 (window 2026-06-07 → 2026-07-22) |
