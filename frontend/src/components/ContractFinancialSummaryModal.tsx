@@ -8,6 +8,8 @@ import { formatDate } from '../lib/date';
 import Modal from './Modal';
 import { money } from '../config/modules';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -24,7 +26,7 @@ interface ContractInfo {
   unitName: string | null;
   companyName: string | null;
   contractDurationMonths: number | null;
-  customer: { id: number; name: string; type: string } | null;
+  customer: { id: number; name: string; nameEn?: string | null; type: string } | null;
 }
 
 interface RevenueSummary {
@@ -212,6 +214,7 @@ function ChartTooltip({ active, payload, label }: any) {
 
 export default function ContractFinancialSummaryModal({ contractId, contractCode, onClose }: Props) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const [data, setData] = useState<FinancialSummary | null>(null);
   const [loadError, setLoadError] = useState('');
 
@@ -253,7 +256,7 @@ export default function ContractFinancialSummaryModal({ contractId, contractCode
           </div>
           {data.contract.customer && (
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-              {t('lbl.party_colon')} {data.contract.customer.name}
+              {t('lbl.party_colon')} {resolveName(data.contract.customer, lang)}
               {data.contract.startDate && ` | ${fmtDate(data.contract.startDate)} — ${fmtDate(data.contract.endDate)}`}
               {data.contract.contractDurationMonths && ` (${data.contract.contractDurationMonths} ${t('unit.month')})`}
             </div>

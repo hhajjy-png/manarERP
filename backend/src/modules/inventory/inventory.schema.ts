@@ -6,6 +6,7 @@ import { ENUMS } from '@config/constants';
 export const createCategorySchema = z.object({
   body: z.object({
     name: z.string().min(1, 'اسم التصنيف مطلوب'),
+    nameEn: z.string().trim().optional(),
     description: z.string().optional(),
     isActive: z.boolean().optional(),
   }),
@@ -24,6 +25,7 @@ export const createMaterialSchema = z.object({
   body: z.object({
     code: z.string().min(1, 'رمز المادة مطلوب'),
     name: z.string().min(1, 'اسم المادة مطلوب'),
+    nameEn: z.string().trim().optional(),
     categoryId: z.number().int().positive('التصنيف مطلوب'),
     unit: z.enum(ENUMS.materialUnit, { errorMap: () => ({ message: 'وحدة القياس غير صحيحة' }) }),
     unitCost: z.number().min(0).optional(),

@@ -9,6 +9,7 @@ import { useUI } from '../stores/uiStore';
 import { expenseCategoryArMap } from './expenseCategories';
 import { NameCell, ExpiryCell } from '../components/employees/employeeCells';
 import { RegRemainingCell } from '../components/equipment/equipmentCells';
+import { resolveName } from '../lib/resolveName';
 
 // ===== أدوات عرض =====
 export function money(v: unknown): string {
@@ -165,7 +166,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     },
     columns: [
       { key: 'code', label: 'col.contract_no', sortable: true, render: (r) => <strong style={{ fontFamily: 'monospace' }}>{r.code}</strong> },
-      { key: 'customerName', label: 'col.customer', sortable: true, render: (r) => r.customer?.name ?? '—' },
+      { key: 'customerName', label: 'col.customer', sortable: true, render: (r) => r.customer ? resolveName(r.customer, currentLang()) : '—' },
       { key: 'asphaltPlant', label: 'col.asphalt_plant', sortable: true },
       { key: 'companyName', label: 'col.company_name', sortable: true },
       { key: 'location', label: 'col.location', sortable: true },
@@ -231,7 +232,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     },
     columns: [
       { key: 'code', label: 'col.code', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
-      { key: 'name', label: 'col.customer_name', sortable: true, render: (r) => <strong>{r.name}</strong> },
+      { key: 'name', label: 'col.customer_name', sortable: true, render: (r) => <strong>{resolveName(r, currentLang())}</strong> },
       { key: 'type', label: 'col.type', sortable: true, render: (r) => customerType(r.type) },
       { key: 'phone', label: 'col.phone', sortable: true },
       { key: 'contactName', label: 'col.contact_name', sortable: true },
@@ -239,6 +240,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     fields: [
       { name: 'code', label: 'field.customer_code', required: true, placeholder: 'placeholder.customers.code', section: 'identity' },
       { name: 'name', label: 'field.customer_name', required: true, placeholder: 'placeholder.customers.name', section: 'identity' },
+      { name: 'nameEn', label: 'field.customer_name_en', section: 'identity' },
       { name: 'type', label: 'field.type', type: 'select', defaultValue: 'PRIVATE', section: 'identity', options: [
         { value: 'GOVERNMENT', label: 'opt.customer.government' },
         { value: 'PRIVATE', label: 'opt.customer.private' }] },
@@ -263,13 +265,14 @@ export const MODULES: Record<string, ModuleConfig> = {
     ],
     columns: [
       { key: 'code', label: 'col.code', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>{r.code}</span> },
-      { key: 'name', label: 'col.supplier_name', sortable: true, render: (r) => <strong>{r.name}</strong> },
+      { key: 'name', label: 'col.supplier_name', sortable: true, render: (r) => <strong>{resolveName(r, currentLang())}</strong> },
       { key: 'phone', label: 'col.phone', sortable: true },
       { key: 'contactName', label: 'col.contact_name', sortable: true },
     ],
     fields: [
       { name: 'code', label: 'field.supplier_code', required: true, section: 'identity' },
       { name: 'name', label: 'field.supplier_name', required: true, section: 'identity' },
+      { name: 'nameEn', label: 'field.supplier_name_en', section: 'identity' },
       { name: 'phone', label: 'field.phone', section: 'contact' },
       { name: 'email', label: 'field.email', section: 'contact' },
       { name: 'contactName', label: 'field.contact_name', section: 'contact' },

@@ -76,7 +76,7 @@ export class AccountingService {
     const where: Prisma.AccountWhereInput = {};
     if (query.type) where.type = query.type;
     if (query.isActive !== undefined) where.isActive = query.isActive !== 'false';
-    if (query.search) where.name = { contains: query.search };
+    if (query.search) where.OR = [{ name: { contains: query.search } }, { nameEn: { contains: query.search } }];
 
     const orderBy = buildOrderBy(query, ACCOUNTS_SORTABLE, [{ code: 'asc' }], [{ id: 'desc' }]) as Prisma.AccountOrderByWithRelationInput[];
     const [data, total] = await Promise.all([

@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import { money } from '../config/modules';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import { buildLocalizedCategorySelectOptions } from '../config/expenseCategories';
@@ -20,7 +22,7 @@ import {
   isRowDirty,
 } from '../pages/fastExpenseEntry';
 
-interface Supplier { id: number; name: string }
+interface Supplier { id: number; name: string; nameEn?: string | null }
 
 interface Props {
   onClose: () => void;
@@ -36,6 +38,7 @@ interface Props {
  */
 export default function FastMonthlyExpenseDialog({ onClose, onSaved, suppliers }: Props) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const categoryOptions = useMemo(() => buildLocalizedCategorySelectOptions(t), [t]);
   const paymentMethodOptions = useMemo(() => ([
     { value: 'CASH', label: t('field.exp.payment_method.cash') },
@@ -174,7 +177,7 @@ export default function FastMonthlyExpenseDialog({ onClose, onSaved, suppliers }
             <select className="xpl-select" value={shared.supplierId} onChange={(e) => patchShared({ supplierId: e.target.value })} aria-label="المورد المشترك">
               <option value="">— بدون مورد —</option>
               <option value="PER_ROW">— لكل صفّ على حدة —</option>
-              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {suppliers.map((s) => <option key={s.id} value={s.id}>{resolveName(s, lang)}</option>)}
               <option value="OTHER">مورد آخر (غير مسجّل)…</option>
             </select>
           </div>
@@ -217,7 +220,7 @@ export default function FastMonthlyExpenseDialog({ onClose, onSaved, suppliers }
                 <label>المورد (هذا الصف)</label>
                 <select className="xpl-select" value={row.supplierId} onChange={(e) => patchRow({ supplierId: e.target.value })} aria-label="مورد الصف">
                   <option value="">— بدون مورد —</option>
-                  {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {suppliers.map((s) => <option key={s.id} value={s.id}>{resolveName(s, lang)}</option>)}
                   <option value="OTHER">مورد آخر (غير مسجّل)…</option>
                 </select>
               </div>

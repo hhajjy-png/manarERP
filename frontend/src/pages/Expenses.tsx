@@ -6,6 +6,8 @@ import { todayDateOnly } from '../lib/date';
 import { ReturnToReportButton } from '../components/financial/ReturnToReportButton';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
 import ConfirmModal from '../components/ConfirmModal';
@@ -63,6 +65,7 @@ export default function Expenses() {
   const isSystemAdmin = getIsSystemAdmin();
   const { period } = useFinancialPeriod();
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const toast = useToast();
   const categoryOptions = useMemo(() => buildLocalizedCategorySelectOptions(t), [t]);
   useHighlight();
@@ -388,7 +391,7 @@ export default function Expenses() {
                         <td><span className="expx-code">{r.code}</span></td>
                         <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 17, color: 'var(--xpl-primary)' }}>{expenseCategoryIcon(r.category)}</span>{t(`cat.${String(r.category).toLowerCase()}`)}</span></td>
                         <td><strong>{r.description}</strong></td>
-                        <td>{r.supplier?.name ?? r.supplierName ?? '—'}</td>
+                        <td>{r.supplier ? resolveName(r.supplier, lang) : r.supplierName ?? '—'}</td>
                         <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{billingText(r)}</td>
                         <td><span className="expx-amount">{<MoneyCell value={r.amount} />}</span></td>
                         <td><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></td>
@@ -459,7 +462,7 @@ export default function Expenses() {
             </DrawerSection>
             <DrawerSection title={t('sec.payment_supplier')}>
               <DrawerField label={t('field.payment_method')} value={t(`field.exp.payment_method.${String(viewing.paymentMethod ?? 'CASH').toLowerCase()}`)} />
-              <DrawerField label={t('field.supplier')} value={viewing.supplier?.name ?? viewing.supplierName ?? '—'} />
+              <DrawerField label={t('field.supplier')} value={viewing.supplier ? resolveName(viewing.supplier, lang) : viewing.supplierName ?? '—'} />
               <DrawerField label={t('lbl.inv.billing_period')} value={billingText(viewing)} />
               {viewing.date && <DrawerField label={t('col.date')} value={dateText(viewing.date)} />}
             </DrawerSection>

@@ -34,11 +34,13 @@ export interface ApiInvoicePayment {
 export interface ApiInvoiceCustomer {
   id: number;
   name: string;
+  nameEn?: string | null;
 }
 
 export interface ApiInvoiceSupplier {
   id: number;
   name: string;
+  nameEn?: string | null;
 }
 
 export interface ApiInvoiceContract {

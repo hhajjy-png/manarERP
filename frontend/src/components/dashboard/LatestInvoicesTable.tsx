@@ -1,6 +1,8 @@
 import { money, dateText, MoneyText, MoneyCell } from '../../config/modules';
 import { TableRowSkeletons } from './Skeleton';
 import { useT } from '../../lib/i18n';
+import { useUI } from '../../stores/uiStore';
+import { resolveName } from '../../lib/resolveName';
 import { fcMoneyHeader } from '../../components/financial/financialLabels';
 
 const STATUS_COLOR: Record<string, string> = {
@@ -19,6 +21,7 @@ interface Props {
 
 export default function LatestInvoicesTable({ invoices, loading }: Props) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   return (
     <table className="db-table">
       <thead>
@@ -46,7 +49,7 @@ export default function LatestInvoicesTable({ invoices, loading }: Props) {
           invoices.map((inv, i) => {
             const statusCls = STATUS_COLOR[inv.status] ?? 'gray';
             const statusLabel = t('inv.status.' + inv.status.toLowerCase());
-            const party = inv.customer?.name ?? inv.supplier?.name ?? '—';
+            const party = inv.customer ? resolveName(inv.customer, lang) : inv.supplier ? resolveName(inv.supplier, lang) : '—';
             return (
               <tr key={i}>
                 <td>

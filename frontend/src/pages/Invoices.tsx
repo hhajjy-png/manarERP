@@ -8,6 +8,8 @@ import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
 import { periodToReportParams, buildLocalizedPeriodLabel } from '../lib/financialPeriod';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import { useToast } from '../stores/toastStore';
 import { PageMeta } from '../components/DataTable';
 import ForceDeleteInvoiceModal from '../components/ForceDeleteInvoiceModal';
@@ -95,6 +97,7 @@ export default function Invoices() {
   const { hasPermission, isSystemAdmin: getIsSystemAdmin } = useAuth();
   const isSystemAdmin = getIsSystemAdmin();
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const navigate = useNavigate();
   const { period } = useFinancialPeriod();
   const toast = useToast();
@@ -296,7 +299,7 @@ export default function Invoices() {
         const customer = customers.find((c) => String(c.id) === customerFilter);
         return customer ? (
           <div className="invcx-customer-strip">
-            <span className="name"><span className="material-symbols-outlined" aria-hidden="true">badge</span>{customer.name}</span>
+            <span className="name"><span className="material-symbols-outlined" aria-hidden="true">badge</span>{resolveName(customer, lang)}</span>
             <span>{stats.count} {t('page.dashboard.invoice_unit')}</span>
             <span>{t('lbl.inv.total_label')} <strong><MoneyText value={stats.totalSales} /></strong></span>
             <span>{t('lbl.inv.collected_label')} <strong className="invcx-paid">{<MoneyText value={stats.totalCollected} />}</strong></span>
@@ -311,7 +314,7 @@ export default function Invoices() {
           <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('page.invoices.search')} ariaLabel={t('page.invoices.search')} />
           <select className="xpl-select" value={customerFilter} onChange={(e) => { setCustomerFilter(e.target.value); setPage(1); }} aria-label={t('col.inv.party')}>
             <option value="">{t('opt.party_all')}</option>
-            {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {customers.map((c) => <option key={c.id} value={c.id}>{resolveName(c, lang)}</option>)}
           </select>
           <select className="xpl-select" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }} aria-label={t('lbl.inv.billing_period')}>
             <option value="">{t('opt.month_all')}</option>
@@ -392,7 +395,7 @@ export default function Invoices() {
                         onClick={() => setViewing(r)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
                         <td><span className="invcx-mono"><strong>{r.invoiceNumber ?? r.number}</strong></span></td>
-                        <td><strong>{r.customer?.name ?? r.supplier?.name ?? '—'}</strong></td>
+                        <td><strong>{r.customer ? resolveName(r.customer, lang) : r.supplier ? resolveName(r.supplier, lang) : '—'}</strong></td>
                         <td>{r.invoiceType ?? '—'}</td>
                         <td>{directionLabel(r.direction ?? '', t)}</td>
                         <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.issueDate)}</td>
@@ -501,7 +504,7 @@ export default function Invoices() {
                 <DrawerHeaderCard
                   icon="receipt_long"
                   title={viewing.invoiceNumber ?? viewing.number}
-                  subtitle={viewing.customer?.name ?? viewing.supplier?.name ?? '—'}
+                  subtitle={viewing.customer ? resolveName(viewing.customer, lang) : viewing.supplier ? resolveName(viewing.supplier, lang) : '—'}
                   status={{ tone: statusMeta.tone, icon: statusMeta.icon, label: t(statusMeta.key) }}
                   kpis={kpis}
                 />
@@ -511,7 +514,7 @@ export default function Invoices() {
           >
             <DrawerSection title={t('drawer.inv.basic_info')}>
               <DrawerField label={t('col.inv.number')} value={viewing.invoiceNumber ?? viewing.number} mono />
-              <DrawerField label={t('col.inv.party')} value={viewing.customer?.name ?? viewing.supplier?.name ?? '—'} />
+              <DrawerField label={t('col.inv.party')} value={viewing.customer ? resolveName(viewing.customer, lang) : viewing.supplier ? resolveName(viewing.supplier, lang) : '—'} />
               <DrawerField label={t('col.date')} value={dateText(viewing.issueDate)} />
               <DrawerField label={t('col.inv.type')} value={viewing.invoiceType ?? '—'} />
               <DrawerField label={t('col.inv.direction')} value={directionLabel(viewing.direction ?? '', t)} />

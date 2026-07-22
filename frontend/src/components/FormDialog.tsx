@@ -5,6 +5,8 @@ import DateInput from './DateInput';
 import { normalizeDateOnly } from '../lib/dateInput';
 import { api, errorMessage } from '../api/client';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import { Dialog, DialogSection, Button } from './explorer/ExplorerKit';
 
 export interface FormField {
@@ -53,6 +55,7 @@ interface Props {
 
 export default function FormDialog({ title, fields, initial, endpoint, id, onClose, onSaved, skin = 'legacy', icon, subtitle, sections }: Props) {
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [values, setValues] = useState<any>(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -82,7 +85,9 @@ export default function FormDialog({ title, fields, initial, endpoint, id, onClo
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const opts = list.map((x: any) => ({
             value: String(x.id),
-            label: f.optionLabelFn ? f.optionLabelFn(x) : (x[f.optionLabel ?? 'name'] ?? x.displayName ?? x.code),
+            label: f.optionLabelFn
+              ? f.optionLabelFn(x)
+              : (!f.optionLabel || f.optionLabel === 'name' ? resolveName(x, lang) : x[f.optionLabel]) || x.displayName || x.code,
             raw: x,
           }));
           setAsyncOptions((p) => ({ ...p, [f.name]: opts }));

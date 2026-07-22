@@ -46,6 +46,7 @@ export class SuppliersService {
     if (query.search) {
       where.OR = [
         { name: { contains: query.search } },
+        { nameEn: { contains: query.search } },
         { code: { contains: query.search } },
         { phone: { contains: query.search } },
       ];

@@ -1609,6 +1609,12 @@ function ImportsTab({ accountKey }: { accountKey: string }) {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
 
+  // `t` is a new reference every render (useT() is unmemoized) — including it in this
+  // effect's deps would refire the fetch on every render. tRef gives the catch handler
+  // the latest translator without making the effect reactive to it.
+  const tRef = useRef(t);
+  tRef.current = t;
+
   useEffect(() => {
     setLoading(true);
     listImports(1, 200)
@@ -1617,9 +1623,9 @@ function ImportsTab({ accountKey }: { accountKey: string }) {
         const filtered = r.items.filter((i) => i.accountKey === accountKey);
         setImports(filtered);
       })
-      .catch((e) => setError(errorMessage(e) || t('bank.explorer.load_batches_failed')))
+      .catch((e) => setError(errorMessage(e) || tRef.current('bank.explorer.load_batches_failed')))
       .finally(() => setLoading(false));
-  }, [accountKey, t]);
+  }, [accountKey]);
 
   return (
     <div className="bae-tab-content">
@@ -1777,15 +1783,22 @@ export default function BankAccountExplorer() {
 
   const canView = hasPermission('bankStatementImport.read');
 
+  // `t` from useT() is a new reference every render (unmemoized) — closing over it
+  // directly here would recreate `loadDashboard` every render and infinitely re-fire
+  // the fetch effect below. A ref hands the callback the latest translator without
+  // making it a reactive dependency.
+  const tRef = useRef(t);
+  tRef.current = t;
+
   const loadDashboard = useCallback(() => {
     if (!accountKey || !canView) return;
     setLoading(true);
     setError(null);
     getBankAccountDashboard(accountKey)
       .then(setDashboard)
-      .catch((e) => setError(errorMessage(e) || t('bank.explorer.load_account_failed')))
+      .catch((e) => setError(errorMessage(e) || tRef.current('bank.explorer.load_account_failed')))
       .finally(() => setLoading(false));
-  }, [accountKey, canView, t]);
+  }, [accountKey, canView]);
 
   useEffect(() => { loadDashboard(); }, [loadDashboard]);
 

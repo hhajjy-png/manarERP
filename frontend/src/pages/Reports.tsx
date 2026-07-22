@@ -9,6 +9,8 @@ import { useAuth } from '../stores/authStore';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
 import { formatReportCell } from '../lib/format';
 import { currentCurrencyLanguage } from '../stores/settingsStore';
@@ -224,6 +226,7 @@ export default function Reports() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const { period } = useFinancialPeriod();
   const canView   = hasPermission('reports.read');
   const canExport = hasPermission('reports.export');
@@ -479,7 +482,7 @@ export default function Reports() {
             <label>{t('filter.customer')}</label>
             <select aria-label={t('filter.customer')} value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
               <option value="">{t('opt.all')}</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {customers.map((c) => <option key={c.id} value={c.id}>{resolveName(c, lang)}</option>)}
             </select>
           </div>
         )}

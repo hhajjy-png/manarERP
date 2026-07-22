@@ -98,6 +98,7 @@ model Customer {
   id          Int     @id @default(autoincrement())
   code        String  @unique // رقم العميل
   name        String
+  nameEn      String? // الاسم بالإنجليزي (اختياري)
   type        String  @default("PRIVATE") // GOVERNMENT | PRIVATE
   category    String? // تصنيف العميل
   phone       String?
@@ -642,6 +643,7 @@ model Supplier {
   id          Int     @id @default(autoincrement())
   code        String  @unique
   name        String
+  nameEn      String? // الاسم بالإنجليزي (اختياري)
   phone       String?
   email       String?
   address     String?
@@ -891,6 +893,7 @@ model Account {
   id            Int     @id @default(autoincrement())
   code          String  @unique // رمز الحساب (مثل: 1100)
   name          String // اسم الحساب
+  nameEn        String? // اسم الحساب بالإنجليزي (اختياري)
   type          String // ASSET | LIABILITY | EQUITY | REVENUE | EXPENSE
   normalBalance String  @default("DEBIT") // DEBIT | CREDIT
   isActive      Boolean @default(true)
@@ -978,6 +981,7 @@ model Setting {
 model MaterialCategory {
   id          Int     @id @default(autoincrement())
   name        String  @unique
+  nameEn      String? // الاسم بالإنجليزي (اختياري)
   description String?
   isActive    Boolean @default(true)
 
@@ -994,6 +998,7 @@ model Material {
   id           Int     @id @default(autoincrement())
   code         String  @unique
   name         String
+  nameEn       String? // الاسم بالإنجليزي (اختياري)
   categoryId   Int
   unit         String // طن | كيلو | لتر | قطعة | متر | كيس | برميل | صندوق
   unitCost     Float   @default(0)

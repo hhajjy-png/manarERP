@@ -2,6 +2,8 @@ import type { ApiInvoice } from './apiTypes';
 import type { PurchaseOrderPrintData, PrintLineItem } from '../engine/types';
 import { getDefaultCompanyPrintData } from './companyData';
 import { formatDateForPrint } from '../utils/formatDate';
+import { resolveName } from '../../lib/resolveName';
+import { useUI } from '../../stores/uiStore';
 
 function toLineItems(items: ApiInvoice['items']): PrintLineItem[] {
   return items.map((item, i) => ({
@@ -27,7 +29,12 @@ function toLineItems(items: ApiInvoice['items']): PrintLineItem[] {
  * ```
  */
 export function adaptPurchaseOrder(invoice: ApiInvoice): PurchaseOrderPrintData {
-  const supplierName = invoice.supplier?.name ?? invoice.customer?.name ?? '';
+  const lang = useUI.getState().lang;
+  const supplierName = invoice.supplier
+    ? resolveName(invoice.supplier, lang)
+    : invoice.customer
+      ? resolveName(invoice.customer, lang)
+      : '';
   const deliveryLocation = invoice.contract?.asphaltPlant ?? undefined;
 
   return {

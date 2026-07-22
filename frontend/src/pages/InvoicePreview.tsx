@@ -16,6 +16,8 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { money, dateText } from '../config/modules';
 import { useT } from '../lib/i18n';
+import { useUI } from '../stores/uiStore';
+import { resolveName } from '../lib/resolveName';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
 import type { ApiInvoice } from '../print-templates/adapters/apiTypes';
 import type { InvoicePrintData, PrintBrandingLayoutSettings } from '../print-templates/engine/types';
@@ -127,6 +129,7 @@ export default function InvoicePreview() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useT();
+  const lang = useUI((s) => s.lang);
   const { hasPermission } = useAuth();
 
   const [data, setData] = useState<FullInvoice | null>(null);
@@ -365,7 +368,7 @@ export default function InvoicePreview() {
   const canCancel = data.status !== 'CANCELLED' && Number(data.paidAmount) === 0;
   const hasPayments = data.payments.length > 0;
 
-  const partyName = data.customer?.name ?? data.supplier?.name ?? '—';
+  const partyName = data.customer ? resolveName(data.customer, lang) : data.supplier ? resolveName(data.supplier, lang) : '—';
   const billingPeriod = data.billingMonth && data.billingYear
     ? `${ARABIC_MONTHS[data.billingMonth - 1]} ${data.billingYear}`
     : '—';
@@ -930,7 +933,7 @@ export default function InvoicePreview() {
             <div key="party-sig" style={{ flex: 1, textAlign: 'center', minWidth: 130 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>التوقيع والختم</div>
               <div style={{ fontSize: 11, color: '#64748b', marginBottom: 3 }}>
-                {data.customer?.name ?? data.supplier?.name ?? 'الجهة المستلمة'}
+                {data.customer ? resolveName(data.customer, lang) : data.supplier ? resolveName(data.supplier, lang) : 'الجهة المستلمة'}
               </div>
               <div style={{ height: 36 }} />
               <div style={{ borderTop: '1px solid #94a3b8' }} />
@@ -1002,7 +1005,7 @@ export default function InvoicePreview() {
             data={{
               number:          data.invoiceNumber ?? data.number ?? '',
               date:            data.issueDate ?? '',
-              customerName:    data.customer?.name ?? data.supplier?.name ?? '',
+              customerName:    data.customer ? resolveName(data.customer, lang) : data.supplier ? resolveName(data.supplier, lang) : '',
               customerAddress: '',
               total:           money(data.total ?? 0),
               subtotal:        money(data.subtotal ?? 0),

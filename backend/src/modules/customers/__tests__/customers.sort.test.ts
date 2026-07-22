@@ -61,7 +61,7 @@ describe('customers.list — server-side sorting', () => {
     await customersService.list({ search: 'منار', type: 'GOVERNMENT', page: 2, pageSize: 15, sortBy: 'name', sortDir: 'asc' });
     const args = findManyArgs();
     expect(args.where.type).toBe('GOVERNMENT');
-    expect(args.where.OR).toHaveLength(4); // بنية البحث كما كانت تمامًا
+    expect(args.where.OR).toHaveLength(5); // + nameEn (Business Dictionary Expansion Pack v1)
     expect(args.where.isArchived).toBe(false); // فلتر الأرشفة الافتراضي محفوظ
     expect(args.skip).toBe(15);
     expect(args.take).toBe(15);

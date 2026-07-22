@@ -6,6 +6,7 @@ import { ok, created } from '../../core/utils/response';
 const accountSchema = z.object({
   code: z.string().min(1, 'رمز الحساب مطلوب'),
   name: z.string().min(1, 'اسم الحساب مطلوب'),
+  nameEn: z.string().trim().optional(),
   type: z.enum(['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE']),
   normalBalance: z.enum(['DEBIT', 'CREDIT']).optional(),
   isActive: z.boolean().optional(),
