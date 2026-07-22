@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `61110df` (merge of `feature/employee-smart-forms-hub-localization-pack-v1`, carrying Employee Smart Forms Hub & Forms Localization Integrity Pack v1) |
-| **Current Documentation Commit** | `69f4da4` — "docs: record Employee Smart Forms Hub & Forms Localization Integrity Pack v1 release" |
-| **Current Stable Tag** | `stable-employee-smart-forms-hub-localization-pack-v1` |
+| **Current Merge Commit** | `cd754ca` (merge of `feature/operational-reporting-migration-v1`, carrying Operational Reporting Migration v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-operational-reporting-migration-v1` |
 | **Current Release Date** | 2026-07-22 |
-| **Total Stable Releases** | 339 (window 2026-06-07 → 2026-07-22) |
+| **Total Stable Releases** | 340 (window 2026-06-07 → 2026-07-22) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -162,12 +162,19 @@ Chromium PDF, and backend HTML reports.
   `supersedeBalancedJournal`). Wired to: Invoices, Payments, Expenses, Payroll, Purchase Invoices, driver
   Salary Payments (bank-import). The legacy single-sided `Transaction` table is **retired** — frozen
   historical data, no longer written to or read by any report.
-- **Single accounting source of truth (as of Accounting Integrity & Financial Accuracy Pack v1,
-  2026-07-17):** `shared/services/gl.reporting.ts` (`glProfitAndLoss`/`glMonthlyProfitAndLoss`/
-  `glAccountFlow`) is the one engine every financial surface reads from — Dashboard, Reports P&L, and
-  `accounting.service.financialSummary` all derive revenue/expense/net profit from it (accrual basis).
-  24/24 independent cross-validation checks confirm zero discrepancy across GL, Trial Balance,
-  `financialSummary`, Dashboard, AR aging, and customer statements.
+- **Operational Financial Engine (as of Operational Reporting Migration v1, 2026-07-22):**
+  `shared/services/operational.reporting.ts` (`getRevenue`/`getExpenses`/`getCollections`/
+  `getAccountsReceivable`/`getOperationalProfitAndLoss`/`getMonthlyOperationalProfitAndLoss`/
+  `getOperationalSummary`) is now the single source for Revenue (Invoice), Expenses (Expense, one
+  official definition: `status='APPROVED'`), Collections (Payment), Accounts Receivable
+  (Invoice+Payment), and Net Profit — read by Dashboard, Executive Decision Center, the Profit & Loss
+  report, and Accounting Summary's operational KPIs. **GL (`gl.reporting.ts` — `glProfitAndLoss`/
+  `glAccountFlow`) is no longer the source for any of those** — it remains authoritative only for
+  Journal Entries, Chart of Accounts, Trial-Balance-adjacent totals (Accounting Summary's Journal
+  Entry Count/Total Debit/Total Credit), and the still-GL-based `transactions.service.ts`
+  `/transactions/profit-loss` endpoint (intentionally not yet migrated — deferred to a future
+  cleanup pack; duplicates the Accounting Summary panel). `glMonthlyProfitAndLoss` was removed
+  (zero remaining callers) in the migration's Cleanup Pack 1.
 - **Banking modules** — Bank Statement Import/Explorer, Bank Reconciliation (manual-confirm only, never
   auto-posts by policy), Bank Account Explorer, Payroll Bank Import/Analytics, NBK Salary XLS export —
   all production-complete.
@@ -219,6 +226,28 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Operational Reporting Migration v1** (2026-07-22, `stable-operational-reporting-migration-v1`) —
+  backend-only architecture migration executed as 7 sequential, individually-approved packs. Introduces
+  a single reusable **Operational Financial Engine** (`backend/src/shared/services/operational.reporting.ts`)
+  as the source for Revenue (Invoice), Expenses (Expense — one official status definition, `APPROVED`,
+  replacing three previously-inconsistent filters), Collections (Payment), Accounts Receivable
+  (Invoice+Payment), and Net Profit, plus `getOperationalSummary()` composing all five in one call.
+  Migrated onto it: the Profit & Loss report, Dashboard (`overview`/`monthlyTrend`/`executive`), and the
+  Executive Decision Center (`financialSummary`/`kpiTimeline`) — the last of which closed a pre-existing
+  inconsistency where its headline Net Profit mixed Invoice-sourced revenue with GL-sourced expenses. A
+  dedicated read-only architecture audit (Pack 5) then determined Accounting Summary's correct target
+  shape, implemented in Pack 6: it is now a **hybrid** — Revenue/Expenses/Collections/Net Profit from the
+  Operational Engine, while Journal Entry Count/Total Journal Debit/Total Journal Credit remain
+  GL-sourced (no operational equivalent exists for ledger-wide totals spanning every account type).
+  Cleanup Pack 1 removed the now-orphaned `glMonthlyProfitAndLoss()` GL wrapper (zero remaining callers)
+  and corrected stale "GL is the sole source" comments. **Deliberately unchanged:** the GL reporting
+  engine (`glProfitAndLoss`/`glAccountFlow`), the posting engine, Chart of Accounts, Journal Entries,
+  Financial Center, other Reports, and `transactions.service.ts`'s `/transactions/profit-loss` (still
+  GL-based, explicitly deferred to a future cleanup pack — it duplicates the Accounting Summary panel).
+  **No API contract, response DTO, database schema, or frontend changes** — only the source of the
+  underlying numbers changed. Full backend suite: 135 files / 1897 tests passing; `tsc --noEmit` clean.
+  Product Owner visual review: **APPROVED**. Gemini review: **APPROVED**.
 
 - **English & Unified Tafqeet Engine Pack v1** (2026-07-21,
   `stable-english-unified-tafqeet-engine-pack-v1`) — consolidates the three previously-duplicated Arabic
@@ -638,7 +667,10 @@ Chromium PDF, and backend HTML reports.
 - **`routerFutureFlags.test.tsx` stale assertion** — hardcodes an expected lazy-route count (48) that a
   2026-07-16 commit made stale (actual count is 46); trivial one-line fix, not yet applied — flagged by the
   2026-07-16 audit, deliberately left out of scope of every pack since.
-- No other release is mid-flight; `production` is fully released and validated as of 2026-07-17.
+- **`transactions.service.ts` `/transactions/profit-loss` still GL-based** — intentionally deferred by the
+  2026-07-22 Operational Reporting Migration v1 (see Active Foundations); duplicates the Accounting
+  Summary panel exactly (same GL call). A future cleanup pack should retire or consolidate it.
+- No other release is mid-flight; `production` is fully released and validated as of 2026-07-22.
 
 ---
 

@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `61110df` — release `stable-employee-smart-forms-hub-localization-pack-v1` (Employee Smart Forms Hub & Forms Localization Integrity Pack v1 — registry-driven "نماذج الموظف" popover replacing the single print-forms drawer action, a Back-navigation history fix via native `replace: true`, and a full title-localization audit/unification across all 12 registered forms via a single `titleKey` → i18n pipeline. Frontend-only, no business-logic changes) |
+| **Production HEAD** | `cd754ca` — release `stable-operational-reporting-migration-v1` (Operational Reporting Migration v1 — backend-only: introduces a single Operational Financial Engine as the source for Revenue/Expenses/Collections/Accounts Receivable/Net Profit across Dashboard, Executive Decision Center, the Profit & Loss report, and Accounting Summary's operational KPIs; GL remains the source for Journal/Chart of Accounts/Trial-Balance-adjacent totals. No API/DTO/frontend changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-employee-smart-forms-hub-localization-pack-v1` (release date 2026-07-22) → merge `61110df` |
-| **Previous stable tag** | `stable-leave-request-translation-fix-v1` (2026-07-22) → merge `c978bb2` |
-| **Total stable releases** | 339 (all merged onto `production`; window 2026-06-07 → 2026-07-22) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · frontend `vite build` ✅ · frontend `vitest` **formsRegistryTranslationAudit 39/39** + **employeeSmartFormsHub 21/21** + explorerHubPrimitives + employmentContractNewEmployee + 3 print-preview suites all pass · same 8 pre-existing unrelated test-file failures as prior releases, unchanged |
-| **Remote sync** | `origin/production` — pushed with this release (merge `61110df` + tag `stable-employee-smart-forms-hub-localization-pack-v1`) |
+| **Latest stable tag** | `stable-operational-reporting-migration-v1` (release date 2026-07-22) → merge `cd754ca` |
+| **Previous stable tag** | `stable-employee-smart-forms-hub-localization-pack-v1` (2026-07-22) → merge `61110df` |
+| **Total stable releases** | 340 (all merged onto `production`; window 2026-06-07 → 2026-07-22) |
+| **Latest validation** | backend `tsc --noEmit` ✅ · backend `vitest` full suite **135 files / 1897 tests** pass ✅ · no frontend changes this release (prior frontend validation state unaffected) |
+| **Remote sync** | `origin/production` — pushed with this release (merge `cd754ca` + tag `stable-operational-reporting-migration-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,33 @@ in a table cell.
 
 ---
 
-## Latest Release — Employee Smart Forms Hub & Forms Localization Integrity Pack v1
+## Latest Release — Operational Reporting Migration v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Operational Reporting Migration v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-22 |
+| **Feature branch** | `feature/operational-reporting-migration-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `2e844d2` (documentation commit from the prior release) |
+| **Feature commit** | `bf9b61c` |
+| **Production merge commit** | `cd754ca` |
+| **Stable tag** | `stable-operational-reporting-migration-v1` → merge `cd754ca` (annotated) |
+| **Gemini review** | **APPROVED** — per user's release note. |
+| **Manual verification** | Product Owner visual review — **completed and accepted**. |
+| **Validation** | backend `tsc --noEmit` ✅ · backend `vitest` full suite **135 files / 1897 tests** pass ✅ · no frontend changes this release |
+
+**Scope.** A backend-only architecture migration executed across 7 sequential packs (each approved individually before the next began): **Pack 1** introduced a single reusable Operational Financial Engine (`backend/src/shared/services/operational.reporting.ts`) computing Revenue (Invoice), Expenses (Expense — one official status definition, `APPROVED`, replacing three previously-inconsistent filters scattered across the codebase), Collections (Payment), Accounts Receivable (Invoice+Payment), and Net Profit, plus `getOperationalSummary()` — a single orchestrator composing all five. **Pack 2** migrated the Profit & Loss report off the General Ledger onto this engine. **Pack 3** migrated Dashboard's `overview()`/`monthlyTrend()`/`executive()` finance figures the same way. **Pack 4** migrated the Executive Decision Center's `financialSummary`/`kpiTimeline`, closing a pre-existing inconsistency where its headline Net Profit mixed Invoice-sourced revenue with GL-sourced expenses. **Pack 5** was a read-only architecture audit determining Accounting Summary's correct target shape. **Pack 6** implemented that decision: Accounting Summary is now a **hybrid** — Revenue/Expenses/Collections/Net Profit from the Operational Engine, while Journal Entry Count/Total Journal Debit/Total Journal Credit remain General-Ledger-sourced (no operational equivalent exists for ledger-wide totals spanning every account type, not just revenue/expense). **Cleanup Pack 1** removed the now-orphaned `glMonthlyProfitAndLoss()` GL wrapper (zero remaining callers, verified by exhaustive grep) and corrected several comments that had described a "GL is the sole source" architecture this migration deliberately superseded.
+
+**Deliberately unchanged.** The GL reporting engine (`glProfitAndLoss`/`glAccountFlow`), the posting engine, Chart of Accounts, Journal Entries, Financial Center, Reports other than Profit & Loss, and `transactions.service.ts`'s `/transactions/profit-loss` endpoint (still GL-based; explicitly deferred to a future cleanup pack since it duplicates the Accounting Summary panel exactly). API contracts, response DTO shapes, and every frontend component are unchanged — this release only changes *where the numbers come from*, not what any screen displays or how any endpoint responds.
+
+**Regression prevention.** Each migrated function has a dedicated test suite locking in the new source (asserting the previous GL calls are never invoked, cancelled invoices are excluded, approved-only expenses are used, and empty periods return zero), alongside the prior GL-lock-in tests rewritten to the new invariant. Full backend suite: 135 files / 1897 tests passing; `tsc --noEmit` clean.
+
+**Unchanged:** frontend · API contracts · response DTOs · database schema · GL posting logic · Chart of Accounts · Journal Entries · Financial Center · `transactions.service.ts`.
+
+---
+
+## Previous Release — Employee Smart Forms Hub & Forms Localization Integrity Pack v1
 
 | Field | Value |
 |-------|-------|
