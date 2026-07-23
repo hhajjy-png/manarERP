@@ -130,11 +130,17 @@ export default function CloudSyncPanel() {
     setLiveMessage('');
   }
 
-  async function maybeRestart(requiresRestart: boolean | undefined) {
-    if (!requiresRestart || !isElectron) return;
-    toast.warn(t('msg.cloudsync.restart_required'));
-    await new Promise((r) => setTimeout(r, 2500));
-    await window.manar!.restartApp();
+  /**
+   * بعد استبدال قاعدة البيانات، الخادم الخلفي يُعاد تشغيله تلقائيًا من العملية
+   * الرئيسية (لا حاجة لإعادة تشغيل التطبيق يدويًا). الواجهة فقط تحتاج لإعادة
+   * تحميل نفسها لتعكس بيانات القاعدة الجديدة — إعادة تحميل داخل النافذة نفسها،
+   * لا إعادة تشغيل Electron كاملة.
+   */
+  async function maybeReconnect(backendRestarted: boolean | undefined) {
+    if (!backendRestarted || !isElectron) return;
+    toast.warn(t('msg.cloudsync.reconnecting'));
+    await new Promise((r) => setTimeout(r, 1500));
+    window.location.reload();
   }
 
   async function connect() {
@@ -178,7 +184,7 @@ export default function CloudSyncPanel() {
       } else if (result.ok) {
         if (result.action === 'NONE') toast.ok(t('msg.cloudsync.up_to_date'));
         else toast.ok(t(result.action === 'UPLOAD' ? 'msg.cloudsync.upload_done' : 'msg.cloudsync.download_done'));
-        await maybeRestart(result.requiresRestart);
+        await maybeReconnect(result.backendRestarted);
       } else {
         toast.error(result.error ?? t('msg.cloudsync.sync_fail'));
       }
@@ -214,7 +220,7 @@ export default function CloudSyncPanel() {
       setConflict(null);
       if (result.ok) {
         toast.ok(t('msg.cloudsync.download_done'));
-        await maybeRestart(result.requiresRestart);
+        await maybeReconnect(result.backendRestarted);
       } else {
         toast.error(result.error ?? t('msg.cloudsync.sync_fail'));
       }
@@ -256,7 +262,7 @@ export default function CloudSyncPanel() {
       const result = await window.manar.syncDownload();
       if (result.ok) {
         toast.ok(t('msg.cloudsync.download_done'));
-        await maybeRestart(result.requiresRestart);
+        await maybeReconnect(result.backendRestarted);
       } else {
         toast.error(result.error ?? t('msg.cloudsync.sync_fail'));
       }

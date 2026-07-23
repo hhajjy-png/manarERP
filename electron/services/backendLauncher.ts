@@ -2,11 +2,32 @@ import { app, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { fork, ChildProcess } from 'child_process';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 
 let backendProcess: ChildProcess | null = null;
 let appQuitting = false;
 app.on('before-quit', () => { appQuitting = true; });
+
+// يمنع إعادة تشغيل متعمَّدة للخادم (مثلًا: استبدال قاعدة البيانات أثناء المزامنة)
+// من إثارة معالج "توقّف غير متوقع" أدناه — الإيقاف هنا مقصود ومؤقت، وليس عطلًا.
+let restartingBackend = false;
+
+/**
+ * السرّ الداخلي المستخدم للتحقق من نداءات `/api/internal/*` (الجدولة التلقائية،
+ * إعادة تشغيل الخادم أثناء المزامنة). يُنشأ مرّة واحدة لعمر العملية ويُعاد
+ * استخدامه دائمًا — تغييره بين عمليات تشغيل الخادم الخلفي يُبطل مصادقة أي
+ * مستدعٍ ما زال يحمل القيمة القديمة (مثل جدولة النسخ الاحتياطي).
+ */
+let cachedInternalSecret: string | null = null;
+export function getInternalSecret(): string {
+  if (!cachedInternalSecret) cachedInternalSecret = randomUUID();
+  return cachedInternalSecret;
+}
+
+/** هل الخادم الخلفي يعمل حاليًا؟ — يُستخدم لتحديد ما إذا كانت قاعدة البيانات "قيد الاستخدام" فعليًا. */
+export function isBackendRunning(): boolean {
+  return !!backendProcess && !backendProcess.killed;
+}
 
 /**
  * تحديد مسارات البيانات حسب البيئة:
@@ -151,7 +172,7 @@ export function startBackend(internalSecret = ''): Promise<void> {
 
     waitForHealth().then(() => {
       backendProcess?.on('exit', (code, signal) => {
-        if (appQuitting) return;
+        if (appQuitting || restartingBackend) return;
         // eslint-disable-next-line no-console
         console.error(`[backend] توقفت الخدمة بشكل غير متوقع — code=${code} signal=${signal}`);
         dialog.showMessageBoxSync({
@@ -188,4 +209,36 @@ export function stopBackend(): void {
     backendProcess.kill();
     backendProcess = null;
   }
+}
+
+/**
+ * إيقاف مضبوط للخادم الخلفي مع انتظار خروج العملية فعليًا (لا مجرّد إرسال
+ * إشارة الإيقاف) — يُستخدم قبل استبدال ملف قاعدة البيانات (مزامنة Google Drive)
+ * حيث يجب تحرير قفل الملف على مستوى نظام التشغيل قبل محاولة استبداله، لا مجرّد
+ * افتراض تحرّره بعد تأخير ثابت. لا يُثير معالج "توقّف غير متوقع" في startBackend.
+ */
+export async function stopBackendForRestart(timeoutMs = 5000): Promise<void> {
+  const proc = backendProcess;
+  if (!proc || proc.killed) {
+    backendProcess = null;
+    return;
+  }
+
+  restartingBackend = true;
+  await new Promise<void>((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    proc.once('exit', () => {
+      clearTimeout(timer);
+      finish();
+    });
+    proc.kill();
+  });
+  backendProcess = null;
+  restartingBackend = false;
 }
