@@ -135,6 +135,11 @@ export async function execute(req: ExecuteImportRequest, importedBy: string): Pr
 
       return {
         importId:              imp.id,
+        // 1-based position among this file's data rows, in original file order
+        // (rowIdx is the index into `normalized`/`rows`, which the parser already
+        // built in file order with header/blank rows excluded). Source of truth
+        // for display order and "current balance" — never re-derived from dates.
+        statementSequence:     rowIdx + 1,
         transactionId:         row.transactionId,
         bankName:              row.bankName,
         statementDate:         row.statementDate ? new Date(row.statementDate) : null,
@@ -418,16 +423,21 @@ export function buildTimelineWhere(
   return where;
 }
 
-// Default ordering for the Bank Account / Transaction Explorer list:
-// newest transaction date first, then — for rows sharing the same date — the
-// most recently imported statement batch (importId is monotonic with import
-// time, so it stands in for "imported batch date descending"), then the newest
-// row id as a stable final tiebreaker. Exported so the rule is unit-testable
-// without a database.
+// Default ordering for the Bank Account / Transaction Explorer list.
+//
+// Source of truth: the bank's original statement file order, not statementDate.
+// Business rule — official statement files are ordered newest → oldest, and a
+// row's `statementSequence` (1 = first data row = newest, set at import time)
+// is that file's row order verbatim. So: most recently imported batch first
+// (importId is monotonic with import time), then ascending statementSequence
+// within that batch reproduces the original file's row order exactly. `id`
+// is a final tiebreaker only for legacy rows imported before statementSequence
+// existed (backfilled, but kept here defensively). Exported so the rule is
+// unit-testable without a database.
 export const TIMELINE_ORDER_BY: Prisma.BankStatementTransactionOrderByWithRelationInput[] = [
-  { statementDate: 'desc' },
-  { importId:      'desc' },
-  { id:            'desc' },
+  { importId:          'desc' },
+  { statementSequence: 'asc' },
+  { id:                'asc' },
 ];
 
 export async function getTimeline(

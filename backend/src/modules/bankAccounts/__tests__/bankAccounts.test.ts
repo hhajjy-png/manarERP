@@ -21,8 +21,9 @@ vi.mock('@config/database.js', () => ({
       count:     vi.fn(),
     },
     bankStatementImport: {
-      groupBy: vi.fn(),
-      count:   vi.fn(),
+      groupBy:   vi.fn(),
+      count:     vi.fn(),
+      findFirst: vi.fn(),
     },
     $queryRaw: vi.fn(),
   },
@@ -71,6 +72,7 @@ describe('listBankAccounts', () => {
         _max:   { importedAt: new Date('2026-03-15') },
       },
     ]);
+    mockImp.findFirst.mockResolvedValue({ id: 9 });
     mockTx.findFirst.mockResolvedValue({
       balance:       makeDecimal(2000),
       accountNumber: '12345',
@@ -114,6 +116,36 @@ describe('listBankAccounts', () => {
     const result = await listBankAccounts();
     expect(result[0].accountKey).toBe('BANK:NBK');
     expect(result[1].accountKey).toBe('BANK:KFH');
+  });
+
+  it('sources currentBalance from the latest import\'s first-sequence row, not the max-statementDate row', async () => {
+    mockTx.groupBy.mockResolvedValue([
+      {
+        accountKey: 'BANK:NBK', bankName: 'NBK',
+        _count: { id: 2 }, _sum: { debit: makeDecimal(0), credit: makeDecimal(0) },
+        _min: { statementDate: new Date('2026-01-01') },
+        _max: { statementDate: new Date('2026-01-31') },
+      },
+    ]);
+    mockImp.groupBy.mockResolvedValue([]);
+    mockImp.findFirst.mockResolvedValue({ id: 42 });
+    mockTx.findFirst.mockResolvedValue({
+      balance: makeDecimal(777), accountNumber: '999', iban: 'KW00',
+    });
+
+    const result = await listBankAccounts();
+
+    // Latest import is looked up by import recency, not by any transaction date.
+    expect(mockImp.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where:   { accountKey: 'BANK:NBK' },
+      orderBy: [{ importedAt: 'desc' }, { id: 'desc' }],
+    }));
+    // The balance row is the first row of THAT import, ordered by statementSequence.
+    expect(mockTx.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where:   { importId: 42, accountKey: 'BANK:NBK' },
+      orderBy: [{ statementSequence: 'asc' }, { id: 'asc' }],
+    }));
+    expect(result[0].currentBalance).toBe(777);
   });
 
   it('handles missing importMap entry gracefully', async () => {
@@ -296,6 +328,44 @@ describe('getBankAccountDashboard', () => {
     // Real months keep their values
     expect(d!.monthly[0].totalDeposits).toBe(500);
     expect(d!.monthly[3].totalDeposits).toBe(300);
+  });
+
+  it('sources currentBalance/closingBalance from the latest import\'s first-sequence row (openingBalance is unaffected)', async () => {
+    mockTx.count.mockResolvedValue(2);
+    mockTx.findFirst
+      .mockResolvedValueOnce({ bankName: 'NBK' })                                       // meta
+      .mockResolvedValueOnce({ balance: makeDecimal(100) })                             // firstTx (openingBalance)
+      .mockResolvedValueOnce({ balance: makeDecimal(950), accountNumber: null, iban: null }); // currentRow
+
+    mockTx.aggregate
+      .mockResolvedValueOnce({
+        _count: { id: 2 },
+        _min: { statementDate: new Date('2026-01-01') },
+        _max: { statementDate: new Date('2026-01-31') },
+      })
+      .mockResolvedValueOnce({
+        _count: { id: 1 }, _sum: { credit: makeDecimal(0) },
+        _max: { credit: makeDecimal(0) }, _avg: { credit: makeDecimal(0) },
+      })
+      .mockResolvedValueOnce({
+        _count: { id: 1 }, _sum: { debit: makeDecimal(0) },
+        _max: { debit: makeDecimal(0) }, _avg: { debit: makeDecimal(0) },
+      });
+
+    mockImp.count.mockResolvedValue(2);
+    mockImp.findFirst.mockResolvedValue({ id: 55 });
+    mockRaw.mockResolvedValue([]);
+    mockTx.findMany.mockResolvedValue([]);
+
+    const d = await getBankAccountDashboard('BANK:NBK');
+
+    expect(mockImp.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where:   { accountKey: 'BANK:NBK' },
+      orderBy: [{ importedAt: 'desc' }, { id: 'desc' }],
+    }));
+    expect(d!.openingBalance).toBe(100);
+    expect(d!.currentBalance).toBe(950);
+    expect(d!.closingBalance).toBe(950);
   });
 
   it('maps top deposits and withdrawals to TopTransaction', async () => {

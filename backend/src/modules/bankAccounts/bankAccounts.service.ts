@@ -37,15 +37,11 @@ export async function listBankAccounts(): Promise<BankAccountSummary[]> {
     ]),
   );
 
-  // 3. Last balance (current balance) — one query per account; typically < 10 accounts
+  // 3. Last balance (current balance) — first data row of each account's most
+  // recently imported statement (source of truth per business rule), not the
+  // row with the max statementDate. One query pair per account; typically < 10 accounts.
   const balanceResults = await Promise.all(
-    accountKeys.map((key) =>
-      prisma.bankStatementTransaction.findFirst({
-        where:   { accountKey: key },
-        orderBy: { statementDate: 'desc' },
-        select:  { balance: true, accountNumber: true, iban: true },
-      }),
-    ),
+    accountKeys.map((key) => getLatestStatementRow(key)),
   );
 
   return groups.map((g, i) => {
@@ -76,6 +72,35 @@ export async function listBankAccounts(): Promise<BankAccountSummary[]> {
   );
 }
 
+// ── Latest statement row (current balance source of truth) ────────────────────
+//
+// Business rule: official bank statement files are ordered newest → oldest, so
+// the first data row of the most recently imported statement holds the true
+// current balance. This must NOT be re-derived from statementDate — dates can
+// repeat or, on some bank exports, not sort identically to the file's own row
+// order. `statementSequence` (1 = first data row, set at import time — see
+// bankStatementImport/service.ts) is the source of truth for "first row";
+// `bankStatementImport` recency (not max statementDate) is the source of truth
+// for "most recent statement". Returns null when the account has no imports.
+async function getLatestStatementRow(accountKey: string): Promise<{
+  balance: number | null;
+  accountNumber: string | null;
+  iban: string | null;
+} | null> {
+  const latestImport = await prisma.bankStatementImport.findFirst({
+    where:   { accountKey },
+    orderBy: [{ importedAt: 'desc' }, { id: 'desc' }],
+    select:  { id: true },
+  });
+  if (!latestImport) return null;
+
+  return prisma.bankStatementTransaction.findFirst({
+    where:   { importId: latestImport.id, accountKey },
+    orderBy: [{ statementSequence: 'asc' }, { id: 'asc' }],
+    select:  { balance: true, accountNumber: true, iban: true },
+  });
+}
+
 // ── Dashboard aggregates for one account ───────────────────────────────────────
 
 export async function getBankAccountDashboard(
@@ -92,7 +117,7 @@ export async function getBankAccountDashboard(
     select: { bankName: true },
   });
 
-  const [overallAgg, depositAgg, withdrawalAgg, importCount, firstTx, lastTx] =
+  const [overallAgg, depositAgg, withdrawalAgg, importCount, firstTx, currentRow] =
     await Promise.all([
       prisma.bankStatementTransaction.aggregate({
         where: { accountKey },
@@ -120,11 +145,8 @@ export async function getBankAccountDashboard(
         orderBy: { statementDate: 'asc' },
         select:  { balance: true },
       }),
-      prisma.bankStatementTransaction.findFirst({
-        where:   { accountKey },
-        orderBy: { statementDate: 'desc' },
-        select:  { balance: true },
-      }),
+      // Current balance source of truth — see getLatestStatementRow() above.
+      getLatestStatementRow(accountKey),
     ]);
 
   const [monthly, topDeposits, topWithdrawals] = await Promise.all([
@@ -172,9 +194,9 @@ export async function getBankAccountDashboard(
   return {
     accountKey,
     bankName:         meta?.bankName ?? '',
-    currentBalance:   lastTx?.balance  != null ? Number(lastTx.balance)  : null,
-    openingBalance:   firstTx?.balance != null ? Number(firstTx.balance) : null,
-    closingBalance:   lastTx?.balance  != null ? Number(lastTx.balance)  : null,
+    currentBalance:   currentRow?.balance != null ? Number(currentRow.balance) : null,
+    openingBalance:   firstTx?.balance    != null ? Number(firstTx.balance)    : null,
+    closingBalance:   currentRow?.balance != null ? Number(currentRow.balance) : null,
     totalDeposits,
     totalWithdrawals,
     netCashFlow:      totalDeposits - totalWithdrawals,
