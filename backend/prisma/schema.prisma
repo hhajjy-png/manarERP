@@ -1222,6 +1222,13 @@ model BankStatementTransaction {
   debit          Float     @default(0)
   credit         Float     @default(0)
   balance        Float?
+  // 1-based position of this row among the data rows of its own import file
+  // (header rows excluded), in original file order. Row 1 = first data row =
+  // newest transaction per the bank's official statement convention. Source
+  // of truth for display order and "current balance" — not derived from
+  // statementDate. Nullable for backward compatibility with rows imported
+  // before this field existed; backfilled by migration.
+  statementSequence Int?
   currency       String    @default("KWD")
   accountNumber  String?
   iban           String?
@@ -1258,6 +1265,7 @@ model BankStatementTransaction {
   @@index([accountKey])
   @@index([accountKey, statementDate])
   @@index([accountKey, transactionFingerprint])
+  @@index([importId, statementSequence])
   @@map("bank_statement_transactions")
 }
 
