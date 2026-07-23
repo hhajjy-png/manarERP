@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `1cfeaa3` (merge of `feature/google-drive-sync-foundation-pack-v1`, carrying Google Drive Sync Foundation Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `030b5c7` — "docs: record Google Drive Sync Foundation Pack v1 release" |
 | **Current Stable Tag** | `stable-google-drive-sync-foundation-pack-v1` |
 | **Current Release Date** | 2026-07-23 |
 | **Total Stable Releases** | 343 (window 2026-06-07 → 2026-07-23) |
