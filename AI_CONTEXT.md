@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `cd754ca` (merge of `feature/operational-reporting-migration-v1`, carrying Operational Reporting Migration v1) |
-| **Current Documentation Commit** | `4d90896` — "docs: record Operational Reporting Migration v1 release" |
-| **Current Stable Tag** | `stable-operational-reporting-migration-v1` |
-| **Current Release Date** | 2026-07-22 |
-| **Total Stable Releases** | 340 (window 2026-06-07 → 2026-07-22) |
+| **Current Merge Commit** | `3c00a1d` (merge of `feature/operational-reporting-consistency-pack-v1`, carrying Operational Reporting Consistency Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-operational-reporting-consistency-v1` |
+| **Current Release Date** | 2026-07-23 |
+| **Total Stable Releases** | 341 (window 2026-06-07 → 2026-07-23) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -162,19 +162,22 @@ Chromium PDF, and backend HTML reports.
   `supersedeBalancedJournal`). Wired to: Invoices, Payments, Expenses, Payroll, Purchase Invoices, driver
   Salary Payments (bank-import). The legacy single-sided `Transaction` table is **retired** — frozen
   historical data, no longer written to or read by any report.
-- **Operational Financial Engine (as of Operational Reporting Migration v1, 2026-07-22):**
+- **Operational Financial Engine (as of Operational Reporting Consistency Pack v1, 2026-07-23):**
   `shared/services/operational.reporting.ts` (`getRevenue`/`getExpenses`/`getCollections`/
   `getAccountsReceivable`/`getOperationalProfitAndLoss`/`getMonthlyOperationalProfitAndLoss`/
-  `getOperationalSummary`) is now the single source for Revenue (Invoice), Expenses (Expense, one
-  official definition: `status='APPROVED'`), Collections (Payment), Accounts Receivable
-  (Invoice+Payment), and Net Profit — read by Dashboard, Executive Decision Center, the Profit & Loss
-  report, and Accounting Summary's operational KPIs. **GL (`gl.reporting.ts` — `glProfitAndLoss`/
-  `glAccountFlow`) is no longer the source for any of those** — it remains authoritative only for
-  Journal Entries, Chart of Accounts, Trial-Balance-adjacent totals (Accounting Summary's Journal
-  Entry Count/Total Debit/Total Credit), and the still-GL-based `transactions.service.ts`
-  `/transactions/profit-loss` endpoint (intentionally not yet migrated — deferred to a future
-  cleanup pack; duplicates the Accounting Summary panel). `glMonthlyProfitAndLoss` was removed
-  (zero remaining callers) in the migration's Cleanup Pack 1.
+  `getOperationalSummary`, plus exported definition constants `EXPENSE_OPERATIONAL_STATUS`
+  (`'APPROVED'`) and `SALES_INVOICE_ACTIVE`) is now the **single, fully-consumed** source for
+  Revenue (Invoice), Expenses (Expense), Collections (Payment), Accounts Receivable
+  (Invoice−Σ Payment), and Net Profit (Revenue−Expenses) across **every** Dashboard, Executive
+  Center, Financial Center, and Reports consumer — including secondary KPIs (per-contract/
+  customer profitability, month-over-month comparisons, KPI timelines, aging/debtor widgets)
+  that the 2026-07-22 migration had left on pre-migration ad-hoc filters. **GL
+  (`gl.reporting.ts` — `glProfitAndLoss`/`glAccountFlow`) is not the source for any of those** —
+  it remains authoritative only for Journal Entries, Chart of Accounts, Trial-Balance-adjacent
+  totals (Accounting Summary's Journal Entry Count/Total Debit/Total Credit), and the
+  still-GL-based `transactions.service.ts` `/transactions/profit-loss` endpoint (intentionally
+  not yet migrated — deferred to a future cleanup pack; duplicates the Accounting Summary panel).
+  `glMonthlyProfitAndLoss` was removed (zero remaining callers) in the migration's Cleanup Pack 1.
 - **Banking modules** — Bank Statement Import/Explorer, Bank Reconciliation (manual-confirm only, never
   auto-posts by policy), Bank Account Explorer, Payroll Bank Import/Analytics, NBK Salary XLS export —
   all production-complete.
@@ -226,6 +229,28 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Operational Reporting Consistency Pack v1** (2026-07-23,
+  `stable-operational-reporting-consistency-v1`) — backend-only follow-up to Operational
+  Reporting Migration v1. A read-only Financial Integrity Audit verified the engine's core
+  (double-entry balance, canonical rounding, invoice/payment denormalization) was sound, but
+  found several **secondary** KPIs — per-contract/customer profitability, month-over-month
+  comparisons, KPI timelines, aging/debtor widgets in Dashboard, Executive Center, and Financial
+  Center — still carried pre-migration ad-hoc filters instead of consuming the shared engine.
+  This pack closes that gap: removed every remaining legacy expense filter (`notIn: [REJECTED,
+  CANCELLED, (REVERSED)]`) in favor of the engine's newly-exported `EXPENSE_OPERATIONAL_STATUS`;
+  unified collections to exclude cancelled invoices everywhere via `getCollections()` /
+  newly-exported `SALES_INVOICE_ACTIVE`; replaced every `Invoice.total − paidAmount` snapshot
+  with the engine's `Invoice − Σ Payment` definition; standardized `reports.service` totals onto
+  the canonical `round3` helper. **No formula changed** — Operational Profit/Loss remains
+  exactly Revenue − Expenses; only *which definition* each screen consumes changed. **Deliberately
+  unchanged:** GL, Journal Engine, Posting Engine, Chart of Accounts, Accounting Reports, API
+  contracts, DTOs, database schema, frontend. Three findings intentionally excluded: legacy
+  single-sided `Transaction`-table posting from Inventory (isolated, unread by any report), the
+  already-pending production payroll-GL journal cleanup, and a minor invoice-stats rounding nit.
+  Full backend suite: 135 files / 1897 tests passing (existing tests re-fixtured to the unified
+  payment-based mocking, not weakened); `tsc --noEmit` clean. Product Owner visual review:
+  **APPROVED**. Gemini review: **APPROVED**.
 
 - **Operational Reporting Migration v1** (2026-07-22, `stable-operational-reporting-migration-v1`) —
   backend-only architecture migration executed as 7 sequential, individually-approved packs. Introduces
@@ -670,7 +695,18 @@ Chromium PDF, and backend HTML reports.
 - **`transactions.service.ts` `/transactions/profit-loss` still GL-based** — intentionally deferred by the
   2026-07-22 Operational Reporting Migration v1 (see Active Foundations); duplicates the Accounting
   Summary panel exactly (same GL call). A future cleanup pack should retire or consolidate it.
-- No other release is mid-flight; `production` is fully released and validated as of 2026-07-22.
+- **Inventory posts to the legacy single-sided `Transaction` table (RI-5, flagged by the 2026-07-23
+  Financial Integrity Audit)** — `inventory.service.ts` material receipt/issue write debit-only rows via
+  `transactionsService.postEntry` (no debit==credit guard), a different model from the balanced GL
+  `JournalEntry`. Verified isolated: no official report (`operational.reporting.ts`, `gl.reporting.ts`,
+  Dashboard, Executive, Reports) reads this table for any figure — only the Transactions list view and
+  the already-deferred legacy P&L endpoint above. Intentionally excluded from the Consistency Pack;
+  candidate for a future cleanup pack alongside the `/transactions/profit-loss` retirement.
+- **Invoice stats aggregate rounding nit (RI-7, flagged by the 2026-07-23 Financial Integrity Audit)** —
+  `invoices.service.ts`'s list-stats `totalRemaining` (`totalSales − totalCollected`) is not wrapped in
+  `roundMoney`, unlike every decision-path calculation in the same file (`remainingDue`, `newPaid`,
+  overpayment guard). Display-only, re-rounded at render; deferred as cosmetic.
+- No other release is mid-flight; `production` is fully released and validated as of 2026-07-23.
 
 ---
 

@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `cd754ca` — release `stable-operational-reporting-migration-v1` (Operational Reporting Migration v1 — backend-only: introduces a single Operational Financial Engine as the source for Revenue/Expenses/Collections/Accounts Receivable/Net Profit across Dashboard, Executive Decision Center, the Profit & Loss report, and Accounting Summary's operational KPIs; GL remains the source for Journal/Chart of Accounts/Trial-Balance-adjacent totals. No API/DTO/frontend changes) |
+| **Production HEAD** | `3c00a1d` — release `stable-operational-reporting-consistency-v1` (Operational Reporting Consistency Pack v1 — backend-only: extends the Operational Financial Engine so every remaining Dashboard, Executive Center, Financial Center, and Reports consumer reads the exact same Revenue/Expenses/Collections/Receivables definitions instead of re-deriving them locally. No accounting/GL changes, no API/DTO/frontend changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-operational-reporting-migration-v1` (release date 2026-07-22) → merge `cd754ca` |
-| **Previous stable tag** | `stable-employee-smart-forms-hub-localization-pack-v1` (2026-07-22) → merge `61110df` |
-| **Total stable releases** | 340 (all merged onto `production`; window 2026-06-07 → 2026-07-22) |
+| **Latest stable tag** | `stable-operational-reporting-consistency-v1` (release date 2026-07-23) → merge `3c00a1d` |
+| **Previous stable tag** | `stable-operational-reporting-migration-v1` (2026-07-22) → merge `cd754ca` |
+| **Total stable releases** | 341 (all merged onto `production`; window 2026-06-07 → 2026-07-23) |
 | **Latest validation** | backend `tsc --noEmit` ✅ · backend `vitest` full suite **135 files / 1897 tests** pass ✅ · no frontend changes this release (prior frontend validation state unaffected) |
-| **Remote sync** | `origin/production` — pushed with this release (merge `cd754ca` + tag `stable-operational-reporting-migration-v1`) |
+| **Remote sync** | `origin/production` — pushed with this release (merge `3c00a1d` + tag `stable-operational-reporting-consistency-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Operational Reporting Migration v1
+## Latest Release — Operational Reporting Consistency Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Operational Reporting Consistency Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-23 |
+| **Feature branch** | `feature/operational-reporting-consistency-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `3accc53` (documentation commit from the prior release) |
+| **Checkpoint tag** | `checkpoint-operational-reporting-consistency-pack-v1` → `3accc53` (annotated) |
+| **Feature commit** | `9c15fca` |
+| **Production merge commit** | `3c00a1d` |
+| **Stable tag** | `stable-operational-reporting-consistency-v1` → merge `3c00a1d` (annotated) |
+| **Gemini review** | **APPROVED** — per user's release note. |
+| **Manual verification** | Product Owner visual review — **completed and accepted**. |
+| **Validation** | backend `tsc --noEmit` ✅ · backend `vitest` full suite **135 files / 1897 tests** pass ✅ · no frontend changes this release |
+
+**Scope.** A Financial Integrity Audit (read-only) verified the Operational Reporting Migration v1 engine's core (double-entry balance, canonical rounding, invoice/payment denormalization consistency) was sound, but found that several **secondary** KPIs — per-contract/customer profitability, month-over-month comparisons, KPI timelines, aging/debtor widgets — had not been migrated onto the shared engine and still carried pre-migration ad-hoc definitions. This pack closes that gap: **RI-1** removed every remaining legacy expense filter (`notIn: [REJECTED, CANCELLED, (REVERSED)]`) across executive month comparisons, per-contract/top-expense groupings, dashboard V2/IntelligenceV2, `monthlyTrendYTD`, Financial Center, and contract summary, replacing them with the engine's newly-exported `EXPENSE_OPERATIONAL_STATUS` (`'APPROVED'`). **RI-2** unified collections so every payment aggregate excludes cancelled invoices via the engine's `getCollections()` / newly-exported `SALES_INVOICE_ACTIVE` filter. **RI-3** replaced every `Invoice.total − Invoice.paidAmount` snapshot with the engine's `Invoice − Σ Payment` definition (dashboard top-debtors/aging/forecast/overview, executive & Financial Center per-contract/customer outstanding, contract summary) — numerically identical today (the snapshot was already provably consistent with summed payments) but removing the dependency on a second source. **RI-4** standardized `reports.service` totalsRow figures onto the canonical `round3` helper.
+
+**Deliberately unchanged.** GL, Journal Engine, Posting Engine, Chart of Accounts, and Accounting Reports were not touched. Operational Profit/Loss formula is unchanged — still exactly `Revenue − Expenses`, sourced from `getOperationalProfitAndLoss()` everywhere; no screen computes it from Collections/Payments/Receivables. No API contract, response DTO, database schema, or frontend changes. Three findings from the audit remain intentionally excluded: **RI-5** (legacy single-sided `Transaction`-table posting from Inventory — isolated, not read by any official report), **RI-6** (the already-documented pending production payroll-GL journal cleanup), and **RI-7** (a minor invoice-stats aggregate rounding nit).
+
+**Verification.** Project-wide grep sweep after implementation confirmed zero legacy `notIn` expense filters or `paidAmount`-snapshot receivables remain in any operational-reporting consumer, and that `EXPENSE_OPERATIONAL_STATUS`/`SALES_INVOICE_ACTIVE` are consumed by all four affected services (executive, financial-exec, dashboard, contracts). Full backend suite: 135 files / 1897 tests passing (existing tests re-fixtured — not weakened — to the unified payment-based mocking; same expected outcomes). `tsc --noEmit` clean.
+
+**Unchanged:** frontend · API contracts · response DTOs · database schema · GL posting logic · Chart of Accounts · Journal Entries · Financial Center's own data (only its aggregation source changed) · `transactions.service.ts`.
+
+---
+
+## Previous Release — Operational Reporting Migration v1
 
 | Field | Value |
 |-------|-------|
