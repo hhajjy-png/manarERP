@@ -2,18 +2,19 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-23 (previously 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-23 (previously 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Google Drive Conflict Resolution Pack v1), like the Google Drive Sync Foundation Pack v1
-> pass and the ones before it, refreshed the "Current Production State" table only (re-derived directly from
-> `git`) — the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/
-> ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been
-> re-audited in this pass — treat their specifics as of those dates, not current-day. This pass only repoints
-> the table below at the current HEAD, consistent with every other table-only pass in this history.
+> below. This pass (Google Drive Database Restore Reliability Pack v1), like the Google Drive Conflict
+> Resolution Pack v1 pass and the ones before it, refreshed the "Current Production State" table only
+> (re-derived directly from `git`) — the "Repository Status" quantitative table and the deeper narrative surveys
+> (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01 respectively
+> and have not been re-audited in this pass — treat their specifics as of those dates, not current-day. This
+> pass only repoints the table below at the current HEAD, consistent with every other table-only pass in this
+> history.
 
 ---
 
@@ -36,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `fdf3681` — merge of `feature/google-drive-conflict-resolution-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-google-drive-conflict-resolution-pack-v1` (merge commit `fdf3681`) | High |
-| **Previous stable tag** | `stable-google-drive-sync-foundation-pack-v1` (`1cfeaa3`) | High |
+| **Current HEAD** | `9ff69d9` — merge of `feature/google-drive-database-restore-reliability-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-google-drive-database-restore-reliability-pack-v1` (merge commit `9ff69d9`) | High |
+| **Previous stable tag** | `stable-google-drive-conflict-resolution-pack-v1` (`fdf3681`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -65,7 +66,39 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-google-drive-conflict-resolution-pack-v1` (`fdf3681`, 2026-07-23)
+### Latest Release — `stable-google-drive-database-restore-reliability-pack-v1` (`9ff69d9`, 2026-07-23)
+
+Fixes a real-world production restore failure: a Google Drive download completed successfully but the
+atomic file replacement threw `EPERM: operation not permitted, rename temp.db -> manar.db`, because the
+backend process still held the live SQLite file open (Windows exclusive-lock semantics). No database
+schema changes, no business logic changes.
+
+- **Detection & graceful stop:** new `isBackendRunning()`/`stopBackendForRestart()` in
+  `electron/services/backendLauncher.ts` — detects whether the database is actually in use (a no-op during
+  startup-sync, since the backend hasn't started yet at that point) and, when it is, kills the backend and
+  awaits its real `'exit'` event (max 5s) rather than assuming the file lock is released after a fixed
+  delay.
+- **Retry on lock contention:** the atomic rename is wrapped in the existing generic `withRetry()` helper,
+  retrying only `EPERM`/`EBUSY` (6 attempts, 500ms-4s backoff) — absorbs any final OS-level lock-release
+  lag instead of failing on the first attempt.
+- **Automatic backend restart:** the backend restarts itself and waits for `/api/health` before the
+  operation is reported complete; a `finally` block guarantees the backend is restarted even if the replace
+  ultimately fails after retries — the app is never left without a running backend.
+- **Shared internal secret:** new `getInternalSecret()` caches `INTERNAL_SECRET` (used by
+  `/api/internal/*` and the auto-backup scheduler) for the process lifetime instead of regenerating it in
+  `main.ts` — a mid-session backend restart now reuses the exact secret the scheduler already holds.
+- **Crash-dialog guard:** the pre-existing "unexpected exit → error dialog → `app.quit()`" handler is
+  guarded with a `restartingBackend` flag so this deliberate, controlled restart is never mistaken for a
+  crash.
+- **Frontend reconnect:** `CloudSyncPanel.tsx` replaced `requiresRestart` → `window.manar.restartApp()`
+  (full Electron relaunch) with `backendRestarted` → `window.location.reload()` (in-window reload) — the
+  user is no longer asked to manually restart the app after a Drive restore.
+- **Validation:** electron `tsc --noEmit` clean · frontend `tsc --noEmit` clean · frontend production
+  build clean · full frontend suite shows the identical established baseline (8 failing files / 18 failing
+  tests / 1808 passing) — zero regressions. No backend changes this release. Real-world runtime restore
+  testing completed successfully per user's release note.
+
+### Previous Release — `stable-google-drive-conflict-resolution-pack-v1` (`fdf3681`, 2026-07-23)
 
 Professional conflict detection and resolution, built strictly as an extension of the Sync Engine
 introduced by Google Drive Sync Foundation Pack v1 — no redesign of that architecture. No database schema

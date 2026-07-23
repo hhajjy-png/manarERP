@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `fdf3681` — release `stable-google-drive-conflict-resolution-pack-v1` (Google Drive Conflict Resolution Pack v1 — professional conflict detection/resolution extending the existing Sync Engine; no schema or business logic changes) |
+| **Production HEAD** | `9ff69d9` — release `stable-google-drive-database-restore-reliability-pack-v1` (Google Drive Database Restore Reliability Pack v1 — fixes a real-world EPERM restore failure by making the download-replace path backend-aware; no schema or business logic changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-google-drive-conflict-resolution-pack-v1` (release date 2026-07-23) → merge `fdf3681` |
-| **Previous stable tag** | `stable-google-drive-sync-foundation-pack-v1` (2026-07-23) → merge `1cfeaa3` |
-| **Total stable releases** | 344 (all merged onto `production`; window 2026-06-07 → 2026-07-23) |
-| **Latest validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · frontend `vitest` full suite — pre-existing 8 failing files reproduced identically against the pre-feature baseline (checkpoint tag), none touching Sync/Conflict Resolution code (cheque print isolation, financial center tables, print preview, router flags, format balance, invoice fast entry, currency headers, WYSIWYG labeling); total failure count varies 18–19 across runs due to known timing-sensitive flakiness in the cheque print isolation tests, confirmed present on the unmodified baseline too — zero regressions · no backend changes this release |
-| **Remote sync** | `origin/production` — pushed with this release (merge `fdf3681` + tag `stable-google-drive-conflict-resolution-pack-v1`) |
+| **Latest stable tag** | `stable-google-drive-database-restore-reliability-pack-v1` (release date 2026-07-23) → merge `9ff69d9` |
+| **Previous stable tag** | `stable-google-drive-conflict-resolution-pack-v1` (2026-07-23) → merge `fdf3681` |
+| **Total stable releases** | 345 (all merged onto `production`; window 2026-06-07 → 2026-07-23) |
+| **Latest validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · frontend `vitest` full suite — 8 failing files / 18 failing tests / 1808 passing, identical to the established pre-existing baseline (cheque print isolation, financial center tables, print preview, router flags, format balance, invoice fast entry, currency headers, WYSIWYG labeling — none touching Sync/Restore code) — zero regressions · no backend changes this release · real-world runtime restore testing completed successfully per user's release note |
+| **Remote sync** | `origin/production` — pushed with this release (merge `9ff69d9` + tag `stable-google-drive-database-restore-reliability-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,32 @@ in a table cell.
 
 ---
 
-## Latest Release — Google Drive Conflict Resolution Pack v1
+## Latest Release — Google Drive Database Restore Reliability Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Google Drive Database Restore Reliability Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-23 |
+| **Feature branch** | `feature/google-drive-database-restore-reliability-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `2ec1dee` (documentation commit from the prior release) |
+| **Checkpoint tag** | `checkpoint-google-drive-database-restore-reliability-pack-v1` → `2ec1dee` (annotated) |
+| **Feature commit** | `b5da398` |
+| **Production merge commit** | `9ff69d9` |
+| **Stable tag** | `stable-google-drive-database-restore-reliability-pack-v1` → merge `9ff69d9` (annotated) |
+| **Architectural review** | **PASSED** — Gemini architecture/security review, per user's release note. |
+| **Manual verification** | Product Owner visual review — **completed and accepted**. Real-world runtime restore testing — **completed successfully**. |
+| **Validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · frontend `vitest` — 8 failing files / 18 failing tests / 1808 passing, identical to the established pre-existing baseline, none touching Sync/Restore code — zero regressions · no backend changes this release |
+
+**Scope.** Fixes a real-world restore failure reported in production: downloading a database backup from Google Drive succeeded, but the atomic file replacement threw `EPERM: operation not permitted, rename temp.db -> manar.db`, because the backend process still held the live SQLite file open (Windows exclusive-lock semantics). The existing local-file restore path (`backup.ipc.ts`) already stopped the backend before replacing the file; the sync/Google Drive download path never did — this pack closes that gap without touching the local-file path at all. `performDownload()` in `electron/services/syncEngine.service.ts` now: (1) detects whether the database is actually in use via a new `isBackendRunning()` — a no-op during startup-sync, since the backend hasn't started yet at that point; (2) gracefully stops the backend via a new `stopBackendForRestart()`, which awaits the process's real `'exit'` event (max 5s) rather than a fixed sleep; (3) wraps the atomic rename in the existing generic `withRetry()` helper, retrying only `EPERM`/`EBUSY` (6 attempts, 500ms–4s backoff) to absorb any final OS-level lock-release lag; (4) restarts the backend automatically and waits for `/api/health`; (5) in a `finally` block, restarts the backend even if the replace ultimately fails after retries, so the app is never left without a running backend. A new `getInternalSecret()` in `backendLauncher.ts` caches the `INTERNAL_SECRET` (used by `/api/internal/*` routes and the auto-backup scheduler) for the process lifetime instead of regenerating it, so a mid-session backend restart reuses the exact secret the scheduler already holds. The existing "unexpected exit → error dialog → `app.quit()`" handler is guarded with a `restartingBackend` flag so this deliberate restart is never mistaken for a crash. On the frontend, `CloudSyncPanel.tsx` replaced `requiresRestart` → `window.manar.restartApp()` (full Electron relaunch) with `backendRestarted` → `window.location.reload()` (in-window reload) — the user is no longer asked to restart the app manually; the existing 401 interceptor already handles a stale session after reload. Six new status phases surface via the existing `setStatus()` live-message mechanism: downloading, preparing, stopping, replacing, restarting, completed.
+
+**Deliberately unchanged.** `performUpload()`, `performStartupSync()`/`performShutdownSync()`'s upload-only paths, the unrelated local-file restore flow in `backup.ipc.ts`, all integrity/backup/retry protections from the two prior sync packs, business logic, database schema.
+
+**Known limitation.** If the `finally`-block backend restart also fails (e.g., the port never frees), the failure is swallowed as best-effort and the user is left needing a manual app restart — a further UI escalation for that double-failure case was judged out of scope for this fix.
+
+---
+
+## Previous Release — Google Drive Conflict Resolution Pack v1
 
 | Field | Value |
 |-------|-------|

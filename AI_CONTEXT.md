@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `fdf3681` (merge of `feature/google-drive-conflict-resolution-pack-v1`, carrying Google Drive Conflict Resolution Pack v1) |
-| **Current Documentation Commit** | `8c4d89d` — "docs: record Google Drive Conflict Resolution Pack v1 release" |
-| **Current Stable Tag** | `stable-google-drive-conflict-resolution-pack-v1` |
+| **Current Merge Commit** | `9ff69d9` (merge of `feature/google-drive-database-restore-reliability-pack-v1`, carrying Google Drive Database Restore Reliability Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-google-drive-database-restore-reliability-pack-v1` |
 | **Current Release Date** | 2026-07-23 |
-| **Total Stable Releases** | 344 (window 2026-06-07 → 2026-07-23) |
+| **Total Stable Releases** | 345 (window 2026-06-07 → 2026-07-23) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -242,6 +242,19 @@ Chromium PDF, and backend HTML reports.
   `electron/services/deviceIdentity.service.ts` gives each machine a persistent UUID + hostname (never
   synced as its own file — only its two values ride along as Drive `appProperties`); every sync log entry
   is now device-tagged, and conflict-resolving entries carry `conflictResolved`/`resolutionSelected`.
+- **Google Drive Restore Reliability (as of Google Drive Database Restore Reliability Pack v1,
+  2026-07-23):** fixes a real-world `EPERM` restore failure — the backend held the live SQLite file open
+  on Windows, so `performDownload()`'s atomic rename failed. It now detects whether the database is
+  actually in use (`isBackendRunning()` — a no-op during startup-sync, before the backend has started),
+  stops the backend and awaits its real `'exit'` event (`stopBackendForRestart()`, not a fixed sleep),
+  retries the rename on `EPERM`/`EBUSY` via the existing `withRetry()` helper, restarts the backend and
+  waits for `/api/health`, and — in a `finally` block — restarts the backend even if the replace ultimately
+  fails, so the app is never left without one. `backendLauncher.ts`'s `INTERNAL_SECRET` is now cached once
+  per process (`getInternalSecret()`) instead of regenerated, so a mid-session restart reuses the secret
+  the auto-backup scheduler already holds; the pre-existing "unexpected exit → crash dialog → `app.quit()`"
+  handler is guarded against this deliberate restart. Frontend: `requiresRestart` → full Electron relaunch
+  replaced with `backendRestarted` → `window.location.reload()` (in-window reload only) — no more manual
+  app restarts after a Drive restore.
 
 ---
 
@@ -271,6 +284,26 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Google Drive Database Restore Reliability Pack v1** (2026-07-23,
+  `stable-google-drive-database-restore-reliability-pack-v1`) — fixes a real-world restore failure: a
+  Google Drive download succeeded but the atomic replace threw `EPERM: operation not permitted, rename
+  temp.db -> manar.db` because the backend still held the live SQLite file open on Windows (the existing
+  local-file restore path already stopped the backend first; the sync download path never did). New
+  `isBackendRunning()`/`stopBackendForRestart()` in `backendLauncher.ts` detect actual database-in-use
+  state and await the backend's real process exit (not a fixed delay) before any file operation; the
+  atomic rename retries on `EPERM`/`EBUSY` via the existing generic `withRetry()` helper (6 attempts,
+  500ms-4s backoff); the backend restarts automatically afterward and a `finally` block guarantees it
+  restarts even if the replace ultimately fails. `getInternalSecret()` now caches `INTERNAL_SECRET` for
+  the process lifetime so a mid-session restart doesn't invalidate the auto-backup scheduler's
+  authentication. Frontend: `CloudSyncPanel.tsx` swapped a full Electron relaunch
+  (`requiresRestart`/`restartApp()`) for an in-window `window.location.reload()`
+  (`backendRestarted`) — restores no longer require the user to manually restart the app. All integrity/
+  backup/retry protections from the two prior sync packs preserved unchanged; no database schema changes,
+  no business logic changes. Electron `tsc --noEmit` clean; frontend `tsc --noEmit` clean; frontend
+  production build clean; full frontend suite shows the identical established baseline (8 failing files /
+  18 failing tests / 1808 passing) — zero regressions. Product Owner visual review: **APPROVED**. Gemini
+  review: **APPROVED**. Real-world runtime restore testing: **completed successfully**.
 
 - **Google Drive Conflict Resolution Pack v1** (2026-07-23,
   `stable-google-drive-conflict-resolution-pack-v1`) — professional conflict detection/resolution built
