@@ -1,7 +1,6 @@
 import { app, BrowserWindow, Menu } from 'electron';
-import { randomUUID } from 'crypto';
 import { createMainWindow } from './windows/mainWindow';
-import { startBackend, stopBackend, getUserDataPaths } from './services/backendLauncher';
+import { startBackend, stopBackend, getUserDataPaths, getInternalSecret } from './services/backendLauncher';
 import { startBackupScheduler, stopBackupScheduler, runCatchupIfNeeded } from './services/backupScheduler';
 import { performStartupSync, performShutdownSync } from './services/syncEngine.service';
 import { registerDialogIpc } from './ipc/dialog.ipc';
@@ -15,7 +14,7 @@ import { registerPrintIpc } from './services/printService';
 import { registerWysiwygPocIpc } from './ipc/wysiwygPoc.ipc';
 import { registerWysiwygViewerGuard } from './ipc/wysiwygViewerGuard.ipc';
 
-const INTERNAL_SECRET = randomUUID();
+const INTERNAL_SECRET = getInternalSecret();
 
 // منع تشغيل أكثر من نسخة من التطبيق في آن واحد
 const gotLock = app.requestSingleInstanceLock();

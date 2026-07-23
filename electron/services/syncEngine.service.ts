@@ -20,6 +20,7 @@ import {
 import { checkSqliteIntegrity, checkpointWal, sha256File } from './dbIntegrity';
 import { withRetry } from './retry';
 import { getOrCreateDeviceIdentity } from './deviceIdentity.service';
+import { isBackendRunning, stopBackendForRestart, startBackend, getInternalSecret } from './backendLauncher';
 
 /**
  * محرّك المزامنة — يُنسّق بين المصادقة وطبقة Drive API وفحوصات السلامة.
@@ -136,6 +137,32 @@ function driveRetryOptions(dataDir: string, action: 'UPLOAD' | 'DOWNLOAD') {
       const message = `محاولة ${attempt} فشلت مؤقتًا — إعادة المحاولة خلال ${Math.round(delayMs / 1000)} ثانية: ${reason}`;
       setStatus(currentStatus, message);
       saveMetadata(dataDir, appendLog(dataDir, loadMetadata(dataDir), { action, result: 'RETRY', message }));
+    },
+  };
+}
+
+function isFileLockError(err: unknown): boolean {
+  const code = (err as NodeJS.ErrnoException)?.code;
+  return code === 'EPERM' || code === 'EBUSY';
+}
+
+/**
+ * خيارات إعادة محاولة استبدال ملف قاعدة البيانات محليًا — على ويندوز قد يستغرق
+ * نظام التشغيل لحظة إضافية لتحرير قفل الملف بعد إنهاء العملية التي فتحته، حتى
+ * بعد التأكّد من خروجها فعليًا. فقط أخطاء القفل (EPERM/EBUSY) قابلة لإعادة
+ * المحاولة؛ أي خطأ آخر (تلف، مساحة تخزين، إلخ) يُفشل فورًا دون إعادة محاولة.
+ */
+function fileReplaceRetryOptions(dataDir: string) {
+  return {
+    maxAttempts: 6,
+    baseDelayMs: 500,
+    maxDelayMs: 4000,
+    isRetryable: isFileLockError,
+    onRetry: (attempt: number, err: unknown, delayMs: number) => {
+      const reason = err instanceof Error ? err.message : String(err);
+      const message = `الملف ما زال مقفلًا من نظام التشغيل — محاولة ${attempt} فشلت، إعادة المحاولة خلال ${Math.round(delayMs / 1000)} ثانية: ${reason}`;
+      setStatus(currentStatus, message);
+      saveMetadata(dataDir, appendLog(dataDir, loadMetadata(dataDir), { action: 'DOWNLOAD', result: 'RETRY', message }));
     },
   };
 }
@@ -420,21 +447,25 @@ export async function performDownload(
   dbPath: string,
   dataDir: string,
   opts: ActionOptions = {},
-): Promise<{ ok: boolean; error?: string; requiresRestart?: boolean }> {
+): Promise<{ ok: boolean; error?: string; requiresRestart?: boolean; backendRestarted?: boolean }> {
   const tempPath = path.join(dataDir, `sync-tmp-download-${Date.now()}.db`);
   const preSyncDir = path.join(dataDir, 'backups', 'pre-sync');
   let preSyncBackupPath: string | null = null;
+  // "قيد الاستخدام" فعليًا يعني الخادم الخلفي يعمل ويحمل قفل ملف SQLite (يحدث
+  // هذا فقط على ويندوز؛ لا يوجد قفل حصري مكافئ على أنظمة POSIX). عند تشغيل
+  // مزامنة بدء التشغيل، الخادم لم يبدأ بعد — لا حاجة لإيقاف/إعادة تشغيل شيء.
+  let backendStopped = false;
 
   try {
-    setStatus('DOWNLOADING', 'جارٍ التحقق من النسخة السحابية...');
+    setStatus('DOWNLOADING', 'جارٍ تنزيل النسخة الاحتياطية من Google Drive...');
     const { client } = requireClient(dataDir);
     const retryOpts = driveRetryOptions(dataDir, 'DOWNLOAD');
     const remote = await withRetry(() => findRemoteSyncFile(client), retryOpts);
     if (!remote) throw new Error('لا توجد نسخة قاعدة بيانات على Google Drive بعد');
 
-    setStatus('DOWNLOADING', 'جارٍ تنزيل قاعدة البيانات...');
     await withRetry(() => downloadDatabase(client, remote.id, tempPath), retryOpts);
 
+    setStatus('DOWNLOADING', 'جارٍ التحضير للاستعادة...');
     // فحص سلامة حقيقي عبر محرّك SQLite (PRAGMA integrity_check) فور التنزيل —
     // لا يُفعَّل ملف تالف أبدًا مهما بدت بصمته صحيحة.
     const integrity = await checkSqliteIntegrity(tempPath);
@@ -452,8 +483,26 @@ export async function performDownload(
       fs.copyFileSync(dbPath, preSyncBackupPath);
     }
 
-    // استبدال ذرّي: rename على نفس القرص/المجلد أعلى ضمانًا من نسخ+حذف
-    fs.renameSync(tempPath, dbPath);
+    // الخادم الخلفي يفتح ملف SQLite بقفل حصري على ويندوز (Prisma/SQLite) — يجب
+    // إيقافه فعليًا والتأكّد من خروج العملية قبل أي محاولة استبدال، لا افتراض
+    // تحرّر القفل بعد تأخير ثابت.
+    const backendWasRunning = isBackendRunning();
+    if (backendWasRunning) {
+      setStatus('DOWNLOADING', 'جارٍ إيقاف قاعدة البيانات...');
+      await stopBackendForRestart();
+      backendStopped = true;
+    }
+
+    setStatus('DOWNLOADING', 'جارٍ استبدال قاعدة البيانات...');
+    // استبدال ذرّي (rename على نفس القرص/المجلد) مع إعادة محاولة قصيرة تمتصّ أي
+    // تأخير أخير لتحرير القفل من نظام التشغيل (EPERM/EBUSY) بدل الفشل الفوري.
+    await withRetry(async () => { fs.renameSync(tempPath, dbPath); }, fileReplaceRetryOptions(dataDir));
+
+    if (backendWasRunning) {
+      setStatus('DOWNLOADING', 'جارٍ إعادة تشغيل الخدمات...');
+      await startBackend(getInternalSecret());
+      backendStopped = false;
+    }
 
     const now = new Date().toISOString();
     let metadata = loadMetadata(dataDir);
@@ -469,12 +518,15 @@ export async function performDownload(
     metadata = appendLog(dataDir, metadata, {
       action: 'DOWNLOAD',
       result: 'SUCCESS',
-      message: `تم التنزيل والاستبدال (${downloadedHash.slice(0, 8)}…)`,
+      message: `تمت الاستعادة بنجاح (${downloadedHash.slice(0, 8)}…)`,
       ...(opts.resolvesConflict ? { conflictResolved: true, resolutionSelected: 'REMOTE' as const } : {}),
     });
     saveMetadata(dataDir, metadata);
-    setStatus('COMPLETED');
-    return { ok: true, requiresRestart: true };
+    setStatus('COMPLETED', 'اكتملت الاستعادة بنجاح');
+    // requiresRestart: false — لم يعد إعادة تشغيل التطبيق كاملًا مطلوبة؛ الخادم
+    // الخلفي أُعيد تشغيله تلقائيًا. backendRestarted تُخبر الواجهة أن تُعيد تحميل
+    // نفسها (بلا إعادة تشغيل يدوية) حتى تعكس بيانات القاعدة الجديدة.
+    return { ok: true, requiresRestart: false, backendRestarted: backendWasRunning };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
 
@@ -497,6 +549,16 @@ export async function performDownload(
     saveMetadata(dataDir, metadata);
     setStatus('FAILED', message);
     return { ok: false, error: message };
+  } finally {
+    // لا يُترك التطبيق أبدًا بلا خادم خلفي: إن كنّا قد أوقفناه، يجب إعادته بغضّ
+    // النظر عن نجاح أو فشل عملية الاستبدال نفسها.
+    if (backendStopped) {
+      try {
+        await startBackend(getInternalSecret());
+      } catch {
+        // أفضل جهد — لو استمرّ الفشل، سيحتاج المستخدم لإعادة تشغيل التطبيق يدويًا
+      }
+    }
   }
 }
 
@@ -510,7 +572,7 @@ export async function resolveConflict(
   choice: 'LOCAL' | 'REMOTE',
   dbPath: string,
   dataDir: string,
-): Promise<{ ok: boolean; error?: string; requiresRestart?: boolean }> {
+): Promise<{ ok: boolean; error?: string; requiresRestart?: boolean; backendRestarted?: boolean }> {
   if (choice === 'LOCAL') return performUpload(dbPath, dataDir, { resolvesConflict: true });
   return performDownload(dbPath, dataDir, { resolvesConflict: true });
 }
@@ -520,7 +582,14 @@ export async function resolveConflict(
 export async function performSyncNow(
   dbPath: string,
   dataDir: string,
-): Promise<{ ok: boolean; action: SyncAction; error?: string; requiresRestart?: boolean; conflict?: SyncConflict }> {
+): Promise<{
+  ok: boolean;
+  action: SyncAction;
+  error?: string;
+  requiresRestart?: boolean;
+  backendRestarted?: boolean;
+  conflict?: SyncConflict;
+}> {
   try {
     const { client } = requireClient(dataDir);
 
@@ -540,7 +609,13 @@ export async function performSyncNow(
     }
     if (decision.action === 'DOWNLOAD') {
       const result = await performDownload(dbPath, dataDir);
-      return { ok: result.ok, action: 'DOWNLOAD', error: result.error, requiresRestart: result.requiresRestart };
+      return {
+        ok: result.ok,
+        action: 'DOWNLOAD',
+        error: result.error,
+        requiresRestart: result.requiresRestart,
+        backendRestarted: result.backendRestarted,
+      };
     }
     if (decision.action === 'UPLOAD') {
       const result = await performUpload(dbPath, dataDir);

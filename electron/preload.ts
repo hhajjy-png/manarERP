@@ -196,6 +196,8 @@ const api = {
     action: string;
     error?: string;
     requiresRestart?: boolean;
+    /** الخادم الخلفي أُعيد تشغيله تلقائيًا بعد استبدال قاعدة البيانات — الواجهة تحتاج لإعادة تحميل نفسها فقط، لا إعادة تشغيل التطبيق. */
+    backendRestarted?: boolean;
     conflict?: SyncConflictInfo;
   }> => ipcRenderer.invoke('sync:now'),
 
@@ -203,8 +205,12 @@ const api = {
   syncUpload: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('sync:upload'),
 
   /** تنزيل يدوي إجباري من Google Drive مع استبدال آمن (ذرّي) لقاعدة البيانات المحلية. */
-  syncDownload: (): Promise<{ ok: boolean; error?: string; requiresRestart?: boolean }> =>
-    ipcRenderer.invoke('sync:download'),
+  syncDownload: (): Promise<{
+    ok: boolean;
+    error?: string;
+    requiresRestart?: boolean;
+    backendRestarted?: boolean;
+  }> => ipcRenderer.invoke('sync:download'),
 
   // ─── Google Drive Conflict Resolution Pack v1 ────────────────────────────────
 
@@ -216,6 +222,7 @@ const api = {
     ok: boolean;
     error?: string;
     requiresRestart?: boolean;
+    backendRestarted?: boolean;
   }> => ipcRenderer.invoke('sync:resolveConflict', choice),
 
 };

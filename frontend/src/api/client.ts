@@ -116,16 +116,24 @@ declare global {
         action: string;
         error?: string;
         requiresRestart?: boolean;
+        /** الخادم الخلفي أُعيد تشغيله تلقائيًا — الواجهة تحتاج لإعادة تحميل نفسها فقط. */
+        backendRestarted?: boolean;
         conflict?: SyncConflictInfo;
       }>;
       syncUpload?: () => Promise<{ ok: boolean; error?: string }>;
-      syncDownload?: () => Promise<{ ok: boolean; error?: string; requiresRestart?: boolean }>;
+      syncDownload?: () => Promise<{
+        ok: boolean;
+        error?: string;
+        requiresRestart?: boolean;
+        backendRestarted?: boolean;
+      }>;
       /** Optional: absent on an older preload build — every caller must guard. */
       syncGetConflict?: () => Promise<SyncConflictInfo | null>;
       syncResolveConflict?: (choice: 'LOCAL' | 'REMOTE') => Promise<{
         ok: boolean;
         error?: string;
         requiresRestart?: boolean;
+        backendRestarted?: boolean;
       }>;
     };
   }
