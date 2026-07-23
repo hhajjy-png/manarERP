@@ -2,17 +2,20 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-20 (previously 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-23 (previously 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Employee & Equipment Tables Visual Consistency Pack v1), like the Employee Financial Position
-> Dashboard v1 pass and the 2026-07-17 pass before it, refreshed the "Current Production State" table
-> only (re-derived directly from `git`) — the "Repository Status" quantitative table and the deeper narrative
-> surveys (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01
-> respectively and have not been re-audited in this pass — treat their specifics as of those dates, not current-day.
+> below. This pass (Google Drive Sync Foundation Pack v1), like the Employee & Equipment Tables Visual
+> Consistency Pack v1 pass and the ones before it, refreshed the "Current Production State" table only
+> (re-derived directly from `git`) — the "Repository Status" quantitative table and the deeper narrative surveys
+> (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01 respectively
+> and have not been re-audited in this pass — treat their specifics as of those dates, not current-day. **Several
+> releases landed on `production` between the 2026-07-20 pass and this one** (see `PROJECT_STATE.md`'s
+> `## Previous Release —` chain for the full list) that were not individually narrated here — this pass only
+> repoints the table below at the current HEAD, consistent with every other table-only pass in this history.
 
 ---
 
@@ -35,9 +38,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `db6a8a1` — merge of `feature/employee-equipment-tables-visual-consistency-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-employee-equipment-tables-visual-consistency-pack-v1` (merge commit `db6a8a1`) | High |
-| **Previous stable tag** | `stable-employee-financial-position-dashboard-v1` (`9d0c6ff`) | High |
+| **Current HEAD** | `1cfeaa3` — merge of `feature/google-drive-sync-foundation-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-google-drive-sync-foundation-pack-v1` (merge commit `1cfeaa3`) | High |
+| **Previous stable tag** | `stable-excel-page-export-consistency-v1` (`1e4c359`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -64,7 +67,42 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-employee-equipment-tables-visual-consistency-pack-v1` (`db6a8a1`, 2026-07-20)
+### Latest Release — `stable-google-drive-sync-foundation-pack-v1` (`1cfeaa3`, 2026-07-23)
+
+Professional Google Drive synchronization for the desktop database while preserving the Offline-First
+architecture end to end: the app always operates against the local SQLite database directly; Google Drive
+is used exclusively as a sync location between the user's own devices (hidden `appDataFolder`,
+`drive.appdata` OAuth scope — never a visible/shared folder). No database schema changes, no business logic
+changes.
+
+- **Auth:** OAuth2 login via the system browser (loopback redirect on `127.0.0.1`), never an embedded
+  WebView (Google blocks those for OAuth); tokens encrypted at rest via Electron `safeStorage` when
+  available.
+- **Sync engine** (`electron/services/syncEngine.service.ts`): persistent sync-metadata log, direction
+  decision logic (upload/download/none/conflict), atomic download-replace (temp file → verify → pre-sync
+  backup → `fs.renameSync`), bounded (8s/20s) startup/shutdown sync that never blocks app start or quit.
+  Simultaneous local+remote changes are surfaced as a conflict and never auto-resolved — manual
+  Upload/Download picks a side. Version history and automated conflict resolution are explicitly out of
+  scope for v1.
+- **Integrity:** real `PRAGMA integrity_check` via a short-lived `PrismaClient` pointed at the target file
+  (reuses the backend's already-shipped, already-rebuilt query engine instead of adding a new native
+  dependency like `better-sqlite3`) — run before every upload and immediately after every download.
+- **Locking safety:** `PRAGMA wal_checkpoint(FULL)` against the live database, integrity-checked, then
+  copied to a temp snapshot which is integrity-checked again before being hashed and uploaded — the live
+  file is never read directly by the upload path, no downtime introduced.
+- **Reliability:** exponential-backoff retry (`electron/services/retry.ts`) around every Drive network call,
+  classifying transient failures (network/timeout/429/5xx) from permanent ones (401/403/400/404 — never
+  retried); every retry attempt logged; retries re-run the whole idempotent operation, never partial steps,
+  so no duplicate uploads. Known limitation: Google's occasional use of HTTP 403 for rate-limiting is not
+  distinguished from a real permission failure — accepted as v1 scope.
+- **UI:** Cloud Sync is a tab inside the existing Backup page (`CloudSyncPanel.tsx` embedded in
+  `Backup.tsx`), not a dedicated Sidebar entry — judged an administrative feature, not a daily workflow.
+- **IPC:** reuses the existing `backups.create`/`backups.update` permissions — no new permission key.
+- **Validation:** electron `tsc --noEmit` clean · frontend `tsc --noEmit` clean · frontend production build
+  clean · full frontend suite identical pre-existing 18 failures / 1808 passing (114 files) — zero
+  regressions. No backend changes this release.
+
+### Previous Release — `stable-employee-equipment-tables-visual-consistency-pack-v1` (`db6a8a1`, 2026-07-20)
 
 Executive-grade visual polish for the Employees explorer table, a numeric sorting regression fix for Employee
 Number, a frozen-cell background consistency fix, and migration of the Equipment table's Registration Remaining

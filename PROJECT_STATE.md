@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `1e4c359` — release `stable-excel-page-export-consistency-v1` (Excel Page Export Consistency Pack v1 — frontend-only: Invoices/Employees/Expenses now render their tables and build their Excel exports from one shared column-definition array per page, eliminating the two-independent-definitions drift risk. No accounting/GL/backend/API changes) |
+| **Production HEAD** | `1cfeaa3` — release `stable-google-drive-sync-foundation-pack-v1` (Google Drive Sync Foundation Pack v1 — professional Google Drive synchronization while preserving the Offline-First architecture; local SQLite remains the only active production database, Google Drive used exclusively as a sync location. No database schema changes, no business logic changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-excel-page-export-consistency-v1` (release date 2026-07-23) → merge `1e4c359` |
-| **Previous stable tag** | `stable-operational-reporting-consistency-v1` (2026-07-23) → merge `3c00a1d` |
-| **Total stable releases** | 342 (all merged onto `production`; window 2026-06-07 → 2026-07-23) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · frontend `vitest` full suite run against this release and against the clean pre-release baseline (via stash) — both show the identical pre-existing **18 failures / 1808 passing** (114 files), confirming zero regressions · no backend changes this release (prior backend validation state unaffected) |
-| **Remote sync** | `origin/production` — pushed with this release (merge `1e4c359` + tag `stable-excel-page-export-consistency-v1`) |
+| **Latest stable tag** | `stable-google-drive-sync-foundation-pack-v1` (release date 2026-07-23) → merge `1cfeaa3` |
+| **Previous stable tag** | `stable-excel-page-export-consistency-v1` (2026-07-23) → merge `1e4c359` |
+| **Total stable releases** | 343 (all merged onto `production`; window 2026-06-07 → 2026-07-23) |
+| **Latest validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · frontend `vitest` full suite — pre-existing **18 failures / 1808 passing** (114 files), identical to the pre-release baseline, confirming zero regressions · no backend changes this release (prior backend validation state unaffected) |
+| **Remote sync** | `origin/production` — pushed with this release (merge `1cfeaa3` + tag `stable-google-drive-sync-foundation-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Excel Page Export Consistency Pack v1
+## Latest Release — Google Drive Sync Foundation Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Google Drive Sync Foundation Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-23 |
+| **Feature branch** | `feature/google-drive-sync-foundation-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `9cc46a3` (documentation commit from the prior release) |
+| **Checkpoint tag** | `checkpoint-google-drive-sync-foundation-pack-v1` → `9cc46a3` (annotated) |
+| **Feature commit** | `94a9c39` |
+| **Production merge commit** | `1cfeaa3` |
+| **Stable tag** | `stable-google-drive-sync-foundation-pack-v1` → merge `1cfeaa3` (annotated) |
+| **Architectural review** | **PASSED** — Gemini architecture/security review, per user's release note. |
+| **Manual verification** | Product Owner visual review — **completed and accepted**. |
+| **Validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · frontend `vitest` full suite — pre-existing **18 failures / 1808 passing** (114 files), identical to the pre-release baseline, confirming zero regressions · no backend changes this release |
+
+**Scope.** Professional Google Drive synchronization for the desktop database while preserving the Offline-First architecture end to end — the app operates exclusively against the local SQLite database at all times; Google Drive is used only as a secure sync location between the user's own devices (hidden `appDataFolder`, `drive.appdata` OAuth scope — never a visible/shared folder). **Authentication:** OAuth2 login via the system browser (loopback redirect on `127.0.0.1`), never an embedded WebView (Google blocks those); tokens encrypted at rest via Electron `safeStorage` when available. **Sync engine:** persistent sync-metadata log, direction decision logic (upload/download/none/conflict — conflicting simultaneous local+remote changes are surfaced, never auto-resolved), atomic download-replace (temp file → verify → pre-sync backup → `fs.renameSync`), bounded (8s/20s) startup and shutdown sync that never blocks app start or quit. **Integrity:** real `PRAGMA integrity_check` via a short-lived `PrismaClient` pointed at the target file (reusing the backend's already-shipped query engine rather than adding a new native dependency), run before every upload and immediately after every download. **Locking safety:** `PRAGMA wal_checkpoint(FULL)` against the live database before it's read, then integrity-checked, then copied to a temp snapshot which is integrity-checked again before being the thing that's actually hashed and uploaded — the live file is never read directly by the upload path, and no downtime is introduced. **Reliability:** exponential-backoff retry around every Drive network call, classifying transient failures (network/timeout/429/5xx) from permanent ones (401/403/400/404 — never retried); every retry attempt is logged; retries re-run the whole idempotent operation so no duplicate uploads. **UI:** Cloud Sync is a tab inside the existing Backup page (`CloudSyncPanel.tsx` embedded in `Backup.tsx`), not a dedicated Sidebar entry — judged an administrative feature rather than a daily workflow. IPC surface reuses the existing `backups.create`/`backups.update` permissions — no new permission key.
+
+**Deliberately unchanged.** Database schema, business logic, GL/accounting, every page/module other than the Backup page, and the Electron backend-launch/backup-scheduler mechanics (only extended, not restructured).
+
+**Known limitation.** HTTP 403 responses from Google are treated as non-retryable (they're usually auth/permission errors); Google occasionally uses 403 for rate-limiting too, which this pass does not distinguish from a real permission failure — a rate-limited request will surface as a non-retried failure rather than backing off. Accepted as v1 scope.
+
+**Setup required before use.** OAuth Client ID/Secret are not hardcoded — provide via `GOOGLE_DRIVE_CLIENT_ID`/`GOOGLE_DRIVE_CLIENT_SECRET` env vars or a `gdrive-client.json` file in the app's data directory, from a Google Cloud "Desktop app" OAuth client with `drive.appdata` + `userinfo.email` scopes.
+
+---
+
+## Previous Release — Excel Page Export Consistency Pack v1
 
 | Field | Value |
 |-------|-------|

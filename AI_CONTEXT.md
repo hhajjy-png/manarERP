@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `1e4c359` (merge of `feature/excel-page-export-consistency-pack-v1`, carrying Excel Page Export Consistency Pack v1) |
-| **Current Documentation Commit** | `0da7ed4` — "docs: record Excel Page Export Consistency Pack v1 release" |
-| **Current Stable Tag** | `stable-excel-page-export-consistency-v1` |
+| **Current Merge Commit** | `1cfeaa3` (merge of `feature/google-drive-sync-foundation-pack-v1`, carrying Google Drive Sync Foundation Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-google-drive-sync-foundation-pack-v1` |
 | **Current Release Date** | 2026-07-23 |
-| **Total Stable Releases** | 342 (window 2026-06-07 → 2026-07-23) |
+| **Total Stable Releases** | 343 (window 2026-06-07 → 2026-07-23) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -214,6 +214,21 @@ Chromium PDF, and backend HTML reports.
   types (a wider, different column set) are untouched and unaffected. Every other `ResourcePage` module
   (contracts/customers/suppliers/equipment) still uses the original `/reports/:type/export` path
   unchanged.
+- **Google Drive Sync Foundation (as of Google Drive Sync Foundation Pack v1, 2026-07-23):**
+  `electron/services/syncEngine.service.ts` orchestrates optional Google Drive synchronization of the
+  local SQLite database file — entirely additive to, never a replacement for, Offline-First: the app
+  always reads/writes the local `.db` file directly; Drive is only a sync location (hidden
+  `appDataFolder`, `drive.appdata` OAuth scope) between the user's own devices. Auth is a system-browser
+  OAuth2 loopback flow (`googleDriveAuth.service.ts`, never an embedded WebView); Drive REST calls
+  (`googleDriveApi.service.ts`) live outside `googleapis` to stay lightweight. Integrity is real —
+  `PRAGMA integrity_check` via a throwaway `PrismaClient` pointed at the target file (reuses the
+  backend's already-shipped query engine; no new native dependency) — run before every upload and after
+  every download; uploads snapshot a `PRAGMA wal_checkpoint(FULL)`-flushed copy rather than reading the
+  live file. Network calls retry with exponential backoff (`retry.ts`), classifying transient failures
+  (network/timeout/429/5xx) from permanent ones (401/403/400/404 — never retried). IPC
+  (`electron/ipc/sync.ipc.ts`) reuses the existing `backups.create`/`backups.update` permissions — no new
+  permission key, no schema change. UI lives as a tab inside the existing Backup page
+  (`CloudSyncPanel.tsx`), not a Sidebar entry.
 
 ---
 
@@ -243,6 +258,25 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Google Drive Sync Foundation Pack v1** (2026-07-23,
+  `stable-google-drive-sync-foundation-pack-v1`) — professional Google Drive synchronization while
+  preserving the Offline-First architecture: local SQLite remains the only active production database,
+  Google Drive is used exclusively as a sync location (hidden `appDataFolder`). Startup sync
+  downloads-if-newer before the backend forks (bounded, never blocks app start); shutdown sync
+  uploads-if-changed after the backend stops (bounded, never blocks quit); manual Sync Now/Upload/Download
+  from the new Cloud Sync tab on the Backup page. Real `PRAGMA integrity_check` (via a short-lived
+  `PrismaClient`, not a new native dependency) runs before every upload and after every download; uploads
+  are built from a `PRAGMA wal_checkpoint(FULL)`-flushed, integrity-verified temp snapshot, never the live
+  file. Atomic download-replace (`fs.renameSync`) with an automatic pre-sync backup and rollback on
+  failure. Exponential-backoff retry around every Drive network call, distinguishing transient failures
+  from permanent ones; every retry logged. Simultaneous local+remote changes are surfaced as a conflict
+  and never auto-resolved (manual Upload/Download picks a side) — conflict resolution and version history
+  are explicitly out of scope for v1. No database schema changes, no business logic changes; IPC reuses
+  the existing `backups.create`/`backups.update` permissions. Electron `tsc --noEmit` clean; frontend
+  `tsc --noEmit` clean; frontend production build clean; full frontend suite shows the identical
+  pre-existing 18 failures / 1808 passing (114 files) — zero regressions. No backend changes this release.
+  Product Owner visual review: **APPROVED**. Gemini architecture/security review: **APPROVED**.
 
 - **Excel Page Export Consistency Pack v1** (2026-07-23,
   `stable-excel-page-export-consistency-v1`) — frontend-only. Standardized table structure and Excel
