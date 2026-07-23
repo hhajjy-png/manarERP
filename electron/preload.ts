@@ -136,6 +136,45 @@ const api = {
   wysiwygViewerDeactivate: (token: number): Promise<boolean> =>
     ipcRenderer.invoke('wysiwygViewer:deactivate', token),
 
+  // ─── Google Drive Sync Foundation v1 ─────────────────────────────────────────
+
+  /** حالة المزامنة الحالية: التهيئة، الاتصال، آخر مزامنة، معلومات القاعدة المحلية. */
+  syncGetStatus: (): Promise<{
+    status: string;
+    message: string;
+    configured: boolean;
+    authenticated: boolean;
+    account: string | null;
+    lastSyncAt: string | null;
+    lastUploadAt: string | null;
+    lastDownloadAt: string | null;
+    lastError: string | null;
+    localDb: { exists: boolean; sizeBytes: number };
+  }> => ipcRenderer.invoke('sync:getStatus'),
+
+  /** سجلّ آخر عمليات المزامنة (حتى 50 عملية، الأحدث أولًا). */
+  syncGetLog: (): Promise<
+    Array<{ at: string; action: string; result: string; message: string }>
+  > => ipcRenderer.invoke('sync:getLog'),
+
+  /** بدء تدفّق تسجيل الدخول إلى Google عبر متصفح النظام. */
+  syncAuthenticate: (): Promise<{ ok: boolean; email?: string; error?: string }> =>
+    ipcRenderer.invoke('sync:authenticate'),
+
+  /** فصل حساب Google الحالي ومسح التوكنات المخزّنة محليًا. */
+  syncDisconnect: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('sync:disconnect'),
+
+  /** مزامنة كاملة تلقائية الاتجاه (رفع أو تنزيل حسب الحاجة). */
+  syncNow: (): Promise<{ ok: boolean; action: string; error?: string; requiresRestart?: boolean }> =>
+    ipcRenderer.invoke('sync:now'),
+
+  /** رفع يدوي إجباري لقاعدة البيانات المحلية إلى Google Drive. */
+  syncUpload: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('sync:upload'),
+
+  /** تنزيل يدوي إجباري من Google Drive مع استبدال آمن (ذرّي) لقاعدة البيانات المحلية. */
+  syncDownload: (): Promise<{ ok: boolean; error?: string; requiresRestart?: boolean }> =>
+    ipcRenderer.invoke('sync:download'),
+
 };
 
 contextBridge.exposeInMainWorld('manar', api);
