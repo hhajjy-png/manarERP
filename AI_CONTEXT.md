@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `9ff69d9` (merge of `feature/google-drive-database-restore-reliability-pack-v1`, carrying Google Drive Database Restore Reliability Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `008262f` — "docs: record Google Drive Database Restore Reliability Pack v1 release" |
 | **Current Stable Tag** | `stable-google-drive-database-restore-reliability-pack-v1` |
 | **Current Release Date** | 2026-07-23 |
 | **Total Stable Releases** | 345 (window 2026-06-07 → 2026-07-23) |
