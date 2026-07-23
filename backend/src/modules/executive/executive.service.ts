@@ -2,7 +2,16 @@ import { prisma } from '../../config/database';
 import { roundMoney } from '../../shared/utils/money';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 import { resolvePeriod } from '../../core/utils/periodFilter';
-import { getOperationalSummary, getMonthlyOperationalProfitAndLoss } from '../../shared/services/operational.reporting';
+import {
+  getOperationalSummary,
+  getMonthlyOperationalProfitAndLoss,
+  getRevenue,
+  getExpenses,
+  getCollections,
+  getAccountsReceivable,
+  EXPENSE_OPERATIONAL_STATUS,
+  SALES_INVOICE_ACTIVE,
+} from '../../shared/services/operational.reporting';
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 const n  = (v: unknown) => Number(v ?? 0);
@@ -111,12 +120,12 @@ export class ExecutiveService {
     // ── Single parallel fetch of all raw data ──────────────────────────────
     const [
       operationalSummary,
-      thisMonthColAgg,
-      lastMonthColAgg,
-      thisMonthExpAgg,
-      lastMonthExpAgg,
-      thisMonthRevAgg,
-      lastMonthRevAgg,
+      thisMonthCol,
+      lastMonthCol,
+      thisMonthExp,
+      lastMonthExp,
+      thisMonthRev,
+      lastMonthRev,
       outstandingInvoices,
       invByContract,
       expByContract,
@@ -127,6 +136,7 @@ export class ExecutiveService {
       topExpenseContracts,
       contractGroupCounts,
       salesRevByCustomer,
+      periodPayments,
     ] = await Promise.all([
       // السياسة الرسمية (Operational Reporting Migration — الحزمة 4): الإيراد/المصروف/
       // التحصيل/الذمم/الربح للفترة كلها من محرك التقارير التشغيلية بنداء واحد — لا الأستاذ
@@ -134,36 +144,14 @@ export class ExecutiveService {
       // وتقرير الأرباح والخسائر (الحزمتان 2 و3)، فتتطابق «إجمالي الإيرادات/المصروفات/صافي
       // الربح» عبر الشاشات الثلاث.
       getOperationalSummary({ from: flow?.gte, to: flow?.lte }),
-      // This month collections
-      prisma.payment.aggregate({
-        where: { date: { gte: thisMonthStart }, invoice: { direction: 'SALES' } },
-        _sum: { amount: true },
-      }),
-      // Last month collections
-      prisma.payment.aggregate({
-        where: { date: { gte: lastMonthStart, lte: lastMonthEnd }, invoice: { direction: 'SALES' } },
-        _sum: { amount: true },
-      }),
-      // This month expenses
-      prisma.expense.aggregate({
-        where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] }, date: { gte: thisMonthStart } },
-        _sum: { amount: true },
-      }),
-      // Last month expenses
-      prisma.expense.aggregate({
-        where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] }, date: { gte: lastMonthStart, lte: lastMonthEnd } },
-        _sum: { amount: true },
-      }),
-      // This month revenue (invoices issued)
-      prisma.invoice.aggregate({
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: thisMonthStart } },
-        _sum: { total: true },
-      }),
-      // Last month revenue
-      prisma.invoice.aggregate({
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: lastMonthStart, lte: lastMonthEnd } },
-        _sum: { total: true },
-      }),
+      // مقارنات الشهر (تحصيل/مصروف/إيراد) — التعريفات التشغيلية الرسمية من المحرك حصريًا،
+      // فلا يبقى فلتر مصروف قديم (notIn) ولا تحصيل بلا استبعاد الفواتير الملغاة.
+      getCollections({ from: thisMonthStart }),
+      getCollections({ from: lastMonthStart, to: lastMonthEnd }),
+      getExpenses({ from: thisMonthStart }),
+      getExpenses({ from: lastMonthStart, to: lastMonthEnd }),
+      getRevenue({ from: thisMonthStart }),
+      getRevenue({ from: lastMonthStart, to: lastMonthEnd }),
       // الذمم المفتوحة حتى نهاية الفترة (Point-in-time) — تغذّي كبار المدينين والأعمار،
       // فتتبع الفترة المختارة عبر issueDate<=asOf. بلا take (مجموعة عاملة محدودة)،
       // وorderBy حتمي للثبات.
@@ -179,16 +167,17 @@ export class ExecutiveService {
           payments: asOf ? { where: { date: { lte: asOf } }, select: { amount: true } } : { select: { amount: true } },
         },
       }),
-      // Revenue by contract (FLOW — ربحية العقد خلال الفترة)
+      // Revenue by contract (FLOW — ربحية العقد خلال الفترة). الإيراد فقط؛ التحصيل حسب العقد
+      // صار من الدفعات (periodPayments أدناه) لا من لقطة paidAmount.
       prisma.invoice.groupBy({
         by: ['contractId'],
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, contractId: { not: null }, ...flowInvoice },
-        _sum: { total: true, paidAmount: true },
+        where: { ...SALES_INVOICE_ACTIVE, contractId: { not: null }, ...flowInvoice },
+        _sum: { total: true },
       }),
-      // Expenses by contract (FLOW)
+      // Expenses by contract (FLOW) — التعريف التشغيلي الوحيد للمصروف.
       prisma.expense.groupBy({
         by: ['contractId'],
-        where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] }, contractId: { not: null }, ...flowDate },
+        where: { status: EXPENSE_OPERATIONAL_STATUS, contractId: { not: null }, ...flowDate },
         _sum: { amount: true },
       }),
       // كل العقود النشطة — بلا take. تغذّي ربحية العقود وصحّتها (KPI).
@@ -219,10 +208,10 @@ export class ExecutiveService {
         distinct: ['contractId'],
         select: { contractId: true },
       }),
-      // Top expense contracts (for decision card)
+      // Top expense contracts (for decision card) — التعريف التشغيلي الوحيد للمصروف.
       prisma.expense.groupBy({
         by: ['contractId'],
-        where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] }, contractId: { not: null } },
+        where: { status: EXPENSE_OPERATIONAL_STATUS, contractId: { not: null } },
         _sum: { amount: true },
         orderBy: { _sum: { amount: 'desc' } },
         take: 5,
@@ -230,10 +219,18 @@ export class ExecutiveService {
       // Contract status breakdown
       prisma.contract.groupBy({ by: ['status'], _count: { _all: true } }),
       // إيرادات العملاء خلال الفترة (FLOW) — مصدر «توزيع الإيرادات حسب العميل» / Top Customers.
+      // الإيراد فقط؛ التحصيل حسب العميل من الدفعات (periodPayments) لا من paidAmount.
       prisma.invoice.groupBy({
         by: ['customerId'],
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, customerId: { not: null }, ...flowInvoice },
-        _sum: { total: true, paidAmount: true },
+        where: { ...SALES_INVOICE_ACTIVE, customerId: { not: null }, ...flowInvoice },
+        _sum: { total: true },
+      }),
+      // التحصيل خلال الفترة حسب العقد/العميل — التعريف الرسمي (Σ Payment بتاريخ التحصيل ضمن
+      // الفترة، على فواتير مبيعات فعّالة). استعلام واحد يخدم الخريطتين؛ يُجمَّع في الذاكرة
+      // لأن Prisma لا يدعم groupBy على حقل علاقة (`payment.invoice.contractId/customerId`).
+      prisma.payment.findMany({
+        where: { ...flowDate, invoice: { ...SALES_INVOICE_ACTIVE } },
+        select: { amount: true, invoice: { select: { contractId: true, customerId: true } } },
       }),
     ]);
 
@@ -253,18 +250,25 @@ export class ExecutiveService {
     const overallProfitMargin = safe(netProfit, totalRevenue);
     const overallCollectionRate = safe(totalCollected, totalRevenue);
 
-    const thisMonthCol = roundMoney(n(thisMonthColAgg._sum.amount));
-    const lastMonthCol = roundMoney(n(lastMonthColAgg._sum.amount));
-    const thisMonthExp = roundMoney(n(thisMonthExpAgg._sum.amount));
-    const lastMonthExp = roundMoney(n(lastMonthExpAgg._sum.amount));
-    const thisMonthRev = roundMoney(n(thisMonthRevAgg._sum.total));
-    const lastMonthRev = roundMoney(n(lastMonthRevAgg._sum.total));
+    // مقارنات الشهر (تحصيل/مصروف/إيراد) قيمٌ مفردة جاهزة من المحرك (مقرَّبة سلفًا) —
+    // لا استخراج ولا تقريب محلي مكرَّر. الربح = إيراد − مصروف بنفس تعريف المحرك.
     const thisMonthProfit = roundMoney(thisMonthRev - thisMonthExp);
     const lastMonthProfit = roundMoney(lastMonthRev - lastMonthExp);
 
     // ── Build maps ─────────────────────────────────────────────────────────
-    const invMap = new Map(invByContract.map(r => [r.contractId as number, { total: n(r._sum.total), paid: n(r._sum.paidAmount) }]));
+    // الإيراد حسب العقد من المحرك (فواتير مبيعات فعّالة)؛ التحصيل حسب العقد من الدفعات
+    // (periodPayments) لا من لقطة paidAmount — تعريف تحصيل واحد فقط عبر الشاشة.
+    const invMap = new Map(invByContract.map(r => [r.contractId as number, n(r._sum.total)]));
     const expMap = new Map(expByContract.map(r => [r.contractId as number, n(r._sum.amount)]));
+    const colByContract = new Map<number, number>();
+    const colByCustomer = new Map<number, number>();
+    for (const p of periodPayments) {
+      const amt = n(p.amount);
+      const cid = p.invoice.contractId;
+      const custId = p.invoice.customerId;
+      if (cid != null) colByContract.set(cid, (colByContract.get(cid) ?? 0) + amt);
+      if (custId != null) colByCustomer.set(custId, (colByCustomer.get(custId) ?? 0) + amt);
+    }
     const recentActivitySet = new Set(recentInvoiceActivity.map(r => r.contractId as number));
     const recentPayerSet = new Set(
       customersWithPayments
@@ -274,10 +278,9 @@ export class ExecutiveService {
 
     // Contract profitability per contract
     const contractStats = activeContracts.map(c => {
-      const inv = invMap.get(c.id) ?? { total: 0, paid: 0 };
       const exp = expMap.get(c.id) ?? 0;
-      const revenue     = roundMoney(inv.total);
-      const collected   = roundMoney(inv.paid);
+      const revenue     = roundMoney(invMap.get(c.id) ?? 0);
+      const collected   = roundMoney(colByContract.get(c.id) ?? 0);
       const expenses    = roundMoney(exp);
       const outstanding = roundMoney(Math.max(0, revenue - collected));
       const profit      = roundMoney(revenue - expenses);
@@ -611,7 +614,8 @@ export class ExecutiveService {
       .map((g) => ({
         customerId: g.customerId as number,
         revenue: roundMoney(n(g._sum.total)),
-        collected: roundMoney(n(g._sum.paidAmount)),
+        // التحصيل حسب العميل من الدفعات (التعريف الرسمي) لا من لقطة paidAmount.
+        collected: roundMoney(colByCustomer.get(g.customerId as number) ?? 0),
       }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
@@ -953,40 +957,25 @@ export class ExecutiveService {
 
     const timeline: KPITimelinePoint[] = await Promise.all(
       months.map(async (m, i) => {
-        const [colAgg, contractCount, customerCount, invoiceCount] = await Promise.all([
-          prisma.payment.aggregate({
-            where: { date: { gte: m.start, lte: m.end }, invoice: { direction: 'SALES' } },
-            _sum: { amount: true },
-          }),
+        // التحصيل والذمم اللحظية من المحرك حصريًا — تعريف واحد. الذمم كما في نهاية الشهر
+        // (asOf=m.end): إيراد تراكمي − تحصيل تراكمي، لا لقطة paidAmount.
+        const [collections, osEnd, contractCount, customerCount, invoiceCount] = await Promise.all([
+          getCollections({ from: m.start, to: m.end }),
+          getAccountsReceivable({ asOfDate: m.end }),
           prisma.contract.count({ where: { status: 'ACTIVE' } }),
           prisma.customer.count({ where: { isArchived: false } }),
-          prisma.invoice.count({ where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: m.start, lte: m.end } } }),
+          prisma.invoice.count({ where: { ...SALES_INVOICE_ACTIVE, issueDate: { gte: m.start, lte: m.end } } }),
         ]);
 
-        const revenue     = monthlyPL[i].revenue;
-        const expenses    = monthlyPL[i].expense;
-        const collections = roundMoney(n(colAgg._sum.amount));
-
-        // الرصيد اللحظي في نهاية الشهر = إيراد تراكمي (issueDate<=m.end) − تحصيل تراكمي
-        // (payment.date<=m.end). لا نستخدم paidAmount (لقطة الحاضر) فتُخطئ الأشهر السابقة،
-        // ولا نستبعد PAID (فاتورة سُدِّدت لاحقًا كانت مستحقة في نهاية الشهر).
-        const [osInvAgg, osPayAgg] = await Promise.all([
-          prisma.invoice.aggregate({
-            where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { lte: m.end } },
-            _sum: { total: true },
-          }),
-          prisma.payment.aggregate({
-            where: { invoice: { direction: 'SALES', status: { not: 'CANCELLED' } }, date: { lte: m.end } },
-            _sum: { amount: true },
-          }),
-        ]);
-        const osEnd = roundMoney(Math.max(0, n(osInvAgg._sum.total) - n(osPayAgg._sum.amount)));
+        const revenue      = monthlyPL[i].revenue;
+        const expenses     = monthlyPL[i].expense;
+        const outstandingEnd = roundMoney(Math.max(0, osEnd));
 
         return {
           period: m.label,
           revenue, expenses, collections,
           profit: monthlyPL[i].net,
-          outstandingEnd: osEnd,
+          outstandingEnd,
           contracts: contractCount,
           customers: customerCount,
           invoices: invoiceCount,

@@ -21,8 +21,8 @@ const mockPrisma = prisma as unknown as {
 
 function emptyAgg() { return { _sum: { amount: null } }; }
 
-function makeInvoice(override = {}) {
-  return {
+function makeInvoice(override: Record<string, any> = {}) {
+  const merged: Record<string, any> = {
     customerId: 1,
     total: 1000,
     paidAmount: 0,
@@ -30,6 +30,11 @@ function makeInvoice(override = {}) {
     customer: { id: 1, name: 'عميل الاختبار' },
     ...override,
   };
+  // الذمم = الإجمالي − Σ الدفعات (تعريف المحرك). حين لا تُمرَّر دفعات، تُشتَقّ من paidAmount.
+  if (override.payments === undefined) {
+    merged.payments = merged.paidAmount > 0 ? [{ amount: merged.paidAmount }] : [];
+  }
+  return merged;
 }
 
 beforeEach(() => {

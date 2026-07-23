@@ -6,6 +6,8 @@ vi.mock('../../../config/database', () => ({
     invoice:  { groupBy: vi.fn() },
     expense:  { groupBy: vi.fn() },
     customer: { findMany: vi.fn() },
+    // التحصيل صار من الدفعات (تعريف المحرك الوحيد) لا من لقطة paidAmount.
+    payment:  { findMany: vi.fn() },
   },
 }));
 
@@ -19,6 +21,7 @@ function resetMocks() {
   vi.mocked(prisma.invoice.groupBy).mockResolvedValue([]);
   vi.mocked(prisma.expense.groupBy).mockResolvedValue([]);
   vi.mocked(prisma.customer.findMany).mockResolvedValue([]);
+  vi.mocked(prisma.payment.findMany).mockResolvedValue([]);
 }
 
 beforeEach(() => { resetMocks(); });
@@ -34,7 +37,10 @@ describe('FinancialExecService.contractProfitability', () => {
       { id: 1, code: 'C-001', asphaltPlant: 'Plant A', customer: { name: 'Test Customer' } },
     ] as any);
     vi.mocked(prisma.invoice.groupBy).mockResolvedValue([
-      { contractId: 1, _sum: { total: 10000, paidAmount: 8000 } },
+      { contractId: 1, _sum: { total: 10000 } },
+    ] as any);
+    vi.mocked(prisma.payment.findMany).mockResolvedValue([
+      { amount: 8000, invoice: { contractId: 1 } },
     ] as any);
     vi.mocked(prisma.expense.groupBy).mockResolvedValue([
       { contractId: 1, _sum: { amount: 6000 } },
@@ -58,8 +64,12 @@ describe('FinancialExecService.contractProfitability', () => {
       { id: 2, code: 'C-002', asphaltPlant: 'Plant B', customer: null },
     ] as any);
     vi.mocked(prisma.invoice.groupBy).mockResolvedValue([
-      { contractId: 1, _sum: { total: 5000, paidAmount: 3000 } },
-      { contractId: 2, _sum: { total: 15000, paidAmount: 12000 } },
+      { contractId: 1, _sum: { total: 5000 } },
+      { contractId: 2, _sum: { total: 15000 } },
+    ] as any);
+    vi.mocked(prisma.payment.findMany).mockResolvedValue([
+      { amount: 3000, invoice: { contractId: 1 } },
+      { amount: 12000, invoice: { contractId: 2 } },
     ] as any);
 
     const rows = await svc.contractProfitability();
@@ -131,7 +141,10 @@ describe('FinancialExecService.customerAnalytics', () => {
       { id: 1, name: 'Customer A', code: 'CUST-001' },
     ] as any);
     vi.mocked(prisma.invoice.groupBy).mockResolvedValue([
-      { customerId: 1, _sum: { total: 10000, paidAmount: 7000 }, _count: { _all: 5 } },
+      { customerId: 1, _sum: { total: 10000 }, _count: { _all: 5 } },
+    ] as any);
+    vi.mocked(prisma.payment.findMany).mockResolvedValue([
+      { amount: 7000, invoice: { customerId: 1 } },
     ] as any);
 
     const rows = await svc.customerAnalytics();
@@ -155,8 +168,12 @@ describe('FinancialExecService.customerAnalytics', () => {
       { id: 2, name: 'Customer B', code: 'CUST-002' },
     ] as any);
     vi.mocked(prisma.invoice.groupBy).mockResolvedValue([
-      { customerId: 1, _sum: { total: 5000, paidAmount: 3000 }, _count: { _all: 2 } },
-      { customerId: 2, _sum: { total: 20000, paidAmount: 18000 }, _count: { _all: 8 } },
+      { customerId: 1, _sum: { total: 5000 }, _count: { _all: 2 } },
+      { customerId: 2, _sum: { total: 20000 }, _count: { _all: 8 } },
+    ] as any);
+    vi.mocked(prisma.payment.findMany).mockResolvedValue([
+      { amount: 3000, invoice: { customerId: 1 } },
+      { amount: 18000, invoice: { customerId: 2 } },
     ] as any);
 
     const rows = await svc.customerAnalytics();

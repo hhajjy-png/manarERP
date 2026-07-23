@@ -74,7 +74,7 @@ describe('Phase 7 — Top-N debtors computed from the full open set (no truncati
   it('sums all 1200 open invoices into debtor totals (would cap at 500/1000 before)', async () => {
     const invoices = Array.from({ length: 1200 }, (_, i) => ({
       customerId: (i % 3) + 1, // 3 customers
-      total: 100, paidAmount: 0,
+      total: 100, paidAmount: 0, payments: [], // الذمم = الإجمالي − Σ الدفعات (تعريف المحرك)
       issueDate: new Date(2026, 0, 1), dueDate: new Date(2026, 0, 31),
       contractId: null,
       customer: { id: (i % 3) + 1, name: `عميل ${(i % 3) + 1}` },
@@ -117,8 +117,8 @@ describe('Phase 7 — small-data results unchanged', () => {
     mp.invoice.findMany.mockReset();
     mp.invoice.findMany
       .mockResolvedValueOnce([
-        { customerId: 1, total: 500, paidAmount: 100, issueDate: new Date(2026, 0, 10), dueDate: new Date(2026, 1, 10), contractId: null, customer: { id: 1, name: 'أ' } },
-        { customerId: 1, total: 300, paidAmount: 0,   issueDate: new Date(2026, 0, 20), dueDate: new Date(2026, 1, 20), contractId: null, customer: { id: 1, name: 'أ' } },
+        { customerId: 1, total: 500, paidAmount: 100, payments: [{ amount: 100 }], issueDate: new Date(2026, 0, 10), dueDate: new Date(2026, 1, 10), contractId: null, customer: { id: 1, name: 'أ' } },
+        { customerId: 1, total: 300, paidAmount: 0,   payments: [],                 issueDate: new Date(2026, 0, 20), dueDate: new Date(2026, 1, 20), contractId: null, customer: { id: 1, name: 'أ' } },
       ])
       .mockResolvedValueOnce([]);
 

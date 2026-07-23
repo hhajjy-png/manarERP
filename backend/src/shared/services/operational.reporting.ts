@@ -30,8 +30,16 @@ import { roundMoney } from '../utils/money';
 
 type Client = Prisma.TransactionClient | typeof prisma;
 
-/** فواتير المبيعات الفعّالة تشغيليًا — غير الملغاة فقط. */
-const SALES_INVOICE_ACTIVE: Prisma.InvoiceWhereInput = {
+/**
+ * فواتير المبيعات الفعّالة تشغيليًا — غير الملغاة فقط.
+ *
+ * مُصدَّر ليكون **التعريف الوحيد** لـ«فاتورة مبيعات فعّالة» عبر كل مستهلكي التقارير
+ * التشغيلية (لوحة التحكم، مركز القرار، مركز الشؤون المالية). أي استعلام مجمَّع
+ * (groupBy) يحتاج نفس القاعدة — للإيراد أو لفلترة فواتير التحصيل — يستورد هذا الثابت
+ * بدل تكرار `{ direction, status: { not: 'CANCELLED' } }` حرفيًا. الدوال القياسية أدناه
+ * تبقى الواجهة المفضَّلة للقيم المفردة؛ هذا الثابت لِما لا تعبِّر عنه (التجميع حسب عقد/عميل).
+ */
+export const SALES_INVOICE_ACTIVE: Prisma.InvoiceWhereInput = {
   direction: 'SALES',
   status: { not: 'CANCELLED' },
 };
@@ -52,7 +60,7 @@ const SALES_INVOICE_ACTIVE: Prisma.InvoiceWhereInput = {
  * (لا ترحيل GL لها بعد إزالته)، فتُحتسب ضمن «المصروفات» التشغيلية بمجرّد اعتمادها —
  * هذا ما تعنيه ملاحظة السياسة أن الرواتب تدخل عبر وحدة المصروفات.
  */
-const EXPENSE_OPERATIONAL_STATUS = 'APPROVED' as const;
+export const EXPENSE_OPERATIONAL_STATUS = 'APPROVED' as const;
 
 export interface OperationalRange {
   from?: Date;
