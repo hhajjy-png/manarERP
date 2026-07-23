@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ConfirmModal from './ConfirmModal';
+import ConflictResolutionDialog from './ConflictResolutionDialog';
 import { dateText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -18,9 +19,32 @@ type StatusInfo = {
   lastDownloadAt: string | null;
   lastError: string | null;
   localDb: { exists: boolean; sizeBytes: number };
+  device?: { deviceId: string; deviceName: string };
 } | null;
 
-type LogEntry = { at: string; action: string; result: string; message: string };
+type LogEntry = {
+  at: string;
+  action: string;
+  result: string;
+  message: string;
+  deviceName?: string;
+  conflictResolved?: boolean;
+  resolutionSelected?: 'LOCAL' | 'REMOTE';
+};
+
+interface DatabaseVersionInfo {
+  sha256: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  deviceId: string | null;
+  deviceName: string | null;
+}
+
+interface SyncConflictInfo {
+  local: DatabaseVersionInfo;
+  remote: DatabaseVersionInfo;
+  recommendation: 'LOCAL' | 'REMOTE' | 'UNKNOWN';
+}
 
 function fmt(bytes: number, t: (key: string) => string): string {
   if (bytes === 0) return `0 ${t('unit.bytes')}`;
@@ -33,6 +57,7 @@ function statusPillClass(status: string): string {
   switch (status) {
     case 'COMPLETED': return 'green';
     case 'FAILED': return 'red';
+    case 'CONFLICT': return 'red';
     case 'OFFLINE': return 'amber';
     case 'RETRY': return 'amber';
     case 'CHECKING': case 'DOWNLOADING': case 'UPLOADING': return 'blue';
@@ -59,6 +84,7 @@ export default function CloudSyncPanel() {
   const [liveMessage, setLiveMessage] = useState('');
   const [disconnectConfirm, setDisconnectConfirm] = useState(false);
   const [downloadConfirm, setDownloadConfirm] = useState(false);
+  const [conflict, setConflict] = useState<SyncConflictInfo | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const statusLabel = (status: string): string => {
@@ -71,12 +97,14 @@ export default function CloudSyncPanel() {
     if (!isElectron || !window.manar?.syncGetStatus) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [statusRes, logRes] = await Promise.all([
+      const [statusRes, logRes, conflictRes] = await Promise.all([
         window.manar.syncGetStatus(),
         window.manar.syncGetLog ? window.manar.syncGetLog() : Promise.resolve([]),
+        window.manar.syncGetConflict ? window.manar.syncGetConflict() : Promise.resolve(null),
       ]);
       setInfo(statusRes);
       setLog(logRes);
+      if (conflictRes) setConflict(conflictRes);
     } catch {
       // يُترك info كما هو — رسالة "غير متاح" تظهر من الحالة الفارغة
     } finally {
@@ -144,18 +172,62 @@ export default function CloudSyncPanel() {
     startProgressPolling();
     try {
       const result = await window.manar.syncNow();
-      if (result.ok) {
+      if (result.action === 'CONFLICT' && result.conflict) {
+        setConflict(result.conflict);
+        toast.warn(t('msg.conflict.detected'));
+      } else if (result.ok) {
         if (result.action === 'NONE') toast.ok(t('msg.cloudsync.up_to_date'));
         else toast.ok(t(result.action === 'UPLOAD' ? 'msg.cloudsync.upload_done' : 'msg.cloudsync.download_done'));
+        await maybeRestart(result.requiresRestart);
       } else {
         toast.error(result.error ?? t('msg.cloudsync.sync_fail'));
       }
-      await maybeRestart(result.requiresRestart);
     } finally {
       stopProgressPolling();
       setBusy(false);
       load();
     }
+  }
+
+  async function resolveKeepLocal() {
+    if (!isElectron || !window.manar?.syncResolveConflict) return;
+    setBusy(true);
+    startProgressPolling();
+    try {
+      const result = await window.manar.syncResolveConflict('LOCAL');
+      setConflict(null);
+      if (result.ok) toast.ok(t('msg.cloudsync.upload_done'));
+      else toast.error(result.error ?? t('msg.cloudsync.sync_fail'));
+    } finally {
+      stopProgressPolling();
+      setBusy(false);
+      load();
+    }
+  }
+
+  async function resolveKeepCloud() {
+    if (!isElectron || !window.manar?.syncResolveConflict) return;
+    setBusy(true);
+    startProgressPolling();
+    try {
+      const result = await window.manar.syncResolveConflict('REMOTE');
+      setConflict(null);
+      if (result.ok) {
+        toast.ok(t('msg.cloudsync.download_done'));
+        await maybeRestart(result.requiresRestart);
+      } else {
+        toast.error(result.error ?? t('msg.cloudsync.sync_fail'));
+      }
+    } finally {
+      stopProgressPolling();
+      setBusy(false);
+      load();
+    }
+  }
+
+  function cancelConflict() {
+    // "إلغاء": يُغلق الحوار فقط — لا يُستدعى أي IPC، ولا تتغيّر أي من النسختين.
+    setConflict(null);
   }
 
   async function upload() {
@@ -298,22 +370,31 @@ export default function CloudSyncPanel() {
                     <th>{t('col.date')}</th>
                     <th>{t('col.cloudsync.action')}</th>
                     <th>{t('col.cloudsync.result')}</th>
+                    <th>{t('lbl.conflict.device')}</th>
                     <th>{t('col.cloudsync.message')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {log.length === 0 ? (
-                    <tr><td colSpan={4}><div className="center-msg">{t('msg.cloudsync.no_log')}</div></td></tr>
+                    <tr><td colSpan={5}><div className="center-msg">{t('msg.cloudsync.no_log')}</div></td></tr>
                   ) : log.map((entry, idx) => (
                     // eslint-disable-next-line react/no-array-index-key
                     <tr key={`${entry.at}-${idx}`}>
                       <td>{dateText(entry.at)}</td>
-                      <td>{t(`cloudsync.action.${entry.action.toLowerCase()}`)}</td>
+                      <td>
+                        {t(`cloudsync.action.${entry.action.toLowerCase()}`)}
+                        {entry.conflictResolved && (
+                          <span className="pill amber" style={{ marginInlineStart: 6 }}>
+                            {t(entry.resolutionSelected === 'LOCAL' ? 'lbl.conflict.resolved_local' : 'lbl.conflict.resolved_cloud')}
+                          </span>
+                        )}
+                      </td>
                       <td>
                         <span className={`pill ${entry.result === 'SUCCESS' ? 'green' : entry.result === 'FAILED' ? 'red' : entry.result === 'RETRY' ? 'amber' : 'gray'}`}>
                           {t(`cloudsync.result.${entry.result.toLowerCase()}`)}
                         </span>
                       </td>
+                      <td style={{ fontSize: 13 }}>{entry.deviceName ?? '—'}</td>
                       <td style={{ fontSize: 13 }}>{entry.message}</td>
                     </tr>
                   ))}
@@ -342,6 +423,16 @@ export default function CloudSyncPanel() {
           variant="warning"
           onConfirm={executeDownload}
           onCancel={() => setDownloadConfirm(false)}
+        />
+      )}
+      {conflict && (
+        <ConflictResolutionDialog
+          conflict={conflict}
+          busy={busy}
+          canResolve={canManage}
+          onKeepLocal={resolveKeepLocal}
+          onKeepCloud={resolveKeepCloud}
+          onCancel={cancelConflict}
         />
       )}
     </div>

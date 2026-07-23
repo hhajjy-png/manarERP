@@ -2,6 +2,21 @@ import axios from 'axios';
 import { useUI } from '../stores/uiStore';
 import { t } from '../lib/i18n';
 
+/** معلومات نسخة قاعدة بيانات واحدة (محلية أو سحابية) — لعرضها في حوار حلّ التعارض. */
+interface DatabaseVersionInfo {
+  sha256: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  deviceId: string | null;
+  deviceName: string | null;
+}
+
+interface SyncConflictInfo {
+  local: DatabaseVersionInfo;
+  remote: DatabaseVersionInfo;
+  recommendation: 'LOCAL' | 'REMOTE' | 'UNKNOWN';
+}
+
 /** عنوان الخدمة المحلية — من جسر Electron إن وُجد، وإلا الافتراضي. */
 declare global {
   interface Window {
@@ -79,15 +94,39 @@ declare global {
         lastSyncAt: string | null;
         lastUploadAt: string | null;
         lastDownloadAt: string | null;
+        lastSyncedVersion: number | null;
         lastError: string | null;
         localDb: { exists: boolean; sizeBytes: number };
+        device: { deviceId: string; deviceName: string };
       }>;
-      syncGetLog?: () => Promise<Array<{ at: string; action: string; result: string; message: string }>>;
+      syncGetLog?: () => Promise<Array<{
+        at: string;
+        action: string;
+        result: string;
+        message: string;
+        deviceId?: string;
+        deviceName?: string;
+        conflictResolved?: boolean;
+        resolutionSelected?: 'LOCAL' | 'REMOTE';
+      }>>;
       syncAuthenticate?: () => Promise<{ ok: boolean; email?: string; error?: string }>;
       syncDisconnect?: () => Promise<{ ok: boolean }>;
-      syncNow?: () => Promise<{ ok: boolean; action: string; error?: string; requiresRestart?: boolean }>;
+      syncNow?: () => Promise<{
+        ok: boolean;
+        action: string;
+        error?: string;
+        requiresRestart?: boolean;
+        conflict?: SyncConflictInfo;
+      }>;
       syncUpload?: () => Promise<{ ok: boolean; error?: string }>;
       syncDownload?: () => Promise<{ ok: boolean; error?: string; requiresRestart?: boolean }>;
+      /** Optional: absent on an older preload build — every caller must guard. */
+      syncGetConflict?: () => Promise<SyncConflictInfo | null>;
+      syncResolveConflict?: (choice: 'LOCAL' | 'REMOTE') => Promise<{
+        ok: boolean;
+        error?: string;
+        requiresRestart?: boolean;
+      }>;
     };
   }
 }

@@ -16,6 +16,10 @@ export interface RemoteSyncFile {
   sha256: string | null;
   modifiedTime: string;
   size: number;
+  /** معرّف نسخة تصاعدي (revision) — يُقرأ من appProperties.version؛ null إن رُفع بنسخة أقدم من الأداة لا تكتبه. */
+  version: number | null;
+  deviceId: string | null;
+  deviceName: string | null;
 }
 
 /**
@@ -85,17 +89,26 @@ export async function findRemoteSyncFile(client: OAuth2Client): Promise<RemoteSy
   const file = body.files?.[0];
   if (!file) return null;
 
+  const versionRaw = file.appProperties?.version;
+  const version = versionRaw ? parseInt(versionRaw, 10) : null;
+
   return {
     id: file.id,
     sha256: file.appProperties?.sha256 ?? null,
     modifiedTime: file.modifiedTime,
     size: file.size ? parseInt(file.size, 10) : 0,
+    version: Number.isFinite(version) ? version : null,
+    deviceId: file.appProperties?.deviceId ?? null,
+    deviceName: file.appProperties?.deviceName ?? null,
   };
 }
 
 interface UploadOptions {
   fileId: string | null;
   sha256: string;
+  version: number;
+  deviceId: string;
+  deviceName: string;
 }
 
 /** يرفع قاعدة البيانات إلى appDataFolder عبر تحميل قابل للاستئناف (resumable) — إنشاء أو تحديث. */
@@ -109,7 +122,13 @@ export async function uploadDatabase(
 
   const metadata: Record<string, unknown> = {
     name: SYNC_FILE_NAME,
-    appProperties: { sha256: opts.sha256, syncedAt: new Date().toISOString() },
+    appProperties: {
+      sha256: opts.sha256,
+      syncedAt: new Date().toISOString(),
+      version: String(opts.version),
+      deviceId: opts.deviceId,
+      deviceName: opts.deviceName,
+    },
   };
   if (!opts.fileId) metadata.parents = ['appDataFolder'];
 
@@ -142,7 +161,15 @@ export async function uploadDatabase(
   if (!putRes.ok) await throwDriveApiError(putRes, 'فشل رفع محتوى قاعدة البيانات');
 
   const uploaded = (await putRes.json()) as { id: string };
-  return { id: uploaded.id, sha256: opts.sha256, modifiedTime: new Date().toISOString(), size: fileBuffer.byteLength };
+  return {
+    id: uploaded.id,
+    sha256: opts.sha256,
+    modifiedTime: new Date().toISOString(),
+    size: fileBuffer.byteLength,
+    version: opts.version,
+    deviceId: opts.deviceId,
+    deviceName: opts.deviceName,
+  };
 }
 
 /** يُنزّل قاعدة البيانات من Drive إلى مسار محلي مؤقت (لا يستبدل الملف الفعلي). */
