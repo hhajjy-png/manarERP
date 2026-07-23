@@ -17,7 +17,7 @@ import ContractFinancialSummaryModal from '../components/ContractFinancialSummar
 import ConfirmModal from '../components/ConfirmModal';
 import { usePersistedState } from '../hooks/usePersistedState';
 import ExportExcelButton from '../components/ExportExcelButton';
-import { downloadBlob } from '../utils/exportUtils';
+import { downloadBlob, fetchAllRows, downloadTableExcel, type TableExportColumn } from '../utils/exportUtils';
 import { generateExportFileName, resourceReportName } from '../utils/exportFilename';
 import {
   ExecutiveHeader,
@@ -188,6 +188,29 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
     if (!canExport) return;
     setExportBusy(true);
     try {
+      if (cfg.nativeExcelExport) {
+        // Excel Page Export Consistency v1 — opt-in only (currently `employees`).
+        // Builds the file directly from this module's own `columns` (same headers,
+        // order, and values as the visible table) instead of the shared
+        // `/reports/:type/export` pipeline, which the Reports page also consumes for
+        // this module's report type. Every OTHER module (contracts/customers/
+        // suppliers/equipment) falls through to the unchanged branch below — byte-
+        // identical to the original behavior, unaffected by this pack.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const allRows = await fetchAllRows<any>(cfg.endpoint, {});
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const exportColumns: TableExportColumn<any>[] = cfg.columns.map((col) => ({
+          header: t(col.label),
+          value: (row) => (col.exportValue ? col.exportValue(row) : row[col.key]),
+          money: col.money,
+        }));
+        downloadTableExcel(
+          allRows,
+          exportColumns,
+          generateExportFileName({ reportName: resourceReportName(cfg.key), extension: 'xlsx' }),
+        );
+        return;
+      }
       const res = await api.get(`/reports/${cfg.key}/export`, {
         params: { format: 'excel' },
         responseType: 'blob',

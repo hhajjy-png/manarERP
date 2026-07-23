@@ -11,6 +11,14 @@ export interface Column {
   label: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   render?: (row: any) => ReactNode;
+  /**
+   * قيمة التصدير النصّية/الرقمية العادية لهذا العمود — تُستعمل عند بناء Excel من نفس
+   * تعريف أعمدة الجدول (Excel Page Export Consistency v1). اختيارية: تُستعمل فقط حين
+   * لا يطابق حقل البيانات الخام (`row[key]`) النص المعروض فعليًا (تاريخ منسَّق، حالة
+   * مترجَمة، ...). عند غيابها يُستعمل `row[key]` مباشرة.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  exportValue?: (row: any) => string | number | null | undefined;
   /** Truncate long text with ellipsis and show full value as native tooltip */
   truncate?: boolean;
   /** Allow cell text to wrap across multiple lines */

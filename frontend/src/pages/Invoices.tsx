@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useHighlight } from '../hooks/useHighlight';
@@ -22,7 +22,7 @@ import { useTableSort } from '../hooks/useTableSort';
 import SortableHeader from '../components/SortableHeader';
 import { canEditInvoice, collectionDateAction } from '../utils/invoiceGovernance';
 import ExportExcelButton from '../components/ExportExcelButton';
-import { downloadBlob } from '../utils/exportUtils';
+import { fetchAllRows, downloadTableExcel } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import CreateInvoice from './CreateInvoice';
@@ -70,10 +70,131 @@ function invStatusChip(status: string, t: (k: string) => string) {
   const m = STATUS_META[status] ?? { key: status, tone: 'neutral' as Tone, icon: 'help' };
   return <StatusChip tone={m.tone} icon={m.icon}>{t(m.key)}</StatusChip>;
 }
+/** نص الحالة العادي (بلا شارة) — نفس مصدر invStatusChip (STATUS_META)، لتصدير Excel. */
+function invStatusLabel(status: string, t: (k: string) => string): string {
+  const m = STATUS_META[status] ?? { key: status };
+  return t(m.key);
+}
 function directionLabel(d: string, t: (k: string) => string): string {
   if (d === 'SALES') return t('opt.direction.sales');
   if (d === 'PURCHASE') return t('opt.direction.purchase');
   return d || '—';
+}
+
+/** المتبقي: قيمة محسوبة (الإجمالي − المسدّد)، مصدر واحد يستعمله العرض والتصدير معًا. */
+function remainingOf(r: { total?: number; paidAmount?: number }): number {
+  return Math.max(0, Number(r.total ?? 0) - Number(r.paidAmount ?? 0));
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface InvoiceColumn {
+  /** مفتاح العمود — نفسه حقل الفرز الخادمي حين sortable=true (يطابق اتفاقية DataTable.tsx). */
+  key: string;
+  /** نص الترويسة المعروض فعليًا (مُحلّل سلفًا؛ قد يحمل رمز العملة عبر fcMoneyHeader). */
+  header: string;
+  /** نص title= الخام (بلا رمز عملة) — يطابق سلوك SortableHeader الحالي حرفيًا. */
+  plainLabel: string;
+  sortable?: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  render: (r: any) => ReactNode;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  exportValue: (r: any) => string | number | null | undefined;
+  /** خليّة Excel رقمية خام + numFmt الدينار — لا صلة بتنسيق الترويسة المرئية (انظر «المتبقي» أدناه). */
+  money?: boolean;
+}
+
+/**
+ * حزمة Table/Excel Column Unification v1 — **المصدر الوحيد** لأعمدة جدول الفواتير:
+ * الجدول المرئي (`<thead>`/`<tbody>` أدناه، عبر `.map()`) وتصدير Excel (`exportExcel`)
+ * كلاهما يُبنى من هذه المصفوفة نفسها. إضافة عمود أو حذفه أو إعادة ترتيبه هنا ينعكس
+ * تلقائيًا على الاثنين معًا — لا تعريف مزدوج، ولا احتمال انحراف مستقبلي بينهما.
+ */
+function buildInvoiceColumns(
+  t: (k: string, vars?: Record<string, string | number>) => string,
+  lang: 'ar' | 'en',
+): InvoiceColumn[] {
+  return [
+    {
+      key: 'invoiceNumber',
+      header: t('col.inv.number'),
+      plainLabel: t('col.inv.number'),
+      sortable: true,
+      render: (r) => <span className="invcx-mono"><strong>{r.invoiceNumber ?? r.number}</strong></span>,
+      exportValue: (r) => r.invoiceNumber ?? r.number ?? '',
+    },
+    // الجهة: علاقة مركّبة (عميل أو مورّد) بلا حقل خادمي واحد — غير قابلة للفرز.
+    {
+      key: 'party',
+      header: t('col.inv.party'),
+      plainLabel: t('col.inv.party'),
+      render: (r) => <strong>{r.customer ? resolveName(r.customer, lang) : r.supplier ? resolveName(r.supplier, lang) : '—'}</strong>,
+      exportValue: (r) => (r.customer ? resolveName(r.customer, lang) : r.supplier ? resolveName(r.supplier, lang) : '—'),
+    },
+    {
+      key: 'invoiceType',
+      header: t('col.inv.type'),
+      plainLabel: t('col.inv.type'),
+      sortable: true,
+      render: (r) => r.invoiceType ?? '—',
+      exportValue: (r) => r.invoiceType ?? '—',
+    },
+    {
+      key: 'direction',
+      header: t('col.inv.direction'),
+      plainLabel: t('col.inv.direction'),
+      sortable: true,
+      render: (r) => directionLabel(r.direction ?? '', t),
+      exportValue: (r) => directionLabel(r.direction ?? '', t),
+    },
+    {
+      key: 'issueDate',
+      header: t('col.date'),
+      plainLabel: t('col.date'),
+      sortable: true,
+      render: (r) => <span style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.issueDate)}</span>,
+      exportValue: (r) => dateText(r.issueDate),
+    },
+    {
+      key: 'total',
+      header: fcMoneyHeader(t('col.inv.total')),
+      plainLabel: t('col.inv.total'),
+      sortable: true,
+      money: true,
+      render: (r) => <span className="invcx-amount"><MoneyCell value={r.total} /></span>,
+      exportValue: (r) => Number(r.total ?? 0),
+    },
+    {
+      key: 'paidAmount',
+      header: fcMoneyHeader(t('col.inv.paid')),
+      plainLabel: t('col.inv.paid'),
+      sortable: true,
+      money: true,
+      render: (r) => <span className="invcx-paid"><MoneyCell value={r.paidAmount} /></span>,
+      exportValue: (r) => Number(r.paidAmount ?? 0),
+    },
+    // المتبقي: قيمة محسوبة بلا حقل خادمي — غير قابلة للفرز. الترويسة المرئية هنا
+    // بلا رمز عملة (fcMoneyHeader) عمدًا — يطابق سلوك الجدول الحالي حرفيًا؛ money:true
+    // يبقى مضبوطًا فقط لتنسيق خليّة Excel (رقم خام + numFmt)، لا لتنسيق الترويسة.
+    {
+      key: 'remaining',
+      header: t('lbl.inv.remaining_amount'),
+      plainLabel: t('lbl.inv.remaining_amount'),
+      money: true,
+      render: (r) => {
+        const v = remainingOf(r);
+        return <span className={v > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}><MoneyCell value={v} /></span>;
+      },
+      exportValue: (r) => remainingOf(r),
+    },
+    {
+      key: 'status',
+      header: t('col.status'),
+      plainLabel: t('col.status'),
+      sortable: true,
+      render: (r) => invStatusChip(String(r.status), t),
+      exportValue: (r) => invStatusLabel(String(r.status), t),
+    },
+  ];
 }
 
 /**
@@ -215,22 +336,34 @@ export default function Invoices() {
     try { await api.patch(`/invoices/${id}/cancel`); toast.ok(t('toast.inv.cancelled')); load(); } catch (e) { setLoadError(errorMessage(e)); } finally { setCancelBusy(false); }
   }
 
+  // المصدر الوحيد لأعمدة الجدول — يُستهلَك أدناه (JSX الجدول) وفي exportExcel معًا.
+  const invoiceColumns = buildInvoiceColumns(t, lang);
+
+  /**
+   * حزمة Table/Excel Column Unification v1 — مصدر واحد للأعمدة (invoiceColumns،
+   * أعلاه) يُستهلَك هنا وفي الجدول المرئي أدناه معًا. بلا مرور عبر وحدة التقارير
+   * المشتركة (`/reports/*`) التي يستخدمها أيضًا نوع تقرير «الفواتير» في شاشة
+   * التقارير — فلا يتأثر ذلك التقرير بهذا التغيير. يجلب كل الفواتير المطابقة
+   * للفلاتر الحالية عبر كل الصفحات (لا تصدير الصفحة الحالية فقط)، بنفس فلاتر
+   * الشاشة تمامًا.
+   */
   async function exportExcel() {
     setExportingExcel(true);
     try {
-      const res = await api.get('/reports/invoices/export', {
-        params: {
-          format: 'excel',
-          search: search || undefined,
-          status: statusFilter || undefined,
-          direction: directionFilter || undefined,
-          customerId: customerFilter || undefined,
-          billingMonth: monthFilter || undefined,
-          billingYear: yearFilter || undefined,
-        },
-        responseType: 'blob',
+      const allRows = await fetchAllRows('/invoices', {
+        search: search || undefined,
+        status: statusFilter || undefined,
+        direction: directionFilter || undefined,
+        customerId: customerFilter || undefined,
+        billingMonth: monthFilter || undefined,
+        billingYear: yearFilter || undefined,
+        ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
       });
-      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.InvoicesList, extension: 'xlsx' }));
+      downloadTableExcel(
+        allRows,
+        invoiceColumns.map((c) => ({ header: c.header, value: c.exportValue, money: c.money })),
+        generateExportFileName({ reportName: ReportName.InvoicesList, extension: 'xlsx' }),
+      );
     } catch (e) {
       setLoadError(errorMessage(e));
     } finally {
@@ -372,41 +505,26 @@ export default function Invoices() {
               <table className="xpl-table">
                 <thead>
                   <tr>
-                    <SortableHeader label={t('col.inv.number')} title={t('col.inv.number')} state={sort.getState('invoiceNumber')} onToggle={() => sort.toggle('invoiceNumber')} />
-                    {/* الجهة: علاقة مركّبة (عميل أو مورّد) بلا حقل خادمي واحد — غير قابلة للفرز */}
-                    <th>{t('col.inv.party')}</th>
-                    <SortableHeader label={t('col.inv.type')} title={t('col.inv.type')} state={sort.getState('invoiceType')} onToggle={() => sort.toggle('invoiceType')} />
-                    <SortableHeader label={t('col.inv.direction')} title={t('col.inv.direction')} state={sort.getState('direction')} onToggle={() => sort.toggle('direction')} />
-                    <SortableHeader label={t('col.date')} title={t('col.date')} state={sort.getState('issueDate')} onToggle={() => sort.toggle('issueDate')} />
-                    <SortableHeader label={fcMoneyHeader(t('col.inv.total'))} title={t('col.inv.total')} state={sort.getState('total')} onToggle={() => sort.toggle('total')} />
-                    <SortableHeader label={fcMoneyHeader(t('col.inv.paid'))} title={t('col.inv.paid')} state={sort.getState('paidAmount')} onToggle={() => sort.toggle('paidAmount')} />
-                    {/* المتبقي: قيمة محسوبة (الإجمالي - المسدّد) بلا حقل خادمي — غير قابلة للفرز */}
-                    <th>{t('lbl.inv.remaining_amount')}</th>
-                    <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
+                    {invoiceColumns.map((c) => (
+                      c.sortable ? (
+                        <SortableHeader key={c.key} label={c.header} title={c.plainLabel} state={sort.getState(c.key)} onToggle={() => sort.toggle(c.key)} />
+                      ) : (
+                        <th key={c.key}>{c.header}</th>
+                      )
+                    ))}
                     <th aria-label={t('aria.open')} />
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => {
-                    const remaining = Math.max(0, Number(r.total) - Number(r.paidAmount ?? 0));
-                    return (
-                      <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
-                        aria-label={t('aria.invoice_details', { number: r.invoiceNumber ?? r.number })}
-                        onClick={() => setViewing(r)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
-                        <td><span className="invcx-mono"><strong>{r.invoiceNumber ?? r.number}</strong></span></td>
-                        <td><strong>{r.customer ? resolveName(r.customer, lang) : r.supplier ? resolveName(r.supplier, lang) : '—'}</strong></td>
-                        <td>{r.invoiceType ?? '—'}</td>
-                        <td>{directionLabel(r.direction ?? '', t)}</td>
-                        <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.issueDate)}</td>
-                        <td><span className="invcx-amount">{<MoneyCell value={r.total} />}</span></td>
-                        <td><span className="invcx-paid">{<MoneyCell value={r.paidAmount} />}</span></td>
-                        <td><span className={remaining > 0 ? 'invcx-remaining' : 'invcx-remaining--zero'}>{<MoneyCell value={remaining} />}</span></td>
-                        <td>{invStatusChip(String(r.status), t)}</td>
-                        <td style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
-                      </tr>
-                    );
-                  })}
+                  {rows.map((r) => (
+                    <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
+                      aria-label={t('aria.invoice_details', { number: r.invoiceNumber ?? r.number })}
+                      onClick={() => setViewing(r)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
+                      {invoiceColumns.map((c) => <td key={c.key}>{c.render(r)}</td>)}
+                      <td style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
