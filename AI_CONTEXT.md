@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `3c00a1d` (merge of `feature/operational-reporting-consistency-pack-v1`, carrying Operational Reporting Consistency Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `8e53267` — "docs: record Operational Reporting Consistency Pack v1 release" |
 | **Current Stable Tag** | `stable-operational-reporting-consistency-v1` |
 | **Current Release Date** | 2026-07-23 |
 | **Total Stable Releases** | 341 (window 2026-06-07 → 2026-07-23) |
