@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `1e4c359` (merge of `feature/excel-page-export-consistency-pack-v1`, carrying Excel Page Export Consistency Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `0da7ed4` — "docs: record Excel Page Export Consistency Pack v1 release" |
 | **Current Stable Tag** | `stable-excel-page-export-consistency-v1` |
 | **Current Release Date** | 2026-07-23 |
 | **Total Stable Releases** | 342 (window 2026-06-07 → 2026-07-23) |
