@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `3c00a1d` — release `stable-operational-reporting-consistency-v1` (Operational Reporting Consistency Pack v1 — backend-only: extends the Operational Financial Engine so every remaining Dashboard, Executive Center, Financial Center, and Reports consumer reads the exact same Revenue/Expenses/Collections/Receivables definitions instead of re-deriving them locally. No accounting/GL changes, no API/DTO/frontend changes) |
+| **Production HEAD** | `1e4c359` — release `stable-excel-page-export-consistency-v1` (Excel Page Export Consistency Pack v1 — frontend-only: Invoices/Employees/Expenses now render their tables and build their Excel exports from one shared column-definition array per page, eliminating the two-independent-definitions drift risk. No accounting/GL/backend/API changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-operational-reporting-consistency-v1` (release date 2026-07-23) → merge `3c00a1d` |
-| **Previous stable tag** | `stable-operational-reporting-migration-v1` (2026-07-22) → merge `cd754ca` |
-| **Total stable releases** | 341 (all merged onto `production`; window 2026-06-07 → 2026-07-23) |
-| **Latest validation** | backend `tsc --noEmit` ✅ · backend `vitest` full suite **135 files / 1897 tests** pass ✅ · no frontend changes this release (prior frontend validation state unaffected) |
-| **Remote sync** | `origin/production` — pushed with this release (merge `3c00a1d` + tag `stable-operational-reporting-consistency-v1`) |
+| **Latest stable tag** | `stable-excel-page-export-consistency-v1` (release date 2026-07-23) → merge `1e4c359` |
+| **Previous stable tag** | `stable-operational-reporting-consistency-v1` (2026-07-23) → merge `3c00a1d` |
+| **Total stable releases** | 342 (all merged onto `production`; window 2026-06-07 → 2026-07-23) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · frontend `vitest` full suite run against this release and against the clean pre-release baseline (via stash) — both show the identical pre-existing **18 failures / 1808 passing** (114 files), confirming zero regressions · no backend changes this release (prior backend validation state unaffected) |
+| **Remote sync** | `origin/production` — pushed with this release (merge `1e4c359` + tag `stable-excel-page-export-consistency-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Operational Reporting Consistency Pack v1
+## Latest Release — Excel Page Export Consistency Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Excel Page Export Consistency Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-23 |
+| **Feature branch** | `feature/excel-page-export-consistency-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `fd11093` (documentation commit from the prior release) |
+| **Checkpoint tag** | `checkpoint-excel-page-export-consistency-v1` → `fd11093` (annotated) |
+| **Feature commit** | `b0011bf` |
+| **Production merge commit** | `1e4c359` |
+| **Stable tag** | `stable-excel-page-export-consistency-v1` → merge `1e4c359` (annotated) |
+| **Architectural review** | **PASSED** — per user's release note. |
+| **Manual verification** | Product Owner visual review — **completed and accepted**. |
+| **Validation** | frontend `tsc --noEmit` ✅ · frontend `vitest` full suite run on this branch and, separately, against the clean pre-release baseline (via `git stash`) — both show the identical pre-existing **18 failures / 1808 passing** (114 files), confirming zero regressions · no backend changes this release |
+
+**Scope.** Standardized table structure and Excel export behavior for exactly three pages — Invoices, Employees, Expenses. **Phase 1 (table verification):** audited all three pages' visible columns against their Prisma models; no missing required business columns found (supplementary fields are already in each page's detail drawer, or are unused across the entire module and would be speculative new functionality to add) — tables left unchanged. **Phase 2 (export consistency):** root cause was that all three pages' own "Export Excel" buttons called the shared `/reports/:type/export` backend endpoint, which the Reports page also uses for its own "Invoices"/"Expenses"/"Employees" report types with a different, wider column set — so fixing the shared endpoint would have changed the Reports page too. Decoupled each page's own export onto a new client-side path (`frontend/src/utils/exportUtils.ts`: `fetchAllRows` + `downloadTableExcel`, using the existing `xlsx` dependency) that fetches all rows matching current filters (not just the visible page) and builds the `.xlsx` directly from the table's own columns. **Employees** exports from the existing `modules.tsx` `employees.columns` array via a new opt-in `nativeExcelExport` flag on `ResourcePage.tsx` — every other `ResourcePage` module (contracts/customers/suppliers/equipment) is unaffected, same original code path. **Invoices & Expenses** (bespoke pages) had their table `<thead>`/`<tbody>` refactored to render from one new column-definition array per page (`invoiceColumns`/`expenseColumns`), with the Excel export built from that same array — eliminating the two-independent-definitions drift risk for these two pages as well, matching the guarantee Employees already had. Visual output unchanged: every render closure is a direct copy of the prior markup (same classNames, inline styles, ARIA attributes, row click/keyboard handling, page-specific quirks preserved).
+
+**Deliberately unchanged.** GL, Journal Engine, Posting Engine, Chart of Accounts, Accounting Reports, the Reports page and all its report types, PDF generation, printing, backend APIs, database, filters, sorting, search, permissions, and business logic. No page or module outside Invoices/Employees/Expenses touched.
+
+**Verification.** Backend diff empty; Reports/PDF/print diff empty; `nativeExcelExport` set only on `employees`. `tsc --noEmit` clean. Full frontend suite run twice (against this branch, and against the clean pre-release baseline via stash) — both show the identical pre-existing 18 failures / 1808 passing, confirming zero regressions.
+
+**Unchanged:** backend · database schema · API contracts · GL posting logic · Chart of Accounts · Journal Entries · Reports page · PDF export · printing · every module other than Invoices/Employees/Expenses.
+
+---
+
+## Previous Release — Operational Reporting Consistency Pack v1
 
 | Field | Value |
 |-------|-------|

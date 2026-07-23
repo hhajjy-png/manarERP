@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `3c00a1d` (merge of `feature/operational-reporting-consistency-pack-v1`, carrying Operational Reporting Consistency Pack v1) |
-| **Current Documentation Commit** | `8e53267` — "docs: record Operational Reporting Consistency Pack v1 release" |
-| **Current Stable Tag** | `stable-operational-reporting-consistency-v1` |
+| **Current Merge Commit** | `1e4c359` (merge of `feature/excel-page-export-consistency-pack-v1`, carrying Excel Page Export Consistency Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-excel-page-export-consistency-v1` |
 | **Current Release Date** | 2026-07-23 |
-| **Total Stable Releases** | 341 (window 2026-06-07 → 2026-07-23) |
+| **Total Stable Releases** | 342 (window 2026-06-07 → 2026-07-23) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -200,6 +200,20 @@ Chromium PDF, and backend HTML reports.
   focus-trapping/pagination/toasts (no more page-local reimplementations); `authStore.isSystemAdmin()` and
   `rbac.middleware.ts`'s `hasRolePermission()` are the single sources for those checks; every backend
   module (including `attachments`, the last holdout) now follows routes→controller→service→schema.
+- **Table/Excel column unification (as of Excel Page Export Consistency Pack v1, 2026-07-23):**
+  Invoices, Employees, and Expenses each render their visible table and build their own "Export Excel"
+  Excel file from **one shared column-definition array per page** — `modules.tsx`'s existing
+  `employees.columns` for Employees (via `ResourcePage.tsx`'s new opt-in `nativeExcelExport` flag), and
+  new `invoiceColumns`/`expenseColumns` (`buildInvoiceColumns`/`buildExpenseColumns`) for the bespoke
+  Invoices/Expenses pages. Adding, removing, or reordering a column in that one array changes both the
+  table and the export together — structurally impossible to desynchronize. `frontend/src/utils/
+  exportUtils.ts` (`fetchAllRows` + `downloadTableExcel`) is the shared client-side builder (fetches all
+  filtered rows across pages, not just the visible page; money columns are raw numbers with the standard
+  `#,##0.000` numFmt). These three pages' own export buttons no longer call the shared
+  `/reports/:type/export` endpoint — the Reports page's own "Invoices"/"Expenses"/"Employees" report
+  types (a wider, different column set) are untouched and unaffected. Every other `ResourcePage` module
+  (contracts/customers/suppliers/equipment) still uses the original `/reports/:type/export` path
+  unchanged.
 
 ---
 
@@ -229,6 +243,30 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Excel Page Export Consistency Pack v1** (2026-07-23,
+  `stable-excel-page-export-consistency-v1`) — frontend-only. Standardized table structure and Excel
+  export behavior for exactly three pages: Invoices, Employees, Expenses. Phase 1 audited every visible
+  column against each page's Prisma model — no missing required business columns found; tables left
+  unchanged. Phase 2 found that all three pages' own "Export Excel" buttons called the shared
+  `/reports/:type/export` backend endpoint, which the Reports page also uses for its own report types
+  with a different column set — so decoupled each page's own export onto a new client-side path
+  (`utils/exportUtils.ts`: `fetchAllRows` + `downloadTableExcel`) that fetches all filtered rows and
+  builds the `.xlsx` directly from the table's own columns. A follow-up pass then made the **table
+  itself** the single source of truth for all three pages (not just at export time): Employees exports
+  from the existing `modules.tsx` `employees.columns` array via a new opt-in `ResourcePage.tsx`
+  `nativeExcelExport` flag (every other `ResourcePage` module is unaffected — same original code path);
+  Invoices and Expenses had their bespoke table JSX refactored to render from one new column-definition
+  array per page (`invoiceColumns`/`expenseColumns`), with the export built from that same array —
+  eliminating any possibility of the table and export drifting apart in the future for all three pages.
+  Visual output unchanged (every render closure is a direct copy of the prior markup). **Deliberately
+  unchanged:** GL, Journal Engine, Posting Engine, Chart of Accounts, Accounting Reports, the Reports
+  page and all its report types, PDF generation, printing, backend APIs, database, business logic — no
+  page or module outside Invoices/Employees/Expenses touched. Frontend `tsc --noEmit` clean; full
+  frontend suite run against this release and separately against the clean pre-release baseline (via
+  `git stash`) both show the identical pre-existing 18 failures / 1808 passing — zero regressions. No
+  backend changes this release. Product Owner visual review: **APPROVED**. Architectural review:
+  **PASSED**.
 
 - **Operational Reporting Consistency Pack v1** (2026-07-23,
   `stable-operational-reporting-consistency-v1`) — backend-only follow-up to Operational
