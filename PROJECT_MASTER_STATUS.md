@@ -2,20 +2,18 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-23 (previously 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-23 (previously 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Google Drive Sync Foundation Pack v1), like the Employee & Equipment Tables Visual
-> Consistency Pack v1 pass and the ones before it, refreshed the "Current Production State" table only
-> (re-derived directly from `git`) — the "Repository Status" quantitative table and the deeper narrative surveys
-> (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01 respectively
-> and have not been re-audited in this pass — treat their specifics as of those dates, not current-day. **Several
-> releases landed on `production` between the 2026-07-20 pass and this one** (see `PROJECT_STATE.md`'s
-> `## Previous Release —` chain for the full list) that were not individually narrated here — this pass only
-> repoints the table below at the current HEAD, consistent with every other table-only pass in this history.
+> below. This pass (Google Drive Conflict Resolution Pack v1), like the Google Drive Sync Foundation Pack v1
+> pass and the ones before it, refreshed the "Current Production State" table only (re-derived directly from
+> `git`) — the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/
+> ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been
+> re-audited in this pass — treat their specifics as of those dates, not current-day. This pass only repoints
+> the table below at the current HEAD, consistent with every other table-only pass in this history.
 
 ---
 
@@ -38,9 +36,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `1cfeaa3` — merge of `feature/google-drive-sync-foundation-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-google-drive-sync-foundation-pack-v1` (merge commit `1cfeaa3`) | High |
-| **Previous stable tag** | `stable-excel-page-export-consistency-v1` (`1e4c359`) | High |
+| **Current HEAD** | `fdf3681` — merge of `feature/google-drive-conflict-resolution-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-google-drive-conflict-resolution-pack-v1` (merge commit `fdf3681`) | High |
+| **Previous stable tag** | `stable-google-drive-sync-foundation-pack-v1` (`1cfeaa3`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -67,7 +65,39 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-google-drive-sync-foundation-pack-v1` (`1cfeaa3`, 2026-07-23)
+### Latest Release — `stable-google-drive-conflict-resolution-pack-v1` (`fdf3681`, 2026-07-23)
+
+Professional conflict detection and resolution, built strictly as an extension of the Sync Engine
+introduced by Google Drive Sync Foundation Pack v1 — no redesign of that architecture. No database schema
+changes, no business logic changes.
+
+- **Detection:** `decide()`'s existing SHA-256 comparison now returns a distinct `CONFLICT` action
+  (previously silently fell through to `NONE`) when both the local and remote databases changed since the
+  last successful sync — checked at the same point as always, immediately before every upload/download
+  decision. Startup/shutdown conflicts are logged and left untouched; `CloudSyncPanel` proactively checks
+  for one on mount via a new read-only `sync:getConflict` IPC call (unlogged, to avoid spamming history on
+  every page visit) so the dialog can appear without a manual "Sync Now" click.
+- **Resolution:** `resolveConflict('LOCAL' | 'REMOTE', ...)` is a thin wrapper around the existing,
+  unmodified `performUpload`/`performDownload` — Keep Local/Keep Cloud inherit every Foundation Pack
+  protection automatically (WAL checkpoint, double `PRAGMA integrity_check`, snapshot-before-upload,
+  atomic rename, pre-sync backup, retry with backoff). Cancel is entirely client-side and never calls the
+  backend — neither database changes.
+- **`ConflictResolutionDialog.tsx`:** side-by-side Local vs. Cloud comparison (last modified, device,
+  truncated SHA-256, size) with a non-binding "Newest" highlight; the system never auto-resolves. Gated by
+  the existing `backups.update` permission — no new permission key.
+- **Device identity & version metadata:** new `electron/services/deviceIdentity.service.ts` gives each
+  machine a persistent UUID + hostname (stored locally, never synced as its own file — only its two
+  values ride along as Drive `appProperties` on the database file). Drive `appProperties` gained
+  `version`/`deviceId`/`deviceName` alongside the existing `sha256`. Every sync log entry is now tagged
+  with the device that wrote it; conflict-resolving entries additionally carry
+  `conflictResolved`/`resolutionSelected`. `CloudSyncPanel`'s history table gained a Device column and a
+  resolution badge.
+- **Validation:** electron `tsc --noEmit` clean · frontend `tsc --noEmit` clean · frontend production
+  build clean · full frontend suite reproduces the same 8 pre-existing failing files against the
+  unmodified checkpoint baseline (none touching Sync/Conflict Resolution code) — zero regressions. No
+  backend changes this release.
+
+### Previous Release — `stable-google-drive-sync-foundation-pack-v1` (`1cfeaa3`, 2026-07-23)
 
 Professional Google Drive synchronization for the desktop database while preserving the Offline-First
 architecture end to end: the app always operates against the local SQLite database directly; Google Drive

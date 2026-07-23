@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `1cfeaa3` — release `stable-google-drive-sync-foundation-pack-v1` (Google Drive Sync Foundation Pack v1 — professional Google Drive synchronization while preserving the Offline-First architecture; local SQLite remains the only active production database, Google Drive used exclusively as a sync location. No database schema changes, no business logic changes) |
+| **Production HEAD** | `fdf3681` — release `stable-google-drive-conflict-resolution-pack-v1` (Google Drive Conflict Resolution Pack v1 — professional conflict detection/resolution extending the existing Sync Engine; no schema or business logic changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-google-drive-sync-foundation-pack-v1` (release date 2026-07-23) → merge `1cfeaa3` |
-| **Previous stable tag** | `stable-excel-page-export-consistency-v1` (2026-07-23) → merge `1e4c359` |
-| **Total stable releases** | 343 (all merged onto `production`; window 2026-06-07 → 2026-07-23) |
-| **Latest validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · frontend `vitest` full suite — pre-existing **18 failures / 1808 passing** (114 files), identical to the pre-release baseline, confirming zero regressions · no backend changes this release (prior backend validation state unaffected) |
-| **Remote sync** | `origin/production` — pushed with this release (merge `1cfeaa3` + tag `stable-google-drive-sync-foundation-pack-v1`) |
+| **Latest stable tag** | `stable-google-drive-conflict-resolution-pack-v1` (release date 2026-07-23) → merge `fdf3681` |
+| **Previous stable tag** | `stable-google-drive-sync-foundation-pack-v1` (2026-07-23) → merge `1cfeaa3` |
+| **Total stable releases** | 344 (all merged onto `production`; window 2026-06-07 → 2026-07-23) |
+| **Latest validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · frontend `vitest` full suite — pre-existing 8 failing files reproduced identically against the pre-feature baseline (checkpoint tag), none touching Sync/Conflict Resolution code (cheque print isolation, financial center tables, print preview, router flags, format balance, invoice fast entry, currency headers, WYSIWYG labeling); total failure count varies 18–19 across runs due to known timing-sensitive flakiness in the cheque print isolation tests, confirmed present on the unmodified baseline too — zero regressions · no backend changes this release |
+| **Remote sync** | `origin/production` — pushed with this release (merge `fdf3681` + tag `stable-google-drive-conflict-resolution-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,32 @@ in a table cell.
 
 ---
 
-## Latest Release — Google Drive Sync Foundation Pack v1
+## Latest Release — Google Drive Conflict Resolution Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Google Drive Conflict Resolution Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-23 |
+| **Feature branch** | `feature/google-drive-conflict-resolution-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `4d577a1` (documentation commit from the prior release) |
+| **Checkpoint tag** | `checkpoint-google-drive-conflict-resolution-pack-v1` → `4d577a1` (annotated) |
+| **Feature commit** | `d9b60eb` |
+| **Production merge commit** | `fdf3681` |
+| **Stable tag** | `stable-google-drive-conflict-resolution-pack-v1` → merge `fdf3681` (annotated) |
+| **Architectural review** | **PASSED** — Gemini architecture/security review, per user's release note. |
+| **Manual verification** | Product Owner visual review — **completed and accepted**. |
+| **Validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · frontend `vitest` — same 8 pre-existing failing files reproduced on the unmodified checkpoint baseline, none touching Sync/Conflict Resolution code — zero regressions · no backend changes this release |
+
+**Scope.** Professional conflict detection and resolution built strictly as an extension of the Sync Engine introduced by Google Drive Sync Foundation Pack v1 — the existing architecture was not redesigned. **Detection:** `decide()`'s existing SHA-256-based comparison now returns a distinct `CONFLICT` action (previously it silently fell through to `NONE`) when both the local and remote databases changed since the last successful sync — checked at the same point as always, immediately before every upload/download decision. Startup/shutdown conflicts are logged and left untouched (no reliable UI to prompt at those times); `CloudSyncPanel` proactively calls a new read-only `checkForConflict()` on mount so the resolution dialog can appear without requiring a manual "Sync Now" click. **Resolution:** `resolveConflict('LOCAL' | 'REMOTE', ...)` is a thin wrapper around the existing, unmodified `performUpload`/`performDownload` — so Keep Local/Keep Cloud inherit every Foundation Pack protection automatically (WAL checkpoint, double `PRAGMA integrity_check`, snapshot-before-upload, atomic rename, pre-sync backup, retry with backoff). Cancel is entirely client-side and never touches either database. New `ConflictResolutionDialog.tsx` shows a side-by-side Local vs. Cloud comparison (last modified, device, truncated SHA-256, size) with a non-binding "Newest" highlight — the system never auto-resolves. **Metadata:** new `electron/services/deviceIdentity.service.ts` (persistent per-machine UUID + hostname, never synced as its own file); Drive `appProperties` gained `version`/`deviceId`/`deviceName` alongside the existing `sha256`; every sync log entry is now tagged with the device that wrote it, and conflict-resolving entries additionally carry `conflictResolved`/`resolutionSelected`. `CloudSyncPanel`'s history table gained a Device column and a resolution badge.
+
+**Deliberately unchanged.** Database schema, business logic, authentication, the backup system, and the core Sync Engine decision/upload/download code paths (only extended with one optional parameter each).
+
+**Known limitation.** Same as Foundation Pack v1 — HTTP 403 from Google is still treated as non-retryable, not distinguished from rate-limiting. Unchanged in this pack.
+
+---
+
+## Previous Release — Google Drive Sync Foundation Pack v1
 
 | Field | Value |
 |-------|-------|

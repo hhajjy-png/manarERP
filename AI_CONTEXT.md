@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `1cfeaa3` (merge of `feature/google-drive-sync-foundation-pack-v1`, carrying Google Drive Sync Foundation Pack v1) |
-| **Current Documentation Commit** | `030b5c7` — "docs: record Google Drive Sync Foundation Pack v1 release" |
-| **Current Stable Tag** | `stable-google-drive-sync-foundation-pack-v1` |
+| **Current Merge Commit** | `fdf3681` (merge of `feature/google-drive-conflict-resolution-pack-v1`, carrying Google Drive Conflict Resolution Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-google-drive-conflict-resolution-pack-v1` |
 | **Current Release Date** | 2026-07-23 |
-| **Total Stable Releases** | 343 (window 2026-06-07 → 2026-07-23) |
+| **Total Stable Releases** | 344 (window 2026-06-07 → 2026-07-23) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -229,6 +229,19 @@ Chromium PDF, and backend HTML reports.
   (`electron/ipc/sync.ipc.ts`) reuses the existing `backups.create`/`backups.update` permissions — no new
   permission key, no schema change. UI lives as a tab inside the existing Backup page
   (`CloudSyncPanel.tsx`), not a Sidebar entry.
+- **Google Drive Conflict Resolution (as of Google Drive Conflict Resolution Pack v1, 2026-07-23):**
+  extension of the Sync Engine above, not a redesign. `decide()`'s existing SHA-256 comparison now
+  returns a distinct `CONFLICT` action (previously silently fell through to `NONE`) when both the local
+  and remote databases changed since the last successful sync; startup/shutdown conflicts are logged and
+  left untouched, and `CloudSyncPanel` proactively checks for one on mount (`sync:getConflict`, read-only,
+  unlogged) so `ConflictResolutionDialog.tsx` can appear without a manual "Sync Now" click first.
+  `resolveConflict('LOCAL' | 'REMOTE', ...)` is a thin wrapper around the unmodified
+  `performUpload`/`performDownload` — Keep Local/Keep Cloud inherit every Foundation Pack protection
+  automatically (WAL checkpoint, double integrity check, snapshot upload, atomic replace, pre-sync
+  backup, retry); Cancel is client-side only and never calls the backend. New
+  `electron/services/deviceIdentity.service.ts` gives each machine a persistent UUID + hostname (never
+  synced as its own file — only its two values ride along as Drive `appProperties`); every sync log entry
+  is now device-tagged, and conflict-resolving entries carry `conflictResolved`/`resolutionSelected`.
 
 ---
 
@@ -258,6 +271,23 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Google Drive Conflict Resolution Pack v1** (2026-07-23,
+  `stable-google-drive-conflict-resolution-pack-v1`) — professional conflict detection/resolution built
+  as an extension of the Sync Engine from Google Drive Sync Foundation Pack v1, not a redesign. `decide()`
+  now returns a distinct `CONFLICT` action instead of silently doing nothing when local and remote both
+  changed since the last successful sync; resolution (Keep Local / Keep Cloud / Cancel, via
+  `ConflictResolutionDialog.tsx`) reuses the unmodified `performUpload`/`performDownload` so every
+  Foundation Pack protection applies automatically — WAL checkpoint, double `PRAGMA integrity_check`,
+  snapshot-before-upload, atomic rename, pre-sync backup, exponential-backoff retry. Cancel never touches
+  either database. New persistent device identification
+  (`electron/services/deviceIdentity.service.ts`) and version metadata (`appProperties.version`) on the
+  Drive file; every sync log entry is now device-tagged and conflict-resolving entries record which side
+  was kept. Electron `tsc --noEmit` clean; frontend `tsc --noEmit` clean; frontend production build
+  clean; full frontend suite reproduces the same 8 pre-existing failing files against the unmodified
+  checkpoint baseline (none touching Sync/Conflict Resolution code) — zero regressions. No database
+  schema changes, no business logic changes; IPC reuses the existing `backups.update` permission. Product
+  Owner visual review: **APPROVED**. Gemini architecture/security review: **APPROVED**.
 
 - **Google Drive Sync Foundation Pack v1** (2026-07-23,
   `stable-google-drive-sync-foundation-pack-v1`) — professional Google Drive synchronization while
