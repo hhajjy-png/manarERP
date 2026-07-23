@@ -936,6 +936,25 @@ const DICT: Record<Lang, Record<string, string>> = {
     'cloudsync.result.failed': 'فشل',
     'cloudsync.result.skipped': 'تخطّي',
     'cloudsync.result.retry': 'إعادة محاولة',
+    'cloudsync.status.conflict': 'تعارض يحتاج قرارًا',
+    'cloudsync.action.conflict': 'تعارض',
+
+    // ── Google Drive Conflict Resolution Pack v1 ────────────────────────────────
+    'title.conflict.dialog': 'تعارض في المزامنة',
+    'msg.conflict.explanation': 'تم تعديل قاعدة البيانات على هذا الجهاز وعلى Google Drive منذ آخر مزامنة ناجحة. اختر أي نسخة تريد الاحتفاظ بها.',
+    'msg.conflict.warning': 'ستُستبدَل النسخة غير المختارة بالكامل. سيُنشأ نسخة أمان تلقائية قبل أي استبدال، ويمكنك استعادتها لاحقًا من صفحة النسخ الاحتياطي عند الحاجة.',
+    'msg.conflict.detected': 'تم اكتشاف تعارض — يرجى اختيار النسخة المطلوبة',
+    'msg.conflict.no_permission': 'ليست لديك صلاحية لحسم هذا التعارض — يرجى التواصل مع مسؤول النظام',
+    'lbl.conflict.recommended': 'الأحدث',
+    'lbl.conflict.modified_at': 'آخر تعديل',
+    'lbl.conflict.device': 'الجهاز',
+    'lbl.conflict.unknown_device': 'جهاز غير معروف',
+    'lbl.conflict.local_title': 'النسخة المحلية (هذا الجهاز)',
+    'lbl.conflict.cloud_title': 'نسخة Google Drive',
+    'lbl.conflict.resolved_local': '✓ تم اختيار المحلي',
+    'lbl.conflict.resolved_cloud': '✓ تم اختيار السحابي',
+    'btn.conflict.keep_local': 'الاحتفاظ بالنسخة المحلية',
+    'btn.conflict.keep_cloud': 'الاحتفاظ بنسخة Google Drive',
 
     // ── Phase 5: Users ────────────────────────────────────────────────────────
     'page.users.title': 'إدارة المستخدمين',
@@ -5042,6 +5061,25 @@ const DICT: Record<Lang, Record<string, string>> = {
     'cloudsync.result.failed': 'Failed',
     'cloudsync.result.skipped': 'Skipped',
     'cloudsync.result.retry': 'Retrying',
+    'cloudsync.status.conflict': 'Conflict needs a decision',
+    'cloudsync.action.conflict': 'Conflict',
+
+    // ── Google Drive Conflict Resolution Pack v1 ────────────────────────────────
+    'title.conflict.dialog': 'Sync Conflict',
+    'msg.conflict.explanation': 'The database was changed on this device and on Google Drive since the last successful sync. Choose which version to keep.',
+    'msg.conflict.warning': 'The version you don’t choose will be fully replaced. An automatic safety backup is created before any replacement and can be restored later from the Backup page if needed.',
+    'msg.conflict.detected': 'A conflict was detected — please choose which version to keep',
+    'msg.conflict.no_permission': 'You do not have permission to resolve this conflict — please contact a system administrator',
+    'lbl.conflict.recommended': 'Newest',
+    'lbl.conflict.modified_at': 'Last Modified',
+    'lbl.conflict.device': 'Device',
+    'lbl.conflict.unknown_device': 'Unknown device',
+    'lbl.conflict.local_title': 'Local Version (this device)',
+    'lbl.conflict.cloud_title': 'Google Drive Version',
+    'lbl.conflict.resolved_local': '✓ Kept local',
+    'lbl.conflict.resolved_cloud': '✓ Kept cloud',
+    'btn.conflict.keep_local': 'Keep Local Version',
+    'btn.conflict.keep_cloud': 'Keep Cloud Version',
 
     // ── Phase 5: Users ────────────────────────────────────────────────────────
     'page.users.title': 'User Management',

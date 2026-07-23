@@ -9,6 +9,8 @@ import {
   performSyncNow,
   performUpload,
   performDownload,
+  checkForConflict,
+  resolveConflict,
 } from '../services/syncEngine.service';
 
 /**
@@ -65,5 +67,24 @@ export function registerSyncIpc() {
     }
     const { dbPath, dataDir } = getUserDataPaths();
     return performDownload(dbPath, dataDir);
+  });
+
+  // ─── Google Drive Conflict Resolution Pack v1 ────────────────────────────────
+
+  // فحص سلبي — بلا صلاحية إضافية، بنفس مستوى sync:getStatus/getLog للقراءة فقط.
+  ipcMain.handle('sync:getConflict', async () => {
+    const { dbPath, dataDir } = getUserDataPaths();
+    return checkForConflict(dbPath, dataDir);
+  });
+
+  ipcMain.handle('sync:resolveConflict', async (_e, choice: 'LOCAL' | 'REMOTE') => {
+    if (!hasSessionPermission('backups.update')) {
+      return { ok: false, error: 'ليست لديك صلاحية لحلّ تعارض المزامنة' };
+    }
+    if (choice !== 'LOCAL' && choice !== 'REMOTE') {
+      return { ok: false, error: 'اختيار غير صالح' };
+    }
+    const { dbPath, dataDir } = getUserDataPaths();
+    return resolveConflict(choice, dbPath, dataDir);
   });
 }

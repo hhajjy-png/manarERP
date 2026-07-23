@@ -1,5 +1,20 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+/** معلومات نسخة قاعدة بيانات واحدة (محلية أو سحابية) — لعرضها في حوار حلّ التعارض. */
+interface DatabaseVersionInfo {
+  sha256: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  deviceId: string | null;
+  deviceName: string | null;
+}
+
+interface SyncConflictInfo {
+  local: DatabaseVersionInfo;
+  remote: DatabaseVersionInfo;
+  recommendation: 'LOCAL' | 'REMOTE' | 'UNKNOWN';
+}
+
 /**
  * جسر آمن (contextBridge) يكشف واجهة محدودة للواجهة الأمامية فقط.
  * لا نعرّض ipcRenderer كاملًا حفاظًا على الأمان.
@@ -148,13 +163,24 @@ const api = {
     lastSyncAt: string | null;
     lastUploadAt: string | null;
     lastDownloadAt: string | null;
+    lastSyncedVersion: number | null;
     lastError: string | null;
     localDb: { exists: boolean; sizeBytes: number };
+    device: { deviceId: string; deviceName: string };
   }> => ipcRenderer.invoke('sync:getStatus'),
 
   /** سجلّ آخر عمليات المزامنة (حتى 50 عملية، الأحدث أولًا). */
   syncGetLog: (): Promise<
-    Array<{ at: string; action: string; result: string; message: string }>
+    Array<{
+      at: string;
+      action: string;
+      result: string;
+      message: string;
+      deviceId?: string;
+      deviceName?: string;
+      conflictResolved?: boolean;
+      resolutionSelected?: 'LOCAL' | 'REMOTE';
+    }>
   > => ipcRenderer.invoke('sync:getLog'),
 
   /** بدء تدفّق تسجيل الدخول إلى Google عبر متصفح النظام. */
@@ -165,8 +191,13 @@ const api = {
   syncDisconnect: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('sync:disconnect'),
 
   /** مزامنة كاملة تلقائية الاتجاه (رفع أو تنزيل حسب الحاجة). */
-  syncNow: (): Promise<{ ok: boolean; action: string; error?: string; requiresRestart?: boolean }> =>
-    ipcRenderer.invoke('sync:now'),
+  syncNow: (): Promise<{
+    ok: boolean;
+    action: string;
+    error?: string;
+    requiresRestart?: boolean;
+    conflict?: SyncConflictInfo;
+  }> => ipcRenderer.invoke('sync:now'),
 
   /** رفع يدوي إجباري لقاعدة البيانات المحلية إلى Google Drive. */
   syncUpload: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('sync:upload'),
@@ -174,6 +205,18 @@ const api = {
   /** تنزيل يدوي إجباري من Google Drive مع استبدال آمن (ذرّي) لقاعدة البيانات المحلية. */
   syncDownload: (): Promise<{ ok: boolean; error?: string; requiresRestart?: boolean }> =>
     ipcRenderer.invoke('sync:download'),
+
+  // ─── Google Drive Conflict Resolution Pack v1 ────────────────────────────────
+
+  /** فحص سلبي (بلا آثار جانبية) لوجود تعارض مزامنة حاليًا — يُستخدم لعرض الحوار استباقيًا. */
+  syncGetConflict: (): Promise<SyncConflictInfo | null> => ipcRenderer.invoke('sync:getConflict'),
+
+  /** ينفّذ اختيار المستخدم الصريح في حوار حلّ التعارض (الاحتفاظ بالمحلي أو السحابي). */
+  syncResolveConflict: (choice: 'LOCAL' | 'REMOTE'): Promise<{
+    ok: boolean;
+    error?: string;
+    requiresRestart?: boolean;
+  }> => ipcRenderer.invoke('sync:resolveConflict', choice),
 
 };
 

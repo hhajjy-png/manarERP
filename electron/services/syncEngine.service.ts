@@ -19,6 +19,7 @@ import {
 } from './googleDriveApi.service';
 import { checkSqliteIntegrity, checkpointWal, sha256File } from './dbIntegrity';
 import { withRetry } from './retry';
+import { getOrCreateDeviceIdentity } from './deviceIdentity.service';
 
 /**
  * محرّك المزامنة — يُنسّق بين المصادقة وطبقة Drive API وفحوصات السلامة.
@@ -27,7 +28,8 @@ import { withRetry } from './retry';
  *
  * ملاحظة تعارض: لا يوجد حل تلقائي للتعارضات (خارج نطاق هذه الحزمة عمدًا).
  * إن تغيّرت النسختان المحلية والسحابية معًا منذ آخر مزامنة، تتوقف المزامنة
- * التلقائية عن التصرّف وتترك القرار للمستخدم عبر أزرار الرفع/التنزيل اليدوية.
+ * التلقائية عن التصرّف وتُبلّغ عن التعارض؛ القرار النهائي يبقى للمستخدم عبر
+ * حوار حلّ التعارض (Google Drive Conflict Resolution Pack v1).
  */
 
 export type SyncStatus =
@@ -37,18 +39,27 @@ export type SyncStatus =
   | 'UPLOADING'
   | 'COMPLETED'
   | 'FAILED'
-  | 'OFFLINE';
+  | 'OFFLINE'
+  | 'CONFLICT';
 
 interface SyncLogEntry {
   at: string;
-  action: 'UPLOAD' | 'DOWNLOAD' | 'AUTH' | 'DISCONNECT';
+  action: 'UPLOAD' | 'DOWNLOAD' | 'AUTH' | 'DISCONNECT' | 'CONFLICT';
   result: 'SUCCESS' | 'FAILED' | 'SKIPPED' | 'RETRY';
   message: string;
+  /** الجهاز الذي نفّذ هذا الإدخال — الجهاز الحالي دائمًا (السجلّ محلي لكل جهاز). */
+  deviceId?: string;
+  deviceName?: string;
+  /** موجودة فقط عند كون هذا الإدخال نتيجة حلّ تعارض. */
+  conflictResolved?: boolean;
+  resolutionSelected?: 'LOCAL' | 'REMOTE';
 }
 
 interface SyncMetadata {
   lastSyncedHash: string | null;
   lastSyncedFileId: string | null;
+  /** رقم النسخة (revision) التصاعدي الذي اتفق عليه آخر مزامنة ناجحة — مُعرِّف نسخة محلي/سحابي مبسّط. */
+  lastSyncedVersion: number | null;
   lastSyncAt: string | null;
   lastUploadAt: string | null;
   lastDownloadAt: string | null;
@@ -59,6 +70,7 @@ interface SyncMetadata {
 const DEFAULT_METADATA: SyncMetadata = {
   lastSyncedHash: null,
   lastSyncedFileId: null,
+  lastSyncedVersion: null,
   lastSyncAt: null,
   lastUploadAt: null,
   lastDownloadAt: null,
@@ -97,8 +109,17 @@ function saveMetadata(dataDir: string, metadata: SyncMetadata): void {
   fs.writeFileSync(metadataPath(dataDir), JSON.stringify(metadata, null, 2), { mode: 0o600 });
 }
 
-function appendLog(metadata: SyncMetadata, entry: Omit<SyncLogEntry, 'at'>): SyncMetadata {
-  const log = [{ at: new Date().toISOString(), ...entry }, ...metadata.log].slice(0, MAX_LOG_ENTRIES);
+/** يُلحق إدخالًا بالسجلّ مع وسم الجهاز الحالي تلقائيًا — مصدر واحد لهوية الجهاز في كل السجلّ. */
+function appendLog(
+  dataDir: string,
+  metadata: SyncMetadata,
+  entry: Omit<SyncLogEntry, 'at' | 'deviceId' | 'deviceName'>,
+): SyncMetadata {
+  const device = getOrCreateDeviceIdentity(dataDir);
+  const log = [
+    { at: new Date().toISOString(), deviceId: device.deviceId, deviceName: device.deviceName, ...entry },
+    ...metadata.log,
+  ].slice(0, MAX_LOG_ENTRIES);
   return { ...metadata, log };
 }
 
@@ -114,7 +135,7 @@ function driveRetryOptions(dataDir: string, action: 'UPLOAD' | 'DOWNLOAD') {
       const reason = err instanceof Error ? err.message : String(err);
       const message = `محاولة ${attempt} فشلت مؤقتًا — إعادة المحاولة خلال ${Math.round(delayMs / 1000)} ثانية: ${reason}`;
       setStatus(currentStatus, message);
-      saveMetadata(dataDir, appendLog(loadMetadata(dataDir), { action, result: 'RETRY', message }));
+      saveMetadata(dataDir, appendLog(dataDir, loadMetadata(dataDir), { action, result: 'RETRY', message }));
     },
   };
 }
@@ -138,6 +159,7 @@ export async function getSyncStatus(dbPath: string, dataDir: string) {
   const authenticated = configured && isAuthenticated(dataDir);
   const metadata = loadMetadata(dataDir);
   const dbExists = fs.existsSync(dbPath);
+  const device = getOrCreateDeviceIdentity(dataDir);
 
   return {
     status: currentStatus,
@@ -148,8 +170,10 @@ export async function getSyncStatus(dbPath: string, dataDir: string) {
     lastSyncAt: metadata.lastSyncAt,
     lastUploadAt: metadata.lastUploadAt,
     lastDownloadAt: metadata.lastDownloadAt,
+    lastSyncedVersion: metadata.lastSyncedVersion,
     lastError: metadata.lastError,
     localDb: { exists: dbExists, sizeBytes: dbExists ? fs.statSync(dbPath).size : 0 },
+    device: { deviceId: device.deviceId, deviceName: device.deviceName },
   };
 }
 
@@ -166,12 +190,12 @@ export async function authenticate(dataDir: string): Promise<{ ok: boolean; emai
   try {
     setStatus('CHECKING', 'جارٍ تسجيل الدخول عبر المتصفح...');
     const { email } = await runAuthFlow(dataDir, creds);
-    saveMetadata(dataDir, appendLog(loadMetadata(dataDir), { action: 'AUTH', result: 'SUCCESS', message: `تم تسجيل الدخول: ${email}` }));
+    saveMetadata(dataDir, appendLog(dataDir, loadMetadata(dataDir), { action: 'AUTH', result: 'SUCCESS', message: `تم تسجيل الدخول: ${email}` }));
     setStatus('READY');
     return { ok: true, email };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    saveMetadata(dataDir, appendLog(loadMetadata(dataDir), { action: 'AUTH', result: 'FAILED', message }));
+    saveMetadata(dataDir, appendLog(dataDir, loadMetadata(dataDir), { action: 'AUTH', result: 'FAILED', message }));
     setStatus('FAILED', message);
     return { ok: false, error: message };
   }
@@ -180,20 +204,71 @@ export async function authenticate(dataDir: string): Promise<{ ok: boolean; emai
 export async function disconnect(dataDir: string): Promise<{ ok: boolean }> {
   const creds = loadClientCredentials(dataDir);
   await revokeAuth(dataDir, creds);
-  saveMetadata(dataDir, appendLog(loadMetadata(dataDir), { action: 'DISCONNECT', result: 'SUCCESS', message: 'تم فصل الحساب' }));
+  saveMetadata(dataDir, appendLog(dataDir, loadMetadata(dataDir), { action: 'DISCONNECT', result: 'SUCCESS', message: 'تم فصل الحساب' }));
   setStatus('READY');
   return { ok: true };
 }
 
-// ─── قرار الاتجاه ───────────────────────────────────────────────────────────
+// ─── قرار الاتجاه وكشف التعارض ────────────────────────────────────────────────
 
-type SyncAction = 'UPLOAD' | 'DOWNLOAD' | 'NONE';
+type SyncAction = 'UPLOAD' | 'DOWNLOAD' | 'NONE' | 'CONFLICT';
+
+export interface DatabaseVersionInfo {
+  sha256: string;
+  sizeBytes: number;
+  modifiedAt: string;
+  deviceId: string | null;
+  deviceName: string | null;
+}
+
+export interface SyncConflict {
+  local: DatabaseVersionInfo;
+  remote: DatabaseVersionInfo;
+  /** أي نسخة أحدث حسب وقت التعديل — تلميح عرض فقط، لا يُقرِّر شيئًا تلقائيًا. */
+  recommendation: 'LOCAL' | 'REMOTE' | 'UNKNOWN';
+}
 
 interface SyncDecision {
   action: SyncAction;
   reason: string;
+  conflict?: SyncConflict;
 }
 
+function buildConflict(
+  dataDir: string,
+  dbPath: string,
+  localHash: string,
+  remote: { sha256: string | null; modifiedTime: string; size: number; deviceId: string | null; deviceName: string | null },
+): SyncConflict {
+  const stat = fs.statSync(dbPath);
+  const device = getOrCreateDeviceIdentity(dataDir);
+
+  const local: DatabaseVersionInfo = {
+    sha256: localHash,
+    sizeBytes: stat.size,
+    modifiedAt: stat.mtime.toISOString(),
+    deviceId: device.deviceId,
+    deviceName: device.deviceName,
+  };
+  const remoteInfo: DatabaseVersionInfo = {
+    sha256: remote.sha256 ?? '',
+    sizeBytes: remote.size,
+    modifiedAt: remote.modifiedTime,
+    deviceId: remote.deviceId,
+    deviceName: remote.deviceName,
+  };
+
+  const localTime = new Date(local.modifiedAt).getTime();
+  const remoteTime = new Date(remoteInfo.modifiedAt).getTime();
+  let recommendation: SyncConflict['recommendation'] = 'UNKNOWN';
+  if (Number.isFinite(localTime) && Number.isFinite(remoteTime) && localTime !== remoteTime) {
+    recommendation = localTime > remoteTime ? 'LOCAL' : 'REMOTE';
+  }
+
+  return { local, remote: remoteInfo, recommendation };
+}
+
+/** القرار الأساسي — قراءة فقط، بلا تسجيل. يُستدعى من كل تدفّقات المزامنة الفعلية ومن الفحص السلبي للواجهة. */
 async function decide(client: OAuth2Client, dbPath: string, dataDir: string): Promise<SyncDecision> {
   const metadata = loadMetadata(dataDir);
   const dbExists = fs.existsSync(dbPath);
@@ -216,16 +291,48 @@ async function decide(client: OAuth2Client, dbPath: string, dataDir: string): Pr
   const localChanged = localHash !== null && localHash !== metadata.lastSyncedHash;
 
   if (remoteChanged && localChanged) {
-    return { action: 'NONE', reason: 'تعارض: تغييرات محلية وسحابية معًا — استخدم الرفع أو التنزيل اليدوي لاختيار النسخة' };
+    const reason = 'تعارض: توجد تغييرات محلية وتغييرات على Google Drive منذ آخر مزامنة';
+    return { action: 'CONFLICT', reason, conflict: buildConflict(dataDir, dbPath, localHash as string, remote) };
   }
   if (remoteChanged) return { action: 'DOWNLOAD', reason: 'توجد نسخة أحدث على Google Drive' };
   if (localChanged) return { action: 'UPLOAD', reason: 'توجد تغييرات محلية غير مرفوعة' };
   return { action: 'NONE', reason: 'محدّث بالفعل' };
 }
 
+/**
+ * فحص سلبي للتعارض — بلا تسجيل، للاستخدام من الواجهة عند فتح صفحة المزامنة
+ * (لعرض حوار الحل استباقيًا) دون انتظار ضغط المستخدم على "مزامنة الآن".
+ * يُحدِّث حالة العرض الحيّة عند وجود تعارض حتى تعكسها شارة الحالة فورًا.
+ */
+export async function checkForConflict(dbPath: string, dataDir: string): Promise<SyncConflict | null> {
+  const creds = loadClientCredentials(dataDir);
+  if (!creds || !isAuthenticated(dataDir)) return null;
+
+  try {
+    const client = createOAuthClient(dataDir, creds);
+    const decision = await decide(client, dbPath, dataDir);
+    if (decision.action === 'CONFLICT' && decision.conflict) {
+      setStatus('CONFLICT', decision.reason);
+      return decision.conflict;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── رفع ────────────────────────────────────────────────────────────────────
 
-export async function performUpload(dbPath: string, dataDir: string): Promise<{ ok: boolean; error?: string }> {
+interface ActionOptions {
+  /** يُوسَم به إدخال السجلّ عند كون هذا الرفع/التنزيل ناتجًا عن حلّ تعارض صريح. */
+  resolvesConflict?: boolean;
+}
+
+export async function performUpload(
+  dbPath: string,
+  dataDir: string,
+  opts: ActionOptions = {},
+): Promise<{ ok: boolean; error?: string }> {
   if (!fs.existsSync(dbPath)) return { ok: false, error: 'ملف قاعدة البيانات المحلي غير موجود' };
 
   // نسخة مؤقتة "آمنة للقراءة" — لا يُرفع مطلقًا الملف الحيّ نفسه، بل لقطة مجمّدة
@@ -251,19 +358,40 @@ export async function performUpload(dbPath: string, dataDir: string): Promise<{ 
 
     const { client } = requireClient(dataDir);
     const hash = await sha256File(snapshotPath);
+    const device = getOrCreateDeviceIdentity(dataDir);
     const retryOpts = driveRetryOptions(dataDir, 'UPLOAD');
     const remote = await withRetry(() => findRemoteSyncFile(client), retryOpts);
+    const version = (remote?.version ?? 0) + 1;
 
     setStatus('UPLOADING', 'جارٍ رفع قاعدة البيانات إلى Google Drive...');
     const uploaded = await withRetry(
-      () => uploadDatabase(client, snapshotPath, { fileId: remote?.id ?? null, sha256: hash }),
+      () => uploadDatabase(client, snapshotPath, {
+        fileId: remote?.id ?? null,
+        sha256: hash,
+        version,
+        deviceId: device.deviceId,
+        deviceName: device.deviceName,
+      }),
       retryOpts,
     );
 
     const now = new Date().toISOString();
     let metadata = loadMetadata(dataDir);
-    metadata = { ...metadata, lastSyncedHash: hash, lastSyncedFileId: uploaded.id, lastUploadAt: now, lastSyncAt: now, lastError: null };
-    metadata = appendLog(metadata, { action: 'UPLOAD', result: 'SUCCESS', message: `تم الرفع (${hash.slice(0, 8)}…)` });
+    metadata = {
+      ...metadata,
+      lastSyncedHash: hash,
+      lastSyncedFileId: uploaded.id,
+      lastSyncedVersion: uploaded.version,
+      lastUploadAt: now,
+      lastSyncAt: now,
+      lastError: null,
+    };
+    metadata = appendLog(dataDir, metadata, {
+      action: 'UPLOAD',
+      result: 'SUCCESS',
+      message: `تم الرفع (${hash.slice(0, 8)}…)`,
+      ...(opts.resolvesConflict ? { conflictResolved: true, resolutionSelected: 'LOCAL' as const } : {}),
+    });
     saveMetadata(dataDir, metadata);
     setStatus('COMPLETED');
     return { ok: true };
@@ -272,7 +400,12 @@ export async function performUpload(dbPath: string, dataDir: string): Promise<{ 
     const message = err instanceof Error ? err.message : String(err);
     let metadata = loadMetadata(dataDir);
     metadata = { ...metadata, lastError: message };
-    metadata = appendLog(metadata, { action: 'UPLOAD', result: 'FAILED', message });
+    metadata = appendLog(dataDir, metadata, {
+      action: 'UPLOAD',
+      result: 'FAILED',
+      message,
+      ...(opts.resolvesConflict ? { conflictResolved: true, resolutionSelected: 'LOCAL' as const } : {}),
+    });
     saveMetadata(dataDir, metadata);
     setStatus('FAILED', message);
     return { ok: false, error: message };
@@ -286,6 +419,7 @@ export async function performUpload(dbPath: string, dataDir: string): Promise<{ 
 export async function performDownload(
   dbPath: string,
   dataDir: string,
+  opts: ActionOptions = {},
 ): Promise<{ ok: boolean; error?: string; requiresRestart?: boolean }> {
   const tempPath = path.join(dataDir, `sync-tmp-download-${Date.now()}.db`);
   const preSyncDir = path.join(dataDir, 'backups', 'pre-sync');
@@ -323,8 +457,21 @@ export async function performDownload(
 
     const now = new Date().toISOString();
     let metadata = loadMetadata(dataDir);
-    metadata = { ...metadata, lastSyncedHash: downloadedHash, lastSyncedFileId: remote.id, lastDownloadAt: now, lastSyncAt: now, lastError: null };
-    metadata = appendLog(metadata, { action: 'DOWNLOAD', result: 'SUCCESS', message: `تم التنزيل والاستبدال (${downloadedHash.slice(0, 8)}…)` });
+    metadata = {
+      ...metadata,
+      lastSyncedHash: downloadedHash,
+      lastSyncedFileId: remote.id,
+      lastSyncedVersion: remote.version,
+      lastDownloadAt: now,
+      lastSyncAt: now,
+      lastError: null,
+    };
+    metadata = appendLog(dataDir, metadata, {
+      action: 'DOWNLOAD',
+      result: 'SUCCESS',
+      message: `تم التنزيل والاستبدال (${downloadedHash.slice(0, 8)}…)`,
+      ...(opts.resolvesConflict ? { conflictResolved: true, resolutionSelected: 'REMOTE' as const } : {}),
+    });
     saveMetadata(dataDir, metadata);
     setStatus('COMPLETED');
     return { ok: true, requiresRestart: true };
@@ -341,11 +488,31 @@ export async function performDownload(
 
     let metadata = loadMetadata(dataDir);
     metadata = { ...metadata, lastError: message };
-    metadata = appendLog(metadata, { action: 'DOWNLOAD', result: 'FAILED', message });
+    metadata = appendLog(dataDir, metadata, {
+      action: 'DOWNLOAD',
+      result: 'FAILED',
+      message,
+      ...(opts.resolvesConflict ? { conflictResolved: true, resolutionSelected: 'REMOTE' as const } : {}),
+    });
     saveMetadata(dataDir, metadata);
     setStatus('FAILED', message);
     return { ok: false, error: message };
   }
+}
+
+// ─── حلّ التعارض ────────────────────────────────────────────────────────────
+
+/**
+ * ينفّذ اختيار المستخدم الصريح في حوار حلّ التعارض. "الإلغاء" لا يستدعي هذه
+ * الدالة أبدًا — يُغلق الحوار في الواجهة فقط، ولا يُغيَّر أي من النسختين.
+ */
+export async function resolveConflict(
+  choice: 'LOCAL' | 'REMOTE',
+  dbPath: string,
+  dataDir: string,
+): Promise<{ ok: boolean; error?: string; requiresRestart?: boolean }> {
+  if (choice === 'LOCAL') return performUpload(dbPath, dataDir, { resolvesConflict: true });
+  return performDownload(dbPath, dataDir, { resolvesConflict: true });
 }
 
 // ─── مزامنة يدوية كاملة ("مزامنة الآن") ──────────────────────────────────────
@@ -353,7 +520,7 @@ export async function performDownload(
 export async function performSyncNow(
   dbPath: string,
   dataDir: string,
-): Promise<{ ok: boolean; action: SyncAction; error?: string; requiresRestart?: boolean }> {
+): Promise<{ ok: boolean; action: SyncAction; error?: string; requiresRestart?: boolean; conflict?: SyncConflict }> {
   try {
     const { client } = requireClient(dataDir);
 
@@ -365,6 +532,12 @@ export async function performSyncNow(
     }
 
     const decision = await decide(client, dbPath, dataDir);
+
+    if (decision.action === 'CONFLICT') {
+      setStatus('CONFLICT', decision.reason);
+      saveMetadata(dataDir, appendLog(dataDir, loadMetadata(dataDir), { action: 'CONFLICT', result: 'SKIPPED', message: decision.reason }));
+      return { ok: false, action: 'CONFLICT', error: decision.reason, conflict: decision.conflict };
+    }
     if (decision.action === 'DOWNLOAD') {
       const result = await performDownload(dbPath, dataDir);
       return { ok: result.ok, action: 'DOWNLOAD', error: result.error, requiresRestart: result.requiresRestart };
@@ -385,7 +558,7 @@ export async function performSyncNow(
 
 // ─── مزامنة تلقائية عند بدء التشغيل / الإغلاق ─────────────────────────────────
 
-/** مزامنة بدء التشغيل — تُنزّل نسخة أحدث إن وُجدت فقط. لا تُعطّل بدء التطبيق أبدًا. */
+/** مزامنة بدء التشغيل — تُنزّل نسخة أحدث إن وُجدت فقط. لا تُعطّل بدء التطبيق أبدًا. عند تعارض: تُسجّله وتتوقف. */
 export async function performStartupSync(dbPath: string, dataDir: string): Promise<void> {
   try {
     const creds = loadClientCredentials(dataDir);
@@ -403,6 +576,11 @@ export async function performStartupSync(dbPath: string, dataDir: string): Promi
       reason: 'انتهت مهلة الفحص',
     });
 
+    if (decision.action === 'CONFLICT') {
+      setStatus('CONFLICT', decision.reason);
+      saveMetadata(dataDir, appendLog(dataDir, loadMetadata(dataDir), { action: 'CONFLICT', result: 'SKIPPED', message: decision.reason }));
+      return;
+    }
     if (decision.action === 'DOWNLOAD') {
       await withTimeout(performDownload(dbPath, dataDir), STARTUP_TIMEOUT_MS, { ok: false, error: 'انتهت المهلة' });
     } else {
@@ -414,7 +592,7 @@ export async function performStartupSync(dbPath: string, dataDir: string): Promi
   }
 }
 
-/** مزامنة الإغلاق — ترفع فقط عند وجود تغييرات محلية. تُستدعى بعد إيقاف الخادم الخلفي. */
+/** مزامنة الإغلاق — ترفع فقط عند وجود تغييرات محلية. تُستدعى بعد إيقاف الخادم الخلفي. عند تعارض: تُسجّله وتتوقف. */
 export async function performShutdownSync(dbPath: string, dataDir: string): Promise<void> {
   try {
     const creds = loadClientCredentials(dataDir);
@@ -430,6 +608,11 @@ export async function performShutdownSync(dbPath: string, dataDir: string): Prom
       reason: 'انتهت مهلة الفحص',
     });
 
+    if (decision.action === 'CONFLICT') {
+      setStatus('CONFLICT', decision.reason);
+      saveMetadata(dataDir, appendLog(dataDir, loadMetadata(dataDir), { action: 'CONFLICT', result: 'SKIPPED', message: decision.reason }));
+      return;
+    }
     if (decision.action === 'UPLOAD') {
       await withTimeout(performUpload(dbPath, dataDir), SHUTDOWN_TIMEOUT_MS, { ok: false, error: 'انتهت المهلة' });
     }
