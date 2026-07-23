@@ -35,16 +35,23 @@ function makeContract(override = {}) {
   };
 }
 
-function makeInvoice(override = {}) {
-  return {
+function makeInvoice(override: Record<string, any> = {}) {
+  const merged: Record<string, any> = {
     id: 1,
     total: 10000,
     paidAmount: 0,
     issueDate: new Date('2026-03-15'),
     status: 'UNPAID',
-    payments: [],
     ...override,
   };
+  // التحصيل صار من الدفعات (تعريف المحرك الوحيد) لا من لقطة paidAmount. حين لا تُمرَّر
+  // دفعات صراحةً، تُشتَقّ من paidAmount حفاظًا على نيّة الاختبار الأصلية بلا تغيير القيم.
+  if (override.payments === undefined) {
+    merged.payments = merged.paidAmount > 0
+      ? [{ id: 1, amount: merged.paidAmount, date: merged.issueDate }]
+      : [];
+  }
+  return merged;
 }
 
 function makeExpense(override = {}) {

@@ -2,7 +2,15 @@ import { prisma } from '../../config/database';
 import { roundMoney } from '../../shared/utils/money';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 import { ytdMonths } from '../../core/utils/dateWindows';
-import { getOperationalSummary, getMonthlyOperationalProfitAndLoss } from '../../shared/services/operational.reporting';
+import {
+  getOperationalSummary,
+  getMonthlyOperationalProfitAndLoss,
+  getRevenue,
+  getExpenses,
+  getCollections,
+  EXPENSE_OPERATIONAL_STATUS,
+  SALES_INVOICE_ACTIVE,
+} from '../../shared/services/operational.reporting';
 
 /** تجميع بيانات لوحة التحكم الرئيسية في استعلام واحد. */
 export class DashboardService {
@@ -20,6 +28,7 @@ export class DashboardService {
       equipmentTotal,
       equipmentNotWorking,
       dueInvoices,
+      duePayments,
       pl,
       plMonth,
     ] = await Promise.all([
@@ -33,8 +42,13 @@ export class DashboardService {
       prisma.equipment.count({ where: { status: 'NOT_WORKING' } }),
       prisma.invoice.aggregate({
         where: { direction: 'SALES', status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
-        _sum: { total: true, paidAmount: true },
+        _sum: { total: true },
         _count: { _all: true },
+      }),
+      // المتبقّي = الإجمالي − Σ الدفعات على نفس الفواتير (تعريف المحرك)، لا لقطة paidAmount.
+      prisma.payment.aggregate({
+        where: { invoice: { direction: 'SALES', status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } } },
+        _sum: { amount: true },
       }),
       // السياسة الرسمية (Operational Reporting Migration — الحزمة 3): الإيراد/المصروف/
       // الربح من محرك التقارير التشغيلية (Invoice/Expense المعتمد)، لا الأستاذ العام.
@@ -44,7 +58,7 @@ export class DashboardService {
 
     const totalRevenue = pl.revenue;
     const totalExpense = pl.expenses;
-    const dueTotal = (dueInvoices._sum.total ?? 0) - (dueInvoices._sum.paidAmount ?? 0);
+    const dueTotal = roundMoney((dueInvoices._sum.total ?? 0) - (duePayments._sum.amount ?? 0));
 
     return {
       contracts: {
@@ -111,7 +125,7 @@ export class DashboardService {
         prisma.invoice.count({ where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } } }),
         prisma.invoice.aggregate({
           where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
-          _sum: { total: true, paidAmount: true },
+          _sum: { total: true },
         }),
         prisma.expense.aggregate({ where: { status: 'APPROVED' }, _count: { _all: true }, _sum: { amount: true } }),
         prisma.employee.count(),
@@ -176,7 +190,12 @@ export class DashboardService {
 
     const totalRevenue  = pl.revenue;
     const totalExpense  = pl.expenses;
-    const unpaidAmount  = (invoicesUnpaidAgg._sum.total ?? 0) - (invoicesUnpaidAgg._sum.paidAmount ?? 0);
+    // المتبقّي = الإجمالي − Σ الدفعات على نفس الفواتير (تعريف المحرك)، لا لقطة paidAmount.
+    const unpaidPaymentsAgg = await prisma.payment.aggregate({
+      where: { invoice: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } } },
+      _sum: { amount: true },
+    });
+    const unpaidAmount  = roundMoney((invoicesUnpaidAgg._sum.total ?? 0) - (unpaidPaymentsAgg._sum.amount ?? 0));
 
     return {
       kpis: {
@@ -217,37 +236,35 @@ export class DashboardService {
     const months = ytdMonths(now);
 
     const [
-      collectionsThisMonthAgg,
-      expensesThisMonthAgg,
+      collectionsThisMonth,
+      expensesThisMonth,
       outstandingInvoices,
       invByContract,
       expByContract,
       activeContracts,
-      collectionTrendRaw,
+      collectionTrend,
     ] = await Promise.all([
-      prisma.payment.aggregate({
-        where: { date: { gte: monthStart }, invoice: { direction: 'SALES', status: { not: 'CANCELLED' } } },
-        _sum: { amount: true },
-      }),
-      prisma.expense.aggregate({
-        where: { status: 'APPROVED', date: { gte: monthStart } },
-        _sum: { amount: true },
-      }),
+      // التحصيل/المصروف الشهري من المحرك حصريًا — تعريف واحد.
+      getCollections({ from: monthStart }),
+      getExpenses({ from: monthStart }),
+      // الذمم = Invoice − Σ Payment (تعريف المحرك)، لا لقطة paidAmount. تُجلب الدفعات لكل
+      // فاتورة ويُطرح مجموعها من الإجمالي أدناه.
       prisma.invoice.findMany({
         where: { direction: 'SALES', status: { notIn: ['PAID', 'CANCELLED'] }, customerId: { not: null } },
         select: {
-          customerId: true, total: true, paidAmount: true, issueDate: true,
+          customerId: true, total: true, issueDate: true,
+          payments: { select: { amount: true } },
           customer: { select: { id: true, name: true } },
         },
       }),
       prisma.invoice.groupBy({
         by: ['contractId'],
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, contractId: { not: null } },
+        where: { ...SALES_INVOICE_ACTIVE, contractId: { not: null } },
         _sum: { total: true },
       }),
       prisma.expense.groupBy({
         by: ['contractId'],
-        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, contractId: { not: null } },
+        where: { status: EXPENSE_OPERATIONAL_STATUS, contractId: { not: null } },
         _sum: { amount: true },
       }),
       prisma.contract.findMany({
@@ -256,17 +273,12 @@ export class DashboardService {
         orderBy: { id: 'desc' },
         select: { id: true, code: true, asphaltPlant: true },
       }),
+      // اتجاه التحصيل الشهري من المحرك (تعريف واحد، يستبعد الفواتير الملغاة).
       Promise.all(
-        months.map(async (m) => {
-          const agg = await prisma.payment.aggregate({
-            where: {
-              date: { gte: m.start, lte: m.end },
-              invoice: { direction: 'SALES', status: { not: 'CANCELLED' } },
-            },
-            _sum: { amount: true },
-          });
-          return { label: m.label, collected: roundMoney(n(agg._sum.amount)) };
-        }),
+        months.map(async (m) => ({
+          label: m.label,
+          collected: await getCollections({ from: m.start, to: m.end }),
+        })),
       ),
     ]);
 
@@ -274,7 +286,9 @@ export class DashboardService {
     const debtorMap = new Map<number, { name: string; outstanding: number }>();
     for (const inv of outstandingInvoices) {
       if (!inv.customerId || !inv.customer) continue;
-      const outstanding = Math.max(0, n(inv.total) - n(inv.paidAmount));
+      // الذمم = الإجمالي − Σ الدفعات (تعريف المحرك)، لا paidAmount المخزَّن.
+      const paid = inv.payments.reduce((s, p) => s + n(p.amount), 0);
+      const outstanding = Math.max(0, n(inv.total) - paid);
       if (outstanding <= 0) continue;
       const entry = debtorMap.get(inv.customerId) ?? { name: inv.customer.name, outstanding: 0 };
       entry.outstanding = roundMoney(entry.outstanding + outstanding);
@@ -288,7 +302,8 @@ export class DashboardService {
     // ── Aging Summary ──────────────────────────────────────────────────────────
     let b0_30 = 0, b31_60 = 0, b61_90 = 0, b90plus = 0;
     for (const inv of outstandingInvoices) {
-      const outstanding = Math.max(0, n(inv.total) - n(inv.paidAmount));
+      const paid = inv.payments.reduce((s, p) => s + n(p.amount), 0);
+      const outstanding = Math.max(0, n(inv.total) - paid);
       if (outstanding <= 0) continue;
       const days = Math.floor((now.getTime() - new Date(inv.issueDate).getTime()) / 86_400_000);
       if (days <= 30)      b0_30   += outstanding;
@@ -332,11 +347,11 @@ export class DashboardService {
     }
 
     return {
-      collectionsThisMonth:   roundMoney(n(collectionsThisMonthAgg._sum.amount)),
-      expensesThisMonth:      roundMoney(n(expensesThisMonthAgg._sum.amount)),
+      collectionsThisMonth,
+      expensesThisMonth,
       topDebtors,
       agingSummary,
-      collectionTrend:        collectionTrendRaw,
+      collectionTrend,
       topProfitableContracts,
       lowestProfitContracts,
       financialAlerts,
@@ -362,15 +377,21 @@ export class DashboardService {
       prisma.invoice.aggregate({
         where: { direction: 'SALES', status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
         _count: { _all: true },
-        _sum: { total: true, paidAmount: true },
+        _sum: { total: true },
       }),
       prisma.projectPrice.count({
         where: { isArchived: false, validUntil: { gte: now, lte: in30Days } },
       }),
     ]);
 
-    const outstandingTotal =
-      (outstandingInvoicesAgg._sum.total ?? 0) - (outstandingInvoicesAgg._sum.paidAmount ?? 0);
+    // المتبقّي = الإجمالي − Σ الدفعات على نفس الفواتير (تعريف المحرك)، لا لقطة paidAmount.
+    const outstandingPaymentsAgg = await prisma.payment.aggregate({
+      where: { invoice: { direction: 'SALES', status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } } },
+      _sum: { amount: true },
+    });
+    const outstandingTotal = roundMoney(
+      (outstandingInvoicesAgg._sum.total ?? 0) - (outstandingPaymentsAgg._sum.amount ?? 0),
+    );
 
     return {
       pendingExpensesCount: pendingExpensesAgg._count._all,
@@ -392,30 +413,19 @@ export class DashboardService {
   private async monthlyTrendYTD(
     months: { label: string; start: Date; end: Date }[],
   ): Promise<{ month: string; revenue: number; expenses: number; collections: number; profit: number }[]> {
-    const n = (v: unknown) => Number(v ?? 0);
-
-    return Promise.all(
-      months.map(async (m) => {
-        const [revAgg, expAgg, colAgg] = await Promise.all([
-          prisma.invoice.aggregate({
-            where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: m.start, lte: m.end } },
-            _sum: { total: true },
-          }),
-          prisma.expense.aggregate({
-            where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, date: { gte: m.start, lte: m.end } },
-            _sum: { amount: true },
-          }),
-          prisma.payment.aggregate({
-            where: { date: { gte: m.start, lte: m.end }, invoice: { direction: 'SALES' } },
-            _sum: { amount: true },
-          }),
-        ]);
-        const revenue = roundMoney(n(revAgg._sum.total));
-        const expenses = roundMoney(n(expAgg._sum.amount));
-        const collections = roundMoney(n(colAgg._sum.amount));
-        return { month: m.label, revenue, expenses, collections, profit: roundMoney(revenue - expenses) };
-      }),
-    );
+    // الإيراد/المصروف/الربح الشهري من محرك التقارير التشغيلية (تعريف واحد)، والتحصيل من
+    // getCollections (يستبعد الفواتير الملغاة). لا فلتر مصروف قديم (notIn) ولا تحصيل بلا استبعاد.
+    const [pl, collectionsByMonth] = await Promise.all([
+      getMonthlyOperationalProfitAndLoss(months),
+      Promise.all(months.map((m) => getCollections({ from: m.start, to: m.end }))),
+    ]);
+    return months.map((m, i) => ({
+      month: m.label,
+      revenue: pl[i].revenue,
+      expenses: pl[i].expense,
+      collections: collectionsByMonth[i],
+      profit: pl[i].net,
+    }));
   }
 
   /**
@@ -446,12 +456,13 @@ export class DashboardService {
       expByContract,
       outstandingInvoices,
       monthlyTrends,
-      thisMonthRevAgg,
-      lastMonthRevAgg,
-      thisMonthExpAgg,
-      lastMonthExpAgg,
-      thisMonthColAgg,
-      lastMonthColAgg,
+      thisMonthRev,
+      lastMonthRev,
+      thisMonthExp,
+      lastMonthExp,
+      thisMonthCol,
+      lastMonthCol,
+      contractPayments,
       recentActivity,
     ] = await Promise.all([
       // كل العقود النشطة — بلا take. تغذّي إحصاءات العقود وصحّتها وتنبيهات الخسارة،
@@ -460,51 +471,41 @@ export class DashboardService {
         where: { status: 'ACTIVE' }, orderBy: { id: 'desc' },
         select: { id: true, code: true, asphaltPlant: true, startDate: true, customer: { select: { id: true, name: true } } },
       }),
+      // الإيراد حسب العقد فقط؛ التحصيل من الدفعات (contractPayments) لا من paidAmount.
       prisma.invoice.groupBy({
         by: ['contractId'],
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, contractId: { not: null } },
-        _sum: { total: true, paidAmount: true },
+        where: { ...SALES_INVOICE_ACTIVE, contractId: { not: null } },
+        _sum: { total: true },
       }),
       prisma.expense.groupBy({
         by: ['contractId'],
-        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, contractId: { not: null } },
+        where: { status: EXPENSE_OPERATIONAL_STATUS, contractId: { not: null } },
         _sum: { amount: true },
       }),
-      // الذمم المفتوحة كاملةً — بلا take. مجموعة عاملة محدودة (الفواتير تُسدَّد وتغادرها)،
-      // والاقتطاع كان يُنقص المدينين والأعمار والتوقّع. orderBy حتمي للثبات.
+      // الذمم المفتوحة كاملةً — بلا take. الذمم = الإجمالي − Σ الدفعات (تعريف المحرك)،
+      // فتُجلب دفعات كل فاتورة بدل قراءة لقطة paidAmount. orderBy حتمي للثبات.
       prisma.invoice.findMany({
         where: { direction: 'SALES', status: { notIn: ['PAID', 'CANCELLED'] }, customerId: { not: null } },
         orderBy: [{ issueDate: 'asc' }, { id: 'asc' }],
         select: {
-          customerId: true, total: true, paidAmount: true, issueDate: true, dueDate: true,
-          contractId: true, customer: { select: { id: true, name: true } },
+          customerId: true, total: true, issueDate: true, dueDate: true,
+          contractId: true, payments: { select: { amount: true } },
+          customer: { select: { id: true, name: true } },
         },
       }),
       // الاتجاه الشهري يُحسب في قاعدة البيانات (aggregate لكل شهر) لا بجلب صفوف مقتطعة.
       this.monthlyTrendYTD(months),
-      prisma.invoice.aggregate({
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: thisMonthStart } },
-        _sum: { total: true },
-      }),
-      prisma.invoice.aggregate({
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, issueDate: { gte: lastMonthStart, lte: lastMonthEnd } },
-        _sum: { total: true },
-      }),
-      prisma.expense.aggregate({
-        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, date: { gte: thisMonthStart } },
-        _sum: { amount: true },
-      }),
-      prisma.expense.aggregate({
-        where: { status: { notIn: ['REJECTED', 'CANCELLED'] }, date: { gte: lastMonthStart, lte: lastMonthEnd } },
-        _sum: { amount: true },
-      }),
-      prisma.payment.aggregate({
-        where: { date: { gte: thisMonthStart }, invoice: { direction: 'SALES' } },
-        _sum: { amount: true },
-      }),
-      prisma.payment.aggregate({
-        where: { date: { gte: lastMonthStart, lte: lastMonthEnd }, invoice: { direction: 'SALES' } },
-        _sum: { amount: true },
+      // مقارنات الشهر من المحرك حصريًا — تعريف واحد للإيراد/المصروف/التحصيل.
+      getRevenue({ from: thisMonthStart }),
+      getRevenue({ from: lastMonthStart, to: lastMonthEnd }),
+      getExpenses({ from: thisMonthStart }),
+      getExpenses({ from: lastMonthStart, to: lastMonthEnd }),
+      getCollections({ from: thisMonthStart }),
+      getCollections({ from: lastMonthStart, to: lastMonthEnd }),
+      // التحصيل حسب العقد (كل التاريخ) — Σ Payment على فواتير مبيعات فعّالة؛ يُجمَّع في الذاكرة.
+      prisma.payment.findMany({
+        where: { invoice: { ...SALES_INVOICE_ACTIVE, contractId: { not: null } } },
+        select: { amount: true, invoice: { select: { contractId: true } } },
       }),
       // مجموعة عضوية تزيينية فقط (`recentSet.has(id)` → علم "نشاط حديث") — غير مالية،
       // لا تدخل أي KPI. الحد مقبول هنا: 500 عقد نشط خلال 90 يومًا يفوق أي واقع تشغيلي،
@@ -522,15 +523,21 @@ export class DashboardService {
     ]);
 
     // ── Contract stats ─────────────────────────────────────────────────────
-    const invMap = new Map(invByContract.map(r => [r.contractId as number, { total: n(r._sum.total), paid: n(r._sum.paidAmount) }]));
+    const invMap = new Map(invByContract.map(r => [r.contractId as number, n(r._sum.total)]));
     const expMap = new Map(expByContract.map(r => [r.contractId as number, n(r._sum.amount)]));
+    // التحصيل حسب العقد من الدفعات (تعريف واحد) لا من لقطة paidAmount.
+    const colByContract = new Map<number, number>();
+    for (const p of contractPayments) {
+      const cid = p.invoice.contractId;
+      if (cid == null) continue;
+      colByContract.set(cid, (colByContract.get(cid) ?? 0) + n(p.amount));
+    }
     const recentSet = new Set(recentActivity.map(r => r.contractId as number));
 
     const contractStats = activeContracts.map(c => {
-      const inv = invMap.get(c.id) ?? { total: 0, paid: 0 };
       const exp = expMap.get(c.id) ?? 0;
-      const revenue    = roundMoney(inv.total);
-      const collected  = roundMoney(inv.paid);
+      const revenue    = roundMoney(invMap.get(c.id) ?? 0);
+      const collected  = roundMoney(colByContract.get(c.id) ?? 0);
       const expenses   = roundMoney(exp);
       const outstanding = roundMoney(Math.max(0, revenue - collected));
       const profit     = roundMoney(revenue - expenses);
@@ -554,7 +561,7 @@ export class DashboardService {
     const debtorMap = new Map<number, { name: string; outstanding: number; oldestDays: number }>();
     for (const inv of outstandingInvoices) {
       if (!inv.customerId || !inv.customer) continue;
-      const os = Math.max(0, n(inv.total) - n(inv.paidAmount));
+      const os = Math.max(0, n(inv.total) - inv.payments.reduce((s, p) => s + n(p.amount), 0));
       if (os <= 0) continue;
       const days = Math.floor((now.getTime() - new Date(inv.issueDate).getTime()) / 86_400_000);
       const e = debtorMap.get(inv.customerId) ?? { name: inv.customer.name, outstanding: 0, oldestDays: 0 };
@@ -649,7 +656,7 @@ export class DashboardService {
     // تدفّق نقدي قاعدي معتاد)، وإلا لظلّ التوقّع صفرًا لأي محفظة ذمم متأخّرة بالكامل.
     let exp30 = 0, exp60 = 0, exp90 = 0;
     for (const inv of outstandingInvoices) {
-      const os = Math.max(0, n(inv.total) - n(inv.paidAmount));
+      const os = Math.max(0, n(inv.total) - inv.payments.reduce((s, p) => s + n(p.amount), 0));
       if (os <= 0) continue;
       // Use dueDate if set; fallback: issueDate + 30 day default payment term
       const refDate = inv.dueDate
@@ -661,12 +668,13 @@ export class DashboardService {
       // > 90 يومًا: خارج نطاق التوقّع (المرحلة 1)
     }
 
-    const thisCol  = n(thisMonthColAgg._sum.amount);
-    const thisExp  = n(thisMonthExpAgg._sum.amount);
-    const thisRev  = n(thisMonthRevAgg._sum.total);
-    const lastCol  = n(lastMonthColAgg._sum.amount);
-    const lastExp  = n(lastMonthExpAgg._sum.amount);
-    const lastRev  = n(lastMonthRevAgg._sum.total);
+    // قيمٌ مفردة جاهزة من المحرك (مقرَّبة سلفًا) — تعريف واحد للإيراد/المصروف/التحصيل.
+    const thisCol  = thisMonthCol;
+    const thisExp  = thisMonthExp;
+    const thisRev  = thisMonthRev;
+    const lastCol  = lastMonthCol;
+    const lastExp  = lastMonthExp;
+    const lastRev  = lastMonthRev;
     const totalOs  = roundMoney(exp30 + exp60 + exp90);
 
     let riskScore = 0;

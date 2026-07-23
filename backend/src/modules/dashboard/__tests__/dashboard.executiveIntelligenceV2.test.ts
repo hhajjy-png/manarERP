@@ -23,6 +23,8 @@ const emptyRevAgg  = () => ({ _sum: { total: null } });
 const emptyAmtAgg  = () => ({ _sum: { amount: null } });
 const daysAgo    = (d: number) => new Date(Date.now() - d * 86_400_000);
 const daysFromNow = (d: number) => new Date(Date.now() + d * 86_400_000);
+// الذمم = الإجمالي − Σ الدفعات (تعريف المحرك). تُشتَقّ الدفعات من paidAmount حفاظًا على نيّة الاختبار.
+const withPay = (inv: any) => ({ ...inv, payments: inv.paidAmount > 0 ? [{ amount: inv.paidAmount }] : [] });
 
 function setupDefaults() {
   mp.contract.findMany.mockResolvedValue([]);
@@ -84,7 +86,7 @@ describe('executiveIntelligenceV2', () => {
       .mockResolvedValueOnce([
         { customerId: 1, total: 5000, paidAmount: 0, issueDate: daysAgo(10), contractId: null,
           customer: { id: 1, name: 'أ' } }, // unpaid → included
-      ])
+      ].map(withPay))
       // trendInvoices — empty (cancelled invoices already excluded by query filter)
       .mockResolvedValueOnce([])
       // recentActivity — empty
@@ -101,7 +103,7 @@ describe('executiveIntelligenceV2', () => {
   it('top debtors alert limited to 5 and sorted by outstanding desc', async () => {
     // 7 unique customers with varying outstanding amounts
     const makeInv = (cid: number, name: string, total: number, daysOld: number) => ({
-      customerId: cid, total, paidAmount: 0, issueDate: daysAgo(daysOld),
+      customerId: cid, total, paidAmount: 0, payments: [], issueDate: daysAgo(daysOld),
       contractId: null, customer: { id: cid, name },
     });
 
@@ -138,7 +140,7 @@ describe('executiveIntelligenceV2', () => {
         { customerId: 3, total: 3000, paidAmount: 0, issueDate: daysAgo(10), dueDate: daysFromNow(75), contractId: null, customer: { id: 3, name: 'ج' } },  // daysUntilDue=75 → bucket90
         // fully paid → excluded
         { customerId: 4, total: 4000, paidAmount: 4000, issueDate: daysAgo(10), dueDate: daysFromNow(20), contractId: null, customer: { id: 4, name: 'د' } },
-      ])
+      ].map(withPay))
       .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     const result = await dashboardService.executiveIntelligenceV2();
@@ -215,7 +217,11 @@ describe('executiveIntelligenceV2', () => {
       { id: 1, code: 'C1', asphaltPlant: 'مصنع 1', customer: { id: 10, name: 'عميل 1' } },
     ]);
     mp.invoice.groupBy.mockResolvedValue([
-      { contractId: 1, _sum: { total: 10000, paidAmount: 9500 } }, // 95% collected
+      { contractId: 1, _sum: { total: 10000 } },
+    ]);
+    // التحصيل حسب العقد من الدفعات (تعريف واحد): 9500 على العقد 1 → 95% محصَّل.
+    mp.payment.findMany.mockResolvedValue([
+      { amount: 9500, invoice: { contractId: 1 } },
     ]);
     mp.expense.groupBy.mockResolvedValue([
       { contractId: 1, _sum: { amount: 2000 } }, // 20% expense ratio → profit = 80%
@@ -261,7 +267,7 @@ describe('executiveIntelligenceV2', () => {
       .mockResolvedValueOnce([
         { customerId: 1, total: 5000, paidAmount: 0, issueDate: daysAgo(100),
           contractId: null, customer: { id: 1, name: 'شركة الفجر' } },
-      ])
+      ].map(withPay))
       .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     const result = await dashboardService.executiveIntelligenceV2();
@@ -338,7 +344,7 @@ describe('executiveIntelligenceV2', () => {
         { customerId: 3, total: 400,  paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(60), contractId: null, customer: { id: 3, name: 'ج' } }, // boundary 60 → bucket60
         { customerId: 4, total: 800,  paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(61), contractId: null, customer: { id: 4, name: 'د' } }, // boundary 61 → bucket90
         { customerId: 5, total: 1600, paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(90), contractId: null, customer: { id: 5, name: 'ه' } }, // boundary 90 → bucket90
-      ])
+      ].map(withPay))
       .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     const result = await dashboardService.executiveIntelligenceV2();
@@ -355,7 +361,7 @@ describe('executiveIntelligenceV2', () => {
         { customerId: 1, total: 9000, paidAmount: 0, issueDate: daysAgo(100), dueDate: daysAgo(10), contractId: null, customer: { id: 1, name: 'أ' } },
         // dueDate in future (≤30) → also in the 30-day bucket
         { customerId: 2, total: 500,  paidAmount: 0, issueDate: daysAgo(5),   dueDate: daysFromNow(25), contractId: null, customer: { id: 2, name: 'ب' } },
-      ])
+      ].map(withPay))
       .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     const result = await dashboardService.executiveIntelligenceV2();
@@ -372,7 +378,7 @@ describe('executiveIntelligenceV2', () => {
         { customerId: 1, total: 1000, paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(10), contractId: null, customer: { id: 1, name: 'أ' } }, // bucket30
         { customerId: 2, total: 1000, paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(40), contractId: null, customer: { id: 2, name: 'ب' } }, // bucket60
         { customerId: 3, total: 1000, paidAmount: 0, issueDate: daysAgo(1), dueDate: daysFromNow(80), contractId: null, customer: { id: 3, name: 'ج' } }, // bucket90
-      ])
+      ].map(withPay))
       .mockResolvedValueOnce([]); // recentActivity (الاتجاه لم يعد findMany)
 
     const result = await dashboardService.executiveIntelligenceV2();
@@ -407,7 +413,7 @@ describe('executiveIntelligenceV2', () => {
   it('recommendations capped at 8', async () => {
     // Generate maximum alerts to push recommendations > 8
     const makeInv = (cid: number, dOld: number) => ({
-      customerId: cid, total: 1000, paidAmount: 0, issueDate: daysAgo(dOld),
+      customerId: cid, total: 1000, paidAmount: 0, payments: [], issueDate: daysAgo(dOld),
       contractId: null, customer: { id: cid, name: `عميل ${cid}` },
     });
     const overdueCustomers = Array.from({ length: 10 }, (_, i) => makeInv(i + 1, 100 + i));

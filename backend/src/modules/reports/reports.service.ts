@@ -130,7 +130,7 @@ export class ReportsService {
       orderBy: { code: 'asc' },
       include: { customer: { select: { name: true } } },
     });
-    const totalMonthly = rows.reduce((s, c) => s + num(c.monthlyTransportValue), 0);
+    const totalMonthly = round3(rows.reduce((s, c) => s + num(c.monthlyTransportValue), 0));
     return {
       title: 'تقرير العقود',
       subtitle: `عدد العقود: ${rows.length} — إجمالي النقل الشهري: ${formatCurrency(totalMonthly)}`,
@@ -177,9 +177,9 @@ export class ReportsService {
         supplier: { select: { name: true } },
       },
     });
-    const total = rows.reduce((s, i) => s + num(i.total), 0);
-    const paid = rows.reduce((s, i) => s + num(i.paidAmount), 0);
-    const remaining = total - paid;
+    const total = round3(rows.reduce((s, i) => s + num(i.total), 0));
+    const paid = round3(rows.reduce((s, i) => s + num(i.paidAmount), 0));
+    const remaining = round3(total - paid);
     return {
       title: 'تقرير الفواتير',
       subtitle: `العدد: ${rows.length} — الإجمالي: ${formatCurrency(total)} — المحصّل: ${formatCurrency(paid)} — المتبقي: ${formatCurrency(remaining)}`,
@@ -211,7 +211,7 @@ export class ReportsService {
         issueDate: i.issueDate,
         total: num(i.total),
         paid: num(i.paidAmount),
-        remaining: num(i.total) - num(i.paidAmount),
+        remaining: round3(num(i.total) - num(i.paidAmount)),
         status: translateInvoiceStatusAr(i.status),
         notes: i.notes ?? '',
       })),
@@ -243,7 +243,7 @@ export class ReportsService {
         supplier: { select: { name: true } },
       },
     });
-    const total = rows.reduce((s, e) => s + num(e.amount), 0);
+    const total = round3(rows.reduce((s, e) => s + num(e.amount), 0));
     return {
       title: 'تقرير المصروفات',
       subtitle: `العدد: ${rows.length} — الإجمالي: ${formatCurrency(total)}`,
@@ -351,7 +351,7 @@ export class ReportsService {
       orderBy: [{ year: 'desc' }, { month: 'desc' }],
       include: { employee: { select: { fullName: true, code: true } } },
     });
-    const totalNet = rows.reduce((s, p) => s + num(p.netSalary), 0);
+    const totalNet = round3(rows.reduce((s, p) => s + num(p.netSalary), 0));
     return {
       title: 'تقرير الرواتب',
       subtitle: `عدد الكشوف: ${rows.length} — إجمالي الصافي: ${formatCurrency(totalNet)}`,

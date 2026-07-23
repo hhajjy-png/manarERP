@@ -275,13 +275,15 @@ describe('ExecutiveService — decisionCenter()', () => {
     // thisMonthCol = 200, thisMonthExp = 5000. Shape-based mocks (not positional) so the
     // engine's own internal collections/expenses calls don't shadow these fixed-to-now
     // comparison queries, regardless of how many calls the engine makes internally.
+    // بعد التوحيد صارت مقارنات الشهر تستدعي المحرك ذاته، فالتمييز عبر نافذة التاريخ:
+    // استعلامات الفترة/الملخص بلا `date.gte`؛ استعلامات الشهر تحملها.
     vi.mocked(prisma.payment.aggregate).mockImplementation((async (args: any) => {
-      if (isEnginePaymentQuery(args)) return { _sum: { amount: null } }; // engine collections/AR
-      return { _sum: { amount: 200 } }; // thisMonthCol (and lastMonthCol, harmlessly)
+      if (!args?.where?.date?.gte) return { _sum: { amount: null } }; // engine period collections/AR
+      return { _sum: { amount: 200 } }; // this/last-month collections
     }) as never);
     vi.mocked(prisma.expense.aggregate).mockImplementation((async (args: any) => {
-      if (isEngineExpenseQuery(args)) return { _sum: { amount: null } }; // engine totalExpenses
-      return { _sum: { amount: 5000 } }; // thisMonthExp
+      if (!args?.where?.date?.gte) return { _sum: { amount: null } }; // engine period/total expenses
+      return { _sum: { amount: 5000 } }; // this/last-month expenses
     }) as never);
 
     const result = await service.decisionCenter();
@@ -294,9 +296,9 @@ describe('ExecutiveService — decisionCenter()', () => {
     // lastMonthCol = 1000, thisMonthCol = 600 (60%) → < 80%. Distinguish this/last month by
     // the presence of an upper bound (`lte`) on the date filter — only lastMonthCol has one.
     vi.mocked(prisma.payment.aggregate).mockImplementation((async (args: any) => {
-      if (isEnginePaymentQuery(args)) return { _sum: { amount: null } }; // engine collections/AR
-      if (args?.where?.date?.lte) return { _sum: { amount: 1000 } };    // lastMonthCol
-      return { _sum: { amount: 600 } };                                 // thisMonthCol
+      if (!args?.where?.date?.gte) return { _sum: { amount: null } };  // engine period collections/AR
+      if (args?.where?.date?.lte) return { _sum: { amount: 1000 } };    // lastMonthCol (gte+lte)
+      return { _sum: { amount: 600 } };                                 // thisMonthCol (gte only)
     }) as never);
 
     const result = await service.decisionCenter();
@@ -308,9 +310,9 @@ describe('ExecutiveService — decisionCenter()', () => {
     // thisMonthExp = 2000, lastMonthExp = 1000. Distinguished from the engine's own
     // APPROVED-only calls, and from each other via the date upper bound.
     vi.mocked(prisma.expense.aggregate).mockImplementation((async (args: any) => {
-      if (isEngineExpenseQuery(args)) return { _sum: { amount: null } }; // engine totalExpenses
-      if (args?.where?.date?.lte) return { _sum: { amount: 1000 } };     // lastMonthExp
-      return { _sum: { amount: 2000 } };                                 // thisMonthExp
+      if (!args?.where?.date?.gte) return { _sum: { amount: null } };  // engine period/total expenses
+      if (args?.where?.date?.lte) return { _sum: { amount: 1000 } };     // lastMonthExp (gte+lte)
+      return { _sum: { amount: 2000 } };                                 // thisMonthExp (gte only)
     }) as never);
 
     const result = await service.decisionCenter();

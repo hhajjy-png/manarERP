@@ -1,5 +1,6 @@
 import { Request } from 'express';
 import { roundMoney } from '../../shared/utils/money';
+import { EXPENSE_OPERATIONAL_STATUS, SALES_INVOICE_ACTIVE } from '../../shared/services/operational.reporting';
 import { Prisma } from '@prisma/client';
 import { contractsRepository } from './contracts.repository';
 import { prisma } from '../../config/database';
@@ -170,7 +171,7 @@ export class ContractsService {
 
     const [invoices, expenses] = await Promise.all([
       prisma.invoice.findMany({
-        where: { contractId, direction: 'SALES', status: { not: 'CANCELLED' } },
+        where: { contractId, ...SALES_INVOICE_ACTIVE },
         select: {
           id: true, total: true, paidAmount: true, issueDate: true, status: true,
           payments: { select: { id: true, amount: true, date: true } },
@@ -178,7 +179,8 @@ export class ContractsService {
         orderBy: { issueDate: 'asc' },
       }),
       prisma.expense.findMany({
-        where: { contractId, status: { notIn: ['REJECTED', 'CANCELLED'] } },
+        // التعريف التشغيلي الوحيد للمصروف (المصدر: محرك التقارير التشغيلية).
+        where: { contractId, status: EXPENSE_OPERATIONAL_STATUS },
         select: { id: true, amount: true, date: true },
         orderBy: { date: 'asc' },
       }),
@@ -203,8 +205,12 @@ export class ContractsService {
     const remainingToInvoice =
       estimatedContractValue !== null ? roundMoney(estimatedContractValue - totalInvoiced) : null;
 
-    // Collections
-    const totalCollected = roundMoney(invoices.reduce((s, i) => s + n(i.paidAmount), 0));
+    // Collections — التعريف التشغيلي الوحيد: Σ Payment (لا لقطة paidAmount المخزَّنة).
+    // الفواتير أعلاه غير ملغاة (SALES_INVOICE_ACTIVE)، ودفعاتها مُحمَّلة، فالمجموع يطابق
+    // getCollections للعقد حرفيًا، والذمم = الإيراد − التحصيل تطابق getAccountsReceivable.
+    const totalCollected = roundMoney(
+      invoices.reduce((s, i) => s + i.payments.reduce((ps, p) => ps + n(p.amount), 0), 0),
+    );
     const outstanding = roundMoney(totalInvoiced - totalCollected);
     const collectionRate = safePct(totalCollected, totalInvoiced);
 

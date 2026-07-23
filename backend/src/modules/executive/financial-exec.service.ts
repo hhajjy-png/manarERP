@@ -1,5 +1,6 @@
 import { prisma } from '@config/database';
 import { roundMoney } from '@shared/utils/money';
+import { EXPENSE_OPERATIONAL_STATUS, SALES_INVOICE_ACTIVE } from '@shared/services/operational.reporting';
 
 const n  = (v: unknown) => Number(v ?? 0);
 const safe = (num: number, den: number): number | null =>
@@ -38,7 +39,13 @@ export interface CustomerAnalyticsRow {
 
 export class FinancialExecService {
   async contractProfitability(): Promise<ContractProfitRow[]> {
-    const [contracts, invGroups, expGroups] = await Promise.all([
+    // التعريفات التشغيلية الوحيدة (المصدر: محرك التقارير التشغيلية):
+    //   الإيراد = Σ Invoice.total على فواتير المبيعات الفعّالة (SALES_INVOICE_ACTIVE).
+    //   التحصيل = Σ Payment على تلك الفواتير — لا لقطة paidAmount المخزَّنة.
+    //   المصروف = Expense المعتمدة فقط (EXPENSE_OPERATIONAL_STATUS).
+    // التحصيل حسب العقد يُجمَّع في الذاكرة لأن Prisma لا يدعم groupBy على حقل علاقة
+    // (`payment.invoice.contractId`)؛ الفلتر نفسه هو فلتر المحرك حرفيًا.
+    const [contracts, invGroups, payments, expGroups] = await Promise.all([
       prisma.contract.findMany({
         select: {
           id: true, code: true, asphaltPlant: true,
@@ -48,21 +55,31 @@ export class FinancialExecService {
       }),
       prisma.invoice.groupBy({
         by: ['contractId'],
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, contractId: { not: null } },
-        _sum: { total: true, paidAmount: true },
+        where: { ...SALES_INVOICE_ACTIVE, contractId: { not: null } },
+        _sum: { total: true },
+      }),
+      prisma.payment.findMany({
+        where: { invoice: { ...SALES_INVOICE_ACTIVE, contractId: { not: null } } },
+        select: { amount: true, invoice: { select: { contractId: true } } },
       }),
       prisma.expense.groupBy({
         by: ['contractId'],
-        where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] }, contractId: { not: null } },
+        where: { status: EXPENSE_OPERATIONAL_STATUS, contractId: { not: null } },
         _sum: { amount: true },
       }),
     ]);
 
-    const invMap = new Map(invGroups.map(g => [g.contractId!, { rev: n(g._sum.total), col: n(g._sum.paidAmount) }]));
+    const colMap = new Map<number, number>();
+    for (const p of payments) {
+      const cid = p.invoice.contractId;
+      if (cid == null) continue;
+      colMap.set(cid, (colMap.get(cid) ?? 0) + n(p.amount));
+    }
+    const invMap = new Map(invGroups.map(g => [g.contractId!, n(g._sum.total)]));
     const expMap = new Map(expGroups.map(g => [g.contractId!, n(g._sum.amount)]));
 
     return contracts.map(c => {
-      const inv  = invMap.get(c.id) ?? { rev: 0, col: 0 };
+      const inv  = { rev: invMap.get(c.id) ?? 0, col: roundMoney(colMap.get(c.id) ?? 0) };
       const exp  = expMap.get(c.id) ?? 0;
       const profit = roundMoney(inv.rev - exp);
       return {
@@ -83,7 +100,7 @@ export class FinancialExecService {
   async expenseBreakdown(): Promise<ExpenseCategoryRow[]> {
     const groups = await prisma.expense.groupBy({
       by: ['category'],
-      where: { status: { notIn: ['REJECTED', 'CANCELLED', 'REVERSED'] } },
+      where: { status: EXPENSE_OPERATIONAL_STATUS },
       _sum: { amount: true },
       _count: { _all: true },
       orderBy: { _sum: { amount: 'desc' } },
@@ -100,7 +117,10 @@ export class FinancialExecService {
   }
 
   async customerAnalytics(): Promise<CustomerAnalyticsRow[]> {
-    const [customers, invGroups] = await Promise.all([
+    // نفس التعريفات التشغيلية الوحيدة: الإيراد = Σ Invoice.total، التحصيل = Σ Payment
+    // (لا لقطة paidAmount)، الذمم = الإيراد − التحصيل. التحصيل حسب العميل يُجمَّع في الذاكرة
+    // (Prisma لا يدعم groupBy على `payment.invoice.customerId`).
+    const [customers, invGroups, payments] = await Promise.all([
       prisma.customer.findMany({
         where: { isArchived: false },
         select: { id: true, name: true, code: true },
@@ -108,22 +128,33 @@ export class FinancialExecService {
       }),
       prisma.invoice.groupBy({
         by: ['customerId'],
-        where: { direction: 'SALES', status: { not: 'CANCELLED' }, customerId: { not: null } },
-        _sum: { total: true, paidAmount: true },
+        where: { ...SALES_INVOICE_ACTIVE, customerId: { not: null } },
+        _sum: { total: true },
         _count: { _all: true },
+      }),
+      prisma.payment.findMany({
+        where: { invoice: { ...SALES_INVOICE_ACTIVE, customerId: { not: null } } },
+        select: { amount: true, invoice: { select: { customerId: true } } },
       }),
     ]);
 
+    const colMap = new Map<number, number>();
+    for (const p of payments) {
+      const cid = p.invoice.customerId;
+      if (cid == null) continue;
+      colMap.set(cid, (colMap.get(cid) ?? 0) + n(p.amount));
+    }
     const invMap = new Map(
       invGroups.map(g => [
         g.customerId!,
-        { rev: n(g._sum.total), col: n(g._sum.paidAmount), cnt: g._count._all },
+        { rev: n(g._sum.total), cnt: g._count._all },
       ]),
     );
 
     return customers
       .map(c => {
-        const inv = invMap.get(c.id) ?? { rev: 0, col: 0, cnt: 0 };
+        const base = invMap.get(c.id) ?? { rev: 0, cnt: 0 };
+        const inv = { rev: base.rev, col: roundMoney(colMap.get(c.id) ?? 0), cnt: base.cnt };
         const outstanding = roundMoney(inv.rev - inv.col);
         return {
           id: c.id, name: c.name, code: c.code,
