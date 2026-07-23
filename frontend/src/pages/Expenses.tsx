@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { api, errorMessage } from '../api/client';
 import { useHighlight } from '../hooks/useHighlight';
 import DateInput from '../components/DateInput';
@@ -20,7 +20,7 @@ import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
 import { periodToReportParams, buildLocalizedPeriodLabel } from '../lib/financialPeriod';
 import HistoricalDateNotice from '../components/period/HistoricalDateNotice';
-import { downloadBlob } from '../utils/exportUtils';
+import { fetchAllRows, downloadTableExcel } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import AttachmentsPanel from '../components/AttachmentsPanel';
@@ -180,23 +180,129 @@ export default function Expenses() {
     } catch (e) { setError(errorMessage(e)); } finally { setActionBusy(false); }
   }
 
-  async function exportExcel() {
-    setExportingExcel(true);
-    try {
-      const res = await api.get('/reports/expenses/export', {
-        params: { format: 'excel', ...filterParams },
-        responseType: 'blob',
-      });
-      downloadBlob(res.data as Blob, generateExportFileName({ reportName: ReportName.Expenses, extension: 'xlsx' }));
-    } catch (e) { setError(errorMessage(e)); }
-    finally { setExportingExcel(false); }
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function billingText(r: any): string {
     return r.billingMonth && r.billingYear
       ? `${ARABIC_MONTHS[Number(r.billingMonth) - 1]} ${r.billingYear}`
       : dateText(r.date);
+  }
+
+  interface ExpenseColumn {
+    /** مفتاح العمود — نفسه حقل الفرز الخادمي حين sortable=true (يطابق اتفاقية DataTable.tsx). */
+    key: string;
+    /** نص الترويسة المعروض فعليًا (مُحلّل سلفًا؛ قد يحمل رمز العملة عبر fcMoneyHeader). */
+    header: string;
+    /** نص title= الخام (بلا رمز عملة) — يطابق سلوك SortableHeader الحالي حرفيًا. */
+    plainLabel: string;
+    sortable?: boolean;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    render: (r: any) => ReactNode;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    exportValue: (r: any) => string | number | null | undefined;
+    /** خليّة Excel رقمية خام + numFmt الدينار. */
+    money?: boolean;
+  }
+
+  /**
+   * حزمة Table/Excel Column Unification v1 — **المصدر الوحيد** لأعمدة جدول المصروفات:
+   * الجدول المرئي (`<thead>`/`<tbody>` أدناه، عبر `.map()`) وتصدير Excel (`exportExcel`)
+   * كلاهما يُبنى من هذه المصفوفة نفسها. إضافة عمود أو حذفه أو إعادة ترتيبه هنا ينعكس
+   * تلقائيًا على الاثنين معًا — لا تعريف مزدوج، ولا احتمال انحراف مستقبلي بينهما.
+   */
+  function buildExpenseColumns(): ExpenseColumn[] {
+    return [
+      {
+        key: 'code',
+        header: t('col.code'),
+        plainLabel: t('col.code'),
+        sortable: true,
+        render: (r) => <span className="expx-code">{r.code}</span>,
+        exportValue: (r) => r.code ?? '',
+      },
+      {
+        key: 'category',
+        header: t('col.category'),
+        plainLabel: t('col.category'),
+        sortable: true,
+        render: (r) => (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 17, color: 'var(--xpl-primary)' }}>{expenseCategoryIcon(r.category)}</span>
+            {t(`cat.${String(r.category).toLowerCase()}`)}
+          </span>
+        ),
+        exportValue: (r) => t(`cat.${String(r.category).toLowerCase()}`),
+      },
+      {
+        key: 'description',
+        header: t('col.description'),
+        plainLabel: t('col.description'),
+        sortable: true,
+        render: (r) => <strong>{r.description}</strong>,
+        exportValue: (r) => r.description ?? '',
+      },
+      // المورد غير قابل للفرز — مصدر مختلط (علاقة supplier.name أو الحقل النصي supplierName).
+      {
+        key: 'supplier',
+        header: t('field.supplier'),
+        plainLabel: t('field.supplier'),
+        render: (r) => (r.supplier ? resolveName(r.supplier, lang) : r.supplierName ?? '—'),
+        exportValue: (r) => (r.supplier ? resolveName(r.supplier, lang) : r.supplierName ?? '—'),
+      },
+      // فترة الفوترة غير قابلة للفرز — قيمة مركّبة (شهر/سنة الفوترة أو التاريخ).
+      {
+        key: 'billingPeriod',
+        header: t('lbl.inv.billing_period'),
+        plainLabel: t('lbl.inv.billing_period'),
+        render: (r) => <span style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{billingText(r)}</span>,
+        exportValue: (r) => billingText(r),
+      },
+      {
+        key: 'amount',
+        header: fcMoneyHeader(t('col.amount')),
+        plainLabel: t('col.amount'),
+        sortable: true,
+        money: true,
+        render: (r) => <span className="expx-amount"><MoneyCell value={r.amount} /></span>,
+        exportValue: (r) => Number(r.amount ?? 0),
+      },
+      {
+        key: 'status',
+        header: t('col.status'),
+        plainLabel: t('col.status'),
+        sortable: true,
+        render: (r) => {
+          const sm = expenseStatusMeta(r.status);
+          return <StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip>;
+        },
+        exportValue: (r) => t(expenseStatusMeta(r.status).key),
+      },
+    ];
+  }
+
+  // المصدر الوحيد لأعمدة الجدول — يُستهلَك أدناه (JSX الجدول) وفي exportExcel معًا.
+  const expenseColumns = buildExpenseColumns();
+
+  /**
+   * حزمة Table/Excel Column Unification v1 — مصدر واحد للأعمدة (expenseColumns،
+   * أعلاه) يُستهلَك هنا وفي الجدول المرئي أدناه معًا. بلا مرور عبر وحدة التقارير
+   * المشتركة (`/reports/*`) التي يستخدمها أيضًا نوع تقرير «المصروفات» في شاشة
+   * التقارير — فلا يتأثر ذلك التقرير بهذا التغيير. يجلب كل المصروفات المطابقة
+   * للفلاتر الحالية عبر كل الصفحات، بنفس فلاتر الشاشة (filterParams) تمامًا.
+   */
+  async function exportExcel() {
+    setExportingExcel(true);
+    try {
+      const allRows = await fetchAllRows('/expenses', {
+        ...filterParams,
+        ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
+      });
+      downloadTableExcel(
+        allRows,
+        expenseColumns.map((c) => ({ header: c.header, value: c.exportValue, money: c.money })),
+        generateExportFileName({ reportName: ReportName.Expenses, extension: 'xlsx' }),
+      );
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setExportingExcel(false); }
   }
 
   const canCreate = hasPermission('expenses.create');
@@ -368,37 +474,26 @@ export default function Expenses() {
               <table className="xpl-table">
                 <thead>
                   <tr>
-                    <SortableHeader label={t('col.code')} title={t('col.code')} state={sort.getState('code')} onToggle={() => sort.toggle('code')} />
-                    <SortableHeader label={t('col.category')} title={t('col.category')} state={sort.getState('category')} onToggle={() => sort.toggle('category')} />
-                    <SortableHeader label={t('col.description')} title={t('col.description')} state={sort.getState('description')} onToggle={() => sort.toggle('description')} />
-                    {/* المورد غير قابل للفرز — مصدر مختلط (علاقة supplier.name أو الحقل النصي supplierName). */}
-                    <th>{t('field.supplier')}</th>
-                    {/* فترة الفوترة غير قابلة للفرز — قيمة مركّبة (شهر/سنة الفوترة أو التاريخ). */}
-                    <th>{t('lbl.inv.billing_period')}</th>
-                    <SortableHeader label={fcMoneyHeader(t('col.amount'))} title={t('col.amount')} state={sort.getState('amount')} onToggle={() => sort.toggle('amount')} />
-                    <SortableHeader label={t('col.status')} title={t('col.status')} state={sort.getState('status')} onToggle={() => sort.toggle('status')} />
+                    {expenseColumns.map((c) => (
+                      c.sortable ? (
+                        <SortableHeader key={c.key} label={c.header} title={c.plainLabel} state={sort.getState(c.key)} onToggle={() => sort.toggle(c.key)} />
+                      ) : (
+                        <th key={c.key}>{c.header}</th>
+                      )
+                    ))}
                     <th aria-label={t('a11y.open_row')} />
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => {
-                    const sm = expenseStatusMeta(r.status);
-                    return (
-                      <tr key={r.id} id={`row-${r.id}`} className="xpl-row--click" tabIndex={0} role="button"
-                        aria-label={t('a11y.expense_details', { code: r.code })}
-                        onClick={() => setViewing(r)}
-                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
-                        <td><span className="expx-code">{r.code}</span></td>
-                        <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 17, color: 'var(--xpl-primary)' }}>{expenseCategoryIcon(r.category)}</span>{t(`cat.${String(r.category).toLowerCase()}`)}</span></td>
-                        <td><strong>{r.description}</strong></td>
-                        <td>{r.supplier ? resolveName(r.supplier, lang) : r.supplierName ?? '—'}</td>
-                        <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{billingText(r)}</td>
-                        <td><span className="expx-amount">{<MoneyCell value={r.amount} />}</span></td>
-                        <td><StatusChip tone={sm.tone} icon={sm.icon}>{t(sm.key)}</StatusChip></td>
-                        <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
-                      </tr>
-                    );
-                  })}
+                  {rows.map((r) => (
+                    <tr key={r.id} id={`row-${r.id}`} className="xpl-row--click" tabIndex={0} role="button"
+                      aria-label={t('a11y.expense_details', { code: r.code })}
+                      onClick={() => setViewing(r)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
+                      {expenseColumns.map((c) => <td key={c.key}>{c.render(r)}</td>)}
+                      <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>

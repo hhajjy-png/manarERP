@@ -107,7 +107,8 @@ const contractStatus = mapPill({
   ACTIVE: ['ساري', 'green'], EXPIRED: ['منتهٍ', 'gray'], RENEWING: ['قيد التجديد', 'amber'], SUSPENDED: ['موقوف', 'red'],
 });
 const equipmentStatus = mapPill({ WORKING: ['تعمل', 'green'], NOT_WORKING: ['لا تعمل', 'red'] });
-const employeeStatus = mapPill({ ACTIVE: ['نشط', 'green'], ON_LEAVE: ['إجازة', 'amber'], TERMINATED: ['منتهي الخدمة', 'gray'] });
+const EMPLOYEE_STATUS_MAP: Record<string, [string, PillCls]> = { ACTIVE: ['نشط', 'green'], ON_LEAVE: ['إجازة', 'amber'], TERMINATED: ['منتهي الخدمة', 'gray'] };
+const employeeStatus = mapPill(EMPLOYEE_STATUS_MAP);
 const expenseStatus = mapPill({ PENDING: ['معلّق', 'amber'], APPROVED: ['معتمد', 'green'], REJECTED: ['مرفوض', 'red'] });
 const customerType = mapPill({ GOVERNMENT: ['حكومي', 'blue'], PRIVATE: ['خاص', 'gray'] });
 
@@ -132,6 +133,14 @@ export interface ModuleConfig {
   canApprove?: boolean;
   supportsArchive?: boolean;
   supportsExport?: boolean;
+  /**
+   * Excel Page Export Consistency v1 — opt-in only (currently `employees`). When true,
+   * ResourcePage exports directly from this module's own `columns` (same headers/order/
+   * values as the visible table) instead of the shared `/reports/:type/export` pipeline.
+   * Modules WITHOUT this flag keep the exact original `/reports/:type/export` behavior —
+   * unaffected by this pack (contracts, customers, suppliers, equipment).
+   */
+  nativeExcelExport?: boolean;
   statusFilter?: { param: string; options: { value: string; labelKey: string }[] };
   /** Opt-in: render this module with the ExplorerKit executive layout (header,
    *  KPIs, sticky toolbar, modern table, detail drawer, sectioned dialog).
@@ -335,7 +344,7 @@ export const MODULES: Record<string, ModuleConfig> = {
     key: 'employees', endpoint: '/employees', label: 'nav.employees',
     title: 'mod.employees.title', subtitle: 'mod.employees.subtitle',
     icon: '👷', group: 'nav.group.core', createLabel: 'mod.employees.create',
-    emptyText: 'empty.employees', supportsExport: true,
+    emptyText: 'empty.employees', supportsExport: true, nativeExcelExport: true,
     explorer: true, explorerIcon: 'badge',
     formSections: [
       { id: 'identity', title: 'page.form.employees.identity', icon: 'badge' },
@@ -363,15 +372,15 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'civilId', label: 'col.civil_id', sortable: true, width: '112px', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.civilId ?? '—'}</span> },
       { key: 'jobTitle', label: 'col.job_title', sortable: true, width: '132px', render: (r) => <NameCell value={r.jobTitle} lang="ar" /> },
       { key: 'nationality', label: 'col.nationality', sortable: true, width: '104px' },
-      { key: 'residencyExpiry', label: 'col.residency_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.residencyExpiry} /> },
+      { key: 'residencyExpiry', label: 'col.residency_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.residencyExpiry} />, exportValue: (r) => dateText(r.residencyExpiry) },
       { key: 'passportNumber', label: 'col.passport_number', width: '112px', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.passportNumber ?? '—'}</span> },
-      { key: 'passportExpiry', label: 'col.passport_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.passportExpiry} /> },
-      { key: 'licenseExpiry', label: 'col.license_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.licenseExpiry} /> },
+      { key: 'passportExpiry', label: 'col.passport_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.passportExpiry} />, exportValue: (r) => dateText(r.passportExpiry) },
+      { key: 'licenseExpiry', label: 'col.license_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.licenseExpiry} />, exportValue: (r) => dateText(r.licenseExpiry) },
       { key: 'vehiclePlate', label: 'col.vehicle_plate', width: '100px', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.vehiclePlate ?? '—'}</span> },
-      { key: 'vehicleLicenseExpiry', label: 'col.vehicle_license_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.vehicleLicenseExpiry} /> },
+      { key: 'vehicleLicenseExpiry', label: 'col.vehicle_license_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.vehicleLicenseExpiry} />, exportValue: (r) => dateText(r.vehicleLicenseExpiry) },
       { key: 'salary', label: 'col.salary', money: true, sortable: true, width: '128px', render: (r) => <MoneyCell value={r.salary} /> },
-      { key: 'hireDate', label: 'col.hire_date', sortable: true, width: '120px', render: (r) => dateText(r.hireDate) },
-      { key: 'status', label: 'col.status', sortable: true, width: '124px', render: (r) => employeeStatus(r.status) },
+      { key: 'hireDate', label: 'col.hire_date', sortable: true, width: '120px', render: (r) => dateText(r.hireDate), exportValue: (r) => dateText(r.hireDate) },
+      { key: 'status', label: 'col.status', sortable: true, width: '124px', render: (r) => employeeStatus(r.status), exportValue: (r) => EMPLOYEE_STATUS_MAP[r.status]?.[0] ?? r.status ?? '' },
     ],
     fields: [
       { name: 'code', label: 'field.emp_code', required: true, section: 'identity' },
