@@ -67,6 +67,27 @@ declare global {
       /** Optional: absent on an older preload build — every caller must guard. */
       wysiwygViewerActivate?: () => Promise<number | null>;
       wysiwygViewerDeactivate?: (token: number) => Promise<boolean>;
+
+      // ─── Google Drive Sync Foundation v1 ────────────────────────────────────────
+      /** Optional: absent on an older preload build — every caller must guard. */
+      syncGetStatus?: () => Promise<{
+        status: string;
+        message: string;
+        configured: boolean;
+        authenticated: boolean;
+        account: string | null;
+        lastSyncAt: string | null;
+        lastUploadAt: string | null;
+        lastDownloadAt: string | null;
+        lastError: string | null;
+        localDb: { exists: boolean; sizeBytes: number };
+      }>;
+      syncGetLog?: () => Promise<Array<{ at: string; action: string; result: string; message: string }>>;
+      syncAuthenticate?: () => Promise<{ ok: boolean; email?: string; error?: string }>;
+      syncDisconnect?: () => Promise<{ ok: boolean }>;
+      syncNow?: () => Promise<{ ok: boolean; action: string; error?: string; requiresRestart?: boolean }>;
+      syncUpload?: () => Promise<{ ok: boolean; error?: string }>;
+      syncDownload?: () => Promise<{ ok: boolean; error?: string; requiresRestart?: boolean }>;
     };
   }
 }

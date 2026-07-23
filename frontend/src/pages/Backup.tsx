@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, errorMessage } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal';
+import CloudSyncPanel from '../components/CloudSyncPanel';
 import { dateText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -54,6 +55,9 @@ export default function Backup() {
   const [settingsDraft, setSettingsDraft] = useState<AutoSettings>({ enabled: true, time: '22:00', retentionCount: 30 });
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [verifying, setVerifying] = useState<number | null>(null);
+  // ميزة إدارية وليست جزءًا من سير العمل اليومي — لذا تبويب ضمن هذه الصفحة
+  // بدل مدخل شريط جانبي مستقل. راجع "Cloud Sync Navigation" في تقرير التسليم.
+  const [tab, setTab] = useState<'local' | 'cloud'>('local');
 
   async function load() {
     setLoading(true);
@@ -187,27 +191,42 @@ export default function Backup() {
     <div>
       <div className="page-head">
         <div><h2>{t('page.backup.title')}</h2><p>{t('page.backup.subtitle')}</p></div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {isElectron && (
-            <button type="button" className="btn secondary" onClick={toggleDbPath}>
-              {showDbPath ? `🔒 ${t('btn.backup.toggle_path_hide')}` : `📂 ${t('btn.backup.toggle_path_show')}`}
-            </button>
-          )}
-          {canCreate && isElectron && (
-            <button type="button" className="btn secondary" onClick={exportDb} disabled={busy}>⤓ {t('btn.backup.export')}</button>
-          )}
-          {canRestore && isElectron && (
-            <button type="button" className="btn secondary" onClick={restoreFromFile} disabled={busy}>↩️ {t('btn.backup.restore_file')}</button>
-          )}
-          {canCreate && isElectron && (
-            <button type="button" className="btn secondary" onClick={createBackupElectron} disabled={busy}>💾 {t('btn.backup.direct')}</button>
-          )}
-          {canCreate && (
-            <button type="button" className="btn" onClick={createBackupApi} disabled={busy}>💾 {t('btn.backup.now')}</button>
-          )}
-        </div>
+        {tab === 'local' && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {isElectron && (
+              <button type="button" className="btn secondary" onClick={toggleDbPath}>
+                {showDbPath ? `🔒 ${t('btn.backup.toggle_path_hide')}` : `📂 ${t('btn.backup.toggle_path_show')}`}
+              </button>
+            )}
+            {canCreate && isElectron && (
+              <button type="button" className="btn secondary" onClick={exportDb} disabled={busy}>⤓ {t('btn.backup.export')}</button>
+            )}
+            {canRestore && isElectron && (
+              <button type="button" className="btn secondary" onClick={restoreFromFile} disabled={busy}>↩️ {t('btn.backup.restore_file')}</button>
+            )}
+            {canCreate && isElectron && (
+              <button type="button" className="btn secondary" onClick={createBackupElectron} disabled={busy}>💾 {t('btn.backup.direct')}</button>
+            )}
+            {canCreate && (
+              <button type="button" className="btn" onClick={createBackupApi} disabled={busy}>💾 {t('btn.backup.now')}</button>
+            )}
+          </div>
+        )}
       </div>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        <button type="button" className={`btn sm ${tab === 'local' ? '' : 'secondary'}`} onClick={() => setTab('local')}>
+          💾 {t('tab.backup.local')}
+        </button>
+        <button type="button" className={`btn sm ${tab === 'cloud' ? '' : 'secondary'}`} onClick={() => setTab('cloud')}>
+          ☁️ {t('tab.backup.cloud')}
+        </button>
+      </div>
+
+      {tab === 'cloud' && <CloudSyncPanel />}
+
+      {tab === 'local' && (
+      <>
       {busy && <div className="alert warn" style={{ marginBottom: 16 }}>⏳ {t('msg.backup.busy')}</div>}
 
       {showDbPath && dbInfo && (
@@ -403,6 +422,8 @@ export default function Backup() {
           onConfirm={() => executeRemove(deleteBackupId)}
           onCancel={() => setDeleteBackupId(null)}
         />
+      )}
+      </>
       )}
     </div>
   );
