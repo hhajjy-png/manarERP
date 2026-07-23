@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `fdf3681` (merge of `feature/google-drive-conflict-resolution-pack-v1`, carrying Google Drive Conflict Resolution Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `8c4d89d` — "docs: record Google Drive Conflict Resolution Pack v1 release" |
 | **Current Stable Tag** | `stable-google-drive-conflict-resolution-pack-v1` |
 | **Current Release Date** | 2026-07-23 |
 | **Total Stable Releases** | 344 (window 2026-06-07 → 2026-07-23) |
