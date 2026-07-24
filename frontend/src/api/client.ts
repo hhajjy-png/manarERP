@@ -25,7 +25,7 @@ declare global {
       chooseSavePath: (n: string) => Promise<string | null>;
       chooseBackupFile: () => Promise<string | null>;
       restartApp: () => Promise<void>;
-      printPage: () => Promise<void>;
+      printPage: (options?: { landscape?: boolean }) => Promise<void>;
       getAppInfo: () => Promise<{ version: string; platform: string }>;
       // ─── Backup / Restore IPC ────────────────────────────────────────────────
       backupCreate: () => Promise<{

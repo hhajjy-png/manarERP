@@ -13,7 +13,7 @@ import SortableHeader from '../components/SortableHeader';
 import DateInput from '../components/DateInput';
 import ConfirmModal from '../components/ConfirmModal';
 import ForceDeleteChequeModal from '../components/ForceDeleteChequeModal';
-import ChequeCalibrator from '../components/ChequeCalibrator';
+import ChequeStudioOverlay from '../components/ChequeStudioOverlay';
 import gulfBankImg from '../assets/cheakv1.png';
 import {
   DEFAULT_TEMPLATE,
@@ -590,7 +590,7 @@ export default function Cheques() {
     <div className="xpl-scope xpl-page">
       {/* Calibration overlay — UNCHANGED */}
       {showCalibrator && (
-        <ChequeCalibrator banks={KUWAITI_BANKS} initialBank={form.bankName} loadedTemplates={allTemplates} previewData={calibPreviewData} onSaved={handleCalibSaved} onClose={() => setShowCalibrator(false)} isSystemAdmin={isSystemAdmin} />
+        <ChequeStudioOverlay banks={KUWAITI_BANKS} initialBank={form.bankName} loadedTemplates={allTemplates} previewData={calibPreviewData} onSaved={handleCalibSaved} onClose={() => setShowCalibrator(false)} isSystemAdmin={isSystemAdmin} chequeRecord={printTarget} />
       )}
 
       {/* Hidden print area + print CSS — print output UNCHANGED.

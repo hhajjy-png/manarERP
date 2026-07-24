@@ -1,0 +1,231 @@
+/*
+ * Cheque Template Manager v1 — toolbar + dialogs.
+ * Scoped under `.ctm-root`; reuses the project's global `.btn` classes for a
+ * native look, so it matches the existing design language.
+ */
+
+.ctm-root {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Designer + Live Preview side by side; stacks on narrow widths. */
+.ctm-workspace {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.ctm-designer-pane {
+  flex: 2 1 620px;
+  min-width: 320px;
+}
+
+.ctm-preview-pane {
+  flex: 1 1 360px;
+  min-width: 300px;
+  position: sticky;
+  top: 8px;
+}
+
+@media (max-width: 1100px) {
+  .ctm-preview-pane {
+    position: static;
+  }
+}
+
+/* ── Compact toolbar ── */
+.ctm-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+}
+
+.ctm-toolbar .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ctm-toolbar .btn .material-symbols-outlined {
+  font-size: 17px;
+}
+
+.ctm-toolbar-spacer {
+  flex: 1;
+}
+
+.ctm-current {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ctm-current-name {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--text, #0f172a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+.ctm-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ctm-badge--default { background: #fef3c7; color: #92400e; }
+.ctm-badge--dirty { background: #e0e7ff; color: #3730a3; }
+
+.ctm-msg {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--success, #16a34a);
+  white-space: nowrap;
+}
+
+/* ── Modals ── */
+.ctm-modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 3200;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.ctm-modal {
+  background: var(--surface, #fff);
+  border-radius: 12px;
+  padding: 20px;
+  width: min(440px, 96vw);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
+}
+
+.ctm-modal-title {
+  margin: 0 0 14px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text, #0f172a);
+}
+
+.ctm-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.ctm-empty {
+  margin: 0;
+  color: var(--text-muted, #64748b);
+  font-size: 13px;
+}
+
+.ctm-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.ctm-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--bg, #f8fafc);
+  cursor: pointer;
+  text-align: start;
+}
+
+.ctm-picker-row:hover {
+  border-color: var(--primary, #2563eb);
+}
+
+.ctm-picker-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text, #0f172a);
+}
+
+.ctm-picker-meta {
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+}
+
+.ctm-modal-foot {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+/* ── Data Source control (injected into the designer properties panel) ── */
+.ctm-datasource {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ctm-datasource-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+}
+
+.ctm-datasource-select,
+.ctm-datasource-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--surface, #fff);
+}
+
+.ctm-datasource-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ctm-datasource-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #16a34a;
+}
+
+.ctm-datasource-hint .material-symbols-outlined {
+  font-size: 16px;
+}

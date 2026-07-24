@@ -1,0 +1,72 @@
+/*
+ * Cheque Template Print page v1 — screen chrome only. The print output itself
+ * is governed by the inline @page / @media print rules in the component.
+ */
+
+.ctpp-root {
+  min-height: 100vh;
+  background: #eef2f7;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+}
+
+.ctpp-chrome {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ctpp-chrome .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ctpp-chrome .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.ctpp-blocked {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.ctpp-blocked .material-symbols-outlined {
+  font-size: 18px;
+}
+
+/* The print area — centered on screen; becomes the whole page in print. */
+.ctpp-print-area {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px;
+}
+
+.ctpp-issues {
+  max-width: 560px;
+}
+
+.ctpp-message {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+  color: var(--text, #0f172a);
+  padding: 24px;
+}
+
+.ctpp-message .material-symbols-outlined {
+  font-size: 40px;
+  color: #dc2626;
+}

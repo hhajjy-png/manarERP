@@ -31,9 +31,16 @@ export function registerDialogIpc() {
   });
 
   // طباعة الصفحة الحالية
-  ipcMain.handle('app:print', async () => {
+  // خيار landscape اختياري وإضافي: عند تمريره true يُفرض اتجاه الطباعة الأفقي
+  // أصلاً عبر Chromium (لا يُعتمد على @page CSS وحده). بدون الخيار يبقى السلوك
+  // مطابقًا تمامًا لما كان (لا يتغيّر أي مسار طباعة قائم، بما فيه المعايرة).
+  ipcMain.handle('app:print', async (_e, options?: { landscape?: boolean }) => {
     const win = BrowserWindow.getFocusedWindow();
-    win?.webContents.print({ silent: false, printBackground: true });
+    win?.webContents.print({
+      silent: false,
+      printBackground: true,
+      ...(options?.landscape ? { landscape: true } : {}),
+    });
   });
 
   // معلومات التطبيق

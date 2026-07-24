@@ -1,0 +1,34 @@
+/*
+ * Cheque Render Surface — shared bare renderer (Print Renderer core).
+ * Scoped under `.crs-surface`. No border/shadow/chrome here — framing is added
+ * by each context (preview frames it; print leaves it bare). No editor
+ * affordances and no pointer interaction.
+ */
+
+.crs-surface {
+  position: relative;
+  max-width: 100%;
+  overflow: hidden;
+  background: #fff;
+}
+
+.crs-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+.crs-field {
+  position: absolute;
+  pointer-events: none;
+}
+
+.crs-field-text {
+  display: block;
+  width: 100%;
+  overflow-wrap: break-word;
+}
