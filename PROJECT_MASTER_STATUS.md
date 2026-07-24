@@ -2,19 +2,19 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-24 (previously 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-24 (previously 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Default Cheque Print Provider v1), like the Official Cheque Template System v1 pass and the
+> below. This pass (Window Lifecycle Foundation v1), like the Default Cheque Print Provider v1 pass and the
 > ones before it, refreshed the "Current Production State" table only (re-derived directly from `git`), plus a
-> narrative addition to the `## Cheques` section below reflecting this release — the "Repository Status"
-> quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit sections further down)
-> were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in this pass — treat their
-> specifics as of those dates, not current-day. This pass only repoints the table below at the current HEAD,
-> consistent with every other table-only pass in this history.
+> narrative addition reflecting this release — the "Repository Status" quantitative table and the deeper
+> narrative surveys (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/
+> 2026-07-01 respectively and have not been re-audited in this pass — treat their specifics as of those dates,
+> not current-day. This pass only repoints the table below at the current HEAD, consistent with every other
+> table-only pass in this history.
 
 ---
 
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `83f2246` — merge of `feature/default-cheque-print-provider-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-default-cheque-print-provider-v1` (merge commit `83f2246`) | High |
-| **Previous stable tag** | `stable-official-cheque-template-system-v1` (`fa8f315`) | High |
+| **Current HEAD** | `e3bf6d4` — merge of `feature/window-lifecycle-foundation-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-window-lifecycle-foundation-v1` (merge commit `e3bf6d4`) | High |
+| **Previous stable tag** | `stable-default-cheque-print-provider-v1` (`83f2246`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,32 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-google-drive-database-restore-reliability-pack-v1` (`9ff69d9`, 2026-07-23)
+### Latest Release — `stable-window-lifecycle-foundation-v1` (`e3bf6d4`, 2026-07-24)
+
+Fixes a real production startup failure: the app would appear to launch, briefly show the Cloud Sync
+Progress dialog, then exit cleanly (code 0) with the main window never opening. Root cause — Electron's
+`window-all-closed` event fires whenever the tracked window count hits zero, with no concept of "startup
+phase." The pre-existing handler treated the sync-progress dialog closing (before the main window ever
+existed) as if the user had closed the app, and unconditionally called `app.quit()`. No database, backend,
+or Google Drive Sync logic changes.
+
+- **Generic lifecycle registry:** new `electron/windows/windowLifecycle.ts` — `registerUtilityWindow(win)`
+  marks a transient window (self-cleans on close), `registerMainWindow(win)` sets a permanent one-way flag
+  the first time the real app window is created (never reset, even after that window later closes), and
+  `shouldQuitOnAllWindowsClosed()` answers whether the main window has ever existed. Not sync-dialog-specific
+  — any future utility window (splash, update-check, migration, maintenance) opts in with one call.
+- **`electron/main.ts`:** `window-all-closed` now calls `shouldQuitOnAllWindowsClosed()` before
+  `app.quit()`, instead of quitting unconditionally; `registerMainWindow(mainWindow)` is called right after
+  the main window is created. `before-quit`, startup/shutdown sync, `activate`, and `second-instance` are
+  byte-for-byte unchanged.
+- **`electron/windows/syncProgressWindow.ts`:** calls `registerUtilityWindow(win)` on the Cloud Sync
+  Progress dialog — the first (and currently only) consumer of the new registry.
+- **Validation:** electron `tsc --noEmit` clean · electron vitest (`vitest.electron.config.ts`, 3 files/75
+  tests) passing · backend vitest (135 files/1897 tests) passing · frontend `tsc --noEmit` clean · frontend
+  production build clean · frontend vitest shows the identical established baseline (7 failing files/17
+  failing tests/1829 passing) — zero regressions across all three surfaces.
+
+### Previous Release — `stable-google-drive-database-restore-reliability-pack-v1` (`9ff69d9`, 2026-07-23)
 
 Fixes a real-world production restore failure: a Google Drive download completed successfully but the
 atomic file replacement threw `EPERM: operation not permitted, rename temp.db -> manar.db`, because the

@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `83f2246` (merge of `feature/default-cheque-print-provider-v1`, carrying Default Cheque Print Provider v1) |
-| **Current Documentation Commit** | `9d27038` — "docs: record Default Cheque Print Provider v1 release" |
-| **Current Stable Tag** | `stable-default-cheque-print-provider-v1` |
+| **Current Merge Commit** | `e3bf6d4` (merge of `feature/window-lifecycle-foundation-v1`, carrying Window Lifecycle Foundation v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-window-lifecycle-foundation-v1` |
 | **Current Release Date** | 2026-07-24 |
-| **Total Stable Releases** | 347 (window 2026-06-07 → 2026-07-24) |
+| **Total Stable Releases** | 348 (window 2026-06-07 → 2026-07-24) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -255,6 +255,19 @@ Chromium PDF, and backend HTML reports.
   handler is guarded against this deliberate restart. Frontend: `requiresRestart` → full Electron relaunch
   replaced with `backendRestarted` → `window.location.reload()` (in-window reload only) — no more manual
   app restarts after a Drive restore.
+- **Window Lifecycle Foundation (as of Window Lifecycle Foundation v1, 2026-07-24):**
+  `electron/windows/windowLifecycle.ts` is the authority for one question: does the app currently have a
+  real application window, as opposed to only transient utility windows? `registerUtilityWindow(win)` —
+  any transient window (Cloud Sync Progress dialog today; splash/update-check/migration/maintenance
+  dialogs in the future) self-registers and self-cleans on close via this one call, with zero other code
+  changes needed per new utility window. `registerMainWindow(win)` — called once, when the real app window
+  is created; sets a permanent flag, never reset even after that window later closes.
+  `shouldQuitOnAllWindowsClosed()` — true only if the main window has ever been registered.
+  `electron/main.ts`'s `window-all-closed` handler now checks this before calling `app.quit()`, instead of
+  quitting unconditionally the instant Electron's tracked window count hits zero — fixes a real bug where
+  the sync-progress dialog closing before the main window existed was misread as "the user closed the
+  app," silently exiting the process (code 0, no crash) before `createMainWindow()` ever ran. `before-quit`,
+  startup/shutdown sync, and the Google Drive Sync architecture are unchanged.
 
 ---
 
