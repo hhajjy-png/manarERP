@@ -1,5 +1,7 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import { createMainWindow } from './windows/mainWindow';
+import { beginSyncProgressUI } from './windows/syncProgressWindow';
+import { registerMainWindow, shouldQuitOnAllWindowsClosed } from './windows/windowLifecycle';
 import { startBackend, stopBackend, getUserDataPaths, getInternalSecret } from './services/backendLauncher';
 import { startBackupScheduler, stopBackupScheduler, runCatchupIfNeeded } from './services/backupScheduler';
 import { performStartupSync, performShutdownSync } from './services/syncEngine.service';
@@ -41,12 +43,19 @@ async function bootstrap() {
     // مزامنة بدء التشغيل — تُنزّل نسخة أحدث من Google Drive إن وُجدت، قبل تشغيل
     // الخادم الخلفي (الذي يفتح قفل ملف SQLite). محدودة بمهلة داخلية ولا تُعطّل
     // بدء التطبيق أبدًا حتى عند الفشل.
+    // Cloud Sync Progress Dialog v1 — purely additive UI wrapper. The sync
+    // call, its try/catch, and its error handling below are UNCHANGED; the
+    // dialog only shows/hides around it and never affects whether or how
+    // startup sync runs.
+    const startupSyncUI = beginSyncProgressUI();
     try {
       const { dbPath, dataDir } = getUserDataPaths();
       await performStartupSync(dbPath, dataDir);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[sync] فشلت مزامنة بدء التشغيل — الاستمرار بقاعدة البيانات المحلية:', err);
+    } finally {
+      await startupSyncUI.finish();
     }
 
     await startBackend(INTERNAL_SECRET); // تشغيل الخدمة الخلفية أولًا
@@ -54,6 +63,7 @@ async function bootstrap() {
     runCatchupIfNeeded(INTERNAL_SECRET).catch(console.error); // نسخة تعويضية إذا فات وقت الجدولة
 
     mainWindow = createMainWindow();
+    registerMainWindow(mainWindow);
     registerContextMenuIpc(mainWindow);
     // WYSIWYG viewer guard — suppresses PDFium's Ctrl+P / Ctrl+S exits, but ONLY while a
     // WYSIWYG preview is open. One listener for the window's lifetime; no global blocking.
@@ -109,6 +119,10 @@ app.on('activate', () => {
 });
 
 app.on('window-all-closed', () => {
+  // إغلاق آخر نافذة مساعدة (حوار تقدّم المزامنة أثناء بدء التشغيل، مثلًا) قبل
+  // إنشاء النافذة الرئيسية لا يعني أبدًا أن المستخدم يريد إغلاق التطبيق — هذا
+  // الحدث لا يميّز بين أنواع النوافذ من تلقاء نفسه، لذا نتحقق صراحةً.
+  if (!shouldQuitOnAllWindowsClosed()) return;
   if (process.platform !== 'darwin') app.quit();
 });
 
@@ -125,12 +139,18 @@ app.on('before-quit', (event) => {
     stopBackend();
     await new Promise((r) => setTimeout(r, 800)); // انتظار إغلاق اتصالات Prisma
 
+    // Cloud Sync Progress Dialog v1 — purely additive UI wrapper, same
+    // discipline as the startup call site above: the sync call and its
+    // error handling are UNCHANGED.
+    const shutdownSyncUI = beginSyncProgressUI(mainWindow);
     try {
       const { dbPath, dataDir } = getUserDataPaths();
       await performShutdownSync(dbPath, dataDir);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('[sync] فشلت مزامنة الإغلاق:', err);
+    } finally {
+      await shutdownSyncUI.finish();
     }
 
     quitConfirmed = true;
