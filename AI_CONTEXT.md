@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `e3bf6d4` (merge of `feature/window-lifecycle-foundation-v1`, carrying Window Lifecycle Foundation v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `375fbd8` |
 | **Current Stable Tag** | `stable-window-lifecycle-foundation-v1` |
 | **Current Release Date** | 2026-07-24 |
 | **Total Stable Releases** | 348 (window 2026-06-07 → 2026-07-24) |
