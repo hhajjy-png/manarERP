@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `83f2246` (merge of `feature/default-cheque-print-provider-v1`, carrying Default Cheque Print Provider v1) |
-| **Current Documentation Commit** | `<self-reference — filled by the follow-up docs commit>` — "docs: record Default Cheque Print Provider v1 release" |
+| **Current Documentation Commit** | `9d27038` — "docs: record Default Cheque Print Provider v1 release" |
 | **Current Stable Tag** | `stable-default-cheque-print-provider-v1` |
 | **Current Release Date** | 2026-07-24 |
 | **Total Stable Releases** | 347 (window 2026-06-07 → 2026-07-24) |
