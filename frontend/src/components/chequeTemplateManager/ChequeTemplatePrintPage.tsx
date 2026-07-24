@@ -5,6 +5,8 @@ import type { DesignerField, DesignerSurfaceSpec } from '../../modules/chequeTem
 import { printCurrentView } from '../../utils/print';
 import chequeBg from '../../assets/cheakv1.png';
 import ChequeRenderSurface from './ChequeRenderSurface';
+import ChequeA4Sheet from './ChequeA4Sheet';
+import type { ChequePaperMode } from './ChequeA4Sheet';
 import { PreviewIssues } from './ChequePreview';
 import './chequeTemplatePrintPage.css';
 
@@ -28,6 +30,8 @@ interface PrintState {
   surface: DesignerSurfaceSpec;
   fields: DesignerField[];
   runtimeData?: RuntimeData;
+  /** Outer paper surface: real cheque (178×89mm) or A4 landscape. Default: real cheque. */
+  paperMode?: ChequePaperMode;
 }
 
 function isPrintState(value: unknown): value is PrintState {
@@ -53,6 +57,7 @@ export default function ChequeTemplatePrintPage() {
 
   const model = resolveChequeTemplate({ surface: state.surface, fields: state.fields }, state.runtimeData);
   const blocked = model.meta.hasErrors;
+  const paperMode: ChequePaperMode = state.paperMode === 'a4' ? 'a4' : 'real-cheque';
 
   return (
     <div className="ctpp-root" dir="rtl">
@@ -77,14 +82,20 @@ export default function ChequeTemplatePrintPage() {
         </div>
       ) : (
         <div className="ctpp-print-area">
-          {/* Real printing: NEVER print the cheque background — ink lands on
-              pre-printed cheque paper. Only the resolved fields are printed. */}
-          <ChequeRenderSurface model={model} backgroundSrc={chequeBg} showBackground={false} />
+          {/* NEVER print the cheque background — ink lands on pre-printed stock;
+              only the resolved fields print. A4 mode wraps the SAME cheque
+              surface on an A4 page at the fixed position — the cheque itself,
+              its model, coordinates, typography and bindings are identical. */}
+          {paperMode === 'a4' ? (
+            <ChequeA4Sheet model={model} backgroundSrc={chequeBg} showBackground={false} />
+          ) : (
+            <ChequeRenderSurface model={model} backgroundSrc={chequeBg} showBackground={false} />
+          )}
         </div>
       )}
 
       <style>{`
-        @page { size: ${model.surface.widthCm}cm ${model.surface.heightCm}cm landscape; margin: 0; }
+        @page { size: ${paperMode === 'a4' ? 'A4 landscape' : `${model.surface.widthCm}cm ${model.surface.heightCm}cm`}; margin: 0; }
         @media print {
           .ctpp-chrome { display: none !important; }
           body > * { visibility: hidden !important; }

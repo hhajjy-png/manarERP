@@ -1,0 +1,32 @@
+/*
+ * Cheque A4 Sheet v1 — the outer A4 paper surface for A4 mode.
+ * Scoped under `.cha4-sheet`. The cheque itself is drawn by the shared
+ * ChequeRenderSurface; here we only frame the A4 page and place the fixed
+ * cheque slot. Screen-only decoration is kept out of print.
+ */
+
+.cha4-sheet {
+  position: relative;
+  max-width: 100%;
+  background: #fff;
+}
+
+.cha4-cheque-slot {
+  position: absolute;
+}
+
+/* The nested ChequeRenderSurface fills the slot exactly (matching 2:1 aspect)
+   via its own inline width + `max-width: 100%`, so no sizing override is
+   needed here — the slot is never wider than the cheque's intrinsic size. */
+
+/* Screen-only page/cheque affordances — never printed. */
+@media screen {
+  .cha4-sheet {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+    border: 1px solid var(--border, #e2e8f0);
+  }
+  .cha4-cheque-slot {
+    outline: 1px dashed #94a3b8;
+    outline-offset: 0;
+  }
+}

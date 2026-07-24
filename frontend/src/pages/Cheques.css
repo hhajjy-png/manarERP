@@ -25,20 +25,37 @@
 .chqx-pv { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
 .chqx-pv--set { color: var(--xpl-primary); font-weight: 700; }
 
-/* preview workspace — grouped action bar (primary issuance vs print tools) */
-.chqx-preview-actions {
+/* Printing & actions — one coherent toolbar (provider + print/voucher | calibration tools). */
+.chqx-print-toolbar {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--xpl-border);
 }
-.chqx-action-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-.chqx-action-group--tools { margin-inline-start: auto; }
-.chqx-preview-hint { margin: 10px 0 0; font-size: 12px; color: var(--xpl-muted); text-align: center; }
+.chqx-toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 26px;
+  margin-inline: 6px;
+  background: var(--xpl-border);
+}
+/* Print-provider selector (طريقة الطباعة) next to the print button. */
+.chqx-print-method { display: inline-flex; align-items: center; gap: 6px; }
+.chqx-print-method-label { font-size: 13px; font-weight: 600; color: var(--xpl-muted); white-space: nowrap; }
+.chqx-print-method .xpl-select { min-width: 170px; }
+/* "تعيين كافتراضي" toggle — persists the selected provider as the app default. */
+.chqx-default-provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--xpl-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chqx-default-provider input { cursor: pointer; }
+.chqx-preview-hint { margin: 12px 0 0; font-size: 12px; color: var(--xpl-muted); text-align: start; }
 .chqx-preview-hint.warn { color: var(--xpl-red); }
 
 /* print-badge in table */
@@ -88,34 +105,6 @@
 .chqx-success .material-symbols-outlined { font-size: 18px !important; }
 .chqx-success .xpl-clear-link { margin-inline-start: auto; }
 
-/* ── On-screen cheque preview — the whole cheque shown at 65% of natural size (−35%) ──
-   Presentation-only, Cheques Management page only. The preview CARD keeps its exact
-   size; the cheque is treated as ONE visual object — background image + every overlay
-   field + text — and reduced together via `transform: scale`, centred inside its
-   unchanged box so equal empty margins appear around it. `transform` scales the entire
-   composited element uniformly and does NOT re-resolve any layout width (unlike zoom /
-   width:%), so the background image shrinks with the fields — not just the text.
-   Aspect ratio preserved. Template %/pt coordinates, the hidden print output
-   (.cheque-print-only), the print preview, and the calibration page are all untouched.
-   Reset for print as an extra safeguard (print already shows only .cheque-print-only). */
-.chqx-preview-scale {
-  /* `transform` does not reflow, so the wrapper would otherwise reserve the FULL unscaled
-     height and leave big gaps. Give the wrapper the SCALED cheque's own height instead:
-     the cheque is 700 × 272; scaled by 0.65 the height factor is 272 × 0.65 = 176.8, so at
-     full width the wrapper reserves exactly the scaled cheque height — the card shrinks
-     vertically to fit, no negative margins. The (empty) transform overflow is clipped. */
-  width: 100%;
-  aspect-ratio: 700 / 176.8;
-  margin-block: 18px;             /* small, balanced vertical spacing around the cheque */
-  overflow: hidden;
-}
-.chqx-preview-scale-inner {
-  transform: scale(0.65);
-  transform-origin: top center;   /* cheque pinned to the top-centre of the collapsed box */
-}
-@media print {
-  /* Belt-and-suspenders: print already hides this preview (only .cheque-print-only shows).
-     Fully neutralise the on-screen scaling here so nothing can clip/scale in print. */
-  .chqx-preview-scale { aspect-ratio: auto; overflow: visible; margin-block: 0; }
-  .chqx-preview-scale-inner { transform: none; }
-}
+/* The on-screen decorative cheque preview (.chqx-preview-scale) was removed in the
+   Workspace Refresh — the page now leads with the printing toolbar and the cheque
+   table. The hidden print layer (.cheque-print-only) is unaffected. */

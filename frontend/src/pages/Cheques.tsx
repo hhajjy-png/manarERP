@@ -14,6 +14,9 @@ import DateInput from '../components/DateInput';
 import ConfirmModal from '../components/ConfirmModal';
 import ForceDeleteChequeModal from '../components/ForceDeleteChequeModal';
 import ChequeStudioOverlay from '../components/ChequeStudioOverlay';
+import { getDefaultTemplate, listTemplates } from '../components/chequeTemplateManager/chequeDesignerStore';
+import { buildChequeRuntimeData } from '../components/chequeTemplateManager/chequeRuntimeData';
+import type { ChequeRecordInput } from '../components/chequeTemplateManager/chequeRuntimeData';
 import gulfBankImg from '../assets/cheakv1.png';
 import {
   DEFAULT_TEMPLATE,
@@ -88,6 +91,19 @@ interface FormState {
 }
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
+
+// Print provider — a lightweight selection layer over the existing, unchanged
+// printing systems. 'classic' = the current ChequePrintOutput path; the two
+// 'template-*' options route to the Official Cheque Template print route
+// (Runtime Engine + ChequeRenderSurface) in Real Cheque / A4 surface modes.
+type PrintProvider = 'classic' | 'template-real' | 'template-a4';
+
+const PRINT_PROVIDERS: PrintProvider[] = ['classic', 'template-real', 'template-a4'];
+/** Application-config setting (backed up with the DB) for the default cheque print provider. */
+const DEFAULT_PRINT_PROVIDER_SETTING = 'cheques.defaultPrintProvider';
+function isPrintProvider(v: string): v is PrintProvider {
+  return (PRINT_PROVIDERS as string[]).includes(v);
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -211,6 +227,8 @@ export default function Cheques() {
   const [success, setSuccess] = useState('');
   const [showPrintConfirm, setShowPrintConfirm] = useState(false);
   const [showCalibrator, setShowCalibrator] = useState(false);
+  const [printProvider, setPrintProvider] = useState<PrintProvider>('classic');
+  const [makeDefault, setMakeDefault] = useState(false);
   const [allTemplates, setAllTemplates] = useState<Record<string, ChequeTemplate>>({});
   const [busy, setBusy] = useState(false);
   const [restoringDefault, setRestoringDefault] = useState(false);
@@ -270,6 +288,9 @@ export default function Cheques() {
       const result: Record<string, ChequeTemplate> = {};
       for (const bank of KUWAITI_BANKS) result[bank] = templateFromSettings(settings, bank);
       setAllTemplates(result);
+      // Restore the saved default print provider (absent → 'classic', unchanged behavior).
+      const providerRow = settings.find((s) => s.key === DEFAULT_PRINT_PROVIDER_SETTING);
+      if (providerRow && isPrintProvider(providerRow.value)) setPrintProvider(providerRow.value);
     }).catch(() => {
       const result: Record<string, ChequeTemplate> = {};
       for (const bank of KUWAITI_BANKS) result[bank] = cloneDefaultTemplate();
@@ -360,7 +381,71 @@ export default function Cheques() {
 
   // ── Print ─────────────────────────────────────────────────────────────────
 
+  // ── Provider routing ────────────────────────────────────────────────────────
+  // The cheque data printed by a template provider — from the selected saved
+  // cheque, or the current form when composing a new one.
+  function chequeDataForTemplate(): ChequeRecordInput {
+    return printTarget
+      ? {
+          chequeNumber: printTarget.chequeNumber,
+          chequeDate: printTarget.chequeDate,
+          beneficiaryName: printTarget.beneficiaryName,
+          amount: Number(printTarget.amount),
+          currency: printTarget.currency,
+          bankName: printTarget.bankName,
+        }
+      : {
+          chequeNumber: form.chequeNumber.trim(),
+          chequeDate: form.chequeDate,
+          beneficiaryName: form.beneficiaryName.trim(),
+          amount: Number(form.amount),
+          currency: form.currency.trim(),
+          bankName: form.bankName.trim(),
+        };
+  }
+
+  // Route the print request to the EXISTING Official Cheque Template print page
+  // (Runtime Engine → ChequeRenderSurface). Real Cheque = 178×89mm; A4 = A4 sheet.
+  // Uses the user's default saved template (or the most recent one).
+  function handleTemplatePrint(paperMode: 'real-cheque' | 'a4') {
+    const tpl = getDefaultTemplate() ?? listTemplates()[0] ?? null;
+    if (!tpl) {
+      setFormError('لا يوجد قالب شيك محفوظ — أنشئ قالباً من «قالب الشيك» أولاً.');
+      return;
+    }
+    const runtimeData = buildChequeRuntimeData(chequeDataForTemplate());
+    navigate('/cheque-template/print', {
+      state: { surface: tpl.surface, fields: tpl.fields, runtimeData, paperMode },
+    });
+  }
+
+  // Persist the chosen provider as the application default (backed up with the DB).
+  // Best-effort and silent — no modal, no confirmation message (per spec).
+  async function saveDefaultProvider(provider: PrintProvider) {
+    try {
+      await api.put('/settings', {
+        settings: [{ key: DEFAULT_PRINT_PROVIDER_SETTING, value: provider, group: 'cheques' }],
+      });
+    } catch {
+      /* best-effort persistence */
+    }
+  }
+
+  function handleProviderChange(value: PrintProvider) {
+    setPrintProvider(value);
+    if (makeDefault) saveDefaultProvider(value);
+  }
+
+  function handleMakeDefaultToggle(checked: boolean) {
+    setMakeDefault(checked);
+    if (checked) saveDefaultProvider(printProvider);
+  }
+
   async function handlePrint() {
+    // Provider-selection layer — dispatch to the chosen existing print system.
+    if (printProvider === 'template-real') { handleTemplatePrint('real-cheque'); return; }
+    if (printProvider === 'template-a4') { handleTemplatePrint('a4'); return; }
+    // 'classic' — the existing ChequePrintOutput path, entirely unchanged below.
     if (!printTarget) {
       const err = validateForm();
       if (err) { setFormError(err); return; }
@@ -669,29 +754,44 @@ export default function Cheques() {
         </div>
       </div>
 
-      {/* Preview workspace */}
-      <SectionCard title={t('page.cheques.preview')} icon="visibility" actions={printTarget ? chequeChip(printTarget.status, t) : undefined}>
-        {/* On-screen preview shown at 65% of natural size (presentation-only). Scales the
-            whole preview — background + absolutely-positioned overlay fields — together, so
-            template %/pt coordinates, the hidden print output (.cheque-print-only), and the
-            calibration page are all unchanged. */}
-        <div className="chqx-preview-scale">
-          <div className="chqx-preview-scale-inner">
-            <ChequePrintOutput data={previewData} template={currentTemplate} />
-          </div>
-        </div>
-        {/* تجميع بصري فقط: إجراءات الإصدار الأساسية مقابل أدوات الطباعة/المعايرة —
-            لا تغيير على المعالِجات (handlePrint / printCurrentView / المعايرة). */}
-        <div className="chqx-preview-actions">
-          <div className="chqx-action-group">
-            {canPrint && <Button variant="primary" icon="print" busy={saving} disabled={!isPrintable} onClick={handlePrint}>{t('page.cheques.print')}</Button>}
-            {canPrint && isPrintedCheque && <Button variant="secondary" icon="receipt_long" busy={pvLoading} onClick={handlePrintPaymentVoucher}>{t('action.cheque.print_voucher')}</Button>}
-          </div>
-          <div className="chqx-action-group chqx-action-group--tools">
-            {canCalibrate && <Button variant="ghost" icon="tune" onClick={() => setShowCalibrator(true)}>{t('action.cheque.calibrate_print')}</Button>}
-            {canCalibrate && <Button variant="ghost" icon="restart_alt" busy={restoringDefault} onClick={() => setShowRestoreConfirm(true)}>{t('action.restore_default')}</Button>}
-            {canCancel && printTarget && printTarget.status === 'DRAFT' && <Button variant="danger" icon="block" busy={busy} onClick={() => setCancelConfirmCheque(printTarget)}>{t('page.cheques.cancel_cheque')}</Button>}
-          </div>
+      {/* Printing & actions toolbar — the decorative on-screen cheque preview was
+          removed to reclaim the workspace; the hidden print layer (.cheque-print-only)
+          and every handler (handlePrint / printProvider / calibration) are unchanged. */}
+      <SectionCard title={t('sec.printing')} icon="print" actions={printTarget ? chequeChip(printTarget.status, t) : undefined}>
+        {/* إجراءات الطباعة والمعايرة في شريط أدوات واحد متماسك — لا تغيير على المعالِجات
+            (handlePrint / printProvider / printCurrentView / المعايرة). */}
+        <div className="chqx-print-toolbar">
+          {canPrint && (
+            <label className="chqx-print-method">
+              <span className="chqx-print-method-label">طريقة الطباعة</span>
+              <select
+                className="xpl-select"
+                value={printProvider}
+                onChange={(e) => handleProviderChange(e.target.value as PrintProvider)}
+                aria-label="طريقة الطباعة"
+              >
+                <option value="classic">النظام الكلاسيكي</option>
+                <option value="template-real">قالب الشيك (178 × 89 مم)</option>
+                <option value="template-a4">قالب A4</option>
+              </select>
+            </label>
+          )}
+          {canPrint && canCalibrate && (
+            <label className="chqx-default-provider" title="حفظ طريقة الطباعة المختارة كافتراضي دائم للنظام">
+              <input
+                type="checkbox"
+                checked={makeDefault}
+                onChange={(e) => handleMakeDefaultToggle(e.target.checked)}
+              />
+              <span>تعيين كافتراضي</span>
+            </label>
+          )}
+          {canPrint && <Button variant="primary" icon="print" busy={saving} disabled={!isPrintable} onClick={handlePrint}>{t('page.cheques.print')}</Button>}
+          {canPrint && isPrintedCheque && <Button variant="secondary" icon="receipt_long" busy={pvLoading} onClick={handlePrintPaymentVoucher}>{t('action.cheque.print_voucher')}</Button>}
+          {canCalibrate && <span className="chqx-toolbar-sep" aria-hidden="true" />}
+          {canCalibrate && <Button variant="ghost" icon="tune" onClick={() => setShowCalibrator(true)}>{t('action.cheque.calibrate_print')}</Button>}
+          {canCalibrate && <Button variant="ghost" icon="restart_alt" busy={restoringDefault} onClick={() => setShowRestoreConfirm(true)}>{t('action.restore_default')}</Button>}
+          {canCancel && printTarget && printTarget.status === 'DRAFT' && <Button variant="danger" icon="block" busy={busy} onClick={() => setCancelConfirmCheque(printTarget)}>{t('page.cheques.cancel_cheque')}</Button>}
         </div>
         {!printTarget && <p className="chqx-preview-hint">{t('hint.cheque.save_first')}</p>}
         {printTarget?.status === 'DRAFT' && <p className="chqx-preview-hint">{t('hint.cheque.check_alignment')}</p>}
