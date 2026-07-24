@@ -10,6 +10,37 @@
   gap: 14px;
 }
 
+/* Paper-surface selector (Real Cheque / A4) — presentation-only sub-tabs. */
+.ctm-mode-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ctm-mode-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ctm-mode-tab .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.ctm-mode-tab.active {
+  background: var(--primary, #2563eb);
+  border-color: var(--primary, #2563eb);
+  color: #fff;
+}
+
 /* Designer + Live Preview side by side; stacks on narrow widths. */
 .ctm-workspace {
   display: flex;

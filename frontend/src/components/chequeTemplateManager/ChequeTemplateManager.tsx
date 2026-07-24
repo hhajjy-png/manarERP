@@ -19,6 +19,7 @@ import {
 import chequeBg from '../../assets/cheakv1.png';
 import DataSourceControl from './DataSourceControl';
 import ChequePreview from './ChequePreview';
+import type { ChequePaperMode } from './ChequeA4Sheet';
 import { buildChequeRuntimeData } from './chequeRuntimeData';
 import type { ChequeRecordInput } from './chequeRuntimeData';
 import {
@@ -122,6 +123,8 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
   const [modal, setModal] = useState<ModalState>({ kind: 'none' });
   const [rows, setRows] = useState<StoredChequeTemplate[]>([]);
   const [msg, setMsg] = useState('');
+  // Presentation surface only (view state — never persisted in the template).
+  const [paperMode, setPaperMode] = useState<ChequePaperMode>('real-cheque');
 
   // Runtime data: real cheque values when a cheque is present, else mock.
   const runtimeData = useMemo(
@@ -145,7 +148,7 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
   function handlePrint() {
     if (!chequeRecord) return;
     navigate('/cheque-template/print', {
-      state: { surface: current.surface, fields: current.fields, runtimeData },
+      state: { surface: current.surface, fields: current.fields, runtimeData, paperMode },
     });
   }
 
@@ -244,6 +247,30 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
 
   return (
     <div className="ctm-root">
+      {/* ── Paper-surface selector — presentation only (Real Cheque default) ── */}
+      <div className="ctm-mode-tabs" role="tablist" aria-label="سطح الورق">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={paperMode === 'real-cheque'}
+          className={`ctm-mode-tab${paperMode === 'real-cheque' ? ' active' : ''}`}
+          onClick={() => setPaperMode('real-cheque')}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">payments</span>
+          الشيك الحقيقي
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={paperMode === 'a4'}
+          className={`ctm-mode-tab${paperMode === 'a4' ? ' active' : ''}`}
+          onClick={() => setPaperMode('a4')}
+        >
+          <span className="material-symbols-outlined" aria-hidden="true">description</span>
+          قالب A4
+        </button>
+      </div>
+
       {/* ── Compact toolbar ── */}
       <div className="ctm-toolbar">
         <button type="button" className="btn sm" onClick={handleNew}>
@@ -303,7 +330,7 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
           />
         </div>
         <div className="ctm-preview-pane">
-          <ChequePreview model={previewModel} backgroundSrc={chequeBg} />
+          <ChequePreview model={previewModel} backgroundSrc={chequeBg} paperMode={paperMode} />
         </div>
       </div>
 

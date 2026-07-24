@@ -1,5 +1,7 @@
 import type { RenderIssue, ResolvedRenderModel } from '../../modules/chequeTemplateRuntime';
 import ChequeRenderSurface from './ChequeRenderSurface';
+import ChequeA4Sheet from './ChequeA4Sheet';
+import type { ChequePaperMode } from './ChequeA4Sheet';
 import './chequePreview.css';
 
 /**
@@ -20,6 +22,8 @@ type Props = {
   model: ResolvedRenderModel;
   /** Optional cheque background image for WYSIWYG fidelity (the medium, not field data). */
   backgroundSrc?: string;
+  /** Which outer paper surface to present the (identical) cheque on. Default: real cheque. */
+  paperMode?: ChequePaperMode;
 };
 
 function issueIcon(severity: RenderIssue['severity']): string {
@@ -52,7 +56,7 @@ export function PreviewIssues({ issues }: { issues: RenderIssue[] }) {
   );
 }
 
-export default function ChequePreview({ model, backgroundSrc }: Props) {
+export default function ChequePreview({ model, backgroundSrc, paperMode = 'real-cheque' }: Props) {
   return (
     <div className="chp-root">
       <div className="chp-header">
@@ -61,7 +65,11 @@ export default function ChequePreview({ model, backgroundSrc }: Props) {
       </div>
 
       <div className="chp-frame">
-        <ChequeRenderSurface model={model} backgroundSrc={backgroundSrc} />
+        {paperMode === 'a4' ? (
+          <ChequeA4Sheet model={model} backgroundSrc={backgroundSrc} />
+        ) : (
+          <ChequeRenderSurface model={model} backgroundSrc={backgroundSrc} />
+        )}
       </div>
 
       <PreviewIssues issues={model.issues} />
