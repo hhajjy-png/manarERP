@@ -2,19 +2,19 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-23 (previously 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-24 (previously 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Google Drive Database Restore Reliability Pack v1), like the Google Drive Conflict
-> Resolution Pack v1 pass and the ones before it, refreshed the "Current Production State" table only
-> (re-derived directly from `git`) — the "Repository Status" quantitative table and the deeper narrative surveys
-> (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/2026-07-01 respectively
-> and have not been re-audited in this pass — treat their specifics as of those dates, not current-day. This
-> pass only repoints the table below at the current HEAD, consistent with every other table-only pass in this
-> history.
+> below. This pass (Default Cheque Print Provider v1), like the Official Cheque Template System v1 pass and the
+> ones before it, refreshed the "Current Production State" table only (re-derived directly from `git`), plus a
+> narrative addition to the `## Cheques` section below reflecting this release — the "Repository Status"
+> quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit sections further down)
+> were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in this pass — treat their
+> specifics as of those dates, not current-day. This pass only repoints the table below at the current HEAD,
+> consistent with every other table-only pass in this history.
 
 ---
 
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `9ff69d9` — merge of `feature/google-drive-database-restore-reliability-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-google-drive-database-restore-reliability-pack-v1` (merge commit `9ff69d9`) | High |
-| **Previous stable tag** | `stable-google-drive-conflict-resolution-pack-v1` (`fdf3681`) | High |
+| **Current HEAD** | `83f2246` — merge of `feature/default-cheque-print-provider-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-default-cheque-print-provider-v1` (merge commit `83f2246`) | High |
+| **Previous stable tag** | `stable-official-cheque-template-system-v1` (`fa8f315`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -460,7 +460,9 @@ ResourcePage-driven (ExplorerKit `explorer:true`): customers, suppliers, contrac
 `equipment` (+plate integration, force-delete), `maintenance` (completion), `inventory` (phases A/B/C + system). ExplorerKit-migrated. **100%.**
 
 ## Cheques — ✅ Production
-Management, tafqeet (spelled amount), print output, Gulf Bank calibration, professional calibration pack, calibration UX phase 2. ExplorerKit-migrated + `ChequeCalibrator`. **100%** (per-bank template stubs for beneficiary master / printer prefs are future). Single-page print fix (collapse in-flow app shell in `@media print` so only the fixed cheque paginates) + **SYSTEM_ADMIN force delete** workflow (`GET/DELETE /cheques/:id/force`, exact cheque-number confirmation, transactional delete, bank-statement match rows un-matched not broken, audit `DELETE`+`forceDelete:true`, `ForceDeleteChequeModal`) — `stable-cheques-force-delete-print-fix-v1`.
+Management, tafqeet (spelled amount), print output, Gulf Bank calibration, professional calibration pack, calibration UX phase 2. ExplorerKit-migrated + `ChequeCalibrator`. **100%** (per-bank template stubs for beneficiary master / printer prefs are future).
+
+**Default Cheque Print Provider v1** (`stable-default-cheque-print-provider-v1`, merge `83f2246`): the Cheques Management page now offers a permanent, Settings-backed choice of print provider. A `طريقة الطباعة` dropdown next to `طباعة الشيك` selects between the **Classic** provider (the original `ChequePrintOutput` pipeline, unchanged, still the default), **Cheque Template — Real 178×89mm**, and **Cheque Template — A4**; the two template options route through the Official Cheque Template System's existing Runtime Engine → `ChequeRenderSurface` pipeline (`/cheque-template/print`) — a lightweight selection layer, not a new print engine. A `تعيين كافتراضي` checkbox persists the choice via the existing Settings API (`cheques.defaultPrintProvider`, `PUT /settings`) — no schema change, no migration, included in DB backups — and it is restored automatically on page load; existing users see no behavior change (absent setting → Classic). The page's large decorative on-screen cheque-preview image was removed and the print/voucher/calibration actions consolidated into one toolbar, reclaiming vertical space for the cheque table (Workspace Refresh v1; columns/logic/sorting/filtering unchanged). Also introduces **A4 Surface Mode** for the Official Cheque Template System: a second presentation surface (`ChequeA4Sheet`) that places the identical cheque render surface, unresized and undraggable, at a fixed centered/right-anchored printer-safe position on an A4 landscape page — reusing the same model/engine/renderer as Real-Cheque mode. A companion fix corrected an invalid `@page` CSS declaration (explicit two-length size + `landscape` keyword, disallowed by the CSS Paged Media spec) that was causing Chromium/Windows to silently default to Portrait for A4 prints; A4 mode now uses the named `A4 landscape` page size. **Runtime Engine, `ResolvedRenderModel`, `ChequeRenderSurface`, `ChequePrintOutput`, Template Manager persistence, Semantic Data Binding, Classic Calibration and the Professional module are all unchanged.** Product Owner visual review + Gemini review approved. Single-page print fix (collapse in-flow app shell in `@media print` so only the fixed cheque paginates) + **SYSTEM_ADMIN force delete** workflow (`GET/DELETE /cheques/:id/force`, exact cheque-number confirmation, transactional delete, bank-statement match rows un-matched not broken, audit `DELETE`+`forceDelete:true`, `ForceDeleteChequeModal`) — `stable-cheques-force-delete-print-fix-v1`.
 
 **Calibration test sheet — in-app preview overlay** (`stable-cheque-calibration-test-preview-overlay-v1`, merge `d9d7d7e`): the «اختبار المعايرة» action now opens an **additive preview overlay** of the calibration test sheet instead of printing immediately; the operator inspects and zooms it, and only the preview's «طباعة» button prints. **The print path is unchanged** — the preview closes and delegates to the same `printCurrentView()` call the button made before, reaching `webContents.print` through the untouched legacy path with the same geometry-derived `@page`, zero margin and 100% scale. **Single source of truth:** the sheet is rendered once into the hidden `.chq-calib-testprint` layer; `composeCalibrationTestDocument()` serialises *that very node* for the preview and `printCurrentView()` prints *that very node* — no second document generator, no duplicated SVG, no preview-only geometry, no looser preview-side validation. No style capture is needed because the sheet has **zero CSS dependency** (all SVG presentation attributes in a millimetre viewBox). The shared `PrintPreviewDialog` gained optional `pageWidthMm`/`pageHeightMm`/`title` props whose defaults preserve the A4 derivation for every existing caller, so a SYSTEM_ADMIN paper-size change moves the preview box and the `@page` rule together. Gated by the independent flag `CHEQUE_CALIBRATION_TEST_PREVIEW_V1` (default ON; off ⇒ the button prints directly as before). **Cheque geometry, calibration mathematics, calibration persistence, template versioning, restore-defaults, print logs, reprint rules and real cheque printing are all unchanged; frontend only; no schema change, no migration, no API change.** Known deliberate limitation: the Calibration **Wizard**'s own print steps still print directly. Manual visual review + **physical print UAT approved**.
 

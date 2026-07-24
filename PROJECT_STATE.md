@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `fa8f315` — release `stable-official-cheque-template-system-v1` (Official Cheque Template System v1 — new, self-contained cheque-template designer + runtime engine + live preview + printing, fully isolated; Classic Calibration, the Professional module, backend, DB and Settings untouched) |
+| **Production HEAD** | `83f2246` — release `stable-default-cheque-print-provider-v1` (Default Cheque Print Provider v1 — persistent print-provider selection for Official Cheque Management, layered on the existing three printing systems; Runtime Engine, ChequeRenderSurface, ChequePrintOutput, Classic Calibration and the Professional module untouched) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-official-cheque-template-system-v1` (release date 2026-07-24) → merge `fa8f315` |
-| **Previous stable tag** | `stable-google-drive-database-restore-reliability-pack-v1` (2026-07-23) → merge `9ff69d9` |
-| **Total stable releases** | 346 (all merged onto `production`; window 2026-06-07 → 2026-07-24) |
-| **Latest validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · backend `vitest` — 1897/1897 pass (135 files) · frontend `vitest` full suite — 7 failing files / 17 failing tests / 1829 passing, all within the established pre-existing baseline (cheque print isolation, financial center tables, print preview, format balance, invoice fast entry, currency headers, WYSIWYG preview POC — none from this release) — zero regressions; +21 passing vs prior baseline (new Runtime Engine + designer-notify tests) |
-| **Remote sync** | `origin/production` — pushed with this release (merge `fa8f315` + tag `stable-official-cheque-template-system-v1`) |
+| **Latest stable tag** | `stable-default-cheque-print-provider-v1` (release date 2026-07-24) → merge `83f2246` |
+| **Previous stable tag** | `stable-official-cheque-template-system-v1` (2026-07-24) → merge `fa8f315` |
+| **Total stable releases** | 347 (all merged onto `production`; window 2026-06-07 → 2026-07-24) |
+| **Latest validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · backend `vitest` — 1897/1897 pass (135 files) · frontend `vitest` full suite (on the committed merge state) — 7 failing files / 17 failing tests / 1829 passing, identical to the prior release's established baseline (cheque print isolation, financial center tables, print preview, format balance, invoice fast entry, currency headers, WYSIWYG preview POC — none from this release) — zero regressions. (A local working-tree copy of `App.tsx`, carrying unrelated uncommitted Professional-module route additions predating this release, transiently made `routerFutureFlags.test.tsx` fail during validation; proven not a regression by diffing the committed merge commit's `App.tsx` — exactly 48 `lazy(` calls, matching the test's expectation — this file was never part of the feature or merge commit.) |
+| **Remote sync** | `origin/production` — pushed with this release (merge `83f2246` + tag `stable-default-cheque-print-provider-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,28 @@ in a table cell.
 
 ---
 
-## Latest Release — Official Cheque Template System v1
+## Latest Release — Default Cheque Print Provider v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Default Cheque Print Provider v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-24 |
+| **Feature branch** | `feature/default-cheque-print-provider-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `7400b34` (documentation commit from the prior release) |
+| **Feature commit** | `afc97ac` |
+| **Production merge commit** | `83f2246` |
+| **Stable tag** | `stable-default-cheque-print-provider-v1` → merge `83f2246` (annotated) |
+| **Reviews** | Product Owner visual review — **completed & approved**. Gemini review — **approved**. |
+| **Validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · backend `vitest` 1897/1897 ✅ · frontend `vitest` (committed state) 1829 passing / 17 failing (7 files, identical to the prior release's baseline, none from this release) — zero regressions |
+
+**Scope.** Users can now permanently choose the default cheque printing provider from the Cheques Management page. The preference is stored using the **existing application Settings infrastructure** (`cheques.defaultPrintProvider`, upserted via the existing `PUT /settings` endpoint — included in database backups, no new schema, no migration) and restored automatically on page load; **existing users continue to default to the Classic provider** (setting absent → unchanged behavior). This release bundles five sequential, dependent packs built and validated together this session on top of Official Cheque Template System v1's print pipeline: (1) **A4 Surface Mode v1** — a second presentation surface (`ChequeA4Sheet`) that places the *same* cheque render surface at a fixed, centered, printer-safe position on an A4 landscape page, with no second Runtime/Render/Print engine; (2) a **Force Landscape fix** — corrected an invalid `@page` CSS declaration (an explicit two-length size combined with the `landscape` keyword, which the CSS Paged Media spec disallows) that made Chromium/Windows silently drop the page-size rule and default to Portrait — A4 mode now uses the named `A4 landscape` page size; (3) **Cheque Printing Provider Selection v1** — a `طريقة الطباعة` dropdown next to `طباعة الشيك` that routes the print request to one of the three existing, unmodified printing systems (Classic / Cheque Template Real 178×89mm / Cheque Template A4) via a lightweight selection layer, default Classic; (4) **Cheques Management Workspace Refresh v1** — removed the large decorative on-screen cheque preview image and consolidated the printing/voucher/calibration actions into one coherent toolbar, reclaiming vertical space so the cheque table becomes the page's primary focus (columns/logic/sorting/filtering unchanged); (5) **Default Cheque Print Provider v1** itself — the `تعيين كافتراضي` toggle described above. Full report: `docs/RELEASE_DEFAULT_CHEQUE_PRINT_PROVIDER_V1.md`.
+
+**Deliberately unchanged.** The Runtime Engine, `ResolvedRenderModel`, `ChequeRenderSurface`, `ChequePrintOutput`, the Template Manager's persistence, Semantic Data Binding, Classic Calibration, and the Professional module — none were modified; the provider layer only routes to them. Scoped release: unrelated in-progress working-tree work (dashboard, Prisma schema/seed, the Professional module, migrations) was left uncommitted and out of scope, matching the prior release's convention.
+
+---
+
+## Previous Release — Official Cheque Template System v1
 
 | Field | Value |
 |-------|-------|

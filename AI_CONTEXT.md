@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `fa8f315` (merge of `feature/official-cheque-template-system-v1`, carrying Official Cheque Template System v1) |
-| **Current Documentation Commit** | `c2c680c` — "docs: record Official Cheque Template System v1 release" |
-| **Current Stable Tag** | `stable-official-cheque-template-system-v1` |
+| **Current Merge Commit** | `83f2246` (merge of `feature/default-cheque-print-provider-v1`, carrying Default Cheque Print Provider v1) |
+| **Current Documentation Commit** | `<self-reference — filled by the follow-up docs commit>` — "docs: record Default Cheque Print Provider v1 release" |
+| **Current Stable Tag** | `stable-default-cheque-print-provider-v1` |
 | **Current Release Date** | 2026-07-24 |
-| **Total Stable Releases** | 346 (window 2026-06-07 → 2026-07-24) |
+| **Total Stable Releases** | 347 (window 2026-06-07 → 2026-07-24) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
