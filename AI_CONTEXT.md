@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `9ff69d9` (merge of `feature/google-drive-database-restore-reliability-pack-v1`, carrying Google Drive Database Restore Reliability Pack v1) |
-| **Current Documentation Commit** | `008262f` — "docs: record Google Drive Database Restore Reliability Pack v1 release" |
-| **Current Stable Tag** | `stable-google-drive-database-restore-reliability-pack-v1` |
-| **Current Release Date** | 2026-07-23 |
-| **Total Stable Releases** | 345 (window 2026-06-07 → 2026-07-23) |
+| **Current Merge Commit** | `fa8f315` (merge of `feature/official-cheque-template-system-v1`, carrying Official Cheque Template System v1) |
+| **Current Documentation Commit** | `<self-reference — filled by the follow-up docs commit>` — "docs: record Official Cheque Template System v1 release" |
+| **Current Stable Tag** | `stable-official-cheque-template-system-v1` |
+| **Current Release Date** | 2026-07-24 |
+| **Total Stable Releases** | 346 (window 2026-06-07 → 2026-07-24) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---

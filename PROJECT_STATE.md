@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `9ff69d9` — release `stable-google-drive-database-restore-reliability-pack-v1` (Google Drive Database Restore Reliability Pack v1 — fixes a real-world EPERM restore failure by making the download-replace path backend-aware; no schema or business logic changes) |
+| **Production HEAD** | `fa8f315` — release `stable-official-cheque-template-system-v1` (Official Cheque Template System v1 — new, self-contained cheque-template designer + runtime engine + live preview + printing, fully isolated; Classic Calibration, the Professional module, backend, DB and Settings untouched) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-google-drive-database-restore-reliability-pack-v1` (release date 2026-07-23) → merge `9ff69d9` |
-| **Previous stable tag** | `stable-google-drive-conflict-resolution-pack-v1` (2026-07-23) → merge `fdf3681` |
-| **Total stable releases** | 345 (all merged onto `production`; window 2026-06-07 → 2026-07-23) |
-| **Latest validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · frontend `vitest` full suite — 8 failing files / 18 failing tests / 1808 passing, identical to the established pre-existing baseline (cheque print isolation, financial center tables, print preview, router flags, format balance, invoice fast entry, currency headers, WYSIWYG labeling — none touching Sync/Restore code) — zero regressions · no backend changes this release · real-world runtime restore testing completed successfully per user's release note |
-| **Remote sync** | `origin/production` — pushed with this release (merge `9ff69d9` + tag `stable-google-drive-database-restore-reliability-pack-v1`) |
+| **Latest stable tag** | `stable-official-cheque-template-system-v1` (release date 2026-07-24) → merge `fa8f315` |
+| **Previous stable tag** | `stable-google-drive-database-restore-reliability-pack-v1` (2026-07-23) → merge `9ff69d9` |
+| **Total stable releases** | 346 (all merged onto `production`; window 2026-06-07 → 2026-07-24) |
+| **Latest validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · backend `vitest` — 1897/1897 pass (135 files) · frontend `vitest` full suite — 7 failing files / 17 failing tests / 1829 passing, all within the established pre-existing baseline (cheque print isolation, financial center tables, print preview, format balance, invoice fast entry, currency headers, WYSIWYG preview POC — none from this release) — zero regressions; +21 passing vs prior baseline (new Runtime Engine + designer-notify tests) |
+| **Remote sync** | `origin/production` — pushed with this release (merge `fa8f315` + tag `stable-official-cheque-template-system-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,28 @@ in a table cell.
 
 ---
 
-## Latest Release — Google Drive Database Restore Reliability Pack v1
+## Latest Release — Official Cheque Template System v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Official Cheque Template System v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-24 |
+| **Feature branch** | `feature/official-cheque-template-system-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `325c0cf` (documentation commit from the prior release) |
+| **Feature commit** | `19029ca` |
+| **Production merge commit** | `fa8f315` |
+| **Stable tag** | `stable-official-cheque-template-system-v1` → merge `fa8f315` (annotated) |
+| **Reviews** | Product Owner visual review — **completed & approved**. Claude architectural review — **passed**. Gemini final review — **approved**. |
+| **Validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · backend `vitest` 1897/1897 ✅ · frontend `vitest` 1829 passing / 17 failing (7 files, all pre-existing baseline, none from this release) — zero regressions |
+
+**Scope.** A new, self-contained Official Cheque Template architecture, built alongside and **fully isolated** from Classic Calibration and the Professional Cheque Printing module. Includes: a reusable business-logic-free **`ChequeTemplateDesigner`** (WYSIWYG selection/drag/resize/rotation/keyboard-nudge/alignment-snap/undo-redo with host extension slots); a **"قالب الشيك" tab** in the cheque studio overlay (Classic Calibration stays the **default** tab and byte-for-byte unchanged, hosted in a screen-only CSS containing block so its print path is untouched); a **Template Manager** (New / Open / Save / Save As / Rename / Delete / Default) on an **independent `chequeDesigner.*` localStorage** namespace (layout-only, never `cheque.template.*`); a pure **Runtime Engine** (`resolveChequeTemplate`: template + runtime data → fully-resolved render model, validation + graceful handling + painting order — the single rendering authority); **semantic Data Binding** (per-field Data Source dropdown; stable semantic ids persisted, never display text); a **Live Preview** and shared **`ChequeRenderSurface`** used by both preview and print (no duplicated rendering logic); a **printing pipeline** (real cheque record → runtime data reusing existing tafqeet/amount logic → engine → render surface → existing Electron print flow via a dedicated `/cheque-template/print` route); **native 178 × 89 mm Landscape** (`@page` + native Electron `landscape` enforcement); **background separation** (preview shows the cheque background + data, print outputs **data only**); and an **architectural fix** for the designer host-notification infinite render loop (notification decoupled from `onChange` identity, fires only on genuine field changes). Full report: `docs/RELEASE_OFFICIAL_CHEQUE_TEMPLATE_SYSTEM_V1.md`.
+
+**Deliberately unchanged.** Classic Calibration (workflow / storage / rendering / printing / existing APIs), the Professional module, backend, Prisma schema, database, and Settings. Scoped release: unrelated in-progress working-tree work (dashboard, Prisma schema/seed, the Professional module, migrations) was left uncommitted and out of scope.
+
+---
+
+## Previous Release — Google Drive Database Restore Reliability Pack v1
 
 | Field | Value |
 |-------|-------|
