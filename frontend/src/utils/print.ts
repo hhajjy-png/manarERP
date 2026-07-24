@@ -14,8 +14,11 @@
  * The PDF export flow (`window.manar.exportPdf` / `exportPdfFromHtml` → printToPDF)
  * is intentionally NOT touched by this helper.
  */
-export function printCurrentView(): Promise<void> {
-  const p = window.manar?.printPage?.();
+// Optional `options.landscape` is forwarded to the native Electron print so a
+// caller (e.g. cheque-template printing) can force landscape orientation via
+// Chromium instead of relying on @page CSS alone. Omitted → identical to before.
+export function printCurrentView(options?: { landscape?: boolean }): Promise<void> {
+  const p = window.manar?.printPage?.(options);
   if (p) return p.catch(() => { window.print(); });
   window.print();
   return Promise.resolve();

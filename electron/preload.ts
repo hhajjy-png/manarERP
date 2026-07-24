@@ -34,7 +34,7 @@ const api = {
   restartApp: (): Promise<void> => ipcRenderer.invoke('app:restart'),
 
   /** طباعة الصفحة الحالية (للفواتير/التقارير). */
-  printPage: (): Promise<void> => ipcRenderer.invoke('app:print'),
+  printPage: (options?: { landscape?: boolean }): Promise<void> => ipcRenderer.invoke('app:print', options),
 
   /** معلومات التطبيق (الإصدار). */
   getAppInfo: (): Promise<{ version: string; platform: string }> =>

@@ -1,0 +1,127 @@
+/*
+ * Cheque Studio overlay — Official Cheque Template Integration v1.
+ *
+ * A thin tabbed shell hosting Classic Calibration (unchanged) and the generic
+ * Cheque Template Designer. All layout constraints that could touch the
+ * calibrator's fixed positioning are scoped to `@media screen`, so the
+ * calibration test-sheet PRINT path is byte-identical to before.
+ */
+
+.chq-studio-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  background: #eef2f7;
+}
+
+/* ── Tab bar ── */
+.chq-studio-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--surface, #fff);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  flex-shrink: 0;
+}
+
+.chq-studio-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chq-studio-tab .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.chq-studio-tab.active {
+  background: var(--primary, #2563eb);
+  border-color: var(--primary, #2563eb);
+  color: #fff;
+}
+
+.chq-studio-tabs-spacer {
+  flex: 1;
+}
+
+.chq-studio-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chq-studio-close .material-symbols-outlined {
+  font-size: 18px;
+}
+
+/* ── Body ── */
+.chq-studio-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+/*
+ * Calibration host — SCREEN ONLY. A `transform` turns this element into the
+ * containing block for the (unmodified) ChequeCalibrator's `position: fixed`
+ * root, so the calibrator fills this area (below the tab bar) instead of the
+ * viewport. In print there is NO transform, so the calibrator's fixed
+ * test-sheet anchors to the page exactly as it always has — the print path is
+ * untouched.
+ */
+@media screen {
+  .chq-studio-body {
+    overflow: hidden;
+  }
+
+  .chq-studio-calib-host {
+    position: absolute;
+    inset: 0;
+    transform: translateZ(0);
+  }
+}
+
+/* ── Designer host ── */
+.chq-studio-designer-host {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 20px 24px 32px;
+}
+
+.chq-studio-designer-intro {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.chq-studio-designer-intro .material-symbols-outlined {
+  font-size: 18px;
+}

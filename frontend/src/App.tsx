@@ -58,6 +58,8 @@ const PaymentVoucher = lazy(() => import('./pages/PaymentVoucher'));
 const ReceiptVoucher = lazy(() => import('./pages/ReceiptVoucher'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 const EmployeeEntitlementsCenter = lazy(() => import('./pages/EmployeeEntitlementsCenter'));
+// طباعة قالب الشيك (نظام قالب الشيك الجديد) — صفحة طباعة مستقلة خارج التخطيط، لعزل نظيف عن المعايرة والصفحة.
+const ChequeTemplatePrintPage = lazy(() => import('./components/chequeTemplateManager/ChequeTemplatePrintPage'));
 
 export default function App() {
   const { loadSession } = useAuth();
@@ -103,6 +105,7 @@ export default function App() {
           <Route path="/forms/purchase-request" element={<ProtectedRoute><PurchaseRequest /></ProtectedRoute>} />
           <Route path="/forms/payment-voucher/:chequeId" element={<ProtectedRoute><PaymentVoucher /></ProtectedRoute>} />
           <Route path="/forms/receipt-voucher" element={<ProtectedRoute><ReceiptVoucher /></ProtectedRoute>} />
+          <Route path="/cheque-template/print" element={<ProtectedRoute><ChequeTemplatePrintPage /></ProtectedRoute>} />
           <Route
             element={
               <ProtectedRoute>

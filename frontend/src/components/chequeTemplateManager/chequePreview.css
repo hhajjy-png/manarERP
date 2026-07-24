@@ -1,0 +1,87 @@
+/*
+ * Cheque Live Preview v1 — styles. Scoped under `.chp-root`.
+ * The cheque surface + field drawing live in the shared ChequeRenderSurface
+ * (chequeRenderSurface.css); here we only add the preview frame, header, and
+ * issues panel.
+ */
+
+.chp-root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chp-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text, #0f172a);
+}
+
+.chp-header .material-symbols-outlined {
+  font-size: 18px;
+}
+
+/* Frame around the shared render surface (presentation only). */
+.chp-frame {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  line-height: 0;
+}
+
+/* ── Issues panel ── */
+.chp-issues {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--surface, #fff);
+  font-size: 12px;
+}
+
+.chp-issues--ok {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.chp-issues--ok .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.chp-issues-title {
+  font-weight: 800;
+  color: var(--text, #0f172a);
+  margin-bottom: 8px;
+}
+
+.chp-issues-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chp-issue {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  line-height: 1.5;
+}
+
+.chp-issue .material-symbols-outlined {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.chp-issue--error { color: #dc2626; }
+.chp-issue--warning { color: #b45309; }
+.chp-issue--info { color: #64748b; }

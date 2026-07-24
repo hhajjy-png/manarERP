@@ -1,0 +1,276 @@
+/*
+ * Cheque Template Designer — generic editor styles (Dual Cheque Printing
+ * Modes Foundation v1). Adapted from the Professional module's editor CSS.
+ *
+ * Fully scoped under `.ctd-root` so it cannot affect any other page (in
+ * particular, it can never touch Classic Calibration or the Cheques page).
+ * Class prefix `ctd-` is unique to this module.
+ */
+
+.ctd-root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ctd-root .ctd-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ctd-root .ctd-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.ctd-root .ctd-canvas {
+  flex: 1 1 420px;
+  min-width: 320px;
+}
+
+/* Design surface — intrinsic size (cm) set inline by DesignerSurface;
+   max-width lets it shrink to fit, aspect-ratio keeps proportions. */
+.ctd-root .ctd-design-surface {
+  position: relative;
+  max-width: 100%;
+}
+
+.ctd-root .ctd-surface-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.ctd-root .ctd-field-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Each field's clickable/draggable hit area and selection anchor. */
+.ctd-root .ctd-field-wrapper {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 2px 4px;
+  touch-action: none;
+}
+
+.ctd-root .ctd-field-wrapper.selected {
+  outline: 1px solid #2563eb;
+  outline-offset: 2px;
+  cursor: grab;
+}
+
+.ctd-root .ctd-field-wrapper.selected:active {
+  cursor: grabbing;
+}
+
+.ctd-root .ctd-field-text {
+  display: block;
+  width: 100%;
+  color: #000;
+  font-size: 12px;
+  font-weight: 400;
+  overflow-wrap: break-word;
+}
+
+/* Subtle "bound to data" indicator — a small dot in the field's start corner. */
+.ctd-root .ctd-field-binding-dot {
+  position: absolute;
+  top: -2px;
+  inset-inline-start: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 1px #fff;
+  pointer-events: none;
+}
+
+/* Host-injected properties section (e.g. the Data Source control). */
+.ctd-root .ctd-inspector-extras {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+/* Resize handles on the selected field. */
+.ctd-root .ctd-field-handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: #2563eb;
+  border: 1px solid #fff;
+  border-radius: 1px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.ctd-root .handle-tl { left: -5px; top: -5px; cursor: nwse-resize; }
+.ctd-root .handle-tr { right: -5px; top: -5px; cursor: nesw-resize; }
+.ctd-root .handle-bl { left: -5px; bottom: -5px; cursor: nesw-resize; }
+.ctd-root .handle-br { right: -5px; bottom: -5px; cursor: nwse-resize; }
+
+/* Rotation handle + connecting line above the selected field. */
+.ctd-root .ctd-field-rotation-line {
+  position: absolute;
+  left: 50%;
+  top: -22px;
+  width: 1px;
+  height: 22px;
+  background: #2563eb;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.ctd-root .ctd-field-rotation-handle {
+  position: absolute;
+  left: 50%;
+  top: -30px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 1px solid #fff;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  touch-action: none;
+  cursor: grab;
+}
+
+.ctd-root .ctd-field-rotation-handle:active {
+  cursor: grabbing;
+}
+
+/* Smart alignment guide lines, shown only while dragging/resizing. */
+.ctd-root .ctd-alignment-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ctd-root .ctd-alignment-guide {
+  position: absolute;
+  background: #ec4899;
+}
+
+.ctd-root .ctd-alignment-guide--vertical { top: 0; bottom: 0; width: 1px; }
+.ctd-root .ctd-alignment-guide--horizontal { left: 0; right: 0; height: 1px; }
+
+/* Properties panel. */
+.ctd-root .ctd-inspector {
+  flex: 1 1 320px;
+  min-width: 280px;
+}
+
+.ctd-root .ctd-inspector h4 {
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.ctd-root .ctd-inspector-empty {
+  color: var(--text-muted, #64748b);
+  font-size: 13px;
+}
+
+.ctd-root .ctd-inspector-identity {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ctd-root .ctd-inspector-identity td {
+  padding: 5px 0;
+  vertical-align: top;
+}
+
+.ctd-root .ctd-inspector-key {
+  color: var(--text-muted, #64748b);
+  width: 130px;
+}
+
+.ctd-root .ctd-inspector-mono {
+  font-family: monospace;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.ctd-root .ctd-inspector-properties {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.ctd-root .ctd-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ctd-root .ctd-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ctd-root .ctd-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted, #64748b);
+}
+
+.ctd-root .ctd-field input,
+.ctd-root .ctd-field select {
+  width: 100%;
+}
+
+.ctd-root .ctd-field input[type='color'] {
+  height: 40px;
+  padding: 4px;
+}
+
+.ctd-root .ctd-inspector-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.ctd-root .ctd-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ctd-root .ctd-pill.green { background: #dcfce7; color: #166534; }
+.ctd-root .ctd-pill.gray { background: #e2e8f0; color: #475569; }
+
+.ctd-root .ctd-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: #2563eb;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ctd-root .ctd-btn.secondary { background: var(--surface, #fff); color: var(--text, #0f172a); }
+.ctd-root .ctd-btn.danger { background: #dc2626; color: #fff; border-color: #dc2626; }
+.ctd-root .ctd-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+@media (max-width: 1000px) {
+  .ctd-root .ctd-layout { flex-direction: column; }
+}
