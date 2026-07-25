@@ -457,9 +457,7 @@ export default function ReceiptVoucher() {
               data={{
                 formType: 'receipt-voucher',
                 formNumber: rcvNumber || '---',
-                employeeId: 0,
-                employeeName: form.partyName,
-                issueDate: new Date().toISOString(),
+                entityName: form.partyName,
               }}
               size={80}
             />

@@ -104,9 +104,7 @@ export default function PaymentVoucher() {
       qrData={{
         formType: 'payment-voucher',
         formNumber: cheque.paymentVoucherNumber,
-        employeeId: 0,
-        employeeName: cheque.beneficiaryName,
-        issueDate: new Date().toISOString(),
+        entityName: cheque.beneficiaryName,
       }}
     >
       <PaymentVoucherTemplate

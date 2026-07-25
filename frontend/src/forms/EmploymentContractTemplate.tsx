@@ -4,7 +4,7 @@ import { amountToWordsKWD } from '../lib/tafqeet';
 import { ProfileId, DEFAULT_PROFILE_ID, PRINT_PROFILES, getPrintProfileStyle } from './shared/printProfiles';
 import ApprovalSection from './shared/ApprovalSection';
 import { longTextCell } from './shared/formStyles';
-import FormQRCode from './shared/FormQRCode';
+import FormQRCode, { QRData } from './shared/FormQRCode';
 import { getAuthorizedSignatory } from './shared/authorizedSignatories';
 
 export interface ContractParams {
@@ -181,22 +181,13 @@ export default function EmploymentContractTemplate({
   const issueFmt = dmy(params.issueDate);
   const startFmt = dmy(params.startDate);
   const sal = Math.round(emp.salary);
-  // Contract end date is not a stored field — derived from the fixed duration dropdown
-  // (1/2/3 years, see DURATION_OPTIONS in EmploymentContract.tsx) applied to startDate.
-  const CONTRACT_DURATION_YEARS: Record<string, number> = { 'سنة': 1, 'سنتين': 2, 'ثلاث سنوات': 3 };
-  const contractEndDate = new Date(params.startDate);
-  contractEndDate.setFullYear(contractEndDate.getFullYear() + (CONTRACT_DURATION_YEARS[params.durationAr] ?? 1));
-  const qrData = {
-    employeeName: emp.fullName,
-    civilId: emp.civilId ?? '—',
-    contractDuration: params.durationAr,
-    salary: sal,
-    companyName: 'شركة المنار الدولية',
-    contractEndDate: dmy(contractEndDate.toISOString()),
-    // Kept only so FormQRCode's own caption (data.formNumber, rendered below the QR
-    // image) keeps working — FormQRCode couples the encoded payload and the caption
-    // to the same object and must not be modified, so this can't be split out.
+  const qrData: QRData = {
+    formType: 'employment-contract',
     formNumber,
+    entityName: emp.fullName,
+    // emp.id is 0 for the manual-entry (unregistered employee) print path — not a
+    // real record id, so it's omitted rather than encoded as a meaningless value.
+    ...(emp.id ? { entityId: emp.id } : {}),
   };
   const salWordsAr = amountToWordsKWD(sal, 'ar');
   const salWordsEn = amountToWordsKWD(sal, 'en');
@@ -563,7 +554,7 @@ export default function EmploymentContractTemplate({
           renders after it that a negative margin could disturb.
         */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '-30mm' }}>
-          <FormQRCode data={qrData as never} size={72} />
+          <FormQRCode data={qrData} size={72} />
         </div>
 
       </div>

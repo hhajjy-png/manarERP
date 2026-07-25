@@ -183,7 +183,7 @@ describe('FormLayout inside the workspace', () => {
           formNumber="FORM-001"
           title="شهادة راتب"
           profile="plain-a4"
-          qrData={{ formType: 't', formNumber: 'FORM-001', employeeId: 1, employeeName: 'x', issueDate: '2026-01-01' }}
+          qrData={{ formType: 't', formNumber: 'FORM-001', entityName: 'x', entityId: 1 }}
         >
           {/* Screen-only "print fields" override panel — hidden by @media print,
               must be stripped from the exported PDF just like the physical print. */}

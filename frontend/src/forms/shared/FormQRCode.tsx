@@ -4,9 +4,8 @@ import QRCode from 'qrcode';
 export interface QRData {
   formType: string;
   formNumber: string;
-  employeeId: number;
-  employeeName: string;
-  issueDate: string;
+  entityName: string;
+  entityId?: number;
 }
 
 export default function FormQRCode({ data, size = 80 }: { data: QRData; size?: number }) {
