@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { printCurrentView } from '../utils/print';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { printCurrentViewWithResult } from '../utils/print';
+import { markChequePrinted, reprintCheque, printOutcomeMessage, type ChequeTrackingInfo } from '../utils/chequePrintTracking';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
@@ -243,6 +244,16 @@ export default function Cheques() {
   const [reprintBusy, setReprintBusy] = useState(false);
   const [printLogs, setPrintLogs] = useState<ChequePrintLogRow[]>([]);
   const [printLogsLoading, setPrintLogsLoading] = useState(false);
+  // ── Multi-selection & batch printing (Cheque Multi-Selection & Batch Printing Pack v1) ──
+  // Selection is an id Set independent of the loaded page, so it survives sorting/
+  // filtering/pagination; batch actions operate on whichever selected rows are
+  // currently loaded in `cheques`. The batch itself drives the EXISTING single-print
+  // handlers (handlePrint branches, handleMarkPrinted, handleConfirmReprint) one
+  // cheque at a time — no parallel print jobs, no duplicated print logic.
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [batchTotal, setBatchTotal] = useState(0);
+  const [batchCurrent, setBatchCurrent] = useState(0);
+  const batchRef = useRef<{ items: Cheque[]; index: number; succeeded: number } | null>(null);
   const canCreate = hasPermission('cheques.create');
   const canUpdate = hasPermission('cheques.update');
   const canPrint = hasPermission('cheques.print');
@@ -379,20 +390,159 @@ export default function Cheques() {
     }
   }
 
+  // ── Selection (row checkboxes + select-all-on-page) ────────────────────────
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const visibleSelectedCount = useMemo(
+    () => cheques.reduce((n, c) => n + (selectedIds.has(c.id) ? 1 : 0), 0),
+    [cheques, selectedIds],
+  );
+  const allVisibleSelected = cheques.length > 0 && visibleSelectedCount === cheques.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
+
+  const toggleSelectAllVisible = useCallback(() => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = cheques.length > 0 && cheques.every((c) => next.has(c.id));
+      cheques.forEach((c) => { if (allSelected) next.delete(c.id); else next.add(c.id); });
+      return next;
+    });
+  }, [cheques]);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  // ── Batch printing — orchestrates the EXISTING single-cheque tracking calls
+  // (markChequePrinted / reprintCheque, via their confirm/reprint-reason modals)
+  // sequentially, one cheque at a time. Sequence per item: print → real print
+  // result → tracking only if the result was 'success' → continue. Never runs a
+  // second print job before the current one has resolved. On any non-'success'
+  // result the batch STOPS — nothing after the failed/cancelled item is processed,
+  // and nothing is ever marked printed for it. ───────────────────────────────────
+
+  async function runChequeBatchStep() {
+    const job = batchRef.current;
+    if (!job) return;
+    if (job.index >= job.items.length) { finishChequeBatch('done'); return; }
+    setBatchCurrent(job.index + 1);
+    const cheque = job.items[job.index];
+    setPrintTarget(cheque);
+    setEditId(cheque.id);
+    // Two rAF ticks so the hidden `.cheque-print-only` layer (which reads
+    // `previewData`/`printTarget`) has actually repainted with this cheque's data
+    // before printing captures the page — same requirement `handlePrint` already
+    // relies on via React's own render/commit timing for a single cheque.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    const result = await printCurrentViewWithResult();
+    if (result.outcome !== 'success') {
+      setFormError(printOutcomeMessage(result, t));
+      finishChequeBatch('stopped');
+      return;
+    }
+    // Print succeeded — now, and only now, offer the same tracking step the
+    // single-item flow uses (mark-printed confirm for DRAFT, reprint-reason for
+    // PRINTED). Note: for PRINTED cheques this asks the reprint reason AFTER the
+    // physical print (per this pack's print→result→tracking sequencing), unlike
+    // the single-item flow which asks first — the reprint's justification/logging
+    // requirement itself is unchanged either way; only the batch step ordering differs.
+    if (cheque.status === 'PRINTED') {
+      setReprintReason('');
+      setReprintNote('');
+      setShowReprintModal(true);
+    } else {
+      setShowPrintConfirm(true);
+    }
+  }
+
+  function advanceChequeBatch() {
+    const job = batchRef.current;
+    if (!job) return;
+    batchRef.current = { ...job, index: job.index + 1, succeeded: job.succeeded + 1 };
+    runChequeBatchStep();
+  }
+
+  function finishChequeBatch(reason: 'done' | 'stopped') {
+    const job = batchRef.current;
+    batchRef.current = null;
+    setBatchTotal(0);
+    setBatchCurrent(0);
+    if (job) {
+      setSuccess(reason === 'done'
+        ? t('msg.cheque.batch_done', { count: job.succeeded, total: job.items.length })
+        : t('msg.cheque.batch_stopped', { count: job.succeeded, total: job.items.length }));
+    }
+    loadData(page);
+  }
+
+  // Batch cheque printing now works through whichever provider is CURRENTLY
+  // selected — it never switches provider or touches print settings/calibration.
+  // Classic stays in-page (runChequeBatchStep). Template Real/A4 hand the queue to
+  // the existing ChequeTemplatePrintPage (one navigation per item, same as the
+  // single-item `handleTemplatePrint` path), which now carries tracking + a
+  // Next/Finish control gated on the real print result — see that page.
+  function handlePrintSelectedCheques() {
+    const items = cheques.filter((c) => selectedIds.has(c.id) && c.status !== 'CANCELLED');
+    if (!items.length) { setFormError(t('error.cheque.batch_none_printable')); return; }
+
+    if (printProvider === 'classic') {
+      clearSelection();
+      setFormError('');
+      batchRef.current = { items, index: 0, succeeded: 0 };
+      setBatchTotal(items.length);
+      setBatchCurrent(1);
+      runChequeBatchStep();
+      return;
+    }
+
+    const tpl = getDefaultTemplate() ?? listTemplates()[0] ?? null;
+    if (!tpl) {
+      setFormError('لا يوجد قالب شيك محفوظ — أنشئ قالباً من «قالب الشيك» أولاً.');
+      return;
+    }
+    clearSelection();
+    setFormError('');
+    const paperMode: 'real-cheque' | 'a4' = printProvider === 'template-a4' ? 'a4' : 'real-cheque';
+    // Build every batch item's runtime data + tracking identity up front, reusing
+    // the exact same helpers the single-item path uses — no duplicated mapping logic.
+    // The whole list is handed to the page ONCE; it stays on this one navigation
+    // and browses items via an in-page index (Batch Preview Navigator) — no
+    // same-route navigate() calls between items.
+    const batchItems = items.map((c) => ({
+      runtimeData: buildChequeRuntimeData(chequeDataForTemplate(c)),
+      tracking: trackingInfoFor(c) as ChequeTrackingInfo,
+    }));
+    navigate('/cheque-template/print', {
+      state: {
+        surface: tpl.surface,
+        fields: tpl.fields,
+        paperMode,
+        ctppBatchItems: batchItems,
+      },
+    });
+  }
+
   // ── Print ─────────────────────────────────────────────────────────────────
 
   // ── Provider routing ────────────────────────────────────────────────────────
-  // The cheque data printed by a template provider — from the selected saved
-  // cheque, or the current form when composing a new one.
-  function chequeDataForTemplate(): ChequeRecordInput {
-    return printTarget
+  // The cheque data printed by a template provider — from an explicit cheque (batch),
+  // the selected saved cheque (single-item), or the current form when composing a new
+  // one (no id yet ⇒ untracked, exactly as before this pack).
+  function chequeDataForTemplate(cheque?: Cheque): ChequeRecordInput {
+    const source = cheque ?? printTarget;
+    return source
       ? {
-          chequeNumber: printTarget.chequeNumber,
-          chequeDate: printTarget.chequeDate,
-          beneficiaryName: printTarget.beneficiaryName,
-          amount: Number(printTarget.amount),
-          currency: printTarget.currency,
-          bankName: printTarget.bankName,
+          chequeNumber: source.chequeNumber,
+          chequeDate: source.chequeDate,
+          beneficiaryName: source.beneficiaryName,
+          amount: Number(source.amount),
+          currency: source.currency,
+          bankName: source.bankName,
         }
       : {
           chequeNumber: form.chequeNumber.trim(),
@@ -404,18 +554,26 @@ export default function Cheques() {
         };
   }
 
+  /** Same tracking identity Classic uses (see chequePrintTracking.ts) — undefined
+   *  when there is no saved DB record yet (unsaved form draft), so the template
+   *  print page attempts no tracking in that case, unchanged from before this pack. */
+  function trackingInfoFor(cheque?: Cheque): ChequeTrackingInfo | undefined {
+    const source = cheque ?? printTarget;
+    return source ? { id: source.id, status: source.status, chequeNumber: source.chequeNumber, beneficiaryName: source.beneficiaryName } : undefined;
+  }
+
   // Route the print request to the EXISTING Official Cheque Template print page
   // (Runtime Engine → ChequeRenderSurface). Real Cheque = 178×89mm; A4 = A4 sheet.
   // Uses the user's default saved template (or the most recent one).
-  function handleTemplatePrint(paperMode: 'real-cheque' | 'a4') {
+  function handleTemplatePrint(paperMode: 'real-cheque' | 'a4', cheque?: Cheque) {
     const tpl = getDefaultTemplate() ?? listTemplates()[0] ?? null;
     if (!tpl) {
       setFormError('لا يوجد قالب شيك محفوظ — أنشئ قالباً من «قالب الشيك» أولاً.');
       return;
     }
-    const runtimeData = buildChequeRuntimeData(chequeDataForTemplate());
+    const runtimeData = buildChequeRuntimeData(chequeDataForTemplate(cheque));
     navigate('/cheque-template/print', {
-      state: { surface: tpl.surface, fields: tpl.fields, runtimeData, paperMode },
+      state: { surface: tpl.surface, fields: tpl.fields, runtimeData, paperMode, tracking: trackingInfoFor(cheque) },
     });
   }
 
@@ -467,8 +625,11 @@ export default function Cheques() {
         setEditId(saved.id);
         setPrintTarget(saved);
         await loadData(page);
-        printCurrentView();
-        setShowPrintConfirm(true);
+        // Only offer "mark as printed" once printing actually reached a trustworthy
+        // success point — never before (see printCurrentViewWithResult in utils/print.ts).
+        const result = await printCurrentViewWithResult();
+        if (result.outcome === 'success') setShowPrintConfirm(true);
+        else setFormError(printOutcomeMessage(result, t));
       } catch (e) {
         setFormError(errorMessage(e));
       } finally {
@@ -478,14 +639,19 @@ export default function Cheques() {
     }
     // Reprinting an already-PRINTED cheque must be justified and logged. Collect
     // a reason first; the actual print happens after the reprint is recorded.
+    // (Single-item ordering — unchanged; see runChequeBatchStep for the batch's
+    // print-first ordering, which differs deliberately.)
     if (printTarget.status === 'PRINTED') {
       setReprintReason('');
       setReprintNote('');
       setShowReprintModal(true);
       return;
     }
-    printCurrentView();
-    if (printTarget.status === 'DRAFT') setShowPrintConfirm(true);
+    const result = await printCurrentViewWithResult();
+    if (printTarget.status === 'DRAFT') {
+      if (result.outcome === 'success') setShowPrintConfirm(true);
+      else setFormError(printOutcomeMessage(result, t));
+    }
   }
 
   // ── Reprint (logged) ───────────────────────────────────────────────────────
@@ -494,24 +660,39 @@ export default function Cheques() {
     if (!printTarget || !reprintReason) return;
     if (reprintBusy) return;
     setReprintBusy(true);
+    const inBatch = !!batchRef.current;
     try {
-      await api.post(`/cheques/${printTarget.id}/reprint`, {
-        reason: reprintReason,
-        note: reprintNote.trim() || null,
-      });
+      const updated = await reprintCheque(printTarget.id, reprintReason, reprintNote.trim() || null);
       setShowReprintModal(false);
-      printCurrentView();
-      setSuccess(t('msg.cheque.reprint_logged'));
-      const res = await api.get(`/cheques/${printTarget.id}`);
-      setPrintTarget(res.data.data);
-      await loadData(page);
-      if (viewing?.id === printTarget.id) loadPrintLogs(printTarget.id);
+      if (inBatch) {
+        // The physical print already happened in runChequeBatchStep, BEFORE this
+        // modal opened (batch's print→result→tracking order) — this call only
+        // records the justified reprint; printing a second time here would print
+        // the same cheque twice.
+        advanceChequeBatch();
+      } else {
+        // Single-item semantics unchanged: log the reprint reason first, then print.
+        const result = await printCurrentViewWithResult();
+        if (result.outcome === 'success') setSuccess(t('msg.cheque.reprint_logged'));
+        else setFormError(printOutcomeMessage(result, t));
+        setPrintTarget(updated as unknown as Cheque);
+        await loadData(page);
+        if (viewing?.id === printTarget.id) loadPrintLogs(printTarget.id);
+      }
     } catch (e) {
       setFormError(errorMessage(e));
       setShowReprintModal(false);
+      if (inBatch) finishChequeBatch('stopped');
     } finally {
       setReprintBusy(false);
     }
+  }
+
+  /** Cancelling the reprint-reason dialog mid-batch stops the batch (never bypasses
+   *  the justification requirement, never silently skips to the next cheque). */
+  function cancelReprintModal() {
+    setShowReprintModal(false);
+    if (batchRef.current) finishChequeBatch('stopped');
   }
 
   // ── Print history ──────────────────────────────────────────────────────────
@@ -535,17 +716,19 @@ export default function Cheques() {
 
   // ── Print Payment Voucher ─────────────────────────────────────────────────
 
-  async function handlePrintPaymentVoucher() {
-    if (!printTarget) return;
+  // Single-item "طباعة سند الصرف" path — unchanged. The batch action below no
+  // longer calls this (it doesn't pre-assign a number or navigate per item);
+  // it opens PaymentVoucher ONCE and that page allocates numbers lazily itself.
+  async function goToPaymentVoucher(cheque: Cheque) {
     if (pvLoading) return;
     setPvLoading(true);
     setFormError('');
     try {
-      const res = await api.post(`/cheques/${printTarget.id}/payment-voucher-number`);
+      const res = await api.post(`/cheques/${cheque.id}/payment-voucher-number`);
       const { voucherNumber } = res.data.data as { voucherNumber: string };
-      setPrintTarget((prev) => prev ? { ...prev, paymentVoucherNumber: voucherNumber } : prev);
-      setCheques((prev) => prev.map((c) => c.id === printTarget.id ? { ...c, paymentVoucherNumber: voucherNumber } : c));
-      navigate(`/forms/payment-voucher/${printTarget.id}`);
+      setPrintTarget((prev) => prev && prev.id === cheque.id ? { ...prev, paymentVoucherNumber: voucherNumber } : prev);
+      setCheques((prev) => prev.map((c) => c.id === cheque.id ? { ...c, paymentVoucherNumber: voucherNumber } : c));
+      navigate(`/forms/payment-voucher/${cheque.id}`);
     } catch (e) {
       setFormError(errorMessage(e));
     } finally {
@@ -553,22 +736,54 @@ export default function Cheques() {
     }
   }
 
+  async function handlePrintPaymentVoucher() {
+    if (!printTarget) return;
+    await goToPaymentVoucher(printTarget);
+  }
+
+  /** Batch voucher printing opens PaymentVoucher ONCE with the full list — the
+   *  page browses it in-page (Batch Preview Navigator, same pattern as
+   *  ChequeTemplatePrintPage) instead of navigating route-to-route per item.
+   *  Voucher-number allocation is NOT done here for the batch case; each item
+   *  keeps whatever number it already had (possibly none), and PaymentVoucher.tsx
+   *  lazily assigns one — via the same endpoint — the first time that item
+   *  becomes the active preview. Printing itself stays the existing, unchanged,
+   *  manual FormLayout print button. */
+  function handlePrintSelectedVouchers() {
+    const items = cheques.filter((c) => selectedIds.has(c.id) && c.status === 'PRINTED');
+    if (!items.length) { setFormError(t('error.cheque.batch_no_vouchers')); return; }
+    clearSelection();
+    navigate(`/forms/payment-voucher/${items[0].id}`, { state: { pvBatchItems: items } });
+  }
+
   async function handleMarkPrinted() {
     if (!printTarget) { setFormError(t('error.cheque.save_first')); setShowPrintConfirm(false); return; }
     if (busy) return; setBusy(true);
+    const inBatch = !!batchRef.current;
     try {
-      await api.post(`/cheques/${printTarget.id}/mark-printed`);
-      setSuccess(t('msg.cheque.printed'));
+      const updated = await markChequePrinted(printTarget.id);
       setShowPrintConfirm(false);
-      const res = await api.get(`/cheques/${printTarget.id}`);
-      setPrintTarget(res.data.data);
-      await loadData(page);
+      if (inBatch) {
+        advanceChequeBatch();
+      } else {
+        setSuccess(t('msg.cheque.printed'));
+        setPrintTarget(updated as unknown as Cheque);
+        await loadData(page);
+      }
     } catch (e) {
       setFormError(errorMessage(e));
       setShowPrintConfirm(false);
+      if (inBatch) finishChequeBatch('stopped');
     } finally {
       setBusy(false);
     }
+  }
+
+  /** Cancelling the mark-printed confirm mid-batch stops the batch — selection never
+   *  marks records as printed, and the batch never silently skips ahead. */
+  function cancelPrintConfirm() {
+    setShowPrintConfirm(false);
+    if (batchRef.current) finishChequeBatch('stopped');
   }
 
   // ── Cancel ────────────────────────────────────────────────────────────────
@@ -739,6 +954,20 @@ export default function Cheques() {
       {formError && <ErrorBanner>{formError} <button type="button" className="xpl-clear-link" onClick={() => setFormError('')}>{t('action.close')}</button></ErrorBanner>}
       {success && <div className="chqx-success"><span className="material-symbols-outlined">check_circle</span>{success}<button type="button" className="xpl-clear-link" onClick={() => setSuccess('')}>{t('action.close')}</button></div>}
 
+      {/* Batch print progress — shown only while a batch (started from the selection
+          toolbar below) is stepping through its queue. Cancelling here stops the
+          batch and leaves any remaining cheques unprinted, same as dismissing the
+          per-cheque confirm/reprint-reason modal mid-batch. */}
+      {batchTotal > 0 && (
+        <div className="chqx-batch-bar">
+          <span className="xpl-spin" aria-hidden="true" />
+          <span>{t('msg.cheque.batch_progress', { current: batchCurrent, total: batchTotal })}</span>
+          <Button variant="ghost" small icon="close" onClick={() => finishChequeBatch('stopped')} style={{ marginInlineStart: 'auto' }}>
+            {t('action.cheque.batch_cancel')}
+          </Button>
+        </div>
+      )}
+
       {/* Hero + KPIs
           ملاحظة نطاق: قيمة الإجمالي/الأعلى/المتوسط تُحسب من الشيكات المحمّلة في هذه الصفحة فقط
           (valueKpis)، بينما عدّادات الحالة (مسودة/مطبوع/ملغى) إجمالية من الخادم (stats).
@@ -811,6 +1040,33 @@ export default function Cheques() {
         </div>
       </div>
 
+      {/* Selection toolbar — shown once at least one row is checked. Batch actions
+          orchestrate the EXISTING single-print path sequentially (see handlePrintSelectedCheques /
+          handlePrintSelectedVouchers); the "single vs multiple" wording is cosmetic only. */}
+      {selectedIds.size > 0 && batchTotal === 0 && (
+        <div className="chqx-batch-bar">
+          <span className="material-symbols-outlined" aria-hidden="true">checklist</span>
+          <span>{t('msg.cheque.selected_count', { count: selectedIds.size })}</span>
+          <div className="chqx-toolbar-sep" aria-hidden="true" />
+          {/* Batch cheque printing now works through whichever provider is currently
+              selected (Classic / Template Real 178×89 / Template A4) — it never
+              switches provider itself. See handlePrintSelectedCheques. */}
+          {canPrint && (
+            <Button variant="primary" icon="print" onClick={handlePrintSelectedCheques}>
+              {selectedIds.size === 1 ? t('page.cheques.print') : t('action.cheque.print_selected')}
+            </Button>
+          )}
+          {canPrint && (
+            <Button variant="secondary" icon="receipt_long" onClick={handlePrintSelectedVouchers}>
+              {selectedIds.size === 1 ? t('action.cheque.print_voucher') : t('action.cheque.print_selected_vouchers')}
+            </Button>
+          )}
+          <Button variant="ghost" icon="close" onClick={clearSelection} style={{ marginInlineStart: 'auto' }}>
+            {t('action.clear_selection')}
+          </Button>
+        </div>
+      )}
+
       {/* History table */}
       <section className="xpl-card" style={{ overflow: 'hidden' }}>
         {loading ? (
@@ -826,6 +1082,15 @@ export default function Cheques() {
               <table className="xpl-table">
                 <thead>
                   <tr>
+                    <th style={{ width: 36, textAlign: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        ref={(el) => { if (el) el.indeterminate = someVisibleSelected; }}
+                        onChange={toggleSelectAllVisible}
+                        aria-label={t('a11y.cheque_select_all')}
+                      />
+                    </th>
                     <SortableHeader label={t('col.cheque.number')} title={t('col.cheque.number')} state={sort.getState('chequeNumber')} onToggle={() => sort.toggle('chequeNumber')} />
                     <SortableHeader label={t('col.cheque.beneficiary')} title={t('col.cheque.beneficiary')} state={sort.getState('beneficiaryName')} onToggle={() => sort.toggle('beneficiaryName')} />
                     <SortableHeader label={t('col.cheque.bank')} title={t('col.cheque.bank')} state={sort.getState('bankName')} onToggle={() => sort.toggle('bankName')} />
@@ -838,10 +1103,18 @@ export default function Cheques() {
                 </thead>
                 <tbody>
                   {cheques.map((r) => (
-                    <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
+                    <tr key={r.id} className={`xpl-row--click${selectedIds.has(r.id) ? ' chqx-row--selected' : ''}`} tabIndex={0} role="button"
                       aria-label={t('a11y.cheque_details', { number: r.chequeNumber })}
                       onClick={() => setViewing(r)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
+                      <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(r.id)}
+                          onChange={() => toggleSelect(r.id)}
+                          aria-label={t('a11y.cheque_select_row', { number: r.chequeNumber })}
+                        />
+                      </td>
                       <td><span className="chqx-mono"><strong>{r.chequeNumber}</strong></span></td>
                       <td><strong>{r.beneficiaryName}</strong></td>
                       <td>{bankLabel(r.bankName, t)}</td>
@@ -1024,11 +1297,11 @@ export default function Cheques() {
       {showPrintConfirm && printTarget && (
         <ConfirmModal
           title={t('page.cheques.mark_printed')}
-          message={t('page.cheques.confirm_printed')}
+          message={batchTotal > 0 ? `${t('msg.cheque.batch_progress', { current: batchCurrent, total: batchTotal })} — ${t('page.cheques.confirm_printed')}` : t('page.cheques.confirm_printed')}
           confirmLabel={t('page.cheques.mark_printed')}
           variant="warning"
-          onConfirm={canPrint ? handleMarkPrinted : () => setShowPrintConfirm(false)}
-          onCancel={() => setShowPrintConfirm(false)}
+          onConfirm={canPrint ? handleMarkPrinted : cancelPrintConfirm}
+          onCancel={cancelPrintConfirm}
         />
       )}
       {forceDeleteId !== null && (
@@ -1044,13 +1317,13 @@ export default function Cheques() {
         <Dialog
           icon="print"
           title={t('page.cheques.reprint_title')}
-          subtitle={`${printTarget.chequeNumber} · ${printTarget.beneficiaryName}`}
+          subtitle={batchTotal > 0 ? `${t('msg.cheque.batch_progress', { current: batchCurrent, total: batchTotal })} · ${printTarget.chequeNumber} · ${printTarget.beneficiaryName}` : `${printTarget.chequeNumber} · ${printTarget.beneficiaryName}`}
           size="sm"
-          onClose={() => setShowReprintModal(false)}
+          onClose={cancelReprintModal}
           footer={
             <>
               <Button variant="primary" icon="print" busy={reprintBusy} disabled={!reprintReason} onClick={handleConfirmReprint}>{t('action.cheque.record_reprint')}</Button>
-              <Button variant="ghost" onClick={() => setShowReprintModal(false)}>{t('action.cancel')}</Button>
+              <Button variant="ghost" onClick={cancelReprintModal}>{t('action.cancel')}</Button>
             </>
           }
         >

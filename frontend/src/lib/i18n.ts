@@ -1114,6 +1114,29 @@ const DICT: Record<Lang, Record<string, string>> = {
     'error.cheque.already_printed': 'الشيك مطبوع بالفعل ولا يمكن إعادة طباعته',
     'error.cheque.is_cancelled': 'لا يمكن طباعة شيك ملغي',
 
+    // ── Cheque multi-selection & batch printing ────────────────────────────────
+    'a11y.cheque_select_row': 'تحديد الشيك {number}',
+    'a11y.cheque_select_all': 'تحديد كل الشيكات في الصفحة الحالية',
+    'msg.cheque.selected_count': 'تم تحديد {count} شيك',
+    'action.cheque.print_selected': 'طباعة الشيكات المحددة',
+    'action.cheque.print_selected_vouchers': 'طباعة سندات الصرف المحددة',
+    'action.clear_selection': 'إلغاء التحديد',
+    'msg.cheque.batch_progress': 'جارٍ الطباعة: {current} من {total}',
+    'msg.cheque.batch_done': 'تمت طباعة {count} من {total} بنجاح',
+    'msg.cheque.batch_stopped': 'تم إيقاف الطباعة المجمّعة — تمت طباعة {count} من {total}',
+    'action.cheque.batch_cancel': 'إيقاف الطباعة المجمّعة',
+    'action.cheque.batch_next': 'التالي',
+    'action.cheque.batch_finish': 'إنهاء',
+    'error.cheque.batch_none_printable': 'لا توجد شيكات قابلة للطباعة ضمن التحديد',
+    'error.cheque.batch_no_vouchers': 'لا توجد شيكات مطبوعة ضمن التحديد لإصدار سند صرف',
+
+    // ── Real print-result semantics (Provider Parity & Print Result Correctness) ──
+    'msg.cheque.print_cancelled': 'أُلغيت الطباعة قبل اكتمالها — لم يُسجَّل أي شيء',
+    'msg.cheque.print_unknown': 'تعذّر التأكد من نتيجة الطباعة — لم يُسجَّل أي شيء',
+    'msg.cheque.print_failed': 'فشلت الطباعة: {reason} — لم يُسجَّل أي شيء',
+    'msg.cheque.batch_voucher_not_printed_yet': 'لم تُطبع بعد — اضغط «طباعة» ثم تحقق من المستند قبل المتابعة',
+    'error.cheque.batch_print_not_confirmed': 'تعذّر تأكيد نجاح الطباعة',
+
     // ── Data Import ───────────────────────────────────────────────────────────
     'nav.import': 'استيراد البيانات',
     'nav.group.tools': 'الأدوات',
@@ -5238,6 +5261,29 @@ const DICT: Record<Lang, Record<string, string>> = {
     'btn.cheque.select': 'Select to View',
     'error.cheque.already_printed': 'This cheque has already been printed',
     'error.cheque.is_cancelled': 'Cannot print a cancelled cheque',
+
+    // ── Cheque multi-selection & batch printing ────────────────────────────────
+    'a11y.cheque_select_row': 'Select cheque {number}',
+    'a11y.cheque_select_all': 'Select all cheques on the current page',
+    'msg.cheque.selected_count': '{count} cheque(s) selected',
+    'action.cheque.print_selected': 'Print Selected Cheques',
+    'action.cheque.print_selected_vouchers': 'Print Selected Payment Vouchers',
+    'action.clear_selection': 'Clear Selection',
+    'msg.cheque.batch_progress': 'Printing {current} of {total}',
+    'msg.cheque.batch_done': '{count} of {total} printed successfully',
+    'msg.cheque.batch_stopped': 'Batch printing stopped — {count} of {total} printed',
+    'action.cheque.batch_cancel': 'Stop Batch Printing',
+    'action.cheque.batch_next': 'Next',
+    'action.cheque.batch_finish': 'Finish',
+    'error.cheque.batch_none_printable': 'No printable cheques in the current selection',
+    'error.cheque.batch_no_vouchers': 'No printed cheques in the current selection to issue a payment voucher',
+
+    // ── Real print-result semantics (Provider Parity & Print Result Correctness) ──
+    'msg.cheque.print_cancelled': 'Printing was cancelled before it completed — nothing was recorded',
+    'msg.cheque.print_unknown': 'Could not confirm the print result — nothing was recorded',
+    'msg.cheque.print_failed': 'Printing failed: {reason} — nothing was recorded',
+    'msg.cheque.batch_voucher_not_printed_yet': 'Not printed yet — click "Print", verify the document, then continue',
+    'error.cheque.batch_print_not_confirmed': 'Could not confirm the print succeeded',
 
     // ── Data Import ───────────────────────────────────────────────────────────
     'nav.import': 'Data Import',

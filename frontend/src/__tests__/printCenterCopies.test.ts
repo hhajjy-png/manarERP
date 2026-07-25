@@ -198,9 +198,13 @@ describe('no loop remains anywhere in the print path', () => {
     expect(form).toMatch(/copies:\s*count/);
 
     // Every surviving printCurrentView() call site is a single-shot fallback, never a
-    // per-copy repeat: (1) flag-OFF legacy print, (2)+(3) Save-PDF fallbacks when the
-    // Electron HTML-export bridge is unavailable or fails, (4) the auto-print on ready.
-    expect((form.match(/printCurrentView\(\)/g) ?? []).length).toBe(4);
+    // per-copy repeat: (1)+(2) Save-PDF fallbacks when the Electron HTML-export bridge
+    // is unavailable or fails, (3) the auto-print on ready. The flag-OFF legacy print
+    // path (previously a 4th site) now calls `printCurrentViewWithResult()` instead —
+    // same physical print, but it returns the real success/cancelled/error outcome
+    // instead of discarding it (Provider Parity & Print Result Correctness).
+    expect((form.match(/printCurrentView\(\)/g) ?? []).length).toBe(3);
+    expect(form).toContain('printCurrentViewWithResult()');
   });
 
   it('the Print Center path contains no copy loop and no repeated submit', () => {

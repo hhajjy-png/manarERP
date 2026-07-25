@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { printCurrentView } from '../../utils/print';
+import { printCurrentView, printCurrentViewWithResult, type PrintResult } from '../../utils/print';
 import {
   createPrintJob,
   isFlagEnabled,
@@ -73,8 +73,13 @@ interface FormLayoutProps {
    * `printIntercept` ولا أي سلوك قائم.
    *
    * حين لا يُمرَّر (كل الاستخدامات السابقة) لا يحدث شيء إطلاقًا.
+   *
+   * `print()` now resolves with the real `PrintResult` (success/cancelled/error/
+   * unknown) instead of `void` — additive: any existing caller that ignores the
+   * return value (as all callers did before this pack) is unaffected, since a
+   * function resolving a value is always usable where `void` was expected.
    */
-  onPrintApiReady?: (api: { getNode: () => HTMLElement | null; print: () => void }) => void;
+  onPrintApiReady?: (api: { getNode: () => HTMLElement | null; print: () => Promise<PrintResult> }) => void;
 }
 
 /** Shared −/count/+ copies stepper, reused in the workspace toolbar and sidebar. */
@@ -146,7 +151,7 @@ export default function FormLayout({
 
   // نشر واجهة الطباعة للنموذج (إضافي). `doPrint` نفسها لم تُمسّ — تُقرأ من ref فقط،
   // فلا يتغيّر توقيتها ولا عدد استدعاءاتها ولا سلوكها.
-  const doPrintRef = useRef<() => void>(() => {});
+  const doPrintRef = useRef<() => Promise<PrintResult>>(() => Promise.resolve({ outcome: 'unknown' as const }));
   const apiPublishedRef = useRef(false);
   useEffect(() => {
     if (apiPublishedRef.current || !onPrintApiReady) return;
@@ -193,18 +198,19 @@ export default function FormLayout({
    * defect, not a behaviour worth preserving. A single dialog with the copy count in it
    * is strictly closer to the user's intent than three dialogs.)
    */
-  // نفس الدالة القديمة بمرجعها — بلا نسخ ولا تغليف.
+  // نفس الدالة القديمة بمرجعها — تُعيد الآن Promise<PrintResult> بدل تجاهل النتيجة
+  // (كانت `void submitPrintJob(...)` تُلقي نتيجة حقيقية موجودة أصلاً)؛ الفعليات نفسها:
+  // نفس الخيارات، نفس البوابة، نفس webContents.print — بلا أي تغيير في ما يحدث فعليًا.
   doPrintRef.current = doPrint;
 
-  function doPrint() {
+  async function doPrint(): Promise<PrintResult> {
     const count = copiesRef.current;
 
     if (!isFlagEnabled(PRINT_CENTER_FOUNDATION_V1)) {
-      printCurrentView();
-      return;
+      return printCurrentViewWithResult();
     }
 
-    void submitPrintJob(
+    const result = await submitPrintJob(
       createPrintJob({
         docType: 'form',
         documentId: formNumber || formType,
@@ -215,6 +221,12 @@ export default function FormLayout({
         renderSource: 'dom-node',
       }),
     );
+    return {
+      outcome: result.status === 'printed' || result.status === 'exported'
+        ? 'success'
+        : result.status === 'canceled' ? 'cancelled' : 'error',
+      failureReason: result.error,
+    };
   }
 
   /**
