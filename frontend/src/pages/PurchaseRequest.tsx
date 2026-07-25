@@ -201,9 +201,7 @@ export default function PurchaseRequest() {
       qrData={{
         formType: FORM_KEY,
         formNumber: printFields.requestNumber,
-        employeeId: 0,
-        employeeName: printFields.requesterName || '—',
-        issueDate: new Date().toISOString(),
+        entityName: printFields.requesterName || '—',
       }}
     >
       {/* No-print panel */}

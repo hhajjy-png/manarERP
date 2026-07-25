@@ -700,9 +700,7 @@ export default function Quotation() {
       qrData={{
         formType: FORM_KEY,
         formNumber: printFields.quotationNumber,
-        employeeId: 0,
-        employeeName: printFields.customerName || '—',
-        issueDate: new Date().toISOString(),
+        entityName: printFields.customerName || '—',
       }}
     >
       {/* No-print panel */}

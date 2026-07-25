@@ -201,9 +201,8 @@ export default function LeaveRequest() {
       qrData={{
         formType: 'leave-request',
         formNumber,
-        employeeId: Number(employeeId),
-        employeeName: data.employee.fullName,
-        issueDate: new Date().toISOString(),
+        entityName: data.employee.fullName,
+        entityId: Number(employeeId),
       }}
     >
       <div className="no-print" style={{ marginBottom: 16, padding: '14px 18px', background: 'var(--surface-2)', border: '1px dashed var(--border)', borderRadius: 10 }}>
