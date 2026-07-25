@@ -25,7 +25,8 @@ declare global {
       chooseSavePath: (n: string) => Promise<string | null>;
       chooseBackupFile: () => Promise<string | null>;
       restartApp: () => Promise<void>;
-      printPage: (options?: { landscape?: boolean }) => Promise<void>;
+      /** يُحل بالنتيجة الحقيقية من Electron بعد إغلاق حوار الطباعة (راجع utils/print.ts). */
+      printPage: (options?: { landscape?: boolean }) => Promise<{ success: boolean; failureReason?: string }>;
       getAppInfo: () => Promise<{ version: string; platform: string }>;
       // ─── Backup / Restore IPC ────────────────────────────────────────────────
       backupCreate: () => Promise<{

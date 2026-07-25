@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { mapPrintCallback, NO_FOCUSED_WINDOW_RESULT } from './printResult';
 
 /** تسجيل معالجات IPC الخاصة بحوارات النظام والتطبيق. */
 export function registerDialogIpc() {
@@ -34,12 +35,25 @@ export function registerDialogIpc() {
   // خيار landscape اختياري وإضافي: عند تمريره true يُفرض اتجاه الطباعة الأفقي
   // أصلاً عبر Chromium (لا يُعتمد على @page CSS وحده). بدون الخيار يبقى السلوك
   // مطابقًا تمامًا لما كان (لا يتغيّر أي مسار طباعة قائم، بما فيه المعايرة).
-  ipcMain.handle('app:print', async (_e, options?: { landscape?: boolean }) => {
+  //
+  // النتيجة: كانت `webContents.print()` تُستدعى بلا callback (fire-and-forget) —
+  // فيُحل الـ IPC فورًا بلا معرفة ما إذا طُبعت الصفحة فعلاً أم أُلغيت أم فشلت.
+  // الإصلاح الإضافي الوحيد هنا: تمرير الـ callback الموثّق من Electron نفسه
+  // (`success`, `failureReason`) ولفّه بوعد، فيُحل الـ IPC بعد أن يغلق المستخدم
+  // حوار الطباعة فعليًا — دون تغيير أي من خيارات الطباعة (silent/printBackground/
+  // landscape) أو مسار الطباعة نفسه.
+  ipcMain.handle('app:print', (_e, options?: { landscape?: boolean }) => {
     const win = BrowserWindow.getFocusedWindow();
-    win?.webContents.print({
-      silent: false,
-      printBackground: true,
-      ...(options?.landscape ? { landscape: true } : {}),
+    if (!win) return Promise.resolve(NO_FOCUSED_WINDOW_RESULT);
+    return new Promise((resolve) => {
+      win.webContents.print(
+        {
+          silent: false,
+          printBackground: true,
+          ...(options?.landscape ? { landscape: true } : {}),
+        },
+        (success, failureReason) => resolve(mapPrintCallback(success, failureReason)),
+      );
     });
   });
 

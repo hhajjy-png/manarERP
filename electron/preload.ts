@@ -33,8 +33,10 @@ const api = {
   /** إعادة تشغيل التطبيق (بعد الاستعادة). */
   restartApp: (): Promise<void> => ipcRenderer.invoke('app:restart'),
 
-  /** طباعة الصفحة الحالية (للفواتير/التقارير). */
-  printPage: (options?: { landscape?: boolean }): Promise<void> => ipcRenderer.invoke('app:print', options),
+  /** طباعة الصفحة الحالية (للفواتير/التقارير). يُحل بعد إغلاق حوار الطباعة فعليًا
+   *  بالنتيجة الحقيقية من Electron (نجاح/إلغاء/فشل) — راجع app:print في dialog.ipc.ts. */
+  printPage: (options?: { landscape?: boolean }): Promise<{ success: boolean; failureReason?: string }> =>
+    ipcRenderer.invoke('app:print', options),
 
   /** معلومات التطبيق (الإصدار). */
   getAppInfo: (): Promise<{ version: string; platform: string }> =>
