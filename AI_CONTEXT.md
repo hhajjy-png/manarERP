@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `e3bf6d4` (merge of `feature/window-lifecycle-foundation-v1`, carrying Window Lifecycle Foundation v1) |
-| **Current Documentation Commit** | `375fbd8` |
-| **Current Stable Tag** | `stable-window-lifecycle-foundation-v1` |
-| **Current Release Date** | 2026-07-24 |
-| **Total Stable Releases** | 348 (window 2026-06-07 → 2026-07-24) |
+| **Current Merge Commit** | `e3c8cf8` (merge of `feature/barcode-payload-standardization-pack-v1`, carrying Barcode Payload Standardization Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-barcode-payload-standardization-pack-v1` |
+| **Current Release Date** | 2026-07-25 |
+| **Total Stable Releases** | 349 (window 2026-06-07 → 2026-07-25) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,27 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Barcode Payload Standardization Pack v1** (2026-07-25,
+  `stable-barcode-payload-standardization-pack-v1`) — standardized the JSON payload encoded inside
+  every printed form's QR code onto one schema: `{formType, formNumber, entityName, entityId?}`.
+  Previously 12 forms encoded `{formType, formNumber, employeeId, employeeName, issueDate}` and
+  Employment Contract encoded a completely separate ad-hoc shape (`employeeName, civilId,
+  contractDuration, salary, companyName, contractEndDate, formNumber`) via an `as never` cast that
+  bypassed the shared `QRData` type. `entityId` is included only when a genuine backing record id
+  exists — the app's pre-existing `0` "no entity" placeholder (Quotation, Purchase Request, Payment
+  Voucher, Receipt Voucher, and Employment Contract's manual-entry path) is correctly treated as "no
+  id" and omitted. **Removed from every QR:** `issueDate`/timestamps app-wide, and — Employment
+  Contract only — Civil ID, salary, contract duration, contract end date, and the hardcoded company
+  name; that PII no longer belongs in a scannable, unsigned code printed on a document that can be
+  freely photographed. **Deliberately excluded:** Invoice's `DocumentVerificationQR`, which encodes a
+  bare `verificationUuid` string (no JSON) consumed by the real `GET /api/verify/:uuid` backend
+  endpoint — folding it into this schema would silently break that lookup; and Template Studio's
+  per-template `qr`/`barcode` designer elements (a user-configurable single-field binding, not a fixed
+  document payload). **No changes** to QR rendering, size, position, error correction, PNG/SVG output,
+  printing pipeline, form numbering, layouts, backend, or APIs. Frontend `tsc --noEmit` clean
+  (frontend-only release); targeted `vitest` run — 4 files / 70 tests passing. Product Owner visual
+  review: **APPROVED**. Gemini final review: **APPROVED**.
 
 - **Google Drive Database Restore Reliability Pack v1** (2026-07-23,
   `stable-google-drive-database-restore-reliability-pack-v1`) — fixes a real-world restore failure: a

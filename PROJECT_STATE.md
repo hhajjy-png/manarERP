@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `e3bf6d4` — release `stable-window-lifecycle-foundation-v1` (Window Lifecycle Foundation v1 — generic Utility Window vs. Main Window lifecycle registry; fixes a startup-abort bug where a transient utility window closing before the main window existed was mistaken for "quit the app") |
+| **Production HEAD** | `e3c8cf8` — release `stable-barcode-payload-standardization-pack-v1` (Barcode Payload Standardization Pack v1 — unified the JSON payload encoded in every printed form's QR code onto one schema, removing PII and timestamps) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-window-lifecycle-foundation-v1` (release date 2026-07-24) → merge `e3bf6d4` |
-| **Previous stable tag** | `stable-default-cheque-print-provider-v1` (2026-07-24) → merge `83f2246` |
-| **Total stable releases** | 348 (all merged onto `production`; window 2026-06-07 → 2026-07-24) |
-| **Latest validation** | electron `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend production build (`vite build`) ✅ · backend `vitest` — 1897/1897 pass (135 files) · frontend `vitest` full suite — 7 failing files / 17 failing tests / 1829 passing, identical to the prior release's established baseline — zero regressions · electron unit-test suite (`vitest.electron.config.ts`) — 3 files / 75 tests, all passing · electron suite additionally re-verified in isolation (unrelated uncommitted working-tree files stashed out) to confirm the committed commit compiles and passes standalone |
-| **Remote sync** | `origin/production` — pushed with this release (merge `e3bf6d4` + tag `stable-window-lifecycle-foundation-v1`) |
+| **Latest stable tag** | `stable-barcode-payload-standardization-pack-v1` (release date 2026-07-25) → merge `e3c8cf8` |
+| **Previous stable tag** | `stable-window-lifecycle-foundation-v1` (2026-07-24) → merge `e3bf6d4` |
+| **Total stable releases** | 349 (all merged onto `production`; window 2026-06-07 → 2026-07-25) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release — backend/electron untouched by this pack, unaffected) · targeted frontend `vitest` run covering every touched QR/print-workspace fixture — 4 files / 70 tests, all passing (`printWorkspace.test.tsx`, `documentVerificationQR.test.tsx`, `legacyFormPreviewRolloutPhase1.test.tsx`, `quotationLegacyPreviewBridge.test.tsx`) |
+| **Remote sync** | `origin/production` — pushed with this release (merge `e3c8cf8` + tag `stable-barcode-payload-standardization-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,30 @@ in a table cell.
 
 ---
 
-## Latest Release — Window Lifecycle Foundation v1
+## Latest Release — Barcode Payload Standardization Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Barcode Payload Standardization Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-25 |
+| **Feature branch** | `feature/barcode-payload-standardization-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `30bfe39` (documentation commit from the prior release) |
+| **Feature commit** | `08266b0` |
+| **Production merge commit** | `e3c8cf8` |
+| **Stable tag** | `stable-barcode-payload-standardization-pack-v1` → merge `e3c8cf8` (annotated) |
+| **Reviews** | Product Owner visual review — **completed & approved**. Gemini final review — **approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ (frontend-only release) · targeted `vitest` — 4 files / 70 tests passing (`printWorkspace`, `documentVerificationQR`, `legacyFormPreviewRolloutPhase1`, `quotationLegacyPreviewBridge`) |
+
+**Scope.** Standardized the JSON payload encoded inside every printed form's QR code onto one schema: `{formType, formNumber, entityName, entityId?}`. Previously 12 forms encoded `{formType, formNumber, employeeId, employeeName, issueDate}` and Employment Contract encoded an entirely separate, ad-hoc shape (`employeeName, civilId, contractDuration, salary, companyName, contractEndDate, formNumber`) via an `as never` cast that bypassed the shared `QRData` type. `entityId` is now included only when a genuine backing record id exists — the app's pre-existing `0` "no entity" placeholder (used by Quotation, Purchase Request, Payment Voucher, Receipt Voucher, and Employment Contract's manual-entry/unregistered-employee print path) is correctly recognized as "no id" and the field is omitted entirely rather than encoded as a meaningless value. Applies to: Salary Certificate, To Whom It May Concern, Leave Request, Return to Work, Salary Advance, Resignation, Employee Warning, Performance Evaluation, Purchase Request, Quotation, Payment Voucher, Receipt Voucher, Employment Contract.
+
+**Removed from every QR:** `issueDate`/timestamps app-wide, and — Employment Contract only — Civil ID, salary, contract duration, contract end date, and the hardcoded company name. None of that belongs in a scannable, unsigned code printed on a document that can be freely photographed; Employment Contract's `contractEndDate`/`CONTRACT_DURATION_YEARS` computation was removed entirely as dead code once its only consumer (the QR) no longer needed it.
+
+**Deliberately excluded.** Invoice's `DocumentVerificationQR` — it encodes a bare `verificationUuid` string (no JSON at all), consumed by a real backend endpoint (`GET /api/verify/:uuid`) that looks the invoice up by that exact value; folding it into the new schema would silently and permanently break that lookup, so it was left byte-for-byte unchanged. Template Studio's per-template `qr`/`barcode` designer elements were also left out of scope — they bind one user-selected field from a small allow-list per template, not a fixed per-document payload. No changes to QR rendering, size, position, color, error correction, PNG/SVG output, printing pipeline, form numbering (`formNumber.ts`), layouts, backend, or APIs.
+
+---
+
+## Previous Release — Window Lifecycle Foundation v1
 
 | Field | Value |
 |-------|-------|

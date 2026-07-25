@@ -2,15 +2,15 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-24 (previously 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-25 (previously 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Window Lifecycle Foundation v1), like the Default Cheque Print Provider v1 pass and the
-> ones before it, refreshed the "Current Production State" table only (re-derived directly from `git`), plus a
-> narrative addition reflecting this release — the "Repository Status" quantitative table and the deeper
+> below. This pass (Barcode Payload Standardization Pack v1), like the Window Lifecycle Foundation v1 pass and
+> the ones before it, refreshed the "Current Production State" table only (re-derived directly from `git`), plus
+> a narrative addition reflecting this release — the "Repository Status" quantitative table and the deeper
 > narrative surveys (Banking/Printing/AI/ExplorerKit sections further down) were last verified 2026-07-17/
 > 2026-07-01 respectively and have not been re-audited in this pass — treat their specifics as of those dates,
 > not current-day. This pass only repoints the table below at the current HEAD, consistent with every other
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `e3bf6d4` — merge of `feature/window-lifecycle-foundation-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-window-lifecycle-foundation-v1` (merge commit `e3bf6d4`) | High |
-| **Previous stable tag** | `stable-default-cheque-print-provider-v1` (`83f2246`) | High |
+| **Current HEAD** | `e3c8cf8` — merge of `feature/barcode-payload-standardization-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-barcode-payload-standardization-pack-v1` (merge commit `e3c8cf8`) | High |
+| **Previous stable tag** | `stable-window-lifecycle-foundation-v1` (`e3bf6d4`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
