@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `d0ff20f` — release `stable-administrative-forms-english-titles-fix-pack-v1` (Administrative Forms English Titles Fix Pack v1 — fixed English document titles that were resolving via the app's global UI language instead of the document's own language toggle) |
+| **Production HEAD** | `4284543` — release `stable-cheque-multi-selection-batch-printing-pack-v1` (Cheque Multi-Selection & Batch Printing Pack v1 — row/select-all multi-selection on the Cheques table, sequential batch printing across all three cheque print providers, an in-page Batch Preview Navigator applied to both Template Real/A4 cheque printing and Payment Voucher printing, and a real Electron print-result signal gating cheque tracking) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-administrative-forms-english-titles-fix-pack-v1` (release date 2026-07-25) → merge `d0ff20f` |
-| **Previous stable tag** | `stable-barcode-payload-standardization-pack-v1` (2026-07-25) → merge `e3c8cf8` |
-| **Total stable releases** | 350 (all merged onto `production`; window 2026-06-07 → 2026-07-25) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release — backend/electron untouched by this pack, unaffected). No dedicated automated test previously covered this title-resolution defect; validation is `tsc` + static diff review (exactly the `t('page.X.title')` → `translate('page.X.title', lang)` substitutions, nothing else) + Product Owner manual visual review + Gemini final review |
-| **Remote sync** | `origin/production` — pushed with this release (merge `d0ff20f` + tag `stable-administrative-forms-english-titles-fix-pack-v1`) |
+| **Latest stable tag** | `stable-cheque-multi-selection-batch-printing-pack-v1` (release date 2026-07-26) → merge `4284543` |
+| **Previous stable tag** | `stable-administrative-forms-english-titles-fix-pack-v1` (2026-07-25) → merge `d0ff20f` |
+| **Total stable releases** | 351 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
+| **Latest validation** | frontend/backend/electron `tsc --noEmit` ✅ · `prisma validate` ✅ (schema untouched by this pack) · backend `vitest` 135 files / 1897 tests ✅ · electron `vitest` 4 files / 80 tests ✅ · frontend `vitest` 122 files / 1885 tests — 1858 passed, 27 pre-existing/unrelated failures (confirmed identical before and after this pack across every checkpoint this pack introduced, zero new regressions) · Product Owner manual visual review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `4284543` + tag `stable-cheque-multi-selection-batch-printing-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Administrative Forms English Titles Fix Pack v1
+## Latest Release — Cheque Multi-Selection & Batch Printing Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Cheque Multi-Selection & Batch Printing Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-26 |
+| **Feature branch** | `feature/cheque-multi-selection-batch-printing-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `163d395` (documentation commit from the prior release) |
+| **Feature commit** | `96a5948` |
+| **Production merge commit** | `4284543` |
+| **Stable tag** | `stable-cheque-multi-selection-batch-printing-pack-v1` → merge `4284543` (annotated) |
+| **Reviews** | Product Owner visual review — **completed & approved**. |
+| **Validation** | frontend/backend/electron `tsc --noEmit` ✅ · `prisma validate` ✅ · backend `vitest` 135/135 files, 1897/1897 tests ✅ · electron `vitest` 4/4 files, 80/80 tests ✅ · frontend `vitest` 1858/1885 passing — the 27 failing tests (8 files) are pre-existing and unrelated to this pack, confirmed identical against the pre-pack baseline at every checkpoint during implementation |
+
+**Scope.** Cheques table gained row/select-all checkboxes and a selection toolbar ("تم تحديد X شيك") for printing multiple cheques and/or their payment vouchers in one action. Batch cheque printing now works through whichever print provider is currently selected:
+- **Classic** — an in-page sequential loop reusing the existing single-cheque handlers unchanged (mark-printed confirm for DRAFT, reprint-reason dialog for PRINTED); stops immediately on a cancelled/errored print, never advances past a failed item.
+- **Template Real (178×89mm) / Template A4** — an in-page **Batch Preview Navigator** on `ChequeTemplatePrintPage`: the whole selected batch opens in ONE navigation, and Previous/Next browse a local index over a pre-built item list. Navigation never prints and never marks anything printed; printing always targets whichever item is currently shown, and gains the same mark-printed/reprint tracking Classic already had (previously entirely untracked for Template printing).
+
+The same Batch Preview Navigator pattern was applied to **Payment Voucher** batch printing, replacing an earlier route-to-route "Next/Finish" queue that (per Product Owner manual testing) could leave the page showing a stale cheque instead of advancing. Payment Voucher's voucher-number allocation semantics are unchanged (still idempotent, still assigned once per cheque); the batch path now allocates lazily per item, on first view, via the same existing endpoint.
+
+**Print-result correctness (root cause of the manual-review defect this pack also fixes).** `webContents.print()`'s callback was never wired up — `electron/ipc/dialog.ipc.ts`'s `app:print` handler fired-and-forgot, and `FormLayout`'s Print Center path discarded a real result it already had. Both now return the actual `success`/`cancelled`/`error`/`unknown` outcome (`utils/print.ts`'s `printCurrentViewWithResult`), and cheque tracking is gated on that real result instead of being applied unconditionally after `printCurrentView()`.
+
+**Not changed:** print settings, Classic Calibration, Template Manager, cheque templates, A4/178×89 dimensions and offsets, the Runtime/Render engine, voucher-numbering rules, RBAC/permissions, and the database schema.
+
+---
+
+## Previous Release — Administrative Forms English Titles Fix Pack v1
 
 | Field | Value |
 |-------|-------|
