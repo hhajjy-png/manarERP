@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
-import { useT } from '../lib/i18n';
+import { useT, t as translate } from '../lib/i18n';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -87,8 +87,8 @@ export default function SalaryAdvance() {
      ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
-    title: t('page.salaryAdv.title'),
-    documentLabel: `${t('page.salaryAdv.title')} · ${formNumber}`,
+    title: translate('page.salaryAdv.title', lang),
+    documentLabel: `${translate('page.salaryAdv.title', lang)} · ${formNumber}`,
     lang,
   });
 
@@ -106,8 +106,8 @@ export default function SalaryAdvance() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: t('page.salaryAdv.title'),
-    documentLabel: `${t('page.salaryAdv.title')} · ${formNumber}`,
+    title: translate('page.salaryAdv.title', lang),
+    documentLabel: `${translate('page.salaryAdv.title', lang)} · ${formNumber}`,
   });
 
 
@@ -131,7 +131,7 @@ export default function SalaryAdvance() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
-      title={t('page.salaryAdv.title')}
+      title={translate('page.salaryAdv.title', lang)}
       profile={profile}
       // Overflows the official-letterhead band by a few mm — reclaim the 10mm
       // bottom margin so it stays on one page (letterhead only; top unchanged).

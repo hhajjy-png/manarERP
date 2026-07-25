@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import { useParams, useLocation } from 'react-router-dom';
-import { useT } from '../lib/i18n';
+import { useT, t as translate } from '../lib/i18n';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -95,7 +95,7 @@ export default function PerformanceEvaluation() {
      ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
-    title: t('page.perfEval.title'),
+    title: translate('page.perfEval.title', lang),
     documentLabel: `${t('page.perfEval.doc_label')} · ${formNumber}`,
     lang,
   });
@@ -114,7 +114,7 @@ export default function PerformanceEvaluation() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: t('page.perfEval.title'),
+    title: translate('page.perfEval.title', lang),
     documentLabel: `${t('page.perfEval.doc_label')} · ${formNumber}`,
   });
 
@@ -139,7 +139,7 @@ export default function PerformanceEvaluation() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
-      title={t('page.perfEval.title')}
+      title={translate('page.perfEval.title', lang)}
       profile={profile}
       // HR Print Templates – Shared Visual Consistency Pack v1: reuse the Salary
       // Certificate's opt-in ApprovalSection/FormLayout behavior.
