@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
-import { useT } from '../lib/i18n';
+import { useT, t as translate } from '../lib/i18n';
 import { todayDateOnly } from '../lib/date';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -123,8 +123,8 @@ export default function PurchaseRequest() {
      ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE),
-    title: t('page.purchaseReq.title'),
-    documentLabel: `${t('page.purchaseReq.title')} · ${printFields.requestNumber || ''}`,
+    title: translate('page.purchaseReq.title', lang),
+    documentLabel: `${translate('page.purchaseReq.title', lang)} · ${printFields.requestNumber || ''}`,
     lang,
   });
 
@@ -142,8 +142,8 @@ export default function PurchaseRequest() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: t('page.purchaseReq.title'),
-    documentLabel: `${t('page.purchaseReq.title')} · ${printFields.requestNumber || ''}`,
+    title: translate('page.purchaseReq.title', lang),
+    documentLabel: `${translate('page.purchaseReq.title', lang)} · ${printFields.requestNumber || ''}`,
   });
 
 
@@ -158,7 +158,7 @@ export default function PurchaseRequest() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready={false}
       formNumber={printFields.requestNumber || generateFormNumber(FORM_KEY)}
-      title={t('page.purchaseReq.title')}
+      title={translate('page.purchaseReq.title', lang)}
       profile={profile}
       toolbarExtra={
         <>

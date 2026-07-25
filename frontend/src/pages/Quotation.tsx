@@ -12,7 +12,7 @@ import {
 } from '../printing';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
-import { useT } from '../lib/i18n';
+import { useT, t as translate } from '../lib/i18n';
 import { todayDateOnly } from '../lib/date';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
@@ -284,7 +284,7 @@ export default function Quotation() {
     return composeStyledFromNode({
       node,
       pageSpec: getPageSpec('a4-portrait'),
-      title: `${t('page.quotation.title')} ${printFields.quotationNumber || '---'}`,
+      title: `${translate('page.quotation.title', lang)} ${printFields.quotationNumber || '---'}`,
       lang,
       stripSelectors: ['.no-print'],
     });
@@ -321,7 +321,7 @@ export default function Quotation() {
     enabled: accurateEnabled,
     compose: () => composeQuotationPreview(printRootRef.current),
     onPrint: () => printCurrentView(),
-    title: `${t('page.quotation.title')} ${printFields.quotationNumber || '---'}`,
+    title: `${translate('page.quotation.title', lang)} ${printFields.quotationNumber || '---'}`,
     documentLabel: t('lbl.doc_label.quotation', { number: printFields.quotationNumber || '---' }),
     lang,
   });
@@ -330,7 +330,7 @@ export default function Quotation() {
     enabled: accurateEnabled,
     compose: () => composeQuotationPreview(printApiRef.current?.getNode() ?? null),
     onPrint: () => printApiRef.current?.print(),
-    title: `${t('page.quotation.title')} ${printFields.quotationNumber || '---'}`,
+    title: `${translate('page.quotation.title', lang)} ${printFields.quotationNumber || '---'}`,
     documentLabel: t('lbl.doc_label.quotation', { number: printFields.quotationNumber || '---' }),
     lang,
   });
@@ -644,7 +644,7 @@ export default function Quotation() {
       lang={lang}
       ready={false}
       formNumber={printFields.quotationNumber || generateFormNumber(FORM_KEY)}
-      title={t('page.quotation.title')}
+      title={translate('page.quotation.title', lang)}
       profile={profile}
       printIntercept={usePrintCenterQuotation ? legacyPrintIntercept : undefined}
       onPrintApiReady={(api) => { printApiRef.current = api; }}

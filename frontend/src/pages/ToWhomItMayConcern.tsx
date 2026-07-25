@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import ConfirmModal from '../components/ConfirmModal';
 import { useParams, useLocation } from 'react-router-dom';
-import { useT } from '../lib/i18n';
+import { useT, t as translate } from '../lib/i18n';
 import { api, errorMessage } from '../api/client';
 import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
@@ -74,8 +74,8 @@ export default function ToWhomItMayConcern() {
      ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
   const preview = useLegacyFormPreview({
     enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
-    title: t('page.towhom.title'),
-    documentLabel: `${t('page.towhom.title')} · ${formNumber}`,
+    title: translate('page.towhom.title', lang),
+    documentLabel: `${translate('page.towhom.title', lang)} · ${formNumber}`,
     lang,
   });
 
@@ -93,8 +93,8 @@ export default function ToWhomItMayConcern() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: t('page.towhom.title'),
-    documentLabel: `${t('page.towhom.title')} · ${formNumber}`,
+    title: translate('page.towhom.title', lang),
+    documentLabel: `${translate('page.towhom.title', lang)} · ${formNumber}`,
   });
 
 
@@ -118,7 +118,7 @@ export default function ToWhomItMayConcern() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
-      title={t('page.towhom.title')}
+      title={translate('page.towhom.title', lang)}
       profile={profile}
       // HR Print Templates – Shared Visual Consistency Pack v1: reuse the Salary
       // Certificate's opt-in ApprovalSection/FormLayout behavior.
