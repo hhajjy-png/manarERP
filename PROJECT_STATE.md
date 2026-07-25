@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `e3c8cf8` — release `stable-barcode-payload-standardization-pack-v1` (Barcode Payload Standardization Pack v1 — unified the JSON payload encoded in every printed form's QR code onto one schema, removing PII and timestamps) |
+| **Production HEAD** | `d0ff20f` — release `stable-administrative-forms-english-titles-fix-pack-v1` (Administrative Forms English Titles Fix Pack v1 — fixed English document titles that were resolving via the app's global UI language instead of the document's own language toggle) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-barcode-payload-standardization-pack-v1` (release date 2026-07-25) → merge `e3c8cf8` |
-| **Previous stable tag** | `stable-window-lifecycle-foundation-v1` (2026-07-24) → merge `e3bf6d4` |
-| **Total stable releases** | 349 (all merged onto `production`; window 2026-06-07 → 2026-07-25) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release — backend/electron untouched by this pack, unaffected) · targeted frontend `vitest` run covering every touched QR/print-workspace fixture — 4 files / 70 tests, all passing (`printWorkspace.test.tsx`, `documentVerificationQR.test.tsx`, `legacyFormPreviewRolloutPhase1.test.tsx`, `quotationLegacyPreviewBridge.test.tsx`) |
-| **Remote sync** | `origin/production` — pushed with this release (merge `e3c8cf8` + tag `stable-barcode-payload-standardization-pack-v1`) |
+| **Latest stable tag** | `stable-administrative-forms-english-titles-fix-pack-v1` (release date 2026-07-25) → merge `d0ff20f` |
+| **Previous stable tag** | `stable-barcode-payload-standardization-pack-v1` (2026-07-25) → merge `e3c8cf8` |
+| **Total stable releases** | 350 (all merged onto `production`; window 2026-06-07 → 2026-07-25) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release — backend/electron untouched by this pack, unaffected). No dedicated automated test previously covered this title-resolution defect; validation is `tsc` + static diff review (exactly the `t('page.X.title')` → `translate('page.X.title', lang)` substitutions, nothing else) + Product Owner manual visual review + Gemini final review |
+| **Remote sync** | `origin/production` — pushed with this release (merge `d0ff20f` + tag `stable-administrative-forms-english-titles-fix-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,28 @@ in a table cell.
 
 ---
 
-## Latest Release — Barcode Payload Standardization Pack v1
+## Latest Release — Administrative Forms English Titles Fix Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Administrative Forms English Titles Fix Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-25 |
+| **Feature branch** | `feature/administrative-forms-english-titles-fix-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `a835646` (documentation commit from the prior release) |
+| **Feature commit** | `181604d` |
+| **Production merge commit** | `d0ff20f` |
+| **Stable tag** | `stable-administrative-forms-english-titles-fix-pack-v1` → merge `d0ff20f` (annotated) |
+| **Reviews** | Product Owner visual review — **completed & approved**. Gemini final review — **approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ (frontend-only release) — no automated test previously existed for this defect; validated via `tsc` + static diff review + manual/Gemini review |
+
+**Scope.** Every administrative form's printed `<h1>` title (and its matching print-preview dialog title/`documentLabel`) was resolved via `t()` from `useT()`, which is bound to the app's **global UI language** (`useUI().lang`, Arabic by default) rather than the form's own local `lang` toggle (`ar`/`en`) that the user selects on the print form itself. Result: selecting the English document while the app's UI language was Arabic (the default) still printed an Arabic title above an otherwise fully English document. Fixed by resolving each title via the i18n dictionary directly with the document's own `lang` state (`t(key, lang)`, imported as `translate`), independent of the global UI language. Applies to: Salary Certificate, To Whom It May Concern, Leave Request, Return to Work, Salary Advance, Resignation, Employee Warning, Performance Evaluation, Quotation, Purchase Request (10 forms, 55 lines changed — the exact `t('page.X.title')` → `translate('page.X.title', lang)` call-site substitutions, nothing else).
+
+**Excluded.** Employment Contract — out of scope per the release brief. Payment Voucher and Receipt Voucher — unchanged; their title boxes already render both languages together ("سند صرف / PAYMENT VOUCHER", "سند قبض / RECEIPT VOUCHER") regardless of the language toggle, so they were never affected by this defect. No changes to printing layout, margins, fonts, QR codes, form numbering, business logic, or translations outside the document title.
+
+---
+
+## Previous Release — Barcode Payload Standardization Pack v1
 
 | Field | Value |
 |-------|-------|

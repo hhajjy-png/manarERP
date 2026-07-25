@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `e3c8cf8` (merge of `feature/barcode-payload-standardization-pack-v1`, carrying Barcode Payload Standardization Pack v1) |
-| **Current Documentation Commit** | `c3d0178` |
-| **Current Stable Tag** | `stable-barcode-payload-standardization-pack-v1` |
+| **Current Merge Commit** | `d0ff20f` (merge of `feature/administrative-forms-english-titles-fix-pack-v1`, carrying Administrative Forms English Titles Fix Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-administrative-forms-english-titles-fix-pack-v1` |
 | **Current Release Date** | 2026-07-25 |
-| **Total Stable Releases** | 349 (window 2026-06-07 → 2026-07-25) |
+| **Total Stable Releases** | 350 (window 2026-06-07 → 2026-07-25) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,25 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Administrative Forms English Titles Fix Pack v1** (2026-07-25,
+  `stable-administrative-forms-english-titles-fix-pack-v1`) — fixed administrative forms whose
+  printed `<h1>` title (and matching print-preview dialog title/`documentLabel`) resolved via `t()`
+  from `useT()`, which is bound to the app's **global UI language** (`useUI().lang`, Arabic by
+  default) rather than the form's own local `lang` toggle (`ar`/`en`) selected on the print form
+  itself. Selecting the English document while the app's UI language was Arabic (the default) still
+  printed an Arabic title above an otherwise fully English document. Fixed by resolving each title via
+  the i18n dictionary directly with the document's own `lang` state (`t(key, lang)`, imported as
+  `translate`), independent of the global UI language. **Forms fixed:** Salary Certificate, To Whom It
+  May Concern, Leave Request, Return to Work, Salary Advance, Resignation, Employee Warning,
+  Performance Evaluation, Quotation, Purchase Request (10 forms, 55 lines changed — exactly the
+  `t('page.X.title')` → `translate('page.X.title', lang)` call-site substitutions). **Excluded:**
+  Employment Contract (out of scope). **Unchanged:** Payment Voucher and Receipt Voucher — their title
+  boxes already render both languages together regardless of the toggle, so they were never affected.
+  **No changes** to printing layout, margins, fonts, QR codes, form numbering, business logic, or
+  translations outside the document title. Frontend `tsc --noEmit` clean (frontend-only release); no
+  automated test previously existed for this defect. Product Owner visual review: **APPROVED**. Gemini
+  final review: **APPROVED**.
 
 - **Barcode Payload Standardization Pack v1** (2026-07-25,
   `stable-barcode-payload-standardization-pack-v1`) — standardized the JSON payload encoded inside
