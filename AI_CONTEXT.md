@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `d0ff20f` (merge of `feature/administrative-forms-english-titles-fix-pack-v1`, carrying Administrative Forms English Titles Fix Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `d6bbad8` |
 | **Current Stable Tag** | `stable-administrative-forms-english-titles-fix-pack-v1` |
 | **Current Release Date** | 2026-07-25 |
 | **Total Stable Releases** | 350 (window 2026-06-07 → 2026-07-25) |
