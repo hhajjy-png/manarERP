@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `e3c8cf8` (merge of `feature/barcode-payload-standardization-pack-v1`, carrying Barcode Payload Standardization Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `c3d0178` |
 | **Current Stable Tag** | `stable-barcode-payload-standardization-pack-v1` |
 | **Current Release Date** | 2026-07-25 |
 | **Total Stable Releases** | 349 (window 2026-06-07 → 2026-07-25) |
