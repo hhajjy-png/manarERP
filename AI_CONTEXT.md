@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `4284543` (merge of `feature/cheque-multi-selection-batch-printing-pack-v1`, carrying Cheque Multi-Selection & Batch Printing Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `1cb00b6` |
 | **Current Stable Tag** | `stable-cheque-multi-selection-batch-printing-pack-v1` |
 | **Current Release Date** | 2026-07-26 |
 | **Total Stable Releases** | 351 (window 2026-06-07 → 2026-07-26) |
