@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `54f2846` (merge of `feature/ui-controls-consistency-topbar-refresh-pack-v1`, carrying UI Controls Consistency & Topbar Refresh Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `2500695` |
 | **Current Stable Tag** | `stable-ui-controls-consistency-topbar-refresh-pack-v1` |
 | **Current Release Date** | 2026-07-26 |
 | **Total Stable Releases** | 357 (window 2026-06-07 → 2026-07-26) |
