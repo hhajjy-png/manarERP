@@ -80,15 +80,19 @@ describe('buildTimelineWhere', () => {
 });
 
 describe('TIMELINE_ORDER_BY (default transaction explorer ordering)', () => {
-  it('shows newest transaction date first, then latest import batch, then newest id', () => {
+  it('shows the latest imported batch first, then original file row order, then id as a legacy tiebreaker', () => {
     expect(TIMELINE_ORDER_BY).toEqual([
-      { statementDate: 'desc' },
-      { importId:      'desc' },
-      { id:            'desc' },
+      { importId:          'desc' },
+      { statementSequence: 'asc' },
+      { id:                'asc' },
     ]);
   });
 
-  it('uses statementDate descending as the primary sort key', () => {
-    expect(TIMELINE_ORDER_BY[0]).toEqual({ statementDate: 'desc' });
+  it('uses importId descending as the primary sort key (latest statement file first)', () => {
+    expect(TIMELINE_ORDER_BY[0]).toEqual({ importId: 'desc' });
+  });
+
+  it('uses statementSequence ascending to reproduce the original file order within a batch', () => {
+    expect(TIMELINE_ORDER_BY[1]).toEqual({ statementSequence: 'asc' });
   });
 });
