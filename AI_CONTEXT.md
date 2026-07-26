@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `5ed59c0` (merge of `feature/cheque-management-visual-polish-pack-v1`, carrying Cheque Management Visual Polish Pack v1) |
-| **Current Documentation Commit** | `ce65036` |
-| **Current Stable Tag** | `stable-cheque-management-visual-polish-pack-v1` |
+| **Current Merge Commit** | `becb6df` (merge of `feature/forms-i18n-completeness-regression-protection-pack-v1`, carrying Forms i18n Completeness & Regression Protection Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-forms-i18n-completeness-regression-protection-pack-v1` |
 | **Current Release Date** | 2026-07-26 |
-| **Total Stable Releases** | 353 (window 2026-06-07 → 2026-07-26) |
+| **Total Stable Releases** | 354 (window 2026-06-07 → 2026-07-26) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,40 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Forms i18n Completeness & Regression Protection Pack v1** (2026-07-26,
+  `stable-forms-i18n-completeness-regression-protection-pack-v1`) — closes a raw-i18n-key regression that
+  had already been patched twice before and kept coming back. Root cause (found via a dedicated
+  Regression & Release Integrity Audit): commit `d226365` "English Localization Completion Pack v2"
+  (2026-07-21) converted hardcoded strings in six forms to `t('...')` calls without adding the matching
+  `DICT.ar`/`DICT.en` entries; two later fixes (`699a63b`, `0850cc1`) each patched only that form's
+  *title* key, never the body content (field labels, placeholders, buttons, options) — so the same class
+  of bug kept resurfacing. The correct fix for all 69 affected keys had already been written, but only as
+  an **uncommitted edit** sitting in the working tree, never committed in this repository's history — the
+  actual root cause of the recurrence: verified work that never reached a commit. This pack: recovers 69
+  translation keys (AR+EN) — 64 found by a static `t('...')` scan plus 5 more (`page.perfEval.criterion.*`)
+  used dynamically via a `CRITERIA_KEYS` array in `PerformanceEvaluation.tsx`, invisible to a literal-string
+  scan — across `SalaryCertificate`, `PurchaseRequest`, `PerformanceEvaluation`, `LeaveRequest`,
+  `SalaryAdvance`, `ReturnToWork`. Isolated strictly from unrelated dirty working-tree content sharing the
+  same file (verified `git diff --stat`: 138 insertions, 0 deletions, touching only these six forms' keys).
+  Adds `frontend/src/__tests__/formsTranslationKeyCompleteness.test.ts` — a **general** regression test
+  (unlike the existing title-only `formsRegistryTranslationAudit.test.ts`) that statically scans every
+  literal `t('...')` call plus `CONST_KEYS`-array indirection across all 12 `formsRegistry`-registered form
+  pages and every file under `frontend/src/forms/`, asserting each key resolves in both `DICT.ar` and
+  `DICT.en` — so any future form or key introduced without a matching translation fails CI immediately
+  instead of shipping silently. Verified the test actually catches regressions (temporarily removed a key,
+  confirmed a precise failure, restored, confirmed green). No design, business logic, or print/preview
+  behavior changed. Frontend `tsc --noEmit` ✅; full frontend `vitest` 116/124 files passing (was 115/123
+  before this pack — net +1, the new test); the 8 pre-existing failing files are byte-identical to a
+  stashed pre-change baseline run, confirmed unrelated — including a newly-discovered, separate,
+  unrelated issue in `formsRegistryTranslationAudit.test.ts` (10 assertions fail because those form pages
+  now call `translate(key, lang)` instead of the `t(key)` pattern the test string-matches; translation
+  still resolves correctly at runtime, only the test's literal pattern is stale — flagged, not fixed, out
+  of scope for this pack). Backend unaffected (frontend-only change) — backend `tsc --noEmit` and
+  `vitest` (135 files / 1899 tests) both clean, `prisma validate` clean (schema untouched). Manual proof:
+  all `t()`-used keys across the six forms (90 distinct, incl. the `CRITERIA_KEYS` array) now resolve
+  against the rebuilt dictionary (4101=4101 AR/EN parity) — **0 missing in AR, 0 missing in EN**. Product
+  Owner visual review: **approved**.
 
 - **Cheque Management Visual Polish Pack v1** (2026-07-26,
   `stable-cheque-management-visual-polish-pack-v1`) — UI/UX density pass on the Cheque Management page

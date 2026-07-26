@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `5ed59c0` — release `stable-cheque-management-visual-polish-pack-v1` (Cheque Management Visual Polish Pack v1 — density/hierarchy pass on the Cheque Management page's header, KPI cards, print toolbar, filters and table, plus the approved KPI redefinition: a DB-computed "total value of all PRINTED cheques across every page" hero metric and a "current page value" secondary card) |
+| **Production HEAD** | `becb6df` — release `stable-forms-i18n-completeness-regression-protection-pack-v1` (Forms i18n Completeness & Regression Protection Pack v1 — recovers 69 AR/EN translation keys across six forms that were silently rendering raw i18n keys, plus a new general regression test guarding every form's t() call, not just titles) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-cheque-management-visual-polish-pack-v1` (release date 2026-07-26) → merge `5ed59c0` |
-| **Previous stable tag** | `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1` (2026-07-26) → merge `3fb9b82` |
-| **Total stable releases** | 353 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
-| **Latest validation** | frontend/backend/electron `tsc --noEmit` ✅ · `prisma validate` ✅ (schema untouched by this pack) · backend `vitest` 135 files / 1899 tests ✅ (incl. 2 new tests for the `printedTotal` aggregate) · frontend targeted cheque/print/calibration `vitest` 16 files / 246 tests ✅ · 2 pre-existing/unrelated failing files confirmed identical before and after this pack (`chequePrintInkIsolation.test.tsx`, `universalPrintPreviewCorrective.test.tsx` — neither touches this pack's files) · frontend + backend production build ✅ · Product Owner manual visual review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `5ed59c0` + tag `stable-cheque-management-visual-polish-pack-v1`) |
+| **Latest stable tag** | `stable-forms-i18n-completeness-regression-protection-pack-v1` (release date 2026-07-26) → merge `becb6df` |
+| **Previous stable tag** | `stable-cheque-management-visual-polish-pack-v1` (2026-07-26) → merge `5ed59c0` |
+| **Total stable releases** | 354 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release) · frontend `vitest` 116/124 files passing (8 pre-existing/unrelated failures confirmed byte-identical against a stashed pre-change baseline) · backend `tsc --noEmit` ✅ · backend `vitest` 135 files / 1899 tests ✅ · `prisma validate` ✅ (schema untouched) · frontend production build ✅ · manual audit: 0 missing AR / 0 missing EN across all 90 `t()`-used keys in the six affected forms · Product Owner manual visual review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `becb6df` + tag `stable-forms-i18n-completeness-regression-protection-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Cheque Management Visual Polish Pack v1
+## Latest Release — Forms i18n Completeness & Regression Protection Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Forms i18n Completeness & Regression Protection Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-26 |
+| **Feature branch** | `feature/forms-i18n-completeness-regression-protection-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `4a62484` (documentation commit from the prior release) |
+| **Feature commit** | `c7df34f` |
+| **Production merge commit** | `becb6df` |
+| **Stable tag** | `stable-forms-i18n-completeness-regression-protection-pack-v1` → merge `becb6df` (annotated) |
+| **Reviews** | Product Owner visual review — **completed & approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ (frontend-only release) · frontend `vitest` 116/124 files passing (was 115/123 before this pack — net +1, the new test); 8 pre-existing/unrelated failing files confirmed byte-identical against a stashed pre-change baseline · backend `tsc --noEmit` ✅ · backend `vitest` 135 files / 1899 tests ✅ · `prisma validate` ✅ (schema untouched) · frontend production build ✅ · manual audit: 0 missing AR / 0 missing EN across all 90 `t()`-used keys (incl. the `CRITERIA_KEYS` array) in the six affected forms |
+
+**Background — a regression that had already been "fixed" twice.** A dedicated Regression & Release Integrity Audit (run before this pack) traced the root cause: commit `d226365` "English Localization Completion Pack v2" (2026-07-21) converted hardcoded strings across six forms to `t('...')` calls without adding the matching `DICT.ar`/`DICT.en` entries. Two later fixes — `699a63b` ("Leave Request Translation Fix v1") and `0850cc1` ("Employee Smart Forms Hub & Forms Localization Integrity Pack v1", which built `formsRegistry.ts` + `formsRegistryTranslationAudit.test.ts`) — each patched only that form's **title** key; neither touched the body content (field labels, placeholders, buttons, options) that `d226365` had also broken, because the audit test they shipped is scoped to `titleKey` only. The correct fix for all 69 affected keys had already been written at some point, but only as an **uncommitted edit** to `frontend/src/lib/i18n.ts` sitting in the working tree — never committed in this repository's history. That is the actual root cause of the recurrence: verified, working code that never reached a commit, so it silently vanished on every fresh checkout while the underlying bug shipped again and again.
+
+**Scope — key recovery.** Recovered 69 translation keys (AR+EN): 64 confirmed by a static `t('...')` scan across the six forms, plus 5 more (`page.perfEval.criterion.*`) discovered while implementing — used dynamically via a `CRITERIA_KEYS.map((key, i) => t(key))` array in `PerformanceEvaluation.tsx`, invisible to a literal-string scan but genuinely missing from the dictionary. Forms covered: `SalaryCertificate` (14 keys), `PurchaseRequest` (15), `PerformanceEvaluation` (19), `LeaveRequest` (9), `SalaryAdvance` (7), `ReturnToWork` (5). Isolated strictly from unrelated content sharing the same dirty working-tree file: a separate, unrelated deletion of two dead `page.salary_cert.*` legacy keys was reverted to its original state, and two empty leftover comment-block insertions were dropped — final diff verified via `git diff --stat`: 138 insertions, 0 deletions, touching only these six forms' keys.
+
+**Scope — regression protection.** New `frontend/src/__tests__/formsTranslationKeyCompleteness.test.ts`: a **general** test (unlike the existing title-only `formsRegistryTranslationAudit.test.ts`) that statically scans every literal `t('...')` call — plus `CONST_KEYS`-style literal arrays fed through `t(variable)`, covering the `CRITERIA_KEYS` case — across all 12 `formsRegistry`-registered form pages and every file under `frontend/src/forms/`, and asserts each key resolves in both `DICT.ar` and `DICT.en`. Any future form or key added without a matching translation now fails this test immediately instead of shipping a raw key to users. Verified the test actually catches regressions: temporarily removed one key, got a precise, actionable failure message naming the exact file and key, restored, confirmed green.
+
+**Unrelated, pre-existing issue found (not fixed, out of scope).** `formsRegistryTranslationAudit.test.ts` was already failing 10/39 assertions before this pack (confirmed via a stashed baseline run) — 10 form pages now call `translate(key, lang)` (an explicit-language variant) instead of the bare `t(key)` pattern that test's string-match expects. Translation itself still resolves correctly at runtime; only the old test's literal pattern is stale. Flagged for a future pack, per instruction not to fix unrelated pre-existing failures during this release.
+
+**Not changed:** any form's design, business logic, print/preview behavior, API contracts, or backend code (frontend-only pack).
+
+---
+
+## Previous Release — Cheque Management Visual Polish Pack v1
 
 | Field | Value |
 |-------|-------|
