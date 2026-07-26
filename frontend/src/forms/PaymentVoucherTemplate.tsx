@@ -190,8 +190,9 @@ export default function PaymentVoucherTemplate({
         </tbody>
       </table>
 
-      {/* Receiver signature — Manager Approval + Official Stamp are provided by the
-          shared ApprovalSection footer (FormLayout), so they are not repeated here. */}
+      {/* Receiver signature — the shared ApprovalSection footer (Manager Approval,
+          signature, date, official stamp) is hidden for this form via
+          FormLayout's hideApprovalSection prop. */}
       <div style={{ display: 'flex', gap: 24, marginTop: 38 }}>
         <div style={{ width: '32%', textAlign: 'center' }}>
           <div

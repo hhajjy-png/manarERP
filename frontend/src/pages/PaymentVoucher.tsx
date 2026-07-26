@@ -230,6 +230,10 @@ export default function PaymentVoucher() {
       formNumber={cheque.paymentVoucherNumber}
       title=""
       profile="payment-voucher"
+      hideApprovalSection
+      compactTopMargin
+      useLogoHeader
+      contentTopOffset="2cm"
       toolbarExtra={
         <>
           <LanguageToggle lang={lang} onChange={setLang} />
