@@ -745,8 +745,8 @@ export default function BankSalaryAnalytics() {
             {exportMenuOpen && (
               <div className="psa-export-menu">
                 <button className="psa-export-item" onClick={() => handleExport(undefined, 'excel')}>
-                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#16a34a' }}>table_chart</span>
-                  {t('page.salaries.export_excel')}
+                  <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#217346' }}>table_chart</span>
+                  <span style={{ color: '#217346' }}>Excel</span>
                 </button>
                 <button className="psa-export-item" onClick={() => handleExport(undefined, 'csv')}>
                   <span className="material-symbols-outlined" style={{ fontSize: 18, color: '#6366F1' }}>data_table</span>

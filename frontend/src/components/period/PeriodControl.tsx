@@ -31,7 +31,12 @@ function yearOptions(): number[] {
   return years;
 }
 
-export default function PeriodControl() {
+interface PeriodControlProps {
+  /** When true, the summary label omits the "Period Shown:" prefix and shows only the bare date range — scoped opt-in for pages with tighter header space. Defaults to false (unchanged behavior). */
+  hideLabelPrefix?: boolean;
+}
+
+export default function PeriodControl({ hideLabelPrefix = false }: PeriodControlProps) {
   const { t } = useT();
   const { period, setPreset, setYear, setCustomRange, resetToCurrentYear } = useFinancialPeriod();
   const [open, setOpen] = useState(false);
@@ -61,7 +66,7 @@ export default function PeriodControl() {
         aria-label={t('fc.period.select_aria')}
       >
         <span className="material-symbols-outlined period-control__icon" aria-hidden>calendar_month</span>
-        <span className="period-control__label">{buildLocalizedPeriodLabel(period, t)}</span>
+        <span className="period-control__label">{buildLocalizedPeriodLabel(period, t, hideLabelPrefix)}</span>
         {period.isAllPeriods && <span className="period-control__badge period-control__badge--all">{t('fc.period.all')}</span>}
         {period.isHistorical && <span className="period-control__badge period-control__badge--hist">{t('fc.period.previous_year_badge')}</span>}
         <span className="material-symbols-outlined period-control__chevron" aria-hidden>

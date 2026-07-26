@@ -376,7 +376,7 @@ export default function Salaries() {
                   ).map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
                 </select>
               </div>
-              {canExport && <Button variant="secondary" icon="table_view" busy={excelBusy} onClick={downloadPayrollExcel}>{t('page.salaries.export_excel')}</Button>}
+              {canExport && <Button variant="secondary" icon="table_view" busy={excelBusy} onClick={downloadPayrollExcel} style={excelBusy ? undefined : { color: '#217346' }}>Excel</Button>}
               {canImport && <Button variant="ghost" icon="upload" onClick={() => navigate('/import')}>{t('page.salaries.import_excel')}</Button>}
               {canAdjust && <Button variant="ghost" icon="tune" onClick={() => setAdjustOpen(true)}>{t('page.salaries.adjustments')}</Button>}
             </div>

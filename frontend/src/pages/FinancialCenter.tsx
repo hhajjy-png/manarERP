@@ -456,7 +456,7 @@ export default function FinancialCenter() {
           <p className="fc-subtitle">{t('fc.subtitle')}</p>
         </div>
         <div style={{ marginInlineStart: 'auto' }}>
-          <PeriodControl />
+          <PeriodControl hideLabelPrefix />
         </div>
       </div>
 

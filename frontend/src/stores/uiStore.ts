@@ -21,6 +21,14 @@ interface UIState {
   setSidebarNarrow: (narrow: boolean) => void;
   setLang: (lang: Lang) => void;
   togglePrivacy: () => void;
+  /**
+   * تسجيل مؤقّت لزرّ تحديث لوحة التحكّم في الشريط العلوي العام — الصفحة التي
+   * تملك فعليًا حالة التحديث (refreshKey/refreshing) تسجّل معالِجها هنا عند
+   * التركيب وتُلغيه عند التفكيك؛ لا منطق تحديث جديد هنا، مجرّد سلك عرض.
+   */
+  topbarRefreshHandler: (() => void) | null;
+  topbarRefreshBusy: boolean;
+  setTopbarRefresh: (handler: (() => void) | null, busy: boolean) => void;
 }
 
 const THEME_KEY = 'manar.theme';
@@ -102,5 +110,10 @@ export const useUI = create<UIState>((set, get) => ({
   },
   togglePrivacy() {
     set({ privacyMode: !get().privacyMode });
+  },
+  topbarRefreshHandler: null,
+  topbarRefreshBusy: false,
+  setTopbarRefresh(handler, busy) {
+    set({ topbarRefreshHandler: handler, topbarRefreshBusy: busy });
   },
 }));

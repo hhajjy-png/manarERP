@@ -946,7 +946,7 @@ export default function Cheques() {
           }
           aside={(
             <>
-              <PeriodControl />
+              <PeriodControl hideLabelPrefix />
               {canCreate && <Button variant="primary" icon="add" onClick={openNew}>{t('page.cheques.new')}</Button>}
             </>
           )}

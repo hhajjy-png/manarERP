@@ -11,7 +11,7 @@ export default function ExportExcelButton({ onExport, busy }: Props) {
       onClick={onExport}
       disabled={busy}
     >
-      {busy ? 'جاري...' : '⬇ تصدير Excel'}
+      {busy ? 'جاري...' : <span style={{ color: '#217346' }}>⬇ Excel</span>}
     </button>
   );
 }

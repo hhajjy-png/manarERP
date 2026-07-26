@@ -530,7 +530,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
             <SearchBox value={search} onChange={(v) => setSearch(v)} placeholder={t('action.search_placeholder')} ariaLabel={t('action.search')} />
             <Button variant="secondary" icon="search" onClick={() => { setPage(1); setQuery(search); }}>{t('action.search')}</Button>
             <Button variant="ghost" icon="refresh" busy={loading} onClick={load}>{t('action.refresh')}</Button>
-            {canExport && <Button variant="secondary" icon="table_view" busy={exportBusy} onClick={exportExcel}>{t('page.salaries.export_excel')}</Button>}
+            {canExport && <Button variant="secondary" icon="table_view" busy={exportBusy} onClick={exportExcel} style={exportBusy ? undefined : { color: '#217346' }}>Excel</Button>}
           </div>
           {cfg.statusFilter && (
             <div className="xpl-toolbar-row">

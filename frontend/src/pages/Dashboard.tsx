@@ -76,7 +76,7 @@ function GeneralDashboardContent() {
   const { user, hasPermission } = useAuth();
   const navigate = useNavigate();
   const { t } = useT();
-  const { lang } = useUI();
+  const { lang, setTopbarRefresh } = useUI();
   const { period } = useFinancialPeriod();
 
   const [initialLoading, setInitialLoading] = useState(true);
@@ -85,6 +85,13 @@ function GeneralDashboardContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshAt, setRefreshAt] = useState<Date | null>(null);
   const [kpiExpanded, setKpiExpanded] = useState(false);
+
+  // زرّ التحديث انتقل بصريًا إلى الشريط العلوي العام (بجانب أيقونة القفل) —
+  // نفس refreshKey/refreshing/initialLoading أدناه، فقط سلك عرضه في مكوّن آخر.
+  useEffect(() => {
+    setTopbarRefresh(() => setRefreshKey((k) => k + 1), initialLoading || refreshing);
+    return () => setTopbarRefresh(null, false);
+  }, [setTopbarRefresh, initialLoading, refreshing]);
 
   // Executive Command Center data — مؤشرات الحركة/الذمم تتبع الفترة العالمية.
   const commandData = useDashboardCommandData(refreshKey, periodToRangeParams(period));
@@ -247,21 +254,10 @@ function GeneralDashboardContent() {
           <p className="db-exec-head-sub">{t('dash.header.subtitle')}</p>
         </div>
         <div className="db-exec-head-actions">
-          <PeriodControl />
+          <PeriodControl hideLabelPrefix />
           {!initialLoading && refreshAt && (
             <span className="db-exec-updated">{t('dash.header.last_updated')} {refreshAt.toLocaleTimeString(lang === 'ar' ? 'ar' : 'en')}</span>
           )}
-          <button
-            type="button"
-            className="db-refresh-loader-btn"
-            disabled={initialLoading || refreshing}
-            onClick={() => setRefreshKey((k) => k + 1)}
-            aria-label={t('page.dashboard.retry')}
-          >
-            <svg className="retry-loader" viewBox="25 25 50 50">
-              <circle cx="50" cy="50" r="20"></circle>
-            </svg>
-          </button>
         </div>
       </div>
 

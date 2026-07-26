@@ -639,7 +639,7 @@ export default function Reports() {
             <DrawerSection title={t('rc.drawer.export_title')}>
               {preview ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <Button variant="secondary" icon="table_view" busy={excelBusy} onClick={downloadExcel} block>{t('page.salaries.export_excel')}</Button>
+                  <Button variant="secondary" icon="table_view" busy={excelBusy} onClick={downloadExcel} block style={excelBusy ? undefined : { color: '#217346' }}>Excel</Button>
                   {window.manar?.exportPdfFromHtml && (
                     <Button variant="secondary" icon="picture_as_pdf" busy={pdfBusy} onClick={downloadPdf} block>{t('rc.export.pdf')}</Button>
                   )}
@@ -681,7 +681,7 @@ export default function Reports() {
             {favorites.length > 0 && <IdChip icon="star" tone="orange">{favorites.length} {t('rc.unit.favorite')}</IdChip>}
           </>
         }
-        aside={<PeriodControl />}
+        aside={<PeriodControl hideLabelPrefix />}
       />
 
       {/* تنبيه قائمة الدخل عند كل الفترات: يجب ألا تعمل P&L على all-time بصمت. */}
@@ -843,7 +843,11 @@ export default function Reports() {
                 {exportOpen && (
                   <div className="rcx-export-menu rcx-export-menu--down">
                     <button type="button" className="rcx-export-item" onClick={downloadExcel} disabled={excelBusy}>
-                      <span className="material-symbols-outlined">table_view</span>{excelBusy ? t('rc.busy') : t('page.salaries.export_excel')}
+                      {excelBusy ? (
+                        <><span className="material-symbols-outlined">table_view</span>{t('rc.busy')}</>
+                      ) : (
+                        <><span className="material-symbols-outlined" style={{ color: '#217346' }}>table_view</span><span style={{ color: '#217346' }}>Excel</span></>
+                      )}
                     </button>
                     {window.manar?.exportPdfFromHtml && (
                       <button type="button" className="rcx-export-item" onClick={downloadPdf} disabled={pdfBusy}>
