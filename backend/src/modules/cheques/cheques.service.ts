@@ -48,7 +48,10 @@ const DEFAULT_GEOMETRY: CalibrationGeometryInput = {
 };
 
 export class ChequesService {
-  /** إحصاء الشيكات — يتبع نفس نطاق الفترة (chequeDate) الذي تتبعه القائمة. */
+  /** إحصاء الشيكات — يتبع نفس نطاق الفترة (chequeDate) الذي تتبعه القائمة.
+   *  printedTotal: إجمالي مبلغ كل الشيكات PRINTED ضمن نفس نطاق الفترة، محسوبًا على
+   *  مستوى قاعدة البيانات (SUM) عبر كل صفحات الـPagination — وليس فقط الصفحة المحمّلة
+   *  حاليًا في الواجهة (Cheque Management Visual Polish Pack v1 — Hero Metric). */
   async stats(query: { from?: string; to?: string } = {}) {
     const dateWhere: Prisma.ChequeWhereInput = {};
     if (query.from || query.to) {
@@ -56,13 +59,14 @@ export class ChequesService {
       if (query.from) dateWhere.chequeDate.gte = new Date(`${query.from.slice(0, 10)}T00:00:00`);
       if (query.to) dateWhere.chequeDate.lte = endOfDay(new Date(`${query.to.slice(0, 10)}T00:00:00`));
     }
-    const [total, draft, printed, cancelled] = await Promise.all([
+    const [total, draft, printed, cancelled, printedAgg] = await Promise.all([
       prisma.cheque.count({ where: dateWhere }),
       prisma.cheque.count({ where: { ...dateWhere, status: 'DRAFT' } }),
       prisma.cheque.count({ where: { ...dateWhere, status: 'PRINTED' } }),
       prisma.cheque.count({ where: { ...dateWhere, status: 'CANCELLED' } }),
+      prisma.cheque.aggregate({ where: { ...dateWhere, status: 'PRINTED' }, _sum: { amount: true } }),
     ]);
-    return { total, draft, printed, cancelled };
+    return { total, draft, printed, cancelled, printedTotal: roundMoney(printedAgg._sum.amount ?? 0) };
   }
 
   async list(query: PaginationQuery & { status?: string; from?: string; to?: string }) {

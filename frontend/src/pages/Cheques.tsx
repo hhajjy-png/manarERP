@@ -78,7 +78,7 @@ interface Cheque {
   createdAt: string;
 }
 
-interface ChequeStats { total: number; draft: number; printed: number; cancelled: number; }
+interface ChequeStats { total: number; draft: number; printed: number; cancelled: number; printedTotal?: number; }
 
 interface FormState {
   chequeNumber: string;
@@ -212,7 +212,7 @@ export default function Cheques() {
 
   const [cheques, setCheques] = useState<Cheque[]>([]);
   const [meta, setMeta] = useState<PageMeta | null>(null);
-  const [stats, setStats] = useState<ChequeStats>({ total: 0, draft: 0, printed: 0, cancelled: 0 });
+  const [stats, setStats] = useState<ChequeStats>({ total: 0, draft: 0, printed: 0, cancelled: 0, printedTotal: 0 });
   const [form, setForm] = useState<FormState>(defaultForm());
   const [editId, setEditId] = useState<number | null>(null);
   const [printTarget, setPrintTarget] = useState<Cheque | null>(null);
@@ -275,7 +275,7 @@ export default function Cheques() {
       ]);
       setCheques(listRes.data.data.data ?? []);
       setMeta(listRes.data.data.meta ?? null);
-      setStats(statsRes.data.data ?? { total: 0, draft: 0, printed: 0, cancelled: 0 });
+      setStats(statsRes.data.data ?? { total: 0, draft: 0, printed: 0, cancelled: 0, printedTotal: 0 });
     } catch (e) {
       setFormError(errorMessage(e));
     } finally {
@@ -863,9 +863,8 @@ export default function Cheques() {
   const valueKpis = useMemo(() => {
     const amounts = cheques.map((c) => Number(c.amount) || 0);
     const totalValue = amounts.reduce((s, a) => s + a, 0);
-    const highest = amounts.length ? Math.max(...amounts) : 0;
     const average = amounts.length ? totalValue / amounts.length : 0;
-    return { totalValue, highest, average };
+    return { totalValue, average };
   }, [cheques]);
 
   const STATUS_CHIPS: [string, string][] = [['', t('opt.all')], ['DRAFT', t('cheque.status.draft')], ['PRINTED', t('cheque.status.printed')], ['CANCELLED', t('cheque.status.cancelled')]];
@@ -973,16 +972,18 @@ export default function Cheques() {
       )}
 
       {/* Hero + KPIs
-          ملاحظة نطاق: قيمة الإجمالي/الأعلى/المتوسط تُحسب من الشيكات المحمّلة في هذه الصفحة فقط
-          (valueKpis)، بينما عدّادات الحالة (مسودة/مطبوع/ملغى) إجمالية من الخادم (stats).
-          نوضّح ذلك في العناوين حتى لا تُقرأ الأرقام كإجمالي عام. */}
+          ملاحظة نطاق: الـHero (printedTotal) إجمالي محسوب في قاعدة البيانات عبر كل
+          صفحات الـPagination ضمن الفترة الحالية — من stats، وليس من الشيكات المحمّلة
+          في الصفحة. أما «قيمة الشيكات في هذه الصفحة» والمتوسط (valueKpis) فمن الشيكات
+          المحمّلة في هذه الصفحة فقط. عدّادات الحالة (مسودة/مطبوع/ملغى) إجمالية من
+          الخادم (stats) أيضًا. نوضّح ذلك في العناوين حتى لا تُقرأ الأرقام كمصدر واحد. */}
       <div className="chqx-metrics">
-        <HeroMetric icon="account_balance_wallet" label={t('kpi.cheques.page_value_label')} value={<MoneyText value={valueKpis.totalValue} />} sub={<><span className="material-symbols-outlined">receipt_long</span>{t('kpi.cheques.page_value_sub', { shown: cheques.length, total: stats.total })}</>} />
+        <HeroMetric icon="account_balance_wallet" label={t('kpi.cheques.printed_total_label')} value={<MoneyText value={stats.printedTotal ?? 0} />} sub={<><span className="material-symbols-outlined">receipt_long</span>{t('kpi.cheques.printed_total_sub', { count: stats.printed })}</>} />
         <div className="xpl-kpi-grid">
           <MetricCard icon="edit_note" tone="orange" label={t('stat.cheques.draft')} value={stats.draft} />
           <MetricCard icon="print" tone="green" label={t('stat.cheques.printed')} value={stats.printed} />
           <MetricCard icon="block" tone="red" label={t('stat.cheques.cancelled')} value={stats.cancelled} />
-          <MetricCard icon="trending_up" tone="blue" label={t('kpi.cheques.highest_page')} value={<MoneyText value={valueKpis.highest} />} />
+          <MetricCard icon="receipt_long" tone="blue" label={t('kpi.cheques.page_value_label')} value={<MoneyText value={valueKpis.totalValue} />} />
           <MetricCard icon="functions" tone="indigo" label={t('kpi.cheques.average_page')} value={<MoneyText value={valueKpis.average} />} />
         </div>
       </div>

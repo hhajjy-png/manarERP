@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  */
 
 vi.mock('../../../config/database', () => ({
-  prisma: { cheque: { count: vi.fn(), findMany: vi.fn() } },
+  prisma: { cheque: { count: vi.fn(), findMany: vi.fn(), aggregate: vi.fn() } },
 }));
 
 import { prisma } from '../../../config/database';
@@ -18,6 +18,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   mp.cheque.count.mockResolvedValue(0);
   mp.cheque.findMany.mockResolvedValue([]);
+  mp.cheque.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
 });
 
 describe('cheques.stats — period range', () => {
@@ -37,6 +38,24 @@ describe('cheques.stats — period range', () => {
     for (const call of mp.cheque.count.mock.calls) {
       expect(call[0].where.chequeDate).toBeUndefined();
     }
+  });
+
+  it('printedTotal sums PRINTED cheques only, in the DB, across the same date range as the counts', async () => {
+    mp.cheque.aggregate.mockResolvedValue({ _sum: { amount: 12345.678 } });
+    const result = await chequesService.stats({ from: '2024-01-01', to: '2024-12-31' });
+    expect(mp.cheque.aggregate).toHaveBeenCalledTimes(1);
+    const aggCall = mp.cheque.aggregate.mock.calls[0][0];
+    expect(aggCall.where.status).toBe('PRINTED');
+    expect(aggCall.where.chequeDate.gte).toBeInstanceOf(Date);
+    expect(aggCall.where.chequeDate.lte.getFullYear()).toBe(2024);
+    expect(aggCall._sum).toEqual({ amount: true });
+    expect(result.printedTotal).toBe(12345.678);
+  });
+
+  it('printedTotal falls back to 0 when there are no PRINTED cheques (null SUM)', async () => {
+    mp.cheque.aggregate.mockResolvedValue({ _sum: { amount: null } });
+    const result = await chequesService.stats({});
+    expect(result.printedTotal).toBe(0);
   });
 });
 
