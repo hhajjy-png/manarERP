@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `fff9d9f` (merge of `feature/bank-statement-order-preservation-current-balance-fix-v2`, carrying Bank Statement Order Preservation & Current Balance Fix v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `3bb1fb9` |
 | **Current Stable Tag** | `stable-bank-statement-order-preservation-current-balance-fix-v1` |
 | **Current Release Date** | 2026-07-26 |
 | **Total Stable Releases** | 355 (window 2026-06-07 → 2026-07-26) |
