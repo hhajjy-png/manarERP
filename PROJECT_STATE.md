@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `4284543` — release `stable-cheque-multi-selection-batch-printing-pack-v1` (Cheque Multi-Selection & Batch Printing Pack v1 — row/select-all multi-selection on the Cheques table, sequential batch printing across all three cheque print providers, an in-page Batch Preview Navigator applied to both Template Real/A4 cheque printing and Payment Voucher printing, and a real Electron print-result signal gating cheque tracking) |
+| **Production HEAD** | `3fb9b82` — release `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1` (Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1 — Payment Voucher's official `logohead.png` letterhead, removal of the Direct Manager Approval section, and a shared Exact Preview `@page` CSS-cascade fix benefiting every form on that engine) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-cheque-multi-selection-batch-printing-pack-v1` (release date 2026-07-26) → merge `4284543` |
-| **Previous stable tag** | `stable-administrative-forms-english-titles-fix-pack-v1` (2026-07-25) → merge `d0ff20f` |
-| **Total stable releases** | 351 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
-| **Latest validation** | frontend/backend/electron `tsc --noEmit` ✅ · `prisma validate` ✅ (schema untouched by this pack) · backend `vitest` 135 files / 1897 tests ✅ · electron `vitest` 4 files / 80 tests ✅ · frontend `vitest` 122 files / 1885 tests — 1858 passed, 27 pre-existing/unrelated failures (confirmed identical before and after this pack across every checkpoint this pack introduced, zero new regressions) · Product Owner manual visual review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `4284543` + tag `stable-cheque-multi-selection-batch-printing-pack-v1`) |
+| **Latest stable tag** | `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1` (release date 2026-07-26) → merge `3fb9b82` |
+| **Previous stable tag** | `stable-cheque-multi-selection-batch-printing-pack-v1` (2026-07-26) → merge `4284543` |
+| **Total stable releases** | 352 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release) · frontend production build ✅ · targeted `vitest` — 12 files / 251 tests passing (`exactPreviewPageCascade` [new], `printCenterPhase2bFidelity`, `universalAccuratePreview`, `universalPrintPreview`, `quotationLegacyPreviewBridge`, `pdfExportDocumentPath`, `printPreviewContinuousView`, `printWorkspace`, `paymentVoucherBatchSafety`, `legacyFormPreviewRolloutPhase1/2`, `printCenterFoundation`) · 2 pre-existing/unrelated failing files confirmed identical before and after this pack (`wysiwygPreviewPoc`, `universalPrintPreviewCorrective` — both assert on `InvoicePreview.tsx` source text unrelated to this pack) · Product Owner manual visual review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `3fb9b82` + tag `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,32 @@ in a table cell.
 
 ---
 
-## Latest Release — Cheque Multi-Selection & Batch Printing Pack v1
+## Latest Release — Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-26 |
+| **Feature branch** | `feature/payment-voucher-letterhead-exact-preview-cascade-fix-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `efbb4c8` (documentation commit from the prior release) |
+| **Feature commit** | `da2ab95` |
+| **Production merge commit** | `3fb9b82` |
+| **Stable tag** | `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1` → merge `3fb9b82` (annotated) |
+| **Reviews** | Product Owner visual review — **completed & approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ (frontend-only release) · frontend production build ✅ · targeted `vitest` 12/12 files, 251/251 tests passing · 2 pre-existing/unrelated failing files (`wysiwygPreviewPoc`, `universalPrintPreviewCorrective`) confirmed identical against the pre-pack baseline — both assert on `InvoicePreview.tsx` source text, a file this pack never touches |
+
+**Scope — Payment Voucher.** Removed the Direct Manager Approval section (signature/date/official-stamp block) entirely (`hideApprovalSection`). Replaced the plain-text company header with the official `logohead.png` letterhead image at its natural aspect ratio, scaled to the form's width with no distortion or cropping (`useLogoHeader`, opt-in on `FormHeader`/`FormLayout` — the source image file is untouched). Sharpened the header's text legibility with a display-only CSS `filter` (`contrast(1.3) brightness(0.94)`) rather than editing the source asset. Compacted the payment-voucher print profile's top `@page` margin from 12mm to 5mm (`compactTopMargin`, opt-in per profile — the shared `PRINT_PROFILES` default and every other form/profile are unaffected) and shifted the whole content block (header through footer) down 2cm as a single unit via a real spacer element (`contentTopOffset` — survives the `.form-page { padding: 0 !important }` print/PDF reset that a CSS `padding`-based offset would not). Verified single-page A4 in both the physical Print path and PDF export.
+
+**Scope — Exact Preview `@page` cascade fix (shared engine, all forms benefit).** Root cause: `composeStyledFromNode` picked the FIRST `@page` rule captured from `document.styleSheets` (document order), so `app/theme.css`'s generic app-startup fallback (`@page { margin: 1cm; }`, imported in `main.tsx` ahead of any form) silently won over a form's own, later-mounted, more specific `@page` rule — causing the Exact Preview dialog to paginate differently from the real Print and PDF paths, which both apply the form's own rule directly and correctly. Fixed with a new `mergePageRules()` (`printing/styleCapture.ts`) that reconciles all captured `@page` rules **property-by-property in cascade order** (the later value wins per property, mirroring real browser `@page` cascade resolution) instead of naive first- or last-rule selection — so a later rule that only overrides `margin` can never silently erase an earlier rule's `size`. `composeDocument.ts` now consumes `mergePageRules(captured.pageRules)` instead of `pageRules[0]`. This is an engine-level fix in the shared Print Center composer, benefiting every form on the default `useAccurateFormPreview`/`composeStyledFromNode` path: Payment Voucher, Resignation, ReturnToWork, SalaryAdvance, SalaryCertificate, ToWhomItMayConcern, PurchaseRequest, EmployeeWarning, LeaveRequest, PerformanceEvaluation, EmploymentContract, and Quotation (via its own `compose` wrapper, which also calls `composeStyledFromNode`). Receipt Voucher is unaffected — it uses a different composer (`composeFromNode`) that never calls `capturePrintStyles`. New regression coverage: `frontend/src/__tests__/exactPreviewPageCascade.test.ts` (8 tests — unit coverage for `mergePageRules`'s property-merge correctness, plus an integration test reproducing the exact reported bug scenario against `composeStyledFromNode`).
+
+**Not changed:** any other form's design/content, `theme.css` (the colliding generic rule itself is untouched — only how the composer *selects among* captured rules changed), other forms' print margins, A4 sizing/scaling, QR codes, business logic, or the physical Print/PDF pipelines.
+
+**Deferred, out of scope for this release:** `PayrollPayslip` has no form-specific `@page` rule at all, so its Exact Preview still falls back to `theme.css`'s incomplete rule (`margin` only, no `size`) — an independent, pre-existing defect discovered during root-cause analysis, unrelated to the "wrong rule wins" bug this pack fixes. Deferred per explicit product-owner instruction.
+
+---
+
+## Previous Release — Cheque Multi-Selection & Batch Printing Pack v1
 
 | Field | Value |
 |-------|-------|

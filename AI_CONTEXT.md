@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `4284543` (merge of `feature/cheque-multi-selection-batch-printing-pack-v1`, carrying Cheque Multi-Selection & Batch Printing Pack v1) |
-| **Current Documentation Commit** | `1cb00b6` |
-| **Current Stable Tag** | `stable-cheque-multi-selection-batch-printing-pack-v1` |
+| **Current Merge Commit** | `3fb9b82` (merge of `feature/payment-voucher-letterhead-exact-preview-cascade-fix-v1`, carrying Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1` |
 | **Current Release Date** | 2026-07-26 |
-| **Total Stable Releases** | 351 (window 2026-06-07 → 2026-07-26) |
+| **Total Stable Releases** | 352 (window 2026-06-07 → 2026-07-26) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,34 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1** (2026-07-26,
+  `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1`) — two related changes, scoped and
+  validated separately. **(1) Payment Voucher:** removed the Direct Manager Approval section (signature/
+  date/official-stamp block) entirely; replaced the plain-text company header with the official
+  `logohead.png` letterhead image at its natural aspect ratio (opt-in `useLogoHeader`, source file
+  untouched), sharpened its legibility with a display-only CSS filter; compacted the payment-voucher
+  profile's top `@page` margin (12mm → 5mm, opt-in `compactTopMargin`, every other form/profile
+  unaffected) and shifted the whole content block down 2cm as one unit (`contentTopOffset`, a real spacer
+  element — survives the print/PDF `padding: 0 !important` reset that a CSS-padding-based offset would
+  not). Verified single-page A4 in both Print and PDF. **(2) Exact Preview `@page` cascade fix (shared
+  engine, all forms benefit):** `composeStyledFromNode` picked the FIRST captured `@page` rule
+  (`document.styleSheets` order), so `app/theme.css`'s generic app-startup fallback
+  (`@page { margin: 1cm; }`) silently won over a form's own, later-mounted, more specific rule —
+  Exact Preview then paginated differently from the real Print/PDF paths. New `mergePageRules()`
+  (`printing/styleCapture.ts`) reconciles captured `@page` rules **property-by-property in cascade
+  order** (later value wins per property — matching real browser `@page` cascade resolution, never
+  silently dropping a property only an earlier rule declared) instead of naive first/last-rule selection.
+  Benefits every form on the default `useAccurateFormPreview`/`composeStyledFromNode` path (12 forms) plus
+  Quotation (own `compose` wrapper, same underlying composer); Receipt Voucher is unaffected (different
+  composer entirely). New regression suite: `exactPreviewPageCascade.test.ts` (8 tests). **Deferred, out
+  of scope:** `PayrollPayslip` has no form-specific `@page` rule at all, so its preview still falls back to
+  `theme.css`'s incomplete rule (`margin` only, no `size`) — an independent, pre-existing defect found
+  during root-cause analysis, deferred per explicit product-owner instruction. **No changes** to any other
+  form's design/content, `theme.css` itself, other forms' print margins, A4 sizing/scaling, QR codes,
+  business logic, or the physical Print/PDF pipelines. Frontend `tsc --noEmit` clean (frontend-only
+  release); frontend production build clean; targeted `vitest` — 12 files / 251 tests passing. Product
+  Owner visual review: **APPROVED**.
 
 - **Administrative Forms English Titles Fix Pack v1** (2026-07-25,
   `stable-administrative-forms-english-titles-fix-pack-v1`) — fixed administrative forms whose
