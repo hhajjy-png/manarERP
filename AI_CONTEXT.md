@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `beb5760` (merge of `feature/repo-cleanup-docs-tooling-v1`, carrying Repository Cleanup, Documentation & Tooling Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `319e581` |
 | **Current Stable Tag** | `stable-repository-cleanup-documentation-tooling-pack-v1` |
 | **Current Release Date** | 2026-07-27 |
 | **Total Stable Releases** | 358 (window 2026-06-07 → 2026-07-27) |
