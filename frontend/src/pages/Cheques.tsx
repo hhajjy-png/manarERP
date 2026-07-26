@@ -929,26 +929,30 @@ export default function Cheques() {
         }
       `}</style>
 
-      {/* Executive header */}
-      <ExecutiveHeader
-        icon="payments"
-        title={t('page.cheques.title')}
-        subtitle={t('page.cheques.subtitle')}
-        chips={
-          <>
-            <IdChip icon="account_balance" tone="indigo">{bankLabel(form.bankName, t)}</IdChip>
-            <IdChip icon="receipt_long" tone="indigo">{stats.total} {t('unit.cheque')}</IdChip>
-            <IdChip icon="print" tone="green">{stats.printed} {t('cheque.status.printed')}</IdChip>
-            {stats.draft > 0 && <IdChip icon="edit_note" tone="orange">{stats.draft} {t('cheque.status.draft')}</IdChip>}
-          </>
-        }
-        aside={(
-          <>
-            <PeriodControl />
-            {canCreate && <Button variant="primary" icon="add" onClick={openNew}>{t('page.cheques.new')}</Button>}
-          </>
-        )}
-      />
+      {/* Executive header — .chqx-header scopes the compact-density override in
+          Cheques.css to this page only; ExecutiveHeader itself (shared across
+          Reports Center / Document Expiry Center / Data Import Center) is untouched. */}
+      <div className="chqx-header">
+        <ExecutiveHeader
+          icon="payments"
+          title={t('page.cheques.title')}
+          subtitle={t('page.cheques.subtitle')}
+          chips={
+            <>
+              <IdChip icon="account_balance" tone="indigo">{bankLabel(form.bankName, t)}</IdChip>
+              <IdChip icon="receipt_long" tone="indigo">{stats.total} {t('unit.cheque')}</IdChip>
+              <IdChip icon="print" tone="green">{stats.printed} {t('cheque.status.printed')}</IdChip>
+              {stats.draft > 0 && <IdChip icon="edit_note" tone="orange">{stats.draft} {t('cheque.status.draft')}</IdChip>}
+            </>
+          }
+          aside={(
+            <>
+              <PeriodControl />
+              {canCreate && <Button variant="primary" icon="add" onClick={openNew}>{t('page.cheques.new')}</Button>}
+            </>
+          )}
+        />
+      </div>
 
       {/* Alerts */}
       {formError && <ErrorBanner>{formError} <button type="button" className="xpl-clear-link" onClick={() => setFormError('')}>{t('action.close')}</button></ErrorBanner>}
@@ -991,35 +995,41 @@ export default function Cheques() {
             (handlePrint / printProvider / printCurrentView / المعايرة). */}
         <div className="chqx-print-toolbar">
           {canPrint && (
-            <label className="chqx-print-method">
-              <span className="chqx-print-method-label">طريقة الطباعة</span>
-              <select
-                className="xpl-select"
-                value={printProvider}
-                onChange={(e) => handleProviderChange(e.target.value as PrintProvider)}
-                aria-label="طريقة الطباعة"
-              >
-                <option value="classic">النظام الكلاسيكي</option>
-                <option value="template-real">قالب الشيك (178 × 89 مم)</option>
-                <option value="template-a4">قالب A4</option>
-              </select>
-            </label>
-          )}
-          {canPrint && canCalibrate && (
-            <label className="chqx-default-provider" title="حفظ طريقة الطباعة المختارة كافتراضي دائم للنظام">
-              <input
-                type="checkbox"
-                checked={makeDefault}
-                onChange={(e) => handleMakeDefaultToggle(e.target.checked)}
-              />
-              <span>تعيين كافتراضي</span>
-            </label>
+            <div className="chqx-print-settings">
+              <label className="chqx-print-method">
+                <span className="chqx-print-method-label">طريقة الطباعة</span>
+                <select
+                  className="xpl-select"
+                  value={printProvider}
+                  onChange={(e) => handleProviderChange(e.target.value as PrintProvider)}
+                  aria-label="طريقة الطباعة"
+                >
+                  <option value="classic">النظام الكلاسيكي</option>
+                  <option value="template-real">قالب الشيك (178 × 89 مم)</option>
+                  <option value="template-a4">قالب A4</option>
+                </select>
+              </label>
+              {canCalibrate && (
+                <label className="chqx-default-provider" title="حفظ طريقة الطباعة المختارة كافتراضي دائم للنظام">
+                  <input
+                    type="checkbox"
+                    checked={makeDefault}
+                    onChange={(e) => handleMakeDefaultToggle(e.target.checked)}
+                  />
+                  <span>تعيين كافتراضي</span>
+                </label>
+              )}
+            </div>
           )}
           {canPrint && <Button variant="primary" icon="print" busy={saving} disabled={!isPrintable} onClick={handlePrint}>{t('page.cheques.print')}</Button>}
           {canPrint && isPrintedCheque && <Button variant="secondary" icon="receipt_long" busy={pvLoading} onClick={handlePrintPaymentVoucher}>{t('action.cheque.print_voucher')}</Button>}
-          {canCalibrate && <span className="chqx-toolbar-sep" aria-hidden="true" />}
-          {canCalibrate && <Button variant="ghost" icon="tune" onClick={() => setShowCalibrator(true)}>{t('action.cheque.calibrate_print')}</Button>}
-          {canCalibrate && <Button variant="ghost" icon="restart_alt" busy={restoringDefault} onClick={() => setShowRestoreConfirm(true)}>{t('action.restore_default')}</Button>}
+          {canCalibrate && (
+            <div className="chqx-print-utility">
+              <span className="chqx-toolbar-sep" aria-hidden="true" />
+              <Button variant="ghost" small icon="tune" onClick={() => setShowCalibrator(true)}>{t('action.cheque.calibrate_print')}</Button>
+              <Button variant="ghost" small icon="restart_alt" busy={restoringDefault} onClick={() => setShowRestoreConfirm(true)}>{t('action.restore_default')}</Button>
+            </div>
+          )}
           {canCancel && printTarget && printTarget.status === 'DRAFT' && <Button variant="danger" icon="block" busy={busy} onClick={() => setCancelConfirmCheque(printTarget)}>{t('page.cheques.cancel_cheque')}</Button>}
         </div>
         {!printTarget && <p className="chqx-preview-hint">{t('hint.cheque.save_first')}</p>}
@@ -1028,8 +1038,9 @@ export default function Cheques() {
         {printTarget?.status === 'PRINTED' && <p className="chqx-preview-hint">{printTarget.paymentVoucherNumber ? t('lbl.cheque.pv_number_prefix', { number: printTarget.paymentVoucherNumber }) : t('hint.cheque.create_voucher')}</p>}
       </SectionCard>
 
-      {/* Sticky filters */}
-      <div className="xpl-toolbar xpl-toolbar--sticky">
+      {/* Sticky filters — chqx-filterbar scopes the reduced-height override in
+          Cheques.css to this page only; the shared .xpl-toolbar classes are untouched. */}
+      <div className="xpl-toolbar xpl-toolbar--sticky chqx-filterbar">
         <div className="xpl-toolbar-row">
           <SearchBox value={historySearch} onChange={(v) => { setHistorySearch(v); setPage(1); }} placeholder={t('action.search_placeholder')} ariaLabel={t('action.search_placeholder')} />
           {hasFilters && <button type="button" className="xpl-clear-link" onClick={() => { setHistorySearch(''); setHistoryStatus(''); sort.reset(); setPage(1); }}>{t('action.reset_filters')}</button>}
@@ -1079,7 +1090,7 @@ export default function Cheques() {
         ) : (
           <>
             <div className="xpl-table-wrap" style={{ border: 'none', borderRadius: 0 }}>
-              <table className="xpl-table">
+              <table className="xpl-table chqx-cheques-table">
                 <thead>
                   <tr>
                     <th style={{ width: 36, textAlign: 'center' }}>
@@ -1115,14 +1126,18 @@ export default function Cheques() {
                           aria-label={t('a11y.cheque_select_row', { number: r.chequeNumber })}
                         />
                       </td>
-                      <td><span className="chqx-mono"><strong>{r.chequeNumber}</strong></span></td>
-                      <td><strong>{r.beneficiaryName}</strong></td>
+                      <td><span className="chqx-mono chqx-cheque-id"><strong>{r.chequeNumber}</strong></span></td>
+                      <td><strong className="chqx-beneficiary-cell" title={r.beneficiaryName}>{r.beneficiaryName}</strong></td>
                       <td>{bankLabel(r.bankName, t)}</td>
                       <td><span className="chqx-amount">{fmtAmount(r.amount, r.currency)}</span></td>
                       <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{formatDate(r.chequeDate)}</td>
                       <td>
                         {chequeChip(r.status, t)}
-                        {r.printedAt && <span className="chqx-print-badge" style={{ marginInlineStart: 6 }}><span className="material-symbols-outlined">print</span></span>}
+                        {/* The PRINTED chip already carries its own green print icon (STATUS_META) —
+                            showing this badge too would just duplicate it. It stays for every OTHER
+                            status (e.g. a cancelled cheque that was printed beforehand), where it is
+                            the only signal that the cheque was, historically, printed. */}
+                        {r.printedAt && r.status !== 'PRINTED' && <span className="chqx-print-badge" style={{ marginInlineStart: 6 }}><span className="material-symbols-outlined">print</span></span>}
                       </td>
                       <td>{r.paymentVoucherNumber ? <span className="chqx-pv-badge"><span className="material-symbols-outlined">receipt_long</span>{r.paymentVoucherNumber}</span> : <span style={{ color: 'var(--xpl-muted)' }}>—</span>}</td>
                       <td className="xpl-col-chevron"><span className="material-symbols-outlined" aria-hidden="true">chevron_left</span></td>

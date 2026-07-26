@@ -128,3 +128,68 @@
 }
 .chqx-batch-bar .material-symbols-outlined { font-size: 18px; color: var(--xpl-primary); }
 .chqx-row--selected { background: rgba(59, 130, 246, .07); }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Cheque Management Visual Polish Pack v1
+   --------------------------------------------------------------------------
+   Every rule below is scoped to a Cheques-only wrapper class (.chqx-header,
+   .chqx-metrics, .chqx-filterbar, .chqx-cheques-table, ...) so it can only ever
+   match markup rendered by this page. The shared Explorer Kit components
+   (ExecutiveHeader, HeroMetric, MetricCard, SearchBox, FilterChip, the .xpl-table
+   base styles, Pagination, Button) are not modified — same props, same handlers,
+   same behavior on every other page that uses them. Density only; no logic.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Header: ~15–20% shorter without dropping title/subtitle/period/chips/action ── */
+.chqx-header .xpl-exec-header { padding: 16px 22px; gap: 16px; }
+.chqx-header .xpl-exec-identity { gap: 14px; }
+.chqx-header .xpl-exec-logo { width: 50px; height: 50px; border-radius: 14px; }
+.chqx-header .xpl-exec-logo .material-symbols-outlined { font-size: 25px !important; }
+.chqx-header .xpl-exec-id-text { gap: 5px; }
+.chqx-header .xpl-exec-title { font-size: 19px; }
+.chqx-header .xpl-exec-subtitle { font-size: 12.5px; line-height: 1.4; }
+.chqx-header .xpl-exec-chips { margin-top: 1px; gap: 6px; }
+.chqx-header .xpl-exec-aside { gap: 8px; }
+
+/* ── KPI row: hero stays dominant, secondary cards get denser ── */
+.chqx-metrics .xpl-hero { padding: 17px 20px; gap: 14px; }
+.chqx-metrics .xpl-hero-icon { width: 46px; height: 46px; border-radius: 14px; }
+.chqx-metrics .xpl-hero-icon .material-symbols-outlined { font-size: 24px !important; }
+.chqx-metrics .xpl-kpi-grid { gap: 10px; }
+.chqx-metrics .xpl-metric { padding: 11px 13px; gap: 10px; }
+.chqx-metrics .xpl-metric-icon { width: 34px; height: 34px; border-radius: 10px; }
+.chqx-metrics .xpl-metric-icon .material-symbols-outlined { font-size: 18px !important; }
+.chqx-metrics .xpl-metric-value { font-size: 17px; }
+
+/* ── Print toolbar: quiet secondary/utility cluster (Calibrate / Restore Default) ── */
+.chqx-print-settings { display: inline-flex; align-items: center; gap: 14px; }
+.chqx-print-utility { display: inline-flex; align-items: center; gap: 8px; opacity: .82; }
+.chqx-print-utility:hover,
+.chqx-print-utility:focus-within { opacity: 1; }
+
+/* ── Search & status filter bar: lower profile, same fields/behavior ── */
+.chqx-filterbar { padding: 10px 14px; gap: 8px; }
+.chqx-filterbar .xpl-toolbar-row { gap: 8px; }
+
+/* ── Cheques table: a touch denser so more rows fit a 1080p screen, still legible ── */
+.chqx-cheques-table th,
+.chqx-cheques-table td { padding: 9px 12px; }
+
+/* Cheque number — the row's primary identifier: slightly larger than the rest of
+   the row (14px vs the 13px table baseline). Value is rendered as a plain string
+   ("000086") — no Number()/parseInt() conversion anywhere, so leading zeros are
+   never lost. */
+.chqx-cheque-id { font-size: 14px; letter-spacing: .2px; }
+
+/* Beneficiary — full width for short/medium names (the common case: this column
+   has no max-width by default, so nothing is cut). Only a name wider than 300px
+   (e.g. a long company name) truncates with an ellipsis; title= carries the full
+   name as a native tooltip either way. */
+.chqx-beneficiary-cell {
+  display: inline-block;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
