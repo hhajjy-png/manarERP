@@ -1,0 +1,86 @@
+{
+  "id": "mahdar_istilam_ohda",
+  "documentType": "custody_return",
+  "titleAr": "محضر استلام عهدة",
+  "titleEn": "CUSTODY RETURN RECORD",
+  "design": "boxed",
+  "direction": "rtl",
+  "language": "ar-primary,en-secondary",
+  "currency": null,
+  "currencySymbol": null,
+  "decimals": null,
+  "fonts": {
+    "arabic": "Cairo",
+    "latin": "Times New Roman",
+    "sizesPt": {
+      "title": 18,
+      "subtitle": 12,
+      "body": 11,
+      "table": 9.5,
+      "caption": 8.5
+    }
+  },
+  "colors": {
+    "brand": "#2b2e83",
+    "footer": "#8d4a3a"
+  },
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "cm",
+    "letterheadVersion": {
+      "header": false,
+      "watermark": false,
+      "footer": false,
+      "marginTopCm": 4.5,
+      "marginBottomCm": 2.5,
+      "marginSideCm": 1.8,
+      "contentAlign": "center-horizontal",
+      "verticalAlign": "top-of-band (starts 4.5cm from head)"
+    },
+    "fullVersion": {
+      "header": true,
+      "watermark": true,
+      "footer": true
+    }
+  },
+  "header": {
+    "logo": "logo.png (flame mark)",
+    "companyAr": "شركة المنار الدولية ذ.م.م",
+    "companyEn": "Al Manar Al Duwaliya Company W.L.L"
+  },
+  "footer": {
+    "ar": "جليب الشيوخ — مجمع الروضة التجاري — الدور الثاني — مكتب 13",
+    "en": "Jleeb Al Shuyoukh — Al Rawda Commercial Complex — Second Floor — Office 13"
+  },
+  "infoFields": [
+    "رقم المحضر",
+    "التاريخ",
+    "اسم الموظف",
+    "الرقم المدني",
+    "الوظيفة",
+    "القسم"
+  ],
+  "itemTableColumns": [
+    "#",
+    "البيان/الصنف",
+    "الرقم التسلسلي",
+    "الكمية",
+    "الحالة عند الإرجاع",
+    "ملاحظات"
+  ],
+  "signatures": [
+    {
+      "ar": "المُسلِّم ( الموظف )",
+      "en": "Delivered by"
+    },
+    {
+      "ar": "المُستلِم ( المخزن / الإدارة )",
+      "en": "Received by"
+    },
+    {
+      "ar": "الاعتماد",
+      "en": "Approved by"
+    }
+  ]
+}

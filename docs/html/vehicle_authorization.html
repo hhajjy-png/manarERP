@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تفويض قيادة مركبة / معدة ثقيلة</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+    
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Cairo', Arial, sans-serif;
+      background-color: #ffffff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    
+    .page {
+      width: 210mm;
+      height: 297mm;
+      position: relative;
+      box-sizing: border-box;
+      background: #ffffff;
+    }
+    
+    .content-frame {
+      position: absolute;
+      top: 4.5cm;
+      bottom: 2.5cm;
+      left: 2cm;
+      right: 2cm;
+      border: 2px double #1e3a8a;
+      border-radius: 8px;
+      padding: 1.2cm 1cm;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background-color: #ffffff;
+    }
+    
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #1e3a8a;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .company-title {
+      font-size: 15pt;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0;
+    }
+    
+    .document-title {
+      font-size: 13pt;
+      font-weight: 700;
+      color: #1e3a8a;
+      background-color: #eff6ff;
+      display: inline-block;
+      padding: 5px 20px;
+      border-radius: 5px;
+      margin-top: 10px;
+      border: 1px solid #bfdbfe;
+    }
+    
+    .date-row {
+      text-align: left;
+      font-size: 10pt;
+      color: #4b5563;
+      margin-bottom: 15px;
+    }
+    
+    .preamble {
+      font-size: 11pt;
+      line-height: 1.6;
+      text-align: justify;
+      color: #1f2937;
+      margin-bottom: 15px;
+    }
+    
+    .info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    
+    .info-table th {
+      background-color: #f1f5f9;
+      color: #1e3a8a;
+      font-weight: 700;
+      font-size: 10.5pt;
+      text-align: right;
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      width: 30%;
+    }
+    
+    .info-table td {
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      font-size: 10.5pt;
+      color: #334155;
+    }
+    
+    .conditions {
+      font-size: 9.5pt;
+      line-height: 1.5;
+      color: #475569;
+      background-color: #f8fafc;
+      padding: 10px 15px;
+      border-right: 4px solid #1e3a8a;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    
+    .conditions strong {
+      color: #1e3a8a;
+      display: block;
+      margin-bottom: 5px;
+    }
+    
+    .signatures {
+      display: flex;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 15px;
+    }
+    
+    .sig-block {
+      width: 45%;
+      text-align: center;
+      font-size: 10.5pt;
+      color: #0f172a;
+    }
+    
+    .sig-line {
+      border-bottom: 1px dashed #94a3b8;
+      height: 45px;
+      margin-bottom: 8px;
+    }
+    
+    .sig-title {
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="content-frame">
+      <div>
+        <div class="header">
+          <div class="company-title">شركة المنار الدولية لإنشاء وصيانة الشوارع والأرصفة ذ.م.م</div>
+          <div class="document-title">تفويض قيادة مركبة / معدة ثقيلة</div>
+        </div>
+        
+        <div class="date-row">
+          التاريخ: ........................
+        </div>
+        
+        <div class="preamble">
+          تفوض إدارة الشركة بموجب هذا المستند الموظف المذكورة بياناته أدناه بقيادة وتشغيل المركبة / المعدة الثقيلة التابعة للشركة والموضحة مواصفاتها في هذا التفويض، وذلك لأداء المهام والواجبات الموكلة إليه لصالح الشركة.
+        </div>
+        
+        <table class="info-table">
+          <tr>
+            <th>اسم الموظف (السائق):</th>
+            <td>......................................................................</td>
+          </tr>
+          <tr>
+            <th>الرقم المدني:</th>
+            <td>......................................................................</td>
+          </tr>
+          <tr>
+            <th>رقم رخصة القيادة / فئتها:</th>
+            <td>......................................................................</td>
+          </tr>
+          <tr>
+            <th>تاريخ انتهاء الرخصة:</th>
+            <td>......................................................................</td>
+          </tr>
+          <tr>
+            <th>نوع المركبة / المعدة ورقمها:</th>
+            <td>......................................................................</td>
+          </tr>
+          <tr>
+            <th>رقم اللوحة / رقم الهيكل:</th>
+            <td>......................................................................</td>
+          </tr>
+        </table>
+        
+        <div class="conditions">
+          <strong>شروط وأحكام التفويض القانونية:</strong>
+          1. يتعهد قائد المركبة بالالتزام الكامل بقوانين وأنظمة المرور المعمول بها في دولة الكويت.<br>
+          2. يتحمل قائد المركبة المسؤولية القانونية الكاملة عن أي مخالفات مرورية أو غرامات تسجل أثناء فترة تشغيله لها.<br>
+          3. يلتزم بإخطار إدارة العمليات أو مسؤول المعدات فوراً في حال حدوث أي عطل أو حادث أو تلف بالمركبة.<br>
+          4. يمنع منعاً باتاً استخدام المركبة في أغراض شخصية أو تسليمها لأي شخص آخر دون إذن مسبق خطي من الإدارة.
+        </div>
+      </div>
+      
+      <div class="signatures">
+        <div class="sig-block">
+          <div class="sig-title">إقرار وتعهد الموظف (السائق)</div>
+          <div class="sig-line"></div>
+          <div>الاسم: .......................................</div>
+          <div>التوقيع: ...................................</div>
+        </div>
+        <div class="sig-block">
+          <div class="sig-title">اعتماد إدارة العمليات والمعدات</div>
+          <div class="sig-line"></div>
+          <div>الاسم: .......................................</div>
+          <div>التوقيع والختم: ..........................</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

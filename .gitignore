@@ -23,5 +23,34 @@ docs/superpowers/designs/stitch/
 # Gemini review drafts
 docs/GEMINI_REVIEW_*.md
 
+# Gemini pre-merge review snapshots (diffs + review docs generated per pack)
+docs/gemini-review/
+
 # Misplaced generated prototype
 frontend/src/pages/index.html
+
+# Repo-root debug/verification screenshots from manual review passes
+/accounting-summary-*.png
+/chart-0*.png
+/cheakv1.png
+/cheques-light.png
+/contract_letterhead_*.png
+/contract_preview_*.png
+/dashboard-before.png
+/dashboard-*-after.png
+/expenses-light.png
+/expirations-*.png
+/fc-*.png
+/final-check-*.png
+/import-0*.png
+/p2-*.png
+/phase[A-H]-*.png
+/smk-*.png
+/v2-*.png
+
+# One-off text dumps of Gemini/manual review output
+/review-*.txt
+
+# Claude Code agent/skill tooling (mirrors .claude/ — not application source)
+.agents/
+skills-lock.json

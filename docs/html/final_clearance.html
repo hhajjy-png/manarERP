@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مخالصة نهائية وإبراء ذمة</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+    
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Cairo', Arial, sans-serif;
+      background-color: #ffffff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    
+    .page {
+      width: 210mm;
+      height: 297mm;
+      position: relative;
+      box-sizing: border-box;
+      background: #ffffff;
+    }
+    
+    .content-frame {
+      position: absolute;
+      top: 4.5cm;
+      bottom: 2.5cm;
+      left: 2cm;
+      right: 2cm;
+      border: 2px double #1e3a8a;
+      border-radius: 8px;
+      padding: 1.0cm 1cm;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background-color: #ffffff;
+    }
+    
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #1e3a8a;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .company-title {
+      font-size: 15pt;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0;
+    }
+    
+    .document-title {
+      font-size: 13pt;
+      font-weight: 700;
+      color: #1e3a8a;
+      background-color: #eff6ff;
+      display: inline-block;
+      padding: 5px 20px;
+      border-radius: 5px;
+      margin-top: 8px;
+      border: 1px solid #bfdbfe;
+    }
+    
+    .date-row {
+      text-align: left;
+      font-size: 10pt;
+      color: #4b5563;
+      margin-bottom: 10px;
+    }
+    
+    .employee-info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 10pt;
+      color: #1f2937;
+    }
+    
+    .info-item {
+      display: flex;
+      border-bottom: 1px dashed #cbd5e1;
+      padding-bottom: 4px;
+    }
+    
+    .info-label {
+      font-weight: 700;
+      color: #1e3a8a;
+      min-width: 120px;
+    }
+    
+    .info-val {
+      flex-grow: 1;
+    }
+    
+    .settlement-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 12px;
+      font-size: 9.5pt;
+    }
+    
+    .settlement-table th, .settlement-table td {
+      border: 1px solid #cbd5e1;
+      padding: 6px 8px;
+    }
+    
+    .settlement-table th {
+      background-color: #f1f5f9;
+      color: #1e3a8a;
+      font-weight: 700;
+      text-align: right;
+    }
+    
+    .settlement-table td.amount {
+      text-align: left;
+      font-family: monospace;
+      font-weight: 600;
+      width: 25%;
+    }
+    
+    .settlement-table tr.total-row {
+      background-color: #eff6ff;
+      font-weight: 700;
+    }
+    
+    .settlement-table tr.total-row td {
+      border-top: 2px solid #1e3a8a;
+      border-bottom: 2px double #1e3a8a;
+      color: #1e3a8a;
+    }
+    
+    .clearance-statement {
+      font-size: 9.5pt;
+      line-height: 1.6;
+      text-align: justify;
+      color: #334155;
+      background-color: #f8fafc;
+      padding: 10px 15px;
+      border-right: 4px solid #1e3a8a;
+      border-radius: 4px;
+      margin-bottom: 12px;
+    }
+    
+    .clearance-statement strong {
+      color: #1e3a8a;
+      display: block;
+      margin-bottom: 4px;
+    }
+    
+    .signatures {
+      display: flex;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 10px;
+    }
+    
+    .sig-block {
+      width: 30%;
+      text-align: center;
+      font-size: 9.5pt;
+      color: #0f172a;
+    }
+    
+    .sig-line {
+      border-bottom: 1px dashed #94a3b8;
+      height: 35px;
+      margin-bottom: 6px;
+    }
+    
+    .sig-title {
+      font-weight: 700;
+      color: #1e3a8a;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="content-frame">
+      <div>
+        <div class="header">
+          <div class="company-title">شركة المنار الدولية لإنشاء وصيانة الشوارع والأرصفة ذ.م.م</div>
+          <div class="document-title">مخالصة نهائية وإبراء ذمة</div>
+        </div>
+        
+        <div class="date-row">
+          التاريخ: ........................
+        </div>
+        
+        <div class="employee-info-grid">
+          <div class="info-item">
+            <span class="info-label">اسم الموظف:</span>
+            <span class="info-val">...................................................</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">الرقم المدني:</span>
+            <span class="info-val">...................................................</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">المسمى الوظيفي:</span>
+            <span class="info-val">...................................................</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">الرقم الوظيفي:</span>
+            <span class="info-val">...................................................</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">تاريخ التعيين:</span>
+            <span class="info-val">...................................................</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">تاريخ آخر عمل:</span>
+            <span class="info-val">...................................................</span>
+          </div>
+        </div>
+        
+        <table class="settlement-table">
+          <thead>
+            <tr>
+              <th>البنود ومستحقات نهاية الخدمة</th>
+              <th style="text-align: left;">المبلغ (د.ك)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>الراتب الأساسي المستحق (عن آخر فترة عمل)</td>
+              <td class="amount">........................... د.ك</td>
+            </tr>
+            <tr>
+              <td>بدل رصيد الإجازات السنوية المتراكمة (عدد الأيام: .........)</td>
+              <td class="amount">........................... د.ك</td>
+            </tr>
+            <tr>
+              <td>مكافأة نهاية الخدمة القانونية</td>
+              <td class="amount">........................... د.ك</td>
+            </tr>
+            <tr>
+              <td>مستحقات أخرى / بدلات إضافية</td>
+              <td class="amount">........................... د.ك</td>
+            </tr>
+            <tr>
+              <td>يخصم: سلف شخصية / عهد غير مسواة</td>
+              <td class="amount" style="color: #b91c1c;">(...........................) د.ك</td>
+            </tr>
+            <tr>
+              <td>يخصم: خصومات إدارية / غيابات وتلفيات</td>
+              <td class="amount" style="color: #b91c1c;">(...........................) د.ك</td>
+            </tr>
+            <tr class="total-row">
+              <td>صافي مستحقات نهاية الخدمة والتصفية النهائية</td>
+              <td class="amount">........................... د.ك</td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <div class="clearance-statement">
+          <strong>إقرار وإبراء ذمة من الموظف:</strong>
+          أقر أنا الموقع أدناه بأنني استلمت كافة مستحقاتي المالية والعمالية المبينة في جدول التصفية أعلاه والناتجة عن فترة عملي لدى شركة المنار الدولية لإنشاء وصيانة الشوارع والأرصفة ذ.م.م، وبناءً على ذلك أقر بإبراء ذمة الشركة إبراءً شاملاً مانعاً للجهالة ونهائياً لا رجعة فيه من أي حق أو دعوى أو مطالبة حالية أو مستقبلية تتعلق براتبي، أو إجازاتي، أو مكافأة نهاية خدمتي، أو أي تعويضات أخرى بموجب قانون العمل الكويتي رقم 6 لسنة 2010.
+        </div>
+      </div>
+      
+      <div class="signatures">
+        <div class="sig-block">
+          <div class="sig-title">إقرار وتوقيع الموظف</div>
+          <div class="sig-line"></div>
+          <div style="font-size: 8.5pt;">الاسم: .......................................</div>
+          <div style="font-size: 8.5pt;">التوقيع: ...................................</div>
+        </div>
+        <div class="sig-block">
+          <div class="sig-title">التدقيق المالي والرواتب</div>
+          <div class="sig-line"></div>
+          <div style="font-size: 8.5pt;">المحاسب: ...................................</div>
+          <div style="font-size: 8.5pt;">التوقيع والاعتماد: .......................</div>
+        </div>
+        <div class="sig-block">
+          <div class="sig-title">إدارة الموارد البشرية</div>
+          <div class="sig-line"></div>
+          <div style="font-size: 8.5pt;">المدير: .......................................</div>
+          <div style="font-size: 8.5pt;">التوقيع والختم: ..........................</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
