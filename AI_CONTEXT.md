@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `54f2846` (merge of `feature/ui-controls-consistency-topbar-refresh-pack-v1`, carrying UI Controls Consistency & Topbar Refresh Pack v1) |
-| **Current Documentation Commit** | `2500695` |
-| **Current Stable Tag** | `stable-ui-controls-consistency-topbar-refresh-pack-v1` |
-| **Current Release Date** | 2026-07-26 |
-| **Total Stable Releases** | 357 (window 2026-06-07 → 2026-07-26) |
+| **Current Merge Commit** | `beb5760` (merge of `feature/repo-cleanup-docs-tooling-v1`, carrying Repository Cleanup, Documentation & Tooling Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-repository-cleanup-documentation-tooling-pack-v1` |
+| **Current Release Date** | 2026-07-27 |
+| **Total Stable Releases** | 358 (window 2026-06-07 → 2026-07-27) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,25 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Repository Cleanup, Documentation & Tooling Pack v1** (2026-07-27,
+  `stable-repository-cleanup-documentation-tooling-pack-v1`) — docs/tooling-only release, zero business
+  logic/API/schema/runtime changes, closing out a multi-phase working-tree cleanup. Commits 125 files
+  (insertions only): `docs/superpowers/plans|specs|reports/` history (53 files) for already-shipped
+  features that were never committed; six standalone audit documents (architecture review, forms
+  inventory, project history, pricing audit, full releases audit, i18n audit); official AlManar company
+  forms reference PDFs; four dev tooling scripts (`smoke-electron`, `extract_forms_png`,
+  `full-operational-reset`, `translation-audit`); five historical cheque-backfill/verification scripts
+  kept as a reproducibility record for a one-time data operation already executed against production; and
+  `docs/html/` + `generated-forms/` print-ready form templates, already documented as real deliverables in
+  the committed `FORMS_INVENTORY_REPORT.md`. Genuine unreleased in-progress work found during the audit
+  (dashboard accessibility polish, cloud sync progress dialog wiring, an incomplete Professional Forms
+  Designer schema) was preserved on three separate WIP branches, none merged. Files containing real
+  financial/personal data (a cheque-backfill source spreadsheet, an employee civil-ID list) were archived
+  outside the repository rather than committed. A handful of superseded/incomplete print-template design
+  prototypes were also archived outside the repository, deliberately deferred rather than decided in this
+  pack. `git diff --check` clean; full name-status review confirmed zero frontend/backend/electron/Prisma
+  files in scope. Product Owner explicitly authorized direct production release for this non-visual pack.
 
 - **UI Controls Consistency & Topbar Refresh Pack v1** (2026-07-26,
   `stable-ui-controls-consistency-topbar-refresh-pack-v1`) — three Product-Owner-approved UI polish

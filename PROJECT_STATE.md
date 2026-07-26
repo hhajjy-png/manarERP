@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `54f2846` — release `stable-ui-controls-consistency-topbar-refresh-pack-v1` (UI Controls Consistency & Topbar Refresh Pack v1 — PeriodControl label cleanup, Excel export button branding, dashboard refresh icon relocated to the topbar; no business logic, API, or refresh-mechanism changes) |
+| **Production HEAD** | `beb5760` — release `stable-repository-cleanup-documentation-tooling-pack-v1` (Repository Cleanup, Documentation & Tooling Pack v1 — docs/tooling-only pack; no business logic, API, schema, or runtime changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-ui-controls-consistency-topbar-refresh-pack-v1` (release date 2026-07-26) → merge `54f2846` |
-| **Previous stable tag** | `stable-forms-qr-human-readable-formatting-fix-v1` (2026-07-26) → merge `16bd9cd` |
-| **Total stable releases** | 357 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release; no schema/backend/electron changes) · Product Owner visual review **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `54f2846` + tag `stable-ui-controls-consistency-topbar-refresh-pack-v1`) |
+| **Latest stable tag** | `stable-repository-cleanup-documentation-tooling-pack-v1` (release date 2026-07-27) → merge `beb5760` |
+| **Previous stable tag** | `stable-ui-controls-consistency-topbar-refresh-pack-v1` (2026-07-26) → merge `54f2846` |
+| **Total stable releases** | 358 (all merged onto `production`; window 2026-06-07 → 2026-07-27) |
+| **Latest validation** | full pre-release scope audit: `git diff --name-status production...HEAD` (125 files, 100% within approved documentation/tooling scope, zero frontend/backend/electron/Prisma files) · `git diff --check` clean (no conflict markers; only pre-existing doc/HTML trailing-whitespace) · Product Owner explicit authorization for direct production release (docs/tooling-only pack, no UI surface to visually review) |
+| **Remote sync** | `origin/production` — pushed with this release (merge `beb5760` + tag `stable-repository-cleanup-documentation-tooling-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,41 @@ in a table cell.
 
 ---
 
-## Latest Release — UI Controls Consistency & Topbar Refresh Pack v1
+## Latest Release — Repository Cleanup, Documentation & Tooling Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Repository Cleanup, Documentation & Tooling Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-27 |
+| **Feature branch** | `feature/repo-cleanup-docs-tooling-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `f9d2525` (documentation commit from the prior release) |
+| **Feature commits** | `dd15c94` (.gitignore) → `cc5af5a` (docs/superpowers/**) → `2258edb` (6 audit docs) → `b00dfcc` (official forms PDFs) → `6e4cfb2` (dev tooling scripts) → `8cf1413` (cheque backfill audit scripts) → `b6a9d51` (docs/html/ + generated-forms/) — 7 commits, insertions only |
+| **Production merge commit** | `beb5760` |
+| **Stable tag** | `stable-repository-cleanup-documentation-tooling-pack-v1` → merge `beb5760` (annotated) |
+| **Reviews** | Full pre-release diff/scope audit (this session): confirmed the merge contains only insertions, zero deletions/modifications to any existing tracked file except `.gitignore`, and zero frontend/backend/electron/Prisma files. Product Owner explicitly authorized direct production release for this documentation/tooling-only pack — no UI surface exists to visually review. |
+| **Validation** | `git diff --check production...HEAD` clean (no conflict markers) · full `--name-status` review, 125 files, 100% within approved scope |
+
+**Scope.** A multi-phase working-tree audit and cleanup spanning several sessions, resolving working-tree clutter accumulated across the project's development history. This release commits only the material classified **KEEP & COMMIT**:
+- `.gitignore` — review-artifact, debug-screenshot, and agent-tooling patterns (named patterns only, no wide wildcards)
+- `docs/superpowers/plans|specs|reports/` (53 files) — real implementation plans/design specs/completion reports for already-shipped features, never previously committed
+- 6 standalone audit/history documents: `ARCHITECTURE_REVIEW_2026-06.md`, `FORMS_INVENTORY_REPORT.md`, `PROJECT_HISTORY_FULL.md`, `PROJECT_PRICES_PHASE1_AUDIT.md`, `RELEASES_FULL_AUDIT_2026-07-16.md`, `translation-audit-report.md`
+- `docs/AlManar_Official_Forms_v1.pdf` / `v2.pdf` — official company form references (v2 is the source input for `scripts/extract_forms_png.py`)
+- `scripts/.smoke-electron.cjs`, `extract_forms_png.py`, `full-operational-reset.ts`, `translation-audit.mjs` — real, reusable dev/ops tooling (not yet wired into `package.json`)
+- 5 historical cheque-backfill/verification scripts (`backend/__backfill_historical_cheques.ts` and 4 companions) — a one-time data operation already executed against production, kept as a reproducibility/audit record, not as an application feature
+- `docs/html/` and `generated-forms/` — print-ready, directly-editable form templates, explicitly documented as real deliverables in the already-committed `FORMS_INVENTORY_REPORT.md`
+
+**Preserved separately, not part of this release.** Genuine unreleased in-progress work found during the audit was branched off and committed as WIP on three dedicated branches (none merged, none touched by this release): `feature/dashboard-accessibility-polish-wip`, `feature/cloud-sync-progress-dialog-wip`, `feature/professional-forms-designer-wip`. All 5 pre-existing stashes were left untouched throughout.
+
+**Archived outside the repository, not committed.** Files containing real historical financial data or personal data (civil ID numbers) were deliberately excluded from Git and archived outside the repository instead: the historical cheque-backfill source spreadsheet, an employee civil-ID list, and superseded design-reference files (`contractv2.xlsx`, `contract_image1.png`, `contract_image2.png`).
+
+**Deferred to a later pass, deliberately not decided here.** `docs/exelform/`, `docs/invoice_templates/`, `docs/print-templates/`, and `docs/new q/` — superseded/incomplete design-exploration material (parallel prototypes predating or duplicating the shipped print-templates engine) — were archived outside the repository rather than committed, pending no further action needed in this pack.
+
+**Not changed:** any file under `frontend/src`, `backend/src`, `electron/`, or `backend/prisma/schema.prisma` / `migrations/`; no database migration was run or modified as part of this release.
+
+---
+
+## Previous Release — UI Controls Consistency & Topbar Refresh Pack v1
 
 | Field | Value |
 |-------|-------|
