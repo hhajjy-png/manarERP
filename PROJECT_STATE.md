@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `3fb9b82` — release `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1` (Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1 — Payment Voucher's official `logohead.png` letterhead, removal of the Direct Manager Approval section, and a shared Exact Preview `@page` CSS-cascade fix benefiting every form on that engine) |
+| **Production HEAD** | `5ed59c0` — release `stable-cheque-management-visual-polish-pack-v1` (Cheque Management Visual Polish Pack v1 — density/hierarchy pass on the Cheque Management page's header, KPI cards, print toolbar, filters and table, plus the approved KPI redefinition: a DB-computed "total value of all PRINTED cheques across every page" hero metric and a "current page value" secondary card) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1` (release date 2026-07-26) → merge `3fb9b82` |
-| **Previous stable tag** | `stable-cheque-multi-selection-batch-printing-pack-v1` (2026-07-26) → merge `4284543` |
-| **Total stable releases** | 352 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release) · frontend production build ✅ · targeted `vitest` — 12 files / 251 tests passing (`exactPreviewPageCascade` [new], `printCenterPhase2bFidelity`, `universalAccuratePreview`, `universalPrintPreview`, `quotationLegacyPreviewBridge`, `pdfExportDocumentPath`, `printPreviewContinuousView`, `printWorkspace`, `paymentVoucherBatchSafety`, `legacyFormPreviewRolloutPhase1/2`, `printCenterFoundation`) · 2 pre-existing/unrelated failing files confirmed identical before and after this pack (`wysiwygPreviewPoc`, `universalPrintPreviewCorrective` — both assert on `InvoicePreview.tsx` source text unrelated to this pack) · Product Owner manual visual review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `3fb9b82` + tag `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1`) |
+| **Latest stable tag** | `stable-cheque-management-visual-polish-pack-v1` (release date 2026-07-26) → merge `5ed59c0` |
+| **Previous stable tag** | `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1` (2026-07-26) → merge `3fb9b82` |
+| **Total stable releases** | 353 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
+| **Latest validation** | frontend/backend/electron `tsc --noEmit` ✅ · `prisma validate` ✅ (schema untouched by this pack) · backend `vitest` 135 files / 1899 tests ✅ (incl. 2 new tests for the `printedTotal` aggregate) · frontend targeted cheque/print/calibration `vitest` 16 files / 246 tests ✅ · 2 pre-existing/unrelated failing files confirmed identical before and after this pack (`chequePrintInkIsolation.test.tsx`, `universalPrintPreviewCorrective.test.tsx` — neither touches this pack's files) · frontend + backend production build ✅ · Product Owner manual visual review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `5ed59c0` + tag `stable-cheque-management-visual-polish-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,30 @@ in a table cell.
 
 ---
 
-## Latest Release — Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1
+## Latest Release — Cheque Management Visual Polish Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Cheque Management Visual Polish Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-26 |
+| **Feature branch** | `feature/cheque-management-visual-polish-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `e0b40af` (documentation commit from the prior release) |
+| **Feature commits** | `0394fc5` (Visual Polish), `7aad8ef` (KPI cards — printed total across pages + page value) |
+| **Production merge commit** | `5ed59c0` |
+| **Stable tag** | `stable-cheque-management-visual-polish-pack-v1` → merge `5ed59c0` (annotated) |
+| **Reviews** | Product Owner visual review — **completed & approved**. |
+| **Validation** | frontend/backend/electron `tsc --noEmit` ✅ · `prisma validate` ✅ (schema untouched) · backend `vitest` 135 files / 1899 tests ✅ (incl. 2 new `printedTotal` aggregate tests) · frontend targeted cheque/print/calibration `vitest` 16 files / 246 tests ✅ · 2 pre-existing/unrelated failing files (`chequePrintInkIsolation.test.tsx`, `universalPrintPreviewCorrective.test.tsx`) confirmed identical against the pre-pack baseline — neither touches this pack's files · frontend + backend production build ✅ |
+
+**Scope — Visual/UX polish (Cheque Management page only).** Compacted the executive header (padding/logo/title/subtitle/chip spacing tightened for a ~15–20% shorter header, no content removed). Tightened KPI card padding, icon sizing and value typography. Grouped the print toolbar into a settings cluster (print method + "set as default") and a dimmed secondary/utility cluster (Calibrate Printing, Restore Default — now `small` ghost buttons, full opacity on hover/focus) while "طباعة الشيك" stays the one `primary` action. Reduced the search/filter bar's padding and row gap. Table rows given tighter padding for more visible rows on a 1080p screen; the cheque-number cell bumped to a slightly larger, letter-spaced identifier (still rendered as a plain string — no `Number()`/`parseInt()` anywhere, so leading zeros such as `000086` can never be lost); beneficiary name given a computed ~300px soft max-width with ellipsis + a native `title` tooltip carrying the full name (short/medium names are unaffected — the limit only bites on outliers, e.g. a long company name from the historical cheque backfill). Removed the green print-icon badge that duplicated the `PRINTED` status chip's own icon; kept it for any other status with `printedAt` set (e.g. a cancelled cheque that had been printed beforehand — the only remaining signal of that history). Every override lives in page-local wrapper classes inside `Cheques.css` (`.chqx-header`, `.chqx-metrics`, `.chqx-filterbar`, `.chqx-cheques-table`, …); the shared ExplorerKit components (`ExecutiveHeader`, `HeroMetric`, `MetricCard`, `SearchBox`, `FilterChip`, `Pagination`, `Button`) were not modified, so no other page using them is affected.
+
+**Scope — KPI redefinition (approved as part of this pack).** The Hero card changed from "قيمة الشيكات في هذه الصفحة" (current-page sum only) to "إجمالي قيمة الشيكات المطبوعة" — the total value of every `PRINTED` cheque across **all** Pagination pages within the current period. Computed entirely in the database: `ChequesService.stats()` gained a `printedTotal` field via one `prisma.cheque.aggregate({ where: { ...dateWhere, status: 'PRINTED' }, _sum: { amount: true } })` call added to the existing `Promise.all` alongside the pre-existing counts (same period `dateWhere`, one extra DB round-trip, no frontend pagination loop, no per-page requests), rounded with the project's existing `roundMoney` (KWD, 3 decimals). The former "Highest Cheque (This Page)" secondary card is replaced in place by "قيمة الشيكات في هذه الصفحة" — the current-page sum, i.e. the hero's *former* calculation (`valueKpis.totalValue`), relocated rather than recomputed; the now-unused per-page "highest" calculation was removed. Draft/Printed/Cancelled counts and the average card are unchanged. `printedTotal` scoping follows the same period-only convention the existing draft/printed/cancelled counts already use (not the table's search/status filter) — flagged to the Product Owner during implementation as the interpretation used, and approved in the visual review.
+
+**Not changed:** Cheque schema, cheque data, cheque statuses, Payment Voucher numbering, accounting entries/business logic, API contracts (beyond the additive `printedTotal` field), print/calibration/reprint/payment-voucher handlers, the historical-cheque backfill data, or any other page.
+
+---
+
+## Previous Release — Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1
 
 | Field | Value |
 |-------|-------|

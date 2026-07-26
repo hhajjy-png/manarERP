@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `3fb9b82` (merge of `feature/payment-voucher-letterhead-exact-preview-cascade-fix-v1`, carrying Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1) |
-| **Current Documentation Commit** | `938a0b3` |
-| **Current Stable Tag** | `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1` |
+| **Current Merge Commit** | `5ed59c0` (merge of `feature/cheque-management-visual-polish-pack-v1`, carrying Cheque Management Visual Polish Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-cheque-management-visual-polish-pack-v1` |
 | **Current Release Date** | 2026-07-26 |
-| **Total Stable Releases** | 352 (window 2026-06-07 → 2026-07-26) |
+| **Total Stable Releases** | 353 (window 2026-06-07 → 2026-07-26) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,34 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Cheque Management Visual Polish Pack v1** (2026-07-26,
+  `stable-cheque-management-visual-polish-pack-v1`) — UI/UX density pass on the Cheque Management page
+  only: compacted the executive header (~15–20% shorter), tightened KPI card padding/typography, quieted
+  the secondary/utility print controls (Calibrate/Restore Default, now smaller and dimmed until hover),
+  reduced the search/filter bar's height, and denser table rows with a more prominent cheque-number
+  identifier (still a plain string — leading zeros like `000086` are never lost) plus computed
+  beneficiary-name truncation (native `title` tooltip, only kicks in past ~300px, short/medium names
+  unaffected). Removed the print-icon badge duplicating the PRINTED status chip's own icon (kept for a
+  cancelled cheque that had been printed beforehand — the only remaining signal of that history). All
+  overrides are scoped to page-local wrapper classes in `Cheques.css`; the shared ExplorerKit components
+  (`ExecutiveHeader`, `HeroMetric`, `MetricCard`, `SearchBox`, `Pagination`, `Button`) are unmodified, so
+  no other page is affected. **KPI redefinition (approved as part of this pack):** the Hero card now
+  reads "إجمالي قيمة الشيكات المطبوعة" — the total value of every `PRINTED` cheque across *all*
+  Pagination pages within the current period, computed in the database via one new
+  `ChequesService.stats()` field (`printedTotal`, a single Prisma `aggregate` SUM added alongside the
+  existing counts — no frontend pagination loop, no per-page requests). The former "Highest Cheque (This
+  Page)" secondary card is replaced in place by "قيمة الشيكات في هذه الصفحة" (current-page sum, the
+  hero's old calculation, relocated); the now-unused "highest" calculation was removed. Draft/Printed/
+  Cancelled counts, the average card, pagination, search/filter behavior, accounting-period wiring, and
+  every print/calibration/reprint/payment-voucher handler are unchanged. No schema change, no new API
+  contract shape beyond the additive `printedTotal` field. Backend/frontend/electron `tsc --noEmit`
+  clean; `prisma validate` clean (schema untouched); backend `vitest` 135 files / 1899 tests passing
+  (incl. 2 new tests for the `printedTotal` aggregate); frontend targeted cheque/print/calibration suite
+  16 files / 246 tests passing; 2 pre-existing/unrelated failing files (`chequePrintInkIsolation.test.tsx`,
+  `universalPrintPreviewCorrective.test.tsx`) confirmed identical against the pre-pack baseline — neither
+  touches this pack's files. Frontend and backend production builds both clean. Product Owner manual
+  visual review: **approved**.
 
 - **Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1** (2026-07-26,
   `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1`) — two related changes, scoped and
