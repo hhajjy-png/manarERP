@@ -1,0 +1,144 @@
+{
+  "id": "sanad_qabd_design2",
+  "documentType": "receipt_voucher",
+  "titleAr": "سند قبض",
+  "titleEn": "RECEIPT VOUCHER",
+  "design": "lines",
+  "direction": "rtl",
+  "language": "ar-primary,en-secondary",
+  "currency": "KWD",
+  "currencySymbol": "د.ك",
+  "decimals": 3,
+  "fonts": {
+    "arabic": "Cairo",
+    "latin": "Times New Roman",
+    "sizesPt": {
+      "title": 18,
+      "subtitle": 13,
+      "body": 11,
+      "table": 9,
+      "caption": 9
+    }
+  },
+  "colors": {
+    "brand": "#2b2e83",
+    "amount": "#1b5e20",
+    "footer": "#8d4a3a"
+  },
+  "page": {
+    "size": "A4",
+    "orientation": "portrait",
+    "unit": "cm",
+    "letterheadVersion": {
+      "header": false,
+      "watermark": false,
+      "footer": false,
+      "marginTopCm": 4.5,
+      "marginBottomCm": 2.5,
+      "marginSideCm": 1.8,
+      "contentAlign": "center-horizontal",
+      "verticalAlign": "top-of-band (starts 4.5cm from head)"
+    },
+    "fullVersion": {
+      "header": true,
+      "watermark": true,
+      "footer": true
+    }
+  },
+  "header": {
+    "logo": "logo.png (flame mark)",
+    "companyAr": "شركة المنار الدولية ذ.م.م",
+    "companyEn": "Al Manar Al Duwaliya Company W.L.L",
+    "taglineAr": "لإنشاء وصيانة الطرق والشوارع والأرصفة ومستلزمات الطرق",
+    "taglineEn": "For construction & maintenance of roads, streets, pavements and road supplies",
+    "capital": "500,000 K.D.",
+    "poBox": "29241 الصفاة 13142",
+    "tel": [
+      "94404401",
+      "99333820"
+    ],
+    "email": "manar.int.co@gmail.com"
+  },
+  "footer": {
+    "ar": "جليب الشيوخ — مجمع الروضة التجاري — الدور الثاني — مكتب 13",
+    "en": "Jleeb Al Shuyoukh — Al Rawda Commercial Complex — Second Floor — Office 13"
+  },
+  "fields": [
+    {
+      "key": "number",
+      "labelAr": "رقم السند",
+      "labelEn": "No.",
+      "type": "text"
+    },
+    {
+      "key": "date",
+      "labelAr": "التاريخ",
+      "labelEn": "Date",
+      "type": "date"
+    },
+    {
+      "key": "party",
+      "labelAr": "استلمنا من السيد / السادة",
+      "labelEn": "Received from",
+      "type": "text"
+    },
+    {
+      "key": "amountFigures",
+      "labelAr": "المبلغ ( رقماً )",
+      "labelEn": "Amount in figures",
+      "type": "currency"
+    },
+    {
+      "key": "amountWords",
+      "labelAr": "المبلغ ( كتابةً )",
+      "labelEn": "Amount in words",
+      "type": "text"
+    },
+    {
+      "key": "reason",
+      "labelAr": "وذلك عن",
+      "labelEn": "Being received for",
+      "type": "text"
+    },
+    {
+      "key": "method",
+      "labelAr": "طريقة القبض",
+      "labelEn": "Received by",
+      "type": "choice",
+      "options": [
+        {
+          "ar": "نقداً",
+          "en": "Cash"
+        },
+        {
+          "ar": "شيك",
+          "en": "Cheque"
+        },
+        {
+          "ar": "تحويل",
+          "en": "Transfer"
+        }
+      ]
+    },
+    {
+      "key": "chequeBank",
+      "labelAr": "رقم الشيك / البنك",
+      "labelEn": "Cheque No. / Bank",
+      "type": "text"
+    }
+  ],
+  "signatures": [
+    {
+      "ar": "المُستلِم",
+      "en": "Receiver"
+    },
+    {
+      "ar": "المحاسب",
+      "en": "Accountant"
+    },
+    {
+      "ar": "المدير المالي",
+      "en": "Finance Manager"
+    }
+  ]
+}

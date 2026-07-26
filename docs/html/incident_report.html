@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تقرير إصابة عمل / حادث موقع</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+    
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Cairo', Arial, sans-serif;
+      background-color: #ffffff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    
+    .page {
+      width: 210mm;
+      height: 297mm;
+      position: relative;
+      box-sizing: border-box;
+      background: #ffffff;
+    }
+    
+    .content-frame {
+      position: absolute;
+      top: 4.5cm;
+      bottom: 2.5cm;
+      left: 2cm;
+      right: 2cm;
+      border: 2px double #b91c1c; /* RED double border for Safety/Incident Reports */
+      border-radius: 8px;
+      padding: 1.0cm 1cm;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      background-color: #ffffff;
+    }
+    
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #b91c1c;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .company-title {
+      font-size: 15pt;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 0;
+    }
+    
+    .document-title {
+      font-size: 13pt;
+      font-weight: 700;
+      color: #b91c1c;
+      background-color: #fef2f2;
+      display: inline-block;
+      padding: 5px 20px;
+      border-radius: 5px;
+      margin-top: 8px;
+      border: 1px solid #fecaca;
+    }
+    
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 9.5pt;
+      color: #1f2937;
+    }
+    
+    .meta-item {
+      display: flex;
+      border-bottom: 1px dashed #cbd5e1;
+      padding-bottom: 4px;
+    }
+    
+    .meta-label {
+      font-weight: 700;
+      color: #b91c1c;
+      min-width: 130px;
+    }
+    
+    .meta-val {
+      flex-grow: 1;
+    }
+    
+    .section-title {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #b91c1c;
+      background-color: #fef2f2;
+      padding: 4px 8px;
+      border-right: 3px solid #b91c1c;
+      margin: 10px 0 6px 0;
+      border-radius: 0 4px 4px 0;
+    }
+    
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 8px;
+      font-size: 9.5pt;
+    }
+    
+    .report-table th, .report-table td {
+      border: 1px solid #cbd5e1;
+      padding: 6px 8px;
+    }
+    
+    .report-table th {
+      background-color: #f8fafc;
+      color: #475569;
+      font-weight: 700;
+      text-align: right;
+      width: 25%;
+    }
+    
+    .textarea-mock {
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      height: 60px;
+      margin-bottom: 8px;
+      padding: 6px;
+      font-size: 9.5pt;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    
+    .signatures {
+      display: flex;
+      justify-content: space-between;
+      margin-top: auto;
+      padding-top: 10px;
+    }
+    
+    .sig-block {
+      width: 45%;
+      text-align: center;
+      font-size: 10pt;
+      color: #0f172a;
+    }
+    
+    .sig-line {
+      border-bottom: 1px dashed #94a3b8;
+      height: 40px;
+      margin-bottom: 6px;
+    }
+    
+    .sig-title {
+      font-weight: 700;
+      color: #b91c1c;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="content-frame">
+      <div>
+        <div class="header">
+          <div class="company-title">شركة المنار الدولية لإنشاء وصيانة الشوارع والأرصفة ذ.م.م</div>
+          <div class="document-title">تقرير إصابة عمل / حادث موقع</div>
+        </div>
+        
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-label">تاريخ ووقت الحادث:</span>
+            <span class="meta-val">...................................................</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">موقع الحادث / المشروع:</span>
+            <span class="meta-val">...................................................</span>
+          </div>
+        </div>
+        
+        <div class="section-title">بيانات الشخص المصاب (إن وجد)</div>
+        <table class="report-table">
+          <tr>
+            <th>اسم المصاب:</th>
+            <td>......................................................................</td>
+            <th>الرقم المدني:</th>
+            <td>..................................................</td>
+          </tr>
+          <tr>
+            <th>المسمى الوظيفي:</th>
+            <td>......................................................................</td>
+            <th>الرقم الوظيفي:</th>
+            <td>..................................................</td>
+          </tr>
+        </table>
+        
+        <div class="section-title">تفاصيل الحادث وظروفه</div>
+        <div class="textarea-mock">
+          وصف تفصيلي لكيفية وقوع الحادث وأسبابه المباشرة (الآلات أو المعدات المعنية):<br>
+          ........................................................................................................................................................<br>
+          ........................................................................................................................................................
+        </div>
+        
+        <div class="section-title">نوع الإصابة والإسعافات الأولية</div>
+        <div class="textarea-mock">
+          طبيعة الإصابة (كسور، جروح، حروق، إلخ) وأجزاء الجسم المتضررة، والإجراءات الطبية المتخذة (نقل للمستشفى):<br>
+          ........................................................................................................................................................<br>
+          ........................................................................................................................................................
+        </div>
+        
+        <div class="section-title">الإجراءات التصحيحية والتوصيات لمنع التكرار</div>
+        <div class="textarea-mock">
+          التوصيات المقترحة من قبل مسؤول السلامة والصحة المهنية ومسؤول الموقع لتفادي وقوع حوادث مماثلة مستقبلاً:<br>
+          ........................................................................................................................................................
+        </div>
+      </div>
+      
+      <div class="signatures">
+        <div class="sig-block">
+          <div class="sig-title">معد التقرير (مسؤول السلامة والصحة المهنية)</div>
+          <div class="sig-line"></div>
+          <div>الاسم: .......................................</div>
+          <div>التوقيع: ...................................</div>
+        </div>
+        <div class="sig-block">
+          <div class="sig-title">اعتماد مهندس الموقع / مدير المشروع</div>
+          <div class="sig-line"></div>
+          <div>الاسم: .......................................</div>
+          <div>التوقيع والختم: ..........................</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

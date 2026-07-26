@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Capital European — Letterhead</title>
+<style>
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  @page{ size:A4; margin:0; }
+  html,body{ background:#bbb; }
+  .page{
+    position:relative;
+    width:210mm; height:297mm;
+    background:#fff;
+    margin:6mm auto;
+    overflow:hidden;
+    font-family:Arial,Helvetica,sans-serif;
+  }
+  @media print{ html,body{ background:#fff; } .page{ margin:0; } }
+
+  /* ===== Logo (center) ===== */
+  .logo{ position:absolute; top:11mm; left:90mm; width:30mm; height:30mm; z-index:2; }
+
+  /* ===== English block (left) ===== */
+  .en{ position:absolute; top:12mm; left:13mm; text-align:left; direction:ltr; z-index:2; }
+  .en .nm{ font-size:21pt; font-weight:bold; color:#8a1f1f; line-height:1.05; letter-spacing:.3px; }
+  .en .sub{ font-size:10pt; color:#333; margin-top:1px; letter-spacing:.2px; }
+  .en .ct{ margin-top:6mm; font-size:8.5pt; color:#8a3030; line-height:1.55; }
+
+  /* ===== Arabic block (right) ===== */
+  .ar{ position:absolute; top:11mm; right:11mm; text-align:right; z-index:2;
+       font-family:'Cairo','Tahoma',Arial,sans-serif; }
+  .ar .nm{ font-size:21pt; font-weight:700; color:#8a1f1f; line-height:1.15; }
+  .ar .sub{ font-size:12pt; color:#333; margin-top:1px; }
+  .ar .ct{ margin-top:5.5mm; font-size:9pt; color:#8a3030; line-height:1.7; }
+
+  /* ===== Watermark (bottom-right, faint) ===== */
+  .wm{ position:absolute; bottom:48mm; right:-10mm; width:98mm; height:98mm; opacity:.10; z-index:0; }
+
+  /* ===== Footer ===== */
+  .foot{ position:absolute; bottom:8mm; left:0; width:210mm; text-align:center; z-index:2; }
+  .foot .rule{ width:165mm; margin:0 auto 3px; border-top:1px solid #555; }
+  .foot .far{ font-family:'Cairo','Tahoma',Arial,sans-serif; font-size:9pt; font-weight:700; color:#8a1f1f; }
+  .foot .fen{ font-size:8pt; color:#8a1f1f; direction:ltr; margin-top:1px; letter-spacing:.2px; }
+</style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- Watermark emblem -->
+    <svg class="wm" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <g transform="rotate(45 60 60)">
+        <rect x="12" y="12" width="96" height="96" fill="none" stroke="#9a8a8a" stroke-width="2"/>
+        <rect x="22" y="22" width="76" height="76" fill="none" stroke="#9a8a8a" stroke-width="11"/>
+      </g>
+      <circle cx="60" cy="60" r="25" fill="none" stroke="#9a8a8a" stroke-width="7"/>
+      <path d="M60 35 A25 25 0 0 1 60 85 Z" fill="#c98a8a"/>
+      <rect x="37" y="56" width="46" height="7.5" fill="#9a8a8a"/>
+    </svg>
+
+    <!-- Company emblem -->
+    <svg class="logo" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <g transform="rotate(45 60 60)">
+        <rect x="12" y="12" width="96" height="96" fill="none" stroke="#16384a" stroke-width="2"/>
+        <rect x="22" y="22" width="76" height="76" fill="none" stroke="#16384a" stroke-width="11"/>
+      </g>
+      <circle cx="60" cy="60" r="25" fill="#ffffff" stroke="#16384a" stroke-width="7"/>
+      <path d="M60 35 A25 25 0 0 1 60 85 Z" fill="#c0282e"/>
+      <rect x="37" y="56" width="46" height="7.5" fill="#16384a"/>
+      <rect x="80" y="44" width="15" height="20" fill="#ffffff"/>
+    </svg>
+
+    <!-- English (left) -->
+    <div class="en">
+      <div class="nm">Capital European</div>
+      <div class="sub">General Trading &amp; Contracting Co.</div>
+      <div class="ct">
+        P.O.Box : 29241 Code No. 13143 Kuwait<br>
+        Tel. : 99743726/94404401<br>
+        Fax : 24342342<br>
+        E-mail: capital.eurp.co@gmail.com
+      </div>
+    </div>
+
+    <!-- Arabic (right) -->
+    <div class="ar">
+      <div class="nm">شركة كابيتال الاوربية</div>
+      <div class="sub">للتجارة العامة والمقاولات ذ.م.م</div>
+      <div class="ct">
+        ص.ب : ٢٩٢٤١ الصفاة الرمز البريدي ١٣١٤٣ الكويت<br>
+        تلفون : ٩٩٧٤٣٧٢٦ / ٩٤٤٠٤٤٠١<br>
+        فاكس : ٢٤٣٤٢٣٤٢<br>
+        البريد الالكتروني : capital.eurp.co@gmail.com
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="foot">
+      <div class="rule"></div>
+      <div class="far">جليب الشيوخ – مبنى (٢) أ ب – مجمع مناحي عبدالمحسن مبارك – مكتب ١٣ الدور الثاني</div>
+      <div class="fen">Jaleeb Al-Shouykh - Bldg 2 up - Manahi Abdul Mohsin Mubarak Comp. - Office 13 - Second Floor</div>
+    </div>
+
+  </div>
+</body>
+</html>
