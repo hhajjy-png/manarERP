@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `becb6df` (merge of `feature/forms-i18n-completeness-regression-protection-pack-v1`, carrying Forms i18n Completeness & Regression Protection Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `b34f2b8` |
 | **Current Stable Tag** | `stable-forms-i18n-completeness-regression-protection-pack-v1` |
 | **Current Release Date** | 2026-07-26 |
 | **Total Stable Releases** | 354 (window 2026-06-07 → 2026-07-26) |
