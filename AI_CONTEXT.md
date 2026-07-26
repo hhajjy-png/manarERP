@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `16bd9cd` (merge of `feature/forms-qr-human-readable-formatting-v1`, carrying Forms QR Human-Readable Formatting Fix v1) |
-| **Current Documentation Commit** | `9d29692` |
-| **Current Stable Tag** | `stable-forms-qr-human-readable-formatting-fix-v1` |
+| **Current Merge Commit** | `54f2846` (merge of `feature/ui-controls-consistency-topbar-refresh-pack-v1`, carrying UI Controls Consistency & Topbar Refresh Pack v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-ui-controls-consistency-topbar-refresh-pack-v1` |
 | **Current Release Date** | 2026-07-26 |
-| **Total Stable Releases** | 356 (window 2026-06-07 → 2026-07-26) |
+| **Total Stable Releases** | 357 (window 2026-06-07 → 2026-07-26) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,38 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **UI Controls Consistency & Topbar Refresh Pack v1** (2026-07-26,
+  `stable-ui-controls-consistency-topbar-refresh-pack-v1`) — three Product-Owner-approved UI polish
+  changes bundled together, no business logic/API/refresh-mechanism changes. **(1) PeriodControl:**
+  removed the static "الفترة المعروضة:" prefix from the period-selector label across every page using the
+  shared `PeriodControl` (Invoices — the original reference — Dashboard, Cheques, Expenses, Reports,
+  Accounting ×2, FinancialCenter, ExecutiveDecisionCenter), via a new opt-in `hideLabelPrefix` prop
+  (default `false`, so any consumer that omits it is unaffected) that reuses the component's existing
+  bare-range i18n key (`fc.period.range_bare`) — date range/calendar icon/chevron/state logic unchanged.
+  **(2) Excel export buttons:** generalized the Prices.tsx-approved design (label reduced to the literal
+  word "Excel", existing icon kept, icon+text recolored `#217346` only while idle — busy/loading states
+  untouched) to every genuine Excel-export button found in a full-codebase sweep — `Reports.tsx` (both its
+  drawer button and dropdown item), `Expenses.tsx`, `Salaries.tsx`, `ResourcePage.tsx`,
+  `DocumentExpirationCenter.tsx`, `BankSalaryAnalytics.tsx`, `PayrollBankImport.tsx`,
+  `BankReconciliation.tsx`, plus the shared `ExportExcelButton.tsx` component (covers `Invoices.tsx`,
+  `ResourcePage.tsx`'s legacy skin, `MonthlyReportModal.tsx`) and `financial.css`'s `.export-btn.excel`
+  rule (covers `ExportBar.tsx`, consumed by `FinancialCenter.tsx` and `FinancialReportsTab.tsx`).
+  Excluded after inspection as not actually Excel-export buttons: `DocumentExpirationCenter.tsx`'s generic
+  "export current results" action, `GenericImporterView.tsx`'s blank-template download,
+  `BankStatementImport.tsx`'s import path, `Integrations.tsx`'s descriptive metadata.
+  **(3) Topbar refresh:** relocated the Dashboard's spinning refresh icon from beside
+  `PeriodControl`/"آخر تحديث" to the main topbar next to the privacy/lock toggle, recolored to the
+  system's primary purple (`#6366f1`, same value as `--xpl-primary`, hardcoded since that CSS variable is
+  scoped to `.xpl-scope` and unavailable in the global topbar). Same `refreshKey`/`refreshing`/
+  `initialLoading` state and the same `.retry-loader` animation still drive it — only the trigger surface
+  moved, via a new minimal `uiStore.ts` registration slice (`topbarRefreshHandler`/`topbarRefreshBusy`/
+  `setTopbarRefresh()`) that `Dashboard.tsx` populates on mount and clears on unmount, so the icon still
+  only shows while Dashboard is mounted. Unrelated, pre-existing uncommitted working-tree edits (a
+  `Dashboard.tsx` accessibility pass, plus `AlertPanel.tsx`/`LatestInvoicesTable.tsx`/`Skeleton.tsx`/
+  `dashboard.css`/`schema.prisma`/`syncEngine.service.ts`) were surgically excluded from this release's
+  commit and left untouched in the working tree. Frontend `tsc --noEmit` ✅ (frontend-only release; no
+  schema/backend/electron changes). Product Owner visual review: **approved**.
 
 - **Forms QR Human-Readable Formatting Fix v1** (2026-07-26,
   `stable-forms-qr-human-readable-formatting-fix-v1`) — fixes phones displaying raw JSON when scanning a

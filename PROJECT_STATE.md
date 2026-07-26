@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `16bd9cd` — release `stable-forms-qr-human-readable-formatting-fix-v1` (Forms QR Human-Readable Formatting Fix v1 — reformats the same previously-approved `FormQRCode` payload as human-readable Arabic text instead of raw JSON; no QR data added, removed, or redesigned) |
+| **Production HEAD** | `54f2846` — release `stable-ui-controls-consistency-topbar-refresh-pack-v1` (UI Controls Consistency & Topbar Refresh Pack v1 — PeriodControl label cleanup, Excel export button branding, dashboard refresh icon relocated to the topbar; no business logic, API, or refresh-mechanism changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-forms-qr-human-readable-formatting-fix-v1` (release date 2026-07-26) → merge `16bd9cd` |
-| **Previous stable tag** | `stable-bank-statement-order-preservation-current-balance-fix-v1` (2026-07-26) → merge `fff9d9f` |
-| **Total stable releases** | 356 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release) · new suite `formQRCodeHumanReadable.test.tsx` — 18/18 tests ✅ · targeted regression run 6 files / 117 tests ✅ (`documentVerificationQR`, `employmentContractNewEmployee`, `legacyFormPreviewRolloutPhase1`, `legacyFormPreviewRolloutPhase2`, `printWorkspace`, plus the new suite) · 1 pre-existing/unrelated failing file (`formsRegistryTranslationAudit.test.ts`, 10/39 assertions) reconfirmed identical via `git stash` against the pre-change baseline · release executed manually — Product Owner phone-scan verification **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `16bd9cd` + tag `stable-forms-qr-human-readable-formatting-fix-v1`) |
+| **Latest stable tag** | `stable-ui-controls-consistency-topbar-refresh-pack-v1` (release date 2026-07-26) → merge `54f2846` |
+| **Previous stable tag** | `stable-forms-qr-human-readable-formatting-fix-v1` (2026-07-26) → merge `16bd9cd` |
+| **Total stable releases** | 357 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release; no schema/backend/electron changes) · Product Owner visual review **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `54f2846` + tag `stable-ui-controls-consistency-topbar-refresh-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Forms QR Human-Readable Formatting Fix v1
+## Latest Release — UI Controls Consistency & Topbar Refresh Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | UI Controls Consistency & Topbar Refresh Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-26 |
+| **Feature branch** | `feature/ui-controls-consistency-topbar-refresh-pack-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `044d6ec` (documentation commit from the prior release) |
+| **Feature commit** | `15e1003` |
+| **Production merge commit** | `54f2846` |
+| **Stable tag** | `stable-ui-controls-consistency-topbar-refresh-pack-v1` → merge `54f2846` (annotated) |
+| **Reviews** | Product Owner visual review — **completed & approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ (frontend-only release; no schema/backend/electron changes) |
+
+**Scope — PeriodControl label cleanup.** Removed the static "الفترة المعروضة:" prefix from the period-selector summary label across every page that renders the shared `PeriodControl` component (Invoices — the original reference implementation — Dashboard, Cheques, Expenses, Reports, Accounting ×2 render paths, FinancialCenter, ExecutiveDecisionCenter). Implemented as a new opt-in `hideLabelPrefix` prop on `PeriodControl` (default `false`, so any future consumer that omits it keeps today's behavior unchanged); internally it just passes the component's existing `short` parameter through to `buildLocalizedPeriodLabel`, reusing the already-existing bare-range i18n key (`fc.period.range_bare`) instead of `fc.period.label_range` — no new copy, no i18n key added. Date range, calendar icon, chevron, presets, and all selection/state logic are byte-for-byte unchanged.
+
+**Scope — Excel export button branding.** Generalized the button design approved on the "اتفاقيات الأسعار" (Prices) page to every Excel-export button found in a full-codebase sweep: label text reduced to the literal word "Excel" (the shared "تصدير Excel" i18n key, `page.salaries.export_excel`, was left untouched — each call site now renders a literal string instead, so no other consumer of that key was affected), the existing icon kept as-is, both recolored to `#217346` only while idle (the busy/loading branch — including `Reports.tsx`'s and `BankSalaryAnalytics.tsx`'s own distinct busy-state icon/copy — was left exactly as it was). Touched directly: `Prices.tsx` (reference), `Reports.tsx` (drawer button + dropdown menu item), `Expenses.tsx`, `Salaries.tsx`, `ResourcePage.tsx` (explorer-skin button), `DocumentExpirationCenter.tsx`, `BankSalaryAnalytics.tsx`, `PayrollBankImport.tsx`, `BankReconciliation.tsx`. Fixed once at the shared-component level (propagating to all its consumers): `ExportExcelButton.tsx` (used by `Invoices.tsx`, `ResourcePage.tsx`'s legacy skin, and `MonthlyReportModal.tsx`) and `financial.css`'s `.export-btn.excel` rule (used by `ExportBar.tsx`, consumed by `FinancialCenter.tsx`'s six report tabs and `FinancialReportsTab.tsx`). Excluded after inspection — different function, not an Excel-export button despite containing the word: `DocumentExpirationCenter.tsx`'s "تصدير النتائج الحالية" action (no "Excel" in its own label), `GenericImporterView.tsx`'s blank-template download, `BankStatementImport.tsx`'s file-upload/import path, and `Integrations.tsx`'s descriptive format-list metadata.
+
+**Scope — Topbar refresh icon relocation.** Moved the Dashboard's spinning refresh icon from beside `PeriodControl`/"آخر تحديث" in the page header to the app-wide topbar (`Layout.tsx`), immediately next to the privacy/lock toggle — recolored to the system's primary purple (`#6366f1`, the same value as `explorer-kit.css`'s `--xpl-primary`, hardcoded here since that CSS custom property is scoped to `.xpl-scope` and the global topbar sits outside it — same convention already used by `PrintCenter.css`). The exact same `refreshKey`/`refreshing`/`initialLoading` state and the same `.retry-loader` SVG/animation (`dashboard.css`, untouched) still drive it; only the trigger surface moved, via a new minimal `uiStore.ts` registration slice (`topbarRefreshHandler`, `topbarRefreshBusy`, `setTopbarRefresh()`) that `Dashboard.tsx` populates on mount/update and clears on unmount — so the icon still only appears while the Dashboard page is mounted, exactly as before, just rendered in a different component. `Layout.tsx`'s icon is deliberately kept borderless/transparent (matching its old look) rather than boxed like its sibling topbar buttons.
+
+**Not changed:** any refresh/export handler, API call, filename or file-extension logic, permission check, business logic, background/border/size/variant of any touched button, or the order/design of any other topbar or page element. `DocumentExpirationCenter.tsx`'s Excel button uses `variant="primary"` (solid background) unlike every other now-green instance (`variant="secondary"`) — left as-is per instruction not to change variant; flagged to the Product Owner during visual review.
+
+**Excluded from this release — pre-existing, unrelated working-tree changes.** The session's working tree also carried unrelated, already-in-progress edits predating this pack (`backend/prisma/schema.prisma`, `electron/services/syncEngine.service.ts`, `frontend/src/components/dashboard/AlertPanel.tsx`, `LatestInvoicesTable.tsx`, `Skeleton.tsx`, `dashboard.css`, plus a `Dashboard.tsx` accessibility pass — `div`→`h3` section headings and `aria-hidden` additions). These were surgically excluded from the feature commit (verified hunk-by-hunk against this pack's own diff) and left uncommitted in the working tree exactly as found, untouched by this release.
+
+---
+
+## Previous Release — Forms QR Human-Readable Formatting Fix v1
 
 | Field | Value |
 |-------|-------|
