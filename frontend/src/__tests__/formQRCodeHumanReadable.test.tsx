@@ -1,0 +1,168 @@
+// @vitest-environment jsdom
+/**
+ * Regression tests for "Forms QR Human-Readable Formatting Fix v1".
+ *
+ * Root cause fixed: FormQRCode previously encoded `JSON.stringify(data)` — a phone
+ * camera/QR reader surfaced the raw `{"formType":"...","formNumber":"...",...}` text
+ * verbatim instead of anything a human could read. The fix only changes how that
+ * SAME QRData is formatted before being handed to the `qrcode` encoder — no field
+ * was added, removed, or renamed on the QRData contract, and no call site changed.
+ *
+ * These tests pin down exactly that: same data in, no-JSON human text out, same
+ * rendered QR image contract (size, alt, caption) as before.
+ */
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import React from 'react';
+import { flushAsyncUpdates } from './helpers/flush';
+
+const toDataURL = vi.fn().mockResolvedValue('data:image/png;base64,fake');
+
+vi.mock('qrcode', () => ({
+  default: { toDataURL: (...args: unknown[]) => toDataURL(...args) },
+}));
+
+import FormQRCode, { QRData } from '../forms/shared/FormQRCode';
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+/** Every formType this fix must cover — one entry per FormQRCode consumer in the app. */
+const ALL_FORM_TYPES: Array<{ formType: string; expectedArabicLabel: string }> = [
+  { formType: 'salary-certificate', expectedArabicLabel: 'شهادة راتب' },
+  { formType: 'to-whom-it-may-concern', expectedArabicLabel: 'إلى من يهمه الأمر' },
+  { formType: 'leave-request', expectedArabicLabel: 'طلب إجازة' },
+  { formType: 'return-to-work', expectedArabicLabel: 'إشعار العودة إلى العمل' },
+  { formType: 'salary-advance', expectedArabicLabel: 'طلب سلفة راتب' },
+  { formType: 'resignation', expectedArabicLabel: 'طلب استقالة' },
+  { formType: 'employee-warning', expectedArabicLabel: 'إنذار موظف' },
+  { formType: 'performance-evaluation', expectedArabicLabel: 'تقييم أداء الموظف' },
+  { formType: 'employment-contract', expectedArabicLabel: 'عقد عمل' },
+  { formType: 'quotation', expectedArabicLabel: 'عرض سعر' },
+  { formType: 'purchase-request', expectedArabicLabel: 'طلب شراء' },
+  { formType: 'receipt-voucher', expectedArabicLabel: 'سند قبض' },
+  { formType: 'payment-voucher', expectedArabicLabel: 'سند صرف' },
+];
+
+async function renderAndCapture(data: QRData): Promise<string> {
+  render(<FormQRCode data={data} size={80} />);
+  await flushAsyncUpdates();
+  const [encodedText] = toDataURL.mock.calls[0];
+  return encodedText as string;
+}
+
+describe('FormQRCode — human-readable formatting fix', () => {
+  it.each(ALL_FORM_TYPES)(
+    'encodes $formType as human-readable Arabic text, not JSON',
+    async ({ formType, expectedArabicLabel }) => {
+      const data: QRData = {
+        formType,
+        formNumber: 'F-2026-00123',
+        entityName: 'محمد أحمد العتيبي',
+        entityId: 184,
+      };
+
+      const encoded = await renderAndCapture(data);
+
+      // No longer raw JSON — the exact complaint this fix resolves.
+      expect(encoded.trim().startsWith('{')).toBe(false);
+      expect(encoded).not.toMatch(/"formType"\s*:/);
+      expect(encoded).not.toMatch(/"formNumber"\s*:/);
+      expect(encoded).not.toMatch(/"entityName"\s*:/);
+
+      // Same data, human-formatted: the approved Arabic label for this exact
+      // formType (sourced from the form's own existing title text) appears,
+      // and every field value survives byte-for-byte.
+      expect(encoded).toContain(expectedArabicLabel);
+      expect(encoded).toContain('F-2026-00123');
+      expect(encoded).toContain('محمد أحمد العتيبي');
+      expect(encoded).toContain('184');
+    },
+  );
+
+  it('omits the reference-number line entirely when entityId is not provided (no field invented)', async () => {
+    const data: QRData = {
+      formType: 'quotation',
+      formNumber: 'Q-2026-00099',
+      entityName: 'شركة الخليج للمقاولات',
+    };
+
+    const encoded = await renderAndCapture(data);
+
+    expect(encoded).toContain('عرض سعر');
+    expect(encoded).toContain('Q-2026-00099');
+    expect(encoded).toContain('شركة الخليج للمقاولات');
+    expect(encoded).not.toMatch(/الرقم المرجعي/);
+  });
+
+  it('falls back to the raw formType string for an unmapped formType instead of dropping data', async () => {
+    const data: QRData = {
+      formType: 'future-form-type-not-yet-labeled',
+      formNumber: 'X-1',
+      entityName: 'اختبار',
+    };
+
+    const encoded = await renderAndCapture(data);
+
+    expect(encoded).toContain('future-form-type-not-yet-labeled');
+    expect(encoded).toContain('X-1');
+    expect(encoded).toContain('اختبار');
+  });
+
+  it('preserves Arabic text as valid UTF-8 (no mojibake/escaping) in the encoded string', async () => {
+    const data: QRData = {
+      formType: 'salary-certificate',
+      formNumber: 'F-2026-00456',
+      entityName: 'عبدالله بن سعيد الرشيدي',
+      entityId: 7,
+    };
+
+    const encoded = await renderAndCapture(data);
+
+    // JSON.stringify would leave Arabic as literal UTF-8 too, so the real risk is
+    // an encoding step (e.g. accidental \uXXXX escaping or Base64 wrapping) being
+    // introduced by the formatting fix. Assert the raw Arabic codepoints are
+    // present verbatim and no escape/encoding artifacts were added.
+    expect(encoded).toContain('عبدالله بن سعيد الرشيدي');
+    expect(encoded).not.toMatch(/\\u[0-9a-fA-F]{4}/);
+    expect(encoded).not.toMatch(/^[A-Za-z0-9+/=]+$/); // not accidentally Base64-only
+  });
+
+  it('keeps the rendered QR image contract unchanged: same size, alt text, and formNumber caption', async () => {
+    const data: QRData = {
+      formType: 'employee-warning',
+      formNumber: 'W-2026-00007',
+      entityName: 'سالم فهد',
+      entityId: 55,
+    };
+
+    render(<FormQRCode data={data} size={80} />);
+    await flushAsyncUpdates();
+
+    const img = await screen.findByAltText('QR Code');
+    expect(img).toHaveAttribute('src', 'data:image/png;base64,fake');
+    expect(img.style.width).toBe('80px');
+    expect(img.style.height).toBe('80px');
+    expect(screen.getByText('W-2026-00007')).toBeInTheDocument();
+  });
+
+  it('passes the same qrcode.toDataURL rendering options as before (size*2 width, margin, colors)', async () => {
+    const data: QRData = {
+      formType: 'receipt-voucher',
+      formNumber: 'RCV-2026-00001',
+      entityName: 'أحمد يوسف',
+    };
+
+    render(<FormQRCode data={data} size={80} />);
+    await flushAsyncUpdates();
+
+    const [, options] = toDataURL.mock.calls[0];
+    expect(options).toEqual({
+      width: 160,
+      margin: 1,
+      color: { dark: '#1d4e6f', light: '#ffffff' },
+    });
+  });
+});
