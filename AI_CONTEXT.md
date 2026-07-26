@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `fff9d9f` (merge of `feature/bank-statement-order-preservation-current-balance-fix-v2`, carrying Bank Statement Order Preservation & Current Balance Fix v1) |
-| **Current Documentation Commit** | `3bb1fb9` |
-| **Current Stable Tag** | `stable-bank-statement-order-preservation-current-balance-fix-v1` |
+| **Current Merge Commit** | `16bd9cd` (merge of `feature/forms-qr-human-readable-formatting-v1`, carrying Forms QR Human-Readable Formatting Fix v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-forms-qr-human-readable-formatting-fix-v1` |
 | **Current Release Date** | 2026-07-26 |
-| **Total Stable Releases** | 355 (window 2026-06-07 → 2026-07-26) |
+| **Total Stable Releases** | 356 (window 2026-06-07 → 2026-07-26) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,38 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Forms QR Human-Readable Formatting Fix v1** (2026-07-26,
+  `stable-forms-qr-human-readable-formatting-fix-v1`) — fixes phones displaying raw JSON when scanning a
+  printed form's QR code. Root cause: `FormQRCode.tsx` encoded `QRData` via `JSON.stringify(data)`, so a
+  phone camera/QR reader surfaced `{"formType":"...","formNumber":"...","entityName":"...","entityId":...}`
+  verbatim instead of anything human-readable. **Formatting only, same approved data:** the exact same four
+  `QRData` fields the prior Barcode Payload Standardization Pack v1 established (`formType`, `formNumber`,
+  `entityName`, `entityId?`) are now rendered as labeled Arabic lines instead of JSON before being handed to
+  the `qrcode` encoder; `formType`'s technical slug (e.g. `salary-certificate`) displays as the same Arabic
+  title already shown on that exact form's own header (sourced verbatim from the existing `i18n.ts`
+  `page.*.title`/`voucher.receipt.title` keys and `printProfiles.ts`'s `labelAr` for `payment-voucher` — no
+  new wording invented); `entityId` appears as a labeled "الرقم المرجعي" line when present and is omitted,
+  never invented, when absent. **Scope correction: 13 formTypes use `FormQRCode`**, not 12 — the 12 forms
+  registered in `formsRegistry.ts`'s `FORM_CARDS` plus **Payment Voucher**, which calls `FormQRCode` via
+  `FormLayout` but is reached from the Cheques module rather than the Forms hub and so is not itself a
+  `formsRegistry.ts` entry (the pre-existing "12 official forms" figure elsewhere in this document is the
+  unrelated `formsRegistry.ts` count, unaffected by this correction). The fix lives in one file
+  (`FormQRCode.tsx`) and applies to all 13 automatically — none of the 13 call sites were touched. **Not
+  changed:** the `QRData` interface, any of the 13 forms' data/props/business logic, QR size/position/
+  color/margin/error-correction, the `formNumber` caption below the QR image, or the Print/Preview/Exact
+  Preview/PDF pipelines (all consume the same rendered `<img>`). **Excluded — documented for a future pack:**
+  Invoice's `DocumentVerificationQR` still encodes a bare `verificationUuid` (same class of complaint), but
+  its fix needs a hybrid payload design that keeps the UUID extractable for the real, public
+  `GET /api/verify/:uuid` endpoint — deliberately out of scope here; Template Studio's per-template
+  `qr`/`barcode` designer elements (user-configurable single-field binding, not a fixed document payload)
+  are also unaffected and out of scope. Frontend `tsc --noEmit` clean (frontend-only release); new
+  `formQRCodeHumanReadable.test.tsx` 18/18 tests passing; targeted regression run 6 files / 117 tests
+  passing (`documentVerificationQR`, `employmentContractNewEmployee`, `legacyFormPreviewRolloutPhase1/2`,
+  `printWorkspace`, plus the new suite); 1 pre-existing/unrelated failing file
+  (`formsRegistryTranslationAudit.test.ts`, 10/39 assertions) reconfirmed identical via `git stash` against
+  the pre-change baseline. Release executed manually by the Product Owner — phone-scan verification of the
+  actual QR output: **approved**.
 
 - **Bank Statement Order Preservation & Current Balance Fix v1** (2026-07-26,
   `stable-bank-statement-order-preservation-current-balance-fix-v1`) — restores a previously-completed,

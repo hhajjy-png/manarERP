@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `fff9d9f` — release `stable-bank-statement-order-preservation-current-balance-fix-v1` (Bank Statement Order Preservation & Current Balance Fix v1 — restores a previously-completed, never-merged fix: `statementSequence` preserves each bank statement file's original row order, and current/closing balance + Timeline ordering now derive from it instead of `statementDate`) |
+| **Production HEAD** | `16bd9cd` — release `stable-forms-qr-human-readable-formatting-fix-v1` (Forms QR Human-Readable Formatting Fix v1 — reformats the same previously-approved `FormQRCode` payload as human-readable Arabic text instead of raw JSON; no QR data added, removed, or redesigned) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-bank-statement-order-preservation-current-balance-fix-v1` (release date 2026-07-26) → merge `fff9d9f` |
-| **Previous stable tag** | `stable-forms-i18n-completeness-regression-protection-pack-v1` (2026-07-26) → merge `becb6df` |
-| **Total stable releases** | 355 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
-| **Latest validation** | backend `tsc --noEmit` ✅ · `prisma validate` ✅ · `prisma migrate status` — clean, up to date (46/46 migrations) ✅ · backend bank-related `vitest` 7 files / 228 tests ✅ · full backend suite 135 files / 1902 tests ✅ · backend production build ✅ · frontend `tsc --noEmit` ✅ (unaffected) · frontend Bank Account Explorer `vitest` 4 files / 39 tests ✅ · Product Owner manual visual review of balance and Timeline — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `fff9d9f` + tag `stable-bank-statement-order-preservation-current-balance-fix-v1`) |
+| **Latest stable tag** | `stable-forms-qr-human-readable-formatting-fix-v1` (release date 2026-07-26) → merge `16bd9cd` |
+| **Previous stable tag** | `stable-bank-statement-order-preservation-current-balance-fix-v1` (2026-07-26) → merge `fff9d9f` |
+| **Total stable releases** | 356 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release) · new suite `formQRCodeHumanReadable.test.tsx` — 18/18 tests ✅ · targeted regression run 6 files / 117 tests ✅ (`documentVerificationQR`, `employmentContractNewEmployee`, `legacyFormPreviewRolloutPhase1`, `legacyFormPreviewRolloutPhase2`, `printWorkspace`, plus the new suite) · 1 pre-existing/unrelated failing file (`formsRegistryTranslationAudit.test.ts`, 10/39 assertions) reconfirmed identical via `git stash` against the pre-change baseline · release executed manually — Product Owner phone-scan verification **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `16bd9cd` + tag `stable-forms-qr-human-readable-formatting-fix-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Bank Statement Order Preservation & Current Balance Fix v1
+## Latest Release — Forms QR Human-Readable Formatting Fix v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Forms QR Human-Readable Formatting Fix v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-26 |
+| **Feature branch** | `feature/forms-qr-human-readable-formatting-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `c9840c2` (documentation commit from the prior release) |
+| **Feature commit** | `e5e2ba3` |
+| **Production merge commit** | `16bd9cd` |
+| **Stable tag** | `stable-forms-qr-human-readable-formatting-fix-v1` → merge `16bd9cd` (annotated) |
+| **Reviews** | Release executed manually by the Product Owner — phone-scan verification of the actual QR output **completed & approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ (frontend-only release) · new `frontend/src/__tests__/formQRCodeHumanReadable.test.tsx` — 18/18 tests ✅ · targeted regression run 6 files / 117 tests ✅ (`documentVerificationQR`, `employmentContractNewEmployee`, `legacyFormPreviewRolloutPhase1`, `legacyFormPreviewRolloutPhase2`, `printWorkspace`, plus the new suite) · 1 pre-existing/unrelated failing file (`formsRegistryTranslationAudit.test.ts`, 10/39 assertions) reconfirmed identical via `git stash` against the pre-change baseline — not introduced or worsened by this pack |
+
+**Root cause.** `FormQRCode.tsx` encoded its `QRData` via `JSON.stringify(data)` — a phone camera/QR reader surfaced the raw `{"formType":"...","formNumber":"...","entityName":"...","entityId":...}` text verbatim instead of anything a human could read.
+
+**Scope — formatting only, same approved data.** This pack changes only the formatting/encoding layer, never the data itself: the exact same four `QRData` fields established by the prior Barcode Payload Standardization Pack v1 (`formType`, `formNumber`, `entityName`, `entityId?`) are now rendered as labeled Arabic lines instead of JSON before being handed to the `qrcode` encoder. `formType`'s technical slug (e.g. `salary-certificate`) is displayed as the same Arabic title already shown on that exact form's own header — sourced verbatim from the existing `i18n.ts` `page.*.title`/`voucher.receipt.title` keys and `printProfiles.ts`'s `labelAr` for `payment-voucher`; no new wording was invented. `entityId`, when present, appears as a labeled "الرقم المرجعي" line, and is omitted — never invented — when absent, exactly matching prior behavior.
+
+**Scope correction — 13 formTypes use `FormQRCode`, not 12.** The 12 forms registered in `formsRegistry.ts`'s `FORM_CARDS` (Salary Certificate, To Whom It May Concern, Leave Request, Return to Work, Salary Advance, Resignation, Employee Warning, Performance Evaluation, Employment Contract, Quotation, Purchase Request, Receipt Voucher) plus **Payment Voucher** — which calls `FormQRCode` via `FormLayout` but is reached from the Cheques module rather than the Forms hub, and is therefore not itself a `formsRegistry.ts` entry. (The pre-existing "12 official forms" figure elsewhere in this document refers specifically to the `formsRegistry.ts` `FORM_CARDS` count and is a different metric, unaffected by this correction.) The fix lives in one file (`FormQRCode.tsx`) and applies to all 13 automatically — none of the 13 call sites were touched.
+
+**Not changed:** the `QRData` interface, any of the 13 forms' data/props/business logic, QR size/position/color/margin/error-correction, the `formNumber` caption below the QR image, or the Print/Preview/Exact Preview/PDF pipelines — all consume the same rendered `<img>`, confirmed by the 117-test regression run.
+
+**Excluded — documented for a future pack, not fixed here.** Invoice's `DocumentVerificationQR` still encodes a bare `verificationUuid` string, which a phone also displays as unformatted technical text — the same class of complaint, but its fix is architecturally different: the public `GET /api/verify/:uuid` endpoint depends on receiving that exact raw UUID, so any human-readable reformatting there needs a hybrid payload design that keeps the UUID extractable — deliberately out of scope for this pack. Template Studio's per-template `qr`/`barcode` designer elements (a user-configurable single-field binding, not a fixed document payload) are also unaffected and out of scope.
+
+---
+
+## Previous Release — Bank Statement Order Preservation & Current Balance Fix v1
 
 | Field | Value |
 |-------|-------|
