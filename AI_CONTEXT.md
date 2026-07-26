@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `3fb9b82` (merge of `feature/payment-voucher-letterhead-exact-preview-cascade-fix-v1`, carrying Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `938a0b3` |
 | **Current Stable Tag** | `stable-payment-voucher-letterhead-exact-preview-cascade-fix-pack-v1` |
 | **Current Release Date** | 2026-07-26 |
 | **Total Stable Releases** | 352 (window 2026-06-07 → 2026-07-26) |
