@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `5ed59c0` (merge of `feature/cheque-management-visual-polish-pack-v1`, carrying Cheque Management Visual Polish Pack v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `ce65036` |
 | **Current Stable Tag** | `stable-cheque-management-visual-polish-pack-v1` |
 | **Current Release Date** | 2026-07-26 |
 | **Total Stable Releases** | 353 (window 2026-06-07 → 2026-07-26) |
