@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `16bd9cd` (merge of `feature/forms-qr-human-readable-formatting-v1`, carrying Forms QR Human-Readable Formatting Fix v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `9d29692` |
 | **Current Stable Tag** | `stable-forms-qr-human-readable-formatting-fix-v1` |
 | **Current Release Date** | 2026-07-26 |
 | **Total Stable Releases** | 356 (window 2026-06-07 → 2026-07-26) |
