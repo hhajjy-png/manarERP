@@ -14,6 +14,7 @@ import FormHeader from './FormHeader';
 import FormQRCode, { QRData } from './FormQRCode';
 import ApprovalSection from './ApprovalSection';
 import { PrintWorkspace } from '../../components/print-workspace';
+import officialLogoHead from '../../assets/logohead.png';
 
 interface FormLayoutProps {
   children: ReactNode;
@@ -54,6 +55,38 @@ interface FormLayoutProps {
    * no other spacing shifts; only the text itself is omitted.
    */
   hideFormNumber?: boolean;
+  /**
+   * Opt-in: omit the `ApprovalSection` (manager approval title, signature, date,
+   * official stamp) from the footer entirely. Off by default — every existing form
+   * keeps it. The footer's flex layout and QR position are unchanged; only the
+   * approval block itself is not rendered.
+   */
+  hideApprovalSection?: boolean;
+  /**
+   * Payment-voucher-only, opt-in top-margin trim: when a form on the
+   * `payment-voucher` profile sets `compactTopMargin`, its `@page` top margin is
+   * reduced from the profile's default 12mm to 5mm, reclaiming top space so the
+   * form's content (including a taller header, e.g. `useLogoHeader`) fits on one
+   * page. Mirrors `letterheadCompactFooter` below. Does not touch the shared
+   * `PRINT_PROFILES` margins or any other form/profile — only this instance's
+   * `@page` rule and Save-PDF export margins change.
+   */
+  compactTopMargin?: boolean;
+  /**
+   * Opt-in: replace the plain-text company name in the header with the official
+   * `logohead.png` letterhead image, at its natural aspect ratio. Off by default —
+   * every existing form keeps the plain-text header unchanged.
+   */
+  useLogoHeader?: boolean;
+  /**
+   * Opt-in: extra top offset added above the whole content block (e.g. `'2cm'`).
+   * Off by default — every existing form keeps its current top spacing. Implemented
+   * as a real spacer element (not container padding), so it survives the
+   * `.form-page { padding: 0 !important }` print/PDF reset below — padding here
+   * would be zeroed at print time. Shifts the whole page content (header through
+   * footer) down as one block without altering the spacing between elements.
+   */
+  contentTopOffset?: string;
   /**
    * Optional preview gate for the toolbar's Print button. **Additive and opt-in** —
    * when it is absent (every form but Quotation today) the button calls `doPrint`
@@ -131,6 +164,10 @@ export default function FormLayout({
   approvalHideDate = false,
   approvalStampInline = false,
   hideFormNumber = false,
+  hideApprovalSection = false,
+  compactTopMargin = false,
+  useLogoHeader = false,
+  contentTopOffset,
 }: FormLayoutProps) {
   const navigate = useNavigate();
 
@@ -167,10 +204,13 @@ export default function FormLayout({
   // `letterheadCompactFooter`, reclaim the generous 20mm bottom margin to 10mm so it
   // stays on one page (top/header clearance untouched — see the prop's JSDoc). Feeds
   // BOTH the @page print rules and the Save-PDF export so print and PDF can't drift.
+  // Payment-voucher-only, opt-in top-margin trim: see `compactTopMargin`'s JSDoc.
   const formMargins =
     profile === 'letterhead' && letterheadCompactFooter
       ? { ...activeProfile.margins, bottom: '10mm' }
-      : activeProfile.margins;
+      : profile === 'payment-voucher' && compactTopMargin
+        ? { ...activeProfile.margins, top: '5mm' }
+        : activeProfile.margins;
   const { top: mt, right: mr, bottom: mb, left: ml } = formMargins;
 
   function updateCopies(n: number) {
@@ -438,8 +478,14 @@ export default function FormLayout({
           borderRadius: 4,
         }}
       >
+        {contentTopOffset && <div aria-hidden="true" style={{ height: contentTopOffset }} />}
+
         {/* Company header — hidden in letterhead mode (space preserved) */}
-        <FormHeader isLetterhead={profile === 'letterhead'} lang={lang} />
+        <FormHeader
+          isLetterhead={profile === 'letterhead'}
+          lang={lang}
+          logoSrc={useLogoHeader ? officialLogoHead : undefined}
+        />
 
         {/* Form number + title */}
         <div style={{ textAlign: 'center', marginBottom: 14 }}>
@@ -491,7 +537,9 @@ export default function FormLayout({
           }}
         >
           <div style={{ flex: 1 }}>
-            <ApprovalSection lang={lang} hideDate={approvalHideDate} stampInline={approvalStampInline} />
+            {!hideApprovalSection && (
+              <ApprovalSection lang={lang} hideDate={approvalHideDate} stampInline={approvalStampInline} />
+            )}
           </div>
           <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <FormQRCode data={qrData} size={80} />

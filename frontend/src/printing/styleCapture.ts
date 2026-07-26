@@ -97,6 +97,52 @@ export function absolutizeUrls(cssText: string, base: string): string {
   );
 }
 
+/**
+ * Reconcile multiple captured `@page` rule texts into ONE, the way the real browser
+ * cascade would: later declarations win over earlier ones, PROPERTY BY PROPERTY —
+ * not "the whole last rule replaces every earlier rule". A rule that only sets
+ * `margin` does not erase a `size` an earlier rule declared; the later `margin`
+ * simply overrides the earlier one.
+ *
+ * WHY THIS MATTERS: `capturePrintStyles` walks `document.styleSheets` in DOCUMENT
+ * ORDER. A document-wide fallback (`app/theme.css`'s `@page { margin: 1cm; }`,
+ * loaded at app startup) is captured BEFORE a form's own, more specific `@page`
+ * rule (declared in a `<style>` mounted later, e.g. `FormLayout`'s own print
+ * styles, or a print-templates CSS Module's `@page`). Picking `pageRules[0]` — the
+ * first found — silently resurrects the generic fallback over the form's real
+ * geometry; that mismatch is exactly what made an Exact Preview paginate
+ * differently from the physical printout / PDF, which both apply the form's own
+ * rule directly. Picking `pageRules[pageRules.length - 1]` (the whole last rule)
+ * would fix today's cases too, but would silently DROP a property an earlier rule
+ * declared and a later, "winning" rule never re-states (e.g. a later rule that only
+ * overrides `margin` would erase an earlier rule's `size`) — this merges instead,
+ * so no property is ever lost.
+ *
+ * Property names are matched case-insensitively; shorthand vs. longhand overlap
+ * (e.g. `margin` vs `margin-top`) is treated the same way real `@page` authors in
+ * this codebase write them today — no rule currently mixes the two, so no special
+ * shorthand-expansion handling is needed.
+ */
+export function mergePageRules(pageRuleTexts: string[]): string | null {
+  const props = new Map<string, string>();
+  for (const ruleText of pageRuleTexts) {
+    const body = ruleText.replace(/^@page[^{]*\{/i, '').replace(/\}\s*$/, '');
+    for (const decl of body.split(';')) {
+      const colon = decl.indexOf(':');
+      if (colon === -1) continue;
+      const prop = decl.slice(0, colon).trim().toLowerCase();
+      const value = decl.slice(colon + 1).trim();
+      if (!prop || !value) continue;
+      props.set(prop, value); // later rule's value for the same property wins
+    }
+  }
+  if (props.size === 0) return null;
+  const body = Array.from(props.entries())
+    .map(([prop, value]) => `${prop}: ${value};`)
+    .join(' ');
+  return `@page { ${body} }`;
+}
+
 /** Recursively pull @page rules out of a rule's text, returning [textWithoutPage, pages]. */
 function extractPageRules(cssText: string): { text: string; pages: string[] } {
   const pages: string[] = [];

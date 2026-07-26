@@ -74,6 +74,7 @@ export {
 export {
   capturePrintStyles,
   absolutizeUrls,
+  mergePageRules,
   type CapturedStyles,
   type StyleCaptureProblem,
 } from './styleCapture';

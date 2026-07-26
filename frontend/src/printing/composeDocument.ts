@@ -21,7 +21,7 @@
 import cairoRegular from '../assets/fonts/Cairo-Regular.ttf';
 import type { PageSpec } from './pageSpec';
 import { toPageCss } from './pageSpec';
-import { capturePrintStyles } from './styleCapture';
+import { capturePrintStyles, mergePageRules } from './styleCapture';
 
 /** Hard ceiling on composed HTML. Bounds the IPC payload and the hidden-window
  *  render; a document this large is a bug, not a business case. */
@@ -159,10 +159,14 @@ export interface ComposeStyledOptions extends ComposeOptions {
  * not mount a second React app, and it owns no layout engine.
  *
  * @page policy — exactly one, and the TEMPLATE wins:
- *   • If the captured CSS contains any @page (every invoice/quotation design declares
- *     its own, e.g. `@page { size: A4; margin: 0 }`), the FIRST one is emitted and the
- *     PageSpec's is NOT — the template's existing geometry is authoritative and must not
- *     change. Any further @page rules are dropped, so there is never more than one.
+ *   • If the captured CSS contains any @page rules, they are reconciled with
+ *     `mergePageRules` — later declarations win per property, exactly like the real
+ *     browser cascade resolves multiple `@page` rules of equal specificity. This is
+ *     what makes the template's own, more specific geometry (declared later in
+ *     document order, e.g. `@page { size: A4; margin: 0 }`) win over an earlier,
+ *     document-wide fallback rule (e.g. `app/theme.css`'s `@page { margin: 1cm; }`)
+ *     — the PageSpec's default is NOT emitted when the template declares its own.
+ *     There is still never more than one @page in the composed document.
  *   • Only if the captured CSS declares none do we fall back to the PageSpec.
  *
  * FAILS LOUDLY: if no stylesheet rules could be captured, the document would print
@@ -198,8 +202,9 @@ export function composeStyledFromNode({
   }
   clone.setAttribute('data-print-root', '');
 
-  // Exactly one @page: the template's if it has one, else the PageSpec's.
-  const pageCss = captured.pageRules.length > 0 ? captured.pageRules[0] : toPageCss(pageSpec);
+  // Exactly one @page: the captured rules merged in cascade order (later property
+  // wins — see `mergePageRules`), or the PageSpec's if none were captured at all.
+  const pageCss = mergePageRules(captured.pageRules) ?? toPageCss(pageSpec);
 
   // Reproduce the SOURCE document's inherited context rather than inventing one.
   // Bidi resolution depends on the root direction, and the app's <html> is `dir="rtl"`;
