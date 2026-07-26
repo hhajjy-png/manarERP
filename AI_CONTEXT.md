@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `becb6df` (merge of `feature/forms-i18n-completeness-regression-protection-pack-v1`, carrying Forms i18n Completeness & Regression Protection Pack v1) |
-| **Current Documentation Commit** | `b34f2b8` |
-| **Current Stable Tag** | `stable-forms-i18n-completeness-regression-protection-pack-v1` |
+| **Current Merge Commit** | `fff9d9f` (merge of `feature/bank-statement-order-preservation-current-balance-fix-v2`, carrying Bank Statement Order Preservation & Current Balance Fix v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-bank-statement-order-preservation-current-balance-fix-v1` |
 | **Current Release Date** | 2026-07-26 |
-| **Total Stable Releases** | 354 (window 2026-06-07 → 2026-07-26) |
+| **Total Stable Releases** | 355 (window 2026-06-07 → 2026-07-26) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,33 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Bank Statement Order Preservation & Current Balance Fix v1** (2026-07-26,
+  `stable-bank-statement-order-preservation-current-balance-fix-v1`) — restores a previously-completed,
+  previously-validated fix (original commit `2322802`, 2026-07-23) that was found — during a Regression &
+  Release Integrity Audit — to have been committed and pushed to its own feature branch but **never
+  merged into production**, so the bug it fixed had silently kept shipping. Business rule: official bank
+  statement files are ordered newest → oldest, so the first data row of the most recently imported
+  statement is the true current/closing balance — not whichever row happens to have the max
+  `statementDate`, since a file can contain repeated dates or a row order that doesn't match chronological
+  sequence. Adds `statementSequence` to `BankStatementTransaction` (1-based row position within its own
+  import file, set at import time from the parser's own file-order index); a migration backfills existing
+  rows per `importId` using insertion order (`id asc` — the original file order at insert time), additive
+  and idempotent (`WHERE statementSequence IS NULL`), touching no financial column. `TIMELINE_ORDER_BY`
+  now sorts by latest import then `statementSequence asc`, reproducing the bank's original file order
+  exactly instead of sorting by date. `bankAccounts` current/closing balance now reads the first-sequence
+  row of the latest import instead of the max-`statementDate` row. Re-verified before this release: zero
+  drift against current production in every touched file (cherry-picked the original commit onto a fresh
+  branch off current production — clean, zero conflicts, byte-identical diff); the dev database had
+  coincidentally already had this exact migration applied from an earlier stray run, confirmed via
+  `prisma migrate status` (clean, in sync) rather than assumed; and — proven against real data, not just
+  in theory — one account's latest import genuinely has multiple rows sharing the same `statementDate`,
+  where the old logic and new logic pick different rows with different balances (45,290.42 vs the correct
+  58,120.42). No UI, business logic, or financial data changed — frontend Bank Account Explorer untouched.
+  Backend `tsc --noEmit` ✅, `prisma validate` ✅, `prisma migrate status` clean ✅, bank-related `vitest`
+  7 files / 228 tests ✅, full backend suite 135 files / 1902 tests ✅, backend build ✅; frontend
+  `tsc --noEmit` ✅ and Bank Account Explorer–related `vitest` 4 files / 39 tests ✅ (unaffected, as
+  required). Product Owner visual review of balance and Timeline: **approved**.
 
 - **Forms i18n Completeness & Regression Protection Pack v1** (2026-07-26,
   `stable-forms-i18n-completeness-regression-protection-pack-v1`) — closes a raw-i18n-key regression that

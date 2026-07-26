@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `becb6df` — release `stable-forms-i18n-completeness-regression-protection-pack-v1` (Forms i18n Completeness & Regression Protection Pack v1 — recovers 69 AR/EN translation keys across six forms that were silently rendering raw i18n keys, plus a new general regression test guarding every form's t() call, not just titles) |
+| **Production HEAD** | `fff9d9f` — release `stable-bank-statement-order-preservation-current-balance-fix-v1` (Bank Statement Order Preservation & Current Balance Fix v1 — restores a previously-completed, never-merged fix: `statementSequence` preserves each bank statement file's original row order, and current/closing balance + Timeline ordering now derive from it instead of `statementDate`) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-forms-i18n-completeness-regression-protection-pack-v1` (release date 2026-07-26) → merge `becb6df` |
-| **Previous stable tag** | `stable-cheque-management-visual-polish-pack-v1` (2026-07-26) → merge `5ed59c0` |
-| **Total stable releases** | 354 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ (frontend-only release) · frontend `vitest` 116/124 files passing (8 pre-existing/unrelated failures confirmed byte-identical against a stashed pre-change baseline) · backend `tsc --noEmit` ✅ · backend `vitest` 135 files / 1899 tests ✅ · `prisma validate` ✅ (schema untouched) · frontend production build ✅ · manual audit: 0 missing AR / 0 missing EN across all 90 `t()`-used keys in the six affected forms · Product Owner manual visual review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `becb6df` + tag `stable-forms-i18n-completeness-regression-protection-pack-v1`) |
+| **Latest stable tag** | `stable-bank-statement-order-preservation-current-balance-fix-v1` (release date 2026-07-26) → merge `fff9d9f` |
+| **Previous stable tag** | `stable-forms-i18n-completeness-regression-protection-pack-v1` (2026-07-26) → merge `becb6df` |
+| **Total stable releases** | 355 (all merged onto `production`; window 2026-06-07 → 2026-07-26) |
+| **Latest validation** | backend `tsc --noEmit` ✅ · `prisma validate` ✅ · `prisma migrate status` — clean, up to date (46/46 migrations) ✅ · backend bank-related `vitest` 7 files / 228 tests ✅ · full backend suite 135 files / 1902 tests ✅ · backend production build ✅ · frontend `tsc --noEmit` ✅ (unaffected) · frontend Bank Account Explorer `vitest` 4 files / 39 tests ✅ · Product Owner manual visual review of balance and Timeline — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `fff9d9f` + tag `stable-bank-statement-order-preservation-current-balance-fix-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,37 @@ in a table cell.
 
 ---
 
-## Latest Release — Forms i18n Completeness & Regression Protection Pack v1
+## Latest Release — Bank Statement Order Preservation & Current Balance Fix v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Bank Statement Order Preservation & Current Balance Fix v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-26 |
+| **Feature branch** | `feature/bank-statement-order-preservation-current-balance-fix-v2` (kept — pushed, not deleted; supersedes the original, never-merged `...-v1` branch, which is also kept as historical record) |
+| **Baseline** | `production` @ `de87070` (documentation commit from the prior release) |
+| **Original fix commit** | `2322802` (2026-07-23, on the abandoned `-v1` branch — never merged) |
+| **Restored feature commit** | `38d7c4c` (cherry-picked from `2322802` onto a fresh branch off current production — byte-identical diff, zero conflicts) |
+| **Production merge commit** | `fff9d9f` |
+| **Stable tag** | `stable-bank-statement-order-preservation-current-balance-fix-v1` → merge `fff9d9f` (annotated) |
+| **Reviews** | Product Owner visual review of balance and Timeline — **completed & approved**. |
+| **Validation** | backend `tsc --noEmit` ✅ · `prisma validate` ✅ · `prisma migrate status` clean (46/46) ✅ · backend bank-related `vitest` 7 files / 228 tests ✅ · full backend suite 135 files / 1902 tests ✅ · backend build ✅ · frontend `tsc --noEmit` ✅ (unaffected) · frontend Bank Account Explorer `vitest` 4 files / 39 tests ✅ |
+
+**Background — a validated fix that never reached production.** A Regression & Release Integrity Audit (run before this release) traced a Bank Account Explorer balance regression the Product Owner had already flagged as previously fixed. The audit found commit `2322802` (2026-07-23) — the actual, complete, tested fix — sitting on `feature/bank-statement-order-preservation-current-balance-fix-v1`, pushed to origin, but **never merged**: `git merge-base --is-ancestor` confirmed it was not an ancestor of `production`, and no later commit had touched any of its files, meaning production had simply never received it, not that it had been reverted. This release restores that exact fix rather than re-implementing it.
+
+**Business rule.** Official bank statement files are ordered newest → oldest. The first data row of the most recently imported statement is the true current/closing balance — it must not be re-derived from `statementDate`, because a file can contain repeated dates or a row order that doesn't strictly match chronological sequence.
+
+**Scope — restoration process.** Reviewed `2322802` in full (schema, migration, import service, balance service, both test files) and re-verified it against current production before touching anything: zero production commits since the fix's original base had touched any of its six files. Cherry-picked the commit unchanged onto a fresh branch off current production — clean merge, zero conflicts, diff byte-identical to the original (176 insertions / 34 deletions across the same 6 files). Discovered and handled a subtlety: the local dev database had *already* had this exact migration applied from an earlier stray run (before the fix was reverted out of the tracked schema by branch switches) — 377/377 rows already correctly backfilled, 0 nulls. Restoring the *exact original, unrenamed* migration file (not a re-timestamped one) was therefore correct: its name and SQL matched the row `_prisma_migrations` already had recorded, so Prisma recognized it as already applied (checksum match, no re-execution, no "duplicate column" risk) — confirmed via `prisma migrate status` reporting a clean, up-to-date schema both before and after the merge. A genuinely fresh database (including the real end-user `userData/data/manar.db`) is unaffected by this coincidence and applies the migration normally in its correct chronological slot.
+
+**Scope — the fix itself.** Adds `statementSequence` to `BankStatementTransaction` (1-based row position within its own import file, set at import time from the parser's own file-order index — nullable, backward compatible). Migration backfills existing rows per `importId` using insertion order (`id asc` — the original file order at insert time), additive and idempotent (`WHERE statementSequence IS NULL`), touching no financial column. `TIMELINE_ORDER_BY` now sorts by latest import (`importId desc`) then `statementSequence asc`, reproducing the bank's original file order exactly instead of sorting by date. `bankAccounts` current/closing balance (`listBankAccounts`, `getBankAccountDashboard`) now reads the first-sequence row of the latest import (`getLatestStatementRow()`) instead of the max-`statementDate` row; `openingBalance` (first transaction by date) is unaffected, matching the original fix's intent exactly.
+
+**Proven against real data, not just in theory.** Queried the live dev dataset before merging: `BANK:GULF_BANK`'s latest import has multiple rows sharing the same `statementDate`. The old logic (max `statementDate`) picked a row with balance 45,290.42; the new logic (first `statementSequence` of the latest import) picks the true first row: balance 58,120.42 — a real, currently-manifesting instance of the bug, now corrected.
+
+**Not changed:** Bank Account Explorer UI/design, any transaction amount, debit/credit, existing statement data, accounting entries, or any file outside the six the original fix touched.
+
+---
+
+## Previous Release — Forms i18n Completeness & Regression Protection Pack v1
 
 | Field | Value |
 |-------|-------|
