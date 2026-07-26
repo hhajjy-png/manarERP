@@ -692,7 +692,7 @@ function DoneStep({ report, canExport, onNewImport }: DoneStepProps) {
         {canExport && (
           <>
             <button type="button" style={btn('secondary', exporting === 'excel')} onClick={() => handleExport('excel')} disabled={!!exporting}>
-              {exporting === 'excel' ? t('bank.payroll_import.exporting') : `📊 ${t('page.salaries.export_excel')}`}
+              {exporting === 'excel' ? t('bank.payroll_import.exporting') : <span style={{ color: '#217346' }}>📊 Excel</span>}
             </button>
             <button type="button" style={btn('secondary', exporting === 'pdf')} onClick={() => handleExport('pdf')} disabled={!!exporting}>
               {exporting === 'pdf' ? t('bank.payroll_import.exporting') : `📄 ${t('bank.payroll_import.export_pdf')}`}

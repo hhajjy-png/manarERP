@@ -232,7 +232,17 @@ export default function Prices() {
             <span className="xpl-field-label">{t('filter.prices.company')}</span>
             <input className="xpl-input" aria-label={t('filter.prices.company')} value={filterCompany} onChange={(e) => { setFilterCompany(e.target.value); setPage(1); }} />
           </div>
-          {hasPermission('reports.export') && <Button variant="secondary" icon="table_view" busy={exportBusy} onClick={exportExcel}>{t('page.salaries.export_excel')}</Button>}
+          {hasPermission('reports.export') && (
+            <Button
+              variant="secondary"
+              icon="table_view"
+              busy={exportBusy}
+              onClick={exportExcel}
+              style={exportBusy ? undefined : { color: '#217346' }}
+            >
+              Excel
+            </Button>
+          )}
         </div>
         <div className="xpl-toolbar-row">
           <FilterChip active={filterUnit === ''} onClick={() => { setFilterUnit(''); setPage(1); }}>{t('opt.all')}</FilterChip>

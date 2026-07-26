@@ -114,6 +114,26 @@
   white-space: nowrap;
 }
 
+/* dashboard refresh icon — relocated from the page header next to the lock
+   (privacy) icon; same spinning SVG/animation (.retry-loader, dashboard.css),
+   just borderless/transparent like its old spot instead of a boxed icon-btn.
+   Hardcoded purple = --xpl-primary (explorer-kit.css), unavailable here since
+   the topbar sits outside .xpl-scope — same convention as PrintCenter.css. */
+.app .topbar .topbar-refresh-btn {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #6366f1;
+}
+.app .topbar .topbar-refresh-btn:hover:not(:disabled) {
+  background: transparent;
+  transform: none;
+  color: #4f46e5;
+}
+.app .topbar .topbar-refresh-btn:disabled { opacity: .55; cursor: not-allowed; }
+
 /* sidebar nav link: allow text truncation when label is long */
 .sidebar .nav a {
   overflow: hidden;

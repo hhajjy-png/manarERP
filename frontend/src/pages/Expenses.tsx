@@ -332,7 +332,7 @@ export default function Expenses() {
         ) : undefined}
         aside={(
           <>
-            <PeriodControl />
+            <PeriodControl hideLabelPrefix />
             {canCreate && <Button variant="secondary" icon="calendar_month" onClick={() => setFastEntry(true)}>{t('action.expenses.monthly_entry')}</Button>}
             {canCreate && <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('mod.expenses.create')}</Button>}
           </>
@@ -442,7 +442,7 @@ export default function Expenses() {
             </select>
           </div>
           {hasPermission('reports.export') && (
-            <Button variant="secondary" icon="table_view" busy={exportingExcel} onClick={exportExcel}>{t('page.salaries.export_excel')}</Button>
+            <Button variant="secondary" icon="table_view" busy={exportingExcel} onClick={exportExcel} style={exportingExcel ? undefined : { color: '#217346' }}>Excel</Button>
           )}
         </div>
         <div className="xpl-toolbar-row">

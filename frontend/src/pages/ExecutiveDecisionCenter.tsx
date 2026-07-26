@@ -260,7 +260,7 @@ export default function ExecutiveDecisionCenter() {
           <div className="db-header-sub">{t('exec.header.subtitle')}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <PeriodControl />
+          <PeriodControl hideLabelPrefix />
           {highAlerts > 0 && (
             <span style={{ background: 'rgba(239,68,68,0.15)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 20, padding: '4px 14px', fontSize: 12, fontWeight: 700 }}>
               ⚠️ {t('exec.high_alerts_count', { count: highAlerts })}

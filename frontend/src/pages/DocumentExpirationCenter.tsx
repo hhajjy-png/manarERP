@@ -347,8 +347,8 @@ export default function DocumentExpirationCenter() {
           ) : undefined
         }
         aside={
-          <Button variant="primary" icon="download" busy={exporting} onClick={handleExport}>
-            {t('page.salaries.export_excel')}
+          <Button variant="primary" icon="download" busy={exporting} onClick={handleExport} style={exporting ? undefined : { color: '#217346' }}>
+            Excel
           </Button>
         }
       />

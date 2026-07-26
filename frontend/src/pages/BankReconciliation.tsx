@@ -1467,7 +1467,7 @@ export default function BankReconciliation() {
                       } catch { showToast(t('bank.recon.export_excel_failed'), 'error'); }
                     }}
                   >
-                    📊 Excel (XLSX)
+                    <span style={{ color: '#217346' }}>📊 Excel (XLSX)</span>
                   </button>
                   <button
                     type="button"

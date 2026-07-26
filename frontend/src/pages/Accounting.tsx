@@ -133,13 +133,13 @@ function SummaryTab() {
     return () => { cancelled = true; };
   }, [period.fromDate, period.toDate, period.isAllPeriods]);
 
-  if (loading) return (<><PeriodControl /><SkeletonRows rows={4} /></>);
+  if (loading) return (<><PeriodControl hideLabelPrefix /><SkeletonRows rows={4} /></>);
 
   const net = Number(summary?.netProfit ?? 0);
 
   return (
     <>
-      <PeriodControl />
+      <PeriodControl hideLabelPrefix />
       <div className="accx-metrics">
         <HeroMetric
           icon="savings"

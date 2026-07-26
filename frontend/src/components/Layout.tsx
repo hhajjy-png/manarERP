@@ -25,6 +25,7 @@ export default function Layout() {
   const {
     theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar, lang, setLang,
     privacyMode, togglePrivacy, sidebarMode, sidebarNarrow, toggleSidebarMode, setSidebarNarrow,
+    topbarRefreshHandler, topbarRefreshBusy,
   } = useUI();
   const { t } = useT();
   const navigate = useNavigate();
@@ -167,6 +168,19 @@ export default function Layout() {
                 </button>
               )}
             </span>
+            {topbarRefreshHandler && (
+              <button
+                type="button"
+                className="icon-btn topbar-refresh-btn"
+                disabled={topbarRefreshBusy}
+                onClick={() => topbarRefreshHandler()}
+                aria-label={t('page.dashboard.retry')}
+              >
+                <svg className="retry-loader" viewBox="25 25 50 50">
+                  <circle cx="50" cy="50" r="20"></circle>
+                </svg>
+              </button>
+            )}
             <button className="icon-btn" onClick={toggleTheme} title={t('layout.toggle_theme')}>{theme === 'dark' ? '☀️' : '🌙'}</button>
             <button
               className="icon-btn"

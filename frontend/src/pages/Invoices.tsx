@@ -397,7 +397,7 @@ export default function Invoices() {
         ) : undefined}
         aside={(
           <>
-            <PeriodControl />
+            <PeriodControl hideLabelPrefix />
             {hasPermission('invoices.create') && <Button variant="secondary" icon="bolt" onClick={() => setFastEntry(true)}>{t('btn.inv.fast_entry')}</Button>}
             {hasPermission('invoices.create') && <Button variant="primary" icon="add" onClick={() => setCreating(true)}>{t('page.invoices.create')}</Button>}
           </>
