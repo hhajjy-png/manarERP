@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `e2e29eb` — release `stable-payment-voucher-visual-polish-english-localization-v1` (Payment Voucher Visual Polish & English Localization v1 — title box/amount color polish, logo header recolor + symmetric width fix, English localization of 7 payment-method/bank labels; no business logic/data/backend/schema changes) |
+| **Production HEAD** | `7226882` — release `stable-sidebar-visibility-management-v1` (Sidebar Visibility Management v1 — per-user show/hide toggles for sidebar navigation entries in Settings; UI-display preference only, no route/permission/schema/business-logic changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-payment-voucher-visual-polish-english-localization-v1` (release date 2026-07-27) → merge `e2e29eb` |
-| **Previous stable tag** | `stable-nbk-salary-export-native-xls-v1` (2026-07-27) → merge `8ad5e6b` |
-| **Total stable releases** | 361 (all merged onto `production`; window 2026-06-07 → 2026-07-27) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · frontend `paymentVoucherBatchSafety` test suite (8 tests) ✅ · `git diff --check` ✅ — all re-run on the merged `production` branch after merge · full `git diff` scope review confirmed only the 2 intended files (`PaymentVoucherTemplate.tsx`, `FormHeader.tsx`) entered the release · confirmed `useLogoHeader` (and therefore the recolored/widened `FormHeader.tsx` logo branch) has exactly one consumer project-wide (`PaymentVoucher.tsx`), so no other form is affected · Product Owner Manual Visual Review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `e2e29eb` + tag `stable-payment-voucher-visual-polish-english-localization-v1`) |
+| **Latest stable tag** | `stable-sidebar-visibility-management-v1` (release date 2026-07-27) → merge `7226882` |
+| **Previous stable tag** | `stable-payment-voucher-visual-polish-english-localization-v1` (2026-07-27) → merge `e2e29eb` |
+| **Total stable releases** | 362 (all merged onto `production`; window 2026-06-07 → 2026-07-27) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · `build:front` ✅ · `build:back` ✅ · new `navVisibility`/`Layout` sidebar-visibility test suites (21 tests) ✅ · full frontend suite (1935/1962 passing; the 27 failures are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD before this feature) — all re-run on the merged `production` branch after merge · scope review confirmed only the 8 intended files entered the release · Product Owner Manual Visual Review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `7226882` + tag `stable-sidebar-visibility-management-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,38 @@ in a table cell.
 
 ---
 
-## Latest Release — Payment Voucher Visual Polish & English Localization v1
+## Latest Release — Sidebar Visibility Management v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Sidebar Visibility Management v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-27 |
+| **Feature branch** | `feature/sidebar-visibility-management-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `9053c01` (documentation commit from the prior release) |
+| **Feature commit** | `c75299a` |
+| **Production merge commit** | `7226882` |
+| **Stable tag** | `stable-sidebar-visibility-management-v1` → merge `7226882` (annotated) |
+| **Reviews** | Full audit-first pass (sidebar definition, permission model, existing UI-preference persistence) before design; implementation followed the discovered architecture with no refactor. Product Owner Manual Visual Review of the finished Settings section and live sidebar toggling — **completed & approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · `build:front` ✅ · `build:back` ✅ · new `navVisibility`/`Layout` sidebar-visibility suites (21 tests) ✅ · full frontend suite re-run pre- and post-merge (27 pre-existing baseline failures, unchanged in file and count) ✅ |
+
+**Scope.** New "Sidebar Management" section in Settings (`frontend/src/pages/Settings.tsx`) lets a user show/hide individual sidebar navigation entries. This is a **display preference only**:
+- **Source of truth unchanged** — no second hardcoded nav list. A new pure filtering module (`frontend/src/config/navVisibility.ts`) derives both the Settings toggle list and the actual sidebar render from the single existing `NAV` array in `frontend/src/config/modules.tsx`. Any future addition to `NAV` automatically appears in both places with no manual duplication.
+- **Stable identifiers** — preferences are keyed by each item's existing stable `key` (e.g. `invoices`, `cheques`, `payroll/bank-analytics`), never by translated label, index, or display order, so relabeling or reordering `NAV` never breaks a saved preference.
+- **Permissions strictly outrank the preference** — `visible = (no permission required || user has it) && not hidden`. The Settings toggle list itself is pre-filtered by permission, so a user is never shown a switch for a page they cannot access, and hiding/showing a preference can never reveal a page a permission check would otherwise block.
+- **Persistence** — reuses the exact mechanism already in place for the sidebar collapse/expand preference: a new `hiddenNavKeys` array in the existing `uiStore` Zustand store, backed by `localStorage` (`manarERP.sidebar.hiddenItems`). No new storage mechanism, no schema, no migration, no backend change. Untrusted/corrupt storage sanitizes to "nothing hidden" (today's behavior).
+- **Default behavior** — every existing user sees 100% of today's sidebar unchanged after this release; nothing is hidden by default.
+- **Protected item** — `settings` itself cannot be hidden (its switch is disabled with a "always visible" badge), since it is the only path back to this control; no new route or button was added to work around this.
+- **Empty groups** — a sidebar group left with zero visible items renders no group heading or stray separator, in both the live sidebar and the Settings toggle list; group and item order is otherwise untouched.
+- **"Show all pages"** — a single reset action in the section header restores the default (nothing hidden); disabled when there is nothing to reset.
+- **Currently open page** — hiding the page a user is actively on removes only its sidebar entry; no forced redirect, no loss of in-page state.
+- **i18n** — 8 new dictionary keys (Arabic + English) for the new section's labels; existing `nav.*` labels/icons are reused as-is for the toggle list rows.
+
+**Not changed:** any route definition, any permission key or `requirePermission` guard, RBAC/`rbac.middleware.ts`, business logic in any module, the Prisma schema, any backend endpoint, `preload.ts`/IPC surface, or any other form/page.
+
+---
+
+## Previous Release — Payment Voucher Visual Polish & English Localization v1
 
 | Field | Value |
 |-------|-------|

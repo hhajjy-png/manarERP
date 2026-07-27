@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `e2e29eb` (merge of `feature/payment-voucher-visual-polish-english-localization-v1`, carrying Payment Voucher Visual Polish & English Localization v1) |
-| **Current Documentation Commit** | `0dbbd03` |
-| **Current Stable Tag** | `stable-payment-voucher-visual-polish-english-localization-v1` |
+| **Current Merge Commit** | `7226882` (merge of `feature/sidebar-visibility-management-v1`, carrying Sidebar Visibility Management v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-sidebar-visibility-management-v1` |
 | **Current Release Date** | 2026-07-27 |
-| **Total Stable Releases** | 361 (window 2026-06-07 → 2026-07-27) |
+| **Total Stable Releases** | 362 (window 2026-06-07 → 2026-07-27) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,28 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Sidebar Visibility Management v1** (2026-07-27,
+  `stable-sidebar-visibility-management-v1`) — new "Sidebar Management" section in Settings
+  (`frontend/src/pages/Settings.tsx`) lets a user show/hide individual sidebar navigation
+  entries. Display preference only: a new pure filtering module
+  (`frontend/src/config/navVisibility.ts`) derives both the Settings toggle list and the
+  sidebar's own render from the single existing `NAV` array in
+  `frontend/src/config/modules.tsx` — no second hardcoded nav list. Preferences key off each
+  item's existing stable `key` (never label/index/order), so relabeling or reordering `NAV`
+  never breaks a saved preference. Permissions strictly outrank the preference
+  (`visible = permission-allowed && not hidden`; the toggle list itself is pre-filtered by
+  permission, so a switch is never shown for a page the user cannot access). Persisted via a
+  new `hiddenNavKeys` array on the existing `uiStore` Zustand store, backed by `localStorage`
+  — the same mechanism already used for the sidebar collapse/expand preference; no new storage
+  mechanism, schema, migration, or backend change. Every existing user sees 100% of today's
+  sidebar unchanged by default. `settings` itself cannot be hidden (it is the only path back to
+  this control). A sidebar group left with zero visible items renders no heading; a "Show all
+  pages" action resets to default. No route, permission key, RBAC, business-logic, schema, or
+  backend change of any kind. Frontend and backend `tsc --noEmit`, both production builds, the
+  new 21-test sidebar-visibility suite, and the full frontend suite (pre-existing 27-test
+  baseline unchanged) all passed pre- and post-merge. Product Owner Manual Visual Review —
+  completed & approved.
 
 - **Payment Voucher Visual Polish & English Localization v1** (2026-07-27,
   `stable-payment-voucher-visual-polish-english-localization-v1`) — four small, visual/
