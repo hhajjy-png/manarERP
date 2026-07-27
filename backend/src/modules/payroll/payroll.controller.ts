@@ -28,6 +28,9 @@ export const payrollController = {
   async approve(req: Request, res: Response) {
     ok(res, await payrollService.approve(parsePayrollRouteId(req.params.id), req), 'تم اعتماد الكشف');
   },
+  async unapprove(req: Request, res: Response) {
+    ok(res, await payrollService.unapprove(parsePayrollRouteId(req.params.id), req), 'تم إلغاء اعتماد الكشف');
+  },
   async cancel(req: Request, res: Response) {
     ok(res, await payrollService.cancel(parsePayrollRouteId(req.params.id), req), 'تم إلغاء الكشف');
   },

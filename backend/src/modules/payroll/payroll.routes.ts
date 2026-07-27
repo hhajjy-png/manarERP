@@ -32,6 +32,9 @@ router.post('/advances', requirePermission('payroll.adjust'), validate(payrollAd
 router.put('/:id', requirePermission('payroll.update'), validate(updatePayrollSchema), asyncHandler(payrollController.update));
 router.post('/:id/lines', requirePermission('payroll.adjust'), validate(manualPayrollLineSchema), asyncHandler(payrollController.addManualLine));
 router.patch('/:id/approve', requirePermission('payroll.approve'), asyncHandler(payrollController.approve));
+// إلغاء اعتماد: يُعيد الكشف من APPROVED إلى DRAFT. يستخدم نفس صلاحية الاعتماد —
+// من يملك سلطة الاعتماد يملك سلطة التراجع عنه (نفس منطق expenses.amend/expenses.approve).
+router.patch('/:id/unapprove', requirePermission('payroll.approve'), asyncHandler(payrollController.unapprove));
 router.patch('/:id/cancel', requirePermission('payroll.cancel'), asyncHandler(payrollController.cancel));
 router.patch('/:id/pay', requirePermission('payroll.pay'), validate(payPayrollSchema), asyncHandler(payrollController.markPaid));
 

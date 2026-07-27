@@ -146,6 +146,12 @@ export default function Salaries() {
 
   const [excelBusy, setExcelBusy] = useState(false);
 
+  // ── Multi-select bulk approve/unapprove (Payroll Multi-Select Approval & Unapprove v1) ──
+  // Selection is an id Set independent of the loaded page (mirrors the Cheques batch-selection
+  // pattern) — bulk actions operate on whichever selected ids are currently loaded in `rows`.
+  // Imported salary-transfer rows are structurally read-only and are never selectable.
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
   const canGenerate = hasPermission('payroll.generate') || hasPermission('payroll.create');
   const canApprove = hasPermission('payroll.approve');
   const canPay = hasPermission('payroll.pay');
@@ -244,6 +250,67 @@ export default function Salaries() {
     } finally {
       setBusy(false);
     }
+  }
+
+  const selectableRows = rows.filter((r) => r.source !== 'IMPORTED_TRANSFER');
+  const visibleSelectedCount = selectableRows.filter((r) => selectedIds.has(r.id as number)).length;
+  const allVisibleSelected = selectableRows.length > 0 && visibleSelectedCount === selectableRows.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
+
+  function toggleSelectRow(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllVisible() {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        for (const r of selectableRows) next.delete(r.id as number);
+      } else {
+        for (const r of selectableRows) next.add(r.id as number);
+      }
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
+  // Drives the SAME per-record /approve و /unapprove endpoints the drawer buttons use —
+  // one PATCH per selected id, no bulk endpoint. Never reports plain success if any
+  // item failed; always refreshes rows/stats once, and always clears the selection.
+  async function runBulkPayrollAction(items: PayrollRow[], action: 'approve' | 'unapprove') {
+    setBusy(true);
+    setError('');
+    setMessage('');
+    const results = await Promise.allSettled(items.map((r) => api.patch(`/payroll/${r.id}/${action}`)));
+    const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.length - succeeded;
+    clearSelection();
+    await Promise.all([loadPayroll(), loadStats()]);
+    setBusy(false);
+    const outcome = failed === 0 ? 'success' : succeeded === 0 ? 'failed' : 'partial';
+    const text = t(`msg.payroll.bulk_${action}_${outcome}`, { count: succeeded, success: succeeded, failed, total: items.length });
+    if (outcome === 'success') setMessage(text); else setError(text);
+  }
+
+  function bulkApprove() {
+    if (busy) return;
+    const eligible = rows.filter((r) => selectedIds.has(r.id as number) && r.status === 'DRAFT');
+    if (eligible.length === 0) { setMessage(''); setError(t('msg.payroll.bulk_none_eligible_approve')); return; }
+    runBulkPayrollAction(eligible, 'approve');
+  }
+
+  function bulkUnapprove() {
+    if (busy) return;
+    const eligible = rows.filter((r) => selectedIds.has(r.id as number) && r.status === 'APPROVED');
+    if (eligible.length === 0) { setMessage(''); setError(t('msg.payroll.bulk_none_eligible_unapprove')); return; }
+    runBulkPayrollAction(eligible, 'unapprove');
   }
 
   async function generatePayroll() {
@@ -388,6 +455,20 @@ export default function Salaries() {
             </div>
           </div>
 
+          {/* Selection toolbar — shown once at least one eligible row is checked. Bulk
+              actions drive the SAME single-record /approve و /unapprove endpoints the
+              drawer buttons use, once per selected id — no new bulk endpoint. */}
+          {(canApprove) && selectedIds.size > 0 && (
+            <div className="salx-batch-bar">
+              <span className="material-symbols-outlined" aria-hidden="true">checklist</span>
+              <span>{t('msg.payroll.selected_count', { count: selectedIds.size })}</span>
+              <div className="salx-toolbar-sep" aria-hidden="true" />
+              <Button variant="primary" icon="verified" busy={busy} onClick={bulkApprove}>{t('page.salaries.approve_btn')}</Button>
+              <Button variant="secondary" icon="lock_open" busy={busy} onClick={bulkUnapprove}>{t('page.salaries.unapprove_btn')}</Button>
+              <Button variant="ghost" icon="close" onClick={clearSelection} style={{ marginInlineStart: 'auto' }}>{t('action.clear_selection')}</Button>
+            </div>
+          )}
+
           <section className="xpl-card" style={{ overflow: 'hidden' }}>
             {loading ? (
               <div style={{ padding: 16 }}><SkeletonRows rows={6} /></div>
@@ -400,6 +481,17 @@ export default function Salaries() {
                   <table className="xpl-table">
                     <thead>
                       <tr>
+                        {canApprove && (
+                          <th style={{ width: 36, textAlign: 'center' }}>
+                            <input
+                              type="checkbox"
+                              checked={allVisibleSelected}
+                              ref={(el) => { if (el) el.indeterminate = someVisibleSelected; }}
+                              onChange={toggleSelectAllVisible}
+                              aria-label={t('a11y.salary_select_all')}
+                            />
+                          </th>
+                        )}
                         <SortableHeader label={t('col.sal.employee')} title={t('col.sal.employee')} state={sort.getState('employee')} onToggle={() => sort.toggle('employee')} />
                         <SortableHeader label={t('col.sal.period')} title={t('col.sal.period')} state={sort.getState('period')} onToggle={() => sort.toggle('period')} />
                         <SortableHeader label={fcMoneyHeader(t('col.sal.base'))} title={t('col.sal.base')} state={sort.getState('base')} onToggle={() => sort.toggle('base')} />
@@ -413,11 +505,25 @@ export default function Salaries() {
                     <tbody>
                       {rows.map((r) => {
                         const imported = r.source === 'IMPORTED_TRANSFER';
+                        const rowId = r.id as number;
+                        const selected = !imported && selectedIds.has(rowId);
                         return (
-                        <tr key={r.id} className="xpl-row--click" tabIndex={0} role="button"
+                        <tr key={r.id} className={`xpl-row--click${selected ? ' salx-row--selected' : ''}`} tabIndex={0} role="button"
                           aria-label={t('a11y.salary_details', { name: r.employee?.fullName ?? '' })}
                           onClick={() => setViewing(r)}
                           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(r); } }}>
+                          {canApprove && (
+                            <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                              {!imported && (
+                                <input
+                                  type="checkbox"
+                                  checked={selected}
+                                  onChange={() => toggleSelectRow(rowId)}
+                                  aria-label={t('a11y.salary_select_row', { name: r.employee?.fullName ?? '' })}
+                                />
+                              )}
+                            </td>
+                          )}
                           <td>
                             <strong>{r.employee?.fullName}</strong>
                             {imported && <span style={{ marginInlineStart: 8, verticalAlign: 'middle' }}><StatusChip tone="indigo" icon="history">{t('status.imported_transfer')}</StatusChip></span>}
@@ -518,6 +624,7 @@ export default function Salaries() {
               <>
                 {canPayslip && <Button variant="secondary" icon="receipt_long" onClick={() => navigate(`/payroll/${viewing.id}/payslip`)}>{t('page.salaries.payslip')}</Button>}
                 {canApprove && viewing.status === 'DRAFT' && <Button variant="primary" icon="verified" busy={busy} onClick={() => { const id = viewing.id; setViewing(null); runAction(() => api.patch(`/payroll/${id}/approve`)); }}>{t('page.salaries.approve_btn')}</Button>}
+                {canApprove && viewing.status === 'APPROVED' && <Button variant="secondary" icon="lock_open" busy={busy} onClick={() => { const id = viewing.id; setViewing(null); runAction(() => api.patch(`/payroll/${id}/unapprove`)); }}>{t('page.salaries.unapprove_btn')}</Button>}
                 {canCancel && ['DRAFT', 'APPROVED'].includes(viewing.status) && <Button variant="danger" icon="block" busy={busy} onClick={() => { const id = viewing.id; setViewing(null); runAction(() => api.patch(`/payroll/${id}/cancel`)); }}>{t('page.salaries.cancel_btn')}</Button>}
               </>
               )

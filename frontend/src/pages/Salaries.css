@@ -33,6 +33,25 @@
 /* pay-method block inside the drawer */
 .salx-pay { display: flex; flex-direction: column; gap: 8px; }
 
+/* Multi-select bulk approve/unapprove bar (Payroll Multi-Select Approval & Unapprove v1). */
+.salx-batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: var(--xpl-surface);
+  border: 1px solid var(--xpl-border);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--xpl-text);
+}
+.salx-batch-bar .material-symbols-outlined { font-size: 18px; color: var(--xpl-primary); }
+.salx-toolbar-sep { width: 1px; align-self: stretch; min-height: 26px; margin-inline: 6px; background: var(--xpl-border); }
+.salx-row--selected { background: rgba(59, 130, 246, .07); }
+
 /* ── Payroll Bank Export (.pbx-*) — NBK salary file. Theme-tokened (dark-safe), RTL. ── */
 .pbx-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .pbx-controls .xpl-field { min-width: 160px; }
