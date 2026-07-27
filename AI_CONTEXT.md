@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `867b93f` (merge of `feature/payroll-multi-select-approval-unapprove-v1`, carrying Payroll Multi-Select Approval & Unapprove v1) |
-| **Current Documentation Commit** | `6c27474` |
-| **Current Stable Tag** | `stable-payroll-multi-select-approval-unapprove-v1` |
+| **Current Merge Commit** | `8ad5e6b` (merge of `feature/nbk-salary-export-native-xls-v1`, carrying NBK Salary Export — Native XLS Generation v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-nbk-salary-export-native-xls-v1` |
 | **Current Release Date** | 2026-07-27 |
-| **Total Stable Releases** | 359 (window 2026-06-07 → 2026-07-27) |
+| **Total Stable Releases** | 360 (window 2026-06-07 → 2026-07-27) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,32 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **NBK Salary Export — Native XLS Generation v1** (2026-07-27,
+  `stable-nbk-salary-export-native-xls-v1`) — replaces SheetJS as the final writer for the
+  NBK bank salary export ONLY (every other Excel export untouched) with native Microsoft
+  Excel COM automation, fixing an Office File Validation Protected View warning that every
+  SheetJS-generated NBK `.xls` triggered regardless of input quality — proven across three
+  diagnostic rounds: a native-Excel-COM control file opened clean while the SheetJS output
+  didn't; patching the CFB root-entry name/CLSID alone was insufficient; feeding the
+  pristine bank-provided original workbook through SheetJS still triggered the warning,
+  isolating SheetJS's `write_biff8` itself as the sole cause. New canonical, PII-free
+  template (`backend/assets/nbk-export/NBK_Salary_Native_Template.xls`, built from the
+  archived original via Excel COM with all 17 historical rows removed and doc metadata
+  stripped — verified 0/17 name/Civil-Id/account leaks before shipping) plus a PowerShell
+  COM writer (`generate-nbk-xls.ps1`) that always creates its own Excel instance (never
+  attaches to or kills an existing/interactive Excel process by name), validates the
+  template's sheets/headers by name and fails closed on any mismatch, and always
+  `Quit()`s/releases COM via `try/finally`. `PayrollBankExport.tsx` calls the native bridge
+  first and never falls back to SheetJS on failure — the old SheetJS path stays reachable
+  only when `window.manar` is entirely absent, proven structurally impossible in the
+  packaged app (the preload script that defines it is attached unconditionally to the only
+  window that ever loads the React bundle). No payroll/accounting/GL/Prisma changes.
+  Backend/frontend/electron `tsc --noEmit`, electron NBK tests (13), frontend NBK tests
+  (15, including a dedicated no-silent-fallback safety test), and the full backend
+  payroll/payrollBankExport suite (200 tests) all passed. Product Owner manual
+  visual/security review in Microsoft Excel — completed & approved, Protected View
+  confirmed absent.
 
 - **Payroll Multi-Select Approval & Unapprove v1** (2026-07-27,
   `stable-payroll-multi-select-approval-unapprove-v1`) — checkbox multi-select on the payroll table

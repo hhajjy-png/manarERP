@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `867b93f` — release `stable-payroll-multi-select-approval-unapprove-v1` (Payroll Multi-Select Approval & Unapprove v1 — checkbox multi-select + bulk/individual unapprove on the payroll table; no accounting/GL, schema, or migration changes) |
+| **Production HEAD** | `8ad5e6b` — release `stable-nbk-salary-export-native-xls-v1` (NBK Salary Export — Native XLS Generation v1 — replaces SheetJS with native Excel COM automation as the final NBK .xls writer, fixing the Office File Validation Protected View warning; no payroll/accounting/GL/schema changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-payroll-multi-select-approval-unapprove-v1` (release date 2026-07-27) → merge `867b93f` |
-| **Previous stable tag** | `stable-repository-cleanup-documentation-tooling-pack-v1` (2026-07-27) → merge `beb5760` |
-| **Total stable releases** | 359 (all merged onto `production`; window 2026-06-07 → 2026-07-27) |
-| **Latest validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · backend payroll test suite (11 files, 200 tests) ✅ — all re-run on the merged `production` branch after merge · full `git diff` scope review confirmed only the 6 intended files (`payroll.routes.ts`, `payroll.controller.ts`, `payroll.service.ts`, `Salaries.tsx`, `Salaries.css`, `i18n.ts`) entered the release, zero unrelated/WIP changes · Product Owner visual review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `867b93f` + tag `stable-payroll-multi-select-approval-unapprove-v1`) |
+| **Latest stable tag** | `stable-nbk-salary-export-native-xls-v1` (release date 2026-07-27) → merge `8ad5e6b` |
+| **Previous stable tag** | `stable-payroll-multi-select-approval-unapprove-v1` (2026-07-27) → merge `867b93f` |
+| **Total stable releases** | 360 (all merged onto `production`; window 2026-06-07 → 2026-07-27) |
+| **Latest validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · electron NBK test suite (13 tests) ✅ · frontend NBK test suite (15 tests, incl. no-silent-SheetJS-fallback safety test) ✅ · backend payroll/payrollBankExport suite (200 tests) ✅ — all re-run on the merged `production` branch after merge · full `git diff` scope review confirmed only the 12 intended files entered the release · canonical template re-verified PII-free (0/17 name, 0/17 Civil Id, 0/17 account/IBAN leaks) immediately before merge · Product Owner manual visual/security review in Microsoft Excel — **completed & approved** (Protected View confirmed absent) |
+| **Remote sync** | `origin/production` — pushed with this release (merge `8ad5e6b` + tag `stable-nbk-salary-export-native-xls-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,35 @@ in a table cell.
 
 ---
 
-## Latest Release — Payroll Multi-Select Approval & Unapprove v1
+## Latest Release — NBK Salary Export — Native XLS Generation v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | NBK Salary Export — Native XLS Generation v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-27 |
+| **Feature branch** | `feature/nbk-salary-export-native-xls-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `fb1ecb1` (documentation commit from the prior release) |
+| **Feature commit** | `e7992a8` |
+| **Production merge commit** | `8ad5e6b` |
+| **Stable tag** | `stable-nbk-salary-export-native-xls-v1` → merge `8ad5e6b` (annotated) |
+| **Reviews** | Multi-round diagnostic investigation (A/B testing against a native-Excel-COM control file, then against the bank-provided original workbook) proved the root cause: SheetJS's BIFF8 writer produces a structurally non-conformant OLE2/CFB container that trips Microsoft Office File Validation, regardless of input quality — even when fed the pristine original NBK workbook. Product Owner manual visual/security review of the production-path test file in Microsoft Excel — **completed & approved**, Protected View confirmed absent. |
+| **Validation** | backend/frontend/electron `tsc --noEmit` ✅ · electron NBK test suite (13 tests: payload mapping, serial-number preservation, variable row counts, fail-closed template validation, BOM-safe result parsing, every error code) ✅ · frontend NBK test suite (15 tests, incl. a dedicated safety test proving no silent fallback to SheetJS when the native bridge fails) ✅ · backend payroll/payrollBankExport suite (200 tests) ✅ |
+
+**Scope.** Replaces SheetJS as the FINAL writer for the NBK bank salary export only (every other Excel export in the app — Reports, other bank profiles — is untouched) with native Microsoft Excel COM automation:
+- `backend/assets/nbk-export/NBK_Salary_Native_Template.xls` — a canonical, PII-free template built from the bank-provided original (`Salary_File.xls`, held only in a local archive outside the repository) via Excel COM: all 17 historical employee rows removed, document metadata stripped. Verified column-by-column against the original before shipping: 0/17 name, 0/17 Civil Id, 0/17 account/IBAN leaks. Structure (2 sheets, order, 7 exact headers, column widths, Bank Codes' 26 rows) preserved byte-for-byte in shape.
+- `backend/assets/nbk-export/generate-nbk-xls.ps1` — the Excel COM writer. Always creates its **own** `Excel.Application` instance (never attaches to or enumerates an existing/interactive Excel session by process name), validates the template's sheet names and all 7 headers **by name** before writing (fails closed with a typed error on any mismatch, writing nothing), and always `Quit()`s/releases the COM object via `try/finally` regardless of outcome.
+- `electron/services/nbkXlsExport.{pure,service}.ts` — a pure, electron-independent payload/result-parsing layer (unit-tested under `vitest.electron.config.ts` without an Electron runtime) plus the orchestration layer: an isolated temp working directory per export, a 45s timeout that only ever terminates the spawned `powershell.exe` child (never Excel), and six typed error codes (`EXCEL_COM_UNAVAILABLE`, `TEMPLATE_MISSING`, `TEMPLATE_STRUCTURE_INVALID`, `GENERATION_FAILED`, `OUTPUT_INVALID`, `TIMEOUT`) each with a stable Arabic message.
+- `electron/ipc/nbkExport.ipc.ts` — thin IPC handler gated on the existing `payroll.read` permission.
+- `PayrollBankExport.tsx` calls the native bridge first; on failure it shows the error and never falls back to SheetJS. The old SheetJS path (`payrollBankExportXls.ts`, untouched) remains reachable only when `window.manar` is entirely absent — proven structurally impossible in the packaged app: `mainWindow.ts` attaches `preload.js` unconditionally for the single window that ever loads the React bundle (in both dev and packaged production), and `preload.ts` defines `generateNbkSalaryXls` unconditionally.
+
+**Root cause (proven across three diagnostic rounds).** The Office File Validation Protected View warning was proven to originate in SheetJS's own BIFF8 writer (`xlsx` npm package, `write_biff8`), not in this project's integration code, the embedded template, file/MIME/extension handling, Blob/download mechanics, or Mark-of-the-Web/Windows trust metadata (no `Zone.Identifier` was ever present). A manual Excel A/B test with a native-Excel-COM control file (no warning) vs. the SheetJS output (warning) first isolated the writer as the cause; a second round proved patching the CFB root-entry name and CLSID alone was insufficient; a third round — feeding the pristine bank-provided original workbook itself through SheetJS — proved the warning persists even with perfect input, confirming the writer itself as the sole cause.
+
+**Not changed:** payroll calculation, deductions, allowances, payment-method logic; approve/unapprove business rules; accounting/GL posting; any Prisma schema, migration, or permission-matrix seed data; any other Excel export in the app; Excel/Windows Trust Center, Protected View, Office File Validation, or Windows Attachment Manager settings (the fix works because the generated file is structurally valid, not because any security setting was weakened).
+
+---
+
+## Previous Release — Payroll Multi-Select Approval & Unapprove v1
 
 | Field | Value |
 |-------|-------|
