@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `8ad5e6b` — release `stable-nbk-salary-export-native-xls-v1` (NBK Salary Export — Native XLS Generation v1 — replaces SheetJS with native Excel COM automation as the final NBK .xls writer, fixing the Office File Validation Protected View warning; no payroll/accounting/GL/schema changes) |
+| **Production HEAD** | `e2e29eb` — release `stable-payment-voucher-visual-polish-english-localization-v1` (Payment Voucher Visual Polish & English Localization v1 — title box/amount color polish, logo header recolor + symmetric width fix, English localization of 7 payment-method/bank labels; no business logic/data/backend/schema changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-nbk-salary-export-native-xls-v1` (release date 2026-07-27) → merge `8ad5e6b` |
-| **Previous stable tag** | `stable-payroll-multi-select-approval-unapprove-v1` (2026-07-27) → merge `867b93f` |
-| **Total stable releases** | 360 (all merged onto `production`; window 2026-06-07 → 2026-07-27) |
-| **Latest validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · electron NBK test suite (13 tests) ✅ · frontend NBK test suite (15 tests, incl. no-silent-SheetJS-fallback safety test) ✅ · backend payroll/payrollBankExport suite (200 tests) ✅ — all re-run on the merged `production` branch after merge · full `git diff` scope review confirmed only the 12 intended files entered the release · canonical template re-verified PII-free (0/17 name, 0/17 Civil Id, 0/17 account/IBAN leaks) immediately before merge · Product Owner manual visual/security review in Microsoft Excel — **completed & approved** (Protected View confirmed absent) |
-| **Remote sync** | `origin/production` — pushed with this release (merge `8ad5e6b` + tag `stable-nbk-salary-export-native-xls-v1`) |
+| **Latest stable tag** | `stable-payment-voucher-visual-polish-english-localization-v1` (release date 2026-07-27) → merge `e2e29eb` |
+| **Previous stable tag** | `stable-nbk-salary-export-native-xls-v1` (2026-07-27) → merge `8ad5e6b` |
+| **Total stable releases** | 361 (all merged onto `production`; window 2026-06-07 → 2026-07-27) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · frontend `paymentVoucherBatchSafety` test suite (8 tests) ✅ · `git diff --check` ✅ — all re-run on the merged `production` branch after merge · full `git diff` scope review confirmed only the 2 intended files (`PaymentVoucherTemplate.tsx`, `FormHeader.tsx`) entered the release · confirmed `useLogoHeader` (and therefore the recolored/widened `FormHeader.tsx` logo branch) has exactly one consumer project-wide (`PaymentVoucher.tsx`), so no other form is affected · Product Owner Manual Visual Review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `e2e29eb` + tag `stable-payment-voucher-visual-polish-english-localization-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,32 @@ in a table cell.
 
 ---
 
-## Latest Release — NBK Salary Export — Native XLS Generation v1
+## Latest Release — Payment Voucher Visual Polish & English Localization v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Payment Voucher Visual Polish & English Localization v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-27 |
+| **Feature branch** | `feature/payment-voucher-visual-polish-english-localization-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `91bcd26` (documentation commit from the prior release) |
+| **Feature commit** | `f979a4a` |
+| **Production merge commit** | `e2e29eb` |
+| **Stable tag** | `stable-payment-voucher-visual-polish-english-localization-v1` → merge `e2e29eb` (annotated) |
+| **Reviews** | Iterative visual refinement across the session (title box background, amount color, logo recolor/width, English localization), each step verified with `tsc --noEmit` and, for the logo width fix, a live Chrome DevTools measurement/screenshot pass before being applied. Product Owner Manual Visual Review of the finished Payment Voucher (both languages) — **completed & approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ · frontend `paymentVoucherBatchSafety` test suite (8 tests) ✅ · `git diff --check` ✅ |
+
+**Scope.** Four small, visual/presentation-only changes to the Payment Voucher form (`frontend/src/forms/PaymentVoucherTemplate.tsx`, `frontend/src/forms/shared/FormHeader.tsx`):
+- **Title box background** — the "سند صرف / PAYMENT VOUCHER" title box now uses the exact same background shade as the "المستفيد" (Beneficiary) field label (`#eef0fb`), with its text recolored to the form's brand navy/purple (`#2b2e83`) for contrast.
+- **Amount-in-figures color** — switched from red (`#b71c1c`) to the form's brand navy/purple (`#2b2e83`); formatting, currency suffix, background, size, weight, and alignment all unchanged.
+- **Logo header** — `logohead.png` (mark + Arabic/English wordmark, one combined image) is recolored via an SVG `feColorMatrix` filter to the same brand navy/purple, and its display width is scaled up symmetrically (verified via a live Chrome DevTools measurement/screenshot pass, not guessed) so the visible artwork reaches the same left/right bounds as the form's content below — compensating for a large blank margin baked into the source PNG. The source file itself is untouched; only the CSS rendering changes. `useLogoHeader` (the prop that activates this branch of the shared `FormHeader.tsx`) has exactly one consumer project-wide — `PaymentVoucher.tsx` — confirmed by grep immediately before release, so no other form is visually affected.
+- **English localization** — when `lang === 'en'`: `د.ك`→`KWD`, `نقداً`→`Cash`, `شيك`→`Cheque` (via existing `t('opt.payment.cheque', lang)`), `تحويل`→`Transfer` (via existing `t('opt.payment.transfer', lang)`), `البنك:`→`Bank:` (via existing `t('lbl.bank_colon', lang)`), `رقم الشيك:`→`Cheque No.:`, and the dynamic bank name (e.g. `بنك الخليج`→`Gulf Bank`) via the existing `bankLabel()` presentation-only lookup from `utils/chequeTemplate.ts` — the stored `bankName` value itself is never modified. The Arabic output is unchanged byte-for-byte (verified via direct Unicode comparison before reusing any existing i18n key; the three strings without an exact byte-identical existing key — `نقداً`, `رقم الشيك:`, `د.ك` — use an inline literal instead of risking a diacritic-order mismatch from the nearest dictionary entry).
+
+**Not changed:** payment voucher business logic, calculations, save mechanics, approval workflow, or stored data; user permissions; API/backend; Prisma schema or migrations; accounting/GL; core print logic; any other form (only `PaymentVoucher.tsx`'s `useLogoHeader` branch of the shared `FormHeader.tsx` is exercised today).
+
+---
+
+## Previous Release — NBK Salary Export — Native XLS Generation v1
 
 | Field | Value |
 |-------|-------|
