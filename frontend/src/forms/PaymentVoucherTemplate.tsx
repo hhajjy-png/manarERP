@@ -1,6 +1,8 @@
 import { CSSProperties, useMemo } from 'react';
 import { amountToWordsKWD } from '../lib/tafqeet';
 import { formatNumber } from '../lib/format';
+import { t } from '../lib/i18n';
+import { bankLabel } from '../utils/chequeTemplate';
 
 interface Props {
   voucherNumber: string;
@@ -86,11 +88,11 @@ export default function PaymentVoucherTemplate({
 
   return (
     <div style={{ fontFamily: '"Cairo", Arial, sans-serif', direction: isEn ? 'ltr' : 'rtl' }}>
-      {/* Blue title box */}
+      {/* Title box */}
       <div
         style={{
-          background: BRAND,
-          color: '#fff',
+          background: '#eef0fb',
+          color: BRAND,
           textAlign: 'center',
           padding: '8px 12px',
           borderRadius: 7,
@@ -140,12 +142,12 @@ export default function PaymentVoucherTemplate({
                 fontWeight: 700,
                 fontSize: 15,
                 textAlign: 'center',
-                color: AMOUNT_RED,
+                color: BRAND,
                 WebkitPrintColorAdjust: 'exact',
                 printColorAdjust: 'exact',
               }}
             >
-              {amountDisplay} د.ك
+              {amountDisplay} {isEn ? 'KWD' : 'د.ك'}
             </td>
           </tr>
           <tr>
@@ -173,16 +175,16 @@ export default function PaymentVoucherTemplate({
             </td>
             <td style={tdBase}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', fontSize: 12 }}>
-                <span><span style={checkbox} /> نقداً</span>
+                <span><span style={checkbox} /> {isEn ? 'Cash' : 'نقداً'}</span>
                 <span style={{ color: BRAND, fontWeight: 700 }}>
-                  <span style={checkboxChecked} /> شيك
+                  <span style={checkboxChecked} /> {t('opt.payment.cheque', lang)}
                 </span>
-                <span><span style={checkbox} /> تحويل</span>
+                <span><span style={checkbox} /> {t('opt.payment.transfer', lang)}</span>
                 <span style={{ color: '#555' }}>
-                  البنك: <span style={{ ...dotLine, minWidth: 60 }}>{bankName}</span>
+                  {t('lbl.bank_colon', lang)} <span style={{ ...dotLine, minWidth: 60 }}>{bankLabel(bankName, (k) => t(k, lang))}</span>
                 </span>
                 <span style={{ color: '#555' }}>
-                  رقم الشيك: <span style={{ ...dotLine, minWidth: 60 }}>{chequeNumber}</span>
+                  {isEn ? 'Cheque No.:' : 'رقم الشيك:'} <span style={{ ...dotLine, minWidth: 60 }}>{chequeNumber}</span>
                 </span>
               </div>
             </td>
