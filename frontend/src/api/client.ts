@@ -136,6 +136,18 @@ declare global {
         requiresRestart?: boolean;
         backendRestarted?: boolean;
       }>;
+
+      // ─── NBK Salary Export — Native XLS Generation v1 ──────────────────────────
+      /** Optional: absent on an older preload build — every caller must guard and
+       *  fall back to the SheetJS dev path (see payrollBankExportXls.ts). */
+      generateNbkSalaryXls?: (
+        sheets: Array<{ name: string; columns: { header: string; key: string }[]; rows: Array<Record<string, string | number>> }>,
+      ) => Promise<{
+        success: boolean;
+        bytes?: Uint8Array;
+        error?: string;
+        errorCode?: string;
+      }>;
     };
   }
 }

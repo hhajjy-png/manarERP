@@ -4,7 +4,8 @@ import {
   getExportProfiles, getExportPreview,
   type PayrollBankExportResult, type ExportProfileInfo,
 } from '../../api/payrollBankExport';
-import { downloadBankExportXls } from '../../utils/payrollBankExportXls';
+import { downloadBankExportXls, bankExportFileName } from '../../utils/payrollBankExportXls';
+import { downloadBlob } from '../../utils/exportUtils';
 import { ARABIC_MONTHS, billingYearOptions } from '../../utils/dateUtils';
 import { formatNumber } from '../../lib/format';
 import { money } from '../../config/modules';
@@ -14,9 +15,17 @@ import { SectionCard, Button, ErrorBanner, EmptyState, SkeletonRows } from '../e
 // ─────────────────────────────────────────────────────────────────────────
 //  Payroll Bank Export — generate a bank-ready monthly salary transfer file
 //  from an APPROVED payroll month. v1: NBK Salary XLS only. Read-only: it never
-//  mutates payroll/approval/accounting — it previews server-validated rows and
-//  serialises them to a legacy .xls on the client. Isolated component so other
-//  bank profiles slot in without touching payroll logic. Arabic / RTL / dark.
+//  mutates payroll/approval/accounting — it previews server-validated rows.
+//  Isolated component so other bank profiles slot in without touching payroll logic.
+//  Arabic / RTL / dark.
+//
+//  NBK Salary Export — Native XLS Generation v1: the final .xls is generated through
+//  native Microsoft Excel COM automation (Electron main, `window.manar.generateNbkSalaryXls`)
+//  instead of SheetJS — a manual Microsoft Excel A/B test proved SheetJS's BIFF8 writer
+//  triggers Office File Validation's Protected View warning, while native Excel COM
+//  output does not. `downloadBankExportXls` (SheetJS) is kept ONLY as the fallback for
+//  environments without the Electron bridge (plain browser dev preview) — it is never
+//  used as a silent fallback when the native path is available but fails.
 // ─────────────────────────────────────────────────────────────────────────
 
 export default function PayrollBankExport() {
@@ -28,6 +37,7 @@ export default function PayrollBankExport() {
   const [year, setYear] = useState(now.getFullYear());
   const [result, setResult] = useState<PayrollBankExportResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -45,8 +55,37 @@ export default function PayrollBankExport() {
     }
   }
 
-  function generate() {
-    if (result && result.valid) downloadBankExportXls(result);
+  async function generate() {
+    if (!result || !result.valid || generating) return;
+
+    // Native path (Electron): Microsoft Excel COM automation — proven to avoid the
+    // Protected View / Office File Validation warning that SheetJS's BIFF8 writer
+    // triggers. On failure, surface the error — NEVER silently fall back to SheetJS
+    // and hand the user a file already known to trigger that warning.
+    if (window.manar?.generateNbkSalaryXls) {
+      setGenerating(true);
+      setError('');
+      try {
+        const res = await window.manar.generateNbkSalaryXls(result.sheets);
+        if (!res.success || !res.bytes) {
+          setError(res.error || t('payroll_bank.export.generation_failed'));
+          return;
+        }
+        // IPC bytes may be typed over ArrayBufferLike — normalize to a plain
+        // ArrayBuffer-backed Uint8Array first (same fix as WysiwygPreviewPocDialog.tsx).
+        const bytes = new Uint8Array(res.bytes);
+        const blob = new Blob([bytes], { type: 'application/vnd.ms-excel' });
+        downloadBlob(blob, bankExportFileName(result));
+      } finally {
+        setGenerating(false);
+      }
+      return;
+    }
+
+    // Dev/browser fallback only — no Electron bridge available at all (e.g. plain
+    // `npm run dev:front` preview outside Electron), matching this project's existing
+    // convention for every other window.manar?.export* bridge call.
+    downloadBankExportXls(result);
   }
 
   const details = result?.sheets.find((s) => s.name === 'Salary Details');
@@ -116,7 +155,7 @@ export default function PayrollBankExport() {
               <span className="pbx-total-label">{t('payroll_bank.export.total.total_salaries')}</span>
               <span className="pbx-total-value">{money(result.summary.totalAmount)}</span>
             </div>
-            <Button variant="primary" icon="download" onClick={generate} disabled={!result.valid}>
+            <Button variant="primary" icon="download" busy={generating} onClick={generate} disabled={!result.valid || generating}>
               {t('payroll_bank.export.generate_btn')}
             </Button>
           </div>
