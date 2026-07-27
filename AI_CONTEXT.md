@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `e2e29eb` (merge of `feature/payment-voucher-visual-polish-english-localization-v1`, carrying Payment Voucher Visual Polish & English Localization v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `0dbbd03` |
 | **Current Stable Tag** | `stable-payment-voucher-visual-polish-english-localization-v1` |
 | **Current Release Date** | 2026-07-27 |
 | **Total Stable Releases** | 361 (window 2026-06-07 → 2026-07-27) |
