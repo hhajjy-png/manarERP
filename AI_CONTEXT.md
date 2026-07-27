@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `beb5760` (merge of `feature/repo-cleanup-docs-tooling-v1`, carrying Repository Cleanup, Documentation & Tooling Pack v1) |
-| **Current Documentation Commit** | `319e581` |
-| **Current Stable Tag** | `stable-repository-cleanup-documentation-tooling-pack-v1` |
+| **Current Merge Commit** | `867b93f` (merge of `feature/payroll-multi-select-approval-unapprove-v1`, carrying Payroll Multi-Select Approval & Unapprove v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-payroll-multi-select-approval-unapprove-v1` |
 | **Current Release Date** | 2026-07-27 |
-| **Total Stable Releases** | 358 (window 2026-06-07 → 2026-07-27) |
+| **Total Stable Releases** | 359 (window 2026-06-07 → 2026-07-27) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,23 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Payroll Multi-Select Approval & Unapprove v1** (2026-07-27,
+  `stable-payroll-multi-select-approval-unapprove-v1`) — checkbox multi-select on the payroll table
+  (`Salaries.tsx`): header checkbox selects all eligible **visible** rows, imported/read-only rows are
+  never selectable. A selection toolbar drives the SAME per-record `/approve` endpoint for bulk approval
+  (one PATCH per id via `Promise.allSettled`, no new bulk endpoint) — selecting one row behaves exactly
+  like the pre-existing single-record button. New backend action `PATCH /payroll/:id/unapprove` reuses the
+  `payroll.approve` permission (mirrors `expenses.amend`/`expenses.approve`) and reverts APPROVED → DRAFT
+  only (rejects DRAFT/PAID/CANCELLED), clearing `approvedAt`/`approvedById` in a transaction with
+  `approvalEngine.recordTransition` + an audit log entry — no GL reversal needed since payroll approval
+  itself never posts a journal entry. Frontend adds an individual drawer "إلغاء الاعتماد" button plus the
+  bulk bar (same labels/icons as existing actions). Bulk results never report silent partial success — full
+  success shows green, anything else shows a red banner with success/failed counts; table/stats always
+  refresh once, selection always clears, and the existing page-wide `busy` flag blocks repeated clicks. No
+  Prisma schema/migration/permission-matrix changes. Backend `tsc --noEmit`, frontend `tsc --noEmit`, and
+  the full payroll test suite (200 tests) passed both pre-merge and post-merge. Product Owner visual review
+  — completed & approved.
 
 - **Repository Cleanup, Documentation & Tooling Pack v1** (2026-07-27,
   `stable-repository-cleanup-documentation-tooling-pack-v1`) — docs/tooling-only release, zero business

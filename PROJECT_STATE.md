@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `beb5760` — release `stable-repository-cleanup-documentation-tooling-pack-v1` (Repository Cleanup, Documentation & Tooling Pack v1 — docs/tooling-only pack; no business logic, API, schema, or runtime changes) |
+| **Production HEAD** | `867b93f` — release `stable-payroll-multi-select-approval-unapprove-v1` (Payroll Multi-Select Approval & Unapprove v1 — checkbox multi-select + bulk/individual unapprove on the payroll table; no accounting/GL, schema, or migration changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-repository-cleanup-documentation-tooling-pack-v1` (release date 2026-07-27) → merge `beb5760` |
-| **Previous stable tag** | `stable-ui-controls-consistency-topbar-refresh-pack-v1` (2026-07-26) → merge `54f2846` |
-| **Total stable releases** | 358 (all merged onto `production`; window 2026-06-07 → 2026-07-27) |
-| **Latest validation** | full pre-release scope audit: `git diff --name-status production...HEAD` (125 files, 100% within approved documentation/tooling scope, zero frontend/backend/electron/Prisma files) · `git diff --check` clean (no conflict markers; only pre-existing doc/HTML trailing-whitespace) · Product Owner explicit authorization for direct production release (docs/tooling-only pack, no UI surface to visually review) |
-| **Remote sync** | `origin/production` — pushed with this release (merge `beb5760` + tag `stable-repository-cleanup-documentation-tooling-pack-v1`) |
+| **Latest stable tag** | `stable-payroll-multi-select-approval-unapprove-v1` (release date 2026-07-27) → merge `867b93f` |
+| **Previous stable tag** | `stable-repository-cleanup-documentation-tooling-pack-v1` (2026-07-27) → merge `beb5760` |
+| **Total stable releases** | 359 (all merged onto `production`; window 2026-06-07 → 2026-07-27) |
+| **Latest validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · backend payroll test suite (11 files, 200 tests) ✅ — all re-run on the merged `production` branch after merge · full `git diff` scope review confirmed only the 6 intended files (`payroll.routes.ts`, `payroll.controller.ts`, `payroll.service.ts`, `Salaries.tsx`, `Salaries.css`, `i18n.ts`) entered the release, zero unrelated/WIP changes · Product Owner visual review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `867b93f` + tag `stable-payroll-multi-select-approval-unapprove-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Repository Cleanup, Documentation & Tooling Pack v1
+## Latest Release — Payroll Multi-Select Approval & Unapprove v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Payroll Multi-Select Approval & Unapprove v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-27 |
+| **Feature branch** | `feature/payroll-multi-select-approval-unapprove-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `135a961` (documentation commit from the prior release) |
+| **Feature commit** | `1384939` |
+| **Production merge commit** | `867b93f` |
+| **Stable tag** | `stable-payroll-multi-select-approval-unapprove-v1` → merge `867b93f` (annotated) |
+| **Reviews** | Product Owner visual review — **completed & approved**. |
+| **Validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · backend payroll test suite (11 files, 200 tests) ✅ — all re-run twice (pre-merge on the feature branch, post-merge on `production`) |
+
+**Scope.** Checkbox-based multi-select on the payroll table (`Salaries.tsx`): a header checkbox selects/deselects all eligible **visible** rows (current page only, mirrors the existing Cheques batch-selection pattern), row checkboxes are omitted for read-only `IMPORTED_TRANSFER` rows. A selection toolbar appears once at least one row is checked, driving the **same** per-record endpoints the drawer already used — one `PATCH /payroll/:id/approve` or `/unapprove` per selected id via `Promise.allSettled`, no new bulk endpoint. Selecting exactly one row behaves identically to the pre-existing single-record drawer button (same label, same call).
+
+**Backend — new `unapprove` action.** `PATCH /payroll/:id/unapprove` reuses the existing `payroll.approve` permission (mirrors how `expenses.amend` reuses `expenses.approve` — whoever can approve can revert it) and reverts `APPROVED → DRAFT` only, rejecting `DRAFT` (already draft), `PAID`, and `CANCELLED` with explicit Arabic error messages. Runs inside a Prisma transaction: clears `approvedAt`/`approvedById`, calls `approvalEngine.recordTransition` (`action: 'reopen'`), and logs an audit entry (`action: 'UNAPPROVE'`, module `payroll`). No accounting/GL reversal is performed or needed — payroll approval itself never posts a journal entry (only `markPaid` does, and it stays untouched).
+
+**Frontend — individual + bulk unapprove.** The payroll drawer gained an "إلغاء الاعتماد" button (icon `lock_open`, same visual pattern as Expenses' unapprove-and-edit action) shown only when `status === 'APPROVED'`, alongside the existing cancel button. The bulk toolbar bar shows the same "اعتماد"/"إلغاء الاعتماد" labels as the drawer buttons — clicking either filters the current selection down to the status-eligible subset (`DRAFT` for approve, `APPROVED` for unapprove) before sending any request; if nothing in the selection is eligible, no network call is made and a clear message explains why.
+
+**Partial-failure handling.** Bulk results are never reported as a silent success if any item failed: a fully-successful batch shows the green success banner, anything else (partial or total failure) shows the red error banner with explicit success/failed counts. The table and KPI stats always refresh once after the batch (`loadPayroll` + `loadStats`), without a full page reload, and the selection is always cleared afterward. The bulk buttons share the page's existing `busy` state with every other payroll action, so repeated clicks during an in-flight batch are blocked the same way the single-record buttons already were.
+
+**Not changed:** payroll calculation, amounts, deductions, allowances, or payment-method logic; the `markPaid` GL posting path; any Prisma schema, migration, or permission-matrix seed data (the release deliberately reuses the existing `payroll.approve` permission key instead of adding a new one); the Drawer/table visual design outside the new checkboxes and one new button.
+
+---
+
+## Previous Release — Repository Cleanup, Documentation & Tooling Pack v1
 
 | Field | Value |
 |-------|-------|
