@@ -446,3 +446,103 @@
 .settings-dict-add:hover,
 .settings-dict-add:focus-visible { border-color: var(--xpl-primary); outline: none; }
 .settings-dict-add .material-symbols-outlined { font-size: 17px !important; }
+
+/* ── Sidebar visibility — تفضيل عرض فقط ─────────────────────────────────────
+   قائمة مشتقّة من نفس تعريف `NAV`: مجموعاتها وترتيبها كما في الشريط الجانبي
+   تمامًا، فما يراه المستخدم هنا هو خريطة ما سيراه هناك. لا لون جديد ولا مكوّن
+   جديد: نفس الرموز (Material Symbols) ونفس رموز السمة، ومفتاح التبديل هو
+   `input[type=checkbox]` حقيقي مُنسَّق (يبقى قابلًا للتركيز ولقارئات الشاشة). */
+.settings-sidebar-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px 16px;
+}
+.settings-sidebar-group {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 6px 4px 4px;
+}
+.settings-sidebar-group-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 2px 10px 6px;
+}
+.settings-sidebar-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .16s ease;
+}
+.settings-sidebar-row:hover { background: var(--xpl-faint); }
+.settings-sidebar-row:focus-within { background: var(--xpl-faint); }
+.settings-sidebar-row--locked { cursor: default; }
+.settings-sidebar-icon {
+  font-size: 18px !important;
+  color: var(--text-muted);
+  flex: none;
+}
+.settings-sidebar-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.settings-sidebar-lock {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--xpl-faint);
+  border: 1px solid var(--xpl-border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+/* مفتاح تبديل: مربّع اختيار حقيقي بمظهر Switch — لا مكتبة، ولا فقد دلالة. */
+.settings-center .settings-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 34px;
+  height: 19px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: background .18s ease, border-color .18s ease;
+}
+.settings-center .settings-switch::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  inset-inline-start: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--surface);
+  transform: translateY(-50%);
+  transition: inset-inline-start .18s ease;
+}
+.settings-center .settings-switch:checked {
+  background: var(--xpl-primary);
+  border-color: var(--xpl-primary);
+}
+.settings-center .settings-switch:checked::after { inset-inline-start: 17px; }
+.settings-center .settings-switch:focus-visible {
+  outline: 2px solid var(--xpl-primary);
+  outline-offset: 2px;
+}
+.settings-center .settings-switch:disabled { opacity: .55; cursor: default; }

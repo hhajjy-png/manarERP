@@ -24,6 +24,8 @@ import '../components/explorer/explorer-kit.css';
 import './Settings.css';
 import PeriodLockSettings from '../components/period/PeriodLockSettings';
 import GenerateHolidaysDialog from '../components/employee/GenerateHolidaysDialog';
+import { NAV } from '../config/modules';
+import { isProtectedNavKey, permittedNav } from '../config/navVisibility';
 
 interface SigSlot {
   id: string;
@@ -80,6 +82,7 @@ const BACKUP_FIELDS = FIELDS.filter((f) => f.group === 'backup');
 
 const NAV_SECTIONS: { id: string; icon: string; labelKey: string }[] = [
   { id: 'sec-identity', icon: 'corporate_fare', labelKey: 'page.settings.nav.identity' },
+  { id: 'sec-sidebar', icon: 'view_sidebar', labelKey: 'page.settings.nav.sidebar' },
   { id: 'sec-holidays', icon: 'event_busy', labelKey: 'page.settings.nav.holidays' },
   { id: 'sec-backup', icon: 'backup', labelKey: 'page.settings.nav.backup' },
   { id: 'sec-signatures', icon: 'draw', labelKey: 'page.settings.nav.signatures' },
@@ -228,7 +231,7 @@ function DictTable({
 }
 
 export default function Settings() {
-  const { lang, setLang } = useUI();
+  const { lang, setLang, hiddenNavKeys, toggleNavItemVisibility, showAllNavItems } = useUI();
   const { t } = useT();
   const toast = useToast();
   const { hasPermission } = useAuth();
@@ -559,6 +562,15 @@ export default function Settings() {
 
   if (loading) return <div className="center-msg"><div className="spinner" />{t('msg.loading')}</div>;
 
+  // قائمة إدارة الشريط الجانبي — مشتقّة من نفس تعريف `NAV` الذي يرسم الشريط، مرشَّحة
+  // بالصلاحيات فقط: ما لا يملك المستخدم صلاحيته لا يُعرض له مفتاح إظهار أصلًا.
+  const sidebarSections = permittedNav(NAV, hasPermission);
+  const sidebarTotal = sidebarSections.reduce((n, s) => n + s.items.length, 0);
+  const sidebarVisibleCount = sidebarSections.reduce(
+    (n, s) => n + s.items.filter((it) => !hiddenNavKeys.includes(it.key)).length,
+    0,
+  );
+
   const backupEnabled = (values['backup.auto.enabled'] ?? DEFAULT_VALUES['backup.auto.enabled']) !== 'false';
   const backupTime = values['backup.auto.time'] ?? DEFAULT_VALUES['backup.auto.time'];
   const hasStamp = Boolean(values['print.stampImage']);
@@ -645,7 +657,70 @@ export default function Settings() {
         </SectionCard>
       </div>
 
-      {/* ── 1a · Official holidays (Article 70 — excluded from annual leave day counts) ── */}
+      {/* ── 1a · Sidebar visibility (UI customization only — routes/permissions untouched) ── */}
+      <div id="sec-sidebar" className="settings-section">
+        <SectionCard
+          title={t('page.settings.nav.sidebar')}
+          icon="view_sidebar"
+          actions={
+            <>
+              <StatusChip tone={hiddenNavKeys.length === 0 ? 'green' : 'orange'} icon="view_sidebar">
+                {t('page.settings.sidebar.visible_count', { n: sidebarVisibleCount, total: sidebarTotal })}
+              </StatusChip>
+              <Button
+                variant="secondary"
+                icon="visibility"
+                small
+                onClick={showAllNavItems}
+                disabled={hiddenNavKeys.length === 0}
+              >
+                {t('page.settings.sidebar.show_all')}
+              </Button>
+            </>
+          }
+        >
+          <p className="settings-dict-desc">{t('page.settings.sidebar.desc')}</p>
+
+          <div className="settings-sidebar-groups">
+            {sidebarSections.map((section) => (
+              <div key={section.group || 'main'} className="settings-sidebar-group">
+                <div className="settings-sidebar-group-title">
+                  {section.group ? t(section.group) : t('page.settings.sidebar.group_main')}
+                </div>
+                {section.items.map((it) => {
+                  const locked = isProtectedNavKey(it.key);
+                  const visible = !hiddenNavKeys.includes(it.key);
+                  return (
+                    <label
+                      key={it.key}
+                      className={`settings-sidebar-row${locked ? ' settings-sidebar-row--locked' : ''}`}
+                    >
+                      <span className="material-symbols-outlined settings-sidebar-icon" aria-hidden="true">
+                        {it.icon}
+                      </span>
+                      <span className="settings-sidebar-name">{t(it.label)}</span>
+                      {locked && (
+                        <span className="settings-sidebar-lock" title={t('page.settings.sidebar.locked_hint')}>
+                          {t('page.settings.sidebar.always_visible')}
+                        </span>
+                      )}
+                      <input
+                        type="checkbox"
+                        className="settings-switch"
+                        checked={visible}
+                        disabled={locked}
+                        onChange={() => toggleNavItemVisibility(it.key)}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* ── 1b · Official holidays (Article 70 — excluded from annual leave day counts) ── */}
       <div id="sec-holidays" className="settings-section">
         <SectionCard
           title={t('page.settings.nav.holidays')}
@@ -753,7 +828,7 @@ export default function Settings() {
         </SectionCard>
       </div>
 
-      {/* ── 1b · Financial period lock ── */}
+      {/* ── 1c · Financial period lock ── */}
       <div id="sec-period-lock" className="settings-section">
         <PeriodLockSettings />
       </div>
