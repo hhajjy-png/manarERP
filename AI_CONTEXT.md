@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `867b93f` (merge of `feature/payroll-multi-select-approval-unapprove-v1`, carrying Payroll Multi-Select Approval & Unapprove v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `6c27474` |
 | **Current Stable Tag** | `stable-payroll-multi-select-approval-unapprove-v1` |
 | **Current Release Date** | 2026-07-27 |
 | **Total Stable Releases** | 359 (window 2026-06-07 → 2026-07-27) |
