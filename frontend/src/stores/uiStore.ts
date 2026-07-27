@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { isProtectedNavKey, sanitizeHiddenNavKeys } from '../config/navVisibility';
 
 type Theme = 'light' | 'dark';
 export type Lang = 'ar' | 'en';
@@ -14,11 +15,20 @@ interface UIState {
   sidebarNarrow: boolean;
   lang: Lang;
   privacyMode: boolean;
+  /**
+   * مفاتيح عناصر القائمة الجانبية التي أخفاها المستخدم — تفضيل عرض فقط.
+   * فارغة افتراضيًا ⇒ كل ما تسمح به الصلاحيات يظهر (السلوك الحالي بلا تغيير).
+   */
+  hiddenNavKeys: string[];
   toggleTheme: () => void;
   toggleSidebar: () => void;
   closeSidebar: () => void;
   toggleSidebarMode: () => void;
   setSidebarNarrow: (narrow: boolean) => void;
+  /** يبدّل ظهور عنصر قائمة واحد (بمفتاحه الثابت). العناصر المحمية لا تتأثّر. */
+  toggleNavItemVisibility: (key: string) => void;
+  /** يعيد القائمة الجانبية إلى وضعها الافتراضي: لا شيء مخفي. */
+  showAllNavItems: () => void;
   setLang: (lang: Lang) => void;
   togglePrivacy: () => void;
   /**
@@ -34,6 +44,8 @@ interface UIState {
 const THEME_KEY = 'manar.theme';
 const LANG_KEY = 'manar.lang';
 const SIDEBAR_KEY = 'manarERP.sidebar.mode';
+/** تفضيل ظهور عناصر القائمة — نفس آلية حفظ وضع الطيّ (تفضيل واجهة، لا بيانات). */
+const SIDEBAR_HIDDEN_KEY = 'manarERP.sidebar.hiddenItems';
 
 function applyTheme(theme: Theme) {
   document.documentElement.setAttribute('data-theme', theme);
@@ -62,6 +74,27 @@ function readSidebarMode(): SidebarMode {
   }
 }
 
+/**
+ * قيمة مخزَّنة غير صالحة (أو غائبة) ⇒ لا شيء مخفي. المفاتيح المحمية تُسقَط عند القراءة
+ * أيضًا، فلا يستطيع تخزين محلي معطوب أن يخفي «الإعدادات».
+ */
+function readHiddenNavKeys(): string[] {
+  try {
+    const raw = localStorage.getItem(SIDEBAR_HIDDEN_KEY);
+    return raw === null ? [] : sanitizeHiddenNavKeys(JSON.parse(raw));
+  } catch {
+    return [];
+  }
+}
+
+function writeHiddenNavKeys(keys: string[]) {
+  try {
+    localStorage.setItem(SIDEBAR_HIDDEN_KEY, JSON.stringify(keys));
+  } catch {
+    /* التخزين غير متاح — الجلسة الحالية تعمل، والاستعادة وحدها ما يضيع */
+  }
+}
+
 const initialTheme = (localStorage.getItem(THEME_KEY) as Theme) || 'light';
 const initialLang = (localStorage.getItem(LANG_KEY) as Lang) || 'ar';
 const initialSidebarMode = readSidebarMode();
@@ -76,6 +109,7 @@ export const useUI = create<UIState>((set, get) => ({
   sidebarNarrow: false,
   lang: initialLang,
   privacyMode: true, // always starts ON — no persistence, no localStorage
+  hiddenNavKeys: readHiddenNavKeys(),
   toggleTheme() {
     const theme = get().theme === 'dark' ? 'light' : 'dark';
     localStorage.setItem(THEME_KEY, theme);
@@ -102,6 +136,20 @@ export const useUI = create<UIState>((set, get) => ({
     if (sidebarNarrow === get().sidebarNarrow) return;
     applySidebar(get().sidebarMode, sidebarNarrow);
     set({ sidebarNarrow });
+  },
+  toggleNavItemVisibility(key: string) {
+    if (isProtectedNavKey(key)) return;
+    const current = get().hiddenNavKeys;
+    const hiddenNavKeys = current.includes(key)
+      ? current.filter((k) => k !== key)
+      : [...current, key];
+    writeHiddenNavKeys(hiddenNavKeys);
+    set({ hiddenNavKeys });
+  },
+  showAllNavItems() {
+    if (get().hiddenNavKeys.length === 0) return;
+    writeHiddenNavKeys([]);
+    set({ hiddenNavKeys: [] });
   },
   setLang(lang: Lang) {
     localStorage.setItem(LANG_KEY, lang);

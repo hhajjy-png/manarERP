@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { NAV } from '../config/modules';
+import { visibleNav } from '../config/navVisibility';
 import RootErrorBoundary from './RootErrorBoundary';
 import PageLoader from './PageLoader';
 import { useAuth } from '../stores/authStore';
@@ -25,7 +26,7 @@ export default function Layout() {
   const {
     theme, toggleTheme, sidebarOpen, toggleSidebar, closeSidebar, lang, setLang,
     privacyMode, togglePrivacy, sidebarMode, sidebarNarrow, toggleSidebarMode, setSidebarNarrow,
-    topbarRefreshHandler, topbarRefreshBusy,
+    topbarRefreshHandler, topbarRefreshBusy, hiddenNavKeys,
   } = useUI();
   const { t } = useT();
   const navigate = useNavigate();
@@ -84,13 +85,15 @@ export default function Layout() {
           />
         </div>
         <nav className="nav">
-          {NAV.map((section) => {
-            const items = section.items.filter((it) => !it.permission || hasPermission(it.permission));
-            if (items.length === 0) return null;
+          {/*
+            الصلاحيات ثمّ تفضيل الإظهار — بنفس ترتيب `NAV` الأصلي، ومجموعة بلا عنصر
+            ظاهر لا تُصيَّر أصلًا (لا عنوان مجموعة فارغ).
+          */}
+          {visibleNav(NAV, hasPermission, hiddenNavKeys).map((section) => {
             return (
               <div key={section.group || 'main'}>
                 {section.group && <div className="group">{t(section.group)}</div>}
-                {items.map((it) => (
+                {section.items.map((it) => (
                   <NavLink
                     key={it.key}
                     to={it.key === 'dashboard' ? '/' : `/${it.key}`}
