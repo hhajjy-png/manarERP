@@ -529,6 +529,36 @@ export class PayrollService {
     return updated;
   }
 
+  /** إلغاء اعتماد: يعيد كشفًا معتمَدًا إلى المسودة ليُعدَّل ويُعاد اعتماده. لا ترحيل
+   *  محاسبي لعكسه — الاعتماد نفسه لا يُنشئ أي قيد (الترحيل الوحيد يقع عند الصرف). */
+  async unapprove(id: number, req: Request) {
+    const updated = await prisma.$transaction(async (tx) => {
+      const payroll = await tx.payroll.findUnique({ where: { id } });
+      if (!payroll) throw AppError.notFound('كشف الراتب غير موجود');
+      if (payroll.status === 'DRAFT') throw AppError.badRequest('الكشف في حالة المسودة بالفعل');
+      if (payroll.status === 'PAID') throw AppError.badRequest('لا يمكن إلغاء اعتماد كشف مدفوع بالفعل');
+      if (payroll.status === 'CANCELLED') throw AppError.badRequest('لا يمكن إلغاء اعتماد كشف ملغى');
+      const reverted = await tx.payroll.update({
+        where: { id },
+        data: { status: 'DRAFT', approvedAt: null, approvedById: null },
+      });
+      await approvalEngine.recordTransition(
+        {
+          entityType: 'payroll',
+          entityId:   id,
+          action:     'reopen',
+          fromStatus: payroll.status,
+          toStatus:   'DRAFT',
+          userId:     req.user?.userId ?? null,
+        },
+        tx,
+      );
+      return reverted;
+    });
+    await recordAudit({ req, action: 'UNAPPROVE', module: 'payroll', entityId: id });
+    return updated;
+  }
+
   async cancel(id: number, req: Request) {
     const updated = await prisma.$transaction(async (tx) => {
       const payroll = await tx.payroll.findUnique({ where: { id } });
