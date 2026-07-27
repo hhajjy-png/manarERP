@@ -15,6 +15,7 @@ import { registerAttachmentsIpc } from './ipc/attachments.ipc';
 import { registerPrintIpc } from './services/printService';
 import { registerWysiwygPocIpc } from './ipc/wysiwygPoc.ipc';
 import { registerWysiwygViewerGuard } from './ipc/wysiwygViewerGuard.ipc';
+import { registerNbkExportIpc } from './ipc/nbkExport.ipc';
 
 const INTERNAL_SECRET = getInternalSecret();
 
@@ -34,6 +35,8 @@ async function bootstrap() {
     registerSyncIpc();
     registerPdfIpc();
     registerAttachmentsIpc();
+    // NBK Salary Export — Native XLS Generation v1 (additive; other Excel exports unchanged).
+    registerNbkExportIpc();
     // Print Center Foundation v1 — additive. `app:print` / `pdf:export` /
     // `pdf:exportHtml` remain registered above and fully functional.
     registerPrintIpc();

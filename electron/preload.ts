@@ -227,6 +227,19 @@ const api = {
     backendRestarted?: boolean;
   }> => ipcRenderer.invoke('sync:resolveConflict', choice),
 
+  // ─── NBK Salary Export — Native XLS Generation v1 ────────────────────────────
+  // Generates the NBK bank salary .xls through native Microsoft Excel COM automation
+  // (replacing SheetJS as the final writer for this export ONLY — proven by manual
+  // Excel A/B testing to avoid the Office File Validation Protected View warning).
+  generateNbkSalaryXls: (
+    sheets: Array<{ name: string; columns: { header: string; key: string }[]; rows: Array<Record<string, string | number>> }>,
+  ): Promise<{
+    success: boolean;
+    bytes?: Uint8Array;
+    error?: string;
+    errorCode?: string;
+  }> => ipcRenderer.invoke('nbkExport:generateXls', sheets),
+
 };
 
 contextBridge.exposeInMainWorld('manar', api);
