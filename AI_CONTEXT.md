@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `8ad5e6b` (merge of `feature/nbk-salary-export-native-xls-v1`, carrying NBK Salary Export — Native XLS Generation v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `5fa6ddc` |
 | **Current Stable Tag** | `stable-nbk-salary-export-native-xls-v1` |
 | **Current Release Date** | 2026-07-27 |
 | **Total Stable Releases** | 360 (window 2026-06-07 → 2026-07-27) |
