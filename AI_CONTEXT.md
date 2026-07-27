@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `7226882` (merge of `feature/sidebar-visibility-management-v1`, carrying Sidebar Visibility Management v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `ceb5f65` |
 | **Current Stable Tag** | `stable-sidebar-visibility-management-v1` |
 | **Current Release Date** | 2026-07-27 |
 | **Total Stable Releases** | 362 (window 2026-06-07 → 2026-07-27) |
