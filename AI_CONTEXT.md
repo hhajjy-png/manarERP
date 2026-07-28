@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `aaec4cd` (merge of `feature/ready-paper-template-and-receipt-voucher-redesign-v1`, carrying Ready Paper Print Template & Receipt Voucher Redesign v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `3761985` |
 | **Current Stable Tag** | `stable-ready-paper-template-and-receipt-voucher-redesign-v1` |
 | **Current Release Date** | 2026-07-28 |
 | **Total Stable Releases** | 363 (window 2026-06-07 → 2026-07-28) |
