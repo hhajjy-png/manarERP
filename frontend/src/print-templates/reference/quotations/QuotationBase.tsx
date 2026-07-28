@@ -5,7 +5,8 @@ import { sanitizePrintText } from '../../utils/sanitizePrintText';
 import styles from './QuotationShared.module.css';
 import logoSrc from '../assets/almanar-logo.png';
 import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../../utils/brandingLayout';
-import { getInkFilterStyle } from '../../utils/inkFilter';
+import { getInkFilterStyle, resolveInkMode } from '../../utils/inkFilter';
+import InkColorFilterDefs from '../../designer/InkColorFilterDefs';
 import {
   applyTextElementStyle,
   applyTableHeaderStyle,
@@ -308,26 +309,32 @@ export default function QuotationBase({ themeClass, showLetterhead, showChips = 
           <div className={styles.signCol}>
             <div className={styles.signRole} data-designer-editable="true" data-designer-key="quotation.footerSignatoryRole">{getStaticText(staticText, 'quotation.footerSignatoryRole', 'عن شركة المنار الدولية')}</div>
             {d.company?.showSignature !== false && d.company?.signatureUrl && (
-              <img
-                src={d.company.signatureUrl}
-                alt=""
-                data-bd-type="signature"
-                data-designer-type="branding"
-                data-designer-id="signature"
-                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '0 auto 2mm', ...applyBrandingElementStyle(brandingLayout.signature), ...getInkFilterStyle(d.company.inkMode) }}
-              />
+              <>
+                <InkColorFilterDefs mode={resolveInkMode(brandingLayout.signature.inkMode)} />
+                <img
+                  src={d.company.signatureUrl}
+                  alt=""
+                  data-bd-type="signature"
+                  data-designer-type="branding"
+                  data-designer-id="signature"
+                  style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '0 auto 2mm', ...applyBrandingElementStyle(brandingLayout.signature), ...getInkFilterStyle(resolveInkMode(brandingLayout.signature.inkMode)) }}
+                />
+              </>
             )}
             <div className={styles.signLine} />
             <div className={styles.signCap}>الاسم والتوقيع</div>
             {d.company?.showStamp !== false && d.company?.stampUrl ? (
-              <img
-                src={d.company.stampUrl}
-                alt=""
-                data-bd-type="stamp"
-                data-designer-type="branding"
-                data-designer-id="stamp"
-                style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '4mm auto 0', ...applyBrandingElementStyle(brandingLayout.stamp), ...getInkFilterStyle(d.company.inkMode) }}
-              />
+              <>
+                <InkColorFilterDefs mode={resolveInkMode(brandingLayout.stamp.inkMode)} />
+                <img
+                  src={d.company.stampUrl}
+                  alt=""
+                  data-bd-type="stamp"
+                  data-designer-type="branding"
+                  data-designer-id="stamp"
+                  style={{ maxHeight: '20mm', maxWidth: '40mm', objectFit: 'contain', display: 'block', margin: '4mm auto 0', ...applyBrandingElementStyle(brandingLayout.stamp), ...getInkFilterStyle(resolveInkMode(brandingLayout.stamp.inkMode)) }}
+                />
+              </>
             ) : (
               <div className={styles.signStamp}>مكان الختم</div>
             )}

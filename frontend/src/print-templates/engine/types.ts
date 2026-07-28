@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import type { PrintTextStyleSettings } from './textStyleTypes';
 import type { StaticTextOverrides } from '../designer/staticTextTypes';
+import type { InkMode } from '../utils/inkFilter';
 
 // ─── Template taxonomy ────────────────────────────────────────────────────────
 
@@ -82,6 +83,15 @@ export interface BrandingElementLayout {
   scale: number;
   opacity: number;
   zIndex: number;
+  /**
+   * Ink Color System v2 — this element's OWN color, independent of its sibling
+   * (signature vs stamp). `undefined` means "never customized": the renderer falls
+   * back to the legacy global `localStorage['manar.inkMode']` default via
+   * `resolveInkMode()`, so a design saved before this field existed renders exactly
+   * as it did before. Part of the same `print.brandingLayout` record, so it shares
+   * Save/Reset/Undo/Redo with position and size — there is no second color store.
+   */
+  inkMode?: InkMode;
 }
 
 export interface BrandingLayout {
@@ -118,7 +128,6 @@ export interface CompanyPrintData {
   showSignature?: boolean;
   showStamp?: boolean;
   brandingLayout?: PrintBrandingLayoutSettings;
-  inkMode?: 'original' | 'blue-ink' | 'black';
   textStyleOverrides?: PrintTextStyleSettings;
   staticTextOverrides?: StaticTextOverrides;
 }
