@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `0861ee43` — release `stable-blank-a4-free-print-v1` (Blank A4 Free Print v1 — a blank A4 sheet for stamping a signature/stamp over an externally pre-printed page, reusing the Multi-Signature & Stamp system and Design Mode verbatim; no backend/Prisma change) |
+| **Production HEAD** | `5a220235` — release `stable-ink-color-system-v2` (Ink Color System v2 — per-element signature/stamp ink color, independent per document and per element, replacing one leaky global `localStorage` value; four new SVG-based ballpoint-blue shades; no backend/Prisma change) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-blank-a4-free-print-v1` (release date 2026-07-28) → merge `0861ee43` |
-| **Previous stable tag** | `stable-multi-signature-stamp-management-v1` (2026-07-28) → merge `a6d6822e` |
-| **Total stable releases** | 367 (all merged onto `production`; window 2026-06-07 → 2026-07-28) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · Prisma `validate` ✅ · new `blankA4Print` suite 19/19 ✅ · full frontend suite (1993/2018 passing; the 25 failures across 8 files are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD `cdf86d7d` before this feature) — re-run on the merged `production` branch after merge, results identical pre/post-merge · backend suite 135 files/1902 tests ✅ (unaffected — no backend files touched) · scope review confirmed only the 13 intended files (all under `frontend/src`) entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded · Product Owner Manual Visual & Physical Print Review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `0861ee43` + tag `stable-blank-a4-free-print-v1`) |
+| **Latest stable tag** | `stable-ink-color-system-v2` (release date 2026-07-28) → merge `5a220235` |
+| **Previous stable tag** | `stable-blank-a4-free-print-v1` (2026-07-28) → merge `0861ee43` |
+| **Total stable releases** | 368 (all merged onto `production`; window 2026-06-07 → 2026-07-28) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · Prisma `validate` ✅ · `build:front` ✅ · new `inkColorSystem` suite 26/26 ✅ · full frontend suite (2019/2044 passing; the 25 failures across 8 files are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD `4b2e2073` before this feature) — re-run on the merged `production` branch after merge, results identical pre/post-merge · backend suite 135 files/1902 tests ✅ (unaffected — no backend files touched) · scope review confirmed only the 15 intended files (all under `frontend/src`) entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded · Product Owner Manual Visual & Physical Print Review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `5a220235` + tag `stable-ink-color-system-v2`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,33 @@ in a table cell.
 
 ---
 
-## Latest Release — Blank A4 Free Print v1
+## Latest Release — Ink Color System v2
+
+| Field | Value |
+|-------|-------|
+| **Package** | Ink Color System v2 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-28 |
+| **Feature branch** | `feature/ink-color-system-v2` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `4b2e2073` (documentation commit from the prior release) |
+| **Feature commit** | `1d4652f` |
+| **Production merge commit** | `5a220235` |
+| **Stable tag** | `stable-ink-color-system-v2` → merge `5a220235` (annotated) |
+| **Reviews** | Product Owner Manual Visual & Physical Print Review — **completed & approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · Prisma `validate` ✅ · `build:front` ✅ · new `inkColorSystem` suite 26/26 (backward-compat fallback, SVG filter defs, signature/stamp independence, geometry untouched, storage round-trip, coverage across every branding-enabled document type, Undo/Redo) ✅ · `formBrandingDesignMode`/`salaryCertificateWideBoundsExperiment` re-run clean after the Reset-clears-color change ✅ · full frontend suite re-run pre- and post-merge (25 pre-existing baseline failures across 8 files, unchanged in file and count against `production` HEAD `4b2e2073`) ✅ · backend suite 135 files/1902 tests ✅ (unaffected — no backend files touched) |
+
+**Scope.** Signature/stamp ink color moves from one GLOBAL `localStorage['manar.inkMode']` value — read once by every document's `useBrandingDesigner` instance, so a color picked while designing one document silently leaked into every other document opened afterward — to a per-element field on `BrandingElementLayout` (`inkMode?: InkMode`), the exact same object `x`/`y`/`scale`/`opacity`/`zIndex` already live on, inside the existing `print.brandingLayout` Setting. No second store: independence for signature vs stamp and independence per document both fall out of that one data-model change, and Save/Reset/Undo/Redo cover color for free (history already snapshots the whole layout object).
+- **Colors.** `original`/`black` unchanged. Four new realistic ballpoint-blue shades — Dark (`#12276B`), Medium (`#1F3F94`), Royal (`#2A52BE`), Blue-Violet (`#3D3B8E`) — via SVG `feColorMatrix`, the SAME technique already shipped and print-verified in `FormHeader.tsx`'s logo recolor (Payment Voucher / Ready Paper). A constant-matrix recolor targets every non-transparent pixel to the exact ink RGB while leaving the ALPHA channel completely untouched, so antialiased edges and any density encoded via partial transparency (the normal encoding for a transparent-background signature/stamp PNG) survive exactly as before — verified by a test asserting the matrix's alpha row is `0 0 0 1 0` (passthrough, no offset). The source image file is never touched. Legacy `blue-ink` keeps its exact old CSS `sepia(100%) saturate(200%) hue-rotate(190deg)` filter, unreachable from the new picker but still resolvable for backward compatibility.
+- **Backward compatibility.** An element with no saved `inkMode` (every pre-v2 document) resolves through `resolveInkMode()` to the legacy `localStorage['manar.inkMode']` default — now read-only, never written going forward — so no existing design's appearance changes silently. `resetElement`/`resetDoc` explicitly write `inkMode: undefined` (not a hardcoded color), restoring the exact "never customized" state. Two latent bugs were fixed while wiring this through: `clampBrandingElementLayout` reconstructed its return object from an explicit field list that would have silently dropped `inkMode` on every clamp (fixed by spreading `...el` first); `patchDoc`'s `{...current, ...patch}` merge does not clear a key ABSENT from `patch`, so Reset needed `inkMode: undefined` written explicitly rather than omitted.
+- **Design Mode.** The shared `BrandingDesignerPanel` gained a per-element color-swatch picker — operating on `docLayout[selected].inkMode` via the same `updateElement(selected, {...})` call every other property (position, scale, opacity) already uses — with live preview, no parallel Design Mode or color engine. Because Invoice, Quotation, all ten administrative forms, and Blank A4 Free Print all render this same panel, every document type is covered by this one change.
+- **Export fidelity.** Each colored image's SVG `<filter>` definition renders as a DOM SIBLING of that image (self-contained, one stable id per color), so PDF export and the accurate preview — which both clone the printable subtree, not the whole document — carry the filter definition with them; a `url(#id)` reference that resolved to nothing after cloning would have silently dropped the color.
+- **Data model.** `CompanyPrintData.inkMode` (the single field this supersedes) removed cleanly from the type and both print-data builders (`invoicePrintDataBuilder.ts`/`quotationPrintDataBuilder.ts`); `InvoicePreview.tsx`/`QuotationBase.tsx` now read `brandingLayout.signature.inkMode`/`.stamp.inkMode` directly instead of a single shared field. `useBrandingDesigner`'s old global `inkMode`/`setInkMode` mechanism was removed entirely (superseded, not deprecated-in-place).
+
+**Not changed:** the backend, Prisma schema, or `print.brandingLayout`'s Setting key (one new optional field, same key); any document's position/size/opacity/z-index behavior or movement bounds; Google Drive Deployment Pack in-progress working-tree edits — surgically excluded from every commit in this release, confirmed still uncommitted after merge.
+
+---
+
+## Previous Release — Blank A4 Free Print v1
 
 | Field | Value |
 |-------|-------|

@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `0861ee43` (merge of `feature/blank-a4-free-print-v1`, carrying Blank A4 Free Print v1) |
-| **Current Documentation Commit** | `7fd072c9` |
-| **Current Stable Tag** | `stable-blank-a4-free-print-v1` |
+| **Current Merge Commit** | `5a220235` (merge of `feature/ink-color-system-v2`, carrying Ink Color System v2) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-ink-color-system-v2` |
 | **Current Release Date** | 2026-07-28 |
-| **Total Stable Releases** | 367 (window 2026-06-07 → 2026-07-28) |
+| **Total Stable Releases** | 368 (window 2026-06-07 → 2026-07-28) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -224,6 +224,25 @@ Chromium PDF, and backend HTML reports.
   cm rulers (`frontend/src/forms/shared/A4Ruler.tsx`, one per edge, 1mm/5mm/1cm graduation) are DOM
   siblings of the sheet, not descendants, so they are structurally absent from every export path. No
   backend, Prisma, or `FormLayout`/`ApprovalSection` change.
+- **Ink Color System v2 (2026-07-28):** signature/stamp ink color is now PER-ELEMENT
+  (`BrandingElementLayout.inkMode`, `frontend/src/print-templates/engine/types.ts`) — independent for
+  signature vs stamp and independent per document — inside the same `print.brandingLayout` Setting
+  position/size already live in, sharing Save/Reset/Undo/Redo with no second store. Replaces v1's ONE
+  global `localStorage['manar.inkMode']` value (read once by every document's `useBrandingDesigner`,
+  so a color picked while designing one document leaked into every other document opened afterward).
+  `original`/`black` unchanged; four new ballpoint-blue shades (Dark `#12276B`, Medium `#1F3F94`, Royal
+  `#2A52BE`, Blue-Violet `#3D3B8E`) render via SVG `feColorMatrix` — the same technique already
+  shipped for `FormHeader.tsx`'s logo recolor — targeting a constant ink RGB while leaving the ALPHA
+  channel untouched, so antialiased edges and transparency-encoded density survive unchanged; the
+  source image is never modified. Legacy `blue-ink` keeps its exact old CSS `sepia`/`hue-rotate` filter
+  for backward compatibility, no longer offered in the picker. An element with no saved `inkMode`
+  resolves through `resolveInkMode()` to the legacy localStorage default (read-only now), so no
+  pre-v2 design's appearance changes silently; Reset writes `inkMode: undefined` explicitly (a merge
+  patch cannot clear a key it never mentions). The shared `BrandingDesignerPanel` gained a per-element
+  color-swatch picker with live preview — no parallel Design Mode — covering Invoice, Quotation, all
+  ten administrative forms, and Blank A4 Free Print through that one panel. Each colored image's SVG
+  `<filter>` definition renders as a DOM sibling of the image, so PDF export and the accurate preview
+  (both clone the printable subtree) carry the color with them. No backend or Prisma change.
 - **AI Assistant layer** — fully deterministic/offline/rule-based, **zero LLM anywhere** in the codebase
   (verified: 0 hits for openai/anthropic/gpt/gemini/langchain). Keyword router, 6 skills, Quality Engine,
   Executive Intelligence, Integrations Center. Any future LLM integration would be optional and
@@ -335,6 +354,53 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Ink Color System v2** (2026-07-28, `stable-ink-color-system-v2`) — signature/stamp ink
+  color moves from one GLOBAL `localStorage['manar.inkMode']` value (read once by every
+  document's `useBrandingDesigner`, so a color picked while designing one document leaked
+  into every other document opened afterward) to a PER-ELEMENT field
+  (`BrandingElementLayout.inkMode`) inside the existing `print.brandingLayout` Setting —
+  the same object `x`/`y`/`scale`/`opacity`/`zIndex` already live on. No second store:
+  independence for signature vs stamp and independence per document both fall out of that
+  one data-model change, and Save/Reset/Undo/Redo cover color for free (history already
+  snapshots the whole layout object). `original`/`black` unchanged. Four new realistic
+  ballpoint-blue shades — Dark (`#12276B`), Medium (`#1F3F94`), Royal (`#2A52BE`),
+  Blue-Violet (`#3D3B8E`) — render via SVG `feColorMatrix`, the SAME technique already
+  shipped and print-verified in `FormHeader.tsx`'s logo recolor: a constant-matrix recolor
+  targets every non-transparent pixel to the exact ink RGB while leaving the ALPHA channel
+  completely untouched, so antialiased edges and transparency-encoded density survive
+  exactly as before (verified by a test asserting the matrix's alpha row is a pure
+  passthrough). The source image file is never touched. Legacy `blue-ink` keeps its exact
+  old CSS `sepia(100%) saturate(200%) hue-rotate(190deg)` filter, unreachable from the new
+  picker but still resolvable for backward compatibility. An element with no saved
+  `inkMode` (every pre-v2 document) resolves through `resolveInkMode()` to the legacy
+  `localStorage` default — now read-only, never written going forward — so no existing
+  design's appearance changes silently; `resetElement`/`resetDoc` explicitly write
+  `inkMode: undefined` (not a hardcoded color), fixing two latent bugs surfaced while
+  wiring this through: `clampBrandingElementLayout` reconstructed its return object from
+  an explicit field list that would have silently dropped `inkMode` on every clamp, and a
+  merge-patch reset cannot clear a key it never mentions. The shared `BrandingDesignerPanel`
+  gained a per-element color-swatch picker — operating on `docLayout[selected].inkMode` via
+  the same `updateElement` call every other property already uses — with live preview, no
+  parallel Design Mode or color engine; because Invoice, Quotation, all ten administrative
+  forms, and Blank A4 Free Print all render this same panel, every document type is covered
+  by this one change. Each colored image's SVG `<filter>` definition renders as a DOM
+  sibling of that image, so PDF export and the accurate preview (both clone the printable
+  subtree, not the whole document) carry the color with them. `CompanyPrintData.inkMode`
+  (the single field this supersedes) was removed cleanly from the type and both print-data
+  builders. No backend, Prisma, or `print.brandingLayout` Setting-key change.
+
+  Frontend, backend, and electron `tsc --noEmit` and `build:front` passed pre- and
+  post-merge. New `inkColorSystem` suite: 26/26 (backward-compat fallback resolution, SVG
+  filter defs, signature/stamp independence, geometry untouched, storage round-trip,
+  coverage across every branding-enabled document type, Undo/Redo). Full frontend suite:
+  2019/2044 passing pre- and post-merge (identical); the 25 failures across 8 files are
+  the pre-existing baseline, confirmed unchanged in file and count against `production`
+  HEAD `4b2e2073` before this branch. Backend suite 135 files/1902 tests unaffected (no
+  backend files touched). Scope review confirmed only the 15 intended files (all under
+  `frontend/src`) entered the release, with unrelated pre-existing uncommitted Google
+  Drive Deployment Pack working-tree edits surgically excluded. Product Owner Manual
+  Visual & Physical Print Review — completed & approved.
 
 - **Blank A4 Free Print v1** (2026-07-28, `stable-blank-a4-free-print-v1`) — a blank A4
   administrative form for stamping a company signature/stamp over an externally
