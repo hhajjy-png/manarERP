@@ -4,6 +4,8 @@ import { formatNumber } from '../lib/format';
 import { t } from '../lib/i18n';
 import { bankLabel } from '../utils/chequeTemplate';
 
+export type PaymentVoucherMethod = 'cash' | 'cheque' | 'transfer';
+
 interface Props {
   voucherNumber: string;
   beneficiaryName: string;
@@ -13,6 +15,13 @@ interface Props {
   bankName: string;
   chequeNumber: string;
   lang?: 'ar' | 'en';
+  /**
+   * Which payment method checkbox is marked. Optional and defaults to 'cheque' —
+   * the Cheques module's Payment Voucher page never passes this prop, so its
+   * rendered output is byte-for-byte unchanged. Only the Administrative Payment
+   * Voucher form (manual entry, no cheque) passes 'cash' or 'transfer'.
+   */
+  paymentMethod?: PaymentVoucherMethod;
 }
 
 function formatDate(iso: string): string {
@@ -56,6 +65,7 @@ export default function PaymentVoucherTemplate({
   bankName,
   chequeNumber,
   lang = 'ar',
+  paymentMethod = 'cheque',
 }: Props) {
   const amountWords = useMemo(() => amountToWordsKWD(amount, lang), [amount, lang]);
   const amountDisplay = formatNumber(amount);
@@ -68,7 +78,7 @@ export default function PaymentVoucherTemplate({
     fontSize: 12,
   };
 
-  const checkbox: CSSProperties = {
+  const checkbox = (checked: boolean): CSSProperties => ({
     display: 'inline-block',
     width: 13,
     height: 13,
@@ -76,13 +86,14 @@ export default function PaymentVoucherTemplate({
     borderRadius: 3,
     verticalAlign: 'middle',
     marginLeft: 5,
-  };
-  const checkboxChecked: CSSProperties = {
-    ...checkbox,
-    background: BRAND,
-    WebkitPrintColorAdjust: 'exact',
-    printColorAdjust: 'exact',
-  };
+    ...(checked
+      ? {
+          background: BRAND,
+          WebkitPrintColorAdjust: 'exact',
+          printColorAdjust: 'exact',
+        }
+      : {}),
+  });
 
   const isEn = lang === 'en';
 
@@ -175,11 +186,15 @@ export default function PaymentVoucherTemplate({
             </td>
             <td style={tdBase}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', fontSize: 12 }}>
-                <span><span style={checkbox} /> {isEn ? 'Cash' : 'نقداً'}</span>
-                <span style={{ color: BRAND, fontWeight: 700 }}>
-                  <span style={checkboxChecked} /> {t('opt.payment.cheque', lang)}
+                <span style={paymentMethod === 'cash' ? { color: BRAND, fontWeight: 700 } : undefined}>
+                  <span style={checkbox(paymentMethod === 'cash')} /> {isEn ? 'Cash' : 'نقداً'}
                 </span>
-                <span><span style={checkbox} /> {t('opt.payment.transfer', lang)}</span>
+                <span style={paymentMethod === 'cheque' ? { color: BRAND, fontWeight: 700 } : undefined}>
+                  <span style={checkbox(paymentMethod === 'cheque')} /> {t('opt.payment.cheque', lang)}
+                </span>
+                <span style={paymentMethod === 'transfer' ? { color: BRAND, fontWeight: 700 } : undefined}>
+                  <span style={checkbox(paymentMethod === 'transfer')} /> {t('opt.payment.transfer', lang)}
+                </span>
                 <span style={{ color: '#555' }}>
                   {t('lbl.bank_colon', lang)} <span style={{ ...dotLine, minWidth: 60 }}>{bankLabel(bankName, (k) => t(k, lang))}</span>
                 </span>

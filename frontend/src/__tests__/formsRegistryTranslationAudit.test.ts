@@ -38,6 +38,7 @@ const PAGE_FILE_BY_ROUTE: Record<string, string> = {
   quotation: 'Quotation.tsx',
   'purchase-request': 'PurchaseRequest.tsx',
   'receipt-voucher': 'ReceiptVoucher.tsx',
+  'payment-voucher': 'AdminPaymentVoucher.tsx',
 };
 
 const RAW_KEY_PATTERN = /\b(?:page|voucher)\.[a-zA-Z][a-zA-Z0-9_]*\.[a-zA-Z][a-zA-Z0-9_.]*\b/;

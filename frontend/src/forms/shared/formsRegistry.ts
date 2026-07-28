@@ -43,6 +43,7 @@ export const FORM_CARDS: FormCard[] = [
   { key: 'quotation', route: 'quotation', titleKey: 'page.quotation.title', description: 'نموذج عرض سعر رسمي للعملاء يتضمن جدول الأسعار والشروط.', descriptionEn: 'An official price quotation form for clients, including a price schedule and terms.', icon: '📊', category: 'ops', requiresEmployee: false },
   { key: 'purchase-request', route: 'purchase-request', titleKey: 'page.purchaseReq.title', description: 'نموذج طلب شراء داخلي مع جدول المواد والكميات وبيانات الاعتماد.', descriptionEn: 'An internal purchase request form with a materials/quantities table and approval details.', icon: '🛒', category: 'ops', requiresEmployee: false },
   { key: 'receipt-voucher', route: 'receipt-voucher', titleKey: 'voucher.receipt.title', description: 'سند قبض رسمي لتوثيق المبالغ المستلمة نقداً أو بشيك أو تحويل بنكي.', descriptionEn: 'An official receipt voucher documenting amounts received in cash, cheque, or bank transfer.', icon: '🧾', category: 'ops', requiresEmployee: false },
+  { key: 'payment-voucher', route: 'payment-voucher', titleKey: 'voucher.payment.title', description: 'سند صرف رسمي بإدخال يدوي لتوثيق المبالغ المصروفة نقداً أو بشيك أو تحويل بنكي، بمعزل عن إدارة الشيكات.', descriptionEn: 'An official payment voucher with manual entry documenting amounts paid in cash, cheque, or bank transfer — independent of Cheque Management.', icon: '💸', category: 'ops', requiresEmployee: false },
 ];
 
 /** النماذج المرتبطة بموظف — أساس قائمة «نماذج الموظف» المنبثقة من الدرج. */
