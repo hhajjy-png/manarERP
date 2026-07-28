@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `a6d6822e` (merge of `feature/multi-signature-stamp-management-v1`, carrying Multi-Signature & Stamp Management v1) |
-| **Current Documentation Commit** | `639697b` |
-| **Current Stable Tag** | `stable-multi-signature-stamp-management-v1` |
+| **Current Merge Commit** | `0861ee43` (merge of `feature/blank-a4-free-print-v1`, carrying Blank A4 Free Print v1) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-blank-a4-free-print-v1` |
 | **Current Release Date** | 2026-07-28 |
-| **Total Stable Releases** | 366 (window 2026-06-07 → 2026-07-28) |
+| **Total Stable Releases** | 367 (window 2026-06-07 → 2026-07-28) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -203,10 +203,27 @@ Chromium PDF, and backend HTML reports.
   `print.brandingLayout` Setting; an undesigned document has no entry and resolves to the identity
   transform (renders exactly as before). Resize is a single uniform `scale`, never width/height, so
   aspect ratio cannot change. Bounds are one central envelope, `BRANDING_LAYOUT_BOUNDS` (x/y `-150..150`,
-  scale `0.2..4`), applied through one clamp function with no per-document override table — adopted
-  after a trial scoped to Salary Certificate alone. The panel lives outside `PrintWorkspace` (its zoom
-  transform breaks `position: fixed`) and is `.no-print`; the accurate preview, print dialog, and PDF
-  export all compose from the same DOM node the designer edits.
+  scale `0.2..4`), applied through one clamp function — adopted after a trial scoped to Salary Certificate
+  alone. **As of Blank A4 Free Print v1 (2026-07-28)** this envelope has exactly one documented exception:
+  a closed table (`BOUNDS_BY_DOC` in `brandingLayout.ts`, one key — `blank-a4-print`) resolved via
+  `getBrandingLayoutBounds(docType)`, read by every control path (drag, resize, sliders, undo/redo, save,
+  and the render-time display transform) so a saved wide position is never clamped differently than it
+  was edited. Every other document still resolves to the central envelope unchanged. The panel lives
+  outside `PrintWorkspace` (its zoom transform breaks `position: fixed`) and is `.no-print`; the accurate
+  preview, print dialog, and PDF export all compose from the same DOM node the designer edits.
+- **Blank A4 Free Print v1 (2026-07-28):** a blank A4 administrative form (`frontend/src/pages/
+  BlankA4Print.tsx`, route `/forms/blank-a4-print`) for stamping a signature/stamp over an externally
+  pre-printed page already loaded in the printer. Reuses the Multi-Signature & Stamp system and Design
+  Mode above verbatim; deliberately bypasses `FormLayout`/`ApprovalSection` (both always render a title,
+  form-number, QR and approval label with no opt-out) and composes the same lower-level hooks/components
+  directly, so the sheet carries only the two branding images. The sheet element IS the physical page —
+  `210mm × 297mm`, `@page margin: 0`, `padding: 0` — so Design Mode, the accurate preview, PDF export, and
+  physical print all share one coordinate system with the origin at the sheet's true corner; the print CSS
+  asserts this geometry rather than relaxing it (a `height: auto` rule was the root cause of an earlier
+  review-round defect where the box collapsed and the images landed in the header band). Four screen-only
+  cm rulers (`frontend/src/forms/shared/A4Ruler.tsx`, one per edge, 1mm/5mm/1cm graduation) are DOM
+  siblings of the sheet, not descendants, so they are structurally absent from every export path. No
+  backend, Prisma, or `FormLayout`/`ApprovalSection` change.
 - **AI Assistant layer** — fully deterministic/offline/rule-based, **zero LLM anywhere** in the codebase
   (verified: 0 hits for openai/anthropic/gpt/gemini/langchain). Keyword router, 6 skills, Quality Engine,
   Executive Intelligence, Integrations Center. Any future LLM integration would be optional and
@@ -318,6 +335,52 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Blank A4 Free Print v1** (2026-07-28, `stable-blank-a4-free-print-v1`) — a blank A4
+  administrative form for stamping a company signature/stamp over an externally
+  pre-printed page loaded in the printer. Reuses the Multi-Signature & Stamp
+  system and Design Mode verbatim (`useCompanyBranding`/`useBrandingSelection`/
+  `BrandingAssetPicker`/`useBrandingDesigner`/`BrandingDesignerPanel`/
+  `DesignableBrandingImage`) — no parallel design engine. Deliberately bypasses
+  `FormLayout`/`ApprovalSection`, which always render a title, form-number, QR
+  and approval label with no opt-out; the new page composes the same
+  lower-level building blocks directly, so the sheet carries only the
+  signature/stamp. The sheet element IS the physical page — `210mm × 297mm`,
+  `@page margin: 0`, `padding: 0` — giving Design Mode, the accurate preview,
+  PDF export, and physical print one shared coordinate system; the print CSS
+  asserts this geometry (`height: 297mm !important`) rather than relaxing it,
+  fixing a review-round defect where a relaxed height collapsed the sheet's box
+  (all children absolutely positioned) and pulled the signature/stamp into the
+  header band across physical print and the accurate preview alike, and a
+  second defect where 10mm `@page` margins left only a 277mm printable band
+  for a 297mm sheet, producing a spurious second page in both physical print
+  and PDF. Movement is widened for this document only, via one documented,
+  closed per-document exception (`BOUNDS_BY_DOC` → `blank-a4-print`) resolved
+  through `getBrandingLayoutBounds(docType)` — derived from the sheet's real
+  210×297mm dimensions and the two element anchors (not picked numbers), read
+  by every control path (drag, resize, sliders, undo/redo, save, and the
+  render-time display transform) so a saved position is never clamped
+  differently than it was edited. The shared central envelope
+  (`BRANDING_LAYOUT_BOUNDS`, ±150px/0.2–4×) is unchanged for every other
+  document. Four screen-only cm rulers (one per edge, 1mm/5mm/1cm graduation,
+  matching the sheet's own coordinate origin) are DOM siblings of the
+  printable sheet, not descendants, so they are structurally absent from
+  every export path regardless of CSS. No backend, Prisma, `FormLayout`, or
+  `ApprovalSection` change; the ink-color filter system was audited during
+  this release cycle and explicitly deferred to an independent future pack
+  (it is a global setting shared by every document, not scoped to this
+  feature).
+
+  Frontend, backend, and electron `tsc --noEmit` passed pre- and post-merge.
+  Full frontend suite: 1993/2018 passing pre- and post-merge (identical); the
+  25 failures across 8 files are the pre-existing baseline, confirmed
+  unchanged in file and count against `production` HEAD `cdf86d7d` before
+  this branch. Backend suite 135 files/1902 tests unaffected (no backend
+  files touched). Scope review confirmed only the 13 intended files (all
+  under `frontend/src`) entered the release, with unrelated pre-existing
+  uncommitted Google Drive Deployment Pack working-tree edits surgically
+  excluded. Product Owner Manual Visual & Physical Print Review — completed
+  & approved.
 
 - **Multi-Signature & Stamp Management v1** (2026-07-28,
   `stable-multi-signature-stamp-management-v1`) — central system for registering
