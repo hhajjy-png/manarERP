@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
-import { PrintMode, PRINT_MODE_LABELS } from '../forms/shared/printMode';
+import { ProfileId, PRINT_PROFILES, SELECTABLE_PROFILE_IDS, DEFAULT_PROFILE_ID } from '../forms/shared/printProfiles';
 import { FORM_CARDS, type FormCard, type FormCategory } from '../forms/shared/formsRegistry';
 import PrintLogPanel from '../components/PrintLogPanel';
 import { t as translate, useT } from '../lib/i18n';
@@ -46,8 +46,8 @@ export default function Forms() {
   const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<'all' | FormCategory>('all');
-  const [printModes, setPrintModes] = useState<Record<string, PrintMode>>(() =>
-    Object.fromEntries(FORM_CARDS.map((c) => [c.key, 'full-template' as PrintMode])),
+  const [printModes, setPrintModes] = useState<Record<string, ProfileId>>(() =>
+    Object.fromEntries(FORM_CARDS.map((c) => [c.key, DEFAULT_PROFILE_ID])),
   );
 
   useEffect(() => {
@@ -75,7 +75,7 @@ export default function Forms() {
     }
   }, [preselectEmployeeId, employees]);
 
-  function setMode(key: string, mode: PrintMode) {
+  function setMode(key: string, mode: ProfileId) {
     setPrintModes((prev) => ({ ...prev, [key]: mode }));
   }
 
@@ -229,9 +229,9 @@ export default function Forms() {
                 {card.key !== 'employment-contract' && needsEmployee && (
                   <div className="fmx-card-mode">
                     <label htmlFor={`mode-${card.key}`}>{t('page.forms.print_mode')}</label>
-                    <select id={`mode-${card.key}`} className="xpl-select" title={t('page.forms.print_mode')} value={printModes[card.key]} onChange={(e) => setMode(card.key, e.target.value as PrintMode)}>
-                      {(Object.entries(PRINT_MODE_LABELS) as [PrintMode, string][]).map(([k, v]) => (
-                        <option key={k} value={k}>{v}</option>
+                    <select id={`mode-${card.key}`} className="xpl-select" title={t('page.forms.print_mode')} value={printModes[card.key]} onChange={(e) => setMode(card.key, e.target.value as ProfileId)}>
+                      {SELECTABLE_PROFILE_IDS.map((id) => (
+                        <option key={id} value={id}>{PRINT_PROFILES[id].labelAr}</option>
                       ))}
                     </select>
                   </div>

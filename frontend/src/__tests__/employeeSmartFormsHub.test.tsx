@@ -9,6 +9,7 @@ import Forms from '../pages/Forms';
 import EmployeeFormsMenu from '../components/employee/EmployeeFormsMenu';
 import { EMPLOYEE_FORM_CARDS, FORM_CARDS } from '../forms/shared/formsRegistry';
 import { api } from '../api/client';
+import { SELECTABLE_PROFILE_IDS, PRINT_PROFILES } from '../forms/shared/printProfiles';
 
 /**
  * Employee Smart Forms Hub v1 — يستبدل زر «طباعة النماذج» المفرد بقائمة منبثقة
@@ -188,7 +189,7 @@ describe('مركز النماذج — التحديد المسبق للموظف �
   it('موظف ونموذج صالحان ⇒ ينتقل تلقائيًا إلى شاشة النموذج جاهزة للطباعة', async () => {
     renderFormsWithRouter('/forms?employee=5&form=leave-request');
     await waitFor(() => {
-      expect(screen.getByTestId('probe')).toHaveTextContent('/forms/leave-request/5?printMode=full-template');
+      expect(screen.getByTestId('probe')).toHaveTextContent('/forms/leave-request/5?printMode=plain-a4');
     });
   });
 
@@ -282,7 +283,7 @@ describe('انحدار الرجوع — الدرج ← نماذج الموظف �
 
     // تنقّل تلقائي داخل مركز النماذج ينتهي بشاشة المعاينة.
     await waitFor(() => {
-      expect(screen.getByTestId('probe')).toHaveTextContent('/forms/leave-request/5?printMode=full-template');
+      expect(screen.getByTestId('probe')).toHaveTextContent('/forms/leave-request/5?printMode=plain-a4');
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'رجوع ›' }));
@@ -349,5 +350,45 @@ describe('حاجز رجعي — لا مفتاح ترجمة خام في أي مك
     // كل بطاقات FORM_CARDS ظاهرة (لا فلترة نشطة) — الفحص يغطّي التسجيل كاملاً.
     expect(screen.getAllByText((_, el) => el?.className === 'fmx-card-title-ar')).toHaveLength(FORM_CARDS.length);
     expect(container.textContent).not.toMatch(RAW_KEY_PATTERN);
+  });
+});
+
+// ── قائمة قوالب الطباعة في كل بطاقة: مشتقة من PRINT_PROFILES المركزي (ready-paper) ──
+// كل نموذج قابل للاختيار (selectable) في PRINT_PROFILES يظهر تلقائيًا هنا كخيار —
+// بلا أي قائمة مستقلة مكرَّرة (لا PrintMode ولا PRINT_MODE_LABELS بعد الآن).
+describe('مركز النماذج — قائمة قوالب الطباعة مشتقة من PRINT_PROFILES', () => {
+  it('البطاقة (غير عقد العمل) تعرض بالضبط خيارات PRINT_PROFILES القابلة للاختيار الثلاثة', async () => {
+    renderFormsWithRouter('/forms?employee=5');
+    await waitFor(() => {
+      expect(screen.getByLabelText('اختر الموظف (مشترك لجميع النماذج) *')).toBeInTheDocument();
+    });
+    const select = document.getElementById('mode-leave-request') as HTMLSelectElement;
+    const values = Array.from(select.options).map((o) => o.value);
+    const labels = Array.from(select.options).map((o) => o.textContent);
+    expect(values).toEqual(SELECTABLE_PROFILE_IDS);
+    expect(labels).toEqual(SELECTABLE_PROFILE_IDS.map((id) => PRINT_PROFILES[id].labelAr));
+    expect(labels).toEqual(['A4 عادي', 'ورق الشركة الرسمي', 'ورق جاهز']);
+  });
+
+  it('اختيار «ورق جاهز» يمرَّر profile=ready-paper عبر نفس مسار ?printMode المستخدَم للقوالب الأخرى', async () => {
+    renderFormsWithRouter('/forms?employee=5');
+    await waitFor(() => {
+      expect(screen.getByLabelText('اختر الموظف (مشترك لجميع النماذج) *')).toBeInTheDocument();
+    });
+    const select = document.getElementById('mode-leave-request') as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: 'ready-paper' } });
+    const card = select.closest('.fmx-card') as HTMLElement;
+    fireEvent.click(within(card).getByRole('button', { name: 'طباعة' }));
+    await waitFor(() => {
+      expect(screen.getByTestId('probe')).toHaveTextContent('/forms/leave-request/5?printMode=ready-paper');
+    });
+  });
+
+  it('عقد العمل يبقى بلا قائمة قوالب طباعة في مركز النماذج (مستثنى كما كان قبل «ورق جاهز»)', async () => {
+    renderFormsWithRouter('/forms?employee=5');
+    await waitFor(() => {
+      expect(screen.getByLabelText('اختر الموظف (مشترك لجميع النماذج) *')).toBeInTheDocument();
+    });
+    expect(document.getElementById('mode-employment-contract')).toBeNull();
   });
 });

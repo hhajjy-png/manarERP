@@ -4241,6 +4241,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'printlog.form.purchase_request': 'طلب شراء',
     'printlog.profile.plain_a4': 'A4 عادي',
     'printlog.profile.letterhead': 'ورق الشركة الرسمي',
+    'printlog.profile.ready_paper': 'ورق جاهز',
     'msg.ent.legal_notice_full': 'القيم أعلاه تقديرية للاسترشاد فقط، محسوبة حتى تاريخ اليوم وفق قانون العمل الكويتي رقم 6 لسنة 2010. الأجر اليومي = الأجر الشهري المعتمد ÷ 26 (خط الأساس القانوني المعتمد للمشروع). الأجر الشهري المعتمد = الراتب الأساسي + البدلات الدورية النشطة حاليًا (المادتان 55 و62). مكافأة نهاية الخدمة (المادة 51) تُعرض بسيناريوهَين صريحَين: الاستحقاق الكامل عند إنهاء الخدمة من صاحب العمل، أو المخفَّض بنسبة الاستقالة (المادة 53) — تحقّق من اختيار الأساس الصحيح أعلاه قبل الاعتماد على أي رقم. رصيد الإجازة السنوية (المادة 70) يتراكم دومًا من تاريخ التعيين؛ أي دفعة مقدَّمة مسجَّلة في «سجل الدفعات المقدَّمة على الإجازة» توثيق تاريخي فقط ولا تُسقط أو تُنقص هذا الاستحقاق (المادتان 73 و74). هذه الأرقام ليست بديلاً عن التسوية النهائية الرسمية المعتمدة.',
   },
   en: {
@@ -8480,6 +8481,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'printlog.form.purchase_request': 'Purchase Request',
     'printlog.profile.plain_a4': 'Plain A4',
     'printlog.profile.letterhead': 'Official Letterhead',
+    'printlog.profile.ready_paper': 'Ready Paper',
     'msg.ent.legal_notice_full': 'The figures above are indicative estimates only, calculated as of today under Kuwait Labour Law No. 6 of 2010. Daily wage = approved monthly wage ÷ 26 (the project\'s approved legal baseline). Approved monthly wage = basic salary + currently active periodic allowances (Articles 55 and 62). End-of-service gratuity (Article 51) is shown under two explicit scenarios: full entitlement upon employer termination, or reduced by the resignation fraction (Article 53) — verify the correct basis is selected above before relying on any figure. The annual leave balance (Article 70) always accrues from the hire date; any advance recorded in "Leave Advances History" is historical documentation only and does not reduce or cancel this entitlement (Articles 73 and 74). These figures are not a substitute for the officially approved final settlement.',
   },
 };

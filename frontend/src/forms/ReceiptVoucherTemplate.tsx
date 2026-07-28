@@ -190,12 +190,10 @@ export default function ReceiptVoucherTemplate({
         </tbody>
       </table>
 
-      {/* Three-column signatures */}
+      {/* Signature: Receiver only — Accountant/Finance Manager sections removed */}
       <div style={{ display: 'flex', gap: 24, marginTop: 38 }}>
         {[
           { ar: 'المُستلِم', en: 'Receiver' },
-          { ar: 'المحاسب', en: 'Accountant' },
-          { ar: 'المدير المالي', en: 'Finance Manager' },
         ].map(({ ar, en }) => (
           <div key={ar} style={{ flex: 1, textAlign: 'center' }}>
             <div

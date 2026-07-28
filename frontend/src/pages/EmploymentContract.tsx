@@ -861,7 +861,8 @@ export default function EmploymentContract() {
               {t('page.contract.restore_draft_btn')}
             </button>
           )}
-          <PrintProfileToggle profile={profile} onChange={setProfile} />
+          {/* Employment Contract intentionally does not offer "Ready Paper" (Phase 1). */}
+          <PrintProfileToggle profile={profile} onChange={setProfile} excludeIds={['ready-paper']} />
           <span style={{ fontSize: 12, color: 'var(--text-muted)', marginRight: 'auto' }}>
             {formNumber}
           </span>
