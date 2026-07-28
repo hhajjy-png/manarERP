@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `5a220235` (merge of `feature/ink-color-system-v2`, carrying Ink Color System v2) |
-| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Documentation Commit** | `06b006f3` |
 | **Current Stable Tag** | `stable-ink-color-system-v2` |
 | **Current Release Date** | 2026-07-28 |
 | **Total Stable Releases** | 368 (window 2026-06-07 → 2026-07-28) |
