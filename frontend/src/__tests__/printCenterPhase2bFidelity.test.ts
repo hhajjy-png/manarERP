@@ -5,13 +5,6 @@ import {
   capturePrintStyles,
   composeStyledFromNode,
   getPageSpec,
-  isFlagEnabled,
-  isPhase2Enabled,
-  setFlagOverride,
-  PRINT_CENTER_PHASE2,
-  PRINT_CENTER_PHASE2_INVOICE,
-  PRINT_CENTER_PHASE2_QUOTATION,
-  PRINT_CENTER_PHASE2_RECEIPT_VOUCHER,
 } from '../printing';
 
 /**
@@ -85,9 +78,6 @@ afterEach(() => {
   styleEls.forEach((el) => el.remove());
   styleEls = [];
   document.body.innerHTML = '';
-  setFlagOverride(PRINT_CENTER_PHASE2_INVOICE, null);
-  setFlagOverride(PRINT_CENTER_PHASE2_QUOTATION, null);
-  setFlagOverride(PRINT_CENTER_PHASE2, null);
 });
 
 const compose = (node: HTMLElement, lang: 'ar' | 'en' = 'ar') =>
@@ -238,47 +228,6 @@ describe('Phase 2B — fails loudly rather than shipping an unstyled document', 
   });
 });
 
-describe('Phase 2B — feature flags (Controlled Enablement Phase A)', () => {
-  it('invoice and quotation now ship ON — their side-by-side manual gate passed', () => {
-    // انقلبت السياسة بعد اكتمال الفحص اليدوي (القديم مقابل المعاينة مقابل الورقة).
-    // البوابة نفسها لم تتغيّر: ما زال يلزم العلم الرئيسي **وعلم المستند** معًا.
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(true);
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(true);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(true);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(true);
-  });
-
-  it('kill switch: إطفاء العلم الرئيسي يُبطلهما رغم أن افتراضهما ON', () => {
-    setFlagOverride(PRINT_CENTER_PHASE2, false);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(false);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(false);
-    setFlagOverride(PRINT_CENTER_PHASE2, null);
-  });
-
-  it('override بقيمة off يتغلّب على الافتراض ON (تراجع فوري بلا إصدار)', () => {
-    setFlagOverride(PRINT_CENTER_PHASE2_INVOICE, false);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(false);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(true); // مستقلّان
-    setFlagOverride(PRINT_CENTER_PHASE2_INVOICE, null);
-  });
-
-  it('سند القبض ON افتراضيًا — على بوابته المستقلة، ويُطفأ وحده', () => {
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(true);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(true);
-    setFlagOverride(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER, false);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER)).toBe(false);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(true); // ولا يجرّ غيره معه
-    setFlagOverride(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER, null);
-  });
-
-  it('require BOTH the master flag and their own', () => {
-    setFlagOverride(PRINT_CENTER_PHASE2_INVOICE, true);
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(true);
-    setFlagOverride(PRINT_CENTER_PHASE2, false); // master kill switch
-    expect(isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(false);
-  });
-});
-
 // ── Scope + regression: renderers reused, nothing else touched. ──────────────────
 describe('Phase 2B — scope discipline', () => {
   const invoice = readFileSync('src/pages/InvoicePreview.tsx', 'utf8');
@@ -302,7 +251,6 @@ describe('Phase 2B — scope discipline', () => {
   it('keeps the legacy print path on both pages', () => {
     for (const src of [invoice, quotation]) {
       expect(src).toContain('printCurrentView()');
-      expect(src).toContain('isPhase2Enabled(');
     }
   });
 
@@ -337,7 +285,6 @@ describe('Phase 2B — scope discipline', () => {
 
   it('Receipt Voucher and Forms are unchanged by this phase', () => {
     const rcv = readFileSync('src/pages/ReceiptVoucher.tsx', 'utf8');
-    expect(rcv).toContain('PRINT_CENTER_PHASE2_RECEIPT_VOUCHER');
     expect(rcv).toContain('composeFromNode'); // still the inline-style composer
     const form = readFileSync('src/forms/shared/FormLayout.tsx', 'utf8');
     expect(form).toContain('submitPrintJob('); // native copies fix intact

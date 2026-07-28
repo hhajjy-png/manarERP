@@ -4,11 +4,8 @@ import {
   createPrintJob,
   composeFromNode,
   isFlagEnabled,
-  isPhase2Enabled,
   submitPrintJob,
-  PrintPreviewDialog,
   PRINT_CENTER_FOUNDATION_V1,
-  PRINT_CENTER_PHASE2_RECEIPT_VOUCHER,
   RECEIPT_VOUCHER_PAGE_SPEC,
   useAccurateFormPreview,
   UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1,
@@ -74,11 +71,8 @@ export default function ReceiptVoucher() {
   const [formError, setFormError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
 
-  // Phase 2 — Print Center preview. The printable node is the SAME element the legacy
-  // path prints; we serialize it, we never re-render the document.
+  // العقدة المطبوعة — نفس ما يستهلكه مُركِّب المستند (composePreview) ومسار الطباعة.
   const previewRef = useRef<HTMLDivElement>(null);
-  const [printCenterOpen, setPrintCenterOpen] = useState(false);
-  const usePrintCenterPath = isPhase2Enabled(PRINT_CENTER_PHASE2_RECEIPT_VOUCHER);
 
   /**
    * Compose the self-contained document from the EXISTING printable element.
@@ -140,15 +134,6 @@ export default function ReceiptVoucher() {
     if (!printing || !rcvNumber) return;
     let canceled = false;
 
-    // ── Phase 2 path — open the Print Center preview instead of printing blind ──
-    // The user sees the actual PDF, then chooses Print or Save PDF. No print dialog
-    // opens automatically. Audit for PRINT happens only when they press Print.
-    if (usePrintCenterPath) {
-      setPrintCenterOpen(true);
-      setPrinting(false);
-      return;
-    }
-
     if (!isFlagEnabled(PRINT_CENTER_FOUNDATION_V1)) {
       // ── Legacy path — unchanged ──
       printCurrentView();
@@ -175,7 +160,7 @@ export default function ReceiptVoucher() {
     return () => {
       canceled = true;
     };
-  }, [printing, rcvNumber, lang, usePrintCenterPath]);
+  }, [printing, rcvNumber, lang]);
 
   function set(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -366,27 +351,6 @@ export default function ReceiptVoucher() {
         </div>
       </div>
 
-      {/* معاينة قبل الطباعة — الطباعة نفسها تبقى على مسار Phase 1 المعتمد. */}
-      {usePrintCenterPath && (
-        <PrintPreviewDialog
-          open={printCenterOpen}
-          onClose={() => setPrintCenterOpen(false)}
-          compose={composePreview}
-          onPrint={() => {
-            void submitPrintJob(
-              createPrintJob({
-                docType: 'receipt-voucher',
-                documentId: rcvNumber,
-                destination: 'printer',
-                pageSpecId: RECEIPT_VOUCHER_PAGE_SPEC.id,
-                copies: 1,
-              }),
-            );
-          }}
-          documentLabel={`${t('voucher.receipt.title')} · ${rcvNumber || '---'}`}
-          lang={lang}
-        />
-      )}
       {accurate.dialog}
 
       {/* ── Printable preview (always in DOM, hidden on screen via no-print toolbar) ── */}

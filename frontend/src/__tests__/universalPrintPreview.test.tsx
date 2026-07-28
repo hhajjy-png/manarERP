@@ -8,9 +8,6 @@ import {
   PrintPreviewDialog,
   composeStyledFromNode,
   getPageSpec,
-  isFlagEnabled,
-  PRINT_CENTER_PHASE2_INVOICE,
-  PRINT_CENTER_PHASE2_QUOTATION,
 } from '../printing';
 
 /**
@@ -245,11 +242,6 @@ describe('Universal Print Preview — مسار artifact أُزيل بالكام�
 
 // ── الأعلام والانحدار ───────────────────────────────────────────────────────────
 describe('Universal Print Preview — الأعلام والانحدار', () => {
-  it('Invoice وQuotation صارا ON افتراضيًا (Phase A) — والطباعة القديمة كما هي', () => {
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_INVOICE)).toBe(true);
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(true);
-  });
-
   it('مسار طباعة الفاتورة القديم لم يتغيّر', () => {
     const inv = readFileSync('src/pages/InvoicePreview.tsx', 'utf8');
     expect(inv).toContain('printCurrentView()'); // المسار القديم باقٍ

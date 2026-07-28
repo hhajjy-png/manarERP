@@ -138,7 +138,7 @@ describe('«موظف جديد» — إدخال يدوي للطباعة فقط', 
 // ── الطباعة والمعاينة ───────────────────────────────────────────────────────────
 describe('الطباعة والمعاينة — بلا تغيير', () => {
   it('الطباعة تمرّ بـ handlePrint القديمة نفسها', () => {
-    expect(contractCode).toContain('preview.printIntercept({ proceed: handlePrint, node: printRootRef.current })');
+    expect(contractCode).toContain('handlePrint();');
     const block = contractCode.slice(contractCode.indexOf('function handlePrint()'));
     expect(block).toContain("saveDraft('employment-contract'");
     expect(block).toContain('addPrintLog({');
@@ -169,13 +169,10 @@ describe('الطباعة والمعاينة — بلا تغيير', () => {
     expect(tpl).toContain('emp.fullNameEn ?? emp.fullName');
   });
 
-  it('معاينة Phase 2 والعرض المتصل بلا تغيير', () => {
-    expect(contractCode).toContain('useLegacyFormPreview({');
-    expect(contractCode).toContain('PRINT_PREVIEW_LEGACY_FORMS_SPECIAL');
-    const dlg = readFileSync('src/printing/components/PrintPreviewDialog.tsx', 'utf8');
-    expect(dlg).toContain('عرض متصل — التقسيم النهائي يحدده الطابع');
-    const hook = readFileSync('src/printing/useLegacyFormPreview.tsx', 'utf8');
-    expect(hook).toContain('proceedRef.current?.()'); // لم يُمسّ
+  it('المعاينة الدقيقة تستهلك نفس العقدة ونفس دالة الطباعة — بلا تغليف', () => {
+    expect(contractCode).toContain('useAccurateFormPreview({');
+    expect(contractCode).toContain('getNode: () => printRootRef.current');
+    expect(contractCode).toContain('onPrint: () => handlePrint()');
   });
 });
 
@@ -198,8 +195,8 @@ describe('الانحدار — لا شيء خارج المدخل تغيّر', ()
 
   it('الفاتورة وعرض السعر وقسيمة الراتب بلا مساس', () => {
     expect(code(readFileSync('src/pages/InvoicePreview.tsx', 'utf8'))).toContain('compose={composeInvoicePreview}');
-    expect(code(readFileSync('src/pages/Quotation.tsx', 'utf8'))).toContain('onPrint={runLegacyPrint}');
-    expect(code(readFileSync('src/pages/PayrollPayslip.tsx', 'utf8'))).toContain('intercept({ proceed: printCurrentView, node: printRootRef.current })');
+    expect(code(readFileSync('src/pages/Quotation.tsx', 'utf8'))).toContain('onClick={() => printCurrentView()}');
+    expect(code(readFileSync('src/pages/PayrollPayslip.tsx', 'utf8'))).toContain('onPrint: () => printCurrentView()');
   });
 });
 

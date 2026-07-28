@@ -4,7 +4,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { flushAsyncUpdates } from './helpers/flush';
 import { readFileSync } from 'node:fs';
-import { PrintPreviewDialog, isFlagEnabled, PRINT_CENTER_PHASE2_QUOTATION } from '../printing';
+import { PrintPreviewDialog } from '../printing';
 
 /**
  * Universal Print Preview — Corrective & UI Polish v1.
@@ -86,34 +86,21 @@ describe('العيب 1 — زر الطباعة الأصلي', () => {
     }
   });
 
-  it('no button that OPENS a preview prints — neither the existing one nor the POC', () => {
+  it('no button that OPENS a preview prints — the accurate-preview (WYSIWYG) one', () => {
     // Every preview-opening click handler, checked at the handler itself (not by proximity).
-    const openers = [
-      'onClick={() => setPrintCenterOpen(true)}',   // existing continuous preview
-      'onClick={() => setWysiwygPocOpen(true)}',    // WYSIWYG POC
-    ];
-    for (const opener of openers) {
-      expect(invoiceCode).toContain(opener);
-      let from = 0;
-      for (;;) {
-        const idx = invoiceCode.indexOf(opener, from);
-        if (idx === -1) break;
-        const around = invoiceCode.slice(Math.max(0, idx - 140), idx + opener.length + 140);
-        expect(around).not.toContain('printCurrentView');
-        from = idx + opener.length;
-      }
+    const opener = 'onClick={() => setWysiwygPocOpen(true)}'; // accurate preview
+    expect(invoiceCode).toContain(opener);
+    let from = 0;
+    for (;;) {
+      const idx = invoiceCode.indexOf(opener, from);
+      if (idx === -1) break;
+      const around = invoiceCode.slice(Math.max(0, idx - 140), idx + opener.length + 140);
+      expect(around).not.toContain('printCurrentView');
+      from = idx + opener.length;
     }
   });
 
-  it('the POC fallback opens the existing preview and never prints', () => {
-    expect(invoiceCode).toContain('onFallback={() => setPrintCenterOpen(true)}');
-    const idx = invoiceCode.indexOf('onFallback=');
-    const handler = invoiceCode.slice(idx, invoiceCode.indexOf('}', invoiceCode.indexOf('=>', idx)) + 1);
-    expect(handler).not.toContain('printCurrentView');
-  });
-
   it('the official Print button is not gated by any preview flag', () => {
-    expect(invoiceCode).toContain('معاينة قبل الطباعة');
     const printBtn = invoiceCode.indexOf("t('btn.inv.print_invoice')");
     const before = invoiceCode.slice(Math.max(0, printBtn - 260), printBtn);
     expect(before).not.toContain('usePrintCenterInvoice');
@@ -122,7 +109,7 @@ describe('العيب 1 — زر الطباعة الأصلي', () => {
 
   it('الأزرار مصنّفة بصريًا: الطباعة أساسية، وما عداها ثانوي — ولا إجراء خطر', () => {
     expect(invoiceCode).toMatch(/className="btn"[\s\S]{0,90}printCurrentView/); // أساسي
-    expect(invoiceCode).toMatch(/className="btn secondary"[\s\S]{0,140}معاينة قبل الطباعة/);
+    expect(invoiceCode).toMatch(/className="btn secondary"[\s\S]{0,220}t\('btn\.accurate_preview'\)/); // المعاينة الدقيقة — ثانوي
     expect(invoiceCode).not.toContain('danger-ghost'); // «إلغاء» غادر شاشة الطباعة
   });
 });
@@ -240,7 +227,7 @@ describe('شريط الإجراءات — الترتيب والحجم', () => {
     const at = (s: string) => invoiceCode.indexOf(s);
     const back = at('action.back') >= 0 ? at('action.back') : at('رجوع');
     const print = at("t('btn.inv.print_invoice')");
-    const preview = at('معاينة قبل الطباعة');
+    const preview = at("t('btn.accurate_preview')");
     const pdf = at('⬇️ PDF');
     const edit = at("t('action.edit')");
     const template = at('قالب الطباعة');
@@ -409,8 +396,7 @@ describe('نافذة المعاينة — التحسينات', () => {
 
 // ── الانحدار ─────────────────────────────────────────────────────────────────────
 describe('الانحدار', () => {
-  it('Quotation لا تتأثر — علمها ON افتراضيًا الآن، ومسار طباعتها القديم كما هو', () => {
-    expect(isFlagEnabled(PRINT_CENTER_PHASE2_QUOTATION)).toBe(true);
+  it('Quotation لا تتأثر — مسار طباعتها القديم كما هو', () => {
     const q = readFileSync('src/pages/Quotation.tsx', 'utf8');
     expect(q).toContain('printCurrentView()');
     expect(q).toContain('@page { size: A4; margin: 0; }');

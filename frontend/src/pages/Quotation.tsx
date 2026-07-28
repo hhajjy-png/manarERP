@@ -2,9 +2,6 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { printCurrentView } from '../utils/print';
 import {
   composeStyledFromNode,
-  isPhase2Enabled,
-  PrintPreviewDialog,
-  PRINT_CENTER_PHASE2_QUOTATION,
   getPageSpec,
   useAccurateFormPreview,
   isFlagEnabled,
@@ -108,25 +105,7 @@ export default function Quotation() {
   const [printFields, setPrintFields] = useState<QuotationPrintFields>(makeInitial);
   const [previewMode, setPreviewMode] = useState<'legacy' | 'engine'>('legacy');
 
-  // ── Print Center (Phase 2B) — engine mode only ─────────────────────────────────
-  // Legacy quotation mode renders through FormLayout, which owns its own print path and
-  // is untouched here. Engine mode is the template-engine render (CSS Modules, Template
-  // Studio, designer overrides, watermarks), and that is what the Print Center composes:
-  // the existing renderer's output plus the existing renderer's stylesheets. No template
-  // is duplicated, consolidated or rewritten.
   const printRootRef = useRef<HTMLDivElement>(null);
-  const [printCenterOpen, setPrintCenterOpen] = useState(false);
-  const usePrintCenterQuotation = isPhase2Enabled(PRINT_CENTER_PHASE2_QUOTATION);
-
-  /**
-   * جسر المعاينة في الوضع الافتراضي (Legacy).
-   *
-   * `FormLayout` يملك زر الطباعة ومسارها (`doPrint` → `submitPrintJob` → `print:submit`
-   * → `webContents.print`). لا نستبدل هذا المسار ولا نكرّره: نحتفظ به كما سلّمه لنا
-   * (`proceed`) ونستدعيه حرفيًا من داخل المعاينة. المعاينة **طبقة عرض** لا منفّذ طباعة.
-   */
-  const legacyPrintRef = useRef<(() => void) | null>(null);
-  const [legacyNode, setLegacyNode] = useState<HTMLElement | null>(null);
 
   const [adapterError, setAdapterError] = useState<string | null>(null);
   const { activeTemplate: studioTemplate } = useTemplateStudio('quotation');
@@ -189,7 +168,7 @@ export default function Quotation() {
        * يرسم مستندًا قائمًا بذاته في نافذة خفية، وهو **نفس المستند الذي تعرضه المعاينة**
        * (نفس المُركِّب، نفس العقدة) — فالورقة والـ PDF والمعاينة تروي القصة نفسها.
        */
-      const html = composeQuotationPreview(legacyNode);
+      const html = composeQuotationPreview();
       const result = await (window.manar?.exportPdfFromHtml
         ? window.manar.exportPdfFromHtml(html, suggestedName)
         : window.manar?.exportPdf(suggestedName)); // بيئة قديمة بلا الجسر — السلوك السابق كما هو
@@ -274,9 +253,10 @@ export default function Quotation() {
    *
    * المصدر يختلف باختلاف الوضع، والمُركِّب واحد:
    *   Engine  → `printRootRef` (جذر هذه الصفحة).
-   *   Legacy  → `.form-page` داخل `FormLayout` — يمرّرها `printIntercept` نفسه، فهي
-   *             **نفس العقدة** التي يطبعها المسار القديم، بحالتها الحالية (اللغة،
-   *             قالب الطباعة، الورق الرسمي، البنود، الملاحظات، التوقيع والختم).
+   *   Legacy  → `.form-page` داخل `FormLayout` — يُقرأ عبر `printApiRef` (ينشره
+   *             `onPrintApiReady`)، فهي **نفس العقدة** التي يطبعها المسار القديم،
+   *             بحالتها الحالية (اللغة، قالب الطباعة، الورق الرسمي، البنود،
+   *             الملاحظات، التوقيع والختم).
    */
   const composeQuotationPreview = useCallback((sourceNode?: HTMLElement | null): string => {
     const node = sourceNode ?? printRootRef.current;
@@ -289,20 +269,6 @@ export default function Quotation() {
       stripSelectors: ['.no-print'],
     });
   }, [printFields.quotationNumber, lang]);
-
-  const legacyPrintIntercept = useCallback(
-    ({ proceed, node }: { proceed: () => void; node: HTMLElement | null }) => {
-      legacyPrintRef.current = proceed;
-      setLegacyNode(node);
-      setPrintCenterOpen(true); // فتح فقط — لا طباعة هنا إطلاقًا
-    },
-    [],
-  );
-
-  const composeLegacyPreview = useCallback(
-    () => composeQuotationPreview(legacyNode),
-    [legacyNode],
-  );
 
   /**
    * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**، لكلا وضعَي الصفحة.
@@ -334,11 +300,6 @@ export default function Quotation() {
     documentLabel: t('lbl.doc_label.quotation', { number: printFields.quotationNumber || '---' }),
     lang,
   });
-
-  /** يُستدعى مرة واحدة من زر «طباعة» داخل المعاينة، بعد إغلاقها (الحوار يحرس النقر المزدوج). */
-  const runLegacyPrint = useCallback(() => {
-    legacyPrintRef.current?.();
-  }, []);
 
   const warnings = useMemo(
     () => (brandedPrintData ? validateQuotationPrintData(brandedPrintData) : []),
@@ -402,18 +363,6 @@ export default function Quotation() {
   if (previewMode === 'engine') {
     return (
       <>
-        {/* Print Center (Phase 2B) — mounted OUTSIDE the printable root, so its markup
-            can never be cloned into the composed document. */}
-        {usePrintCenterQuotation && (
-          <PrintPreviewDialog
-            open={printCenterOpen}
-            onClose={() => setPrintCenterOpen(false)}
-            compose={composeQuotationPreview}
-            onPrint={() => printCurrentView()}
-            documentLabel={t('lbl.doc_label.quotation', { number: printFields.quotationNumber || '---' })}
-            lang={lang}
-          />
-        )}
         {accurateEngine.dialog}
       <div ref={printRootRef} style={{ minHeight: '100vh', background: '#f0f4f8' }}>
         <style>{`
@@ -430,17 +379,9 @@ export default function Quotation() {
           className="no-print"
           style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', padding: '10px 18px', background: '#fff', borderBottom: '1px solid var(--border)', boxShadow: '0 1px 4px rgba(0,0,0,.06)' }}
         >
-          {/* Print Center (flag ON) — preview the real PDF, then Print or Save PDF.
-              Flag OFF → the original direct-print button, unchanged. */}
-          {usePrintCenterQuotation ? (
-            <button type="button" className="btn" onClick={() => setPrintCenterOpen(true)}>
-              🔍 {t('btn.preview_before_print')}
-            </button>
-          ) : (
-            <button type="button" className="btn" onClick={() => printCurrentView()}>
-              🖨️ {t('page.forms.print_btn')}
-            </button>
-          )}
+          <button type="button" className="btn" onClick={() => printCurrentView()}>
+            🖨️ {t('page.forms.print_btn')}
+          </button>
           {accurateEngine.button}
           <button
             type="button"
@@ -622,22 +563,10 @@ export default function Quotation() {
     );
   }
 
-  // ── LEGACY MODE — مسار الطباعة كما هو؛ أُضيفت طبقة معاينة اختيارية فوقه ──────────
+  // ── LEGACY MODE — مسار الطباعة كما هو؛ المعاينة الدقيقة هي طبقة العرض الوحيدة فوقه ──
   return (
     <>
-      {/* الحوار خارج الـ printable root (`.form-page`) فلا يدخل المستند المُركَّب أبدًا.
-          العلم OFF ⇒ لا يُصيَّر أصلًا، ولا يُمرَّر اعتراض، فالزر يستدعي doPrint مباشرة
-          كما كان قبل هذه الحزمة تمامًا. */}
-      {usePrintCenterQuotation && (
-        <PrintPreviewDialog
-          open={printCenterOpen}
-          onClose={() => setPrintCenterOpen(false)}
-          compose={composeLegacyPreview}
-          onPrint={runLegacyPrint}
-          documentLabel={t('lbl.doc_label.quotation', { number: printFields.quotationNumber || '---' })}
-          lang={lang}
-        />
-      )}
+      {/* الحوار خارج الـ printable root (`.form-page`) فلا يدخل المستند المُركَّب أبدًا. */}
       {accurateLegacy.dialog}
     <FormLayout
       formType={FORM_KEY}
@@ -646,7 +575,6 @@ export default function Quotation() {
       formNumber={printFields.quotationNumber || generateFormNumber(FORM_KEY)}
       title={translate('page.quotation.title', lang)}
       profile={profile}
-      printIntercept={usePrintCenterQuotation ? legacyPrintIntercept : undefined}
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       toolbarExtra={
         <>

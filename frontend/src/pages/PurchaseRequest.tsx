@@ -7,7 +7,7 @@ import { DEFAULT_PROFILE_ID, ProfileId } from '../forms/shared/printProfiles';
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
-import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_FINANCE, useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
+import { useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PurchaseRequestTemplate, {
@@ -119,15 +119,6 @@ export default function PurchaseRequest() {
   function resetForm() { setShowClearConfirm(true); }
   function executeClear() { setShowClearConfirm(false); setPrintFields(makeInitial()); }
 
-  /* معاينة قبل الطباعة — طبقة عرض فوق مسار FormLayout القديم. العلم مطفأ ⇒ لا اعتراض
-     ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
-  const preview = useLegacyFormPreview({
-    enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE),
-    title: translate('page.purchaseReq.title', lang),
-    documentLabel: `${translate('page.purchaseReq.title', lang)} · ${printFields.requestNumber || ''}`,
-    lang,
-  });
-
   /**
    * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
    *
@@ -149,12 +140,10 @@ export default function PurchaseRequest() {
 
   return (
     <>
-    {preview.dialog}
     {accurate.dialog}
     <FormLayout
       formType={FORM_KEY}
       lang={lang}
-      printIntercept={preview.printIntercept}
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready={false}
       formNumber={printFields.requestNumber || generateFormNumber(FORM_KEY)}

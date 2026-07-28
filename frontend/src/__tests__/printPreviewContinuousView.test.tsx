@@ -179,32 +179,3 @@ describe('القياس والطباعة بلا تغيير', () => {
     expect(fl).toContain('buildFormPdfDocument');
   });
 });
-
-// ── الانحدار ────────────────────────────────────────────────────────────────────
-describe('الانحدار — Phase 2 وما قبلها', () => {
-  it('عقد العمل وقسيمة الراتب كما هما', () => {
-    const c = readFileSync('src/pages/EmploymentContract.tsx', 'utf8');
-    expect(c).toContain('preview.printIntercept({ proceed: handlePrint, node: printRootRef.current })');
-    const p = readFileSync('src/pages/PayrollPayslip.tsx', 'utf8');
-    expect(p).toContain('intercept({ proceed: printCurrentView, node: printRootRef.current })');
-    expect(p).toContain('if (!canceled) requestPrint();'); // auto-print عبر البوابة
-  });
-
-  it('الأعلام والخطّاف المشترك بلا تغيير', () => {
-    const flags = readFileSync('src/printing/flags.ts', 'utf8');
-    // التفعيل الكامل: كل المجموعات ON افتراضيًا؛ والمفتاح الرئيسي ما زال قاطعًا فوقها.
-    expect(flags).toContain('PRINT_PREVIEW_LEGACY_FORMS_SPECIAL: true');
-    expect(flags).toContain('PRINT_PREVIEW_LEGACY_FORMS_V1: true');
-    expect(flags).toContain('PRINT_PREVIEW_LEGACY_FORMS_HR: true');
-    expect(flags).toContain('PRINT_PREVIEW_LEGACY_FORMS_FINANCE: true');
-    const hook = readFileSync('src/printing/useLegacyFormPreview.tsx', 'utf8');
-    expect(hook).toContain('if (openRef.current) return;'); // حارس المعاينة الواحدة
-    expect(hook).toContain('proceedRef.current?.()');
-  });
-
-  it('الفاتورة وعرض السعر ونماذج Phase 1 بلا Regression', () => {
-    expect(readFileSync('src/pages/InvoicePreview.tsx', 'utf8')).toContain('compose={composeInvoicePreview}');
-    expect(readFileSync('src/pages/Quotation.tsx', 'utf8')).toContain('onPrint={runLegacyPrint}');
-    expect(readFileSync('src/pages/SalaryCertificate.tsx', 'utf8')).toContain('printIntercept={preview.printIntercept}');
-  });
-});

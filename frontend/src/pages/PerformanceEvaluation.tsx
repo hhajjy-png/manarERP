@@ -8,7 +8,7 @@ import { getProfileIdFromSearch, ProfileId } from '../forms/shared/printProfiles
 import { usePrintProfileMemory } from '../forms/shared/usePrintProfileMemory';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
-import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_HR, useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
+import { useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
 import PerformanceEvaluationTemplate from '../forms/PerformanceEvaluationTemplate';
 import { usePrintLogStore } from '../stores/printLogStore';
 import { usePrintDraftStore } from '../stores/printDraftStore';
@@ -91,15 +91,6 @@ export default function PerformanceEvaluation() {
     return () => window.removeEventListener('beforeprint', handler);
   }, [data, formNumber, addPrintLog, profile]);
 
-  /* معاينة قبل الطباعة — طبقة عرض فوق مسار FormLayout القديم. العلم مطفأ ⇒ لا اعتراض
-     ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
-  const preview = useLegacyFormPreview({
-    enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_HR),
-    title: translate('page.perfEval.title', lang),
-    documentLabel: `${t('page.perfEval.doc_label')} · ${formNumber}`,
-    lang,
-  });
-
   /**
    * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
    *
@@ -130,12 +121,10 @@ export default function PerformanceEvaluation() {
 
   return (
     <>
-    {preview.dialog}
     {accurate.dialog}
     <FormLayout
       formType={FORM_KEY}
       lang={lang}
-      printIntercept={preview.printIntercept}
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
