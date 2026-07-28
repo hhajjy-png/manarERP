@@ -660,12 +660,10 @@ describe('عزل النطاق — مصدر الفاتورة والمعاينة �
     'utf-8',
   );
 
-  it('زر POC وحواره مقيّدان بالعلم، والمعاينة الحالية غير مشروطة به', () => {
+  it('زر POC وحواره مقيّدان بالعلم', () => {
     expect(invoiceSrc).toContain('isFlagEnabled(TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC)');
     // الزر والحوار كلاهما خلف useWysiwygPoc.
     expect(invoiceSrc.match(/\{useWysiwygPoc && \(/g)?.length).toBe(2);
-    // المعاينة المتصلة الحالية باقية على علمها الأصلي، لا على علم POC.
-    expect(invoiceSrc).toContain('usePrintCenterInvoice = isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE)');
   });
 
   it('POC يستهلك نفس المُركِّب composeInvoicePreview ويطبع عبر printCurrentView نفسه', () => {

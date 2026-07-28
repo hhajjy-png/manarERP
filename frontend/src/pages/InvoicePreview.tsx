@@ -2,10 +2,7 @@ import { CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from
 import { printCurrentView } from '../utils/print';
 import {
   composeStyledFromNode,
-  isPhase2Enabled,
   isFlagEnabled,
-  PrintPreviewDialog,
-  PRINT_CENTER_PHASE2_INVOICE,
   TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC,
   getPageSpec,
 } from '../printing';
@@ -156,9 +153,7 @@ export default function InvoicePreview() {
   // mode is active, legacy or engine, composition reproduces the legacy output by
   // construction rather than by imitation.
   const printRootRef = useRef<HTMLDivElement>(null);
-  const [printCenterOpen, setPrintCenterOpen] = useState(false);
   const [wysiwygPocOpen, setWysiwygPocOpen] = useState(false);
-  const usePrintCenterInvoice = isPhase2Enabled(PRINT_CENTER_PHASE2_INVOICE);
   // POC — OFF افتراضيًا. يظهر زرّه فقط بتفعيل يدوي للعلم، ولا يغيّر شيئًا سواه.
   const useWysiwygPoc = isFlagEnabled(TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC);
 
@@ -455,28 +450,14 @@ export default function InvoicePreview() {
         .inv-pay-row:nth-child(even) { background: #f8fafc; }
       `}</style>
 
-      {/* Universal Print Preview — خارج الـ printable root دائمًا. زر «طباعة» بداخلها
-          يغلقها ثم يستدعي مسار طباعة الفاتورة القديم بلا تغيير. */}
-      {usePrintCenterInvoice && (
-        <PrintPreviewDialog
-          open={printCenterOpen}
-          onClose={() => setPrintCenterOpen(false)}
-          compose={composeInvoicePreview}
-          onPrint={() => printCurrentView()}
-          documentLabel={data ? t('lbl.doc_label.invoice', { number: data.invoiceNumber ?? data.number }) : ''}
-          lang="ar"
-        />
-      )}
-
-      {/* True Chromium WYSIWYG POC — نفس مُركِّب المستند، ونفس مسار الطباعة القديم.
-          فشل التوليد يعرض تراجعًا إلى المعاينة المتصلة أعلاه. */}
+      {/* المعاينة الدقيقة (True Chromium WYSIWYG) — نفس مُركِّب المستند، ونفس مسار
+          الطباعة القديم. مسار الطباعة نفسه لا يتأثر بفشل توليد المعاينة. */}
       {useWysiwygPoc && (
         <WysiwygPreviewPocDialog
           open={wysiwygPocOpen}
           onClose={() => setWysiwygPocOpen(false)}
           compose={composeInvoicePreview}
           onPrint={() => printCurrentView()}
-          onFallback={() => setPrintCenterOpen(true)}
           documentLabel={data ? t('lbl.doc_label.invoice', { number: data.invoiceNumber ?? data.number }) : ''}
         />
       )}
@@ -507,17 +488,6 @@ export default function InvoicePreview() {
           <button type="button" className="btn" onClick={() => printCurrentView()}>
             🖨️ {t('btn.inv.print_invoice')}
           </button>
-
-          {/* إجراء ثانوي مستقل — المعاينة اختيارية ولا تطبع عند الفتح. */}
-          {usePrintCenterInvoice && (
-            <button
-              type="button"
-              className="btn secondary"
-              onClick={() => setPrintCenterOpen(true)}
-            >
-              🔍 {t('btn.preview_before_print')}
-            </button>
-          )}
 
           {/* معاينة دقيقة — الصفحات كما ستخرج من الطابعة. لا تطبع عند الفتح. */}
           {useWysiwygPoc && (

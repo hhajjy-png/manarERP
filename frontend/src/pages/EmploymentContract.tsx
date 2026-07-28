@@ -1,9 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { printCurrentView } from '../utils/print';
 import {
-  useLegacyFormPreview,
-  isLegacyFormsPreviewEnabled,
-  PRINT_PREVIEW_LEGACY_FORMS_SPECIAL,
   useAccurateFormPreview,
   isFlagEnabled,
   UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1,
@@ -703,12 +700,6 @@ export default function EmploymentContract() {
 
   const contractDocLabel = `${t('page.contract.doc_title')} · ${formNumber}`;
 
-  const preview = useLegacyFormPreview({
-    enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL),
-    title: t('page.contract.doc_title'),
-    documentLabel: contractDocLabel,
-  });
-
   /**
    * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
    *
@@ -724,19 +715,11 @@ export default function EmploymentContract() {
     documentLabel: contractDocLabel,
   });
 
-  /**
-   * مِحوَل صغير حول زر الطباعة وحده. `handlePrint` القديمة تبقى كما هي حرفيًا — بما
-   * فيها حفظ المسودّة وسجلّ الطباعة وعدّاد النسخ — وتُمرَّر كمرجع (`proceed`) فتُنفَّذ
-   * **عند الموافقة داخل المعاينة**، لا عند فتحها. لا طباعة تلقائية في هذه الشاشة.
-   */
+  /** زر الطباعة يستدعي `handlePrint` مباشرة — لا معترِض، ولا معاينة قبل الطباعة. */
   const requestPrint = useCallback(() => {
-    if (preview.printIntercept) {
-      preview.printIntercept({ proceed: handlePrint, node: printRootRef.current });
-      return;
-    }
-    handlePrint(); // العلم OFF — السلوك القديم حرفيًا
+    handlePrint();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preview.printIntercept]);
+  }, []);
 
   function handlePrint() {
     if (employee) {
@@ -839,7 +822,6 @@ export default function EmploymentContract() {
     return (
       <>
       {/* خارج الجذر القابل للطباعة — لا يدخل المستند المُركَّب. */}
-      {preview.dialog}
       {accurate.dialog}
       <div ref={printRootRef} className="contract-print-root" style={{ maxWidth: 860, margin: '0 auto', padding: '16px 20px', background: '#fff' }}>
         <div

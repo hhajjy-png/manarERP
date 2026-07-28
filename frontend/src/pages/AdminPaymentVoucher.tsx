@@ -4,7 +4,7 @@ import { todayDateOnly } from '../lib/date';
 import { t as translate, useT } from '../lib/i18n';
 import FormLayout from '../forms/shared/FormLayout';
 import { generateFormNumber } from '../forms/shared/formNumber';
-import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_FINANCE, useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
+import { useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
 import type { PrintOutcome } from '../utils/print';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PaymentVoucherTemplate, { type PaymentVoucherMethod } from '../forms/PaymentVoucherTemplate';
@@ -74,15 +74,6 @@ export default function AdminPaymentVoucher() {
 
   const amountNum = parseFloat(form.amount) || 0;
 
-  /* معاينة قبل الطباعة — طبقة عرض فوق مسار FormLayout القديم. العلم مطفأ ⇒ لا اعتراض
-     ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
-  const preview = useLegacyFormPreview({
-    enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE),
-    title: translate('voucher.payment.title', lang),
-    documentLabel: t('voucher.payment.document_label', { number: form.voucherNumber }),
-    lang,
-  });
-
   /**
    * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**. تستهلك **نفس**
    * العقدة المطبوعة و**نفس** دالة الطباعة القديمة اللتين ينشرهما `onPrintApiReady`.
@@ -99,12 +90,10 @@ export default function AdminPaymentVoucher() {
 
   return (
     <>
-      {preview.dialog}
       {accurate.dialog}
       <FormLayout
         formType={FORM_KEY}
         lang={lang}
-        printIntercept={preview.printIntercept}
         onPrintApiReady={(api) => { printApiRef.current = api; }}
         ready={false}
         formNumber={form.voucherNumber}

@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import type { PrintOutcome } from '../utils/print';
 import FormLayout from '../forms/shared/FormLayout';
-import { useLegacyFormPreview, isLegacyFormsPreviewEnabled, PRINT_PREVIEW_LEGACY_FORMS_FINANCE, useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
+import { useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import PaymentVoucherTemplate from '../forms/PaymentVoucherTemplate';
 import { useT } from '../lib/i18n';
@@ -153,15 +153,6 @@ export default function PaymentVoucher() {
     }
   }
 
-  /* معاينة قبل الطباعة — طبقة عرض فوق مسار FormLayout القديم. العلم مطفأ ⇒ لا اعتراض
-     ولا حوار، فيبقى زر الطباعة على onClick={doPrint} كما هو. */
-  const preview = useLegacyFormPreview({
-    enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_FINANCE),
-    title: lang === 'en' ? 'Payment Voucher' : 'سند صرف',
-    documentLabel: t('voucher.payment.document_label', { number: cheque?.paymentVoucherNumber ?? '' }),
-    lang,
-  });
-
   /**
    * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
    *
@@ -219,12 +210,10 @@ export default function PaymentVoucher() {
         {showPreviousNext && <button type="button" className="btn secondary" disabled={activeIndex === items.length - 1} onClick={goNext} style={{ marginInlineStart: 'auto' }}>التالي</button>}
       </div>
     )}
-    {preview.dialog}
     {accurate.dialog}
     <FormLayout
       formType="payment-voucher"
       lang={lang}
-      printIntercept={preview.printIntercept}
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready={false}
       formNumber={cheque.paymentVoucherNumber}

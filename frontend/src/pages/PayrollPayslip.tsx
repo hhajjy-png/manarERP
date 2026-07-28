@@ -2,9 +2,6 @@ import { CSSProperties, useCallback, useEffect, useRef, useState } from 'react';
 import { printCurrentView } from '../utils/print';
 import {
   waitForPrintReady,
-  useLegacyFormPreview,
-  isLegacyFormsPreviewEnabled,
-  PRINT_PREVIEW_LEGACY_FORMS_SPECIAL,
   useAccurateFormPreview,
   isFlagEnabled,
   UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1,
@@ -78,12 +75,6 @@ export default function PayrollPayslip() {
   /** الجذر القابل للطباعة — نفس العقدة التي يطبعها المسار القديم. */
   const printRootRef = useRef<HTMLDivElement>(null);
 
-  const preview = useLegacyFormPreview({
-    enabled: isLegacyFormsPreviewEnabled(PRINT_PREVIEW_LEGACY_FORMS_SPECIAL),
-    title: t('page.payslip.doc_label'),
-    documentLabel: data ? `${t('page.payslip.doc_label')} · ${data.employee.fullName} · ${data.month}/${data.year}` : '',
-  });
-
   /**
    * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
    *
@@ -99,23 +90,10 @@ export default function PayrollPayslip() {
     documentLabel: data ? `${t('page.payslip.doc_label')} · ${data.employee.fullName} · ${data.month}/${data.year}` : '',
   });
 
-  /**
-   * مِحوَل صغير: بوابة **واحدة** يمرّ بها **كلا** مساري الطباعة — الزر اليدوي والطباعة
-   * التلقائية عند الجاهزية. (خطأ Phase 1 كان ربط الزر وترك مسار ready جانبًا.)
-   *
-   * دالة الطباعة القديمة هنا هي `printCurrentView` نفسها — تُمرَّر كمرجع، بلا نسخ ولا
-   * تغليف؛ فهي وحدها ما يطبع، سواء بوّابةٌ قبلها أم لا.
-   */
-  const interceptRef = useRef(preview.printIntercept);
-  interceptRef.current = preview.printIntercept;
-
+  /** بوابة **واحدة** يمرّ بها **كلا** مساري الطباعة — الزر اليدوي والطباعة التلقائية
+   * عند الجاهزية. تستدعي `printCurrentView` مباشرة — لا معترِض، ولا معاينة قبل الطباعة. */
   const requestPrint = useCallback(() => {
-    const intercept = interceptRef.current;
-    if (intercept) {
-      intercept({ proceed: printCurrentView, node: printRootRef.current });
-      return;
-    }
-    printCurrentView(); // العلم OFF — السطر القديم حرفيًا
+    printCurrentView();
   }, []);
 
   useEffect(() => {
@@ -146,7 +124,6 @@ export default function PayrollPayslip() {
   return (
     <>
     {/* الحوار خارج الجذر القابل للطباعة، فلا يدخل المستند المُركَّب. */}
-    {preview.dialog}
     {accurate.dialog}
     <div
       ref={printRootRef}

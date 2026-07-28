@@ -298,9 +298,9 @@ describe('التعميم على مستوى المصدر', () => {
     expect(src).toMatch(/accurate\w*\.dialog/);
   });
 
-  it.each(ROLLED_OUT)('%s: احتفظ بمعاينته القديمة (لم يُستبدل شيء)', (name) => {
+  it.each(ROLLED_OUT)('%s: المعاينة الدقيقة تفوّض إلى دالة الطباعة القديمة نفسها (لم يُستبدل مسار الطباعة)', (name) => {
     const src = read(`pages/${name}.tsx`);
-    expect(src).toMatch(/preview\.dialog|PrintPreviewDialog/);
+    expect(src).toMatch(/onPrint:\s*\(\)\s*=>/);
   });
 
   it.each(EXCLUDED)('%s: مستثنى — لا معاينة دقيقة', (name) => {
@@ -327,7 +327,7 @@ describe('انحدار — الفاتورة ومسار الطباعة كما ه�
   it('FormLayout.doPrint لم يتغيّر: ما زال يستدعي المسار القديم كما هو', () => {
     const src = read('forms/shared/FormLayout.tsx');
     expect(src).toContain('function doPrint()');
-    expect(src).toContain('printIntercept'); // اعتراض المعاينة القديمة باقٍ
+    expect(src).toContain('printIntercept'); // نقطة الامتداد العامة في FormLayout باقية (لا مستهلك حاليًا)
     expect(src).toContain('onPrintApiReady'); // النشر الجديد إضافي فقط
   });
 
