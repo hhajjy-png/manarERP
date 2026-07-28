@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `c3ac6ed` — release `stable-unified-accurate-preview-v1` (Unified Accurate Preview v1 — removed the "regular" print-preview overlay from every form; the accurate WYSIWYG preview is now the sole preview path across all 16 form pages, no printing/PDF/print-profile/content change) |
+| **Production HEAD** | `a6d6822e` — release `stable-multi-signature-stamp-management-v1` (Multi-Signature & Stamp Management v1 — central multi-signature/multi-stamp selection and per-document Design Mode, replacing the single fixed signature/stamp per document; no printing/PDF/backend/Prisma change) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-unified-accurate-preview-v1` (release date 2026-07-28) → merge `c3ac6ed` |
-| **Previous stable tag** | `stable-administrative-payment-voucher-v1` (2026-07-28) → merge `5f3695c` |
-| **Total stable releases** | 365 (all merged onto `production`; window 2026-06-07 → 2026-07-28) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · full frontend suite (1857/1882 passing; the 25 failures across 8 files are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD `5e944ef` before this feature) — re-run on the merged `production` branch after merge, results identical pre/post-merge · scope review confirmed only the 31 intended files entered the release · Product Owner Manual Visual Review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `c3ac6ed` + tag `stable-unified-accurate-preview-v1`) |
+| **Latest stable tag** | `stable-multi-signature-stamp-management-v1` (release date 2026-07-28) → merge `a6d6822e` |
+| **Previous stable tag** | `stable-unified-accurate-preview-v1` (2026-07-28) → merge `c3ac6ed` |
+| **Total stable releases** | 366 (all merged onto `production`; window 2026-06-07 → 2026-07-28) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · full frontend suite (1971/1996 passing; the 25 failures across 8 files are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD `763d0881` before this feature) — re-run on the merged `production` branch after merge, results identical pre/post-merge · backend suite 135 files/1902 tests ✅ (unaffected — frontend-only feature) · `build:front` ✅ · scope review confirmed only the 33 intended files (all under `frontend/src`) entered the release, with unrelated pre-existing uncommitted Google Drive Sync/electron-builder working-tree edits surgically excluded · Product Owner Manual Visual Review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `a6d6822e` + tag `stable-multi-signature-stamp-management-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Unified Accurate Preview v1
+## Latest Release — Multi-Signature & Stamp Management v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Multi-Signature & Stamp Management v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-28 |
+| **Feature branch** | `feature/multi-signature-stamp-management-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `763d0881` (documentation commit from the prior release) |
+| **Feature commit** | `5f43d3cc` |
+| **Production merge commit** | `a6d6822e` |
+| **Stable tag** | `stable-multi-signature-stamp-management-v1` → merge `a6d6822e` (annotated) |
+| **Reviews** | Product Owner Manual Visual Review — **completed & approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · new suites (`approvalSectionBranding` 28, `formBrandingDesignMode` 32, `brandingAssets` 32, `salaryCertificateWideBoundsExperiment` 21 — repurposed to guard the adopted central bounds) ✅ · full frontend suite re-run pre- and post-merge (25 pre-existing baseline failures across 8 files, unchanged in file and count against `production` HEAD `763d0881`) ✅ · backend suite 135 files/1902 tests ✅ (unaffected) · `build:front` ✅ |
+
+**Scope.** Central system for registering multiple signatures and multiple stamps, choosing which one (or none) prints on each document, and designing its position/size independently per document — developed across four incremental rounds and released together.
+- **Assets & storage** (`frontend/src/print-templates/branding/brandingAssets.ts`) — a `BrandingAsset { id, name, title, imageUrl, show, isDefault }` list per kind, stored as JSON under `Setting` keys `print.signatures` (pre-existing, previously written but unused) / `print.stamps` (new) — same `Setting` key/value table, no Prisma migration. Legacy single-image keys (`print.signatureImage`/`showSignature`, `print.stampImage`/`showStamp`) are kept as mirrors of the default asset, so every pre-existing database and un-migrated reader keeps working unchanged.
+- **Selection** (`useBrandingSelection` + `BrandingAssetPicker`) — per-document choice of which signature/stamp to print, independent of layout: swapping an asset never disturbs a saved position. Wired into `Quotation.tsx`, `InvoicePreview.tsx`, `ReceiptVoucher.tsx`, and — via one opt-in `FormLayout` prop (`approvalBranding`) — nine administrative forms that share the `ApprovalSection` footer (`SalaryCertificate`, `ToWhomItMayConcern`, `LeaveRequest`, `ReturnToWork`, `SalaryAdvance`, `Resignation`, `EmployeeWarning`, `PerformanceEvaluation`, `PurchaseRequest`). Payment Vouchers (`hideApprovalSection` — no company approval slot) and Employment Contract (approval block present only on its English page — an asymmetric footer, not a safe generalization target) are explicitly excluded and documented as such, not silently skipped.
+- **Design Mode generalization** (`useBrandingDesigner` + `BrandingDesignerPanel` + new `DesignableBrandingImage`) — the pre-existing Quotation/Invoice drag/resize/slider designer now serves all ten document types through one `BrandingDocKey` union and an optional per-document entry in the existing `print.brandingLayout` Setting (`PrintBrandingLayoutSettings`: `invoice`/`quotation` stay required, form keys are `Partial` — an undesigned form has no entry and resolves to the identity transform, rendering exactly as before). `DesignableBrandingImage` composes the layout's `transform` onto whatever `baseStyle` the caller already had, so geometry is unchanged for every undesigned document. Resize is a single uniform `scale` end to end (never a width/height pair), so an image's aspect ratio cannot change regardless of how the handle is dragged.
+- **Bounds — trialed, then adopted centrally.** An experimental wide envelope was first scoped to Salary Certificate alone (`x`/`y` ±150, `scale` 0.2–4) via a per-document override table, verified not to leak into any other document. After visual approval, it was adopted as the **one central envelope for every document** — `BRANDING_LAYOUT_BOUNDS` — applied through a single `clampBrandingElementLayout()` with no per-document parameter, so drag, the resize handle, the panel sliders, the Settings calibration dialog's sliders, alignment, undo/redo, and the render-time clamp all agree by construction. The superseded Phase-4 constants (`PRINT_TEMPLATE_BOUNDS`, `FORM_BRANDING_BOUNDS`, `EXPERIMENTAL_WIDE_BOUNDS`, `DOC_BOUNDS_OVERRIDES`, `boundsForDocument()`) were removed, along with the `bounds` prop threaded through `ApprovalSection`/`DesignableBrandingImage`/`FormLayout`/`ReceiptVoucher` to support them.
+- **Design mode lives outside `PrintWorkspace`** — its zoom `transform` would turn the panel's `position: fixed` into `absolute` and make it drift/scale with the document; the panel is `.no-print`, stripped by the same PDF-export path as every other override panel. The accurate preview, print dialog, and PDF export all compose from the same DOM node the designer edits, so they cannot disagree with what was saved.
+- **Reset** restores the identity layout (`x:0, y:0, scale:1, opacity:1, zIndex:1`) — the template's own original placement, verified byte-for-byte against pre-feature rendering for every touched document.
+
+**Not changed:** the backend, Prisma schema, any new `Setting`-table structure or API endpoint (every persistence path reuses `PUT /settings`); any form's content, margins, or `PrintProfile`; Payment Vouchers, Employment Contract, or any document not listed above.
+
+---
+
+## Previous Release — Unified Accurate Preview v1
 
 | Field | Value |
 |-------|-------|
@@ -3387,18 +3414,28 @@ The guard is an **OR**, so it only fires when **both** dimensions are ≤ 0 — 
 ```
 frontend/src/print-templates/
 ├── engine/          # Types, registry, template definitions, textStyleTypes.ts
+│                    # BrandingDocKey/FORM_BRANDING_DOC_KEYS (Multi-Signature & Stamp v1)
+├── branding/        # brandingAssets.ts — BrandingAsset list model, print.signatures/
+│                    # print.stamps parse/serialize, legacy-key mirrors (Multi-Signature & Stamp v1)
 ├── adapters/        # companyData (createCompanyPrintData), apiTypes
 ├── builders/        # invoicePrintDataBuilder, quotationPrintDataBuilder
-├── hooks/           # usePrintTemplate, useCompanyBranding (extended Phase 5D.2),
-│                    # useBrandingDesigner, useLayoutDesigner.ts (Phase 5D.2)
+├── hooks/           # usePrintTemplate, useCompanyBranding (extended Phase 5D.2, now also
+│                    # reads print.signatures/print.stamps — Multi-Signature & Stamp v1),
+│                    # useBrandingSelection.ts (Multi-Signature & Stamp v1 — per-document asset choice),
+│                    # useBrandingDesigner (generalized to all BrandingDocKey docs — Multi-Signature
+│                    # & Stamp v1), useLayoutDesigner.ts (Phase 5D.2)
 ├── components/      # PrintTemplateSelector, BrandingLayoutDesigner,
-│                    # BrandingDesignerOverlay, BrandingDesignerPanel, BrandingDesignerToolbar,
+│                    # BrandingAssetPicker.tsx (Multi-Signature & Stamp v1 — asset dropdown + show toggle),
+│                    # BrandingDesignerOverlay, BrandingDesignerPanel (bounds now read from
+│                    # designer.bounds — Multi-Signature & Stamp v1), BrandingDesignerToolbar,
 │                    # UniversalDesignerOverlay.tsx (Phase 5D.2)
 │                    # LayoutDesignerPanel.tsx (Phase 5D.2)
 │                    # LayoutOverrideStyles.tsx (Phase 5D.2)
 │                    # SmartGuides.tsx (Phase 5D.2)
 │                    # DocumentVerificationQR.tsx (Print Polish Batch 1 — SVG QR via qrcode.toString())
 ├── designer/        # useTextStyleDesigner.ts (Phase 5B)
+│                    # DesignableBrandingImage.tsx (Multi-Signature & Stamp v1 — drag/resize-handle
+│                    # image shared by every ApprovalSection-based form's signature/stamp)
 │                    # designerTypes.ts (Phase 5C, updated 5D.2: all capabilities true)
 │                    # useDesignerSelection.ts, designerDom.ts (Phase 5C)
 │                    # layoutOverrideTypes.ts (Phase 5D.2)
@@ -3479,7 +3516,10 @@ frontend/src/print-templates/
 ├── integration/     # invoicePreviewIntegration, quotationPreviewIntegration
 ├── service/         # printTemplateService
 ├── storage/         # printProfileStorage (localStorage)
-├── utils/           # brandingHelpers, brandingLayout, designerUtils (extended Phase 5D.2),
+├── utils/           # brandingHelpers, brandingLayout (BRANDING_LAYOUT_BOUNDS — one central
+│                    # x/y ±150 / scale 0.2–4 envelope for every document, Multi-Signature &
+│                    # Stamp v1; superseded PRINT_TEMPLATE_BOUNDS/FORM_BRANDING_BOUNDS removed),
+│                    # designerUtils (extended Phase 5D.2),
 │                    # formatKWD, tafqeet, sanitizePrintText, formatDate,
 │                    # textStyleOverrides.ts (Phase 5B), inkFilter.ts (Phase 5A.1)
 │                    # printI18n.ts (Print Polish Batch 1 — 6 Arabic translation functions, frontend-only)

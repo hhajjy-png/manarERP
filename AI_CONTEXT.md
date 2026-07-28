@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `c3ac6ed` (merge of `feature/unified-accurate-preview-v1`, carrying Unified Accurate Preview v1) |
-| **Current Documentation Commit** | `a7c9211` |
-| **Current Stable Tag** | `stable-unified-accurate-preview-v1` |
+| **Current Merge Commit** | `a6d6822e` (merge of `feature/multi-signature-stamp-management-v1`, carrying Multi-Signature & Stamp Management v1) |
+| **Current Documentation Commit** | _(filled in by the follow-up self-reference commit)_ |
+| **Current Stable Tag** | `stable-multi-signature-stamp-management-v1` |
 | **Current Release Date** | 2026-07-28 |
-| **Total Stable Releases** | 365 (window 2026-06-07 → 2026-07-28) |
+| **Total Stable Releases** | 366 (window 2026-06-07 → 2026-07-28) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -185,6 +185,28 @@ Chromium PDF, and backend HTML reports.
   registered templates, 12 official forms, Template Studio (print designer), cheque printing +
   per-bank calibration, universal print preview across 15 supported document types. Do not open a new
   print-system generation.
+- **Multi-Signature & Stamp Management v1 (as of Multi-Signature & Stamp Management v1, 2026-07-28):**
+  a document can carry any registered signature and any registered stamp — or none — instead of one
+  fixed pair. `frontend/src/print-templates/branding/brandingAssets.ts` stores each as a
+  `BrandingAsset { id, name, title, imageUrl, show, isDefault }` list under the `Setting` keys
+  `print.signatures`/`print.stamps` (same key/value table, no Prisma change); legacy single-image keys
+  (`print.signatureImage`/`showSignature`, `print.stampImage`/`showStamp`) are kept as mirrors of the
+  default asset for backward compatibility. `useBrandingSelection` + `BrandingAssetPicker` give the
+  per-document choice, independent of layout — swapping an asset never moves a saved position. Wired
+  into Quotation, Invoice, Receipt Voucher, and nine administrative forms sharing the `ApprovalSection`
+  footer via `FormLayout`'s opt-in `approvalBranding` prop (SalaryCertificate, ToWhomItMayConcern,
+  LeaveRequest, ReturnToWork, SalaryAdvance, Resignation, EmployeeWarning, PerformanceEvaluation,
+  PurchaseRequest); Payment Vouchers and Employment Contract are excluded (no company approval slot /
+  asymmetric footer). **Design Mode** — drag, a resize handle, and sliders — was generalized from the
+  pre-existing Quotation/Invoice designer (`useBrandingDesigner`/`BrandingDesignerPanel`) to all ten
+  document types via one `BrandingDocKey` union and an optional per-document entry in the existing
+  `print.brandingLayout` Setting; an undesigned document has no entry and resolves to the identity
+  transform (renders exactly as before). Resize is a single uniform `scale`, never width/height, so
+  aspect ratio cannot change. Bounds are one central envelope, `BRANDING_LAYOUT_BOUNDS` (x/y `-150..150`,
+  scale `0.2..4`), applied through one clamp function with no per-document override table — adopted
+  after a trial scoped to Salary Certificate alone. The panel lives outside `PrintWorkspace` (its zoom
+  transform breaks `position: fixed`) and is `.no-print`; the accurate preview, print dialog, and PDF
+  export all compose from the same DOM node the designer edits.
 - **AI Assistant layer** — fully deterministic/offline/rule-based, **zero LLM anywhere** in the codebase
   (verified: 0 hits for openai/anthropic/gpt/gemini/langchain). Keyword router, 6 skills, Quality Engine,
   Executive Intelligence, Integrations Center. Any future LLM integration would be optional and
@@ -284,7 +306,6 @@ Chromium PDF, and backend HTML reports.
   already exist; only import validators are missing).
 - GL auto-posting from the Bank Reconciliation workspace — **blocked**: conflicts with the standing
   "never auto-post" policy; the policy must be explicitly settled before this is scheduled.
-- Per-document-type signer selection (image overlay mapping, not cryptographic signatures).
 - Audit Log Viewer enhancements (export, advanced filters).
 - Additional print profiles (custom margins, extra watermarks).
 
@@ -297,6 +318,37 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Multi-Signature & Stamp Management v1** (2026-07-28,
+  `stable-multi-signature-stamp-management-v1`) — central system for registering
+  multiple signatures and multiple stamps, choosing which one (or none) prints on
+  each document, and designing its position/size independently per document.
+  Assets (`BrandingAsset` lists) live under `Setting` keys `print.signatures`/
+  `print.stamps` — same key/value table, no Prisma change; legacy single-image
+  keys are kept as mirrors of the default asset for backward compatibility.
+  `useBrandingSelection`/`BrandingAssetPicker` give the per-document choice
+  (independent of layout); wired into Quotation, Invoice, Receipt Voucher, and
+  nine administrative forms via `FormLayout`'s opt-in `approvalBranding` prop.
+  Design Mode was generalized from the pre-existing Quotation/Invoice designer
+  to all ten document types via one `BrandingDocKey` union and an optional
+  per-document entry in the existing `print.brandingLayout` Setting — an
+  undesigned document has no entry and renders exactly as before. Resize is a
+  single uniform `scale`, so aspect ratio cannot change. Bounds were trialed on
+  Salary Certificate alone, then adopted as one central envelope
+  (`BRANDING_LAYOUT_BOUNDS`: x/y ±150, scale 0.2–4) for every document, with the
+  superseded Phase-4 bound constants removed. Payment Vouchers and Employment
+  Contract are explicitly excluded (no company approval slot / asymmetric
+  footer). No backend, Prisma, or API change.
+
+  Frontend, backend, and electron `tsc --noEmit` passed pre- and post-merge.
+  Full frontend suite: 1971/1996 passing pre- and post-merge (identical); the
+  25 failures across 8 files are the pre-existing baseline, confirmed unchanged
+  in file and count against `production` HEAD `763d0881` before this branch.
+  Backend suite 135 files/1902 tests unaffected. Scope review confirmed only
+  the 33 intended files (all under `frontend/src`) entered the release, with
+  unrelated pre-existing uncommitted Google Drive Sync/electron-builder edits
+  surgically excluded. Product Owner Manual Visual Review — completed &
+  approved.
 
 - **Unified Accurate Preview v1** (2026-07-28, `stable-unified-accurate-preview-v1`) —
   removed the "regular" print-preview overlay (the `useLegacyFormPreview` hook and the
