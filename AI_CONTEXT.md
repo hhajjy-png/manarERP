@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `0861ee43` (merge of `feature/blank-a4-free-print-v1`, carrying Blank A4 Free Print v1) |
-| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Documentation Commit** | `7fd072c9` |
 | **Current Stable Tag** | `stable-blank-a4-free-print-v1` |
 | **Current Release Date** | 2026-07-28 |
 | **Total Stable Releases** | 367 (window 2026-06-07 → 2026-07-28) |
