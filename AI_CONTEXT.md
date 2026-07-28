@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `c3ac6ed` (merge of `feature/unified-accurate-preview-v1`, carrying Unified Accurate Preview v1) |
-| **Current Documentation Commit** | _(filled in by the follow-up self-reference commit)_ |
+| **Current Documentation Commit** | `a7c9211` |
 | **Current Stable Tag** | `stable-unified-accurate-preview-v1` |
 | **Current Release Date** | 2026-07-28 |
 | **Total Stable Releases** | 365 (window 2026-06-07 → 2026-07-28) |
