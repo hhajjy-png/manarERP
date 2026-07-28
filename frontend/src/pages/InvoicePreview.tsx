@@ -41,7 +41,8 @@ import UniversalDesignerOverlay from '../print-templates/components/UniversalDes
 import LayoutDesignerPanel from '../print-templates/components/LayoutDesignerPanel';
 import ConfirmModal from '../components/ConfirmModal';
 import type { AllLayoutOverrides } from '../print-templates/designer/layoutOverrideTypes';
-import { getInkFilterStyle } from '../print-templates/utils/inkFilter';
+import { getInkFilterStyle, resolveInkMode } from '../print-templates/utils/inkFilter';
+import InkColorFilterDefs from '../print-templates/designer/InkColorFilterDefs';
 import { useTemplateStudio } from '../print-templates/studio/useTemplateStudio';
 import TemplateStudioRenderer from '../print-templates/studio/TemplateStudioRenderer';
 import { resolveInvoiceLineItems } from '../print-templates/studio/lineItemsResolver';
@@ -279,7 +280,6 @@ export default function InvoicePreview() {
         branding: {
           ...brandingSelectionFields(brandingSelection),
           brandingLayout: effectiveBrandingLayout,
-          inkMode: designer.inkMode,
           textStyleOverrides: textDesigner.settings,
           staticTextOverrides: staticTextDesigner.overrides,
         },
@@ -288,7 +288,7 @@ export default function InvoicePreview() {
       return null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, brandingSelection.signatureUrl, brandingSelection.stampUrl, brandingSelection.showSignature, brandingSelection.showStamp, effectiveBrandingLayout, designer.inkMode, textDesigner.settings, staticTextDesigner.overrides]);
+  }, [data, brandingSelection.signatureUrl, brandingSelection.stampUrl, brandingSelection.showSignature, brandingSelection.showStamp, effectiveBrandingLayout, textDesigner.settings, staticTextDesigner.overrides]);
 
   const { resolvedTemplate, profile, setProfile } = usePrintTemplate<InvoicePrintData>(
     'invoice',
@@ -885,30 +885,38 @@ export default function InvoicePreview() {
               <div style={{ fontSize: 10, color: '#64748b', marginBottom: 3 }}>شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م</div>
               {brandingSelection.showSignature && brandingSelection.signatureUrl ? (() => {
                 const invLayout = getBrandingLayoutForDocument(effectiveBrandingLayout, 'invoice');
+                const ink = resolveInkMode(invLayout.signature.inkMode);
                 return (
-                  <img
-                    src={brandingSelection.signatureUrl}
-                    alt="توقيع المدير"
-                    data-bd-type="signature"
-                    data-designer-type="branding"
-                    data-designer-id="signature"
-                    style={{ maxHeight: 40, maxWidth: 120, objectFit: 'contain', display: 'block', margin: '0 auto', ...applyBrandingElementStyle(invLayout.signature), ...getInkFilterStyle(designer.inkMode) }}
-                  />
+                  <>
+                    <InkColorFilterDefs mode={ink} />
+                    <img
+                      src={brandingSelection.signatureUrl}
+                      alt="توقيع المدير"
+                      data-bd-type="signature"
+                      data-designer-type="branding"
+                      data-designer-id="signature"
+                      style={{ maxHeight: 40, maxWidth: 120, objectFit: 'contain', display: 'block', margin: '0 auto', ...applyBrandingElementStyle(invLayout.signature), ...getInkFilterStyle(ink) }}
+                    />
+                  </>
                 );
               })() : (
                 <div style={{ height: 40 }} />
               )}
               {brandingSelection.showStamp && brandingSelection.stampUrl && (() => {
                 const invLayout = getBrandingLayoutForDocument(effectiveBrandingLayout, 'invoice');
+                const ink = resolveInkMode(invLayout.stamp.inkMode);
                 return (
-                  <img
-                    src={brandingSelection.stampUrl}
-                    alt="ختم الشركة"
-                    data-bd-type="stamp"
-                    data-designer-type="branding"
-                    data-designer-id="stamp"
-                    style={{ maxHeight: 36, maxWidth: 100, objectFit: 'contain', display: 'block', margin: '4px auto 0', ...applyBrandingElementStyle(invLayout.stamp), ...getInkFilterStyle(designer.inkMode) }}
-                  />
+                  <>
+                    <InkColorFilterDefs mode={ink} />
+                    <img
+                      src={brandingSelection.stampUrl}
+                      alt="ختم الشركة"
+                      data-bd-type="stamp"
+                      data-designer-type="branding"
+                      data-designer-id="stamp"
+                      style={{ maxHeight: 36, maxWidth: 100, objectFit: 'contain', display: 'block', margin: '4px auto 0', ...applyBrandingElementStyle(invLayout.stamp), ...getInkFilterStyle(ink) }}
+                    />
+                  </>
                 );
               })()}
               <div style={{ borderTop: '1px solid #94a3b8', marginTop: 4 }} />

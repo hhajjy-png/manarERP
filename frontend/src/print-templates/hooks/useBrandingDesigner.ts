@@ -23,11 +23,6 @@ import {
   type ZoomLevel,
   type GridSizeOption,
 } from '../utils/designerUtils';
-import {
-  type InkMode,
-  readStoredInkMode,
-  writeStoredInkMode,
-} from '../utils/inkFilter';
 
 export type ElementType = 'signature' | 'stamp';
 
@@ -112,10 +107,6 @@ export interface BrandingDesignerHandle {
   setSnapEnabled: (v: boolean) => void;
   gridSize: GridSizeOption;
   setGridSize: (s: GridSizeOption) => void;
-
-  // Ink mode (persisted in localStorage; applies to sig/stamp images)
-  inkMode: InkMode;
-  setInkMode: (mode: InkMode) => void;
 
   // Save
   saving: boolean;
@@ -222,14 +213,6 @@ export function useBrandingDesigner({
   const [showGrid, setShowGrid] = useState(false);
   const [snapEnabled, setSnapEnabled] = useState(false);
   const [gridSize, setGridSize] = useState<GridSizeOption>(5);
-
-  // ── Ink mode (persisted) ──
-  const [inkMode, setInkModeState] = useState<InkMode>(readStoredInkMode);
-
-  function setInkMode(mode: InkMode) {
-    setInkModeState(mode);
-    writeStoredInkMode(mode);
-  }
 
   // ── Drag ──
   const [isDragging, setIsDragging] = useState(false);
@@ -369,9 +352,18 @@ export function useBrandingDesigner({
   function bringForward(type: ElementType) { updateElement(type, { zIndex: 2 }); }
   function sendBackward(type: ElementType) { updateElement(type, { zIndex: 1 }); }
 
-  /** Back to the template's own placement — identity offset, scale 1, full opacity. */
+  /**
+   * Back to the template's own placement — identity offset, scale 1, full opacity —
+   * AND back to no per-element ink color. `inkMode: undefined` must be explicit here:
+   * `DEFAULT_ELEMENT_LAYOUT` simply has no `inkMode` key, and `patchDoc`'s
+   * `{...current, ...patch}` merge only OVERWRITES keys the patch actually contains —
+   * an absent key would leave a previously-set color untouched, not clear it. Explicit
+   * `undefined` is the correct backward-compatible reset target: it is indistinguishable
+   * from an element that was never customized, so Reset falls back to the legacy global
+   * default exactly like a pre-v2 document would.
+   */
   function resetElement(type: ElementType) {
-    updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT });
+    updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined });
   }
 
   function resetDoc() {
@@ -379,8 +371,8 @@ export function useBrandingDesigner({
     const next: PrintBrandingLayoutSettings = {
       ...layoutRef.current,
       [docType]: {
-        signature: { ...DEFAULT_ELEMENT_LAYOUT },
-        stamp: { ...DEFAULT_ELEMENT_LAYOUT },
+        signature: { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined },
+        stamp: { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined },
       },
     };
     setLayout(next);
@@ -452,8 +444,6 @@ export function useBrandingDesigner({
     setSnapEnabled,
     gridSize,
     setGridSize,
-    inkMode,
-    setInkMode,
     saving,
     saveError,
     save,

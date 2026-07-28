@@ -2,7 +2,8 @@ import { useEffect, useRef, type CSSProperties } from 'react';
 import type { BrandingElementLayout } from '../engine/types';
 import { BRANDING_LAYOUT_BOUNDS, brandingElementTransform } from '../utils/brandingLayout';
 import type { BrandingDesignerHandle, ElementType } from '../hooks/useBrandingDesigner';
-import { getInkFilterStyle } from '../utils/inkFilter';
+import { getInkFilterStyle, resolveInkMode } from '../utils/inkFilter';
+import InkColorFilterDefs from './InkColorFilterDefs';
 
 /**
  * A signature/stamp image that carries its saved layout and, in design mode, can be
@@ -73,6 +74,13 @@ export default function DesignableBrandingImage({
    * No designer (a form not opted into design mode) ⇒ the central envelope, exactly as before.
    */
   const activeBounds = designer?.bounds ?? BRANDING_LAYOUT_BOUNDS;
+  /**
+   * Ink Color System v2 — THIS element's own color (independent of its sibling
+   * signature/stamp), falling back to the legacy global default when never customized.
+   * `layout.inkMode` is per-element and part of `print.brandingLayout`, so it shares
+   * Save/Reset/Undo/Redo with position and size — there is no separate color store.
+   */
+  const resolvedInk = resolveInkMode(layout.inkMode);
   const handleRef = useRef<HTMLSpanElement>(null);
   const gestureRef = useRef<'drag' | 'resize' | null>(null);
 
@@ -110,7 +118,7 @@ export default function DesignableBrandingImage({
     transformOrigin: 'center',
     opacity: layout.opacity,
     zIndex: layout.zIndex,
-    ...getInkFilterStyle(designer?.inkMode),
+    ...getInkFilterStyle(resolvedInk),
     ...(active
       ? {
           cursor: 'move',
@@ -142,13 +150,25 @@ export default function DesignableBrandingImage({
     />
   );
 
-  if (!active || !designer) return img;
+  if (!active || !designer) {
+    // A React Fragment — unlike a `display:contents` span — inserts NO DOM node at
+    // all, so `img.parentElement` still resolves to whatever container the caller
+    // (e.g. `ApprovalSection`'s signature ruling) rendered around this component,
+    // exactly as it did before Ink Color System v2 added the filter-defs sibling.
+    return (
+      <>
+        <InkColorFilterDefs mode={resolvedInk} />
+        {img}
+      </>
+    );
+  }
 
   return (
     /* `display: contents` keeps the wrapper out of the layout entirely — the handle
        positions against whatever positioned ancestor the caller already had (the
        signature's ruling, the stamp's anchor), so adding design mode moves nothing. */
     <span style={{ display: 'contents' }}>
+      <InkColorFilterDefs mode={resolvedInk} />
       {img}
       <span
         ref={handleRef}

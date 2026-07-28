@@ -19,7 +19,7 @@ export interface InvoiceBuildOptions {
    * Signature and stamp branding. Merged on top of company overrides.
    * Pass from useCompanyBranding() hook.
    */
-  branding?: Pick<CompanyPrintData, 'signatureUrl' | 'stampUrl' | 'showSignature' | 'showStamp' | 'brandingLayout' | 'inkMode' | 'textStyleOverrides' | 'staticTextOverrides'>;
+  branding?: Pick<CompanyPrintData, 'signatureUrl' | 'stampUrl' | 'showSignature' | 'showStamp' | 'brandingLayout' | 'textStyleOverrides' | 'staticTextOverrides'>;
   /**
    * Language for the amount-in-words field only (`totalInWords`). Defaults to
    * 'ar' — every other piece of invoice print content is Arabic-only today (no

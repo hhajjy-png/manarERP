@@ -217,7 +217,6 @@ export default function Quotation() {
       company: createCompanyPrintData({
         ...brandingSelectionFields(brandingSelection),
         brandingLayout: effectiveLayout,
-        inkMode: designer.inkMode,
         textStyleOverrides: textDesigner.settings,
         staticTextOverrides: staticTextDesigner.overrides,
       }),
@@ -230,7 +229,6 @@ export default function Quotation() {
     brandingSelection.showStamp,
     designer.isActive,
     designer.localLayout,
-    designer.inkMode,
     savedBrandingLayout,
     branding.brandingLayout,
     textDesigner.settings,

@@ -5,7 +5,7 @@ import type { StaticTextDesignerHandle } from '../designer/useStaticTextDesigner
 import type { DesignerElement } from '../designer/designerTypes';
 import { isBrandingElement, isTextElement } from '../designer/designerTypes';
 import { formatUnit, GRID_PRESETS, type GridSizeOption } from '../utils/designerUtils';
-import { INK_MODE_LABELS, type InkMode } from '../utils/inkFilter';
+import { INK_MODE_LABELS, INK_COLOR_HEX, NEW_INK_COLOR_IDS, resolveInkMode, type InkMode } from '../utils/inkFilter';
 import type { PrintDocumentType } from '../engine/types';
 import type {
   TextFontSize, TextFontFamily, TextFontWeight,
@@ -270,7 +270,7 @@ export default function BrandingDesignerPanel({
     selected, setSelected, docType, updateElement,
     alignCenterH, alignCenterV, bringForward, sendBackward,
     resetElement, resetDoc, snapEnabled, setSnapEnabled,
-    gridSize, setGridSize, inkMode, setInkMode,
+    gridSize, setGridSize,
     bounds, docLayout,
     saving, saveError, save,
   } = designer;
@@ -453,26 +453,55 @@ export default function BrandingDesignerPanel({
           </div>
 
           <SectionHeader label="المظهر" />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <span style={{ fontSize: 11, color: '#6b7280', flexShrink: 0 }}>الحبر:</span>
-            <div style={{ display: 'flex', gap: 4, flex: 1 }}>
-              {(['original', 'blue-ink', 'black'] as InkMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setInkMode(mode)}
-                  title={INK_MODE_LABELS[mode]}
-                  style={{
-                    flex: 1, padding: '3px 2px', borderRadius: 5, fontSize: 10,
-                    fontWeight: inkMode === mode ? 700 : 400, cursor: 'pointer',
-                    border: `1px solid ${inkMode === mode ? '#3b82f6' : '#d1d5db'}`,
-                    background: inkMode === mode ? '#eff6ff' : 'transparent',
-                    color: inkMode === mode ? '#3b82f6' : '#6b7280',
-                  }}
-                >
-                  {INK_MODE_LABELS[mode]}
-                </button>
-              ))}
+          {/*
+            Ink Color System v2 — colors THIS element (signature or stamp, whichever the
+            toggle above has selected) independently of its sibling: `el.inkMode` is a
+            field on `docLayout[selected]`, the exact same per-element object x/y/scale/
+            opacity already come from. Picking a swatch is `updateElement(selected,
+            {inkMode})` — identical call shape to every other property here — so it joins
+            the same Save/Reset/Undo/Redo cycle with no separate color mechanism.
+            'original' + 'black' are kept; the legacy 'blue-ink' approximation is not
+            offered here (still resolvable for backward compatibility, just superseded by
+            the more realistic ballpoint blues below). The active swatch reflects the
+            RESOLVED color (`resolveInkMode`), so an element that was never customized
+            correctly highlights whatever the legacy global default is.
+          */}
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
+              حبر {selected === 'signature' ? 'التوقيع' : 'الختم'}:
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {(['original', 'black', ...NEW_INK_COLOR_IDS] as InkMode[]).map((mode) => {
+                const isActive = resolveInkMode(el.inkMode) === mode;
+                const swatchColor = mode === 'original' ? '#fff' : mode === 'black' ? '#111827' : INK_COLOR_HEX[mode as keyof typeof INK_COLOR_HEX];
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => updateElement(selected, { inkMode: mode })}
+                    title={INK_MODE_LABELS[mode]}
+                    aria-pressed={isActive}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      padding: '3px 6px', borderRadius: 5, fontSize: 10,
+                      fontWeight: isActive ? 700 : 400, cursor: 'pointer',
+                      border: `1px solid ${isActive ? '#3b82f6' : '#d1d5db'}`,
+                      background: isActive ? '#eff6ff' : 'transparent',
+                      color: isActive ? '#3b82f6' : '#6b7280',
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+                        background: swatchColor,
+                        border: mode === 'original' ? '1px solid #d1d5db' : 'none',
+                      }}
+                    />
+                    {INK_MODE_LABELS[mode]}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

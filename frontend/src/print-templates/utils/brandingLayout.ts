@@ -119,6 +119,10 @@ export function getBrandingLayoutBounds(
 /**
  * `bounds` defaults to the central envelope, so every pre-existing caller — and every
  * document that is not a documented exception — clamps exactly as it did before.
+ *
+ * Spreads `el` first so fields this function does not itself clamp — today just
+ * `inkMode` (Ink Color System v2) — pass through untouched instead of being silently
+ * dropped by the explicit field list below.
  */
 export function clampBrandingElementLayout(
   el: BrandingElementLayout,
@@ -126,6 +130,7 @@ export function clampBrandingElementLayout(
 ): BrandingElementLayout {
   const b = bounds;
   return {
+    ...el,
     x: Math.max(b.minX, Math.min(b.maxX, el.x)),
     y: Math.max(b.minY, Math.min(b.maxY, el.y)),
     scale: Math.max(b.minScale, Math.min(b.maxScale, el.scale)),
@@ -149,7 +154,10 @@ function isElementLayout(v: unknown): v is BrandingElementLayout {
     typeof o.y === 'number' &&
     typeof o.scale === 'number' &&
     typeof o.opacity === 'number' &&
-    typeof o.zIndex === 'number'
+    typeof o.zIndex === 'number' &&
+    // Ink Color System v2 — optional and additive: absent on every pre-v2 saved
+    // layout, which is exactly what "never customized" (→ legacy fallback) means.
+    (o.inkMode === undefined || typeof o.inkMode === 'string')
   );
 }
 

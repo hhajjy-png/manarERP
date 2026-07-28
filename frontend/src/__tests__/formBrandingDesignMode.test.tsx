@@ -230,9 +230,9 @@ describe('وضع التصميم — التفاعل ومصدر الحقيقة', (
     expect(layoutSrc).toContain('brandingSelection.showSignature && !!brandingSelection.signatureUrl');
   });
 
-  it('إعادة الضبط ترجع للتخطيط المحايد لا لقيمة أخرى', () => {
+  it('إعادة الضبط ترجع للتخطيط المحايد لا لقيمة أخرى — ولإلغاء اللون المخصَّص أيضًا', () => {
     const hookSrc = readFileSync('src/print-templates/hooks/useBrandingDesigner.ts', 'utf8');
-    expect(hookSrc).toContain("updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT })");
+    expect(hookSrc).toContain("updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined })");
   });
 
   it('عرض السعر لا يعرّف حدودًا ولا يستدعي السحب بنفسه — الطبقة المشتركة تفعل', () => {
