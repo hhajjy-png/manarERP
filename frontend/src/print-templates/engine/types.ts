@@ -68,6 +68,7 @@ export const FORM_BRANDING_DOC_KEYS = [
   'performance-evaluation',
   'purchase-request',
   'receipt-voucher',
+  'blank-a4-print',
 ] as const;
 
 export type FormBrandingDocKey = typeof FORM_BRANDING_DOC_KEYS[number];

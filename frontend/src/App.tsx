@@ -47,6 +47,7 @@ const BankAccounts = lazy(() => import('./pages/BankAccounts'));
 const BankAccountExplorer = lazy(() => import('./pages/BankAccountExplorer'));
 const Quotation = lazy(() => import('./pages/Quotation'));
 const PurchaseRequest = lazy(() => import('./pages/PurchaseRequest'));
+const BlankA4Print = lazy(() => import('./pages/BlankA4Print'));
 const ExecutiveDecisionCenter = lazy(() => import('./pages/ExecutiveDecisionCenter'));
 const FinancialOperationsDashboard = lazy(() => import('./pages/FinancialOperationsDashboard'));
 const Statements = lazy(() => import('./pages/Statements'));
@@ -107,6 +108,7 @@ export default function App() {
           <Route path="/forms/payment-voucher/:chequeId" element={<ProtectedRoute><PaymentVoucher /></ProtectedRoute>} />
           <Route path="/forms/payment-voucher" element={<ProtectedRoute><AdminPaymentVoucher /></ProtectedRoute>} />
           <Route path="/forms/receipt-voucher" element={<ProtectedRoute><ReceiptVoucher /></ProtectedRoute>} />
+          <Route path="/forms/blank-a4-print" element={<ProtectedRoute><BlankA4Print /></ProtectedRoute>} />
           <Route path="/cheque-template/print" element={<ProtectedRoute><ChequeTemplatePrintPage /></ProtectedRoute>} />
           <Route
             element={

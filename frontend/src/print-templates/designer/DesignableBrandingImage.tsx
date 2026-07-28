@@ -66,6 +66,13 @@ export default function DesignableBrandingImage({
 }: Props) {
   const active = designer?.isActive ?? false;
   const isSelected = active && designer?.selected === kind;
+  /**
+   * The envelope this element is clamped to AT RENDER TIME. It must be the same one the
+   * designer edited with, or a saved position outside the central range would be silently
+   * pulled back on display — the designer is the single source for it, keyed by document.
+   * No designer (a form not opted into design mode) ⇒ the central envelope, exactly as before.
+   */
+  const activeBounds = designer?.bounds ?? BRANDING_LAYOUT_BOUNDS;
   const handleRef = useRef<HTMLSpanElement>(null);
   const gestureRef = useRef<'drag' | 'resize' | null>(null);
 
@@ -97,7 +104,7 @@ export default function DesignableBrandingImage({
 
   const imageStyle: CSSProperties = {
     ...baseStyle,
-    transform: [transformPrefix, brandingElementTransform(layout)]
+    transform: [transformPrefix, brandingElementTransform(layout, activeBounds)]
       .filter(Boolean)
       .join(' '),
     transformOrigin: 'center',
@@ -149,8 +156,8 @@ export default function DesignableBrandingImage({
         tabIndex={-1}
         aria-label={kind === 'signature' ? 'تغيير حجم التوقيع' : 'تغيير حجم الختم'}
         aria-valuenow={Math.round(layout.scale * 100)}
-        aria-valuemin={Math.round(BRANDING_LAYOUT_BOUNDS.minScale * 100)}
-        aria-valuemax={Math.round(BRANDING_LAYOUT_BOUNDS.maxScale * 100)}
+        aria-valuemin={Math.round(activeBounds.minScale * 100)}
+        aria-valuemax={Math.round(activeBounds.maxScale * 100)}
         title="اسحب لتغيير الحجم — النسبة محفوظة"
         onPointerDown={(e) => {
           e.preventDefault();

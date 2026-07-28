@@ -13,12 +13,21 @@ import {
 import type { BrandingLayout } from '../print-templates/engine/types';
 
 /**
- * الحدود المركزية المعتمدة لتخطيط التوقيع والختم — لكل المستندات.
+ * الحدود المركزية المعتمدة لتخطيط التوقيع والختم.
  *
  * كان هذا الملف يحرس تجربة شهادة الراتب (مدى واسع لنموذج واحد). التجربة اعتُمدت
- * وعُمِّمت، فصار الملف يحرس **العكس**: أن تكون هناك مجموعة حدود واحدة لا استثناء لها،
- * وأن يقرأها كل مسار تحكّم من نفس المكان — فلا يعود ممكنًا أن يسمح محرِّرٌ بموضع يقصّه
- * الرسم أو حوارٌ آخر.
+ * وعُمِّمت، فصار الملف يحرس **العكس**: مجموعة حدود واحدة، يقرأها كل مسار تحكّم من نفس
+ * المكان — فلا يعود ممكنًا أن يسمح محرِّرٌ بموضع يقصّه الرسم أو حوارٌ آخر.
+ *
+ * تحديث (Blank A4 Free Print v1): أُضيف استثناء **واحد موثَّق** بقرار صريح من مالك
+ * المنتج — `blank-a4-print`. سببه أن الحدود المركزية تصف حرية الحركة داخل **خانة
+ * الاعتماد** المشتركة في تذييل نموذج مُنسَّق، بينما الورقة الفارغة بلا خانة وبلا محتوى:
+ * منطقة الوضع فيها هي الورقة كاملة، لأن غرض المستند نفسه ختمُ موضع اعتباطي على ورقة
+ * خارجية مطبوعة مسبقًا.
+ *
+ * ما يحرسه هذا الملف **لم يتغيّر جوهره**: لا انحراف عرَضي لأي مستند، ومصدر واحد لكل
+ * مسار تحكّم. ما تغيّر هو صياغة القاعدة: من «لا استثناء إطلاقًا» إلى «استثناء واحد
+ * مُعلَن في جدول مغلق، وكل ما عداه — وكل مستندات خانة الاعتماد — على المركزية».
  *
  * (اسم الملف بقي من مرحلة التجربة — يحتاج إعادة تسمية إلى `centralBrandingBounds`.)
  */
@@ -56,8 +65,8 @@ describe('الحدود المعتمدة', () => {
 });
 
 // ── لا استثناءات: مجموعة واحدة ─────────────────────────────────────────────────
-describe('لا استثناء لأي مستند', () => {
-  it('ثوابت الحدود القديمة والتجريبية وجدول التجاوزات حُذفت كلها', () => {
+describe('استثناء واحد موثَّق فقط', () => {
+  it('ثوابت الحدود القديمة والتجريبية وجدول التجاوزات المفتوح حُذفت كلها', () => {
     const utils = src('src/print-templates/utils/brandingLayout.ts');
     for (const gone of [
       'PRINT_TEMPLATE_BOUNDS',
@@ -70,30 +79,47 @@ describe('لا استثناء لأي مستند', () => {
     }
   });
 
-  it('لا اسم نموذج داخل ملف الحدود — فلا مستند يُخصّ بمدى', () => {
+  it('لا مستند خانة اعتماد يُخصّ بمدى — الاستثناء للورقة الفارغة وحدها', () => {
     const utils = src('src/print-templates/utils/brandingLayout.ts');
-    expect(utils).not.toContain("'salary-certificate'");
+    const overrides = utils.slice(
+      utils.indexOf('const BOUNDS_BY_DOC'),
+      utils.indexOf('export function getBrandingLayoutBounds'),
+    );
+    // الجدول مغلق: مفتاح واحد لا غير.
+    expect(overrides.match(/'[a-z0-9-]+':/g) ?? []).toEqual(["'blank-a4-print':"]);
+    for (const approvalSlotDoc of [
+      'salary-certificate', 'receipt-voucher', 'purchase-request',
+      'leave-request', 'invoice', 'quotation',
+    ]) {
+      expect(overrides).not.toContain(`'${approvalSlotDoc}'`);
+    }
   });
 
-  it('مجموعة حدود واحدة مُصدَّرة فقط', () => {
+  it('مجموعتا حدود فقط: المركزية + استثناء Blank A4', () => {
     const utils = src('src/print-templates/utils/brandingLayout.ts');
     const exported = utils.match(/export const \w*BOUNDS\w*/g) ?? [];
-    expect(exported).toEqual(['export const BRANDING_LAYOUT_BOUNDS']);
+    expect(exported).toEqual([
+      'export const BRANDING_LAYOUT_BOUNDS',
+      'export const BLANK_A4_LAYOUT_BOUNDS',
+    ]);
   });
 
-  it('القصّ لا يقبل معامل حدود — فلا يمكن لمُتّصل أن يمرّر مدى مخالفًا', () => {
+  it('القصّ يقبل حدودًا اختيارية تفترض المركزية — فحذف المعامل سلوكٌ سابق حرفيًا', () => {
     const utils = src('src/print-templates/utils/brandingLayout.ts');
-    expect(utils).toContain('export function clampBrandingElementLayout(el: BrandingElementLayout): BrandingElementLayout');
-    expect(utils).toContain('export function brandingElementTransform(el: BrandingElementLayout): string');
+    expect(utils).toContain('bounds: Readonly<BrandingLayoutBounds> = BRANDING_LAYOUT_BOUNDS,');
+    // السلوك لا النص: بلا معامل ⇒ نفس النتيجة تمامًا كما قبل الاستثناء.
+    expect(clampBrandingElementLayout(el({ x: 400, y: -400, scale: 9 })))
+      .toEqual(el({ x: 150, y: -150, scale: 4 }));
   });
 });
 
 // ── كل مسار تحكّم يقرأ من المصدر الواحد ────────────────────────────────────────
 describe('سريان الحدود على كل مسار تحكّم', () => {
-  it('السحب والمقابض يقصّان عبر patchDoc ⇒ الحدود المركزية', () => {
+  it('السحب والمقابض يقصّان عبر patchDoc ⇒ حدود المستند نفسه، من مصدر واحد', () => {
     const hook = src('src/print-templates/hooks/useBrandingDesigner.ts');
-    expect(hook).toContain('const bounds = BRANDING_LAYOUT_BOUNDS;');
-    expect(hook).toContain('clampBrandingElementLayout({ ...current[type], ...patch })');
+    // مصدر واحد للحدود، محلولٌ بمفتاح المستند — لا رقم مثبَّت ولا مجموعة ثانية.
+    expect(hook).toContain('const bounds = getBrandingLayoutBounds(docType);');
+    expect(hook).toContain('clampBrandingElementLayout({ ...current[type], ...patch }, bounds)');
     const drag = hook.slice(hook.indexOf('function continueDrag'), hook.indexOf('function endDrag'));
     const resize = hook.slice(hook.indexOf('function continueResize'), hook.indexOf('function endResize'));
     expect(drag).toContain('patchDoc(');
@@ -175,7 +201,10 @@ describe('الرسم بالمدى المعتمد', () => {
       expect(src(f)).toContain('applyBrandingElementStyle(');
     }
     const utils = src('src/print-templates/utils/brandingLayout.ts');
-    expect(utils).toContain('const clamped = clampBrandingElementLayout(el);');
+    expect(utils).toContain('const clamped = clampBrandingElementLayout(el, bounds);');
+    // ولأن قوالب الفاتورة/عرض السعر لا تمرّر حدودًا، يعود المعامل إلى المركزية.
+    expect(brandingElementTransform(el({ x: 9999, y: 9999, scale: 9999 })))
+      .toBe('translate(150px, 150px) scale(4)');
   });
 });
 
