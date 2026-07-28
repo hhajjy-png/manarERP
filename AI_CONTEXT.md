@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `5a220235` (merge of `feature/ink-color-system-v2`, carrying Ink Color System v2) |
-| **Current Documentation Commit** | `06b006f3` |
-| **Current Stable Tag** | `stable-ink-color-system-v2` |
-| **Current Release Date** | 2026-07-28 |
-| **Total Stable Releases** | 368 (window 2026-06-07 → 2026-07-28) |
+| **Current Merge Commit** | `60f358b6` (merge of `feature/font-foundation-pack-v1`, carrying Font Foundation Pack v1) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-font-foundation-pack-v1` |
+| **Current Release Date** | 2026-07-29 |
+| **Total Stable Releases** | 369 (window 2026-06-07 → 2026-07-29) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -128,7 +128,7 @@ manarERP/
 | Backend | Express 4.19, TypeScript 5.5, Prisma 5.18, Zod 3.23, Helmet 7.1 |
 | Database | SQLite (local file, offline-first) |
 | Auth | JWT (12h) + bcrypt; `authenticate` + `requirePermission('<module>.<action>')` guards; `SYSTEM_ADMIN` bypasses all |
-| Export | ExcelJS 4.4 + PDFKit 0.15; Chromium HTML→PDF pipeline for Arabic-faithful printing |
+| Export | ExcelJS 4.4 for spreadsheets; Chromium HTML→PDF (`composeStyledFromNode`) for all documents/forms — PDFKit retired (Font Foundation Pack v1, 2026-07-29), zero remaining dependency |
 | Testing | Vitest 2.0 |
 | Build | electron-builder 24 (NSIS, Windows) |
 | Styling | Vanilla CSS is the primary system app-wide. Tailwind CSS is permitted **only** inside the isolated shadcn/ui subtree (`components/ui/**`, `DateCalendarPicker*`, `app/tailwind.css`) — no Preflight, `--sh-*` token namespacing, `rgb()` over `oklch()` (documented Electron rendering bug) |
@@ -181,10 +181,32 @@ Chromium PDF, and backend HTML reports.
 - **Banking modules** — Bank Statement Import/Explorer, Bank Reconciliation (manual-confirm only, never
   auto-posts by policy), Bank Account Explorer, Payroll Bank Import/Analytics, NBK Salary XLS export —
   all production-complete.
-- **Print Engine** — considered **closed**: dual pipeline (PDFKit + Chromium HTML→PDF for Arabic), 30
-  registered templates, 12 official forms, Template Studio (print designer), cheque printing +
-  per-bank calibration, universal print preview across 15 supported document types. Do not open a new
-  print-system generation.
+- **Print Engine** — considered **closed**: single Chromium HTML→PDF pipeline (PDFKit fully retired as
+  of Font Foundation Pack v1, 2026-07-29), 30 registered templates, 12 official forms, Template Studio
+  (print designer), cheque printing + per-bank calibration, universal print preview across 15 supported
+  document types. Do not open a new print-system generation.
+- **Font Foundation Pack v1 (2026-07-29):** single-source font-stack registries —
+  `frontend/src/styles/fontRegistry.ts` (`UI_FONT_STACK`/`CHART_FONT_STACK`/`MONO_FONT_STACK`/
+  `DOC_FONT_STACK`/`docFontStack()`/`buildEmbeddedFontFaceCss()`) and
+  `backend/src/shared/services/reportEngine/fonts.ts` (kept separate — no shared build boundary
+  between the two TS programs) — replacing ~20 duplicated literal font-stack strings. Every constant is
+  a verbatim copy of what was previously written at each site; no font, weight, or fallback changed.
+  `--font-ui` renamed `--app-font-ui` across `theme.css` and 8 dependent stylesheets, matching the
+  existing `--app-font-mono` convention (namespaced to avoid any future Tailwind v4 theme-token
+  collision). Separately, PDF export (`FormLayout.doExportPdf`, `BlankA4Print.doExportPdf`) now composes
+  through `composeStyledFromNode` — the same clone-and-capture function `useAccurateFormPreview` already
+  used for Accurate Preview — closing a real gap where Saved PDF could visually diverge from Preview
+  because the old `buildFormPdfDocument` hand-rebuilt its own CSS independently. Both
+  `frontend/src/forms/shared/formPdfDocument.ts` and the dead PDFKit-based
+  `backend/src/shared/services/reportEngine/pdf.service.ts` (zero production consumers, referenced a
+  font file that never existed in the repo) are deleted; the transitional `pdfUseComposedDocument` opt-in
+  prop is fully removed from `FormLayout` — all 12 consumers use the unified path unconditionally.
+  Deferred, documented, not in scope: IBM Plex Mono font loading (referenced but never actually loaded —
+  every use already falls back to system `monospace`, today's approved appearance), Template Studio
+  fallback chains, `textStyleOverrides.ts` (a user-facing designer choice), any new weight/size/line-height,
+  and a handful of pages whose font stacks are genuinely different from the unified constants
+  (`BankAccounts.tsx`, `BankSalaryAnalytics.tsx`, `BankAccountExplorer.tsx`, `DateCalendarPicker.css`,
+  `RootErrorBoundary.css`). No backend Prisma or API change.
 - **Multi-Signature & Stamp Management v1 (as of Multi-Signature & Stamp Management v1, 2026-07-28):**
   a document can carry any registered signature and any registered stamp — or none — instead of one
   fixed pair. `frontend/src/print-templates/branding/brandingAssets.ts` stores each as a
@@ -354,6 +376,64 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Font Foundation Pack v1** (2026-07-29, `stable-font-foundation-pack-v1`) — two related
+  problems solved together across a multi-phase migration: scattered, literally-duplicated
+  font-stack strings, and a real architectural gap where Saved PDF output could visually
+  diverge from Accurate Preview because PDF export hand-rebuilt its own CSS instead of
+  reusing the shared composition pipeline. `frontend/src/styles/fontRegistry.ts` and
+  `backend/src/shared/services/reportEngine/fonts.ts` (kept separate — no shared build
+  boundary between the two TS programs) now hold the single source of truth for
+  `UI_FONT_STACK`/`CHART_FONT_STACK`/`MONO_FONT_STACK`/`DOC_FONT_STACK`/`docFontStack()`/
+  `EMBEDDED_DOC_FONT_FAMILY`/`buildEmbeddedFontFaceCss()` — replacing roughly twenty
+  duplicated literal font-stack strings across chart components, inline styles, and CSS
+  files (three different quoting styles, one computed value). Architectural only: every
+  constant equals verbatim what was previously written at its site — no new weight, no
+  dropped fallback, no surface's rendered font changed. `FormLayout.doExportPdf` and
+  `BlankA4Print.doExportPdf` now both call `composeStyledFromNode` — the same
+  clone-and-capture function `useAccurateFormPreview` already used for the Accurate Preview
+  dialog — instead of the retired `buildFormPdfDocument`, which hand-rebuilt CSS
+  independently and could drift from what Preview showed. The transitional
+  `pdfUseComposedDocument` opt-in prop (used across the migration's intermediate phases to
+  gate the change form-by-form) is fully removed from `FormLayout`'s props — all 12
+  consumers use the unified path unconditionally, no per-form branching left in the shared
+  layer. `frontend/src/forms/shared/formPdfDocument.ts` (`buildFormPdfDocument`, zero
+  remaining production consumers) and `backend/src/shared/services/reportEngine/pdf.service.ts`
+  (dead PDFKit-based builder, zero production consumers, referenced an Amiri-Regular.ttf
+  font file that never existed in the repo) are both deleted — PDFKit is fully retired,
+  dropped from `backend/package.json`. `--font-ui` renamed `--app-font-ui` across
+  `app/theme.css` and 8 dependent stylesheets, matching the existing `--app-font-mono`
+  naming convention (namespaced to avoid any future collision with Tailwind v4's own
+  theme-layer tokens; confirmed via built-CSS inspection that today's rename has zero
+  actual collision, unlike the proven `--font-mono` collision that motivated the `--app-`
+  prefix originally). Several tests were rewritten from brittle raw-string assertions to
+  `DOMParser`-based behavioral assertions on the actual exported DOM, after root-causing
+  that `capturePrintStyles`'s wholesale stylesheet capture legitimately includes inert CSS
+  selector text even when no matching element exists in the composed document. Deferred,
+  documented, not in scope: IBM Plex Mono font loading (referenced but never actually
+  loaded — every use already falls back to system `monospace`, today's approved
+  appearance), Template Studio fallback chains, `textStyleOverrides.ts` (a user-facing
+  designer choice, not an architectural constant), any new font weight or size/line-height
+  change, and a handful of pages whose font stacks are genuinely different from the unified
+  constants (`BankAccounts.tsx`, `BankSalaryAnalytics.tsx`, `BankAccountExplorer.tsx`,
+  `DateCalendarPicker.css`, `RootErrorBoundary.css`) — unifying those would be a visual
+  decision independent of this architectural pack.
+
+  Frontend, backend, and electron `tsc --noEmit`, Prisma `validate`, `build:front`, and
+  `build:back` all passed pre- and post-merge. New suites
+  `pdfComposedDocumentPilotFidelity`/`pdfComposedDocumentPilotMigration`/
+  `pdfComposedDocumentPilotScope` (composition fidelity, all 12 `FormLayout` consumers
+  verified off the retired flag, repo-wide sweep for zero remaining references to
+  `pdfUseComposedDocument`/`buildFormPdfDocument`). Full frontend suite: 2069/2094 passing
+  pre- and post-merge (identical); the 25 failures across 8 files are the pre-existing
+  baseline, confirmed unchanged in file and count against `production` HEAD `7942ce88`
+  before this branch. Backend suite 135 files/1902 tests unaffected (no backend logic
+  touched — only the dead `pdf.service.ts` deletion and the new `fonts.ts` registry).
+  Scope review confirmed only the 73 intended files entered the release (2 already-staged
+  deletions carried over from earlier phases + 71 added/modified), with unrelated
+  pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically
+  excluded. Product Owner Manual Visual Review — completed & approved (Blank A4,
+  Quotation, one administrative form, one payment voucher).
 
 - **Ink Color System v2** (2026-07-28, `stable-ink-color-system-v2`) — signature/stamp ink
   color moves from one GLOBAL `localStorage['manar.inkMode']` value (read once by every

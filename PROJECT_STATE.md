@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `5a220235` — release `stable-ink-color-system-v2` (Ink Color System v2 — per-element signature/stamp ink color, independent per document and per element, replacing one leaky global `localStorage` value; four new SVG-based ballpoint-blue shades; no backend/Prisma change) |
+| **Production HEAD** | `60f358b6` — release `stable-font-foundation-pack-v1` (Font Foundation Pack v1 — unified frontend/backend font-stack registry; PDF export consolidated onto the same `composeStyledFromNode` pipeline as Accurate Preview; `buildFormPdfDocument` and the dead PDFKit `reportEngine/pdf.service.ts` retired; `--font-ui` renamed `--app-font-ui`; no backend/Prisma change) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-ink-color-system-v2` (release date 2026-07-28) → merge `5a220235` |
-| **Previous stable tag** | `stable-blank-a4-free-print-v1` (2026-07-28) → merge `0861ee43` |
-| **Total stable releases** | 368 (all merged onto `production`; window 2026-06-07 → 2026-07-28) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · Prisma `validate` ✅ · `build:front` ✅ · new `inkColorSystem` suite 26/26 ✅ · full frontend suite (2019/2044 passing; the 25 failures across 8 files are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD `4b2e2073` before this feature) — re-run on the merged `production` branch after merge, results identical pre/post-merge · backend suite 135 files/1902 tests ✅ (unaffected — no backend files touched) · scope review confirmed only the 15 intended files (all under `frontend/src`) entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded · Product Owner Manual Visual & Physical Print Review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `5a220235` + tag `stable-ink-color-system-v2`) |
+| **Latest stable tag** | `stable-font-foundation-pack-v1` (release date 2026-07-29) → merge `60f358b6` |
+| **Previous stable tag** | `stable-ink-color-system-v2` (2026-07-28) → merge `5a220235` |
+| **Total stable releases** | 369 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · Prisma `validate` ✅ · `build:front` ✅ · `build:back` ✅ · full frontend suite (2069/2094 passing; the 25 failures across 8 files are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD `7942ce88` before this feature) — re-run on the merged `production` branch after merge, results identical pre/post-merge · backend suite 135 files/1902 tests ✅ (unaffected — no backend files touched) · scope review confirmed only the 73 intended files entered the release (2 already-staged deletions + 71 added/modified), with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded · Product Owner Manual Visual Review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `60f358b6` + tag `stable-font-foundation-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,35 @@ in a table cell.
 
 ---
 
-## Latest Release — Ink Color System v2
+## Latest Release — Font Foundation Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Font Foundation Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-29 |
+| **Feature branch** | `feature/font-foundation-pack-v1` (kept — not deleted per explicit instruction) |
+| **Baseline** | `production` @ `7942ce88` (documentation commit from the prior release) |
+| **Feature commit** | `d645e34f` |
+| **Production merge commit** | `60f358b6` |
+| **Stable tag** | `stable-font-foundation-pack-v1` → merge `60f358b6` (annotated) |
+| **Reviews** | Product Owner Manual Visual Review — **completed & approved** (Blank A4, Quotation, one administrative form, one payment voucher). |
+| **Validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · Prisma `validate` ✅ · `build:front` ✅ · `build:back` ✅ · new suites `pdfComposedDocumentPilotFidelity`/`pdfComposedDocumentPilotMigration`/`pdfComposedDocumentPilotScope` (composition fidelity, all 12 `FormLayout` consumers verified off the retired flag, repo-wide sweep for zero remaining references) ✅ · full frontend suite re-run pre- and post-merge (25 pre-existing baseline failures across 8 files, unchanged in file and count against `production` HEAD `7942ce88`) ✅ · backend suite 135 files/1902 tests ✅ (unaffected — no backend files touched) |
+
+**Scope.** Two related problems solved together across a multi-phase migration (Phases 1 through 5D): scattered, literally-duplicated font-stack strings, and a real architectural gap where Saved PDF output could visually diverge from Accurate Preview because PDF export hand-rebuilt its own CSS instead of reusing the shared composition pipeline.
+- **Font registry.** `frontend/src/styles/fontRegistry.ts` and `backend/src/shared/services/reportEngine/fonts.ts` (kept separate — no shared build boundary between the two TS programs) now hold the single source of truth for `UI_FONT_STACK`, `CHART_FONT_STACK`, `MONO_FONT_STACK`, `DOC_FONT_STACK`/`docFontStack()`, `EMBEDDED_DOC_FONT_FAMILY`, and `buildEmbeddedFontFaceCss()` — replacing roughly twenty duplicated literal font-stack strings across chart components, inline styles, and CSS files with three different quoting styles all producing the same computed value. Architectural only: every constant equals verbatim what was previously written at its site — no new weight, no dropped fallback, no surface's rendered font changed.
+- **Unified PDF pipeline.** `FormLayout.doExportPdf` and `BlankA4Print.doExportPdf` now both call `composeStyledFromNode` — the same clone-and-capture composition function `useAccurateFormPreview` already used for the "Accurate Preview" dialog — instead of the retired `buildFormPdfDocument`, which hand-rebuilt CSS independently and could drift from what Preview showed. The transitional `pdfUseComposedDocument` opt-in prop (used across Phases 5A–5C to gate the migration form-by-form) is fully removed from `FormLayout`'s props — all 12 consumers use the unified path unconditionally, with no per-form branching left in the shared layer.
+- **Retired dead code.** `frontend/src/forms/shared/formPdfDocument.ts` (`buildFormPdfDocument`, zero remaining production consumers after the FormLayout/Blank A4 migration) and `backend/src/shared/services/reportEngine/pdf.service.ts` (dead PDFKit-based builder, zero production consumers, referenced an Amiri-Regular.ttf font file that never existed in the repo) are both deleted.
+- **Token rename.** `--font-ui` → `--app-font-ui` across `app/theme.css` and 8 dependent stylesheets/components, matching the existing `--app-font-mono` naming convention (chosen to avoid any future collision with Tailwind v4's own theme-layer tokens; confirmed via built-CSS inspection that today's rename has zero actual collision, unlike the proven `--font-mono` collision that motivated the `--app-` prefix originally).
+- **Test architecture.** Multiple tests were rewritten from brittle raw-string assertions (`.toContain('buildFormPdfDocument')`, `.not.toContain('ruler')`) to `DOMParser`-based behavioral assertions on the actual exported DOM, after root-causing that `capturePrintStyles`'s wholesale stylesheet capture legitimately includes inert CSS selector text (e.g. `.blank-a4-ruler-top {...}`) even when no matching element exists in the composed document.
+
+**Deferred (documented, not in scope):** IBM Plex Mono font loading (referenced in `MONO_FONT_STACK` but never actually loaded in the project — every use already falls back to system `monospace`, and that is today's approved appearance), Template Studio fallback chains, `print-templates/utils/textStyleOverrides.ts` (a user-facing designer choice, not an architectural constant), any new font weights or size/line-height changes, and the handful of pages (`BankAccounts.tsx`, `BankSalaryAnalytics.tsx`, `BankAccountExplorer.tsx`, `DateCalendarPicker.css`, `RootErrorBoundary.css`) whose font stacks are genuinely different from the unified constants — unifying those would be a visual decision independent of this architectural pack.
+
+**Not changed:** the backend Prisma schema or any API endpoint; any document's rendered font, weight, or fallback chain (registry values are verbatim copies of prior literals); `print.brandingLayout` or any branding/ink-color system; Google Drive Deployment Pack in-progress working-tree edits (`.gitignore`, `electron-builder.yml`, `electron/services/googleDriveAuth.service.ts`, and untracked `electron/__tests__/`, `electron/resources/`, `electron/services/__tests__/googleDriveClientConfig.pure.test.ts`, `electron/services/googleDriveClientConfig.pure.ts`) — surgically excluded from every commit in this release, confirmed still uncommitted after merge; the 5 pre-existing unrelated git stashes — confirmed untouched.
+
+---
+
+## Previous Release — Ink Color System v2
 
 | Field | Value |
 |-------|-------|
