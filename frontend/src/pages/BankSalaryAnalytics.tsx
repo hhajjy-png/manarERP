@@ -22,6 +22,7 @@ import './BankSalaryAnalytics.css';
 import { money, MoneyText } from '../config/modules';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
 import { useT } from '../lib/i18n';
+import { CHART_FONT_STACK } from '../styles/fontRegistry';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -199,7 +200,7 @@ function getActiveChips(f: Filters, t: (key: string, vars?: Record<string, strin
 const ChartTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '10px 14px', fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', direction: 'rtl' }}>
+    <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '10px 14px', fontFamily: CHART_FONT_STACK, direction: 'rtl' }}>
       <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6, marginTop: 0 }}>{label}</p>
       <p style={{ color: '#60A5FA', fontSize: 13, fontWeight: 700, margin: 0 }}>{<MoneyText value={Number(payload[0].value)} />}</p>
     </div>

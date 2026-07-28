@@ -11,7 +11,7 @@
 }
 @media (max-width: 1100px) { .mntx-metrics { grid-template-columns: 1fr; } }
 
-.mntx-code { font-family: "IBM Plex Mono", monospace; font-weight: 700; color: var(--xpl-text); }
+.mntx-code { font-family: var(--app-font-mono); font-weight: 700; color: var(--xpl-text); }
 .mntx-desc { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
 
 /* read-only plate field inside dialogs */

@@ -4,6 +4,7 @@ import {
 import { CHART_INITIAL_DIMENSION } from '../../lib/rechartsDefaults';
 import { Skeleton } from './Skeleton';
 import { useT } from '../../lib/i18n';
+import { CHART_FONT_STACK } from '../../styles/fontRegistry';
 
 interface StatusPoint { status: string; count: number; }
 interface Props { data: StatusPoint[]; loading: boolean; }
@@ -66,7 +67,7 @@ export default function ContractStatusChart({ data, loading }: Props) {
                 border: '1px solid var(--xpl-border)',
                 borderRadius: 10,
                 padding: '10px 14px',
-                fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
+                fontFamily: CHART_FONT_STACK,
                 direction: 'rtl',
                 boxShadow: 'var(--xpl-shadow)',
               }}>
@@ -77,7 +78,7 @@ export default function ContractStatusChart({ data, loading }: Props) {
             );
           }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: 'var(--xpl-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
+            <span style={{ color: 'var(--xpl-muted)', fontSize: 12, fontFamily: CHART_FONT_STACK, fontWeight: 700 }}>
               {t('contract.status.' + value.toLowerCase())}
             </span>
           )} />

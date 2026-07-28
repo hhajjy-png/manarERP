@@ -81,7 +81,7 @@
 .tip-insight-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tip-insight-label { font-size: 10.5px; color: var(--muted); }
 .tip-insight-value { font-size: 13px; font-weight: 700; color: var(--text); word-break: break-word; line-height: 1.4; }
-.tip-insight-value.mono { font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 600; }
+.tip-insight-value.mono { font-family: var(--app-font-mono); font-size: 12px; font-weight: 600; }
 
 /* ── 4. Original bank text — collapsed, deliberately quiet ────────────────── */
 

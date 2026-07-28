@@ -8,6 +8,7 @@ import { formatCurrency, formatCompact } from '../../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../../lib/date';
 import { MoneyText } from '../../../config/modules';
 import { useT } from '../../../lib/i18n';
+import { CHART_FONT_STACK } from '../../../styles/fontRegistry';
 
 export interface TrendPoint { label: string; revenue: number; expense: number }
 
@@ -31,7 +32,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
     <div style={{
       background: 'var(--db-card)', backdropFilter: 'blur(14px)',
       border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '12px 16px',
-      fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
+      fontFamily: CHART_FONT_STACK,
       direction: 'rtl', minWidth: 190, boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
     }}>
       <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10, letterSpacing: '0.06em' }}>{formatMonthLabel(label)}</p>
@@ -104,7 +105,7 @@ export default function PerformanceChartSection({
           <XAxis
             dataKey="label"
             tickFormatter={formatMonthShort}
-            tick={{ fill: 'var(--db-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif' }}
+            tick={{ fill: 'var(--db-muted)', fontSize: 12, fontFamily: CHART_FONT_STACK }}
             axisLine={false}
             tickLine={false}
             minTickGap={4}
@@ -118,7 +119,7 @@ export default function PerformanceChartSection({
           />
           <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(148,163,184,0.12)' }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: 'var(--db-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
+            <span style={{ color: 'var(--db-muted)', fontSize: 12, fontFamily: CHART_FONT_STACK, fontWeight: 700 }}>
               {SERIES_LABEL_KEY[value] ? t(SERIES_LABEL_KEY[value]) : value}
             </span>
           )} />

@@ -86,6 +86,7 @@ export default function AdminPaymentVoucher() {
     onPrint: () => printApiRef.current?.print(),
     title: translate('voucher.payment.title', lang),
     documentLabel: t('voucher.payment.document_label', { number: form.voucherNumber }),
+    lang,
   });
 
   return (

@@ -11,6 +11,23 @@
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05);
   --radius: 16px; --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  /* خط الواجهة — تعريف واحد تقرأه كل ملفات CSS (Font Foundation Pack v1).
+     نظيره في TypeScript هو `UI_FONT_STACK` في `styles/fontRegistry.ts`، وهو اللازم
+     لمواضع Recharts لأن خصائص العرض على SVG لا تقبل `var(...)`. القيمتان يجب أن
+     تبقيا متطابقتين. القيمة نفسها التي كانت مكتوبة هنا حرفيًا — بلا أي تغيير. */
+  --app-font-ui: "IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif;
+  /* الخط أحادي العرض — نظيره `MONO_FONT_STACK` في `styles/fontRegistry.ts`.
+     `IBM Plex Mono` غير محمَّل في المشروع (لا @font-face ولا ملف خط)، فالقيمة
+     الفعلية اليوم هي `monospace` النظام — وهذا هو المظهر القائم بلا تغيير.
+
+     الاسم مسبوق بـ`--app-` عمدًا: **Tailwind v4 يملك `--font-mono`** ويعرّفه في
+     `@layer theme { :root, :host }` (انظر `app/tailwind.css`). تعريفنا في `:root`
+     **غير مُطبَّق داخل طبقة**، والأنماط غير المُطبَّقة تتقدّم على المُطبَّقة في
+     تسلسل CSS — فلو حملَ اسم `--font-mono` لَظلَّل متغيّر Tailwind وغيّر خط أي
+     مكوّن shadcn يستخدم أداة `font-mono` (اليوم لا أحد يستخدمها، لكنه فخّ مبيت).
+     التسمية المنفصلة تُبقي المتغيّرين مستقلَّين تمامًا.
+     (`--app-font-ui` لا يحتاج ذلك — Tailwind لا يعرّف هذا الاسم إطلاقًا.) */
+  --app-font-mono: "IBM Plex Mono", monospace;
 }
 html[data-theme="dark"] {
   --primary: #020617; --primary-hover: #0f172a; --accent: #3b82f6; --accent-light: #1e3a8a;
@@ -21,7 +38,7 @@ html[data-theme="dark"] {
   --amber-light: rgba(245,158,11,.15); --blue-light: rgba(59,130,246,.15);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: "IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; transition: background .3s, color .3s; }
+body { font-family: var(--app-font-ui); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; transition: background .3s, color .3s; }
 a { color: inherit; text-decoration: none; }
 
 /* عرض القائمة الجانبية — **مصدر واحد** تقرأه القائمة والمحتوى معًا، فلا تعويضات

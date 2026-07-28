@@ -154,7 +154,7 @@
 .pc-page-input {
   width: 46px;
   text-align: center;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--app-font-mono);
   direction: ltr; /* Western digits, LTR — always */
 }
 .pc-copies {
@@ -181,7 +181,7 @@
 .pc-page-total {
   font-size: 12px;
   color: var(--xpl-muted);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--app-font-mono);
   direction: ltr;
 }
 
@@ -377,7 +377,7 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--xpl-text);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: var(--app-font-mono);
   direction: ltr;
 }
 

@@ -113,12 +113,14 @@ npm run dist           # يبني الخلفية + الواجهة + Electron ث�
 | GET/POST | `/api/backups` | النسخ الاحتياطي (إنشاء/قائمة) |
 | POST | `/api/backups/:id/restore` · `/export` | استعادة/تصدير قاعدة البيانات |
 | GET | `/api/reports/:type/preview` | معاينة بيانات التقرير (JSON) |
-| GET | `/api/reports/:type/export?format=excel\|pdf` | تصدير التقرير |
+| GET | `/api/reports/:type/export?format=excel\|html` | تصدير التقرير |
 | GET | `/api/health` | فحص صحة الخدمة |
 
 أنواع التقارير: `customers` · `contracts` · `invoices` · `expenses` · `equipment` · `employees` · `payroll` · `profit-loss`.
 
-> **ملاحظة عن PDF العربي:** ضع خطًا عربيًا في `backend/assets/fonts/Amiri-Regular.ttf` لإخراج عربي صحيح في الـ PDF. تقارير Excel تدعم العربية وRTL بالكامل دون أي إعداد إضافي.
+> **ملاحظة عن PDF العربي:** توليد PDF من الخادم متوقّف — لا يحتاج المشروع أي خط إضافي.
+> يطلب التطبيق `format=html` (خط Cairo مضمَّن base64) ثم يرسم المستند في نافذة Chromium
+> فيخرج PDF بعربية موصولة سليمة. تقارير Excel تدعم العربية وRTL بالكامل دون أي إعداد.
 
 ### الترابط المالي التلقائي
 - إنشاء فاتورة مبيعات → قيد إيراد. فاتورة مشتريات → قيد مصروف.

@@ -99,6 +99,7 @@ export default function SalaryAdvance() {
     onPrint: () => printApiRef.current?.print(),
     title: translate('page.salaryAdv.title', lang),
     documentLabel: `${translate('page.salaryAdv.title', lang)} · ${formNumber}`,
+    lang,
   });
 
 

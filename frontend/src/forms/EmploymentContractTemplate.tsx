@@ -6,6 +6,7 @@ import ApprovalSection from './shared/ApprovalSection';
 import { longTextCell } from './shared/formStyles';
 import FormQRCode, { QRData } from './shared/FormQRCode';
 import { getAuthorizedSignatory } from './shared/authorizedSignatories';
+import { DOC_FONT_STACK } from '../styles/fontRegistry';
 
 export interface ContractParams {
   issueDate: string;
@@ -102,7 +103,7 @@ const NOTE =
   'ملاحظة / هذا النموذج يعد نموذجاً إسترشادياً لشروط وأحكام عقد العمل في القطاع الأهلي، ويحق لكل شركة إعداد نموذج مماثل له على المطبوعات الخاصة بها شرط أن يتضمن كافة الأحكام والشروط الواردة بهذا النموذج';
 
 const wrap: CSSProperties = {
-  fontFamily: '"Cairo", Arial, sans-serif',
+  fontFamily: DOC_FONT_STACK,
   fontSize: 11,
   lineHeight: 1.5,
   color: '#111827',

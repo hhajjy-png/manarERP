@@ -59,7 +59,7 @@
   min-height: calc(100vh - 49px);
   background: var(--db-bg);
   color: var(--db-text);
-  font-family: "IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif;
+  font-family: var(--app-font-ui);
 }
 
 @media (max-width: 900px) {
@@ -690,7 +690,7 @@
 .db-chart-wrap .recharts-text tspan,
 .db-chart-wrap-sm .recharts-text tspan {
   fill: var(--db-muted);
-  font-family: "IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif;
+  font-family: var(--app-font-ui);
   font-size: 12px;
 }
 .db-chart-wrap .recharts-cartesian-grid-horizontal line,

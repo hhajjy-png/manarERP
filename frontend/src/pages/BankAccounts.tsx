@@ -280,7 +280,7 @@ export default function BankAccounts() {
           padding: 28px 32px;
           max-width: 1400px;
           margin: 0 auto;
-          font-family: "IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif;
+          font-family: var(--app-font-ui);
         }
         .bac-header {
           display: flex;
@@ -437,7 +437,7 @@ export default function BankAccounts() {
           font-size: 11px;
           color: var(--muted);
           margin-top: 2px;
-          font-family: "IBM Plex Mono", monospace;
+          font-family: var(--app-font-mono);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;

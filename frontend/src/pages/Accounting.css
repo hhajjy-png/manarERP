@@ -39,7 +39,7 @@
 .accx-kv-val.red { color: var(--xpl-red); }
 
 /* ── Account / journal table cells ─────────────────────────────────────────── */
-.accx-code { font-family: "IBM Plex Mono", monospace; font-weight: 700; color: var(--xpl-text); font-variant-numeric: tabular-nums; }
+.accx-code { font-family: var(--app-font-mono); font-weight: 700; color: var(--xpl-text); font-variant-numeric: tabular-nums; }
 .accx-debit  { color: var(--xpl-red);   font-weight: 700; text-align: left; font-variant-numeric: tabular-nums; }
 .accx-credit { color: var(--xpl-green); font-weight: 700; text-align: left; font-variant-numeric: tabular-nums; }
 

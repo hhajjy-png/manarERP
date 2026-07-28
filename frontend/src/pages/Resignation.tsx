@@ -90,6 +90,7 @@ export default function Resignation() {
     onPrint: () => printApiRef.current?.print(),
     title: translate('page.resignation.title', lang),
     documentLabel: `${translate('page.resignation.title', lang)} · ${formNumber}`,
+    lang,
   });
 
 

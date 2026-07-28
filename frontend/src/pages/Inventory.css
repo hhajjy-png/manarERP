@@ -11,7 +11,7 @@
 }
 @media (max-width: 1100px) { .invx-metrics { grid-template-columns: 1fr; } }
 
-.invx-code { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--xpl-muted); }
+.invx-code { font-family: var(--app-font-mono); font-size: 12px; color: var(--xpl-muted); }
 .invx-stock { font-weight: 800; }
 .invx-stock--low { color: var(--xpl-red); }
 

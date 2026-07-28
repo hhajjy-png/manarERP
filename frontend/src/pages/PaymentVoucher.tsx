@@ -169,6 +169,7 @@ export default function PaymentVoucher() {
     onPrint: () => printApiRef.current?.print(),
     title: lang === 'en' ? 'Payment Voucher' : 'سند صرف',
     documentLabel: t('voucher.payment.document_label', { number: cheque?.paymentVoucherNumber ?? '' }),
+    lang,
   });
 
 

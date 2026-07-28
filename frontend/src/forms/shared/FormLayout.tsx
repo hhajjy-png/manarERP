@@ -22,6 +22,7 @@ import { getBrandingLayoutForDocument, isFormBrandingDocKey } from '../../print-
 import type { BrandingDocKey, PrintBrandingLayoutSettings } from '../../print-templates/engine/types';
 import { PrintWorkspace } from '../../components/print-workspace';
 import officialLogoHead from '../../assets/logohead.png';
+import { DOC_FONT_STACK } from '../../styles/fontRegistry';
 
 interface FormLayoutProps {
   children: ReactNode;
@@ -418,15 +419,17 @@ export default function FormLayout({
   }
 
   /**
-   * "Save PDF" — exports ONLY the printable `.form-page` through the same
-   * hidden-window `printToPDF` pipeline the Reports export uses
-   * (`window.manar.exportPdfFromHtml` → `pdf:exportHtml`). The live PrintWorkspace
-   * shell, dark theme, zoom transform and preview canvas never reach the PDF, so
-   * the output matches the physical printout (and the Invoice Report PDF) with no
-   * black frame. Physical printing (`doPrint`/`printCurrentView`) is untouched.
+   * "Save PDF" — نفس مُركِّب المعاينة الدقيقة حرفيًا (`composeStyledFromNode` على
+   * `formPageRef.current` الحيّة، نفس `pageSpec` الافتراضي 'a4-portrait'، نفس
+   * `stripSelectors`)، فيصبح الملف المحفوظ **نفس المستند** الذي عاينه المستخدم —
+   * لا بناء CSS مستقلّ بموازاته. (كان هذا المسار اختياريًا خلف علم أثناء التعميم
+   * المرحلي عبر المراحل 5A–5D؛ بعد أن أثبت كل مستهلك حالي لـ `FormLayout` أنه
+   * يعمل صحيحًا بلا استثناء بروفايل، أُزيل العلم والفرع القديم معًا — مسار واحد،
+   * بلا CSS مطبوع مبنيّ يدويًا بمعزل عن المستند الحيّ.)
    *
-   * Falls back to the native print dialog (which offers "Save as PDF") outside
-   * Electron, if the bridge is unavailable, or if anything in the HTML build fails.
+   * فشل التركيب (تعذّر التقاط الأنماط — `composeStyledFromNode` تفشل بصوت عالٍ
+   * عمدًا): نتراجع إلى **نفس شبكة الأمان القائمة أصلًا** لكل نموذج عند أي فشل
+   * تصدير: `printCurrentView()` (حوار الطباعة الأصلي، الذي يعرض «حفظ PDF» أيضًا).
    */
   async function doExportPdf() {
     const name = formNumber || formType || 'document';
@@ -439,26 +442,13 @@ export default function FormLayout({
     }
 
     try {
-      // Clone the page and strip the screen-only controls that physical print
-      // already hides, so the PDF mirrors the printout exactly. `.no-print` is the
-      // same marker FormLayout's @media print rules key off (it wraps every
-      // "print-fields only" override panel — headers, date inputs, selects and the
-      // reset button); the data-attribute variants are defensive. Real document
-      // content is never marked no-print, so only the override panels are removed.
-      const clone = pageEl.cloneNode(true) as HTMLElement;
-      clone
-        .querySelectorAll('.no-print, [data-no-print], [data-print-hidden]')
-        .forEach((el) => el.remove());
-
-      const { buildFormPdfDocument } = await import('./formPdfDocument');
-      const html = buildFormPdfDocument({
-        formPageHtml: clone.outerHTML,
+      const { composeStyledFromNode, getPageSpec } = await import('../../printing');
+      const html = composeStyledFromNode({
+        node: pageEl,
+        pageSpec: getPageSpec('a4-portrait'),
         title: title || name,
         lang,
-        margins: formMargins,
-        // ready-paper: same page-level model as the on-screen/print paths, so the
-        // exported PDF puts the letterhead in the sheet's top band too.
-        marginsAsPagePadding: logoHeaderIsOverlay,
+        stripSelectors: ['.no-print'],
       });
       await exportFromHtml(html, name);
     } catch {
@@ -658,7 +648,7 @@ ${logoHeaderIsOverlay ? `
           // the original screen padding untouched.
           padding: logoHeaderIsOverlay ? `${mt} ${mr} ${mb} ${ml}` : '18px 32px',
           boxSizing: 'border-box',
-          fontFamily: '"Cairo", Arial, sans-serif',
+          fontFamily: DOC_FONT_STACK,
           maxWidth: 793,
           margin: '0 auto',
           color: '#0f172a',

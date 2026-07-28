@@ -86,6 +86,7 @@ export default function ToWhomItMayConcern() {
     onPrint: () => printApiRef.current?.print(),
     title: translate('page.towhom.title', lang),
     documentLabel: `${translate('page.towhom.title', lang)} · ${formNumber}`,
+    lang,
   });
 
 

@@ -119,6 +119,7 @@ export default function LeaveRequest() {
     onPrint: () => printApiRef.current?.print(),
     title: translate('page.leaveReq.title', lang),
     documentLabel: `${translate('page.leaveReq.title', lang)} · ${formNumber}`,
+    lang,
   });
 
 

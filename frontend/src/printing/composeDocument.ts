@@ -19,6 +19,7 @@
  */
 
 import cairoRegular from '../assets/fonts/Cairo-Regular.ttf';
+import { buildEmbeddedFontFaceCss, docFontStack } from '../styles/fontRegistry';
 import type { PageSpec } from './pageSpec';
 import { toPageCss } from './pageSpec';
 import { capturePrintStyles, mergePageRules } from './styleCapture';
@@ -57,9 +58,9 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-const FONT_FACE = cairoRegular
-  ? `@font-face { font-family: 'Cairo'; src: url('${cairoRegular}') format('truetype'); font-weight: normal; font-style: normal; }`
-  : ''; // graceful degradation — mirrors the backend engine
+// كتلة الخط المضمَّن — تُبنى الآن من `styles/fontRegistry` (مصدر واحد يشاركه
+// `formPdfDocument`)، وتحتفظ بنفس التدهور اللطيف: سلسلة فارغة عند فشل التضمين.
+const FONT_FACE = buildEmbeddedFontFaceCss(cairoRegular);
 
 /** Shared skeleton. `bodyHtml` must already be safe, serialized markup. */
 function wrap(bodyHtml: string, pageCss: string, title: string, lang: 'ar' | 'en'): string {
@@ -81,7 +82,7 @@ function wrap(bodyHtml: string, pageCss: string, title: string, lang: 'ar' | 'en
     margin: 0;
     padding: 0;
     background: #fff;
-    font-family: 'Cairo', Arial, sans-serif;
+    font-family: ${docFontStack(lang)};
   }
   /* The serialized node carries its ON-SCREEN styling (paper border, shadow, radius,
      max-width, centering). Neutralise it so the document fills the printable area

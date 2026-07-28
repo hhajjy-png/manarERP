@@ -198,9 +198,11 @@ describe('no loop remains anywhere in the print path', () => {
     expect(form).toMatch(/copies:\s*count/);
 
     // Every surviving printCurrentView() call site is a single-shot fallback, never a
-    // per-copy repeat: (1)+(2) Save-PDF fallbacks when the Electron HTML-export bridge
-    // is unavailable or fails, (3) the auto-print on ready. The flag-OFF legacy print
-    // path (previously a 4th site) now calls `printCurrentViewWithResult()` instead —
+    // per-copy repeat: (1) the bridge-unavailable Save-PDF fallback, (2) the ONE Save-PDF
+    // export function's compose-or-export failure fallback (5D: buildFormPdfDocument
+    // retired — composeStyledFromNode is now the only Save-PDF path, so there is no
+    // longer a second, legacy-branch fallback site), (3) the auto-print on ready.
+    // The flag-OFF legacy print path calls `printCurrentViewWithResult()` instead —
     // same physical print, but it returns the real success/cancelled/error outcome
     // instead of discarding it (Provider Parity & Print Result Correctness).
     expect((form.match(/printCurrentView\(\)/g) ?? []).length).toBe(3);

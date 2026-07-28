@@ -36,6 +36,7 @@ import './BankReconciliation.css';
 import { MoneyText } from '../config/modules';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
 import { useT } from '../lib/i18n';
+import { CHART_FONT_STACK } from '../styles/fontRegistry';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 // NOTE: Arabic literals below are i18n fallbacks (byte-for-byte identical to
@@ -195,7 +196,7 @@ function ChartTooltip({ active, payload }: { active?: boolean; payload?: readonl
     <div style={{
       background: 'var(--surface)', border: '1px solid var(--border)',
       borderRadius: 10, padding: '8px 13px',
-      fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif',
+      fontFamily: CHART_FONT_STACK,
       direction: 'rtl', boxShadow: 'var(--shadow)',
     }}>
       <p style={{ color: p.fill ?? 'var(--text)', fontSize: 12, fontWeight: 700 }}>
@@ -959,7 +960,7 @@ function ExplorerCharts({ workspace }: { workspace: ReconciliationWorkspace }) {
                   formatter={(value: string) => (
                     <span style={{
                       fontSize: 11,
-                      fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif',
+                      fontFamily: CHART_FONT_STACK,
                       fontWeight: 700,
                       color: 'var(--text-muted)',
                     }}>{value}</span>
@@ -983,19 +984,19 @@ function ExplorerCharts({ workspace }: { workspace: ReconciliationWorkspace }) {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis
                     dataKey="month"
-                    tick={{ fontSize: 10, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif', fill: 'var(--text-muted)' }}
+                    tick={{ fontSize: 10, fontFamily: CHART_FONT_STACK, fill: 'var(--text-muted)' }}
                     angle={-30}
                     textAnchor="end"
                     interval={0}
                   />
                   <YAxis
-                    tick={{ fontSize: 11, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif', fill: 'var(--text-muted)' }}
+                    tick={{ fontSize: 11, fontFamily: CHART_FONT_STACK, fill: 'var(--text-muted)' }}
                     allowDecimals={false}
                   />
                   <Tooltip content={(props) => <ChartTooltip {...props} />} />
                   <Legend
                     formatter={(v: string) => (
-                      <span style={{ fontSize: 11, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif', fontWeight: 700, color: 'var(--text-muted)' }}>{v}</span>
+                      <span style={{ fontSize: 11, fontFamily: CHART_FONT_STACK, fontWeight: 700, color: 'var(--text-muted)' }}>{v}</span>
                     )}
                   />
                   <Bar dataKey="debit"  name={t('col.acc.debit')}  fill="#ef4444" radius={[3, 3, 0, 0]} />

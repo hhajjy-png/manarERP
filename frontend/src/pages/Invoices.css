@@ -22,7 +22,7 @@
   margin-inline: 4px;
 }
 
-.invcx-mono { font-family: "IBM Plex Mono", monospace; }
+.invcx-mono { font-family: var(--app-font-mono); }
 .invcx-amount { font-weight: 800; white-space: nowrap; }
 .invcx-paid { color: var(--xpl-green); font-weight: 700; }
 .invcx-remaining { color: var(--xpl-red); font-weight: 700; }

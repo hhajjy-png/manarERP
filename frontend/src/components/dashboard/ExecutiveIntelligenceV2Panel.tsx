@@ -10,6 +10,7 @@ import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
 import { getRecommendationBody, type RecommendationV2 } from './command/types';
 import { useT } from '../../lib/i18n';
+import { CHART_FONT_STACK } from '../../styles/fontRegistry';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -127,7 +128,7 @@ function TrendTooltip({ active, payload, label }: TrendTooltipProps) {
     <div style={{
       background: 'var(--db-card)', backdropFilter: 'blur(14px)',
       border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '12px 16px',
-      fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif',
+      fontFamily: CHART_FONT_STACK,
       direction: 'rtl', minWidth: 190, boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
     }}>
       <p style={{ color: 'var(--db-muted)', fontSize: 11, fontWeight: 700, marginBottom: 10 }}>{formatMonthLabel(label)}</p>
@@ -166,12 +167,12 @@ function TrendChart({ data, loading }: { data: TrendPoint[]; loading: boolean })
       <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
         <BarChart data={safe} barCategoryGap="25%" barGap={2}>
           <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.18)" />
-          <XAxis dataKey="month" tickFormatter={formatMonthShort} minTickGap={4} tick={{ fill: 'var(--db-muted)', fontSize: 10, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif' }} axisLine={false} tickLine={false} />
+          <XAxis dataKey="month" tickFormatter={formatMonthShort} minTickGap={4} tick={{ fill: 'var(--db-muted)', fontSize: 10, fontFamily: CHART_FONT_STACK }} axisLine={false} tickLine={false} />
           <YAxis tick={{ fill: 'var(--db-muted)', fontSize: 10 }} axisLine={false} tickLine={false} width={62}
             tickFormatter={(v: number) => formatCompact(v)} />
           <Tooltip content={<TrendTooltip />} cursor={{ fill: 'rgba(148,163,184,0.12)' }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: 'var(--db-muted)', fontSize: 11, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif', fontWeight: 700 }}>
+            <span style={{ color: 'var(--db-muted)', fontSize: 11, fontFamily: CHART_FONT_STACK, fontWeight: 700 }}>
               {legendLabels[value] ?? value}
             </span>
           )} />

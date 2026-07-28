@@ -6,7 +6,7 @@
 .period-control {
   position: relative;
   display: inline-flex;
-  font-family: "IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif;
+  font-family: var(--app-font-ui);
   font-variant-numeric: tabular-nums; /* أرقام غربية بعرض ثابت */
 }
 

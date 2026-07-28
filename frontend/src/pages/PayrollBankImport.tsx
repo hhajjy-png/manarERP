@@ -13,6 +13,7 @@ import { parseWorkbook, BANK_CONFIGS, MAX_ROWS } from './payrollBankImportParser
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { downloadBlob } from '../utils/exportUtils';
 import { MoneyText } from '../config/modules';
+import { UI_FONT_STACK } from '../styles/fontRegistry';
 
 // ── Wizard state ──────────────────────────────────────────────────────────────
 
@@ -827,7 +828,7 @@ export default function PayrollBankImport() {
   return (
     <div style={{
       padding: '24px 32px', maxWidth: 1300, direction: 'rtl',
-      fontFamily: '"IBM Plex Sans Arabic", Cairo, Tajawal, Arial, sans-serif',
+      fontFamily: UI_FONT_STACK,
     }}>
       {/* Page header */}
       <div style={{ marginBottom: 28 }}>
