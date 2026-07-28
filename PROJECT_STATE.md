@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `aaec4cd` — release `stable-ready-paper-template-and-receipt-voucher-redesign-v1` (Ready Paper Print Template & Receipt Voucher Redesign v1 — new centrally driven "Ready Paper" print profile with page-level logo letterhead for qualifying administrative forms, plus a visual-only Receipt Voucher header/footer redesign; no business-logic/data/backend/schema changes) |
+| **Production HEAD** | `5f3695c` — release `stable-administrative-payment-voucher-v1` (Administrative Payment Voucher v1 — new manual-entry "سند صرف" form on the Forms page, reusing the Cheques module's `PaymentVoucherTemplate`/`payment-voucher` print profile verbatim; fully independent of Cheque Management, no backend/Prisma/schema changes) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-ready-paper-template-and-receipt-voucher-redesign-v1` (release date 2026-07-28) → merge `aaec4cd` |
-| **Previous stable tag** | `stable-sidebar-visibility-management-v1` (2026-07-27) → merge `7226882` |
-| **Total stable releases** | 363 (all merged onto `production`; window 2026-06-07 → 2026-07-28) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · `build:front` ✅ · `build:back` ✅ · new `readyPaperGeneralization` suite (16 tests) + expanded `printWorkspace`/`printProfileToggle`/`employeeSmartFormsHub` suites ✅ · full frontend suite (1976/2003 passing; the 27 failures are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD `80f937b` before this feature) — all re-run on the merged `production` branch after merge · scope review confirmed only the 15 intended files entered the release · verified end-to-end on the real running app (Playwright) across four forms plus one physical paper print of Salary Certificate · Product Owner Manual Visual Review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `aaec4cd` + tag `stable-ready-paper-template-and-receipt-voucher-redesign-v1`) |
+| **Latest stable tag** | `stable-administrative-payment-voucher-v1` (release date 2026-07-28) → merge `5f3695c` |
+| **Previous stable tag** | `stable-ready-paper-template-and-receipt-voucher-redesign-v1` (2026-07-28) → merge `aaec4cd` |
+| **Total stable releases** | 364 (all merged onto `production`; window 2026-06-07 → 2026-07-28) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · new `adminPaymentVoucher` suite (5 tests) + new `paymentVoucherTemplateMethod` suite (3 tests) ✅ · full frontend suite (1989/2016 passing; the 27 failures across 8 files are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD `ec8a637` before this feature) — re-run on the merged `production` branch after merge · scope review confirmed only the 11 intended files entered the release · Product Owner Manual Visual Review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `5f3695c` + tag `stable-administrative-payment-voucher-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Ready Paper Print Template & Receipt Voucher Redesign v1
+## Latest Release — Administrative Payment Voucher v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Administrative Payment Voucher v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-28 |
+| **Feature branch** | `feature/administrative-payment-voucher-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `ec8a637` (documentation commit from the prior release) |
+| **Feature commit** | `e76bb09` |
+| **Production merge commit** | `5f3695c` |
+| **Stable tag** | `stable-administrative-payment-voucher-v1` → merge `5f3695c` (annotated) |
+| **Reviews** | Product Owner Manual Visual Review — **completed & approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · new `adminPaymentVoucher` suite (5 tests) + new `paymentVoucherTemplateMethod` suite (3 tests) ✅ · full frontend suite re-run pre- and post-merge (27 pre-existing baseline failures across 8 files, unchanged in file and count against `production` HEAD `ec8a637`) ✅ |
+
+**Scope.** New "سند صرف" (Payment Voucher) card on the Forms page (`frontend/src/forms/shared/formsRegistry.ts` — `ops` category, `requiresEmployee: false`), opening a new standalone page `frontend/src/pages/AdminPaymentVoucher.tsx` with manual fields for voucher number, date, beneficiary name, amount (KWD, 3 decimals), description, payment method (cash/cheque/transfer), bank, and cheque number.
+- **Template reuse, not duplication** — renders through the exact same `frontend/src/forms/PaymentVoucherTemplate.tsx` and its dedicated, non-selectable `payment-voucher` `PRINT_PROFILES` entry (12mm/15mm margins, `useLogoHeader`, `compactTopMargin`) that the Cheques module's `pages/PaymentVoucher.tsx` already uses — same header, fields, formatting, and Arabic/English toggle.
+- **Template extension (additive, no regression)** — `PaymentVoucherTemplate` gains an optional `paymentMethod?: 'cash' | 'cheque' | 'transfer'` prop, defaulting to `'cheque'`. The Cheques flow never passes it, so its rendering is byte-for-byte unchanged; only the new administrative page passes the manually selected method, so the checkbox row reflects it instead of always marking "Cheque".
+- **`ready-paper` audited and rejected** — its 40mm top margin is reserved for an absolutely positioned letterhead overlay over pre-printed blank paper; Payment Voucher uses its own compact margins with an in-flow logo header. Mixing them would break the voucher's tuned layout, so the existing dedicated `payment-voucher` profile was kept as the only compatible one.
+- **Client-side form numbering** — `generateFormNumber('payment-voucher')` (`frontend/src/forms/shared/formNumber.ts`, prefix `PV`), the same no-backend convention already used by Quotation and Purchase Request. No Prisma/migration/backend change — the administrative form is print-only, matching the existing mechanism for this class of form.
+- **Independence from Cheque Management** — no cheque selection, no `/cheques` API calls, no `PrintedCheque`/`markVoucherPrinted` interaction, no cheque-side print-status record. Covered by a dedicated test asserting `api.get`/`api.post` are never called from the new page.
+- **i18n** — new `voucher.payment.title`, `page.paymentVoucher.*`, and `field.paymentVoucher.*` keys added to both Arabic and English (`frontend/src/lib/i18n.ts`).
+
+**Not changed:** the Cheques module's `pages/PaymentVoucher.tsx` (auto-fill from cheque data, voucher-number allocation, batch preview, print-status tracking — all untouched and covered by the pre-existing `paymentVoucherBatchSafety` suite, which continues to pass), Prisma schema, any backend endpoint, `ready-paper`, `letterhead`, or any other form's template/content.
+
+---
+
+## Previous Release — Ready Paper Print Template & Receipt Voucher Redesign v1
 
 | Field | Value |
 |-------|-------|

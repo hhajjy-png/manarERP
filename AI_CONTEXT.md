@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `aaec4cd` (merge of `feature/ready-paper-template-and-receipt-voucher-redesign-v1`, carrying Ready Paper Print Template & Receipt Voucher Redesign v1) |
-| **Current Documentation Commit** | `3761985` |
-| **Current Stable Tag** | `stable-ready-paper-template-and-receipt-voucher-redesign-v1` |
+| **Current Merge Commit** | `5f3695c` (merge of `feature/administrative-payment-voucher-v1`, carrying Administrative Payment Voucher v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-administrative-payment-voucher-v1` |
 | **Current Release Date** | 2026-07-28 |
-| **Total Stable Releases** | 363 (window 2026-06-07 → 2026-07-28) |
+| **Total Stable Releases** | 364 (window 2026-06-07 → 2026-07-28) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,30 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Administrative Payment Voucher v1** (2026-07-28,
+  `stable-administrative-payment-voucher-v1`) — new manual-entry "سند صرف" (Payment
+  Voucher) card on the Forms page, fully independent of Cheque Management.
+
+  Reuses `PaymentVoucherTemplate` and its dedicated, non-selectable `payment-voucher`
+  print profile verbatim (same header, fields, formatting, Arabic/English toggle) —
+  no duplicate design. `ready-paper` was audited and rejected as a fit: its 40mm top
+  margin is reserved for an overlay letterhead over pre-printed paper, while Payment
+  Voucher uses its own compact 12mm/15mm margins with an in-flow logo header, so mixing
+  them would break the voucher's tuned layout. The template gained one additive prop,
+  `paymentMethod?: 'cash' | 'cheque' | 'transfer'` (default `'cheque'`), so the checkbox
+  row can reflect a manually chosen method — the Cheques flow never passes it, so its
+  render is byte-for-byte unchanged. Client-side form numbering via
+  `generateFormNumber('payment-voucher')` (prefix `PV`), the same no-backend convention
+  Quotation and Purchase Request already use — no Prisma/migration/backend change. The
+  new page makes no `/cheques` API calls and touches no `PrintedCheque`/
+  `markVoucherPrinted` state; a dedicated test asserts this.
+
+  Frontend and backend `tsc --noEmit` and the full frontend suite (1989/2016 passing;
+  the 27 failures across 8 files are the pre-existing baseline, confirmed identical
+  file-for-file and count-for-count against `production` HEAD `ec8a637` before this
+  branch) passed pre- and post-merge. Product Owner Manual Visual Review — completed
+  & approved.
 
 - **Ready Paper Print Template & Receipt Voucher Redesign v1** (2026-07-28,
   `stable-ready-paper-template-and-receipt-voucher-redesign-v1`) — two related, visual/
