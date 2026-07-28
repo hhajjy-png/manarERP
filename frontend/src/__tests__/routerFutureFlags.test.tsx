@@ -74,7 +74,7 @@ describe('العلم في الإنتاج (HashRouter)', () => {
     expect(appSrc).not.toContain('createHashRouter');
     expect(appSrc).not.toContain('RouterProvider');
     expect(appSrc).toContain('<Suspense fallback={<PageLoader />}>');
-    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(48); // نفس الصفحات الكسولة
+    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(49); // +1: AdminPaymentVoucher (Administrative Payment Voucher v1)
     expect(appSrc).toContain('<Route path="*" element={<Navigate to="/" replace />} />');
   });
 });

@@ -92,6 +92,7 @@ const FORM_PAGE_FILES = [
   'src/pages/Quotation.tsx',
   'src/pages/PurchaseRequest.tsx',
   'src/pages/ReceiptVoucher.tsx',
+  'src/pages/AdminPaymentVoucher.tsx',
 ];
 
 const { ar: DICT_AR_KEYS, en: DICT_EN_KEYS } = extractDictKeys();

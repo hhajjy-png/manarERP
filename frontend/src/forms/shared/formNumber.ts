@@ -10,6 +10,7 @@ const PREFIXES: Record<string, string> = {
   'employment-contract': 'EMP',
   quotation: 'QTN',
   'purchase-request': 'PR',
+  'payment-voucher': 'PV',
 };
 
 export function generateFormNumber(formType: string): string {
