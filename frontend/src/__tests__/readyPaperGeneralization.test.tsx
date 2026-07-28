@@ -72,7 +72,10 @@ describe('Ready Paper — one central route, no per-form logic', () => {
   });
 
   it('the shared print layer holds no experimental or Salary-Certificate-specific branch', () => {
-    for (const file of ['FormLayout.tsx', 'FormHeader.tsx', 'formPdfDocument.ts']) {
+    // formPdfDocument.ts retired in Phase 5D (buildFormPdfDocument had zero remaining
+    // production consumers after the FormLayout + Blank A4 composed-pipeline migration)
+    // — FormLayout.tsx and FormHeader.tsx are the shared layer now.
+    for (const file of ['FormLayout.tsx', 'FormHeader.tsx']) {
       const src = readFileSync(`src/forms/shared/${file}`, 'utf8');
       expect(src).not.toMatch(/experimental/i);
       expect(src).not.toMatch(/salary-?certificate/i);

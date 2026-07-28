@@ -1,5 +1,6 @@
 import type { PrintProfile, ReportBranding } from './reportTypes';
 import { PRINT_PROFILES } from './printProfiles';
+import { REPORT_FONT_STACK } from './fonts';
 
 export function resolveTablePadding(density?: 'compact' | 'normal' | 'comfortable'): string {
   if (density === 'compact')     return '2px 6px';
@@ -40,7 +41,7 @@ export function buildStyles(
     @page {
       @bottom-center {
         content: "صفحة " counter(page) " من " counter(pages);
-        font-family: 'Cairo', Arial, sans-serif;
+        font-family: ${REPORT_FONT_STACK};
         font-size: 7px;
         color: #94a3b8;
       }
@@ -54,7 +55,7 @@ export function buildStyles(
 
     html, body {
       direction: rtl;
-      font-family: 'Cairo', 'Arial', sans-serif;
+      font-family: ${REPORT_FONT_STACK};
       font-size: ${p.fontSize};
       color: #1f2933;
       background: #fff;

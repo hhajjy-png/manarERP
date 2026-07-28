@@ -12,7 +12,7 @@
 }
 @media (max-width: 1100px) { .chqx-metrics { grid-template-columns: 1fr; } }
 
-.chqx-mono { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+.chqx-mono { font-family: var(--app-font-mono); font-variant-numeric: tabular-nums; }
 /* عملة الشيك تأتي من سجلّه لا من إعداد العرض، فيبقى الرمز في الخليّة (استثناء موثّق).
    العزل يمنع انقلاب «5,890.000 KWD» إلى «KWD 5,890.000» في الواجهة العربية. */
 .chqx-amount {
@@ -22,7 +22,7 @@
   direction: ltr;
   unicode-bidi: isolate;
 }
-.chqx-pv { font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+.chqx-pv { font-family: var(--app-font-mono); font-variant-numeric: tabular-nums; }
 .chqx-pv--set { color: var(--xpl-primary); font-weight: 700; }
 
 /* Printing & actions — one coherent toolbar (provider + print/voucher | calibration tools). */

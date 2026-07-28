@@ -5,6 +5,7 @@ import type { RevenueSlice } from './types';
 import { formatCurrency, formatInteger, formatPercent } from '../../../lib/format';
 import { MoneyText } from '../../../config/modules';
 import { useT } from '../../../lib/i18n';
+import { CHART_FONT_STACK } from '../../../styles/fontRegistry';
 
 // Distinct palette; the last colour is reserved for the aggregated "أخرى" slice.
 const SLICE_COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#A855F7', '#06B6D4', '#9CA3AF'];
@@ -27,7 +28,7 @@ function DonutTooltip({
     <div style={{
       background: 'var(--db-card)', backdropFilter: 'blur(14px)',
       border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 14px',
-      fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', direction: 'rtl',
+      fontFamily: CHART_FONT_STACK, direction: 'rtl',
     }}>
       <p style={{ color: 'var(--db-text)', fontSize: 13, fontWeight: 700, margin: 0 }}>{p.name}</p>
       <p style={{ color: 'var(--db-muted)', fontSize: 12, margin: '4px 0 0' }}>{<MoneyText value={val} />} · {formatPercent(pct, 1)}</p>

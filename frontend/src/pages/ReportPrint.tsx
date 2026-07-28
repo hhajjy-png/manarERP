@@ -8,6 +8,7 @@ import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { composeFromNode, getPageSpec } from '../printing';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
 import { currentCurrencyLanguage } from '../stores/settingsStore';
+import { DOC_FONT_STACK } from '../styles/fontRegistry';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string; format?: 'currency'; align?: 'left' | 'center' | 'right' }[]; rows: any[]; totalsRow?: any };
@@ -58,9 +59,9 @@ export default function ReportPrint() {
   if (error || !rep) return <div className="center-msg">تعذّر تحميل التقرير: {error}</div>;
 
   return (
-    <div ref={printRootRef} style={{ padding: '18px 24px', fontFamily: '"Cairo", Arial, sans-serif', maxWidth: 1100, margin: '0 auto', color: '#0f172a', background: '#fff', minHeight: '100vh' }}>
+    <div ref={printRootRef} style={{ padding: '18px 24px', fontFamily: DOC_FONT_STACK, maxWidth: 1100, margin: '0 auto', color: '#0f172a', background: '#fff', minHeight: '100vh' }}>
       {/* Print footer: only "صفحة X من Y" (page X of Y) */}
-      <style>{`@media print { @page { margin: 12mm; @bottom-center { content: "صفحة " counter(page) " من " counter(pages); font-family: 'Cairo', Arial, sans-serif; font-size: 7px; color: #94a3b8; } } }`}</style>
+      <style>{`@media print { @page { margin: 12mm; @bottom-center { content: "صفحة " counter(page) " من " counter(pages); font-family: ${DOC_FONT_STACK}; font-size: 7px; color: #94a3b8; } } }`}</style>
 
       <div className="no-print" style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
         <button

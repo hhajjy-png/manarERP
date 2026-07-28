@@ -9,7 +9,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  font-family: "IBM Plex Sans Arabic", Cairo, Tajawal, Arial, sans-serif;
+  font-family: var(--app-font-ui);
 }
 
 /* ── Hero header (Package A) ─────────────────────────────────────────────── */

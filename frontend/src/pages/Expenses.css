@@ -29,7 +29,7 @@
 
 /* table amount cell */
 .expx-amount { font-weight: 800; color: var(--xpl-text); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.expx-code { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--xpl-muted); font-variant-numeric: tabular-nums; }
+.expx-code { font-family: var(--app-font-mono); font-size: 12px; color: var(--xpl-muted); font-variant-numeric: tabular-nums; }
 
 /* drawer amount hero */
 .expx-drawer-amount { font-size: 24px; font-weight: 800; color: var(--xpl-text); letter-spacing: -.4px; font-variant-numeric: tabular-nums; }

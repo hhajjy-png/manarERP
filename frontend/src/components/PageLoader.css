@@ -10,7 +10,7 @@
   width: 100%;
   padding: 32px 20px;
   color: var(--text-muted, #64748b);
-  font-family: "IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif;
+  font-family: var(--app-font-ui);
 }
 
 .pld-spinner {

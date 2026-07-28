@@ -237,7 +237,7 @@
 }
 .dicx-col-row:last-child { border-bottom: none; }
 .dicx-col-key {
-  font-family: "IBM Plex Mono", monospace;
+  font-family: var(--app-font-mono);
   font-size: 12px;
   background: var(--xpl-surface-2);
   padding: 2px 8px;

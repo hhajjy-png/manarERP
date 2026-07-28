@@ -713,6 +713,10 @@ export default function EmploymentContract() {
     onPrint: () => handlePrint(),
     title: t('page.contract.doc_title'),
     documentLabel: contractDocLabel,
+    // لا مبدّل لغة في هذا النموذج — العقد ثنائي اللغة داخل نفس الصفحة (عربي/
+    // إنجليزي جنبًا إلى جنب)، لا "نسختان" يختار المستخدم بينهما. 'ar' هنا صريحة
+    // لِما كان ضمنيًا (افتراضي الخطّاف السابق) — لا تغيير سلوكي.
+    lang: 'ar',
   });
 
   /** زر الطباعة يستدعي `handlePrint` مباشرة — لا معترِض، ولا معاينة قبل الطباعة. */

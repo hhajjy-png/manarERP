@@ -119,6 +119,7 @@ export default function ReturnToWork() {
     onPrint: () => printApiRef.current?.print(),
     title: translate('page.returnToWork.title', lang),
     documentLabel: `${translate('page.returnToWork.title', lang)} · ${formNumber}`,
+    lang,
   });
 
 

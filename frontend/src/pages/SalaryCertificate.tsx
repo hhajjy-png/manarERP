@@ -93,6 +93,7 @@ export default function SalaryCertificate() {
     onPrint: () => printApiRef.current?.print(),
     title: translate('page.salaryCert.title', lang),
     documentLabel: `${t('page.salaryCert.doc_label')} · ${formNumber}`,
+    lang,
   });
 
 

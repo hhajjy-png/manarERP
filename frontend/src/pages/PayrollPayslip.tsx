@@ -10,6 +10,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { money } from '../config/modules';
 import { useT } from '../lib/i18n';
+import { DOC_FONT_STACK } from '../styles/fontRegistry';
 
 type PayrollLine = {
   id: number;
@@ -88,6 +89,9 @@ export default function PayrollPayslip() {
     onPrint: () => printCurrentView(),
     title: t('page.payslip.doc_label'),
     documentLabel: data ? `${t('page.payslip.doc_label')} · ${data.employee.fullName} · ${data.month}/${data.year}` : '',
+    // لا مبدّل لغة في هذا النموذج — قسيمة الراتب عربية دائمًا. 'ar' هنا صريحة لِما
+    // كان ضمنيًا (افتراضي الخطّاف السابق) — لا تغيير سلوكي.
+    lang: 'ar',
   });
 
   /** بوابة **واحدة** يمرّ بها **كلا** مساري الطباعة — الزر اليدوي والطباعة التلقائية
@@ -129,7 +133,7 @@ export default function PayrollPayslip() {
       ref={printRootRef}
       style={{
         padding: 28,
-        fontFamily: '"Cairo", Arial, sans-serif',
+        fontFamily: DOC_FONT_STACK,
         maxWidth: 900,
         margin: '0 auto',
         color: '#0f172a',

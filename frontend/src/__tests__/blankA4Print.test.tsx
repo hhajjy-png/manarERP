@@ -210,9 +210,13 @@ describe('REGRESSION — PDF export document geometry (cause of the empty 2nd pa
     const html = exported as string;
     // Page box = the whole sheet. With the previous 10mm margins the printable band
     // was 277mm and the 297mm sheet necessarily produced a second page.
-    expect(html).toMatch(/@page\s*\{[^}]*margin:\s*0;/);
-    expect(html).toMatch(/padding:\s*0mm 0mm 0mm 0mm !important/);
-    // The sheet's own height must survive the clone — buildFormPdfDocument never sets it.
+    // (`0` vs `0px`: jsdom's CSSOM normalises a bare `0` length to `0px` when
+    // serialising captured `cssText` — a test-environment quirk, not a real document
+    // difference; both are the same zero length in any renderer.)
+    expect(html).toMatch(/@page\s*\{[^}]*margin:\s*0(px)?;/);
+    expect(html).toMatch(/\.form-page\.blank-a4-sheet\s*\{[^}]*padding:\s*0(px)?\s*!important/);
+    // The sheet's own height must survive the clone unchanged — the composed document
+    // never rebuilds or overrides it.
     expect(html).toContain('height: 297mm');
   });
 
@@ -223,11 +227,23 @@ describe('REGRESSION — PDF export document geometry (cause of the empty 2nd pa
     fireEvent.click(screen.getByRole('button', { name: /حفظ PDF/ }));
     await waitFor(() => expect(exported).toBeTruthy());
 
+    // Behavioural, not textual: composeStyledFromNode captures stylesheets WHOLESALE
+    // (see styleCapture.ts), so the (inert — matches nothing) `.blank-a4-ruler-*` CSS
+    // selectors legitimately appear as TEXT in the exported document's <style> block.
+    // That is harmless — a rule with no matching element does nothing. The actual
+    // invariant is that no ruler ELEMENT exists in the exported DOM, so parse the
+    // document and check its real content, not raw string containment.
+    const exportedDoc = new DOMParser().parseFromString(exported as string, 'text/html');
     for (const edge of RULER_EDGES) {
-      expect(exported as string).not.toContain(`a4-ruler-${edge}`);
+      expect(exportedDoc.querySelector(`[data-testid="a4-ruler-${edge}"]`)).toBeNull();
+      expect(exportedDoc.body.className).not.toContain(`blank-a4-ruler-${edge}`);
     }
-    // Nor any ruler numeral, which would be the visible symptom if one leaked.
-    expect(exported as string).not.toContain('blank-a4-ruler');
+    expect(exportedDoc.body.querySelector('.blank-a4-ruler-top, .blank-a4-ruler-bottom, .blank-a4-ruler-left, .blank-a4-ruler-right')).toBeNull();
+    // The exported body is the sheet alone — nothing else. (Plain className check, not
+    // jest-dom's toHaveClass: a node parsed into a SEPARATE DOMParser document is not
+    // an `instanceof HTMLElement` of THIS window's realm in jsdom.)
+    expect(exportedDoc.body.children).toHaveLength(1);
+    expect(exportedDoc.body.firstElementChild?.className).toBe('form-page blank-a4-sheet');
   });
 });
 

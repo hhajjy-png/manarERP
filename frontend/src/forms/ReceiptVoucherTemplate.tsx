@@ -1,6 +1,7 @@
 import { CSSProperties, useMemo } from 'react';
 import { amountToWordsKWD } from '../lib/tafqeet';
 import { formatNumber } from '../lib/format';
+import { DOC_FONT_STACK } from '../styles/fontRegistry';
 
 export type PaymentMethod = 'cash' | 'cheque' | 'transfer';
 
@@ -86,7 +87,7 @@ export default function ReceiptVoucherTemplate({
   const isEn = lang === 'en';
 
   return (
-    <div style={{ fontFamily: '"Cairo", Arial, sans-serif', direction: isEn ? 'ltr' : 'rtl' }}>
+    <div style={{ fontFamily: DOC_FONT_STACK, direction: isEn ? 'ltr' : 'rtl' }}>
       {/* Blue title box with subtitle */}
       <div
         style={{

@@ -176,6 +176,6 @@ describe('القياس والطباعة بلا تغيير', () => {
     const inv = readFileSync('src/pages/InvoicePreview.tsx', 'utf8');
     expect(inv).toContain('window.manar.exportPdfFromHtml(html, suggestedName)');
     const fl = readFileSync('src/forms/shared/FormLayout.tsx', 'utf8');
-    expect(fl).toContain('buildFormPdfDocument');
+    expect(fl).toContain('composeStyledFromNode'); // مسار PDF الوحيد الآن (5D — buildFormPdfDocument تقاعد)
   });
 });

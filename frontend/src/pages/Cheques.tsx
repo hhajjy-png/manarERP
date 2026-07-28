@@ -58,6 +58,7 @@ import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import PeriodControl from '../components/period/PeriodControl';
 import { periodToReportParams } from '../lib/financialPeriod';
 import { moneyParts, MoneyText } from '../config/modules';
+import { UI_FONT_STACK } from '../styles/fontRegistry';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -190,7 +191,7 @@ function ChequePrintOutput({ data, template }: { data: PreviewData; template: Ch
   }
 
   return (
-    <div style={{ position: 'relative', width: '100%', aspectRatio: '700 / 272', fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', overflow: 'hidden' }}>
+    <div style={{ position: 'relative', width: '100%', aspectRatio: '700 / 272', fontFamily: UI_FONT_STACK, overflow: 'hidden' }}>
       <div style={{ position: 'absolute', inset: 0 }}>
         <img src={gulfBankImg} className="cheque-bg-img" alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill' }} />
         <div style={fieldStyle('beneficiary')}>{data.beneficiaryName}</div>

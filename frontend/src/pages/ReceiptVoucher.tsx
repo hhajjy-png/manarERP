@@ -28,6 +28,7 @@ import BrandingDesignerPanel from '../print-templates/components/BrandingDesigne
 import { getBrandingLayoutForDocument } from '../print-templates/utils/brandingLayout';
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import officialLogoHead from '../assets/logohead.png';
+import { DOC_FONT_STACK } from '../styles/fontRegistry';
 
 interface FormState {
   partyName: string;
@@ -401,7 +402,7 @@ export default function ReceiptVoucher() {
         className="rcv-preview"
         style={{
           padding: '18px 32px',
-          fontFamily: '"Cairo", Arial, sans-serif',
+          fontFamily: DOC_FONT_STACK,
           maxWidth: 793,
           margin: '24px auto 0',
           color: '#0f172a',

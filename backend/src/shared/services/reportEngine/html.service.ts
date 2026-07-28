@@ -11,6 +11,7 @@ import { buildTable } from './table.template';
 import { buildWatermark } from './watermark.template';
 import { buildSummaryTable } from './summaryTable.template';
 import { esc } from './htmlUtils';
+import { buildEmbeddedFontFaceCss } from './fonts';
 
 /** Scales a "<n>px" width string by `factor`, rounding to one decimal place. */
 function scaleWidthPx(px: string, factor: number): string {
@@ -45,14 +46,7 @@ function getFontBase64(): string {
  */
 export function buildReportHtml(input: ReportInput, options?: ReportOptions): string {
   const fontBase64 = getFontBase64();
-  const fontFace = fontBase64
-    ? `@font-face {
-        font-family: 'Cairo';
-        src: url('data:font/truetype;base64,${fontBase64}') format('truetype');
-        font-weight: normal;
-        font-style: normal;
-      }`
-    : '';
+  const fontFace = buildEmbeddedFontFaceCss(fontBase64);
 
   const profile       = options?.profile ?? 'a4-landscape';
   const profileConfig = PRINT_PROFILES[profile];

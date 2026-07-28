@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { formatDate } from '../lib/date';
+import { DOC_FONT_STACK } from '../styles/fontRegistry';
 
 interface VerificationResult {
   found: boolean;
@@ -50,7 +51,7 @@ export default function DocumentVerify() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-        fontFamily: '"Cairo", Arial, sans-serif',
+        fontFamily: DOC_FONT_STACK,
       }}
     >
       {/* Company header */}

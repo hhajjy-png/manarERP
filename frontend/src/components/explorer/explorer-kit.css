@@ -28,7 +28,7 @@
   --xpl-shadow-sm: 0 1px 2px rgba(16, 24, 40, .05);
   --xpl-shadow:    0 1px 3px rgba(16, 24, 40, .04), 0 8px 24px rgba(16, 24, 40, .05);
 
-  font-family: "IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif;
+  font-family: var(--app-font-ui);
   color: var(--xpl-text);
 }
 
@@ -541,7 +541,7 @@
    لا تُطبَّق حتى تُضاف الفئة xpl-table--zebra صراحةً؛ التمرير والتحديد أعلى أولويةً. */
 .xpl-table--zebra tbody tr:nth-child(even) { background: color-mix(in srgb, var(--xpl-faint-2) 45%, transparent); }
 .xpl-table--zebra tbody tr:hover { background: var(--xpl-faint-2); }
-.xpl-mono { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--xpl-muted); font-variant-numeric: tabular-nums; }
+.xpl-mono { font-family: var(--app-font-mono); font-size: 12px; color: var(--xpl-muted); font-variant-numeric: tabular-nums; }
 
 /* Shared row-affordance chevron (last table cell).
    Previously defined only in DocumentExpirationCenter.css yet consumed by ~12 pages
@@ -736,7 +736,7 @@
 .xpl-drawer-section .xpl-drawer-field:first-of-type { padding-top: 0; }
 .xpl-drawer-field-label { font-size: 12px; color: var(--xpl-muted); flex-shrink: 0; }
 .xpl-drawer-field-value { font-size: 13px; font-weight: 600; color: var(--xpl-text); text-align: left; word-break: break-word; line-height: 1.5; }
-.xpl-drawer-field-value.mono { font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+.xpl-drawer-field-value.mono { font-family: var(--app-font-mono); font-size: 12px; }
 
 /* ════════════════════════════════════════════════════════════════════════════
    Buttons (kit-local, premium)

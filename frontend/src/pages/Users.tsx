@@ -25,6 +25,7 @@ import './Users.css';
 import { useTableSort } from '../hooks/useTableSort';
 import SortableHeader from '../components/SortableHeader';
 import { sortRowsClient } from '../lib/clientSort';
+import { MONO_FONT_STACK } from '../styles/fontRegistry';
 
 type UserRow = {
   id: number;
@@ -264,7 +265,7 @@ export default function Users() {
                         aria-label={t('page.users.details_aria', { name: u.fullName })}
                         onClick={() => setViewing(u)}
                         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(u); } }}>
-                        <td><strong style={{ fontFamily: 'IBM Plex Mono, monospace' }}>{u.username}</strong></td>
+                        <td><strong style={{ fontFamily: MONO_FONT_STACK }}>{u.username}</strong></td>
                         <td>{u.fullName}</td>
                         <td><StatusChip tone="indigo" icon="shield">{u.role.displayName}</StatusChip></td>
                         <td><StatusChip tone={u.isActive ? 'green' : 'neutral'}>{u.isActive ? t('status.active') : t('status.suspended')}</StatusChip></td>

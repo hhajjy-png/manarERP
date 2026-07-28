@@ -101,6 +101,7 @@ export default function EmployeeWarning() {
     onPrint: () => printApiRef.current?.print(),
     title: translate('page.warning.title', lang),
     documentLabel: `${translate('page.warning.title', lang)} · ${formNumber}`,
+    lang,
   });
 
 

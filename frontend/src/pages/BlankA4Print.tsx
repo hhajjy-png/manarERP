@@ -45,7 +45,6 @@ const FORM_KEY: BrandingDocKey = 'blank-a4-print';
  */
 const SHEET_W_MM = 210;
 const SHEET_H_MM = 297;
-const ZERO_MARGINS = { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' } as const;
 
 /**
  * Centre of each element at the identity layout (x=0, y=0, scale=1) — i.e. where Reset
@@ -123,10 +122,23 @@ export default function BlankA4Print() {
   }
 
   /**
-   * PDF export. `marginsAsPagePadding` with ZERO margins is what reproduces the
-   * page geometry above inside the standalone export document: `@page` margin 0 and
-   * `.form-page` padding 0. The sheet's own `height: 297mm` is an INLINE style, so
-   * it travels with the clone — `buildFormPdfDocument` never overrides height.
+   * PDF export — نفس مُركِّب المعاينة الدقيقة أدناه حرفيًا (`composeStyledFromNode`
+   * على نفس `formPageRef.current`، نفس `pageSpecId` الافتراضي، نفس `stripSelectors`).
+   *
+   * الهندسة الفيزيائية (210×297مم، `@page margin:0`، `padding:0`) مصدرها **نفس**
+   * `<style>` الذي يحقنه هذا الملف أدناه (`.form-page.blank-a4-sheet` داخل
+   * `@media print`، مع `@page` متداخلة تُستخرَج وتفوز عبر `mergePageRules` —
+   * تمامًا كآلية FormLayout المُثبَتة لبقية النماذج). التخصيص الأعلى (فئتان
+   * `.form-page.blank-a4-sheet`) يتغلّب دائمًا على تحييد `composeStyledFromNode`
+   * العام (`[data-print-root]`، تخصيص واحد) للخاصيتين المتعارضتين الوحيدتين
+   * (width/height) — لا تصادم، ولا حاجة لأي CSS خاص بالتصدير بعد الآن.
+   *
+   * المساطر الأربع **لا تدخل أبدًا**: هي أشقّاء لعقدة `.form-page.blank-a4-sheet`
+   * (خارج `formPageRef` كليًا)، لا أبناء لها — فالاستنساخ (`cloneNode` داخل
+   * `composeStyledFromNode`) لا يراها إطلاقًا، بصرف النظر عن `stripSelectors`.
+   *
+   * فشل التركيب: نفس شبكة الأمان القائمة في كل مكان — `printCurrentView()`، لا
+   * تراجع صامت إلى مسار PDF مختلف.
    */
   async function doExportPdf() {
     const exportFromHtml = window.manar?.exportPdfFromHtml;
@@ -136,15 +148,13 @@ export default function BlankA4Print() {
       return;
     }
     try {
-      const clone = pageEl.cloneNode(true) as HTMLElement;
-      clone.querySelectorAll('.no-print, [data-no-print], [data-print-hidden]').forEach((el) => el.remove());
-      const { buildFormPdfDocument } = await import('../forms/shared/formPdfDocument');
-      const html = buildFormPdfDocument({
-        formPageHtml: clone.outerHTML,
+      const { composeStyledFromNode, getPageSpec } = await import('../printing');
+      const html = composeStyledFromNode({
+        node: pageEl,
+        pageSpec: getPageSpec('a4-portrait'),
         title,
         lang,
-        margins: { ...ZERO_MARGINS },
-        marginsAsPagePadding: true,
+        stripSelectors: ['.no-print'],
       });
       await exportFromHtml(html, FORM_KEY);
     } catch {
@@ -158,6 +168,7 @@ export default function BlankA4Print() {
     onPrint: () => { void doPrint(); },
     title,
     documentLabel: title,
+    lang,
   });
 
   const toolbar = (

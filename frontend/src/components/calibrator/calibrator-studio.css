@@ -85,7 +85,7 @@
 .chq-ma__inputs label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--xpl-muted); }
 .chq-ma__inputs input {
   width: 100%; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--xpl-border);
-  background: var(--xpl-surface); color: var(--xpl-text); font-size: 14px; font-family: "IBM Plex Mono", monospace; text-align: center;
+  background: var(--xpl-surface); color: var(--xpl-text); font-size: 14px; font-family: var(--app-font-mono); text-align: center;
 }
 .chq-ma__inputs input:focus { outline: none; border-color: var(--xpl-primary); box-shadow: 0 0 0 2px var(--xpl-faint, rgba(99,102,241,.12)); }
 
@@ -93,7 +93,7 @@
 .chq-ma__preview-head { padding: 8px 12px; background: var(--xpl-bg); font-size: 12px; font-weight: 800; color: var(--xpl-text); border-bottom: 1px solid var(--xpl-border); }
 .chq-ma__preview table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
 .chq-ma__preview th { text-align: start; padding: 6px 10px; color: var(--xpl-muted); font-weight: 700; background: var(--xpl-surface); }
-.chq-ma__preview td { padding: 6px 10px; border-top: 1px solid var(--xpl-border); font-family: "IBM Plex Mono", monospace; color: var(--xpl-text); }
+.chq-ma__preview td { padding: 6px 10px; border-top: 1px solid var(--xpl-border); font-family: var(--app-font-mono); color: var(--xpl-text); }
 .chq-ma__preview tr.is-clamped td { background: rgba(245,158,11,.08); }
 .chq-ma__warn { display: flex; align-items: center; gap: 6px; margin: 0; padding: 8px 12px; font-size: 11.5px; color: var(--xpl-orange); background: rgba(245,158,11,.06); }
 .chq-ma__warn .material-symbols-outlined { font-size: 16px !important; }
@@ -135,7 +135,7 @@
 .chq-geom__head .material-symbols-outlined { font-size: 18px !important; color: var(--xpl-orange); }
 .chq-geom__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
 .chq-geom__grid label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--xpl-muted); }
-.chq-geom__grid input { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--xpl-border); background: var(--xpl-surface); color: var(--xpl-text); font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+.chq-geom__grid input { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--xpl-border); background: var(--xpl-surface); color: var(--xpl-text); font-family: var(--app-font-mono); font-size: 13px; }
 .chq-geom__foot { display: flex; gap: 8px; padding: 0 12px 12px; }
 
 @media (prefers-color-scheme: dark) {

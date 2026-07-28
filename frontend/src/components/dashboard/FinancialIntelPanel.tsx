@@ -9,6 +9,7 @@ import PrivateAmount from '../PrivateAmount';
 import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
 import { useT } from '../../lib/i18n';
+import { CHART_FONT_STACK } from '../../styles/fontRegistry';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -88,7 +89,7 @@ function CollectionTooltip({ active, payload, label }: TooltipProps) {
       border: '1px solid rgba(255,255,255,0.12)',
       borderRadius: 12,
       padding: '10px 14px',
-      fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif',
+      fontFamily: CHART_FONT_STACK,
       direction: 'rtl',
       minWidth: 160,
       boxShadow: '0 8px 32px rgba(0,0,0,0.65)',
@@ -126,7 +127,7 @@ function CollectionChart({ data, loading }: { data: TrendPoint[]; loading: boole
           <XAxis
             dataKey="label"
             tickFormatter={formatMonthShort}
-            tick={{ fill: 'var(--db-muted)', fontSize: 11, fontFamily: '"IBM Plex Sans Arabic","Cairo","Tajawal",Arial,sans-serif' }}
+            tick={{ fill: 'var(--db-muted)', fontSize: 11, fontFamily: CHART_FONT_STACK }}
             axisLine={false}
             tickLine={false}
             minTickGap={4}

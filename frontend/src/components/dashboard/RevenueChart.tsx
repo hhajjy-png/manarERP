@@ -8,6 +8,7 @@ import { useT } from '../../lib/i18n';
 import { formatCurrency, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
 import { MoneyText } from '../../config/modules';
+import { CHART_FONT_STACK } from '../../styles/fontRegistry';
 
 interface TrendPoint { label: string; revenue: number; expense: number; }
 interface Props { data: TrendPoint[]; loading: boolean; }
@@ -34,7 +35,7 @@ function ChartTooltip({ active, payload, label, revenueLabel = '', expensesLabel
       border: '1px solid var(--xpl-border)',
       borderRadius: 12,
       padding: '12px 16px',
-      fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif',
+      fontFamily: CHART_FONT_STACK,
       direction: 'rtl',
       minWidth: 185,
       boxShadow: 'var(--xpl-shadow)',
@@ -87,7 +88,7 @@ export default function RevenueChart({ data, loading }: Props) {
           <XAxis
             dataKey="label"
             tickFormatter={formatMonthShort}
-            tick={{ fill: 'var(--xpl-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif' }}
+            tick={{ fill: 'var(--xpl-muted)', fontSize: 12, fontFamily: CHART_FONT_STACK }}
             axisLine={false}
             tickLine={false}
             minTickGap={4}
@@ -101,7 +102,7 @@ export default function RevenueChart({ data, loading }: Props) {
           />
           <Tooltip content={<ChartTooltip revenueLabel={revenueLabel} expensesLabel={expensesLabel} />} cursor={{ fill: 'var(--xpl-faint-2)' }} />
           <Legend formatter={(value: string) => (
-            <span style={{ color: 'var(--xpl-muted)', fontSize: 12, fontFamily: '"IBM Plex Sans Arabic", "Cairo", "Tajawal", Arial, sans-serif', fontWeight: 700 }}>
+            <span style={{ color: 'var(--xpl-muted)', fontSize: 12, fontFamily: CHART_FONT_STACK, fontWeight: 700 }}>
               {value === 'revenue' ? revenueLabel : expensesLabel}
             </span>
           )} />

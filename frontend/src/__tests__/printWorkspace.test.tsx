@@ -248,12 +248,17 @@ describe('FormLayout inside the workspace', () => {
     await waitFor(() => expect(exportPdfFromHtml).toHaveBeenCalledTimes(1));
 
     const [html] = exportPdfFromHtml.mock.calls[0] as [string];
-    // The whole "print fields only" panel and its controls must be gone.
-    expect(html).not.toContain('no-print');
-    expect(html).not.toContain('حقول الطباعة فقط');
-    expect(html).not.toContain('مسح حقول الطباعة');
-    expect(html).not.toContain('<input');
-    expect(html).not.toContain('<select');
+    // Behavioural, not textual: composeStyledFromNode captures stylesheets WHOLESALE
+    // (styleCapture.ts), so FormLayout's own injected `.no-print { display: none
+    // !important; }` print rule legitimately appears as (inert) CSS TEXT in the
+    // exported document — it matches no element there, so it does nothing. The real
+    // invariant is that the ELEMENT (and its children) is gone from the exported DOM.
+    const exportedDoc = new DOMParser().parseFromString(html, 'text/html');
+    expect(exportedDoc.body.querySelector('.no-print')).toBeNull();
+    expect(exportedDoc.body.textContent).not.toContain('حقول الطباعة فقط');
+    expect(exportedDoc.body.textContent).not.toContain('مسح حقول الطباعة');
+    expect(exportedDoc.body.querySelector('input')).toBeNull();
+    expect(exportedDoc.body.querySelector('select')).toBeNull();
     // But the real document content must remain.
     expect(html).toContain('BODY CONTENT HERE');
     expect(html).toContain('اعتماد المدير المباشر');

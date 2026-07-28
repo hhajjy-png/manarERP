@@ -40,7 +40,8 @@ router.get(
   }),
 );
 
-/** تصدير التقرير كـ Excel أو HTML (Chromium PDF) أو PDF (PDFKit — legacy). format=excel|html|pdf */
+/** تصدير التقرير كـ Excel أو HTML (يُرسَم PDF منه في Chromium). `format=pdf` مرفوض
+ *  صراحةً — انظر شرح تقاعد PDFKit في الفرع أدناه. format=excel|html */
 router.get(
   '/:type/export',
   requirePermission('reports.export'),

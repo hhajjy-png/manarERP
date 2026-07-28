@@ -49,10 +49,12 @@ function FakeForm({
   enabled,
   compose,
   legacyPrint,
+  lang = 'ar', // كل نموذج حقيقي يمرّر حالته الفعلية — انظر «اللغة» أدناه.
 }: {
   enabled: boolean;
   compose?: () => string;
   legacyPrint: () => void;
+  lang?: 'ar' | 'en';
 }) {
   const printRootRef = useRef<HTMLDivElement>(null);
   const [amount, setAmount] = useState('100');
@@ -65,6 +67,7 @@ function FakeForm({
     onPrint: legacyPrint, // نفس الدالة القديمة، بمرجعها
     title: 'نموذج',
     documentLabel: 'نموذج · 1',
+    lang,
   });
 
   return (
@@ -197,6 +200,41 @@ describe('مصدر المستند — نفسه لا نسخة منه', () => {
 
     expect(own).toHaveBeenCalledTimes(1);
     expect(generate.mock.calls[0][0]).toContain('مستند السند الأصلي');
+  });
+});
+
+// ── اللغة — لا افتراضي صامت (Font Foundation Pack v1، المرحلة 5B) ────────────────
+//
+// حتى هذه المرحلة، `lang` كانت اختيارية بافتراضي `'ar'` — فأغفلها 14 من أصل 16
+// مستدعيًا، وبقيت المعاينة الدقيقة تُركَّب بالعربية دائمًا حتى للنماذج التي بدَّلها
+// المستخدم إلى الإنجليزية (بينما «حفظ PDF»، الذي كان يقرأ `lang` الحقيقية، يخرج
+// صحيحًا). صارت `lang` إلزامية الآن — فحص النوع وقت البناء يمنع الغياب الصامت، لا
+// حزر داخل هذا الملف. هذان الاختباران سلوكيان: يفتحان المعاينة فعليًا ويقرآن
+// المستند الحقيقي المُرسَل لتوليد PDF (`generate.mock.calls[0][0]`) — لا فحص نصّي
+// على مصدر أي صفحة.
+describe('اللغة — Preview تعكس حالة النموذج الفعلية، لا افتراضًا صامتًا', () => {
+  it('عربي: <html dir="rtl" lang="ar">', async () => {
+    const generate = installBridge();
+    render(<FakeForm enabled legacyPrint={vi.fn()} lang="ar" />);
+
+    fireEvent.click(screen.getByText(/معاينة دقيقة/));
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+
+    const html = generate.mock.calls[0][0];
+    expect(html).toContain('dir="rtl"');
+    expect(html).toMatch(/<html[^>]*lang="ar"/);
+  });
+
+  it('إنجليزي: <html dir="ltr" lang="en"> — نفس النموذج، لغة مختلفة فقط', async () => {
+    const generate = installBridge();
+    render(<FakeForm enabled legacyPrint={vi.fn()} lang="en" />);
+
+    fireEvent.click(screen.getByText(/معاينة دقيقة/));
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+
+    const html = generate.mock.calls[0][0];
+    expect(html).toContain('dir="ltr"');
+    expect(html).toMatch(/<html[^>]*lang="en"/);
   });
 });
 

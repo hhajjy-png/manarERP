@@ -47,6 +47,7 @@ import { useTemplateStudio } from '../print-templates/studio/useTemplateStudio';
 import TemplateStudioRenderer from '../print-templates/studio/TemplateStudioRenderer';
 import { resolveInvoiceLineItems } from '../print-templates/studio/lineItemsResolver';
 import { DocumentVerificationQR } from '../print-templates/components/DocumentVerificationQR';
+import { DOC_FONT_STACK } from '../styles/fontRegistry';
 
 // خريطة طريقة الدفع: تُستخدم في موضعين — شريحة ملخص التحصيل (شاشة فقط، no-print) وجدول
 // سجل الدفعات المطبوع (جزء من متن المستند المطبوع، يبقى عربيًا). لذلك تحمل كل قيمة
@@ -329,7 +330,7 @@ export default function InvoicePreview() {
 
   if (loadError) {
     return (
-      <div style={{ padding: 40, textAlign: 'center', fontFamily: '"Cairo", Arial, sans-serif' }}>
+      <div style={{ padding: 40, textAlign: 'center', fontFamily: DOC_FONT_STACK }}>
         <p style={{ color: '#dc2626', fontWeight: 700 }}>⚠️ {loadError}</p>
         <button className="btn secondary" onClick={() => navigate('/invoices')} style={{ marginTop: 16 }}>
           ← {t('btn.inv.back')}
@@ -340,7 +341,7 @@ export default function InvoicePreview() {
 
   if (!data) {
     return (
-      <div style={{ padding: 40, textAlign: 'center', fontFamily: '"Cairo", Arial, sans-serif' }}>
+      <div style={{ padding: 40, textAlign: 'center', fontFamily: DOC_FONT_STACK }}>
         <div className="spinner" />
         <p style={{ marginTop: 12, color: '#64748b' }}>{t('msg.loading')}</p>
       </div>
@@ -456,7 +457,7 @@ export default function InvoicePreview() {
       )}
 
       <div ref={printRootRef} className="inv-wrap" style={{
-        padding: '16px 24px', fontFamily: '"Cairo", Arial, sans-serif',
+        padding: '16px 24px', fontFamily: DOC_FONT_STACK,
         maxWidth: 900, margin: '0 auto', color: '#0f172a',
         background: '#fff', direction: 'rtl',
       }}>

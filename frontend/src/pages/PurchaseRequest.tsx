@@ -135,6 +135,7 @@ export default function PurchaseRequest() {
     onPrint: () => printApiRef.current?.print(),
     title: translate('page.purchaseReq.title', lang),
     documentLabel: `${translate('page.purchaseReq.title', lang)} · ${printFields.requestNumber || ''}`,
+    lang,
   });
 
 

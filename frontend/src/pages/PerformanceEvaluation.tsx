@@ -107,6 +107,7 @@ export default function PerformanceEvaluation() {
     onPrint: () => printApiRef.current?.print(),
     title: translate('page.perfEval.title', lang),
     documentLabel: `${t('page.perfEval.doc_label')} · ${formNumber}`,
+    lang,
   });
 
 

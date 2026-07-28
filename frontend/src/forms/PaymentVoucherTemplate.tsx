@@ -3,6 +3,7 @@ import { amountToWordsKWD } from '../lib/tafqeet';
 import { formatNumber } from '../lib/format';
 import { t } from '../lib/i18n';
 import { bankLabel } from '../utils/chequeTemplate';
+import { DOC_FONT_STACK } from '../styles/fontRegistry';
 
 export type PaymentVoucherMethod = 'cash' | 'cheque' | 'transfer';
 
@@ -98,7 +99,7 @@ export default function PaymentVoucherTemplate({
   const isEn = lang === 'en';
 
   return (
-    <div style={{ fontFamily: '"Cairo", Arial, sans-serif', direction: isEn ? 'ltr' : 'rtl' }}>
+    <div style={{ fontFamily: DOC_FONT_STACK, direction: isEn ? 'ltr' : 'rtl' }}>
       {/* Title box */}
       <div
         style={{
