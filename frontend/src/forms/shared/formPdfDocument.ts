@@ -37,6 +37,15 @@ export interface BuildFormPdfDocumentArgs {
   lang: 'ar' | 'en';
   /** Page margins from the active PRINT_PROFILE — the same values the physical printer uses. */
   margins: FormPdfMargins;
+  /**
+   * Page-level header model (ready-paper). When true the SAME margin values are
+   * applied as `.form-page` PADDING with a zero `@page` margin, so `.form-page`
+   * spans the whole physical sheet and its absolutely-positioned letterhead
+   * overlay can occupy the top band. Content still begins after the same
+   * margins, so the printed layout is unchanged. Off by default — every other
+   * profile keeps the original page-margin model byte-for-byte.
+   */
+  marginsAsPagePadding?: boolean;
 }
 
 function escapeHtml(text: string): string {
@@ -51,9 +60,13 @@ export function buildFormPdfDocument({
   title,
   lang,
   margins,
+  marginsAsPagePadding = false,
 }: BuildFormPdfDocumentArgs): string {
   const dir = lang === 'en' ? 'ltr' : 'rtl';
   const htmlLang = lang === 'en' ? 'en' : 'ar';
+  const marginCss = `${margins.top} ${margins.right} ${margins.bottom} ${margins.left}`;
+  const pageMargin = marginsAsPagePadding ? '0' : marginCss;
+  const formPagePadding = marginsAsPagePadding ? marginCss : '0';
 
   // Graceful degradation mirrors the backend: if the font failed to inline, fall
   // back to Arial/system Arabic shaping rather than emitting a broken @font-face.
@@ -77,7 +90,7 @@ export function buildFormPdfDocument({
 
     @page {
       size: A4;
-      margin: ${margins.top} ${margins.right} ${margins.bottom} ${margins.left};
+      margin: ${pageMargin};
     }
 
     *, *::before, *::after {
@@ -102,7 +115,7 @@ export function buildFormPdfDocument({
       width: 100% !important;
       max-width: none !important;
       margin: 0 !important;
-      padding: 0 !important;
+      padding: ${formPagePadding} !important;
       border: none !important;
       box-shadow: none !important;
       border-radius: 0 !important;

@@ -32,6 +32,7 @@ const FORM_LABELS: Record<string, string> = {
 const PROFILE_LABELS: Record<string, string> = {
   'plain-a4': 'A4 عادي',
   'letterhead': 'ورق الشركة الرسمي',
+  'ready-paper': 'ورق جاهز',
 };
 
 export { FORM_LABELS, PROFILE_LABELS };
@@ -61,6 +62,7 @@ const FORM_LABEL_KEYS: Record<string, string> = {
 const PROFILE_LABEL_KEYS: Record<string, string> = {
   'plain-a4': 'printlog.profile.plain_a4',
   'letterhead': 'printlog.profile.letterhead',
+  'ready-paper': 'printlog.profile.ready_paper',
 };
 
 /** Lang-aware form label. Falls back to the Arabic literal, then the raw code. */

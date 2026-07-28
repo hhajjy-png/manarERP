@@ -115,6 +115,50 @@ interface FormLayoutProps {
   onPrintApiReady?: (api: { getNode: () => HTMLElement | null; print: () => Promise<PrintResult> }) => void;
 }
 
+/**
+ * Ready-paper letterhead: how far the overlay sits below the sheet's top edge.
+ *
+ * The artwork's crop boundary lands exactly on its first inked row, so at `0`
+ * there is no tolerance at all — sub-pixel rounding, or a printer's
+ * non-printable edge band, shaves the top of the logo. This offset is taken
+ * from the clearance that already exists between the artwork's bottom and the
+ * content start (measured 2.9mm), so it costs the content nothing and moves
+ * nothing: the form still begins at the profile's own 40mm.
+ *
+ * Deliberately the smallest value that restores a visible top edge — raising it
+ * further would push the artwork into the content column.
+ */
+const READY_PAPER_LOGO_TOP_OFFSET = '2.5mm';
+
+/**
+ * PRINT-ONLY safety compensation for the ready-paper letterhead.
+ *
+ * Why it exists: the screen preview and the PDF export both render the full
+ * 210×297mm sheet, so a logo sitting 2.75mm from the paper edge looks perfect in
+ * both. A physical printer cannot — `printService.printToPrinter` calls
+ * `webContents.print({ silent: false, printBackground: true })` with no
+ * `margins`/`pageSize`, so the DRIVER's hardware non-printable band (typically
+ * 3–5mm on A4) applies and simply never deposits ink there. That band is a
+ * property of the hardware; no CSS can print into it.
+ *
+ * The compensation therefore lives in `@media print` ONLY, so the approved
+ * on-screen preview stays byte-identical: push the header down to a safe top and
+ * scale it uniformly (aspect ratio preserved — one `scale()`, never separate
+ * x/y) so it still finishes above the content, whose position never changes.
+ *
+ * Geometry it is solved for (measured on the real app):
+ *   ink height 37.18mm, ink starts ~0.25mm below the header's own top edge,
+ *   content begins at 40.25mm.
+ *     ink top    = TOP + 0.25 × SCALE           → 5 + 0.23 ≈ 5.23mm
+ *     ink bottom = TOP + 37.43 × SCALE          → 5 + 34.8 ≈ 39.81mm
+ *   leaving ~0.44mm before the content and ~5.2mm of printer safety above.
+ *
+ * SCALE is the smallest reduction that clears a 5mm band; raise TOP (and lower
+ * SCALE to match) only if a specific printer needs a wider one.
+ */
+const READY_PAPER_PRINT_SAFE_TOP = '5mm';
+const READY_PAPER_PRINT_LOGO_SCALE = 0.93;
+
 /** Shared −/count/+ copies stepper, reused in the workspace toolbar and sidebar. */
 function CopiesControl({
   copies,
@@ -200,18 +244,60 @@ export default function FormLayout({
   }, [onPrintApiReady]);
 
   const activeProfile = PRINT_PROFILES[profile];
+  // Central, per-profile logo header (e.g. "ready-paper"): OR'd with the explicit
+  // per-form `useLogoHeader` opt-in (e.g. Payment Voucher) — either source turns
+  // it on, so no existing caller's behavior changes. `hideHeader` only suppresses
+  // the header when the profile is blank AND does NOT supply its own logo —
+  // letterhead (blankHeader, no logoHeader) stays exactly as hidden as before;
+  // a profile with `logoHeader: true` renders the logo instead of staying blank.
+  // Margins/page config are untouched by either flag.
+  const showLogoHeader = useLogoHeader || activeProfile.logoHeader;
+  const hideHeader = activeProfile.blankHeader && !activeProfile.logoHeader;
+  // Only a PROFILE-level logo (ready-paper's `logoHeader`) renders as an
+  // out-of-flow overlay pinned to the page's top edge. Payment Voucher's
+  // page-level `useLogoHeader` opt-in is untouched — it never sets this, so its
+  // header stays in-flow exactly as designed today.
+  const logoHeaderIsOverlay = activeProfile.logoHeader;
+
+  /**
+   * PAGE-LEVEL HEADER MODEL (ready-paper only).
+   *
+   * Default model: `@page { margin: <profile margins> }` and `.form-page
+   * { padding: 0 }`. The browser therefore starts `.form-page` at the page
+   * CONTENT-AREA origin — 40mm below the physical sheet edge for ready-paper.
+   * `.form-page` is the content box, NOT the sheet, so an overlay pinned at
+   * `top: 0` lands 40mm down, on top of the form's title. Reaching the sheet
+   * edge from there needs a negative offset, which every renderer clips
+   * (composeStyledFromNode / formPdfDocument clone `.form-page` alone; paged
+   * print does not paint above the page area).
+   *
+   * Page-level model: give `@page` a ZERO margin and re-apply the very same
+   * profile margin values as PADDING on `.form-page`. `.form-page` then spans
+   * the whole physical A4 sheet, and because an absolutely positioned child is
+   * laid out against its containing block's PADDING BOX, `top: 0` now means the
+   * real sheet edge — the top band becomes usable for the letterhead, while the
+   * in-flow content still begins after the same 40mm and never moves.
+   *
+   * PRINT_PROFILES values are read verbatim and never modified; only where they
+   * are applied changes (page margin → page padding).
+   */
   // Letterhead-only, opt-in bottom-margin trim: when a form sets
   // `letterheadCompactFooter`, reclaim the generous 20mm bottom margin to 10mm so it
   // stays on one page (top/header clearance untouched — see the prop's JSDoc). Feeds
   // BOTH the @page print rules and the Save-PDF export so print and PDF can't drift.
   // Payment-voucher-only, opt-in top-margin trim: see `compactTopMargin`'s JSDoc.
   const formMargins =
-    profile === 'letterhead' && letterheadCompactFooter
+    activeProfile.blankHeader && letterheadCompactFooter
       ? { ...activeProfile.margins, bottom: '10mm' }
       : profile === 'payment-voucher' && compactTopMargin
         ? { ...activeProfile.margins, top: '5mm' }
         : activeProfile.margins;
   const { top: mt, right: mr, bottom: mb, left: ml } = formMargins;
+  // Page-level header model (see `logoHeaderIsOverlay`'s note above): the SAME
+  // margin values move from the `@page` margin to `.form-page`'s padding, so the
+  // element models the physical sheet instead of the content box.
+  const pageMarginCss = logoHeaderIsOverlay ? '0' : `${mt} ${mr} ${mb} ${ml}`;
+  const formPagePaddingCss = logoHeaderIsOverlay ? `${mt} ${mr} ${mb} ${ml}` : '0';
 
   function updateCopies(n: number) {
     const clamped = Math.max(1, Math.min(10, n));
@@ -308,6 +394,9 @@ export default function FormLayout({
         title: title || name,
         lang,
         margins: formMargins,
+        // ready-paper: same page-level model as the on-screen/print paths, so the
+        // exported PDF puts the letterhead in the sheet's top band too.
+        marginsAsPagePadding: logoHeaderIsOverlay,
       });
       await exportFromHtml(html, name);
     } catch {
@@ -441,7 +530,7 @@ export default function FormLayout({
           }
         }
         @media print {
-          @page { size: A4; margin: ${mt} ${mr} ${mb} ${ml}; }
+          @page { size: A4; margin: ${pageMarginCss}; }
           html, body {
             margin: 0 !important;
             padding: 0 !important;
@@ -450,7 +539,7 @@ export default function FormLayout({
           .no-print { display: none !important; }
           .form-page {
             width: 100% !important;
-            padding: 0 !important;
+            padding: ${formPagePaddingCss} !important;
             box-sizing: border-box !important;
             overflow: visible !important;
             margin: 0 !important;
@@ -461,6 +550,15 @@ export default function FormLayout({
           .form-page-footer {
             page-break-inside: avoid;
           }
+${logoHeaderIsOverlay ? `
+          /* Printer non-printable-band compensation — PRINT MEDIA ONLY, so the
+             on-screen preview is untouched. Uniform scale about the top centre:
+             aspect ratio and horizontal centring are both preserved. */
+          [data-page-logo-header] {
+            top: ${READY_PAPER_PRINT_SAFE_TOP} !important;
+            transform: scale(${READY_PAPER_PRINT_LOGO_SCALE});
+            transform-origin: top center;
+          }` : ''}
         }
       `}</style>
 
@@ -468,7 +566,18 @@ export default function FormLayout({
         ref={formPageRef}
         className="form-page"
         style={{
-          padding: '18px 32px',
+          // Containing block for FormHeader's ready-paper-only overlay
+          // positioning (`FormHeader`'s `overlay` prop) — a no-op for every other
+          // profile/form, since nothing else in `.form-page` is absolutely
+          // positioned against it.
+          position: 'relative',
+          // Page-level model (ready-paper): on screen `.form-page` must model the
+          // whole A4 SHEET, exactly as it does at print — the profile margins are
+          // its padding, so the preview shows the letterhead band and the content
+          // start at the same places the printout will. Every other profile keeps
+          // the original screen padding untouched.
+          padding: logoHeaderIsOverlay ? `${mt} ${mr} ${mb} ${ml}` : '18px 32px',
+          boxSizing: 'border-box',
           fontFamily: '"Cairo", Arial, sans-serif',
           maxWidth: 793,
           margin: '0 auto',
@@ -480,11 +589,22 @@ export default function FormLayout({
       >
         {contentTopOffset && <div aria-hidden="true" style={{ height: contentTopOffset }} />}
 
-        {/* Company header — hidden in letterhead mode (space preserved) */}
+        {/* Company header — hidden on a blank-header profile with no logo of its
+            own (letterhead: physical sheet already carries the letterhead).
+            A blank-header profile that declares `logoHeader` (ready-paper) renders
+            the same official logo image used by the Payment Voucher instead, as an
+            out-of-flow overlay (`overlay`) so it never pushes the form down. */}
         <FormHeader
-          isLetterhead={profile === 'letterhead'}
+          isLetterhead={hideHeader}
           lang={lang}
-          logoSrc={useLogoHeader ? officialLogoHead : undefined}
+          logoSrc={showLogoHeader ? officialLogoHead : undefined}
+          overlay={logoHeaderIsOverlay}
+          // `.form-page` now spans the whole sheet, so inset the overlay by the
+          // profile's own horizontal margins to keep the header exactly as wide
+          // as the content column — the artwork's size is therefore unchanged.
+          overlayInsetLeft={logoHeaderIsOverlay ? ml : '0'}
+          overlayInsetRight={logoHeaderIsOverlay ? mr : '0'}
+          overlayTop={logoHeaderIsOverlay ? READY_PAPER_LOGO_TOP_OFFSET : '0'}
         />
 
         {/* Form number + title */}

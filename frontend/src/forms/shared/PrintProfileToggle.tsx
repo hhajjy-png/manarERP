@@ -3,11 +3,21 @@ import { PRINT_PROFILES, ProfileId, SELECTABLE_PROFILE_IDS } from './printProfil
 interface Props {
   profile: ProfileId;
   onChange: (p: ProfileId) => void;
+  /**
+   * Opt-in: profile ids to omit from this instance of the toggle, even though
+   * they are otherwise `selectable`. Off by default (empty) — every existing
+   * caller keeps showing the full `SELECTABLE_PROFILE_IDS` set unchanged.
+   * Used by Employment Contract to keep the "Ready Paper" profile off its toggle.
+   */
+  excludeIds?: ProfileId[];
 }
 
-export default function PrintProfileToggle({ profile, onChange }: Props) {
+export default function PrintProfileToggle({ profile, onChange, excludeIds = [] }: Props) {
+  const visibleIds = SELECTABLE_PROFILE_IDS.filter((id) => !excludeIds.includes(id));
   return (
     <div
+      role="radiogroup"
+      aria-label="Print Profile"
       style={{
         display: 'flex',
         gap: 0,
@@ -17,7 +27,7 @@ export default function PrintProfileToggle({ profile, onChange }: Props) {
         overflow: 'hidden',
       }}
     >
-      {SELECTABLE_PROFILE_IDS.map((id) => {
+      {visibleIds.map((id) => {
         const p = PRINT_PROFILES[id];
         const active = profile === id;
         return (
@@ -25,6 +35,8 @@ export default function PrintProfileToggle({ profile, onChange }: Props) {
             key={id}
             type="button"
             aria-pressed={active ? 'true' : 'false'}
+            role="radio"
+            aria-checked={active}
             aria-label={p.labelEn}
             onClick={() => onChange(id)}
             style={{

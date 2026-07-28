@@ -23,6 +23,7 @@ import ApprovalSection from '../forms/shared/ApprovalSection';
 import FormQRCode from '../forms/shared/FormQRCode';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import ReceiptVoucherTemplate, { PaymentMethod } from '../forms/ReceiptVoucherTemplate';
+import officialLogoHead from '../assets/logohead.png';
 
 interface FormState {
   partyName: string;
@@ -405,7 +406,12 @@ export default function ReceiptVoucher() {
           borderRadius: 4,
         }}
       >
-        <FormHeader isLetterhead={false} lang={lang} />
+        {/* Same shared logo treatment finalized for ready-paper (image, tint
+            filter, centering, transparent-padding crop) reused as-is via
+            FormHeader — kept fully in-flow (`overlay` is NOT set), so this
+            does not adopt ready-paper's page-level architecture or its
+            print-only compensation; PrintProfile is untouched. */}
+        <FormHeader isLetterhead={false} lang={lang} logoSrc={officialLogoHead} cropTransparentPadding />
 
         {/* Form number reference */}
         <div style={{ textAlign: 'center', marginBottom: 14 }}>
@@ -450,7 +456,11 @@ export default function ReceiptVoucher() {
           }}
         >
           <div style={{ flex: 1 }}>
-            <ApprovalSection lang={lang} />
+            {/* Same hideDate + stampInline combination Salary Certificate uses
+                (via FormLayout's approvalHideDate/approvalStampInline) — drops
+                the static "____ / ____ / ______" placeholder row and raises the
+                stamp onto the signature row instead of below it. */}
+            <ApprovalSection lang={lang} hideDate stampInline />
           </div>
           <div style={{ flexShrink: 0 }}>
             <FormQRCode
