@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `5f3695c` — release `stable-administrative-payment-voucher-v1` (Administrative Payment Voucher v1 — new manual-entry "سند صرف" form on the Forms page, reusing the Cheques module's `PaymentVoucherTemplate`/`payment-voucher` print profile verbatim; fully independent of Cheque Management, no backend/Prisma/schema changes) |
+| **Production HEAD** | `c3ac6ed` — release `stable-unified-accurate-preview-v1` (Unified Accurate Preview v1 — removed the "regular" print-preview overlay from every form; the accurate WYSIWYG preview is now the sole preview path across all 16 form pages, no printing/PDF/print-profile/content change) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-administrative-payment-voucher-v1` (release date 2026-07-28) → merge `5f3695c` |
-| **Previous stable tag** | `stable-ready-paper-template-and-receipt-voucher-redesign-v1` (2026-07-28) → merge `aaec4cd` |
-| **Total stable releases** | 364 (all merged onto `production`; window 2026-06-07 → 2026-07-28) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · new `adminPaymentVoucher` suite (5 tests) + new `paymentVoucherTemplateMethod` suite (3 tests) ✅ · full frontend suite (1989/2016 passing; the 27 failures across 8 files are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD `ec8a637` before this feature) — re-run on the merged `production` branch after merge · scope review confirmed only the 11 intended files entered the release · Product Owner Manual Visual Review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `5f3695c` + tag `stable-administrative-payment-voucher-v1`) |
+| **Latest stable tag** | `stable-unified-accurate-preview-v1` (release date 2026-07-28) → merge `c3ac6ed` |
+| **Previous stable tag** | `stable-administrative-payment-voucher-v1` (2026-07-28) → merge `5f3695c` |
+| **Total stable releases** | 365 (all merged onto `production`; window 2026-06-07 → 2026-07-28) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · full frontend suite (1857/1882 passing; the 25 failures across 8 files are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD `5e944ef` before this feature) — re-run on the merged `production` branch after merge, results identical pre/post-merge · scope review confirmed only the 31 intended files entered the release · Product Owner Manual Visual Review — **completed & approved** |
+| **Remote sync** | `origin/production` — pushed with this release (merge `c3ac6ed` + tag `stable-unified-accurate-preview-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Administrative Payment Voucher v1
+## Latest Release — Unified Accurate Preview v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Unified Accurate Preview v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-28 |
+| **Feature branch** | `feature/unified-accurate-preview-v1` (kept — pushed, not deleted) |
+| **Baseline** | `production` @ `5e944ef` (documentation commit from the prior release) |
+| **Feature commit** | `4d6d485` |
+| **Production merge commit** | `c3ac6ed` |
+| **Stable tag** | `stable-unified-accurate-preview-v1` → merge `c3ac6ed` (annotated) |
+| **Reviews** | Product Owner Manual Visual Review — **completed & approved**. |
+| **Validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · full frontend suite re-run pre- and post-merge (25 pre-existing baseline failures across 8 files, unchanged in file and count against `production` HEAD `5e944ef`) ✅ |
+
+**Scope.** Removed the "regular" print-preview overlay from every form, leaving the accurate WYSIWYG preview (`useAccurateFormPreview` / `WysiwygPreviewPocDialog`) as the sole preview path.
+- **Two removed implementations of the same overlay** — the `useLegacyFormPreview` hook + `printIntercept` wiring used by 13 `FormLayout`-based forms plus Employment Contract and Payroll Payslip's own print gate, and the direct `PrintPreviewDialog`/Print-Center-Phase-2 wiring (with its "🔍 معاينة قبل الطباعة" secondary button) used by Receipt Voucher, Quotation (both Legacy and Engine modes), and the Invoice.
+- **Print button now calls the print path directly** — no intercept, no forced preview-before-print — exactly the "flag OFF" behavior every one of these forms already had verified and approved during the prior legacy-preview and Print-Center rollouts.
+- **Accurate preview untouched** — its button, dialog, document composer, and delegation to each page's original print function are byte-for-byte the same across all 16 form pages, including Receipt Voucher and the Invoice (which keeps its own independent `TRUE_CHROMIUM_WYSIWYG_PREVIEW_POC` flag, unaffected).
+- **Out of scope, deliberately** — the Cheque Calibration test-print preview (`ChequeCalibrator.tsx`, `CHEQUE_CALIBRATION_TEST_PREVIEW_V1`): an independent physical-measurement tool, not a business form, with no accurate-preview equivalent to fall back to.
+- **Dead code removed** — the `PRINT_PREVIEW_LEGACY_FORMS_V1/FINANCE/HR/SPECIAL` and `PRINT_CENTER_PHASE2`/`_RECEIPT_VOUCHER`/`_INVOICE`/`_QUOTATION` flags, `isLegacyFormsPreviewEnabled`/`isPhase2Enabled`, their barrel exports, and two orphaned `btn.preview_before_print` i18n keys (ar/en). `printing/useLegacyFormPreview.tsx` is now fully unreferenced but was **not** deleted — file-deletion tooling (`rm`/`Remove-Item`) was denied by a repo-level permission/hook on repeated attempts; left in place at the Product Owner's explicit direction pending a manual deletion or a settings fix outside Claude's access.
+- **Tests** — 3 files deleted (entire premise was the removed overlay), 8 files trimmed (kept only assertions still describing current behavior; the surviving accurate-preview and `PrintPreviewDialog`-component test suites are untouched).
+
+**Not changed:** printing, PDF export, print profiles, any form's business logic/data/calculations, and the Cheque Calibration preview.
+
+---
+
+## Previous Release — Administrative Payment Voucher v1
 
 | Field | Value |
 |-------|-------|

@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `5f3695c` (merge of `feature/administrative-payment-voucher-v1`, carrying Administrative Payment Voucher v1) |
-| **Current Documentation Commit** | `c4345ac` |
-| **Current Stable Tag** | `stable-administrative-payment-voucher-v1` |
+| **Current Merge Commit** | `c3ac6ed` (merge of `feature/unified-accurate-preview-v1`, carrying Unified Accurate Preview v1) |
+| **Current Documentation Commit** | _(filled in by the follow-up self-reference commit)_ |
+| **Current Stable Tag** | `stable-unified-accurate-preview-v1` |
 | **Current Release Date** | 2026-07-28 |
-| **Total Stable Releases** | 364 (window 2026-06-07 → 2026-07-28) |
+| **Total Stable Releases** | 365 (window 2026-06-07 → 2026-07-28) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,27 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Unified Accurate Preview v1** (2026-07-28, `stable-unified-accurate-preview-v1`) —
+  removed the "regular" print-preview overlay (the `useLegacyFormPreview` hook and the
+  direct `PrintPreviewDialog`/Print-Center-Phase-2 wiring in Receipt Voucher, Quotation,
+  and the Invoice) from every form; the accurate WYSIWYG preview
+  (`useAccurateFormPreview` / `WysiwygPreviewPocDialog`) is now the sole preview path
+  across all 16 form pages. The Print button now calls each page's print function
+  directly — the same "flag OFF" behavior already verified for every form in the prior
+  rollout. Printing, PDF export, print profiles, and form content are byte-for-byte
+  unchanged. Cheque calibration test-print preview (an independent physical-measurement
+  tool) is untouched, out of scope. Cleaned up the now-dead `PRINT_PREVIEW_LEGACY_FORMS_*`
+  / `PRINT_CENTER_PHASE2*` flags, their barrel exports, orphaned i18n keys, and
+  tests whose entire premise was the removed overlay (3 files deleted, 8 trimmed).
+
+  Frontend and backend `tsc --noEmit` passed pre- and post-merge. Full frontend suite:
+  1857/1882 passing pre- and post-merge (identical); the 25 failures across 8 files are
+  the pre-existing baseline (calibration-ink-isolation, financial-table, and
+  translation-key-audit tests unrelated to printing, plus two already-stale literal-text
+  assertions from an earlier i18n key-extraction pass) — confirmed unchanged in file and
+  count against `production` HEAD `5e944ef` before this branch. Product Owner Manual
+  Visual Review — completed & approved.
 
 - **Administrative Payment Voucher v1** (2026-07-28,
   `stable-administrative-payment-voucher-v1`) — new manual-entry "سند صرف" (Payment
