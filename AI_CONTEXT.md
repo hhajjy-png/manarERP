@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `5f3695c` (merge of `feature/administrative-payment-voucher-v1`, carrying Administrative Payment Voucher v1) |
-| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Documentation Commit** | `c4345ac` |
 | **Current Stable Tag** | `stable-administrative-payment-voucher-v1` |
 | **Current Release Date** | 2026-07-28 |
 | **Total Stable Releases** | 364 (window 2026-06-07 → 2026-07-28) |
