@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `7226882` (merge of `feature/sidebar-visibility-management-v1`, carrying Sidebar Visibility Management v1) |
-| **Current Documentation Commit** | `ceb5f65` |
-| **Current Stable Tag** | `stable-sidebar-visibility-management-v1` |
-| **Current Release Date** | 2026-07-27 |
-| **Total Stable Releases** | 362 (window 2026-06-07 → 2026-07-27) |
+| **Current Merge Commit** | `aaec4cd` (merge of `feature/ready-paper-template-and-receipt-voucher-redesign-v1`, carrying Ready Paper Print Template & Receipt Voucher Redesign v1) |
+| **Current Documentation Commit** | _pending — set by the documentation commit that includes this update_ |
+| **Current Stable Tag** | `stable-ready-paper-template-and-receipt-voucher-redesign-v1` |
+| **Current Release Date** | 2026-07-28 |
+| **Total Stable Releases** | 363 (window 2026-06-07 → 2026-07-28) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -297,6 +297,50 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Ready Paper Print Template & Receipt Voucher Redesign v1** (2026-07-28,
+  `stable-ready-paper-template-and-receipt-voucher-redesign-v1`) — two related, visual/
+  print-layout packages, developed and approved together in one review round.
+
+  **Ready Paper ("ورق جاهز").** New selectable `PRINT_PROFILES` entry: margins byte-identical
+  to `letterhead` (`40mm 10mm 20mm 10mm`) but with its own `logoHeader` flag driving the
+  official letterhead centrally through `FormLayout`/`FormHeader` — no
+  `profile === 'ready-paper'` checks scattered per form, so any current or future form that
+  renders through `FormLayout` inherits it automatically. Uses a page-level header model
+  (`@page` margin `0`, the same margin values re-applied as `.form-page` padding) so
+  `.form-page` models the physical A4 sheet and the letterhead — an absolutely positioned
+  overlay contributing zero flow height — can occupy the sheet's top band without ever
+  pushing form content down or adding a page. Reuses the existing `logohead.png`/tint-filter/
+  centering pipeline as-is, adding only a CSS-only vertical crop of the PNG's transparent
+  top/bottom padding (measured: ink occupies rows 59–221 of 268) so the header's box matches
+  the visible artwork — no resize, same aspect ratio, same file. Preview offset `2.5mm`;
+  print-only compensation (`top: 5mm`, uniform `scale(0.93)`, `transform-origin: top center`)
+  works around printer-driver hardware non-printable edge bands — confirmed against a real
+  paper print, not just preview/PDF. The Forms hub's print-template dropdowns
+  (`frontend/src/pages/Forms.tsx`) now derive their options from
+  `SELECTABLE_PROFILE_IDS`/`PRINT_PROFILES` instead of a separate hardcoded `PrintMode` enum,
+  so Ready Paper appears automatically with no per-form wiring. Employment Contract stays
+  fully exempt (`excludeIds=['ready-paper']` on its toggle; it never routes through
+  `FormLayout`). A new generalization-guard test suite
+  (`frontend/src/__tests__/readyPaperGeneralization.test.tsx`) audits every page's source for
+  per-form ready-paper logic and pins the approved geometry values and exemptions.
+
+  **Receipt Voucher redesign (visual only).** Plain-text company-name header replaced with
+  the same shared logo treatment (`FormHeader`'s new `cropTransparentPadding` prop — the same
+  transparent-padding crop as Ready Paper, but kept fully in-flow with no page-level model,
+  so `PrintProfile` is untouched), divider line under it removed. `ApprovalSection` now uses
+  `hideDate` + `stampInline`, the same combination Salary Certificate uses, dropping the
+  static `____ / ____ / ______` date placeholder and raising the stamp onto the signature
+  row. The separate "Accountant"/"Finance Manager" signature columns in
+  `ReceiptVoucherTemplate.tsx` are removed, keeping only "Receiver". No business logic,
+  voucher data, calculations, print pipeline, or backend change.
+
+  Frontend and backend `tsc --noEmit`, both production builds, and the full frontend suite
+  (1976/2003 passing; the 27 failures across 8 files are the pre-existing baseline, confirmed
+  identical file-for-file and count-for-count against `production` HEAD `80f937b` before this
+  branch) all passed pre- and post-merge. Verified end-to-end on the real running app
+  (Playwright against the dev server) across four forms plus one physical paper print of
+  Salary Certificate. Product Owner Manual Visual Review — completed & approved.
 
 - **Sidebar Visibility Management v1** (2026-07-27,
   `stable-sidebar-visibility-management-v1`) — new "Sidebar Management" section in Settings
