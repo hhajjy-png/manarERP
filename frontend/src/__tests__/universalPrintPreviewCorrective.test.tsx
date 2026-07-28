@@ -254,11 +254,12 @@ describe('شريط الإجراءات — الترتيب والحجم', () => {
   it('الصف الثانوي يحمل خيارات المحتوى فقط: التوقيع والختم', () => {
     expect(invoiceCode).toContain('invx-doc-settings');
     const settings = invoiceCode.slice(invoiceCode.indexOf('invx-doc-settings'));
-    expect(settings).toContain('printShowSignature');
-    expect(settings).toContain('printShowStamp');
+    // خيارات التوقيع/الختم صارت عنصرًا مشتركًا (BrandingAssetPicker) بعد
+    // Multi-Signature & Stamp Management v1 — نفس الصف ونفس المحتوى، بلا منطق محلي.
+    expect(settings).toContain('<BrandingAssetPicker selection={brandingSelection} />');
     expect(settings).not.toContain('قالب الطباعة'); // انتقل إلى الصف الأساسي
     // ولا يُصيَّر أصلًا إن لم تكن الخيارات جاهزة — فلا فراغ بصري مكان الزر المنقول.
-    expect(invoiceCode).toMatch(/printOptionsInitialized && \(\s*<div className="no-print invx-doc-settings">/);
+    expect(invoiceCode).toMatch(/brandingSelection\.ready && \(\s*<div className="no-print invx-doc-settings">/);
   });
 
   it('«إلغاء» غادر شريط شاشة الطباعة — ووظيفته لم تُمسّ', () => {

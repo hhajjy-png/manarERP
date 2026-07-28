@@ -44,20 +44,21 @@ describe('parseBrandingLayout', () => {
 });
 
 describe('clampBrandingElementLayout', () => {
-  it('clamps x to −80..80', () => {
-    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, x: 200 }).x).toBe(80);
-    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, x: -200 }).x).toBe(-80);
+  // Adopted envelope (was ±80 in Phase 4): one central range for every document.
+  it('clamps x to −150..150', () => {
+    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, x: 400 }).x).toBe(150);
+    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, x: -400 }).x).toBe(-150);
     expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, x: 50 }).x).toBe(50);
   });
 
-  it('clamps y to −60..60', () => {
-    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, y: 100 }).y).toBe(60);
-    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, y: -100 }).y).toBe(-60);
+  it('clamps y to −150..150', () => {
+    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, y: 400 }).y).toBe(150);
+    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, y: -400 }).y).toBe(-150);
   });
 
-  it('clamps scale to 0.4..2.5', () => {
-    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, scale: 0.1 }).scale).toBe(0.4);
-    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, scale: 5 }).scale).toBe(2.5);
+  it('clamps scale to 0.2..4', () => {
+    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, scale: 0.05 }).scale).toBe(0.2);
+    expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, scale: 9 }).scale).toBe(4);
     expect(clampBrandingElementLayout({ ...DEFAULT_ELEMENT_LAYOUT, scale: 1.5 }).scale).toBe(1.5);
   });
 
@@ -137,7 +138,7 @@ describe('applyBrandingElementStyle', () => {
   it('clamps out-of-range values before applying', () => {
     const el = { x: 200, y: -200, scale: 10, opacity: 0, zIndex: 5 };
     const css = applyBrandingElementStyle(el);
-    expect(css.transform).toBe('translate(80px, -60px) scale(2.5)');
+    expect(css.transform).toBe('translate(150px, -150px) scale(4)');
     expect(css.opacity).toBe(0.2);
     expect(css.zIndex).toBe(2);
   });

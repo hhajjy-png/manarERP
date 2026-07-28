@@ -130,6 +130,9 @@ export default function SalaryAdvance() {
       approvalHideDate
       approvalStampInline
       hideFormNumber
+      // Multi-Signature & Stamp Management v1: the footer approval block draws the
+      // signature/stamp chosen in the toolbar. No per-form logic — see FormLayout.
+      approvalBranding
       toolbarExtra={
         <>
           <LanguageToggle lang={lang} onChange={setLang} />

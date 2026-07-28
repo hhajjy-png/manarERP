@@ -8,8 +8,23 @@ import { parseBrandingLayout } from '../utils/brandingLayout';
 import { parseTextStyleSettings } from '../utils/textStyleOverrides';
 import { parseStaticTextOverrides } from '../designer/staticTextUtils';
 import { parseAllLayouts } from '../designer/layoutOverrideUtils';
+import {
+  BRANDING_ASSET_KEYS,
+  findDefaultAsset,
+  parseBrandingAssets,
+  type BrandingAsset,
+} from '../branding/brandingAssets';
 
 export interface CompanyBranding {
+  /** Every signature the company has registered, in Settings order. */
+  signatures: BrandingAsset[];
+  /** Every stamp the company has registered, in Settings order. */
+  stamps: BrandingAsset[];
+  /**
+   * Default-asset shortcuts. Kept so surfaces that never offer a choice (the Settings
+   * calibration preview, existing callers) keep behaving exactly as before: they are
+   * the default signature/stamp, which is what the legacy single-image keys held.
+   */
   signatureUrl: string | undefined;
   stampUrl: string | undefined;
   showSignature: boolean;
@@ -24,6 +39,8 @@ export interface CompanyBranding {
 
 export function useCompanyBranding(): CompanyBranding {
   const [branding, setBranding] = useState<CompanyBranding>({
+    signatures: [],
+    stamps: [],
     signatureUrl: undefined,
     stampUrl: undefined,
     showSignature: true,
@@ -50,16 +67,20 @@ export function useCompanyBranding(): CompanyBranding {
           return entry?.value;
         };
 
-        const parseImage = (key: string): string | undefined => {
-          const val = find(key);
-          return val && val.length > 0 ? val : undefined;
+        const readAssets = (kind: 'signature' | 'stamp'): BrandingAsset[] => {
+          const keys = BRANDING_ASSET_KEYS[kind];
+          return parseBrandingAssets({
+            raw: find(keys.list),
+            legacyImage: find(keys.legacyImage),
+            legacyShow: find(keys.legacyShow),
+            idPrefix: kind === 'signature' ? 'sig' : 'stamp',
+          });
         };
 
-        const parseBool = (key: string): boolean => {
-          const val = find(key);
-          if (val === undefined) return true;
-          return val === 'true';
-        };
+        const signatures = readAssets('signature');
+        const stamps = readAssets('stamp');
+        const defaultSignature = findDefaultAsset(signatures);
+        const defaultStamp = findDefaultAsset(stamps);
 
         const layoutRaw = find('print.brandingLayout');
         const brandingLayout = layoutRaw ? parseBrandingLayout(layoutRaw) : undefined;
@@ -77,10 +98,12 @@ export function useCompanyBranding(): CompanyBranding {
         const layoutOverrides = parseAllLayouts(find('print.layoutOverrides'));
 
         setBranding({
-          signatureUrl: parseImage('print.signatureImage'),
-          stampUrl: parseImage('print.stampImage'),
-          showSignature: parseBool('print.showSignature'),
-          showStamp: parseBool('print.showStamp'),
+          signatures,
+          stamps,
+          signatureUrl: defaultSignature?.imageUrl || undefined,
+          stampUrl: defaultStamp?.imageUrl || undefined,
+          showSignature: defaultSignature ? defaultSignature.show : true,
+          showStamp: defaultStamp ? defaultStamp.show : true,
           brandingLayout,
           textStyleOverrides,
           staticTextOverrides,

@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import type { PrintDocumentType, PrintBrandingLayoutSettings, BrandingElementLayout } from '../engine/types';
 import {
+  BRANDING_LAYOUT_BOUNDS,
   DEFAULT_BRANDING_LAYOUT,
   clampBrandingElementLayout,
   applyBrandingElementStyle,
@@ -151,9 +152,11 @@ export default function BrandingLayoutDesigner({ signatureUrl, stampUrl, initial
     return (
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--text, #111827)' }}>{label}</div>
-        <Slider label="أفقي" min={-80} max={80} step={1} value={el.x} onChange={(v) => updateElement(type, { x: v })} />
-        <Slider label="رأسي" min={-60} max={60} step={1} value={el.y} onChange={(v) => updateElement(type, { y: v })} />
-        <Slider label="حجم" min={0.4} max={2.5} step={0.05} value={el.scale} onChange={(v) => updateElement(type, { scale: v })} />
+        {/* المدى من الحدود المركزية — نفس ما يحكم السحب والمقابض ولوحة وضع التصميم،
+            فلا يقصّ هذا الحوار موضعًا يسمح به المحرّر الآخر. */}
+        <Slider label="أفقي" min={BRANDING_LAYOUT_BOUNDS.minX} max={BRANDING_LAYOUT_BOUNDS.maxX} step={1} value={el.x} onChange={(v) => updateElement(type, { x: v })} />
+        <Slider label="رأسي" min={BRANDING_LAYOUT_BOUNDS.minY} max={BRANDING_LAYOUT_BOUNDS.maxY} step={1} value={el.y} onChange={(v) => updateElement(type, { y: v })} />
+        <Slider label="حجم" min={BRANDING_LAYOUT_BOUNDS.minScale} max={BRANDING_LAYOUT_BOUNDS.maxScale} step={0.05} value={el.scale} onChange={(v) => updateElement(type, { scale: v })} />
         <Slider label="شفافية" min={0.2} max={1} step={0.05} value={el.opacity} onChange={(v) => updateElement(type, { opacity: v })} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
           <span style={{ fontSize: 12, color: 'var(--text-muted, #6b7280)' }}>الطبقة</span>

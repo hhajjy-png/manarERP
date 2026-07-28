@@ -48,6 +48,33 @@ export interface PrintTemplateDefinition<TData = unknown> {
 
 export type PrintDocumentType = 'invoice' | 'quotation';
 
+/**
+ * Administrative forms that carry the shared company approval slot
+ * (`ApprovalSection`) and therefore have their own signature/stamp layout.
+ *
+ * Deliberately a SEPARATE union from `PrintDocumentType`: that type also keys the
+ * layout-override, text-style and static-text subsystems plus the Settings
+ * calibration dialog's document tabs, none of which apply to these forms. Widening
+ * it would drag three unrelated subsystems along.
+ */
+export const FORM_BRANDING_DOC_KEYS = [
+  'salary-certificate',
+  'to-whom-it-may-concern',
+  'leave-request',
+  'return-to-work',
+  'salary-advance',
+  'resignation',
+  'employee-warning',
+  'performance-evaluation',
+  'purchase-request',
+  'receipt-voucher',
+] as const;
+
+export type FormBrandingDocKey = typeof FORM_BRANDING_DOC_KEYS[number];
+
+/** Any document that owns a signature/stamp layout. */
+export type BrandingDocKey = PrintDocumentType | FormBrandingDocKey;
+
 export interface BrandingElementLayout {
   x: number;
   y: number;
@@ -61,7 +88,15 @@ export interface BrandingLayout {
   stamp: BrandingElementLayout;
 }
 
-export type PrintBrandingLayoutSettings = Record<PrintDocumentType, BrandingLayout>;
+/**
+ * One layout per document. `invoice`/`quotation` stay REQUIRED so every existing
+ * reader keeps its guarantees; each administrative form contributes an OPTIONAL entry
+ * that simply appears the first time that form's design mode is saved. An absent entry
+ * resolves to the identity layout — i.e. exactly where the template already draws.
+ */
+export type PrintBrandingLayoutSettings =
+  Record<PrintDocumentType, BrandingLayout> &
+  Partial<Record<FormBrandingDocKey, BrandingLayout>>;
 
 // ─── Shared company data ──────────────────────────────────────────────────────
 

@@ -13,6 +13,13 @@ import { loadCopies, saveCopies } from './usePrintProfileMemory';
 import FormHeader from './FormHeader';
 import FormQRCode, { QRData } from './FormQRCode';
 import ApprovalSection from './ApprovalSection';
+import { useCompanyBranding } from '../../print-templates/hooks/useCompanyBranding';
+import { useBrandingSelection } from '../../print-templates/hooks/useBrandingSelection';
+import BrandingAssetPicker from '../../print-templates/components/BrandingAssetPicker';
+import { useBrandingDesigner } from '../../print-templates/hooks/useBrandingDesigner';
+import BrandingDesignerPanel from '../../print-templates/components/BrandingDesignerPanel';
+import { getBrandingLayoutForDocument, isFormBrandingDocKey } from '../../print-templates/utils/brandingLayout';
+import type { BrandingDocKey, PrintBrandingLayoutSettings } from '../../print-templates/engine/types';
 import { PrintWorkspace } from '../../components/print-workspace';
 import officialLogoHead from '../../assets/logohead.png';
 
@@ -62,6 +69,20 @@ interface FormLayoutProps {
    * approval block itself is not rendered.
    */
   hideApprovalSection?: boolean;
+  /**
+   * Opt-in: bind the footer `ApprovalSection` to the central Multi-Signature & Stamp
+   * system — a picker appears in the (never-printed) toolbar and the chosen signature
+   * and stamp are drawn in the approval block's existing places.
+   *
+   * Off by default, so a form joins the system only by an explicit, reviewed decision:
+   *  · `Quotation` (legacy view) stays out — the quotation's company signature belongs
+   *    to its print-template path (`QuotationBase`), which already owns the choice.
+   *  · The payment vouchers set `hideApprovalSection` — there is no company approval
+   *    slot on them to bind.
+   *
+   * A new form joins with this one prop; no per-form state, images or resolution logic.
+   */
+  approvalBranding?: boolean;
   /**
    * Payment-voucher-only, opt-in top-margin trim: when a form on the
    * `payment-voucher` profile sets `compactTopMargin`, its `@page` top margin is
@@ -209,11 +230,52 @@ export default function FormLayout({
   approvalStampInline = false,
   hideFormNumber = false,
   hideApprovalSection = false,
+  approvalBranding = false,
   compactTopMargin = false,
   useLogoHeader = false,
   contentTopOffset,
 }: FormLayoutProps) {
   const navigate = useNavigate();
+
+  /**
+   * The company's signature/stamp choice for this document. The hooks run
+   * unconditionally (rules of hooks) — only the picker and the images are gated on
+   * `approvalBranding`, so an opted-out form renders exactly what it rendered before.
+   */
+  const branding = useCompanyBranding();
+  const brandingSelection = useBrandingSelection(branding);
+  const showBrandingPicker = approvalBranding && !hideApprovalSection && brandingSelection.ready;
+
+  /**
+   * Design mode — the SAME `useBrandingDesigner` the quotation and invoice screens use,
+   * keyed by this form's own `formType`. That key is why each form's position and size
+   * are independent: the salary certificate and the purchase request write to different
+   * entries of one record.
+   */
+  const [savedLayout, setSavedLayout] = useState<PrintBrandingLayoutSettings | undefined>(undefined);
+  // The layout key is the form's own type, taken from the central registry — this layer
+  // names no individual form. A `formType` that is not registered yields `undefined`,
+  // which makes the designer inert rather than aimed at another form's entry.
+  const layoutDocKey: BrandingDocKey | undefined = isFormBrandingDocKey(formType)
+    ? formType
+    : undefined;
+  const designer = useBrandingDesigner({
+    docType: layoutDocKey,
+    initialLayout: savedLayout ?? branding.brandingLayout,
+    onSaved: setSavedLayout,
+  });
+  // While designing, the live (unsaved) layout drives the document so the drag is
+  // visible; otherwise the saved one does — and that is the layout the accurate preview,
+  // the print dialog and the PDF all compose from, because they read this same DOM.
+  const effectiveApprovalLayout = getBrandingLayoutForDocument(
+    designer.isActive ? designer.localLayout : (savedLayout ?? branding.brandingLayout),
+    layoutDocKey,
+  );
+  const canDesignApproval =
+    showBrandingPicker &&
+    !!layoutDocKey &&
+    ((brandingSelection.showSignature && !!brandingSelection.signatureUrl) ||
+      (brandingSelection.showStamp && !!brandingSelection.stampUrl));
 
   const [copies, setCopies] = useState(() =>
     formType ? loadCopies(formType) : 1,
@@ -462,6 +524,23 @@ export default function FormLayout({
         <CopiesControl copies={copies} onChange={updateCopies} lang={lang} />
       </div>
       <div className="pw-toolbar-group">{toolbarExtra}</div>
+      {showBrandingPicker && (
+        <div className="pw-toolbar-group">
+          <BrandingAssetPicker selection={brandingSelection} />
+          {canDesignApproval && (
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontWeight: 600 }}
+              onClick={() => (designer.isActive ? designer.deactivate() : designer.activate())}
+            >
+              {designer.isActive
+                ? (lang === 'en' ? '✓ Finish design' : '✓ إنهاء التصميم')
+                : (lang === 'en' ? '🔧 Design mode' : '🔧 وضع التصميم')}
+            </button>
+          )}
+        </div>
+      )}
       <span className="pw-toolbar-spacer" />
       <button type="button" className="btn secondary" onClick={() => navigate(-1)}>
         {lang === 'en' ? '‹ Back' : 'رجوع ›'}
@@ -514,6 +593,7 @@ export default function FormLayout({
   );
 
   return (
+    <>
     <PrintWorkspace
       lang={lang}
       toolbar={toolbar}
@@ -658,7 +738,15 @@ ${logoHeaderIsOverlay ? `
         >
           <div style={{ flex: 1 }}>
             {!hideApprovalSection && (
-              <ApprovalSection lang={lang} hideDate={approvalHideDate} stampInline={approvalStampInline} />
+              <ApprovalSection
+                lang={lang}
+                hideDate={approvalHideDate}
+                stampInline={approvalStampInline}
+                signatureUrl={approvalBranding && brandingSelection.showSignature ? brandingSelection.signatureUrl : undefined}
+                stampUrl={approvalBranding && brandingSelection.showStamp ? brandingSelection.stampUrl : undefined}
+                layout={approvalBranding ? effectiveApprovalLayout : undefined}
+                designer={approvalBranding && layoutDocKey ? designer : undefined}
+              />
             )}
           </div>
           <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -667,5 +755,20 @@ ${logoHeaderIsOverlay ? `
         </div>
       </div>
     </PrintWorkspace>
+
+    {/* The SAME properties panel the quotation/invoice design mode uses — position,
+        size, opacity, layer, snap, alignment, reset and save.
+        Rendered OUTSIDE `PrintWorkspace` on purpose: the workspace zooms its preview
+        with a CSS `transform`, and a transformed ancestor turns `position: fixed` into
+        `absolute` — the panel would scale and drift with the zoom. It is `.no-print`, and
+        the PDF path strips `.no-print` too, so it reaches neither paper nor export. */}
+    {designer.isActive && (
+      <BrandingDesignerPanel
+        designer={designer}
+        docLabel={title || formNumber}
+        onClose={designer.deactivate}
+      />
+    )}
+    </>
   );
 }

@@ -149,6 +149,9 @@ export default function PurchaseRequest() {
       formNumber={printFields.requestNumber || generateFormNumber(FORM_KEY)}
       title={translate('page.purchaseReq.title', lang)}
       profile={profile}
+      // Multi-Signature & Stamp Management v1: the footer approval block draws the
+      // signature/stamp chosen in the toolbar. No per-form logic — see FormLayout.
+      approvalBranding
       toolbarExtra={
         <>
           <LanguageToggle lang={lang} onChange={setLang} />

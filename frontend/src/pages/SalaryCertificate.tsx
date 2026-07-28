@@ -125,6 +125,9 @@ export default function SalaryCertificate() {
       approvalStampInline
       // Final content polish v1: certificate number no longer printed above the title.
       hideFormNumber
+      // Multi-Signature & Stamp Management v1: the footer approval block draws the
+      // signature/stamp chosen in the toolbar. No per-form logic — see FormLayout.
+      approvalBranding
       toolbarExtra={
         <>
           <LanguageToggle lang={lang} onChange={setLang} />
