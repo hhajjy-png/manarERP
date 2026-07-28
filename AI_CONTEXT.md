@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `a6d6822e` (merge of `feature/multi-signature-stamp-management-v1`, carrying Multi-Signature & Stamp Management v1) |
-| **Current Documentation Commit** | _(filled in by the follow-up self-reference commit)_ |
+| **Current Documentation Commit** | `639697b` |
 | **Current Stable Tag** | `stable-multi-signature-stamp-management-v1` |
 | **Current Release Date** | 2026-07-28 |
 | **Total Stable Releases** | 366 (window 2026-06-07 → 2026-07-28) |
