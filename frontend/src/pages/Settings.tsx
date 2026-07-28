@@ -10,6 +10,14 @@ import { BASE_NATIONALITY_EN, BASE_JOB_TITLE_EN, applyTranslationOverrides } fro
 import BrandingLayoutDesigner from '../print-templates/components/BrandingLayoutDesigner';
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import { parseBrandingLayout, serializeBrandingLayout, DEFAULT_BRANDING_LAYOUT } from '../print-templates/utils/brandingLayout';
+import {
+  BRANDING_ASSET_KEYS,
+  brandingAssetSettingsRows,
+  findDefaultAsset,
+  parseBrandingAssets,
+  type BrandingAsset,
+  type BrandingAssetKind,
+} from '../print-templates/branding/brandingAssets';
 import TemplateStudioEditor from '../print-templates/studio/TemplateStudioEditor';
 import {
   ExecutiveHeader,
@@ -27,28 +35,79 @@ import GenerateHolidaysDialog from '../components/employee/GenerateHolidaysDialo
 import { NAV } from '../config/modules';
 import { isProtectedNavKey, permittedNav } from '../config/navVisibility';
 
-interface SigSlot {
-  id: string;
-  name: string;
-  title: string;
-  imageUrl: string;
-  show: boolean;
-  isDefault: boolean;
+/**
+ * التواقيع والأختام قائمتان من نفس النوع (`BrandingAsset`) ونفس منطق الإدارة، فكل
+ * دوال هذا القسم تعمل على أي منهما عبر `kind`. التخزين والترحيل والمرايا القديمة في
+ * `print-templates/branding/brandingAssets` — لا تُكرَّر هنا.
+ */
+const ASSET_KINDS: BrandingAssetKind[] = ['signature', 'stamp'];
+
+/** حدود تصغير الصورة قبل الحفظ — لكل نوع أبعاده كما كان قبل التوحيد. */
+const ASSET_IMAGE_BOUNDS: Record<BrandingAssetKind, { maxW: number; maxH: number }> = {
+  signature: { maxW: 500, maxH: 250 },
+  stamp: { maxW: 400, maxH: 400 },
+};
+
+interface AssetSectionText {
+  sectionId: string;
+  navKey: string;
+  icon: string;
+  addKey: string;
+  emptyKey: string;
+  indexKey: string;
+  noImageKey: string;
+  showKey: string;
+  nameLabelKey: string;
+  namePlaceholderKey: string;
+  titleLabelKey: string;
+  titlePlaceholderKey: string;
+  stageClass: string;
+  uploadFailedKey: string;
 }
 
-function migrateLegacySig(values: Record<string, string>): SigSlot[] {
-  const raw = values['print.signatures'];
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw) as SigSlot[];
-      if (parsed.length > 0) return parsed;
-    } catch { /* fall through */ }
-  }
-  const legacy = values['print.signatureImage'];
-  if (legacy) {
-    return [{ id: 'sig-1', name: '', title: '', imageUrl: legacy, show: (values['print.showSignature'] ?? 'true') !== 'false', isDefault: true }];
-  }
-  return [];
+const ASSET_TEXT: Record<BrandingAssetKind, AssetSectionText> = {
+  signature: {
+    sectionId: 'sec-signatures',
+    navKey: 'page.settings.nav.signatures',
+    icon: 'draw',
+    addKey: 'page.settings.signatures.add_btn',
+    emptyKey: 'page.settings.signatures.empty_hint',
+    indexKey: 'page.settings.signatures.index_label',
+    noImageKey: 'page.settings.signatures.no_image',
+    showKey: 'page.settings.show_in_documents',
+    nameLabelKey: 'page.settings.signatures.name_label',
+    namePlaceholderKey: 'page.settings.signatures.name_placeholder',
+    titleLabelKey: 'page.settings.signatures.title_label',
+    titlePlaceholderKey: 'page.settings.signatures.title_placeholder',
+    stageClass: 'settings-media-stage',
+    uploadFailedKey: 'msg.settings.signature_upload_failed',
+  },
+  stamp: {
+    sectionId: 'sec-stamp',
+    navKey: 'page.settings.nav.stamp',
+    icon: 'approval',
+    addKey: 'page.settings.stamps.add_btn',
+    emptyKey: 'page.settings.stamps.empty_hint',
+    indexKey: 'page.settings.stamps.index_label',
+    noImageKey: 'page.settings.stamp.no_image',
+    showKey: 'page.settings.show_stamp_in_documents',
+    nameLabelKey: 'page.settings.stamps.name_label',
+    namePlaceholderKey: 'page.settings.stamps.name_placeholder',
+    titleLabelKey: 'page.settings.stamps.title_label',
+    titlePlaceholderKey: 'page.settings.stamps.title_placeholder',
+    stageClass: 'settings-media-stage settings-stamp-stage',
+    uploadFailedKey: 'msg.settings.stamp_upload_failed',
+  },
+};
+
+function readAssets(kind: BrandingAssetKind, values: Record<string, string>): BrandingAsset[] {
+  const keys = BRANDING_ASSET_KEYS[kind];
+  return parseBrandingAssets({
+    raw: values[keys.list],
+    legacyImage: values[keys.legacyImage],
+    legacyShow: values[keys.legacyShow],
+    idPrefix: kind === 'signature' ? 'sig' : 'stamp',
+  });
 }
 
 const DEFAULT_VALUES: Record<string, string> = {
@@ -246,9 +305,11 @@ export default function Settings() {
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [signatures, setSignatures] = useState<SigSlot[]>([]);
-  const sigFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const stmpInputRef = useRef<HTMLInputElement>(null);
+  const [assets, setAssets] = useState<Record<BrandingAssetKind, BrandingAsset[]>>({
+    signature: [],
+    stamp: [],
+  });
+  const assetFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [brandingError, setBrandingError] = useState('');
   const [brandingSaving, setBrandingSaving] = useState(false);
   const [designerOpen, setDesignerOpen] = useState(false);
@@ -270,7 +331,7 @@ export default function Settings() {
         const v: Record<string, string> = { ...DEFAULT_VALUES };
         list.forEach((s) => (v[s.key] = s.value));
         setValues(v);
-        setSignatures(migrateLegacySig(v));
+        setAssets({ signature: readAssets('signature', v), stamp: readAssets('stamp', v) });
         const layoutEntry = list.find((s) => s.key === 'print.brandingLayout');
         if (layoutEntry?.value) setBrandingLayout(parseBrandingLayout(layoutEntry.value));
 
@@ -338,17 +399,11 @@ export default function Settings() {
   async function save() {
     setSaving(true);
     try {
-      const brandingSettings = [
-        { key: 'print.showStamp', value: values['print.showStamp'] ?? 'true', group: 'print' },
-      ];
-      const settings = [
-        ...FIELDS.map((f) => ({ key: f.key, value: values[f.key] ?? '', group: f.group })),
-        ...brandingSettings,
-      ];
+      const settings = FIELDS.map((f) => ({ key: f.key, value: values[f.key] ?? '', group: f.group }));
       await api.put('/settings', { settings });
       // طبّق لغة عرض العملة فورًا على المُنسّق المشترك (بلا إعادة تحميل).
       useSettings.getState().setCurrencyLanguage(values['finance.currencyDisplayLanguage'] as CurrencyLanguage);
-      await saveSignatures(signatures);
+      await saveAssets();
       await window.manar?.backupReconfigure?.();
       toast.ok(t('page.settings.saved'));
     } catch (err) {
@@ -410,22 +465,6 @@ export default function Settings() {
     await api.put('/settings', { settings: [{ key, value, group: 'print' }] });
   }
 
-  async function handleStampUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { setBrandingError(t('msg.settings.select_image_file')); return; }
-    if (file.size > 1_048_576) { setBrandingError(t('msg.settings.image_exceeds_1mb')); return; }
-    setBrandingError('');
-    setBrandingSaving(true);
-    try {
-      const dataUrl = await resizeImage(file, 400, 400);
-      setValues(p => ({ ...p, 'print.stampImage': dataUrl }));
-      await saveBrandingKey('print.stampImage', dataUrl);
-      toast.ok(t('msg.settings.stamp_saved'));
-    } catch (err) { setBrandingError(err instanceof Error ? err.message : t('msg.settings.stamp_upload_failed')); }
-    finally { setBrandingSaving(false); e.target.value = ''; }
-  }
-
   async function handleDesignerSave(layout: PrintBrandingLayoutSettings) {
     setBrandingSaving(true);
     setBrandingError('');
@@ -442,45 +481,61 @@ export default function Settings() {
     }
   }
 
-  async function handleDeleteStamp() {
-    setBrandingSaving(true);
-    try {
-      setValues(p => ({ ...p, 'print.stampImage': '' }));
-      await saveBrandingKey('print.stampImage', '');
-      toast.ok(t('msg.settings.stamp_deleted'));
-    } catch { setBrandingError(t('msg.settings.stamp_delete_failed')); }
-    finally { setBrandingSaving(false); }
+  /** يعدّل قائمة نوع واحد بلا لمس الآخر. */
+  function updateAssets(
+    kind: BrandingAssetKind,
+    change: (list: BrandingAsset[]) => BrandingAsset[],
+  ) {
+    setAssets((prev) => ({ ...prev, [kind]: change(prev[kind]) }));
   }
 
-  function addSignature() {
-    const id = `sig-${Date.now()}`;
-    const isFirst = signatures.length === 0;
-    setSignatures((prev) => [...prev, { id, name: '', title: '', imageUrl: '', show: true, isDefault: isFirst }]);
+  function addAsset(kind: BrandingAssetKind) {
+    updateAssets(kind, (list) => [
+      ...list,
+      {
+        id: `${kind === 'signature' ? 'sig' : 'stamp'}-${Date.now()}`,
+        name: '',
+        title: '',
+        imageUrl: '',
+        show: true,
+        isDefault: list.length === 0,
+      },
+    ]);
   }
 
-  function removeSignature(id: string) {
-    setSignatures((prev) => {
-      const filtered = prev.filter((s) => s.id !== id);
-      if (filtered.length > 0 && !filtered.some((s) => s.isDefault)) {
-        filtered[0] = { ...filtered[0]!, isDefault: true };
+  function removeAsset(kind: BrandingAssetKind, id: string) {
+    updateAssets(kind, (list) => {
+      const remaining = list.filter((a) => a.id !== id);
+      // القائمة لا تُترك بلا افتراضي — أول عنصر يتقدّم مكان المحذوف.
+      if (remaining.length > 0 && !remaining.some((a) => a.isDefault)) {
+        return remaining.map((a, i) => (i === 0 ? { ...a, isDefault: true } : a));
       }
-      return filtered;
+      return remaining;
     });
   }
 
-  function setAsDefault(id: string) {
-    setSignatures((prev) => prev.map((s) => ({ ...s, isDefault: s.id === id })));
+  function setAssetAsDefault(kind: BrandingAssetKind, id: string) {
+    updateAssets(kind, (list) => list.map((a) => ({ ...a, isDefault: a.id === id })));
   }
 
-  function updateSigField(id: string, field: 'name' | 'title', value: string) {
-    setSignatures((prev) => prev.map((s) => s.id === id ? { ...s, [field]: value } : s));
+  function updateAssetField(
+    kind: BrandingAssetKind,
+    id: string,
+    field: 'name' | 'title',
+    value: string,
+  ) {
+    updateAssets(kind, (list) => list.map((a) => (a.id === id ? { ...a, [field]: value } : a)));
   }
 
-  function toggleSigShow(id: string) {
-    setSignatures((prev) => prev.map((s) => s.id === id ? { ...s, show: !s.show } : s));
+  function toggleAssetShow(kind: BrandingAssetKind, id: string) {
+    updateAssets(kind, (list) => list.map((a) => (a.id === id ? { ...a, show: !a.show } : a)));
   }
 
-  async function handleSigFileUpload(id: string, e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAssetFileUpload(
+    kind: BrandingAssetKind,
+    id: string,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) { setBrandingError(t('msg.settings.select_image_file')); return; }
@@ -488,25 +543,150 @@ export default function Settings() {
     setBrandingError('');
     setBrandingSaving(true);
     try {
-      const dataUrl = await resizeImage(file, 500, 250);
-      setSignatures((prev) => prev.map((s) => s.id === id ? { ...s, imageUrl: dataUrl } : s));
+      const bounds = ASSET_IMAGE_BOUNDS[kind];
+      const dataUrl = await resizeImage(file, bounds.maxW, bounds.maxH);
+      updateAssets(kind, (list) => list.map((a) => (a.id === id ? { ...a, imageUrl: dataUrl } : a)));
     } catch (err) {
-      setBrandingError(err instanceof Error ? err.message : t('msg.settings.signature_upload_failed'));
+      setBrandingError(err instanceof Error ? err.message : t(ASSET_TEXT[kind].uploadFailedKey));
     } finally {
       setBrandingSaving(false);
       e.target.value = '';
     }
   }
 
-  async function saveSignatures(sigs: SigSlot[]) {
-    const defaultSig = sigs.find((s) => s.isDefault && s.show) ?? sigs.find((s) => s.show) ?? sigs[0];
+  /** يحفظ القائمتين مع مرايا المفاتيح القديمة في طلب واحد. */
+  async function saveAssets(next: Record<BrandingAssetKind, BrandingAsset[]> = assets) {
     await api.put('/settings', {
-      settings: [
-        { key: 'print.signatures',     value: JSON.stringify(sigs), group: 'print' },
-        { key: 'print.signatureImage', value: defaultSig?.imageUrl ?? '', group: 'print' },
-        { key: 'print.showSignature',  value: defaultSig?.show ? 'true' : 'false', group: 'print' },
-      ],
+      settings: ASSET_KINDS.flatMap((kind) => brandingAssetSettingsRows(kind, next[kind])),
     });
+  }
+
+  /**
+   * بطاقة إدارة نوع أصل واحد (توقيع أو ختم): إضافة، تسمية، رفع صورة، إظهار/إخفاء،
+   * تعيين افتراضي، حذف. نفس التخطيط للنوعين — الفرق نصوصٌ في `ASSET_TEXT` وحدود
+   * تصغير في `ASSET_IMAGE_BOUNDS`، لا منطق مكرَّر.
+   */
+  function renderAssetSection(kind: BrandingAssetKind) {
+    const text = ASSET_TEXT[kind];
+    const list = assets[kind];
+    const refKey = (id: string) => `${kind}:${id}`;
+
+    return (
+      <div id={text.sectionId} className="settings-section" key={kind}>
+        <SectionCard
+          title={t(text.navKey)}
+          icon={text.icon}
+          actions={
+            <Button variant="secondary" icon="add" small onClick={() => addAsset(kind)} disabled={brandingSaving}>
+              {t(text.addKey)}
+            </Button>
+          }
+        >
+          {list.length === 0 && (
+            <p className="settings-dict-desc">{t(text.emptyKey)}</p>
+          )}
+
+          {list.map((asset, idx) => {
+            const indexLabel = t(text.indexKey, { n: idx + 1 });
+            return (
+              <div
+                key={asset.id}
+                className={`settings-sig-card${asset.isDefault ? ' settings-sig-card--default' : ''}`}
+              >
+                {/* Card header */}
+                <div className="settings-sig-head">
+                  <span className="settings-sig-index">{indexLabel}</span>
+                  {asset.isDefault && (
+                    <span className="settings-sig-default-badge">{t('page.settings.default_badge')}</span>
+                  )}
+                  <StatusChip tone={asset.show ? 'green' : 'neutral'} icon={asset.show ? 'visibility' : 'visibility_off'}>
+                    {asset.show ? t('page.settings.visible_in_documents') : t('page.settings.hidden')}
+                  </StatusChip>
+                  <div className="settings-sig-spacer" />
+                  {!asset.isDefault && (
+                    <button
+                      type="button"
+                      className="btn secondary small"
+                      onClick={() => setAssetAsDefault(kind, asset.id)}
+                      disabled={brandingSaving}
+                    >
+                      {t('page.settings.set_default_btn')}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn danger small"
+                    onClick={() => removeAsset(kind, asset.id)}
+                    disabled={brandingSaving}
+                  >
+                    {t('action.delete')}
+                  </button>
+                </div>
+
+                {/* Meta fields — الاسم هو ما يظهر في قائمة الاختيار داخل النماذج */}
+                <div className="settings-sig-meta">
+                  <div className="field">
+                    <label>{t(text.nameLabelKey)}</label>
+                    <input
+                      value={asset.name}
+                      onChange={(e) => updateAssetField(kind, asset.id, 'name', e.target.value)}
+                      placeholder={t(text.namePlaceholderKey)}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>{t(text.titleLabelKey)}</label>
+                    <input
+                      value={asset.title}
+                      onChange={(e) => updateAssetField(kind, asset.id, 'title', e.target.value)}
+                      placeholder={t(text.titlePlaceholderKey)}
+                    />
+                  </div>
+                </div>
+
+                {/* Stage — display only. The stored file and its real dimensions are
+                    untouched: object-fit scales the view, not the image. */}
+                <div className={text.stageClass}>
+                  {asset.imageUrl
+                    ? <img src={asset.imageUrl} alt={indexLabel} />
+                    : <span className="settings-media-stage--empty">{t(text.noImageKey)}</span>}
+                </div>
+
+                {/* Image row */}
+                <div className="settings-media-row">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    hidden
+                    ref={(el) => { assetFileRefs.current[refKey(asset.id)] = el; }}
+                    onChange={(e) => handleAssetFileUpload(kind, asset.id, e)}
+                  />
+                  <button
+                    type="button"
+                    className="btn secondary"
+                    onClick={() => assetFileRefs.current[refKey(asset.id)]?.click()}
+                    disabled={brandingSaving}
+                  >
+                    {asset.imageUrl ? t('page.settings.change_image') : t('page.settings.upload_image')}
+                  </button>
+                  <label className="branding-toggle-label">
+                    <input
+                      type="checkbox"
+                      checked={asset.show}
+                      onChange={() => toggleAssetShow(kind, asset.id)}
+                    />
+                    {t(text.showKey)}
+                  </label>
+                </div>
+              </div>
+            );
+          })}
+
+          {brandingError && (
+            <div className="branding-error">{brandingError}</div>
+          )}
+        </SectionCard>
+      </div>
+    );
   }
 
   function renderField(f: { key: string; label: string; group: string; type?: FieldType; options?: { value: string; label: string }[] }) {
@@ -573,9 +753,8 @@ export default function Settings() {
 
   const backupEnabled = (values['backup.auto.enabled'] ?? DEFAULT_VALUES['backup.auto.enabled']) !== 'false';
   const backupTime = values['backup.auto.time'] ?? DEFAULT_VALUES['backup.auto.time'];
-  const hasStamp = Boolean(values['print.stampImage']);
-  const stampVisible = (values['print.showStamp'] ?? 'true') !== 'false';
-  const visibleSigs = signatures.filter((s) => s.show).length;
+  const visibleSigs = assets.signature.filter((a) => a.show).length;
+  const visibleStamps = assets.stamp.filter((a) => a.show).length;
   const dictRows = dictTab === 'nat' ? natDict : jobDict;
   const dictBase = dictTab === 'nat' ? BASE_NATIONALITY_EN : BASE_JOB_TITLE_EN;
   const dictVisible = dictRows.filter((row) => {
@@ -613,13 +792,13 @@ export default function Settings() {
           value={backupEnabled ? t('page.settings.status.enabled') : t('page.settings.status.disabled')}
           sub={backupEnabled ? t('page.settings.backup.daily_at', { time: backupTime ?? '' }) : undefined}
         />
-        <MetricCard icon="draw" tone="blue" label={t('page.settings.signature_count')} value={signatures.length} sub={t('page.settings.signatures_visible_count', { n: visibleSigs })} />
+        <MetricCard icon="draw" tone="blue" label={t('page.settings.signature_count')} value={assets.signature.length} sub={t('page.settings.signatures_visible_count', { n: visibleSigs })} />
         <MetricCard
           icon="approval"
-          tone={hasStamp ? 'green' : 'neutral'}
-          label={t('page.settings.stamp_label')}
-          value={hasStamp ? t('page.settings.stamp.loaded') : t('page.settings.stamp.not_loaded')}
-          sub={hasStamp ? (stampVisible ? t('page.settings.visible_in_documents') : t('page.settings.hidden')) : undefined}
+          tone={assets.stamp.length > 0 ? 'green' : 'neutral'}
+          label={t('page.settings.stamp_count')}
+          value={assets.stamp.length}
+          sub={t('page.settings.stamps_visible_count', { n: visibleStamps })}
         />
         <MetricCard
           icon="dashboard_customize"
@@ -850,179 +1029,8 @@ export default function Settings() {
         </SectionCard>
       </div>
 
-      {/* ── 3 · Signatures ── */}
-      <div id="sec-signatures" className="settings-section">
-        <SectionCard
-          title={t('page.settings.nav.signatures')}
-          icon="draw"
-          actions={
-            <Button variant="secondary" icon="add" small onClick={addSignature} disabled={brandingSaving}>
-              {t('page.settings.signatures.add_btn')}
-            </Button>
-          }
-        >
-          {signatures.length === 0 && (
-            <p className="settings-dict-desc">
-              {t('page.settings.signatures.empty_hint')}
-            </p>
-          )}
-
-          {signatures.map((sig, idx) => (
-            <div
-              key={sig.id}
-              className={`settings-sig-card${sig.isDefault ? ' settings-sig-card--default' : ''}`}
-            >
-              {/* Card header */}
-              <div className="settings-sig-head">
-                <span className="settings-sig-index">{t('page.settings.signatures.index_label', { n: idx + 1 })}</span>
-                {sig.isDefault && (
-                  <span className="settings-sig-default-badge">{t('page.settings.default_badge')}</span>
-                )}
-                <StatusChip tone={sig.show ? 'green' : 'neutral'} icon={sig.show ? 'visibility' : 'visibility_off'}>
-                  {sig.show ? t('page.settings.visible_in_documents') : t('page.settings.hidden')}
-                </StatusChip>
-                <div className="settings-sig-spacer" />
-                {!sig.isDefault && (
-                  <button
-                    type="button"
-                    className="btn secondary small"
-                    onClick={() => setAsDefault(sig.id)}
-                    disabled={brandingSaving}
-                  >
-                    {t('page.settings.set_default_btn')}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="btn danger small"
-                  onClick={() => removeSignature(sig.id)}
-                  disabled={brandingSaving}
-                >
-                  {t('action.delete')}
-                </button>
-              </div>
-
-              {/* Meta fields */}
-              <div className="settings-sig-meta">
-                <div className="field">
-                  <label>{t('page.settings.signatures.name_label')}</label>
-                  <input
-                    value={sig.name}
-                    onChange={(e) => updateSigField(sig.id, 'name', e.target.value)}
-                    placeholder={t('page.settings.signatures.name_placeholder')}
-                  />
-                </div>
-                <div className="field">
-                  <label>{t('page.settings.signatures.title_label')}</label>
-                  <input
-                    value={sig.title}
-                    onChange={(e) => updateSigField(sig.id, 'title', e.target.value)}
-                    placeholder={t('page.settings.signatures.title_placeholder')}
-                  />
-                </div>
-              </div>
-
-              {/* Signature stage — display only. The stored file and its real
-                  dimensions are untouched: object-fit scales the view, not the image. */}
-              <div className="settings-media-stage">
-                {sig.imageUrl
-                  ? <img src={sig.imageUrl} alt={t('page.settings.signatures.index_label', { n: idx + 1 })} />
-                  : <span className="settings-media-stage--empty">{t('page.settings.signatures.no_image')}</span>}
-              </div>
-
-              {/* Image row */}
-              <div className="settings-media-row">
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  ref={(el) => { sigFileRefs.current[sig.id] = el; }}
-                  onChange={(e) => handleSigFileUpload(sig.id, e)}
-                />
-                <button
-                  type="button"
-                  className="btn secondary"
-                  onClick={() => sigFileRefs.current[sig.id]?.click()}
-                  disabled={brandingSaving}
-                >
-                  {sig.imageUrl ? t('page.settings.change_image') : t('page.settings.upload_image')}
-                </button>
-                <label className="branding-toggle-label">
-                  <input
-                    type="checkbox"
-                    checked={sig.show}
-                    onChange={() => toggleSigShow(sig.id)}
-                  />
-                  {t('page.settings.show_in_documents')}
-                </label>
-              </div>
-            </div>
-          ))}
-
-          {brandingError && (
-            <div className="branding-error">{brandingError}</div>
-          )}
-        </SectionCard>
-      </div>
-
-      {/* ── 4 · Company stamp ── */}
-      <div id="sec-stamp" className="settings-section">
-        <SectionCard
-          title={t('page.settings.nav.stamp')}
-          icon="approval"
-          actions={
-            <StatusChip tone={hasStamp ? (stampVisible ? 'green' : 'orange') : 'neutral'} icon={hasStamp ? 'approval' : 'block'}>
-              {hasStamp ? (stampVisible ? t('page.settings.visible_in_documents') : t('page.settings.hidden')) : t('page.settings.stamp.not_loaded_status')}
-            </StatusChip>
-          }
-        >
-          {/* Stamp stage — display only; the uploaded file keeps its real size. */}
-          <div className="settings-media-stage settings-stamp-stage">
-            {values['print.stampImage']
-              ? <img src={values['print.stampImage']} alt={t('page.settings.nav.stamp')} />
-              : <span className="settings-media-stage--empty">{t('page.settings.stamp.no_image')}</span>}
-          </div>
-
-          <div className="settings-media-row">
-            <input
-              type="file"
-              accept="image/*"
-              hidden
-              ref={stmpInputRef}
-              onChange={handleStampUpload}
-            />
-            <button
-              type="button"
-              className="btn secondary"
-              onClick={() => stmpInputRef.current?.click()}
-              disabled={brandingSaving}
-            >
-              {values['print.stampImage'] ? t('page.settings.change_stamp') : t('page.settings.upload_stamp')}
-            </button>
-            {values['print.stampImage'] && (
-              <button
-                type="button"
-                className="btn danger"
-                onClick={handleDeleteStamp}
-                disabled={brandingSaving}
-              >
-                {t('page.settings.delete_stamp')}
-              </button>
-            )}
-            <label className="branding-toggle-label">
-              <input
-                type="checkbox"
-                checked={(values['print.showStamp'] ?? 'true') !== 'false'}
-                onChange={(e) => setValues(p => ({ ...p, 'print.showStamp': e.target.checked ? 'true' : 'false' }))}
-              />
-              {t('page.settings.show_stamp_in_documents')}
-            </label>
-          </div>
-          {brandingError && (brandingError.includes('ختم') || brandingError.toLowerCase().includes('stamp')) && (
-            <div className="branding-error">{brandingError}</div>
-          )}
-        </SectionCard>
-      </div>
+      {/* ── 3 · التواقيع  ·  4 · الأختام — بطاقة واحدة تُستخدم للنوعين ── */}
+      {ASSET_KINDS.map((kind) => renderAssetSection(kind))}
 
       {/* ── 5 · Print & Template Studio ── */}
       <div id="sec-print" className="settings-section">
@@ -1115,12 +1123,8 @@ export default function Settings() {
 
       {designerOpen && (
         <BrandingLayoutDesigner
-          signatureUrl={
-            (signatures.find((s) => s.isDefault && s.imageUrl) ?? signatures.find((s) => s.imageUrl))?.imageUrl
-            || values['print.signatureImage']
-            || undefined
-          }
-          stampUrl={values['print.stampImage'] || undefined}
+          signatureUrl={findDefaultAsset(assets.signature)?.imageUrl || undefined}
+          stampUrl={findDefaultAsset(assets.stamp)?.imageUrl || undefined}
           initialLayout={brandingLayout}
           onSave={handleDesignerSave}
           onClose={() => setDesignerOpen(false)}

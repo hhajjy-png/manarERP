@@ -113,6 +113,9 @@ export default function Resignation() {
       formNumber={formNumber}
       title={translate('page.resignation.title', lang)}
       profile={profile}
+      // Multi-Signature & Stamp Management v1: the footer approval block draws the
+      // signature/stamp chosen in the toolbar. No per-form logic — see FormLayout.
+      approvalBranding
       toolbarExtra={
         <>
           <LanguageToggle lang={lang} onChange={setLang} />

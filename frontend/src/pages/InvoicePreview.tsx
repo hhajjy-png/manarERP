@@ -23,6 +23,11 @@ import { buildInvoicePrintData } from '../print-templates/builders/invoicePrintD
 import PrintTemplateSelector from '../print-templates/components/PrintTemplateSelector';
 import { validateInvoicePrintData } from '../print-templates/integration/invoicePreviewIntegration';
 import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
+import {
+  useBrandingSelection,
+  brandingSelectionFields,
+} from '../print-templates/hooks/useBrandingSelection';
+import BrandingAssetPicker from '../print-templates/components/BrandingAssetPicker';
 import { getBrandingLayoutForDocument, applyBrandingElementStyle } from '../print-templates/utils/brandingLayout';
 import { buildInvoicePdfName } from '../utils/pdfFilename';
 import { canEditInvoice } from '../utils/invoiceGovernance';
@@ -264,27 +269,15 @@ export default function InvoicePreview() {
     }
   }
 
-  const [printShowSignature, setPrintShowSignature] = useState(true);
-  const [printShowStamp, setPrintShowStamp] = useState(true);
-  const [printOptionsInitialized, setPrintOptionsInitialized] = useState(false);
-
-  useEffect(() => {
-    if (!branding.loading && !printOptionsInitialized) {
-      setPrintShowSignature(branding.showSignature);
-      setPrintShowStamp(branding.showStamp);
-      setPrintOptionsInitialized(true);
-    }
-  }, [branding.loading, branding.showSignature, branding.showStamp, printOptionsInitialized]);
+  /** أي توقيع وأي ختم تستخدمهما هذه الفاتورة — مصدر واحد للمعاينة والطباعة وPDF. */
+  const brandingSelection = useBrandingSelection(branding);
 
   const printData = useMemo<InvoicePrintData | null>(() => {
     if (!data) return null;
     try {
       return buildInvoicePrintData(data as unknown as ApiInvoice, {
         branding: {
-          signatureUrl: branding.signatureUrl,
-          stampUrl: branding.stampUrl,
-          showSignature: printShowSignature,
-          showStamp: printShowStamp,
+          ...brandingSelectionFields(brandingSelection),
           brandingLayout: effectiveBrandingLayout,
           inkMode: designer.inkMode,
           textStyleOverrides: textDesigner.settings,
@@ -295,7 +288,7 @@ export default function InvoicePreview() {
       return null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, branding.signatureUrl, branding.stampUrl, printShowSignature, printShowStamp, effectiveBrandingLayout, designer.inkMode, textDesigner.settings, staticTextDesigner.overrides]);
+  }, [data, brandingSelection.signatureUrl, brandingSelection.stampUrl, brandingSelection.showSignature, brandingSelection.showStamp, effectiveBrandingLayout, designer.inkMode, textDesigner.settings, staticTextDesigner.overrides]);
 
   const { resolvedTemplate, profile, setProfile } = usePrintTemplate<InvoicePrintData>(
     'invoice',
@@ -575,32 +568,9 @@ export default function InvoicePreview() {
         {/* ── الصف الثاني: خيارات محتوى المستند — التوقيع والختم فقط.
             «قالب الطباعة» انتقل إلى الصف الأساسي؛ هذا الصف لا يُعرض أصلًا إن لم تكن
             خيارات المحتوى جاهزة، فلا يبقى فراغ بصري مكان الزر المنقول. ── */}
-        {printOptionsInitialized && (
+        {brandingSelection.ready && (
           <div className="no-print invx-doc-settings">
-            <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '4px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.signatureUrl ? 'pointer' : 'not-allowed' }}>
-                <input
-                  type="checkbox"
-                  checked={printShowSignature}
-                  disabled={!branding.signatureUrl}
-                  onChange={(e) => setPrintShowSignature(e.target.checked)}
-                />
-                <span style={{ color: branding.signatureUrl ? undefined : '#94a3b8' }}>
-                  {t('lbl.signature_chrome')}{!branding.signatureUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>{t('lbl.not_uploaded')}</span>}
-                </span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.stampUrl ? 'pointer' : 'not-allowed' }}>
-                <input
-                  type="checkbox"
-                  checked={printShowStamp}
-                  disabled={!branding.stampUrl}
-                  onChange={(e) => setPrintShowStamp(e.target.checked)}
-                />
-                <span style={{ color: branding.stampUrl ? undefined : '#94a3b8' }}>
-                  {t('lbl.stamp_chrome')}{!branding.stampUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>{t('lbl.not_uploaded')}</span>}
-                </span>
-              </label>
-            </span>
+            <BrandingAssetPicker selection={brandingSelection} />
           </div>
         )}
 
@@ -627,8 +597,8 @@ export default function InvoicePreview() {
           designer={designer}
           textStyleDesigner={textDesigner}
           staticTextDesigner={staticTextDesigner}
-          signatureUrl={branding.signatureUrl}
-          stampUrl={branding.stampUrl}
+          signatureUrl={brandingSelection.signatureUrl}
+          stampUrl={brandingSelection.stampUrl}
           docLabel={t('lbl.doc.invoice')}
           onSave={async () => {
             await Promise.all([layoutDesigner.save(), designer.save(), textDesigner.save(), staticTextDesigner.save()]);
@@ -913,11 +883,11 @@ export default function InvoicePreview() {
             <div key="mgr-sig" style={{ flex: 1, textAlign: 'center', minWidth: 130 }}>
               <div style={{ fontWeight: 700, fontSize: 12, color: '#1d4e6f', marginBottom: 3 }}>المسؤول</div>
               <div style={{ fontSize: 10, color: '#64748b', marginBottom: 3 }}>شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م</div>
-              {printShowSignature && branding.signatureUrl ? (() => {
+              {brandingSelection.showSignature && brandingSelection.signatureUrl ? (() => {
                 const invLayout = getBrandingLayoutForDocument(effectiveBrandingLayout, 'invoice');
                 return (
                   <img
-                    src={branding.signatureUrl}
+                    src={brandingSelection.signatureUrl}
                     alt="توقيع المدير"
                     data-bd-type="signature"
                     data-designer-type="branding"
@@ -928,11 +898,11 @@ export default function InvoicePreview() {
               })() : (
                 <div style={{ height: 40 }} />
               )}
-              {printShowStamp && branding.stampUrl && (() => {
+              {brandingSelection.showStamp && brandingSelection.stampUrl && (() => {
                 const invLayout = getBrandingLayoutForDocument(effectiveBrandingLayout, 'invoice');
                 return (
                   <img
-                    src={branding.stampUrl}
+                    src={brandingSelection.stampUrl}
                     alt="ختم الشركة"
                     data-bd-type="stamp"
                     data-designer-type="branding"

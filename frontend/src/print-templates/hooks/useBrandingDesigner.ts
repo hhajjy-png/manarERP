@@ -1,14 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
 import { api } from '../../api/client';
 import type {
-  PrintDocumentType,
+  BrandingDocKey,
+  BrandingLayout,
   PrintBrandingLayoutSettings,
   BrandingElementLayout,
 } from '../engine/types';
 import {
   DEFAULT_BRANDING_LAYOUT,
+  DEFAULT_ELEMENT_LAYOUT,
+  BRANDING_LAYOUT_BOUNDS,
   clampBrandingElementLayout,
+  getBrandingLayoutForDocument,
   serializeBrandingLayout,
+  type BrandingLayoutBounds,
 } from '../utils/brandingLayout';
 import {
   snapToGrid,
@@ -27,13 +32,24 @@ import {
 export type ElementType = 'signature' | 'stamp';
 
 export interface BrandingDesignerConfig {
-  docType: PrintDocumentType;
+  /**
+   * The document whose layout is being edited. `undefined` makes the designer INERT —
+   * it cannot activate, edit or save. That exists so a shared host (e.g. `FormLayout`)
+   * can call this hook unconditionally, as the rules of hooks require, without needing a
+   * placeholder document name: a surface with no registered layout key simply gets a
+   * designer that does nothing, instead of one aimed at somebody else's entry.
+   */
+  docType: BrandingDocKey | undefined;
   initialLayout: PrintBrandingLayoutSettings | undefined;
   onSaved?: (layout: PrintBrandingLayoutSettings) => void;
 }
 
 export interface BrandingDesignerHandle {
-  docType: PrintDocumentType;
+  docType: BrandingDocKey | undefined;
+  /** The central travel/scale envelope every control derives its range from. */
+  bounds: Readonly<BrandingLayoutBounds>;
+  /** This document's layout, resolved (identity when it has never been designed). */
+  docLayout: BrandingLayout;
 
   // Activation
   isActive: boolean;
@@ -52,9 +68,21 @@ export interface BrandingDesignerHandle {
 
   // Drag (live; history pushed on end)
   isDragging: boolean;
-  startDrag: (type: ElementType, pointerX: number, pointerY: number) => void;
+  /**
+   * `renderScale` is the factor an ancestor transform currently renders the document at
+   * — pointer deltas are divided by it so the element tracks the cursor exactly. The
+   * print-template screens omit it and keep using the designer's own zoom, unchanged;
+   * the form screens measure it from the DOM because `PrintWorkspace` owns their zoom.
+   */
+  startDrag: (type: ElementType, pointerX: number, pointerY: number, renderScale?: number) => void;
   continueDrag: (pointerX: number, pointerY: number) => void;
   endDrag: () => void;
+
+  // Resize — uniform `scale`, so the image's aspect ratio can never change
+  isResizing: boolean;
+  startResize: (type: ElementType, pointerX: number, pointerY: number, renderScale?: number) => void;
+  continueResize: (pointerX: number, pointerY: number) => void;
+  endResize: () => void;
 
   // Alignment
   alignCenterH: (type: ElementType) => void;
@@ -162,6 +190,7 @@ export function useBrandingDesigner({
   const [isActive, setIsActive] = useState(false);
 
   function activate() {
+    if (!docType) return; // inert designer — nothing to edit
     const start = initialLayout ?? DEFAULT_BRANDING_LAYOUT;
     layoutRef.current = start;
     setLayoutState(start);
@@ -218,12 +247,20 @@ export function useBrandingDesigner({
     size: 5,
   });
 
+  /** The one central envelope — the same for every document. Exposed so the panel's
+   *  sliders and the resize handles read their range from it rather than repeating it. */
+  const bounds = BRANDING_LAYOUT_BOUNDS;
+
   function patchDoc(type: ElementType, patch: Partial<BrandingElementLayout>): PrintBrandingLayoutSettings {
+    if (!docType) return layoutRef.current;
+    // A form key may be absent from the record (never designed) — resolve through the
+    // shared lookup so the first edit starts from the identity layout, not `undefined`.
+    const current = getBrandingLayoutForDocument(layoutRef.current, docType);
     return {
       ...layoutRef.current,
       [docType]: {
-        ...layoutRef.current[docType],
-        [type]: clampBrandingElementLayout({ ...layoutRef.current[docType][type], ...patch }),
+        ...current,
+        [type]: clampBrandingElementLayout({ ...current[type], ...patch }),
       },
     };
   }
@@ -234,11 +271,13 @@ export function useBrandingDesigner({
     pushHistory(next);
   }
 
-  function startDrag(type: ElementType, pointerX: number, pointerY: number) {
-    const el = layoutRef.current[docType][type];
+  function startDrag(type: ElementType, pointerX: number, pointerY: number, renderScale?: number) {
+    const el = getBrandingLayoutForDocument(layoutRef.current, docType)[type];
     dragStartRef.current = { px: pointerX, py: pointerY, ex: el.x, ey: el.y, type };
-    // Snapshot effective zoom at drag start
-    if (zoom === 'fit-width' || zoom === 'fit') dragZoomRef.current = fitWidthZoom;
+    // Snapshot effective zoom at drag start — an explicit render scale wins, because the
+    // caller measured what the document is ACTUALLY rendered at.
+    if (renderScale && renderScale > 0) dragZoomRef.current = renderScale;
+    else if (zoom === 'fit-width' || zoom === 'fit') dragZoomRef.current = fitWidthZoom;
     else if (zoom === 'fit-page') dragZoomRef.current = fitPageZoom;
     else dragZoomRef.current = (zoom as number) / 100;
     dragSnapRef.current = { enabled: snapEnabled, size: gridSize };
@@ -266,20 +305,77 @@ export function useBrandingDesigner({
     setIsDragging(false);
   }
 
+  // ── Resize ──
+  /**
+   * A single uniform `scale` — never a width/height pair — so the image's aspect ratio
+   * is structurally incapable of changing. The corner handle's diagonal travel maps to a
+   * multiplier on the scale the element had when the gesture began.
+   */
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartRef = useRef<{
+    px: number;
+    py: number;
+    scale: number;
+    type: ElementType;
+    renderScale: number;
+  } | null>(null);
+
+  /** px of diagonal pointer travel that doubles the element's size. */
+  const RESIZE_PX_PER_DOUBLING = 120;
+
+  function startResize(type: ElementType, pointerX: number, pointerY: number, renderScale?: number) {
+    const el = getBrandingLayoutForDocument(layoutRef.current, docType)[type];
+    resizeStartRef.current = {
+      px: pointerX,
+      py: pointerY,
+      scale: el.scale,
+      type,
+      renderScale: renderScale && renderScale > 0 ? renderScale : effectiveZoom || 1,
+    };
+    setIsResizing(true);
+    setSelected(type);
+  }
+
+  function continueResize(pointerX: number, pointerY: number) {
+    const rs = resizeStartRef.current;
+    if (!rs) return;
+    // Outward along the handle's diagonal grows, inward shrinks. Averaging the two axes
+    // keeps the gesture predictable whichever way the pointer drifts.
+    const travel = ((pointerX - rs.px) + (pointerY - rs.py)) / 2 / rs.renderScale;
+    const next = patchDoc(rs.type, {
+      scale: rs.scale * (1 + travel / RESIZE_PX_PER_DOUBLING),
+    });
+    layoutRef.current = next;
+    setLayoutState(next);
+  }
+
+  function endResize() {
+    if (resizeStartRef.current) {
+      pushHistory(layoutRef.current);
+    }
+    resizeStartRef.current = null;
+    setIsResizing(false);
+  }
+
   // ── Alignment ──
   function alignCenterH(type: ElementType) { updateElement(type, { x: 0 }); }
   function alignCenterV(type: ElementType) { updateElement(type, { y: 0 }); }
   function bringForward(type: ElementType) { updateElement(type, { zIndex: 2 }); }
   function sendBackward(type: ElementType) { updateElement(type, { zIndex: 1 }); }
 
+  /** Back to the template's own placement — identity offset, scale 1, full opacity. */
   function resetElement(type: ElementType) {
-    updateElement(type, { ...DEFAULT_BRANDING_LAYOUT[docType][type] });
+    updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT });
   }
 
   function resetDoc() {
+    if (!docType) return;
     const next: PrintBrandingLayoutSettings = {
       ...layoutRef.current,
-      [docType]: { ...DEFAULT_BRANDING_LAYOUT[docType] },
+      [docType]: {
+        signature: { ...DEFAULT_ELEMENT_LAYOUT },
+        stamp: { ...DEFAULT_ELEMENT_LAYOUT },
+      },
     };
     setLayout(next);
     pushHistory(next);
@@ -290,6 +386,7 @@ export function useBrandingDesigner({
   const [saveError, setSaveError] = useState<string | undefined>(undefined);
 
   async function save() {
+    if (!docType) return; // inert designer — never writes settings
     setSaving(true);
     setSaveError(undefined);
     try {
@@ -311,6 +408,8 @@ export function useBrandingDesigner({
 
   return {
     docType,
+    bounds,
+    docLayout: getBrandingLayoutForDocument(layout, docType),
     isActive,
     activate,
     deactivate,
@@ -322,6 +421,10 @@ export function useBrandingDesigner({
     startDrag,
     continueDrag,
     endDrag,
+    isResizing,
+    startResize,
+    continueResize,
+    endResize,
     alignCenterH,
     alignCenterV,
     bringForward,

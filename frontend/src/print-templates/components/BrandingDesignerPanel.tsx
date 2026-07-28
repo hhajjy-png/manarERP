@@ -267,14 +267,18 @@ export default function BrandingDesignerPanel({
   const [collapsed, setCollapsed] = useState(false);
 
   const {
-    localLayout, selected, setSelected, docType, updateElement,
+    selected, setSelected, docType, updateElement,
     alignCenterH, alignCenterV, bringForward, sendBackward,
     resetElement, resetDoc, snapEnabled, setSnapEnabled,
     gridSize, setGridSize, inkMode, setInkMode,
+    bounds, docLayout,
     saving, saveError, save,
   } = designer;
 
-  const el = localLayout[docType][selected];
+  // `docLayout` resolves an administrative form's entry even when it has never been
+  // designed (the record holds no key for it yet) — the print templates' documents
+  // resolve identically, so this replaces the old `localLayout[docType]` for both.
+  const el = docLayout[selected];
   const accentColor = selected === 'signature' ? '#3b82f6' : '#10b981';
 
   const selectedTextArea = textStyleDesigner?.selectedArea ?? null;
@@ -416,10 +420,12 @@ export default function BrandingDesignerPanel({
             ))}
           </div>
 
+          {/* الحدود تأتي من المستند نفسه — النماذج أضيق من قوالب الطباعة، فلا يستطيع
+              المنزلق دفع العنصر خارج منطقة الطباعة. */}
           <SectionHeader label="الموضع والحجم" />
-          <NumSlider lbl="أفقي X" min={-80} max={80} step={1} value={el.x} onChange={(v) => updateElement(selected, { x: v })} />
-          <NumSlider lbl="رأسي Y" min={-60} max={60} step={1} value={el.y} onChange={(v) => updateElement(selected, { y: v })} />
-          <NumSlider lbl="حجم" min={0.4} max={2.5} step={0.05} value={el.scale} onChange={(v) => updateElement(selected, { scale: v })} />
+          <NumSlider lbl="أفقي X" min={bounds.minX} max={bounds.maxX} step={1} value={el.x} onChange={(v) => updateElement(selected, { x: v })} />
+          <NumSlider lbl="رأسي Y" min={bounds.minY} max={bounds.maxY} step={1} value={el.y} onChange={(v) => updateElement(selected, { y: v })} />
+          <NumSlider lbl="حجم" min={bounds.minScale} max={bounds.maxScale} step={0.05} value={el.scale} onChange={(v) => updateElement(selected, { scale: v })} />
           <NumSlider lbl="شفافية" min={0.2} max={1} step={0.05} value={el.opacity} onChange={(v) => updateElement(selected, { opacity: v })} />
 
           {/* Rotation — placeholder for Phase 5D+ */}

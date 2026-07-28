@@ -31,6 +31,11 @@ import {
   validateQuotationPrintData,
 } from '../print-templates/integration/quotationPreviewIntegration';
 import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
+import {
+  useBrandingSelection,
+  brandingSelectionFields,
+} from '../print-templates/hooks/useBrandingSelection';
+import BrandingAssetPicker from '../print-templates/components/BrandingAssetPicker';
 import { createCompanyPrintData } from '../print-templates/adapters/companyData';
 import { buildQuotationPdfName } from '../utils/pdfFilename';
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
@@ -190,17 +195,8 @@ export default function Quotation() {
     }
   }
 
-  const [printShowSignature, setPrintShowSignature] = useState(true);
-  const [printShowStamp, setPrintShowStamp] = useState(true);
-  const [printOptionsInitialized, setPrintOptionsInitialized] = useState(false);
-
-  useEffect(() => {
-    if (!branding.loading && !printOptionsInitialized) {
-      setPrintShowSignature(branding.showSignature);
-      setPrintShowStamp(branding.showStamp);
-      setPrintOptionsInitialized(true);
-    }
-  }, [branding.loading, branding.showSignature, branding.showStamp, printOptionsInitialized]);
+  /** أي توقيع وأي ختم يستخدمهما هذا المستند — مصدر واحد للمعاينة والطباعة وPDF. */
+  const brandingSelection = useBrandingSelection(branding);
 
   // ── Print engine — called unconditionally (React hooks rules) ──────────────
   const printData = useMemo(() => {
@@ -219,10 +215,7 @@ export default function Quotation() {
     return {
       ...printData,
       company: createCompanyPrintData({
-        signatureUrl: branding.signatureUrl,
-        stampUrl: branding.stampUrl,
-        showSignature: printShowSignature,
-        showStamp: printShowStamp,
+        ...brandingSelectionFields(brandingSelection),
         brandingLayout: effectiveLayout,
         inkMode: designer.inkMode,
         textStyleOverrides: textDesigner.settings,
@@ -231,10 +224,10 @@ export default function Quotation() {
     };
   }, [
     printData,
-    branding.signatureUrl,
-    branding.stampUrl,
-    printShowSignature,
-    printShowStamp,
+    brandingSelection.signatureUrl,
+    brandingSelection.stampUrl,
+    brandingSelection.showSignature,
+    brandingSelection.showStamp,
     designer.isActive,
     designer.localLayout,
     designer.inkMode,
@@ -397,7 +390,7 @@ export default function Quotation() {
           {pdfError && (
             <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>⚠️ {pdfError}</span>
           )}
-          {(branding.signatureUrl || branding.stampUrl) && (
+          {(brandingSelection.signatureUrl || brandingSelection.stampUrl) && (
             <button
               type="button"
               className="btn secondary"
@@ -426,35 +419,10 @@ export default function Quotation() {
           >
             📋 {t('btn.classic_view')}
           </button>
-          {printOptionsInitialized && (
-            /* الخلفية كانت مثبَّتة على `#f8fafc` بينما لون النص موروث من الثيم — ففي الوضع
-               الداكن يصير النص فاتحًا فوق خلفية فاتحة (أبيض على أبيض). التوكنات تتحرّك مع
-               الثيم معًا، فيبقى التباين صحيحًا في الوضعين. */
-            <span style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '4px 10px', background: 'var(--surface-2)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.signatureUrl ? 'pointer' : 'not-allowed' }}>
-                <input
-                  type="checkbox"
-                  checked={printShowSignature}
-                  disabled={!branding.signatureUrl}
-                  onChange={(e) => setPrintShowSignature(e.target.checked)}
-                />
-                <span style={{ color: branding.signatureUrl ? 'var(--text)' : 'var(--text-muted)' }}>
-                  {t('lbl.signature_chrome')}{!branding.signatureUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>{t('lbl.not_uploaded')}</span>}
-                </span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: branding.stampUrl ? 'pointer' : 'not-allowed' }}>
-                <input
-                  type="checkbox"
-                  checked={printShowStamp}
-                  disabled={!branding.stampUrl}
-                  onChange={(e) => setPrintShowStamp(e.target.checked)}
-                />
-                <span style={{ color: branding.stampUrl ? 'var(--text)' : 'var(--text-muted)' }}>
-                  {t('lbl.stamp_chrome')}{!branding.stampUrl && <span style={{ fontSize: 10, marginInlineStart: 4 }}>{t('lbl.not_uploaded')}</span>}
-                </span>
-              </label>
-            </span>
-          )}
+          {/* اختيار التوقيع والختم — عنصر مركزي مشترك. الخلفية ولون النص توكنات ثيم
+              (كانت الخلفية مثبَّتة `#f8fafc` مع لون نص موروث ⇒ أبيض على أبيض في الوضع
+              الداكن)، والتوكنات تتحرّك مع الثيم معًا فيبقى التباين صحيحًا في الوضعين. */}
+          {brandingSelection.ready && <BrandingAssetPicker selection={brandingSelection} />}
           <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 'auto' }}>
             {printFields.quotationNumber}
           </span>
@@ -495,8 +463,8 @@ export default function Quotation() {
             designer={designer}
             textStyleDesigner={textDesigner}
             staticTextDesigner={staticTextDesigner}
-            signatureUrl={branding.signatureUrl}
-            stampUrl={branding.stampUrl}
+            signatureUrl={brandingSelection.signatureUrl}
+            stampUrl={brandingSelection.stampUrl}
             docLabel={t('lbl.doc.quotation')}
             onSave={async () => {
               await Promise.all([layoutDesigner.save(), designer.save(), textDesigner.save(), staticTextDesigner.save()]);

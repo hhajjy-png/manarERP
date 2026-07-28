@@ -20,6 +20,13 @@ import ApprovalSection from '../forms/shared/ApprovalSection';
 import FormQRCode from '../forms/shared/FormQRCode';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import ReceiptVoucherTemplate, { PaymentMethod } from '../forms/ReceiptVoucherTemplate';
+import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
+import { useBrandingSelection } from '../print-templates/hooks/useBrandingSelection';
+import BrandingAssetPicker from '../print-templates/components/BrandingAssetPicker';
+import { useBrandingDesigner } from '../print-templates/hooks/useBrandingDesigner';
+import BrandingDesignerPanel from '../print-templates/components/BrandingDesignerPanel';
+import { getBrandingLayoutForDocument } from '../print-templates/utils/brandingLayout';
+import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import officialLogoHead from '../assets/logohead.png';
 
 interface FormState {
@@ -100,6 +107,28 @@ export default function ReceiptVoucher() {
    *
    * العلم مطفأ ⇒ لا زر ولا حوار.
    */
+  /**
+   * التوقيع والختم — النظام المركزي نفسه. هذه الشاشة تبني جذرها المطبوع بنفسها (بلا
+   * `FormLayout`)، فتستدعي الخطّافين المشتركين مباشرةً؛ لا منطق ولا صور خاصة بها.
+   */
+  const branding = useCompanyBranding();
+  const brandingSelection = useBrandingSelection(branding);
+
+  /** وضع التصميم — نفس خطّاف عرض السعر، بمفتاح مستند هذه الشاشة. */
+  const [savedLayout, setSavedLayout] = useState<PrintBrandingLayoutSettings | undefined>(undefined);
+  const designer = useBrandingDesigner({
+    docType: 'receipt-voucher',
+    initialLayout: savedLayout ?? branding.brandingLayout,
+    onSaved: setSavedLayout,
+  });
+  const approvalLayout = getBrandingLayoutForDocument(
+    designer.isActive ? designer.localLayout : (savedLayout ?? branding.brandingLayout),
+    'receipt-voucher',
+  );
+  const canDesign =
+    (brandingSelection.showSignature && !!brandingSelection.signatureUrl) ||
+    (brandingSelection.showStamp && !!brandingSelection.stampUrl);
+
   const accurate = useAccurateFormPreview({
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     compose: composePreview,
@@ -243,6 +272,19 @@ export default function ReceiptVoucher() {
               {printing ? (lang === 'en' ? 'Generating…' : 'جارٍ الإصدار…') : (lang === 'en' ? '🖨️ Print' : '🖨️ طباعة')}
             </button>
             {accurate.button}
+            {brandingSelection.ready && <BrandingAssetPicker selection={brandingSelection} />}
+            {brandingSelection.ready && canDesign && (
+              <button
+                type="button"
+                className="btn secondary"
+                style={{ fontWeight: 600 }}
+                onClick={() => (designer.isActive ? designer.deactivate() : designer.activate())}
+              >
+                {designer.isActive
+                  ? (lang === 'en' ? '✓ Finish design' : '✓ إنهاء التصميم')
+                  : (lang === 'en' ? '🔧 Design mode' : '🔧 وضع التصميم')}
+              </button>
+            )}
           </div>
         </div>
 
@@ -424,7 +466,15 @@ export default function ReceiptVoucher() {
                 (via FormLayout's approvalHideDate/approvalStampInline) — drops
                 the static "____ / ____ / ______" placeholder row and raises the
                 stamp onto the signature row instead of below it. */}
-            <ApprovalSection lang={lang} hideDate stampInline />
+            <ApprovalSection
+              lang={lang}
+              hideDate
+              stampInline
+              signatureUrl={brandingSelection.showSignature ? brandingSelection.signatureUrl : undefined}
+              stampUrl={brandingSelection.showStamp ? brandingSelection.stampUrl : undefined}
+              layout={approvalLayout}
+              designer={designer}
+            />
           </div>
           <div style={{ flexShrink: 0 }}>
             <FormQRCode
@@ -438,6 +488,15 @@ export default function ReceiptVoucher() {
           </div>
         </div>
       </div>
+
+      {/* لوحة الخصائص المشتركة — ثابتة و`no-print`، خارج الجذر المطبوع. */}
+      {designer.isActive && (
+        <BrandingDesignerPanel
+          designer={designer}
+          docLabel={t('voucher.receipt.title')}
+          onClose={designer.deactivate}
+        />
+      )}
     </>
   );
 }
