@@ -9,7 +9,7 @@ import type {
 import {
   DEFAULT_BRANDING_LAYOUT,
   DEFAULT_ELEMENT_LAYOUT,
-  BRANDING_LAYOUT_BOUNDS,
+  getBrandingLayoutBounds,
   clampBrandingElementLayout,
   getBrandingLayoutForDocument,
   serializeBrandingLayout,
@@ -247,9 +247,13 @@ export function useBrandingDesigner({
     size: 5,
   });
 
-  /** The one central envelope — the same for every document. Exposed so the panel's
-   *  sliders and the resize handles read their range from it rather than repeating it. */
-  const bounds = BRANDING_LAYOUT_BOUNDS;
+  /**
+   * This document's envelope — the central one for every document but the documented
+   * exception (see `getBrandingLayoutBounds`). Exposed so the panel's sliders, the resize
+   * handles and the render-time transform all read the SAME range instead of repeating it,
+   * which is what keeps a saved position from being clamped differently than it was edited.
+   */
+  const bounds = getBrandingLayoutBounds(docType);
 
   function patchDoc(type: ElementType, patch: Partial<BrandingElementLayout>): PrintBrandingLayoutSettings {
     if (!docType) return layoutRef.current;
@@ -260,7 +264,9 @@ export function useBrandingDesigner({
       ...layoutRef.current,
       [docType]: {
         ...current,
-        [type]: clampBrandingElementLayout({ ...current[type], ...patch }),
+        // Clamped with THIS document's envelope, so drag, the resize handle, the panel
+        // sliders, undo/redo and save all share one range — there is no second limit.
+        [type]: clampBrandingElementLayout({ ...current[type], ...patch }, bounds),
       },
     };
   }
