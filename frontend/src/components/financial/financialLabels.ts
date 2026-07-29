@@ -59,14 +59,27 @@ const REFERENCE_TYPE_KEY: Record<string, string> = {
  * Localized label for a reference type. Unknown codes fall back to the raw value
  * (never throws / never blanks), and `*_REVERSAL` codes render with a "(Reversal)"
  * suffix.
+ *
+ * `scope` — نوع الكشف المعروض، **للعرض فقط**. `INVOICE` نوع مرجع **مشترك**:
+ * `buildStatement` يُصدره لفاتورة العميل وفاتورة المورّد بنفس القيمة التقنية، فبعد
+ * اعتماد «فاتورة نقليات» لفاتورة العميل صار كشف المورّد يعرض تسمية فاتورة العميل.
+ * تمرير `'supplier'` يُرجع تسمية المشتريات **القائمة أصلًا** (`fc.ref.purchase_invoice`)
+ * بلا مفتاح i18n جديد ولا نوع حركة تقني جديد. لا يمسّ قيمة `referenceType` نفسها
+ * (المستخدمة أيضًا كمُعامل فلترة في الـAPI). بلا `scope` يبقى السلوك كما هو تمامًا —
+ * دفتر اليومية والأستاذ العام حيث `INVOICE` هو فعلًا فاتورة العميل.
  */
-export function referenceTypeLabel(type: string | null | undefined, t: Translator): string {
+export function referenceTypeLabel(
+  type: string | null | undefined,
+  t: Translator,
+  scope?: 'customer' | 'supplier',
+): string {
   if (!type) return '';
+  if (type === 'INVOICE' && scope === 'supplier') return t('fc.ref.purchase_invoice');
   const key = REFERENCE_TYPE_KEY[type];
   if (key) return t(key);
   if (type.endsWith('_REVERSAL')) {
     const base = type.slice(0, -'_REVERSAL'.length);
-    return `${referenceTypeLabel(base, t)} ${t('fc.ref.reversal_suffix')}`;
+    return `${referenceTypeLabel(base, t, scope)} ${t('fc.ref.reversal_suffix')}`;
   }
   return type;
 }

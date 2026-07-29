@@ -8,6 +8,8 @@ interface Props {
   rows: StatementRow[];
   currentState: FinancialDrillDownState;
   highlightId?: string | null;
+  /** نوع الكشف المعروض — يُمرَّر إلى `referenceTypeLabel` لتسمية `INVOICE` المشتركة وحدها. عرض فقط. */
+  entityScope?: 'customer' | 'supplier';
 }
 
 // الرمز يقع **مرّة واحدة في عنوان العمود** (`fcMoneyHeader`)، فالخليّة رقم مجرّد.
@@ -17,7 +19,7 @@ function fmt(n: number) {
   return fcMoneyCell(n);
 }
 
-export function StatementTable({ rows, currentState, highlightId }: Props) {
+export function StatementTable({ rows, currentState, highlightId, entityScope }: Props) {
   const { t } = useT();
   return (
     <div className="table-responsive">
@@ -46,7 +48,7 @@ export function StatementTable({ rows, currentState, highlightId }: Props) {
                   {row.reference}
                 </DrillDownLink>
               </td>
-              <td>{referenceTypeLabel(row.referenceType, t)}</td>
+              <td>{referenceTypeLabel(row.referenceType, t, entityScope)}</td>
               <td>{row.description}</td>
               <td className="num">{fmt(row.debit)}</td>
               <td className="num">{fmt(row.credit)}</td>

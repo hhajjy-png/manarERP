@@ -15,6 +15,14 @@
 .salx-amount { font-weight: 800; white-space: nowrap; }
 .salx-net { color: var(--xpl-green); font-weight: 800; }
 
+/* اسم الموظف: نفس ألوان STATUS_TONE (statusChip) — مصدر واحد، عبر متغيرات --xpl-* المشتركة. */
+.salx-name--neutral { color: var(--xpl-muted); }
+.salx-name--green   { color: var(--xpl-green); }
+.salx-name--red     { color: var(--xpl-red); }
+.salx-name--orange  { color: var(--xpl-orange); }
+.salx-name--blue    { color: var(--xpl-blue); }
+.salx-name--indigo  { color: var(--xpl-primary); }
+
 /* small inline line list inside the drawer */
 .salx-lines { display: flex; flex-direction: column; gap: 6px; }
 .salx-line {

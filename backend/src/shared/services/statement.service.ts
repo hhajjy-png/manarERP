@@ -60,7 +60,7 @@ async function buildCustomerStatement(
     reference: inv.invoiceNumber,
     referenceType: 'INVOICE' as const,
     referenceId: inv.id,
-    description: `فاتورة مبيعات${inv.notes ? ` — ${inv.notes}` : ''}`,
+    description: `فاتورة نقليات${inv.notes ? ` — ${inv.notes}` : ''}`,
     debit: Number(inv.total),
     credit: 0,
     status: inv.status,

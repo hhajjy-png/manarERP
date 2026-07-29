@@ -540,8 +540,8 @@ export default function FinancialCenter() {
 
           {result && displayRows.length > 0 && (
             viewMode === 'grouped'
-              ? <GroupedTable rows={displayRows} currentState={statementDrillDown} />
-              : <StatementTable rows={displayRows} currentState={statementDrillDown} />
+              ? <GroupedTable rows={displayRows} currentState={statementDrillDown} entityScope={entityType} />
+              : <StatementTable rows={displayRows} currentState={statementDrillDown} entityScope={entityType} />
           )}
           {result && displayRows.length === 0 && !loading && (
             <div className="fc-empty">

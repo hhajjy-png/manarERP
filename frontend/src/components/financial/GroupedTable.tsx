@@ -10,6 +10,8 @@ interface Props {
   rows: StatementRow[];
   currentState: FinancialDrillDownState;
   highlightId?: string | null;
+  /** نوع الكشف المعروض — يُمرَّر إلى `referenceTypeLabel` لتسمية `INVOICE` المشتركة وحدها. عرض فقط. */
+  entityScope?: 'customer' | 'supplier';
 }
 
 interface MonthGroup { month: string; label: string; rows: StatementRow[] }
@@ -47,7 +49,7 @@ function fmt(n: number) {
   return fcMoneyCell(n);
 }
 
-export function GroupedTable({ rows, currentState, highlightId }: Props) {
+export function GroupedTable({ rows, currentState, highlightId, entityScope }: Props) {
   const { t } = useT();
   const groups = groupRows(rows);
   const [collapsedYears,  setCollapsedYears]  = useState<Set<string>>(new Set());
@@ -120,7 +122,7 @@ export function GroupedTable({ rows, currentState, highlightId }: Props) {
                               {row.reference}
                             </DrillDownLink>
                           </td>
-                          <td>{referenceTypeLabel(row.referenceType, t)}</td>
+                          <td>{referenceTypeLabel(row.referenceType, t, entityScope)}</td>
                           <td>{row.description}</td>
                           <td className="num">{fmt(row.debit)}</td>
                           <td className="num">{fmt(row.credit)}</td>
