@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `8de53ed3` — release `stable-customer-drawer-prices-board-equipment-data-pack-v1` (bundles three separately-approved changes: Customer Drawer English-name display fix; Prices page "لوحة الاتفاقيات" show/hide toggle; Equipment Data Pack v1 — chassisNumber/color fields, النوع→الشكل relabel, import/export support, and a page-1 + remaining-days-ascending default sort on every app restart) |
+| **Production HEAD** | `dacacd4a` — release `stable-cloud-sync-progress-dialog-rewire-v1` (rewires `syncEngine.service.ts`'s `setStatus()` to publish `emitSyncProgress()`, reconnecting the pre-existing Cloud Sync Progress Dialog to live startup/shutdown sync events) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-customer-drawer-prices-board-equipment-data-pack-v1` (release date 2026-07-29) → merge `8de53ed3` |
-| **Previous stable tag** | `stable-ready-paper-logo-tint-generalization-v1` (2026-07-29) → merge `8f8990de` |
-| **Total stable releases** | 376 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
-| **Latest validation** | backend + frontend `tsc --noEmit` ✅ · `build:back` + `build:front` ✅ (all four run twice — on the feature branch before commit and on `production` immediately after the merge — identical results) · `prisma migrate status` clean (49 migrations, schema up to date) after applying the new additive `20260729160000_equipment_chassis_color` migration · targeted tests only, re-run unchanged post-merge: backend `equipment` + `import` suites 54/54 ✅, frontend `explorerHubPrimitives`/`explorerHubs`/`equipmentTableDefaults`/`pricesAgreementsBoardToggle` 35/35 ✅ (89/89 total) · full suites not re-run this release, per explicit instruction to run only the necessary Release Gates for changes already individually validated earlier in the session · Product Owner manual visual review — **completed & approved** for all three changes · scope review confirmed only the 25 package files entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded |
-| **Remote sync** | `origin/production` — pushed with this release (merge `8de53ed3` + tag `stable-customer-drawer-prices-board-equipment-data-pack-v1`) |
+| **Latest stable tag** | `stable-cloud-sync-progress-dialog-rewire-v1` (release date 2026-07-29) → merge `dacacd4a` |
+| **Previous stable tag** | `stable-customer-drawer-prices-board-equipment-data-pack-v1` (2026-07-29) → merge `8de53ed3` |
+| **Total stable releases** | 377 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
+| **Latest validation** | electron `tsc --noEmit` ✅ (feature branch, re-verified on `production` immediately after merge — identical) · `npm run electron:build` ✅ (production, post-merge) · `syncProgressBus.test.ts` 4/4 ✅ (feature branch only; not re-run post-merge — no logic in that file changed) · backend/frontend/Prisma untouched, not re-run (electron-only additive rewire — no schema/API/UI change) · Product Owner manual visual review — **completed & approved** for both startup and shutdown sync · scope confirmed: only `electron/services/syncEngine.service.ts` entered the release, with the pre-existing uncommitted Google Drive Deployment Pack working-tree edits and all 5 unrelated git stashes surgically excluded and confirmed untouched after merge |
+| **Remote sync** | `origin/production` — pushed with this release (merge `dacacd4a` + tag `stable-cloud-sync-progress-dialog-rewire-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,43 @@ in a table cell.
 
 ---
 
-## Latest Release — Customer Drawer / Prices Board / Equipment Data Pack v1
+## Latest Release — Cloud Sync Progress Dialog Rewire v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Cloud Sync Progress Dialog Rewire v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-29 |
+| **Feature branch** | `fix/cloud-sync-progress-dialog-rewire` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `8fa1efb0` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — a scoped, audit-approved single-file rewire executed directly on a fresh branch from `production`, per explicit user instruction |
+| **Feature commit** | `a25bd7a3` |
+| **Production merge commit** | `dacacd4a` |
+| **Stable tag** | `stable-cloud-sync-progress-dialog-rewire-v1` → merge `dacacd4a` (annotated) |
+| **Reviews** | Root-cause audit (full git history/branch sweep across all local branches — confirmed the `emitSyncProgress()` call site was never part of any commit merged onto `production`; it existed only in the working tree and was captured, unmerged, into `feature/cloud-sync-progress-dialog-wip` on 2026-07-26 during a repo-cleanup pass) · Product Owner manual visual review — **completed & approved** for both startup and shutdown sync |
+| **Validation** | electron `tsc --noEmit` ✅ (feature branch + re-verified on `production` immediately after merge, identical) · `npm run electron:build` ✅ (production, post-merge) · `syncProgressBus.test.ts` 4/4 ✅ (feature branch only — not re-run post-merge per explicit scope instruction, since no logic in that file changed) · backend/frontend/Prisma not touched, not re-run (electron-only additive rewire, no schema/API/UI change) |
+
+**Scope — one 2-line diff in one file, `electron/services/syncEngine.service.ts`:**
+
+```diff
++import { emitSyncProgress } from './syncProgressBus';
+...
+ function setStatus(status: SyncStatus, message = ''): void {
+   currentStatus = status;
+   currentMessage = message;
++  emitSyncProgress(status, message);
+ }
+```
+
+Reconnects the pre-existing Cloud Sync Progress Dialog — window (`syncProgressWindow.ts`), preload bridge, and event bus (`syncProgressBus.ts`) were already fully merged onto `production` via the window-lifecycle-foundation refactor (`1eaf2ce0`) and wired into `main.ts`'s startup/shutdown flows — to the sync engine's real events. `setStatus()` now republishes the exact status/message it already tracked internally; no new decision, retry, upload, download, or conflict-resolution behavior was introduced.
+
+**Root cause, confirmed by audit:** the `emitSyncProgress()` call site never existed in any commit merged onto `production` or any merged branch. It lived only in an uncommitted working-tree edit, was captured "as-is" into the unmerged `feature/cloud-sync-progress-dialog-wip` branch (commit `56c9912f`, 2026-07-26, explicitly marked `[WIP] Not production-ready. Not merged, not released.`) during a repo-cleanup audit, and was thereby removed from the working tree without ever being merged — silently disconnecting the dialog from the engine while the dialog's own UI code and every other part of the sync system remained fully intact and functional throughout.
+
+**Not changed:** `performStartupSync`/`performShutdownSync` and all download/upload/conflict/retry logic; `syncProgressWindow.ts` (window, embedded HTML/CSS/JS, counters, dwell timing); `main.ts`; `syncProgressWindow.preload.ts`; any Backend/Prisma/API code; Google Drive OAuth/Deployment WIP (`.gitignore`, `electron-builder.yml`, `electron/services/googleDriveAuth.service.ts`, and untracked `electron/__tests__/`, `electron/resources/`, `electron/services/__tests__/googleDriveClientConfig.pure.test.ts`, `electron/services/googleDriveClientConfig.pure.ts`) — confirmed still uncommitted after merge, byte-identical to the pre-release working tree; all 5 pre-existing unrelated git stashes — confirmed untouched.
+
+---
+
+## Previous Release — Customer Drawer / Prices Board / Equipment Data Pack v1
 
 | Field | Value |
 |-------|-------|

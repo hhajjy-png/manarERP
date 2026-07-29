@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `8de53ed3` (merge of `feature/customer-drawer-prices-board-equipment-data-pack-v1`, carrying Customer Drawer EN-name fix + Prices Agreements Board toggle + Equipment Data Pack v1) |
-| **Current Documentation Commit** | `f16fc55` |
-| **Current Stable Tag** | `stable-customer-drawer-prices-board-equipment-data-pack-v1` |
+| **Current Merge Commit** | `dacacd4a` (merge of `fix/cloud-sync-progress-dialog-rewire`, rewiring `syncEngine.service.ts` to publish `emitSyncProgress()` so the pre-existing Cloud Sync Progress Dialog receives live startup/shutdown sync events again) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-cloud-sync-progress-dialog-rewire-v1` |
 | **Current Release Date** | 2026-07-29 |
-| **Total Stable Releases** | 376 (window 2026-06-07 → 2026-07-29) |
+| **Total Stable Releases** | 377 (window 2026-06-07 → 2026-07-29) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
