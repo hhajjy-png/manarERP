@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `dacacd4a` (merge of `fix/cloud-sync-progress-dialog-rewire`, rewiring `syncEngine.service.ts` to publish `emitSyncProgress()` so the pre-existing Cloud Sync Progress Dialog receives live startup/shutdown sync events again) |
-| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Documentation Commit** | `c73bd90` |
 | **Current Stable Tag** | `stable-cloud-sync-progress-dialog-rewire-v1` |
 | **Current Release Date** | 2026-07-29 |
 | **Total Stable Releases** | 377 (window 2026-06-07 → 2026-07-29) |
