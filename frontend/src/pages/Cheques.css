@@ -181,6 +181,14 @@
    never lost. */
 .chqx-cheque-id { font-size: 14px; letter-spacing: .2px; }
 
+/* رقم الشيك: نفس ألوان STATUS_META (chequeChip) — مصدر واحد، عبر متغيرات --xpl-* المشتركة. */
+.chqx-num--neutral { color: var(--xpl-muted); }
+.chqx-num--green   { color: var(--xpl-green); }
+.chqx-num--red     { color: var(--xpl-red); }
+.chqx-num--orange  { color: var(--xpl-orange); }
+.chqx-num--blue    { color: var(--xpl-blue); }
+.chqx-num--indigo  { color: var(--xpl-primary); }
+
 /* Beneficiary — full width for short/medium names (the common case: this column
    has no max-width by default, so nothing is cut). Only a name wider than 300px
    (e.g. a long company name) truncates with an ellipsis; title= carries the full

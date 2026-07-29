@@ -53,7 +53,7 @@ export const createInvoiceSchema = z.object({
         return !!d.customerId || !!d.supplierId;
       },
       {
-        message: 'فاتورة المبيعات تتطلب عميلًا، فاتورة المشتريات تتطلب مورّدًا، والاتجاه المخصص يتطلب أحدهما',
+        message: 'فاتورة النقليات تتطلب عميلًا، فاتورة المشتريات تتطلب مورّدًا، والاتجاه المخصص يتطلب أحدهما',
         path: ['customerId'],
       },
     )

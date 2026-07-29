@@ -12,8 +12,20 @@ import { StatementQuerySchema, parseDate } from './statements.schema';
  */
 const formatKwd = roundMoney;
 
-function refTypeAr(type: string): string {
-  if (type === 'INVOICE') return 'فاتورة';
+/**
+ * تسمية نوع الحركة في عمود «النوع». `INVOICE` نوع مرجع **مشترك**: buildStatement
+ * يُصدره لفاتورة العميل وفاتورة المورّد معًا، لذا يُمرَّر نوع الكيان صريحًا فتحمل كل
+ * جهة تسميتها الصحيحة — «فاتورة نقليات» للعميل و«فاتورة مشتريات» للمورّد — بنفس
+ * التسميات المعروضة على الشاشة. عرض فقط: لا يمسّ قيمة `referenceType` نفسها (التي
+ * تُستخدم أيضًا كمُعامل فلترة في الـAPI)، ولا يُنشئ نوع حركة تقنيًا جديدًا. بلا نوع
+ * كيان تبقى التسمية المحايدة «فاتورة» كما كانت.
+ */
+function refTypeAr(type: string, entityType?: 'CUSTOMER' | 'SUPPLIER'): string {
+  if (type === 'INVOICE') {
+    if (entityType === 'CUSTOMER') return 'فاتورة نقليات';
+    if (entityType === 'SUPPLIER') return 'فاتورة مشتريات';
+    return 'فاتورة';
+  }
   if (type === 'PAYMENT') return 'دفعة';
   if (type === 'EXPENSE') return 'مصروف';
   return type;
@@ -99,7 +111,7 @@ export const statementsController = {
       rows: result.entries.map((e) => ({
         date: e.date instanceof Date ? e.date.toISOString().slice(0, 10) : String(e.date),
         reference: e.reference,
-        referenceTypeAr: refTypeAr(e.referenceType),
+        referenceTypeAr: refTypeAr(e.referenceType, 'CUSTOMER'),
         description: e.description,
         debit: formatKwd(e.debit),
         credit: formatKwd(e.credit),
@@ -136,7 +148,7 @@ export const statementsController = {
       rows: result.entries.map((e) => ({
         date: e.date instanceof Date ? e.date.toISOString().slice(0, 10) : String(e.date),
         reference: e.reference,
-        referenceTypeAr: refTypeAr(e.referenceType),
+        referenceTypeAr: refTypeAr(e.referenceType, 'SUPPLIER'),
         description: e.description,
         debit: formatKwd(e.debit),
         credit: formatKwd(e.credit),

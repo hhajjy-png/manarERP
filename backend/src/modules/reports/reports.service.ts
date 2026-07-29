@@ -611,7 +611,7 @@ export class ReportsService {
     const entries: Entry[] = [
       ...invoices.map((i) => ({
         id: i.id, date: i.issueDate, sortOrder: 0, type: 'فاتورة',
-        reference: i.invoiceNumber, description: i.notes ?? 'فاتورة نقل',
+        reference: i.invoiceNumber, description: i.notes ?? 'فاتورة نقليات',
         debit: num(i.total), credit: 0,
       })),
       ...payments.map((p) => ({

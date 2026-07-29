@@ -60,6 +60,8 @@ import '../components/explorer/explorer-kit.css';
 import './Expenses.css';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
 
+const EXPENSES_BREAKDOWN_ID = 'expenses-breakdown-section';
+
 export default function Expenses() {
   const { hasPermission, isSystemAdmin: getIsSystemAdmin } = useAuth();
   const isSystemAdmin = getIsSystemAdmin();
@@ -99,6 +101,7 @@ export default function Expenses() {
   const [expenseConfirm, setExpenseConfirm] = useState<{ id: number; action: 'approve' | 'reject' | 'delete' } | null>(null);
   const [amendConfirmOpen, setAmendConfirmOpen] = useState(false);
   const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
+  const [breakdownVisible, setBreakdownVisible] = usePersistedState('exp:breakdownVisible', true);
 
   const isFiltered = !!(search || statusFilter || categoryFilter || supplierFilter || monthFilter || yearFilter);
 
@@ -359,7 +362,24 @@ export default function Expenses() {
 
       {/* ── Breakdown: categories + company groups + top suppliers ── */}
       {stats && (!categoryFilter && stats.byCategory || stats.byCompanyGroup || stats.bySupplier) && (
-        <SectionCard title={t('sec.expenses.breakdown')} icon="insights">
+        <SectionCard
+          title={t('sec.expenses.breakdown')}
+          icon="insights"
+          padded={breakdownVisible}
+          actions={
+            <Button
+              variant="ghost"
+              small
+              icon={breakdownVisible ? 'visibility_off' : 'visibility'}
+              onClick={() => setBreakdownVisible((v) => !v)}
+              aria-expanded={breakdownVisible}
+              aria-controls={EXPENSES_BREAKDOWN_ID}
+            >
+              {breakdownVisible ? t('action.hide') : t('action.show')}
+            </Button>
+          }
+        >
+          <div id={EXPENSES_BREAKDOWN_ID} hidden={!breakdownVisible}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {stats.byCompanyGroup && Object.keys(stats.byCompanyGroup as Record<string, number>).length > 0 && (
               <div className="expx-breakdown">
@@ -394,6 +414,7 @@ export default function Expenses() {
                   ))}
               </div>
             )}
+          </div>
           </div>
         </SectionCard>
       )}

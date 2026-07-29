@@ -1128,7 +1128,7 @@ export default function Cheques() {
                           aria-label={t('a11y.cheque_select_row', { number: r.chequeNumber })}
                         />
                       </td>
-                      <td><span className="chqx-mono chqx-cheque-id"><strong>{r.chequeNumber}</strong></span></td>
+                      <td><span className={`chqx-mono chqx-cheque-id chqx-num--${(STATUS_META[r.status] ?? { tone: 'neutral' as Tone }).tone}`}><strong>{r.chequeNumber}</strong></span></td>
                       <td><strong className="chqx-beneficiary-cell" title={r.beneficiaryName}>{r.beneficiaryName}</strong></td>
                       <td>{bankLabel(r.bankName, t)}</td>
                       <td><span className="chqx-amount">{fmtAmount(r.amount, r.currency)}</span></td>

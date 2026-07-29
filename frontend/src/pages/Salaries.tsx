@@ -525,7 +525,7 @@ export default function Salaries() {
                             </td>
                           )}
                           <td>
-                            <strong>{r.employee?.fullName}</strong>
+                            <strong className={`salx-name--${imported ? 'neutral' : (STATUS_TONE[r.status] ?? 'neutral')}`}>{r.employee?.fullName}</strong>
                             {imported && <span style={{ marginInlineStart: 8, verticalAlign: 'middle' }}><StatusChip tone="indigo" icon="history">{t('status.imported_transfer')}</StatusChip></span>}
                           </td>
                           <td style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{r.month}/{r.year}</td>
