@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `8f8990de` — release `stable-ready-paper-logo-tint-generalization-v1` (Ready-Paper Logo Tint Generalization v1 — the Salary Certificate ready-paper logo tint now applies centrally, in FormLayout, to every form on the `ready-paper` print profile, keyed off the same `PRINT_PROFILES.logoHeader` flag that already gates the overlay header; no other profile affected) |
+| **Production HEAD** | `8de53ed3` — release `stable-customer-drawer-prices-board-equipment-data-pack-v1` (bundles three separately-approved changes: Customer Drawer English-name display fix; Prices page "لوحة الاتفاقيات" show/hide toggle; Equipment Data Pack v1 — chassisNumber/color fields, النوع→الشكل relabel, import/export support, and a page-1 + remaining-days-ascending default sort on every app restart) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-ready-paper-logo-tint-generalization-v1` (release date 2026-07-29) → merge `8f8990de` |
-| **Previous stable tag** | `stable-branding-designer-rotation-v1` (2026-07-29) → merge `67afa7ac` |
-| **Total stable releases** | 375 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · `build:front` ✅ (both run twice — on the feature branch before commit and on `production` immediately after the merge — byte-identical chunk hashes) · backend/electron/Prisma untouched by this release (frontend-only change, no schema/backend/IPC) — not re-run, per explicit instruction to run only the release checks the change actually warrants · targeted `readyPaperGeneralization.test.tsx`, 19/19 passing (3 new logo-tint tests + 16 pre-existing profile-isolation tests, re-run unchanged) · full frontend suite not re-run this release (no shared code beyond the reviewed FormLayout/FormHeader delta changed since its last full run) · Product Owner manual visual review — **completed & approved** · scope review confirmed only the 4 package files (plus 1 test file) entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded |
-| **Remote sync** | `origin/production` — pushed with this release (merge `8f8990de` + tag `stable-ready-paper-logo-tint-generalization-v1`) |
+| **Latest stable tag** | `stable-customer-drawer-prices-board-equipment-data-pack-v1` (release date 2026-07-29) → merge `8de53ed3` |
+| **Previous stable tag** | `stable-ready-paper-logo-tint-generalization-v1` (2026-07-29) → merge `8f8990de` |
+| **Total stable releases** | 376 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
+| **Latest validation** | backend + frontend `tsc --noEmit` ✅ · `build:back` + `build:front` ✅ (all four run twice — on the feature branch before commit and on `production` immediately after the merge — identical results) · `prisma migrate status` clean (49 migrations, schema up to date) after applying the new additive `20260729160000_equipment_chassis_color` migration · targeted tests only, re-run unchanged post-merge: backend `equipment` + `import` suites 54/54 ✅, frontend `explorerHubPrimitives`/`explorerHubs`/`equipmentTableDefaults`/`pricesAgreementsBoardToggle` 35/35 ✅ (89/89 total) · full suites not re-run this release, per explicit instruction to run only the necessary Release Gates for changes already individually validated earlier in the session · Product Owner manual visual review — **completed & approved** for all three changes · scope review confirmed only the 25 package files entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded |
+| **Remote sync** | `origin/production` — pushed with this release (merge `8de53ed3` + tag `stable-customer-drawer-prices-board-equipment-data-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,35 @@ in a table cell.
 
 ---
 
-## Latest Release — Ready-Paper Logo Tint Generalization v1
+## Latest Release — Customer Drawer / Prices Board / Equipment Data Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Customer Drawer EN-name fix + Prices Agreements Board toggle + Equipment Data Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-29 |
+| **Feature branch** | `feature/customer-drawer-prices-board-equipment-data-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `e9a26ae4` (previous release's final documentation commit) |
+| **Checkpoint tag** | `pre-customer-drawer-prices-board-equipment-data-pack-v1` → `e9a26ae4` |
+| **Feature commit** | `09e2fa28` |
+| **Production merge commit** | `8de53ed3` |
+| **Stable tag** | `stable-customer-drawer-prices-board-equipment-data-pack-v1` → merge `8de53ed3` (annotated) |
+| **Reviews** | Product Owner manual visual review — **completed & approved** for all three changes prior to this release request |
+| **Validation** | backend + frontend `tsc --noEmit` ✅ · `build:back` + `build:front` ✅ — re-verified on `production` immediately after merge, identical results · `prisma migrate status` clean after applying `20260729160000_equipment_chassis_color` · targeted tests 89/89 ✅ — backend `equipment`+`import` (54: service/sort/validator/warnings suites) and frontend `explorerHubPrimitives`/`explorerHubs`/`equipmentTableDefaults`/`pricesAgreementsBoardToggle` (35), all re-run unchanged post-merge · full test suites and unrelated previously-verified checks intentionally not re-run this release, per explicit scope instruction |
+
+**Scope — three independently-approved changes, bundled into one release:**
+
+1. **Customer Drawer English-name fix.** "اسم العميل (بالإنجليزي)" was wrapping mid-word (`National` → `Nation`/`al`) inside a half-width cell of the drawer's two-column info grid. `DrawerInfoGrid`/`DrawerField` (`ExplorerKit.tsx`) gain an opt-in `ltr` flag: the value renders `dir="ltr"`, spans the drawer's full width (`grid-column: 1 / -1`), and wraps only between words (`word-break: normal`). `hubTypes.buildInfoItems` flags any `nameEn`/`*NameEn` field automatically — no per-module wiring. No other drawer field, module, or layout touched.
+
+2. **Prices page — "لوحة الاتفاقيات" show/hide toggle.** A single button in the existing `SectionCard` header `actions` slot toggles the agreements-board mini-table's visibility; the choice persists in `localStorage['manarERP.prices.agreementsBoard']` across app restarts (default: shown). The mini-table's own columns, data, and tab set are untouched; every other part of the Prices page is unaffected.
+
+3. **Equipment Data Pack v1.** Adds `chassisNumber` ("رقم القاعدة") and `color` ("اللون") as new optional `Equipment` columns (additive migration `20260729160000_equipment_chassis_color` — two nullable `TEXT` columns, no destructive change); surfaces the pre-existing but previously-hidden `manufacturer`/`manufactureYear` ("الصنع"/"سنة الصنع") in the table, create/edit dialog, and drawer; relabels the "type" column from "النوع" to "الشكل" (**display-only** — same `type` field, same index, same stored values). Import template and header-matching aliases updated for all four fields (old import files without them still validate — the fields are optional and header aliases for "نوع المعدة"/"شكل المعدة" both resolve to the same `type` key). Excel export report gains the four columns and the "الشكل" header. Separately, the equipment table now always opens on **page 1**, sorted by **"المدة الباقية" ascending**, on every fresh app run — implemented via a new `ModuleConfig.defaultSort` fallback in `useTableSort`, and a one-time per-run reset (`runStartUIState.ts`) that clears only the equipment page/sort `localStorage` keys, gated by a `sessionStorage` flag so mid-session user changes to page/sort are never touched and no other module's persisted UI state is affected. `regRemaining`'s sort maps to the same `registrationExpiry` field the remaining-days figure is itself computed from — no parallel calculation.
+
+**Not changed:** employees table/drawer (a read-only audit was performed in the same review cycle per user request; zero employees code was modified as a result); any other Prices/Equipment/Customer business logic, permission, or route; Google Drive Deployment Pack in-progress working-tree edits (`.gitignore`, `electron-builder.yml`, `electron/services/googleDriveAuth.service.ts`, and untracked `electron/__tests__/`, `electron/resources/`, `electron/services/__tests__/googleDriveClientConfig.pure.test.ts`, `electron/services/googleDriveClientConfig.pure.ts`) — surgically excluded from every commit in this release, confirmed still uncommitted after merge; pre-existing unrelated git stashes — confirmed untouched.
+
+---
+
+## Previous Release — Ready-Paper Logo Tint Generalization v1
 
 | Field | Value |
 |-------|-------|

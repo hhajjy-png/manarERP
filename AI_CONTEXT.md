@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `8f8990de` (merge of `feature/ready-paper-logo-tint-generalization-v1`, carrying Ready-Paper Logo Tint Generalization v1) |
-| **Current Documentation Commit** | `a3ed682` |
-| **Current Stable Tag** | `stable-ready-paper-logo-tint-generalization-v1` |
+| **Current Merge Commit** | `8de53ed3` (merge of `feature/customer-drawer-prices-board-equipment-data-pack-v1`, carrying Customer Drawer EN-name fix + Prices Agreements Board toggle + Equipment Data Pack v1) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-customer-drawer-prices-board-equipment-data-pack-v1` |
 | **Current Release Date** | 2026-07-29 |
-| **Total Stable Releases** | 375 (window 2026-06-07 → 2026-07-29) |
+| **Total Stable Releases** | 376 (window 2026-06-07 → 2026-07-29) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,34 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Customer Drawer / Prices Board / Equipment Data Pack v1** (2026-07-29,
+  `stable-customer-drawer-prices-board-equipment-data-pack-v1`) — bundles three separately
+  visually-approved changes into one release. **(1) Customer Drawer:** fixes "اسم العميل
+  (بالإنجليزي)" wrapping mid-word (`National` → `Nation`/`al`) inside the drawer's two-column info
+  grid — `DrawerInfoGrid`/`DrawerField` gain an opt-in `ltr` flag (LTR direction, full drawer width,
+  word-only wrapping), auto-applied by `hubTypes.buildInfoItems` to any `nameEn`/`*NameEn` field; no
+  other field or module affected. **(2) Prices page:** adds a show/hide toggle for the "لوحة
+  الاتفاقيات" table only, via the existing `SectionCard` actions slot — no new component; the
+  choice persists in `localStorage['manarERP.prices.agreementsBoard']` across app restarts; the
+  mini-table's own data/columns/tabs are untouched. **(3) Equipment Data Pack v1:** adds
+  `chassisNumber`/`color` ("رقم القاعدة"/"اللون") as new optional `Equipment` fields (additive
+  migration `20260729160000_equipment_chassis_color`); surfaces the pre-existing but previously
+  hidden `manufacturer`/`manufactureYear` ("الصنع"/"سنة الصنع") end-to-end; relabels "النوع" to
+  "الشكل" (display-only — same `type` field/index/values); updates the import template, header-
+  matching aliases, and Excel export for all four fields, with old import files (missing the new
+  optional columns) still validating unchanged. Separately, the equipment table now always opens on
+  **page 1**, sorted by **"المدة الباقية" ascending**, on every fresh app run — a new
+  `ModuleConfig.defaultSort` fallback in `useTableSort` plus a one-time per-run `localStorage` reset
+  (`runStartUIState.ts`) gated by a `sessionStorage` flag, so mid-session user page/sort changes and
+  every other module's persisted UI state are untouched; `regRemaining` sorts on the very
+  `registrationExpiry` field the remaining-days figure is computed from — no parallel calculation.
+  An employees table/drawer field audit performed in the same review cycle was read-only; zero
+  employees code changed. Feature commit `09e2fa28`, merge `8de53ed3`. Validation: backend +
+  frontend `tsc --noEmit` ✅ · `build:back` + `build:front` ✅, both re-verified on `production`
+  post-merge with identical results · `prisma migrate status` clean · targeted tests 89/89 passing
+  (backend equipment+import 54, frontend explorerHub/prices-toggle/equipment-defaults 35) · Product
+  Owner manual visual review: approved for all three changes.
 
 - **Ready-Paper Logo Tint Generalization v1** (2026-07-29,
   `stable-ready-paper-logo-tint-generalization-v1`) — generalizes a prior Salary-Certificate-only
