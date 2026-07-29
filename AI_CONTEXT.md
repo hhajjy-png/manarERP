@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `7408fa05` (merge of `feature/employee-entitlements-core-statement-v1`, carrying Employee Entitlements Core, Statement & Final Settlement v1) |
-| **Current Documentation Commit** | `5066774d` |
-| **Current Stable Tag** | `stable-employee-entitlements-final-settlement-v1` |
+| **Current Merge Commit** | `f59c5477` (merge of `feature/administrative-forms-english-translation-completion-v1`, carrying Administrative Forms English Translation Completion v1) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-administrative-forms-english-translation-completion-v1` |
 | **Current Release Date** | 2026-07-29 |
-| **Total Stable Releases** | 370 (window 2026-06-07 → 2026-07-29) |
+| **Total Stable Releases** | 371 (window 2026-06-07 → 2026-07-29) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,36 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Administrative Forms English Translation Completion v1** (2026-07-29,
+  `stable-administrative-forms-english-translation-completion-v1`) — closes a real gap: switching an
+  administrative/HR print form to English translated static labels only, leaving dynamic business
+  values (Job Title, Department, Nationality, Certificate Purpose) displayed in Arabic — e.g. Job
+  Title `سائق شاحنة` / Department `السائقين` stayed Arabic under English labels. A single centralized
+  resolver (`frontend/src/lib/businessTerms.ts`, `resolveBusinessTerm()`, consumed via
+  `useBusinessTerms()` from `stores/settingsStore.ts`) now serves all of them: Arabic mode always
+  shows the stored value; English mode resolves the configured translation from Company Settings;
+  a missing translation falls back to the stored Arabic value verbatim — never invented at print
+  time, no per-form translation map. 9 forms migrated: Leave Request, Return to Work, Resignation,
+  Salary Advance, Employee Warning, Performance Evaluation, Salary Certificate, To Whom It May
+  Concern, Purchase Request. **Dictionary architecture:** extends the existing Company Settings
+  dictionary mechanism (`Setting` table, JSON `{arabic: english}`) under 4 new additive keys
+  (`dict.forms.nationalities`/`jobTitles`/`departments`/`certificatePurposes`) — no Prisma migration,
+  no destructive change to any existing row. **Employment Contract isolation (data and code, both
+  directions):** `businessTerms.ts` does not import `contractTranslations.ts` and owns its own seed
+  dictionaries, distinct from the contract's `BASE_JOB_TITLE_EN`/`BASE_NATIONALITY_EN` (different
+  casing convention by design). `EmploymentContractTemplate.tsx` and `EmploymentContract.tsx` are
+  byte-for-byte unmodified; its dictionary keys (`dict.nationalities`/`dict.jobTitles`) and
+  `applyTranslationOverrides()` load-on-mount behavior are untouched. Company Settings' "قاموس
+  الترجمة" section now shows two clearly labeled, fully isolated groups on the same shared
+  `DictTable` editor — Administrative Forms and Employment Contract — editing one never affects the
+  other, guarded by `employmentContractExclusionGuard.test.ts` (11 tests, including explicit
+  bidirectional-isolation cases) plus 44 more tests across the resolver and form-rendering suites,
+  all new and passing. Feature commit `a2ded11`, merge `f59c5477`. Validation:
+  frontend/backend/electron `tsc --noEmit`, Prisma `validate`, `build:front`/`build:back`, backend
+  suite 138 files/2009 tests, frontend suite 2146 tests (25 pre-existing failures across 6 unrelated
+  files — identical to the pre-pack baseline, zero new regressions), all re-verified on `production`
+  immediately after merge. Product Owner manual visual review: **APPROVED**.
 
 - **Employee Entitlements Core, Statement & Final Settlement v1** (2026-07-29,
   `stable-employee-entitlements-final-settlement-v1`) — a four-session build-out landing as one
